@@ -33,7 +33,9 @@ export function OptionRow({ option, expanded, selected, onToggleExpanded, onSele
           fontSize: 12, fontWeight: 900, marginRight: 8,
         }}>{option.id.toUpperCase()}</span>
         <span style={{ flex: 1, color: '#fff', fontSize: 12, fontWeight: 700 }}>{option.label || '(no label)'}</span>
-        <span style={{ color: '#94a3b8', fontSize: 10, marginRight: 8 }}>{option.outcome.trajectory.style}</span>
+        <span style={{ color: option.outcome.trajectory ? '#94a3b8' : '#475569', fontSize: 10, marginRight: 8, fontStyle: option.outcome.trajectory ? 'normal' : 'italic' }}>
+          {option.outcome.trajectory ? option.outcome.trajectory.style : 'no trajectory'}
+        </span>
         <button onClick={(e) => { e.stopPropagation(); onSetCorrect() }}
           style={{ background: 'transparent', border: `1px solid ${option.isCorrect ? '#22c55e' : '#475569'}`, color: option.isCorrect ? '#22c55e' : '#94a3b8', borderRadius: 4, padding: '2px 6px', fontSize: 9, fontWeight: 800, cursor: 'pointer' }}
         >{option.isCorrect ? 'CORRECT' : 'mark correct'}</button>
@@ -56,22 +58,65 @@ export function OptionRow({ option, expanded, selected, onToggleExpanded, onSele
             <input value={option.direction} onChange={e => update('direction', e.target.value)} placeholder="e.g. Cross-court slice"
               style={inputStyle} />
           </Field>
-          <Field label="Trajectory style">
-            <TrajectoryStylePicker value={option.outcome.trajectory.style}
-              onChange={s => onChange({ ...option, outcome: { ...option.outcome, trajectory: { ...option.outcome.trajectory, style: s } } })} />
+          {/* Inline TRAJECTORY toggle — same control as the bottom-bar pill,
+              available here so authors can hide/show the flight line without
+              leaving the form drawer. */}
+          <Field label="Trajectory line">
+            <button
+              onClick={() => {
+                if (option.outcome.trajectory) {
+                  // Hide trajectory for this option
+                  const { trajectory: _t, ...rest } = option.outcome
+                  onChange({ ...option, outcome: rest })
+                } else {
+                  // Re-enable with a sensible default — flat shot from court
+                  // centre to the option's letter position
+                  onChange({
+                    ...option,
+                    outcome: {
+                      ...option.outcome,
+                      trajectory: { from: [50, 65], to: [option.letter.x, option.letter.y], style: 'flat' },
+                    },
+                  })
+                }
+              }}
+              style={{
+                background: option.outcome.trajectory ? '#22c55e' : '#1a1a2e',
+                border: `1px solid ${option.outcome.trajectory ? '#15803d' : '#2a2a3e'}`,
+                color: option.outcome.trajectory ? '#0a0a14' : '#fde047',
+                borderRadius: 6, padding: '5px 12px', fontSize: 10, fontWeight: 800, cursor: 'pointer',
+                width: '100%', textAlign: 'left',
+              }}
+            >
+              {option.outcome.trajectory ? 'ON — click to hide' : 'OFF — click to add a trajectory'}
+            </button>
           </Field>
-          <Field label="Letter position (0–100)">
-            <CoordRow x={option.letter.x} y={option.letter.y}
-              onChange={(x, y) => onChange({ ...option, letter: { x, y } })} />
-          </Field>
-          <Field label="Trajectory from (0–100)">
-            <CoordRow x={option.outcome.trajectory.from[0]} y={option.outcome.trajectory.from[1]}
-              onChange={(x, y) => onChange({ ...option, outcome: { ...option.outcome, trajectory: { ...option.outcome.trajectory, from: [x, y] } } })} />
-          </Field>
-          <Field label="Trajectory to (ball landing, 0–100)">
-            <CoordRow x={option.outcome.trajectory.to[0]} y={option.outcome.trajectory.to[1]}
-              onChange={(x, y) => onChange({ ...option, outcome: { ...option.outcome, trajectory: { ...option.outcome.trajectory, to: [x, y] }, ball: { x, y } } })} />
-          </Field>
+          {/* Trajectory body — only when this option has a trajectory */}
+          {option.outcome.trajectory ? (
+            <>
+              <Field label="Trajectory style">
+                <TrajectoryStylePicker value={option.outcome.trajectory.style}
+                  onChange={s => onChange({ ...option, outcome: { ...option.outcome, trajectory: { ...option.outcome.trajectory!, style: s } } })} />
+              </Field>
+              <Field label="Letter position (0–100)">
+                <CoordRow x={option.letter.x} y={option.letter.y}
+                  onChange={(x, y) => onChange({ ...option, letter: { x, y } })} />
+              </Field>
+              <Field label="Trajectory from (0–100)">
+                <CoordRow x={option.outcome.trajectory.from[0]} y={option.outcome.trajectory.from[1]}
+                  onChange={(x, y) => onChange({ ...option, outcome: { ...option.outcome, trajectory: { ...option.outcome.trajectory!, from: [x, y] } } })} />
+              </Field>
+              <Field label="Trajectory to (ball landing, 0–100)">
+                <CoordRow x={option.outcome.trajectory.to[0]} y={option.outcome.trajectory.to[1]}
+                  onChange={(x, y) => onChange({ ...option, outcome: { ...option.outcome, trajectory: { ...option.outcome.trajectory!, to: [x, y] }, ball: { x, y } } })} />
+              </Field>
+            </>
+          ) : (
+            <Field label="Letter position (0–100)">
+              <CoordRow x={option.letter.x} y={option.letter.y}
+                onChange={(x, y) => onChange({ ...option, letter: { x, y } })} />
+            </Field>
+          )}
           <Field label="Player overrides (rare — e.g. YOU moves up to take the net)">
             <PlayerOverridesEditor overrides={option.outcome.playerOverrides ?? []}
               onChange={ov => onChange({ ...option, outcome: { ...option.outcome, playerOverrides: ov.length ? ov : undefined } })} />

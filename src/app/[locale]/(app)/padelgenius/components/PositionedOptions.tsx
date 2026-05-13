@@ -17,7 +17,9 @@ export interface PositionedOptionsProps {
 const ROTATIONS: Record<OptionId, number> = { a: -4, b: 6, c: -3, d: 5 }
 
 const PILL_MIN_W_LABEL = 76
-const PILL_W_CONFIRM = 70
+// Confirm is a round check-mark button instead of a "CONFIRM" pill — saves
+// horizontal space so the label pill can breathe next to the letter.
+const CONFIRM_RADIUS = 16
 const PILL_GAP = 4
 const PILL_PADDING_X = 8
 const PILL_CHAR_WIDTH_EST = 6.6
@@ -167,10 +169,9 @@ function SelectionPillRow({
   onConfirm: () => void
 }) {
   const [pulsing, setPulsing] = useState(false)
-  // I4: removed no-op `const labelText = label` — use label directly
-  // I1: magic numbers replaced with named constants
+  // Label pill on the left, round green check button on the right.
   const labelW = Math.max(PILL_MIN_W_LABEL, label.length * PILL_CHAR_WIDTH_EST) + PILL_PADDING_X
-  const confirmW = PILL_W_CONFIRM
+  const confirmW = CONFIRM_RADIUS * 2
   const gap = PILL_GAP
   const total = labelW + gap + confirmW
   return (
@@ -178,7 +179,6 @@ function SelectionPillRow({
       {/* label pill */}
       <g transform={`translate(${-total / 2 + labelW / 2} 0)`} pointerEvents="none">
         <rect x={-labelW / 2} y={-12} width={labelW} height={26} rx={13} fill="#1E88E5" stroke="#1A1A2E" strokeWidth={3} />
-        {/* I5: explicit vertical centering with dominantBaseline; direction shifts label up slightly */}
         <text y={direction ? -3 : 0} textAnchor="middle" dominantBaseline="middle" fill="#fff" fontSize={11} fontWeight={900}>{label}</text>
         {direction && (
           <text y={8} textAnchor="middle" fill="rgba(255,255,255,0.85)" fontSize={8} fontWeight={700}>
@@ -186,8 +186,7 @@ function SelectionPillRow({
           </text>
         )}
       </g>
-      {/* confirm pill — plain CONFIRM text, no emoji */}
-      {/* B3: stopPropagation lives here; onConfirm called without event arg */}
+      {/* Round confirm button — green disc with chunky cartoon check */}
       <g
         transform={`translate(${total / 2 - confirmW / 2} 0)`}
         style={{ cursor: 'pointer' }}
@@ -198,25 +197,25 @@ function SelectionPillRow({
           onConfirm()
         }}
       >
-        {/* outward pulse ring — drawn behind the button rect */}
+        {/* Outward pulse ring on confirm */}
         {pulsing && (
           <circle
-            r={20}
+            r={CONFIRM_RADIUS + 4}
             fill="none"
             stroke="#22C55E"
             strokeWidth={2.5}
             style={{ animation: 'pg-pulse-once 300ms ease-out forwards', transformOrigin: 'center' }}
           />
         )}
-        <rect x={-confirmW / 2} y={-12} width={confirmW} height={26} rx={13} fill="#22C55E" stroke="#1A1A2E" strokeWidth={3} />
-        <text y={4} textAnchor="middle" fill="#0a0a14" fontSize={11} fontWeight={900} letterSpacing={0.8}>
-          CONFIRM
-        </text>
-        {/* inline tick glyph positioned to the right of the text */}
+        {/* Hard drop shadow for the cartoon punch */}
+        <circle cx={1.4} cy={2.2} r={CONFIRM_RADIUS} fill="rgba(10,10,20,0.45)" />
+        {/* Main disc — navy outline + green fill */}
+        <circle r={CONFIRM_RADIUS} fill="#22C55E" stroke="#1A1A2E" strokeWidth={3} />
+        {/* Chunky check mark */}
         <path
-          d="M 20 -1 L 22 2 L 26 -3"
+          d="M -6 0 L -2 4 L 6 -4"
           stroke="#0a0a14"
-          strokeWidth={2}
+          strokeWidth={3.5}
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"

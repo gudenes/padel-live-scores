@@ -9,18 +9,26 @@ export interface DragHandleProps {
   x: number
   y: number
   bounds: CourtBounds
-  /** Visual radius in SVG units */
+  /** Visual radius in SVG units (default circle render only) */
   radius?: number
-  fill: string
+  fill?: string
   stroke?: string
   label?: string
   /** Called continuously while dragging, with new normalized coords */
   onChange: (x: number, y: number) => void
   /** SVG element ref of the parent svg (needed to map clientX/Y -> svg coords) */
   svgRef: React.RefObject<SVGSVGElement | null>
+  /**
+   * Optional custom render. When provided, replaces the default circle+label.
+   * Receives the projected SVG-space coords. Wrap returned content in an SVG element
+   * (e.g. `<g>`, `<image>`) — it's mounted inside the drag-aware outer group.
+   */
+  renderHandle?: (px: number, py: number) => React.ReactNode
+  /** Hit-area radius in SVG units. Defaults to `radius + 8`. */
+  hitRadius?: number
 }
 
-export function DragHandle({ x, y, bounds, radius = 6, fill, stroke = '#1a1a2e', label, onChange, svgRef }: DragHandleProps) {
+export function DragHandle({ x, y, bounds, radius = 6, fill = '#fff', stroke = '#1a1a2e', label, onChange, svgRef, renderHandle, hitRadius }: DragHandleProps) {
   const draggingRef = useRef(false)
   const [px, py] = toSvg(x, y, bounds)
 
@@ -46,6 +54,8 @@ export function DragHandle({ x, y, bounds, radius = 6, fill, stroke = '#1a1a2e',
     try { e.currentTarget.releasePointerCapture(e.pointerId) } catch {}
   }
 
+  const hr = hitRadius ?? radius + 8
+
   return (
     <g
       onPointerDown={start}
@@ -54,9 +64,16 @@ export function DragHandle({ x, y, bounds, radius = 6, fill, stroke = '#1a1a2e',
       onPointerCancel={end}
       style={{ cursor: 'grab', touchAction: 'none' }}
     >
-      <circle cx={px} cy={py} r={radius + 8} fill="transparent" /> {/* hit area */}
-      <circle cx={px} cy={py} r={radius} fill={fill} stroke={stroke} strokeWidth={2} />
-      {label && <text x={px} y={py + 3} textAnchor="middle" fontSize={9} fontWeight={900} fill="#fff" stroke="#000" strokeWidth={0.6} paintOrder="stroke">{label}</text>}
+      {/* Invisible hit area — keeps the tap target generous regardless of visual size */}
+      <circle cx={px} cy={py} r={hr} fill="transparent" />
+      {renderHandle ? (
+        renderHandle(px, py)
+      ) : (
+        <>
+          <circle cx={px} cy={py} r={radius} fill={fill} stroke={stroke} strokeWidth={2} />
+          {label && <text x={px} y={py + 3} textAnchor="middle" fontSize={9} fontWeight={900} fill="#fff" stroke="#000" strokeWidth={0.6} paintOrder="stroke">{label}</text>}
+        </>
+      )}
     </g>
   )
 }
