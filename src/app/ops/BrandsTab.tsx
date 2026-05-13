@@ -257,6 +257,7 @@ export default function BrandsTab() {
       setShowBrandForm(false)
       setEditingBrandId(null)
       setBrandForm(emptyBrandForm())
+      setUploadingBrand(false)
       await fetchBrands()
     } catch (err: unknown) {
       setBrandMessage(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -306,6 +307,7 @@ export default function BrandsTab() {
       setShowRacketForm(false)
       setEditingRacketId(null)
       setRacketForm(emptyRacketForm())
+      setUploadingRacket(false)
       await fetchRackets()
       await fetchBrands() // refresh racket counts
     } catch (err: unknown) {
@@ -351,6 +353,7 @@ export default function BrandsTab() {
     setEditingBrandId(null)
     setBrandForm(emptyBrandForm())
     setBrandMessage(null)
+    setUploadingBrand(false)
   }
 
   const cancelRacketForm = () => {
@@ -358,6 +361,7 @@ export default function BrandsTab() {
     setEditingRacketId(null)
     setRacketForm(emptyRacketForm())
     setRacketMessage(null)
+    setUploadingRacket(false)
   }
 
   // ── Render ────────────────────────────────────────────────────
