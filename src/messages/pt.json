@@ -33,8 +33,8 @@
     "_resetFilters_context": "Button label on the filtered-empty card. Tapping it calls reset() — restores defaults (all leagues, both categories, all statuses).",
     "liveToast": {
       "title": "Nenhuma partida ao vivo no momento",
-      "sub": "Volte quando os jogos começarem.",
-      "_context": "Snackbar shown for ~3s when the user taps the LIVE pill but no match anywhere is currently in-play. Title is the headline, sub is the supporting line. Neither should imply the data failed — the data is fine, there's just nothing live this moment."
+      "sub": "Segue um jogador ou guarda um jogo para saberes quando começar.",
+      "_context": "Inline hint sheet shown for ~4.5s when the user taps the LIVE pill but no match anywhere is currently in-play. Title is the uppercase accent label, sub is the supporting line below it. Neither should imply the data failed — the data is fine, there's just nothing live this moment. The sub nudges the user toward the follow/bookmark affordance (which surfaces a push notification when the followed/bookmarked entity goes live). Vocabulary: padelnachos says 'follow a player' and 'bookmark a match' — do not swap these verbs."
     },
     "loadMore": "Carregar mais ({count} restantes)",
     "viewPreviousSeasons": "Ver temporadas anteriores",
