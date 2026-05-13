@@ -2,7 +2,7 @@
 'use client'
 import type { Question, OptionId, PlayerPosition, Outcome } from '@/lib/padelgenius/types'
 import { toSvg, playerScale, W, H } from '@/lib/padelgenius/projection'
-import { DEFAULT_COURT } from '@/lib/padelgenius/default-court'
+import { useActiveCourt } from './ActiveCourtProvider'
 import { PlayerSprite, PLAYER_SPRITE_URLS } from './PlayerSprite'
 import { BallSprite } from './BallSprite'
 import { TrajectoryRenderer } from './TrajectoryRenderer'
@@ -19,8 +19,9 @@ export interface SceneProps {
 }
 
 export function Scene({ question, phase, selectedId, pickedId, onSelect, onConfirm }: SceneProps) {
-  const bounds = DEFAULT_COURT.bounds
-  const vs = DEFAULT_COURT.visualSystem
+  const court = useActiveCourt()
+  const bounds = court.bounds
+  const vs = court.visualSystem
   const correctOpt = question.options.find(o => o.isCorrect)!
   const correctId = correctOpt.id
   const revealing = phase === 'revealing'
@@ -49,7 +50,45 @@ export function Scene({ question, phase, selectedId, pickedId, onSelect, onConfi
   return (
     <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: '100%', display: 'block' }}>
       {/* Court image */}
-      <image href={DEFAULT_COURT.imageUrl} x={0} y={0} width={W} height={H} preserveAspectRatio="xMidYMid slice" />
+      <image href={court.imageUrl} x={0} y={0} width={W} height={H} preserveAspectRatio="xMidYMid slice" />
+
+      {/* Branding overlays — sit on court surface, under players */}
+      {court.branding.backWall && (
+        <image
+          href={court.branding.backWall.logoUrl}
+          x={W * 0.18} y={H * 0.13} width={W * 0.64} height={H * 0.07}
+          preserveAspectRatio="xMidYMid meet"
+          opacity={1}
+        />
+      )}
+      {court.branding.sideGlassLeft && (
+        <image
+          href={court.branding.sideGlassLeft.logoUrl}
+          x={W * 0.02} y={H * 0.45} width={W * 0.16} height={H * 0.06}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
+      {court.branding.sideGlassRight && (
+        <image
+          href={court.branding.sideGlassRight.logoUrl}
+          x={W * 0.82} y={H * 0.45} width={W * 0.16} height={H * 0.06}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
+      {court.branding.netBand && (
+        <image
+          href={court.branding.netBand.logoUrl}
+          x={W * 0.10} y={H * 0.50} width={W * 0.80} height={H * 0.02}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
+      {court.branding.floorCenter && (
+        <image
+          href={court.branding.floorCenter.logoUrl}
+          x={W * 0.40} y={H * 0.65} width={W * 0.20} height={W * 0.20}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
 
       {/* Players — sorted by depth so far players draw first */}
       {sortedPlayers.map(p => {

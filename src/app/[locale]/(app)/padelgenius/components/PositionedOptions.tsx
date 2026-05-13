@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import type { QuestionOption, OptionId } from '@/lib/padelgenius/types'
 import { toSvg } from '@/lib/padelgenius/projection'
-import { DEFAULT_COURT } from '@/lib/padelgenius/default-court'
+import { useActiveCourt } from './ActiveCourtProvider'
 
 export interface PositionedOptionsProps {
   options: QuestionOption[]
@@ -57,10 +57,11 @@ function StatusBadge({ state, offsetY }: { state: 'correct' | 'wrong'; offsetY: 
 }
 
 export function PositionedOptions({ options, phase, selectedId, correctId, onSelect, onConfirm }: PositionedOptionsProps) {
-  const bounds = DEFAULT_COURT.bounds
+  const court = useActiveCourt()
+  const bounds = court.bounds
   const revealed = phase === 'revealing'
   // Pull letter radius from visualSystem — user feedback: default 22 was too large
-  const r = DEFAULT_COURT.visualSystem.letterRadius
+  const r = court.visualSystem.letterRadius
   const reducedMotion = useReducedMotion() // I3
 
   return (

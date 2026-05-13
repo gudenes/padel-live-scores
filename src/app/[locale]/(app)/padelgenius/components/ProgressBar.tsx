@@ -1,5 +1,5 @@
 'use client'
-import { DEFAULT_COURT } from '@/lib/padelgenius/default-court'
+import { useActiveCourt } from './ActiveCourtProvider'
 
 export interface ProgressBarProps {
   total: number      // e.g. 5
@@ -8,7 +8,8 @@ export interface ProgressBarProps {
 }
 
 export function ProgressBar({ total, current, history }: ProgressBarProps) {
-  const tilt = DEFAULT_COURT.visualSystem.progressBarTilt
+  const court = useActiveCourt()
+  const tilt = court.visualSystem.progressBarTilt
   return (
     <div
       aria-label="Lesson progress"
