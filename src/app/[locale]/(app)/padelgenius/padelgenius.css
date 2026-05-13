@@ -17,3 +17,7 @@
 @media (prefers-reduced-motion: reduce) {
   .pg-no-motion-reduce, .pg-no-motion-reduce * { animation-duration: 0ms !important; animation-iteration-count: 1 !important; transition-duration: 80ms !important; }
 }
+@keyframes pg-sheet-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
