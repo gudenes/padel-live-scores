@@ -24,13 +24,16 @@ const PILL_CHAR_WIDTH_EST = 6.6
 const PILL_MIN_W_REVEAL = 70
 const BADGE_RADIUS = 7
 
-// I3: hook to respect prefers-reduced-motion in JS (inline style overrides CSS media queries)
+// I3: hook to respect prefers-reduced-motion in JS (inline style overrides CSS media queries).
+// Lazy useState initializer reads the current media query at mount; useEffect handles changes.
 function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false)
+  const [reduced, setReduced] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  })
   useEffect(() => {
     if (typeof window === 'undefined' || !window.matchMedia) return
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
-    setReduced(mq.matches)
     const handler = (e: MediaQueryListEvent) => setReduced(e.matches)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)

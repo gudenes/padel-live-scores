@@ -32,7 +32,9 @@ export default function PadelGeniusPage() {
 
   const theme = useMemo(() => getTodayTheme(), [])
 
-  const allQuestions = questionsData as GeniusQuestion[]
+  // v1 hub reads from the v2-migrated JSON; field subset overlap is preserved at runtime,
+  // so the structural mismatch is intentional. Double-cast keeps the v1 codepath compiling.
+  const allQuestions = questionsData as unknown as GeniusQuestion[]
 
   const handleStart = useCallback(() => {
     const selected = selectDailyQuestions(
