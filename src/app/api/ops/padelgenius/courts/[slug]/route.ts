@@ -43,6 +43,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     zones: { ...existing.zones, ...(body.zones ?? {}) },
     visualSystem: { ...existing.visualSystem, ...(body.visualSystem ?? {}) },
     branding: { ...existing.branding, ...(body.branding ?? {}) },
+    trajectoryAssets: { ...(existing.trajectoryAssets ?? {}), ...(body.trajectoryAssets ?? {}) },
+    trajectoryOverrides: { ...(existing.trajectoryOverrides ?? {}), ...(body.trajectoryOverrides ?? {}) },
   }
   await fs.writeFile(file, JSON.stringify(merged, null, 2) + '\n')
   return NextResponse.json({ slug, config: merged })
