@@ -14,16 +14,18 @@
 // Response: { daysWithMatches: string[], maxScheduledIso: string|null,
 //             todayIso: string }
 //
-// Cache: 5 minutes — the calendar moves slowly (matches get scheduled
-// hours/days in advance, not minutes), so the longer TTL is fine and
-// keeps the request count down on the day-picker hot path.
+// Cache: 30 seconds. Originally 5 min — fine for the day-picker boundary
+// alone — but the payload now carries `hasLiveNow`, which gates the LIVE
+// pill's tap-vs-toast decision. A 5-minute cache means a user could tap
+// LIVE four minutes after a match starts and still see "no live matches"
+// — which is worse than the bandwidth saved.
 
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { fetchMatchesCalendar } from '@/lib/fetch-matches-calendar'
 import { getLocaleHomeTz } from '@/lib/locale-time'
 
-export const revalidate = 300 // 5 min
+export const revalidate = 30
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
@@ -35,11 +37,12 @@ export async function GET(req: Request) {
     const payload = await fetchMatchesCalendar(supabase, locale, tz)
     return NextResponse.json(payload, {
       headers: {
-        // Browser dedupes rapid page loads. CDN holds 5 min — even
-        // when matches are minted in real-time, the picker's boundary
-        // doesn't move per-second; a few minutes of staleness is fine.
+        // Tight CDN TTL because `hasLiveNow` flips minute-to-minute as
+        // matches start/end. `stale-while-revalidate` lets a tap go
+        // through against the stale value while the CDN refreshes —
+        // so the UI never blocks on the calendar.
         'Cache-Control':
-          'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+          'public, max-age=15, s-maxage=30, stale-while-revalidate=60',
       },
     })
   } catch (err) {
@@ -50,6 +53,7 @@ export async function GET(req: Request) {
       daysWithMatches: [],
       maxScheduledIso: null,
       todayIso: '',
+      hasLiveNow: false,
     })
   }
 }

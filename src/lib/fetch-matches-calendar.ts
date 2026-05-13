@@ -51,6 +51,11 @@ export interface MatchesCalendarPayload {
   /** ISO YYYY-MM-DD of "today" in the locale's home tz. Echoed back so
    *  the client doesn't have to derive it independently. */
   todayIso: string
+  /** True when there is at least one match currently in `live` or
+   *  `on_court` state. Drives the LIVE pill's tap behaviour: tap with
+   *  `hasLiveNow=true` jumps to today and filters; tap with `false`
+   *  surfaces a toast instead of stranding the user on an empty filter. */
+  hasLiveNow: boolean
 }
 
 /**
@@ -76,22 +81,37 @@ export async function fetchMatchesCalendar(
   const horizonIso = addDaysIso(todayIso, LOOKAHEAD_DAYS, tz)
   const horizonStartUtc = dateAtTzMidnight(horizonIso, tz)
 
-  const { data, error } = await supabase
-    .from('matches')
-    .select('scheduled_at')
-    .not('scheduled_at', 'is', null)
-    .gte('scheduled_at', todayStartUtc.toISOString())
-    .lt('scheduled_at', horizonStartUtc.toISOString())
-    .limit(SELECT_LIMIT)
+  // Two queries in parallel: window scan for the picker + a cheap count
+  // of in-play matches for the LIVE pill's tap-or-toast decision. The
+  // count uses `head:true` so PostgREST returns only the row count, not
+  // the rows themselves.
+  const [windowRes, liveRes] = await Promise.all([
+    supabase
+      .from('matches')
+      .select('scheduled_at')
+      .not('scheduled_at', 'is', null)
+      .gte('scheduled_at', todayStartUtc.toISOString())
+      .lt('scheduled_at', horizonStartUtc.toISOString())
+      .limit(SELECT_LIMIT),
+    supabase
+      .from('matches')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['live', 'on_court']),
+  ])
 
-  if (error) {
-    console.error('[fetchMatchesCalendar] read failed:', error.message)
-    return { daysWithMatches: [], maxScheduledIso: null, todayIso }
+  if (windowRes.error) {
+    console.error('[fetchMatchesCalendar] read failed:', windowRes.error.message)
+    return {
+      daysWithMatches: [],
+      maxScheduledIso: null,
+      todayIso,
+      hasLiveNow: false,
+    }
   }
 
   // Bucket scheduled_at instants into local-tz day strings.
   const seen = new Set<string>()
-  for (const row of (data ?? []) as Array<{ scheduled_at: string | null }>) {
+  for (const row of (windowRes.data ?? []) as Array<{ scheduled_at: string | null }>) {
     if (!row.scheduled_at) continue
     const day = formatIsoInTz(new Date(row.scheduled_at), tz)
     seen.add(day)
@@ -99,7 +119,8 @@ export async function fetchMatchesCalendar(
 
   const sorted = Array.from(seen).sort()
   const maxScheduledIso = sorted.length > 0 ? sorted[sorted.length - 1] : null
-  return { daysWithMatches: sorted, maxScheduledIso, todayIso }
+  const hasLiveNow = !liveRes.error && (liveRes.count ?? 0) > 0
+  return { daysWithMatches: sorted, maxScheduledIso, todayIso, hasLiveNow }
 }
 
 /**
