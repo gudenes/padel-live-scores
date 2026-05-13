@@ -12,20 +12,26 @@ export interface PlayerSpriteProps {
   faded?: boolean    // for non-selected during reveal
 }
 
-export function PlayerSprite({ x, y, scale, vs, spriteUrl, faded }: PlayerSpriteProps) {
+const BREATHE_DELAY: Record<PlayerRole, string> = {
+  you: '0s', partner: '0.4s', opponent1: '0.8s', opponent2: '1.2s',
+}
+
+export function PlayerSprite({ role, x, y, scale, vs, spriteUrl, faded }: PlayerSpriteProps) {
   const h = (vs.playerBaseSize * 1.33) * scale  // tall box for portrait PNGs
   const w = vs.playerBaseSize * scale
   return (
-    <image
-      href={spriteUrl}
-      x={x - w / 2}
-      y={y - h + 14 * scale}
-      width={w}
-      height={h}
-      preserveAspectRatio="xMidYMax meet"
-      opacity={faded ? 0.45 : 1}
-      style={{ transition: 'opacity 200ms ease-out' }}
-    />
+    <g style={{ animation: 'pg-breathe 2.5s ease-in-out infinite', animationDelay: BREATHE_DELAY[role] }}>
+      <image
+        href={spriteUrl}
+        x={x - w / 2}
+        y={y - h + 14 * scale}
+        width={w}
+        height={h}
+        preserveAspectRatio="xMidYMax meet"
+        opacity={faded ? 0.45 : 1}
+        style={{ transition: 'opacity 200ms ease-out' }}
+      />
+    </g>
   )
 }
 
