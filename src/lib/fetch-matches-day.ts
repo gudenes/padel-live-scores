@@ -46,6 +46,7 @@ export interface MatchesDayMatch {
   category: string | null
   scheduled_at: string | null
   finished_at: string | null
+  duration: string | null
   round: string | null
   court: string | null
   court_order: number | null
@@ -94,13 +95,6 @@ export interface MatchesDayGroup {
   tournamentStatus: string | null
   matches: MatchesDayMatch[]
   isPremier: boolean
-  /** Display order for each court name in this tournament, sourced from
-   *  `tournament_courts.display_order` (left-to-right column order on the
-   *  official OOP page). Lookup is case-insensitive on the court name —
-   *  the OOP scraper sometimes captures slightly different casing than
-   *  what padelapi writes to `matches.court`. Empty when no row exists
-   *  for the tournament; consumers should fall back to alphabetical. */
-  courtOrder: Record<string, number>
 }
 
 export interface MatchesDayPayload {
@@ -117,7 +111,7 @@ const PLAYER_JOIN_FIELDS = `
 `
 
 const MATCH_SELECT = `
-  id, status, category, scheduled_at, finished_at, round, court, court_order,
+  id, status, category, scheduled_at, finished_at, duration, round, court, court_order,
   schedule_label, winner_pair, late_hint, pair1_seed, pair2_seed,
   pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
   pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
@@ -246,34 +240,7 @@ export async function fetchMatchesDay(
         tournamentStatus: t.status,
         matches: [m],
         isPremier: isPremierLevel(t.level),
-        courtOrder: {},
       })
-    }
-  }
-
-  // Hydrate per-court display order from `tournament_courts`. Single
-  // query for all the day's tournaments so we don't N+1 here. The lookup
-  // map is keyed by lowercased court name to absorb the casing drift
-  // between OOP scraping and what padelapi writes to `matches.court`.
-  const tournamentIds = Array.from(groupMap.keys())
-  if (tournamentIds.length > 0) {
-    const { data: courtRows } = await supabase
-      .from('tournament_courts')
-      .select('tournament_id, court_name, display_order')
-      .in('tournament_id', tournamentIds)
-    for (const row of courtRows ?? []) {
-      const g = groupMap.get(row.tournament_id as string)
-      if (!g) continue
-      const key = String(row.court_name ?? '').toLowerCase()
-      if (!key) continue
-      // Keep the lowest display_order if a tournament has duplicate
-      // entries for the same court (e.g. Leiria has both
-      // "PADEL XXL - CAMPO CARLSBERG" and "CAMPO CARLSBERG").
-      const prev = g.courtOrder[key]
-      const next = row.display_order as number
-      if (prev === undefined || next < prev) {
-        g.courtOrder[key] = next
-      }
     }
   }
 

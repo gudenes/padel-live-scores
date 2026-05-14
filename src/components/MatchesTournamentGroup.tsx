@@ -4,26 +4,24 @@
 //
 // Tournament-grouped match card for /matches/[date]. Each group renders
 // a rich header (flag, name, level pill, date range, match count, expand
-// chevron) and a body that breaks the matches down by COURT — same
-// layout organizers use on the official OOP page (Brussels: CBC →
-// Nextensa → Lotto). Court order: tournament_courts.display_order if
-// present, alphabetical fallback. Within each court, matches sort by
-// matches.court_order ascending so the day's running order is preserved.
+// chevron) and a body that reads as one chronological list:
 //
-// Why courts instead of live/upcoming/finished sub-sections: with status
-// sub-sections the layout reshuffled every time a match flipped state,
-// and the natural reading order on-site IS by court. The status signal
-// is preserved via a chip on each match row.
+//   - Active section: live + upcoming, sorted by scheduled_at ascending.
+//     Live matches stay in their natural time slot — the red LIVE chip on
+//     the MatchCard provides the visual emphasis.
+//   - Finished section: separated by a green "FINISHED · N" divider, sorted
+//     by finished_at descending (most-recent finish first).
+//
+// Sort + partition is delegated to bucketDayMatches in
+// src/lib/match-day-bucket.ts (covered by 12 unit tests).
 //
 // Filter integration: the wrapper carries `data-tour-group` + `data-league`
 // + `data-tier` so MatchesFilterClient can hide the whole tournament when
 // it doesn't match the league/tier filter. Each match wrapper inside
 // carries `data-match` + `data-category` + `data-qualifier` + `data-status`
-// for per-match filtering. Court-section wrappers carry `data-court-section`
-// so the cascade can hide an emptied court header.
+// for per-match filtering.
 
 import { useState } from 'react'
-import type { ReactNode } from 'react'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { MatchCard } from '@/components/MatchCard'
@@ -34,12 +32,12 @@ import {
 } from '@/lib/tournament-labels'
 import { useTranslations } from 'next-intl'
 import type { Match } from '@/types/match'
+import { bucketDayMatches, bucketStatus } from '@/lib/match-day-bucket'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
 const MEN_BLUE = '#4A9EFF'
 const WOMEN_PURPLE = '#D966FF'
 
@@ -58,6 +56,7 @@ export interface GroupMatch {
   category: string | null
   scheduled_at: string | null
   finished_at: string | null
+  duration: string | null
   round: string | null
   court: string | null
   court_order: number | null
@@ -81,19 +80,6 @@ export interface TournamentGroupData {
   tournamentEndsAt: string | null
   tournamentStatus: string | null
   matches: GroupMatch[]
-  /** Per-court display order from `tournament_courts.display_order`,
-   *  keyed by lowercased court name. Empty record = no OOP-derived
-   *  order; consumers sort courts alphabetically. */
-  courtOrder: Record<string, number>
-  /** "Court" label for sub-section headers, translated server-side. */
-  courtLabel: string
-  /** "Unknown court" fallback for matches with no court value. */
-  unknownCourtLabel: string
-  /** Plain "LIVE"/"EN VIVO"/etc suffix for the per-court live pill. The
-   *  count is composed in the component (`{n} {suffix}`) — keeping the
-   *  message free of ICU placeholders avoids next-intl validation errors
-   *  when consumers don't pass a count argument. */
-  liveCountLabel: string
   /** Whether this tournament's level is Premier (drives data-league). */
   isPremier: boolean
   /** Locale, threaded for the tournament-detail link. */
@@ -107,17 +93,6 @@ export interface TournamentGroupData {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
-
-const LIVE_STATUSES = new Set(['live', 'on_court'])
-const UPCOMING_STATUSES = new Set(['scheduled'])
-const FINISHED_STATUSES = new Set(['finished', 'retired', 'walkover', 'ended'])
-
-function bucketStatus(s: string): 'live' | 'upcoming' | 'finished' | null {
-  if (LIVE_STATUSES.has(s)) return 'live'
-  if (UPCOMING_STATUSES.has(s)) return 'upcoming'
-  if (FINISHED_STATUSES.has(s)) return 'finished'
-  return null
-}
 
 function isQualifierRound(round: string | null): boolean {
   if (!round) return false
@@ -197,6 +172,7 @@ function tournamentStatusBadge(
 
 export default function MatchesTournamentGroup({ group }: { group: TournamentGroupData }) {
   const tStage = useTranslations('match.stageChip')
+  const tDaily = useTranslations('daily')
 
   // Aggregate counts for the tournament-level status pill (LIVE / ONGOING
   // / UPCOMING / FINAL). Same buckets the old layout exposed as sub-
@@ -213,42 +189,10 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
   const total = group.matches.length
   const counts = { live: liveCount, upcoming: upcomingCount, finished: finishedCount }
 
-  // Bucket matches by court name. `null` court goes into a synthetic
-  // "—" bucket that sorts last. Within each court, sort by court_order
-  // ascending (1-based per-court sequence from OOP), then by
-  // scheduled_at as tiebreaker.
-  const courtBuckets = new Map<string, GroupMatch[]>()
-  for (const m of group.matches) {
-    const key = m.court ?? ''
-    if (!courtBuckets.has(key)) courtBuckets.set(key, [])
-    courtBuckets.get(key)!.push(m)
-  }
-  for (const [, list] of courtBuckets) {
-    list.sort((a, b) => {
-      const oa = a.court_order ?? 9999
-      const ob = b.court_order ?? 9999
-      if (oa !== ob) return oa - ob
-      const sa = a.scheduled_at ?? ''
-      const sb = b.scheduled_at ?? ''
-      return sa.localeCompare(sb)
-    })
-  }
-  // Court order: tournament_courts.display_order first (case-insensitive
-  // lookup), alphabetical fallback. Null/empty court bucket sorts last.
-  const sortedCourtKeys = Array.from(courtBuckets.keys()).sort((a, b) => {
-    if (!a && !b) return 0
-    if (!a) return 1
-    if (!b) return -1
-    const oa = group.courtOrder[a.toLowerCase()]
-    const ob = group.courtOrder[b.toLowerCase()]
-    const hasA = oa !== undefined
-    const hasB = ob !== undefined
-    if (hasA && hasB) return oa - ob
-    if (hasA) return -1
-    if (hasB) return 1
-    return a.localeCompare(b)
-  })
-  const courtCount = sortedCourtKeys.length
+  // Chronological buckets: live + upcoming first (sorted by scheduled_at),
+  // then finished at the bottom (sorted by finished_at desc). See
+  // `src/lib/match-day-bucket.ts` for the sort rules + tests.
+  const { active, finished } = bucketDayMatches(group.matches)
 
   const [expanded, setExpanded] = useState(true)
   const tournamentStatusPill = tournamentStatusBadge(counts, group.tournamentStatus)
@@ -432,144 +376,99 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
         </div>
       </button>
 
-      {/* ── Body — collapsible court sub-sections ──────────────────────── */}
+      {/* ── Body — chronological list, finished section at the bottom ──── */}
       <div
         style={{
           overflow: 'hidden',
-          // Approximate ceiling: ~130px per match row + ~36px per court
-          // header + 100px slack. Doesn't need to be exact since
-          // overflow:hidden clips the rest when collapsed.
-          maxHeight: expanded ? total * 130 + courtCount * 36 + 100 : 0,
+          // Approximate ceiling: ~130px per match row + ~50px for the
+          // finished-section divider (when present) + 100px slack.
+          // Doesn't need to be exact since overflow:hidden clips the rest
+          // when collapsed.
+          maxHeight: expanded ? total * 130 + (finished.length > 0 ? 50 : 0) + 100 : 0,
           transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           background: BG_CARD,
         }}
       >
-        {sortedCourtKeys.map(courtKey => {
-          const matches = courtBuckets.get(courtKey)!
-          const liveInCourt = matches.filter(m => bucketStatus(m.status) === 'live').length
-          const courtName = courtKey || group.unknownCourtLabel
+        {/* Active: live + upcoming, sorted chronologically */}
+        {active.map(m => {
+          const s = bucketStatus(m.status)
+          const status: 'live' | 'upcoming' | 'finished' = s ?? 'upcoming'
           return (
-            <CourtSection
-              key={courtKey || '__none__'}
-              name={courtName}
-              count={matches.length}
-              liveCount={liveInCourt}
-              liveCountLabel={group.liveCountLabel}
-              showHeader={courtCount > 1}
-            >
-              {matches.map(m => {
-                const s = bucketStatus(m.status)
-                const status: 'live' | 'upcoming' | 'finished' = s ?? 'upcoming'
-                return (
-                  <MatchEntry
-                    key={m.id}
-                    match={m}
-                    status={status}
-                    locale={group.locale}
-                    userTz={group.userTz}
-                    tournamentLevel={group.tournamentLevel}
-                    dayBucketIso={group.dayBucketIso}
-                  />
-                )
-              })}
-            </CourtSection>
+            <MatchEntry
+              key={m.id}
+              match={m}
+              status={status}
+              locale={group.locale}
+              userTz={group.userTz}
+              tournamentLevel={group.tournamentLevel}
+              dayBucketIso={group.dayBucketIso}
+            />
           )
         })}
-      </div>
-    </div>
-  )
-}
 
-function CourtSection({
-  name,
-  count,
-  liveCount,
-  liveCountLabel,
-  showHeader,
-  children,
-}: {
-  name: string
-  count: number
-  liveCount: number
-  liveCountLabel: string
-  showHeader: boolean
-  children: ReactNode
-}) {
-  // The accent stays muted by default — courts aren't statuses, the
-  // chip on each MatchCard already conveys live/upcoming/finished. The
-  // accent goes red ONLY when at least one match in the court is live,
-  // which mirrors the LIVE pill at the tournament-group level.
-  const accent = liveCount > 0 ? LIVE_RED : MUTED
-  return (
-    <div data-court-section style={{ padding: '6px 0' }}>
-      {showHeader && (
-        <div
-          data-court-header
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '8px 14px 6px',
-          }}
-        >
-          <span
+        {/* Finished section divider — only when there are finished matches */}
+        {finished.length > 0 && (
+          <div
+            data-finished-section
             style={{
-              width: 3,
-              height: 12,
-              background: accent,
-              flexShrink: 0,
-            }}
-          />
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 800,
-              letterSpacing: '0.16em',
-              textTransform: 'uppercase',
-              color: 'rgba(255,255,255,0.85)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              minWidth: 0,
-              flex: '0 1 auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '16px 6px 8px',
             }}
           >
-            {name}
-          </span>
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: MUTED,
-              background: 'rgba(255,255,255,0.04)',
-              padding: '1px 6px',
-              clipPath: CHUNKY.badge,
-              flexShrink: 0,
-            }}
-          >
-            {count}
-          </span>
-          {liveCount > 0 && (
             <span
               style={{
-                fontSize: 8,
+                fontFamily: 'inherit',
+                fontSize: 11,
                 fontWeight: 800,
-                letterSpacing: 0.5,
-                padding: '2px 6px',
-                clipPath: CHUNKY.badge,
-                color: LIVE_RED,
-                background: 'rgba(255,70,85,0.18)',
-                lineHeight: '12px',
+                letterSpacing: 2,
+                color: GREEN,
                 textTransform: 'uppercase',
-                flexShrink: 0,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
               }}
             >
-              {`${liveCount} ${liveCountLabel}`}
+              {tDaily('finishedSection')}
+              <span
+                style={{
+                  color: GREEN,
+                  fontFamily: 'monospace',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: 'rgba(126, 211, 33, 0.12)',
+                  padding: '1px 6px',
+                  borderRadius: 3,
+                  lineHeight: 1.4,
+                }}
+              >
+                {finished.length}
+              </span>
             </span>
-          )}
-        </div>
-      )}
-      {children}
+            <div
+              style={{
+                flex: 1,
+                height: 1,
+                background: 'linear-gradient(90deg, rgba(126,211,33,0.28), transparent)',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Finished: most-recent finish first */}
+        {finished.map(m => (
+          <MatchEntry
+            key={m.id}
+            match={m}
+            status="finished"
+            locale={group.locale}
+            userTz={group.userTz}
+            tournamentLevel={group.tournamentLevel}
+            dayBucketIso={group.dayBucketIso}
+          />
+        ))}
+      </div>
     </div>
   )
 }
