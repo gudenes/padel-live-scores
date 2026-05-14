@@ -22,8 +22,8 @@
       "schedule": "20 */1 * * *"
     },
     {
-      "path": "/api/cron/fip-streams-discover",
-      "schedule": "*/15 * * * *"
+      "path": "/api/cron/youtube-channels-discover",
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/sync-articles",
