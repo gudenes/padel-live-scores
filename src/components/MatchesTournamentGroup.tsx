@@ -376,7 +376,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
         </div>
       </button>
 
-      {/* ── Body — collapsible court sub-sections ──────────────────────── */}
+      {/* ── Body — chronological list, finished section at the bottom ──── */}
       <div
         style={{
           overflow: 'hidden',
@@ -409,6 +409,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
         {/* Finished section divider — only when there are finished matches */}
         {finished.length > 0 && (
           <div
+            data-finished-section
             style={{
               display: 'flex',
               alignItems: 'center',

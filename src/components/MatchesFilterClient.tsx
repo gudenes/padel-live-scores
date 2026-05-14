@@ -92,7 +92,23 @@ export default function MatchesFilterClient({
       node.style.display = hidden ? 'none' : ''
     })
 
-    // 2. Tournament-group-level (league only). Still hide when every
+    // 2. Finished-section divider — hide it when all finished matches in
+    //    its tournament group ended up hidden (so we don't render a
+    //    "FINISHED · N" label over empty space when the LIVE filter is
+    //    on).
+    const dividers = root.querySelectorAll<HTMLElement>('[data-finished-section]')
+    dividers.forEach((divider) => {
+      const group = divider.closest<HTMLElement>('[data-tour-group]')
+      if (!group) return
+      const finishedMatches = group.querySelectorAll<HTMLElement>('[data-match][data-status="finished"]')
+      let anyVisible = false
+      finishedMatches.forEach((m) => {
+        if (m.style.display !== 'none') anyVisible = true
+      })
+      divider.style.display = anyVisible ? '' : 'none'
+    })
+
+    // 3. Tournament-group-level (league only). Still hide when every
     //    match inside ended up hidden.
     const groupNodes = root.querySelectorAll<HTMLElement>('[data-tour-group]')
     groupNodes.forEach((group) => {
