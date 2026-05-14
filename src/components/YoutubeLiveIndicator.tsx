@@ -50,6 +50,41 @@ const YT_LIVE_KEYFRAMES = `
     transform: none !important;
   }
 }
+.yt-live-close-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 56px;
+  height: 56px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  color: #fff;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.yt-live-close-btn::before {
+  content: '';
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  clip-path: polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);
+  pointer-events: none;
+}
+.yt-live-close-btn > span {
+  position: relative;
+  pointer-events: none;
+}
 `
 
 const YT_RED = '#FF0000'
@@ -224,37 +259,20 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
               maxHeight: '85vh',
               overflowY: 'auto',
               background: BG_ELEV,
-              border: `1px solid ${BORDER}`,
-              borderTop: `3px solid ${YT_RED}`,
-              padding: '18px 18px 20px',
-              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+              padding: '20px 20px 22px',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset',
+              clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
               animation: 'yt-live-pop-in 380ms cubic-bezier(0.4, 0, 0.2, 1) both',
               transformOrigin: 'center center',
             }}
           >
             <button
               type="button"
+              className="yt-live-close-btn"
               aria-label="Close"
               onClick={() => setOpen(false)}
-              style={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                width: 28,
-                height: 28,
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'transparent',
-                border: 0,
-                color: MUTED_2,
-                fontSize: 18,
-                lineHeight: 1,
-                cursor: 'pointer',
-                padding: 0,
-              }}
             >
-              ×
+              <span aria-hidden="true">×</span>
             </button>
           <div data-yt-live-anim style={{
             display: 'flex', alignItems: 'center', gap: 8,
@@ -304,12 +322,6 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
                     padding: '1px 5px', clipPath: CHUNKY_BADGE,
                     lineHeight: 1.4,
                   }}>{t('channelLive')}</span>
-                  {group.streams.length > 1 && (
-                    <span style={{
-                      fontSize: 9, fontWeight: 700, color: MUTED_2,
-                      fontFamily: 'monospace', letterSpacing: 0,
-                    }}>×{group.streams.length}</span>
-                  )}
                 </div>
               </div>
 
