@@ -25,6 +25,7 @@ import { fetchMatchesDay, type MatchesDayMatch } from '@/lib/fetch-matches-day'
 import { resolveStreamsForMatches } from '@/lib/fip-stream-resolver'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
 import MatchesDayShell from '@/components/MatchesDayShell'
+import type { LiveChannel } from '@/components/YoutubeLiveIndicator'
 
 export const revalidate = 300 // 5 min
 
@@ -95,6 +96,48 @@ export default async function DailyMatchesPage({ params }: Props) {
     matches: g.matches.map(m => matchStreamMap.get(m.id) ?? m),
   }))
 
+  // YouTube live indicator data — single query, server-rendered, fresh per
+  // navigation. No client-side polling for v1.
+  const STALE_MS = 30 * 60 * 1000
+  const liveChannelsRes = await supabase
+    .from('youtube_channel_live')
+    .select(`
+      video_id,
+      title,
+      channel:youtube_channels!inner (
+        id,
+        name,
+        abbreviation,
+        color_hex,
+        display_order
+      )
+    `)
+    .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
+    .eq('channel.is_active', true)
+
+  if (liveChannelsRes.error) {
+    console.error('[DailyMatchesPage] youtube_channel_live query failed:', liveChannelsRes.error.message)
+  }
+
+  const liveChannels: LiveChannel[] = (liveChannelsRes.data ?? [])
+    .map((r) => {
+      const ch = Array.isArray(r.channel) ? r.channel[0] : r.channel
+      if (!ch) return null
+      return {
+        videoId: r.video_id as string,
+        title: r.title as string,
+        channel: {
+          id: ch.id as string,
+          name: ch.name as string,
+          abbreviation: ch.abbreviation as string,
+          colorHex: ch.color_hex as string,
+          displayOrder: ch.display_order as number,
+        },
+      }
+    })
+    .filter((x): x is LiveChannel => x !== null)
+    .sort((a, b) => a.channel.displayOrder - b.channel.displayOrder)
+
   // Flatten for SEO copy + JSON-LD.
   const dayMatches: MatchesDayMatch[] = groups.flatMap((g) => g.matches)
 
@@ -152,6 +195,7 @@ export default async function DailyMatchesPage({ params }: Props) {
         userTz={userTz}
         emptyStateTitle={tDaily('noMatchesTitle')}
         emptyStateSubtitle={tDaily('noMatchesSub')}
+        liveChannels={liveChannels}
       />
 
       <div style={{ height: 30 }} />

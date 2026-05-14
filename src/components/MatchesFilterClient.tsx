@@ -24,6 +24,7 @@ import { useMatchesFilters, type MatchesFilters } from '@/hooks/useMatchesFilter
 import EmptyState from './EmptyState'
 import MatchesFilterBar from './MatchesFilterBar'
 import MatchesFilterDrawer from './MatchesFilterDrawer'
+import type { LiveChannel } from './YoutubeLiveIndicator'
 
 export interface MatchesFilterClientProps {
   /** ID of the wrapper div the server renders around all match nodes.
@@ -45,6 +46,9 @@ export interface MatchesFilterClientProps {
   onGoToToday: () => void
   /** Optional left-side slot for the filter bar (e.g. a "Today" shortcut). */
   leftSlot?: React.ReactNode
+  /** YouTube live broadcasts to surface in the page-level indicator.
+   *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
+  liveChannels?: LiveChannel[]
 }
 
 export default function MatchesFilterClient({
@@ -54,6 +58,7 @@ export default function MatchesFilterClient({
   isOnToday,
   onGoToToday,
   leftSlot,
+  liveChannels = [],
 }: MatchesFilterClientProps) {
   const { filters, setFilters, reset, hydrated, activeCount } = useMatchesFilters()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -222,6 +227,7 @@ export default function MatchesFilterClient({
         hasLiveMatches={hasLiveMatches}
         leftSlot={leftSlot}
         liveButtonRef={liveBtnRef}
+        liveChannels={liveChannels}
       />
       <LiveHint
         open={toastOpen}

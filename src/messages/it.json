@@ -961,7 +961,13 @@
     "approxTime": "orario approssimativo",
     "whereToWatchHeading": "Dove vedere",
     "inRegion": "In {region}",
-    "freeBadge": "GRATIS"
+    "freeBadge": "GRATIS",
+    "youtubeLive": {
+      "ariaLabel": "In diretta su YouTube ({count})",
+      "panelEyebrow": "In diretta su YouTube",
+      "watchCta": "Guarda",
+      "channelLive": "LIVE"
+    }
   },
   "draw": {
     "tab": "Tabellone",

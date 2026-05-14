@@ -89,6 +89,43 @@ export async function listUploadsPlaylistItems(
   }))
 }
 
+/**
+ * Fetch details for up to 50 video IDs in a single call (1 quota unit
+ * regardless of count). Used by the discovery cron to find currently-live
+ * broadcasts and by ops "test" actions.
+ */
+export async function listVideoDetails(
+  videoIds: string[],
+  apiKey: string,
+): Promise<VideoDetails[]> {
+  if (videoIds.length === 0) return []
+  if (videoIds.length > 50) {
+    throw new Error(`listVideoDetails: max 50 IDs per call, got ${videoIds.length}`)
+  }
+  const params = new URLSearchParams({
+    id: videoIds.join(','),
+    part: 'snippet,liveStreamingDetails,statistics',
+    key: apiKey,
+  })
+  const res = await fetch(`${Y_BASE}/videos?${params}`)
+  if (!res.ok) await throwForBadResponse(res, 'listVideoDetails')
+  const json = (await res.json()) as VideosResponse
+  return (json.items ?? []).map(it => ({
+    videoId: it.id,
+    title: it.snippet.title,
+    thumbnailUrl: it.snippet.thumbnails?.medium?.url ?? it.snippet.thumbnails?.default?.url ?? null,
+    channelId: it.snippet.channelId,
+    liveBroadcastContent: it.snippet.liveBroadcastContent,
+    scheduledStartTime: it.liveStreamingDetails?.scheduledStartTime ?? null,
+    actualStartTime: it.liveStreamingDetails?.actualStartTime ?? null,
+    actualEndTime: it.liveStreamingDetails?.actualEndTime ?? null,
+    concurrentViewers: it.liveStreamingDetails?.concurrentViewers
+      ? parseInt(it.liveStreamingDetails.concurrentViewers, 10)
+      : null,
+    viewCount: it.statistics?.viewCount ? parseInt(it.statistics.viewCount, 10) : null,
+  }))
+}
+
 export async function fetchVideoDetailsBatch(
   videoIds: string[],
   apiKey: string,
