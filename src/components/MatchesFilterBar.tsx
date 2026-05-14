@@ -11,6 +11,7 @@
 import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { type MatchesFilters } from '@/hooks/useMatchesFilters'
+import type { LiveChannel } from './YoutubeLiveIndicator'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -38,6 +39,9 @@ export interface MatchesFilterBarProps {
    *  anchor a popup (the "no live matches" hint) to the pill's exact
    *  screen position. */
   liveButtonRef?: React.Ref<HTMLButtonElement>
+  /** YouTube live broadcasts to surface in the page-level indicator.
+   *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
+  liveChannels?: LiveChannel[]
 }
 
 export default function MatchesFilterBar({
@@ -48,6 +52,7 @@ export default function MatchesFilterBar({
   hasLiveMatches,
   leftSlot,
   liveButtonRef,
+  liveChannels: _liveChannels = [],
 }: MatchesFilterBarProps) {
   const tButton = useTranslations('matches.filters')
   const hasActive = activeCount > 0

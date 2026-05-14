@@ -29,6 +29,7 @@ import { DailyDatePills } from '@/components/DailyDatePills'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday, getLocaleTodayIso } from '@/lib/locale-time'
 import { useDaySwipe } from '@/hooks/useDaySwipe'
 import type { MatchesDayGroup } from '@/lib/fetch-matches-day'
+import type { LiveChannel } from './YoutubeLiveIndicator'
 import { supabase } from '@/lib/supabase'
 import { nextDayWithMatches } from '@/lib/fetch-matches-calendar'
 
@@ -45,6 +46,9 @@ interface Props {
    *  so this client component doesn't need its own translator. */
   emptyStateTitle: string
   emptyStateSubtitle: string
+  /** YouTube live broadcasts to surface in the page-level indicator.
+   *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
+  liveChannels?: LiveChannel[]
 }
 
 type CacheEntry =
@@ -59,6 +63,7 @@ export default function MatchesDayShell({
   userTz,
   emptyStateTitle,
   emptyStateSubtitle,
+  liveChannels = [],
 }: Props) {
   const tDaily = useTranslations('daily')
   const tOffline = useTranslations('offline')
@@ -407,6 +412,7 @@ export default function MatchesDayShell({
           hasLiveNow={hasLiveNow}
           isOnToday={isOnToday}
           onGoToToday={rollToToday}
+          liveChannels={liveChannels}
           leftSlot={
             !isOnToday ? (
               <button
