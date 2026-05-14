@@ -13,6 +13,44 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { courtRank } from '@/lib/match-day-bucket'
+
+// CSS keyframes for the modal entrance. Backdrop fades fast; modal does a
+// playful pop-with-overshoot ("boing"), channel groups drop in from above
+// with their own bounce + stagger, and stream sub-rows cascade in horizontally.
+// Disabled when the user requests reduced motion.
+const YT_LIVE_KEYFRAMES = `
+@keyframes yt-live-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes yt-live-pop-in {
+  0%   { opacity: 0; transform: scale(0.7); }
+  55%  { opacity: 1; transform: scale(1.05); }
+  78%  { transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes yt-live-eyebrow-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes yt-live-row-pop {
+  0%   { opacity: 0; transform: translateY(18px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes yt-live-stream-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-yt-live-anim] {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+`
 
 const YT_RED = '#FF0000'
 const RED = '#FF4655'
@@ -52,9 +90,11 @@ interface ChannelGroup {
 }
 
 // Group simultaneous broadcasts by channel so the panel renders one
-// avatar header per channel + stream sub-rows beneath it. Preserves
-// `displayOrder` ordering and the original stream order within each
-// group (which `liveChannels` already arrives sorted by).
+// avatar header per channel + stream sub-rows beneath it. Channels are
+// ordered by `displayOrder` ascending. Within each group, streams are
+// sorted by `courtRank` (Centre/Central → 0, "Court 2" → 2, etc.) so
+// the headline court appears first, matching the chronological-day-view
+// tiebreak introduced in the OOP-by-time PR.
 function groupChannels(channels: LiveChannel[]): ChannelGroup[] {
   const map = new Map<string, ChannelGroup>()
   for (const c of channels) {
@@ -72,6 +112,14 @@ function groupChannels(channels: LiveChannel[]): ChannelGroup[] {
     }
     group.streams.push({ videoId: c.videoId, title: c.title })
   }
+  for (const g of map.values()) {
+    g.streams.sort((a, b) => {
+      const ra = courtRank(a.title)
+      const rb = courtRank(b.title)
+      if (ra !== rb) return ra - rb
+      return a.title.localeCompare(b.title)
+    })
+  }
   return [...map.values()].sort((a, b) => a.displayOrder - b.displayOrder)
 }
 
@@ -79,44 +127,21 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
   const t = useTranslations('daily.youtubeLive')
   const [open, setOpen] = useState(false)
   const pillRef = useRef<HTMLButtonElement | null>(null)
-  const panelRef = useRef<HTMLDivElement | null>(null)
-  // Anchor coords for the portal panel — calculated from the pill's
-  // bounding rect. Re-computed on open + scroll/resize while open.
-  // We render into document.body to escape the matches-page sticky
-  // header's `overflow: hidden`, which would otherwise clip the panel.
-  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null)
 
+  // Escape closes the modal. The visible backdrop handles outside-click
+  // dismissal directly via its onClick — no document-level pointerdown
+  // listener needed (which avoided the "click pill, listener fires before
+  // setOpen" race anyway).
   useEffect(() => {
     if (!open) return
-    const updateAnchor = () => {
-      const el = pillRef.current
-      if (!el) return
-      const rect = el.getBoundingClientRect()
-      setAnchor({ top: rect.bottom + 8, left: rect.left })
-    }
-    updateAnchor()
-    window.addEventListener('scroll', updateAnchor, true)
-    window.addEventListener('resize', updateAnchor)
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Node | null
-      const insidePill = pillRef.current && target && pillRef.current.contains(target)
-      const insidePanel = panelRef.current && target && panelRef.current.contains(target)
-      if (!insidePill && !insidePanel) setOpen(false)
-    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setOpen(false)
         e.stopPropagation()
       }
     }
-    document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('keydown', onKey, true)
-    return () => {
-      window.removeEventListener('scroll', updateAnchor, true)
-      window.removeEventListener('resize', updateAnchor)
-      document.removeEventListener('pointerdown', onPointerDown, true)
-      document.removeEventListener('keydown', onKey, true)
-    }
+    return () => document.removeEventListener('keydown', onKey, true)
   }, [open])
 
   // Hidden when nothing is live.
@@ -167,38 +192,76 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
           fontFamily: 'monospace', fontSize: 9, fontWeight: 800,
           padding: '1px 5px', borderRadius: 8, lineHeight: 1.2,
         }}>{count}</span>
-        <span style={{
-          color: 'rgba(255,255,255,0.7)', fontSize: 9, marginLeft: 1,
-          transform: open ? 'rotate(180deg)' : 'rotate(0)',
-          transition: 'transform 0.2s',
-        }}>&#9660;</span>
       </button>
 
-      {open && anchor && typeof document !== 'undefined' && createPortal(
+      {open && typeof document !== 'undefined' && createPortal(
         <div
-          ref={panelRef}
-          id="yt-live-panel"
-          role="region"
-          aria-label={t('panelEyebrow')}
+          onClick={() => setOpen(false)}
+          data-yt-live-anim
           style={{
             position: 'fixed',
-            top: anchor.top,
-            left: anchor.left,
-            minWidth: 320,
-            maxWidth: 420,
-            background: BG_ELEV,
-            border: `1px solid ${BORDER}`,
-            borderTop: `2px solid ${YT_RED}`,
-            padding: '14px 14px 16px',
+            inset: 0,
+            background: 'rgba(0,0,0,0.65)',
             zIndex: 1000,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            animation: 'yt-live-fade-in 180ms ease-out both',
           }}
         >
-          <div style={{
+          <style>{YT_LIVE_KEYFRAMES}</style>
+          <div
+            id="yt-live-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('panelEyebrow')}
+            onClick={(e) => e.stopPropagation()}
+            data-yt-live-anim
+            style={{
+              position: 'relative',
+              width: 'min(380px, 92vw)',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              background: BG_ELEV,
+              border: `1px solid ${BORDER}`,
+              borderTop: `3px solid ${YT_RED}`,
+              padding: '18px 18px 20px',
+              boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
+              animation: 'yt-live-pop-in 380ms cubic-bezier(0.4, 0, 0.2, 1) both',
+              transformOrigin: 'center center',
+            }}
+          >
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => setOpen(false)}
+              style={{
+                position: 'absolute',
+                top: 8,
+                right: 8,
+                width: 28,
+                height: 28,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'transparent',
+                border: 0,
+                color: MUTED_2,
+                fontSize: 18,
+                lineHeight: 1,
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          <div data-yt-live-anim style={{
             display: 'flex', alignItems: 'center', gap: 8,
             fontFamily: 'inherit', fontSize: 12, fontWeight: 800,
             letterSpacing: 2, color: YT_RED, textTransform: 'uppercase',
             marginBottom: 10,
+            animation: 'yt-live-eyebrow-in 260ms cubic-bezier(0.4, 0, 0.2, 1) 80ms both',
           }}>
             <span style={{
               width: 7, height: 7, borderRadius: '50%',
@@ -210,10 +273,12 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
           {groupChannels(liveChannels).map((group, gi) => (
             <div
               key={group.channelId}
+              data-yt-live-anim
               style={{
                 paddingTop: gi === 0 ? 0 : 12,
                 marginTop: gi === 0 ? 0 : 12,
                 borderTop: gi === 0 ? 'none' : `1px solid ${BORDER}`,
+                animation: `yt-live-row-pop 420ms cubic-bezier(0.4, 0, 0.2, 1) ${180 + gi * 100}ms both`,
               }}
             >
               {/* Channel header — avatar + name + LIVE chip + count */}
@@ -250,12 +315,14 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
 
               {/* Stream sub-rows — indented under the channel header */}
               <div style={{ marginLeft: 48, marginTop: 6, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {group.streams.map(stream => (
+                {group.streams.map((stream, si) => (
                   <div
                     key={stream.videoId}
+                    data-yt-live-anim
                     style={{
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '6px 0',
+                      animation: `yt-live-stream-in 280ms cubic-bezier(0.4, 0, 0.2, 1) ${280 + gi * 100 + si * 50}ms both`,
                     }}
                   >
                     <div style={{
@@ -290,6 +357,7 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
               </div>
             </div>
           ))}
+          </div>
         </div>,
         document.body,
       )}
