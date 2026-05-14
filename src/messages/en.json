@@ -984,7 +984,13 @@
     "approxTime": "time is approximate",
     "whereToWatchHeading": "Where to watch",
     "inRegion": "In {region}",
-    "freeBadge": "FREE"
+    "freeBadge": "FREE",
+    "youtubeLive": {
+      "ariaLabel": "Live now on YouTube ({count})",
+      "panelEyebrow": "Live now on YouTube",
+      "watchCta": "Watch",
+      "channelLive": "LIVE"
+    }
   },
   "draw": {
     "tab": "Draw",
