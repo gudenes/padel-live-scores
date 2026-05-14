@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OOP by Time — chronological order with finished at bottom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green: #7ED321;
+    --green-soft: rgba(126, 211, 33, 0.12);
+    --green-mid: rgba(126, 211, 33, 0.28);
+    --red: #FF4655;
+    --red-soft: rgba(255, 70, 85, 0.16);
+    --red-mid: rgba(255, 70, 85, 0.30);
+    --orange: #F5A623;
+    --orange-soft: rgba(245, 166, 35, 0.15);
+    --bg: #0A0A0B;
+    --bg-app: #1A1A1A;
+    --bg-card: #141414;
+    --bg-elev: #1e1e1e;
+    --muted: #6B7280;
+    --muted-2: #9CA3AF;
+    --border: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.12);
+    --gender-men: #4A9EFF;
+    --gender-women: #D966FF;
+    --chunky-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --chunky-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: #fff;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(126,211,33,0.06), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(255,70,85,0.04), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+    padding: 48px 16px 96px;
+  }
+
+  .page { max-width: 1100px; margin: 0 auto; }
+  .page-header { margin-bottom: 40px; padding-bottom: 28px; border-bottom: 0.5px solid var(--border); }
+  .eyebrow {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px; letter-spacing: 4px;
+    color: var(--green); margin: 0 0 8px;
+  }
+  .page-header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 0.95; letter-spacing: 1px;
+    margin: 0 0 14px;
+  }
+  .page-header p {
+    max-width: 720px; font-size: 14px; line-height: 1.6;
+    color: var(--muted-2); margin: 0 0 6px;
+  }
+  .page-header .change-list {
+    margin: 14px 0 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .page-header .change-list li {
+    font-size: 13px; color: var(--muted-2); padding-left: 18px; position: relative;
+  }
+  .page-header .change-list li::before {
+    content: '→'; position: absolute; left: 0; color: var(--green); font-weight: 700;
+  }
+
+  /* ── Phone frame ─────────────────────────────────────────────── */
+  .phone-row {
+    display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;
+    align-items: flex-start;
+  }
+  .phone {
+    width: 390px;
+    background: var(--bg-app);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.6),
+      0 0 0 8px #0d0d0e,
+      0 0 0 9px rgba(255,255,255,0.04);
+    position: relative;
+  }
+  .phone::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 28px; background: #000; border-radius: 0 0 16px 16px;
+    z-index: 30;
+  }
+  .phone-screen { padding: 38px 0 0; min-height: 720px; }
+
+  /* ── App header (compact) ───────────────────────────────────── */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px 10px;
+  }
+  .brand {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 2px; color: #fff;
+  }
+  .brand .dot { color: var(--green); }
+  .header-actions { display: flex; gap: 14px; color: var(--muted-2); font-size: 18px; }
+
+  /* ── Day pills ─────────────────────────────────────────────── */
+  .day-pills {
+    display: flex; gap: 6px; padding: 6px 14px 12px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .day-pills::-webkit-scrollbar { display: none; }
+  .day-pill {
+    flex-shrink: 0; padding: 6px 12px; border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03); color: var(--muted-2);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+    text-transform: uppercase; clip-path: var(--chunky-badge);
+    display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 44px;
+  }
+  .day-pill .d { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: #fff; line-height: 1; }
+  .day-pill.active {
+    background: var(--green); color: #0A0A0A; border-color: var(--green);
+  }
+  .day-pill.active .d { color: #0A0A0A; }
+
+  /* ── Tournament header (matches MatchesTournamentGroup) ───── */
+  .tour-group { margin-bottom: 14px; }
+  .tour-head {
+    display: flex; align-items: center; gap: 10px; width: 100%;
+    padding: 12px 14px; background: var(--bg-elev);
+    position: relative; border: 0; cursor: pointer; text-align: left;
+  }
+  .tour-head::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--red);
+  }
+  .tour-flag {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: linear-gradient(180deg, #000 33%, #FAE042 33% 66%, #ED2939 66%);
+    flex-shrink: 0; box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .tour-name-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tour-name {
+    font-size: 13px; font-weight: 800; color: #fff;
+    letter-spacing: -0.1px; max-width: 100%;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pill {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.5px;
+    padding: 2px 6px; clip-path: var(--chunky-badge);
+    line-height: 12px; text-transform: uppercase; flex-shrink: 0;
+  }
+  .pill-live { color: var(--red); background: var(--red-soft); }
+  .pill-stage { color: var(--green); background: var(--green-soft); }
+  .tour-sub {
+    font-size: 9px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.5px; text-transform: uppercase; margin-top: 3px;
+  }
+  .tour-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; margin-left: auto; }
+  .count-pill {
+    font-size: 10px; font-weight: 600; color: var(--muted);
+    background: rgba(255,255,255,0.05); padding: 2px 8px;
+    clip-path: var(--chunky-badge);
+  }
+  .chev { font-size: 10px; color: var(--muted); }
+
+  /* ── Body container ────────────────────────────────────────── */
+  .tour-body { background: var(--bg-card); padding: 8px 10px 14px; }
+
+  /* ── Section divider for "Finished" ────────────────────────── */
+  .section-divider {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 6px 8px;
+  }
+  .section-divider .line {
+    flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--green-mid), transparent);
+  }
+  .section-divider .label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px; letter-spacing: 2.5px;
+    color: var(--green); text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .section-divider .label .n {
+    color: var(--green); font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700; letter-spacing: 0;
+    background: var(--green-soft); padding: 1px 6px;
+    border-radius: 3px; line-height: 1.4;
+  }
+
+  /* ── MatchCard (1:1 with src/components/MatchCard.tsx) ────── */
+  .mc {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    clip-path: var(--chunky-card);
+    padding: 12px 14px 6px 16px;
+    position: relative; overflow: hidden;
+    margin-bottom: 8px;
+    text-decoration: none; color: inherit; display: block;
+  }
+  .mc.live { border-color: var(--red-mid); }
+  .mc.live::after {
+    content: ''; position: absolute; top: -40px; right: -40px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(255,70,85,0.10) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .mc.finished { opacity: 0.78; }
+
+  .gender-bar {
+    position: absolute; top: 0; left: 0; bottom: 0;
+    width: 3px;
+  }
+  .gender-bar.men { background: var(--gender-men); }
+  .gender-bar.women { background: var(--gender-women); }
+
+  .star {
+    position: absolute; top: 10px; right: 12px;
+    width: 20px; height: 20px; z-index: 3;
+    color: var(--muted); display: flex; align-items: center; justify-content: center;
+  }
+  .star svg { width: 18px; height: 18px; }
+
+  .chip-row {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 6px; margin-bottom: 6px; position: relative; z-index: 2;
+  }
+  .chip {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.4px;
+    text-transform: uppercase; padding: 2px 6px;
+    color: var(--muted-2); background: rgba(255,255,255,0.05);
+    clip-path: var(--chunky-badge); line-height: 1.3;
+  }
+  .chip-court { color: #fff; background: rgba(255,255,255,0.08); }
+  .chip-status-live { color: var(--red); background: var(--red-soft); font-weight: 800; }
+  .chip-status-final { color: var(--muted); background: rgba(255,255,255,0.05); font-weight: 800; }
+  .chip-duration {
+    color: var(--muted-2); background: rgba(255,255,255,0.04);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600; letter-spacing: 0.2px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .chip-duration svg { width: 9px; height: 9px; opacity: 0.7; }
+
+  .pairs-wrap {
+    display: flex; align-items: stretch; gap: 8px;
+    position: relative; z-index: 2;
+  }
+  .pairs-inner {
+    display: flex; align-items: stretch; gap: 10px;
+    flex: 1; min-width: 0; position: relative; z-index: 1;
+  }
+  .names-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .scores-col { display: flex; flex-direction: column; flex-shrink: 0; }
+
+  .pair-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; flex: 1;
+  }
+  .pair-row.loser { opacity: 0.65; }
+
+  .flags-stack {
+    position: relative; width: 26px; height: 20px; flex-shrink: 0;
+  }
+  .flag-mini {
+    width: 16px; height: 11px; border-radius: 2px;
+    box-shadow: 0 0 0 0.5px rgba(0,0,0,0.4);
+    flex-shrink: 0;
+  }
+  .flags-stack .f1 { position: absolute; top: 0; left: 0; z-index: 2; width: 16px; height: 11px; border-radius: 2px; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.5); }
+  .flags-stack .f2 { position: absolute; top: 6px; left: 8px; z-index: 1; width: 16px; height: 11px; border-radius: 2px; box-shadow: 0 0 0 0.5px rgba(0,0,0,0.5); }
+
+  /* Country flag patterns */
+  .fl-arg { background: linear-gradient(180deg, #74acdf 33%, #fff 33% 66%, #74acdf 66%); }
+  .fl-esp { background: linear-gradient(180deg, #aa151b 25%, #f1bf00 25% 75%, #aa151b 75%); }
+  .fl-mex { background: linear-gradient(90deg, #006847 33%, #fff 33% 66%, #ce1126 66%); }
+  .fl-bel { background: linear-gradient(90deg, #000 33%, #fae042 33% 66%, #ed2939 66%); }
+  .fl-bra { background: #009b3a; position: relative; }
+  .fl-bra::after { content: ''; position: absolute; inset: 2px 1px; background: #fedd00; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+
+  .pair-name {
+    font-size: 13px; font-weight: 600;
+    color: #fff;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 1; min-width: 0;
+  }
+  .pair-row.loser .pair-name { color: #B0B5BE; }
+  .pair-row.winner .pair-name { font-weight: 700; }
+
+  .seed-badge {
+    flex-shrink: 0; font-size: 9px; font-weight: 800; letter-spacing: 0.3px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px; min-width: 14px; text-align: center;
+    clip-path: var(--chunky-badge); line-height: 1.2;
+  }
+
+  .serve-dot {
+    flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%;
+    background: #F5C518; box-shadow: 0 0 6px rgba(245,197,24,0.55);
+  }
+
+  .w-badge {
+    flex-shrink: 0; font-size: 9px; font-weight: 800; letter-spacing: 0.5px;
+    color: #0A0A0A; background: var(--green);
+    padding: 2px 6px; clip-path: var(--chunky-badge); line-height: 1.1;
+  }
+
+  .score-cell {
+    font-size: 16px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+    color: #B0B5BE; min-width: 16px; text-align: center;
+    position: relative; padding: 5px 4px; line-height: 1;
+  }
+  .score-cell.won { color: #fff; }
+  .score-cell.current { color: var(--green); }
+  .score-cell sup { font-size: 8px; color: #B0B5BE; position: absolute; top: -1px; right: -3px; font-weight: 600; }
+
+  .live-pt {
+    font-size: 17px; font-weight: 800; font-family: 'JetBrains Mono', monospace;
+    color: var(--red); min-width: 20px; text-align: center; margin-left: 4px;
+    padding: 5px 0; line-height: 1;
+  }
+
+  .schedule-stack {
+    display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: center;
+    flex-shrink: 0; min-width: 42px; margin-left: 4px;
+  }
+  .schedule-stack .date {
+    font-size: 10px; font-weight: 600; color: var(--muted); line-height: 1.2;
+  }
+  .schedule-stack .time {
+    font-size: 13px; font-weight: 800; color: var(--green); line-height: 1.2;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* annotation cards on the right (desktop only) */
+  .annotation {
+    width: 320px; flex-shrink: 0;
+  }
+  .annotation .anno-header {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 1px; color: #fff;
+    margin: 0 0 14px;
+  }
+  .annotation .anno-block {
+    background: rgba(255,255,255,0.03);
+    border: 0.5px solid var(--border);
+    padding: 14px 16px;
+    clip-path: var(--chunky-card);
+    margin-bottom: 12px;
+  }
+  .annotation .anno-block h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px; letter-spacing: 1.5px;
+    color: var(--green); margin: 0 0 6px;
+  }
+  .annotation .anno-block p {
+    font-size: 12px; line-height: 1.5;
+    color: var(--muted-2); margin: 0;
+  }
+  .annotation .anno-block strong { color: #fff; font-weight: 600; }
+  .annotation .anno-callout {
+    border-left: 2px solid var(--orange);
+    padding-left: 10px; margin-top: 8px;
+    font-size: 11px; color: var(--muted-2); line-height: 1.5;
+  }
+
+  @media (max-width: 900px) {
+    .annotation { width: 100%; max-width: 390px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <!-- ─── Page header ───────────────────────────────────────── -->
+  <div class="page-header">
+    <p class="eyebrow">MOCKUP · OOP REDESIGN</p>
+    <h1>Schedule by time</h1>
+    <p>
+      Today's matches in chronological order — live and upcoming first, finished at the bottom.
+      No more court sub-sections. The MatchCard itself is unchanged.
+    </p>
+    <ul class="change-list">
+      <li>Court groupings removed; one chronological list per tournament</li>
+      <li>Live matches stay in their natural time slot — the red <strong>LIVE</strong> chip already calls them out</li>
+      <li>Finished matches always visible at the bottom, visually demoted under a divider</li>
+      <li>Court name still shown via the existing chip on each MatchCard</li>
+    </ul>
+  </div>
+
+  <!-- ─── Phone + annotations ──────────────────────────────── -->
+  <div class="phone-row">
+
+    <!-- ── Phone ── -->
+    <div class="phone">
+      <div class="phone-screen">
+
+        <!-- App header -->
+        <div class="app-header">
+          <div class="brand">PADELNACHO<span class="dot">.</span></div>
+          <div class="header-actions">
+            <span>⚲</span>
+            <span>☰</span>
+          </div>
+        </div>
+
+        <!-- Day pills -->
+        <div class="day-pills">
+          <div class="day-pill"><span class="d">12</span><span>Tue</span></div>
+          <div class="day-pill"><span class="d">13</span><span>Wed</span></div>
+          <div class="day-pill active"><span class="d">14</span><span>Thu</span></div>
+          <div class="day-pill"><span class="d">15</span><span>Fri</span></div>
+          <div class="day-pill"><span class="d">16</span><span>Sat</span></div>
+          <div class="day-pill"><span class="d">17</span><span>Sun</span></div>
+        </div>
+
+        <!-- Tournament group -->
+        <div class="tour-group">
+
+          <!-- Header (unchanged from current app) -->
+          <div class="tour-head">
+            <div class="tour-flag"></div>
+            <div style="flex:1; min-width:0;">
+              <div class="tour-name-row">
+                <span class="tour-name">Premier Padel Brussels P2</span>
+                <span class="pill pill-live">LIVE</span>
+                <span class="pill pill-stage">R16</span>
+              </div>
+              <div class="tour-sub">P2 · MAY 12 — MAY 18</div>
+            </div>
+            <div class="tour-meta">
+              <span class="count-pill">7</span>
+              <span class="chev">▼</span>
+            </div>
+          </div>
+
+          <!-- Body — chronological order -->
+          <div class="tour-body">
+
+            <!-- 15:30 LIVE Mens (Galán/Lebrón vs Coello/Tapia, Center) -->
+            <a class="mc live" href="#">
+              <div class="gender-bar men"></div>
+              <div class="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <div class="chip-row">
+                <span class="chip">R16</span>
+                <span class="chip chip-court">CENTER COURT</span>
+                <span class="chip chip-status-live">LIVE</span>
+              </div>
+              <div class="pairs-wrap">
+                <div class="pairs-inner">
+                  <div class="names-col">
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-esp"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">Galán · Lebrón</span>
+                      <span class="seed-badge">2</span>
+                      <span class="serve-dot" title="Serving"></span>
+                    </div>
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-arg"></div>
+                        <div class="f2 fl-arg"></div>
+                      </div>
+                      <span class="pair-name">Coello · Tapia</span>
+                      <span class="seed-badge">1</span>
+                    </div>
+                  </div>
+                  <div class="scores-col">
+                    <div class="pair-row" style="justify-content:flex-end;">
+                      <span class="score-cell won">6</span>
+                      <span class="score-cell current">4</span>
+                      <span class="live-pt">40</span>
+                    </div>
+                    <div class="pair-row" style="justify-content:flex-end;">
+                      <span class="score-cell">3</span>
+                      <span class="score-cell current">3</span>
+                      <span class="live-pt">30</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+
+            <!-- 15:30 LIVE Womens (Sánchez/Josemaría vs Brea/Triay, Court 2) -->
+            <a class="mc live" href="#">
+              <div class="gender-bar women"></div>
+              <div class="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <div class="chip-row">
+                <span class="chip">R16</span>
+                <span class="chip chip-court">COURT 2</span>
+                <span class="chip chip-status-live">LIVE · SET 1</span>
+              </div>
+              <div class="pairs-wrap">
+                <div class="pairs-inner">
+                  <div class="names-col">
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-esp"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">Sánchez · Josemaría</span>
+                      <span class="seed-badge">1</span>
+                    </div>
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-arg"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">Brea · Triay</span>
+                      <span class="seed-badge">3</span>
+                      <span class="serve-dot" title="Serving"></span>
+                    </div>
+                  </div>
+                  <div class="scores-col">
+                    <div class="pair-row" style="justify-content:flex-end;">
+                      <span class="score-cell current">5</span>
+                      <span class="live-pt">15</span>
+                    </div>
+                    <div class="pair-row" style="justify-content:flex-end;">
+                      <span class="score-cell current">4</span>
+                      <span class="live-pt">30</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+
+            <!-- 17:00 Upcoming Womens (Ortega/Virseda vs Salazar/Llaguno) -->
+            <a class="mc" href="#">
+              <div class="gender-bar women"></div>
+              <div class="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <div class="chip-row">
+                <span class="chip">R16</span>
+                <span class="chip chip-court">COURT 2</span>
+              </div>
+              <div class="pairs-wrap">
+                <div class="pairs-inner">
+                  <div class="names-col">
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-esp"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">Ortega · Virseda</span>
+                      <span class="seed-badge">5</span>
+                    </div>
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-esp"></div>
+                        <div class="f2 fl-mex"></div>
+                      </div>
+                      <span class="pair-name">Salazar · Llaguno</span>
+                      <span class="seed-badge">7</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="schedule-stack">
+                  <span class="date">Today</span>
+                  <span class="time">17:00</span>
+                </div>
+              </div>
+            </a>
+
+            <!-- 18:30 Upcoming Mens (Stupaczuk/Di Nenno vs Yanguas/Garrido) -->
+            <a class="mc" href="#">
+              <div class="gender-bar men"></div>
+              <div class="star">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </div>
+              <div class="chip-row">
+                <span class="chip">R16</span>
+                <span class="chip chip-court">CENTER COURT</span>
+              </div>
+              <div class="pairs-wrap">
+                <div class="pairs-inner">
+                  <div class="names-col">
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-arg"></div>
+                        <div class="f2 fl-arg"></div>
+                      </div>
+                      <span class="pair-name">Stupaczuk · Di Nenno</span>
+                      <span class="seed-badge">3</span>
+                    </div>
+                    <div class="pair-row">
+                      <div class="flags-stack">
+                        <div class="f1 fl-esp"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">Yanguas · Garrido</span>
+                      <span class="seed-badge">6</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="schedule-stack">
+                  <span class="date">Today</span>
+                  <span class="time">18:30*</span>
+                </div>
+              </div>
+            </a>
+
+            <!-- ── Divider: Finished ── -->
+            <div class="section-divider">
+              <span class="label">Finished <span class="n">3</span></span>
+              <div class="line"></div>
+            </div>
+
+            <!-- 14:00 Finished Mens (Augsburger/Dal Bianco def. Chingotto/Galán Hijo) -->
+            <a class="mc finished" href="#">
+              <div class="gender-bar men"></div>
+              <div class="chip-row">
+                <span class="chip">R16</span>
+                <span class="chip chip-court">COURT 2</span>
+                <span class="chip chip-status-final">FINAL</span>
+                <span class="chip chip-duration">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 2"/>
+                  </svg>
+                  1H 47M
+                </span>
+              </div>
+              <div class="pairs-wrap">
+                <div class="pairs-inner">
+                  <div class="names-col">
+                    <div class="pair-row winner">
+                      <div class="flags-stack">
+                        <div class="f1 fl-arg"></div>
+                        <div class="f2 fl-arg"></div>
+                      </div>
+                      <span class="pair-name">Augsburger · Dal Bianco</span>
+                      <span class="seed-badge">9</span>
+                      <span class="w-badge">W</span>
+                    </div>
+                    <div class="pair-row loser">
+                      <div class="flags-stack">
+                        <div class="f1 fl-arg"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">Chingotto · Galán Jr</span>
+                      <span class="seed-badge">8</span>
+                    </div>
+                  </div>
+                  <div class="scores-col">
+                    <div class="pair-row winner" style="justify-content:flex-end;">
+                      <span class="score-cell won">6</span>
+                      <span class="score-cell won">7</span>
+                    </div>
+                    <div class="pair-row loser" style="justify-content:flex-end;">
+                      <span class="score-cell">4</span>
+                      <span class="score-cell">6<sup>4</sup></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+
+            <!-- 12:30 Finished Womens (Carolina Navarro / Ariana Sánchez def. Riera/Castelló) -->
+            <a class="mc finished" href="#">
+              <div class="gender-bar women"></div>
+              <div class="chip-row">
+                <span class="chip">R16</span>
+                <span class="chip chip-court">CENTER COURT</span>
+                <span class="chip chip-status-final">FINAL</span>
+                <span class="chip chip-duration">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 2"/>
+                  </svg>
+                  1H 12M
+                </span>
+              </div>
+              <div class="pairs-wrap">
+                <div class="pairs-inner">
+                  <div class="names-col">
+                    <div class="pair-row winner">
+                      <div class="flags-stack">
+                        <div class="f1 fl-esp"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">González · Sánchez</span>
+                      <span class="seed-badge">2</span>
+                      <span class="w-badge">W</span>
+                    </div>
+                    <div class="pair-row loser">
+                      <div class="flags-stack">
+                        <div class="f1 fl-esp"></div>
+                        <div class="f2 fl-esp"></div>
+                      </div>
+                      <span class="pair-name">Riera · Castelló</span>
+                      <span class="seed-badge">11</span>
+                    </div>
+                  </div>
+                  <div class="scores-col">
+                    <div class="pair-row winner" style="justify-content:flex-end;">
+                      <span class="score-cell won">6</span>
+                      <span class="score-cell won">6</span>
+                    </div>
+                    <div class="pair-row loser" style="justify-content:flex-end;">
+                      <span class="score-cell">2</span>
+                      <span class="score-cell">3</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+
+            <!-- 11:00 Finished Mens (Tello/Chingotto def. ...) -->
+            <a class="mc finished" href="#">
+              <div class="gender-bar men"></div>
+              <div class="chip-row">
+                <span class="chip">R16</span>
+                <span class="chip chip-court">COURT 3</span>
+                <span class="chip chip-status-final">FINAL</span>
+                <span class="chip chip-duration">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 7v5l3 2"/>
+                  </svg>
+                  1H 27M
+                </span>
+              </div>
+              <div class="pairs-wrap">
+                <div class="pairs-inner">
+                  <div class="names-col">
+                    <div class="pair-row winner">
+                      <div class="flags-stack">
+                        <div class="f1 fl-arg"></div>
+                        <div class="f2 fl-arg"></div>
+                      </div>
+                      <span class="pair-name">Tello · Belasteguín</span>
+                      <span class="seed-badge">4</span>
+                      <span class="w-badge">W</span>
+                    </div>
+                    <div class="pair-row loser">
+                      <div class="flags-stack">
+                        <div class="f1 fl-bra"></div>
+                        <div class="f2 fl-bra"></div>
+                      </div>
+                      <span class="pair-name">Cardona · Pérez</span>
+                      <span class="seed-badge">13</span>
+                    </div>
+                  </div>
+                  <div class="scores-col">
+                    <div class="pair-row winner" style="justify-content:flex-end;">
+                      <span class="score-cell won">7</span>
+                      <span class="score-cell won">6</span>
+                    </div>
+                    <div class="pair-row loser" style="justify-content:flex-end;">
+                      <span class="score-cell">5</span>
+                      <span class="score-cell">3</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </a>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Annotations ── -->
+    <div class="annotation">
+      <h2 class="anno-header">What changed</h2>
+
+      <div class="anno-block">
+        <h3>One list, by time</h3>
+        <p>
+          Court sub-sections (Center → Court 2 → Court 3) replaced with a single
+          chronological flow. Easier to answer "what's next?" without reading three
+          court columns.
+        </p>
+      </div>
+
+      <div class="anno-block">
+        <h3>Live in its time slot</h3>
+        <p>
+          Live matches stay in their natural slot. The red <strong>LIVE</strong> chip
+          on the card already provides the visual anchor — no "live" section header
+          needed.
+        </p>
+      </div>
+
+      <div class="anno-block">
+        <h3>Finished at the bottom</h3>
+        <p>
+          A subtle divider separates finished matches. They're slightly faded but
+          fully visible. Most-recent finish first.
+        </p>
+        <div class="anno-callout">
+          The MatchCard itself is unchanged — court chip, time, scores all in their
+          existing positions. Only the parent layout changes.
+        </div>
+      </div>
+
+      <div class="anno-block">
+        <h3>Tournament header</h3>
+        <p>
+          Unchanged. Same flag, name, status pill, count, chevron. Sort order of
+          tournaments on the day page is unaffected.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
