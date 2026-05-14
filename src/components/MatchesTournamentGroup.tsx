@@ -4,23 +4,22 @@
 //
 // Tournament-grouped match card for /matches/[date]. Each group renders
 // a rich header (flag, name, level pill, date range, match count, expand
-// chevron) and a body that breaks the matches down by COURT — same
-// layout organizers use on the official OOP page (Brussels: CBC →
-// Nextensa → Lotto). Court order: tournament_courts.display_order if
-// present, alphabetical fallback. Within each court, matches sort by
-// matches.court_order ascending so the day's running order is preserved.
+// chevron) and a body that reads as one chronological list:
 //
-// Why courts instead of live/upcoming/finished sub-sections: with status
-// sub-sections the layout reshuffled every time a match flipped state,
-// and the natural reading order on-site IS by court. The status signal
-// is preserved via a chip on each match row.
+//   - Active section: live + upcoming, sorted by scheduled_at ascending.
+//     Live matches stay in their natural time slot — the red LIVE chip on
+//     the MatchCard provides the visual emphasis.
+//   - Finished section: separated by a green "FINISHED · N" divider, sorted
+//     by finished_at descending (most-recent finish first).
+//
+// Sort + partition is delegated to bucketDayMatches in
+// src/lib/match-day-bucket.ts (covered by 12 unit tests).
 //
 // Filter integration: the wrapper carries `data-tour-group` + `data-league`
 // + `data-tier` so MatchesFilterClient can hide the whole tournament when
 // it doesn't match the league/tier filter. Each match wrapper inside
 // carries `data-match` + `data-category` + `data-qualifier` + `data-status`
-// for per-match filtering. Court-section wrappers carry `data-court-section`
-// so the cascade can hide an emptied court header.
+// for per-match filtering.
 
 import { useState } from 'react'
 import { Link } from '@/i18n/navigation'
@@ -39,7 +38,6 @@ const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
 const BG_CARD = '#141414'
 const MUTED = '#6B7280'
-const BORDER = 'rgba(255,255,255,0.06)'
 const MEN_BLUE = '#4A9EFF'
 const WOMEN_PURPLE = '#D966FF'
 
