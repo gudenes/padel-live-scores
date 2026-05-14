@@ -58,6 +58,7 @@ export interface GroupMatch {
   category: string | null
   scheduled_at: string | null
   finished_at: string | null
+  duration: string | null
   round: string | null
   court: string | null
   court_order: number | null
