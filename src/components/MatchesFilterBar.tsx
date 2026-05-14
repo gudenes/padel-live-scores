@@ -75,102 +75,102 @@ export default function MatchesFilterBar({
     >
       {leftSlot}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-      <YoutubeLiveIndicator liveChannels={liveChannels} />
-      <button
-        ref={liveButtonRef}
-        type="button"
-        onClick={onToggleLive}
-        aria-pressed={liveActive}
-        aria-label={tButton('liveOnly')}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '8px 12px',
-          background: liveActive ? LIVE_RED : BG_CARD,
-          border: `1px solid ${liveActive ? LIVE_RED : BORDER_STRONG}`,
-          color: liveActive ? '#fff' : '#fff',
-          fontSize: 11,
-          fontWeight: 800,
-          letterSpacing: 0.4,
-          textTransform: 'uppercase',
-          clipPath: CHUNKY_BUTTON,
-          cursor: 'pointer',
-          flexShrink: 0,
-          fontFamily: 'inherit',
-          transition: 'background 0.15s ease, border-color 0.15s ease',
-        }}
-      >
-        <span
+        <YoutubeLiveIndicator liveChannels={liveChannels} />
+        <button
+          ref={liveButtonRef}
+          type="button"
+          onClick={onToggleLive}
+          aria-pressed={liveActive}
+          aria-label={tButton('liveOnly')}
           style={{
-            display: 'inline-block',
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            background: liveActive ? '#fff' : LIVE_RED,
-            boxShadow: liveActive ? '0 0 0 2px rgba(255,255,255,0.25)' : `0 0 0 2px rgba(255,70,85,0.25)`,
-            // Pulse only when there's actually something live today —
-            // a static dot when nothing's running, so the pill doesn't
-            // visually promise activity that isn't there.
-            animation: hasLiveMatches ? 'live-pulse 1.4s ease-in-out infinite' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 12px',
+            background: liveActive ? LIVE_RED : BG_CARD,
+            border: `1px solid ${liveActive ? LIVE_RED : BORDER_STRONG}`,
+            color: liveActive ? '#fff' : '#fff',
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: 0.4,
+            textTransform: 'uppercase',
+            clipPath: CHUNKY_BUTTON,
+            cursor: 'pointer',
+            flexShrink: 0,
+            fontFamily: 'inherit',
+            transition: 'background 0.15s ease, border-color 0.15s ease',
           }}
-        />
-        {tButton('liveOnly')}
-      </button>
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={tButton('open')}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '8px 14px',
-          background: BG_CARD,
-          border: `1px solid ${BORDER_STRONG}`,
-          color: '#fff',
-          fontSize: 11,
-          fontWeight: 800,
-          letterSpacing: 0.4,
-          textTransform: 'uppercase',
-          clipPath: CHUNKY_BUTTON,
-          cursor: 'pointer',
-          flexShrink: 0,
-          fontFamily: 'inherit',
-        }}
-      >
-        <svg
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
         >
-          <line x1="4" y1="6" x2="20" y2="6" />
-          <line x1="7" y1="12" x2="17" y2="12" />
-          <line x1="10" y1="18" x2="14" y2="18" />
-        </svg>
-        {tButton('open')}
-        {hasActive && (
           <span
             style={{
-              background: GREEN,
-              color: '#0A0A0A',
-              fontSize: 9,
-              fontWeight: 800,
-              padding: '1px 6px',
-              borderRadius: 8,
-              minWidth: 16,
-              textAlign: 'center',
-              lineHeight: 1.4,
+              display: 'inline-block',
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: liveActive ? '#fff' : LIVE_RED,
+              boxShadow: liveActive ? '0 0 0 2px rgba(255,255,255,0.25)' : `0 0 0 2px rgba(255,70,85,0.25)`,
+              // Pulse only when there's actually something live today —
+              // a static dot when nothing's running, so the pill doesn't
+              // visually promise activity that isn't there.
+              animation: hasLiveMatches ? 'live-pulse 1.4s ease-in-out infinite' : 'none',
             }}
+          />
+          {tButton('liveOnly')}
+        </button>
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={tButton('open')}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '8px 14px',
+            background: BG_CARD,
+            border: `1px solid ${BORDER_STRONG}`,
+            color: '#fff',
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: 0.4,
+            textTransform: 'uppercase',
+            clipPath: CHUNKY_BUTTON,
+            cursor: 'pointer',
+            flexShrink: 0,
+            fontFamily: 'inherit',
+          }}
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
           >
-            {activeCount}
-          </span>
-        )}
-      </button>
+            <line x1="4" y1="6" x2="20" y2="6" />
+            <line x1="7" y1="12" x2="17" y2="12" />
+            <line x1="10" y1="18" x2="14" y2="18" />
+          </svg>
+          {tButton('open')}
+          {hasActive && (
+            <span
+              style={{
+                background: GREEN,
+                color: '#0A0A0A',
+                fontSize: 9,
+                fontWeight: 800,
+                padding: '1px 6px',
+                borderRadius: 8,
+                minWidth: 16,
+                textAlign: 'center',
+                lineHeight: 1.4,
+              }}
+            >
+              {activeCount}
+            </span>
+          )}
+        </button>
       </div>
       <style jsx>{`
         @keyframes live-pulse {

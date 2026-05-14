@@ -38,7 +38,7 @@ export interface YoutubeLiveIndicatorProps {
 }
 
 function youtubeWatchUrl(videoId: string): string {
-  return `https://www.youtube.com/watch?v=${videoId}`
+  return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
 }
 
 export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndicatorProps) {
@@ -56,7 +56,10 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
       }
     }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        setOpen(false)
+        e.stopPropagation()
+      }
     }
     document.addEventListener('pointerdown', onPointerDown, true)
     document.addEventListener('keydown', onKey, true)
@@ -69,6 +72,9 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
   // Hidden when nothing is live.
   if (liveChannels.length === 0) return null
 
+  // Each broadcast renders as its own row — when a channel runs multiple
+  // simultaneous streams, the badge count = number of broadcasts, not
+  // number of distinct channels.
   const count = liveChannels.length
 
   return (
@@ -77,6 +83,7 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
         type="button"
         aria-label={t('ariaLabel', { count })}
         aria-expanded={open}
+        aria-controls="yt-live-panel"
         onClick={() => setOpen(o => !o)}
         style={{
           display: 'inline-flex',
@@ -100,7 +107,7 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
         }}>
-          <svg viewBox="0 0 24 24" width="8" height="8" fill="#fff" aria-hidden>
+          <svg viewBox="0 0 24 24" width="8" height="8" fill="#fff" aria-hidden="true">
             <path d="M8 5v14l11-7z"/>
           </svg>
         </span>
@@ -119,6 +126,7 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
 
       {open && (
         <div
+          id="yt-live-panel"
           role="region"
           aria-label={t('panelEyebrow')}
           style={{
@@ -185,7 +193,7 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
                 <div style={{
                   fontSize: 11, color: MUTED_2, marginTop: 3, lineHeight: 1.4,
                   overflow: 'hidden', textOverflow: 'ellipsis',
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const,
                 }}>{row.title}</div>
               </div>
 
@@ -205,7 +213,7 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
                   textDecoration: 'none',
                 }}
               >
-                <svg viewBox="0 0 24 24" width="10" height="10" fill="#fff" aria-hidden>
+                <svg viewBox="0 0 24 24" width="10" height="10" fill="#fff" aria-hidden="true">
                   <path d="M8 5v14l11-7z"/>
                 </svg>
                 {t('watchCta')}
