@@ -110,7 +110,7 @@ export async function listVideoDetails(
   const res = await fetch(`${Y_BASE}/videos?${params}`)
   if (!res.ok) await throwForBadResponse(res, 'listVideoDetails')
   const json = (await res.json()) as VideosResponse
-  return json.items.map(it => ({
+  return (json.items ?? []).map(it => ({
     videoId: it.id,
     title: it.snippet.title,
     thumbnailUrl: it.snippet.thumbnails?.medium?.url ?? it.snippet.thumbnails?.default?.url ?? null,

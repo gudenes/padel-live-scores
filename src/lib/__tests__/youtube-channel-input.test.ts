@@ -11,12 +11,16 @@ describe('parseYoutubeChannelInput', () => {
   it('returns kind=handle for @handle input (with or without @)', () => {
     expect(parseYoutubeChannelInput('@padelfip')).toEqual({ kind: 'handle', value: 'padelfip' })
     expect(parseYoutubeChannelInput('padelfip')).toEqual({ kind: 'handle', value: 'padelfip' })
+    expect(parseYoutubeChannelInput('@Padel.FIP-Tour')).toEqual({ kind: 'handle', value: 'Padel.FIP-Tour' })
   })
 
   it('extracts handle from youtube.com/@handle URL', () => {
     expect(parseYoutubeChannelInput('https://youtube.com/@padelfip')).toEqual({ kind: 'handle', value: 'padelfip' })
     expect(parseYoutubeChannelInput('https://www.youtube.com/@PremierPadelOfficial')).toEqual({
       kind: 'handle', value: 'PremierPadelOfficial',
+    })
+    expect(parseYoutubeChannelInput('https://youtube.com/@Padel.FIP-Tour')).toEqual({
+      kind: 'handle', value: 'Padel.FIP-Tour',
     })
   })
 
@@ -40,5 +44,6 @@ describe('parseYoutubeChannelInput', () => {
     expect(parseYoutubeChannelInput('')).toBeNull()
     expect(parseYoutubeChannelInput('   ')).toBeNull()
     expect(parseYoutubeChannelInput('https://example.com/foo')).toBeNull()
+    expect(parseYoutubeChannelInput('@!!invalid')).toBeNull()
   })
 })
