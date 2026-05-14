@@ -11,7 +11,7 @@
 import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { type MatchesFilters } from '@/hooks/useMatchesFilters'
-import type { LiveChannel } from './YoutubeLiveIndicator'
+import YoutubeLiveIndicator, { type LiveChannel } from './YoutubeLiveIndicator'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -52,7 +52,7 @@ export default function MatchesFilterBar({
   hasLiveMatches,
   leftSlot,
   liveButtonRef,
-  liveChannels: _liveChannels = [],
+  liveChannels = [],
 }: MatchesFilterBarProps) {
   const tButton = useTranslations('matches.filters')
   const hasActive = activeCount > 0
@@ -75,6 +75,7 @@ export default function MatchesFilterBar({
     >
       {leftSlot}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <YoutubeLiveIndicator liveChannels={liveChannels} />
       <button
         ref={liveButtonRef}
         type="button"
