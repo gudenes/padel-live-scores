@@ -29,7 +29,7 @@ import { pairName, getMatchDisplay, type Match } from '@/types/match'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
 import { countryToTimezone } from '@/lib/country-timezone'
-import { parseDurationHHMM } from '@/lib/match-duration'
+import { parseDurationHHMM, MAX_DURATION_MINUTES } from '@/lib/match-duration'
 import FollowButton from '@/components/FollowButton'
 
 const GREEN = '#7ED321'
@@ -235,9 +235,14 @@ export function MatchCard({
           pair1TotalGames: p1TotalGames, pair2TotalGames: p2TotalGames } = display
   const gamePoints = display.livePoint
 
-  // Duration chip (finished cards only). matches.duration is sanitized to
-  // ≤240min upstream; parseDurationHHMM returns null for missing/malformed.
-  const durationMinutes = parseDurationHHMM((match as { duration?: string | null }).duration)
+  // Duration chip (finished cards only). parseDurationHHMM returns null for
+  // missing/malformed; we additionally enforce the same ≤240min cap here so
+  // the chip is self-defending even if a future write path skips the
+  // upstream sanitizer in src/lib/match-duration.ts.
+  const rawDurationMinutes = parseDurationHHMM((match as { duration?: string | null }).duration)
+  const durationMinutes = rawDurationMinutes != null && rawDurationMinutes <= MAX_DURATION_MINUTES
+    ? rawDurationMinutes
+    : null
   const durationLabel = isFinished && durationMinutes != null
     ? tMatch('duration', { hours: Math.floor(durationMinutes / 60), minutes: durationMinutes % 60 })
     : null
@@ -401,11 +406,10 @@ export function MatchCard({
           }}
         />
 
-        {/* Bookmark star — universal corner action. FollowButton handles
-            preventDefault + stopPropagation internally so taps don't
-            navigate the wrapping <Link> to match detail.
-            Hidden on finished cards — "follow this match" no longer applies
-            once a winner is set. */}
+        {/* Bookmark hidden on finished/ended cards — once a match is over, the
+            "follow this live match" affordance no longer applies. FollowButton
+            handles preventDefault + stopPropagation internally so taps don't
+            navigate the wrapping <Link> to match detail. */}
         {!isFinished && (
           <FollowButton
             type="match"
