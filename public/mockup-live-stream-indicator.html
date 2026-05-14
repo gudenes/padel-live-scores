@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Live stream indicator — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --green: #7ED321;
+    --green-soft: rgba(126, 211, 33, 0.12);
+    --green-mid: rgba(126, 211, 33, 0.28);
+    --red: #FF4655;
+    --red-soft: rgba(255, 70, 85, 0.16);
+    --red-mid: rgba(255, 70, 85, 0.30);
+    --yt-red: #FF0000;
+    --orange: #F5A623;
+    --bg: #0A0A0B;
+    --bg-app: #1A1A1A;
+    --bg-card: #141414;
+    --bg-elev: #1e1e1e;
+    --bg-elev-2: #232427;
+    --muted: #6B7280;
+    --muted-2: #9CA3AF;
+    --border: rgba(255, 255, 255, 0.06);
+    --border-strong: rgba(255, 255, 255, 0.12);
+    --chunky-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --chunky-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: #fff;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    background:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(126,211,33,0.06), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 90% 10%, rgba(255,0,0,0.05), transparent 60%),
+      var(--bg);
+    min-height: 100vh;
+    padding: 48px 16px 96px;
+  }
+
+  .page { max-width: 1100px; margin: 0 auto; }
+  .page-header { margin-bottom: 40px; padding-bottom: 28px; border-bottom: 0.5px solid var(--border); }
+  .eyebrow {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px; letter-spacing: 4px;
+    color: var(--yt-red); margin: 0 0 8px;
+  }
+  .page-header h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(36px, 5vw, 56px);
+    line-height: 0.95; letter-spacing: 1px;
+    margin: 0 0 14px;
+  }
+  .page-header p {
+    max-width: 720px; font-size: 14px; line-height: 1.6;
+    color: var(--muted-2); margin: 0 0 6px;
+  }
+  .page-header .change-list {
+    margin: 14px 0 0; padding: 0; list-style: none;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .page-header .change-list li {
+    font-size: 13px; color: var(--muted-2); padding-left: 18px; position: relative;
+  }
+  .page-header .change-list li::before {
+    content: '→'; position: absolute; left: 0; color: var(--yt-red); font-weight: 700;
+  }
+
+  /* ── Phones row ───────────────────────────────────── */
+  .phones {
+    display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;
+    align-items: flex-start;
+  }
+  .phone-col {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+  }
+  .phone-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px; letter-spacing: 2px; color: var(--muted-2);
+    text-transform: uppercase;
+  }
+  .phone-label .num {
+    color: var(--yt-red); margin-right: 6px;
+  }
+  .phone {
+    width: 390px;
+    background: var(--bg-app);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.6),
+      0 0 0 8px #0d0d0e,
+      0 0 0 9px rgba(255,255,255,0.04);
+    position: relative;
+  }
+  .phone::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 28px; background: #000; border-radius: 0 0 16px 16px;
+    z-index: 30;
+  }
+  .phone-screen { padding: 38px 0 0; min-height: 600px; }
+
+  /* ── App brand row ─────────────────────────────────── */
+  .app-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 16px 10px;
+  }
+  .brand {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 2px; color: #fff;
+  }
+  .brand .dot { color: var(--green); }
+  .header-actions { display: flex; gap: 14px; color: var(--muted-2); font-size: 18px; }
+
+  /* ── Day pills ─────────────────────────────────────── */
+  .day-pills {
+    display: flex; gap: 6px; padding: 6px 14px 12px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .day-pills::-webkit-scrollbar { display: none; }
+  .day-pill {
+    flex-shrink: 0; padding: 6px 12px; border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03); color: var(--muted-2);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.4px;
+    text-transform: uppercase; clip-path: var(--chunky-badge);
+    display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 44px;
+  }
+  .day-pill .d { font-family: 'Bebas Neue', sans-serif; font-size: 16px; color: #fff; line-height: 1; }
+  .day-pill.active {
+    background: var(--green); color: #0A0A0A; border-color: var(--green);
+  }
+  .day-pill.active .d { color: #0A0A0A; }
+
+  /* ── Filter bar ───────────────────────────────────── */
+  .filter-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 14px 12px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .filter-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+    text-transform: uppercase; cursor: pointer;
+    padding: 7px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    color: var(--muted-2);
+    clip-path: var(--chunky-badge);
+  }
+  .filter-pill.live {
+    color: var(--red); border-color: rgba(255,70,85,0.30);
+    background: rgba(255,70,85,0.06);
+  }
+  .filter-pill.live .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 8px rgba(255,70,85,0.7);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.6; }
+  }
+
+  /* ── The new YouTube live indicator ──────────────────
+     Sits next to the EN VIVO pill in the filter bar.
+     Compact when collapsed: YouTube glyph + tiny count
+     badge + chevron. Tap = toggle expanded panel below.
+  */
+  .yt-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.4px;
+    text-transform: uppercase; cursor: pointer;
+    padding: 6px 10px;
+    background: rgba(255,0,0,0.10);
+    border: 1px solid rgba(255,0,0,0.32);
+    color: #fff;
+    clip-path: var(--chunky-badge);
+    position: relative;
+  }
+  .yt-pill .yt-glyph {
+    width: 18px; height: 13px; border-radius: 3px;
+    background: var(--yt-red);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .yt-pill .yt-glyph svg {
+    width: 8px; height: 8px;
+  }
+  .yt-pill .label {
+    color: #fff; font-weight: 800;
+  }
+  .yt-pill .count {
+    color: #0A0A0A;
+    background: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    line-height: 1.2;
+    font-weight: 800;
+  }
+  .yt-pill .chev {
+    color: rgba(255,255,255,0.7);
+    font-size: 9px;
+    margin-left: 1px;
+    transition: transform 0.2s;
+  }
+  .yt-pill.expanded .chev {
+    transform: rotate(180deg);
+  }
+  .yt-pill.expanded {
+    background: rgba(255,0,0,0.18);
+    border-color: rgba(255,0,0,0.50);
+  }
+
+  .filters-spacer { flex: 1; }
+  .filter-pill.filters-cta {
+    color: var(--muted-2);
+  }
+
+  /* ── Expanded panel ─────────────────────────────────── */
+  .yt-panel {
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 14px 16px;
+    position: relative;
+  }
+  .yt-panel::before {
+    content: '';
+    position: absolute; left: 0; right: 0; top: 0; height: 2px;
+    background: linear-gradient(90deg, var(--yt-red), transparent 70%);
+  }
+  .yt-panel-eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 12px; letter-spacing: 2px; color: var(--yt-red);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .yt-panel-eyebrow .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--yt-red);
+    box-shadow: 0 0 8px rgba(255,0,0,0.7);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .yt-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+  }
+  .yt-row:first-of-type { border-top: none; }
+  .yt-channel-logo {
+    width: 36px; height: 36px;
+    background: var(--yt-red);
+    border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+  }
+  .yt-channel-logo.fip {
+    background: linear-gradient(135deg, #2D7DD2 0%, #1657A0 100%);
+  }
+  .yt-channel-info {
+    flex: 1; min-width: 0;
+  }
+  .yt-channel-name {
+    font-size: 12px; font-weight: 800; letter-spacing: 0.3px;
+    color: #fff; line-height: 1.2;
+    text-transform: uppercase;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .yt-channel-name .live-mini {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.5px;
+    color: var(--red); background: var(--red-soft);
+    padding: 1px 5px; clip-path: var(--chunky-badge);
+    line-height: 1.4;
+  }
+  .yt-stream-title {
+    font-size: 11px; color: var(--muted-2); margin-top: 3px;
+    line-height: 1.4;
+    overflow: hidden; text-overflow: ellipsis;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .yt-watch-cta {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #fff;
+    background: var(--yt-red);
+    padding: 7px 12px;
+    clip-path: var(--chunky-badge);
+    text-decoration: none;
+  }
+  .yt-watch-cta svg { width: 10px; height: 10px; }
+
+  /* ── Tournament group below (stub for context) ────── */
+  .tour-group { margin: 14px 14px 0; }
+  .tour-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; background: var(--bg-elev);
+    position: relative;
+  }
+  .tour-head::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--red);
+  }
+  .tour-flag {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: linear-gradient(180deg, #74acdf 33%, #fff 33% 66%, #74acdf 66%);
+    flex-shrink: 0; box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .tour-name {
+    font-size: 13px; font-weight: 800; color: #fff;
+    letter-spacing: -0.1px;
+  }
+  .pill-mini {
+    font-size: 8px; font-weight: 800; letter-spacing: 0.5px;
+    padding: 2px 6px; clip-path: var(--chunky-badge);
+    text-transform: uppercase;
+  }
+  .pill-mini.live { color: var(--red); background: var(--red-soft); }
+  .pill-mini.stage { color: var(--green); background: var(--green-soft); margin-left: 4px; }
+
+  /* annotation column */
+  .annotations {
+    width: 320px; flex-shrink: 0;
+  }
+  .annotations .anno-header {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 1px; color: #fff;
+    margin: 0 0 14px;
+  }
+  .annotations .anno-block {
+    background: rgba(255,255,255,0.03);
+    border: 0.5px solid var(--border);
+    padding: 14px 16px;
+    clip-path: var(--chunky-card);
+    margin-bottom: 12px;
+  }
+  .annotations .anno-block h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px; letter-spacing: 1.5px;
+    color: var(--yt-red); margin: 0 0 6px;
+  }
+  .annotations .anno-block p {
+    font-size: 12px; line-height: 1.5;
+    color: var(--muted-2); margin: 0;
+  }
+  .annotations .anno-block strong { color: #fff; font-weight: 600; }
+
+  @media (max-width: 1000px) {
+    .annotations { width: 100%; max-width: 390px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="page-header">
+    <p class="eyebrow">MOCKUP · YOUTUBE LIVE INDICATOR</p>
+    <h1>Watch live on YouTube</h1>
+    <p>
+      Page-level indicator that surfaces when Premier Padel or FIP Tour are
+      currently streaming on YouTube. Sits next to the EN VIVO filter pill.
+      Tap to expand an inline panel listing every channel with a live stream
+      right now — court-specific stream when known, channel home as fallback.
+    </p>
+    <ul class="change-list">
+      <li>Visible only when at least one channel has a live broadcast</li>
+      <li>Compact pill: YouTube glyph + count badge + chevron — minimal until tapped</li>
+      <li>Expanded panel slots below the filter bar, above the day's tournaments</li>
+      <li>Each row: channel + live stream title (if known) + "Watch" CTA → opens YouTube</li>
+    </ul>
+  </div>
+
+  <div class="phones">
+
+    <!-- ── Phone 1: collapsed state ─────────────────── -->
+    <div class="phone-col">
+      <div class="phone-label"><span class="num">01</span>Collapsed</div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="app-header">
+            <div class="brand">PADELNACHO<span class="dot">.</span></div>
+            <div class="header-actions"><span>⚲</span><span>☰</span></div>
+          </div>
+          <div class="day-pills">
+            <div class="day-pill"><span class="d">12</span><span>Mar</span></div>
+            <div class="day-pill"><span class="d">13</span><span>Ayer</span></div>
+            <div class="day-pill active"><span class="d">14</span><span>Hoy</span></div>
+            <div class="day-pill"><span class="d">15</span><span>Mañ</span></div>
+            <div class="day-pill"><span class="d">16</span><span>Sáb</span></div>
+          </div>
+          <div class="filter-bar">
+            <button class="yt-pill">
+              <span class="yt-glyph">
+                <svg viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </span>
+              <span class="label">YT</span>
+              <span class="count">2</span>
+              <span class="chev">▼</span>
+            </button>
+            <button class="filter-pill live">
+              <span class="dot"></span>EN VIVO
+            </button>
+            <div class="filters-spacer"></div>
+            <button class="filter-pill filters-cta">≡ FILTROS</button>
+          </div>
+
+          <div class="tour-group">
+            <div class="tour-head">
+              <div class="tour-flag"></div>
+              <div>
+                <div style="display:flex;align-items:center;flex-wrap:wrap;">
+                  <span class="tour-name">BUENOS AIRES P1</span>
+                  <span class="pill-mini live">LIVE</span>
+                  <span class="pill-mini stage">R16</span>
+                </div>
+                <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-top:3px;">P1 · 10 MAY — 17 MAY</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Phone 2: expanded state ─────────────────── -->
+    <div class="phone-col">
+      <div class="phone-label"><span class="num">02</span>Expanded — tap the YT pill</div>
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="app-header">
+            <div class="brand">PADELNACHO<span class="dot">.</span></div>
+            <div class="header-actions"><span>⚲</span><span>☰</span></div>
+          </div>
+          <div class="day-pills">
+            <div class="day-pill"><span class="d">12</span><span>Mar</span></div>
+            <div class="day-pill"><span class="d">13</span><span>Ayer</span></div>
+            <div class="day-pill active"><span class="d">14</span><span>Hoy</span></div>
+            <div class="day-pill"><span class="d">15</span><span>Mañ</span></div>
+            <div class="day-pill"><span class="d">16</span><span>Sáb</span></div>
+          </div>
+          <div class="filter-bar">
+            <button class="yt-pill expanded">
+              <span class="yt-glyph">
+                <svg viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </span>
+              <span class="label">YT</span>
+              <span class="count">2</span>
+              <span class="chev">▼</span>
+            </button>
+            <button class="filter-pill live">
+              <span class="dot"></span>EN VIVO
+            </button>
+            <div class="filters-spacer"></div>
+            <button class="filter-pill filters-cta">≡ FILTROS</button>
+          </div>
+
+          <!-- ── Expanded panel ── -->
+          <div class="yt-panel">
+            <div class="yt-panel-eyebrow">
+              <span class="dot"></span>EN VIVO EN YOUTUBE
+            </div>
+
+            <div class="yt-row">
+              <div class="yt-channel-logo">PP</div>
+              <div class="yt-channel-info">
+                <div class="yt-channel-name">
+                  Premier Padel <span class="live-mini">LIVE</span>
+                </div>
+                <div class="yt-stream-title">Buenos Aires P1 — Court Central · Galán/Lebrón vs Coello/Tapia</div>
+              </div>
+              <a class="yt-watch-cta" href="#">
+                <svg viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                VER
+              </a>
+            </div>
+
+            <div class="yt-row">
+              <div class="yt-channel-logo fip">FIP</div>
+              <div class="yt-channel-info">
+                <div class="yt-channel-name">
+                  FIP Tour <span class="live-mini">LIVE</span>
+                </div>
+                <div class="yt-stream-title">FIP Silver Brescia — Centre Court · Live now</div>
+              </div>
+              <a class="yt-watch-cta" href="#">
+                <svg viewBox="0 0 24 24" fill="#fff" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+                VER
+              </a>
+            </div>
+          </div>
+
+          <div class="tour-group">
+            <div class="tour-head">
+              <div class="tour-flag"></div>
+              <div>
+                <div style="display:flex;align-items:center;flex-wrap:wrap;">
+                  <span class="tour-name">BUENOS AIRES P1</span>
+                  <span class="pill-mini live">LIVE</span>
+                  <span class="pill-mini stage">R16</span>
+                </div>
+                <div style="font-size:9px;font-weight:700;color:var(--muted);letter-spacing:0.5px;text-transform:uppercase;margin-top:3px;">P1 · 10 MAY — 17 MAY</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Annotations ── -->
+    <div class="annotations">
+      <h2 class="anno-header">Notes</h2>
+
+      <div class="anno-block">
+        <h3>Where it lives</h3>
+        <p>
+          Next to the <strong>EN VIVO</strong> filter pill in the matches-page
+          filter bar. Same vertical row, same chunky-pill family — feels
+          native to the existing UI.
+        </p>
+      </div>
+
+      <div class="anno-block">
+        <h3>When it shows</h3>
+        <p>
+          Only when at least one of <strong>Premier Padel YouTube</strong> or
+          <strong>FIP Tour YouTube</strong> has a live broadcast right now.
+          When neither is live, the pill is hidden entirely (no dead control).
+        </p>
+      </div>
+
+      <div class="anno-block">
+        <h3>The count badge</h3>
+        <p>
+          Tiny white-on-red number = how many channels are live. <strong>1</strong>
+          when only one is broadcasting; <strong>2</strong> when both are.
+          Communicates the size of the panel before opening it.
+        </p>
+      </div>
+
+      <div class="anno-block">
+        <h3>Tap to expand</h3>
+        <p>
+          Opens an inline panel below the filter bar — pushes the day's
+          tournaments down. Each channel: logo + live stream title (when
+          known) + <strong>VER</strong> CTA that opens YouTube. Tap the pill
+          again or anywhere outside the panel to collapse.
+        </p>
+      </div>
+
+      <div class="anno-block">
+        <h3>Stream title fallback</h3>
+        <p>
+          If the stream title isn't parseable (e.g. generic "Premier Padel
+          Live"), we still show the row but with just the channel name and a
+          subdued "<em>Open channel</em>" subtitle — the YT pill never lies
+          about live status, but the granularity degrades gracefully.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
