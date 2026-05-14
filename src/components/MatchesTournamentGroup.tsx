@@ -172,7 +172,7 @@ function tournamentStatusBadge(
 
 export default function MatchesTournamentGroup({ group }: { group: TournamentGroupData }) {
   const tStage = useTranslations('match.stageChip')
-  const tTournament = useTranslations('tournament')
+  const tDaily = useTranslations('daily')
 
   // Aggregate counts for the tournament-level status pill (LIVE / ONGOING
   // / UPCOMING / FINAL). Same buckets the old layout exposed as sub-
@@ -430,7 +430,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
                 gap: 6,
               }}
             >
-              {tTournament('finishedSection')}
+              {tDaily('finishedSection')}
               <span
                 style={{
                   color: GREEN,
