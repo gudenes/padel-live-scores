@@ -29,6 +29,7 @@ import { pairName, getMatchDisplay, type Match } from '@/types/match'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
 import { countryToTimezone } from '@/lib/country-timezone'
+import { parseDurationHHMM } from '@/lib/match-duration'
 import FollowButton from '@/components/FollowButton'
 
 const GREEN = '#7ED321'
@@ -233,6 +234,13 @@ export function MatchCard({
           pair1Serving: pair1IsServing, pair2Serving: pair2IsServing,
           pair1TotalGames: p1TotalGames, pair2TotalGames: p2TotalGames } = display
   const gamePoints = display.livePoint
+
+  // Duration chip (finished cards only). matches.duration is sanitized to
+  // ≤240min upstream; parseDurationHHMM returns null for missing/malformed.
+  const durationMinutes = parseDurationHHMM((match as { duration?: string | null }).duration)
+  const durationLabel = isFinished && durationMinutes != null
+    ? tMatch('duration', { hours: Math.floor(durationMinutes / 60), minutes: durationMinutes % 60 })
+    : null
   const scheduleLabel = (match as any).schedule_label as string | null
   const isApproximateTime = isScheduled && /not before|followed by/i.test(scheduleLabel ?? '')
 
@@ -395,14 +403,18 @@ export function MatchCard({
 
         {/* Bookmark star — universal corner action. FollowButton handles
             preventDefault + stopPropagation internally so taps don't
-            navigate the wrapping <Link> to match detail. */}
-        <FollowButton
-          type="match"
-          targetId={match.id}
-          variant="star"
-          size={20}
-          style={{ position: 'absolute', top: 10, right: 12, zIndex: 3 }}
-        />
+            navigate the wrapping <Link> to match detail.
+            Hidden on finished cards — "follow this match" no longer applies
+            once a winner is set. */}
+        {!isFinished && (
+          <FollowButton
+            type="match"
+            targetId={match.id}
+            variant="star"
+            size={20}
+            style={{ position: 'absolute', top: 10, right: 12, zIndex: 3 }}
+          />
+        )}
 
         {/* Live glow halo */}
         {isLive && (
@@ -467,6 +479,43 @@ export function MatchCard({
             <Chip bg={status.bg} color={status.color} bold>
               {status.label}
             </Chip>
+          )}
+          {durationLabel && (
+            <span
+              aria-label={durationLabel}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: 0.4,
+                color: '#9CA3AF',
+                background: 'rgba(255,255,255,0.04)',
+                padding: '2px 6px',
+                clipPath: CHUNKY.badge,
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+                fontFamily: 'monospace',
+              }}
+            >
+              <svg
+                width={9}
+                height={9}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+                style={{ opacity: 0.7 }}
+              >
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 2" />
+              </svg>
+              {durationLabel}
+            </span>
           )}
           {LATE_HINTS_ENABLED && match.status === 'scheduled' && !timeStr && (
             <span
