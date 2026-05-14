@@ -92,31 +92,7 @@ export default function MatchesFilterClient({
       node.style.display = hidden ? 'none' : ''
     })
 
-    // 2. Court-section-level (one per court inside each tournament).
-    //    Hide the court header when every match on that court is filtered
-    //    out so we don't leave a dangling court row with no matches under
-    //    it. Same cascade idea as the old per-status sub-sections.
-    //
-    //    When the LIVE filter is exclusively active, also hide the
-    //    per-court HEADER elements (data-court-header). The court
-    //    grouping is noise when the user has narrowed to "show me what's
-    //    on right now" — they want a flat list of live matches, not a
-    //    breakdown by court.
-    const liveOnly =
-      filters.status.live && !filters.status.upcoming && !filters.status.finished
-    const courtNodes = root.querySelectorAll<HTMLElement>('[data-court-section]')
-    courtNodes.forEach((sub) => {
-      const matchesInside = sub.querySelectorAll<HTMLElement>('[data-match]')
-      let anyVisible = false
-      matchesInside.forEach((m) => {
-        if (m.style.display !== 'none') anyVisible = true
-      })
-      sub.style.display = anyVisible ? '' : 'none'
-      const header = sub.querySelector<HTMLElement>('[data-court-header]')
-      if (header) header.style.display = liveOnly ? 'none' : ''
-    })
-
-    // 3. Tournament-group-level (league only). Still hide when every
+    // 2. Tournament-group-level (league only). Still hide when every
     //    match inside ended up hidden.
     const groupNodes = root.querySelectorAll<HTMLElement>('[data-tour-group]')
     groupNodes.forEach((group) => {
