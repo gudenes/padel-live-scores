@@ -56,37 +56,51 @@ export async function GET(request: NextRequest) {
         live_videos_seen: 0,
         upserts: 0,
         deletes: 0,
-        per_channel: [] as Array<{ name: string; live: number }>,
+        per_channel: [] as Array<{ name: string; live: number; error?: string }>,
       }
+
+      // One timestamp for the whole run — keeps last_seen_at consistent
+      // across all upserts in this invocation.
+      const now = new Date().toISOString()
 
       for (const ch of (channels ?? []) as ChannelRow[]) {
         result.channels_polled++
-        const items = await listUploadsPlaylistItems(ch.uploads_playlist_id, apiKey, 5)
-        if (items.length === 0) {
-          result.per_channel.push({ name: ch.name, live: 0 })
-          continue
-        }
-        const ids = items.map(i => i.videoId)
-        const videos = await listVideoDetails(ids, apiKey)
-        const live = videos.filter(v => v.liveBroadcastContent === 'live')
-        result.per_channel.push({ name: ch.name, live: live.length })
-        result.live_videos_seen += live.length
+        try {
+          const items = await listUploadsPlaylistItems(ch.uploads_playlist_id, apiKey, 5)
+          if (items.length === 0) {
+            result.per_channel.push({ name: ch.name, live: 0 })
+            continue
+          }
+          const ids = items.map(i => i.videoId)
+          const videos = await listVideoDetails(ids, apiKey)
+          const live = videos.filter(v => v.liveBroadcastContent === 'live')
+          result.per_channel.push({ name: ch.name, live: live.length })
+          result.live_videos_seen += live.length
 
-        for (const v of live) {
-          const { error: upErr } = await supabase
-            .from('youtube_channel_live')
-            .upsert(
-              {
-                channel_id: ch.id,
-                video_id: v.videoId,
-                title: v.title,
-                started_at: v.actualStartTime,
-                last_seen_at: new Date().toISOString(),
-              },
-              { onConflict: 'channel_id,video_id' },
-            )
-          if (upErr) throw upErr
-          result.upserts++
+          for (const v of live) {
+            const { error: upErr } = await supabase
+              .from('youtube_channel_live')
+              .upsert(
+                {
+                  channel_id: ch.id,
+                  video_id: v.videoId,
+                  title: v.title,
+                  started_at: v.actualStartTime,
+                  last_seen_at: now,
+                },
+                { onConflict: 'channel_id,video_id' },
+              )
+            if (upErr) throw upErr
+            result.upserts++
+          }
+        } catch (chErr) {
+          // Quota exhaustion is fatal — bubble up to the outer handler so
+          // the whole run short-circuits with `skipped: 'quota_exhausted'`.
+          if (chErr instanceof YouTubeQuotaError) throw chErr
+          // Per-channel transient error: record it and continue.
+          const message = chErr instanceof Error ? chErr.message : String(chErr)
+          console.error(`[cron:youtube-channels-discover] channel '${ch.name}' failed:`, message)
+          result.per_channel.push({ name: ch.name, live: 0, error: message })
         }
       }
 
