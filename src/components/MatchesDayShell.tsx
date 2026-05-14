@@ -47,7 +47,8 @@ interface Props {
   emptyStateTitle: string
   emptyStateSubtitle: string
   /** YouTube live broadcasts to surface in the page-level indicator.
-   *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
+   *  Empty array → indicator hidden. Server-rendered at page-load time
+   *  only — does not refresh on client-side day swaps for v1. */
   liveChannels?: LiveChannel[]
 }
 

@@ -115,6 +115,10 @@ export default async function DailyMatchesPage({ params }: Props) {
     .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
     .eq('channel.is_active', true)
 
+  if (liveChannelsRes.error) {
+    console.error('[DailyMatchesPage] youtube_channel_live query failed:', liveChannelsRes.error.message)
+  }
+
   const liveChannels: LiveChannel[] = (liveChannelsRes.data ?? [])
     .map((r) => {
       const ch = Array.isArray(r.channel) ? r.channel[0] : r.channel

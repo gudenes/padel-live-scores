@@ -83,7 +83,7 @@ export default function YoutubeLiveIndicator({ liveChannels }: YoutubeLiveIndica
         type="button"
         aria-label={t('ariaLabel', { count })}
         aria-expanded={open}
-        aria-controls="yt-live-panel"
+        aria-controls={open ? 'yt-live-panel' : undefined}
         onClick={() => setOpen(o => !o)}
         style={{
           display: 'inline-flex',
