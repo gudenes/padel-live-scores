@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bucketDayMatches, bucketStatus, type DayMatch } from '../match-day-bucket'
+import { bucketDayMatches, bucketStatus, courtRank, type DayMatch } from '../match-day-bucket'
 
 function m(overrides: Partial<DayMatch> = {}): DayMatch {
   return {
@@ -34,6 +34,40 @@ describe('bucketStatus', () => {
   it('returns null for unknown statuses', () => {
     expect(bucketStatus('postponed')).toBeNull()
     expect(bucketStatus('')).toBeNull()
+  })
+})
+
+describe('courtRank', () => {
+  it('returns 0 for center-court keywords (multilingual)', () => {
+    expect(courtRank('COURT CENTRAL')).toBe(0)
+    expect(courtRank('Court Central')).toBe(0)
+    expect(courtRank('Center Court')).toBe(0)
+    expect(courtRank('Centre Court')).toBe(0)
+    expect(courtRank('PISTA CENTRAL')).toBe(0)
+    expect(courtRank('Centro')).toBe(0)
+    expect(courtRank('Campo Centrale')).toBe(0)
+    expect(courtRank('Stadium Court')).toBe(0)
+    expect(courtRank('Main Court')).toBe(0)
+  })
+
+  it('returns the integer for numbered courts', () => {
+    expect(courtRank('Court 1')).toBe(1)
+    expect(courtRank('COURT 2')).toBe(2)
+    expect(courtRank('Pista 3')).toBe(3)
+    expect(courtRank('Cancha 4')).toBe(4)
+    expect(courtRank('Court 10')).toBe(10)
+  })
+
+  it('returns +Infinity for unrecognised names and null/empty input', () => {
+    expect(courtRank(null)).toBe(Number.POSITIVE_INFINITY)
+    expect(courtRank('')).toBe(Number.POSITIVE_INFINITY)
+    expect(courtRank('Annexe Court')).toBe(Number.POSITIVE_INFINITY)
+    expect(courtRank('Practice')).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('prefers center keyword over a number when both appear', () => {
+    expect(courtRank('Court Central 1')).toBe(0)
+    expect(courtRank('Center Court 2')).toBe(0)
   })
 })
 
@@ -90,6 +124,21 @@ describe('bucketDayMatches', () => {
     ]
     const out = bucketDayMatches(matches)
     expect(out.finished.map(x => x.id)).toEqual(['new', 'mid', 'old', 'null'])
+  })
+
+  it('prioritises Center over numbered courts when scheduled_at + court_order both tie (Buenos Aires P1 case)', () => {
+    // Real-world data: padelgod populates court_order as a per-court time-slot
+    // index (1st match on Court X = 1, 2nd on Court X = 2). All matches at
+    // the same time slot share the same court_order, so the courtRank
+    // tiebreak is what actually puts Center first.
+    const t = '2026-05-14T16:00:00Z'
+    const matches = [
+      m({ id: 'c2',  scheduled_at: t, court: 'COURT 2',       court_order: 3 }),
+      m({ id: 'cc',  scheduled_at: t, court: 'COURT CENTRAL', court_order: 3 }),
+      m({ id: 'c3',  scheduled_at: t, court: 'COURT 3',       court_order: 3 }),
+    ]
+    const out = bucketDayMatches(matches)
+    expect(out.active.map(x => x.id)).toEqual(['cc', 'c2', 'c3'])
   })
 
   it('drops matches with unknown statuses (does not crash)', () => {
