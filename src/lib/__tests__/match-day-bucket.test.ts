@@ -101,4 +101,27 @@ describe('bucketDayMatches', () => {
     expect(out.active.map(x => x.id)).toEqual(['ok'])
     expect(out.finished).toEqual([])
   })
+
+  it('uses id ascending as final tiebreak when both finished_at and scheduled_at are null', () => {
+    const matches = [
+      m({ id: 'b', status: 'finished', finished_at: null, scheduled_at: null }),
+      m({ id: 'a', status: 'finished', finished_at: null, scheduled_at: null }),
+      m({ id: 'c', status: 'finished', finished_at: null, scheduled_at: null }),
+    ]
+    const out = bucketDayMatches(matches)
+    expect(out.finished.map(x => x.id)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('preserves insertion order for active when one match has a court name and the other does not', () => {
+    // Documents current behavior: court name tiebreak only fires when both
+    // courts are non-empty. With one null court, the comparator returns 0
+    // and the sort engine keeps insertion order.
+    const t = '2026-05-14T16:00:00Z'
+    const matches = [
+      m({ id: 'named', scheduled_at: t, court: 'Center', court_order: null }),
+      m({ id: 'null',  scheduled_at: t, court: null,     court_order: null }),
+    ]
+    const out = bucketDayMatches(matches)
+    expect(out.active.map(x => x.id)).toEqual(['named', 'null'])
+  })
 })
