@@ -80,6 +80,16 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient()
     const fetchedAt = new Date().toISOString()
 
+    const { data: ppChannel } = await supabase
+      .from('youtube_channels')
+      .select('id')
+      .eq('abbreviation', 'PP')
+      .maybeSingle()
+    const premierPadelChannelId = ppChannel?.id ?? null
+    if (!premierPadelChannelId) {
+      console.warn('[sync-broadcasters] PP youtube_channel not found — broadcaster rows will have channel_id=NULL')
+    }
+
     // ── Fetch both endpoints in parallel ──────────────────────
     const [infoRes, countriesRes] = await Promise.all([
       fetch(INFO_URL, { headers: { Accept: 'application/json' } }),
@@ -154,6 +164,7 @@ export async function GET(request: NextRequest) {
         display_order: 100,
         active: true,
         fetched_at: fetchedAt,
+        channel_id: premierPadelChannelId,
       }
     }
 
