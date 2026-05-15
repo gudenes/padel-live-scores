@@ -1198,5 +1198,20 @@
       "error_server_error": "Something went wrong on our side. Try again in a moment?",
       "error_email_disabled": "Messaging is temporarily off. Email hello@padelnachos.com directly."
     }
+  },
+  "whereToWatch": {
+    "pillAriaLabel": "Where to watch — {count, plural, =0 {no streams live} one {# stream live} other {# streams live}}",
+    "eyebrow": "Where to Watch",
+    "channelLive": "LIVE",
+    "alsoIn": "Also in {region}",
+    "noFreeStream": "No free YouTube broadcast right now. {channel} is also on:",
+    "freeBadge": "FREE",
+    "watchCta": "WATCH",
+    "openCta": "OPEN",
+    "regionShowing": "Showing broadcasters in {region}.",
+    "notYourRegion": "Not your region?",
+    "pickRegionTitle": "Choose your region",
+    "pickRegionBack": "Back",
+    "closeAriaLabel": "Close"
   }
 }

@@ -1175,5 +1175,20 @@
       "error_server_error": "Qualcosa è andato storto da parte nostra. Riprova tra un momento?",
       "error_email_disabled": "I messaggi sono temporaneamente disabilitati. Scrivici direttamente a hello@padelnachos.com."
     }
+  },
+  "whereToWatch": {
+    "pillAriaLabel": "Dove guardare — {count, plural, =0 {nessun canale live} one {# canale live} other {# canali live}}",
+    "eyebrow": "Dove Guardare",
+    "channelLive": "LIVE",
+    "alsoIn": "Anche in {region}",
+    "noFreeStream": "Nessuna trasmissione gratuita ora. {channel} è anche su:",
+    "freeBadge": "GRATIS",
+    "watchCta": "GUARDA",
+    "openCta": "APRI",
+    "regionShowing": "Mostro le opzioni in {region}.",
+    "notYourRegion": "Non è la tua regione?",
+    "pickRegionTitle": "Scegli la tua regione",
+    "pickRegionBack": "Indietro",
+    "closeAriaLabel": "Chiudi"
   }
 }
