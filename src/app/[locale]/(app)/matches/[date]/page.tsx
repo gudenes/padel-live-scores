@@ -98,24 +98,29 @@ export default async function DailyMatchesPage({ params }: Props) {
     matches: g.matches.map(m => matchStreamMap.get(m.id) ?? m),
   }))
 
-  // YouTube live indicator data — single query, server-rendered, fresh per
-  // navigation. No client-side polling for v1.
+  // YouTube live indicator + country broadcasters — two independent
+  // queries, issued in parallel to keep page-render latency tight.
+  // No client-side polling for v1.
   const STALE_MS = 30 * 60 * 1000
-  const liveChannelsRes = await supabase
-    .from('youtube_channel_live')
-    .select(`
-      video_id,
-      title,
-      channel:youtube_channels!inner (
-        id,
-        name,
-        abbreviation,
-        color_hex,
-        display_order
-      )
-    `)
-    .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
-    .eq('channel.is_active', true)
+  const geoCountry = (cookieStore.get('geo-country')?.value || '').toLowerCase() || null
+  const [liveChannelsRes, broadcasters] = await Promise.all([
+    supabase
+      .from('youtube_channel_live')
+      .select(`
+        video_id,
+        title,
+        channel:youtube_channels!inner (
+          id,
+          name,
+          abbreviation,
+          color_hex,
+          display_order
+        )
+      `)
+      .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
+      .eq('channel.is_active', true),
+    fetchBroadcastersForCountry(supabase, geoCountry),
+  ])
 
   if (liveChannelsRes.error) {
     console.error('[DailyMatchesPage] youtube_channel_live query failed:', liveChannelsRes.error.message)
@@ -139,11 +144,6 @@ export default async function DailyMatchesPage({ params }: Props) {
     })
     .filter((x): x is LiveChannel => x !== null)
     .sort((a, b) => a.channel.displayOrder - b.channel.displayOrder)
-
-  // Broadcasters for the user's geo-detected country (will be overridden
-  // client-side by localStorage preference if set).
-  const geoCountry = (cookieStore.get('geo-country')?.value || '').toLowerCase() || null
-  const broadcasters = await fetchBroadcastersForCountry(supabase, geoCountry)
 
   // Flatten for SEO copy + JSON-LD.
   const dayMatches: MatchesDayMatch[] = groups.flatMap((g) => g.matches)
