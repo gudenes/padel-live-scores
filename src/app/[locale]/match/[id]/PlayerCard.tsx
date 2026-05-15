@@ -83,13 +83,13 @@ export function PlayerSquare({ player, winner, router }: { player: any; winner?:
     </div>
   ) : null
 
-  if (!player) return <div style={{ width: 56, height: 56, clipPath: CHUNKY.card, background: bg, border, flexShrink: 0 }} />
+  if (!player) return <div style={{ width: 48, height: 48, clipPath: CHUNKY.card, background: bg, border, flexShrink: 0 }} />
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
       {player.avatar_url && !imgError ? (
-        <img onClick={handleClick} src={player.avatar_url} alt={player.name} style={{ width: 56, height: 56, clipPath: CHUNKY.card, objectFit: 'cover', border, cursor, display: 'block' }} onError={() => setImgError(true)} />
+        <img onClick={handleClick} src={player.avatar_url} alt={player.name} style={{ width: 48, height: 48, clipPath: CHUNKY.card, objectFit: 'cover', border, cursor, display: 'block' }} onError={() => setImgError(true)} />
       ) : (
-        <div onClick={handleClick} style={{ width: 56, height: 56, clipPath: CHUNKY.card, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: winner ? 'rgba(126,211,33,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
+        <div onClick={handleClick} style={{ width: 48, height: 48, clipPath: CHUNKY.card, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: winner ? 'rgba(126,211,33,0.7)' : '#4A6A8A', fontWeight: 700, border, cursor }}>
           {initials}
         </div>
       )}

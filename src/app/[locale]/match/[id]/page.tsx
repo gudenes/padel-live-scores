@@ -443,10 +443,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const tz = ((match as any).tournament)?.timezone ?? 'UTC'
 
   // ── Shared styles ──────────────────────────────────────────────────────────
-  const scoreNumStyle = (won: boolean, dim: boolean): React.CSSProperties => ({
-    fontSize: 28, fontWeight: 900, width: 28, textAlign: 'center',
+  const scoreNumStyle = (won: boolean, dim: boolean, live: boolean): React.CSSProperties => ({
+    fontSize: 22, fontWeight: 900, width: 22, textAlign: 'center',
     fontFamily: 'monospace', lineHeight: 1,
-    color: won ? '#fff' : dim ? '#444' : '#555',
+    color: live ? GREEN : won ? '#fff' : dim ? '#444' : '#555',
     position: 'relative',
   })
 
@@ -728,10 +728,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {!isScheduled && (
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginBottom: 4, paddingRight: 2 }}>
             {(match.sets ?? []).map(set => (
-              <span key={set.set_number} style={{ fontSize: 9, width: 28, textAlign: 'center', color: set.is_current ? GREEN : '#555', fontWeight: 700 }}>S{set.set_number}</span>
+              <span key={set.set_number} style={{ fontSize: 9, width: 22, textAlign: 'center', color: set.is_current ? GREEN : '#555', fontWeight: 700 }}>S{set.set_number}</span>
             ))}
             <span style={{ width: 8 }} />
-            {!isFinished && <span style={{ fontSize: 9, width: 36, textAlign: 'center', color: MUTED, fontWeight: 700 }}>Pts</span>}
+            {!isFinished && <span style={{ fontSize: 9, width: 28, textAlign: 'center', color: MUTED, fontWeight: 700 }}>Pts</span>}
           </div>
         )}
 
@@ -772,9 +772,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const healed = parseAndHealSet(set)
                 const p1WonSet = healed.p1 > healed.p2
                 return (
-                  <span key={set.set_number} style={{ ...scoreNumStyle(p1WonSet && !set.is_current, set.is_current || !p1WonSet), position: 'relative' }}>
+                  <span key={set.set_number} style={{ ...scoreNumStyle(p1WonSet && !set.is_current, !p1WonSet && !set.is_current, !!set.is_current), position: 'relative' }}>
                     {healed.p1}
-                    {healed.tb != null && !p1WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{healed.tb}</sup>}
+                    {healed.tb != null && !p1WonSet && <sup style={{ fontSize: 9, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{healed.tb}</sup>}
                   </span>
                 )
               })}
@@ -784,7 +784,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   key={flashPair === 1 ? `p1-${flashKeyRef.current}` : 'p1'}
                   style={{
                     display: 'inline-block',
-                    fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1,
+                    fontSize: 22, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1,
                     color: starPoint ? ORANGE : LIVE_RED,
                     ...(flashPair === 1 ? { animation: 'pn-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
                   }}
@@ -854,9 +854,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 const healed = parseAndHealSet(set)
                 const p2WonSet = healed.p2 > healed.p1
                 return (
-                  <span key={set.set_number} style={{ ...scoreNumStyle(p2WonSet && !set.is_current, set.is_current || !p2WonSet), position: 'relative' }}>
+                  <span key={set.set_number} style={{ ...scoreNumStyle(p2WonSet && !set.is_current, !p2WonSet && !set.is_current, !!set.is_current), position: 'relative' }}>
                     {healed.p2}
-                    {healed.tb != null && !p2WonSet && <sup style={{ fontSize: 10, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{healed.tb}</sup>}
+                    {healed.tb != null && !p2WonSet && <sup style={{ fontSize: 9, color: MUTED, position: 'absolute', top: 2, right: -2 }}>{healed.tb}</sup>}
                   </span>
                 )
               })}
@@ -866,7 +866,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   key={flashPair === 2 ? `p2-${flashKeyRef.current}` : 'p2'}
                   style={{
                     display: 'inline-block',
-                    fontSize: 28, fontWeight: 900, width: 36, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1,
+                    fontSize: 22, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'monospace', lineHeight: 1,
                     color: starPoint ? ORANGE : LIVE_RED,
                     ...(flashPair === 2 ? { animation: 'pn-score-roll 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) both' } : {}),
                   }}
@@ -1074,9 +1074,9 @@ function PlayerNameLink({ player, dim, muted, bold, router, style }: {
   return (
     <div
       onClick={player?.id ? () => router.push(`/player/${player.id}`) : undefined}
-      style={{ fontSize: 13, fontWeight: bold ? 700 : 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: player?.id ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4, ...style }}
+      style={{ fontSize: 11, fontWeight: bold ? 700 : 600, color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: player?.id ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: 4, ...style }}
     >
-      {player?.country && <FlagImage country={player.country} size={14} />}
+      {player?.country && <FlagImage country={player.country} size={12} />}
       {toShortName(player?.display_name ?? player?.name ?? 'TBD')}
     </div>
   )
