@@ -1182,5 +1182,20 @@
       "error_server_error": "Quelque chose s'est mal passé de notre côté. Vous réessayez dans un moment ?",
       "error_email_disabled": "Les messages sont temporairement désactivés. Écrivez-nous directement à hello@padelnachos.com."
     }
+  },
+  "whereToWatch": {
+    "pillAriaLabel": "Où regarder — {count, plural, =0 {aucune chaîne en direct} one {# chaîne en direct} other {# chaînes en direct}}",
+    "eyebrow": "Où Regarder",
+    "channelLive": "EN DIRECT",
+    "alsoIn": "Aussi en {region}",
+    "noFreeStream": "Pas de diffusion gratuite pour l'instant. {channel} est aussi sur :",
+    "freeBadge": "GRATUIT",
+    "watchCta": "REGARDER",
+    "openCta": "OUVRIR",
+    "regionShowing": "Diffuseurs en {region}.",
+    "notYourRegion": "Pas votre région ?",
+    "pickRegionTitle": "Choisir votre région",
+    "pickRegionBack": "Retour",
+    "closeAriaLabel": "Fermer"
   }
 }
