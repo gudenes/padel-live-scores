@@ -82,12 +82,18 @@ export function buildGroups(input: BuildGroupsInput): ChannelGroup[] {
   //   - country must match (caller usually pre-filters, but defensive)
   //   - channel_id must be set (NULL = unclassified, do not render)
   //   - country must be non-null
+  //
+  // v1 limitation: channel metadata is only sourced from `liveChannels` above.
+  // A broadcaster whose channel has no live stream right now will fall into
+  // the `if (!g) continue` branch and never render — so broadcaster-only
+  // groups don't appear in v1. Fixing this requires the caller to pass
+  // dormant channel metadata separately; tracked as a follow-up.
   if (country) {
     for (const b of broadcasters) {
       if (!b.channel_id) continue
       if (b.country_iso2 !== country) continue
       const g = channelMetaById.get(b.channel_id)
-      if (!g) continue  // broadcaster references a channel we don't have metadata for
+      if (!g) continue  // v1 limitation: see comment above the loop
       g.broadcasters.push({
         id: b.id,
         name: b.name,
