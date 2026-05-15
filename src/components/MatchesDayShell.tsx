@@ -29,7 +29,7 @@ import { DailyDatePills } from '@/components/DailyDatePills'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday, getLocaleTodayIso } from '@/lib/locale-time'
 import { useDaySwipe } from '@/hooks/useDaySwipe'
 import type { MatchesDayGroup } from '@/lib/fetch-matches-day'
-import type { LiveChannel } from './YoutubeLiveIndicator'
+import type { LiveChannel, BroadcasterRow } from '@/lib/where-to-watch/group-builder'
 import { supabase } from '@/lib/supabase'
 import { nextDayWithMatches } from '@/lib/fetch-matches-calendar'
 
@@ -50,6 +50,9 @@ interface Props {
    *  Empty array → indicator hidden. Server-rendered at page-load time
    *  only — does not refresh on client-side day swaps for v1. */
   liveChannels?: LiveChannel[]
+  broadcasters?: BroadcasterRow[]
+  todayCircuits?: string[]
+  geoCountry?: string | null
 }
 
 type CacheEntry =
@@ -65,6 +68,9 @@ export default function MatchesDayShell({
   emptyStateTitle,
   emptyStateSubtitle,
   liveChannels = [],
+  broadcasters = [],
+  todayCircuits = [],
+  geoCountry = null,
 }: Props) {
   const tDaily = useTranslations('daily')
   const tOffline = useTranslations('offline')
@@ -414,6 +420,9 @@ export default function MatchesDayShell({
           isOnToday={isOnToday}
           onGoToToday={rollToToday}
           liveChannels={liveChannels}
+          broadcasters={broadcasters}
+          todayCircuits={todayCircuits}
+          geoCountry={geoCountry}
           leftSlot={
             !isOnToday ? (
               <button

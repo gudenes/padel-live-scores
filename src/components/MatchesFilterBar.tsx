@@ -11,7 +11,8 @@
 import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { type MatchesFilters } from '@/hooks/useMatchesFilters'
-import YoutubeLiveIndicator, { type LiveChannel } from './YoutubeLiveIndicator'
+import { WhereToWatchPill } from './where-to-watch/WhereToWatchPill'
+import type { LiveChannel, BroadcasterRow } from '@/lib/where-to-watch/group-builder'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -42,6 +43,9 @@ export interface MatchesFilterBarProps {
   /** YouTube live broadcasts to surface in the page-level indicator.
    *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
   liveChannels?: LiveChannel[]
+  broadcasters?: BroadcasterRow[]
+  todayCircuits?: string[]
+  geoCountry?: string | null
 }
 
 export default function MatchesFilterBar({
@@ -53,6 +57,9 @@ export default function MatchesFilterBar({
   leftSlot,
   liveButtonRef,
   liveChannels = [],
+  broadcasters = [],
+  todayCircuits = [],
+  geoCountry = null,
 }: MatchesFilterBarProps) {
   const tButton = useTranslations('matches.filters')
   const hasActive = activeCount > 0
@@ -75,7 +82,12 @@ export default function MatchesFilterBar({
     >
       {leftSlot}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <YoutubeLiveIndicator liveChannels={liveChannels} />
+        <WhereToWatchPill
+          liveChannels={liveChannels}
+          broadcasters={broadcasters}
+          todayCircuits={todayCircuits}
+          geoCountry={geoCountry}
+        />
         <button
           ref={liveButtonRef}
           type="button"

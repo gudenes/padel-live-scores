@@ -25,7 +25,9 @@ import { fetchMatchesDay, type MatchesDayMatch } from '@/lib/fetch-matches-day'
 import { resolveStreamsForMatches } from '@/lib/fip-stream-resolver'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
 import MatchesDayShell from '@/components/MatchesDayShell'
-import type { LiveChannel } from '@/components/YoutubeLiveIndicator'
+import type { LiveChannel } from '@/lib/where-to-watch/group-builder'
+import { fetchBroadcastersForCountry } from '@/lib/where-to-watch/fetch-broadcasters'
+import { circuitsForToday } from '@/lib/where-to-watch/circuit-map'
 
 export const revalidate = 300 // 5 min
 
@@ -138,8 +140,17 @@ export default async function DailyMatchesPage({ params }: Props) {
     .filter((x): x is LiveChannel => x !== null)
     .sort((a, b) => a.channel.displayOrder - b.channel.displayOrder)
 
+  // Broadcasters for the user's geo-detected country (will be overridden
+  // client-side by localStorage preference if set).
+  const geoCountry = (cookieStore.get('geo-country')?.value || '').toLowerCase() || null
+  const broadcasters = await fetchBroadcastersForCountry(supabase, geoCountry)
+
   // Flatten for SEO copy + JSON-LD.
   const dayMatches: MatchesDayMatch[] = groups.flatMap((g) => g.matches)
+
+  // Circuits with at least one match on this page today (drives whether
+  // to surface broadcaster-only groups for circuits not currently live).
+  const todayCircuits = Array.from(circuitsForToday(dayMatches))
 
   // ── Build intro + FAQ copy ────────────────────────────────────
   const tDaily = await getTranslations({ locale, namespace: 'daily' })
@@ -196,6 +207,9 @@ export default async function DailyMatchesPage({ params }: Props) {
         emptyStateTitle={tDaily('noMatchesTitle')}
         emptyStateSubtitle={tDaily('noMatchesSub')}
         liveChannels={liveChannels}
+        broadcasters={broadcasters}
+        todayCircuits={todayCircuits}
+        geoCountry={geoCountry}
       />
 
       <div style={{ height: 30 }} />
