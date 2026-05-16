@@ -33,6 +33,7 @@ import {
 import { useTranslations } from 'next-intl'
 import type { Match } from '@/types/match'
 import { bucketDayMatches, bucketStatus } from '@/lib/match-day-bucket'
+import { isPremierTier } from '@/lib/tournament-tier'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -123,6 +124,7 @@ const ONGOING_ORANGE = '#F5A623'
 function tournamentStatusBadge(
   groupBucketCounts: { live: number; upcoming: number; finished: number },
   tournamentStatus: string | null,
+  tournamentLevel: string | null | undefined,
 ): { label: string; bg: string; color: string } | null {
   // The red LIVE pill is reserved for actual live matches. `tournaments.
   // status` from padelapi is too coarse — it reports 'live' for any
@@ -144,8 +146,17 @@ function tournamentStatusBadge(
   //   5. only upcoming today → UPCOMING
   //   6. only finished today → FINAL
   //   7. otherwise → no pill
+  // Step 1 splits by tier: Premier-tier tournaments with a live match get
+  // the red LIVE pulse (point-by-point is flowing). Non-Premier tier
+  // ("presence-only") gets the amber ONGOING — we know matches are being
+  // played but no PBP data lands. Tournaments are tier-uniform so the
+  // tournament-level `level` is sufficient. See:
+  // docs/superpowers/specs/2026-05-16-fip-presence-only-live-design.md
   if (groupBucketCounts.live > 0) {
-    return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
+    if (isPremierTier(tournamentLevel)) {
+      return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
+    }
+    return { label: 'ONGOING', bg: 'rgba(245,166,35,0.15)', color: ONGOING_ORANGE }
   }
   const ts = (tournamentStatus ?? '').toLowerCase()
   if (ts === 'finished' || ts === 'completed' || ts === 'ended') {
@@ -195,7 +206,7 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
   const { active, finished } = bucketDayMatches(group.matches)
 
   const [expanded, setExpanded] = useState(true)
-  const tournamentStatusPill = tournamentStatusBadge(counts, group.tournamentStatus)
+  const tournamentStatusPill = tournamentStatusBadge(counts, group.tournamentStatus, group.tournamentLevel ?? null)
 
   // Stage chip — surfaces today's most-advanced round (Final / Semifinals /
   // Quarterfinals / R16 / R32 / R64 / R128 / Qualifying). Drives the
