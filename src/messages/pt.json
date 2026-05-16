@@ -126,6 +126,12 @@
       "startingSoonSheet": "O jogo anterior terminou. Este deve entrar em pista em breve.",
       "estChip": "EST",
       "estChipAria": "Hora estimada — sem acompanhamento ao vivo deste torneio"
+    },
+    "presenceOnly": {
+      "label": "sem ponto a ponto",
+      "popoverTitle": "SEM PONTO A PONTO AO VIVO",
+      "popoverBody": "Este torneio não transmite dados ponto a ponto. O placar final aparecerá quando for reportado.",
+      "ariaLabel": "Por que não há atualizações ao vivo do placar"
     }
   },
   "matchDetail": {

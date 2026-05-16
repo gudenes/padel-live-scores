@@ -126,6 +126,12 @@
       "startingSoonSheet": "Le match précédent est terminé. Celui-ci devrait être appelé sur le court sous peu.",
       "estChip": "EST",
       "estChipAria": "Horaire estimé — pas de suivi en direct pour ce tournoi"
+    },
+    "presenceOnly": {
+      "label": "sans point par point",
+      "popoverTitle": "SANS POINT PAR POINT EN DIRECT",
+      "popoverBody": "Ce tournoi ne diffuse pas de données point par point. Le score final apparaîtra une fois communiqué.",
+      "ariaLabel": "Pourquoi il n'y a pas de mises à jour en direct du score"
     }
   },
   "matchDetail": {
