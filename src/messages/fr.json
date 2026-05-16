@@ -1194,6 +1194,9 @@
     "pickRegionSearch": "Rechercher un pays…",
     "pickRegionNoMatch": "Aucun résultat",
     "pickRegionBack": "Retour",
-    "closeAriaLabel": "Fermer"
+    "closeAriaLabel": "Fermer",
+    "bannerLiveCount": "Regarder en direct · {count, plural, one {# option} other {# options}}",
+    "bannerWatchIn": "Regarder en {region}",
+    "bannerWhere": "Où regarder"
   }
 }
