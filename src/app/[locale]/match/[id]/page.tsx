@@ -968,6 +968,14 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 clearPrediction={clearPrediction}
               />
             )}
+            <WhereToWatchBanner
+              matchStatus={match.status}
+              liveChannels={wtwLiveChannels}
+              broadcasters={wtwBroadcasters}
+              channelsMeta={wtwChannelsMeta}
+              todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
+              geoCountry={wtwGeoCountry}
+            />
             <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
           </>
         )
@@ -1003,15 +1011,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <PredictionResult match={match} prediction={prediction} pair1Label={pair1Label} pair2Label={pair2Label} />
       )}
 
-      {/* ── Where to Watch banner ────────────────────────────────── */}
-      <WhereToWatchBanner
-        matchStatus={match.status}
-        liveChannels={wtwLiveChannels}
-        broadcasters={wtwBroadcasters}
-        channelsMeta={wtwChannelsMeta}
-        todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
-        geoCountry={wtwGeoCountry}
-      />
+      {/* ── Where to Watch banner (live: above the momentum chart) ── */}
+      {isLive && (
+        <WhereToWatchBanner
+          matchStatus={match.status}
+          liveChannels={wtwLiveChannels}
+          broadcasters={wtwBroadcasters}
+          channelsMeta={wtwChannelsMeta}
+          todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
+          geoCountry={wtwGeoCountry}
+        />
+      )}
 
       {/* ── Match Journey chart ───────────────────────────────────── */}
       {!isScheduled && (match.sets ?? []).length > 0 && (
