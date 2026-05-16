@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { Match, pairName, getMatchDisplay } from '@/types/match'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
+import { isPresenceOnlyLive } from '@/lib/tournament-tier'
+import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import {
   GREEN, LIVE_RED, ORANGE, BG_CARD, MUTED, CHUNKY, FlagImg,
 } from './shared'
@@ -57,6 +59,14 @@ function LiveMatchCardInner({ match: matchProp }: { match: Match }) {
   const isOnCourt = (match.status as string) === 'on_court'
   const p1Pts = p1GamePts
   const p2Pts = p2GamePts
+
+  // FIP-tier carve-out: treat live FIP-tier matches as presence-only
+  // (no point-by-point lands). Defensive — home spotlight prefers Premier,
+  // so this rarely renders.
+  const presenceOnly = isPresenceOnlyLive(
+    { status: match.status as string },
+    { level: (match as any).tournament?.level ?? null },
+  )
 
   useEffect(() => {
     if (!isLive) { _liveScoresPrev.delete(match.id); return }
@@ -112,24 +122,36 @@ function LiveMatchCardInner({ match: matchProp }: { match: Match }) {
 
         {/* LIVE / ON COURT badge + round */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: isOnCourt ? ORANGE : LIVE_RED,
-            padding: '3px 10px',
-            clipPath: CHUNKY.badge,
-          }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%', background: '#fff',
-              animation: 'v3-pulse 2s infinite',
-            }} />
-            <span style={{
-              fontSize: 10, fontWeight: 800,
-              color: isOnCourt ? '#000' : '#fff',
-              letterSpacing: 0.5,
-            }}>
-              {isOnCourt ? tCommon('onCourt') : tCommon('live')}
+          {presenceOnly ? (
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: '#F5A623',
+                letterSpacing: '0.5px',
+              }}>ON COURT</span>
+              <PresenceOnlyHint matchId={match.id} variant="row" />
             </span>
-          </div>
+          ) : (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: isOnCourt ? ORANGE : LIVE_RED,
+              padding: '3px 10px',
+              clipPath: CHUNKY.badge,
+            }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%', background: '#fff',
+                animation: 'v3-pulse 2s infinite',
+              }} />
+              <span style={{
+                fontSize: 10, fontWeight: 800,
+                color: isOnCourt ? '#000' : '#fff',
+                letterSpacing: 0.5,
+              }}>
+                {isOnCourt ? tCommon('onCourt') : tCommon('live')}
+              </span>
+            </div>
+          )}
           {match.round && (
             <span style={{ fontSize: 10, fontWeight: 600, color: MUTED }}>
               {match.round}{match.court ? ` \u00B7 ${match.court}` : ''}
