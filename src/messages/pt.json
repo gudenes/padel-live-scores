@@ -1187,6 +1187,8 @@
     "notYourRegion": "Não é sua região?",
     "setYourRegion": "Escolha sua região →",
     "pickRegionTitle": "Escolha sua região",
+    "pickRegionSearch": "Buscar país…",
+    "pickRegionNoMatch": "Sem resultados",
     "pickRegionBack": "Voltar",
     "closeAriaLabel": "Fechar"
   }
