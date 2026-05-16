@@ -1194,6 +1194,10 @@
     "pickRegionSearch": "Cerca paese…",
     "pickRegionNoMatch": "Nessun risultato",
     "pickRegionBack": "Indietro",
-    "closeAriaLabel": "Chiudi"
+    "closeAriaLabel": "Chiudi",
+    "bannerLiveCount": "Guarda live · {count, plural, one {# opzione} other {# opzioni}}",
+    "bannerWatchIn": "Guarda in {region}",
+    "bannerWhere": "Dove guardare",
+    "seoSummary": "Guarda {target} live su {list}{extra, plural, =0 {} one { e # altra emittente regionale} other { e # altre emittenti regionali}}."
   }
 }

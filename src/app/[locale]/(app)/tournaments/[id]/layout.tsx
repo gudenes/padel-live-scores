@@ -9,9 +9,14 @@
 //      Google first-pass structured-data indexing of the post.
 
 import { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { EditorialProvider, type EditorialPost } from '@/components/EditorialProvider'
+import { fetchSeoBroadcasters } from '@/lib/where-to-watch/fetch-seo-broadcasters'
+import { buildBroadcastJsonLd } from '@/lib/where-to-watch/build-broadcast-jsonld'
+import { buildSeoSummary } from '@/lib/where-to-watch/build-seo-summary'
+import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 
 type Props = {
   params: Promise<{ locale: string; id: string }>
@@ -67,6 +72,8 @@ export default async function TournamentLayout({ params, children }: Props) {
   let editorialJsonLd: object | null = null
   let editorial: EditorialPost | null = null
   let tournamentName: string | null = null
+  let seoData: Awaited<ReturnType<typeof fetchSeoBroadcasters>> | null = null
+  let seoSentence: string | null = null
 
   try {
     const supabase = createServerClient()
@@ -77,7 +84,7 @@ export default async function TournamentLayout({ params, children }: Props) {
     const [tournamentRes, editorialRes] = await Promise.all([
       supabase
         .from('tournaments')
-        .select('id, name, country, starts_at, ends_at')
+        .select('id, name, country, level, starts_at, ends_at')
         .eq('id', id)
         .single(),
       supabase
@@ -97,6 +104,10 @@ export default async function TournamentLayout({ params, children }: Props) {
       ? editorialRes.data[0] as unknown as EditorialPost
       : null)
 
+    // Fetch SEO broadcaster data — scoped to the tournament's circuit.
+    const seoChannelAbbr = levelToChannelAbbr(tournament?.level ?? null)
+    seoData = await fetchSeoBroadcasters(supabase, seoChannelAbbr)
+
     // Mirror generateMetadata's isGhost guard: nameless or dateless rows
     // produce SportsEvent items that Search Console rejects as "Missing
     // field 'startDate'" / "Missing field 'location'". Skip emission
@@ -115,8 +126,30 @@ export default async function TournamentLayout({ params, children }: Props) {
             ...(tournament.country ? { address: tournament.country } : {}),
           },
           sport: 'Padel',
+          // BroadcastEvent[] for Google's "where to watch" carousel
+          ...(seoData?.channelMeta
+            ? { publication: buildBroadcastJsonLd(seoData) }
+            : {}),
         }
       : null
+
+    // Build the sr-only broadcaster sentence for this tournament.
+    if (seoData?.channelMeta) {
+      const summaryData = buildSeoSummary({ broadcasters: seoData.broadcasters })
+      const parts: string[] = [`${seoData.channelMeta.name} YouTube`]
+      for (const b of summaryData.named) {
+        const countries = b.countriesShown.join(', ')
+        parts.push(
+          b.extraCountryCount > 0
+            ? `${b.name} (${countries}, +${b.extraCountryCount} more)`
+            : `${b.name} (${countries})`,
+        )
+      }
+      const list = parts.join(', ')
+      const target = tournament?.name ?? 'this tournament'
+      const t = await getTranslations({ locale, namespace: 'whereToWatch' })
+      seoSentence = t('seoSummary', { target, list, extra: summaryData.remainingCount })
+    }
 
     // Article JSON-LD — gives Google first-pass access to the editorial text
     // via structured data, independent of tab state or JS execution.
@@ -163,7 +196,10 @@ export default async function TournamentLayout({ params, children }: Props) {
       {/* SEO/a11y heading — visible tournament name lives in the
           client page's hero block as a styled div for design reasons. */}
       {tournamentName && (
-        <h1 className="sr-only">{tournamentName} — Padel Tournament Results</h1>
+        <header className="sr-only">
+          <h1>{tournamentName} — Padel Tournament Results</h1>
+          {seoSentence && <p>{seoSentence}</p>}
+        </header>
       )}
       <EditorialProvider post={editorial}>
         {children}

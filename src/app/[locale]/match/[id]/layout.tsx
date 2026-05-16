@@ -3,12 +3,17 @@
 // The page itself is 'use client', so generateMetadata must live here.
 
 import { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { buildMatchSummary } from '@/lib/seo/match-summary'
+import { fetchSeoBroadcasters } from '@/lib/where-to-watch/fetch-seo-broadcasters'
+import { buildBroadcastJsonLd } from '@/lib/where-to-watch/build-broadcast-jsonld'
+import { buildSeoSummary } from '@/lib/where-to-watch/build-seo-summary'
+import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 
 type Props = {
-  params: Promise<{ id: string }>
+  params: Promise<{ locale: string; id: string }>
   children: React.ReactNode
 }
 
@@ -29,6 +34,8 @@ function lastName(fullName: string | null | undefined): string {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
+  // locale is available in params but not used in metadata — destructured
+  // via Props to satisfy the updated type; id is all that's needed here.
 
   let supabase
   try { supabase = createServerClient() } catch { return { title: 'Match | Padel Nachos' } }
@@ -137,9 +144,11 @@ export default async function MatchLayout({ params, children }: Props) {
   let jsonLd: object | null = null
   let h1Text: string | null = null
   let summary: ReturnType<typeof buildMatchSummary> | null = null
+  let seoData: Awaited<ReturnType<typeof fetchSeoBroadcasters>> | null = null
+  let seoSentence: string | null = null
 
   try {
-    const { id } = await params
+    const { id, locale } = await params
     const supabase = createServerClient()
 
     const { data: match } = await supabase
@@ -165,6 +174,12 @@ export default async function MatchLayout({ params, children }: Props) {
     type TournamentRef = { name: string; country: string | null; starts_at: string | null; ends_at: string | null; level: string | null } | null
 
     const tournament = match?.tournament as unknown as TournamentRef
+
+    // Fetch SEO broadcaster data — sequential after the match query
+    // because we need tournament.level to derive the circuit abbreviation.
+    const seoChannelAbbr = levelToChannelAbbr(tournament?.level ?? null)
+    seoData = await fetchSeoBroadcasters(supabase, seoChannelAbbr)
+
     // Same coalescing pattern as generateMetadata: thin-match name
     // fallback when the player join is null (amateur-tier matches).
     const playerName = (joined: unknown, fallback: string | null | undefined): string | undefined =>
@@ -214,6 +229,10 @@ export default async function MatchLayout({ params, children }: Props) {
             },
             sport: 'Padel',
             ...(competitor.length > 0 ? { competitor } : {}),
+            // BroadcastEvent[] for Google's "where to watch" carousel
+            ...(seoData?.channelMeta
+              ? { publication: buildBroadcastJsonLd(seoData) }
+              : {}),
           }
         : null
 
@@ -222,6 +241,25 @@ export default async function MatchLayout({ params, children }: Props) {
       h1Text = tournamentName
         ? `${p1} vs ${p2} — ${tournamentName}`
         : `${p1} vs ${p2}`
+    }
+
+    // Skip the SEO sentence if h1Text is null — that means player names
+    // couldn't be resolved, and the sentence would render the degenerate
+    // " vs " for its target. The structured JSON-LD still goes out.
+    if (seoData?.channelMeta && h1Text) {
+      const summaryData = buildSeoSummary({ broadcasters: seoData.broadcasters })
+      const parts: string[] = [`${seoData.channelMeta.name} YouTube`]
+      for (const b of summaryData.named) {
+        const countries = b.countriesShown.join(', ')
+        parts.push(
+          b.extraCountryCount > 0
+            ? `${b.name} (${countries}, +${b.extraCountryCount} more)`
+            : `${b.name} (${countries})`,
+        )
+      }
+      const list = parts.join(', ')
+      const t = await getTranslations({ locale, namespace: 'whereToWatch' })
+      seoSentence = t('seoSummary', { target: h1Text, list, extra: summaryData.remainingCount })
     }
 
     if (match && tournament && (p1Names.length > 0 || p2Names.length > 0)) {
@@ -267,6 +305,7 @@ export default async function MatchLayout({ params, children }: Props) {
               ))}
             </ul>
           )}
+          {seoSentence && <p>{seoSentence}</p>}
         </header>
       ) : (
         h1Text && <h1 className="sr-only">{h1Text}</h1>
