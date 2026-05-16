@@ -1,12 +1,29 @@
 // src/app/api/webhooks/new-signup/route.ts
-// Supabase Database Webhook handler — sends a Telegram notification on new user signup.
-// Triggered by INSERT on public.profiles (fired by handle_new_user trigger).
+// Supabase Database Webhook handler — sends a Telegram notification on new
+// user signup. Triggered by INSERT on public.users (the Auth.js users table),
+// fired by the notify_new_signup() trigger in 20260516_signup_tracking_fix.sql.
+//
+// Trigger payload shape:
+//   { type, table, schema, record: { id, email, name, image }, old_record }
 
 import { createServerClient } from '@/lib/supabase'
 import { sendMessage, getDefaultChatId } from '@/lib/nacho-watch/telegram'
 
+type Record = {
+  id?: string
+  email?: string | null
+  name?: string | null
+  image?: string | null
+}
+
+type Payload = {
+  type?: string
+  table?: string
+  schema?: string
+  record?: Record
+}
+
 export async function POST(request: Request) {
-  // Verify the request is authorized
   const authHeader = request.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     console.error('[new-signup] Unauthorized — auth header mismatch')
@@ -14,8 +31,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: any = await request.json()
+    const payload = (await request.json()) as Payload
     console.log('[new-signup] Received webhook:', JSON.stringify(payload).slice(0, 500))
 
     const record = payload.record
@@ -24,27 +40,36 @@ export async function POST(request: Request) {
       return Response.json({ ok: true, skipped: true })
     }
 
-    const { id, display_name, created_at } = record
-
-    // Look up the user's email from auth.users (not stored in profiles)
     const supabase = createServerClient()
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(id)
-    if (authError) console.error('[new-signup] getUserById error:', authError.message)
 
-    const email = authUser?.user?.email ?? 'unknown'
-    const provider = authUser?.user?.app_metadata?.provider ?? 'unknown'
+    // Provider lookup: the Auth.js adapter inserts the accounts row in a
+    // separate transaction from users, and pg_net fires the webhook
+    // asynchronously, so the row may not be visible on the first try. One
+    // short retry covers the typical race window; otherwise we ship the
+    // message with provider 'unknown' rather than block the notification.
+    let provider = 'unknown'
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data } = await supabase
+        .from('accounts')
+        .select('provider')
+        .eq('userId', record.id)
+        .maybeSingle()
+      if (data?.provider) {
+        provider = data.provider
+        break
+      }
+      if (attempt === 0) await new Promise((r) => setTimeout(r, 500))
+    }
 
-    // Count total users for context
+    // Count from public.users (canonical) — profiles can lag if the app-side
+    // createUser handler ever silently fails again.
     const { count } = await supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
+      .from('users')
+      .select('id', { count: 'exact', head: true })
 
-    const chatId = getDefaultChatId()
-
-    const name = display_name || 'Anonymous'
-    const time = created_at
-      ? new Date(created_at).toLocaleString('en-GB', { timeZone: 'UTC' })
-      : 'just now'
+    const name = record.name || 'Anonymous'
+    const email = record.email || 'unknown'
+    const time = new Date().toLocaleString('en-GB', { timeZone: 'UTC' })
 
     const message = [
       `🎾 New signup on PadelNachos!`,
@@ -56,10 +81,10 @@ export async function POST(request: Request) {
       `👥 Total users: ${count ?? '?'}`,
     ].join('\n')
 
-    await sendMessage(chatId, message, 'HTML')
+    await sendMessage(getDefaultChatId(), message, 'HTML')
 
-    console.log('[new-signup] Telegram message sent for user', id)
-    return Response.json({ ok: true, userId: id })
+    console.log('[new-signup] Telegram message sent for user', record.id)
+    return Response.json({ ok: true, userId: record.id })
   } catch (err) {
     console.error('[new-signup] Error:', err)
     return Response.json({ error: 'Internal error' }, { status: 500 })
