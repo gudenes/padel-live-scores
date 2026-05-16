@@ -103,6 +103,7 @@ export function WhereToWatchPill({
         onClose={() => setOpen(false)}
         groups={groups}
         country={effectiveCountry}
+        isAutoDetected={!preferredCountry && !!geoCountry}
         onCountryChange={handleCountryChange}
       />
     </>

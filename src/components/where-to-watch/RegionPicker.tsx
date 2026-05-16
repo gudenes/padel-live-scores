@@ -7,25 +7,28 @@ import { FlagImage } from '@/components/FlagImage'
 // Same map as in ChannelGroup.tsx. The 36-entry list is small enough
 // to keep duplicated rather than build a shared module yet; if this
 // grows, extract to src/lib/where-to-watch/iso2-names.ts.
+// Pre-sorted alphabetically by English name with a locale-aware collator
+// so accented names land in their natural slot.
+const COLLATOR = new Intl.Collator('en', { sensitivity: 'base' })
 const COUNTRIES: Array<{ iso2: string; name: string }> = [
-  { iso2: 'es', name: 'Spain' },        { iso2: 'it', name: 'Italy' },
-  { iso2: 'fr', name: 'France' },       { iso2: 'de', name: 'Germany' },
-  { iso2: 'gb', name: 'United Kingdom' }, { iso2: 'us', name: 'United States' },
-  { iso2: 'ar', name: 'Argentina' },    { iso2: 'mx', name: 'Mexico' },
-  { iso2: 'br', name: 'Brazil' },       { iso2: 'pt', name: 'Portugal' },
-  { iso2: 'nl', name: 'Netherlands' },  { iso2: 'be', name: 'Belgium' },
-  { iso2: 'se', name: 'Sweden' },       { iso2: 'no', name: 'Norway' },
-  { iso2: 'dk', name: 'Denmark' },      { iso2: 'fi', name: 'Finland' },
-  { iso2: 'pl', name: 'Poland' },       { iso2: 'ch', name: 'Switzerland' },
-  { iso2: 'at', name: 'Austria' },      { iso2: 'ie', name: 'Ireland' },
-  { iso2: 'gr', name: 'Greece' },       { iso2: 'tr', name: 'Turkey' },
-  { iso2: 'il', name: 'Israel' },       { iso2: 'sa', name: 'Saudi Arabia' },
-  { iso2: 'ae', name: 'UAE' },          { iso2: 'qa', name: 'Qatar' },
-  { iso2: 'eg', name: 'Egypt' },        { iso2: 'ma', name: 'Morocco' },
-  { iso2: 'za', name: 'South Africa' }, { iso2: 'jp', name: 'Japan' },
-  { iso2: 'kr', name: 'South Korea' },  { iso2: 'cn', name: 'China' },
-  { iso2: 'in', name: 'India' },        { iso2: 'au', name: 'Australia' },
-]
+  { iso2: 'ar', name: 'Argentina' },    { iso2: 'at', name: 'Austria' },
+  { iso2: 'au', name: 'Australia' },    { iso2: 'be', name: 'Belgium' },
+  { iso2: 'br', name: 'Brazil' },       { iso2: 'ch', name: 'Switzerland' },
+  { iso2: 'cn', name: 'China' },        { iso2: 'de', name: 'Germany' },
+  { iso2: 'dk', name: 'Denmark' },      { iso2: 'eg', name: 'Egypt' },
+  { iso2: 'es', name: 'Spain' },        { iso2: 'fi', name: 'Finland' },
+  { iso2: 'fr', name: 'France' },       { iso2: 'gb', name: 'United Kingdom' },
+  { iso2: 'gr', name: 'Greece' },       { iso2: 'ie', name: 'Ireland' },
+  { iso2: 'il', name: 'Israel' },       { iso2: 'in', name: 'India' },
+  { iso2: 'it', name: 'Italy' },        { iso2: 'jp', name: 'Japan' },
+  { iso2: 'kr', name: 'South Korea' },  { iso2: 'ma', name: 'Morocco' },
+  { iso2: 'mx', name: 'Mexico' },       { iso2: 'nl', name: 'Netherlands' },
+  { iso2: 'no', name: 'Norway' },       { iso2: 'pl', name: 'Poland' },
+  { iso2: 'pt', name: 'Portugal' },     { iso2: 'qa', name: 'Qatar' },
+  { iso2: 'sa', name: 'Saudi Arabia' }, { iso2: 'se', name: 'Sweden' },
+  { iso2: 'tr', name: 'Turkey' },       { iso2: 'ae', name: 'UAE' },
+  { iso2: 'us', name: 'United States' }, { iso2: 'za', name: 'South Africa' },
+].sort((a, b) => COLLATOR.compare(a.name, b.name))
 
 // Strip diacritics + lowercase so "Méxíco" matches a user typing "mex".
 function normalize(s: string): string {

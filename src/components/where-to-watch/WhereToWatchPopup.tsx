@@ -30,11 +30,15 @@ export interface WhereToWatchPopupProps {
   onClose: () => void
   groups: ChannelGroupData[]
   country: string | null
+  /** True when `country` was inferred from the geo cookie (vs explicitly
+   *  picked by the user). Drives a more transparent footer copy that
+   *  flags the auto-detection so users know it might be wrong. */
+  isAutoDetected?: boolean
   onCountryChange: (iso2: string) => void
 }
 
 export function WhereToWatchPopup({
-  open, onClose, groups, country, onCountryChange,
+  open, onClose, groups, country, isAutoDetected = false, onCountryChange,
 }: WhereToWatchPopupProps) {
   const t = useTranslations('whereToWatch')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -164,7 +168,13 @@ export function WhereToWatchPopup({
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
                 <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
               </svg>
-              {regionName && <span>{t('regionShowing', { region: regionName })}</span>}
+              {regionName && (
+                <span>
+                  {isAutoDetected
+                    ? t.rich('regionAutoDetected', { region: regionName, b: (chunks) => <strong style={{ color: '#D8D8DD', fontWeight: 700 }}>{chunks}</strong> })
+                    : t.rich('regionShowingRich', { region: regionName, b: (chunks) => <strong style={{ color: '#D8D8DD', fontWeight: 700 }}>{chunks}</strong> })}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setPickerOpen(true)}
@@ -175,7 +185,7 @@ export function WhereToWatchPopup({
                   borderBottom: '1px dashed rgba(245,166,35,0.4)',
                 }}
               >
-                {regionName ? t('notYourRegion') : t('setYourRegion')}
+                {regionName ? t('changeRegion') : t('setYourRegion')}
               </button>
             </div>
           </>
