@@ -12,19 +12,6 @@ import { WhereToWatchPopup } from './WhereToWatchPopup'
 
 const LOCALSTORAGE_KEY = 'preferred-country'
 
-// Same iso2 → display-name map used in ChannelGroup / Popup. Duplicated
-// here so the banner can render "Watch in {region}" copy without
-// reaching back into the popup. ~36 entries — small enough to inline.
-const ISO2_TO_NAME: Record<string, string> = {
-  es: 'Spain', it: 'Italy', fr: 'France', de: 'Germany', gb: 'United Kingdom',
-  us: 'United States', ar: 'Argentina', mx: 'Mexico', br: 'Brazil',
-  pt: 'Portugal', nl: 'Netherlands', be: 'Belgium', se: 'Sweden', no: 'Norway',
-  dk: 'Denmark', fi: 'Finland', pl: 'Poland', ch: 'Switzerland', at: 'Austria',
-  ie: 'Ireland', gr: 'Greece', tr: 'Turkey', il: 'Israel', sa: 'Saudi Arabia',
-  ae: 'UAE', qa: 'Qatar', eg: 'Egypt', ma: 'Morocco', za: 'South Africa',
-  jp: 'Japan', kr: 'South Korea', cn: 'China', in: 'India', au: 'Australia',
-}
-
 const ORANGE = '#F5A623'
 const CLIP_BANNER = 'polygon(0% 4%, 99% 0%, 100% 96%, 1% 100%)'
 const CLIP_CTA = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
@@ -73,20 +60,14 @@ export function WhereToWatchBanner({
   if (groups.length === 0) return null
 
   const liveStreamCount = groups.reduce((sum, g) => sum + g.liveStreams.length, 0)
-  const broadcasterCount = groups.reduce((sum, g) => sum + g.broadcasters.length, 0)
-  const regionName = effectiveCountry
-    ? (ISO2_TO_NAME[effectiveCountry.toLowerCase()] ?? effectiveCountry.toUpperCase())
-    : null
 
-  // State-aware copy.
-  let copy: React.ReactNode
-  if (liveStreamCount > 0) {
-    copy = t('bannerLiveCount', { count: liveStreamCount })
-  } else if (broadcasterCount > 0 && regionName) {
-    copy = t('bannerWatchIn', { region: regionName })
-  } else {
-    copy = t('bannerWhere')
-  }
+  // Two-state copy: shout the live count when there's something to watch
+  // right now; otherwise stay neutral with "Where to watch". The region
+  // (Spain, Brazil, etc.) is implied by the popup contents — naming it
+  // in the banner felt louder than it needed to be.
+  const copy: React.ReactNode = liveStreamCount > 0
+    ? t('bannerLiveCount', { count: liveStreamCount })
+    : t('bannerWhere')
 
   const handleCountryChange = (iso2: string) => {
     setPreferredCountry(iso2.toLowerCase())
