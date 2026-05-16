@@ -134,7 +134,7 @@
       "label_context": "Small dotted-underline tap target shown next to the ON COURT badge for FIP-tier matches. Indicates that this tournament does not provide live point-by-point coverage. Translation should be a short noun-ish phrase, not a sentence.",
       "popoverTitle": "NO LIVE POINT-BY-POINT",
       "popoverTitle_context": "Uppercase header inside the explainer popover. Should match the spirit of the trigger label but with stronger emphasis (translations can stay in their natural case if uppercase looks unidiomatic — CSS does not force uppercase).",
-      "popoverBody": "This tournament doesn't broadcast point-level data. The final score will appear when reported.",
+      "popoverBody": "This tournament doesn't broadcast point-level data. The final score will be updated when results are published.",
       "popoverBody_context": "Body of the explainer popover. Tells the user why the score isn't ticking and reassures them the result will arrive. Two short sentences.",
       "ariaLabel": "Why there's no live score updates",
       "ariaLabel_context": "Accessibility label on the tappable trigger button. Read by screen readers."

@@ -130,7 +130,7 @@
     "presenceOnly": {
       "label": "sem ponto a ponto",
       "popoverTitle": "SEM PONTO A PONTO AO VIVO",
-      "popoverBody": "Este torneio não transmite dados ponto a ponto. O placar final aparecerá quando for reportado.",
+      "popoverBody": "Este torneio não transmite dados ponto a ponto. O placar final será atualizado quando os resultados forem publicados.",
       "ariaLabel": "Por que não há atualizações ao vivo do placar"
     }
   },

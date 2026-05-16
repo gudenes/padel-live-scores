@@ -130,7 +130,7 @@
     "presenceOnly": {
       "label": "sans point par point",
       "popoverTitle": "SANS POINT PAR POINT EN DIRECT",
-      "popoverBody": "Ce tournoi ne diffuse pas de données point par point. Le score final apparaîtra une fois communiqué.",
+      "popoverBody": "Ce tournoi ne diffuse pas de données point par point. Le score final sera mis à jour lorsque les résultats seront publiés.",
       "ariaLabel": "Pourquoi il n'y a pas de mises à jour en direct du score"
     }
   },

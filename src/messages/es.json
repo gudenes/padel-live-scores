@@ -130,7 +130,7 @@
     "presenceOnly": {
       "label": "sin punto por punto",
       "popoverTitle": "SIN PUNTO POR PUNTO EN VIVO",
-      "popoverBody": "Este torneo no transmite datos punto por punto. El resultado final aparecerá cuando se informe.",
+      "popoverBody": "Este torneo no transmite datos punto por punto. El resultado final se actualizará cuando se publiquen los resultados.",
       "ariaLabel": "Por qué no hay actualizaciones del marcador en vivo"
     }
   },
