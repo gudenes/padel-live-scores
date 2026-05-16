@@ -42,6 +42,11 @@ export const WTW_KEYFRAMES = `
   position: absolute;
   top: 0;
   right: 0;
+  /* Sit above the eyebrow + group content. Without this, the 56×56 hit
+     area is shadowed by the full-width eyebrow div that follows in DOM
+     order, so taps near the X land on the eyebrow (which has no
+     handler) instead of the button. */
+  z-index: 2;
   width: 56px;
   height: 56px;
   background: transparent;
