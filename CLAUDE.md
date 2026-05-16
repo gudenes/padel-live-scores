@@ -199,6 +199,14 @@ UI consequence: a FIP match can render the LIVE pill and a current-set score, bu
 
 When designing live-only features, **assume Premier as the floor and gracefully degrade for FIP**. Don't surface live affordances on FIP matches.
 
+## Match-stats coverage scope
+
+**`match_stats` is also Premier-tier only.** Crionet's `getmatchstats` endpoint publishes per-match aggregates (total points won, 1st/2nd-serve win %, longest streak, …) for P1 / P2 / Major / Premier_Mens / Premier_Womens. FIP-tier (Bronze / Silver / Gold) events still get `entity_external_ids → crionet_widget` mappings during discovery — the discovery worker doesn't know yet whether stats will eventually be served — but the stats endpoint returns nothing useful for those mappings.
+
+`match-stats-fetcher` enforces this with a `fetchPremierTournamentIds()` gate before any HTTP call. The result includes `skippedNonPremier` for observability, and the canonical `isPremierTier()` helper lives in [`padelgod/src/workers/match-stats-fetcher.ts`](padelgod/src/workers/match-stats-fetcher.ts).
+
+UI consequence: the Match Stats tab on a FIP-tier match will always show `unavailable`. Don't promise stats for non-Premier events in copy or feature design. If a new stats source ever covers FIP-tier, widen the tier helper.
+
 ## Relay Service (`relay/index.js`)
 
 Always-on Node.js/Express service on Railway (port 3001): persistent Pusher WebSocket subscriptions, writes point-by-point to Supabase, infers missing scores + coverage + winner on match finish. Endpoints: `GET /health`, `POST /sync`, `POST /subscribe`.

@@ -4,6 +4,20 @@
 // stat dimensions × (match aggregate + per-set) tabs via parseCrionetMatchStats
 // and writes the full schema column set to match_stats.
 //
+// COVERAGE — PREMIER-TIER ONLY
+// ----------------------------
+// Crionet publishes per-match stats ONLY for Premier-tier events: P1, P2,
+// Major, Premier_Mens, Premier_Womens. FIP-tier (Bronze / Silver / Gold)
+// matches still get entity_external_ids → crionet_widget mappings during
+// discovery, but the stats endpoint returns nothing useful for them. The
+// worker hard-filters to Premier-tier before any HTTP call so we don't:
+//   - waste a request to Crionet per FIP match every cron tick,
+//   - burn slots in the 20-match-per-run batch budget on non-eligible rows
+//     (which would starve genuinely eligible Premier matches), or
+//   - pollute scrape_jobs with no-op runs.
+// `result.skippedNonPremier` surfaces the count for observability. If a new
+// stats source ever covers FIP-tier, widen `isPremierTier()` accordingly.
+//
 // Design notes:
 // - The parser returns 8 counts and 6 percentages. Counts (service_games,
 //   return_games, longest_streak) map 1:1 to count columns. Percentages
@@ -40,6 +54,33 @@ export interface MatchStatsFetcherResult {
   fetched: number;
   skipped: number;
   rowsUpserted: number;
+  /** Mappings dropped because the match's tournament wasn't Premier-tier
+   *  (Crionet only publishes stats for P1/P2/Major/Premier_*). Tracked
+   *  separately from the general `skipped` counter so a healthy run on a
+   *  mostly-FIP day doesn't look like a regression. */
+  skippedNonPremier: number;
+}
+
+/**
+ * Whether a tournament's `level` column denotes a Premier-tier event.
+ *
+ * Premier-tier (P1 / P2 / Major / Premier_Mens / Premier_Womens) is the
+ * ONLY tier Crionet exposes per-match stats for. FIP-tier (Bronze / Silver
+ * / Gold) tournaments return no useful data from the stats endpoint and
+ * are filtered out before any HTTP call.
+ *
+ * Case-insensitive prefix match — `level` strings come from upstream
+ * sources in mixed case (e.g. "P1", "Premier_Mens", "Major", "Bronze").
+ */
+export function isPremierTier(level: string | null): boolean {
+  if (!level) return false;
+  const n = level.toLowerCase();
+  return (
+    n.startsWith('p1') ||
+    n.startsWith('p2') ||
+    n.startsWith('major') ||
+    n.startsWith('premier')
+  );
 }
 
 const STATS_URL = 'https://widget.matchscorerlive.com/screen/getmatchstats?t=tol';
@@ -136,20 +177,52 @@ async function fetchCrionetMatchMappings(
   return (data ?? []) as Array<{ entity_id: string; external_id: string }>;
 }
 
-async function fetchFinishedMatchIds(
+/**
+ * Returns the set of tournament IDs whose `level` is Premier-tier. The
+ * tournaments table is small (~hundreds of rows in total), so we fetch
+ * the whole list and filter client-side — much simpler than constructing
+ * a PostgREST `or=` filter that enumerates every Premier label.
+ */
+async function fetchPremierTournamentIds(
   supabase: SupabaseClient,
-  matchIds: string[]
 ): Promise<Set<string>> {
-  return inChunksAsSet(matchIds, async (chunk) => {
+  const { data, error } = await supabase
+    .from('tournaments')
+    .select('id, level');
+  if (error) {
+    throw new Error(`tournaments query failed: ${error.message}`);
+  }
+  const rows = (data ?? []) as Array<{ id: string; level: string | null }>;
+  return new Set(
+    rows.filter((r) => isPremierTier(r.level)).map((r) => r.id),
+  );
+}
+
+/**
+ * For each chunk of candidate match IDs, return a `matchId → tournamentId`
+ * map for the matches that are status='finished'. Used by the caller to
+ * compute (a) the set of finished match IDs and (b) the subset of those
+ * whose tournament is Premier-tier — both from a single chunked query
+ * round-trip.
+ */
+async function fetchFinishedMatchTournamentMap(
+  supabase: SupabaseClient,
+  matchIds: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  if (matchIds.length === 0) return out;
+  for (let i = 0; i < matchIds.length; i += IN_FILTER_CHUNK_SIZE) {
+    const chunk = matchIds.slice(i, i + IN_FILTER_CHUNK_SIZE);
     const { data, error } = await supabase
       .from('matches')
-      .select('id')
+      .select('id, tournament_id')
       .in('id', chunk)
       .eq('status', 'finished');
     if (error) throw new Error(`matches query failed: ${error.message}`);
-    const rows = (data ?? []) as Array<{ id: string }>;
-    return new Set(rows.map((r) => r.id));
-  });
+    const rows = (data ?? []) as Array<{ id: string; tournament_id: string | null }>;
+    for (const r of rows) out.set(r.id, r.tournament_id);
+  }
+  return out;
 }
 
 async function fetchMatchIdsWithCrionetStats(
@@ -312,13 +385,20 @@ export async function runMatchStatsFetcher(
   const mappings = await fetchCrionetMatchMappings(deps.supabase);
   const candidatesSeen = mappings.length;
   if (candidatesSeen === 0) {
-    return { candidatesSeen: 0, fetched: 0, skipped: 0, rowsUpserted: 0 };
+    return {
+      candidatesSeen: 0,
+      fetched: 0,
+      skipped: 0,
+      rowsUpserted: 0,
+      skippedNonPremier: 0,
+    };
   }
 
   // Filter out mappings whose external_id isn't a real widget composite
   // (e.g. synthetic draw ids like "draw:men:main_draw:F:1").
   const parseable: CandidateMapping[] = [];
   let skipped = 0;
+  let skippedNonPremier = 0;
   for (const m of mappings) {
     const parts = decomposeWidgetCompositeId(m.external_id);
     if (!parts) {
@@ -329,7 +409,13 @@ export async function runMatchStatsFetcher(
   }
 
   if (parseable.length === 0) {
-    return { candidatesSeen, fetched: 0, skipped, rowsUpserted: 0 };
+    return {
+      candidatesSeen,
+      fetched: 0,
+      skipped,
+      rowsUpserted: 0,
+      skippedNonPremier,
+    };
   }
 
   let parseableForRun = parseable;
@@ -349,8 +435,27 @@ export async function runMatchStatsFetcher(
     skipped += before - parseableForRun.length;
   }
 
+  // Premier-tier gate (see file header). Drop mappings whose tournament
+  // isn't Premier-tier BEFORE the has-stats filter — these matches will
+  // never produce a useful stats payload from Crionet, and letting them
+  // through would just consume slots in the batch budget.
+  //
+  // One round-trip pulls finished matches AND their tournament_id; we
+  // intersect with `premierTournamentIds` client-side. Two derived sets:
+  //   finishedIds      — finished, regardless of tier (kept for symmetry)
+  //   premierMatchIds  — finished AND Premier-tier (the actual gate)
+  const premierTournamentIds = await fetchPremierTournamentIds(deps.supabase);
   const parseableIds = parseableForRun.map((c) => c.matchId);
-  const finishedIds = await fetchFinishedMatchIds(deps.supabase, parseableIds);
+  const finishedTournamentMap = await fetchFinishedMatchTournamentMap(
+    deps.supabase,
+    parseableIds,
+  );
+  const premierMatchIds = new Set<string>();
+  for (const [matchId, tournamentId] of finishedTournamentMap.entries()) {
+    if (tournamentId && premierTournamentIds.has(tournamentId)) {
+      premierMatchIds.add(matchId);
+    }
+  }
   const alreadyHaveStats = await fetchMatchIdsWithCrionetStats(
     deps.supabase,
     parseableIds
@@ -358,7 +463,18 @@ export async function runMatchStatsFetcher(
 
   const needsFetch: CandidateMapping[] = [];
   for (const c of parseableForRun) {
-    if (!finishedIds.has(c.matchId)) {
+    const isFinished = finishedTournamentMap.has(c.matchId);
+    const isPremier = premierMatchIds.has(c.matchId);
+    if (isFinished && !isPremier) {
+      // Finished match, but in a non-Premier (FIP) tournament — Crionet
+      // won't return useful stats. Skip without an HTTP call.
+      skippedNonPremier++;
+      skipped++;
+      continue;
+    }
+    if (!isFinished) {
+      // Not finished yet (or unknown match). Will get picked up on a
+      // future run after the match completes.
       skipped++;
       continue;
     }
@@ -395,5 +511,11 @@ export async function runMatchStatsFetcher(
     fetched++;
   }
 
-  return { candidatesSeen, fetched, skipped, rowsUpserted };
+  return {
+    candidatesSeen,
+    fetched,
+    skipped,
+    rowsUpserted,
+    skippedNonPremier,
+  };
 }
