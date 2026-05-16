@@ -509,9 +509,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   fontWeight: 800,
                   color: '#F5A623',
                   letterSpacing: '0.5px',
-                  padding: '2px 8px',
-                  borderRadius: 4,
-                  background: 'rgba(245,166,35,0.18)',
                 }}>ON COURT</span>
                 <PresenceOnlyHint matchId={match.id} variant="hero" />
               </span>
