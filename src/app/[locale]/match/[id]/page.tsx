@@ -325,7 +325,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
   const tournamentChannelAbbr = useMemo(
     () => levelToChannelAbbr((match as any)?.tournament?.level),
-    [match],
+    [(match as any)?.tournament?.level],
   )
 
   useEffect(() => {
