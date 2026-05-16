@@ -22,6 +22,8 @@ import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { isPremierLevel } from '@/lib/tournament-labels'
+import { isPresenceOnlyLive } from '@/lib/tournament-tier'
+import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
 
@@ -246,6 +248,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     else if (match && !isPremier) setSubTab('players') // live + non-Premier
   }, [match?.status, (match as any)?.tournament?.level])
 
+  // Defensive: if a user deep-links to ?tab=live (or selection survives from
+  // a prior render) on a presence-only FIP match, the Live Feed tab is
+  // hidden below — fall back to Players so we never show an empty pane.
+  useEffect(() => {
+    if (!match) return
+    const presenceOnlyHere = isPresenceOnlyLive(
+      { status: match.status as string },
+      { level: (match as any)?.tournament?.level ?? null },
+    )
+    if (presenceOnlyHere && subTab === 'live') setSubTab('players')
+  }, [match, subTab])
+
   useEffect(() => {
     if (!match || match.status !== 'scheduled') return
     const scheduledAt = match.scheduled_at
@@ -467,6 +481,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const isRetired = match.status === 'retired'
   const isWalkover = match.status === 'walkover'
   const isLive = match.status === 'live' || (match.status as string) === 'on_court'
+  const presenceOnly = isPresenceOnlyLive(
+    { status: match.status as string },
+    { level: (match as any).tournament?.level ?? null },
+  )
 
   // Serving indicator — server_player_id is populated for live matches by
   // the canonical /scores cron and by padelgod's dual-write. Parser only
@@ -562,10 +580,24 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', textTransform: 'uppercase' as const }}>{tMatch('matchDetail')}</div>
         </div>
         {isLive && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.2s ease-in-out infinite' }} />
-            <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>LIVE</span>
-          </div>
+          presenceOnly ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(245,166,35,0.12)', border: '1px solid rgba(245,166,35,0.3)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
+              <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  color: '#F5A623',
+                  letterSpacing: '0.5px',
+                }}>ON COURT</span>
+                <PresenceOnlyHint matchId={match.id} variant="hero" />
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,68,85,0.15)', border: '1px solid rgba(255,68,85,0.4)', clipPath: CHUNKY.badge, padding: '4px 10px', flexShrink: 0 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.2s ease-in-out infinite' }} />
+              <span style={{ fontSize: 11, fontWeight: 800, color: LIVE_RED, letterSpacing: '0.5px' }}>LIVE</span>
+            </div>
+          )
         )}
         <button
           onClick={async () => {
@@ -725,7 +757,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             </div>
           </div>
           {/* Live indicator column */}
-          {isLive && currentSet && (
+          {isLive && !presenceOnly && currentSet && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, gap: 4 }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: LIVE_RED, display: 'inline-block', animation: 'blink 1.4s ease-in-out infinite', flexShrink: 0 }} />
               <span style={{ fontSize: 8, fontWeight: 700, color: LIVE_RED, textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap' }}>
@@ -745,7 +777,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   </span>
                 )
               })}
-              {!isFinished && (
+              {!isFinished && !(isLive && presenceOnly) && (
                 <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'monospace', color: starPoint ? ORANGE : LIVE_RED, marginLeft: 4 }}>
                   {p1Point ?? '0'}
                 </span>
@@ -761,7 +793,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   </span>
                 )
               })}
-              {!isFinished && (
+              {!isFinished && !(isLive && presenceOnly) && (
                 <span style={{ fontSize: 13, fontWeight: 900, width: 28, textAlign: 'center', fontFamily: 'monospace', color: starPoint ? ORANGE : LIVE_RED, marginLeft: 4 }}>
                   {p2Point ?? '0'}
                 </span>
@@ -846,7 +878,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 )
               })}
               <span style={{ width: 8 }} />
-              {!isFinished && (
+              {!isFinished && !(isLive && presenceOnly) && (
                 <span
                   key={flashPair === 1 ? `p1-${flashKeyRef.current}` : 'p1'}
                   style={{
@@ -928,7 +960,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                 )
               })}
               <span style={{ width: 8 }} />
-              {!isFinished && (
+              {!isFinished && !(isLive && presenceOnly) && (
                 <span
                   key={flashPair === 2 ? `p2-${flashKeyRef.current}` : 'p2'}
                   style={{
@@ -1076,13 +1108,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         // the "breaks-only" path when premier stats are unavailable.
         const showRecap = isPremier || breaks.hasData
 
+        // Presence-only FIP-tier live matches never receive point-by-point
+        // data — hide the Live Feed tab so the user doesn't land on an
+        // empty pane. The presenceOnly flag is defined above (Task 8).
+        const showLive = isPremier && !presenceOnly
+
         const tabList: { key: string; label: string }[] = isFinished
           ? showRecap
-            ? [recapTab, ...(isPremier ? [liveTab] : []), playersTab, h2hTab]
+            ? [recapTab, ...(showLive ? [liveTab] : []), playersTab, h2hTab]
             : [playersTab, h2hTab]
           : isScheduled
             ? [playersTab, h2hTab]
-            : isPremier
+            : showLive
               ? [liveTab, playersTab, h2hTab]
               : [playersTab, h2hTab]
 

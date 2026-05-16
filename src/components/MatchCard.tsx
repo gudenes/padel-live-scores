@@ -30,7 +30,9 @@ import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
 import { countryToTimezone } from '@/lib/country-timezone'
 import { parseDurationHHMM, MAX_DURATION_MINUTES } from '@/lib/match-duration'
+import { isPresenceOnlyLive } from '@/lib/tournament-tier'
 import FollowButton from '@/components/FollowButton'
+import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -101,8 +103,17 @@ function formatRound(round: string | null): string | null {
 
 // ── Status pill ─────────────────────────────────────────────────────────
 
-function statusChip(match: Match): { label: string; bg: string; color: string } | null {
+function statusChip(
+  match: Match,
+  tournamentLevel: string | null | undefined,
+): { label: string; bg: string; color: string } | null {
   const status = match.status as string
+  // Presence-only collapses both 'live' and 'on_court' to the calmer
+  // amber ON COURT badge — FIP-tier matches don't deliver point-by-point
+  // data. See docs/superpowers/specs/2026-05-16-fip-presence-only-live-design.md.
+  if (isPresenceOnlyLive({ status }, { level: tournamentLevel ?? null })) {
+    return { label: 'ON COURT', bg: 'rgba(245,166,35,0.18)', color: '#F5A623' }
+  }
   if (status === 'live') return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
   if (status === 'on_court') return { label: 'ON COURT', bg: 'rgba(245,166,35,0.18)', color: '#F5A623' }
   if (status === 'walkover') return { label: 'W/O', bg: 'rgba(255,255,255,0.06)', color: MUTED }
@@ -193,11 +204,10 @@ export interface MatchCardProps {
    *  built from the OOP "Followed by" chain. Shown in orange when no real
    *  scheduled time is available. */
   estimatedLabel?: string
-  /** Tournament level (e.g. 'p1', 'major', 'fip_silver'). Currently
-   *  unused on MatchCard itself — kept so callers
-   *  (MatchesTournamentGroup) can keep their existing prop signature
-   *  unchanged. Safe to remove in a follow-up cleanup once nothing
-   *  in MatchCard reads it. */
+  /** Tournament level (e.g. 'p1', 'major', 'fip_silver'). Threads into
+   *  `isPresenceOnlyLive` so FIP-tier live matches demote to the calm
+   *  ON COURT chip + presence-only hint. See
+   *  docs/superpowers/specs/2026-05-16-fip-presence-only-live-design.md. */
   tournamentLevel?: string | null
   /** Optional. ISO date (YYYY-MM-DD) of the matches-list day-tab the
    *  user has selected. When provided AND the match's tournament-local
@@ -212,6 +222,7 @@ export function MatchCard({
   locale,
   userTz,
   estimatedLabel,
+  tournamentLevel,
   dayBucketIso,
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
@@ -293,7 +304,11 @@ export function MatchCard({
 
   const round = formatRound(match.round)
   const courtRaw = match.court ? match.court.trim() : null
-  const status = statusChip(match)
+  const status = statusChip(match, tournamentLevel)
+  const presenceOnlyLive = isPresenceOnlyLive(
+    { status: match.status as string },
+    { level: tournamentLevel ?? null },
+  )
   const dateStr = formatShortDate(match, locale, userTz)
   const timeStr = formatScheduledTime(match, locale, userTz)
 
@@ -480,9 +495,19 @@ export function MatchCard({
             </button>
           )}
           {status && (
-            <Chip bg={status.bg} color={status.color} bold>
-              {status.label}
-            </Chip>
+            // Wrapper provides a positioned ancestor for <PresenceOnlyHint>'s
+            // absolutely-positioned popover so it anchors next to the chip
+            // rather than escaping to a distant parent. Inline-flex keeps the
+            // chip + hint trigger sitting on the same baseline as the rest of
+            // the chip row.
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, zIndex: 20 }}>
+              <Chip bg={status.bg} color={status.color} bold>
+                {status.label}
+              </Chip>
+              {presenceOnlyLive && (
+                <PresenceOnlyHint matchId={match.id} variant="row" />
+              )}
+            </span>
           )}
           {durationLabel && (
             <span
@@ -651,7 +676,13 @@ export function MatchCard({
               })}
             </div>
 
-            {/* Scores column — both score rows stacked */}
+            {/* Scores column — both score rows stacked. Hidden for
+                presence-only FIP-tier live matches: the API reports 0-0
+                with no PBP backing it, so showing the digits is more
+                misleading than informative. Once the match finishes and
+                fip-results-writer posts a final, status flips off
+                presence-only and scores render again. */}
+            {!presenceOnlyLive && (
             <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
               {[1, 2].map(pairNum => {
                 const isLoser = winner !== 0 && winner !== pairNum
@@ -721,6 +752,7 @@ export function MatchCard({
                 )
               })}
             </div>
+            )}
 
           </div>
 

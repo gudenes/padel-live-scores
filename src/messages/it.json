@@ -126,6 +126,12 @@
       "startingSoonSheet": "La partita precedente è finita. Questa dovrebbe entrare in campo a breve.",
       "estChip": "EST",
       "estChipAria": "Orario stimato — nessun tracciamento dal vivo per questo torneo"
+    },
+    "presenceOnly": {
+      "label": "senza punto per punto",
+      "popoverTitle": "SENZA PUNTO PER PUNTO IN DIRETTA",
+      "popoverBody": "Questo torneo non trasmette dati punto per punto. Il punteggio finale verrà aggiornato quando i risultati saranno pubblicati.",
+      "ariaLabel": "Perché non ci sono aggiornamenti in diretta del punteggio"
     }
   },
   "matchDetail": {
