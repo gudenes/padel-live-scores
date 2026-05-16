@@ -259,6 +259,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     else if (match && !isPremier) setSubTab('players') // live + non-Premier
   }, [match?.status, (match as any)?.tournament?.level])
 
+  // Defensive: if a user deep-links to ?tab=live (or selection survives from
+  // a prior render) on a presence-only FIP match, the Live Feed tab is
+  // hidden below — fall back to Players so we never show an empty pane.
+  useEffect(() => {
+    if (!match) return
+    const presenceOnlyHere = isPresenceOnlyLive(
+      { status: match.status as string },
+      { level: (match as any)?.tournament?.level ?? null },
+    )
+    if (presenceOnlyHere && subTab === 'live') setSubTab('players')
+  }, [match, subTab])
+
   useEffect(() => {
     if (!match || match.status !== 'scheduled') return
     const scheduledAt = match.scheduled_at
@@ -1020,13 +1032,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         // the "breaks-only" path when premier stats are unavailable.
         const showRecap = isPremier || breaks.hasData
 
+        // Presence-only FIP-tier live matches never receive point-by-point
+        // data — hide the Live Feed tab so the user doesn't land on an
+        // empty pane. The presenceOnly flag is defined above (Task 8).
+        const showLive = isPremier && !presenceOnly
+
         const tabList: { key: string; label: string }[] = isFinished
           ? showRecap
-            ? [recapTab, ...(isPremier ? [liveTab] : []), playersTab, h2hTab]
+            ? [recapTab, ...(showLive ? [liveTab] : []), playersTab, h2hTab]
             : [playersTab, h2hTab]
           : isScheduled
             ? [playersTab, h2hTab]
-            : isPremier
+            : showLive
               ? [liveTab, playersTab, h2hTab]
               : [playersTab, h2hTab]
 
