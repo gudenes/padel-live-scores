@@ -40,6 +40,9 @@ import {
 import { resolveStreamForMatch } from '@/lib/fip-stream-resolver'
 import type { StreamTier } from '@/lib/fip-stream-resolver'
 import { MatchStreamCard } from '@/components/MatchStreamCard'
+import { WhereToWatchBanner } from '@/components/where-to-watch/WhereToWatchBanner'
+import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
+import type { LiveChannel as WtwLiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -73,6 +76,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   )
   const [shareToast, setShareToast] = useState(false)
   const [streamTier, setStreamTier] = useState<StreamTier | null>(null)
+  const [wtwBroadcasters, setWtwBroadcasters] = useState<BroadcasterRow[]>([])
+  const [wtwLiveChannels, setWtwLiveChannels] = useState<WtwLiveChannel[]>([])
+  const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
+  const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
   const { user } = useAuth()
 
   const fetchNextMatch = useCallback(async (m: Match) => {
@@ -333,6 +340,84 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     if (!user || !match) return
     void logActivity(user.id, 'match_view', match.id)
   }, [match?.id, user?.id])
+
+  const tournamentChannelAbbr = useMemo(
+    () => levelToChannelAbbr((match as any)?.tournament?.level),
+    [match],
+  )
+
+  useEffect(() => {
+    const cookieMatch = typeof document !== 'undefined'
+      ? document.cookie.match(/(?:^|;\s*)geo-country=([^;]*)/)
+      : null
+    const country = cookieMatch?.[1]?.toLowerCase() || null
+    setWtwGeoCountry(country)
+
+    if (!tournamentChannelAbbr) {
+      setWtwBroadcasters([])
+      setWtwLiveChannels([])
+      setWtwChannelsMeta([])
+      return
+    }
+
+    let cancelled = false
+    const STALE_MS = 30 * 60 * 1000
+
+    const broadcastersP = supabase
+      .from('broadcasters')
+      .select('id, name, url, logo_url, is_free, display_order, country_iso2, channel_id')
+      .eq('active', true)
+      .not('channel_id', 'is', null)
+      .order('country_iso2', { ascending: true })
+      .order('display_order', { ascending: true })
+      .order('is_free', { ascending: false })
+
+    const liveChannelsP = supabase
+      .from('youtube_channel_live')
+      .select(`video_id, title, channel:youtube_channels!inner(id, name, abbreviation, color_hex, display_order)`)
+      .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
+      .eq('channel.is_active', true)
+      .eq('channel.abbreviation', tournamentChannelAbbr)
+
+    const channelsMetaP = supabase
+      .from('youtube_channels')
+      .select('id, name, abbreviation, color_hex, display_order')
+      .eq('is_active', true)
+      .eq('abbreviation', tournamentChannelAbbr)
+
+    Promise.all([broadcastersP, liveChannelsP, channelsMetaP]).then(([bRes, lcRes, cmRes]) => {
+      if (cancelled) return
+      setWtwBroadcasters(((bRes.data ?? []) as BroadcasterRow[]))
+      const liveRows = (lcRes.data ?? []).map((r: any) => {
+        const ch = Array.isArray(r.channel) ? r.channel[0] : r.channel
+        if (!ch) return null
+        return {
+          videoId: r.video_id as string,
+          title: r.title as string,
+          channel: {
+            id: ch.id as string,
+            name: ch.name as string,
+            abbreviation: ch.abbreviation as string,
+            colorHex: ch.color_hex as string,
+            displayOrder: ch.display_order as number,
+          },
+        }
+      }).filter((x: WtwLiveChannel | null): x is WtwLiveChannel => x !== null)
+      setWtwLiveChannels(liveRows)
+      const channelsMeta = (cmRes.data ?? []).map((r: any) => ({
+        id: r.id as string,
+        name: r.name as string,
+        abbreviation: r.abbreviation as string,
+        colorHex: r.color_hex as string,
+        displayOrder: r.display_order as number,
+      }))
+      setWtwChannelsMeta(channelsMeta)
+    }).catch(err => {
+      if (!cancelled) console.warn('[match:wtw] fetch failed:', err)
+    })
+
+    return () => { cancelled = true }
+  }, [tournamentChannelAbbr])
 
   if (loading) return (
     <>
