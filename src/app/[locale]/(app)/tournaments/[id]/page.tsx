@@ -17,7 +17,7 @@ import MatchCardSkeleton from '@/components/skeletons/MatchCardSkeleton'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { MatchCard } from '@/components/MatchCard'
-import { WhereToWatchPill } from '@/components/where-to-watch/WhereToWatchPill'
+import { WhereToWatchInline } from '@/components/where-to-watch/WhereToWatchInline'
 import type { BroadcasterRow, LiveChannel, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import { EditorialBlock } from '@/components/EditorialBlock'
@@ -1644,8 +1644,8 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         </Link>
       )}
 
-      {/* Where to Watch — pill self-hides when buildGroups returns empty */}
-      <WhereToWatchPill
+      {/* Where to Watch — expanded inline panel (self-hides when buildGroups returns empty) */}
+      <WhereToWatchInline
         liveChannels={wtwLiveChannels}
         broadcasters={wtwBroadcasters}
         channelsMeta={wtwChannelsMeta}
