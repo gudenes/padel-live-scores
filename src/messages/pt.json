@@ -1197,6 +1197,7 @@
     "closeAriaLabel": "Fechar",
     "bannerLiveCount": "Assistir ao vivo · {count, plural, one {# opção} other {# opções}}",
     "bannerWatchIn": "Assistir em {region}",
-    "bannerWhere": "Onde assistir"
+    "bannerWhere": "Onde assistir",
+    "seoSummary": "Assista {target} ao vivo em {list}{extra, plural, =0 {} one { e # outra emissora regional} other { e # outras emissoras regionais}}."
   }
 }

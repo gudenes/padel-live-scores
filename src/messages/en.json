@@ -1220,6 +1220,7 @@
     "closeAriaLabel": "Close",
     "bannerLiveCount": "Watch live · {count, plural, one {# option} other {# options}}",
     "bannerWatchIn": "Watch in {region}",
-    "bannerWhere": "Where to watch"
+    "bannerWhere": "Where to watch",
+    "seoSummary": "Watch {target} live on {list}{extra, plural, =0 {} one { and # other regional broadcaster} other { and # other regional broadcasters}}."
   }
 }

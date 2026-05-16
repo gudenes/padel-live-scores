@@ -1197,6 +1197,7 @@
     "closeAriaLabel": "Cerrar",
     "bannerLiveCount": "Ver en directo · {count, plural, one {# opción} other {# opciones}}",
     "bannerWatchIn": "Ver en {region}",
-    "bannerWhere": "Dónde ver"
+    "bannerWhere": "Dónde ver",
+    "seoSummary": "Mira {target} en directo en {list}{extra, plural, =0 {} one { y # otra emisora regional} other { y # otras emisoras regionales}}."
   }
 }
