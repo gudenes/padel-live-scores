@@ -18,6 +18,10 @@ interface FakeSupabaseOptions {
   finishedMatchIds: string[];
   /** match_stats rows that already exist (per match + source) */
   existingStatsRows?: Array<{ match_id: string; source: string }>;
+  /** Simulate PostgREST's URL-length cap: when set, any .in(col, ids) call
+   *  with more than this many ids returns an error instead of data.
+   *  Real production limit is ~210 UUIDs before Nginx 414s. */
+  maxInChunk?: number;
 }
 
 function fakeSupabase(opts: FakeSupabaseOptions) {
@@ -44,6 +48,14 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
         select: () => ({
           in: (_col: string, ids: string[]) => ({
             eq: async (_statusCol: string, status: string) => {
+              if (opts.maxInChunk != null && ids.length > opts.maxInChunk) {
+                return {
+                  data: null,
+                  error: {
+                    message: `URI Too Long (${ids.length} ids exceeds ${opts.maxInChunk}-id cap)`,
+                  },
+                };
+              }
               if (status !== 'finished') return { data: [], error: null };
               const filtered = ids
                 .filter((id) => opts.finishedMatchIds.includes(id))
@@ -59,6 +71,14 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
         select: () => ({
           in: (_col: string, ids: string[]) => ({
             eq: async (_sourceCol: string, sourceVal: string) => {
+              if (opts.maxInChunk != null && ids.length > opts.maxInChunk) {
+                return {
+                  data: null,
+                  error: {
+                    message: `URI Too Long (${ids.length} ids exceeds ${opts.maxInChunk}-id cap)`,
+                  },
+                };
+              }
               const filtered = existingStatsRows
                 .filter(
                   (row) => ids.includes(row.match_id) && row.source === sourceVal,
@@ -339,5 +359,48 @@ describe('runMatchStatsFetcher', () => {
     expect(result.fetched).toBe(0);
     expect(result.skipped).toBe(1);
     expect(supabase.upserted).toHaveLength(0);
+  });
+
+  // 2026-05-16 BUE-P1 incident root cause: the worker passes every
+  // crionet_widget mapping's match_id to a single `.in('id', […])` call.
+  // Once the project accumulated >~210 mappings (we had 2041 by 2026-05-16),
+  // the PostgREST URL exceeded Nginx's request-line limit and the query
+  // failed silently — the worker hadn't recorded a single match_stats row
+  // since 2026-05-11. The fake supabase here mimics the URL-length cap;
+  // unchunked .in() calls fail. After the fix, the worker must split the
+  // filter into safely-sized chunks and still find finished matches.
+  it('handles thousands of mappings by chunking the .in() filter beneath PostgREST URL-length cap', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    // 500 mappings — well past PostgREST's safe-for-UUID-.in() cap of ~210.
+    const allMatchIds: string[] = Array.from({ length: 500 }, (_, i) =>
+      `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`,
+    );
+    const mappings = allMatchIds.map((id, i) => ({
+      entity_id: id,
+      external_id: `FIP-2026-1701:MQ${String(i).padStart(3, '0')}`,
+    }));
+    // Only 5 of the 500 are actually finished — proves the chunked filter
+    // still narrows correctly across chunks.
+    const finishedIds = allMatchIds.slice(0, 5);
+
+    const supabase = fakeSupabase({
+      mappings,
+      finishedMatchIds: finishedIds,
+      maxInChunk: 250,
+    });
+    const httpClient = {
+      post: vi.fn(async () => ({ data: fixtureHtml })),
+    };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    // Pre-fix: this throws because the first `.in()` is called with 500 ids
+    // and the fake returns a URI-Too-Long error.
+    // Post-fix: the 5 finished matches without stats are fetched.
+    expect(result.fetched).toBe(5);
+    expect(httpClient.post).toHaveBeenCalledTimes(5);
   });
 });

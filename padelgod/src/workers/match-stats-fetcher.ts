@@ -45,6 +45,43 @@ export interface MatchStatsFetcherResult {
 const STATS_URL = 'https://widget.matchscorerlive.com/screen/getmatchstats?t=tol';
 const MATCH_STATS_BATCH_SIZE = 20;
 
+// Maximum number of UUID ids to pass to a single PostgREST `.in()` filter.
+//
+// 36-char UUIDs + commas at ~37 chars each. Nginx's default request-line
+// limit is 8KB; PostgREST + supabase-js adds a few hundred bytes of
+// overhead per request (URL prefix, JWT in headers, base PostgREST params).
+// 200 ids → ~7.4KB worst case, comfortably under the limit on every
+// hosted PostgREST deployment we've seen.
+//
+// Before this cap existed, the cron path passed every crionet_widget
+// match mapping (2,041 ids by 2026-05-16) to a single `.in('id', […])`
+// call. The query 414'd silently and the worker hadn't written a single
+// match_stats row in five days — see BUE-P1 incident.
+const IN_FILTER_CHUNK_SIZE = 200;
+
+/**
+ * Run `query(ids)` against successive 200-id slices of `allIds`,
+ * accumulating returned IDs into a `Set`. Empty input returns an empty set.
+ *
+ * Used to filter very large id lists through PostgREST `.in()` without
+ * blowing the URL-length budget. The accumulator pattern fits both
+ * call sites — both `fetchFinishedMatchIds` and `fetchMatchIdsWithCrionet
+ * Stats` end up with `Set<string>` of "ids that matched the filter".
+ */
+async function inChunksAsSet(
+  allIds: string[],
+  query: (chunk: string[]) => Promise<Set<string>>,
+): Promise<Set<string>> {
+  if (allIds.length === 0) return new Set();
+  const out = new Set<string>();
+  for (let i = 0; i < allIds.length; i += IN_FILTER_CHUNK_SIZE) {
+    const chunk = allIds.slice(i, i + IN_FILTER_CHUNK_SIZE);
+    const hits = await query(chunk);
+    for (const id of hits) out.add(id);
+  }
+  return out;
+}
+
 interface CompositeParts {
   tournamentWidgetId: string; // e.g. "FIP-2026-1701"
   matchWidgetId: string;      // e.g. "MQ012"
@@ -103,33 +140,35 @@ async function fetchFinishedMatchIds(
   supabase: SupabaseClient,
   matchIds: string[]
 ): Promise<Set<string>> {
-  if (matchIds.length === 0) return new Set();
-  const { data, error } = await supabase
-    .from('matches')
-    .select('id')
-    .in('id', matchIds)
-    .eq('status', 'finished');
-  if (error) throw new Error(`matches query failed: ${error.message}`);
-  const rows = (data ?? []) as Array<{ id: string }>;
-  return new Set(rows.map((r) => r.id));
+  return inChunksAsSet(matchIds, async (chunk) => {
+    const { data, error } = await supabase
+      .from('matches')
+      .select('id')
+      .in('id', chunk)
+      .eq('status', 'finished');
+    if (error) throw new Error(`matches query failed: ${error.message}`);
+    const rows = (data ?? []) as Array<{ id: string }>;
+    return new Set(rows.map((r) => r.id));
+  });
 }
 
 async function fetchMatchIdsWithCrionetStats(
   supabase: SupabaseClient,
   matchIds: string[]
 ): Promise<Set<string>> {
-  if (matchIds.length === 0) return new Set();
   // Only skip matches that already have a crionet_widget row. Legacy rows from
   // older sources (premierpadel, padelapi) DON'T block the fetcher — they get
   // overwritten so the row picks up the full column coverage.
-  const { data, error } = await supabase
-    .from('match_stats')
-    .select('match_id')
-    .in('match_id', matchIds)
-    .eq('source', 'crionet_widget');
-  if (error) throw new Error(`match_stats query failed: ${error.message}`);
-  const rows = (data ?? []) as Array<{ match_id: string }>;
-  return new Set(rows.map((r) => r.match_id));
+  return inChunksAsSet(matchIds, async (chunk) => {
+    const { data, error } = await supabase
+      .from('match_stats')
+      .select('match_id')
+      .in('match_id', chunk)
+      .eq('source', 'crionet_widget');
+    if (error) throw new Error(`match_stats query failed: ${error.message}`);
+    const rows = (data ?? []) as Array<{ match_id: string }>;
+    return new Set(rows.map((r) => r.match_id));
+  });
 }
 
 /**
