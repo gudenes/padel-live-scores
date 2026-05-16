@@ -129,7 +129,7 @@ function LiveMatchCardInner({ match: matchProp }: { match: Match }) {
                 fontWeight: 800,
                 color: '#F5A623',
                 letterSpacing: '0.5px',
-              }}>ON COURT</span>
+              }}>{tCommon('onCourt')}</span>
               <PresenceOnlyHint matchId={match.id} variant="row" />
             </span>
           ) : (
