@@ -71,9 +71,14 @@ export default function PresenceOnlyHint({ matchId, variant = 'row' }: PresenceO
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const labelFontSize = variant === 'hero' ? 10 : 9
-  const popoverRight = variant === 'hero' ? 0 : 12
-  const popoverBottom = variant === 'hero' ? -8 : 6
+  // Icon size scales modestly for the hero variant; tap area is a comfy
+  // 32×32 via the button's padding so mobile taps hit reliably.
+  const iconSize = variant === 'hero' ? 16 : 14
+  // Popover pops DOWN below the trigger (into the player-names area)
+  // rather than UP — pre-fix it would clip against the previous
+  // tournament-card boundary.
+  const popoverRight = variant === 'hero' ? 0 : 0
+  const popoverTop = variant === 'hero' ? 'calc(100% + 8px)' : 'calc(100% + 6px)'
 
   return (
     <>
@@ -84,22 +89,24 @@ export default function PresenceOnlyHint({ matchId, variant = 'row' }: PresenceO
         aria-label={t('ariaLabel')}
         aria-expanded={open}
         style={{
-          marginTop: 2,
-          padding: '4px 0',
+          width: 32,
+          height: 32,
+          padding: 0,
           border: 0,
           background: 'transparent',
           color: ORANGE,
-          opacity: 0.85,
-          fontSize: labelFontSize,
-          fontWeight: 600,
-          letterSpacing: 0.2,
           cursor: 'pointer',
-          borderBottom: `1px dotted ${ORANGE}66`,
-          lineHeight: 1.2,
-          alignSelf: variant === 'hero' ? 'center' : 'flex-end',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: 0.85,
         }}
       >
-        {t('label')}
+        <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke={ORANGE} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8h.01" />
+          <path d="M11 12h1v4h1" />
+        </svg>
       </button>
       {open && (
         <div
@@ -108,8 +115,9 @@ export default function PresenceOnlyHint({ matchId, variant = 'row' }: PresenceO
           style={{
             position: 'absolute',
             right: popoverRight,
-            bottom: popoverBottom,
-            zIndex: 4,
+            top: popoverTop,
+            zIndex: 10,
+            width: 'max-content',
             maxWidth: 260,
             padding: '10px 12px 10px 14px',
             background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
