@@ -76,8 +76,7 @@ export default function PresenceOnlyHint({ matchId, variant = 'row' }: PresenceO
   const iconSize = variant === 'hero' ? 16 : 14
   // Popover pops DOWN below the trigger (into the player-names area)
   // rather than UP — pre-fix it would clip against the previous
-  // tournament-card boundary.
-  const popoverRight = variant === 'hero' ? 0 : 0
+  // tournament-card boundary. Centered horizontally under the icon.
   const popoverTop = variant === 'hero' ? 'calc(100% + 8px)' : 'calc(100% + 6px)'
 
   return (
@@ -114,13 +113,18 @@ export default function PresenceOnlyHint({ matchId, variant = 'row' }: PresenceO
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
           style={{
             position: 'absolute',
-            right: popoverRight,
+            left: '50%',
             top: popoverTop,
-            zIndex: 10,
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
             width: 'max-content',
             maxWidth: 260,
             padding: '10px 12px 10px 14px',
-            background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
+            // Solid base color FIRST so the gradient never paints over a
+            // transparent layer when the clip-path's stacking context
+            // collides with sibling positioned content.
+            backgroundColor: '#131316',
+            backgroundImage: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)',
             clipPath: CHUNKY_BADGE,
             boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08), inset 0 0 24px ${ORANGE}10`,
             cursor: 'pointer',

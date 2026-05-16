@@ -500,7 +500,7 @@ export function MatchCard({
             // rather than escaping to a distant parent. Inline-flex keeps the
             // chip + hint trigger sitting on the same baseline as the rest of
             // the chip row.
-            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 6, zIndex: 20 }}>
               <Chip bg={status.bg} color={status.color} bold>
                 {status.label}
               </Chip>
@@ -676,7 +676,13 @@ export function MatchCard({
               })}
             </div>
 
-            {/* Scores column — both score rows stacked */}
+            {/* Scores column — both score rows stacked. Hidden for
+                presence-only FIP-tier live matches: the API reports 0-0
+                with no PBP backing it, so showing the digits is more
+                misleading than informative. Once the match finishes and
+                fip-results-writer posts a final, status flips off
+                presence-only and scores render again. */}
+            {!presenceOnlyLive && (
             <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
               {[1, 2].map(pairNum => {
                 const isLoser = winner !== 0 && winner !== pairNum
@@ -746,6 +752,7 @@ export function MatchCard({
                 )
               })}
             </div>
+            )}
 
           </div>
 
