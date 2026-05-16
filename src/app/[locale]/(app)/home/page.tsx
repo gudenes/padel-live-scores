@@ -44,6 +44,16 @@ const MATCH_PLAYER_JOINS = `
 
 const MATCH_SELECT_LIVE = `*, ${MATCH_PLAYER_JOINS}, sets(*, games(*))`
 const MATCH_SELECT_LEAN = `*, ${MATCH_PLAYER_JOINS}, sets(set_number, set_score, pair1_games, pair2_games, is_current, score_source)`
+// Variant of MATCH_SELECT_LEAN that uses !inner on tournaments so a
+// .in('tournament.level', …) filter actually drops rows (instead of
+// just nulling the embed). Used for the "Coming Up" query which must
+// be Premier-only at the DB layer — there are enough FIP-tier matches
+// scheduled earlier in the day to consume a global limit(50) and
+// starve Premier matches out before client-side filtering runs.
+const MATCH_SELECT_LEAN_PREMIER = MATCH_SELECT_LEAN.replace(
+  'tournament:tournaments(',
+  'tournament:tournaments!inner(',
+)
 
 // ════════��═══════════════════════════════════════════════════════
 // ██  HOME PAGE
@@ -265,7 +275,7 @@ function V3HomePageInner() {
         // early so fans see the match is about to start instead of the
         // scheduled-card fallback.
         wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).in('status', ['live', 'on_court']).order('court_order', { ascending: true }) as any, 'home:live'),
-        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).eq('status', 'scheduled').order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
+        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN_PREMIER).eq('status', 'scheduled').in('tournament.level', PREMIER_LEVELS).order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
         wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
@@ -362,7 +372,6 @@ function V3HomePageInner() {
   }).filter(genderFilter)
   const upcoming = scheduledMatches
     .filter(m => !!(m.pair1_player1 && m.pair1_player2 && m.pair2_player1 && m.pair2_player2))
-    .filter(m => PREMIER_LEVELS.includes((m as any).tournament?.level))
     .filter(genderFilter)
     .slice(0, 10)
   const filteredRecent = recentMatches.filter(genderFilter)
