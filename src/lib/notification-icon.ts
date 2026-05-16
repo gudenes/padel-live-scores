@@ -12,6 +12,8 @@
 // All returns are absolute URLs — FCM and Web Push both need fully-qualified
 // URLs so the client can fetch the image from outside the origin context.
 
+import { isPremierTier } from './tournament-tier'
+
 const BASE_URL = 'https://padelnachos.com'
 
 const PREMIER_ICON_URL = `${BASE_URL}/branding/premier-padel-star.png`
@@ -31,15 +33,5 @@ export function resolveNotificationIcon(ctx: NotificationIconContext): string {
 }
 
 export function circuitIconUrl(level: string | null): string {
-  if (!level) return FIP_ICON_URL
-  const normalized = level.toLowerCase()
-  if (
-    normalized.startsWith('p1') ||
-    normalized.startsWith('p2') ||
-    normalized.startsWith('major') ||
-    normalized.startsWith('premier')
-  ) {
-    return PREMIER_ICON_URL
-  }
-  return FIP_ICON_URL
+  return isPremierTier(level) ? PREMIER_ICON_URL : FIP_ICON_URL
 }
