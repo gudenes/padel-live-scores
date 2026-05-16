@@ -125,13 +125,16 @@ export function ChannelGroup({ group, groupIndex, country, onCloseRequested }: C
         </div>
       )}
 
-      {/* "No free YT, also on:" helper line (only when there are broadcasters AND no live YT) */}
+      {/* Bridge text between the channel header and the broadcaster list
+          when the channel isn't currently streaming on YouTube. Neutral
+          phrasing — the broadcasters listed below may themselves be free
+          (e.g., Red Bull TV), so we don't claim absence of free options. */}
       {!group.hasLive && group.broadcasters.length > 0 && (
         <div style={{
           marginLeft: 40, marginBottom: 8,
           fontSize: 10, color: MUTED, lineHeight: 1.4,
         }}>
-          {t('noFreeStream', { channel: group.channelName })}
+          {t('watchOn', { channel: group.channelName })}
         </div>
       )}
 

@@ -1180,6 +1180,7 @@
     "channelLive": "EN VIVO",
     "alsoIn": "También en {region}",
     "noFreeStream": "Sin transmisión gratis ahora mismo. {channel} también está en:",
+    "watchOn": "Ver {channel} en:",
     "freeBadge": "GRATIS",
     "watchCta": "VER",
     "openCta": "ABRIR",

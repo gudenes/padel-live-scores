@@ -1203,6 +1203,7 @@
     "channelLive": "LIVE",
     "alsoIn": "Also in {region}",
     "noFreeStream": "No free YouTube broadcast right now. {channel} is also on:",
+    "watchOn": "Watch {channel} on:",
     "freeBadge": "FREE",
     "watchCta": "WATCH",
     "openCta": "OPEN",
