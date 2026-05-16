@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { buildGroups, type LiveChannel, type BroadcasterRow } from '@/lib/where-to-watch/group-builder'
+import { buildGroups, type LiveChannel, type BroadcasterRow, type ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { WhereToWatchPopup } from './WhereToWatchPopup'
 
 const CLIP_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
@@ -11,12 +11,13 @@ const LOCALSTORAGE_KEY = 'preferred-country'
 export interface WhereToWatchPillProps {
   liveChannels: LiveChannel[]
   broadcasters: BroadcasterRow[]
+  channelsMeta?: ChannelMeta[]
   todayCircuits: string[]   // serialized Set — array for SSR-safety
   geoCountry: string | null  // server-detected (cookie)
 }
 
 export function WhereToWatchPill({
-  liveChannels, broadcasters, todayCircuits, geoCountry,
+  liveChannels, broadcasters, channelsMeta = [], todayCircuits, geoCountry,
 }: WhereToWatchPillProps) {
   const t = useTranslations('whereToWatch')
   const [open, setOpen] = useState(false)
@@ -40,10 +41,11 @@ export function WhereToWatchPill({
     () => buildGroups({
       liveChannels,
       broadcasters,
+      channelsMeta,
       todayCircuits: new Set(todayCircuits),
       country: effectiveCountry,
     }),
-    [liveChannels, broadcasters, todayCircuits, effectiveCountry],
+    [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry],
   )
 
   // Hide entirely when nothing to show

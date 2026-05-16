@@ -18,7 +18,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { MatchCard } from '@/components/MatchCard'
 import { WhereToWatchPill } from '@/components/where-to-watch/WhereToWatchPill'
-import type { BroadcasterRow, LiveChannel } from '@/lib/where-to-watch/group-builder'
+import type { BroadcasterRow, LiveChannel, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
@@ -1199,6 +1199,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   // ── Where to Watch ────────────────────────────────────────────
   const [wtwBroadcasters, setWtwBroadcasters] = useState<BroadcasterRow[]>([])
   const [wtwLiveChannels, setWtwLiveChannels] = useState<LiveChannel[]>([])
+  const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
   const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
 
   const tournamentChannelAbbr = useMemo(
@@ -1217,6 +1218,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     if (!tournamentChannelAbbr) {
       setWtwBroadcasters([])
       setWtwLiveChannels([])
+      setWtwChannelsMeta([])
       return
     }
 
@@ -1241,7 +1243,13 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       .eq('channel.is_active', true)
       .eq('channel.abbreviation', tournamentChannelAbbr)
 
-    Promise.all([broadcastersP, liveChannelsP]).then(([bRes, lcRes]) => {
+    const channelsMetaP = supabase
+      .from('youtube_channels')
+      .select('id, name, abbreviation, color_hex, display_order')
+      .eq('is_active', true)
+      .eq('abbreviation', tournamentChannelAbbr)
+
+    Promise.all([broadcastersP, liveChannelsP, channelsMetaP]).then(([bRes, lcRes, cmRes]) => {
       if (cancelled) return
       setWtwBroadcasters(((bRes.data ?? []) as BroadcasterRow[]))
       const liveRows = (lcRes.data ?? []).map((r: any) => {
@@ -1260,6 +1268,14 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         }
       }).filter((x: LiveChannel | null): x is LiveChannel => x !== null)
       setWtwLiveChannels(liveRows)
+      const channelsMeta = (cmRes.data ?? []).map((r: any) => ({
+        id: r.id as string,
+        name: r.name as string,
+        abbreviation: r.abbreviation as string,
+        colorHex: r.color_hex as string,
+        displayOrder: r.display_order as number,
+      }))
+      setWtwChannelsMeta(channelsMeta)
     }).catch(err => {
       if (!cancelled) console.warn('[tournament:wtw] fetch failed:', err)
     })
@@ -1631,6 +1647,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       <WhereToWatchPill
         liveChannels={wtwLiveChannels}
         broadcasters={wtwBroadcasters}
+        channelsMeta={wtwChannelsMeta}
         todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
         geoCountry={wtwGeoCountry}
       />

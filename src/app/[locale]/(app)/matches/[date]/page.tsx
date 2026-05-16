@@ -26,7 +26,7 @@ import { resolveStreamsForMatches } from '@/lib/fip-stream-resolver'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
 import MatchesDayShell from '@/components/MatchesDayShell'
 import type { LiveChannel } from '@/lib/where-to-watch/group-builder'
-import { fetchBroadcastersForCountry } from '@/lib/where-to-watch/fetch-broadcasters'
+import { fetchBroadcastersForCountry, fetchChannelsMeta } from '@/lib/where-to-watch/fetch-broadcasters'
 import { circuitsForToday } from '@/lib/where-to-watch/circuit-map'
 
 export const revalidate = 300 // 5 min
@@ -103,7 +103,7 @@ export default async function DailyMatchesPage({ params }: Props) {
   // No client-side polling for v1.
   const STALE_MS = 30 * 60 * 1000
   const geoCountry = (cookieStore.get('geo-country')?.value || '').toLowerCase() || null
-  const [liveChannelsRes, broadcasters] = await Promise.all([
+  const [liveChannelsRes, broadcasters, channelsMeta] = await Promise.all([
     supabase
       .from('youtube_channel_live')
       .select(`
@@ -120,6 +120,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
       .eq('channel.is_active', true),
     fetchBroadcastersForCountry(supabase, geoCountry),
+    fetchChannelsMeta(supabase),
   ])
 
   if (liveChannelsRes.error) {
@@ -208,6 +209,7 @@ export default async function DailyMatchesPage({ params }: Props) {
         emptyStateSubtitle={tDaily('noMatchesSub')}
         liveChannels={liveChannels}
         broadcasters={broadcasters}
+        channelsMeta={channelsMeta}
         todayCircuits={todayCircuits}
         geoCountry={geoCountry}
       />

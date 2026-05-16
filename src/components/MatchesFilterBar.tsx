@@ -12,7 +12,7 @@ import type { ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { type MatchesFilters } from '@/hooks/useMatchesFilters'
 import { WhereToWatchPill } from './where-to-watch/WhereToWatchPill'
-import type { LiveChannel, BroadcasterRow } from '@/lib/where-to-watch/group-builder'
+import type { LiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -44,6 +44,7 @@ export interface MatchesFilterBarProps {
    *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
   liveChannels?: LiveChannel[]
   broadcasters?: BroadcasterRow[]
+  channelsMeta?: ChannelMeta[]
   todayCircuits?: string[]
   geoCountry?: string | null
 }
@@ -58,6 +59,7 @@ export default function MatchesFilterBar({
   liveButtonRef,
   liveChannels = [],
   broadcasters = [],
+  channelsMeta = [],
   todayCircuits = [],
   geoCountry = null,
 }: MatchesFilterBarProps) {
@@ -85,6 +87,7 @@ export default function MatchesFilterBar({
         <WhereToWatchPill
           liveChannels={liveChannels}
           broadcasters={broadcasters}
+          channelsMeta={channelsMeta}
           todayCircuits={todayCircuits}
           geoCountry={geoCountry}
         />

@@ -1185,6 +1185,7 @@
     "openCta": "APRI",
     "regionShowing": "Mostro le opzioni in {region}.",
     "notYourRegion": "Non è la tua regione?",
+    "setYourRegion": "Scegli la tua regione →",
     "pickRegionTitle": "Scegli la tua regione",
     "pickRegionBack": "Indietro",
     "closeAriaLabel": "Chiudi"

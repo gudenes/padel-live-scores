@@ -69,15 +69,64 @@ describe('buildGroups', () => {
     expect(groups[0].broadcasters.map(b => b.id)).toEqual(['b2', 'b1'])
   })
 
-  it('skips broadcaster-only groups when channel has no live (v1 limitation)', () => {
+  it('skips broadcaster-only groups when channelsMeta is omitted', () => {
+    // Without dormant channel metadata, broadcaster-only groups can't
+    // render — the builder has no name/color/abbreviation to attach to
+    // the broadcasters. This is the "callers should pass channelsMeta"
+    // contract; the page Server Component now does so.
     const groups = buildGroups({
       liveChannels: [],
       broadcasters: [movistar, redBull],
       todayCircuits: new Set(['PP']),
       country: 'es',
     })
-    // v1: no channel metadata source without a live entry → group not rendered.
-    // Tracked as a follow-up: see plan self-review note about dormant channels.
+    expect(groups).toEqual([])
+  })
+
+  it('renders broadcaster-only group when channelsMeta provides the channel', () => {
+    const groups = buildGroups({
+      liveChannels: [],
+      broadcasters: [movistar, redBull],
+      todayCircuits: new Set(['PP']),
+      country: 'es',
+      channelsMeta: [
+        { id: PP_CHANNEL_ID, name: 'Premier Padel', abbreviation: 'PP', colorHex: '#FF0000', displayOrder: 10 },
+      ],
+    })
+    expect(groups).toHaveLength(1)
+    expect(groups[0].channelId).toBe(PP_CHANNEL_ID)
+    expect(groups[0].hasLive).toBe(false)
+    expect(groups[0].liveStreams).toHaveLength(0)
+    // Free first (Red Bull) then paid (Movistar)
+    expect(groups[0].broadcasters.map(b => b.id)).toEqual(['b2', 'b1'])
+  })
+
+  it('still omits a broadcaster-only group when its circuit has no matches today (even with channelsMeta)', () => {
+    const groups = buildGroups({
+      liveChannels: [],
+      broadcasters: [movistar, redBull],
+      todayCircuits: new Set(['FIP']), // PP not in today
+      country: 'es',
+      channelsMeta: [
+        { id: PP_CHANNEL_ID, name: 'Premier Padel', abbreviation: 'PP', colorHex: '#FF0000', displayOrder: 10 },
+      ],
+    })
+    expect(groups).toEqual([])
+  })
+
+  it('omits dormant channel-meta entries that have nothing to show', () => {
+    // Providing channelsMeta for a channel with no live + no broadcasters
+    // + circuit not in today → should NOT render an empty group.
+    const groups = buildGroups({
+      liveChannels: [],
+      broadcasters: [],
+      todayCircuits: new Set(),
+      country: 'es',
+      channelsMeta: [
+        { id: PP_CHANNEL_ID, name: 'Premier Padel', abbreviation: 'PP', colorHex: '#FF0000', displayOrder: 10 },
+        { id: FIP_CHANNEL_ID, name: 'FIP Tour', abbreviation: 'FIP', colorHex: '#1657A0', displayOrder: 20 },
+      ],
+    })
     expect(groups).toEqual([])
   })
 

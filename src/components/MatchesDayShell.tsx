@@ -29,7 +29,7 @@ import { DailyDatePills } from '@/components/DailyDatePills'
 import { addDaysIso, getLocaleHomeTz, isLocaleToday, getLocaleTodayIso } from '@/lib/locale-time'
 import { useDaySwipe } from '@/hooks/useDaySwipe'
 import type { MatchesDayGroup } from '@/lib/fetch-matches-day'
-import type { LiveChannel, BroadcasterRow } from '@/lib/where-to-watch/group-builder'
+import type { LiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { supabase } from '@/lib/supabase'
 import { nextDayWithMatches } from '@/lib/fetch-matches-calendar'
 
@@ -51,6 +51,7 @@ interface Props {
    *  only — does not refresh on client-side day swaps for v1. */
   liveChannels?: LiveChannel[]
   broadcasters?: BroadcasterRow[]
+  channelsMeta?: ChannelMeta[]
   todayCircuits?: string[]
   geoCountry?: string | null
 }
@@ -69,6 +70,7 @@ export default function MatchesDayShell({
   emptyStateSubtitle,
   liveChannels = [],
   broadcasters = [],
+  channelsMeta = [],
   todayCircuits = [],
   geoCountry = null,
 }: Props) {
@@ -421,6 +423,7 @@ export default function MatchesDayShell({
           onGoToToday={rollToToday}
           liveChannels={liveChannels}
           broadcasters={broadcasters}
+          channelsMeta={channelsMeta}
           todayCircuits={todayCircuits}
           geoCountry={geoCountry}
           leftSlot={

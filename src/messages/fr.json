@@ -1185,6 +1185,7 @@
     "openCta": "OUVRIR",
     "regionShowing": "Diffuseurs en {region}.",
     "notYourRegion": "Pas votre région ?",
+    "setYourRegion": "Choisir votre région →",
     "pickRegionTitle": "Choisir votre région",
     "pickRegionBack": "Retour",
     "closeAriaLabel": "Fermer"

@@ -1208,6 +1208,7 @@
     "openCta": "OPEN",
     "regionShowing": "Showing broadcasters in {region}.",
     "notYourRegion": "Not your region?",
+    "setYourRegion": "Set your region →",
     "pickRegionTitle": "Choose your region",
     "pickRegionBack": "Back",
     "closeAriaLabel": "Close"

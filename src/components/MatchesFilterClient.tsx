@@ -24,7 +24,7 @@ import { useMatchesFilters, type MatchesFilters } from '@/hooks/useMatchesFilter
 import EmptyState from './EmptyState'
 import MatchesFilterBar from './MatchesFilterBar'
 import MatchesFilterDrawer from './MatchesFilterDrawer'
-import type { LiveChannel, BroadcasterRow } from '@/lib/where-to-watch/group-builder'
+import type { LiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 
 export interface MatchesFilterClientProps {
   /** ID of the wrapper div the server renders around all match nodes.
@@ -50,6 +50,7 @@ export interface MatchesFilterClientProps {
    *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
   liveChannels?: LiveChannel[]
   broadcasters?: BroadcasterRow[]
+  channelsMeta?: ChannelMeta[]
   todayCircuits?: string[]
   geoCountry?: string | null
 }
@@ -63,6 +64,7 @@ export default function MatchesFilterClient({
   leftSlot,
   liveChannels = [],
   broadcasters = [],
+  channelsMeta = [],
   todayCircuits = [],
   geoCountry = null,
 }: MatchesFilterClientProps) {
@@ -235,6 +237,7 @@ export default function MatchesFilterClient({
         liveButtonRef={liveBtnRef}
         liveChannels={liveChannels}
         broadcasters={broadcasters}
+        channelsMeta={channelsMeta}
         todayCircuits={todayCircuits}
         geoCountry={geoCountry}
       />

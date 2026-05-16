@@ -148,35 +148,36 @@ export function WhereToWatchPopup({
               />
             ))}
 
-            {/* Region footer */}
-            {regionName && (
-              <div
+            {/* Region footer — always rendered so the picker is reachable.
+                When no region is detected we show just the "Set your region"
+                CTA; when one is detected we show the current text + the
+                "Not your region?" link. */}
+            <div
+              style={{
+                marginTop: 14, paddingTop: 12,
+                borderTop: `1px solid ${BORDER}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                gap: 6, fontSize: 10, color: MUTED, lineHeight: 1.4,
+                flexWrap: 'wrap',
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              {regionName && <span>{t('regionShowing', { region: regionName })}</span>}
+              <button
+                type="button"
+                onClick={() => setPickerOpen(true)}
                 style={{
-                  marginTop: 14, paddingTop: 12,
-                  borderTop: `1px solid ${BORDER}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  gap: 6, fontSize: 10, color: MUTED, lineHeight: 1.4,
-                  flexWrap: 'wrap',
+                  background: 'transparent', border: 0, padding: 0,
+                  color: ORANGE, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 'inherit',
+                  borderBottom: '1px dashed rgba(245,166,35,0.4)',
                 }}
               >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ opacity: 0.7 }}>
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                </svg>
-                <span>{t('regionShowing', { region: regionName })}</span>
-                <button
-                  type="button"
-                  onClick={() => setPickerOpen(true)}
-                  style={{
-                    background: 'transparent', border: 0, padding: 0,
-                    color: ORANGE, fontWeight: 700, cursor: 'pointer',
-                    fontFamily: 'inherit', fontSize: 'inherit',
-                    borderBottom: '1px dashed rgba(245,166,35,0.4)',
-                  }}
-                >
-                  {t('notYourRegion')}
-                </button>
-              </div>
-            )}
+                {regionName ? t('notYourRegion') : t('setYourRegion')}
+              </button>
+            </div>
           </>
         )}
       </div>

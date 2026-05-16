@@ -43,19 +43,47 @@ export interface ChannelGroup {
   }>
 }
 
+export interface ChannelMeta {
+  id: string
+  name: string
+  abbreviation: string
+  colorHex: string
+  displayOrder: number
+}
+
 export interface BuildGroupsInput {
   liveChannels: LiveChannel[]
   broadcasters: BroadcasterRow[]
   todayCircuits: Set<string>  // set of channel abbreviations
   country: string | null
+  /** All tracked YouTube channels (active or not). Used to seed the
+   *  group metadata so broadcaster-only groups (channel not currently
+   *  live but its circuit has matches today) can still render with the
+   *  channel's name/color/abbreviation. Optional — when omitted the
+   *  builder falls back to sourcing metadata only from `liveChannels`. */
+  channelsMeta?: ChannelMeta[]
 }
 
 export function buildGroups(input: BuildGroupsInput): ChannelGroup[] {
-  const { liveChannels, broadcasters, todayCircuits, country } = input
+  const { liveChannels, broadcasters, todayCircuits, country, channelsMeta = [] } = input
 
-  // Index 1: channel metadata, keyed by channel id. Sourced from live
-  // channels first (their `channel` payload is the authoritative meta).
+  // Index 1: channel metadata, keyed by channel id. Sourced from
+  // `channelsMeta` first (covers dormant channels) then live channels —
+  // the latter overwrites if a channel appears in both, since the live
+  // payload is freshest. This makes broadcaster-only groups possible.
   const channelMetaById = new Map<string, ChannelGroup>()
+  for (const cm of channelsMeta) {
+    channelMetaById.set(cm.id, {
+      channelId: cm.id,
+      channelName: cm.name,
+      abbreviation: cm.abbreviation,
+      colorHex: cm.colorHex,
+      displayOrder: cm.displayOrder,
+      hasLive: false,
+      liveStreams: [],
+      broadcasters: [],
+    })
+  }
   for (const lc of liveChannels) {
     if (!channelMetaById.has(lc.channel.id)) {
       channelMetaById.set(lc.channel.id, {
@@ -82,18 +110,15 @@ export function buildGroups(input: BuildGroupsInput): ChannelGroup[] {
   //   - country must match (caller usually pre-filters, but defensive)
   //   - channel_id must be set (NULL = unclassified, do not render)
   //   - country must be non-null
-  //
-  // v1 limitation: channel metadata is only sourced from `liveChannels` above.
-  // A broadcaster whose channel has no live stream right now will fall into
-  // the `if (!g) continue` branch and never render — so broadcaster-only
-  // groups don't appear in v1. Fixing this requires the caller to pass
-  // dormant channel metadata separately; tracked as a follow-up.
+  //   - channel meta must exist in our map (otherwise the broadcaster
+  //     references a channel we don't know about; skip rather than
+  //     render a group with no name/color)
   if (country) {
     for (const b of broadcasters) {
       if (!b.channel_id) continue
       if (b.country_iso2 !== country) continue
       const g = channelMetaById.get(b.channel_id)
-      if (!g) continue  // v1 limitation: see comment above the loop
+      if (!g) continue
       g.broadcasters.push({
         id: b.id,
         name: b.name,

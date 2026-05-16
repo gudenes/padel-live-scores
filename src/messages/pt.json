@@ -1185,6 +1185,7 @@
     "openCta": "ABRIR",
     "regionShowing": "Mostrando opções em {region}.",
     "notYourRegion": "Não é sua região?",
+    "setYourRegion": "Escolha sua região →",
     "pickRegionTitle": "Escolha sua região",
     "pickRegionBack": "Voltar",
     "closeAriaLabel": "Fechar"
