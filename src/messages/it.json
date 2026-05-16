@@ -958,16 +958,7 @@
     "backToToday": "Torna a oggi",
     "_backToToday_context": "Secondary button on the empty-day card. Shown only when the active day is not today. Taps it to roll the active day back to today (calls the same handler as the small TODAY pill in the filter bar).",
     "faqHeading": "Domande frequenti",
-    "approxTime": "orario approssimativo",
-    "whereToWatchHeading": "Dove vedere",
-    "inRegion": "In {region}",
-    "freeBadge": "GRATIS",
-    "youtubeLive": {
-      "ariaLabel": "In diretta su YouTube ({count})",
-      "panelEyebrow": "In diretta su YouTube",
-      "watchCta": "Guarda",
-      "channelLive": "LIVE"
-    }
+    "approxTime": "orario approssimativo"
   },
   "draw": {
     "tab": "Tabellone",
@@ -1182,5 +1173,27 @@
       "error_server_error": "Qualcosa è andato storto da parte nostra. Riprova tra un momento?",
       "error_email_disabled": "I messaggi sono temporaneamente disabilitati. Scrivici direttamente a hello@padelnachos.com."
     }
+  },
+  "whereToWatch": {
+    "pillAriaLabel": "Dove guardare — {count, plural, =0 {nessun canale live} one {# canale live} other {# canali live}}",
+    "eyebrow": "Dove Guardare",
+    "channelLive": "LIVE",
+    "alsoIn": "Anche in {region}",
+    "noFreeStream": "Nessuna trasmissione gratuita ora. {channel} è anche su:",
+    "watchOn": "Guarda {channel} su:",
+    "freeBadge": "GRATIS",
+    "watchCta": "GUARDA",
+    "openCta": "APRI",
+    "regionShowing": "Mostro le opzioni in {region}.",
+    "regionShowingRich": "Mostro le opzioni in <b>{region}</b>.",
+    "regionAutoDetected": "Abbiamo rilevato la tua regione come <b>{region}</b>.",
+    "notYourRegion": "Non è la tua regione?",
+    "changeRegion": "Cambia →",
+    "setYourRegion": "Scegli la tua regione →",
+    "pickRegionTitle": "Scegli la tua regione",
+    "pickRegionSearch": "Cerca paese…",
+    "pickRegionNoMatch": "Nessun risultato",
+    "pickRegionBack": "Indietro",
+    "closeAriaLabel": "Chiudi"
   }
 }

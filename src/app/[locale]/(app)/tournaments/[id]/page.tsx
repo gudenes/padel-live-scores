@@ -17,7 +17,9 @@ import MatchCardSkeleton from '@/components/skeletons/MatchCardSkeleton'
 import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { MatchCard } from '@/components/MatchCard'
-import WhereToWatch from '@/components/WhereToWatch'
+import { WhereToWatchPill } from '@/components/where-to-watch/WhereToWatchPill'
+import type { BroadcasterRow, LiveChannel, ChannelMeta } from '@/lib/where-to-watch/group-builder'
+import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
@@ -1194,6 +1196,94 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const [previousEdition, setPreviousEdition] = useState<{ id: string; year: number } | null>(null)
   const [defendingChampion, setDefendingChampion] = useState<DefendingChampion | null>(null)
 
+  // ── Where to Watch ────────────────────────────────────────────
+  const [wtwBroadcasters, setWtwBroadcasters] = useState<BroadcasterRow[]>([])
+  const [wtwLiveChannels, setWtwLiveChannels] = useState<LiveChannel[]>([])
+  const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
+  const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
+
+  const tournamentChannelAbbr = useMemo(
+    () => levelToChannelAbbr(tournament?.level),
+    [tournament?.level],
+  )
+
+  useEffect(() => {
+    // Read geo-country cookie client-side (server proxy sets this from x-vercel-ip-country)
+    const cookieMatch = typeof document !== 'undefined'
+      ? document.cookie.match(/(?:^|;\s*)geo-country=([^;]*)/)
+      : null
+    const country = cookieMatch?.[1]?.toLowerCase() || null
+    setWtwGeoCountry(country)
+
+    if (!tournamentChannelAbbr) {
+      setWtwBroadcasters([])
+      setWtwLiveChannels([])
+      setWtwChannelsMeta([])
+      return
+    }
+
+    let cancelled = false
+    const STALE_MS = 30 * 60 * 1000
+
+    // Fetch all active broadcasters (across countries) so the region
+    // picker can switch without a round-trip; buildGroups filters by
+    // the effective country at render time.
+    const broadcastersP = supabase
+      .from('broadcasters')
+      .select('id, name, url, logo_url, is_free, display_order, country_iso2, channel_id')
+      .eq('active', true)
+      .not('channel_id', 'is', null)
+      .order('country_iso2', { ascending: true })
+      .order('display_order', { ascending: true })
+      .order('is_free', { ascending: false })
+
+    const liveChannelsP = supabase
+      .from('youtube_channel_live')
+      .select(`video_id, title, channel:youtube_channels!inner(id, name, abbreviation, color_hex, display_order)`)
+      .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
+      .eq('channel.is_active', true)
+      .eq('channel.abbreviation', tournamentChannelAbbr)
+
+    const channelsMetaP = supabase
+      .from('youtube_channels')
+      .select('id, name, abbreviation, color_hex, display_order')
+      .eq('is_active', true)
+      .eq('abbreviation', tournamentChannelAbbr)
+
+    Promise.all([broadcastersP, liveChannelsP, channelsMetaP]).then(([bRes, lcRes, cmRes]) => {
+      if (cancelled) return
+      setWtwBroadcasters(((bRes.data ?? []) as BroadcasterRow[]))
+      const liveRows = (lcRes.data ?? []).map((r: any) => {
+        const ch = Array.isArray(r.channel) ? r.channel[0] : r.channel
+        if (!ch) return null
+        return {
+          videoId: r.video_id as string,
+          title: r.title as string,
+          channel: {
+            id: ch.id as string,
+            name: ch.name as string,
+            abbreviation: ch.abbreviation as string,
+            colorHex: ch.color_hex as string,
+            displayOrder: ch.display_order as number,
+          },
+        }
+      }).filter((x: LiveChannel | null): x is LiveChannel => x !== null)
+      setWtwLiveChannels(liveRows)
+      const channelsMeta = (cmRes.data ?? []).map((r: any) => ({
+        id: r.id as string,
+        name: r.name as string,
+        abbreviation: r.abbreviation as string,
+        colorHex: r.color_hex as string,
+        displayOrder: r.display_order as number,
+      }))
+      setWtwChannelsMeta(channelsMeta)
+    }).catch(err => {
+      if (!cancelled) console.warn('[tournament:wtw] fetch failed:', err)
+    })
+
+    return () => { cancelled = true }
+  }, [tournamentChannelAbbr])
+
   useEffect(() => {
     if (!tournament?.id || !tournament?.name || !tournament?.level || !tournament?.starts_at) return
     let cancelled = false
@@ -1554,11 +1644,14 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         </Link>
       )}
 
-      {/* Where to Watch — only shown for Premier-tier tournaments since the
-          data we sync from premierpadel.com only covers Premier events */}
-      {tournament?.level && ['p1', 'p2', 'major', 'finals'].includes(tournament.level) && (
-        <WhereToWatch />
-      )}
+      {/* Where to Watch — pill self-hides when buildGroups returns empty */}
+      <WhereToWatchPill
+        liveChannels={wtwLiveChannels}
+        broadcasters={wtwBroadcasters}
+        channelsMeta={wtwChannelsMeta}
+        todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
+        geoCountry={wtwGeoCountry}
+      />
 
       {/* Schedule */}
       {schedule.length > 0 && (

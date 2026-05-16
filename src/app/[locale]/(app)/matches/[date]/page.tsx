@@ -25,7 +25,9 @@ import { fetchMatchesDay, type MatchesDayMatch } from '@/lib/fetch-matches-day'
 import { resolveStreamsForMatches } from '@/lib/fip-stream-resolver'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
 import MatchesDayShell from '@/components/MatchesDayShell'
-import type { LiveChannel } from '@/components/YoutubeLiveIndicator'
+import type { LiveChannel } from '@/lib/where-to-watch/group-builder'
+import { fetchActiveBroadcasters, fetchChannelsMeta } from '@/lib/where-to-watch/fetch-broadcasters'
+import { circuitsForToday } from '@/lib/where-to-watch/circuit-map'
 
 export const revalidate = 300 // 5 min
 
@@ -96,24 +98,30 @@ export default async function DailyMatchesPage({ params }: Props) {
     matches: g.matches.map(m => matchStreamMap.get(m.id) ?? m),
   }))
 
-  // YouTube live indicator data — single query, server-rendered, fresh per
-  // navigation. No client-side polling for v1.
+  // YouTube live indicator + country broadcasters — two independent
+  // queries, issued in parallel to keep page-render latency tight.
+  // No client-side polling for v1.
   const STALE_MS = 30 * 60 * 1000
-  const liveChannelsRes = await supabase
-    .from('youtube_channel_live')
-    .select(`
-      video_id,
-      title,
-      channel:youtube_channels!inner (
-        id,
-        name,
-        abbreviation,
-        color_hex,
-        display_order
-      )
-    `)
-    .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
-    .eq('channel.is_active', true)
+  const geoCountry = (cookieStore.get('geo-country')?.value || '').toLowerCase() || null
+  const [liveChannelsRes, broadcasters, channelsMeta] = await Promise.all([
+    supabase
+      .from('youtube_channel_live')
+      .select(`
+        video_id,
+        title,
+        channel:youtube_channels!inner (
+          id,
+          name,
+          abbreviation,
+          color_hex,
+          display_order
+        )
+      `)
+      .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
+      .eq('channel.is_active', true),
+    fetchActiveBroadcasters(supabase),
+    fetchChannelsMeta(supabase),
+  ])
 
   if (liveChannelsRes.error) {
     console.error('[DailyMatchesPage] youtube_channel_live query failed:', liveChannelsRes.error.message)
@@ -140,6 +148,10 @@ export default async function DailyMatchesPage({ params }: Props) {
 
   // Flatten for SEO copy + JSON-LD.
   const dayMatches: MatchesDayMatch[] = groups.flatMap((g) => g.matches)
+
+  // Circuits with at least one match on this page today (drives whether
+  // to surface broadcaster-only groups for circuits not currently live).
+  const todayCircuits = Array.from(circuitsForToday(dayMatches))
 
   // ── Build intro + FAQ copy ────────────────────────────────────
   const tDaily = await getTranslations({ locale, namespace: 'daily' })
@@ -196,6 +208,10 @@ export default async function DailyMatchesPage({ params }: Props) {
         emptyStateTitle={tDaily('noMatchesTitle')}
         emptyStateSubtitle={tDaily('noMatchesSub')}
         liveChannels={liveChannels}
+        broadcasters={broadcasters}
+        channelsMeta={channelsMeta}
+        todayCircuits={todayCircuits}
+        geoCountry={geoCountry}
       />
 
       <div style={{ height: 30 }} />

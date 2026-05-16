@@ -24,7 +24,7 @@ import { useMatchesFilters, type MatchesFilters } from '@/hooks/useMatchesFilter
 import EmptyState from './EmptyState'
 import MatchesFilterBar from './MatchesFilterBar'
 import MatchesFilterDrawer from './MatchesFilterDrawer'
-import type { LiveChannel } from './YoutubeLiveIndicator'
+import type { LiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 
 export interface MatchesFilterClientProps {
   /** ID of the wrapper div the server renders around all match nodes.
@@ -49,6 +49,10 @@ export interface MatchesFilterClientProps {
   /** YouTube live broadcasts to surface in the page-level indicator.
    *  Empty array → indicator hidden. Server-rendered; refreshes per nav. */
   liveChannels?: LiveChannel[]
+  broadcasters?: BroadcasterRow[]
+  channelsMeta?: ChannelMeta[]
+  todayCircuits?: string[]
+  geoCountry?: string | null
 }
 
 export default function MatchesFilterClient({
@@ -59,6 +63,10 @@ export default function MatchesFilterClient({
   onGoToToday,
   leftSlot,
   liveChannels = [],
+  broadcasters = [],
+  channelsMeta = [],
+  todayCircuits = [],
+  geoCountry = null,
 }: MatchesFilterClientProps) {
   const { filters, setFilters, reset, hydrated, activeCount } = useMatchesFilters()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -228,6 +236,10 @@ export default function MatchesFilterClient({
         leftSlot={leftSlot}
         liveButtonRef={liveBtnRef}
         liveChannels={liveChannels}
+        broadcasters={broadcasters}
+        channelsMeta={channelsMeta}
+        todayCircuits={todayCircuits}
+        geoCountry={geoCountry}
       />
       <LiveHint
         open={toastOpen}
