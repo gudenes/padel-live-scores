@@ -1018,6 +1018,56 @@ describe('applyDiff — set handling', () => {
     expect(row.score_source).toBe('live');
   });
 
+  // The current-set upsert MUST clear set_score back to null. Otherwise a
+  // stale "final" set_score written by closeMatch / fip-results-writer /
+  // static-reconciler (after a wrongful close) survives on the row while
+  // pair*_games keeps moving with live play — the UI's parseSetScore-first
+  // logic then shows the stale text, not the live game count. Production
+  // incident 2026-05-16 (Buenos Aires P1 SF): set 3 displayed "0-6" while
+  // pair1_games/pair2_games kept advancing past it.
+  it('clears stale set_score on the current set so wrongful closes can not strand the UI', async () => {
+    const stale: SetRow = {
+      id: 'set-stale-1',
+      match_id: MATCH_ID,
+      set_number: 1,
+      pair1_games: 4,
+      pair2_games: 5,
+      is_current: true,
+      // Wrongful close had previously written this terminal-looking score.
+      set_score: '0-6',
+    };
+    const { client, state: s } = makeFakeSupabase({ preSets: [stale] });
+
+    const prev = state({ kind: 'regular', team1: 40, team2: 15 }, {
+      team1Sets: [{ games: 4, tiebreak: null }],
+      team2Sets: [{ games: 5, tiebreak: null }],
+    });
+    const curr = state({ kind: 'regular', team1: 0, team2: 0 }, {
+      team1Sets: [{ games: 4, tiebreak: null }],
+      team2Sets: [{ games: 6, tiebreak: null }],
+    });
+    const diff: LiveStateDiff = {
+      ...emptyDiff(),
+      pointsAdded: [{ winnerTeam: 2 }],
+      gameChanged: true,
+    };
+    await applyDiff(client, MATCH_ID, prev, curr, diff, RESOLVED);
+
+    expect(s.setsUpsertCalls).toHaveLength(1);
+    const row = s.setsUpsertCalls[0];
+    expect(row.set_number).toBe(1);
+    expect(row.pair1_games).toBe(4);
+    expect(row.pair2_games).toBe(6);
+    expect(row.is_current).toBe(true);
+    // set_score must be explicitly written (null) so the upsert overwrites
+    // whatever stale value was on the row.
+    expect(row).toHaveProperty('set_score');
+    expect(row.set_score).toBeNull();
+    // Sanity: the in-memory row should now reflect the cleared set_score.
+    const persisted = s.sets.find((x) => x.id === 'set-stale-1')!;
+    expect((persisted as any).set_score).toBeNull();
+  });
+
   it('clears is_current on previous sets when a new set starts', async () => {
     const prevSet: SetRow = {
       id: 'set-uuid-1',

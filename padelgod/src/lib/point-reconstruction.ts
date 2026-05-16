@@ -423,6 +423,16 @@ export async function applyDiff(
   }
 
   // ── Upsert the current set row ───────────────────────────────────────
+  //
+  // `set_score` is explicitly nulled. The "final" set_score string is only
+  // ever owned by closeMatch / consolidatePriorSets (when a set legitimately
+  // completes). If a wrongful close or a stale results-snapshot ever stamps
+  // a terminal-looking set_score (e.g. "0-6") onto an in-progress set, the
+  // live-poller would otherwise leave it untouched while pair*_games kept
+  // moving — the UI parses set_score first and would display the stale
+  // text. Nulling on every live tick makes the live-poller authoritative
+  // for the current set and forces the UI's pair*_games fallback path until
+  // the set actually ends. (Buenos Aires P1 SF incident, 2026-05-16.)
   const { data: setRow, error: setErr } = await supabase
     .from('sets')
     .upsert(
@@ -431,6 +441,7 @@ export async function applyDiff(
         set_number: currentSetNumber,
         pair1_games: currPair1Games,
         pair2_games: currPair2Games,
+        set_score: null,
         is_current: true,
         score_source: 'live' as const,
         updated_at: new Date().toISOString(),

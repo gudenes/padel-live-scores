@@ -47,6 +47,60 @@ describe('inferWinnerFromSets', () => {
   it('returns null for empty set list', () => {
     expect(inferWinnerFromSets([])).toBeNull();
   });
+
+  // The production-incident scenario (Buenos Aires P1 SF, 2026-05-16): an
+  // in-progress set 3 at 3-5 was being counted as a pair2 win and triggered
+  // wrong close-on-disappearance behavior in live-poller-loop / close-stale-
+  // live-sweeper. Only completed sets (per padel rules) should count.
+  it('does NOT count an in-progress set as a win, even when one team leads', () => {
+    const sets: SetRow[] = [
+      { set_number: 1, pair1_games: 6, pair2_games: 2 }, // pair1 complete
+      { set_number: 2, pair1_games: 5, pair2_games: 7 }, // pair2 complete
+      { set_number: 3, pair1_games: 3, pair2_games: 5 }, // in-progress, pair2 leading
+    ];
+    expect(inferWinnerFromSets(sets)).toBeNull();
+  });
+
+  it('does NOT prematurely award the match when set 2 is still in progress at 5-3', () => {
+    const sets: SetRow[] = [
+      { set_number: 1, pair1_games: 6, pair2_games: 3 }, // pair1 complete
+      { set_number: 2, pair1_games: 5, pair2_games: 3 }, // in-progress, pair1 leading
+    ];
+    expect(inferWinnerFromSets(sets)).toBeNull();
+  });
+
+  it('counts 7-5 and 7-6 as complete (standard padel set wins)', () => {
+    expect(
+      inferWinnerFromSets([
+        { set_number: 1, pair1_games: 7, pair2_games: 5 },
+        { set_number: 2, pair1_games: 7, pair2_games: 6 },
+      ]),
+    ).toBe(1);
+  });
+
+  it('does NOT count 6-5 or 6-6 as complete (set still in play)', () => {
+    expect(
+      inferWinnerFromSets([
+        { set_number: 1, pair1_games: 6, pair2_games: 4 },
+        { set_number: 2, pair1_games: 6, pair2_games: 5 },
+      ]),
+    ).toBeNull();
+    expect(
+      inferWinnerFromSets([
+        { set_number: 1, pair1_games: 6, pair2_games: 4 },
+        { set_number: 2, pair1_games: 6, pair2_games: 6 },
+      ]),
+    ).toBeNull();
+  });
+
+  it('handles a super-tiebreak final set (e.g. 10-8) as a complete win', () => {
+    const sets: SetRow[] = [
+      { set_number: 1, pair1_games: 6, pair2_games: 4 },
+      { set_number: 2, pair1_games: 3, pair2_games: 6 },
+      { set_number: 3, pair1_games: 10, pair2_games: 8 },
+    ];
+    expect(inferWinnerFromSets(sets)).toBe(1);
+  });
 });
 
 describe('joinedScoreString', () => {

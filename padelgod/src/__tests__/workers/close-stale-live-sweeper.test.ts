@@ -322,7 +322,16 @@ describe('runCloseStaleLiveSweeper', () => {
     expect(supabase.gameUpdates[0]!.patch.is_current).toBe(false);
   });
 
-  it('extrapolates trailing in-progress set (6-3, 5-0) → (6-3, 6-0)', async () => {
+  // Was: "extrapolates trailing in-progress set (6-3, 5-0) → (6-3, 6-0)".
+  // The sweeper used to count an in-progress trailing set as a win when one
+  // team was clearly leading, then extrapolate it to a final score. That
+  // aggressive inference produced the 2026-05-16 Buenos Aires P1 incident
+  // (mid-third-set 3-5 got auto-closed). inferWinnerFromSets is now strict
+  // — only completed sets count — so the sweeper leaves these matches alone
+  // and lets a real terminal signal (widget status / retired_pair / oop)
+  // close them. Trade-off: a small number of genuinely stuck stale matches
+  // need manual closure, but we never wrong-close a live match.
+  it('does NOT close on a trailing in-progress set even with a clear lead (6-3, 5-0)', async () => {
     const supabase = fakeSupabase({
       matches: [
         {
@@ -344,18 +353,10 @@ describe('runCloseStaleLiveSweeper', () => {
       nowMs: () => NOW,
     });
 
-    expect(result.matchesClosed).toBe(1);
-
-    // winner_pair=1 (ahead 6-3 and then 5-0, counts as 2 lead sets under the
-    // aggressive inference rule).
-    const update = supabase.matchUpdates[0]!;
-    expect(update.patch.winner_pair).toBe(1);
-
-    // Set 2 should have been bumped from 5-0 to 6-0.
-    const set2 = supabase.setUpserts.find((s) => s.set_number === 2)!;
-    expect(set2.pair1_games).toBe(6);
-    expect(set2.pair2_games).toBe(0);
-    expect(set2.set_score).toBe('6-0');
+    expect(result.matchesClosed).toBe(0);
+    expect(result.matchesIndecisive).toBe(1);
+    expect(supabase.matchUpdates).toHaveLength(0);
+    expect(supabase.setUpserts).toHaveLength(0);
   });
 
   it('indecisive sets (1-all in set 1, mid-set 2) → skipped, logged, not closed', async () => {
