@@ -1225,16 +1225,17 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     let cancelled = false
     const STALE_MS = 30 * 60 * 1000
 
-    const broadcastersP = country
-      ? supabase
-          .from('broadcasters')
-          .select('id, name, url, logo_url, is_free, display_order, country_iso2, channel_id')
-          .eq('country_iso2', country)
-          .eq('active', true)
-          .not('channel_id', 'is', null)
-          .order('display_order', { ascending: true })
-          .order('is_free', { ascending: false })
-      : Promise.resolve({ data: [] as BroadcasterRow[], error: null })
+    // Fetch all active broadcasters (across countries) so the region
+    // picker can switch without a round-trip; buildGroups filters by
+    // the effective country at render time.
+    const broadcastersP = supabase
+      .from('broadcasters')
+      .select('id, name, url, logo_url, is_free, display_order, country_iso2, channel_id')
+      .eq('active', true)
+      .not('channel_id', 'is', null)
+      .order('country_iso2', { ascending: true })
+      .order('display_order', { ascending: true })
+      .order('is_free', { ascending: false })
 
     const liveChannelsP = supabase
       .from('youtube_channel_live')

@@ -1,7 +1,11 @@
 // src/lib/where-to-watch/fetch-broadcasters.ts
 //
 // Server-side queries that feed the Where-to-Watch popup.
-//   - fetchBroadcastersForCountry: country-scoped broadcaster rows
+//   - fetchActiveBroadcasters: all classified, active broadcaster rows.
+//     Returns ~400 rows (broadcasters across all countries) — small
+//     enough to ship to the client whole so the region picker can swap
+//     countries without a round-trip. buildGroups filters by effective
+//     country at render time.
 //   - fetchChannelsMeta: active YouTube channel metadata (small table,
 //     ~2 rows today). Used by buildGroups to seed groups for channels
 //     that aren't currently live but have broadcasters or matches today.
@@ -9,21 +13,19 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { BroadcasterRow, ChannelMeta } from './group-builder'
 
-export async function fetchBroadcastersForCountry(
+export async function fetchActiveBroadcasters(
   supabase: SupabaseClient,
-  country: string | null,
 ): Promise<BroadcasterRow[]> {
-  if (!country) return []
   const { data, error } = await supabase
     .from('broadcasters')
     .select('id, name, url, logo_url, is_free, display_order, country_iso2, channel_id')
-    .eq('country_iso2', country)
     .eq('active', true)
     .not('channel_id', 'is', null)
+    .order('country_iso2', { ascending: true })
     .order('display_order', { ascending: true })
     .order('is_free', { ascending: false })
   if (error) {
-    console.error('[fetchBroadcastersForCountry] query failed:', error.message)
+    console.error('[fetchActiveBroadcasters] query failed:', error.message)
     return []
   }
   return (data ?? []) as BroadcasterRow[]

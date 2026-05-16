@@ -26,7 +26,7 @@ import { resolveStreamsForMatches } from '@/lib/fip-stream-resolver'
 import MatchesPageHeader from '@/components/MatchesPageHeader'
 import MatchesDayShell from '@/components/MatchesDayShell'
 import type { LiveChannel } from '@/lib/where-to-watch/group-builder'
-import { fetchBroadcastersForCountry, fetchChannelsMeta } from '@/lib/where-to-watch/fetch-broadcasters'
+import { fetchActiveBroadcasters, fetchChannelsMeta } from '@/lib/where-to-watch/fetch-broadcasters'
 import { circuitsForToday } from '@/lib/where-to-watch/circuit-map'
 
 export const revalidate = 300 // 5 min
@@ -119,7 +119,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       `)
       .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
       .eq('channel.is_active', true),
-    fetchBroadcastersForCountry(supabase, geoCountry),
+    fetchActiveBroadcasters(supabase),
     fetchChannelsMeta(supabase),
   ])
 
