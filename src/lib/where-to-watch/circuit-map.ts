@@ -13,13 +13,19 @@ export const TOURNAMENT_LEVEL_TO_CHANNEL_ABBR: Record<string, string> = {
   p1: 'PP',
   p2: 'PP',
   major: 'PP',
-  premier_mens: 'PP',
-  premier_womens: 'PP',
-  // FIP Tour circuit
-  bronze: 'FIP',
-  silver: 'FIP',
-  gold: 'FIP',
-  platinum: 'FIP',
+  finals: 'PP',
+  // FIP Tour circuit — all live under the fip_ prefix in tournaments.level
+  fip_bronze: 'FIP',
+  fip_silver: 'FIP',
+  fip_gold: 'FIP',
+  fip_platinum: 'FIP',
+  fip_promises: 'FIP',
+  fip_beyond: 'FIP',
+  fip_championship: 'FIP',
+  fip_other: 'FIP',
+  // Legacy wpt_* levels (deprecated World Padel Tour) intentionally
+  // unmapped — they predate Premier Padel and don't license to either
+  // current channel.
 }
 
 export function levelToChannelAbbr(level: string | null | undefined): string | null {
