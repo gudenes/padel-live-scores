@@ -41,10 +41,13 @@ export default function PresenceOnlyHint({ matchId, variant = 'row' }: PresenceO
   const [open, setOpen] = useState(false)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Fire 'shown' once per mount
+  // Fire 'shown' once per mount. `variant` is fixed per render-site
+  // (a row never becomes a hero), so we intentionally omit it from
+  // the dep array — including it would re-fire the analytics event.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     posthog.capture('presence_only_live_shown', { matchId, variant })
-  }, [matchId, variant])
+  }, [matchId])
 
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
