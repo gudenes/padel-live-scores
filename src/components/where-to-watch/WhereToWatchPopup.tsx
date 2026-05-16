@@ -134,10 +134,16 @@ export function WhereToWatchPopup({
                 animation: 'wtw-eyebrow-in 260ms cubic-bezier(0.4, 0, 0.2, 1) 80ms both',
               }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="2" y="7" width="20" height="13" rx="2" ry="2"/>
-                <polyline points="17 2 12 7 7 2"/>
-              </svg>
+              {/* Mirror the pill's YT-style play glyph for visual continuity */}
+              <span style={{
+                width: 18, height: 13, borderRadius: 2.5, background: '#FF0000',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <svg viewBox="0 0 24 24" width="8" height="8" fill="#fff" aria-hidden="true">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </span>
               {t('eyebrow')}
             </div>
 
