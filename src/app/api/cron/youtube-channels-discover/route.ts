@@ -66,7 +66,12 @@ export async function GET(request: NextRequest) {
       for (const ch of (channels ?? []) as ChannelRow[]) {
         result.channels_polled++
         try {
-          const items = await listUploadsPlaylistItems(ch.uploads_playlist_id, apiKey, 5)
+          // Scan the last 50 uploads (max page size). A busy channel like
+          // FIP interleaves recaps/highlights/finished broadcasts between
+          // active livestreams, so a tighter limit can push currently-live
+          // broadcasts past the cutoff and silently drop them. `playlistItems`
+          // and `videos` both cost 1 quota unit regardless of page size.
+          const items = await listUploadsPlaylistItems(ch.uploads_playlist_id, apiKey, 50)
           if (items.length === 0) {
             result.per_channel.push({ name: ch.name, live: 0 })
             continue
