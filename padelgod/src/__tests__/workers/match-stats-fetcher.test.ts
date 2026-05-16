@@ -22,6 +22,13 @@ interface FakeSupabaseOptions {
    *  with more than this many ids returns an error instead of data.
    *  Real production limit is ~210 UUIDs before Nginx 414s. */
   maxInChunk?: number;
+  /** Tournament tier rows. When omitted, the fake serves a single
+   *  Premier-tier "default" tournament that all finished matches belong
+   *  to — keeps the existing tests valid without rewriting their setup. */
+  tournaments?: Array<{ id: string; level: string | null }>;
+  /** Map of match_id → tournament_id. When a finished match isn't in
+   *  this map, it falls back to the implicit default Premier tournament. */
+  matchTournaments?: Record<string, string>;
 }
 
 function fakeSupabase(opts: FakeSupabaseOptions) {
@@ -57,12 +64,32 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
                 };
               }
               if (status !== 'finished') return { data: [], error: null };
+              const DEFAULT_TOURNAMENT_ID = 'default-premier-tournament';
               const filtered = ids
                 .filter((id) => opts.finishedMatchIds.includes(id))
-                .map((id) => ({ id }));
+                .map((id) => ({
+                  id,
+                  tournament_id: opts.matchTournaments?.[id] ?? DEFAULT_TOURNAMENT_ID,
+                }));
               return { data: filtered, error: null };
             },
           }),
+        }),
+      };
+    }
+    if (t === 'tournaments') {
+      // Awaitable thenable: `await supabase.from('tournaments').select('id, level')`
+      const DEFAULT_TOURNAMENTS = [
+        { id: 'default-premier-tournament', level: 'p1' },
+      ];
+      const rows = opts.tournaments ?? DEFAULT_TOURNAMENTS;
+      return {
+        select: () => ({
+          then: (
+            resolve: (v: { data: Array<{ id: string; level: string | null }>; error: null }) => void,
+          ) => {
+            resolve({ data: rows, error: null });
+          },
         }),
       };
     }
@@ -369,6 +396,91 @@ describe('runMatchStatsFetcher', () => {
   // since 2026-05-11. The fake supabase here mimics the URL-length cap;
   // unchunked .in() calls fail. After the fix, the worker must split the
   // filter into safely-sized chunks and still find finished matches.
+  // Crionet only publishes match-stats for Premier-tier events (P1/P2/Major/
+  // Premier_Mens/Premier_Womens). FIP-tier events (Bronze/Silver/Gold) have
+  // entity_external_ids → crionet_widget mappings — the discovery worker
+  // writes them whether or not stats will ever be served — but the stats
+  // endpoint returns no useful data for them. We must NOT fetch those:
+  //   - they burn a HTTP request to Crionet for nothing,
+  //   - they consume slots in the 20-match-per-run batch budget, starving
+  //     the genuinely eligible Premier matches,
+  //   - they pollute scrape_jobs with no-op runs.
+  // The fetcher must filter to Premier-tier tournaments before it ever
+  // touches Crionet.
+  it('only fetches stats for Premier-tier tournaments (P1/P2/Major/Premier_*) — skips FIP-tier', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    const premierMatchId = 'match-premier-uuid';
+    const fipBronzeMatchId = 'match-fip-bronze-uuid';
+    const fipGoldMatchId = 'match-fip-gold-uuid';
+
+    const supabase = fakeSupabase({
+      mappings: [
+        { entity_id: premierMatchId, external_id: 'FIP-2026-1701:MQ012' },
+        { entity_id: fipBronzeMatchId, external_id: 'FIP-2026-9001:MQ001' },
+        { entity_id: fipGoldMatchId, external_id: 'FIP-2026-9002:MQ002' },
+      ],
+      finishedMatchIds: [premierMatchId, fipBronzeMatchId, fipGoldMatchId],
+      tournaments: [
+        { id: 't-premier', level: 'p1' },
+        { id: 't-fip-bronze', level: 'Bronze' },
+        { id: 't-fip-gold', level: 'Gold' },
+      ],
+      matchTournaments: {
+        [premierMatchId]: 't-premier',
+        [fipBronzeMatchId]: 't-fip-bronze',
+        [fipGoldMatchId]: 't-fip-gold',
+      },
+    });
+    const httpClient = { post: vi.fn(async () => ({ data: fixtureHtml })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    // Only the Premier match should hit Crionet.
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+    expect(result.fetched).toBe(1);
+    // The two FIP-tier mappings should be counted as skipped (not eligible).
+    expect(result.skippedNonPremier).toBe(2);
+  });
+
+  it('treats Major and Premier_Mens / Premier_Womens labels as Premier-tier (case-insensitive)', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    const ids = ['m-p1', 'm-p2', 'm-major', 'm-pm', 'm-pw'];
+
+    const supabase = fakeSupabase({
+      mappings: ids.map((id, i) => ({
+        entity_id: id,
+        external_id: `FIP-2026-${1000 + i}:MQ001`,
+      })),
+      finishedMatchIds: ids,
+      tournaments: [
+        { id: 't-p1', level: 'P1' },
+        { id: 't-p2', level: 'p2' },
+        { id: 't-major', level: 'Major' },
+        { id: 't-pm', level: 'Premier_Mens' },
+        { id: 't-pw', level: 'Premier_Womens' },
+      ],
+      matchTournaments: {
+        'm-p1': 't-p1',
+        'm-p2': 't-p2',
+        'm-major': 't-major',
+        'm-pm': 't-pm',
+        'm-pw': 't-pw',
+      },
+    });
+    const httpClient = { post: vi.fn(async () => ({ data: fixtureHtml })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.fetched).toBe(5);
+    expect(result.skippedNonPremier).toBe(0);
+  });
+
   it('handles thousands of mappings by chunking the .in() filter beneath PostgREST URL-length cap', async () => {
     const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
     // 500 mappings — well past PostgREST's safe-for-UUID-.in() cap of ~210.
