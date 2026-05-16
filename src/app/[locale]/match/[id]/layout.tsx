@@ -175,7 +175,8 @@ export default async function MatchLayout({ params, children }: Props) {
 
     const tournament = match?.tournament as unknown as TournamentRef
 
-    // Fetch SEO broadcaster data in parallel — scoped to the tournament's circuit.
+    // Fetch SEO broadcaster data — sequential after the match query
+    // because we need tournament.level to derive the circuit abbreviation.
     const seoChannelAbbr = levelToChannelAbbr(tournament?.level ?? null)
     seoData = await fetchSeoBroadcasters(supabase, seoChannelAbbr)
 
@@ -242,7 +243,10 @@ export default async function MatchLayout({ params, children }: Props) {
         : `${p1} vs ${p2}`
     }
 
-    if (seoData?.channelMeta) {
+    // Skip the SEO sentence if h1Text is null — that means player names
+    // couldn't be resolved, and the sentence would render the degenerate
+    // " vs " for its target. The structured JSON-LD still goes out.
+    if (seoData?.channelMeta && h1Text) {
       const summaryData = buildSeoSummary({ broadcasters: seoData.broadcasters })
       const parts: string[] = [`${seoData.channelMeta.name} YouTube`]
       for (const b of summaryData.named) {
@@ -254,9 +258,8 @@ export default async function MatchLayout({ params, children }: Props) {
         )
       }
       const list = parts.join(', ')
-      const target = h1Text ?? `${p1} vs ${p2}`
       const t = await getTranslations({ locale, namespace: 'whereToWatch' })
-      seoSentence = t('seoSummary', { target, list, extra: summaryData.remainingCount })
+      seoSentence = t('seoSummary', { target: h1Text, list, extra: summaryData.remainingCount })
     }
 
     if (match && tournament && (p1Names.length > 0 || p2Names.length > 0)) {
