@@ -50,8 +50,14 @@ const config: CapacitorConfig = {
       // background and `backgroundColor` above are both pure black.
       androidScaleType: 'FIT_CENTER',
       // Show a small lime spinner over the splash so users know it's
-      // loading rather than frozen, especially on slow networks.
+      // loading rather than frozen, especially on slow networks. The
+      // splash image no longer ships with a baked-in circle — the
+      // platform spinners (Android ProgressBar, iOS UIActivityIndicator)
+      // draw the animated indicator on top of a clean logo composition.
+      // iosSpinnerStyle was missing before, so iPhone splashes looked
+      // static. Adding it brings iOS to feature-parity with Android.
       showSpinner: true,
+      iosSpinnerStyle: 'large',
       androidSpinnerStyle: 'large',
       spinnerColor: '#7ED321',
       splashFullScreen: true,
