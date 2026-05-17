@@ -96,6 +96,14 @@ body {
   background: #0A0A0A;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Disable iOS rubber-band bounce-scroll at the document level. Without
+     this, pulling past the bottom of a page (or the top during fast
+     scrolls) drags the entire viewport — including the sticky header —
+     into the safe-area zone, making the logo/search bar briefly visible
+     under the Dynamic Island. `contain` keeps scroll momentum inside the
+     body without propagating to the WebView's outer bounce, eliminating
+     the overshoot without disabling normal scrolling. */
+  overscroll-behavior-y: contain;
 }
 button { font-family: var(--font-sans); cursor: pointer; }
 button:focus { outline: none; }
