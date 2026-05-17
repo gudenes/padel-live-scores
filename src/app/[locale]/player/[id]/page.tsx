@@ -14,6 +14,7 @@ import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 
@@ -358,19 +359,6 @@ function matchTime(m: MatchRow): number {
   return d ? new Date(d).getTime() : 0
 }
 
-function resolveMatchRoles(match: MatchRow, playerId: string) {
-  const isP1 = match.pair1_player1?.id === playerId || match.pair1_player2?.id === playerId
-  const partner = isP1
-    ? (match.pair1_player1?.id === playerId ? match.pair1_player2 : match.pair1_player1)
-    : (match.pair2_player1?.id === playerId ? match.pair2_player2 : match.pair2_player1)
-  const opp1 = isP1 ? match.pair2_player1 : match.pair1_player1
-  const opp2 = isP1 ? match.pair2_player2 : match.pair1_player2
-  const myPair = isP1 ? 1 : 2
-  const isTerminal = match.status === 'finished' || match.status === 'retired' || match.status === 'walkover'
-  const won = isTerminal && match.winner_pair === myPair
-  const lost = isTerminal && match.winner_pair != null && match.winner_pair !== myPair
-  return { isP1, partner, opp1, opp2, myPair, won, lost }
-}
 
 function scoreString(sets: Array<{ set_score: string | null; set_number: number }>): string {
   return [...(sets ?? [])]
