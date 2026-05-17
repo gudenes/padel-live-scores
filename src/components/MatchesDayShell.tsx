@@ -391,11 +391,15 @@ export default function MatchesDayShell({
       {/* Sticky header strip — pills + filter. Composition matches the
           server page's layout so the swap doesn't shift anything. The
           inner wrapper carries the same translateX as the body so the
-          pills track the finger during a swipe. */}
+          pills track the finger during a swipe.
+          top: 62 stacks this strip immediately below the GlobalHeader
+          (62px tall). Without this offset, both sticky elements compete
+          at top:0 and the higher z-index GlobalHeader covers the
+          pills entirely during scroll. */}
       <div
         style={{
           position: 'sticky',
-          top: 0,
+          top: 62,
           zIndex: 50,
           background: 'rgba(10,10,10,0.94)',
           backdropFilter: 'blur(12px)',
