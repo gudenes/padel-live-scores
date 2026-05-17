@@ -61,8 +61,42 @@ if (
   }
 }
 
+// Apple Sign In uses OAuth `response_mode=form_post` — Apple POSTs the
+// auth response cross-origin to /api/auth/callback/apple. Browsers
+// (especially Safari mobile) drop `SameSite=Lax` cookies on that POST,
+// which causes the CSRF state check to fail and the user has to retry
+// the sign-in. The fix is `SameSite=None; Secure` on the OAuth flow
+// cookies — broader compatibility for cross-site POST, and the Secure
+// requirement is satisfied automatically on Vercel (HTTPS always).
+//
+// We DO NOT change the `sessionToken` cookie — it stays `Lax` so a
+// signed-in user can't have their session forwarded by a cross-site
+// request (CSRF protection on the session itself).
+//
+// In dev (HTTP localhost) we fall back to defaults; Apple Sign In
+// can't be tested locally anyway because Apple validates the return
+// URL against the registered Service ID.
+const isProd = process.env.NODE_ENV === 'production'
+const crossSiteCookieOptions = isProd
+  ? { httpOnly: true, sameSite: 'none' as const, path: '/', secure: true }
+  : { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: false }
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PostgresAdapter(pool),
+  cookies: {
+    pkceCodeVerifier: {
+      name: isProd ? '__Secure-authjs.pkce.code_verifier' : 'authjs.pkce.code_verifier',
+      options: crossSiteCookieOptions,
+    },
+    state: {
+      name: isProd ? '__Secure-authjs.state' : 'authjs.state',
+      options: crossSiteCookieOptions,
+    },
+    nonce: {
+      name: isProd ? '__Secure-authjs.nonce' : 'authjs.nonce',
+      options: crossSiteCookieOptions,
+    },
+  },
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
