@@ -6,6 +6,7 @@
 import { SessionProvider, useSession } from 'next-auth/react'
 import { createContext, useContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { initNative } from '@/lib/native-init'
+import { persistCachedFcmToken } from '@/lib/persist-fcm-token'
 import { supabase } from '@/lib/supabase'
 
 interface Profile {
@@ -77,6 +78,18 @@ function AuthInner({ children }: { children: ReactNode }) {
         })
       })
     return () => { alive = false }
+  }, [userId])
+
+  // Push token re-registration on sign-in. native-init.ts runs at app
+  // boot and tries to POST the FCM token to the backend — but at boot
+  // time the auth session usually hasn't loaded yet, so the POST hits
+  // 401 and the token never lands in the DB. Once the session resolves
+  // (userId becomes non-null), we re-POST from the cache. The endpoint
+  // upserts on (user_id, device_token) so a second POST is a no-op
+  // when the boot-time POST happened to succeed.
+  useEffect(() => {
+    if (!userId) return
+    void persistCachedFcmToken()
   }, [userId])
 
   // Sanitize email-shaped session names defensively — even if dbProfile

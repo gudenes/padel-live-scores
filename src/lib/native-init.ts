@@ -9,6 +9,7 @@ import { Capacitor } from '@capacitor/core'
 import { FirebaseMessaging } from '@capacitor-firebase/messaging'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
+import { cacheFcmToken, postFcmToken } from '@/lib/persist-fcm-token'
 
 let initialized = false
 
@@ -137,25 +138,11 @@ export async function initNative(): Promise<void> {
  * Cache + POST a freshly minted device token. Caching lets the
  * usePushNotifications hook DELETE the exact subscription when the
  * user toggles push off in settings, without a separate "list my
- * devices" round-trip. Source of truth remains the DB row.
+ * devices" round-trip. If the POST fails (most commonly because the
+ * user isn't signed in yet at app-boot time), AuthProvider re-runs
+ * postFcmToken once the auth session loads — see persistCachedFcmToken.
  */
 async function persistDeviceToken(token: string): Promise<void> {
-  try {
-    window.localStorage.setItem('padelnachos:fcm-token', token)
-  } catch {
-    /* localStorage unavailable (private mode etc.) — non-fatal */
-  }
-  try {
-    await fetch('/api/user/native-push-subscriptions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        platform: Capacitor.getPlatform(), // 'android' | 'ios'
-        deviceToken: token,
-        locale: navigator.language?.split('-')[0] || 'en',
-      }),
-    })
-  } catch (err) {
-    console.warn('[native-init] persistDeviceToken POST failed', err)
-  }
+  cacheFcmToken(token)
+  await postFcmToken(token)
 }

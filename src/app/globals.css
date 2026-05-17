@@ -73,6 +73,22 @@ html, body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+/* iOS / Android Capacitor: viewport-fit=cover (set in layout.tsx
+   Viewport export) gives the WebView the full screen including the
+   safe-area regions (status bar, Dynamic Island, home indicator).
+   Without compensation, sticky/fixed headers anchored at top:0 sit
+   UNDER the Dynamic Island and become un-tappable.
+   We push the body content down by safe-area-inset-top (and reserve
+   bottom for the home indicator) so every page — including ones
+   with their own sticky header (welcome, settings, profile, …) —
+   clears the system UI automatically. On platforms without notches
+   (desktop, mobile browser chrome) env(safe-area-inset-*) returns
+   0px and this is a no-op. */
+body {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
 button { font-family: var(--font-sans); cursor: pointer; }
 button:focus { outline: none; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }

@@ -74,17 +74,13 @@ export default function GlobalHeader() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        // Top padding stacks with safe-area-inset-top so the logo + search
-        // bar clear iPhone Dynamic Island / notch areas inside the
-        // Capacitor iOS shell. On web (no notch) and Android (status bar
-        // is reserved by the system) the inset is 0px, so layout is
-        // unchanged on those platforms.
+        // Safe-area clearance is handled globally on `body` in
+        // globals.css — every page (including ones not using
+        // GlobalHeader) gets pushed below the Dynamic Island / notch
+        // automatically. So we keep the header padding compact here
+        // and rely on the body offset for system-UI breathing room.
         padding: '12px 16px',
-        paddingTop: 'calc(12px + env(safe-area-inset-top, 0px))',
-        // Keep visual height at 62 in non-inset contexts; min-height lets
-        // the header grow taller on devices with a notch.
-        minHeight: 62,
-        boxSizing: 'border-box',
+        height: 62,
         transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
         transition: 'transform 0.3s ease',
       }}>
