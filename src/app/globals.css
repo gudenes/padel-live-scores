@@ -128,10 +128,21 @@ body {
   /* Logo near 30% from top, spinner near 80% — matches the mockup */
   padding-top: 22%;
   padding-bottom: 14%;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.4s ease, visibility 0s linear 0.4s;
+  /* No pointer-events on the visible overlay — it's a black box that
+     intentionally blocks clicks during the brief loading moment. Once
+     hidden, pointer-events: none kicks in via the .hidden class. */
+}
+/* CSS-only hide. The overlay stays in the DOM tree (does NOT
+   removeChild) so React reconciliation isn't disturbed. visibility:
+   hidden + pointer-events: none takes the overlay completely out of
+   hit-testing once the opacity transition completes (visibility
+   transitions after opacity via the delay above). */
+#splash-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
-#splash-overlay.hidden { opacity: 0; }
 
 .splash-overlay-logo {
   width: 70%;
