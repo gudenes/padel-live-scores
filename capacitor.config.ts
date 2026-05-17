@@ -49,17 +49,15 @@ const config: CapacitorConfig = {
       // asset, FIT_CENTER letterboxes — invisible because the asset's
       // background and `backgroundColor` above are both pure black.
       androidScaleType: 'FIT_CENTER',
-      // Show a small lime spinner over the splash so users know it's
-      // loading rather than frozen, especially on slow networks. The
-      // splash image no longer ships with a baked-in circle — the
-      // platform spinners (Android ProgressBar, iOS UIActivityIndicator)
-      // draw the animated indicator on top of a clean logo composition.
-      // iosSpinnerStyle was missing before, so iPhone splashes looked
-      // static. Adding it brings iOS to feature-parity with Android.
-      showSpinner: true,
-      iosSpinnerStyle: 'large',
-      androidSpinnerStyle: 'large',
-      spinnerColor: '#7ED321',
+      // Native spinner disabled — the iOS UIActivityIndicator and the
+      // Android ProgressBar both look dated and appeared ON TOP of the
+      // logo, fighting it visually. We replaced them with a server-
+      // rendered HTML overlay (see SplashOverlay component) that shows
+      // a modern Material-style arc spinner BELOW the logo, in the
+      // lower third of the screen. The HTML overlay also gives us full
+      // control over the animation, position, and color across iOS,
+      // Android, and the PWA — one implementation, three platforms.
+      showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
     },
