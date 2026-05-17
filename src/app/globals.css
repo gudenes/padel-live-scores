@@ -105,6 +105,27 @@ body {
      the overshoot without disabling normal scrolling. */
   overscroll-behavior-y: contain;
 }
+
+/* Permanent overlay band covering the safe-area-inset-top zone (status
+   bar / Dynamic Island area). The sticky header pins at top:
+   env(safe-area-inset-top) — i.e. RIGHT BELOW the system UI, not
+   spanning into it. Without this overlay, scrolled page content
+   becomes visible above the header in the safe-area gap because there
+   is no element painting that region. The fixed band — same color as
+   the header — paints the zone permanently so content scrolls cleanly
+   under it. On platforms without notches env() returns 0px so the
+   band collapses to zero height and is a visual no-op. */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: #0A0A0A;
+  z-index: 999;
+  pointer-events: none;
+}
 button { font-family: var(--font-sans); cursor: pointer; }
 button:focus { outline: none; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
