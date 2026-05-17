@@ -399,10 +399,12 @@ export default function MatchesDayShell({
       <div
         style={{
           position: 'sticky',
-          // Pins directly below the 62px GlobalHeader. Always visible
-          // so the day filters stay one tap away regardless of scroll
-          // position — matches the always-pinned GlobalHeader pattern.
-          top: 62,
+          // Pins directly below the 62px GlobalHeader, which itself pins
+          // at env(safe-area-inset-top). So this strip's top must be
+          // safe-area-inset-top + 62 to stack cleanly. Without the
+          // safe-area addition, the strip would slide UNDER the
+          // GlobalHeader once scrolled past the body padding zone.
+          top: 'calc(env(safe-area-inset-top, 0px) + 62px)',
           zIndex: 50,
           background: 'rgba(10,10,10,0.94)',
           backdropFilter: 'blur(12px)',
