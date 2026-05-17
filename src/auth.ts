@@ -137,13 +137,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Fall through with default locale.
       }
 
+      // Apple Sign In quirk: when the user picks "Hide My Email" or
+      // signs in for the second time, Apple doesn't return a name. The
+      // Auth.js Apple provider falls back to setting `user.name` to the
+      // email address itself (e.g. `7jry7k746m@privaterelay.apple.com`).
+      // Storing that as `display_name` makes the avatar fallback render
+      // the first char of the email — a random digit, which looks like
+      // a glitch. Instead, leave display_name null so the UI shows the
+      // generic silhouette and prompts the user to set their name in
+      // Settings → Edit profile.
+      const isEmailLikeName = user.name && user.name.includes('@')
+      const displayName = isEmailLikeName ? null : user.name ?? null
+
       const client = await pool.connect()
       try {
         await client.query(
           `INSERT INTO profiles (id, display_name, avatar_url, locale, created_at)
            VALUES ($1, $2, $3, $4, NOW())
            ON CONFLICT (id) DO NOTHING`,
-          [user.id, user.name ?? null, user.image ?? null, locale]
+          [user.id, displayName, user.image ?? null, locale]
         )
       } finally {
         client.release()

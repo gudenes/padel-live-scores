@@ -148,7 +148,11 @@ export default function ProfileButton() {
             size={34}
             style={{ width: '100%', height: '100%' }}
           />
-        ) : isLoggedIn && profile?.display_name ? (
+        ) : isLoggedIn && profile?.display_name && /^[a-zA-Z]/.test(profile.display_name) ? (
+          // Only render the initial when the first char is an alpha letter.
+          // Digits, punctuation, or email-shaped names (which can happen with
+          // Apple Hide My Email private-relay accounts) fall through to the
+          // generic silhouette so we never show "7" or "@" as an avatar.
           <span style={{
             fontSize: 14, fontWeight: 700,
             color: '#fff',
