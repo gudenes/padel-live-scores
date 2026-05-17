@@ -781,6 +781,7 @@
     "checkEmail": "Check your email",
     "sentLink": "We sent a sign-in link to {email}",
     "continueGoogle": "Continue with Google",
+    "continueApple": "Continue with Apple",
     "or": "or",
     "emailPlaceholder": "Email address",
     "sending": "Sending...",

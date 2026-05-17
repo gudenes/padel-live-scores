@@ -754,6 +754,7 @@
     "checkEmail": "Controlla la tua email",
     "sentLink": "Abbiamo inviato un link a {email}",
     "continueGoogle": "Continua con Google",
+    "continueApple": "Continua con Apple",
     "or": "o",
     "emailPlaceholder": "Indirizzo email",
     "sending": "Invio...",
