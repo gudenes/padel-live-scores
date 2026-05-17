@@ -38,13 +38,14 @@ export default function SplashOverlay() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           className="splash-overlay-logo"
-          /* Same image used for the native splash (Capacitor SplashScreen
-             reads from public/padelNachos - Branding/favicon/splash.screen.png
-             via the generated platform assets). URL-encoded because the
-             source path contains spaces. Serving the same file means the
-             HTML overlay paints a pixel-identical logo on top of the native
-             splash background — zero visual jump during the transition. */
-          src="/padelNachos%20-%20Branding/favicon/splash.screen.png"
+          /* Same image used for the native splash. Copied to a clean
+             root-level path (public/splash-logo.png) because Vercel
+             returns 404 for URL-encoded paths containing spaces — the
+             original lives at "public/padelNachos - Branding/favicon/
+             splash.screen.png" but that path is unservable in prod
+             (verified with curl after the first deploy). The master is
+             still that branding file; this is just a deployable copy. */
+          src="/splash-logo.png"
           alt=""
           fetchPriority="high"
         />
