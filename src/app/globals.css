@@ -106,6 +106,53 @@ body {
   overscroll-behavior-y: contain;
 }
 
+/* ── Splash overlay ─────────────────────────────────────────────────────
+   Server-rendered overlay (see src/components/SplashOverlay.tsx) shown
+   over the WebView until the app's first frame paints. Replaces the
+   dated native UIActivityIndicator with a modern Material-style arc
+   spinner in lime green, positioned in the lower third so it doesn't
+   compete with the logo.
+   Inset 0 + z-index 10000 ensures the overlay sits above EVERYTHING
+   (sticky headers, body::before safe-area band, the bottom nav). On
+   .hidden, opacity fades to 0 over 400ms and the element is removed
+   from the DOM by the inline script in SplashOverlay. */
+#splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  /* Logo near 30% from top, spinner near 80% — matches the mockup */
+  padding-top: 22%;
+  padding-bottom: 14%;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+#splash-overlay.hidden { opacity: 0; }
+
+.splash-overlay-logo {
+  width: 70%;
+  max-width: 320px;
+  height: auto;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.splash-overlay-arc {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(126, 211, 33, 0.18);
+  border-top-color: #7ED321;
+  border-radius: 50%;
+  animation: splashOverlaySpin 0.9s linear infinite;
+}
+@keyframes splashOverlaySpin {
+  to { transform: rotate(360deg); }
+}
+
 /* Permanent overlay band covering the safe-area-inset-top zone (status
    bar / Dynamic Island area). The sticky header pins at top:
    env(safe-area-inset-top) — i.e. RIGHT BELOW the system UI, not

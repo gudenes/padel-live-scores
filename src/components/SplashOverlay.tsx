@@ -1,0 +1,81 @@
+// src/components/SplashOverlay.tsx
+//
+// Server-rendered splash overlay shown until the app's first frame
+// paints. Replaces the dated iOS UIActivityIndicator that previously
+// appeared on top of the native splash logo (see capacitor.config.ts
+// `showSpinner: false`).
+//
+// Architecture:
+//   1. Native Capacitor SplashScreen shows the static splash IMAGE for
+//      `launchShowDuration` (2500ms). No native spinner.
+//   2. Native splash hides, WebView becomes visible.
+//   3. The server-rendered HTML below is already painted at the top of
+//      <body>. It mirrors the native splash visually (same logo, same
+//      background, same vertical layout) so the transition is seamless.
+//      Below the logo: a Material-style spinning arc in lime green.
+//   4. Inline script fires on window 'load' (or immediately if already
+//      complete) → adds `.hidden` class → CSS opacity transitions to 0
+//      over 400ms → element is removed from DOM.
+//
+// Why a server-rendered overlay rather than a React/client component:
+//   The overlay must be visible the instant the WebView paints — before
+//   any React hydration. A React component wouldn't render until after
+//   hydration, leaving a flash of empty page first.
+//
+// Why an inline <script> rather than calling from native-init.ts:
+//   native-init waits on Capacitor import + auth state + first React
+//   render. By that time we want the overlay GONE, not just queued for
+//   removal. A no-dependencies inline script runs as soon as the DOM
+//   finishes parsing, which is when the splash should clear.
+//
+// Affects iOS Capacitor, Android Capacitor, AND the standard web
+// (PWA / mobile Safari). Single implementation, three platforms.
+
+export default function SplashOverlay() {
+  return (
+    <>
+      <div id="splash-overlay" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          className="splash-overlay-logo"
+          /* Same image used for the native splash (Capacitor SplashScreen
+             reads from public/padelNachos - Branding/favicon/splash.screen.png
+             via the generated platform assets). URL-encoded because the
+             source path contains spaces. Serving the same file means the
+             HTML overlay paints a pixel-identical logo on top of the native
+             splash background — zero visual jump during the transition. */
+          src="/padelNachos%20-%20Branding/favicon/splash.screen.png"
+          alt=""
+          fetchPriority="high"
+        />
+        <div className="splash-overlay-arc" />
+      </div>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            (function () {
+              function hide() {
+                var el = document.getElementById('splash-overlay');
+                if (!el) return;
+                el.classList.add('hidden');
+                setTimeout(function () {
+                  if (el.parentNode) el.parentNode.removeChild(el);
+                }, 450);
+              }
+              // Hide ~150ms after window 'load' so first paint of the app
+              // is visible underneath BEFORE the overlay fades out. The
+              // tiny delay also lets a CSS animation frame complete.
+              if (document.readyState === 'complete') {
+                setTimeout(hide, 150);
+              } else {
+                window.addEventListener('load', function () {
+                  setTimeout(hide, 150);
+                });
+              }
+            })();
+          `,
+        }}
+      />
+    </>
+  )
+}

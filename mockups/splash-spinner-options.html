@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Splash spinner options — Padel Nachos</title>
+  <style>
+    :root {
+      /* Padel Nachos brand */
+      --bg: #000;
+      --lime: #7ED321;
+      --orange: #FFA336;
+      --red: #E64C39;
+      --text: #fff;
+      --muted: rgba(255,255,255,0.55);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #1A1A1A;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 18px;
+      margin-bottom: 6px;
+      color: #fff;
+    }
+
+    p.note {
+      text-align: center;
+      font-size: 13px;
+      color: var(--muted);
+      max-width: 540px;
+      margin: 0 auto 32px;
+      line-height: 1.5;
+    }
+
+    /* Grid of phone mockups */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
+      gap: 32px;
+      justify-content: center;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .device {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* iPhone Pro Max frame (visual only, no real bezel) */
+    .phone {
+      width: 320px;
+      aspect-ratio: 9 / 19.5; /* iPhone 14/15/16 Pro Max */
+      background: var(--bg);
+      border-radius: 48px;
+      border: 6px solid #2a2a2a;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+
+    /* Dynamic Island simulation */
+    .phone::before {
+      content: '';
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 32px;
+      background: #000;
+      border-radius: 999px;
+      z-index: 10;
+    }
+
+    /* Splash content — logo positioned slightly above center,
+       spinner at bottom-half center */
+    .splash {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22% 24px 14%;
+    }
+
+    .logo {
+      width: 75%;
+      max-width: 230px;
+      margin-top: 26%;
+      flex-shrink: 0;
+    }
+
+    .spinner-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      height: 60px;
+      margin-bottom: 12%;
+    }
+
+    .label {
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--text);
+      text-align: center;
+    }
+    .desc {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 4px;
+      max-width: 280px;
+      line-height: 1.45;
+    }
+
+    /* ─────────────────────────────────────────────
+       Spinner variants
+       ───────────────────────────────────────────── */
+
+    /* A) Three bouncing dots */
+    .dots {
+      display: flex;
+      gap: 8px;
+    }
+    .dots span {
+      width: 10px;
+      height: 10px;
+      background: var(--lime);
+      border-radius: 999px;
+      animation: bounce 1.2s ease-in-out infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.15s; }
+    .dots span:nth-child(3) { animation-delay: 0.30s; }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); opacity: 0.4; }
+      50%      { transform: translateY(-10px); opacity: 1; }
+    }
+
+    /* B) Material-style spinning arc */
+    .arc {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(126, 211, 33, 0.18);
+      border-top-color: var(--lime);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* C) Pulsing ring (orbital) */
+    .pulse {
+      position: relative;
+      width: 50px;
+      height: 50px;
+    }
+    .pulse::before, .pulse::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border: 2px solid var(--lime);
+      border-radius: 50%;
+      animation: pulseRing 1.6s ease-out infinite;
+      opacity: 0;
+    }
+    .pulse::after { animation-delay: 0.8s; }
+    @keyframes pulseRing {
+      0%   { transform: scale(0.4); opacity: 1; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+    .pulse-core {
+      position: absolute;
+      inset: 18px;
+      background: var(--lime);
+      border-radius: 50%;
+      box-shadow: 0 0 12px rgba(126,211,33,0.6);
+    }
+
+    /* D) Animated progress bar */
+    .bar {
+      width: 100px;
+      height: 4px;
+      background: rgba(126,211,33,0.15);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .bar::after {
+      content: '';
+      position: absolute;
+      left: -30%;
+      width: 30%;
+      height: 100%;
+      background: var(--lime);
+      border-radius: 2px;
+      animation: slide 1.2s ease-in-out infinite;
+    }
+    @keyframes slide {
+      0%   { left: -30%; }
+      50%  { left: 100%; }
+      100% { left: 100%; }
+    }
+
+    /* E) Bouncing bars (equalizer) */
+    .bars {
+      display: flex;
+      gap: 5px;
+      align-items: flex-end;
+      height: 28px;
+    }
+    .bars span {
+      width: 4px;
+      background: var(--lime);
+      border-radius: 2px;
+      animation: barWave 1s ease-in-out infinite;
+    }
+    .bars span:nth-child(1) { animation-delay: 0.0s; }
+    .bars span:nth-child(2) { animation-delay: 0.15s; }
+    .bars span:nth-child(3) { animation-delay: 0.30s; }
+    .bars span:nth-child(4) { animation-delay: 0.45s; }
+    .bars span:nth-child(5) { animation-delay: 0.60s; }
+    @keyframes barWave {
+      0%, 100% { height: 6px; }
+      50%      { height: 28px; }
+    }
+
+    /* F) Dual ring spinner (modern) */
+    .dual {
+      position: relative;
+      width: 44px;
+      height: 44px;
+    }
+    .dual::before, .dual::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 3px solid transparent;
+    }
+    .dual::before {
+      border-top-color: var(--lime);
+      border-right-color: var(--lime);
+      animation: spin 0.9s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+    }
+    .dual::after {
+      border-bottom-color: rgba(126,211,33,0.4);
+      border-left-color: rgba(126,211,33,0.4);
+      animation: spin 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite reverse;
+      inset: 6px;
+    }
+
+    /* G) Current native iOS UIActivityIndicator (for comparison) */
+    .ios-native {
+      width: 28px;
+      height: 28px;
+      position: relative;
+    }
+    .ios-native span {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 2px;
+      height: 6px;
+      background: var(--lime);
+      border-radius: 1px;
+      transform-origin: 50% 14px;
+      animation: iosFade 0.8s linear infinite;
+    }
+    .ios-native span:nth-child(1)  { transform: translateX(-50%) rotate(0deg);   animation-delay: -0.8s; }
+    .ios-native span:nth-child(2)  { transform: translateX(-50%) rotate(30deg);  animation-delay: -0.7s; }
+    .ios-native span:nth-child(3)  { transform: translateX(-50%) rotate(60deg);  animation-delay: -0.6s; }
+    .ios-native span:nth-child(4)  { transform: translateX(-50%) rotate(90deg);  animation-delay: -0.5s; }
+    .ios-native span:nth-child(5)  { transform: translateX(-50%) rotate(120deg); animation-delay: -0.4s; }
+    .ios-native span:nth-child(6)  { transform: translateX(-50%) rotate(150deg); animation-delay: -0.3s; }
+    .ios-native span:nth-child(7)  { transform: translateX(-50%) rotate(180deg); animation-delay: -0.2s; }
+    .ios-native span:nth-child(8)  { transform: translateX(-50%) rotate(210deg); animation-delay: -0.1s; }
+    .ios-native span:nth-child(9)  { transform: translateX(-50%) rotate(240deg); animation-delay: 0s; }
+    .ios-native span:nth-child(10) { transform: translateX(-50%) rotate(270deg); animation-delay: 0.1s; }
+    .ios-native span:nth-child(11) { transform: translateX(-50%) rotate(300deg); animation-delay: 0.2s; }
+    .ios-native span:nth-child(12) { transform: translateX(-50%) rotate(330deg); animation-delay: 0.3s; }
+    @keyframes iosFade {
+      0% { opacity: 1; }
+      100% { opacity: 0.15; }
+    }
+
+    .recommended {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: var(--lime);
+      color: #000;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Splash spinner options</h1>
+  <p class="note">
+    Logo shifted slightly above center (~30% from top). Spinner positioned in
+    lower third — between logo bottom and screen edge. Each option uses the
+    Padel Nachos lime (#7ED321) to stay on-brand.
+  </p>
+
+  <div class="grid">
+
+    <!-- A) Bouncing dots -->
+    <div class="device">
+      <div class="phone">
+        <div class="splash">
+          <img class="logo" src="../public/padelNachos - Branding/favicon/splash.screen.png" alt="logo" />
+          <div class="spinner-area">
+            <div class="dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="label">A — Bouncing dots</div>
+      <div class="desc">Three lime dots bouncing in rhythm. Friendly, energetic. Used by WhatsApp Web's typing indicator.</div>
+    </div>
+
+    <!-- B) Spinning arc (Material) -->
+    <div class="device">
+      <div class="phone">
+        <span class="recommended">RECOMMENDED</span>
+        <div class="splash">
+          <img class="logo" src="../public/padelNachos - Branding/favicon/splash.screen.png" alt="logo" />
+          <div class="spinner-area">
+            <div class="arc"></div>
+          </div>
+        </div>
+      </div>
+      <div class="label">B — Spinning arc (Material)</div>
+      <div class="desc">Modern circular arc spinning fast (0.9s rotation). Clean, neutral, widely understood. Used by Stripe, Linear, GitHub.</div>
+    </div>
+
+    <!-- C) Pulsing ring -->
+    <div class="device">
+      <div class="phone">
+        <div class="splash">
+          <img class="logo" src="../public/padelNachos - Branding/favicon/splash.screen.png" alt="logo" />
+          <div class="spinner-area">
+            <div class="pulse">
+              <div class="pulse-core"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="label">C — Pulsing ring (orbital)</div>
+      <div class="desc">Lime core with expanding rings rippling outward. Calmer, more brand-distinctive. Used by Discord's voice-channel indicator.</div>
+    </div>
+
+    <!-- D) Progress bar -->
+    <div class="device">
+      <div class="phone">
+        <div class="splash">
+          <img class="logo" src="../public/padelNachos - Branding/favicon/splash.screen.png" alt="logo" />
+          <div class="spinner-area">
+            <div class="bar"></div>
+          </div>
+        </div>
+      </div>
+      <div class="label">D — Progress bar</div>
+      <div class="desc">Indeterminate progress bar sliding across. Linear feel, suggests forward motion. Used by Material Web.</div>
+    </div>
+
+    <!-- E) Equalizer bars -->
+    <div class="device">
+      <div class="phone">
+        <div class="splash">
+          <img class="logo" src="../public/padelNachos - Branding/favicon/splash.screen.png" alt="logo" />
+          <div class="spinner-area">
+            <div class="bars">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="label">E — Equalizer bars</div>
+      <div class="desc">Five lime bars bouncing like an audio EQ. Athletic, energetic. Distinctive but might feel music-app-coded.</div>
+    </div>
+
+    <!-- F) Dual ring -->
+    <div class="device">
+      <div class="phone">
+        <div class="splash">
+          <img class="logo" src="../public/padelNachos - Branding/favicon/splash.screen.png" alt="logo" />
+          <div class="spinner-area">
+            <div class="dual"></div>
+          </div>
+        </div>
+      </div>
+      <div class="label">F — Dual ring (counter-spinning)</div>
+      <div class="desc">Outer ring spins one direction, inner ring counter-spins. Premium feel. Used by Apple Music, Notion.</div>
+    </div>
+
+    <!-- G) Native iOS UIActivityIndicator -->
+    <div class="device">
+      <div class="phone">
+        <div class="splash">
+          <img class="logo" src="../public/padelNachos - Branding/favicon/splash.screen.png" alt="logo" />
+          <div class="spinner-area">
+            <div class="ios-native">
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="label">G — Native iOS (current)</div>
+      <div class="desc" style="color:#FF9090">12 lines, "rotating", flat. This is what you're seeing now. Looks dated.</div>
+    </div>
+
+  </div>
+
+  <p class="note" style="margin-top: 48px; max-width: 640px;">
+    All variants are pure CSS — no images, no Lottie, no JS. Implementation:
+    splash starts as native (Capacitor SplashScreen), then once the WebView
+    paints first frame, a full-screen HTML overlay with the chosen spinner
+    takes over until the app is ready. Once we pick, expect ~30 min of work
+    plus a new TestFlight build cycle.
+  </p>
+
+</body>
+</html>
