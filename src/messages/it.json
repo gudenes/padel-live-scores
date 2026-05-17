@@ -285,6 +285,8 @@
   },
   "profileMenu": {
     "viewProfile": "Vedi profilo",
+    "unnamedTitle": "Benvenuto!",
+    "unnamedSub": "Tocca per impostare il tuo nome",
     "dayStreak": "Serie di {count} giorni",
     "welcomeTitle": "Benvenuto su PadelNachos",
     "welcomeSub": "Segui i giocatori · guadagna badge · mantieni la serie",
