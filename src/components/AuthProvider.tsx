@@ -4,8 +4,9 @@
 // Provides useAuth() hook for components that need user identity.
 
 import { SessionProvider, useSession } from 'next-auth/react'
-import { createContext, useContext, useCallback, useEffect, useMemo, type ReactNode } from 'react'
+import { createContext, useContext, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { initNative } from '@/lib/native-init'
+import { supabase } from '@/lib/supabase'
 
 interface Profile {
   id: string
@@ -47,9 +48,50 @@ function AuthInner({ children }: { children: ReactNode }) {
     [userId, userName, userEmail, userImage],
   )
 
+  // Fetch the canonical profile row from Supabase so display_name reflects
+  // what's actually stored in the DB (cleared via the createUser event for
+  // Apple Hide My Email accounts, and updated when users hit Settings →
+  // Edit profile). Without this, AuthProvider was using session.user.name,
+  // which Auth.js's Apple provider falls back to the email address when
+  // no real name is shared — rendering e.g. "5tdwb8r94t@privaterelay..."
+  // in the profile menu.
+  const [dbProfile, setDbProfile] = useState<{ display_name: string | null; avatar_url: string | null; preferred_country: string | null } | null>(null)
+
+  useEffect(() => {
+    if (!userId) {
+      setDbProfile(null)
+      return
+    }
+    let alive = true
+    void supabase
+      .from('profiles')
+      .select('display_name, avatar_url, preferred_country')
+      .eq('id', userId)
+      .single()
+      .then(({ data }) => {
+        if (!alive || !data) return
+        setDbProfile({
+          display_name: data.display_name,
+          avatar_url: data.avatar_url,
+          preferred_country: data.preferred_country,
+        })
+      })
+    return () => { alive = false }
+  }, [userId])
+
+  // Sanitize email-shaped session names defensively — even if dbProfile
+  // hasn't loaded yet, we never want to flash the relay email as the
+  // user's "name" in the UI.
+  const sessionName = userName && userName.includes('@') ? null : userName
+
   const profile = useMemo<Profile | null>(
-    () => (user ? { id: user.id, display_name: user.name ?? null, avatar_url: user.image ?? null, preferred_country: null } : null),
-    [user],
+    () => (user ? {
+      id: user.id,
+      display_name: dbProfile?.display_name ?? sessionName,
+      avatar_url: dbProfile?.avatar_url ?? user.image ?? null,
+      preferred_country: dbProfile?.preferred_country ?? null,
+    } : null),
+    [user, dbProfile, sessionName],
   )
 
   const signOut = useCallback(async () => {
