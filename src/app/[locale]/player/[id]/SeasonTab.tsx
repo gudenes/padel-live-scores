@@ -162,21 +162,17 @@ export function SeasonTab({
     return { seasonWins: wins, seasonLosses: losses, monthly: mo }
   }, [derived.finished, selectedYear, playerId])
 
-  // MatchRow is structurally compatible with MatchRowForTitles at runtime;
-  // cast to avoid a nominal type mismatch (played_at is optional there).
-  const finishedAsTitles = derived.finished as unknown as MatchRowForTitles[]
-
   const yearTitles = useMemo(
-    () => deriveTitles(finishedAsTitles, playerId).filter(title => {
+    () => deriveTitles(derived.finished, playerId).filter(title => {
       const iso = title.wonAt
       return iso != null && new Date(iso).getUTCFullYear() === selectedYear
     }),
-    [finishedAsTitles, playerId, selectedYear],
+    [derived.finished, playerId, selectedYear],
   )
 
   const seasonTournaments = useMemo(
-    () => deriveSeasonTournaments(finishedAsTitles, playerId, selectedYear),
-    [finishedAsTitles, playerId, selectedYear],
+    () => deriveSeasonTournaments(derived.finished, playerId, selectedYear),
+    [derived.finished, playerId, selectedYear],
   )
 
   const maxTotal = Math.max(1, ...monthly.map(m => m.wins + m.losses))

@@ -3,18 +3,20 @@ import { resolveMatchRoles, type MatchPlayer } from './match-roles'
 export interface MatchRowForTitles {
   id: string
   round: string | null
-  status: string | null
+  status: string
   winner_pair: number | null
-  played_at: string | null
   finished_at: string | null
   scheduled_at: string | null
+  played_at?: string | null
+  category?: string | null
+  duration?: number | null
   pair1_player1?: MatchPlayer | null
   pair1_player2?: MatchPlayer | null
   pair2_player1?: MatchPlayer | null
   pair2_player2?: MatchPlayer | null
   tournament?: {
     id: string
-    name: string
+    name: string | null
     level?: string | null
     country?: string | null
     starts_at?: string | null
@@ -49,7 +51,7 @@ export function deriveTitles(
     if (!roles.won) continue
     entries.push({
       tournamentId: m.tournament.id,
-      tournamentName: m.tournament.name,
+      tournamentName: m.tournament.name ?? '',
       tournamentLevel: m.tournament.level ?? null,
       partner: roles.partner,
       wonAt: m.finished_at ?? m.played_at ?? m.scheduled_at,
