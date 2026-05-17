@@ -593,7 +593,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange', onClick: () => setActiveTab('season'), ariaLabel: 'View titles in Season tab' })
   if (derived.finished.length > 0) heroStats.push({ label: tPlayer('record'), value: `${derived.wins}-${derived.losses}`, accent: 'green' })
   else if (player.total_matches) heroStats.push({ label: tPlayer('matches'), value: String(player.total_matches) })
-  if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange' })
+  if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange', onClick: () => { const g = player.category === 'women' ? 'women' : 'men'; router.push(`/rankings?gender=${g}&type=official&highlight=${player.id}` as Parameters<typeof router.push>[0]) }, ariaLabel: tPlayer('viewInRankings', { name: player.display_name?.trim() || player.name }) })
 
   const hasEarnings = earnings != null && earnings.allTimeEur > 0
   const showNewPill = hasEarnings && shouldShowNewPill()
@@ -672,15 +672,24 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             {/* Name + identity */}
             <div style={{ flex: 1, minWidth: 0 }}>
               {player.ranking != null && (
-                <span style={{
-                  display: 'inline-block',
-                  background: GREEN, color: '#000',
-                  fontSize: 9, fontWeight: 800, padding: '3px 9px',
-                  clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-                  marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5,
-                }}>
+                <button
+                  onClick={() => {
+                    const g = player.category === 'women' ? 'women' : 'men'
+                    router.push(`/rankings?gender=${g}&type=official&highlight=${player.id}` as Parameters<typeof router.push>[0])
+                  }}
+                  aria-label={tPlayer('viewInRankings', { name: player.display_name?.trim() || player.name })}
+                  style={{
+                    display: 'inline-block',
+                    background: GREEN, color: '#000',
+                    fontSize: 9, fontWeight: 800, padding: '3px 9px',
+                    clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
+                    marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5,
+                    border: 'none', cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
                   #{player.ranking} {player.category === 'women' ? 'Women' : player.category === 'men' ? 'World' : 'Ranked'}
-                </span>
+                </button>
               )}
               <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>
                 {titleCase(player.display_name?.trim() || player.name)}
