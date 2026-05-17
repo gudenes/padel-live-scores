@@ -10,6 +10,7 @@
 // needed the same chrome.
 
 import { useEffect, useState } from 'react'
+import { useStickyHeaderVisibility } from '@/hooks/useStickyHeaderVisibility'
 import { useTranslations } from 'next-intl'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
@@ -45,14 +46,13 @@ export default function GlobalHeader() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Always-visible sticky header. Previously had hide-on-scroll-down /
-  // show-on-scroll-up via a `transform: translateY(-100%)` toggle, but
-  // that combined with `position: sticky` caused intermittent pointer
-  // dead-zones inside the Capacitor iOS WebView — the header would
-  // animate back into view during scroll-up but stay un-tappable until
-  // the user scrolled all the way back to the page top. Pattern match
-  // is Sofascore/ESPN/OneFootball: always show the header. The 62px
-  // height cost is worth predictable tap targets on every page.
+  // Hide-on-scroll-down / show-on-scroll-up. Shares the
+  // useStickyHeaderVisibility hook with MatchesDayShell so the global
+  // header and the date-pill strip animate as a single block. The hook
+  // uses a 6px delta threshold to avoid dead-zones during inertial
+  // scroll (the previous inline impl flipped back to "hidden" on every
+  // tiny scroll tick and never let the transition settle).
+  const headerVisible = useStickyHeaderVisibility()
 
   return (
     <>
@@ -73,6 +73,12 @@ export default function GlobalHeader() {
         // and rely on the body offset for system-UI breathing room.
         padding: '12px 16px',
         height: 62,
+        transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
+        transition: 'transform 0.25s ease',
+        // Disable pointer events while hidden so taps during the
+        // transition don't get absorbed by the offscreen header — the
+        // root cause of the earlier dead-zone bug.
+        pointerEvents: headerVisible ? 'auto' : 'none',
       }}>
         {/* Logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
