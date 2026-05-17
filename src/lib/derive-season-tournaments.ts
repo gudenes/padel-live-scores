@@ -57,7 +57,7 @@ export function deriveSeasonTournaments(
       byT.set(tid, {
         tournament: {
           id: tid,
-          name: m.tournament.name,
+          name: m.tournament.name ?? '',
           level: m.tournament.level ?? null,
           country: m.tournament.country ?? null,
           starts_at: m.tournament.starts_at ?? null,
