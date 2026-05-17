@@ -9,7 +9,7 @@
 // when Tournaments and Ranking became their own top-level tabs and
 // needed the same chrome.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
@@ -45,22 +45,14 @@ export default function GlobalHeader() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Hide-on-scroll-down / show-on-scroll-up. Each page mounts its own
-  // GlobalHeader instance, so per-page scroll state is the right
-  // behaviour — switching tabs starts with the header visible.
-  const [headerVisible, setHeaderVisible] = useState(true)
-  const lastScrollY = useRef(0)
-  useEffect(() => {
-    const onScroll = () => {
-      const y = window.scrollY
-      if (y < 10) { setHeaderVisible(true) }
-      else if (y > lastScrollY.current + 4) { setHeaderVisible(false) }
-      else if (y < lastScrollY.current - 4) { setHeaderVisible(true) }
-      lastScrollY.current = y
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  // Always-visible sticky header. Previously had hide-on-scroll-down /
+  // show-on-scroll-up via a `transform: translateY(-100%)` toggle, but
+  // that combined with `position: sticky` caused intermittent pointer
+  // dead-zones inside the Capacitor iOS WebView — the header would
+  // animate back into view during scroll-up but stay un-tappable until
+  // the user scrolled all the way back to the page top. Pattern match
+  // is Sofascore/ESPN/OneFootball: always show the header. The 62px
+  // height cost is worth predictable tap targets on every page.
 
   return (
     <>
@@ -81,8 +73,6 @@ export default function GlobalHeader() {
         // and rely on the body offset for system-UI breathing room.
         padding: '12px 16px',
         height: 62,
-        transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
-        transition: 'transform 0.3s ease',
       }}>
         {/* Logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
