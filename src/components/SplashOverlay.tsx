@@ -40,16 +40,16 @@ export default function SplashOverlay() {
           className="splash-overlay-logo"
           /* Same image used for the native splash. Copied to a clean
              root-level path (public/splash-logo.png) because Vercel
-             returns 404 for URL-encoded paths containing spaces — the
-             original lives at "public/padelNachos - Branding/favicon/
-             splash.screen.png" but that path is unservable in prod
-             (verified with curl after the first deploy). The master is
-             still that branding file; this is just a deployable copy. */
+             returns 404 for URL-encoded paths containing spaces. */
           src="/splash-logo.png"
           alt=""
           fetchPriority="high"
         />
-        <div className="splash-overlay-arc" />
+        {/* Spinner intentionally omitted — logo-only splash matches the
+            pattern used by Instagram, Spotify, most banking apps. Cleaner
+            look at the small cost of no explicit "loading" feedback. The
+            overlay only shows briefly (window.load + 150ms), so motion
+            isn't necessary to signal liveness. */}
       </div>
       <script
         dangerouslySetInnerHTML={{
