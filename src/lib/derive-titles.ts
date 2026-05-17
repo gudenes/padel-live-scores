@@ -56,5 +56,10 @@ export function deriveTitles(
     })
     seen.add(m.tournament.id)
   }
-  return entries.sort((a, b) => (b.wonAt ?? '').localeCompare(a.wonAt ?? ''))
+  return entries.sort((a, b) => {
+    if (a.wonAt === null && b.wonAt === null) return 0
+    if (a.wonAt === null) return 1   // null goes last
+    if (b.wonAt === null) return -1
+    return b.wonAt.localeCompare(a.wonAt)
+  })
 }

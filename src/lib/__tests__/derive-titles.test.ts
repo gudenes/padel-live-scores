@@ -85,4 +85,21 @@ describe('deriveTitles', () => {
     const dup = finalMatch({ id: 'm-dup' })
     expect(deriveTitles([finalMatch(), dup], 'p1')).toHaveLength(1)
   })
+
+  it('places null-wonAt titles after dated titles', () => {
+    const dated = finalMatch({
+      id: 'm-dated',
+      tournament: { id: 'td', name: 'Dated', level: 'fip_gold' },
+      finished_at: '2026-04-10T18:00:00Z',
+    })
+    const noDate = finalMatch({
+      id: 'm-null',
+      tournament: { id: 'tn', name: 'No Date', level: 'fip_gold' },
+      finished_at: null,
+      played_at: null,
+      scheduled_at: null,
+    })
+    const result = deriveTitles([noDate, dated], 'p1')
+    expect(result.map(t => t.tournamentId)).toEqual(['td', 'tn'])
+  })
 })
