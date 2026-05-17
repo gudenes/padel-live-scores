@@ -94,6 +94,19 @@ export async function sendPushToFcmTokens(
           // into a single thread on the lock screen — matches Android's
           // `tag`-based replacement behaviour.
           'thread-id': payload.tag || 'match-live',
+          // `mutable-content: 1` tells iOS to route the push through our
+          // PadelNotificationService extension (ios/App/PadelNotificationService)
+          // BEFORE displaying it. The extension then attaches the image
+          // referenced in fcmOptions.imageUrl below — player avatar or
+          // circuit logo — so iOS shows it as rich media (large image
+          // next to / under the alert text). Without this flag iOS
+          // delivers the push directly to its UI layer, bypasses the
+          // extension, and the image attachment is ignored.
+          //
+          // The extension target is required for this to work; just
+          // setting the flag without an installed extension means no
+          // change (the push still displays, just without the image).
+          'mutable-content': 1,
         },
       },
       ...(payload.icon ? { fcmOptions: { imageUrl: payload.icon } } : {}),
