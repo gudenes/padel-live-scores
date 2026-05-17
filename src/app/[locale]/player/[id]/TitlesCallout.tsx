@@ -1,15 +1,12 @@
 import * as React from 'react'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { TrophyIcon } from '@/components/icons/TrophyIcon'
 import type { TitleEntry } from '@/lib/derive-titles'
+import { titleCase } from '@/lib/title-case'
 
 const MUTED = '#6B7280'
 const GOLD = '#D4A017'
-
-function titleCase(s: string): string {
-  return s.replace(/\b\w+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())
-}
 
 interface Props {
   year: number

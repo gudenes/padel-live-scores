@@ -1,7 +1,8 @@
 import * as React from 'react'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { TrophyIcon } from '@/components/icons/TrophyIcon'
+import { titleCase } from '@/lib/title-case'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -17,10 +18,6 @@ const LEVEL_FLAG: Record<string, string> = {
   fip_gold: '#D4A017',
   fip_silver: '#94A3B8',
   fip_bronze: '#B45309',
-}
-
-function titleCase(s: string): string {
-  return s.replace(/\b\w+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase())
 }
 
 export type TournamentRoundCode =
