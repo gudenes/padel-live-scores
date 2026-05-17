@@ -18,6 +18,7 @@ import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
+import { titleCase } from '@/lib/title-case'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
@@ -228,15 +229,6 @@ function PartnerAvatar({
       </div>
     </div>
   )
-}
-
-const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'II', 'III', 'IV', 'BNL'])
-function titleCase(name: string): string {
-  return name.split(' ').map(word => {
-    if (KEEP_UPPER.has(word.toUpperCase())) return word.toUpperCase()
-    if (word.length <= 1) return word.toUpperCase()
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  }).join(' ')
 }
 
 // ── Match helpers ─────────────────────────────────────────────
@@ -590,7 +582,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const heroStats: HeroStat[] = []
   if (derived.winRate != null) heroStats.push({ label: tPlayer('winRate'), value: `${derived.winRate}%`, accent: 'green' })
   else if (player.win_rate) heroStats.push({ label: tPlayer('winRate'), value: `${player.win_rate}%`, accent: 'green' })
-  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange', onClick: () => setActiveTab('season'), ariaLabel: 'View titles in Season tab' })
+  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange', onClick: () => { setSelectedYear(new Date().getUTCFullYear()); setActiveTab('season') }, ariaLabel: 'View titles in Season tab' })
   if (derived.finished.length > 0) heroStats.push({ label: tPlayer('record'), value: `${derived.wins}-${derived.losses}`, accent: 'green' })
   else if (player.total_matches) heroStats.push({ label: tPlayer('matches'), value: String(player.total_matches) })
   if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange', onClick: () => { const g = player.category === 'women' ? 'women' : 'men'; router.push(`/rankings?gender=${g}&type=official&highlight=${player.id}` as Parameters<typeof router.push>[0]) }, ariaLabel: tPlayer('viewInRankings', { name: player.display_name?.trim() || player.name }) })
