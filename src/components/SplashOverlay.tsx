@@ -58,9 +58,15 @@ export default function SplashOverlay() {
                 var el = document.getElementById('splash-overlay');
                 if (!el) return;
                 el.classList.add('hidden');
-                setTimeout(function () {
-                  if (el.parentNode) el.parentNode.removeChild(el);
-                }, 450);
+                // Do NOT removeChild — manually mutating the DOM under React
+                // confuses reconciliation and breaks any later updates with
+                // NotFoundError ("node to be removed is not a child of this
+                // node") and "Rendered more hooks" cascade. Production
+                // outage on 2026-05-17 surfaced this. CSS-only hiding
+                // (visibility:hidden + opacity:0 + pointer-events:none in
+                // globals.css) keeps the node in the tree where React
+                // expects it; the overlay is invisible to users + ignored
+                // by hit-testing once .hidden is applied.
               }
               // Hide ~150ms after window 'load' so first paint of the app
               // is visible underneath BEFORE the overlay fades out. The

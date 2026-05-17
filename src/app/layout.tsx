@@ -5,11 +5,7 @@ import { GatedAnalytics } from "@/components/GatedAnalytics";
 import { GatedGoogleAds } from "@/components/GatedGoogleAds";
 import { AuthProvider } from "@/components/AuthProvider";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
-// SplashOverlay temporarily disabled — the mount was causing
-// production errors (global-error boundary triggering). The component
-// file is kept (src/components/SplashOverlay.tsx) and the CSS in
-// globals.css remains, so re-enabling is a one-line change once the
-// root cause is fixed.
+import SplashOverlay from "@/components/SplashOverlay";
 import { buildAlternates } from "@/lib/seo-helpers";
 import "./globals.css";
 
@@ -138,6 +134,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} suppressHydrationWarning>
     <head />
     <body>
+      {/* Splash overlay paints first so the WebView's initial frame
+          shows our branded logo + lime arc spinner. CSS-only hide
+          (no DOM mutation) — see SplashOverlay component for the
+          history of the DOM-corruption bug that the v1 hit. */}
+      <SplashOverlay />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
