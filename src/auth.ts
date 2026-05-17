@@ -1,16 +1,18 @@
 // src/auth.ts
 // Auth.js (NextAuth v5) configuration.
-// Providers: Google OAuth + Email magic link (via Resend).
+// Providers: Google OAuth + Apple Sign In + Email magic link (via Resend).
 // Session: database-backed via Supabase Postgres.
 
 import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
+import Apple from 'next-auth/providers/apple'
 import Resend from 'next-auth/providers/resend'
 import PostgresAdapter from '@auth/pg-adapter'
 import { Pool } from 'pg'
 import { cookies } from 'next/headers'
 import { routing } from '@/i18n/routing'
 import { sendWelcomeEmail } from '@/lib/email/welcome'
+import { getAppleClientSecret } from '@/lib/apple-client-secret'
 
 // Parse DATABASE_URL manually to avoid issues with special characters in passwords.
 // The pg Pool's connectionString parser doesn't handle URL-encoded chars reliably.
@@ -31,6 +33,34 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
 })
 
+// Apple Sign In requires a JWT (not a static string) as `clientSecret`.
+// Build it at module init via top-level await. Top-level await is
+// supported in Next.js 16 ES modules and only fires once per function
+// cold start (~5ms). If any of the four required env vars are missing
+// (e.g. local dev / preview deploys before Apple Developer Portal is
+// configured), Apple is silently omitted from the providers list and
+// the app continues to work with Google + Resend.
+let appleProvider: ReturnType<typeof Apple> | null = null
+if (
+  process.env.AUTH_APPLE_ID &&
+  process.env.AUTH_APPLE_TEAM_ID &&
+  process.env.AUTH_APPLE_KEY_ID &&
+  process.env.AUTH_APPLE_PRIVATE_KEY
+) {
+  try {
+    const secret = await getAppleClientSecret()
+    appleProvider = Apple({
+      clientId: process.env.AUTH_APPLE_ID,
+      clientSecret: secret,
+    })
+  } catch (e) {
+    // Don't crash the auth subsystem if Apple JWT generation fails.
+    // Log loudly so it shows up in Vercel logs; Google + Resend still work.
+    // eslint-disable-next-line no-console
+    console.error('[auth] Apple Sign In init failed, omitting provider:', e)
+  }
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PostgresAdapter(pool),
   providers: [
@@ -38,6 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
+    ...(appleProvider ? [appleProvider] : []),
     Resend({
       apiKey: process.env.RESEND_API_KEY!,
       from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos <hello@padelnachos.com>',
