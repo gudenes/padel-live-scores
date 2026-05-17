@@ -3,6 +3,7 @@
 // Player profile — v3 brand styling with tabbed dashboard + widget grid (A2 layout).
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Link, useRouter } from '@/i18n/navigation'
 import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
@@ -316,12 +317,28 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const format = useFormatter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
+  const searchParams = useSearchParams()
+
+  const initialTab = ((): PageTab => {
+    const t = searchParams.get('tab')
+    const valid: PageTab[] = ['overview', 'season', 'partners', 'matches', 'stats', 'earnings']
+    return (t && (valid as string[]).includes(t)) ? (t as PageTab) : 'overview'
+  })()
+
+  const initialYear = ((): number | null => {
+    const y = searchParams.get('year')
+    if (!y) return null
+    if (y === 'all') return null
+    if (/^\d{4}$/.test(y)) return Number(y)
+    return null
+  })()
+
   const [player, setPlayer] = useState<PlayerRow | null>(null)
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
-  const [activeTab, setActiveTab] = useState<PageTab>('overview')
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<PageTab>(initialTab)
+  const [selectedYear, setSelectedYear] = useState<number | null>(initialYear)
   const [currentEquipment, setCurrentEquipment] = useState<{
     racket: {
       id: string
@@ -518,6 +535,25 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     }
   }, [derived.availableYears, selectedYear])
 
+  // Sync active tab + selected year back into the URL (without polluting history).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    if (activeTab === 'overview') {
+      sp.delete('tab')
+    } else {
+      sp.set('tab', activeTab)
+    }
+    if (selectedYear == null) {
+      sp.delete('year')
+    } else {
+      sp.set('year', String(selectedYear))
+    }
+    const qs = sp.toString()
+    const next = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    router.replace(next, { scroll: false })
+  }, [activeTab, selectedYear, router])
+
   // Fall-through guard: if ?tab=earnings lands on a player with no earnings data, reset to overview.
   useEffect(() => {
     if (activeTab === 'earnings' && !(earnings != null && earnings.allTimeEur > 0)) {
@@ -550,10 +586,11 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const categoryColor = player.category === 'men' ? MEN_BLUE : player.category === 'women' ? WOMEN_PURPLE : MUTED
 
   // Hero stat chips — pick the 4 most relevant available metrics
-  const heroStats: Array<{ label: string; value: string; accent?: 'green' | 'orange' }> = []
+  type HeroStat = { label: string; value: string; accent?: 'green' | 'orange'; onClick?: () => void; ariaLabel?: string }
+  const heroStats: HeroStat[] = []
   if (derived.winRate != null) heroStats.push({ label: tPlayer('winRate'), value: `${derived.winRate}%`, accent: 'green' })
   else if (player.win_rate) heroStats.push({ label: tPlayer('winRate'), value: `${player.win_rate}%`, accent: 'green' })
-  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange' })
+  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange', onClick: () => setActiveTab('season'), ariaLabel: 'View titles in Season tab' })
   if (derived.finished.length > 0) heroStats.push({ label: tPlayer('record'), value: `${derived.wins}-${derived.losses}`, accent: 'green' })
   else if (player.total_matches) heroStats.push({ label: tPlayer('matches'), value: String(player.total_matches) })
   if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange' })
@@ -665,21 +702,44 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           {/* Stat chips row */}
           {heroStats.length > 0 && (
             <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-              {heroStats.slice(0, 4).map(s => (
-                <div key={s.label} style={{
-                  flex: 1, background: BG_CARD, padding: '9px 6px', textAlign: 'center',
-                  clipPath: 'polygon(0% 3%, 99% 0%, 100% 97%, 1% 100%)',
-                }}>
-                  <div style={{
-                    fontSize: 16, fontWeight: 800, lineHeight: 1,
-                    color: s.accent === 'orange' ? ORANGE : s.accent === 'green' ? GREEN : '#fff',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>{s.value}</div>
-                  <div style={{ fontSize: 8, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>
-                    {s.label}
-                  </div>
-                </div>
-              ))}
+              {heroStats.slice(0, 4).map(s => {
+                const clickable = s.onClick != null
+                const Tag = clickable ? 'button' : 'div'
+                return (
+                  <Tag
+                    key={s.label}
+                    onClick={s.onClick}
+                    aria-label={s.ariaLabel}
+                    style={{
+                      flex: 1, background: BG_CARD, padding: '9px 6px', textAlign: 'center',
+                      clipPath: 'polygon(0% 3%, 99% 0%, 100% 97%, 1% 100%)',
+                      border: 'none', cursor: clickable ? 'pointer' : 'default',
+                      position: 'relative',
+                      boxShadow: clickable ? 'inset 0 0 0 1.5px rgba(245,166,35,0.4)' : undefined,
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{
+                      fontSize: 16, fontWeight: 800, lineHeight: 1,
+                      color: s.accent === 'orange' ? ORANGE : s.accent === 'green' ? GREEN : '#fff',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>{s.value}</div>
+                    <div style={{ fontSize: 8, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>
+                      {s.label}
+                    </div>
+                    {clickable && (
+                      <span style={{
+                        position: 'absolute', top: 3, right: 5,
+                        width: 5, height: 5,
+                        borderTop: '1.5px solid ' + ORANGE,
+                        borderRight: '1.5px solid ' + ORANGE,
+                        transform: 'rotate(45deg)',
+                        opacity: 0.7,
+                      }} />
+                    )}
+                  </Tag>
+                )
+              })}
             </div>
           )}
         </div>
@@ -739,6 +799,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             playerId={id}
             router={router}
             setActiveTab={setActiveTab}
+            setSelectedYear={setSelectedYear}
             currentEquipment={currentEquipment}
             earnings={earnings}
           />
@@ -778,7 +839,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 //  OVERVIEW TAB — Widget grid (from Concept C)
 // ═══════════════════════════════════════════════════════════════
 function OverviewTab({
-  player, matches, derived, playerId, router, setActiveTab, currentEquipment, earnings,
+  player, matches, derived, playerId, router, setActiveTab, setSelectedYear, currentEquipment, earnings,
 }: {
   player: PlayerRow
   matches: MatchRow[]
@@ -786,6 +847,7 @@ function OverviewTab({
   playerId: string
   router: ReturnType<typeof useRouter>
   setActiveTab: (t: PageTab) => void
+  setSelectedYear: (y: number | null) => void
   currentEquipment: {
     racket: {
       id: string
@@ -829,26 +891,72 @@ function OverviewTab({
       {/* Career earnings — YTD + All-Time tiles (PR 2C) */}
       {earnings != null && earnings.allTimeEur > 0 && (
         <>
-          <Widget label={t('ytdEarnings')}>
-            <div style={{
-              fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.1, marginTop: 4,
-            }}>
-              {format.number(earnings.ytdEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-            </div>
-            <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {new Date().getUTCFullYear()}
-            </div>
-          </Widget>
-          <Widget label={t('allTimeEarnings')}>
-            <div style={{
-              fontSize: 22, fontWeight: 800, color: GREEN, lineHeight: 1.1, marginTop: 4,
-            }}>
-              {format.number(earnings.allTimeEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-            </div>
-            <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {t('earningsSinceLabel', { year: 2024 })}
-            </div>
-          </Widget>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => { setSelectedYear(new Date().getUTCFullYear()); setActiveTab('earnings') }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setSelectedYear(new Date().getUTCFullYear())
+                setActiveTab('earnings')
+              }
+            }}
+            style={{ cursor: 'pointer', position: 'relative' }}
+          >
+            <Widget label={t('ytdEarnings')}>
+              <div style={{
+                fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.1, marginTop: 4,
+              }}>
+                {format.number(earnings.ytdEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+              </div>
+              <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                {new Date().getUTCFullYear()}
+              </div>
+            </Widget>
+            <span style={{
+              position: 'absolute', top: 8, right: 8,
+              width: 6, height: 6,
+              borderTop: '1.5px solid ' + ORANGE,
+              borderRight: '1.5px solid ' + ORANGE,
+              transform: 'rotate(45deg)',
+              opacity: 0.7,
+              pointerEvents: 'none',
+            }} />
+          </div>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => { setSelectedYear(null); setActiveTab('earnings') }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setSelectedYear(null)
+                setActiveTab('earnings')
+              }
+            }}
+            style={{ cursor: 'pointer', position: 'relative' }}
+          >
+            <Widget label={t('allTimeEarnings')}>
+              <div style={{
+                fontSize: 22, fontWeight: 800, color: GREEN, lineHeight: 1.1, marginTop: 4,
+              }}>
+                {format.number(earnings.allTimeEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+              </div>
+              <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                {t('earningsSinceLabel', { year: 2024 })}
+              </div>
+            </Widget>
+            <span style={{
+              position: 'absolute', top: 8, right: 8,
+              width: 6, height: 6,
+              borderTop: '1.5px solid ' + ORANGE,
+              borderRight: '1.5px solid ' + ORANGE,
+              transform: 'rotate(45deg)',
+              opacity: 0.7,
+              pointerEvents: 'none',
+            }} />
+          </div>
         </>
       )}
 
