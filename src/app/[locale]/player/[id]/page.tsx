@@ -19,6 +19,7 @@ import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
+import { EarningsTab } from './EarningsTab'
 import { Widget, WidgetIcon } from './Widget'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
@@ -284,6 +285,26 @@ function computeAge(birthdate: string | null): number | null {
 }
 
 
+// ── NEW pill — show for 30 days after first visit ─────────────
+const NEW_PILL_STORAGE_KEY = 'ganhos_tab_new_until'
+const NEW_PILL_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+function shouldShowNewPill(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const raw = window.localStorage.getItem(NEW_PILL_STORAGE_KEY)
+    if (!raw) {
+      const until = Date.now() + NEW_PILL_TTL_MS
+      window.localStorage.setItem(NEW_PILL_STORAGE_KEY, String(until))
+      return true
+    }
+    const until = Number(raw)
+    return Number.isFinite(until) && Date.now() < until
+  } catch {
+    return false
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  PAGE
 // ═══════════════════════════════════════════════════════════════
@@ -497,6 +518,13 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     }
   }, [derived.availableYears, selectedYear])
 
+  // Fall-through guard: if ?tab=earnings lands on a player with no earnings data, reset to overview.
+  useEffect(() => {
+    if (activeTab === 'earnings' && !(earnings != null && earnings.allTimeEur > 0)) {
+      setActiveTab('overview')
+    }
+  }, [activeTab, earnings])
+
   // ── Loading / not found ──────────────────────────────────────
   if (loading) return (
     <>
@@ -530,12 +558,16 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   else if (player.total_matches) heroStats.push({ label: tPlayer('matches'), value: String(player.total_matches) })
   if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange' })
 
-  const tabs: Array<{ id: PageTab; label: string }> = [
+  const hasEarnings = earnings != null && earnings.allTimeEur > 0
+  const showNewPill = hasEarnings && shouldShowNewPill()
+
+  const tabs: Array<{ id: PageTab; label: string; isNew?: boolean }> = [
     { id: 'overview', label: tPlayer('overview') },
     { id: 'season', label: tPlayer('season') },
     { id: 'partners', label: tPlayer('partners') },
     { id: 'matches', label: tPlayer('matches') },
     { id: 'stats', label: tPlayer('stats') },
+    ...(hasEarnings ? [{ id: 'earnings' as const, label: tPlayer('earningsTab'), isNew: showNewPill }] : []),
   ]
 
   return (
@@ -655,9 +687,29 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         {/* ── TABS ─────────────────────────────────────────────── */}
         {/* 5 tabs at this label length (ESTADÍSTICAS et al) overflow
             the flex-equal layout, so we let tabs shrink to content
-            (flex: none) and scroll the strip horizontally instead. */}
+            (flex: none) and scroll the strip horizontally instead.
+            Tabs with `isNew` get an orange NEW pill inline in the label. */}
         <SlidingInkTabs<PageTab>
-          tabs={tabs.map(t => ({ key: t.id, label: t.label }))}
+          tabs={tabs.map(t => ({
+            key: t.id,
+            label: t.isNew ? (
+              <>
+                {t.label}
+                <span style={{
+                  background: ORANGE,
+                  color: '#000',
+                  fontSize: 7,
+                  fontWeight: 800,
+                  padding: '1px 4px',
+                  borderRadius: 2,
+                  marginLeft: 4,
+                  verticalAlign: 'top',
+                }}>
+                  {tPlayer('earningsTabNewPill')}
+                </span>
+              </>
+            ) : t.label,
+          }))}
           activeKey={activeTab}
           onChange={setActiveTab}
           containerStyle={{
@@ -707,6 +759,13 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         )}
         {activeTab === 'stats' && (
           <StatsTab player={player} derived={derived} matches={matches} playerId={id} />
+        )}
+        {activeTab === 'earnings' && hasEarnings && (
+          <EarningsTab
+            playerId={id}
+            initialYear={selectedYear ?? 'all'}
+            onYearChange={(y) => setSelectedYear(y === 'all' ? null : y)}
+          />
         )}
       </div>
       <BottomNav />

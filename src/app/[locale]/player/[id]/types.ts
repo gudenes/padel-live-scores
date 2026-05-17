@@ -1,6 +1,6 @@
 // Shared types for the player profile page and its tab sub-components.
 
-export type PageTab = 'overview' | 'season' | 'partners' | 'matches' | 'stats'
+export type PageTab = 'overview' | 'season' | 'partners' | 'matches' | 'stats' | 'earnings'
 
 export interface MatchRow {
   id: string
