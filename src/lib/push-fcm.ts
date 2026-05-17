@@ -90,23 +90,19 @@ export async function sendPushToFcmTokens(
             body: payload.body,
           },
           sound: 'default',
-          // Group notifications by tag so multiple match updates collapse
-          // into a single thread on the lock screen — matches Android's
-          // `tag`-based replacement behaviour.
-          'thread-id': payload.tag || 'match-live',
-          // `mutable-content: 1` tells iOS to route the push through our
-          // PadelNotificationService extension (ios/App/PadelNotificationService)
-          // BEFORE displaying it. The extension then attaches the image
-          // referenced in fcmOptions.imageUrl below — player avatar or
-          // circuit logo — so iOS shows it as rich media (large image
-          // next to / under the alert text). Without this flag iOS
-          // delivers the push directly to its UI layer, bypasses the
-          // extension, and the image attachment is ignored.
-          //
-          // The extension target is required for this to work; just
-          // setting the flag without an installed extension means no
-          // change (the push still displays, just without the image).
-          'mutable-content': 1,
+          // firebase-admin's Aps interface uses camelCase property names
+          // and handles the kebab-case conversion to APNs spec internally
+          // (threadId -> thread-id, mutableContent -> mutable-content: 1).
+          // We hit a real bug on 2026-05-18 where using kebab-case here
+          // (`'mutable-content': 1`) resulted in the flag being silently
+          // dropped from the outbound APNs payload — iOS never routed the
+          // push through PadelNotificationService and the image attachment
+          // never landed on the device.
+          threadId: payload.tag || 'match-live',
+          // mutableContent: true is REQUIRED for the Notification Service
+          // Extension to be invoked. Without it iOS delivers the push
+          // straight to the UI and the fcmOptions.imageUrl below is ignored.
+          mutableContent: true,
         },
       },
       ...(payload.icon ? { fcmOptions: { imageUrl: payload.icon } } : {}),
