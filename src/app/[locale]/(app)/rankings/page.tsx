@@ -5,6 +5,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
 import GlobalHeader from '@/components/nav/GlobalHeader'
@@ -229,8 +230,15 @@ export default function V3RankingPage() {
   const t = useTranslations('rankings')
   const format = useFormatter()
   const router = useRouter()
-  const [rankType, setRankType] = useState<RankType>('official')
-  const [gender, setGender] = useState<Gender>('men')
+  const searchParams = useSearchParams()
+
+  const initialGender: Gender =
+    searchParams.get('gender') === 'women' ? 'women' : 'men'
+  const initialType: RankType =
+    searchParams.get('type') === 'race' ? 'race' : 'official'
+
+  const [rankType, setRankType] = useState<RankType>(initialType)
+  const [gender, setGender] = useState<Gender>(initialGender)
 
   // Swipe between Official / Race tabs
   const RANK_KEYS = useMemo(() => ['official', 'race'] as const, [])
@@ -250,6 +258,18 @@ export default function V3RankingPage() {
     onTabChange: handleTabChange,
   })
   useEffect(() => { swipeGoTo(RANK_KEYS.indexOf(rankType)) }, [rankType, swipeGoTo, RANK_KEYS])
+
+  // Sync gender + rankType to URL params
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    if (gender === 'men') sp.delete('gender'); else sp.set('gender', gender)
+    if (rankType === 'official') sp.delete('type'); else sp.set('type', rankType)
+    const qs = sp.toString()
+    const next = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    router.replace(next as Parameters<typeof router.replace>[0], { scroll: false })
+  }, [gender, rankType, router])
+
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
