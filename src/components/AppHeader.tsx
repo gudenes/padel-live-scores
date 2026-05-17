@@ -57,7 +57,10 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
   return (
     <header style={{
       position: 'sticky',
-      top: 0,
+      // See GlobalHeader for rationale — sticky pins relative to the
+      // viewport, so env(safe-area-inset-top) is needed to keep the
+      // header below the Dynamic Island after scroll.
+      top: 'env(safe-area-inset-top, 0px)',
       zIndex: 100,
       background: '#0A0A0A',
       borderBottom: 'none',

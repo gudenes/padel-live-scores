@@ -59,7 +59,15 @@ export default function GlobalHeader() {
     <>
       <header style={{
         position: 'sticky',
-        top: 0,
+        // env(safe-area-inset-top) — NOT 0 — because position:sticky pins
+        // relative to the scroll-container's viewport, not to the body's
+        // content area. With `top: 0`, the header would scroll into the
+        // Dynamic Island / status bar zone once the body's safe-area
+        // padding scrolled off-screen. Pinning at env(safe-area-inset-top)
+        // keeps the header anchored directly below the system UI at
+        // every scroll position. On platforms without notches, env()
+        // returns 0px so behavior is identical to the old code.
+        top: 'env(safe-area-inset-top, 0px)',
         zIndex: 100,
         background: '#0A0A0A',
         borderBottom: 'none',
