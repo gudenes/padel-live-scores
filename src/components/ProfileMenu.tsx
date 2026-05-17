@@ -132,9 +132,19 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
         transform: 'rotate(45deg)',
       }} />
 
-      {/* Auth-aware header tile */}
-      {user && profile ? (
-        <Link href="/profile" onClick={onClose} style={{ textDecoration: 'none' }}>
+      {/* Auth-aware header tile.
+          When the user has a real display_name (starts with an alpha
+          letter — guards against Apple Hide My Email's email-shaped
+          fallback), show their initial avatar + name + view-profile CTA.
+          When display_name is missing (most common with Apple Sign In
+          where the user didn't share their name on first auth), show a
+          friendly "Welcome! Tap to set your name" with the silhouette
+          avatar, linking straight to Settings → Edit profile. */}
+      {user && profile ? (() => {
+        const hasRealName = !!profile.display_name && /^[a-zA-Z]/.test(profile.display_name)
+        const linkHref = hasRealName ? '/profile' : '/profile/settings'
+        return (
+        <Link href={linkHref} onClick={onClose} style={{ textDecoration: 'none' }}>
           <div style={{
             padding: '14px 14px 12px',
             borderBottom: '1px solid rgba(255,255,255,0.08)',
@@ -158,7 +168,16 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
                   fontSize: 14,
                   color: '#fff',
                 }}>
-                  {!profile.avatar_url && (profile.display_name?.[0]?.toUpperCase() ?? 'U')}
+                  {profile.avatar_url ? null : hasRealName ? (
+                    profile.display_name!.charAt(0).toUpperCase()
+                  ) : (
+                    // Silhouette icon for unnamed users — matches the
+                    // generic-user SVG used elsewhere in the app.
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  )}
                 </div>
                 {tier && (
                   <div style={{
@@ -179,7 +198,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
-                  {profile.display_name ?? 'User'}
+                  {hasRealName ? profile.display_name : t('unnamedTitle')}
                 </div>
                 <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                   {streak >= 1 && (
@@ -189,13 +208,14 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
                       {' · '}
                     </>
                   )}
-                  {t('viewProfile')} ›
+                  {hasRealName ? `${t('viewProfile')} ›` : `${t('unnamedSub')} ›`}
                 </div>
               </div>
             </div>
           </div>
         </Link>
-      ) : (
+        )
+      })() : (
         <div style={{
           padding: '14px 14px 12px',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
