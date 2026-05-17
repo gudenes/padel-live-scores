@@ -6,7 +6,7 @@
 
 import { App } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { PushNotifications } from '@capacitor/push-notifications'
+import { FirebaseMessaging } from '@capacitor-firebase/messaging'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
 
@@ -65,9 +65,9 @@ export async function initNative(): Promise<void> {
   }
 
   // Deep link handler: when an https://padelnachos.com URL arrives via
-  // Android App Links (or iOS Universal Links, future), route the WebView
-  // to the path so OAuth callbacks, magic-link emails, and shared match
-  // URLs all land inside the app instead of bouncing out to Chrome.
+  // Android App Links or iOS Universal Links, route the WebView to the
+  // path so OAuth callbacks, magic-link emails, and shared match URLs
+  // all land inside the app instead of bouncing out to Chrome/Safari.
   try {
     App.addListener('appUrlOpen', ({ url }) => {
       try {
@@ -83,57 +83,79 @@ export async function initNative(): Promise<void> {
     console.warn('[native-init] App.appUrlOpen listener failed', err)
   }
 
-  // Push notifications: register the device with FCM (Android) / APNs
-  // (iOS, future), POST the resulting token to our backend so the
-  // /api/push/notify fan-out can target this device. Tap routing: when
-  // the user taps a notification, deep-link via window.location to the
-  // URL embedded in the notification's data payload.
+  // Push notifications: @capacitor-firebase/messaging delivers FCM tokens
+  // on BOTH platforms. On Android the Firebase Cloud Messaging SDK is the
+  // native messaging layer (token format unchanged from the previous
+  // @capacitor/push-notifications setup — same Firebase project, same
+  // app instance, same FCM token). On iOS, the AppDelegate registers
+  // with APNs and Firebase exchanges that token for an FCM token, which
+  // this plugin surfaces here. Server-side fan-out (/api/push/notify)
+  // ships a single firebase-admin send() call per token and doesn't
+  // care which platform produced it.
   try {
-    const perm = await PushNotifications.requestPermissions()
-    if (perm.receive === 'granted') {
-      await PushNotifications.register()
+    const perm = await FirebaseMessaging.requestPermissions()
+    if (perm.receive !== 'granted') {
+      console.info('[native-init] push permission not granted:', perm.receive)
+      return
     }
 
-    PushNotifications.addListener('registration', async (token) => {
-      try {
-        // Cache the device token so usePushNotifications can DELETE the
-        // exact subscription when the user toggles push off in settings.
-        // Source of truth is still the DB; this is just so we know which
-        // token to target without a separate "list my devices" round-trip.
-        // Survives page reloads inside the WebView; cleared on app data
-        // wipe — both states are fine because the next register() event
-        // re-caches with the fresh token.
-        try {
-          window.localStorage.setItem('padelnachos:fcm-token', token.value)
-        } catch {
-          /* localStorage unavailable (private mode etc.) — non-fatal */
-        }
-        await fetch('/api/user/native-push-subscriptions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            platform: Capacitor.getPlatform(), // 'android' | 'ios'
-            deviceToken: token.value,
-            locale: navigator.language?.split('-')[0] || 'en',
-          }),
-        })
-      } catch (err) {
-        console.warn('[native-init] push register POST failed', err)
-      }
-    })
+    // getToken() triggers the native registration on both platforms and
+    // also wires up the 'tokenReceived' event for future refreshes.
+    // Android: returns immediately with the cached FCM token.
+    // iOS: blocks briefly while APNs registration completes, then
+    // returns the FCM token derived from the APNs device token.
+    try {
+      const { token } = await FirebaseMessaging.getToken()
+      await persistDeviceToken(token)
+    } catch (err) {
+      console.warn('[native-init] FirebaseMessaging.getToken failed', err)
+    }
 
-    PushNotifications.addListener('registrationError', (err) => {
-      console.warn('[native-init] push registration error', err)
+    // Token rotates periodically (every ~few weeks per device, or when
+    // user reinstalls). Re-persist when that happens.
+    await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
+      await persistDeviceToken(token)
     })
 
     // When user taps a notification, route the WebView to the deep link
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      const url = action.notification.data?.url
+    // embedded in the data payload. FirebaseMessaging types `data` as
+    // `{}` (any unknown keys), so cast through `Record<string, unknown>`
+    // to read our app-specific `url` field.
+    await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
+      const data = event.notification.data as Record<string, unknown> | undefined
+      const url = data?.url
       if (typeof url === 'string' && url.startsWith('/')) {
         window.location.href = url
       }
     })
   } catch (err) {
-    console.warn('[native-init] PushNotifications setup failed', err)
+    console.warn('[native-init] FirebaseMessaging setup failed', err)
+  }
+}
+
+/**
+ * Cache + POST a freshly minted device token. Caching lets the
+ * usePushNotifications hook DELETE the exact subscription when the
+ * user toggles push off in settings, without a separate "list my
+ * devices" round-trip. Source of truth remains the DB row.
+ */
+async function persistDeviceToken(token: string): Promise<void> {
+  try {
+    window.localStorage.setItem('padelnachos:fcm-token', token)
+  } catch {
+    /* localStorage unavailable (private mode etc.) — non-fatal */
+  }
+  try {
+    await fetch('/api/user/native-push-subscriptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        platform: Capacitor.getPlatform(), // 'android' | 'ios'
+        deviceToken: token,
+        locale: navigator.language?.split('-')[0] || 'en',
+      }),
+    })
+  } catch (err) {
+    console.warn('[native-init] persistDeviceToken POST failed', err)
   }
 }
