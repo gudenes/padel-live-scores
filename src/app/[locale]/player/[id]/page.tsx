@@ -749,6 +749,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             playerId={id}
             selectedYear={selectedYear ?? derived.availableYears[0] ?? new Date().getFullYear()}
             onYearChange={setSelectedYear}
+            storedTitlesTotal={player.titles ?? null}
           />
         )}
         {activeTab === 'partners' && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
@@ -132,16 +132,31 @@ function SeasonStat({ value, label, accent }: { value: string; label: string; ac
 //  SEASON TAB — monthly breakdown + summary
 // ═══════════════════════════════════════════════════════════════
 export function SeasonTab({
-  derived, playerId, selectedYear, onYearChange,
+  derived, playerId, selectedYear, onYearChange, storedTitlesTotal,
 }: {
   derived: DerivedData
   playerId: string
   selectedYear: number
   onYearChange: (year: number) => void
+  storedTitlesTotal?: number | null
 }) {
   const t = useTranslations('player')
   const format = useFormatter()
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  // Dev-only: warn if stored titles count diverges from derived count
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return
+    if (storedTitlesTotal == null) return
+    // Compare all-time derived count (not just selected year) against stored.
+    const derivedAllTime = deriveTitles(derived.finished, playerId).length
+    if (derivedAllTime !== storedTitlesTotal) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[player-titles] Mismatch for player ${playerId}: stored=${storedTitlesTotal}, derived=${derivedAllTime}`,
+      )
+    }
+  }, [derived.finished, playerId, storedTitlesTotal])
 
   // Compute season data for the selected year from the full finished match list.
   const { seasonWins, seasonLosses, monthly } = useMemo(() => {
