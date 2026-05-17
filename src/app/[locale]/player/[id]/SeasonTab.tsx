@@ -162,7 +162,7 @@ export function SeasonTab({
   const { seasonWins, seasonLosses, monthly } = useMemo(() => {
     const ms = derived.finished.filter(m => {
       const d = matchDate(m)
-      return d != null && new Date(d).getFullYear() === selectedYear
+      return d != null && new Date(d).getUTCFullYear() === selectedYear
     })
     const wins = ms.filter(m => resolveMatchRoles(m, playerId).won).length
     const losses = ms.length - wins
