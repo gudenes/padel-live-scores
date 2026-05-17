@@ -84,8 +84,16 @@ html, body {
    with their own sticky header (welcome, settings, profile, …) —
    clears the system UI automatically. On platforms without notches
    (desktop, mobile browser chrome) env(safe-area-inset-*) returns
-   0px and this is a no-op. */
+   0px and this is a no-op.
+
+   Body background is overridden to #0A0A0A (the GlobalHeader's exact
+   color) so the safe-area gap above the header reads as a single
+   continuous black band with the header — instead of showing the
+   page's --bg-base (lighter dark grey) and creating a visible seam
+   right at the notch boundary. Page content has its own background
+   on top of body, so this only repaints the safe-area zone. */
 body {
+  background: #0A0A0A;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }

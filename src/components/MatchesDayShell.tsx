@@ -20,7 +20,6 @@
 // the parent server page composes those around it.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useStickyHeaderVisibility } from '@/hooks/useStickyHeaderVisibility'
 import { useTranslations } from 'next-intl'
 import EmptyState from '@/components/EmptyState'
 import MatchesFilterClient from '@/components/MatchesFilterClient'
@@ -77,9 +76,6 @@ export default function MatchesDayShell({
 }: Props) {
   const tDaily = useTranslations('daily')
   const tOffline = useTranslations('offline')
-  // Shared with GlobalHeader so the date strip animates in/out in
-  // lockstep — both hide on scroll-down, both reappear on scroll-up.
-  const stickyVisible = useStickyHeaderVisibility()
   const tz = useMemo(() => getLocaleHomeTz(locale), [locale])
 
   // Offline banner — hydration-safe (defaults to hidden on SSR; window
@@ -403,11 +399,9 @@ export default function MatchesDayShell({
       <div
         style={{
           position: 'sticky',
-          // Visible: pins right below the 62px GlobalHeader. Hidden:
-          // tracks the GlobalHeader's translateY(-100%) by also
-          // shifting up — see transform below. We keep top: 62 fixed
-          // because the actual offscreen movement is done via
-          // transform, which doesn't disturb the sticky base offset.
+          // Pins directly below the 62px GlobalHeader. Always visible
+          // so the day filters stay one tap away regardless of scroll
+          // position — matches the always-pinned GlobalHeader pattern.
           top: 62,
           zIndex: 50,
           background: 'rgba(10,10,10,0.94)',
@@ -415,15 +409,6 @@ export default function MatchesDayShell({
           WebkitBackdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(255,255,255,0.04)',
           overflow: 'hidden',
-          // Same translate animation as GlobalHeader so the two
-          // stacked elements move as a single block. translateY(-200%)
-          // (not -100%) compensates for the 62px GlobalHeader space
-          // above — using -100% would only slide this strip off by
-          // its own height, leaving a 62px gap of hidden GlobalHeader
-          // still visible.
-          transform: stickyVisible ? 'translateY(0)' : 'translateY(-200%)',
-          transition: 'transform 0.25s ease',
-          pointerEvents: stickyVisible ? 'auto' : 'none',
         }}
       >
         <DailyDatePills

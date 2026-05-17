@@ -10,7 +10,6 @@
 // needed the same chrome.
 
 import { useEffect, useState } from 'react'
-import { useStickyHeaderVisibility } from '@/hooks/useStickyHeaderVisibility'
 import { useTranslations } from 'next-intl'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import ProfileButton from '@/components/ProfileButton'
@@ -46,13 +45,15 @@ export default function GlobalHeader() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Hide-on-scroll-down / show-on-scroll-up. Shares the
-  // useStickyHeaderVisibility hook with MatchesDayShell so the global
-  // header and the date-pill strip animate as a single block. The hook
-  // uses a 6px delta threshold to avoid dead-zones during inertial
-  // scroll (the previous inline impl flipped back to "hidden" on every
-  // tiny scroll tick and never let the transition settle).
-  const headerVisible = useStickyHeaderVisibility()
+  // Always-pinned sticky header. We tried hide-on-scroll twice and
+  // both attempts had subtle interaction bugs inside the Capacitor iOS
+  // WebView (pointer dead-zone after scroll-up, twitchy state during
+  // inertial scroll). Sofascore/ESPN/OneFootball all use always-visible
+  // mobile headers — that's the pattern we converge on. The body's
+  // padding-top: env(safe-area-inset-top) (set in globals.css) gives
+  // the iOS Dynamic Island its clearance, and the body background-color
+  // is matched to the header background so the safe-area gap looks
+  // like a continuation of the header rather than a separate band.
 
   return (
     <>
@@ -66,19 +67,8 @@ export default function GlobalHeader() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        // Safe-area clearance is handled globally on `body` in
-        // globals.css — every page (including ones not using
-        // GlobalHeader) gets pushed below the Dynamic Island / notch
-        // automatically. So we keep the header padding compact here
-        // and rely on the body offset for system-UI breathing room.
         padding: '12px 16px',
         height: 62,
-        transform: headerVisible ? 'translateY(0)' : 'translateY(-100%)',
-        transition: 'transform 0.25s ease',
-        // Disable pointer events while hidden so taps during the
-        // transition don't get absorbed by the offscreen header — the
-        // root cause of the earlier dead-zone bug.
-        pointerEvents: headerVisible ? 'auto' : 'none',
       }}>
         {/* Logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
