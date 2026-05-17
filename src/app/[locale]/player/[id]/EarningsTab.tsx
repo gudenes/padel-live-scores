@@ -185,15 +185,19 @@ export function EarningsTab({ playerId, initialYear, onYearChange }: Props) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {filtered.map(r => {
+            if (!r.tournaments?.id) {
+              console.warn('[EarningsTab] orphaned earning row, skipping', r.id)
+              return null
+            }
             const round: TournamentRoundCode = r.round_eliminated === 'F' ? 'W' : r.round_eliminated
             const dateText = format.dateTime(new Date(r.earned_at), { month: 'short', year: 'numeric' })
             const amount = format.number(r.per_player_eur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
             return (
               <TournamentRow
                 key={r.id}
-                tournamentId={r.tournaments?.id ?? ''}
-                tournamentName={r.tournaments?.name ?? '—'}
-                tournamentLevel={r.tournaments?.level ?? null}
+                tournamentId={r.tournaments.id}
+                tournamentName={r.tournaments.name ?? '—'}
+                tournamentLevel={r.tournaments.level ?? null}
                 round={round}
                 trailing={amount}
                 dateText={dateText}
