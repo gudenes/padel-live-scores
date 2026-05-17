@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { getLocale } from "next-intl/server";
 import { GatedAnalytics } from "@/components/GatedAnalytics";
@@ -7,6 +7,18 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
 import { buildAlternates } from "@/lib/seo-helpers";
 import "./globals.css";
+
+// Viewport is a separate export in Next.js 16 (was a `viewport` field on
+// `metadata` in older versions). `viewportFit: 'cover'` is what makes
+// iOS WebViews populate the `env(safe-area-inset-*)` CSS variables —
+// without this, sticky headers render under the Dynamic Island / notch
+// inside the Capacitor iOS shell.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#0A0A0A',
+}
 
 export const metadata: Metadata = {
   title: {
