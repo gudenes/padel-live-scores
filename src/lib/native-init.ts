@@ -6,10 +6,18 @@
 
 import { App } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { FirebaseMessaging } from '@capacitor-firebase/messaging'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { cacheFcmToken, postFcmToken } from '@/lib/persist-fcm-token'
+
+// @capacitor-firebase/messaging has a web-side implementation that
+// imports `firebase/messaging` from the Firebase web SDK. We don't
+// install the web SDK (we only use this plugin on native, where it
+// hits the Firebase iOS/Android SDKs bundled in the Capacitor host).
+// Importing it statically here breaks the web bundle with
+// "Module not found: Can't resolve 'firebase/messaging'".
+// Lazy-import it inside the native-only code path so the web bundle
+// never sees it.
 
 let initialized = false
 
@@ -94,6 +102,11 @@ export async function initNative(): Promise<void> {
   // ships a single firebase-admin send() call per token and doesn't
   // care which platform produced it.
   try {
+    // Dynamic import — see top-of-file comment. Bundler emits this as
+    // a separate chunk and skips it entirely on web. Only ever runs
+    // after the `Capacitor.isNativePlatform()` early-return above.
+    const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
+
     const perm = await FirebaseMessaging.requestPermissions()
     if (perm.receive !== 'granted') {
       console.info('[native-init] push permission not granted:', perm.receive)
