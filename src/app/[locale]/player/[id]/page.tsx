@@ -17,6 +17,9 @@ import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
+import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
+import { SeasonTab } from './SeasonTab'
+import { Widget, WidgetIcon } from './Widget'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -121,84 +124,6 @@ function Last10SparkBar({
   )
 }
 
-// Monthly performance chart bar (Season tab). Two stacked fills:
-// the loss area (red, bottom-up full height) and the wins overlay
-// (green, bottom-up to wrHeight%). Both grow from the bottom edge
-// when the chart enters the viewport.
-function MonthlyBar({
-  total,
-  height,
-  wrHeight,
-  monthLabel,
-  rowIndex,
-  red,
-  green,
-}: {
-  total: number
-  height: number
-  wrHeight: number
-  monthLabel: string
-  rowIndex: number
-  red: string
-  green: string
-}) {
-  const barRef = useRef<HTMLDivElement>(null)
-  const inView = useInViewOnce(barRef)
-  const animationStyle: React.CSSProperties = {
-    transformOrigin: 'bottom center',
-    transform: inView ? 'scaleY(1)' : 'scaleY(0)',
-    transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
-  }
-  return (
-    <div
-      ref={barRef}
-      style={{
-        flex: 1,
-        position: 'relative',
-        height: `${height}%`,
-        minHeight: total === 0 ? 4 : undefined,
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: total === 0 ? 'rgba(255,255,255,0.05)' : red,
-          clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
-          ...animationStyle,
-        }}
-      />
-      {total > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: `${wrHeight}%`,
-            background: green,
-            clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
-            ...animationStyle,
-          }}
-        />
-      )}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: -18,
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          fontSize: 8,
-          color: '#6B7280',
-        }}
-      >
-        {monthLabel}
-      </div>
-    </div>
-  )
-}
-
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
@@ -221,8 +146,6 @@ const CHUNKY = {
 }
 
 // ── Types ──────────────────────────────────────────────────────
-type PageTab = 'overview' | 'season' | 'partners' | 'matches' | 'stats'
-
 interface PlayerRow {
   id: string
   name: string
@@ -248,32 +171,6 @@ interface PlayerRow {
     racket_image?: string
     brand_logo?: string
   } | null
-}
-
-interface MatchRow {
-  id: string
-  status: string
-  round: string | null
-  started_at: string | null
-  finished_at: string | null
-  scheduled_at: string | null
-  winner_pair: number | null
-  category: string | null
-  duration: number | null
-  tournament: { id: string; name: string | null; country: string | null; level: string | null; starts_at: string | null; ends_at: string | null } | null
-  pair1_player1: PartnerInfo | null
-  pair1_player2: PartnerInfo | null
-  pair2_player1: PartnerInfo | null
-  pair2_player2: PartnerInfo | null
-  sets: Array<{ set_score: string | null; set_number: number }>
-}
-
-interface PartnerInfo {
-  id: string
-  name: string
-  display_name: string | null
-  country: string | null
-  avatar_url: string | null
 }
 
 // Round avatar for a partner/player — uses avatar_url when available,
@@ -821,21 +718,6 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 // ═══════════════════════════════════════════════════════════════
 //  OVERVIEW TAB — Widget grid (from Concept C)
 // ═══════════════════════════════════════════════════════════════
-interface DerivedData {
-  finished: MatchRow[]
-  wins: number
-  losses: number
-  winRate: number | null
-  last10Matches: MatchRow[]
-  currentPartner: PartnerInfo | null
-  cpWins: number
-  cpLosses: number
-  firstPartneredIso: string | null
-  lastPartneredIso: string | null
-  partnersList: Array<{ partner: PartnerInfo; wins: number; losses: number; lastIso: string | null }>
-  availableYears: number[]
-}
-
 function OverviewTab({
   player, matches, derived, playerId, router, setActiveTab, currentEquipment, earnings,
 }: {
@@ -1196,186 +1078,6 @@ function OverviewTab({
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ── Widget building blocks ───────────────────────────────────
-function Widget({ label, wide = false, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
-  return (
-    <div style={{
-      background: BG_CARD, padding: 12,
-      clipPath: CHUNKY.card,
-      position: 'relative',
-      minHeight: 92,
-      gridColumn: wide ? '1 / -1' : undefined,
-    }}>
-      <div style={{
-        fontSize: 9, color: ORANGE, textTransform: 'uppercase',
-        letterSpacing: 1, fontWeight: 700, marginBottom: 8,
-      }}>
-        {label}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function WidgetIcon({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      position: 'absolute', top: 10, right: 10,
-      width: 22, height: 22,
-      background: 'rgba(245,166,35,0.1)', color: ORANGE,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 11, fontWeight: 700,
-      clipPath: CHUNKY.iconChip,
-    }}>
-      {children}
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  SEASON TAB — monthly breakdown + summary
-// ═══════════════════════════════════════════════════════════════
-function SeasonTab({
-  derived, playerId, selectedYear, onYearChange,
-}: {
-  derived: DerivedData
-  playerId: string
-  selectedYear: number
-  onYearChange: (year: number) => void
-}) {
-  const t = useTranslations('player')
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-  // Compute season data for the selected year from the full finished match list.
-  const { seasonWins, seasonLosses, monthly } = useMemo(() => {
-    const ms = derived.finished.filter(m => {
-      const d = matchDate(m)
-      return d != null && new Date(d).getFullYear() === selectedYear
-    })
-    const wins = ms.filter(m => resolveMatchRoles(m, playerId).won).length
-    const losses = ms.length - wins
-    const mo: Array<{ wins: number; losses: number }> = Array.from({ length: 12 }, () => ({ wins: 0, losses: 0 }))
-    for (const m of ms) {
-      const d = matchDate(m)
-      if (!d) continue
-      const month = new Date(d).getMonth()
-      if (resolveMatchRoles(m, playerId).won) mo[month].wins++
-      else mo[month].losses++
-    }
-    return { seasonWins: wins, seasonLosses: losses, monthly: mo }
-  }, [derived.finished, selectedYear, playerId])
-
-  const maxTotal = Math.max(1, ...monthly.map(m => m.wins + m.losses))
-  const seasonTotal = seasonWins + seasonLosses
-  const seasonWr = seasonTotal > 0 ? Math.round((seasonWins / seasonTotal) * 100) : null
-
-  // Year chip selector — always render even if current year has no matches.
-  const yearSelector = (
-    <div style={{
-      display: 'flex', gap: 6, padding: '0 4px 4px',
-      overflowX: 'auto', scrollbarWidth: 'none',
-    } as React.CSSProperties}>
-      {derived.availableYears.length === 0 ? (
-        <div style={{ fontSize: 11, color: MUTED }}>{t('noSeasonsAvailable')}</div>
-      ) : derived.availableYears.map(year => {
-        const active = year === selectedYear
-        return (
-          <button
-            key={year}
-            onClick={() => onYearChange(year)}
-            style={{
-              padding: '6px 12px', fontSize: 11, fontWeight: 700,
-              background: active ? GREEN : BG_CARD,
-              color: active ? '#000' : '#fff',
-              border: 'none', cursor: 'pointer',
-              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-              letterSpacing: 0.3,
-            }}
-          >
-            {year}
-          </button>
-        )
-      })}
-    </div>
-  )
-
-  if (seasonTotal === 0) {
-    return (
-      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {yearSelector}
-        <div style={{ padding: '32px 12px', textAlign: 'center', color: MUTED, fontSize: 12 }}>
-          {t('noMatchesForSeason', { year: selectedYear })}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-
-      {yearSelector}
-
-      {/* Summary stat row */}
-      <Widget wide label={t('seasonLabel', { year: selectedYear })}>
-        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-          <SeasonStat value={`${seasonWins}-${seasonLosses}`} label={t('record')} />
-          <SeasonStat value={seasonWr != null ? `${seasonWr}%` : '—'} label={t('winRate')} accent="green" />
-          <SeasonStat value={String(seasonTotal)} label={t('matches')} />
-        </div>
-      </Widget>
-
-      {/* Monthly chart */}
-      <Widget wide label={t('monthlyPerformance')}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 100, padding: '8px 0 22px', marginTop: 4 }}>
-          {monthly.map((mo, i) => {
-            const total = mo.wins + mo.losses
-            const height = total === 0 ? 4 : (total / maxTotal) * 100
-            const wrHeight = total === 0 ? 0 : (mo.wins / total) * 100
-            return (
-              <MonthlyBar
-                key={i}
-                total={total}
-                height={height}
-                wrHeight={wrHeight}
-                monthLabel={months[i]}
-                rowIndex={i}
-                red={LIVE_RED}
-                green={GREEN}
-              />
-            )
-          })}
-        </div>
-        <div style={{ display: 'flex', gap: 12, fontSize: 9, color: MUTED, marginTop: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, background: GREEN }} /> Wins
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, background: LIVE_RED }} /> Losses
-          </div>
-        </div>
-      </Widget>
-    </div>
-  )
-}
-
-function SeasonStat({ value, label, accent }: { value: string; label: string; accent?: 'green' | 'orange' }) {
-  return (
-    <div style={{
-      flex: 1, background: BG_CARD2, padding: '10px 8px', textAlign: 'center',
-      clipPath: 'polygon(0% 3%, 99% 0%, 100% 97%, 1% 100%)',
-    }}>
-      <div style={{
-        fontSize: 18, fontWeight: 800,
-        color: accent === 'orange' ? ORANGE : accent === 'green' ? GREEN : '#fff',
-        fontVariantNumeric: 'tabular-nums', lineHeight: 1,
-      }}>{value}</div>
-      <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
     </div>
   )
 }
