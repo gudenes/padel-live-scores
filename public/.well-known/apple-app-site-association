@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "385U6MAT6Z.com.padelnachos.app",
+        "paths": ["*"]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["385U6MAT6Z.com.padelnachos.app"]
+  }
+}

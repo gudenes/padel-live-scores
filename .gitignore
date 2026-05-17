@@ -59,3 +59,16 @@ android/.cxx/
 android/app/release/
 *.iml
 mobile-webdir/
+
+# Capacitor — Xcode / iOS build artifacts + per-user state
+ios/build/
+ios/App/build/
+ios/App/Pods/
+ios/App/Podfile.lock
+ios/App/.swiftpm/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+ios/App/App.xcworkspace/xcuserdata/
+ios/DerivedData/
+*.xcuserstate
+*.xccheckout
