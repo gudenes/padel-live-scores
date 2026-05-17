@@ -122,22 +122,14 @@ body {
   z-index: 10000;
   background: #000;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  /* Logo near 30% from top, spinner near 80% — matches the mockup */
-  padding-top: 22%;
-  padding-bottom: 14%;
+  justify-content: center;
   transition: opacity 0.4s ease, visibility 0s linear 0.4s;
-  /* No pointer-events on the visible overlay — it's a black box that
-     intentionally blocks clicks during the brief loading moment. Once
-     hidden, pointer-events: none kicks in via the .hidden class. */
 }
-/* CSS-only hide. The overlay stays in the DOM tree (does NOT
-   removeChild) so React reconciliation isn't disturbed. visibility:
-   hidden + pointer-events: none takes the overlay completely out of
-   hit-testing once the opacity transition completes (visibility
-   transitions after opacity via the delay above). */
+/* CSS-only hide — overlay stays in the DOM (no removeChild) so React's
+   reconciliation isn't disturbed. visibility:hidden + pointer-events:
+   none takes the overlay out of hit-testing once the opacity transition
+   completes. */
 #splash-overlay.hidden {
   opacity: 0;
   visibility: hidden;
@@ -150,18 +142,6 @@ body {
   height: auto;
   user-select: none;
   -webkit-user-drag: none;
-}
-
-.splash-overlay-arc {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(126, 211, 33, 0.18);
-  border-top-color: #7ED321;
-  border-radius: 50%;
-  animation: splashOverlaySpin 0.9s linear infinite;
-}
-@keyframes splashOverlaySpin {
-  to { transform: rotate(360deg); }
 }
 
 /* Permanent overlay band covering the safe-area-inset-top zone (status
