@@ -47,16 +47,28 @@ export async function sendPushToFcmTokens(
   if (tokens.length === 0) return { success: 0, failed: 0, invalidTokens: [] }
 
   const messaging = admin.messaging(getApp())
-  // Data-only payload (no `notification` field). Critical: when the
-  // `notification` field is present, FCM auto-displays a system
-  // notification on background apps WITHOUT invoking our service —
-  // which means we can't set largeIcon. Sending data-only forces every
-  // message through PadelMessagingService.onMessageReceived, where we
-  // download the icon and build the notification ourselves.
+  // Per-platform payload:
   //
-  // Trade-off: requires the new app build. Older app versions without
-  // PadelMessagingService won't display data-only messages. Acceptable
-  // because we control the rollout and the user is the primary tester.
+  // - ANDROID gets a data-only message (no top-level `notification`).
+  //   This forces every message through PadelMessagingService.onMessage-
+  //   Received, where we download `icon` and set it as the round
+  //   largeIcon on the right of the notification row. With a top-level
+  //   `notification` field, FCM auto-displays for background apps via
+  //   the system path and skips our service — losing the custom icon.
+  //
+  // - iOS uses the `apns.payload.aps.alert` block to display. iOS does
+  //   NOT display data-only messages — the WebView app has no
+  //   Notification Service Extension to intercept silent pushes, so
+  //   they arrive but are never rendered. Pre-fix (2026-05-17) Lia's
+  //   TestFlight build received `fcm_sent: 1` events with zero visible
+  //   notifications. Adding the `apns.alert` block makes iOS render
+  //   the banner via the standard APNs alert path while still leaving
+  //   the `data` block intact for any client-side handling (deep
+  //   link routing on tap, etc.).
+  //
+  // The cost is that we lose the custom-largeIcon feature on iOS —
+  // iOS just shows the app icon for now. Acceptable. The Android
+  // largeIcon-via-PadelMessagingService path keeps working unchanged.
   const result = await messaging.sendEachForMulticast({
     tokens,
     data: {
@@ -68,6 +80,23 @@ export async function sendPushToFcmTokens(
     },
     android: {
       priority: 'high',
+    },
+    apns: {
+      headers: { 'apns-priority': '10' },
+      payload: {
+        aps: {
+          alert: {
+            title: payload.title,
+            body: payload.body,
+          },
+          sound: 'default',
+          // Group notifications by tag so multiple match updates collapse
+          // into a single thread on the lock screen — matches Android's
+          // `tag`-based replacement behaviour.
+          'thread-id': payload.tag || 'match-live',
+        },
+      },
+      ...(payload.icon ? { fcmOptions: { imageUrl: payload.icon } } : {}),
     },
   })
 
