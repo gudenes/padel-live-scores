@@ -20,7 +20,10 @@ export interface StatsHeaderProps {
 export function StatsHeader({ displayName, rank, totalGuacas, accuracyPct, currentStreak, bestStreak }: StatsHeaderProps) {
   const t = useTranslations('prediction.myPicks')
 
-  const initial = displayName.charAt(0).toUpperCase()
+  // Guard against email-shaped display_names (Apple private-relay
+  // accounts) and other non-alpha first chars — show "?" instead of a
+  // digit or "@" which looks like a glitch.
+  const initial = /^[a-zA-Z]/.test(displayName) ? displayName.charAt(0).toUpperCase() : '?'
 
   return (
     <>
