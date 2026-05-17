@@ -565,6 +565,7 @@
     "balance_head-light": "Basso",
     "earningsTab": "Guadagni",
     "earningsTabNewPill": "NEW",
+    "earningsTabNewPill_context": "Distintivo di scoperta nella nuova scheda Guadagni",
     "ytdEarningsCard": "YTD {year}",
     "careerEarningsCard": "Carriera",
     "earningsEventsCount": "{count, plural, one {# evento} other {# eventi}}",

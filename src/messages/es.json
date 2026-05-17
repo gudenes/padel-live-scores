@@ -565,6 +565,7 @@
     "balance_head-light": "Bajo",
     "earningsTab": "Ganancias",
     "earningsTabNewPill": "NEW",
+    "earningsTabNewPill_context": "Insignia de descubrimiento en la nueva pestaña Ganancias",
     "ytdEarningsCard": "YTD {year}",
     "careerEarningsCard": "Carrera",
     "earningsEventsCount": "{count, plural, one {# evento} other {# eventos}}",
