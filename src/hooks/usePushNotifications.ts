@@ -17,9 +17,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/AuthProvider'
 import { Capacitor } from '@capacitor/core'
-import { PushNotifications } from '@capacitor/push-notifications'
+import { cacheFcmToken, postFcmToken } from '@/lib/persist-fcm-token'
 
+// Same key the rest of the app uses (see persist-fcm-token.ts).
 const FCM_TOKEN_STORAGE_KEY = 'padelnachos:fcm-token'
+
+// @capacitor-firebase/messaging is the same plugin native-init.ts uses
+// for boot-time registration. We lazy-import it inside the native code
+// paths so the web bundle never sees the Firebase web SDK transitively
+// pulled in by its web-fallback file (which would otherwise crash the
+// Turbopack build at module-resolution time).
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -84,9 +91,11 @@ export function usePushNotifications() {
       // OS-level permission). Subscription state is queried from the
       // server because the device token is opaque to JS until the next
       // registration event fires.
-      void PushNotifications.checkPermissions().then((p) => {
-        if (cancelled) return
-        setPermission(mapNativePermission(p.receive))
+      void import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) => {
+        return FirebaseMessaging.checkPermissions().then((p) => {
+          if (cancelled) return
+          setPermission(mapNativePermission(p.receive))
+        })
       })
       if (user) {
         void fetch('/api/user/native-push-subscriptions', { cache: 'no-store' })
@@ -110,25 +119,27 @@ export function usePushNotifications() {
   }, [user, isNative, supported])
 
   // ── Native subscribe/unsubscribe ────────────────────────────────────
-  // Subscribe: ask the OS for permission, then register() — the existing
-  // 'registration' listener in src/lib/native-init.ts owns the POST to
-  // /api/user/native-push-subscriptions and caches the token in localStorage.
-  // Calling register() multiple times re-fires the listener with the same
-  // (or refreshed) token, which is idempotent server-side via UPSERT.
+  // Subscribe: ask iOS/Android for notification permission, then pull the
+  // FCM token directly via FirebaseMessaging.getToken() and POST it
+  // ourselves. We previously delegated this to native-init's plugin event
+  // listener, but that left a race window where the toggle would optimistically
+  // flip on without ever landing a DB row (no listener = silent drop).
+  // Doing the get+post inline guarantees the row exists before the toggle
+  // settles. UPSERT on the server side makes duplicate POSTs harmless.
   const subscribeNative = useCallback(async () => {
     if (!user) return false
     try {
-      const perm = await PushNotifications.requestPermissions()
+      const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
+      const perm = await FirebaseMessaging.requestPermissions()
       const mapped = mapNativePermission(perm.receive)
       setPermission(mapped)
       if (mapped !== 'granted') return false
 
-      // Optimistic flip — the registration event will land momentarily and
-      // the server-side row creation is idempotent, so worst case is a
-      // brief over-claim until the listener completes.
-      setEnabled(true)
-      await PushNotifications.register()
-      return true
+      const { token } = await FirebaseMessaging.getToken()
+      cacheFcmToken(token)
+      const ok = await postFcmToken(token)
+      setEnabled(ok)
+      return ok
     } catch (e) {
       console.error('[Push native] subscribe failed:', e)
       setEnabled(false)
