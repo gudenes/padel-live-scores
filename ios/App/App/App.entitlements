@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- APNs: use 'development' for debug + TestFlight builds, Apple
+	     auto-swaps to 'production' for App Store builds (or we override
+	     in a release-only entitlements file later). Sandbox+Production
+	     scope on the auth key means one APNs key handles both. -->
+	<key>aps-environment</key>
+	<string>development</string>
+
+	<!-- Universal Links: iOS fetches
+	     https://padelnachos.com/.well-known/apple-app-site-association
+	     on first install to verify domain ownership, then any
+	     https://padelnachos.com/* tap from Mail/Messages/Safari opens
+	     the app instead of the browser. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:padelnachos.com</string>
+	</array>
+
+	<!-- Required by App Store Guideline 4.8 when the app offers
+	     third-party sign-in (we have Google). Enabling this capability
+	     in entitlements + registering an Apple Service ID in the dev
+	     portal unlocks the Sign in with Apple button in the auth
+	     sheet. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>
