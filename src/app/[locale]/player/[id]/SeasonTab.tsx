@@ -1,10 +1,14 @@
 'use client'
 
 import { useMemo, useRef } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useFormatter } from 'next-intl'
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
+import { deriveTitles, type MatchRowForTitles } from '@/lib/derive-titles'
+import { deriveSeasonTournaments } from '@/lib/derive-season-tournaments'
 import { Widget } from './Widget'
+import { TitlesCallout } from './TitlesCallout'
+import { TournamentRow } from './TournamentRow'
 import type { DerivedData, MatchRow } from './types'
 
 // ── Local brand constants ──────────────────────────────────────
@@ -136,6 +140,7 @@ export function SeasonTab({
   onYearChange: (year: number) => void
 }) {
   const t = useTranslations('player')
+  const format = useFormatter()
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   // Compute season data for the selected year from the full finished match list.
@@ -156,6 +161,23 @@ export function SeasonTab({
     }
     return { seasonWins: wins, seasonLosses: losses, monthly: mo }
   }, [derived.finished, selectedYear, playerId])
+
+  // MatchRow is structurally compatible with MatchRowForTitles at runtime;
+  // cast to avoid a nominal type mismatch (played_at is optional there).
+  const finishedAsTitles = derived.finished as unknown as MatchRowForTitles[]
+
+  const yearTitles = useMemo(
+    () => deriveTitles(finishedAsTitles, playerId).filter(title => {
+      const iso = title.wonAt
+      return iso != null && new Date(iso).getUTCFullYear() === selectedYear
+    }),
+    [finishedAsTitles, playerId, selectedYear],
+  )
+
+  const seasonTournaments = useMemo(
+    () => deriveSeasonTournaments(finishedAsTitles, playerId, selectedYear),
+    [finishedAsTitles, playerId, selectedYear],
+  )
 
   const maxTotal = Math.max(1, ...monthly.map(m => m.wins + m.losses))
   const seasonTotal = seasonWins + seasonLosses
@@ -209,6 +231,8 @@ export function SeasonTab({
 
       {yearSelector}
 
+      <TitlesCallout year={selectedYear} titles={yearTitles} />
+
       {/* Summary stat row */}
       <Widget wide label={t('seasonLabel', { year: selectedYear })}>
         <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -248,6 +272,28 @@ export function SeasonTab({
           </div>
         </div>
       </Widget>
+
+      {seasonTournaments.length > 0 && (
+        <>
+          <div style={{ fontSize: 9, color: ORANGE, textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, padding: '4px 0 0' }}>
+            {t('seasonTournamentsCount', { count: seasonTournaments.length })}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {seasonTournaments.map(ts => (
+              <TournamentRow
+                key={ts.tournament.id}
+                tournamentId={ts.tournament.id}
+                tournamentName={ts.tournament.name}
+                tournamentLevel={ts.tournament.level}
+                round={ts.bestRound}
+                trailing={`${ts.matchCount}p · ${ts.wins}-${ts.losses}`}
+                showTrophy={ts.isTitle}
+                dateText={ts.latestMatchAt ? format.dateTime(new Date(ts.latestMatchAt), { month: 'short', year: 'numeric' }) : undefined}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
