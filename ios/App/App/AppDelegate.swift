@@ -1,5 +1,7 @@
 import UIKit
 import Capacitor
+import FirebaseCore
+import FirebaseMessaging
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,7 +9,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Firebase initialization — must run before any plugin (specifically
+        // @capacitor-firebase/messaging) tries to call FirebaseApp.app(). The
+        // SDK auto-loads `GoogleService-Info.plist` from the main bundle, so
+        // no extra configuration is needed here. Without this call the iOS
+        // app would silently fail to receive FCM tokens because Firebase
+        // wouldn't know which project to register against.
+        FirebaseApp.configure()
         return true
     }
 
@@ -46,4 +54,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+    // MARK: - APNs token bridge
+    //
+    // When the device gets an APNs registration token from Apple, hand it to
+    // Firebase Messaging. Firebase exchanges it for an FCM token internally;
+    // that's what @capacitor-firebase/messaging surfaces to JavaScript and
+    // what our backend stores in `native_push_subscriptions.device_token`.
+    //
+    // Without this bridge Firebase would never know the device's APNs
+    // identity, and FCM sends would fail with `Requested entity was not
+    // found` because Firebase couldn't deliver to a device it hasn't
+    // associated with an APNs token.
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        NSLog("APNs registration failed: \(error.localizedDescription)")
+    }
 }
