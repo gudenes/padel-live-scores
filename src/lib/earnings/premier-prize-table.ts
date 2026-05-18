@@ -146,3 +146,53 @@ export function lookupPremierPrize(args: {
   const v = table[key]
   return typeof v === 'number' ? v : null
 }
+
+/**
+ * Build a `prize_breakdown`-shaped object from the Premier rulebook, used as
+ * a fallback when FIP hasn't published a breakdown table on the event page.
+ * Premier Majors (men's and women's Major I) have identical payouts in the
+ * 2026 rulebook, so a single object covers both genders. For P1/P2, men's
+ * and women's tables diverge — pick category explicitly.
+ *
+ * Returns null for levels with no rulebook entry (FIP-tier events, finals
+ * already aliased to major_i, etc.). The shape matches what
+ * `src/app/ops/TournamentExplorerTab.tsx` reads — keys are lower-case round
+ * labels, values are EUR per player, plus a `source: 'rulebook'` provenance
+ * tag.
+ */
+export function buildPremierBreakdownFromRulebook(
+  level: string | null,
+  category: Category = 'men',
+): Record<string, number | string> | null {
+  if (level == null) return null
+  let tier: PremierTier | null = null
+  switch (level) {
+    case 'major':
+    case 'finals':
+      tier = 'major_i'
+      break
+    case 'p1': tier = 'p1'; break
+    case 'p2': tier = 'p2'; break
+    default: return null
+  }
+
+  const out: Record<string, number | string> = { source: 'rulebook' }
+  const KEYS: Array<[RoundCode, string, boolean]> = [
+    ['F',   'winner',   true],
+    ['F',   'finalist', false],
+    ['SF',  'sf',       false],
+    ['QF',  'qf',       false],
+    ['R16', 'r16',      false],
+    ['R32', 'r32',      false],
+    ['R64', 'r64',      false],
+    ['Q3',  'q3',       false],
+    ['Q1',  'q1',       false],
+  ]
+  for (const [round, key, isWinner] of KEYS) {
+    const v = lookupPremierPrize({ tier, category, round, isWinner })
+    if (v != null) out[key] = v
+  }
+  // Bail out if the table was empty (e.g. men's major_ii) — nothing to show.
+  if (Object.keys(out).length === 1) return null
+  return out
+}
