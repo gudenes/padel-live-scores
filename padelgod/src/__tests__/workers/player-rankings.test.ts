@@ -520,7 +520,41 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     // Snapshots: 100 race-men + 1 race-women + 1 official-men + 1 official-women = 103
     expect(state.snapshots.filter(s => s.type === 'race' && s.gender === 'men')).toHaveLength(100);
   });
-  it.todo('Task 7 — race dropouts: previously-ranked players not in current run get race fields NULLed');
+  it('race dropouts: previously-ranked players not in current run get race fields NULLed', async () => {
+    // Seed two men's players with existing race_ranking. Only one shows up
+    // in this run's race response; the other should be NULLed.
+    seedPlayer({
+      id: 'dddd1111-0000-0000-0000-000000000001', fip_id: 'P000010', category: 'men',
+      race_ranking: 5, race_points: 100, race_move: 1,
+    });
+    seedPlayer({
+      id: 'dddd1111-0000-0000-0000-000000000002', fip_id: 'P000020', category: 'men',
+      race_ranking: 6, race_points: 90, race_move: 0,
+    });
+
+    // Only P000010 is in this run's race. P000020 should be NULLed.
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000010', race_rank: 5, race_points: 100, race_move: 1 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [raceRow({ player_id: 'P000099', race_rank: 1 })]);
+    setHttpResponse('gender=male&limit', [officialRow({ player_id: 'P000010', rank: 50 })]);
+    setHttpResponse('gender=female&limit', [officialRow({ player_id: 'P000099', rank: 1 })]);
+
+    const supabase = makeSupabase();
+    const result = await runPlayerRankings({ supabase, httpClient: makeHttpClient() });
+
+    // P000010 retained
+    const kept = state.players.find(p => p.fip_id === 'P000010')!;
+    expect(kept.race_ranking).toBe(5);
+
+    // P000020 NULLed
+    const dropped = state.players.find(p => p.fip_id === 'P000020')!;
+    expect(dropped.race_ranking).toBeNull();
+    expect(dropped.race_points).toBeNull();
+    expect(dropped.race_move).toBeNull();
+
+    expect(result.race.men.dropoutsCleared).toBe(1);
+  });
   it.todo('Task 8 — race endpoint empty: throws PARSED_ZERO_ROWS + Sentry');
   it.todo('Task 9 — NO_SNAPSHOTS_WRITTEN floor: throws if every phase parsed but every upsert failed');
 });
