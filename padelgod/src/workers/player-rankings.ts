@@ -346,11 +346,12 @@ async function writeOfficialSnapshots(
   });
 
   if (snapshotRows.length === 0) return 0;
-  const { error: upsertErr } = await supabase.from('player_ranking_snapshots').upsert(snapshotRows, {
+  const { error: upsertErr, count } = await supabase.from('player_ranking_snapshots').upsert(snapshotRows, {
     onConflict: 'player_id,type,year,week',
     ignoreDuplicates: false,
+    count: 'exact',
   });
-  if (upsertErr) {
+  if (upsertErr || !count) {
     return 0;
   }
   return snapshotRows.length;
@@ -380,11 +381,12 @@ async function writeRaceSnapshots(
   });
 
   if (snapshotRows.length === 0) return 0;
-  const { error: upsertErr } = await supabase.from('player_ranking_snapshots').upsert(snapshotRows, {
+  const { error: upsertErr, count } = await supabase.from('player_ranking_snapshots').upsert(snapshotRows, {
     onConflict: 'player_id,type,year,week',
     ignoreDuplicates: false,
+    count: 'exact',
   });
-  if (upsertErr) {
+  if (upsertErr || !count) {
     return 0;
   }
   return snapshotRows.length;

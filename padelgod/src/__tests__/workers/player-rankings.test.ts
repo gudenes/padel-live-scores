@@ -257,7 +257,7 @@ function makeSupabase() {
             if (idx >= 0) state.snapshots[idx] = r;
             else state.snapshots.push(r);
           }
-          return { error: null };
+          return { error: null, count: arr.length };
         }
         throw new Error(`MOCK: upsert on unknown table ${table}`);
       }),
@@ -582,5 +582,33 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
 
     sentrySpy.mockRestore();
   });
-  it.todo('Task 9 — NO_SNAPSHOTS_WRITTEN floor: throws if every phase parsed but every upsert failed');
+  it('NO_SNAPSHOTS_WRITTEN floor: orchestrator throws if every phase parsed but zero snapshots persist', async () => {
+    const sentrySpy = vi.spyOn(await import('@sentry/node'), 'captureException').mockImplementation(() => 'event-id');
+
+    // All four phases return data so PARSED_ZERO_ROWS does NOT fire
+    setHttpResponse('gender=male&limit', [officialRow({ player_id: 'P000001', rank: 1 })]);
+    setHttpResponse('gender=female&limit', [officialRow({ player_id: 'P000002', rank: 1 })]);
+    setHttpResponse('search_type=race&gender=male', [raceRow({ player_id: 'P000001', race_rank: 1 })]);
+    setHttpResponse('search_type=race&gender=female', [raceRow({ player_id: 'P000002', race_rank: 1 })]);
+
+    // Override supabase so player_ranking_snapshots.upsert swallows everything.
+    const supabase = makeSupabase();
+    const realFrom = supabase.from;
+    supabase.from = vi.fn((table: string) => {
+      const builder = realFrom(table);
+      if (table === 'player_ranking_snapshots') {
+        builder.upsert = vi.fn(async () => ({ error: null })); // silently drop
+      }
+      return builder;
+    });
+
+    await expect(runPlayerRankings({ supabase, httpClient: makeHttpClient() })).rejects.toThrow(/NO_SNAPSHOTS_WRITTEN/);
+
+    expect(sentrySpy).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: expect.objectContaining({ worker: 'player-rankings', phase: 'orchestrator' }) }),
+    );
+
+    sentrySpy.mockRestore();
+  });
 });
