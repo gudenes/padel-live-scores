@@ -63,6 +63,15 @@ interface TournamentWithSources {
   // publishes a per-round table for them). Carries a `source` key
   // ('rulebook' for synthesized, scraped values omit it / set 'scraped').
   prize_breakdown: Record<string, number | string> | null
+  // Per-gender synthesized breakdown for P1/P2 events. Men's and women's
+  // Premier P1/P2 rulebook tables diverge substantially (e.g. P1 winner:
+  // men €26,270 vs women €17,000), so a single `prize_breakdown` would
+  // be misleading. Only populated for synthesized P1/P2 cases; null for
+  // Major (men=women), FIP-tier, and scraped breakdowns.
+  prize_breakdown_by_category: {
+    men: Record<string, number | string> | null
+    women: Record<string, number | string> | null
+  } | null
   draw_size_md: number | null
   draw_size_qd: number | null
   // Status
@@ -421,9 +430,23 @@ export async function GET(request: Request) {
       ? buildPremierBreakdownFromRulebook(row.level ?? null)
       : null
     const prize_breakdown = (row.prize_breakdown ?? synth) as TournamentWithSources['prize_breakdown']
+    // Per-gender split for synthesized P1/P2 only. Men's and women's P1/P2
+    // rulebooks diverge enough that surfacing only men's silently (current
+    // default) misleads ops staff reading the women's bracket. Major skips
+    // this because men=women at that tier; FIP-tier and scraped breakdowns
+    // skip because we don't have per-gender data for them.
+    const isP1P2 = row.level === 'p1' || row.level === 'p2'
+    const prize_breakdown_by_category: TournamentWithSources['prize_breakdown_by_category'] =
+      synth && isP1P2
+        ? {
+            men: buildPremierBreakdownFromRulebook(row.level ?? null, 'men'),
+            women: buildPremierBreakdownFromRulebook(row.level ?? null, 'women'),
+          }
+        : null
     return {
       ...(row as TournamentWithSources),
       prize_breakdown,
+      prize_breakdown_by_category,
       matchCount: matchCountByTournament.get(t.id) ?? 0,
       finalPlayed: finalPlayedByTournament.has(t.id),
       phases: Array.from(phasesByTournament.get(t.id)?.values() ?? [])
