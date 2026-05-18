@@ -6,6 +6,7 @@
     "feed": "Notícias",
     "tournaments": "Eventos",
     "ranking": "Ranking",
+    "rankUpdated": "Ranking atualizado",
     "search": {
       "placeholder": "Procurar jogadores, torneios, jogos...",
       "closeAria": "Fechar pesquisa",

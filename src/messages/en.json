@@ -6,6 +6,7 @@
     "feed": "Feed",
     "tournaments": "Events",
     "ranking": "Ranking",
+    "rankUpdated": "Rankings updated",
     "search": {
       "placeholder": "Search players, tournaments, matches...",
       "closeAria": "Close search",
