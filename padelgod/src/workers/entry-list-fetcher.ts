@@ -81,7 +81,7 @@ export interface EntryListFetcherResult {
   totalPlayersUnresolved: number;
 }
 
-interface ActiveTournament {
+export interface ActiveTournament {
   tournament_id: string;
   tournament_name: string;
   slug: string | null;
@@ -416,7 +416,7 @@ async function processCategory(
   };
 }
 
-async function processTournament(
+export async function processTournament(
   deps: EntryListFetcherDeps,
   t: ActiveTournament
 ): Promise<TournamentOutcome> {
