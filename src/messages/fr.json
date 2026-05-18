@@ -320,6 +320,13 @@
     "videos": "Vidéos",
     "news": "Infos",
     "saved": "Enregistrés",
+    "originals": "Originaux",
+    "empty": {
+      "news": "Pas encore d'articles. Reviens bientôt.",
+      "videos": "Aucun highlight disponible dans ta région.",
+      "originals": "Bientôt.",
+      "saved": "Enregistre des articles pour les voir ici."
+    },
     "justNow": "À l'instant",
     "hoursAgo": "il y a {count}h",
     "daysAgo": "il y a {count}j",

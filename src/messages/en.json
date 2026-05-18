@@ -331,6 +331,13 @@
     "videos": "Videos",
     "news": "News",
     "saved": "Saved",
+    "originals": "Originals",
+    "empty": {
+      "news": "No articles yet. Check back soon.",
+      "videos": "No highlights available in your region.",
+      "originals": "First posts coming soon.",
+      "saved": "Bookmark articles to see them here."
+    },
     "justNow": "Just now",
     "hoursAgo": "{count}h ago",
     "daysAgo": "{count}d ago",
