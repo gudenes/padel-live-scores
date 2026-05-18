@@ -11,13 +11,29 @@ const FIXTURE_PATH = join(
   '../fixtures/crionet-match-stats-brussels.html',
 );
 
+// Default timestamps for the simple-shim option fields. Chosen so the
+// "stats already final" rule fires for existing tests that only set
+// `finishedMatchIds` + `existingStatsRows` — i.e. DEFAULT_STATS_COMPUTED_AT
+// is strictly AFTER DEFAULT_FINISHED_AT.
+const DEFAULT_FINISHED_AT = '2026-05-18T12:00:00Z';
+const DEFAULT_STATS_COMPUTED_AT = '2026-05-18T12:05:00Z';
+
 interface FakeSupabaseOptions {
   /** entity_external_ids rows: { entity_id, external_id } */
   mappings: Array<{ entity_id: string; external_id: string }>;
-  /** match ids whose status='finished' */
+  /** match ids whose status='finished' (with DEFAULT_FINISHED_AT) */
   finishedMatchIds: string[];
+  /** match ids whose status='live'. finished_at is null. */
+  liveMatchIds?: string[];
+  /** Per-match override for finished_at (ISO). Defaults to
+   *  DEFAULT_FINISHED_AT for entries in `finishedMatchIds`. */
+  matchFinishedAt?: Record<string, string>;
   /** match_stats rows that already exist (per match + source) */
   existingStatsRows?: Array<{ match_id: string; source: string }>;
+  /** Per-match override for the existing stats row's computed_at (ISO).
+   *  Defaults to DEFAULT_STATS_COMPUTED_AT — strictly AFTER the default
+   *  finished_at so existing "already has stats → skip" tests still pass. */
+  statsComputedAt?: Record<string, string>;
   /** Simulate PostgREST's URL-length cap: when set, any .in(col, ids) call
    *  with more than this many ids returns an error instead of data.
    *  Real production limit is ~210 UUIDs before Nginx 414s. */
@@ -51,6 +67,16 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
       };
     }
     if (t === 'matches') {
+      const DEFAULT_TOURNAMENT_ID = 'default-premier-tournament';
+      const buildRow = (id: string, status: string) => ({
+        id,
+        tournament_id: opts.matchTournaments?.[id] ?? DEFAULT_TOURNAMENT_ID,
+        status,
+        finished_at:
+          status === 'finished'
+            ? opts.matchFinishedAt?.[id] ?? DEFAULT_FINISHED_AT
+            : null,
+      });
       return {
         select: () => ({
           in: (_col: string, ids: string[]) => ({
@@ -63,14 +89,16 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
                   },
                 };
               }
-              if (status !== 'finished') return { data: [], error: null };
-              const DEFAULT_TOURNAMENT_ID = 'default-premier-tournament';
+              const liveSet = new Set(opts.liveMatchIds ?? []);
+              const finishedSet = new Set(opts.finishedMatchIds);
+              const pickByStatus = (id: string): boolean => {
+                if (status === 'finished') return finishedSet.has(id);
+                if (status === 'live' || status === 'on_court') return liveSet.has(id);
+                return false;
+              };
               const filtered = ids
-                .filter((id) => opts.finishedMatchIds.includes(id))
-                .map((id) => ({
-                  id,
-                  tournament_id: opts.matchTournaments?.[id] ?? DEFAULT_TOURNAMENT_ID,
-                }));
+                .filter(pickByStatus)
+                .map((id) => buildRow(id, status));
               return { data: filtered, error: null };
             },
           }),
@@ -110,7 +138,12 @@ function fakeSupabase(opts: FakeSupabaseOptions) {
                 .filter(
                   (row) => ids.includes(row.match_id) && row.source === sourceVal,
                 )
-                .map((row) => ({ match_id: row.match_id }));
+                .map((row) => ({
+                  match_id: row.match_id,
+                  computed_at:
+                    opts.statsComputedAt?.[row.match_id] ??
+                    DEFAULT_STATS_COMPUTED_AT,
+                }));
               return { data: filtered, error: null };
             },
           }),
@@ -479,6 +512,111 @@ describe('runMatchStatsFetcher', () => {
 
     expect(result.fetched).toBe(5);
     expect(result.skippedNonPremier).toBe(0);
+  });
+
+  // Live-mode: Crionet publishes the stats endpoint during a match too,
+  // not just after the final point. Polling it every cron tick while a
+  // Premier match is `live` lets the match-detail page show evolving
+  // aggregates (total points won %, 1st-serve win %, …) as the match
+  // progresses. The "skip if stats already exist" rule from the post-
+  // match path must NOT apply to live matches — every tick rewrites
+  // the per-set rows so the displayed numbers track reality.
+  it('always refetches live Premier matches even when crionet_widget stats already exist', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    const liveMatchId = 'match-live-uuid';
+
+    const supabase = fakeSupabase({
+      mappings: [{ entity_id: liveMatchId, external_id: 'FIP-2026-1701:MQ001' }],
+      finishedMatchIds: [],
+      liveMatchIds: [liveMatchId],
+      // A previous live-tick already wrote a crionet_widget stats row.
+      // The post-match "skip if has stats" rule would normally short-
+      // circuit here — but live mode must override.
+      existingStatsRows: [{ match_id: liveMatchId, source: 'crionet_widget' }],
+    });
+    const httpClient = { post: vi.fn(async () => ({ data: fixtureHtml })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.fetched).toBe(1);
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips live FIP-tier matches — same Premier-only gate applies to live mode', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    const liveFipMatchId = 'match-live-fip-uuid';
+
+    const supabase = fakeSupabase({
+      mappings: [{ entity_id: liveFipMatchId, external_id: 'FIP-2026-9001:MQ001' }],
+      finishedMatchIds: [],
+      liveMatchIds: [liveFipMatchId],
+      tournaments: [{ id: 't-bronze', level: 'Bronze' }],
+      matchTournaments: { [liveFipMatchId]: 't-bronze' },
+    });
+    const httpClient = { post: vi.fn(async () => ({ data: fixtureHtml })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.fetched).toBe(0);
+    expect(httpClient.post).not.toHaveBeenCalled();
+    expect(result.skippedNonPremier).toBe(1);
+  });
+
+  // Post-finish refetch: if the most recent stats row was captured
+  // during the match (computed_at < finished_at), we want one more
+  // fetch after the final point to lock in the truly-final aggregates.
+  // Without this, a match's displayed stats would forever reflect the
+  // last live-tick state — typically 1–5 min before the actual end.
+  it('refetches finished matches whose existing stats predate finished_at (capture the final aggregates)', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    const finishedMatchId = 'match-stale-stats-uuid';
+
+    const supabase = fakeSupabase({
+      mappings: [{ entity_id: finishedMatchId, external_id: 'FIP-2026-1701:MQ001' }],
+      finishedMatchIds: [finishedMatchId],
+      matchFinishedAt: { [finishedMatchId]: '2026-05-18T13:00:00Z' },
+      existingStatsRows: [{ match_id: finishedMatchId, source: 'crionet_widget' }],
+      // Pre-final: stats were last captured 60 min before the match ended.
+      statsComputedAt: { [finishedMatchId]: '2026-05-18T12:00:00Z' },
+    });
+    const httpClient = { post: vi.fn(async () => ({ data: fixtureHtml })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.fetched).toBe(1);
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT refetch a finished match whose stats were captured after finished_at (already final)', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    const finishedMatchId = 'match-final-stats-uuid';
+
+    const supabase = fakeSupabase({
+      mappings: [{ entity_id: finishedMatchId, external_id: 'FIP-2026-1701:MQ001' }],
+      finishedMatchIds: [finishedMatchId],
+      matchFinishedAt: { [finishedMatchId]: '2026-05-18T13:00:00Z' },
+      existingStatsRows: [{ match_id: finishedMatchId, source: 'crionet_widget' }],
+      // Post-final capture: stats were written AFTER the match ended.
+      statsComputedAt: { [finishedMatchId]: '2026-05-18T13:05:00Z' },
+    });
+    const httpClient = { post: vi.fn(async () => ({ data: fixtureHtml })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.fetched).toBe(0);
+    expect(httpClient.post).not.toHaveBeenCalled();
   });
 
   it('handles thousands of mappings by chunking the .in() filter beneath PostgREST URL-length cap', async () => {

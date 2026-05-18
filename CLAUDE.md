@@ -162,7 +162,7 @@ Schedule lives in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — t
 | fip-event-page-enricher | hourly :12 | Gap-fill venue / dates / matchscorer code |
 | widget-code-lookup | hourly :15 | Resolve Crionet widget IDs |
 | draw-fetcher | every 2h :20 | Crionet bracket scrape |
-| match-stats-fetcher | :25, :55 | Per-match stats from Crionet (20/batch × 2/hr) |
+| match-stats-fetcher | every 5 min | Per-match stats from Crionet — live + post-finish, Premier-tier only (20/batch) |
 | player-profile | hourly :30 | Per-player profile refresh |
 | static-reconciler | :05, :35 | Consume snapshots → `public.matches` / `sets` |
 | fip-draw-fetcher | hourly :35 | FIP event-page bracket scrape |
@@ -206,6 +206,27 @@ When designing live-only features, **assume Premier as the floor and gracefully 
 `match-stats-fetcher` enforces this with a `fetchPremierTournamentIds()` gate before any HTTP call. The result includes `skippedNonPremier` for observability, and the canonical `isPremierTier()` helper lives in [`padelgod/src/workers/match-stats-fetcher.ts`](padelgod/src/workers/match-stats-fetcher.ts).
 
 UI consequence: the Match Stats tab on a FIP-tier match will always show `unavailable`. Don't promise stats for non-Premier events in copy or feature design. If a new stats source ever covers FIP-tier, widen the tier helper.
+
+### Live mode + post-finish refetch
+
+The cron runs every 5 min and treats candidates differently by status (all gates still require Premier-tier):
+
+| `matches.status` | What runs | Why |
+|---|---|---|
+| `live` / `on_court` | **Always** refetch, even if `match_stats` already has rows | Crionet's endpoint serves evolving aggregates during play — refreshing every 5 min lets the match-detail page track reality through the match. Result counter: `fetchedLive`. |
+| `finished`, no existing stats | First fetch | Standard case for matches that finished while the cron was idle. Result counter: `fetchedPostFinish` does NOT include these. |
+| `finished`, existing stats with `computed_at < finished_at` | One more fetch | The last live-tick capture was pre-final (typically 1–5 min before the actual end). The refetch locks in the truly-final aggregates. Result counter: `fetchedPostFinish`. |
+| `finished`, existing stats with `computed_at ≥ finished_at` | Skip | Already final. Stable. |
+| any non-Premier-tier | Skip | Counter: `skippedNonPremier`. |
+
+Batch budget is 20 matches per run, prioritised `live → first_fetch → post_finish` so fans watching right now never wait behind catch-up work.
+
+Result-shape fields the on-demand refresh-tournament endpoint surfaces back to the operator:
+- `fetched` — total HTTP calls to Crionet
+- `fetchedLive` — subset that were status=live/on_court at fetch time
+- `fetchedPostFinish` — subset that were finished refetches for final aggregates
+- `skippedNonPremier` — non-Premier mappings dropped pre-HTTP
+- `skipped` — everything else (already-final, not-yet-finished, batch overflow, parse failures)
 
 ## Relay Service (`relay/index.js`)
 
