@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
+import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -273,6 +274,32 @@ export default function V3RankingPage() {
       document.removeEventListener('keydown', onKey)
     }
   }, [searchOpen, closeSearch])
+
+  // Mark the latest published ranking week as visited so the bottom-nav
+  // green dot clears. Mirrors the `markFeedVisited()` call on /feed.
+  // Queries the snapshot table directly (not derived from the players
+  // table) so both this call and the BottomNav probe agree on the
+  // year-week format.
+  useEffect(() => {
+    let cancelled = false
+    async function markLatestWeek() {
+      const { data } = await supabase
+        .from('player_ranking_snapshots')
+        .select('year, week')
+        .eq('source', 'padelgod-fip')
+        .order('year', { ascending: false })
+        .order('week', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (cancelled) return
+      const row = data as { year: number; week: number } | null
+      if (row) {
+        markRankingsVisited(`${row.year}-${String(row.week).padStart(2, '0')}`)
+      }
+    }
+    void markLatestWeek()
+    return () => { cancelled = true }
+  }, [])
 
   // ── Data fetching ──────────────────────────────────────────
   const load = useCallback(async (rt: RankType, g: Gender) => {
