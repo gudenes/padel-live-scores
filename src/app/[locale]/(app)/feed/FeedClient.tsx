@@ -4,6 +4,8 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
+import type { NewsPost } from '@/types/news'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import NewsPeekSheet from '@/components/home/NewsPeekSheet'
 import { supabase } from '@/lib/supabase'
 import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
@@ -76,6 +78,14 @@ interface NewsItem {
 type FeedItem =
   | { type: 'video'; data: Highlight }
   | { type: 'news'; data: NewsItem }
+
+type FeedTab = 'news' | 'videos' | 'originals' | 'saved'
+const FEED_TABS: readonly FeedTab[] = ['news', 'videos', 'originals', 'saved']
+const DEFAULT_TAB: FeedTab = 'news'
+
+function parseTab(value: string | null): FeedTab {
+  return FEED_TABS.includes(value as FeedTab) ? (value as FeedTab) : DEFAULT_TAB
+}
 
 /** Pick the localised title for a NewsItem, falling back to source. */
 function localizedNewsTitle(item: { title: string; title_translations?: Partial<Record<string, string>> | null }, userLocale: string): string {
@@ -647,16 +657,36 @@ function FeedSkeleton() {
 
 // ── Main page ──────────────────────────────────────────────────
 
-export default function FeedClient() {
+interface FeedClientProps {
+  originals: NewsPost[]
+}
+
+export default function FeedClient({ originals }: FeedClientProps) {
   return (
     <Suspense fallback={<FeedSkeleton />}>
-      <V3FeedPage />
+      <V3FeedPage originals={originals} />
     </Suspense>
   )
 }
 
-function V3FeedPage() {
+function V3FeedPage({ originals }: { originals: NewsPost[] }) {
   const tFeed = useTranslations('feed')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const activeTab = parseTab(searchParams.get('tab'))
+
+  const setTab = useCallback((tab: FeedTab) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (tab === DEFAULT_TAB) {
+      params.delete('tab')
+    } else {
+      params.set('tab', tab)
+    }
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
+
   const tCommon = useTranslations('common')
   const userLocale = useLocale()
   const { user } = useAuth()
