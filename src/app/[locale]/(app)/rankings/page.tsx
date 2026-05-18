@@ -10,6 +10,7 @@ import FollowButton from '@/components/FollowButton'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
+import { formatYearWeek } from '@/lib/iso-year-week'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -277,25 +278,23 @@ export default function V3RankingPage() {
 
   // Mark the latest published ranking week as visited so the bottom-nav
   // green dot clears. Mirrors the `markFeedVisited()` call on /feed.
-  // Queries the snapshot table directly (not derived from the players
-  // table) so both this call and the BottomNav probe agree on the
-  // year-week format.
+  // Reads players.ranking_date — same field the BottomNav probe uses,
+  // so both produce the same "YYYY-WW" string. player_ranking_snapshots
+  // is the canonical source but isn't anon-readable under RLS.
   useEffect(() => {
     let cancelled = false
     async function markLatestWeek() {
       const { data } = await supabase
-        .from('player_ranking_snapshots')
-        .select('year, week')
-        .eq('source', 'padelgod-fip')
-        .order('year', { ascending: false })
-        .order('week', { ascending: false })
+        .from('players')
+        .select('ranking_date')
+        .not('ranking_date', 'is', null)
+        .order('ranking_date', { ascending: false })
         .limit(1)
         .maybeSingle()
       if (cancelled) return
-      const row = data as { year: number; week: number } | null
-      if (row) {
-        markRankingsVisited(`${row.year}-${String(row.week).padStart(2, '0')}`)
-      }
+      const row = data as { ranking_date: string | null } | null
+      const week = formatYearWeek(row?.ranking_date)
+      if (week) markRankingsVisited(week)
     }
     void markLatestWeek()
     return () => { cancelled = true }

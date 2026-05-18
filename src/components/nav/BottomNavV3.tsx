@@ -17,6 +17,7 @@ import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useFeedLastVisit } from '@/hooks/useFeedLastVisit'
 import { useRankingsLastVisit } from '@/hooks/useRankingsLastVisit'
+import { formatYearWeek } from '@/lib/iso-year-week'
 
 // ── Icons ───────────────────────────────────────────────────────
 
@@ -294,22 +295,24 @@ export default function BottomNavV3() {
           supabase.from('articles').select('*', { count: 'exact', head: true })
             .eq('status', 'active')
             .gt('published_at', feedLastVisit),
+          // Latest ranking week probe. Reads players.ranking_date (publicly
+          // readable under RLS) and converts to ISO "YYYY-WW" client-side.
+          // player_ranking_snapshots is the canonical source but isn't
+          // anon-readable, so the dot logic would never fire if we queried
+          // it from the browser.
           supabase
-            .from('player_ranking_snapshots')
-            .select('year, week')
-            .eq('source', 'padelgod-fip')
-            .order('year', { ascending: false })
-            .order('week', { ascending: false })
+            .from('players')
+            .select('ranking_date')
+            .not('ranking_date', 'is', null)
+            .order('ranking_date', { ascending: false })
             .limit(1)
             .maybeSingle(),
         ])
         if (cancelled) return
         setLiveCount(liveRes.count ?? 0)
         setNewsCount(newsRes.count ?? 0)
-        const row = rankingsRes.data as { year: number; week: number } | null
-        setLatestRankingsWeek(
-          row ? `${row.year}-${String(row.week).padStart(2, '0')}` : null,
-        )
+        const row = rankingsRes.data as { ranking_date: string | null } | null
+        setLatestRankingsWeek(formatYearWeek(row?.ranking_date))
       } catch { /* silent */ }
     }
 
