@@ -80,11 +80,16 @@ describe('buildSchedule', () => {
     expect(names).not.toContain('shadow-diff-live');
   });
 
-  it('schedules match-stats-fetcher twice hourly at :25 and :55', () => {
+  it('schedules match-stats-fetcher every 5 minutes', () => {
+    // Bumped from :25/:55 (twice hourly) to every 5 min so user-visible
+    // Premier-tier matches get aggregated stats within ~5 min of every
+    // point played, not 30 min after the final point. Combined with the
+    // Premier-tier filter + live-mode refetch in the worker, this still
+    // costs ~10s of Crionet requests per hour in steady state.
     const sched = buildSchedule(ALL_ENABLED);
     const entry = sched.find((s) => s.name === 'match-stats-fetcher');
     expect(entry).toBeDefined();
-    expect(entry!.cron).toBe('25,55 * * * *');
+    expect(entry!.cron).toBe('*/5 * * * *');
   });
 
   it('schedules live-poller-manager every minute', () => {

@@ -495,7 +495,13 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableMatchStatsFetcher) {
     entries.push({
       name: 'match-stats-fetcher',
-      cron: '25,55 * * * *', // twice hourly at :25 and :55 — 20-match batch × 2/hr keeps recent finishes fresh
+      // Every 5 min. The worker now serves both "live during the match"
+      // (refetches every tick so the match-detail page tracks reality)
+      // AND "post-finish polish" (one extra fetch after finished_at to
+      // lock in the truly-final aggregates). At Premier-tier volumes,
+      // steady-state load is ≤10 Crionet POSTs per cron tick — most
+      // ticks do near-zero work because nothing changed.
+      cron: '*/5 * * * *',
       run: getWorkerRunner('match-stats-fetcher')!,
     });
   }

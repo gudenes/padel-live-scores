@@ -1,8 +1,5 @@
-// match-stats-fetcher — polls Crionet's POST /screen/getmatchstats for finished
-// matches that have a `crionet_widget` entity_external_ids mapping and no
-// `source='crionet_widget'` row in `public.match_stats` yet. Parses the 14
-// stat dimensions × (match aggregate + per-set) tabs via parseCrionetMatchStats
-// and writes the full schema column set to match_stats.
+// match-stats-fetcher — polls Crionet's POST /screen/getmatchstats for
+// Premier-tier matches and writes the parsed payload to `public.match_stats`.
 //
 // COVERAGE — PREMIER-TIER ONLY
 // ----------------------------
@@ -17,6 +14,35 @@
 //   - pollute scrape_jobs with no-op runs.
 // `result.skippedNonPremier` surfaces the count for observability. If a new
 // stats source ever covers FIP-tier, widen `isPremierTier()` accordingly.
+//
+// FETCH POLICY
+// ------------
+// The cron at every 5 min decides what to fetch by combining match status
+// with the existing-stats timestamp:
+//
+//   status='live' or 'on_court'  (Premier)     → ALWAYS fetch. Crionet's
+//     endpoint serves evolving aggregates during play (1st-serve %,
+//     longest-streak, total points won, …); each tick refreshes the per-set
+//     rows so the match-detail page tracks reality through the match.
+//     `result.fetchedLive` surfaces the count.
+//
+//   status='finished'  (Premier)               → fetch when no crionet
+//     stats exist yet OR when the most recent `computed_at` is BEFORE
+//     `finished_at`. The second case captures the final aggregates one
+//     more time after the last live tick — without it, the displayed
+//     stats would freeze at the last-pre-final live snapshot (usually
+//     1–5 min stale on a normal match end).
+//
+//   status='finished'  (Premier)  + final stats already captured
+//                                              → skip. Stable rows.
+//
+//   any non-Premier-tier match                 → skip; counted as
+//                                                `skippedNonPremier`.
+//
+// Batch size caps the per-run Crionet load at MATCH_STATS_BATCH_SIZE
+// matches. With the every-5-min cadence and the policy above, peak Crionet
+// load is ~10 POSTs/min during a busy Premier Sunday and ~0 the rest of
+// the time.
 //
 // Design notes:
 // - The parser returns 8 counts and 6 percentages. Counts (service_games,
@@ -52,6 +78,15 @@ export interface MatchStatsFetcherDeps {
 export interface MatchStatsFetcherResult {
   candidatesSeen: number;
   fetched: number;
+  /** Subset of `fetched` that were status='live' or 'on_court' at fetch
+   *  time. Surfaced separately because in steady state nearly all fetched
+   *  matches are finished — a non-zero `fetchedLive` is the signal that
+   *  fans were getting evolving stats for an in-progress match. */
+  fetchedLive: number;
+  /** Subset of `fetched` that are finished matches whose existing crionet
+   *  stats predated `finished_at` — i.e. we re-captured the truly-final
+   *  aggregates after the live-tick stream stopped. */
+  fetchedPostFinish: number;
   skipped: number;
   rowsUpserted: number;
   /** Mappings dropped because the match's tournament wasn't Premier-tier
@@ -198,50 +233,117 @@ async function fetchPremierTournamentIds(
   );
 }
 
+interface FinishedMatchInfo {
+  tournamentId: string | null;
+  finishedAt: string | null;
+}
+
 /**
- * For each chunk of candidate match IDs, return a `matchId → tournamentId`
- * map for the matches that are status='finished'. Used by the caller to
- * compute (a) the set of finished match IDs and (b) the subset of those
- * whose tournament is Premier-tier — both from a single chunked query
- * round-trip.
+ * For each chunk of candidate match IDs, return a `matchId → info` map
+ * for the matches that are status='finished'. Carries `tournament_id`
+ * (for the Premier-tier gate) and `finished_at` (for the post-finish
+ * refetch check) from one chunked query round-trip.
  */
-async function fetchFinishedMatchTournamentMap(
+async function fetchFinishedMatchInfo(
   supabase: SupabaseClient,
   matchIds: string[],
+): Promise<Map<string, FinishedMatchInfo>> {
+  const out = new Map<string, FinishedMatchInfo>();
+  if (matchIds.length === 0) return out;
+  for (let i = 0; i < matchIds.length; i += IN_FILTER_CHUNK_SIZE) {
+    const chunk = matchIds.slice(i, i + IN_FILTER_CHUNK_SIZE);
+    const { data, error } = await supabase
+      .from('matches')
+      .select('id, tournament_id, finished_at')
+      .in('id', chunk)
+      .eq('status', 'finished');
+    if (error) throw new Error(`matches query failed: ${error.message}`);
+    const rows = (data ?? []) as Array<{
+      id: string;
+      tournament_id: string | null;
+      finished_at: string | null;
+    }>;
+    for (const r of rows) {
+      out.set(r.id, { tournamentId: r.tournament_id, finishedAt: r.finished_at });
+    }
+  }
+  return out;
+}
+
+/**
+ * For each chunk of candidate match IDs, return a `matchId → tournamentId`
+ * map for matches whose status is 'live' or 'on_court'. Used to feed
+ * the live-mode always-fetch branch.
+ *
+ * Both queries are issued separately rather than via an `.in('status', […])`
+ * filter so a `tournamentlive`/`on_court` data quirk on one status can't
+ * poison the other (and so the fake supabase in tests can keep each
+ * branch isolated). At Premier-tier volumes, two chunked queries is a
+ * rounding error.
+ */
+async function fetchLiveMatchTournamentMap(
+  supabase: SupabaseClient,
+  matchIds: string[],
+): Promise<Map<string, string | null>> {
+  const out = new Map<string, string | null>();
+  if (matchIds.length === 0) return out;
+  for (const status of ['live', 'on_court'] as const) {
+    for (let i = 0; i < matchIds.length; i += IN_FILTER_CHUNK_SIZE) {
+      const chunk = matchIds.slice(i, i + IN_FILTER_CHUNK_SIZE);
+      const { data, error } = await supabase
+        .from('matches')
+        .select('id, tournament_id')
+        .in('id', chunk)
+        .eq('status', status);
+      if (error) throw new Error(`matches (${status}) query failed: ${error.message}`);
+      const rows = (data ?? []) as Array<{ id: string; tournament_id: string | null }>;
+      for (const r of rows) out.set(r.id, r.tournament_id);
+    }
+  }
+  return out;
+}
+
+/**
+ * Returns a `matchId → latest computed_at` map for crionet_widget rows
+ * in `match_stats`. The post-finish-refetch policy compares this against
+ * `matches.finished_at` to decide whether the existing stats are pre-
+ * final (captured during play) and need one more refresh.
+ *
+ * `null` in the value position means a row exists but `computed_at` was
+ * NULL — treat the same as "pre-final" (refetch).
+ *
+ * Legacy rows from older sources (premierpadel, padelapi) DON'T block
+ * the fetcher — they get overwritten so the row picks up the full
+ * column coverage.
+ */
+async function fetchCrionetStatsComputedAt(
+  supabase: SupabaseClient,
+  matchIds: string[]
 ): Promise<Map<string, string | null>> {
   const out = new Map<string, string | null>();
   if (matchIds.length === 0) return out;
   for (let i = 0; i < matchIds.length; i += IN_FILTER_CHUNK_SIZE) {
     const chunk = matchIds.slice(i, i + IN_FILTER_CHUNK_SIZE);
     const { data, error } = await supabase
-      .from('matches')
-      .select('id, tournament_id')
-      .in('id', chunk)
-      .eq('status', 'finished');
-    if (error) throw new Error(`matches query failed: ${error.message}`);
-    const rows = (data ?? []) as Array<{ id: string; tournament_id: string | null }>;
-    for (const r of rows) out.set(r.id, r.tournament_id);
-  }
-  return out;
-}
-
-async function fetchMatchIdsWithCrionetStats(
-  supabase: SupabaseClient,
-  matchIds: string[]
-): Promise<Set<string>> {
-  // Only skip matches that already have a crionet_widget row. Legacy rows from
-  // older sources (premierpadel, padelapi) DON'T block the fetcher — they get
-  // overwritten so the row picks up the full column coverage.
-  return inChunksAsSet(matchIds, async (chunk) => {
-    const { data, error } = await supabase
       .from('match_stats')
-      .select('match_id')
+      .select('match_id, computed_at')
       .in('match_id', chunk)
       .eq('source', 'crionet_widget');
     if (error) throw new Error(`match_stats query failed: ${error.message}`);
-    const rows = (data ?? []) as Array<{ match_id: string }>;
-    return new Set(rows.map((r) => r.match_id));
-  });
+    const rows = (data ?? []) as Array<{ match_id: string; computed_at: string | null }>;
+    for (const r of rows) {
+      // Multiple rows per match (aggregate + per-set) — keep the latest
+      // computed_at across them. They're written in a single upsert so
+      // they should all share the same value in practice.
+      const existing = out.get(r.match_id);
+      if (existing === undefined) {
+        out.set(r.match_id, r.computed_at);
+      } else if (existing !== null && r.computed_at !== null && r.computed_at > existing) {
+        out.set(r.match_id, r.computed_at);
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -379,6 +481,14 @@ async function fetchStatsHtml(
   return body;
 }
 
+/** Why this candidate needs a fetch (drives the live/post-finish counters). */
+type FetchReason = 'live' | 'post_finish' | 'first_fetch';
+
+interface NeedsFetchEntry {
+  candidate: CandidateMapping;
+  reason: FetchReason;
+}
+
 export async function runMatchStatsFetcher(
   deps: MatchStatsFetcherDeps
 ): Promise<MatchStatsFetcherResult> {
@@ -388,6 +498,8 @@ export async function runMatchStatsFetcher(
     return {
       candidatesSeen: 0,
       fetched: 0,
+      fetchedLive: 0,
+      fetchedPostFinish: 0,
       skipped: 0,
       rowsUpserted: 0,
       skippedNonPremier: 0,
@@ -412,6 +524,8 @@ export async function runMatchStatsFetcher(
     return {
       candidatesSeen,
       fetched: 0,
+      fetchedLive: 0,
+      fetchedPostFinish: 0,
       skipped,
       rowsUpserted: 0,
       skippedNonPremier,
@@ -439,59 +553,84 @@ export async function runMatchStatsFetcher(
   // isn't Premier-tier BEFORE the has-stats filter — these matches will
   // never produce a useful stats payload from Crionet, and letting them
   // through would just consume slots in the batch budget.
-  //
-  // One round-trip pulls finished matches AND their tournament_id; we
-  // intersect with `premierTournamentIds` client-side. Two derived sets:
-  //   finishedIds      — finished, regardless of tier (kept for symmetry)
-  //   premierMatchIds  — finished AND Premier-tier (the actual gate)
   const premierTournamentIds = await fetchPremierTournamentIds(deps.supabase);
   const parseableIds = parseableForRun.map((c) => c.matchId);
-  const finishedTournamentMap = await fetchFinishedMatchTournamentMap(
+  const finishedInfo = await fetchFinishedMatchInfo(deps.supabase, parseableIds);
+  const liveTournamentMap = await fetchLiveMatchTournamentMap(
     deps.supabase,
     parseableIds,
   );
-  const premierMatchIds = new Set<string>();
-  for (const [matchId, tournamentId] of finishedTournamentMap.entries()) {
-    if (tournamentId && premierTournamentIds.has(tournamentId)) {
-      premierMatchIds.add(matchId);
-    }
-  }
-  const alreadyHaveStats = await fetchMatchIdsWithCrionetStats(
+  const statsComputedAt = await fetchCrionetStatsComputedAt(
     deps.supabase,
-    parseableIds
+    parseableIds,
   );
 
-  const needsFetch: CandidateMapping[] = [];
+  // Decide what each candidate needs. Live and post-finish refetch both
+  // sit ABOVE "skip because finished + has final stats" — see the fetch-
+  // policy block at the top of the file.
+  const needsFetch: NeedsFetchEntry[] = [];
   for (const c of parseableForRun) {
-    const isFinished = finishedTournamentMap.has(c.matchId);
-    const isPremier = premierMatchIds.has(c.matchId);
-    if (isFinished && !isPremier) {
-      // Finished match, but in a non-Premier (FIP) tournament — Crionet
-      // won't return useful stats. Skip without an HTTP call.
+    const finished = finishedInfo.get(c.matchId);
+    const liveTournamentId = liveTournamentMap.get(c.matchId) ?? null;
+    const isLive = liveTournamentMap.has(c.matchId);
+    const isFinished = finished !== undefined;
+
+    if (!isLive && !isFinished) {
+      // Status outside (live, on_court, finished) — typically scheduled.
+      // Will be picked up by a future run once the match starts.
+      skipped++;
+      continue;
+    }
+
+    // Premier-tier gate. Same rule for both live and finished branches:
+    // FIP-tier matches always skip regardless of status.
+    const tournamentId = isLive ? liveTournamentId : finished!.tournamentId;
+    if (!tournamentId || !premierTournamentIds.has(tournamentId)) {
       skippedNonPremier++;
       skipped++;
       continue;
     }
-    if (!isFinished) {
-      // Not finished yet (or unknown match). Will get picked up on a
-      // future run after the match completes.
-      skipped++;
+
+    if (isLive) {
+      // Always refetch live Premier matches — the endpoint serves the
+      // evolving in-match aggregates. Idempotent: each fetch upserts the
+      // same (match_id, set_number) rows with fresh values.
+      needsFetch.push({ candidate: c, reason: 'live' });
       continue;
     }
-    if (alreadyHaveStats.has(c.matchId)) {
-      skipped++;
+
+    // Finished branch. Decide between first-fetch, post-finish refetch,
+    // and "already final → skip".
+    const existingComputedAt = statsComputedAt.get(c.matchId);
+    if (existingComputedAt === undefined) {
+      needsFetch.push({ candidate: c, reason: 'first_fetch' });
       continue;
     }
-    needsFetch.push(c);
+    const finishedAt = finished!.finishedAt;
+    const isPreFinal =
+      existingComputedAt === null ||
+      (finishedAt !== null && existingComputedAt < finishedAt);
+    if (isPreFinal) {
+      needsFetch.push({ candidate: c, reason: 'post_finish' });
+      continue;
+    }
+    // Finished and final stats already captured. Skip.
+    skipped++;
   }
 
+  // Prioritise live matches in the batch — fans watching right now beat
+  // post-finish catch-up. Among each group, original order is preserved
+  // (stable sort) so post-finish work doesn't starve indefinitely.
+  needsFetch.sort((a, b) => fetchReasonPriority(a.reason) - fetchReasonPriority(b.reason));
   const batch = needsFetch.slice(0, MATCH_STATS_BATCH_SIZE);
   skipped += needsFetch.length - batch.length;
 
   let fetched = 0;
+  let fetchedLive = 0;
+  let fetchedPostFinish = 0;
   let rowsUpserted = 0;
-  for (const candidate of batch) {
-    const html = await fetchStatsHtml(deps, candidate);
+  for (const entry of batch) {
+    const html = await fetchStatsHtml(deps, entry.candidate);
     if (!html) {
       skipped++;
       continue;
@@ -503,19 +642,41 @@ export async function runMatchStatsFetcher(
     }
     const count = await upsertParsedStats(
       deps.supabase,
-      candidate.matchId,
-      candidate.parts.matchWidgetId,
+      entry.candidate.matchId,
+      entry.candidate.parts.matchWidgetId,
       parsed
     );
     rowsUpserted += count;
     fetched++;
+    if (entry.reason === 'live') fetchedLive++;
+    else if (entry.reason === 'post_finish') fetchedPostFinish++;
   }
 
   return {
     candidatesSeen,
     fetched,
+    fetchedLive,
+    fetchedPostFinish,
     skipped,
     rowsUpserted,
     skippedNonPremier,
   };
+}
+
+function fetchReasonPriority(reason: FetchReason): number {
+  // Lower = earlier in the batch.
+  //   live         → fans watching right now (biggest UX cost if delayed).
+  //   first_fetch  → just-finished matches whose stats tab is empty
+  //                  (user-visible "no stats" state goes away once we hit).
+  //   post_finish  → refetch to lock in truly-final numbers on a match
+  //                  whose page already shows last-live-tick stats (small
+  //                  visual delta — acceptable to land last).
+  switch (reason) {
+    case 'live':
+      return 0;
+    case 'first_fetch':
+      return 1;
+    case 'post_finish':
+      return 2;
+  }
 }
