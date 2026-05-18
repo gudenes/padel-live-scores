@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import Image from 'next/image'
 import Avatar from '@/components/Avatar'
 import { Link } from '@/i18n/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -1138,82 +1139,127 @@ function BigTournamentCard({
         background: `linear-gradient(135deg, ${isLive ? 'rgba(255,69,85,0.10)' : isOngoing ? 'rgba(245,166,35,0.08)' : 'rgba(126,211,33,0.06)'} 0%, ${BG_CARD} 60%)`,
         border: `1.5px solid ${isLive ? 'rgba(255,69,85,0.25)' : isOngoing ? 'rgba(245,166,35,0.2)' : 'rgba(126,211,33,0.2)'}`,
       }}>
-        {/* Glow */}
-        <div style={{
-          position: 'absolute', top: -30, right: -30, width: 100, height: 100,
-          background: isLive
-            ? 'radial-gradient(circle, rgba(255,69,85,0.08) 0%, transparent 70%)'
-            : isOngoing
-              ? 'radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(126,211,33,0.06) 0%, transparent 70%)',
-        }} />
+        {tournament.cover_image_url ? (
+          <>
+            <Image
+              src={tournament.cover_image_url}
+              alt={tournament.name}
+              fill
+              sizes="(max-width: 480px) 100vw, 480px"
+              style={{ objectFit: 'cover', zIndex: 0 }}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'linear-gradient(90deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.2) 100%)',
+                zIndex: 1,
+              }}
+            />
+          </>
+        ) : null}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
-          <div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 5,
-              clipPath: CHUNKY.badge, padding: '4px 10px', fontSize: 9, fontWeight: 800,
-              letterSpacing: '0.08em', marginBottom: 10,
-              background: isLive ? 'rgba(255,69,85,0.15)' : isOngoing ? 'rgba(245,166,35,0.15)' : GREEN_DIM,
-              color: isLive ? LIVE_RED : isOngoing ? ORANGE : GREEN,
-            }}>
-              {isLive && (
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%', background: LIVE_RED,
-                  animation: 'v3-pulse 2s infinite',
-                }} />
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          {/* Glow */}
+          <div style={{
+            position: 'absolute', top: -30, right: -30, width: 100, height: 100,
+            background: isLive
+              ? 'radial-gradient(circle, rgba(255,69,85,0.08) 0%, transparent 70%)'
+              : isOngoing
+                ? 'radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%)'
+                : 'radial-gradient(circle, rgba(126,211,33,0.06) 0%, transparent 70%)',
+          }} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', position: 'relative' }}>
+            <div>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                clipPath: CHUNKY.badge, padding: '4px 10px', fontSize: 9, fontWeight: 800,
+                letterSpacing: '0.08em', marginBottom: 10,
+                background: isLive ? 'rgba(255,69,85,0.15)' : isOngoing ? 'rgba(245,166,35,0.15)' : GREEN_DIM,
+                color: isLive ? LIVE_RED : isOngoing ? ORANGE : GREEN,
+              }}>
+                {isLive && (
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%', background: LIVE_RED,
+                    animation: 'v3-pulse 2s infinite',
+                  }} />
+                )}
+                {isLive ? tHome('liveNow') : isOngoing ? tHome('ongoing') : tHome('comingUp')}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <FlagImg country={tournament.country} size={24} />
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
+                  {titleCase(tournament.name)}
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: MUTED }}>
+                {formatDateRange(format, tournament.starts_at, tournament.ends_at)}
+              </div>
+              {tournament.location && (
+                <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
+                  {tournament.location}
+                </div>
               )}
-              {isLive ? tHome('liveNow') : isOngoing ? tHome('ongoing') : tHome('comingUp')}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <FlagImg country={tournament.country} size={24} />
-              <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>
-                {titleCase(tournament.name)}
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: MUTED }}>
-              {formatDateRange(format, tournament.starts_at, tournament.ends_at)}
-            </div>
-            {tournament.location && (
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-                {tournament.location}
+            {/* Countdown — upcoming only, no cover */}
+            {!isLive && !isOngoing && !tournament.cover_image_url && (
+              <div style={{
+                textAlign: 'center', padding: '8px 12px',
+                clipPath: CHUNKY.badge, flexShrink: 0,
+                background: GREEN_DIM,
+              }}>
+                <div style={{ fontSize: 28, fontWeight: 800, color: GREEN, fontFamily: 'monospace', lineHeight: 1 }}>
+                  {daysUntil(tournament.starts_at)}
+                </div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.06em' }}>
+                  {tList('daysLabel')}
+                </div>
               </div>
             )}
           </div>
-          {/* Countdown — upcoming only */}
-          {!isLive && !isOngoing && (
-            <div style={{
-              textAlign: 'center', padding: '8px 12px',
-              clipPath: CHUNKY.badge, flexShrink: 0,
-              background: GREEN_DIM,
-            }}>
-              <div style={{ fontSize: 28, fontWeight: 800, color: GREEN, fontFamily: 'monospace', lineHeight: 1 }}>
-                {daysUntil(tournament.starts_at)}
-              </div>
-              <div style={{ fontSize: 9, fontWeight: 700, color: MUTED, letterSpacing: '0.06em' }}>
-                {tList('daysLabel')}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Level pill + view CTA */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, position: 'relative' }}>
-          <span style={{ ...pillStyle, background: 'rgba(255,255,255,0.06)', color: MUTED }}>
-            {levelLabel(tournament.level)}
-          </span>
-          <div style={{ flex: 1 }} />
-          <div style={{
-            display: 'inline-flex', alignItems: 'center', gap: 4,
-            padding: '6px 14px', clipPath: CHUNKY.badge,
-            background: isLive ? 'rgba(255,69,85,0.12)' : GREEN_DIM,
-            fontSize: 11, fontWeight: 700,
-            color: isLive ? LIVE_RED : GREEN,
-          }}>
-            {isLive ? tList('viewMatches') : tList('viewEvent')}
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          {/* Level pill + view CTA */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, position: 'relative' }}>
+            <span style={{ ...pillStyle, background: 'rgba(255,255,255,0.06)', color: MUTED }}>
+              {levelLabel(tournament.level)}
+            </span>
+            <div style={{ flex: 1 }} />
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '6px 14px', clipPath: CHUNKY.badge,
+              background: isLive ? 'rgba(255,69,85,0.12)' : GREEN_DIM,
+              fontSize: 11, fontWeight: 700,
+              color: isLive ? LIVE_RED : GREEN,
+            }}>
+              {isLive ? tList('viewMatches') : tList('viewEvent')}
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
           </div>
         </div>
+
+        {/* Countdown badge — top-right when cover image is set */}
+        {!isLive && !isOngoing && tournament.cover_image_url && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              zIndex: 3,
+              background: '#BCE83B',
+              color: '#0a0a0a',
+              padding: '5px 10px',
+              borderRadius: 8,
+              textAlign: 'center',
+              fontWeight: 800,
+            }}
+          >
+            <div style={{ fontSize: 18, lineHeight: 1 }}>{daysUntil(tournament.starts_at)}</div>
+            <div style={{ fontSize: 8, letterSpacing: '0.08em' }}>{tList('daysLabel')}</div>
+          </div>
+        )}
       </div>
     </Link>
   )
