@@ -50,9 +50,17 @@ describe('runPlayerProfile', () => {
 
     expect(result.updated).toBe(true);
     expect(result.fipId).toBe('P12345');
+    // The profile parser exposes fipId via the result so callers can
+    // observe what was on the page, but the worker deliberately does
+    // NOT write it to public.players. Commit b9a06a5a — the DB stores
+    // fip_id with a 'fip-' prefix (e.g. 'fip-P203884') as the padelgod
+    // join-key convention, while the FIP page emits the raw form
+    // ('P203884'). Writing the parsed value back mutated the canonical
+    // prefixed id and broke the queue. fip_id is set authoritatively
+    // by the entry-list populator + rankings worker now.
     expect(supabase.updates[0].changes).toMatchObject({
-      fip_id: 'P12345',
       birthdate: '1995-04-21',
     });
+    expect(supabase.updates[0].changes).not.toHaveProperty('fip_id');
   });
 });
