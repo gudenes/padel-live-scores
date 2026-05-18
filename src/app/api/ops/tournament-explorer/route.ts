@@ -22,6 +22,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { checkOpsAuth } from '@/lib/ops-auth'
+import { buildPremierBreakdownFromRulebook } from '@/lib/earnings/premier-prize-table'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -56,6 +57,12 @@ interface TournamentWithSources {
   prize_money_fip: number | null     // FIP integer (euros)
   prize_money_eur: number | null              // normalized EUR (PR 1+2)
   prize_money_eur_source: string | null       // 'fip_int' | 'parsed_text' | 'manual'
+  // Per-round payout breakdown. Scraped from FIP when available; otherwise
+  // synthesized in the response stitch from the Premier rulebook so the
+  // ops breakdown card isn't empty for Premier events (FIP rarely
+  // publishes a per-round table for them). Carries a `source` key
+  // ('rulebook' for synthesized, scraped values omit it / set 'scraped').
+  prize_breakdown: Record<string, number | string> | null
   draw_size_md: number | null
   draw_size_qd: number | null
   // Status
@@ -402,8 +409,21 @@ export async function GET(request: Request) {
   // added in future migrations.
   const enriched: TournamentWithSources[] = tournaments.map(t => {
     const row = t as Partial<TournamentWithSources>
+    // Fallback: when FIP hasn't published a per-round breakdown table on
+    // the event page (the norm for Premier Majors — 0/7 recent Majors had
+    // one), synthesize it from the Premier rulebook. compute-earnings
+    // already uses this table directly for Premier, so this just brings
+    // the ops "Prize breakdown" card in line with that ground truth. We
+    // tag `source: 'rulebook'` so the UI shows provenance. We never write
+    // this back to the DB — `dedupe-tournaments` uses `prize_breakdown !=
+    // null` as a quality signal, and synthetic data shouldn't tilt that.
+    const synth = row.prize_breakdown == null
+      ? buildPremierBreakdownFromRulebook(row.level ?? null)
+      : null
+    const prize_breakdown = (row.prize_breakdown ?? synth) as TournamentWithSources['prize_breakdown']
     return {
       ...(row as TournamentWithSources),
+      prize_breakdown,
       matchCount: matchCountByTournament.get(t.id) ?? 0,
       finalPlayed: finalPlayedByTournament.has(t.id),
       phases: Array.from(phasesByTournament.get(t.id)?.values() ?? [])
