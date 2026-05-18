@@ -689,7 +689,6 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }, [pathname, router, searchParams])
 
-  const tCommon = useTranslations('common')
   const userLocale = useLocale()
   const { user } = useAuth()
   const [playing, setPlayingRaw] = useState<Highlight | null>(null)
