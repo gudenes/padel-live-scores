@@ -1,107 +1,425 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runPlayerRankings } from '../../workers/player-rankings.js';
 
-const fakeRow = (rank: number) => `
-  <tr>
-    <td class="rank">${rank}</td>
-    <td class="player-country"><img src="/flags/ESP.jpg" alt="ESP" /></td>
-    <td class="player-name">Player ${rank}</td>
-    <td class="points">${20000 - rank * 100}</td>
-  </tr>
-`;
+// ── HTTP mock ────────────────────────────────────────────────────────────
+//
+// Padelgod workers receive an injected `httpClient` (axios instance). For
+// the rankings worker we mock GET on two endpoints:
+//   1. /wp-json/fip/v1/ranking/load-more/        — official rankings
+//   2. /wp-json/fip/v1/player/search?search_type=race — race rankings
+//
+// Tests configure per-URL responses via setHttpResponses().
 
-const fakeRankingsHtml = (n: number) => `
-  <table class="ranking-table"><tbody>
-    ${Array.from({ length: n }, (_, i) => fakeRow(i + 1)).join('')}
-  </tbody></table>
-`;
+interface MockedResponse {
+  status: number;
+  data: unknown;
+}
 
-function fakeSupabase() {
-  const playersUpserted: any[] = [];
-  const snapshotsUpserted: any[] = [];
+const httpResponses = new Map<string, MockedResponse>();
+
+function setHttpResponse(urlSubstring: string, data: unknown, status = 200) {
+  httpResponses.set(urlSubstring, { status, data });
+}
+
+function makeHttpClient() {
   return {
-    playersUpserted,
-    snapshotsUpserted,
-    schema: () => ({
-      from: () => ({
-        insert: () => ({
-          select: () => ({ single: async () => ({ data: { id: 'job-uuid' }, error: null }) }),
-        }),
-        update: () => ({ eq: () => ({ data: null, error: null }) }),
-      }),
+    get: vi.fn(async (url: string) => {
+      for (const [substring, response] of httpResponses.entries()) {
+        if (url.includes(substring)) {
+          return response;
+        }
+      }
+      throw new Error(`MOCK: no response configured for URL: ${url}`);
     }),
-    from: (table: string) => {
-      if (table === 'players') {
-        return {
-          upsert: (rows: any[]) => {
-            playersUpserted.push(...rows);
-            return {
-              select: () => ({
-                data: rows.map((r, i) => ({ id: `player-${i}`, name: r.name, category: r.category })),
-                error: null,
-              }),
-            };
-          },
-        };
-      }
-      if (table === 'player_ranking_snapshots') {
-        return {
-          upsert: (rows: any[]) => {
-            snapshotsUpserted.push(...rows);
-            return { data: rows, error: null };
-          },
-        };
-      }
-      throw new Error(`Unexpected table: ${table}`);
-    },
+  } as any;
+}
+
+// ── FIP row builders ─────────────────────────────────────────────────────
+
+interface FipOfficialRow {
+  player_id: string;
+  name: string;
+  surname: string;
+  rank: number;
+  points: number;
+  move: number;
+  url: string;
+  thumbnail: string;
+  country_name: string;
+  country_flag: string;
+}
+
+interface FipRaceRow {
+  player_id: string;
+  name: string;
+  surname: string;
+  race_rank: number;
+  race_points: number;
+  race_move: number;
+  url: string;
+  thumbnail: string;
+  country_name: string;
+  country_flag: string;
+}
+
+function officialRow(overrides: Partial<FipOfficialRow> & { player_id: string; rank: number }): FipOfficialRow {
+  return {
+    player_id: overrides.player_id,
+    name: overrides.name ?? 'Player',
+    surname: overrides.surname ?? overrides.player_id,
+    rank: overrides.rank,
+    points: overrides.points ?? 1000 - overrides.rank,
+    move: overrides.move ?? 0,
+    url: overrides.url ?? `https://www.padelfip.com/player/${overrides.player_id.toLowerCase()}/`,
+    thumbnail: overrides.thumbnail ?? `https://www.padelfip.com/wp-content/uploads/${overrides.player_id}.png`,
+    country_name: overrides.country_name ?? 'ESP',
+    country_flag: overrides.country_flag ?? '',
   };
 }
 
-describe('runPlayerRankings', () => {
-  it('fetches both genders and upserts all rows', async () => {
-    const supabase = fakeSupabase();
-    const httpClient = {
-      get: vi
-        .fn()
-        .mockResolvedValueOnce({ data: fakeRankingsHtml(3) })  // men
-        .mockResolvedValueOnce({ data: fakeRankingsHtml(2) }), // women
+function raceRow(overrides: Partial<FipRaceRow> & { player_id: string; race_rank: number }): FipRaceRow {
+  return {
+    player_id: overrides.player_id,
+    name: overrides.name ?? 'Player',
+    surname: overrides.surname ?? overrides.player_id,
+    race_rank: overrides.race_rank,
+    race_points: overrides.race_points ?? 500 - overrides.race_rank,
+    race_move: overrides.race_move ?? 0,
+    url: overrides.url ?? `https://www.padelfip.com/player/${overrides.player_id.toLowerCase()}/`,
+    thumbnail: overrides.thumbnail ?? `https://www.padelfip.com/wp-content/uploads/${overrides.player_id}.png`,
+    country_name: overrides.country_name ?? 'ARG',
+    country_flag: overrides.country_flag ?? '',
+  };
+}
+
+// ── Supabase mock ────────────────────────────────────────────────────────
+//
+// Captures all `players` reads/writes + `player_ranking_snapshots` writes +
+// `padelgod.scrape_jobs` writes. Returns deterministic UUIDs for inserted
+// players so snapshot rows can be cross-referenced.
+//
+// playersTable is the in-memory state. Tests can seed it via the
+// `seedPlayer()` helper before invoking runPlayerRankings.
+
+interface PlayerRow {
+  id: string;
+  fip_id: string | null;
+  name: string;
+  country: string | null;
+  category: 'men' | 'women';
+  ranking: number | null;
+  points: number | null;
+  ranking_move: number | null;
+  race_ranking: number | null;
+  race_points: number | null;
+  race_move: number | null;
+  avatar_url: string | null;
+  profile_url: string | null;
+  last_updated_by: string | null;
+}
+
+interface SnapshotRow {
+  player_id: string;
+  type: 'official' | 'race';
+  gender: 'men' | 'women';
+  year: number;
+  week: number;
+  ranking_date: string;
+  ranking: number;
+  points: number | null;
+  ranking_move: number | null;
+  source: string;
+}
+
+interface ScrapeJobRow {
+  id: string;
+  job_type: string;
+  target_url: string;
+  status: 'running' | 'success' | 'failed';
+  parser_version: string;
+  error_message: string | null;
+}
+
+interface FakeSupabaseState {
+  players: PlayerRow[];
+  snapshots: SnapshotRow[];
+  scrapeJobs: ScrapeJobRow[];
+  storageUploads: Array<{ bucket: string; path: string }>;
+}
+
+let state: FakeSupabaseState;
+
+function freshState(): FakeSupabaseState {
+  return { players: [], snapshots: [], scrapeJobs: [], storageUploads: [] };
+}
+
+function seedPlayer(p: Partial<PlayerRow> & { id: string; fip_id: string; category: 'men' | 'women' }) {
+  state.players.push({
+    id: p.id,
+    fip_id: p.fip_id,
+    name: p.name ?? 'Seeded Player',
+    country: p.country ?? null,
+    category: p.category,
+    ranking: p.ranking ?? null,
+    points: p.points ?? null,
+    ranking_move: p.ranking_move ?? null,
+    race_ranking: p.race_ranking ?? null,
+    race_points: p.race_points ?? null,
+    race_move: p.race_move ?? null,
+    avatar_url: p.avatar_url ?? null,
+    profile_url: p.profile_url ?? null,
+    last_updated_by: p.last_updated_by ?? null,
+  });
+}
+
+let nextUuidCounter = 0;
+function nextUuid(): string {
+  nextUuidCounter += 1;
+  return `00000000-0000-0000-0000-${nextUuidCounter.toString().padStart(12, '0')}`;
+}
+
+function makeSupabase() {
+  // Builder pattern mimicking @supabase/supabase-js's PostgrestQueryBuilder.
+  // Each .from(...) call returns a queryShape that accumulates filter
+  // conditions and is itself a thenable, so `await chain` resolves to
+  // { data, error } applying all accumulated filters.
+  function fromTable(table: string) {
+    const filters: Array<(row: any) => boolean> = [];
+
+    const queryShape: any = {
+      schema: (_s: string) => fromTable(table),
+      select: vi.fn(function (_cols?: string) {
+        return queryShape;
+      }),
+      insert: vi.fn(function (row: any) {
+        if (table === 'scrape_jobs') {
+          const sj: ScrapeJobRow = {
+            id: nextUuid(),
+            job_type: row.job_type,
+            target_url: row.target_url,
+            status: 'running',
+            parser_version: row.parser_version,
+            error_message: null,
+          };
+          state.scrapeJobs.push(sj);
+          return {
+            select: () => ({ single: async () => ({ data: sj, error: null }) }),
+          };
+        }
+        if (table === 'players') {
+          const inserted: PlayerRow = {
+            id: nextUuid(),
+            fip_id: row.fip_id ?? null,
+            name: row.name,
+            country: row.country ?? null,
+            category: row.category,
+            ranking: row.ranking ?? null,
+            points: row.points ?? null,
+            ranking_move: row.ranking_move ?? null,
+            race_ranking: row.race_ranking ?? null,
+            race_points: row.race_points ?? null,
+            race_move: row.race_move ?? null,
+            avatar_url: null,
+            profile_url: row.profile_url ?? null,
+            last_updated_by: row.last_updated_by ?? null,
+          };
+          state.players.push(inserted);
+          return {
+            select: () => ({
+              single: async () => ({ data: inserted, error: null }),
+            }),
+          };
+        }
+        throw new Error(`MOCK: insert on unknown table ${table}`);
+      }),
+      upsert: vi.fn(async function (rows: any, _opts: any) {
+        if (table === 'player_ranking_snapshots') {
+          const arr = Array.isArray(rows) ? rows : [rows];
+          for (const r of arr) {
+            // Replace any existing matching row (mimic onConflict)
+            const idx = state.snapshots.findIndex(
+              s =>
+                s.player_id === r.player_id &&
+                s.type === r.type &&
+                s.year === r.year &&
+                s.week === r.week,
+            );
+            if (idx >= 0) state.snapshots[idx] = r;
+            else state.snapshots.push(r);
+          }
+          return { error: null };
+        }
+        throw new Error(`MOCK: upsert on unknown table ${table}`);
+      }),
+      update: vi.fn(function (patch: any) {
+        return {
+          eq: async (col: string, val: any) => {
+            if (table === 'scrape_jobs') {
+              const row = state.scrapeJobs.find(s => s.id === val);
+              if (row) {
+                row.status = patch.status;
+                row.error_message = patch.error_message ?? null;
+              }
+              return { error: null };
+            }
+            if (table === 'players') {
+              const row = state.players.find(p => p.id === val);
+              if (row) Object.assign(row, patch);
+              return { error: null };
+            }
+            return { error: null };
+          },
+          in: async (col: string, vals: any[]) => {
+            if (table === 'players') {
+              for (const v of vals) {
+                const row = state.players.find(p => p.id === v);
+                if (row) Object.assign(row, patch);
+              }
+              return { error: null };
+            }
+            return { error: null };
+          },
+        };
+      }),
+      in: vi.fn(function (col: string, vals: any[]) {
+        if (table === 'players') {
+          const data = state.players.filter(
+            p => vals.includes((p as any)[col]) && filters.every(f => f(p)),
+          );
+          return Promise.resolve({ data, error: null });
+        }
+        return Promise.resolve({ data: [], error: null });
+      }),
+      eq: vi.fn(function (col: string, val: any) {
+        filters.push(row => row[col] === val);
+        return queryShape;
+      }),
+      not: vi.fn(function (col: string, op: string, val: any) {
+        // 'is' + null → "is not null"
+        if (op === 'is' && val === null) {
+          filters.push(row => row[col] != null);
+        }
+        return queryShape;
+      }),
+      maybeSingle: vi.fn(async () => {
+        if (table === 'players') {
+          const row = state.players.find(p => filters.every(f => f(p)));
+          return { data: row ?? null, error: null };
+        }
+        return { data: null, error: null };
+      }),
+      // CRITICAL: make queryShape itself a thenable so `await chain` works
+      then: (resolve: (v: any) => void) => {
+        if (table === 'players') {
+          const data = state.players.filter(p => filters.every(f => f(p)));
+          resolve({ data, error: null });
+          return;
+        }
+        resolve({ data: [], error: null });
+      },
     };
 
-    const result = await runPlayerRankings({
-      supabase: supabase as any,
-      httpClient: httpClient as any,
-    });
+    return queryShape;
+  }
 
-    expect(result.menCount).toBe(3);
-    expect(result.womenCount).toBe(2);
-    expect(supabase.playersUpserted).toHaveLength(5);
+  return {
+    from: vi.fn((table: string) => fromTable(table)),
+    schema: vi.fn(() => ({ from: (table: string) => fromTable(table) })),
+    storage: {
+      from: () => ({
+        upload: async (path: string) => {
+          state.storageUploads.push({ bucket: 'avatars', path });
+          return { error: null };
+        },
+      }),
+      createBucket: async () => ({ error: null }),
+    },
+  } as any;
+}
+
+// ── Test bootstrap ───────────────────────────────────────────────────────
+
+beforeEach(() => {
+  state = freshState();
+  httpResponses.clear();
+  nextUuidCounter = 0;
+  // Re-mock global fetch (avatar-rehost uses it). Default to skip-already-hosted
+  // by short-circuiting on the storage marker.
+  vi.stubGlobal('fetch', vi.fn(async () => {
+    return new Response(new ArrayBuffer(8), { status: 200, headers: { 'Content-Type': 'image/jpeg' } });
+  }));
+});
+
+// ── Helpers re-exported for use in test cases (subsequent tasks) ─────────
+
+export { setHttpResponse, makeHttpClient, makeSupabase, officialRow, raceRow, seedPlayer, state };
+
+// Placeholder describe — test cases land here task-by-task.
+describe('runPlayerRankings (WP JSON API rewrite)', () => {
+  it('happy path: all 4 phases populated, mixed existing + new players', async () => {
+    // Seed: one existing men's player, one existing women's player.
+    seedPlayer({ id: 'aaaa1111-0000-0000-0000-000000000001', fip_id: 'P000001', category: 'men', name: 'Old Name', ranking: 99, points: 100 });
+    seedPlayer({ id: 'bbbb2222-0000-0000-0000-000000000002', fip_id: 'P000002', category: 'women', name: 'Old Name W', ranking: 99, points: 100 });
+
+    // Official men: 1 existing (P000001) + 1 new (P000003)
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 1, race_points: 500, race_move: 0 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1, race_points: 500, race_move: 0 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 21000 }),
+      officialRow({ player_id: 'P000003', rank: 2, points: 20000 }),
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000 }),
+    ]);
+
+    const httpClient = makeHttpClient();
+    const supabase = makeSupabase();
+    const result = await runPlayerRankings({ supabase, httpClient });
+
+    // scrape_jobs: 4 rows, all success
+    expect(state.scrapeJobs).toHaveLength(4);
+    expect(state.scrapeJobs.every(s => s.status === 'success')).toBe(true);
+    const urls = state.scrapeJobs.map(s => s.target_url);
+    expect(urls.some(u => u.includes('ranking/load-more') && u.includes('gender=male'))).toBe(true);
+    expect(urls.some(u => u.includes('ranking/load-more') && u.includes('gender=female'))).toBe(true);
+    expect(urls.some(u => u.includes('search_type=race') && u.includes('gender=male'))).toBe(true);
+    expect(urls.some(u => u.includes('search_type=race') && u.includes('gender=female'))).toBe(true);
+
+    // Existing player updated, not duplicated
+    const p1 = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(state.players.filter(p => p.fip_id === 'P000001')).toHaveLength(1);
+    expect(p1.ranking).toBe(1);
+    expect(p1.points).toBe(21000);
+    expect(p1.last_updated_by).toBe('padelgod');
+
+    // New player inserted with fip_id
+    const p3 = state.players.find(p => p.fip_id === 'P000003')!;
+    expect(p3).toBeDefined();
+    expect(p3.category).toBe('men');
+    expect(p3.ranking).toBe(2);
+
+    // Snapshots: 3 official + 2 race = 5 rows tagged 'padelgod-fip'
+    expect(state.snapshots).toHaveLength(5);
+    expect(state.snapshots.every(s => s.source === 'padelgod-fip')).toBe(true);
+    expect(state.snapshots.filter(s => s.type === 'official')).toHaveLength(3);
+    expect(state.snapshots.filter(s => s.type === 'race')).toHaveLength(2);
+
+    // Result shape
+    expect(result.official.men.fetched).toBe(2);
+    expect(result.official.women.fetched).toBe(1);
+    expect(result.race.men.fetched).toBe(1);
+    expect(result.race.women.fetched).toBe(1);
+    expect(result.snapshotsWritten).toBe(5);
   });
 
-  it('writes one snapshot row per upserted player with type=official, source=padelgod-fip', async () => {
-    const supabase = fakeSupabase();
-    const httpClient = {
-      get: vi
-        .fn()
-        .mockResolvedValueOnce({ data: fakeRankingsHtml(2) })  // men
-        .mockResolvedValueOnce({ data: fakeRankingsHtml(1) }), // women
-    };
-
-    await runPlayerRankings({
-      supabase: supabase as any,
-      httpClient: httpClient as any,
-    });
-
-    expect(supabase.snapshotsUpserted).toHaveLength(3);
-    for (const snap of supabase.snapshotsUpserted) {
-      expect(snap.type).toBe('official');
-      expect(snap.source).toBe('padelgod-fip');
-      expect(snap.ranking_move).toBeNull();
-      expect(typeof snap.player_id).toBe('string');
-      expect(typeof snap.year).toBe('number');
-      expect(typeof snap.week).toBe('number');
-      expect(snap.week).toBeGreaterThanOrEqual(1);
-      expect(snap.week).toBeLessThanOrEqual(53);
-      expect(snap.ranking_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    }
-  });
+  it.todo('Task 5 — official current week empty, falls back to W-1 with data');
+  it.todo('Task 5 — official all 3 fallback weeks empty: throws PARSED_ZERO_ROWS + Sentry');
+  it.todo('Task 6 — race response with series boundary trims at 50% halving');
+  it.todo('Task 7 — race dropouts: previously-ranked players not in current run get race fields NULLed');
+  it.todo('Task 8 — race endpoint empty: throws PARSED_ZERO_ROWS + Sentry');
+  it.todo('Task 9 — NO_SNAPSHOTS_WRITTEN floor: throws if every phase parsed but every upsert failed');
 });
