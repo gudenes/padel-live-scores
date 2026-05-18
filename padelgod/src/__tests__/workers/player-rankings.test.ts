@@ -496,7 +496,30 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
 
     sentrySpy.mockRestore();
   });
-  it.todo('Task 6 — race response with series boundary trims at 50% halving');
+  it('race response with series boundary trims at 50% halving', async () => {
+    // Build a race response that simulates the dual-series concatenation:
+    //   Series 1: race_rank 1..100 (Premier-circuit main race)
+    //   Series 2: race_rank starts at 17 (sub-tier, reset numbering)
+    // Boundary should be detected at the first row where race_rank < max/2.
+    const series1: ReturnType<typeof raceRow>[] = [];
+    for (let r = 1; r <= 100; r++) series1.push(raceRow({ player_id: `P${(1000 + r).toString().padStart(6, '0')}`, race_rank: r }));
+    const series2: ReturnType<typeof raceRow>[] = [];
+    for (let r = 17; r <= 30; r++) series2.push(raceRow({ player_id: `P${(2000 + r).toString().padStart(6, '0')}`, race_rank: r }));
+
+    setHttpResponse('search_type=race&gender=male', [...series1, ...series2]);
+    setHttpResponse('search_type=race&gender=female', [raceRow({ player_id: 'P000002', race_rank: 1 })]);
+    setHttpResponse('gender=male&limit', [officialRow({ player_id: 'P001001', rank: 1 })]);
+    setHttpResponse('gender=female&limit', [officialRow({ player_id: 'P000002', rank: 1 })]);
+
+    const supabase = makeSupabase();
+    const result = await runPlayerRankings({ supabase, httpClient: makeHttpClient() });
+
+    // Series 1 has 100 rows, series 2 starts at rank=17 which is < 100/2.
+    // Trim should cut at the boundary, keeping exactly 100 rows from men's race.
+    expect(result.race.men.fetched).toBe(100);
+    // Snapshots: 100 race-men + 1 race-women + 1 official-men + 1 official-women = 103
+    expect(state.snapshots.filter(s => s.type === 'race' && s.gender === 'men')).toHaveLength(100);
+  });
   it.todo('Task 7 — race dropouts: previously-ranked players not in current run get race fields NULLed');
   it.todo('Task 8 — race endpoint empty: throws PARSED_ZERO_ROWS + Sentry');
   it.todo('Task 9 — NO_SNAPSHOTS_WRITTEN floor: throws if every phase parsed but every upsert failed');
