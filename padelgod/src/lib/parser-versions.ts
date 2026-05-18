@@ -4,7 +4,10 @@
 
 export const FIP_WP_EVENTS_VERSION = 'fip-wp-events-1.0.0';
 export const CRIONET_SEARCH_VERSION = 'crionet-search-1.0.0';
-export const FIP_RANKINGS_VERSION = 'fip-rankings-1.0.0';
+// Bumped 2026-05-18 when the rankings worker switched from HTML-scrape
+// against the redesigned-and-broken padelfip.com/ranking page to the
+// WP JSON API at /wp-json/fip/v1/ranking/load-more/ + .../player/search.
+export const FIP_RANKINGS_VERSION = 'fip-rankings-wp-2.0.0';
 export const FIP_PLAYER_PROFILE_VERSION = 'fip-player-profile-1.0.0';
 
 // Note: CRIONET_ENTRY_LIST_VERSION used to live here. Removed when the

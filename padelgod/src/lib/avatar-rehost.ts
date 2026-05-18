@@ -1,4 +1,12 @@
-// src/lib/avatar-rehost.ts
+// padelgod/src/lib/avatar-rehost.ts
+//
+// Mirror of src/lib/avatar-rehost.ts (Next.js project). Padelgod runs
+// as a separate Railway service and doesn't share imports with the
+// Next.js app — same trade-off used by `db-paginate.ts` and
+// `fip-player-search.ts`. Keep this file BYTE-IDENTICAL with the
+// Next.js side except for this header. If you edit one, mirror the
+// other.
+
 // Downloads a raw external avatar URL (padelfip.com, padelapi.org, googlestorage,
 // etc.) and rehosts it on Supabase Storage, then updates players.avatar_url to
 // the new public URL. Used by the one-time `migrate-avatars` admin endpoint AND

@@ -30,7 +30,7 @@ type SnapshotRow = {
   ranking: number
   points: number | null
   ranking_move: number | null
-  source: 'vercel-fip'
+  source: 'vercel-fip-manual'
 }
 
 /** Best-effort historical ranking write. Never throws — logs to console.error on failure. */
@@ -312,7 +312,7 @@ export async function GET(req: NextRequest) {
             ranking: p.rank,
             points: p.points,
             ranking_move: p.move,
-            source: 'vercel-fip',
+            source: 'vercel-fip-manual',
           })
         } catch (err: any) {
           console.error(`[sync-fip] error for ${fullName}:`, err.message)
@@ -366,7 +366,7 @@ export async function GET(req: NextRequest) {
             ranking: p.race_rank,
             points: p.race_points,
             ranking_move: p.race_move,
-            source: 'vercel-fip',
+            source: 'vercel-fip-manual',
           })
         } catch {
           results.race.unmatched++
