@@ -50,6 +50,10 @@ interface TournamentWithSources {
   prize_money_eur: number | null
   prize_money_eur_source: string | null
   prize_breakdown: Record<string, number | string> | null
+  prize_breakdown_by_category: {
+    men: Record<string, number | string> | null
+    women: Record<string, number | string> | null
+  } | null
   signup_fee_eur: number | null
   registration_status: string | null
   schedule_notes: string | null
@@ -747,11 +751,14 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
         </div>
       </div>
 
-      {/* Prize breakdown — per-round payouts when FIP publishes them.
-          Bronze/Silver/Gold tournaments expose this; Premier shows
-          aggregate only. Each row is €/player; pair total = 2x. */}
-      {t.prize_breakdown && (() => {
-        const bd = t.prize_breakdown
+      {/* Prize breakdown — per-round payouts when FIP publishes them, or
+          synthesized from the Premier rulebook when it doesn't (the norm
+          for Premier events). For P1/P2 the men's/women's rulebooks
+          diverge, so the ops route ships a `prize_breakdown_by_category`
+          companion field that we render as two side-by-side columns.
+          Major: men=women so a single column is exact. Each value is
+          €/player; pair total = 2x. */}
+      {(t.prize_breakdown || t.prize_breakdown_by_category) && (() => {
         const ROWS: Array<[string, string]> = [
           ['winner', 'Winner'],
           ['finalist', 'Finalist'],
@@ -760,6 +767,58 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           ['r16', 'Round of 16'],
           ['r32', 'Round of 32'],
         ]
+        const byCat = t.prize_breakdown_by_category
+        // Two-column path for synthesized P1/P2. Filter to rows where at
+        // least one gender has a number so we don't waste a row on a
+        // round that wasn't paid in either table.
+        if (byCat && (byCat.men || byCat.women)) {
+          const rows = ROWS.filter(
+            ([k]) => typeof byCat.men?.[k] === 'number' || typeof byCat.women?.[k] === 'number',
+          )
+          if (rows.length === 0) return null
+          const source = String(byCat.men?.source ?? byCat.women?.source ?? 'rulebook')
+          const cell = (val: unknown, highlight: boolean) =>
+            typeof val === 'number' ? (
+              <span style={{ fontWeight: 700, color: highlight ? '#16a34a' : '#111', fontVariantNumeric: 'tabular-nums' }}>
+                €{val.toLocaleString()}
+              </span>
+            ) : (
+              <span style={{ color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>—</span>
+            )
+          return (
+            <div style={{ ...card, marginBottom: 12 }}>
+              <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+                <span>Prize breakdown</span>
+                <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0 }}>
+                  €/player · source: {source}
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 10, color: '#999', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+                <div style={{ paddingLeft: 10 }}>Men</div>
+                <div style={{ paddingLeft: 10 }}>Women</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
+                {rows.map(([k, label]) => (
+                  <React.Fragment key={k}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+                      <span style={{ color: '#666' }}>{label}</span>
+                      {cell(byCat.men?.[k], k === 'winner')}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+                      <span style={{ color: '#666' }}>{label}</span>
+                      {cell(byCat.women?.[k], k === 'winner')}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+            </div>
+          )
+        }
+        // Single-column path: Major (men=women), FIP-tier scraped, or
+        // anything else where prize_breakdown is set and there's no
+        // per-gender split.
+        if (!t.prize_breakdown) return null
+        const bd = t.prize_breakdown
         const rows = ROWS.filter(([k]) => typeof bd[k] === 'number')
         if (rows.length === 0) return null
         return (
