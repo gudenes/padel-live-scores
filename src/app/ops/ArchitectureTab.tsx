@@ -65,7 +65,6 @@ const NODES: DiagramNode[] = [
   { id: 'cron-scores', label: 'Score Agent', sublabel: '/api/cron/scores', x: 250, y: 80, w: 140, h: 44, color: '#f0fdf4', textColor: '#166534', icon: '🔄' },
   { id: 'relay', label: 'Relay Service', sublabel: 'relay/index.js', x: 250, y: 160, w: 140, h: 44, color: '#f5f3ff', textColor: '#5b21b6', icon: '📡' },
   { id: 'cron-sync', label: 'Sync Cron', sublabel: '/api/cron/sync', x: 250, y: 220, w: 140, h: 44, color: '#f0fdf4', textColor: '#166534', icon: '🔄' },
-  { id: 'cron-rankings', label: 'Rankings Sync', sublabel: '/api/cron/sync-fip-rankings', x: 250, y: 280, w: 140, h: 44, color: '#fffbeb', textColor: '#92400e', icon: '🏅' },
   { id: 'cron-premier', label: 'Premier Stats', sublabel: '/api/cron/premier-stats', x: 250, y: 400, w: 140, h: 44, color: '#eff6ff', textColor: '#1e40af', icon: '📊' },
   { id: 'cron-highlights', label: 'Highlights Sync', sublabel: '/api/cron/sync-highlights', x: 250, y: 480, w: 140, h: 44, color: '#fef2f2', textColor: '#991b1b', icon: '🎥' },
   { id: 'cron-articles', label: 'Articles Sync', sublabel: '/api/cron/sync-articles', x: 250, y: 560, w: 140, h: 44, color: '#eef2ff', textColor: '#3730a3', icon: '📝' },
@@ -124,7 +123,6 @@ const CONNECTIONS: Connection[] = [
   { from: 'padelapi', to: 'cron-scores', label: 'REST API', color: '#22c55e' },
   { from: 'padelapi', to: 'cron-sync', label: 'REST API', color: '#22c55e' },
   { from: 'pusher', to: 'relay', label: 'WebSocket', color: '#8b5cf6' },
-  { from: 'fip', to: 'cron-rankings', label: 'WP API', color: '#f59e0b' },
   { from: 'premier', to: 'cron-premier', label: 'beforeauth API', color: '#3b82f6' },
   { from: 'youtube', to: 'cron-highlights', label: 'Data API v3', color: '#ef4444' },
   { from: 'rss', to: 'cron-articles', label: 'RSS / WP API', color: '#6366f1' },
@@ -147,7 +145,6 @@ const CONNECTIONS: Connection[] = [
   { from: 'cron-scores', to: 'supabase', label: 'matches, sets, games', color: '#22c55e' },
   { from: 'relay', to: 'supabase', label: 'games (points)', color: '#8b5cf6' },
   { from: 'cron-sync', to: 'supabase', label: 'players, tournaments', color: '#22c55e' },
-  { from: 'cron-rankings', to: 'supabase', label: 'players (rankings)', color: '#f59e0b' },
   { from: 'cron-premier', to: 'supabase', label: 'match_stats', color: '#3b82f6' },
   { from: 'cron-highlights', to: 'supabase', label: 'highlights', color: '#ef4444' },
   { from: 'cron-articles', to: 'supabase', label: 'articles', color: '#6366f1' },
@@ -226,6 +223,7 @@ const PADELGOD_WORKERS = [
   { name: 'oop-fetcher', sub: 'Crionet OOP · hourly' },
   { name: 'fip-draw-populator', sub: 'composite write · hourly :47' },
   { name: 'live-poller-manager', sub: 'live scoring · ~80s' },
+  { name: 'player-rankings', sub: 'WP API · Mon 30min + daily' },
 ]
 
 // ── Rendering helpers ───────────────────────────────────────────

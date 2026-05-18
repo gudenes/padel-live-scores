@@ -12,8 +12,7 @@
 // toggle (Vercel restarts the function on env var changes).
 //
 // Routes guarded: `/api/cron/scores`, `/api/cron/sync`,
-// `/api/cron/sync-fip-rankings`, `/api/cron/premier-stats`,
-// `/api/cron/premier-discovery`.
+// `/api/cron/premier-stats`, `/api/cron/premier-discovery`.
 //
 // NOT guarded (these don't consume padelapi):
 //   sync-articles, sync-highlights, social-drafts, oop-monitor,
