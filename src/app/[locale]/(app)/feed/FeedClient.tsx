@@ -18,6 +18,7 @@ import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
 import FeedTabs from './FeedTabs'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
+import NewsCardOriginal from '@/components/news/NewsCard'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { Capacitor } from '@capacitor/core'
@@ -937,7 +938,26 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
       <FeedTabs active={activeTab} onChange={setTab} />
 
       {/* Feed content */}
-      {loading ? (
+      {activeTab === 'originals' ? (
+        originals.length === 0 ? (
+          <div style={{
+            textAlign: 'center', padding: '60px 20px',
+            fontSize: 14, color: MUTED, fontWeight: 600,
+          }}>
+            {tFeed('empty.originals')}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px' }}>
+            {originals.map((post, i) => (
+              <NewsCardOriginal
+                key={post.id}
+                post={post}
+                variant={i === 0 ? 'hero' : 'standard'}
+              />
+            ))}
+          </div>
+        )
+      ) : loading ? (
         <FeedSkeleton />
       ) : displayClusters.length === 0 ? (
         <div style={{
