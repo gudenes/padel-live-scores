@@ -16,6 +16,8 @@ import { usePathname, Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { useFeedLastVisit } from '@/hooks/useFeedLastVisit'
+import { useRankingsLastVisit } from '@/hooks/useRankingsLastVisit'
+import { formatYearWeek } from '@/lib/iso-year-week'
 
 // ── Icons ───────────────────────────────────────────────────────
 
@@ -138,10 +140,14 @@ export default function BottomNavV3() {
   const [liveCount, setLiveCount] = useState(0)
   const [newsCount, setNewsCount] = useState(0)
   const feedLastVisit = useFeedLastVisit()
+  const lastVisitedRankingsWeek = useRankingsLastVisit()
+  const [latestRankingsWeek, setLatestRankingsWeek] = useState<string | null>(null)
   const lastTabRef = useRef<string | null>(null)
 
   // Determine active tab
   const activeKey = tabKeyFromPath(pathname) ?? 'home'
+  const showRankingNudge =
+    latestRankingsWeek !== null && latestRankingsWeek !== lastVisitedRankingsWeek
 
   // ── Option D animation refs ──────────────────────────────────
   // Single ink-bar that slides between tabs (the "C" half of A×C),
@@ -284,15 +290,29 @@ export default function BottomNavV3() {
 
     async function fetchBadges() {
       try {
-        const [liveRes, newsRes] = await Promise.all([
+        const [liveRes, newsRes, rankingsRes] = await Promise.all([
           supabase.from('matches').select('*', { count: 'exact', head: true }).eq('status', 'live'),
           supabase.from('articles').select('*', { count: 'exact', head: true })
             .eq('status', 'active')
             .gt('published_at', feedLastVisit),
+          // Latest ranking week probe. Reads players.ranking_date (publicly
+          // readable under RLS) and converts to ISO "YYYY-WW" client-side.
+          // player_ranking_snapshots is the canonical source but isn't
+          // anon-readable, so the dot logic would never fire if we queried
+          // it from the browser.
+          supabase
+            .from('players')
+            .select('ranking_date')
+            .not('ranking_date', 'is', null)
+            .order('ranking_date', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
         ])
         if (cancelled) return
         setLiveCount(liveRes.count ?? 0)
         setNewsCount(newsRes.count ?? 0)
+        const row = rankingsRes.data as { ranking_date: string | null } | null
+        setLatestRankingsWeek(formatYearWeek(row?.ranking_date))
       } catch { /* silent */ }
     }
 
@@ -382,6 +402,16 @@ export default function BottomNavV3() {
                     (the feed page calls markFeedVisited on mount). */}
                 {tab.key === 'home' && newsCount > 0 && (
                   <div className="v3-nav-badge">{newsCount > 9 ? '9+' : newsCount}</div>
+                )}
+                {/* Rank-updated dot on Ranking — appears when a fresh
+                    ranking week has been published since the user's
+                    last visit to /rankings. Cleared when the rankings
+                    page calls markRankingsVisited on mount. Different
+                    visual from the red unread-count badges above
+                    (green dot, no number) because the semantic is
+                    "something new this week", not a counter. */}
+                {tab.key === 'ranking' && showRankingNudge && (
+                  <div className="v3-nav-rank-dot" aria-label={t('rankUpdated')} />
                 )}
               </div>
 
@@ -479,6 +509,22 @@ const NAV_STYLES = `
     0% { transform: scale(0); }
     70% { transform: scale(1.2); }
     100% { transform: scale(1); }
+  }
+
+  /* Rank-updated nudge dot — distinct from the red unread-count
+     badges: solid green to match the active-tab color, no number,
+     no animation. Sits in the icon wrapper's top-right corner with
+     a dark-bg ring so it reads against icon strokes and the nav. */
+  .v3-nav-rank-dot {
+    position: absolute;
+    top: 0px;
+    right: 1px;
+    width: 8px;
+    height: 8px;
+    background: ${GREEN};
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(10,10,10,0.96);
+    z-index: 3;
   }
 
   /* ── Option D · Ink Slide + Spring ───────────────────────────

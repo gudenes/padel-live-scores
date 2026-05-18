@@ -9,6 +9,8 @@ import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
+import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
+import { formatYearWeek } from '@/lib/iso-year-week'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -273,6 +275,30 @@ export default function V3RankingPage() {
       document.removeEventListener('keydown', onKey)
     }
   }, [searchOpen, closeSearch])
+
+  // Mark the latest published ranking week as visited so the bottom-nav
+  // green dot clears. Mirrors the `markFeedVisited()` call on /feed.
+  // Reads players.ranking_date — same field the BottomNav probe uses,
+  // so both produce the same "YYYY-WW" string. player_ranking_snapshots
+  // is the canonical source but isn't anon-readable under RLS.
+  useEffect(() => {
+    let cancelled = false
+    async function markLatestWeek() {
+      const { data } = await supabase
+        .from('players')
+        .select('ranking_date')
+        .not('ranking_date', 'is', null)
+        .order('ranking_date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (cancelled) return
+      const row = data as { ranking_date: string | null } | null
+      const week = formatYearWeek(row?.ranking_date)
+      if (week) markRankingsVisited(week)
+    }
+    void markLatestWeek()
+    return () => { cancelled = true }
+  }, [])
 
   // ── Data fetching ──────────────────────────────────────────
   const load = useCallback(async (rt: RankType, g: Gender) => {
