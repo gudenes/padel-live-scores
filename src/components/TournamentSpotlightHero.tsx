@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
+import Image from 'next/image'
 import Avatar from '@/components/Avatar'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
@@ -185,6 +186,7 @@ export interface TournamentSpotlightHeroProps {
     level: string | null
     location: string | null
     prize_money: string | null
+    cover_image_url?: string | null
   }
   defendingChampionMen: {
     names: string
@@ -300,6 +302,29 @@ export default function TournamentSpotlightHero({
           transition: 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
+        {tournament.cover_image_url ? (
+          <>
+            <Image
+              src={tournament.cover_image_url}
+              alt={tournament.name}
+              fill
+              sizes="(max-width: 480px) 100vw, 480px"
+              style={{ objectFit: 'cover', zIndex: 0 }}
+              priority={false}
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.15) 30%, rgba(0,0,0,0.85) 100%)',
+                zIndex: 1,
+              }}
+            />
+          </>
+        ) : null}
+        <div style={{ position: 'relative', zIndex: 2 }}>
         {/* Whole-card link overlay — captures clicks anywhere on the card.
             FollowButton row sits above this via z-index so the star stays interactive.
             Inner CTA is rendered as a visual <div> (not a Link) to avoid duplicate links. */}
@@ -603,6 +628,7 @@ export default function TournamentSpotlightHero({
           </div>
         </AnimateOnView>
         </div>{/* end content padding */}
+        </div>{/* end zIndex:2 wrapper */}
       </div>
     </>
   )
