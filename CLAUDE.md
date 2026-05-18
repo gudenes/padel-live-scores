@@ -137,7 +137,6 @@ Script: `scripts/merge-tournament-duplicates.ts` (supports `--dry-run`, pre-flig
 | `/api/cron/scores` | Every 2 min | Live match polling, score upsert, finished reconcile, stale detect |
 | `/api/cron/sync?scope=matches` | Hourly :00 | Match metadata for active tournaments |
 | `/api/cron/sync` | Mon 4am UTC | Full sync: tournaments, players, seasons, FIP logos |
-| `/api/cron/sync-fip-rankings` | Daily 7am UTC | FIP official + race rankings (top 1000, both genders) |
 | `/api/cron/sync-articles` | Hourly :40 | News from RSS + FIP WP API |
 | `/api/cron/sync-highlights` | Hourly :20 | YouTube highlights |
 | `/api/cron/fip-streams-discover` | Every 15 min | FIP YouTube livestream discovery |
@@ -175,7 +174,7 @@ Schedule lives in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — t
 | fip-oop-writer | every 15m (offset +2) | UPDATE court/round from OOP snapshots |
 | results-fetcher | every 5m | Capture Crionet results snapshots |
 | fip-results-writer | every 5m (offset +2) | Write final scores |
-| player-rankings | daily 07:00 UTC | FIP rankings sync |
+| player-rankings | Mon every 30m 06:00–12:00 UTC + Tue–Sat 07:00 UTC | FIP rankings sync — official + race × men + women via WP JSON API. Sole owner of `players.ranking*`/`race_ranking*` + `player_ranking_snapshots` writes since the 2026-05-18 Vercel cron retirement (PR #344). |
 | live-poller-manager | every 1m | Spawn per-match live-poll loops |
 | close-stale-live-sweeper | every 5m | Close matches stuck on `live`/`ended` |
 
@@ -262,15 +261,20 @@ Shared helper: [`src/lib/avatar-rehost.ts`](src/lib/avatar-rehost.ts) — `rehos
 
 Backfill: [`/api/admin/migrate-avatars`](src/app/api/admin/migrate-avatars/route.ts) batches rehosts. Supports `?source=googlestorage` (legacy FPT) and `?source=padelfip` (FIP thumbnails). `?limit=N` for testing. Auth: `Bearer $CRON_SECRET`.
 
-Wired into `/api/admin/sync-fip-rankings` — collects `(playerId, thumbnail)` during resolver loop, rehosts in 20-wide parallel batches afterward.
+Wired into padelgod's [`player-rankings` worker](padelgod/src/workers/player-rankings.ts) — collects `(playerId, thumbnail)` during the resolver loop across all 4 phases, rehosts in 20-wide parallel batches after the loop. The helper is mirrored at [`padelgod/src/lib/avatar-rehost.ts`](padelgod/src/lib/avatar-rehost.ts) (must stay byte-identical with the Next.js side). The Next.js admin route at `/api/admin/sync-fip-rankings` retains the same wiring as an operator escape hatch (tagged `source='vercel-fip-manual'` in snapshots).
 
 ### Player name aliases
 `PlayerResolver` resolution chain: fip_id → external_id → normalized name + category (with ranking/points disambiguation) → fuzzy (≥0.7 token similarity). On fuzzy match, the raw name variant is auto-stored in `entity_external_ids` (source=`alias`) for instant future lookups. `players.normalized_name` is indexed and trigger-populated using `unaccent`.
 
 ### Historical rankings
-`player_ranking_snapshots` is append-only, keyed by `(player_id, type, year, week)`. Both Vercel `sync-fip-rankings` (writes `official` + `race`, captures `ranking_move`) and padelgod `player-rankings` (writes `official` only, no move) UPSERT — last write wins per ISO week.
+`player_ranking_snapshots` is append-only, keyed by `(player_id, type, year, week)`. **Padelgod is the sole automated writer** since 2026-05-18 (PR #344) — its `player-rankings` worker writes `source='padelgod-fip'` rows for `official` + `race` × both genders, with `ranking_move` populated from the WP JSON API. The Next.js admin route at `/api/admin/sync-fip-rankings` retains write capability for operator one-shots (tagged `source='vercel-fip-manual'`); historical `'vercel-fip'` rows from before the migration remain in place.
+
+Note: `player_ranking_snapshots` has RLS that returns empty for the anon role. Browser code that needs a latest-week probe should derive it from `players.ranking_date` (publicly readable) and convert to ISO `"YYYY-WW"` via [`src/lib/iso-year-week.ts`](src/lib/iso-year-week.ts) — that's the pattern used by `BottomNavV3.tsx` (rank-updated dot) and `/rankings`'s mark-visited effect.
 
 Forward-capture only currently. Backfill + derived analytics (`player_ranking_stats` with `peak_rank`, `weeks_at_no1`) are planned — see [docs/superpowers/plans/2026-05-10-ranking-history-capture.md](docs/superpowers/plans/2026-05-10-ranking-history-capture.md).
+
+### Rank-updated nudge
+Small green dot on the RANKING bottom-nav tab when the latest published week is newer than the user's last visit to `/rankings`. State held in localStorage (`rankings_last_visited_week` = `"YYYY-WW"`) via [`useRankingsLastVisit`](src/hooks/useRankingsLastVisit.ts) (mirrors `useFeedLastVisit`'s `useSyncExternalStore` pattern). Latest-week probe piggybacks on `BottomNavV3.tsx`'s existing 60s `fetchBadges` poll. Cleared when the rankings page mounts via `markRankingsVisited(week)`. See [docs/superpowers/specs/2026-05-18-rank-updated-nudge-design.md](docs/superpowers/specs/2026-05-18-rank-updated-nudge-design.md).
 
 ### Scheduled time pipeline
 Match `scheduled_at` comes from multiple sources:
