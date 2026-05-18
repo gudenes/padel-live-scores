@@ -4,6 +4,7 @@
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
+import Image from 'next/image'
 import { useFormatter, useTranslations, useLocale } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useSearchParams } from 'next/navigation'
@@ -618,6 +619,54 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         borderLeft: `0.5px solid ${BORDER}`,
         borderRight: `0.5px solid ${BORDER}`,
       }}>
+
+        {/* ── Cover image hero ── */}
+        {activeTournamentObj?.cover_image_url ? (
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              aspectRatio: '16 / 9',
+              overflow: 'hidden',
+              borderRadius: '12px 12px 0 0',
+            }}
+          >
+            <Image
+              src={activeTournamentObj.cover_image_url}
+              alt={activeTournamentObj.name}
+              fill
+              sizes="(max-width: 768px) 100vw, 768px"
+              style={{ objectFit: 'cover', zIndex: 0 }}
+              priority
+            />
+            <div
+              aria-hidden
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background:
+                  'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.85) 100%)',
+                zIndex: 1,
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                padding: 16,
+                color: 'white',
+                zIndex: 2,
+              }}
+            >
+              <div style={{ fontSize: 24, fontWeight: 800 }}>{activeTournamentObj.name}</div>
+              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
+                {activeTournamentObj.location ?? activeTournamentObj.country ?? ''}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* ── Sticky header ── */}
         <div style={{
