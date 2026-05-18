@@ -964,7 +964,7 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
           textAlign: 'center', padding: '60px 20px',
           fontSize: 14, color: MUTED, fontWeight: 600,
         }}>
-          {activeTab === 'saved' ? 'No saved articles yet. Bookmark articles to see them here.' : 'No content available'}
+          {tFeed(`empty.${activeTab}`)}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px' }}>
