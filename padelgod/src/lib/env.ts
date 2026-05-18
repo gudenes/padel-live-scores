@@ -120,15 +120,21 @@ const EnvSchema = z.object({
   // dry-run ON.
   ENABLE_FIP_WINNER_PROPAGATOR: boolEnv(false),
   FIP_WINNER_PROPAGATOR_DRY_RUN: boolEnv(true),
-  // FIP draw linker (PR 2). Reads latest fip_event_page snapshots and
-  // writes `entity_external_ids` rows mapping Crionet widget composites
-  // to public.matches UUIDs. Default OFF; enables via Railway env.
-  ENABLE_FIP_DRAW_LINKER: boolEnv(false),
-  // Linker dry-run switch. When true (default), the worker logs every
-  // proposed linkage but writes nothing — lets operators review the
-  // matches on real traffic before any canonical data moves. Flip to
-  // `false` after the first dry-run confirms the expected links fire.
-  FIP_DRAW_LINKER_DRY_RUN: boolEnv(true),
+  // FIP draw linker. Reads latest fip_event_page snapshots and writes
+  // `entity_external_ids` rows that map Crionet widget composites
+  // (e.g. "FIP-2026-1701:MD003") to `public.matches.id`. Without this,
+  // matches created by `fip-draw-populator` are invisible to the
+  // match-stats-fetcher (which only reads from `entity_external_ids`)
+  // — Brussels P2 2026 had 27 finished Premier matches stranded with
+  // no stats coverage because of exactly this gap. Enabled by default;
+  // hourly :42 cron writes the missing linkages idempotently
+  // (`ignoreDuplicates: true` on the unique composite — never stomps
+  // an existing row).
+  ENABLE_FIP_DRAW_LINKER: boolEnv(true),
+  // Linker dry-run switch. Default OFF (writes enabled). Flip via Railway
+  // env if you ever want to re-validate proposed linkages on a real run
+  // before any rows land. The worker logs every linkage either way.
+  FIP_DRAW_LINKER_DRY_RUN: boolEnv(false),
   ENABLE_OOP_FETCHER: boolEnv(true),
   ENABLE_RESULTS_FETCHER: boolEnv(true),
   ENABLE_STATIC_RECONCILER: boolEnv(true),
