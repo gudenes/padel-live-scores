@@ -25,6 +25,7 @@ import PadelgodHealthTab from './PadelgodHealthTab'
 import YtChannelsTab from './yt-channels/YtChannelsTab'
 import NewsTab from './NewsTab'
 import HighlightPickerTab from './HighlightPickerTab'
+import TournamentCoversTab from './TournamentCoversTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -322,7 +323,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker' | 'tournament-covers'>('ongoing')
   // Sidebar collapse — persisted across sessions because operators
   // who like the wider workspace want to keep it that way.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -448,6 +449,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       items: [
         { key: 'players' as const, label: 'Players', badge: null },
         { key: 'brands' as const, label: 'Brands & Equipment', badge: null },
+        { key: 'tournament-covers' as const, label: 'Tournament covers', badge: null },
         { key: 'yt-channels' as const, label: 'YT Channels', badge: null },
         { key: 'news' as const, label: 'News', badge: null },
         { key: 'highlight-picker' as const, label: 'Highlight Picker', badge: null },
@@ -978,6 +980,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>Brands &amp; Equipment</div>
         <BrandsTab />
       </>}
+
+      {tab === 'tournament-covers' && <TournamentCoversTab />}
 
       {tab === 'yt-channels' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>YouTube Channels</div>
