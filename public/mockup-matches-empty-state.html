@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — Matches empty state CTAs</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #0A0A0A;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .page {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.3px;
+    margin: 0 0 8px;
+  }
+  .lede {
+    color: #9CA3AF;
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 720px;
+    margin: 0 0 32px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 980px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .variant {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 18px 16px 22px;
+  }
+  .variant h2 {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #7ED321;
+    margin: 0 0 4px;
+  }
+  .variant .label {
+    color: #6B7280;
+    font-size: 11px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+
+  /* ── Phone shell ─────────────────────────────────────────── */
+  .phone {
+    width: 100%;
+    max-width: 340px;
+    margin: 0 auto;
+    background: #000;
+    border: 8px solid #1a1a1a;
+    border-radius: 36px;
+    padding: 14px 10px 10px;
+    overflow: hidden;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px 12px;
+  }
+  .logo {
+    font-weight: 900;
+    font-size: 10px;
+    letter-spacing: 0.6px;
+    color: #FFD23F;
+    line-height: 1.05;
+  }
+  .logo span { color: #fff; }
+  .search {
+    flex: 1;
+    margin: 0 8px;
+    background: #141414;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: 10px;
+    color: #6B7280;
+  }
+  .avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: rgba(126,211,33,0.15);
+    border: 1px solid rgba(126,211,33,0.5);
+  }
+
+  /* Day picker — chunky polygon chips like the real app */
+  .days {
+    display: flex;
+    gap: 6px;
+    padding: 0 6px 12px;
+  }
+  .day {
+    flex: 1;
+    text-align: center;
+    background: #141414;
+    color: #9CA3AF;
+    padding: 8px 0;
+    clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+  .day .num { display: block; font-size: 13px; font-weight: 900; color: #fff; margin-top: 2px; }
+  .day.today {
+    background: #7ED321;
+    color: #0A0A0A;
+  }
+  .day.today .num { color: #0A0A0A; }
+
+  /* Filter row */
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 0 8px 14px;
+  }
+  .pill {
+    background: #141414;
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    color: #9CA3AF;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .pill .dot {
+    width: 6px; height: 6px;
+    background: #EF4444;
+    border-radius: 50%;
+  }
+
+  /* Empty-state card — match the real EmptyState component exactly */
+  .empty {
+    margin: 0 8px;
+    background: #141414;
+    border: 1px solid rgba(255,255,255,0.06);
+    clip-path: polygon(0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px));
+    padding: 28px 18px 24px;
+    text-align: center;
+  }
+  .mascot {
+    width: 110px;
+    height: 110px;
+    margin: 0 auto 10px;
+    background: radial-gradient(circle at 30% 30%, #FFD23F 0%, #F5A623 60%, #C2731D 100%);
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 6px 20px rgba(245,166,35,0.25);
+  }
+  .mascot::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border: 2px dashed rgba(255,255,255,0.7);
+    border-radius: 50%;
+    clip-path: polygon(20% 50%, 80% 50%, 80% 52%, 20% 52%);
+  }
+  .mascot::after {
+    content: 'Zz';
+    position: absolute;
+    top: -6px; right: -2px;
+    font-size: 18px;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .empty .title {
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    margin-bottom: 6px;
+  }
+  .empty .sub {
+    font-size: 11px;
+    color: #6B7280;
+    line-height: 1.5;
+    max-width: 240px;
+    margin: 0 auto;
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  /* Chunky polygon CTA — matches NextMatchesJumpButton / BackToTodayButton */
+  .cta {
+    background: #0A0A0A;
+    color: #7ED321;
+    border: 1px solid rgba(126,211,33,0.4);
+    clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+    padding: 9px 14px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .cta.secondary {
+    background: transparent;
+    color: #9CA3AF;
+    border-color: rgba(255,255,255,0.18);
+  }
+  .cta.tournaments {
+    color: #FFD23F;
+    border-color: rgba(255,210,63,0.4);
+  }
+
+  /* Inline tertiary link variant */
+  .link-row {
+    margin-top: 14px;
+    font-size: 11px;
+    color: #6B7280;
+  }
+  .link-row a {
+    color: #FFD23F;
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 1px dashed rgba(255,210,63,0.4);
+    padding-bottom: 1px;
+  }
+
+  /* Bottom nav */
+  .bnav {
+    display: flex;
+    justify-content: space-around;
+    padding: 14px 0 8px;
+    margin-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .bnav .tab {
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    color: #4B5563;
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .bnav .tab .icon {
+    width: 14px; height: 14px;
+    background: #4B5563;
+    border-radius: 3px;
+  }
+  .bnav .tab.active { color: #7ED321; }
+  .bnav .tab.active .icon { background: #7ED321; }
+  .bnav .tab.events-hint .icon {
+    background: #FFD23F;
+    box-shadow: 0 0 0 3px rgba(255,210,63,0.18);
+  }
+  .bnav .tab.events-hint { color: #FFD23F; }
+
+  /* Caption under each phone */
+  .note {
+    margin-top: 14px;
+    font-size: 11px;
+    line-height: 1.55;
+    color: #9CA3AF;
+    padding: 0 4px;
+  }
+  .note strong { color: #fff; font-weight: 700; }
+  .recommend {
+    display: inline-block;
+    background: rgba(126,211,33,0.15);
+    color: #7ED321;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+  <div class="page">
+    <h1>Matches empty state — adding an "Explore tournaments" hint</h1>
+    <p class="lede">
+      Right now when a day has no matches and the lookahead finds nothing nearby
+      (today's view in your screenshot), the empty card has no CTA — just the
+      mascot and a one-line subtitle. Below are three variants. Variant A is the
+      current behavior for reference; B and C add a route to the Events tab.
+    </p>
+
+    <div class="grid">
+
+      <!-- ─────────────── VARIANT A — CURRENT ─────────────── -->
+      <div class="variant">
+        <h2>A · Current (no CTA)</h2>
+        <p class="label">What you see today when there are no matches and the lookahead returns nothing.</p>
+        <div class="phone">
+          <div class="topbar">
+            <div class="logo">PADEL<br/><span>NACHOS</span></div>
+            <div class="search">Try "Arturo Coello"</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="days">
+            <div class="day"><span>SAT</span><span class="num">16</span></div>
+            <div class="day"><span>YDAY</span><span class="num">17</span></div>
+            <div class="day today"><span>TODAY</span><span class="num">18</span></div>
+            <div class="day"><span>TMRW</span><span class="num">19</span></div>
+            <div class="day"><span>WED</span><span class="num">20</span></div>
+          </div>
+          <div class="filter-row">
+            <span class="pill"><span class="dot"></span>LIVE</span>
+            <span class="pill">FILTERS</span>
+          </div>
+          <div class="empty">
+            <div class="mascot"></div>
+            <div class="title">The schedule is still warming up</div>
+            <div class="sub">Try another day or check this week's tournaments from the selector above.</div>
+          </div>
+          <div class="bnav">
+            <div class="tab"><div class="icon"></div>HOME</div>
+            <div class="tab active"><div class="icon"></div>MATCHES</div>
+            <div class="tab"><div class="icon"></div>FOLLOWING</div>
+            <div class="tab"><div class="icon"></div>EVENTS</div>
+            <div class="tab"><div class="icon"></div>RANKING</div>
+          </div>
+        </div>
+        <p class="note">
+          <strong>Problem:</strong> action area collapses → card feels empty.
+          The mascot does most of the lift; user has to figure out the bottom-nav
+          on their own.
+        </p>
+      </div>
+
+      <!-- ─────────────── VARIANT B — RECOMMENDED ─────────────── -->
+      <div class="variant">
+        <h2>B · Explore tournaments CTA <span class="recommend">Recommended</span></h2>
+        <p class="label">Single chunky-polygon CTA in the gold/yellow brand accent. Same shape as the existing "Jump to next matches" — reads as a system action.</p>
+        <div class="phone">
+          <div class="topbar">
+            <div class="logo">PADEL<br/><span>NACHOS</span></div>
+            <div class="search">Try "Arturo Coello"</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="days">
+            <div class="day"><span>SAT</span><span class="num">16</span></div>
+            <div class="day"><span>YDAY</span><span class="num">17</span></div>
+            <div class="day today"><span>TODAY</span><span class="num">18</span></div>
+            <div class="day"><span>TMRW</span><span class="num">19</span></div>
+            <div class="day"><span>WED</span><span class="num">20</span></div>
+          </div>
+          <div class="filter-row">
+            <span class="pill"><span class="dot"></span>LIVE</span>
+            <span class="pill">FILTERS</span>
+          </div>
+          <div class="empty">
+            <div class="mascot"></div>
+            <div class="title">The schedule is still warming up</div>
+            <div class="sub">No matches scheduled today. Browse the upcoming tournament calendar instead.</div>
+            <div class="actions">
+              <button class="cta tournaments">Explore tournaments ›</button>
+            </div>
+          </div>
+          <div class="bnav">
+            <div class="tab"><div class="icon"></div>HOME</div>
+            <div class="tab active"><div class="icon"></div>MATCHES</div>
+            <div class="tab"><div class="icon"></div>FOLLOWING</div>
+            <div class="tab events-hint"><div class="icon"></div>EVENTS</div>
+            <div class="tab"><div class="icon"></div>RANKING</div>
+          </div>
+        </div>
+        <p class="note">
+          <strong>Behavior:</strong> only shown when neither "Jump to next matches"
+          nor "Back to today" is available — i.e. exactly the dead-end case in
+          your screenshot. On days where the lookahead finds a future match,
+          the existing primary CTA wins.
+        </p>
+      </div>
+
+      <!-- ─────────────── VARIANT C — INLINE LINK ─────────────── -->
+      <div class="variant">
+        <h2>C · Always-on tertiary link</h2>
+        <p class="label">Quieter — a yellow text link below the card. Shows on every empty state, alongside any primary CTA.</p>
+        <div class="phone">
+          <div class="topbar">
+            <div class="logo">PADEL<br/><span>NACHOS</span></div>
+            <div class="search">Try "Arturo Coello"</div>
+            <div class="avatar"></div>
+          </div>
+          <div class="days">
+            <div class="day"><span>SAT</span><span class="num">16</span></div>
+            <div class="day"><span>YDAY</span><span class="num">17</span></div>
+            <div class="day today"><span>TODAY</span><span class="num">18</span></div>
+            <div class="day"><span>TMRW</span><span class="num">19</span></div>
+            <div class="day"><span>WED</span><span class="num">20</span></div>
+          </div>
+          <div class="filter-row">
+            <span class="pill"><span class="dot"></span>LIVE</span>
+            <span class="pill">FILTERS</span>
+          </div>
+          <div class="empty">
+            <div class="mascot"></div>
+            <div class="title">The schedule is still warming up</div>
+            <div class="sub">No matches scheduled today.</div>
+            <div class="link-row">
+              or <a href="#">explore upcoming tournaments →</a>
+            </div>
+          </div>
+          <div class="bnav">
+            <div class="tab"><div class="icon"></div>HOME</div>
+            <div class="tab active"><div class="icon"></div>MATCHES</div>
+            <div class="tab"><div class="icon"></div>FOLLOWING</div>
+            <div class="tab"><div class="icon"></div>EVENTS</div>
+            <div class="tab"><div class="icon"></div>RANKING</div>
+          </div>
+        </div>
+        <p class="note">
+          <strong>Trade-off:</strong> always present so discoverability is highest,
+          but adds visual weight to days that already have a "Jump to next matches"
+          primary CTA. Two affordances pointing forward in time on the same card.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>

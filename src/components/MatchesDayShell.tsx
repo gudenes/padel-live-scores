@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 import EmptyState from '@/components/EmptyState'
 import MatchesFilterClient from '@/components/MatchesFilterClient'
 import MatchesTournamentGroup from '@/components/MatchesTournamentGroup'
@@ -517,7 +518,15 @@ export default function MatchesDayShell({
                           })}
                           onClick={() => goTo(suggestedNextIso)}
                         />
-                      ) : undefined
+                      ) : !isOnToday ? undefined : (
+                        // Dead-end case: on today + lookahead found
+                        // nothing forward. Offer the events tab as a
+                        // route off this page instead of leaving the
+                        // action area empty.
+                        <ExploreTournamentsButton
+                          label={tDaily('exploreTournaments')}
+                        />
+                      )
                     }
                     secondary={
                       !isOnToday ? (
@@ -626,6 +635,35 @@ function BackToTodayButton({ label, onClick }: { label: string; onClick: () => v
     >
       {label}
     </button>
+  )
+}
+
+// Dead-end CTA on the empty-state for today when the lookahead found
+// no upcoming days with matches. Routes the user to /tournaments so the
+// action area never collapses to a bare card. Gold accent (vs the lime
+// of NextMatchesJumpButton) signals "sideways navigation" rather than
+// "stay on this surface".
+function ExploreTournamentsButton({ label }: { label: string }) {
+  return (
+    <Link
+      href="/tournaments"
+      style={{
+        background: '#0A0A0A',
+        color: '#FFD23F',
+        border: '1px solid rgba(255,210,63,0.4)',
+        clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+        padding: '10px 18px',
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: 0.4,
+        textTransform: 'uppercase',
+        fontFamily: 'inherit',
+        textDecoration: 'none',
+        display: 'inline-block',
+      }}
+    >
+      {label} ›
+    </Link>
   )
 }
 
