@@ -555,6 +555,32 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
 
     expect(result.race.men.dropoutsCleared).toBe(1);
   });
-  it.todo('Task 8 — race endpoint empty: throws PARSED_ZERO_ROWS + Sentry');
+  it('race endpoint empty: throws PARSED_ZERO_ROWS + Sentry capture tagged race-male', async () => {
+    const sentrySpy = vi.spyOn(await import('@sentry/node'), 'captureException').mockImplementation(() => 'event-id');
+
+    // Official OK, race-men returns [], race-women OK.
+    // Race entries registered before official entries so the Map iteration
+    // resolves 'search_type=race&gender=male' before 'gender=male&limit'
+    // (both substrings match the race URL; first-registered wins).
+    setHttpResponse('search_type=race&gender=male', []);
+    setHttpResponse('search_type=race&gender=female', [raceRow({ player_id: 'P000002', race_rank: 1 })]);
+    setHttpResponse('gender=male&limit', [officialRow({ player_id: 'P000001', rank: 1 })]);
+    setHttpResponse('gender=female&limit', [officialRow({ player_id: 'P000002', rank: 1 })]);
+
+    const supabase = makeSupabase();
+    await expect(runPlayerRankings({ supabase, httpClient: makeHttpClient() })).rejects.toThrow(/PARSED_ZERO_ROWS/);
+
+    // race-male scrape_job marked failed
+    const failed = state.scrapeJobs.find(s => s.target_url.includes('search_type=race') && s.target_url.includes('gender=male'));
+    expect(failed?.status).toBe('failed');
+    expect(failed?.error_message).toContain('race-male');
+
+    expect(sentrySpy).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: expect.objectContaining({ worker: 'player-rankings', phase: 'race-male' }) }),
+    );
+
+    sentrySpy.mockRestore();
+  });
   it.todo('Task 9 — NO_SNAPSHOTS_WRITTEN floor: throws if every phase parsed but every upsert failed');
 });
