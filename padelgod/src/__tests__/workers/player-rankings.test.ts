@@ -1,6 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runPlayerRankings } from '../../workers/player-rankings.js';
 
+// vi.mock must be hoisted before ESM imports so that vi.spyOn inside test
+// bodies can override captureException (ESM namespace is not configurable
+// without a hoisted mock factory).
+vi.mock('@sentry/node', () => ({
+  captureException: vi.fn(),
+  init: vi.fn(),
+  setTag: vi.fn(),
+  withScope: vi.fn((_scope: unknown, cb: () => void) => cb()),
+}));
+
 // ── HTTP mock ────────────────────────────────────────────────────────────
 //
 // Padelgod workers receive an injected `httpClient` (axios instance). For
@@ -416,8 +426,76 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     expect(result.snapshotsWritten).toBe(5);
   });
 
-  it.todo('Task 5 — official current week empty, falls back to W-1 with data');
-  it.todo('Task 5 — official all 3 fallback weeks empty: throws PARSED_ZERO_ROWS + Sentry');
+  it('official current week empty, falls back to a prior week with data', async () => {
+    // Configure the men's official endpoint to return [] for the CURRENT week
+    // and data for the previous week. The URL substring matching only sees
+    // gender — we differentiate by week via a custom handler.
+    const httpClient = {
+      get: vi.fn(async (url: string) => {
+        const weekMatch = url.match(/week=(\d+)/);
+        const week = weekMatch ? parseInt(weekMatch[1], 10) : 0;
+        const currentWeek = (() => {
+          const now = new Date();
+          const start = new Date(now.getFullYear(), 0, 1);
+          return Math.ceil(((now.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
+        })();
+        if (url.includes('gender=male') && url.includes('ranking/load-more')) {
+          if (week === currentWeek) return { status: 200, data: [] };
+          return { status: 200, data: [officialRow({ player_id: 'P000001', rank: 1 })] };
+        }
+        if (url.includes('gender=female') && url.includes('ranking/load-more')) {
+          return { status: 200, data: [officialRow({ player_id: 'P000002', rank: 1 })] };
+        }
+        if (url.includes('search_type=race') && url.includes('gender=male')) {
+          return { status: 200, data: [raceRow({ player_id: 'P000001', race_rank: 1 })] };
+        }
+        if (url.includes('search_type=race') && url.includes('gender=female')) {
+          return { status: 200, data: [raceRow({ player_id: 'P000002', race_rank: 1 })] };
+        }
+        return { status: 200, data: [] };
+      }),
+    } as any;
+
+    const supabase = makeSupabase();
+    const result = await runPlayerRankings({ supabase, httpClient });
+
+    // Men fetched from fallback week, women from current week
+    expect(result.official.men.fetched).toBe(1);
+    expect(result.official.women.fetched).toBe(1);
+    // No PARSED_ZERO_ROWS thrown (the fallback succeeded)
+    expect(state.scrapeJobs.filter(s => s.status === 'failed')).toHaveLength(0);
+  });
+
+  it('official all 3 fallback weeks empty: throws PARSED_ZERO_ROWS + Sentry capture', async () => {
+    const sentrySpy = vi.spyOn(await import('@sentry/node'), 'captureException').mockImplementation(() => 'event-id');
+
+    const httpClient = {
+      get: vi.fn(async (url: string) => {
+        // Men's official: empty for all 4 attempted weeks
+        if (url.includes('gender=male') && url.includes('ranking/load-more')) {
+          return { status: 200, data: [] };
+        }
+        return { status: 200, data: [] };
+      }),
+    } as any;
+
+    const supabase = makeSupabase();
+    await expect(runPlayerRankings({ supabase, httpClient })).rejects.toThrow(/PARSED_ZERO_ROWS/);
+
+    // First failing scrape_jobs row is official-male
+    const failed = state.scrapeJobs.filter(s => s.status === 'failed');
+    expect(failed.length).toBeGreaterThan(0);
+    expect(failed[0].target_url).toContain('gender=male');
+    expect(failed[0].error_message).toContain('PARSED_ZERO_ROWS');
+
+    // Sentry was called with the right tags
+    expect(sentrySpy).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({ tags: expect.objectContaining({ worker: 'player-rankings', phase: 'official-male' }) }),
+    );
+
+    sentrySpy.mockRestore();
+  });
   it.todo('Task 6 — race response with series boundary trims at 50% halving');
   it.todo('Task 7 — race dropouts: previously-ranked players not in current run get race fields NULLed');
   it.todo('Task 8 — race endpoint empty: throws PARSED_ZERO_ROWS + Sentry');
