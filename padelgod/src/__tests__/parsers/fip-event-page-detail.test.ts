@@ -33,14 +33,28 @@ describe('parseEventDates', () => {
     });
   });
 
-  it('prefers the labelled "Main draw" date over the header range', () => {
+  it('prefers the page header date range over the "Main draw" label', () => {
+    // Priority flipped in commit 862e8623 — the header range matches
+    // what users see on FIP (qualifying-inclusive window), while the
+    // Main draw label is a sub-detail (the day MD play actually
+    // starts). Listing dates need to match the FIP page header.
     const html = `
-      <p>PRACTICE: Available 20/04/2026 - 22/04/2026</p>
+      <div class="event__date">20/04/2026 - 22/04/2026</div>
       <span>Main draw 25/04/2026</span>
       <span>Last day 30/04/2026</span>
     `;
     const result = parseEventDates(html);
+    expect(result.startsAt).toBe('2026-04-20');
+    expect(result.endsAt).toBe('2026-04-22');
+  });
+
+  it('falls back to the "Main draw" label when no header range is present', () => {
+    // Older page formats expose only the labelled Main draw date.
+    // Keep that as a fallback so we still capture a start date.
+    const html = `<span>Main draw 25/04/2026</span>`;
+    const result = parseEventDates(html);
     expect(result.startsAt).toBe('2026-04-25');
+    expect(result.endsAt).toBeNull();
   });
 
   it('returns nulls when no dates appear', () => {
