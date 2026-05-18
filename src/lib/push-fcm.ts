@@ -47,16 +47,26 @@ export async function sendPushToFcmTokens(
   if (tokens.length === 0) return { success: 0, failed: 0, invalidTokens: [] }
 
   const messaging = admin.messaging(getApp())
-  // Data-only payload (no `notification` field). Critical: when the
-  // `notification` field is present, FCM auto-displays a system
+  // Data fields (no top-level `notification` field). Critical for Android:
+  // when the `notification` field is present, FCM auto-displays a system
   // notification on background apps WITHOUT invoking our service —
   // which means we can't set largeIcon. Sending data-only forces every
   // message through PadelMessagingService.onMessageReceived, where we
   // download the icon and build the notification ourselves.
   //
-  // Trade-off: requires the new app build. Older app versions without
-  // PadelMessagingService won't display data-only messages. Acceptable
-  // because we control the rollout and the user is the primary tester.
+  // For iOS we also need an `apns.payload.aps.alert` block — iOS only
+  // shows a notification when there's an alert in the apns payload, and
+  // `mutable-content: 1` makes iOS run our Notification Service Extension
+  // (ios/App/PadelNotificationService/NotificationService.swift) before
+  // display. The NSE reads `userInfo["icon"]` (FCM merges data fields
+  // into userInfo on iOS), downloads the image, and attaches it as a
+  // UNNotificationAttachment — that's how the round avatar appears on
+  // the right side of the iOS notification row.
+  //
+  // Trade-off: requires both app builds to be live. Older Android builds
+  // without PadelMessagingService won't display data-only messages.
+  // Older iOS builds will still get title+body (apns alert auto-displays)
+  // but won't render the image attachment.
   const result = await messaging.sendEachForMulticast({
     tokens,
     data: {
@@ -68,6 +78,18 @@ export async function sendPushToFcmTokens(
     },
     android: {
       priority: 'high',
+    },
+    apns: {
+      payload: {
+        aps: {
+          alert: {
+            title: payload.title,
+            body: payload.body,
+          },
+          mutableContent: true,
+          sound: 'default',
+        },
+      },
     },
   })
 
