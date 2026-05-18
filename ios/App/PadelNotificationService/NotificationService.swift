@@ -23,8 +23,8 @@
 //       player avatar appears next to the lock-screen banner / under the
 //       text in the notification tray.
 //
-//  Bundle identifier: com.padelnachos.app.NotificationService
-//  Deployment target: must match the main app target (iOS 13.0+)
+//  Bundle identifier: com.padelnachos.app.PadelNotificationService
+//  Deployment target: must match the main app target (iOS 15.0+)
 //  Required SPM dependency on this target: FirebaseMessaging
 //
 //  Cost in IPA: ~100 KB compiled. Runs in a separate sandboxed process
