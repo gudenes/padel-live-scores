@@ -16,6 +16,7 @@ import { Link } from '@/i18n/navigation'
 import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
+import FeedTabs from './FeedTabs'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
@@ -910,13 +911,21 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
 
   const feed = feedClusters.map(c => c.primary)
 
-  const [showSaved, setShowSaved] = useState(false)
-  const savedCount = bookmarkedArticles.size
-
-  // When "Saved" filter is on, show only bookmarked articles (no videos)
-  const displayClusters = showSaved
-    ? feedClusters.filter(c => c.primary.type === 'news' && bookmarkedArticles.has((c.primary.data as NewsItem).id))
-    : feedClusters
+  // Per-tab cluster filtering
+  const displayClusters = (() => {
+    switch (activeTab) {
+      case 'news':
+        return feedClusters.filter(c => c.primary.type === 'news')
+      case 'videos':
+        return feedClusters.filter(c => c.primary.type === 'video')
+      case 'saved':
+        return feedClusters.filter(
+          c => c.primary.type === 'news' && bookmarkedArticles.has((c.primary.data as NewsItem).id),
+        )
+      case 'originals':
+        return [] // Originals tab renders the `originals` prop directly, not clusters
+    }
+  })()
 
   return (
     <div style={{ minHeight: '100vh', background: BG_BASE }}>
@@ -924,37 +933,8 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
       <AppHeader onSearchOpen={() => setSearchOpen(true)} />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      {/* Saved filter chip */}
-      {!loading && savedCount > 0 && (
-        <div style={{ padding: '10px 16px 0', display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => setShowSaved(false)}
-            style={{
-              padding: '5px 12px', fontSize: 10, fontWeight: 800,
-              background: !showSaved ? ORANGE : 'rgba(255,255,255,0.06)',
-              color: !showSaved ? '#000' : MUTED,
-              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              textTransform: 'uppercase', letterSpacing: 0.3,
-            }}
-          >
-            {tCommon('all')}
-          </button>
-          <button
-            onClick={() => setShowSaved(true)}
-            style={{
-              padding: '5px 12px', fontSize: 10, fontWeight: 800,
-              background: showSaved ? GREEN : 'rgba(255,255,255,0.06)',
-              color: showSaved ? '#000' : MUTED,
-              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              textTransform: 'uppercase', letterSpacing: 0.3,
-            }}
-          >
-            {tFeed('saved')} ({savedCount})
-          </button>
-        </div>
-      )}
+      {/* Tab row (sticky under header) */}
+      <FeedTabs active={activeTab} onChange={setTab} />
 
       {/* Feed content */}
       {loading ? (
@@ -964,7 +944,7 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
           textAlign: 'center', padding: '60px 20px',
           fontSize: 14, color: MUTED, fontWeight: 600,
         }}>
-          {showSaved ? 'No saved articles yet. Bookmark articles to see them here.' : 'No content available'}
+          {activeTab === 'saved' ? 'No saved articles yet. Bookmark articles to see them here.' : 'No content available'}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px' }}>
