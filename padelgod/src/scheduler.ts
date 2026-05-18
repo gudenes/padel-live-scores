@@ -325,9 +325,19 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
     });
   }
   if (flags.enablePlayerRankings) {
+    // Monday: every 30 min from 06:00 to 12:00 UTC. FIP publishes new
+    // rankings on Mondays; idempotent UPSERT makes early-morning runs
+    // free no-ops until they catch the publish.
     entries.push({
       name: 'player-rankings',
-      cron: '0 7 * * *', // daily 07:00 UTC
+      cron: '0,30 6-12 * * 1',
+      run: getWorkerRunner('player-rankings')!,
+    });
+    // Tue–Sat: daily 07:00 UTC. Keeps player profile/avatar data fresh
+    // and recovers from any single failed Monday run.
+    entries.push({
+      name: 'player-rankings',
+      cron: '0 7 * * 2-6',
       run: getWorkerRunner('player-rankings')!,
     });
   }

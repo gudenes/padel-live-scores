@@ -142,4 +142,18 @@ describe('buildSchedule', () => {
     });
     expect(sched.map((s) => s.name)).not.toContain('fip-event-page-enricher');
   });
+
+  it('registers player-rankings TWICE when enabled (Mon poll + weekday daily)', () => {
+    const schedule = buildSchedule(ALL_ENABLED as any);
+    const entries = schedule.filter(s => s.name === 'player-rankings');
+    expect(entries).toHaveLength(2);
+    const crons = entries.map(e => e.cron).sort();
+    expect(crons).toEqual(['0 7 * * 2-6', '0,30 6-12 * * 1']);
+  });
+
+  it('omits player-rankings entirely when flag is off', () => {
+    const flags = { ...ALL_ENABLED, enablePlayerRankings: false };
+    const schedule = buildSchedule(flags as any);
+    expect(schedule.filter(s => s.name === 'player-rankings')).toHaveLength(0);
+  });
 });
