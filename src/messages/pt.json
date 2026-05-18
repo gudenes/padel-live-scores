@@ -322,6 +322,13 @@
     "videos": "Vídeos",
     "news": "Notícias",
     "saved": "Salvos",
+    "originals": "Originais",
+    "empty": {
+      "news": "Ainda não há artigos. Volte em breve.",
+      "videos": "Sem destaques disponíveis na tua região.",
+      "originals": "Em breve.",
+      "saved": "Guarde artigos para vê-los aqui."
+    },
     "justNow": "Agora mesmo",
     "hoursAgo": "há {count}h",
     "daysAgo": "há {count}d",

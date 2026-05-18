@@ -322,6 +322,13 @@
     "videos": "Video",
     "news": "News",
     "saved": "Salvati",
+    "originals": "Originali",
+    "empty": {
+      "news": "Ancora nessun articolo. Torna presto.",
+      "videos": "Nessun highlight disponibile nella tua regione.",
+      "originals": "Prossimamente.",
+      "saved": "Salva articoli per vederli qui."
+    },
     "justNow": "Proprio ora",
     "hoursAgo": "{count}h fa",
     "daysAgo": "{count}g fa",

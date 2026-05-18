@@ -4,6 +4,8 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
+import type { NewsPost } from '@/types/news'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import NewsPeekSheet from '@/components/home/NewsPeekSheet'
 import { supabase } from '@/lib/supabase'
 import { useHiddenFeedItems } from '@/hooks/useHiddenFeedItems'
@@ -14,7 +16,9 @@ import { Link } from '@/i18n/navigation'
 import FollowButton from '@/components/FollowButton'
 import AppHeader from '@/components/AppHeader'
 import SearchOverlay from '@/components/nav/SearchOverlay'
+import FeedTabs from './FeedTabs'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
+import NewsCardOriginal from '@/components/news/NewsCard'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { Capacitor } from '@capacitor/core'
@@ -76,6 +80,14 @@ interface NewsItem {
 type FeedItem =
   | { type: 'video'; data: Highlight }
   | { type: 'news'; data: NewsItem }
+
+type FeedTab = 'news' | 'videos' | 'originals' | 'saved'
+const FEED_TABS: readonly FeedTab[] = ['news', 'videos', 'originals', 'saved']
+const DEFAULT_TAB: FeedTab = 'news'
+
+function parseTab(value: string | null): FeedTab {
+  return FEED_TABS.includes(value as FeedTab) ? (value as FeedTab) : DEFAULT_TAB
+}
 
 /** Pick the localised title for a NewsItem, falling back to source. */
 function localizedNewsTitle(item: { title: string; title_translations?: Partial<Record<string, string>> | null }, userLocale: string): string {
@@ -647,17 +659,36 @@ function FeedSkeleton() {
 
 // ── Main page ──────────────────────────────────────────────────
 
-export default function FeedClient() {
+interface FeedClientProps {
+  originals: NewsPost[]
+}
+
+export default function FeedClient({ originals }: FeedClientProps) {
   return (
     <Suspense fallback={<FeedSkeleton />}>
-      <V3FeedPage />
+      <V3FeedPage originals={originals} />
     </Suspense>
   )
 }
 
-function V3FeedPage() {
+function V3FeedPage({ originals }: { originals: NewsPost[] }) {
   const tFeed = useTranslations('feed')
-  const tCommon = useTranslations('common')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const activeTab = parseTab(searchParams.get('tab'))
+
+  const setTab = useCallback((tab: FeedTab) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (tab === DEFAULT_TAB) {
+      params.delete('tab')
+    } else {
+      params.set('tab', tab)
+    }
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
+
   const userLocale = useLocale()
   const { user } = useAuth()
   const [playing, setPlayingRaw] = useState<Highlight | null>(null)
@@ -880,13 +911,21 @@ function V3FeedPage() {
 
   const feed = feedClusters.map(c => c.primary)
 
-  const [showSaved, setShowSaved] = useState(false)
-  const savedCount = bookmarkedArticles.size
-
-  // When "Saved" filter is on, show only bookmarked articles (no videos)
-  const displayClusters = showSaved
-    ? feedClusters.filter(c => c.primary.type === 'news' && bookmarkedArticles.has((c.primary.data as NewsItem).id))
-    : feedClusters
+  // Per-tab cluster filtering
+  const displayClusters = (() => {
+    switch (activeTab) {
+      case 'news':
+        return feedClusters.filter(c => c.primary.type === 'news')
+      case 'videos':
+        return feedClusters.filter(c => c.primary.type === 'video')
+      case 'saved':
+        return feedClusters.filter(
+          c => c.primary.type === 'news' && bookmarkedArticles.has((c.primary.data as NewsItem).id),
+        )
+      case 'originals':
+        return [] // Originals tab renders the `originals` prop directly, not clusters
+    }
+  })()
 
   return (
     <div style={{ minHeight: '100vh', background: BG_BASE }}>
@@ -894,47 +933,37 @@ function V3FeedPage() {
       <AppHeader onSearchOpen={() => setSearchOpen(true)} />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
-      {/* Saved filter chip */}
-      {!loading && savedCount > 0 && (
-        <div style={{ padding: '10px 16px 0', display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => setShowSaved(false)}
-            style={{
-              padding: '5px 12px', fontSize: 10, fontWeight: 800,
-              background: !showSaved ? ORANGE : 'rgba(255,255,255,0.06)',
-              color: !showSaved ? '#000' : MUTED,
-              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              textTransform: 'uppercase', letterSpacing: 0.3,
-            }}
-          >
-            {tCommon('all')}
-          </button>
-          <button
-            onClick={() => setShowSaved(true)}
-            style={{
-              padding: '5px 12px', fontSize: 10, fontWeight: 800,
-              background: showSaved ? GREEN : 'rgba(255,255,255,0.06)',
-              color: showSaved ? '#000' : MUTED,
-              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-              border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-              textTransform: 'uppercase', letterSpacing: 0.3,
-            }}
-          >
-            {tFeed('saved')} ({savedCount})
-          </button>
-        </div>
-      )}
+      {/* Tab row (sticky under header) */}
+      <FeedTabs active={activeTab} onChange={setTab} />
 
       {/* Feed content */}
-      {loading ? (
+      {activeTab === 'originals' ? (
+        originals.length === 0 ? (
+          <div style={{
+            textAlign: 'center', padding: '60px 20px',
+            fontSize: 14, color: MUTED, fontWeight: 600,
+          }}>
+            {tFeed('empty.originals')}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px' }}>
+            {originals.map((post, i) => (
+              <NewsCardOriginal
+                key={post.id}
+                post={post}
+                variant={i === 0 ? 'hero' : 'standard'}
+              />
+            ))}
+          </div>
+        )
+      ) : loading ? (
         <FeedSkeleton />
       ) : displayClusters.length === 0 ? (
         <div style={{
           textAlign: 'center', padding: '60px 20px',
           fontSize: 14, color: MUTED, fontWeight: 600,
         }}>
-          {showSaved ? 'No saved articles yet. Bookmark articles to see them here.' : 'No content available'}
+          {tFeed(`empty.${activeTab}`)}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '14px 16px' }}>
