@@ -734,11 +734,24 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       {format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}
                     </span>
                   )}
-                  {activeTournamentObj.prize_money && (
-                    <span style={{ fontSize: 10, color: MUTED }}>
-                      &middot; {activeTournamentObj.prize_money}
-                    </span>
-                  )}
+                  {(() => {
+                    // Same priority as the main stat card: FIP integer
+                    // wins when positive; padelapi text only when it
+                    // isn't a "EUR 0" / "$0" placeholder.
+                    let label: string | null = null
+                    if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
+                      label = `€${activeTournamentObj.prize_money_fip.toLocaleString()}`
+                    } else {
+                      const raw = activeTournamentObj.prize_money?.trim()
+                      if (raw && !/^[^\d]*0$/.test(raw)) label = raw
+                    }
+                    if (!label) return null
+                    return (
+                      <span style={{ fontSize: 10, color: MUTED }}>
+                        &middot; {label}
+                      </span>
+                    )
+                  })()}
                   {activeTournamentObj.level && (
                     <span style={{
                       fontSize: 8, fontWeight: 800, color: GREEN,
@@ -1540,7 +1553,14 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         <StatCard value={totalTeams || (tournament?.draw_size_md ? tTournament('pairs', { count: tournament.draw_size_md }) : '\u2014')} label={tTournament('teams')} accent />
         <StatCard value={displayMatches || '\u2014'} label={tTournament('matches')} />
         <StatCard value={totalCountries || '\u2014'} label={tTournament('countries')} />
-        <StatCard value={tournament?.prize_money ?? (tournament?.prize_money_fip ? `€${tournament.prize_money_fip.toLocaleString()}` : '\u2014')} label={tTournament('prizeMoney')} />
+        <StatCard value={(() => {
+          if (tournament?.prize_money_fip && tournament.prize_money_fip > 0) {
+            return `€${tournament.prize_money_fip.toLocaleString()}`
+          }
+          const raw = tournament?.prize_money?.trim()
+          if (raw && !/^[^\d]*0$/.test(raw)) return raw
+          return '—'
+        })()} label={tTournament('prizeMoney')} />
       </div>
 
       {/* Tournament Info — venue address, court conditions, registration

@@ -180,10 +180,24 @@ function decodeHtmlEntities(text: string): string {
 }
 
 export function parseDrawSizes(html: string): DrawSize {
-  const mdMatch = /[Mm]ain\s*[Dd]raw[:\s]*(\d+)/i.exec(html);
+  // Premier event pages use a block layout under the Overview section:
+  //   MAIN DRAW<br/>Men's draw size<br/>48 (41DE + 4Q + 3WC)<br/>
+  //   Women's draw size<br/>40 (34DE + 4Q + 2WC)
+  // We want the men's number (first "draw size" after the heading).
+  //
+  // The naive /Main\s*Draw[:\s]*(\d+)/ pattern was false-matching
+  // "MAIN DRAW : 1st ROUND" in the Play Order block and capturing 1.
+  // Anchor on the "draw size" sub-label, which only appears in the
+  // overview block. Fall back to the FIP-Tour single-line format
+  // ("Main draw: 32 (26DA+4Q+2WC)") if the block format isn't present.
+  const mdBlock = /MAIN\s+DRAW[\s\S]{0,300}?draw\s*size[^\d]*(\d+)/i.exec(html);
+  const mdLegacy = /[Mm]ain\s+[Dd]raw[:\s]+(\d+)\s*\(/.exec(html);
+  const mdMatch = mdBlock ?? mdLegacy;
   const mainDraw = mdMatch ? parseInt(mdMatch[1]!, 10) : null;
 
-  const qdMatch = /[Qq]ualif(?:ication|ying)\s*[Dd]raw[:\s]*(\d+)/i.exec(html);
+  const qdBlock = /QUALIFY(?:ING|ICATION)[\s\S]{0,300}?draw\s*size[^\d]*(\d+)/i.exec(html);
+  const qdLegacy = /[Qq]ualif(?:ication|ying)\s+[Dd]raw[:\s]+(\d+)\s*\(/.exec(html);
+  const qdMatch = qdBlock ?? qdLegacy;
   const qualifyingDraw = qdMatch ? parseInt(qdMatch[1]!, 10) : null;
 
   // Labelled "Prize Money" only — both suffix and prefix € formats.

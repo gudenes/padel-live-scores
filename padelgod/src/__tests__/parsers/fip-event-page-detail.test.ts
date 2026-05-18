@@ -131,6 +131,35 @@ describe('parseDrawSizes', () => {
     expect(result.mainDraw).toBe(32);
     expect(result.qualifyingDraw).toBe(16);
   });
+
+  it('reads main + qualifying from Premier "Men\'s draw size" block layout', () => {
+    // Real shape from padelfip.com Italy Major 2026 — overview block uses
+    // separate "MAIN DRAW" / "QUALIFYING" sub-headings with men's first,
+    // then women's. The previous regex captured "1" from a later "MAIN
+    // DRAW : 1st ROUND" appearing in the Play Order block; this test
+    // pins the block layout to men's main draw.
+    const html = `
+      <p>MAIN DRAW<br />
+      Men´s draw size<br />
+      48 (41DE + 4Q + 3WC)<br />
+      Women´s draw size<br />
+      40 (34DE + 4Q + 2WC)<br />
+      QUALIFYING<br />
+      Men´s draw size<br />
+      24 (22DA + 2WC)<br />
+      Women´s draw size<br />
+      16 (15DA + 1WC)</p>
+      <div class="overview__listText"><p>QUALIFYING<br />
+      Men 31 May – 1 Jun<br />
+      Q1 Sun 31 Start time : 10.30 am<br />
+      MAIN DRAW : 1st ROUND<br />
+      Tue 2 Jun<br />
+      Start time : 10.30 am</p></div>
+    `;
+    const result = parseDrawSizes(html);
+    expect(result.mainDraw).toBe(48);
+    expect(result.qualifyingDraw).toBe(24);
+  });
 });
 
 describe('parseOverviewFields', () => {
