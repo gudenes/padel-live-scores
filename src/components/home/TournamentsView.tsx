@@ -198,7 +198,7 @@ export default function TournamentsView({
       // Fetch all tournaments for this circuit
       const { data: tournamentsData } = await supabase
         .from('tournaments')
-        .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url, status')
+        .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url, cover_image_url, status')
         .in('level', levels)
         .not('level', 'is', null)
         .order('starts_at', { ascending: false })

@@ -254,7 +254,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, cover_image_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])

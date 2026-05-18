@@ -40,6 +40,7 @@ export interface Tournament {
   location: string | null
   prize_money: string | null
   logo_url?: string | null
+  cover_image_url?: string | null
 }
 
 export interface Highlight {
