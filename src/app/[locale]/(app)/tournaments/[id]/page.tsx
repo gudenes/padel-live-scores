@@ -45,6 +45,13 @@ const CHUNKY = {
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
+// ── Collapsing header dimensions ──────────────────────────────
+const HERO_EXPANDED = 280
+const HERO_COLLAPSED = 62
+const COLLAPSE_SCROLL = HERO_EXPANDED - HERO_COLLAPSED  // 218
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v))
+
 // ── Coverage levels with live point-by-point scoring ──────────
 const FULL_COVERAGE_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'fip_platinum'])
 
@@ -185,6 +192,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [justUpdated, setJustUpdated] = useState(false)
 
+  const [heroProgress, setHeroProgress] = useState(0)
+
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
@@ -200,6 +209,17 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       : 'overview'
   )
   const stageStripRef = useRef<HTMLDivElement>(null)
+
+  // prefers-reduced-motion snaps between expanded and collapsed
+  const reducedMotion = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  }, [])
+
+  const p = reducedMotion ? (heroProgress > 0.5 ? 1 : 0) : heroProgress
+  const navbarLayerOpacity = p
+  const compactOpacity     = clamp01((p - 0.55) / 0.4)
+  const inlineOpacity      = clamp01((0.7 - p) / 0.4)
 
   // ── Fetch ─────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -262,6 +282,25 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
 
   useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
+
+  // ── Collapsing header scroll listener ─────────────────────────
+  useEffect(() => {
+    let rafToken: number | null = null
+    function onScroll() {
+      if (rafToken != null) return
+      rafToken = requestAnimationFrame(() => {
+        rafToken = null
+        const y = window.scrollY
+        setHeroProgress(Math.min(1, Math.max(0, y / COLLAPSE_SCROLL)))
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    onScroll()
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      if (rafToken != null) cancelAnimationFrame(rafToken)
+    }
+  }, [])
 
   // ── Realtime — list-shape watcher only ────────────────────────
   //
@@ -620,86 +659,69 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         borderRight: `0.5px solid ${BORDER}`,
       }}>
 
-        {/* ── Cover image hero ── */}
-        {activeTournamentObj?.cover_image_url ? (
-          <div
-            style={{
-              position: 'relative',
-              width: '100%',
-              aspectRatio: '16 / 9',
-              overflow: 'hidden',
-              borderRadius: '12px 12px 0 0',
-            }}
-          >
-            <Image
-              src={activeTournamentObj.cover_image_url}
-              alt={activeTournamentObj.name}
-              fill
-              sizes="(max-width: 768px) 100vw, 768px"
-              style={{ objectFit: 'cover', zIndex: 0 }}
-              priority
-            />
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background:
-                  'linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.2) 40%, rgba(0,0,0,0.85) 100%)',
-                zIndex: 1,
-              }}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                padding: 16,
-                color: 'white',
-                zIndex: 2,
-              }}
-            >
-              <div style={{ fontSize: 24, fontWeight: 800 }}>{activeTournamentObj.name}</div>
-              <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>
-                {activeTournamentObj.location ?? activeTournamentObj.country ?? ''}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {/* ── Sticky header ── */}
+        {/* Navbar — sticky 62px bar with chrome + opacity-driven cover bg */}
         <div style={{
-          background: '#0A0A0A', borderBottom: 'none', boxShadow: '0 1px 8px rgba(0,0,0,0.5)',
-          position: 'sticky', top: 0, zIndex: 10,
+          position: 'sticky', top: 0, zIndex: 25,
+          height: HERO_COLLAPSED,
+          overflow: 'hidden',
+          background: '#0A0A0A',
         }}>
+          {activeTournamentObj?.cover_image_url ? (
+            <>
+              <Image
+                src={activeTournamentObj.cover_image_url}
+                alt=""
+                aria-hidden
+                fill
+                sizes="(max-width: 480px) 100vw, 500px"
+                style={{
+                  objectFit: 'cover', zIndex: 0,
+                  filter: 'brightness(0.35) saturate(0.7)',
+                  opacity: navbarLayerOpacity,
+                }}
+              />
+              <div aria-hidden style={{
+                position: 'absolute', inset: 0, zIndex: 1,
+                background: 'rgba(10,10,10,0.55)',
+                opacity: navbarLayerOpacity,
+                pointerEvents: 'none',
+              }} />
+            </>
+          ) : null}
 
-          {/* ROW 1: Back + title */}
+          {/* Chrome row — back, compact title (fades in), M/W toggle, compact FOLLOW (fades in) */}
           <div style={{
+            position: 'relative', zIndex: 2,
             display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 16px',
-            height: 62,
+            padding: '12px 16px', height: HERO_COLLAPSED,
           }}>
             <button
               onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
               style={{
-                width: 36, height: 36, border: 'none', cursor: 'pointer',
-                background: 'none',
+                width: 36, height: 36, border: 'none', cursor: 'pointer', background: 'none',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', flexShrink: 0,
               }}
               aria-label={tCommon('back')}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="15 18 9 12 15 6"/>
               </svg>
             </button>
 
-            <span style={{ fontSize: 18, fontWeight: 800, color: '#fff', flex: 1, letterSpacing: -0.3 }}>
-              Tournament Detail
+            {/* Compact title — fades in over progress 0.55 → 0.95 */}
+            <span style={{
+              flex: 1, minWidth: 0,
+              fontSize: 18, fontWeight: 800, letterSpacing: -0.3,
+              color: '#fff',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              opacity: compactOpacity,
+            }}>
+              {activeTournamentObj ? titleCase(activeTournamentObj.name) : 'Tournament Detail'}
             </span>
 
-            {/* Gender toggle pill */}
+            {/* M/W toggle — preserve exact existing markup including the knob animation */}
             <div
               onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
               style={{
@@ -731,204 +753,225 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 transition: 'color 0.2s',
               }}>W</span>
             </div>
+
+            {/* Compact FOLLOW — fades in over progress 0.55 → 0.95 */}
+            {activeTournamentObj ? (
+              <div style={{
+                opacity: compactOpacity,
+                pointerEvents: compactOpacity > 0.5 ? 'auto' : 'none',
+                flexShrink: 0,
+              }}>
+                <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
+              </div>
+            ) : null}
           </div>
+        </div>
 
-          {/* ROW 2: Tournament info card */}
-          {activeTournamentObj && (
+        {/* Expanded hero — pulled up to overlap the navbar at scroll=0,
+            scrolls away naturally as the user scrolls. */}
+        <div style={{
+          position: 'relative', zIndex: 5,
+          height: HERO_EXPANDED,
+          marginTop: -HERO_COLLAPSED,
+          overflow: 'hidden',
+          background: '#0A0A0A',
+        }}>
+          {activeTournamentObj?.cover_image_url ? (
+            <>
+              <Image
+                src={activeTournamentObj.cover_image_url}
+                alt={activeTournamentObj.name}
+                fill
+                sizes="(max-width: 480px) 100vw, 500px"
+                priority
+                style={{ objectFit: 'cover', zIndex: 0 }}
+              />
+              <div aria-hidden style={{
+                position: 'absolute', inset: 0, zIndex: 1,
+                background: 'linear-gradient(180deg, rgba(10,10,10,0.40) 0%, rgba(10,10,10,0.15) 30%, rgba(10,10,10,0.92) 100%)',
+                pointerEvents: 'none',
+              }} />
+            </>
+          ) : null}
+
+          {/* V1 Broadcast identity block at bottom-left */}
+          {activeTournamentObj ? (
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              padding: '10px 16px',
-              borderTop: `1px solid ${BORDER}`,
-              borderBottom: `1px solid ${BORDER}`,
-              position: 'relative',
+              position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 3,
+              padding: '14px 16px 18px',
             }}>
-              {/* Left accent bar removed */}
-
-              {activeTournamentObj.country ? (
-                <div style={{ width: 50, height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <FlagImage country={activeTournamentObj.country} size={36} />
-                </div>
-              ) : null}
-
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{
-                    fontSize: 15, fontWeight: 800, color: '#fff',
-                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                    letterSpacing: 0.3,
-                    flex: 1, minWidth: 0,
-                  }}>
-                    {titleCase(activeTournamentObj.name)}
-                  </div>
-                  <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
-                </div>
-
-                {activeTournamentObj.venue && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
-                    <svg width="10" height="12" viewBox="0 0 24 28" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                      <path d="M12 2C7.58 2 4 5.58 4 10c0 6.63 8 16 8 16s8-9.37 8-16c0-4.42-3.58-8-8-8z"/>
-                      <circle cx="12" cy="10" r="2.5" fill={MUTED} stroke="none"/>
-                    </svg>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: 0.2 }}>
-                      {activeTournamentObj.venue}
-                    </span>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-                  {activeTournamentObj.starts_at && activeTournamentObj.ends_at && (
-                    <span style={{ fontSize: 10, color: MUTED }}>
-                      {format.dateTime(new Date(activeTournamentObj.starts_at), DATE_SHORT)}
-                      {' - '}
-                      {format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}
-                    </span>
-                  )}
-                  {(() => {
-                    // Same priority as the main stat card: FIP integer
-                    // wins when positive; padelapi text only when it
-                    // isn't a "EUR 0" / "$0" placeholder.
-                    let label: string | null = null
-                    if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
-                      label = `€${activeTournamentObj.prize_money_fip.toLocaleString()}`
-                    } else {
-                      const raw = activeTournamentObj.prize_money?.trim()
-                      if (raw && !/^[^\d]*0$/.test(raw)) label = raw
-                    }
-                    if (!label) return null
-                    return (
-                      <span style={{ fontSize: 10, color: MUTED }}>
-                        &middot; {label}
-                      </span>
-                    )
-                  })()}
-                  {activeTournamentObj.level && (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  {activeTournamentObj.level ? (
                     <span style={{
-                      fontSize: 8, fontWeight: 800, color: GREEN,
-                      background: 'rgba(126,211,33,0.12)',
+                      display: 'inline-block',
+                      fontSize: 10, fontWeight: 800,
+                      color: '#0A0A0A',
+                      background: '#BCE83B',
                       clipPath: CHUNKY.badge,
-                      padding: '2px 8px', letterSpacing: 0.5,
+                      padding: '4px 12px',
+                      letterSpacing: 0.7,
                       textTransform: 'uppercase',
                     }}>
                       {levelLabel(activeTournamentObj.level)}
                     </span>
-                  )}
-                  {liveCount > 0 && (
+                  ) : null}
+                  <div style={{
+                    fontSize: 26, fontWeight: 900,
+                    lineHeight: 1.05, letterSpacing: -0.5,
+                    color: '#fff',
+                    textShadow: '0 2px 8px rgba(0,0,0,0.45)',
+                    marginTop: 6,
+                  }}>
+                    {titleCase(activeTournamentObj.name)}
+                  </div>
+
+                  {/* Metadata row: flag + venue · dates · prize */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                    {activeTournamentObj.country ? (
+                      <FlagImage country={activeTournamentObj.country} size={16} />
+                    ) : null}
                     <span style={{
-                      fontSize: 8, fontWeight: 800, color: LIVE_RED,
-                      background: 'rgba(255,70,85,0.12)',
-                      clipPath: CHUNKY.badge,
-                      padding: '2px 8px', letterSpacing: 0.5,
+                      fontSize: 12, fontWeight: 600,
+                      color: 'rgba(255,255,255,0.88)',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      textShadow: '0 1px 4px rgba(0,0,0,0.4)',
                     }}>
-                      <span style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: LIVE_RED, marginRight: 4, verticalAlign: 'middle', animation: 'v3-pulse 2s infinite' }} />
-                      {tTournament('liveCountChip', { count: liveCount })}
+                      {(() => {
+                        const parts: string[] = []
+                        if (activeTournamentObj.venue) parts.push(activeTournamentObj.venue as string)
+                        if (activeTournamentObj.starts_at && activeTournamentObj.ends_at) {
+                          parts.push(
+                            `${format.dateTime(new Date(activeTournamentObj.starts_at), DATE_SHORT)} – ${format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}`
+                          )
+                        }
+                        if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
+                          parts.push(`€${activeTournamentObj.prize_money_fip.toLocaleString()}`)
+                        } else {
+                          const raw = activeTournamentObj.prize_money?.trim()
+                          if (raw && !/^[^\d]*0$/.test(raw)) parts.push(raw)
+                        }
+                        return parts.join(' · ')
+                      })()}
                     </span>
-                  )}
+                  </div>
+                </div>
+
+                {/* Inline FOLLOW — fades out over progress 0.30 → 0.70 */}
+                <div style={{
+                  alignSelf: 'flex-start', marginTop: 6,
+                  opacity: inlineOpacity,
+                  pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
+                  flexShrink: 0,
+                }}>
+                  <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
+        </div>
 
-          {/* ROW 3: Page tabs — Overview (data), Story (editorial + recap),
-              Matches (fixture list). Story is always visible; it shows the
-              auto-generated preview pre-event, auto-switches to recap
-              post-event, and renders the winner card below the editorial
-              once the tournament is finished. */}
-          <div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
-            {(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => {
-              const active = pageTab === tab
+        {/* Tabs — sticky just below the navbar */}
+        <div style={{
+          position: 'sticky', top: HERO_COLLAPSED, zIndex: 19,
+          background: '#0A0A0A',
+          borderBottom: `1px solid ${BORDER}`,
+          display: 'flex',
+        }}>
+          {(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => {
+            const active = pageTab === tab
+            return (
+              <button
+                key={tab}
+                onClick={() => setPageTab(tab)}
+                style={{
+                  flex: 1, padding: '12px 0', border: 'none', background: 'none', cursor: 'pointer',
+                  fontSize: 12, fontWeight: 800, letterSpacing: 0.5, fontFamily: 'inherit',
+                  color: active ? GREEN : MUTED,
+                  position: 'relative', transition: 'color 0.2s',
+                  textTransform: 'uppercase',
+                }}
+              >
+                {tTournament(tab)}
+                {active && (
+                  <span style={{
+                    position: 'absolute', bottom: -1, left: '15%', right: '15%',
+                    height: 2, background: GREEN,
+                  }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Coverage disclaimer */}
+        {activeTournamentObj && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 16px',
+            fontSize: 11, color: MUTED,
+          }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+            </svg>
+            <span>{tTournament('noPbpCoverage')}</span>
+          </div>
+        )}
+
+        {/* Stage selector strip (matches tab only) */}
+        {pageTab === 'matches' && availableRounds.length > 0 && (
+          <div ref={stageStripRef} style={{
+            display: 'flex', gap: 6, padding: '8px 16px 10px',
+            overflowX: 'auto', scrollbarWidth: 'none',
+          }}>
+            {availableRounds.map(round => {
+              const active = round === selectedRound
+              const hasLive = allMatches.some(m =>
+                m.status === 'live' &&
+                normalizeRoundFull(m.round as string) === round &&
+                (!activeTournament || (m as any).tournament?.id === activeTournament)
+              )
               return (
                 <button
-                  key={tab}
-                  onClick={() => setPageTab(tab)}
+                  key={round}
+                  data-active={active ? 'true' : undefined}
+                  onClick={() => setSelectedRound(round)}
                   style={{
-                    flex: 1, padding: '12px 0', border: 'none', background: 'none', cursor: 'pointer',
-                    fontSize: 12, fontWeight: 800, letterSpacing: 0.5, fontFamily: 'inherit',
-                    color: active ? GREEN : MUTED,
-                    position: 'relative', transition: 'color 0.2s',
-                    textTransform: 'uppercase',
+                    flexShrink: 0,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                    padding: '6px 14px',
+                    clipPath: CHUNKY.button,
+                    border: 'none',
+                    background: active ? 'rgba(126,211,33,0.12)' : 'rgba(255,255,255,0.04)',
+                    cursor: 'pointer',
                   }}
                 >
-                  {tTournament(tab)}
-                  {active && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    {hasLive && (
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, flexShrink: 0, animation: 'v3-pulse 2s infinite' }} />
+                    )}
                     <span style={{
-                      position: 'absolute', bottom: -1, left: '15%', right: '15%',
-                      height: 2, background: GREEN,
-                    }} />
+                      fontSize: 11, fontWeight: 800, letterSpacing: 0.5,
+                      color: active ? GREEN : MUTED,
+                      textTransform: 'uppercase',
+                    }}>
+                      {round}
+                    </span>
+                  </div>
+                  {roundDates[round] && (
+                    <span style={{
+                      fontSize: 8, letterSpacing: 0.2,
+                      color: active ? 'rgba(126,211,33,0.7)' : 'rgba(255,255,255,0.2)',
+                      textTransform: 'uppercase',
+                    }}>
+                      {roundDates[round]}
+                    </span>
                   )}
                 </button>
               )
             })}
           </div>
-
-          {/* Coverage disclaimer */}
-          {activeTournamentObj && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px',
-              fontSize: 11, color: MUTED,
-            }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
-              </svg>
-              <span>{tTournament('noPbpCoverage')}</span>
-            </div>
-          )}
-
-          {/* ROW 4: Stage selector strip (matches tab only) */}
-          {pageTab === 'matches' && availableRounds.length > 0 && (
-            <div ref={stageStripRef} style={{
-              display: 'flex', gap: 6, padding: '8px 16px 10px',
-              overflowX: 'auto', scrollbarWidth: 'none',
-            }}>
-              {availableRounds.map(round => {
-                const active = round === selectedRound
-                const hasLive = allMatches.some(m =>
-                  m.status === 'live' &&
-                  normalizeRoundFull(m.round as string) === round &&
-                  (!activeTournament || (m as any).tournament?.id === activeTournament)
-                )
-                return (
-                  <button
-                    key={round}
-                    data-active={active ? 'true' : undefined}
-                    onClick={() => setSelectedRound(round)}
-                    style={{
-                      flexShrink: 0,
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                      padding: '6px 14px',
-                      clipPath: CHUNKY.button,
-                      border: 'none',
-                      background: active ? 'rgba(126,211,33,0.12)' : 'rgba(255,255,255,0.04)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {hasLive && (
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: LIVE_RED, flexShrink: 0, animation: 'v3-pulse 2s infinite' }} />
-                      )}
-                      <span style={{
-                        fontSize: 11, fontWeight: 800, letterSpacing: 0.5,
-                        color: active ? GREEN : MUTED,
-                        textTransform: 'uppercase',
-                      }}>
-                        {round}
-                      </span>
-                    </div>
-                    {roundDates[round] && (
-                      <span style={{
-                        fontSize: 8, letterSpacing: 0.2,
-                        color: active ? 'rgba(126,211,33,0.7)' : 'rgba(255,255,255,0.2)',
-                        textTransform: 'uppercase',
-                      }}>
-                        {roundDates[round]}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* ── Matches Feed ── */}
         {pageTab === 'matches' && (
