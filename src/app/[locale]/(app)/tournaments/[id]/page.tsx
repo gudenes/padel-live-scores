@@ -801,75 +801,58 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </>
           ) : null}
 
-          {/* V1 Broadcast identity block at bottom-left */}
+          {/* V1 Broadcast identity block at bottom-left.
+              Layout (revised 2026-05-19 for readability):
+                [kicker pill]
+                [flag] [title]              [FOLLOW]
+                [pin icon] venue
+                dates · prize
+              Two metadata rows instead of one cramped line; flag is
+              inline with the title to anchor identity prominently. */}
           {activeTournamentObj ? (
             <div style={{
               position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 3,
               padding: '14px 16px 18px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  {activeTournamentObj.level ? (
-                    <span style={{
-                      display: 'inline-block',
-                      fontSize: 10, fontWeight: 800,
-                      color: '#0A0A0A',
-                      background: '#BCE83B',
-                      clipPath: CHUNKY.badge,
-                      padding: '4px 12px',
-                      letterSpacing: 0.7,
-                      textTransform: 'uppercase',
-                    }}>
-                      {levelLabel(activeTournamentObj.level)}
-                    </span>
-                  ) : null}
-                  <div style={{
-                    fontSize: 26, fontWeight: 900,
-                    lineHeight: 1.05, letterSpacing: -0.5,
-                    color: '#fff',
-                    textShadow: '0 2px 8px rgba(0,0,0,0.45)',
-                    marginTop: 6,
-                  }}>
-                    {titleCase(activeTournamentObj.name)}
-                  </div>
+              {/* Kicker pill — level indicator above title */}
+              {activeTournamentObj.level ? (
+                <span style={{
+                  display: 'inline-block',
+                  fontSize: 10, fontWeight: 800,
+                  color: '#0A0A0A',
+                  background: '#BCE83B',
+                  clipPath: CHUNKY.badge,
+                  padding: '4px 12px',
+                  letterSpacing: 0.7,
+                  textTransform: 'uppercase',
+                }}>
+                  {levelLabel(activeTournamentObj.level)}
+                </span>
+              ) : null}
 
-                  {/* Metadata row: flag + venue · dates · prize */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                    {activeTournamentObj.country ? (
-                      <FlagImage country={activeTournamentObj.country} size={16} />
-                    ) : null}
-                    <span style={{
-                      fontSize: 12, fontWeight: 600,
-                      color: 'rgba(255,255,255,0.88)',
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      textShadow: '0 1px 4px rgba(0,0,0,0.4)',
-                    }}>
-                      {(() => {
-                        const parts: string[] = []
-                        if (activeTournamentObj.venue) parts.push(activeTournamentObj.venue as string)
-                        if (activeTournamentObj.starts_at && activeTournamentObj.ends_at) {
-                          parts.push(
-                            `${format.dateTime(new Date(activeTournamentObj.starts_at), DATE_SHORT)} – ${format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}`
-                          )
-                        }
-                        if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
-                          parts.push(`€${activeTournamentObj.prize_money_fip.toLocaleString()}`)
-                        } else {
-                          const raw = activeTournamentObj.prize_money?.trim()
-                          if (raw && !/^[^\d]*0$/.test(raw)) parts.push(raw)
-                        }
-                        return parts.join(' · ')
-                      })()}
-                    </span>
-                  </div>
+              {/* Title row: flag + title + FOLLOW */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                marginTop: 6,
+              }}>
+                {activeTournamentObj.country ? (
+                  <FlagImage country={activeTournamentObj.country} size={24} />
+                ) : null}
+                <div style={{
+                  flex: 1, minWidth: 0,
+                  fontSize: 26, fontWeight: 900,
+                  lineHeight: 1.05, letterSpacing: -0.5,
+                  color: '#fff',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.45)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {titleCase(activeTournamentObj.name)}
                 </div>
-
                 {/* Inline FOLLOW — fades out over progress 0.30 → 0.70 */}
                 <div
                   tabIndex={inlineOpacity <= 0.5 ? -1 : undefined}
                   aria-hidden={inlineOpacity <= 0.5}
                   style={{
-                    alignSelf: 'flex-start', marginTop: 6,
                     opacity: inlineOpacity,
                     pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
                     flexShrink: 0,
@@ -878,6 +861,57 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
                 </div>
               </div>
+
+              {/* Meta row 1 — venue */}
+              {activeTournamentObj.venue ? (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  marginTop: 8,
+                }}>
+                  <svg width="11" height="13" viewBox="0 0 24 28" fill="none"
+                    stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round"
+                    style={{ flexShrink: 0 }}
+                  >
+                    <path d="M12 2C7.58 2 4 5.58 4 10c0 6.63 8 16 8 16s8-9.37 8-16c0-4.42-3.58-8-8-8z"/>
+                    <circle cx="12" cy="10" r="2.5" fill="rgba(255,255,255,0.7)" stroke="none"/>
+                  </svg>
+                  <span style={{
+                    fontSize: 12, fontWeight: 600,
+                    color: 'rgba(255,255,255,0.92)',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                  }}>
+                    {activeTournamentObj.venue}
+                  </span>
+                </div>
+              ) : null}
+
+              {/* Meta row 2 — dates · prize */}
+              {(activeTournamentObj.starts_at || activeTournamentObj.prize_money_fip || activeTournamentObj.prize_money) ? (
+                <div style={{
+                  fontSize: 12, fontWeight: 600,
+                  color: 'rgba(255,255,255,0.78)',
+                  marginTop: 4,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+                }}>
+                  {(() => {
+                    const parts: string[] = []
+                    if (activeTournamentObj.starts_at && activeTournamentObj.ends_at) {
+                      parts.push(
+                        `${format.dateTime(new Date(activeTournamentObj.starts_at), DATE_SHORT)} – ${format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}`
+                      )
+                    }
+                    if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
+                      parts.push(`€${activeTournamentObj.prize_money_fip.toLocaleString()}`)
+                    } else {
+                      const raw = activeTournamentObj.prize_money?.trim()
+                      if (raw && !/^[^\d]*0$/.test(raw)) parts.push(raw)
+                    }
+                    return parts.join(' · ')
+                  })()}
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
