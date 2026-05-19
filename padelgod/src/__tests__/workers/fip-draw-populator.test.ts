@@ -1476,11 +1476,15 @@ describe('runFipDrawPopulator', () => {
     expect(row.pair2_player2_name).toBe('Local D');
   });
 
-  it('non-amateur tier: does NOT fall back to oop_snapshots', async () => {
-    // A Bronze tournament with no draw_snapshots is just genuinely not
-    // ready yet — entry list might still arrive. We don't want OOP to
-    // become a phantom data source for tiers where strict-resolve
-    // matters.
+  it('FIP Pro Tour tier (fip_bronze): falls back to oop_snapshots when bracket is empty', async () => {
+    // FIP-tier events increasingly publish the draw as PDF-only or via
+    // late AJAX. Without OOP fallback those tournaments are invisible to
+    // the app until the bracket lands — sometimes days after qualifying
+    // starts. OOP gives us short-form names + countries + match_widget_id
+    // which is plenty to render thin matches. When the bracket later
+    // arrives via `draw_snapshots`, the composite-key lookup finds these
+    // rows and the UPDATE NULL-only path backfills FKs, seeds, and
+    // long-form names — see the "OOP merge" cases below.
     const supabase = fakeSupabase({
       tournaments: [
         { tournament_id: TOURNAMENT_ID, tournament_name: 'Bronze Event', slug: TOURNAMENT_SLUG },
@@ -1498,11 +1502,73 @@ describe('runFipDrawPopulator', () => {
       dryRun: false,
     });
 
-    // No draw rows + no fallback → tournament not "processed"
-    expect(result.tournamentsProcessed).toBe(0);
-    expect(result.inserted).toBe(0);
-    expect(supabase.inserted).toHaveLength(0);
+    expect(result.tournamentsProcessed).toBe(1);
+    expect(result.inserted).toBe(1);
+    expect(supabase.inserted).toHaveLength(1);
+    const row = supabase.inserted[0];
+    expect(row.widget_id_composite).toBe('FIP-2026-1706:MD050');
+    // Thin match: no FKs, names preserved verbatim from OOP
+    expect(row.pair1_player1_id).toBeUndefined();
+    expect(row.pair1_player1_name).toBe('Local A');
+    expect(row.pair2_player2_name).toBe('Local D');
   });
+
+  it.each(['fip_silver', 'fip_gold', 'fip_platinum', 'fip_championship'])(
+    'FIP tier (%s): falls back to oop_snapshots when bracket is empty',
+    async (level) => {
+      // Same rule as fip_bronze — applies to every fip_* tier above amateur.
+      const supabase = fakeSupabase({
+        tournaments: [
+          { tournament_id: TOURNAMENT_ID, tournament_name: `${level} Event`, slug: TOURNAMENT_SLUG },
+        ],
+        widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+        tournamentLevels: { [TOURNAMENT_ID]: level },
+        draws: [],
+        oopSnapshots: [oopRow],
+        entryList: [],
+        players: [],
+      });
+
+      const result = await runFipDrawPopulator({
+        supabase: supabase as any,
+        dryRun: false,
+      });
+
+      expect(result.tournamentsProcessed).toBe(1);
+      expect(result.inserted).toBe(1);
+    },
+  );
+
+  it.each(['p1', 'p2', 'major', 'finals'])(
+    'Premier tier (%s): does NOT fall back to oop_snapshots',
+    async (level) => {
+      // Premier-tier events have their own data path (padelapi sync +
+      // Crionet live-poller per match). If a Premier tournament has no
+      // bracket yet, that's a real upstream gap — OOP-as-phantom-source
+      // would mask it and risk creating duplicate rows when padelapi
+      // eventually publishes the same matches under different widget IDs.
+      const supabase = fakeSupabase({
+        tournaments: [
+          { tournament_id: TOURNAMENT_ID, tournament_name: `${level} Event`, slug: TOURNAMENT_SLUG },
+        ],
+        widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+        tournamentLevels: { [TOURNAMENT_ID]: level },
+        draws: [],
+        oopSnapshots: [oopRow],
+        entryList: [],
+        players: [],
+      });
+
+      const result = await runFipDrawPopulator({
+        supabase: supabase as any,
+        dryRun: false,
+      });
+
+      expect(result.tournamentsProcessed).toBe(0);
+      expect(result.inserted).toBe(0);
+      expect(supabase.inserted).toHaveLength(0);
+    },
+  );
 
   it('amateur tier: bracket wins over OOP for the same round (no double-insert)', async () => {
     // Bracket is the richer source (seeds, FIP IDs, status). When
