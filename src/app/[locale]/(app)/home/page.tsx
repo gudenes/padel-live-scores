@@ -277,7 +277,7 @@ function V3HomePageInner() {
         wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).in('status', ['live', 'on_court']).order('court_order', { ascending: true }) as any, 'home:live'),
         wrap(supabase.from('matches').select(MATCH_SELECT_LEAN_PREMIER).eq('status', 'scheduled').in('tournament.level', PREMIER_LEVELS).order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
         wrap(supabase.from('tournaments')
-          .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url')
+          .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url, cover_image_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
           // ends_at is stored as UTC midnight of the final day, so comparing
           // against `now` would drop the tournament for the entire day finals
