@@ -2,6 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+## Revision note (2026-05-19)
+
+Tasks 1–10 shipped on the branch as originally written. After reviewing the result locally, the user asked for a **modern collapsing-header pattern** on the detail page instead of the static 16:9 banner produced by Task 8. **Task 11 (added below)** does that surgery — it deletes Task 8's standalone banner, restructures the existing sticky header into a collapsing navbar + expanded hero, and installs the V1 "Broadcast" identity layout.
+
+Tasks 1–7 + Task 9 + Task 10 remain authoritative — the home Featured card and events-list card surfaces are unchanged.
+
+Tasks **8 and 11** together cover the detail page: Task 8 documents what shipped first (already committed at `08dae528`), Task 11 is the revision (pending). When re-running this plan from scratch, **skip Task 8 and execute Task 11 directly** — Task 11 produces the final desired state.
+
 **Goal:** Let ops upload a single promotional image per tournament and render it as a hero/background on the home Featured card, Events list cards, and Tournament detail page; tournaments without a cover keep today's design unchanged.
 
 **Architecture:** Add `cover_image_url TEXT` column on `tournaments`, store images in a new `tournament-covers` Supabase Storage bucket (created programmatically on first write, matching the existing equipment-image pattern), expose `PATCH/DELETE /api/ops/tournaments/[id]/cover`, build a new ops tab to drive it, and render the image with `next/image fill object-cover` + a CSS gradient overlay on each of the three surfaces.
@@ -687,6 +695,8 @@ git commit -m "feat(tournaments): render cover image on events list cards"
 
 ## Task 8: Render the cover banner on the tournament detail page
 
+> ⚠️ **Superseded by Task 11 (2026-05-19 revision).** This task shipped as a static 16:9 banner (commit `08dae528`) and is now being replaced. Task 11 deletes this banner and replaces it with a collapsing header + V1 Broadcast identity. Both tasks are kept in this plan so the history is intact; if you're re-running the plan from scratch, **skip this task and execute Task 11 instead**.
+
 **Files:**
 - Modify: `src/app/[locale]/(app)/tournaments/[id]/page.tsx`
 
@@ -1165,6 +1175,426 @@ EOF
 
 ---
 
+## Task 11: Detail page — collapsing header + V1 Broadcast identity (revision)
+
+**Status:** Pending (added 2026-05-19). Supersedes Task 8.
+
+**Why this task exists:** Task 8 shipped a static 16:9 banner above the existing sticky header. After local review (2026-05-19) the user asked for a modern iOS-style collapsing-header pattern where the cover lives *inside* the header and a single sticky bar shrinks from 280 px to 62 px as the user scrolls. The identity block (title / level pill / flag / metadata / FOLLOW) inside the expanded hero uses the **V1 "Broadcast"** layout: kicker pill above big title, single-line metadata, FOLLOW outer-right.
+
+**Reference:**
+- Spec: see "Tournament detail page — collapsing header (revised)" in [`docs/superpowers/specs/2026-05-18-tournament-cover-images-design.md`](../specs/2026-05-18-tournament-cover-images-design.md)
+- Visual reference: [`mockups/tournament-cover-collapsing-header.html`](../../../mockups/tournament-cover-collapsing-header.html) — run `Mockups (static)` preview server, open at `http://localhost:4100/tournament-cover-collapsing-header.html`
+
+**Files:**
+- Modify: `src/app/[locale]/(app)/tournaments/[id]/page.tsx` (extensive — touches the sticky-header section and the tabs row)
+
+**Constants to add** near the top of the file alongside the existing `BG_BASE`/`GREEN`/`MUTED` constants:
+
+```ts
+const HERO_EXPANDED = 280
+const HERO_COLLAPSED = 62
+const COLLAPSE_SCROLL = HERO_EXPANDED - HERO_COLLAPSED  // 218
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v))
+```
+
+- [ ] **Step 1: Delete Task 8's standalone hero block**
+
+Locate the conditional block inserted by Task 8 (around line 623, immediately before the `{/* ── Sticky header ── */}` comment). It looks like:
+
+```tsx
+{activeTournamentObj?.cover_image_url ? (
+  <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9', ... }}>
+    <Image src={activeTournamentObj.cover_image_url} ... />
+    ...
+  </div>
+) : null}
+```
+
+Delete the entire block (≈49 lines). Verify with `grep -c "aspectRatio: '16 / 9'" "src/app/[locale]/(app)/tournaments/[id]/page.tsx"` returning 0.
+
+- [ ] **Step 2: Add scroll state and constants**
+
+Near the existing `useState`/`useRef` declarations in the page component, add:
+
+```tsx
+const [heroProgress, setHeroProgress] = useState(0)
+
+// prefers-reduced-motion snaps between expanded and collapsed
+const reducedMotion = useMemo(() => {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}, [])
+
+const p = reducedMotion ? (heroProgress > 0.5 ? 1 : 0) : heroProgress
+const navbarLayerOpacity = p
+const compactOpacity     = clamp01((p - 0.55) / 0.4)
+const inlineOpacity      = clamp01((0.7 - p) / 0.4)
+```
+
+- [ ] **Step 3: Install the scroll listener**
+
+Add a `useEffect` near the other effects:
+
+```tsx
+useEffect(() => {
+  let rafToken: number | null = null
+  function onScroll() {
+    if (rafToken != null) return
+    rafToken = requestAnimationFrame(() => {
+      rafToken = null
+      const y = window.scrollY
+      setHeroProgress(Math.min(1, Math.max(0, y / COLLAPSE_SCROLL)))
+    })
+  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  onScroll()
+  return () => {
+    window.removeEventListener('scroll', onScroll)
+    if (rafToken != null) cancelAnimationFrame(rafToken)
+  }
+}, [])
+```
+
+- [ ] **Step 4: Replace the existing sticky header (Row 1 + Row 2) with the new Navbar**
+
+Find the existing sticky header div (around line 670, the one with `position: 'sticky', top: 0, zIndex: 10`). It currently wraps **Row 1** (back + title + M/W), **Row 2** (flag + name + venue + dates + level pill + FOLLOW), and **Row 3** (tabs).
+
+Remove the Row 1 and Row 2 JSX inside this sticky div (keep Row 3 for the next step). Replace the sticky-div opening with the new Navbar:
+
+```tsx
+{/* Navbar — sticky 62px bar with chrome + opacity-driven cover bg */}
+<div style={{
+  position: 'sticky', top: 0, zIndex: 25,
+  height: HERO_COLLAPSED,
+  overflow: 'hidden',
+  background: '#0A0A0A',
+}}>
+  {activeTournamentObj?.cover_image_url ? (
+    <>
+      <Image
+        src={activeTournamentObj.cover_image_url}
+        alt=""
+        aria-hidden
+        fill
+        sizes="(max-width: 480px) 100vw, 500px"
+        style={{
+          objectFit: 'cover', zIndex: 0,
+          filter: 'brightness(0.35) saturate(0.7)',
+          opacity: navbarLayerOpacity,
+        }}
+      />
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0, zIndex: 1,
+        background: 'rgba(10,10,10,0.55)',
+        opacity: navbarLayerOpacity,
+        pointerEvents: 'none',
+      }} />
+    </>
+  ) : null}
+
+  {/* Chrome row — back, compact title (fades in), M/W toggle, compact FOLLOW (fades in) */}
+  <div style={{
+    position: 'relative', zIndex: 2,
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '12px 16px', height: HERO_COLLAPSED,
+  }}>
+    <button
+      onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
+      style={{
+        width: 36, height: 36, border: 'none', cursor: 'pointer', background: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#fff', flexShrink: 0,
+      }}
+      aria-label={tCommon('back')}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+
+    {/* Compact title — fades in over progress 0.55 → 0.95 */}
+    <span style={{
+      flex: 1, minWidth: 0,
+      fontSize: 18, fontWeight: 800, letterSpacing: -0.3,
+      color: '#fff',
+      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      opacity: compactOpacity,
+    }}>
+      {activeTournamentObj ? titleCase(activeTournamentObj.name) : 'Tournament Detail'}
+    </span>
+
+    {/* M/W toggle — preserve exact existing markup including the knob animation */}
+    <div
+      onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
+      style={{
+        display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+        background: 'rgba(255,255,255,0.04)',
+        clipPath: CHUNKY.badge,
+        padding: '4px 6px', position: 'relative', width: 56, height: 28,
+        flexShrink: 0,
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 3,
+        left: genderFilter === 'men' ? 4 : 28,
+        width: 24, height: 22,
+        background: genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE,
+        clipPath: CHUNKY.badge,
+        transition: 'left 0.2s ease, background 0.2s ease',
+      }} />
+      <span style={{
+        flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+        position: 'relative', zIndex: 1,
+        color: genderFilter === 'men' ? '#000' : MUTED,
+        transition: 'color 0.2s',
+      }}>M</span>
+      <span style={{
+        flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+        position: 'relative', zIndex: 1,
+        color: genderFilter === 'women' ? '#000' : MUTED,
+        transition: 'color 0.2s',
+      }}>W</span>
+    </div>
+
+    {/* Compact FOLLOW — fades in over progress 0.55 → 0.95 */}
+    {activeTournamentObj ? (
+      <div style={{
+        opacity: compactOpacity,
+        pointerEvents: compactOpacity > 0.5 ? 'auto' : 'none',
+        flexShrink: 0,
+      }}>
+        <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
+      </div>
+    ) : null}
+  </div>
+</div>
+```
+
+Adjust the import line to confirm `Image`, `FollowButton`, `FlagImage`, `titleCase`, `CHUNKY`, `MEN_BLUE`, `WOMEN_PURPLE`, `MUTED` are all already imported (they are, post-Tasks 1–10).
+
+- [ ] **Step 5: Add the HeroExpanded section immediately after the Navbar**
+
+```tsx
+{/* Expanded hero — pulled up to overlap the navbar at scroll=0,
+    scrolls away naturally as the user scrolls. */}
+<div style={{
+  position: 'relative', zIndex: 5,
+  height: HERO_EXPANDED,
+  marginTop: -HERO_COLLAPSED,
+  overflow: 'hidden',
+  background: '#0A0A0A',
+}}>
+  {activeTournamentObj?.cover_image_url ? (
+    <>
+      <Image
+        src={activeTournamentObj.cover_image_url}
+        alt={activeTournamentObj.name}
+        fill
+        sizes="(max-width: 480px) 100vw, 500px"
+        priority
+        style={{ objectFit: 'cover', zIndex: 0 }}
+      />
+      <div aria-hidden style={{
+        position: 'absolute', inset: 0, zIndex: 1,
+        background: 'linear-gradient(180deg, rgba(10,10,10,0.40) 0%, rgba(10,10,10,0.15) 30%, rgba(10,10,10,0.92) 100%)',
+        pointerEvents: 'none',
+      }} />
+    </>
+  ) : null}
+
+  {/* V1 Broadcast identity block at bottom-left */}
+  {activeTournamentObj ? (
+    <div style={{
+      position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 3,
+      padding: '14px 16px 18px',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {activeTournamentObj.level ? (
+            <span style={{
+              display: 'inline-block',
+              fontSize: 10, fontWeight: 800,
+              color: '#0A0A0A',
+              background: '#BCE83B',
+              clipPath: CHUNKY.badge,
+              padding: '4px 12px',
+              letterSpacing: 0.7,
+              textTransform: 'uppercase',
+            }}>
+              {levelLabel(activeTournamentObj.level)}
+            </span>
+          ) : null}
+          <div style={{
+            fontSize: 26, fontWeight: 900,
+            lineHeight: 1.05, letterSpacing: -0.5,
+            color: '#fff',
+            textShadow: '0 2px 8px rgba(0,0,0,0.45)',
+            marginTop: 6,
+          }}>
+            {titleCase(activeTournamentObj.name)}
+          </div>
+
+          {/* Metadata row: flag + venue · dates · prize */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            {activeTournamentObj.country ? (
+              <FlagImage country={activeTournamentObj.country} size={16} />
+            ) : null}
+            <span style={{
+              fontSize: 12, fontWeight: 600,
+              color: 'rgba(255,255,255,0.88)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              textShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            }}>
+              {(() => {
+                const parts: string[] = []
+                if (activeTournamentObj.venue) parts.push(activeTournamentObj.venue as string)
+                if (activeTournamentObj.starts_at && activeTournamentObj.ends_at) {
+                  parts.push(
+                    `${format.dateTime(new Date(activeTournamentObj.starts_at), DATE_SHORT)} – ${format.dateTime(new Date(activeTournamentObj.ends_at), DATE_SHORT)}`
+                  )
+                }
+                if (activeTournamentObj.prize_money_fip && activeTournamentObj.prize_money_fip > 0) {
+                  parts.push(`€${activeTournamentObj.prize_money_fip.toLocaleString()}`)
+                } else {
+                  const raw = activeTournamentObj.prize_money?.trim()
+                  if (raw && !/^[^\d]*0$/.test(raw)) parts.push(raw)
+                }
+                return parts.join(' · ')
+              })()}
+            </span>
+          </div>
+        </div>
+
+        {/* Inline FOLLOW — fades out over progress 0.30 → 0.70 */}
+        <div style={{
+          alignSelf: 'flex-start', marginTop: 6,
+          opacity: inlineOpacity,
+          pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
+          flexShrink: 0,
+        }}>
+          <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
+        </div>
+      </div>
+    </div>
+  ) : null}
+</div>
+```
+
+- [ ] **Step 6: Move Row 3 (tabs) out of the old sticky parent**
+
+Locate the existing tabs block (around line 837, after the gender chip / coverage disclaimer). The block looks like:
+
+```tsx
+<div style={{ display: 'flex', borderBottom: `1px solid ${BORDER}` }}>
+  {(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => {
+    ...
+  })}
+</div>
+```
+
+Wrap (or replace) the outer div with a sticky element positioned to sit just under the navbar:
+
+```tsx
+<div style={{
+  position: 'sticky', top: HERO_COLLAPSED, zIndex: 19,
+  background: '#0A0A0A',
+  borderBottom: `1px solid ${BORDER}`,
+  display: 'flex',
+}}>
+  {(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => {
+    /* existing tab button markup unchanged */
+  })}
+</div>
+```
+
+The original `borderBottom: 1px solid BORDER` moves onto the sticky wrapper. The tab buttons themselves keep their existing styling.
+
+- [ ] **Step 7: Confirm the closing tag of the old sticky div is removed**
+
+The old sticky div (which previously wrapped Row 1, Row 2, Row 3, the coverage disclaimer, and the stage selector strip) is gone. Its only remaining children — the coverage disclaimer and the stage selector strip — should now sit as direct children of `<main>` after the tabs.
+
+Read 30 lines around the tabs to verify the closing tag balance:
+
+```bash
+grep -n "{/* ── Sticky header" "src/app/[locale]/(app)/tournaments/[id]/page.tsx"
+```
+
+Expected: no match (the comment was removed when the div was deleted in Step 4).
+
+- [ ] **Step 8: Type-check**
+
+```bash
+npx tsc --noEmit
+```
+
+Expected: zero errors. If something complains about `activeTournamentObj.venue` or `prize_money_fip` types, add the field to the local typing — the data is in the row but the local state was previously typed as `any[]`.
+
+- [ ] **Step 9: Local smoke test**
+
+Start the dev server. Visit `/tournaments/<italy-major-id>` (Italy Major has a cover set on prod). Scroll the page slowly.
+
+Expected at scroll=0:
+- Expanded hero shows the full cover (280 px)
+- Kicker pill `MAJOR` at bottom-left
+- Big title `Italy Major` (26 px) below the pill
+- 16×11 flag + venue · dates · prize on a single metadata line
+- Inline FOLLOW outer-right of the identity stack
+- Top chrome: back button + M/W toggle visible over the cover; no compact title; no compact FOLLOW
+
+Expected at scroll ≈ 100 (mid-collapse):
+- Navbar bg + overlay at ~50% opacity (dim cover visible at top)
+- Compact title and compact FOLLOW still invisible (delayed range 0.55–0.95)
+- Inline FOLLOW fading out (~50%)
+- Hero scrolling up — identity block visible just below mid-viewport
+
+Expected at scroll ≥ 218 (full collapse):
+- Navbar fully opaque: dim cover + dark overlay
+- All compact chrome visible: back · `Italy Major` (18 px) · M/W · FOLLOW
+- Hero scrolled away
+- Tabs latched directly below the navbar at `top: 62 px`
+- Body content visible below tabs
+
+Test the fallback path: pick a tournament without a cover (e.g. Bordeaux P2). Reload `/tournaments/<id>`. The expanded hero shows the same identity block over a flat `#0A0A0A` background — no image, no gradient. The collapse animation still happens. Top chrome stays legible against the dark navbar.
+
+- [ ] **Step 10: Verify keyboard / a11y**
+
+- Tab through the navbar chrome with the keyboard: back arrow, gender toggle, FOLLOW should be reachable.
+- With FOLLOW at `opacity: 0` (scroll = 0), `pointerEvents` is `'none'` — confirm clicking on the compact-FOLLOW invisible area does NOT trigger a follow. The inline FOLLOW (visible) should handle the click.
+- After full collapse, the inline FOLLOW should be `pointer-events: none` (opacity 0), and the compact FOLLOW should be reachable.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add "src/app/[locale]/(app)/tournaments/[id]/page.tsx"
+git commit -m "$(cat <<'EOF'
+feat(tournament): collapsing header with V1 Broadcast identity
+
+Supersedes the static 16:9 banner shipped in Task 8 (commit 08dae528).
+The cover image now lives inside the existing sticky header, which
+shrinks from 280px to 62px as the user scrolls (iOS large-title pattern).
+
+Identity block uses V1 Broadcast layout: kicker pill above the title,
+single-line metadata with a small flag, inline FOLLOW outer-right.
+Compact navbar gets back / Italy Major / M/W / FOLLOW once collapsed.
+
+Cover persists as a dim background (brightness 0.35 + 55% black overlay)
+on the collapsed bar. Tabs latch under the bar at top:62px. No-cover
+fallback renders the same chrome over a flat #0A0A0A background.
+
+Scroll listener is a single window.addEventListener wrapped in
+requestAnimationFrame. prefers-reduced-motion snaps between expanded
+and collapsed without interpolation. Inline and compact FOLLOW cross-
+fade with pointer-events guards so only one is interactive at a time.
+
+Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+EOF
+)"
+```
+
+---
+
 ## Self-review notes
 
 Items checked against the spec:
@@ -1172,8 +1602,10 @@ Items checked against the spec:
 - ✅ Bucket created — Task 4. **Deviation from spec**: spec mentioned a SQL migration for the bucket; the codebase convention in `equipment-image-rehost.ts` is programmatic `createBucket`, so we follow that instead. Functionally equivalent; spec text overruled by codebase convention.
 - ✅ PATCH + DELETE endpoint with full validation (Tasks 3 + 5)
 - ✅ Ops tab with search, filter chips, upload, remove (Task 9)
-- ✅ Three render surfaces (Tasks 6, 7, 8)
-- ✅ Fallback unchanged on all three surfaces (each task's verify-fallback step)
+- ✅ Home Featured render surface (Task 6)
+- ✅ Events list render surface (Task 7)
+- ⚠️ Detail page render surface — **Task 8 shipped as a static 16:9 banner (now superseded). Task 11 is the new authoritative work**: collapsing header with V1 Broadcast identity.
+- ✅ Fallback unchanged on shipped surfaces (each task's verify-fallback step); Task 11 fallback verified in Step 9
 - ✅ Days counter top-right when cover present on `BigTournamentCard` (Task 7)
 - ✅ `next/image` with `fill` + `object-cover`; Supabase Storage hostname already in `next.config.ts` per CLAUDE.md
 - ✅ Type plumbing through all relevant queries and component prop types (Task 2)
@@ -1181,4 +1613,4 @@ Items checked against the spec:
 
 Placeholder scan: no `TBD` / `TODO` / vague directives — every step has actual code or a concrete command.
 
-Type consistency: `cover_image_url?: string | null` used identically across `Tournament` interfaces; `CoverValidationResult` returned and consumed in matching shapes; `TOURNAMENT_COVERS_BUCKET` constant used in both `tournament-cover-bucket.ts` and the route; `ensureTournamentCoversBucket` signature stable.
+Type consistency: `cover_image_url?: string | null` used identically across `Tournament` interfaces; `CoverValidationResult` returned and consumed in matching shapes; `TOURNAMENT_COVERS_BUCKET` constant used in both `tournament-cover-bucket.ts` and the route; `ensureTournamentCoversBucket` signature stable. Task 11 constants (`HERO_EXPANDED`, `HERO_COLLAPSED`, `COLLAPSE_SCROLL`) and the `heroProgress` / `compactOpacity` / `inlineOpacity` derived values live local to the detail page — no cross-file coupling.
