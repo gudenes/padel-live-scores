@@ -284,20 +284,32 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   useEffect(() => { fetchAll(); fetchTournaments() }, [fetchAll, fetchTournaments])
 
   // ── Collapsing header scroll listener ─────────────────────────
+  // Listens on BOTH window (mobile) and .app-screen (desktop preview
+  // where ≥1100 px viewports use the in-frame inner scroller; see
+  // globals.css `@media (min-width: 1100px) .app-screen { overflow-y: auto }`).
+  // Reading scrollTop from whichever is non-zero picks up the active
+  // scroller without needing a viewport-width guess.
   useEffect(() => {
+    const appScreen = document.querySelector('.app-screen') as HTMLElement | null
     let rafToken: number | null = null
+    function readScrollTop(): number {
+      const a = appScreen?.scrollTop ?? 0
+      const w = window.scrollY
+      return Math.max(a, w)
+    }
     function onScroll() {
       if (rafToken != null) return
       rafToken = requestAnimationFrame(() => {
         rafToken = null
-        const y = window.scrollY
-        setHeroProgress(clamp01(y / COLLAPSE_SCROLL))
+        setHeroProgress(clamp01(readScrollTop() / COLLAPSE_SCROLL))
       })
     }
     window.addEventListener('scroll', onScroll, { passive: true })
+    appScreen?.addEventListener('scroll', onScroll, { passive: true })
     onScroll()
     return () => {
       window.removeEventListener('scroll', onScroll)
+      appScreen?.removeEventListener('scroll', onScroll)
       if (rafToken != null) cancelAnimationFrame(rafToken)
     }
   }, [])
@@ -659,12 +671,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         borderRight: `0.5px solid ${BORDER}`,
       }}>
 
-        {/* Navbar — sticky 62px bar with chrome + opacity-driven cover bg */}
+        {/* Navbar — sticky 62px bar with chrome + opacity-driven cover bg.
+            The navbar's own background is rgba(10,10,10, p) so it's
+            FULLY TRANSPARENT at scroll=0 (the hero's cover image renders
+            through it from z=5 behind), and FULLY OPAQUE black at full
+            collapse (covers whatever body content is scrolling past). */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 25,
           height: HERO_COLLAPSED,
           overflow: 'hidden',
-          background: '#0A0A0A',
+          background: `rgba(10, 10, 10, ${navbarLayerOpacity})`,
         }}>
           {activeTournamentObj?.cover_image_url ? (
             <>
