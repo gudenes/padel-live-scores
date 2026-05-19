@@ -589,27 +589,30 @@ export async function runFipDrawPopulator(
 
     // 3. Load latest draw snapshot per (tournament, match_widget_id).
     // Source selection:
-    //   - Bracket present (Silver+, most cases): use the bracket AND merge
+    //   - Bracket present (most Silver+ cases): use the bracket AND merge
     //     OOP rows for any round the bracket doesn't cover. The FIP
     //     event-page bracket only goes back to R32, so qualifying rounds
     //     (Q1/Q2/Q3) are invisible to the app until the live-poller fires
     //     at match-start without this merge — matchscorerlive's OOP
     //     widget has them hours earlier.
-    //   - Bracket empty + amateur tier: use OOP as the entire draw
-    //     source. Some FIP tournaments (B3 Singapore, etc.) only expose
-    //     the bracket as a PDF, never wiring an AJAX draw widget — OOP
-    //     is the only structured source we have.
-    //   - Bracket empty + Silver+: skip. Silver+ main-draw needs seeds
-    //     and fip_ids from the bracket; OOP alone can't carry those, so
-    //     we wait for the bracket to land.
+    //   - Bracket empty + any FIP tier (fip_bronze through fip_platinum
+    //     + fip_championship + amateur tiers): use OOP as the entire
+    //     draw source. FIP increasingly publishes Pro Tour brackets as
+    //     PDF-only or late AJAX. Without this fallback those tournaments
+    //     stay invisible to the app for days. Seeds + fip_ids stay null
+    //     on the OOP-sourced rows — the composite-key UPDATE NULL-only
+    //     path backfills them once the bracket lands via `draw_snapshots`.
+    //   - Bracket empty + Premier (p1/p2/major/finals) or legacy WPT:
+    //     skip. Premier has its own data path (padelapi sync + Crionet
+    //     live-poller per match); WPT is historical.
     const tournamentLevelForFallback =
       levelByTournamentId.get(t.tournament_id) ?? null;
-    const isAmateurTournament =
+    const isFipTierTournament =
       tournamentLevelForFallback != null &&
-      AMATEUR_TIER_LEVELS.has(tournamentLevelForFallback);
+      tournamentLevelForFallback.startsWith('fip_');
     let latestDraws = await loadLatestFipDrawRows(supabase, t.tournament_id);
     if (latestDraws.length === 0) {
-      if (isAmateurTournament) {
+      if (isFipTierTournament) {
         latestDraws = await loadLatestOopRowsAsDrawRows(
           supabase,
           t.tournament_id,
@@ -621,7 +624,7 @@ export async function runFipDrawPopulator(
               level: tournamentLevelForFallback,
               oopRows: latestDraws.length,
             },
-            'fip-draw-populator: amateur-tier fallback — using oop_snapshots as draw source',
+            'fip-draw-populator: FIP-tier fallback — using oop_snapshots as draw source',
           );
         }
       }
