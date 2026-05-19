@@ -291,7 +291,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       rafToken = requestAnimationFrame(() => {
         rafToken = null
         const y = window.scrollY
-        setHeroProgress(Math.min(1, Math.max(0, y / COLLAPSE_SCROLL)))
+        setHeroProgress(clamp01(y / COLLAPSE_SCROLL))
       })
     }
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -711,13 +711,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </button>
 
             {/* Compact title — fades in over progress 0.55 → 0.95 */}
-            <span style={{
-              flex: 1, minWidth: 0,
-              fontSize: 18, fontWeight: 800, letterSpacing: -0.3,
-              color: '#fff',
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              opacity: compactOpacity,
-            }}>
+            <span
+              aria-hidden={compactOpacity < 0.05}
+              style={{
+                flex: 1, minWidth: 0,
+                fontSize: 18, fontWeight: 800, letterSpacing: -0.3,
+                color: '#fff',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                opacity: compactOpacity,
+              }}
+            >
               {activeTournamentObj ? titleCase(activeTournamentObj.name) : 'Tournament Detail'}
             </span>
 
@@ -756,11 +759,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
             {/* Compact FOLLOW — fades in over progress 0.55 → 0.95 */}
             {activeTournamentObj ? (
-              <div style={{
-                opacity: compactOpacity,
-                pointerEvents: compactOpacity > 0.5 ? 'auto' : 'none',
-                flexShrink: 0,
-              }}>
+              <div
+                tabIndex={compactOpacity <= 0.5 ? -1 : undefined}
+                aria-hidden={compactOpacity <= 0.5}
+                style={{
+                  opacity: compactOpacity,
+                  pointerEvents: compactOpacity > 0.5 ? 'auto' : 'none',
+                  flexShrink: 0,
+                }}
+              >
                 <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
               </div>
             ) : null}
@@ -858,12 +865,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 </div>
 
                 {/* Inline FOLLOW — fades out over progress 0.30 → 0.70 */}
-                <div style={{
-                  alignSelf: 'flex-start', marginTop: 6,
-                  opacity: inlineOpacity,
-                  pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
-                  flexShrink: 0,
-                }}>
+                <div
+                  tabIndex={inlineOpacity <= 0.5 ? -1 : undefined}
+                  aria-hidden={inlineOpacity <= 0.5}
+                  style={{
+                    alignSelf: 'flex-start', marginTop: 6,
+                    opacity: inlineOpacity,
+                    pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
+                    flexShrink: 0,
+                  }}
+                >
                   <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
                 </div>
               </div>
