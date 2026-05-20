@@ -9,6 +9,7 @@ import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
 import { verifyPassword } from './password'
 import { check as rateLimitCheck } from './rate-limit'
+import { isUserOperator } from './operators'
 import PostgresAdapter from '@auth/pg-adapter'
 import { pgPool } from './db'
 
@@ -85,6 +86,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: {
     strategy: 'database',
     maxAge: 30 * 24 * 60 * 60,
+  },
+  callbacks: {
+    async session({ session, user }) {
+      // Single indexed probe; small per-session cost.
+      session.user.isOperator = await isUserOperator(user.id)
+      return session
+    },
   },
   cookies: {
     sessionToken: {
