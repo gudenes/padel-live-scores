@@ -329,6 +329,9 @@
     "men": "Men",
     "women": "Women",
     "empty": "Rankings will appear here once published.",
+    "searchPlaceholder": "Search by player or country...",
+    "clearSearch": "Clear search",
+    "closeSearch": "Close search",
     "intro": {
       "men_official": "Follow the official FIP men's padel ranking, updated every week. Each player's points reflect their best results from Premier Padel P1, P2, Major, and FIP Tour tournaments across a rolling 52-week window. Points earned at each event expire exactly one year later, so players must defend their results every week. The current leaderboard is led by Arturo Coello and Agustín Tapia, with Juan Lebrón, Alejandro Galán, Franco Stupaczuk, and Martín Di Nenno among the challengers shaping men's professional padel today.",
       "men_race": "The FIP race ranking tracks the current-season points total for men's professional padel, resetting to zero every January 1. Unlike the rolling official ranking, race points count only results earned during the current calendar year, making it the most accurate measure of current form. P1, P2, and Major events on the Premier Padel circuit award the most points. Arturo Coello, Agustín Tapia, Juan Lebrón, and Alejandro Galán have consistently led the men's race in recent seasons. The table updates weekly after each tour stop.",

@@ -318,6 +318,9 @@
     "men": "Hommes",
     "women": "Femmes",
     "empty": "Le classement apparaîtra ici une fois publié.",
+    "searchPlaceholder": "Rechercher joueur ou pays...",
+    "clearSearch": "Effacer la recherche",
+    "closeSearch": "Fermer la recherche",
     "intro": {
       "men_official": "Suivez le classement officiel FIP du padel masculin, mis à jour chaque semaine. Les points de chaque joueur reflètent leurs meilleurs résultats lors des tournois Premier Padel P1, P2, Major et FIP Tour sur une fenêtre glissante de 52 semaines. Les points obtenus lors de chaque tournoi expirent exactement un an plus tard, obligeant les joueurs à défendre leurs résultats semaine après semaine. Arturo Coello et Agustín Tapia dominent le classement actuel, avec Juan Lebrón, Alejandro Galán, Franco Stupaczuk et Martín Di Nenno parmi les principaux prétendants du padel professionnel masculin.",
       "men_race": "Le ranking race FIP comptabilise l'accumulation de points de la saison en cours dans le padel masculin, remis à zéro chaque 1er janvier. Contrairement au classement officiel à fenêtre glissante de 52 semaines, le race ne prend en compte que les résultats obtenus durant l'année civile en cours, offrant la mesure la plus fidèle de la forme actuelle. Les tournois P1, P2 et Major du circuit Premier Padel attribuent le plus grand nombre de points. Arturo Coello, Agustín Tapia, Juan Lebrón et Alejandro Galán ont dominé le race masculin ces dernières saisons. Le tableau est mis à jour chaque semaine.",
