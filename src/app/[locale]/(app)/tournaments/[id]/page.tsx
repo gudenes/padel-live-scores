@@ -26,6 +26,7 @@ import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
 import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
+import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -743,37 +744,47 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               {activeTournamentObj ? titleCase(activeTournamentObj.name) : 'Tournament Detail'}
             </span>
 
-            {/* M/W toggle — preserve exact existing markup including the knob animation */}
+            {/* Compact M/W toggle — fades in over progress 0.55 → 0.95
+                (lives in the hero below the FOLLOW row when at scroll=0) */}
             <div
-              onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
+              aria-hidden={compactOpacity <= 0.5}
               style={{
-                display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
-                background: 'rgba(255,255,255,0.04)',
-                clipPath: CHUNKY.badge,
-                padding: '4px 6px', position: 'relative', width: 56, height: 28,
+                opacity: compactOpacity,
+                pointerEvents: compactOpacity > 0.5 ? 'auto' : 'none',
                 flexShrink: 0,
               }}
             >
-              <div style={{
-                position: 'absolute', top: 3,
-                left: genderFilter === 'men' ? 4 : 28,
-                width: 24, height: 22,
-                background: genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE,
-                clipPath: CHUNKY.badge,
-                transition: 'left 0.2s ease, background 0.2s ease',
-              }} />
-              <span style={{
-                flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
-                position: 'relative', zIndex: 1,
-                color: genderFilter === 'men' ? '#000' : MUTED,
-                transition: 'color 0.2s',
-              }}>M</span>
-              <span style={{
-                flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
-                position: 'relative', zIndex: 1,
-                color: genderFilter === 'women' ? '#000' : MUTED,
-                transition: 'color 0.2s',
-              }}>W</span>
+              <div
+                onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+                  background: 'rgba(255,255,255,0.04)',
+                  clipPath: CHUNKY.badge,
+                  padding: '4px 6px', position: 'relative', width: 56, height: 28,
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{
+                  position: 'absolute', top: 3,
+                  left: genderFilter === 'men' ? 4 : 28,
+                  width: 24, height: 22,
+                  background: genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE,
+                  clipPath: CHUNKY.badge,
+                  transition: 'left 0.2s ease, background 0.2s ease',
+                }} />
+                <span style={{
+                  flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+                  position: 'relative', zIndex: 1,
+                  color: genderFilter === 'men' ? '#000' : MUTED,
+                  transition: 'color 0.2s',
+                }}>M</span>
+                <span style={{
+                  flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+                  position: 'relative', zIndex: 1,
+                  color: genderFilter === 'women' ? '#000' : MUTED,
+                  transition: 'color 0.2s',
+                }}>W</span>
+              </div>
             </div>
 
             {/* Compact FOLLOW — fades in over progress 0.55 → 0.95 */}
@@ -832,21 +843,25 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 3,
               padding: '14px 16px 18px',
             }}>
-              {/* Kicker pill — level indicator above title */}
-              {activeTournamentObj.level ? (
-                <span style={{
-                  display: 'inline-block',
-                  fontSize: 10, fontWeight: 800,
-                  color: '#0A0A0A',
-                  background: '#BCE83B',
-                  clipPath: CHUNKY.badge,
-                  padding: '4px 12px',
-                  letterSpacing: 0.7,
-                  textTransform: 'uppercase',
-                }}>
-                  {levelLabel(activeTournamentObj.level)}
-                </span>
-              ) : null}
+              {/* Kicker pill — level indicator above title. Uses the
+                  tier-color palette shared with the home carousel. */}
+              {activeTournamentObj.level ? (() => {
+                const pill = getTierPill(activeTournamentObj.level)
+                return (
+                  <span style={{
+                    display: 'inline-block',
+                    fontSize: 10, fontWeight: 800,
+                    color: pill.color,
+                    background: pill.background,
+                    clipPath: CHUNKY.badge,
+                    padding: '4px 12px',
+                    letterSpacing: 0.7,
+                    textTransform: 'uppercase',
+                  }}>
+                    {levelLabel(activeTournamentObj.level)}
+                  </span>
+                )
+              })() : null}
 
               {/* Title row: flag + title + FOLLOW */}
               <div style={{
@@ -866,7 +881,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 }}>
                   {titleCase(activeTournamentObj.name)}
                 </div>
-                {/* Inline FOLLOW — fades out over progress 0.30 → 0.70 */}
+                {/* Inline FOLLOW — fades out over progress 0.30 → 0.70.
+                    Opaque dark background so the chip stays readable
+                    against any poster brightness. */}
                 <div
                   tabIndex={inlineOpacity <= 0.5 ? -1 : undefined}
                   aria-hidden={inlineOpacity <= 0.5}
@@ -876,7 +893,56 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                     flexShrink: 0,
                   }}
                 >
-                  <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
+                  <FollowButton
+                    type="tournament"
+                    targetId={activeTournamentObj.id}
+                    variant="follow"
+                    style={{ background: 'rgba(20,20,20,0.92)', color: '#fff' }}
+                  />
+                </div>
+              </div>
+
+              {/* Inline M/W toggle — fades out over progress 0.30 → 0.70.
+                  Placed below the title row; mirrors the FOLLOW fade so
+                  the controls move into the chrome navbar in lockstep
+                  as the user scrolls. */}
+              <div
+                aria-hidden={inlineOpacity <= 0.5}
+                style={{
+                  opacity: inlineOpacity,
+                  pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
+                  marginTop: 10,
+                }}
+              >
+                <div
+                  onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+                    background: 'rgba(20,20,20,0.92)',
+                    clipPath: CHUNKY.badge,
+                    padding: '4px 6px', position: 'relative', width: 56, height: 28,
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', top: 3,
+                    left: genderFilter === 'men' ? 4 : 28,
+                    width: 24, height: 22,
+                    background: genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE,
+                    clipPath: CHUNKY.badge,
+                    transition: 'left 0.2s ease, background 0.2s ease',
+                  }} />
+                  <span style={{
+                    flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+                    position: 'relative', zIndex: 1,
+                    color: genderFilter === 'men' ? '#000' : MUTED,
+                    transition: 'color 0.2s',
+                  }}>M</span>
+                  <span style={{
+                    flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+                    position: 'relative', zIndex: 1,
+                    color: genderFilter === 'women' ? '#000' : MUTED,
+                    transition: 'color 0.2s',
+                  }}>W</span>
                 </div>
               </div>
 
