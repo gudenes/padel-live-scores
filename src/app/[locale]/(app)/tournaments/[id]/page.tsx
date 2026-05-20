@@ -863,7 +863,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 )
               })() : null}
 
-              {/* Title row: flag + title + FOLLOW */}
+              {/* Title row: flag + title + M/W + FOLLOW.
+                  M/W and FOLLOW both fade out on scroll (inlineOpacity)
+                  and reappear in the chrome navbar (compactOpacity). */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 marginTop: 6,
@@ -881,9 +883,51 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 }}>
                   {titleCase(activeTournamentObj.name)}
                 </div>
-                {/* Inline FOLLOW — fades out over progress 0.30 → 0.70.
-                    Opaque dark background so the chip stays readable
-                    against any poster brightness. */}
+
+                {/* Inline M/W toggle — fades out on scroll alongside FOLLOW. */}
+                <div
+                  aria-hidden={inlineOpacity <= 0.5}
+                  style={{
+                    opacity: inlineOpacity,
+                    pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
+                    flexShrink: 0,
+                  }}
+                >
+                  <div
+                    onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
+                      background: 'rgba(20,20,20,0.92)',
+                      clipPath: CHUNKY.badge,
+                      padding: '4px 6px', position: 'relative', width: 56, height: 28,
+                    }}
+                  >
+                    <div style={{
+                      position: 'absolute', top: 3,
+                      left: genderFilter === 'men' ? 4 : 28,
+                      width: 24, height: 22,
+                      background: genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE,
+                      clipPath: CHUNKY.badge,
+                      transition: 'left 0.2s ease, background 0.2s ease',
+                    }} />
+                    <span style={{
+                      flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+                      position: 'relative', zIndex: 1,
+                      color: genderFilter === 'men' ? '#000' : MUTED,
+                      transition: 'color 0.2s',
+                    }}>M</span>
+                    <span style={{
+                      flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
+                      position: 'relative', zIndex: 1,
+                      color: genderFilter === 'women' ? '#000' : MUTED,
+                      transition: 'color 0.2s',
+                    }}>W</span>
+                  </div>
+                </div>
+
+                {/* Inline FOLLOW — fades out on scroll. Opaque dark
+                    background so the chip stays readable against any
+                    poster brightness. */}
                 <div
                   tabIndex={inlineOpacity <= 0.5 ? -1 : undefined}
                   aria-hidden={inlineOpacity <= 0.5}
@@ -899,50 +943,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                     variant="follow"
                     style={{ background: 'rgba(20,20,20,0.92)', color: '#fff' }}
                   />
-                </div>
-              </div>
-
-              {/* Inline M/W toggle — fades out over progress 0.30 → 0.70.
-                  Placed below the title row; mirrors the FOLLOW fade so
-                  the controls move into the chrome navbar in lockstep
-                  as the user scrolls. */}
-              <div
-                aria-hidden={inlineOpacity <= 0.5}
-                style={{
-                  opacity: inlineOpacity,
-                  pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
-                  marginTop: 10,
-                }}
-              >
-                <div
-                  onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
-                    background: 'rgba(20,20,20,0.92)',
-                    clipPath: CHUNKY.badge,
-                    padding: '4px 6px', position: 'relative', width: 56, height: 28,
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute', top: 3,
-                    left: genderFilter === 'men' ? 4 : 28,
-                    width: 24, height: 22,
-                    background: genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE,
-                    clipPath: CHUNKY.badge,
-                    transition: 'left 0.2s ease, background 0.2s ease',
-                  }} />
-                  <span style={{
-                    flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
-                    position: 'relative', zIndex: 1,
-                    color: genderFilter === 'men' ? '#000' : MUTED,
-                    transition: 'color 0.2s',
-                  }}>M</span>
-                  <span style={{
-                    flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
-                    position: 'relative', zIndex: 1,
-                    color: genderFilter === 'women' ? '#000' : MUTED,
-                    transition: 'color 0.2s',
-                  }}>W</span>
                 </div>
               </div>
 
