@@ -316,7 +316,14 @@
     "player": "Joueur",
     "points": "Points",
     "men": "Hommes",
-    "women": "Femmes"
+    "women": "Femmes",
+    "empty": "Le classement apparaîtra ici une fois publié.",
+    "intro": {
+      "men_official": "Suivez le classement officiel FIP du padel masculin, mis à jour chaque semaine. Les points de chaque joueur reflètent leurs meilleurs résultats lors des tournois Premier Padel P1, P2, Major et FIP Tour au cours des 52 dernières semaines. Le tableau montre la course à la place de numéro 1 mondial dans le padel professionnel masculin, de Coello et Tapia au sommet jusqu'aux 100 meilleurs.",
+      "men_race": "Le ranking race FIP affiche le tableau des points de la saison en cours dans le padel masculin. Contrairement au classement officiel, les points race sont remis à zéro chaque janvier et ne comptent que les résultats de l'année en cours. C'est la photo en direct de qui performe le mieux sur le circuit Premier Padel.",
+      "women_official": "Le classement officiel FIP du padel féminin est mis à jour chaque semaine et reflète les meilleurs résultats de chaque joueuse sur les 52 dernières semaines. Le tableau montre la course à la place de numéro 1 mondial dans le padel professionnel féminin sur les tournois Premier Padel et FIP Tour.",
+      "women_race": "Le ranking race FIP du padel féminin affiche le tableau des points de la saison en cours. Les points race sont remis à zéro chaque janvier et ne comptent que les résultats de l'année en cours — c'est la photo en temps réel de qui gagne la saison sur le circuit professionnel féminin."
+    }
   },
   "feed": {
     "feed": "Actualités",
@@ -923,7 +930,8 @@
     },
     "rankings": {
       "title": "Classement padel — FIP et Premier Padel",
-      "description": "Classement officiel FIP et race ranking du padel. Suivez les meilleurs joueurs et joueuses du monde avec mises à jour en direct."
+      "description": "Classement officiel FIP et race ranking du padel. Suivez les meilleurs joueurs et joueuses du monde avec mises à jour en direct.",
+      "jsonld_name": "Classement FIP padel masculin"
     },
     "feed": {
       "title": "Actualités et highlights padel",

@@ -316,7 +316,14 @@
     "player": "Jogador",
     "points": "Pontos",
     "men": "Masculino",
-    "women": "Feminino"
+    "women": "Feminino",
+    "empty": "O ranking aparecerá aqui quando for publicado.",
+    "intro": {
+      "men_official": "Acompanha o ranking oficial FIP de padel masculino, atualizado semanalmente. Os pontos de cada jogador refletem os seus melhores resultados em torneios Premier Padel P1, P2, Major e FIP Tour ao longo das últimas 52 semanas. A tabela mostra a corrida pelo número 1 mundial no padel profissional masculino, desde Coello e Tapia no topo até aos 100 melhores.",
+      "men_race": "O ranking race FIP mostra a tabela de pontos da temporada atual no padel masculino. Ao contrário do ranking oficial, os pontos race são reiniciados todos os anos em janeiro e contam apenas os resultados do ano em curso. É a foto em direto de quem está a render mais no circuito Premier Padel.",
+      "women_official": "O ranking oficial FIP de padel feminino é atualizado semanalmente e reflete os melhores resultados de cada jogadora ao longo das últimas 52 semanas. A tabela mostra a corrida pelo número 1 mundial no padel profissional feminino em torneios Premier Padel e FIP Tour.",
+      "women_race": "O ranking race FIP de padel feminino mostra a tabela de pontos da temporada atual. Os pontos race são reiniciados todos os anos em janeiro e contam apenas os resultados do ano em curso — é a foto em tempo real de quem está a ganhar a temporada no circuito profissional feminino."
+    }
   },
   "feed": {
     "feed": "Notícias",
@@ -923,7 +930,8 @@
     },
     "rankings": {
       "title": "Ranking de padel — FIP e Premier Padel",
-      "description": "Ranking oficial FIP e ranking race de padel. Acompanhe os melhores jogadores e jogadoras do mundo com atualizações ao vivo."
+      "description": "Ranking oficial FIP e ranking race de padel. Acompanhe os melhores jogadores e jogadoras do mundo com atualizações ao vivo.",
+      "jsonld_name": "Ranking FIP de padel masculino"
     },
     "feed": {
       "title": "Notícias e highlights de padel",

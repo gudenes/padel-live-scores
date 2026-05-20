@@ -327,7 +327,14 @@
     "player": "Player",
     "points": "Points",
     "men": "Men",
-    "women": "Women"
+    "women": "Women",
+    "empty": "Rankings will appear here once published.",
+    "intro": {
+      "men_official": "Follow the official FIP men's padel ranking, updated weekly. Each player's points reflect their best results across Premier Padel P1, P2, Major, and FIP Tour events over the past 52 weeks. The leaderboard below tracks the world No. 1 race in men's professional padel — from Coello and Tapia at the top down through the top 100.",
+      "men_race": "The FIP race ranking shows the current-season points table for men's padel. Unlike the official ranking, race points reset every January and only count results from the current year. It's the live picture of who is performing best right now on the Premier Padel circuit.",
+      "women_official": "The official FIP women's padel ranking is updated weekly and reflects each player's best results over the past 52 weeks. The leaderboard tracks the world No. 1 race in women's professional padel across Premier Padel and FIP Tour events.",
+      "women_race": "The FIP race ranking for women's padel shows the current-season points table. Race points reset every January and only count results from the current year — it's the real-time picture of who is winning the season on the women's professional tour."
+    }
   },
   "feed": {
     "feed": "Feed",
@@ -950,7 +957,8 @@
     },
     "rankings": {
       "title": "Player Rankings",
-      "description": "Official FIP padel rankings and race standings. Track the top men's and women's padel players worldwide with live ranking updates."
+      "description": "Official FIP padel rankings and race standings. Track the top men's and women's padel players worldwide with live ranking updates.",
+      "jsonld_name": "FIP Men's Padel Rankings"
     },
     "feed": {
       "title": "News & Highlights",

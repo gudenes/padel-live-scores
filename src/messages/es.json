@@ -316,7 +316,14 @@
     "player": "Jugador",
     "points": "Puntos",
     "men": "Hombres",
-    "women": "Mujeres"
+    "women": "Mujeres",
+    "empty": "El ranking aparecerá aquí cuando se publique.",
+    "intro": {
+      "men_official": "Sigue el ranking oficial FIP de pádel masculino, actualizado semanalmente. Los puntos de cada jugador reflejan sus mejores resultados en torneos Premier Padel P1, P2, Major y FIP Tour durante las últimas 52 semanas. La tabla inferior muestra la carrera por el número 1 mundial en el pádel profesional masculino, desde Coello y Tapia en la cima hasta los 100 mejores.",
+      "men_race": "El ranking race FIP muestra la tabla de puntos de la temporada actual en pádel masculino. A diferencia del ranking oficial, los puntos race se reinician cada enero y solo cuentan los resultados del año en curso. Es la foto en directo de quién está rindiendo mejor en el circuito Premier Padel.",
+      "women_official": "El ranking oficial FIP de pádel femenino se actualiza semanalmente y refleja los mejores resultados de cada jugadora durante las últimas 52 semanas. La tabla muestra la carrera por el número 1 mundial en el pádel profesional femenino en torneos Premier Padel y FIP Tour.",
+      "women_race": "El ranking race FIP de pádel femenino muestra la tabla de puntos de la temporada actual. Los puntos race se reinician cada enero y solo cuentan los resultados del año en curso — es la foto en tiempo real de quién está ganando la temporada en el circuito profesional femenino."
+    }
   },
   "feed": {
     "feed": "Noticias",
@@ -923,7 +930,8 @@
     },
     "rankings": {
       "title": "Clasificación de pádel — FIP y Premier Padel",
-      "description": "Clasificación oficial FIP y ranking race de pádel. Sigue a los mejores jugadores y jugadoras del mundo con actualizaciones en directo."
+      "description": "Clasificación oficial FIP y ranking race de pádel. Sigue a los mejores jugadores y jugadoras del mundo con actualizaciones en directo.",
+      "jsonld_name": "Ranking FIP de pádel masculino"
     },
     "feed": {
       "title": "Noticias y highlights de pádel",
