@@ -28,6 +28,10 @@ describe('validatePutInput', () => {
     expect(validatePutInput([] as unknown).ok).toBe(false)
   })
 
+  it('rejects explicit undefined content (same path as missing)', () => {
+    expect(validatePutInput({ content: undefined }).ok).toBe(false)
+  })
+
   it('caps content at 200_000 chars to avoid runaway payloads', () => {
     const huge = 'x'.repeat(200_001)
     expect(validatePutInput({ content: huge }).ok).toBe(false)
