@@ -1,5 +1,5 @@
 // apps/ops/src/lib/auth.ts
-// Auth.js v5 — three providers (Google, Resend magic-link, Credentials).
+// Auth.js v5 — Google + Resend magic-link providers. Credentials added in Task 8.
 // Database-strategy sessions on the shared Supabase Postgres.
 // Session callback enriches with isOperator — see Task 9.
 
