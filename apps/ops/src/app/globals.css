@@ -1,0 +1,79 @@
+/* apps/ops/src/app/globals.css
+   Variation 2 — Live Sports Command Center tokens.
+   Mirror values in docs/superpowers/specs/2026-05-20-admin-ops-app-design.md
+   "Design tokens (v1)". */
+
+@import 'tailwindcss';
+
+:root {
+  /* Brand */
+  --brand-primary: #7ed321;
+  --brand-primary-fg: #0a0a0a;
+
+  /* Surfaces */
+  --bg-canvas: #fafafa;
+  --bg-card: #ffffff;
+  --bg-attention: #0f0f10;
+  --fg-on-attention: #fafafa;
+
+  /* Status ladder */
+  --status-live: #22c55e;
+  --status-warn: #f59e0b;
+  --status-urgent: #ef4444;
+  --status-neutral: #71717a;
+
+  /* Borders */
+  --border-subtle: #e5e7eb;
+
+  /* Typography */
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-canvas);
+  color: var(--brand-primary-fg);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Live pill pulse — respects reduced motion */
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.live-pulse {
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-pulse {
+    animation: none;
+  }
+}
