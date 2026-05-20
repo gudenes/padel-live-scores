@@ -15,6 +15,7 @@ import {
   levelLabel,
 } from '@/components/home/shared'
 import { DATE_SHORT } from '@/lib/format-patterns'
+import { getTierGradient, getTierPill } from '@/lib/tournament-tier-style'
 
 export interface TournamentWithMatchInfo extends Tournament {
   matchesToday: number
@@ -28,65 +29,6 @@ interface Props {
 
 type Chip = 'live-today' | 'upcoming'
 
-// Tier-aware gradient/pill maps — LOCAL to this carousel, not a project-wide
-// design token. Other tournament surfaces (TournamentSpotlightHero, tournament
-// rows on /matches, etc.) render neutral/white level pills; this hero
-// carousel is the only place that paints tier color. If a future surface
-// wants the same scheme, lift these maps to src/lib/tournament-tier-style.ts
-// rather than duplicating.
-//
-// Keys match production tournaments.level values (Premier tiers are bare;
-// FIP tiers carry the fip_ prefix). The 17 known levels are mapped here;
-// unknown values land on FALLBACK_GRADIENT and a neutral grey pill.
-const PREMIER_GRADIENT = 'linear-gradient(135deg, #6B46C1, #9333EA)'
-const GOLD_GRADIENT    = 'linear-gradient(135deg, #92750E, #EAB308)'
-const SILVER_GRADIENT  = 'linear-gradient(135deg, #475569, #94A3B8)'
-const BRONZE_GRADIENT  = 'linear-gradient(135deg, #92400E, #D97706)'
-const CYAN_GRADIENT    = 'linear-gradient(135deg, #155E75, #06B6D4)'
-const SLATE_GRADIENT   = 'linear-gradient(135deg, #334155, #64748B)'
-
-const TIER_GRADIENT: Record<string, string> = {
-  finals: PREMIER_GRADIENT,
-  major:  PREMIER_GRADIENT,
-  p1:     PREMIER_GRADIENT,
-  p2:     PREMIER_GRADIENT,
-  fip_platinum:     GOLD_GRADIENT,
-  fip_gold:         GOLD_GRADIENT,
-  fip_hexagon:      PREMIER_GRADIENT,
-  fip_championship: PREMIER_GRADIENT,
-  fip_finals:       GOLD_GRADIENT,
-  fip_silver:       SILVER_GRADIENT,
-  fip_bronze:       BRONZE_GRADIENT,
-  fip_star:         CYAN_GRADIENT,
-  fip_rise:         CYAN_GRADIENT,
-  fip_promotion:    CYAN_GRADIENT,
-  fip_promises:     SLATE_GRADIENT,
-  fip_beyond:       SLATE_GRADIENT,
-  fip_other:        SLATE_GRADIENT,
-}
-
-const TIER_PILL: Record<string, { background: string; color: string }> = {
-  finals:           { background: PREMIER_GRADIENT, color: '#fff' },
-  major:            { background: PREMIER_GRADIENT, color: '#fff' },
-  p1:               { background: PREMIER_GRADIENT, color: '#fff' },
-  p2:               { background: PREMIER_GRADIENT, color: '#fff' },
-  fip_platinum:     { background: GOLD_GRADIENT,    color: '#1A1A1A' },
-  fip_gold:         { background: GOLD_GRADIENT,    color: '#1A1A1A' },
-  fip_hexagon:      { background: PREMIER_GRADIENT, color: '#fff' },
-  fip_championship: { background: PREMIER_GRADIENT, color: '#fff' },
-  fip_finals:       { background: GOLD_GRADIENT,    color: '#1A1A1A' },
-  fip_silver:       { background: SILVER_GRADIENT,  color: '#fff' },
-  fip_bronze:       { background: BRONZE_GRADIENT,  color: '#fff' },
-  fip_star:         { background: CYAN_GRADIENT,    color: '#fff' },
-  fip_rise:         { background: CYAN_GRADIENT,    color: '#fff' },
-  fip_promotion:    { background: CYAN_GRADIENT,    color: '#fff' },
-  fip_promises:     { background: SLATE_GRADIENT,   color: '#fff' },
-  fip_beyond:       { background: SLATE_GRADIENT,   color: '#fff' },
-  fip_other:        { background: SLATE_GRADIENT,   color: '#fff' },
-}
-
-const FALLBACK_GRADIENT = 'linear-gradient(135deg, #2A2A2A, #1A1A1A)'
-
 function TournamentCarouselCard({
   tournament,
   chip,
@@ -98,8 +40,8 @@ function TournamentCarouselCard({
   const format = useFormatter()
 
   const level = tournament.level ?? ''
-  const tierGradient = TIER_GRADIENT[level] ?? FALLBACK_GRADIENT
-  const pillStyle = TIER_PILL[level] ?? { background: '#444', color: '#fff' }
+  const tierGradient = getTierGradient(level)
+  const pillStyle = getTierPill(level)
   const tierLabel = level ? levelLabel(level) : ''
 
   const cover = tournament.cover_image_url ?? null
