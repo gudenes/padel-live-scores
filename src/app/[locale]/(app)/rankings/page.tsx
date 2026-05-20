@@ -7,14 +7,13 @@
 import { getTranslations, getFormatter } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
 import GlobalHeader from '@/components/nav/GlobalHeader'
-import { BG_BASE, type Player } from './shared'
+import { BG_BASE, PLAYER_COLUMNS, type Player } from './shared'
 import { RankingsInteractive } from './RankingsInteractive'
 import { buildRankingsJsonLd } from './jsonld'
 
 export const revalidate = 3600
 
 const BASE_URL = 'https://padelnachos.com'
-const PLAYER_COLUMNS = 'id, name, display_name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date'
 
 type Props = {
   params: Promise<{ locale: string }>
@@ -28,26 +27,32 @@ async function loadInitialData(): Promise<{ players: Player[]; rankingDateISO: s
     return { players: [], rankingDateISO: null }
   }
 
-  const [playersResult, dateResult] = await Promise.all([
-    supabase
-      .from('players')
-      .select(PLAYER_COLUMNS)
-      .eq('category', 'men')
-      .not('ranking', 'is', null)
-      .order('ranking', { ascending: true })
-      .limit(100),
-    supabase
-      .from('players')
-      .select('ranking_date')
-      .not('ranking_date', 'is', null)
-      .order('ranking_date', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ])
+  try {
+    const [playersResult, dateResult] = await Promise.all([
+      supabase
+        .from('players')
+        .select(PLAYER_COLUMNS)
+        .eq('category', 'men')
+        .not('ranking', 'is', null)
+        .order('ranking', { ascending: true })
+        .limit(100),
+      supabase
+        .from('players')
+        .select('ranking_date')
+        .not('ranking_date', 'is', null)
+        .order('ranking_date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
 
-  const players = (playersResult.data ?? []) as Player[]
-  const rankingDateISO = (dateResult.data?.ranking_date as string | null | undefined) ?? null
-  return { players, rankingDateISO }
+    const players = (playersResult.data ?? []) as Player[]
+    const rankingDateISO = (dateResult.data?.ranking_date as string | null | undefined) ?? null
+    return { players, rankingDateISO }
+  } catch {
+    // Network / PostgREST failure — degrade to empty state. The client
+    // island will retry on first toggle.
+    return { players: [], rankingDateISO: null }
+  }
 }
 
 export default async function RankingsPage({ params }: Props) {
@@ -73,7 +78,9 @@ export default async function RankingsPage({ params }: Props) {
     <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // Escape `</script>` substrings in case a player name ever
+        // contains one — matches the pattern in matches/[date]/page.tsx.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
 
       <GlobalHeader />

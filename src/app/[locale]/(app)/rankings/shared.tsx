@@ -43,6 +43,9 @@ export interface Player {
   ranking_date: string | null
 }
 
+// ── Supabase column list (shared by server SSR fetch + client toggle fetch) ──
+export const PLAYER_COLUMNS = 'id, name, display_name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date'
+
 // ── ISO3 → ISO2 (subset that has flag PNGs in /public/flags) ──
 const ISO3_TO_2: Record<string, string> = {
   ESP: 'es', ARG: 'ar', BRA: 'br', POR: 'pt', FRA: 'fr', ITA: 'it',

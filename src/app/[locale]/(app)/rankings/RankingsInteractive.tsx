@@ -13,11 +13,10 @@ import { RankingsTable } from './RankingsTable'
 import { FilterPills } from './FilterPills'
 import { SearchModal } from './SearchModal'
 import {
-  CHUNKY, GREEN, MUTED,
+  CHUNKY, GREEN, MUTED, PLAYER_COLUMNS,
   type Player, type RankType, type Gender,
 } from './shared'
 
-const PLAYER_COLUMNS = 'id, name, display_name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date'
 const PAGE_INCREMENT = 100
 const INITIAL_VISIBLE = 100
 
