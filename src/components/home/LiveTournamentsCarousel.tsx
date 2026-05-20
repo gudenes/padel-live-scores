@@ -28,12 +28,16 @@ interface Props {
 
 type Chip = 'live-today' | 'upcoming'
 
-// Tier-aware gradient/pill maps. Keys match production tournaments.level
-// values (Premier tiers are bare; FIP tiers carry the fip_ prefix).
-// Premier and select marquee FIP events share the purple gradient;
-// FIP Platinum/Gold/Finals get the warm amber; Silver gets slate;
-// Bronze gets the orange-brown; Star/Rise/Promotion get cyan;
-// Promises/Beyond/Other fall back to neutral slate.
+// Tier-aware gradient/pill maps — LOCAL to this carousel, not a project-wide
+// design token. Other tournament surfaces (TournamentSpotlightHero, tournament
+// rows on /matches, etc.) render neutral/white level pills; this hero
+// carousel is the only place that paints tier color. If a future surface
+// wants the same scheme, lift these maps to src/lib/tournament-tier-style.ts
+// rather than duplicating.
+//
+// Keys match production tournaments.level values (Premier tiers are bare;
+// FIP tiers carry the fip_ prefix). The 17 known levels are mapped here;
+// unknown values land on FALLBACK_GRADIENT and a neutral grey pill.
 const PREMIER_GRADIENT = 'linear-gradient(135deg, #6B46C1, #9333EA)'
 const GOLD_GRADIENT    = 'linear-gradient(135deg, #92750E, #EAB308)'
 const SILVER_GRADIENT  = 'linear-gradient(135deg, #475569, #94A3B8)'
