@@ -89,7 +89,16 @@ export async function runTournamentDiscovery(
     .limit(1)
     .maybeSingle();
 
-  const params = new URLSearchParams({ per_page: '100', orderby: 'modified', order: 'asc' });
+  // `_embed=true` makes the WP API expand `featured_media` into a
+  // `_embedded['wp:featuredmedia']` block carrying the actual image URL.
+  // We use that URL as the auto-fallback cover image (ops manual uploads
+  // continue to win — see the cover_image_url gap-fill below).
+  const params = new URLSearchParams({
+    per_page: '100',
+    orderby: 'modified',
+    order: 'asc',
+    _embed: 'true',
+  });
   if (latest?.updated_at) {
     params.set('modified_after', latest.updated_at);
   }
@@ -136,15 +145,37 @@ export async function runTournamentDiscovery(
   // keeps the row visible in the public app).
   const slugs = parsed.map((p) => p.slug).filter((s): s is string => !!s);
   const { data: existing } = slugs.length > 0
-    ? await deps.supabase.from('tournaments').select('slug, level, country, live_source').in('slug', slugs)
+    ? await deps.supabase
+        .from('tournaments')
+        .select('slug, level, country, live_source, cover_image_url')
+        .in('slug', slugs)
     : { data: [] };
   const existingBySlug = new Map<
     string,
-    { level: string | null; country: string | null; live_source: string | null }
+    {
+      level: string | null;
+      country: string | null;
+      live_source: string | null;
+      cover_image_url: string | null;
+    }
   >(
-    ((existing ?? []) as Array<{ slug: string; level: string | null; country: string | null; live_source: string | null }>).map(
-      (r) => [r.slug, { level: r.level, country: r.country, live_source: r.live_source }],
-    ),
+    (
+      (existing ?? []) as Array<{
+        slug: string;
+        level: string | null;
+        country: string | null;
+        live_source: string | null;
+        cover_image_url: string | null;
+      }>
+    ).map((r) => [
+      r.slug,
+      {
+        level: r.level,
+        country: r.country,
+        live_source: r.live_source,
+        cover_image_url: r.cover_image_url,
+      },
+    ]),
   );
 
   // Twin detection: pull every padelapi-linked tournament that doesn't
@@ -283,6 +314,22 @@ export async function runTournamentDiscovery(
       }
       // else: brand-new row with no level signal — leave undefined,
       // which lets the column's NULL default apply on insert.
+    }
+
+    // Cover image gap-fill. FIP's WP API exposes the event poster via
+    // _embedded['wp:featuredmedia'][0].source_url (already extracted by
+    // the parser). We write it as the cover ONLY when the row has no
+    // cover yet — ops manual uploads through /api/ops/tournaments/[id]/
+    // cover always win. Existing non-null covers are echoed back into
+    // the payload to defeat Supabase upsert's "missing column → reset
+    // to default" behavior (same gotcha that motivated the level/
+    // country preservation above).
+    const existingCover =
+      twin == null ? existingBySlug.get(p.slug)?.cover_image_url ?? null : null;
+    if (p.featuredMediaUrl && (existingCover == null || existingCover === '')) {
+      row.cover_image_url = p.featuredMediaUrl;
+    } else if (existingCover != null && existingCover !== '') {
+      row.cover_image_url = existingCover;
     }
 
     // Auto-flip: new tournaments default to padelgod-owned. Existing rows

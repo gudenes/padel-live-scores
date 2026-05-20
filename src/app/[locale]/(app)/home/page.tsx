@@ -31,6 +31,13 @@ import RankingsSection from '@/components/home/RankingsSection'
 import ResultsSection from '@/components/home/ResultsSection'
 import HighlightsPreview from '@/components/home/HighlightsPreview'
 import TournamentsView from '@/components/home/TournamentsView'
+import LiveTournamentsCarousel, { TournamentWithMatchInfo } from '@/components/home/LiveTournamentsCarousel'
+import {
+  buildMatchInfoMap,
+  compareTournamentsForCarousel,
+  getLocalDayBoundaryUTC,
+} from '@/lib/live-tournaments-carousel'
+import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
 import { LoginCtaSheet } from '@/components/LoginCtaSheet'
 
@@ -125,6 +132,9 @@ function V3HomePageInner() {
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [latestNews, setLatestNews] = useState<NewsItem[]>([])
+  const [carouselLiveToday, setCarouselLiveToday] = useState<TournamentWithMatchInfo[]>([])
+  const [carouselUpcoming, setCarouselUpcoming] = useState<TournamentWithMatchInfo[]>([])
+  const [carouselEnabled, setCarouselEnabled] = useState<boolean>(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [spotlightChampionMen, setSpotlightChampionMen] = useState<TournamentSpotlightHeroProps['defendingChampionMen']>(null)
   const [spotlightChampionWomen, setSpotlightChampionWomen] = useState<TournamentSpotlightHeroProps['defendingChampionWomen']>(null)
@@ -290,6 +300,46 @@ function V3HomePageInner() {
         wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
         wrap(supabase.from('articles').select('id, title, title_translations, snippet, snippet_translations, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(20) as any, 'home:articles'),
+        // Live Tournaments carousel — 3 queries
+        wrap(
+          supabase
+            .from('tournaments')
+            .select('id, name, starts_at, ends_at, country, location, level, logo_url, cover_image_url, prize_money')
+            .lte('starts_at', new Date().toISOString())
+            .gte('ends_at', (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d.toISOString() })())
+            .limit(20) as any,
+          'home:carousel-live-today',
+        ),
+        wrap(
+          supabase
+            .from('tournaments')
+            .select('id, name, starts_at, ends_at, country, location, level, logo_url, cover_image_url, prize_money')
+            .gt('starts_at', new Date().toISOString())
+            .lt('starts_at', new Date(Date.now() + 7 * 24 * 3_600_000).toISOString())
+            .limit(20) as any,
+          'home:carousel-upcoming',
+        ),
+        wrap(
+          (async () => {
+            const { startUTC, endUTC } = getLocalDayBoundaryUTC()
+            return supabase
+              .from('matches')
+              .select('tournament_id, status')
+              .gte('scheduled_at', startUTC)
+              .lte('scheduled_at', endUTC)
+          })() as any,
+          'home:carousel-match-counts',
+        ),
+        // Feature flag — controls whether the Live Tournaments carousel
+        // renders. Two columns (enabled, enabled_local) resolved by host.
+        wrap(
+          supabase
+            .from('feature_flags')
+            .select('enabled, enabled_local')
+            .eq('key', FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL)
+            .maybeSingle() as any,
+          'home:carousel-flag',
+        ),
       ])
 
       const dataOf = (i: number) => {
@@ -308,6 +358,38 @@ function V3HomePageInner() {
       setRecentMatches(dataOf(5))
       setHighlights(dataOf(6))
       setLatestNews(dataOf(7))
+
+      // ── Carousel transform ─────────────────────────────────────
+      const carouselLiveRows: any[] = dataOf(8)
+      const carouselUpcomingRows: any[] = dataOf(9)
+      const carouselMatchRows: any[] = dataOf(10)
+      const matchInfo = buildMatchInfoMap(carouselMatchRows)
+      const decorate = (rows: any[]): TournamentWithMatchInfo[] =>
+        rows
+          .map(r => ({
+            ...(r as Tournament),
+            matchesToday: matchInfo.get(r.id)?.matchesToday ?? 0,
+            hasLiveMatch: matchInfo.get(r.id)?.hasLiveMatch ?? false,
+          }))
+          .sort(compareTournamentsForCarousel)
+      setCarouselLiveToday(decorate(carouselLiveRows))
+      setCarouselUpcoming(decorate(carouselUpcomingRows))
+
+      // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
+      // dataOf(11) from .maybeSingle(): { enabled, enabled_local } when
+      // present, [] when the row is missing, undefined on fetch failure.
+      const flagRow = dataOf(11)
+      const flag =
+        flagRow && !Array.isArray(flagRow)
+          ? (flagRow as { enabled?: boolean | null; enabled_local?: boolean | null })
+          : null
+      setCarouselEnabled(
+        resolveFlag(
+          flag
+            ? { enabled: flag.enabled ?? null, enabled_local: flag.enabled_local ?? null }
+            : null,
+        ),
+      )
 
       const spotlight = tournaments[0] ?? null
       if (spotlight) {
@@ -398,7 +480,15 @@ function V3HomePageInner() {
       <ReferralToast />
       <WelcomeStrip />
 
-      {/* ── LIVE NOW ──────���─────────────────────────────────── */}
+      {/* ── LIVE TOURNAMENTS CAROUSEL (feature-flagged) ─────────── */}
+      {carouselEnabled && (
+        <LiveTournamentsCarousel
+          liveToday={carouselLiveToday}
+          upcoming={carouselUpcoming}
+        />
+      )}
+
+      {/* ── LIVE NOW ─────────────────────────────────────────── */}
       {liveScorable.length > 0 && (
         <>
           <SectionTitle action={tHome('allScores')} href="/matches">{tHome('liveNow')}</SectionTitle>

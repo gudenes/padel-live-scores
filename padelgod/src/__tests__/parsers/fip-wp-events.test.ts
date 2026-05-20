@@ -32,7 +32,60 @@ describe('parseFipWpEvents', () => {
       countryTermIds: [331],
       genderTermIds: [37, 36],
       categoryTermIds: [708],
+      featuredMediaUrl: null,
     });
+  });
+
+  it('extracts featuredMediaUrl from _embedded["wp:featuredmedia"]', () => {
+    const apiResponse = [
+      {
+        id: 999,
+        slug: 'fip-silver-hop-london-padel-open-2026',
+        title: { rendered: 'FIP Silver HOP London Padel Open 2026' },
+        modified_gmt: '2026-05-15T00:00:00',
+        featured_media: 12345,
+        _embedded: {
+          'wp:featuredmedia': [
+            {
+              source_url:
+                'https://www.padelfip.com/wp-content/uploads/2025/12/HOP_SILVER2026_Poster-724x1024.jpg',
+            },
+          ],
+        },
+      },
+    ];
+    const result = parseFipWpEvents(apiResponse as any);
+    expect(result).toHaveLength(1);
+    expect(result[0].featuredMediaUrl).toBe(
+      'https://www.padelfip.com/wp-content/uploads/2025/12/HOP_SILVER2026_Poster-724x1024.jpg',
+    );
+    expect(result[0].featuredMediaId).toBe(12345);
+  });
+
+  it('treats empty _embedded.wp:featuredmedia as null', () => {
+    const apiResponse = [
+      {
+        id: 1,
+        slug: 'ok',
+        title: { rendered: 'Ok' },
+        modified_gmt: 'x',
+        _embedded: { 'wp:featuredmedia': [] },
+      },
+    ];
+    expect(parseFipWpEvents(apiResponse as any)[0].featuredMediaUrl).toBeNull();
+  });
+
+  it('treats missing source_url as null', () => {
+    const apiResponse = [
+      {
+        id: 1,
+        slug: 'ok',
+        title: { rendered: 'Ok' },
+        modified_gmt: 'x',
+        _embedded: { 'wp:featuredmedia': [{}] },
+      },
+    ];
+    expect(parseFipWpEvents(apiResponse as any)[0].featuredMediaUrl).toBeNull();
   });
 
   it('skips entries without slug or title', () => {
