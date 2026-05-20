@@ -18,7 +18,6 @@ type Props = {
 export function SearchModal({ query, onQueryChange, onClose }: Props) {
   const t = useTranslations('rankings')
   const inputRef = useRef<HTMLInputElement>(null)
-  const boxRef = useRef<HTMLDivElement>(null)
 
   // Autofocus on mount.
   useEffect(() => {
@@ -37,7 +36,6 @@ export function SearchModal({ query, onQueryChange, onClose }: Props) {
 
   return (
     <div
-      ref={boxRef}
       style={{
         margin: '0 16px',
         padding: '10px 14px',
@@ -49,7 +47,7 @@ export function SearchModal({ query, onQueryChange, onClose }: Props) {
         gap: 10,
       }}
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8" />
         <path d="M21 21l-4.35-4.35" />
       </svg>
