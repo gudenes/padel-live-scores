@@ -4,6 +4,8 @@ Standalone Next.js admin app deployed to `admin.padelnachos.com`. Replaces the e
 
 **Spec:** [`docs/superpowers/specs/2026-05-20-admin-ops-app-design.md`](../../docs/superpowers/specs/2026-05-20-admin-ops-app-design.md)
 
+**Phase 1 status:** Plan 1 (foundation) + Plan 2 (sidebar + Today) + Plan 3a (Players + Tournament Explorer) shipped. Plan 3b (remaining 12 tabs) is the next milestone.
+
 ## Local development
 
 ```bash
@@ -171,10 +173,22 @@ A user can sign in via any provider but only sees the app if they're in the `pub
 | `/reset-password?token=…` | Token consumer + new password form |
 | `/not-authorized` | Shown when a session exists but isOperator is false |
 | `/today` | Daily-driver dashboard (KPIs, LIVE NOW, REQUIRES ATTENTION, schedule) |
-| `/tournament-explorer`, `/entry-lists`, `/needs-review`, `/simulator` | Tournament Ops tabs (stubs until Plan 3) |
-| `/players`, `/brands`, `/streams` | Catalog tabs (stubs until Plan 3) |
+| `/players` | Player catalog (search, edit, merge, dedup) |
+| `/tournament-explorer` | Per-tournament management (matches, draws, schedule review, entry lists) |
+| `/entry-lists`, `/needs-review`, `/simulator` | Tournament Ops tabs (stubs until Plan 3b) |
+| `/brands`, `/streams` | Catalog tabs (stubs until Plan 3b) |
 | `/news`, `/highlights` | Content tabs (stubs until Plan 3) |
 | `/system/*` | Diagnostics tabs (stubs until Plan 3) |
 | `/api/internal/today` | GET → full Today payload |
 | `/api/internal/needs-review/counts` | GET → `{ duplicates: number }` |
+| `/api/internal/players` | GET list / PATCH edit |
+| `/api/internal/players/merge` | POST merge two players |
+| `/api/internal/search-players` | GET search by name + filters |
+| `/api/internal/duplicate-scan` | GET cluster detection (AI-assisted) |
+| `/api/internal/tournament-explorer` | GET tournament list |
+| `/api/internal/refresh-tournament` | POST trigger padelgod re-sync |
+| `/api/internal/tournament-prize` | PATCH prize money |
+| `/api/internal/schedule-review` | GET pending / PATCH apply OOP changes |
+| `/api/internal/tournament-draw` | GET tournament draw |
+| `/api/internal/tournament-matches` | GET tournament matches |
 | `/api/auth/[...nextauth]` | Auth.js handler |
