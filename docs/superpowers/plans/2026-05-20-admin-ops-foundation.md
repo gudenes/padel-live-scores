@@ -78,8 +78,118 @@ supabase/migrations/
 ├── 20260520120000_admin_ops_auth.sql        (users.password_hash + password_reset_tokens + operators)
 └── 20260520120100_seed_initial_operator.sql (reads INITIAL_OPERATOR_EMAIL env at apply time)
 
-src/auth.ts                                  (MODIFY — add cookies.sessionToken.options.domain)
+src/auth.ts                                  (MODIFY — add cookies.sessionToken.options.domain — now OPTIONAL, see Errata #5)
 ```
+
+---
+
+## Plan errata — deltas between the original plan and what shipped
+
+This plan was executed end-to-end on 2026-05-20. Five things shipped differently from what's written below. The original task content is preserved as-is for traceability; the items here are authoritative for the working code.
+
+### Errata 1 — `apps/ops/instrumentation.ts` shadow file (missing from Task 1)
+
+Without this file, Next.js's instrumentation discovery walks up to the repo-root `instrumentation.ts` (which imports `@sentry/nextjs`, not a `padel-ops` dependency) and the build crashes. `apps/labs/` has the same shadow; the plan missed copying it.
+
+Add to Task 1's file list:
+
+```
+apps/ops/instrumentation.ts                  (Sentry-shadow no-op; mirrors apps/labs/instrumentation.ts)
+```
+
+Content (byte-identical to labs):
+
+```ts
+// apps/ops/instrumentation.ts
+// Intentionally empty — shadows the repo-root instrumentation.ts (Padel
+// Nachos's Sentry hook).
+export function register() {
+  // no-op
+}
+```
+
+Shipped in commit `b979a816`.
+
+### Errata 2 — `useActionState` + client-component pattern for forms with error returns (Tasks 11, 12, 13)
+
+The plan showed `<form action={serverAction}>` bindings directly. React 19 + Next.js 16 reject this typing when the server action returns anything other than `void | Promise<void>`. `@types/react` 19 declares `FormHTMLAttributes.action: ((formData: FormData) => void | Promise<void>) | string | undefined` — returning `{ error: string }` is a TS2322 compile error.
+
+For Tasks 11 (`/login`), 12 (`/forgot-password`), and 13 (`/reset-password`) — all three of which have actions that return error/status objects — split into a server-component page + a `'use client'` form component wrapping the action with `useActionState`.
+
+**Additional files actually created:**
+
+- `apps/ops/src/app/login/LoginForm.tsx` (Task 11)
+- `apps/ops/src/app/forgot-password/ForgotPasswordForm.tsx` (Task 12)
+- `apps/ops/src/app/reset-password/ResetPasswordForm.tsx` (Task 13)
+
+**Server action signature change:**
+
+```ts
+// Before (plan, doesn't compile)
+export async function loginWithCredentials(formData: FormData): Promise<{ error: string } | undefined>
+
+// After (shipped)
+export async function loginWithCredentials(
+  _prev: CredentialsState,
+  formData: FormData,
+): Promise<CredentialsState>
+```
+
+**Auth.js v5 error handling** in `loginWithCredentials`: catch `AuthError` BEFORE rethrowing `NEXT_REDIRECT`. Credentials failures throw `AuthError` with `type === 'CredentialsSignin'` — our original `msg.includes('NEXT_REDIRECT')` check caught those too, so failed sign-ins silently redirected back to `/login?error=...` with no inline error. Fix shipped in commit `87380a65` then refined in a follow-up.
+
+### Errata 3 — Session strategy changed to JWT (Task 4 / Task 9)
+
+Plan and spec said `strategy: 'database'` for both apps to share a cookie. **Auth.js v5 documents that the Credentials provider does NOT create database session rows even when `strategy: 'database'`.** Email + password sign-in failed silently: `authorize()` returned the user, cookie was set, but `auth()` returned null on the next request.
+
+**Shipped configuration in `apps/ops/src/lib/auth.ts`:**
+
+```ts
+session: {
+  strategy: 'jwt',
+  maxAge: 30 * 24 * 60 * 60,
+},
+callbacks: {
+  async jwt({ token, user }) {
+    if (user?.id) token.userId = user.id
+    return token
+  },
+  async session({ session, token }) {
+    const userId = typeof token.userId === 'string' ? token.userId : undefined
+    if (userId && session.user) {
+      session.user.id = userId
+      session.user.isOperator = await isUserOperator(userId)
+    }
+    return session
+  },
+},
+```
+
+`PostgresAdapter` is still mounted — it persists `users`, `accounts`, and `verification_token`. Only the `sessions` table goes unused under JWT.
+
+**Trade-off captured in spec:** cross-subdomain session sharing with the main app no longer works (the main app keeps database sessions; cookie payloads are incompatible). Operators sign into `admin.padelnachos.com` and `padelnachos.com` independently.
+
+Shipped in commit `93c58243`.
+
+### Errata 4 — Plan 1 landing stub at `/today` (NEW page, not in original plan)
+
+The original plan ended Plan 1 with no app routes under `(app)/` — so a successful sign-in had nowhere to land, and an operator who completed the auth flow would bounce back to `/login` because `/` blindly redirected there. This made the test loop incapable of demonstrating success.
+
+**Added files:**
+
+- `apps/ops/src/app/(app)/today/page.tsx` — Plan 1 stub with "SIGNED IN" pill, welcome message, sign-out button. Plan 2 replaces this with the real Today dashboard.
+
+**Modified file:**
+
+- `apps/ops/src/app/page.tsx` — root page now calls `auth()`. Signed-in users get `redirect('/today')`; anonymous users get `redirect('/login')`.
+- `apps/ops/src/app/login/page.tsx` — also `auth()`-checked; signed-in users skip the form and go to `/today` directly.
+
+Shipped in commit `7c4697d8`.
+
+### Errata 5 — Task 16 (cookie domain on main app) reclassified as optional
+
+The plan flagged this as required-before-deploy because the original spec depended on cross-subdomain cookie sharing. With JWT sessions on the ops app (Errata 3), the cookie payloads are incompatible regardless of domain, so the main-app change provides no value. Task 16 is now optional / deferred indefinitely.
+
+The ops app can deploy to `admin.padelnachos.com` without touching `src/auth.ts` in the main app.
 
 ---
 

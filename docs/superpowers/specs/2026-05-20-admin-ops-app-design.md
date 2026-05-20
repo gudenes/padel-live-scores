@@ -49,8 +49,9 @@ padel-live-scores/
 ### Subdomain + cookie domain
 
 - Deploy: separate Vercel project named `padelnachos-admin`, custom domain `admin.padelnachos.com`
-- Auth.js session cookie scoped to `.padelnachos.com` (parent domain) so signing into one keeps you signed in on the other. Same config added to both apps' `auth.ts`.
-- **Scope:** main app (`padelnachos.com`) ↔ admin app (`admin.padelnachos.com`). Labs (`padellabs.tech`) is a different registrable domain and is unaffected.
+- **Cross-subdomain session sharing was abandoned during Plan 1 execution** — the ops app needed the Auth.js Credentials provider (email + password) which doesn't work with database sessions in Auth.js v5. Switching to JWT sessions in the ops app means its session cookie is no longer interchangeable with the main app's database-session cookie. See "Session strategy" section below for the full reasoning.
+- Operators sign into `admin.padelnachos.com` and `padelnachos.com` independently. Acceptable trade-off: an internal ops tool is a separate trust boundary anyway, and the user base is small.
+- Cookie can still be scoped to `.padelnachos.com` (parent domain) — harmless under JWT — but no longer required for functionality. The Task 16 cookie-domain PR on the main app is now optional and not part of the Plan 1 deploy critical path.
 
 ### Shared data layer
 
@@ -417,23 +418,11 @@ Failed login attempts: 5 per IP per 15 min. In-memory ring buffer keyed on IP, s
 
 If the threat model ever moves beyond "operator typo," move to Upstash Redis (already common in Vercel projects) — a `~10 LoC` swap to centralized counters. Not worth it for v1 given the tiny user surface.
 
-### Session cookie sharing
+### Session cookie sharing — **deferred**
 
-```ts
-// In both apps/ops/src/auth.ts AND src/auth.ts
-cookies: {
-  sessionToken: {
-    options: {
-      domain: process.env.NODE_ENV === 'production' ? '.padelnachos.com' : undefined,
-      sameSite: 'lax',
-      path: '/',
-      secure: true,
-    },
-  },
-}
-```
+Original plan was to scope the session cookie to `.padelnachos.com` so a sign-in on either app worked on both. **Abandoned during Plan 1 execution** — the Credentials provider's incompatibility with database sessions forced the ops app onto JWT sessions, making the two apps' cookies non-interchangeable.
 
-Logging into either app sets the cookie on `.padelnachos.com`, valid for both.
+The cookie domain config is still set to `.padelnachos.com` in the ops app (harmless under JWT) but no longer required. Future revisit: align both apps on JWT to restore the feature, OR accept that admins log into each domain separately.
 
 ## Role gating
 
@@ -452,37 +441,47 @@ A separate table (not a `users.role` column) because:
 - Easy to grep: `select email from operators o join users u on u.id = o.user_id`
 - No risk of `role='admin'` leaking via accidental client-side reads of the users table
 
-### Session strategy + middleware
+### Session strategy + gate
 
-The main app uses Auth.js v5 with **database-strategy sessions** (PostgresAdapter writes to `sessions`). The admin app uses the same strategy — both apps must agree on session shape for the shared cookie to validate.
+**The ops app uses JWT sessions** (`strategy: 'jwt'`). This diverges from the original spec — which prescribed database sessions for both apps to share a cookie — because Auth.js v5 documents that the Credentials provider does NOT create database session rows even when `strategy: 'database'`. The result was a silent failure: `authorize()` returned the user, the cookie was set, but `auth()` returned null on the next request because no session row existed. Switching to JWT was the canonical Auth.js fix.
 
-Database sessions don't fire the `jwt` callback (there's no JWT to embed claims in). Instead, the operator check is enriched via the `session` callback in `auth.ts`:
+The `PostgresAdapter` is still used — it handles `users`, `accounts`, and `verification_token` persistence. Only the `sessions` table goes unused under JWT.
+
+Operator enrichment uses the canonical JWT-strategy pair (`jwt` then `session`):
 
 ```ts
 callbacks: {
-  async session({ session, user }) {
-    // Single LEFT JOIN to operators on every session read.
-    // Auth.js already touches the sessions/users rows here, so this is one extra round-trip
-    // per session lookup (which is itself cached for the duration of an RSC render via React's request scope).
-    const result = await pool.query(
-      'select 1 from operators where user_id = $1 limit 1',
-      [user.id],
-    )
-    session.user.isOperator = result.rowCount > 0
+  // Fires on every request. On initial sign-in, `user` is populated; we
+  // copy user.id onto the token. Subsequent calls only have `token`.
+  async jwt({ token, user }) {
+    if (user?.id) token.userId = user.id
+    return token
+  },
+  // Runs on every auth() call. Pull userId from the signed JWT, enrich
+  // with the operator flag via one indexed probe.
+  async session({ session, token }) {
+    const userId = typeof token.userId === 'string' ? token.userId : undefined
+    if (userId && session.user) {
+      session.user.id = userId
+      session.user.isOperator = await isUserOperator(userId)
+    }
     return session
   },
 }
 ```
 
-**Middleware** (`apps/ops/src/middleware.ts`):
+**Auth + operator gate** (`apps/ops/src/app/(app)/layout.tsx`):
 
-1. If path is in `PUBLIC_PATHS` (`/login`, `/forgot-password`, `/reset-password`, `/api/auth/*`, `/_next/*`) → pass
-2. Call `auth()` to get the session (Auth.js handles cookie validation + the `session` callback above)
-3. If no session → redirect to `/login?from=${path}`
-4. If `session.user.isOperator !== true` → render `/not-authorized` page with sign-out link
-5. Otherwise → pass
+The original spec described a `middleware.ts` (Next 16: `proxy.ts`) gate. We landed it as a layout-level gate instead, matching the `apps/labs/` precedent (and the way Next.js 16 server components compose):
 
-The `session` callback is the single source of truth for "is this user an operator?" — no JWT-claim drift, no stale-by-30-days problem. Removing someone from `operators` takes effect on their next session read.
+1. `proxy.ts` is a pass-through (auth checks at the proxy edge don't have full session access in Next 16)
+2. `(app)/layout.tsx` calls `await auth()` — if no session → `redirect('/login')`
+3. Checks `session.user.isOperator` — if false → `redirect('/not-authorized')`
+4. Otherwise renders children
+
+The `session` callback is the single source of truth for "is this user an operator?" Removing someone from `operators` takes effect on their next page request (next time the session callback fires).
+
+**Trade-off vs database sessions:** with JWT, removing a row from `operators` invalidates access on the next request (the session callback re-queries every time). With JWT we don't get database-side session revocation — to force sign-out, we'd need to rotate `AUTH_SECRET`. Acceptable for this user surface.
 
 ### First-operator seeding
 
