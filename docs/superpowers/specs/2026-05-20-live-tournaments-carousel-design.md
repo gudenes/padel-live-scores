@@ -29,9 +29,10 @@ Two chips, default = LIVE/TODAY:
 | **UPCOMING** | `starts_at` within the next 7 days from now | All tiers |
 
 **Sort within each chip:**
-1. Premier tiers first via a static rank map: `p1=1, p2=2, major=3, finals=4`
-2. Then FIP tiers in level order: `gold=5, bronze=6, rise=7, future=8`
-3. Then by `starts_at` ascending (earliest first)
+1. Use the canonical `levelTierWeight()` from [src/lib/tournament-labels.ts](../../src/lib/tournament-labels.ts) — it already encodes the project-wide tournament-sorting order and covers all real FIP tiers.
+2. Premier first, most-prestigious first: Finals(0) → Major(1) → P1(2) → P2(3)
+3. Then FIP tiers: `fip_platinum`(4), `fip_gold`(5), `fip_hexagon`(6), `fip_championship`(7), `fip_finals`(8), `fip_silver`(10), `fip_bronze`(12), `fip_star`(14), `fip_rise`(15), `fip_promotion`(16), `fip_promises`(20), `fip_beyond`(22), `fip_other`(25)
+4. Then by `starts_at` ascending (earliest first) as the within-tier tiebreaker
 
 **Empty states:**
 - LIVE/TODAY empty AND UPCOMING populated → auto-jump default chip to UPCOMING on render
@@ -88,7 +89,7 @@ The component owns chip state internally (`useState<'live-today' | 'upcoming'>`)
 ## Cover image fallback
 
 `cover_image_url` is not guaranteed populated. When null:
-- Render a tier-colored gradient placeholder filling the card (Premier → `linear-gradient(135deg, #6B46C1, #9333EA)`, Gold → `linear-gradient(135deg, #92750E, #EAB308)`, Bronze → `linear-gradient(135deg, #92400E, #D97706)`, Rise → `linear-gradient(135deg, #155E75, #06B6D4)`, Future → `linear-gradient(135deg, #334155, #64748B)`)
+- Render a tier-colored gradient placeholder filling the card. Premier-tier rows (`p1`, `p2`, `major`, `finals`) → purple gradient `linear-gradient(135deg, #6B46C1, #9333EA)`. FIP-tier rows (`fip_platinum`, `fip_gold`, `fip_silver`, `fip_bronze`, `fip_star`, `fip_rise`, `fip_promotion`, `fip_finals`, `fip_promises`, `fip_beyond`, `fip_hexagon`, `fip_championship`, `fip_other`) → tier-grouped warmer gradients (platinum/gold → amber, silver → slate, bronze → orange-brown, rise/star/promotion → cyan, promises/beyond/other → slate). Match the same family used by the level pill so the visual reads consistently.
 - No logo overlay, no broken-image icon, no external network requests
 - The level pill and tournament name still render clearly on the gradient
 
