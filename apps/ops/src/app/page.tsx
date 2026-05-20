@@ -1,9 +1,14 @@
 // apps/ops/src/app/page.tsx
-// Until the Today page exists (Plan 2), the root redirects to /login.
-// Plan 2 will redirect to /today instead.
+// Root router. Signed-in users go to /today (gated; operator check happens in (app)/layout).
+// Anonymous users go to /login.
 
+import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 
-export default function RootPage() {
+export default async function RootPage() {
+  const session = await auth()
+  if (session?.user) {
+    redirect('/today')
+  }
   redirect('/login')
 }

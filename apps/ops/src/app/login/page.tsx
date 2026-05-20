@@ -1,9 +1,16 @@
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
 import { loginWithEmailLink, loginWithGoogle } from './actions'
 import { LoginForm } from './LoginForm'
 
 export const metadata = { title: 'Sign in · PadelNachos Admin' }
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  // If already signed in, route to /today (operator gate applies there).
+  const session = await auth()
+  if (session?.user) {
+    redirect('/today')
+  }
   return (
     <main
       style={{
