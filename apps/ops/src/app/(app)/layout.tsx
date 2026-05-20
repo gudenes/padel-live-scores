@@ -1,10 +1,11 @@
 // apps/ops/src/app/(app)/layout.tsx
-// Auth + operator gate.
-// Anything under (app)/ is only rendered for signed-in operators.
-// The full sidebar shell ships in Plan 2 — this file is a minimal gate.
+// Auth + operator gate, plus the sidebar shell for every (app)/ route.
+// The sidebar (client component) owns collapse state + badge polling;
+// the layout passes the operator's email through for the footer.
 
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { Sidebar } from '@/components/Sidebar'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -14,5 +15,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!session.user.isOperator) {
     redirect('/not-authorized')
   }
-  return <>{children}</>
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        background: 'var(--bg-canvas)',
+      }}
+    >
+      <Sidebar userEmail={session.user.email ?? null} />
+      <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
+    </div>
+  )
 }
