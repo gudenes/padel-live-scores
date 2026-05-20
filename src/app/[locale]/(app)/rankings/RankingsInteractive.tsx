@@ -56,10 +56,12 @@ export function RankingsInteractive({
   }, [initialPlayers])
 
   // Mark this week's rankings as seen for the "rank-updated" nudge.
+  // Guard against unparseable dates — markRankingsVisited('') would
+  // poison localStorage and pin the green dot forever.
   useEffect(() => {
-    if (initialRankingDateISO) {
-      markRankingsVisited(formatYearWeek(initialRankingDateISO) ?? '')
-    }
+    if (!initialRankingDateISO) return
+    const week = formatYearWeek(initialRankingDateISO)
+    if (week) markRankingsVisited(week)
   }, [initialRankingDateISO])
 
   // Background-fetch rows 101–1000 of the default variant after hydration
