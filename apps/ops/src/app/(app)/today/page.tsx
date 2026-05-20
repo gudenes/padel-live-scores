@@ -11,6 +11,7 @@ import { TodayLiveNow } from '@/components/TodayLiveNow'
 import { TodayRequiresAttention } from '@/components/TodayRequiresAttention'
 import { TodaySchedule } from '@/components/TodaySchedule'
 import { TodayStatusPill } from '@/components/TodayStatusPill'
+import { TodayRefreshButton } from '@/components/TodayRefreshButton'
 
 export const metadata = { title: 'Today · PadelNachos Admin' }
 export const dynamic = 'force-dynamic'
@@ -26,7 +27,10 @@ export default async function TodayPage() {
             Welcome back, {session?.user?.name?.split(' ')[0] ?? session?.user?.email}.
           </p>
         </div>
-        <TodayStatusPill status={payload.systemStatus} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <TodayRefreshButton />
+          <TodayStatusPill status={payload.systemStatus} />
+        </div>
       </div>
 
       <TodayKpiStrip kpis={payload.kpis} />
