@@ -6,6 +6,9 @@
 import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
+import Credentials from 'next-auth/providers/credentials'
+import { verifyPassword } from './password'
+import { check as rateLimitCheck } from './rate-limit'
 import PostgresAdapter from '@auth/pg-adapter'
 import { pgPool } from './db'
 
@@ -37,7 +40,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         })
       },
     }),
-    // Credentials provider added in Task 8.
+    Credentials({
+      name: 'Password',
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(creds, req) {
+        const email = String(creds?.email ?? '').toLowerCase().trim()
+        const password = String(creds?.password ?? '')
+        if (!email || !password) return null
+
+        // Soft rate limit per IP (best-effort; see rate-limit.ts caveat).
+        const ip =
+          req?.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() ??
+          req?.headers?.get?.('x-real-ip') ??
+          'unknown'
+        const limit = rateLimitCheck(`login:${ip}`, 5, 15 * 60_000)
+        if (!limit.allowed) {
+          throw new Error('TOO_MANY_ATTEMPTS')
+        }
+
+        const { rows } = await pgPool().query(
+          'select id, email, name, image, password_hash from public.users where email = $1 limit 1',
+          [email],
+        )
+        if (rows.length === 0) return null
+        const user = rows[0] as {
+          id: string
+          email: string
+          name: string | null
+          image: string | null
+          password_hash: string | null
+        }
+        const ok = await verifyPassword(password, user.password_hash)
+        if (!ok) return null
+        return { id: user.id, email: user.email, name: user.name, image: user.image }
+      },
+    }),
   ],
   pages: {
     signIn: '/login',
