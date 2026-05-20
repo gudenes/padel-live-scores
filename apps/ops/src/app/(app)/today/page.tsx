@@ -1,85 +1,53 @@
 // apps/ops/src/app/(app)/today/page.tsx
-// Plan 1 stub — proves the auth + operator gate works end-to-end.
-// Plan 2 replaces this with the real Today dashboard.
+// The real Today dashboard — KPIs, LIVE NOW, REQUIRES ATTENTION,
+// TODAY'S SCHEDULE, status pill. Reads through getTodayPayload() at
+// request time (server component), so each page render gets fresh
+// data.
 
-import { auth, signOut } from '@/lib/auth'
+import { auth } from '@/lib/auth'
+import { getTodayPayload } from '@/lib/today-aggregator'
+import { TodayKpiStrip } from '@/components/TodayKpiStrip'
+import { TodayLiveNow } from '@/components/TodayLiveNow'
+import { TodayRequiresAttention } from '@/components/TodayRequiresAttention'
+import { TodaySchedule } from '@/components/TodaySchedule'
+import { TodayStatusPill } from '@/components/TodayStatusPill'
 
 export const metadata = { title: 'Today · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default async function TodayStubPage() {
-  const session = await auth()
+export default async function TodayPage() {
+  const [session, payload] = await Promise.all([auth(), getTodayPayload()])
   return (
-    <main
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-canvas)',
-        padding: 24,
-      }}
-    >
+    <div style={{ padding: 32, maxWidth: 1280 }}>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Today</h1>
+          <p style={{ fontSize: 13, color: 'var(--status-neutral)', margin: 0 }}>
+            Welcome back, {session?.user?.name?.split(' ')[0] ?? session?.user?.email}.
+          </p>
+        </div>
+        <TodayStatusPill status={payload.systemStatus} />
+      </div>
+
+      <TodayKpiStrip kpis={payload.kpis} />
+
       <div
         style={{
-          width: '100%',
-          maxWidth: 460,
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 12,
-          padding: 32,
-          textAlign: 'center',
+          display: 'grid',
+          gridTemplateColumns: '2fr 1fr',
+          gap: 16,
+          marginBottom: 24,
         }}
       >
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            background: 'var(--brand-primary)',
-            color: 'var(--brand-primary-fg)',
-            padding: '6px 14px',
-            borderRadius: 999,
-            fontSize: 12,
-            fontWeight: 700,
-            marginBottom: 16,
-            letterSpacing: '0.04em',
-          }}
-        >
-          <span style={{ width: 6, height: 6, borderRadius: 999, background: 'var(--brand-primary-fg)' }} />
-          SIGNED IN
-        </div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 8px' }}>
-          Welcome, {session?.user?.name?.split(' ')[0] ?? session?.user?.email}
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--status-neutral)', margin: '0 0 6px' }}>
-          You're signed in as <strong>{session?.user?.email}</strong>.
-        </p>
-        <p style={{ fontSize: 13, color: 'var(--status-neutral)', margin: '0 0 24px' }}>
-          The operator gate passed. Plan 2 ships the real Today dashboard here
-          (KPIs, LIVE NOW, schedule, needs-review queue).
-        </p>
-        <form
-          action={async () => {
-            'use server'
-            await signOut({ redirectTo: '/login' })
-          }}
-        >
-          <button
-            type="submit"
-            style={{
-              background: 'transparent',
-              color: 'var(--status-neutral)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 8,
-              padding: '8px 16px',
-              fontSize: 13,
-              cursor: 'pointer',
-            }}
-          >
-            Sign out
-          </button>
-        </form>
+        <TodayLiveNow matches={payload.liveNow} />
+        <TodayRequiresAttention rows={payload.requiresAttention} />
       </div>
-    </main>
+
+      <TodaySchedule buckets={payload.schedule} />
+
+      <div style={{ marginTop: 24, fontSize: 11, color: 'var(--status-neutral)' }}>
+        Updated {new Date(payload.fetchedAt).toLocaleTimeString()}
+      </div>
+    </div>
   )
 }
