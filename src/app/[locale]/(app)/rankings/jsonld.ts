@@ -38,6 +38,9 @@ export function buildRankingsJsonLd({
   baseUrl,
   listName,
 }: BuildInput): RankingsJsonLd {
+  // Strip any trailing slash so we don't emit "//player/..." when the
+  // caller passes a base ending in /.
+  const base = baseUrl.replace(/\/$/, '')
   const localePrefix = locale === 'en' ? '' : `/${locale}`
 
   return {
@@ -53,8 +56,11 @@ export function buildRankingsJsonLd({
       if (p.country) item.nationality = p.country
       return {
         '@type': 'ListItem',
-        position: p.ranking ?? idx + 1,
-        url: `${baseUrl}${localePrefix}/player/${p.id}`,
+        // Use || not ?? — `ranking: 0` is meaningless (rankings are
+        // 1-based) so we fall back to the array index when ranking is
+        // null, undefined, OR zero.
+        position: p.ranking || idx + 1,
+        url: `${base}${localePrefix}/player/${p.id}`,
         item,
       }
     }),
