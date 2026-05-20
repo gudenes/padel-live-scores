@@ -3,6 +3,7 @@
 // Two-row pill toggle (gender, rank type). Stateless: parent owns state.
 // Swipe handlers are owned by RankingsInteractive (parent), not here.
 
+import type { CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   CHUNKY, GREEN, MEN_BLUE, WOMEN_PURPLE,
@@ -18,10 +19,11 @@ type Props = {
 export function FilterPills({ rankType, gender, onChange }: Props) {
   const t = useTranslations('rankings')
 
-  const pillStyle = (active: boolean, color: string): React.CSSProperties => ({
+  const pillStyle = (active: boolean, color: string): CSSProperties => ({
     padding: '6px 14px',
     fontSize: 12,
     fontWeight: 800,
+    fontFamily: 'inherit',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     color: active ? '#000' : color,
@@ -29,6 +31,7 @@ export function FilterPills({ rankType, gender, onChange }: Props) {
     border: `1.5px solid ${color}`,
     clipPath: CHUNKY.button,
     cursor: 'pointer',
+    transition: 'background 0.15s, color 0.15s',
   })
 
   return (
