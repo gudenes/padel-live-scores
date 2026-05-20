@@ -843,68 +843,41 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 3,
               padding: '14px 16px 18px',
             }}>
-              {/* Kicker pill — level indicator above title. Uses the
-                  tier-color palette shared with the home carousel. */}
-              {activeTournamentObj.level ? (() => {
-                const pill = getTierPill(activeTournamentObj.level)
-                return (
-                  <span style={{
-                    display: 'inline-block',
-                    fontSize: 10, fontWeight: 800,
-                    color: pill.color,
-                    background: pill.background,
-                    clipPath: CHUNKY.badge,
-                    padding: '4px 12px',
-                    letterSpacing: 0.7,
-                    textTransform: 'uppercase',
-                  }}>
-                    {levelLabel(activeTournamentObj.level)}
-                  </span>
-                )
-              })() : null}
-
-              {/* Title row: flag + title on the left; FOLLOW + M/W
-                  stacked vertically on the right.
-                  Both controls fade out on scroll (inlineOpacity) and
-                  reappear in the chrome navbar (compactOpacity). */}
+              {/* Level + M/W row — kicker pill on the left, gender
+                  toggle on the right. Fills the empty space above the
+                  title without adding a new row to the hero. */}
               <div style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                marginTop: 6,
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: 10,
               }}>
-                {activeTournamentObj.country ? (
-                  <FlagImage country={activeTournamentObj.country} size={24} />
-                ) : null}
-                <div style={{
-                  flex: 1, minWidth: 0,
-                  fontSize: 26, fontWeight: 900,
-                  lineHeight: 1.05, letterSpacing: -0.5,
-                  color: '#fff',
-                  textShadow: '0 2px 8px rgba(0,0,0,0.45)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}>
-                  {titleCase(activeTournamentObj.name)}
-                </div>
+                {activeTournamentObj.level ? (() => {
+                  const pill = getTierPill(activeTournamentObj.level)
+                  return (
+                    <span style={{
+                      display: 'inline-block',
+                      fontSize: 10, fontWeight: 800,
+                      color: pill.color,
+                      background: pill.background,
+                      clipPath: CHUNKY.badge,
+                      padding: '4px 12px',
+                      letterSpacing: 0.7,
+                      textTransform: 'uppercase',
+                    }}>
+                      {levelLabel(activeTournamentObj.level)}
+                    </span>
+                  )
+                })() : <span />}
 
-                {/* Right-column controls — FOLLOW on top, M/W below.
-                    Both share the same scroll-fade opacity. */}
+                {/* Inline M/W toggle — fades out on scroll, reappears
+                    in the chrome navbar (compactOpacity). */}
                 <div
                   aria-hidden={inlineOpacity <= 0.5}
                   style={{
                     opacity: inlineOpacity,
                     pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
                     flexShrink: 0,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    gap: 6,
                   }}
                 >
-                  <FollowButton
-                    type="tournament"
-                    targetId={activeTournamentObj.id}
-                    variant="follow"
-                    style={{ background: 'rgba(20,20,20,0.92)', color: '#fff' }}
-                  />
                   <div
                     onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
                     style={{
@@ -935,6 +908,43 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       transition: 'color 0.2s',
                     }}>W</span>
                   </div>
+                </div>
+              </div>
+
+              {/* Title row: flag + title + FOLLOW (single row).
+                  FOLLOW fades on scroll, reappears in chrome navbar. */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                marginTop: 6,
+              }}>
+                {activeTournamentObj.country ? (
+                  <FlagImage country={activeTournamentObj.country} size={24} />
+                ) : null}
+                <div style={{
+                  flex: 1, minWidth: 0,
+                  fontSize: 26, fontWeight: 900,
+                  lineHeight: 1.05, letterSpacing: -0.5,
+                  color: '#fff',
+                  textShadow: '0 2px 8px rgba(0,0,0,0.45)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {titleCase(activeTournamentObj.name)}
+                </div>
+                <div
+                  tabIndex={inlineOpacity <= 0.5 ? -1 : undefined}
+                  aria-hidden={inlineOpacity <= 0.5}
+                  style={{
+                    opacity: inlineOpacity,
+                    pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
+                    flexShrink: 0,
+                  }}
+                >
+                  <FollowButton
+                    type="tournament"
+                    targetId={activeTournamentObj.id}
+                    variant="follow"
+                    style={{ background: 'rgba(20,20,20,0.92)', color: '#fff' }}
+                  />
                 </div>
               </div>
 
