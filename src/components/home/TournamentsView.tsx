@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
-import Image from 'next/image'
 import Avatar from '@/components/Avatar'
+import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { Link } from '@/i18n/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT } from '@/lib/format-patterns'
@@ -1135,18 +1135,18 @@ function BigTournamentCard({
     <Link href={`/tournaments/${tournament.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div style={{
         margin: '0 16px 12px', padding: 20, position: 'relative', overflow: 'hidden',
+        aspectRatio: '360 / 260',
         clipPath: CHUNKY.card,
         background: `linear-gradient(135deg, ${isLive ? 'rgba(255,69,85,0.10)' : isOngoing ? 'rgba(245,166,35,0.08)' : 'rgba(126,211,33,0.06)'} 0%, ${BG_CARD} 60%)`,
         border: `1.5px solid ${isLive ? 'rgba(255,69,85,0.25)' : isOngoing ? 'rgba(245,166,35,0.2)' : 'rgba(126,211,33,0.2)'}`,
       }}>
         {tournament.cover_image_url ? (
           <>
-            <Image
+            <TournamentCoverImage
               src={tournament.cover_image_url}
               alt={tournament.name}
-              fill
+              variant="hero"
               sizes="(max-width: 480px) 100vw, 480px"
-              style={{ objectFit: 'cover', zIndex: 0 }}
             />
             <div
               aria-hidden

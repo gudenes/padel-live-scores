@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
-import Image from 'next/image'
 import Avatar from '@/components/Avatar'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
@@ -10,6 +9,7 @@ import { useInViewOnce } from '@/hooks/useInViewOnce'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { levelLabel } from '@/lib/tournament-labels'
+import TournamentCoverImage from '@/components/TournamentCoverImage'
 
 // ── Per-section scroll trigger ────────────────────────────────────
 // Each section gets its own IntersectionObserver so animations fire
@@ -304,13 +304,11 @@ export default function TournamentSpotlightHero({
       >
         {tournament.cover_image_url ? (
           <>
-            <Image
+            <TournamentCoverImage
               src={tournament.cover_image_url}
               alt={tournament.name}
-              fill
+              variant="hero"
               sizes="(max-width: 480px) 100vw, 480px"
-              style={{ objectFit: 'cover', zIndex: 0 }}
-              priority={false}
             />
             <div
               aria-hidden

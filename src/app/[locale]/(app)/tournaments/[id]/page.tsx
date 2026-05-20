@@ -25,6 +25,7 @@ import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
 import { levelLabel } from '@/lib/tournament-labels'
+import TournamentCoverImage from '@/components/TournamentCoverImage'
 import DrawTab from './DrawTab'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -691,7 +692,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 fill
                 sizes="(max-width: 480px) 100vw, 500px"
                 style={{
-                  objectFit: 'cover', zIndex: 0,
+                  objectFit: 'cover',
+                  objectPosition: 'center top',
+                  zIndex: 0,
                   filter: 'brightness(0.35) saturate(0.7)',
                   opacity: navbarLayerOpacity,
                 }}
@@ -801,13 +804,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         }}>
           {activeTournamentObj?.cover_image_url ? (
             <>
-              <Image
+              <TournamentCoverImage
                 src={activeTournamentObj.cover_image_url}
                 alt={activeTournamentObj.name}
-                fill
+                variant="hero"
                 sizes="(max-width: 480px) 100vw, 500px"
                 priority
-                style={{ objectFit: 'cover', zIndex: 0 }}
               />
               <div aria-hidden style={{
                 position: 'absolute', inset: 0, zIndex: 1,
