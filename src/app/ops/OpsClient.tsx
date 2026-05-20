@@ -26,6 +26,7 @@ import YtChannelsTab from './yt-channels/YtChannelsTab'
 import NewsTab from './NewsTab'
 import HighlightPickerTab from './HighlightPickerTab'
 import TournamentCoversTab from './TournamentCoversTab'
+import CoverageMatrixTab from './CoverageMatrixTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -323,7 +324,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker' | 'tournament-covers'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker' | 'tournament-covers' | 'coverage-matrix'>('ongoing')
   // Sidebar collapse — persisted across sessions because operators
   // who like the wider workspace want to keep it that way.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -455,6 +456,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         { key: 'highlight-picker' as const, label: 'Highlight Picker', badge: null },
         // Schedule tab retired — apply flow now inline in Tournament
         // Explorer → Matches → OOP subtab (see ScheduleReviewPanel).
+        { key: 'coverage-matrix' as const, label: 'Coverage Matrix', badge: null },
         { key: 'architecture' as const, label: 'Architecture', badge: null },
       ],
     },
@@ -990,6 +992,8 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
       {/* 'schedule' tab branch removed 2026-04-24 — see note near the
           ScheduleTab import at top of file. */}
+
+      {tab === 'coverage-matrix' && <CoverageMatrixTab />}
 
       {tab === 'architecture' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>System Architecture</div>
