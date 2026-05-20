@@ -11,6 +11,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { timeAgo } from './utils'
 
 const SLUG = 'coverage-matrix'
 const API = `/api/ops/docs/${SLUG}`
@@ -20,18 +21,6 @@ interface DocRow {
   content: string
   updated_at: string
   updated_by: string | null
-}
-
-function timeAgo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
-  const s = Math.floor(ms / 1000)
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  return `${d}d ago`
 }
 
 export default function CoverageMatrixTab() {
@@ -81,7 +70,7 @@ export default function CoverageMatrixTab() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Coverage Matrix</h2>
       </div>
-      <div className="markdown-body" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 20 }}>
+      <div className="prose prose-neutral max-w-none" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 20 }}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
       </div>
       <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>
