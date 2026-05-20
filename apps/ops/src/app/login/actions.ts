@@ -1,5 +1,6 @@
 'use server'
 
+import { AuthError } from 'next-auth'
 import { signIn } from '@/lib/auth'
 
 type CredentialsState = { error: string } | undefined
@@ -17,13 +18,22 @@ export async function loginWithCredentials(
       redirectTo: '/', // (app)/layout will route based on operator status
     })
   } catch (err) {
-    // Auth.js throws a redirect on success; surface auth errors only.
-    const msg = err instanceof Error ? err.message : 'Sign-in failed.'
-    if (msg.includes('NEXT_REDIRECT')) throw err
-    if (msg.includes('TOO_MANY_ATTEMPTS')) {
+    // Auth.js v5 throws an AuthError for credentials failures (wrong password,
+    // unknown user). It throws a redirect (NEXT_REDIRECT) for success. Check
+    // AuthError FIRST — both end up as redirects internally, but only AuthError
+    // means "auth failed, surface a friendly message".
+    if (err instanceof AuthError) {
+      if (err.type === 'CredentialsSignin') {
+        return { error: 'Invalid email or password.' }
+      }
+      return { error: 'Sign-in failed. Please try again.' }
+    }
+    // Custom rate-limit signal from the authorize callback.
+    if (err instanceof Error && err.message.includes('TOO_MANY_ATTEMPTS')) {
       return { error: 'Too many attempts. Try again in 15 minutes.' }
     }
-    return { error: 'Invalid email or password.' }
+    // NEXT_REDIRECT (success path) and anything else — let it propagate.
+    throw err
   }
 }
 
