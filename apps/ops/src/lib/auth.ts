@@ -1,7 +1,13 @@
 // apps/ops/src/lib/auth.ts
-// Auth.js v5 — Google + Resend magic-link providers. Credentials added in Task 8.
-// Database-strategy sessions on the shared Supabase Postgres.
-// Session callback enriches with isOperator — see Task 9.
+// Auth.js v5 — Google + Resend magic-link + Credentials (email + password).
+// JWT session strategy: required because Credentials provider doesn't create
+//   database session rows in Auth.js v5. PostgresAdapter is still used for
+//   user / account / verification_token persistence.
+// Trade-off vs the original spec: cross-subdomain session sharing with the
+//   main app (which uses database sessions) does not work — admins log into
+//   admin.padelnachos.com and padelnachos.com separately. Acceptable for an
+//   internal ops tool with a small user set.
+// Session callback enriches with isOperator (see operators.ts).
 
 import NextAuth from 'next-auth'
 import Google from 'next-auth/providers/google'
@@ -84,13 +90,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: '/login',
   },
   session: {
-    strategy: 'database',
+    strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
-    async session({ session, user }) {
-      // Single indexed probe; small per-session cost.
-      session.user.isOperator = await isUserOperator(user.id)
+    // JWT callback fires on every request. On initial sign-in `user` is
+    // populated and we copy its id onto the token; subsequent calls only get
+    // `token`. This is the canonical JWT-strategy pattern.
+    async jwt({ token, user }) {
+      if (user?.id) {
+        token.userId = user.id
+      }
+      return token
+    },
+    // Session callback runs on every auth() call. We pull userId from the
+    // signed JWT, then enrich with the operator flag (one indexed probe).
+    async session({ session, token }) {
+      const userId = typeof token.userId === 'string' ? token.userId : undefined
+      if (userId && session.user) {
+        session.user.id = userId
+        session.user.isOperator = await isUserOperator(userId)
+      }
       return session
     },
   },
