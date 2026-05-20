@@ -147,19 +147,16 @@ This abstraction matters because every new exception queue (match stats unresolv
 
 ## Visual reference (mockups)
 
-A reference mockup of five core screens was produced during brainstorming. The image is reserved at:
+Two reference mockups produced during brainstorming, both committed under `docs/superpowers/specs/assets/`:
 
-```
-docs/superpowers/specs/assets/2026-05-20-admin-ops-mockup.png
-```
+1. **`2026-05-20-admin-ops-mockup-overview.png`** — a five-screen overview showing the IA in action (Today, Tournament Explorer, Needs Review, Entry Lists, Players)
+2. **`2026-05-20-admin-ops-mockup-today-variations.png`** — three visual-direction variations of the Today page (Operational Minimal / Live Sports Command Center / Neo Editorial Ops)
 
-Once the file is dropped at that path it can be embedded inline below by uncommenting:
+The text descriptions below capture the design intent so it survives even if the images are lost. Treat the text as canonical; treat the images as illustrations.
 
-```markdown
-<!-- ![Admin ops app mockup — five core screens](assets/2026-05-20-admin-ops-mockup.png) -->
-```
+### Five-screen overview
 
-The text descriptions below capture the design intent so it survives even if the image is ever lost. Treat the descriptions as canonical; treat the image as an illustration.
+![Admin ops app — five-screen overview](assets/2026-05-20-admin-ops-mockup-overview.png)
 
 ### Screen 1 — Today (HOME)
 
@@ -314,6 +311,22 @@ Footer: `Showing 1 to 6 of 2,456 players` · pagination up to page 410.
 - Filter chips sit below the toolbar with counts in monospaced superscripts
 - Drawers (Review, edit player, edit pair) slide in from the right at ~480px wide
 - All tables paginate at 10 rows by default
+
+### Today page — visual direction variations
+
+Three styles were explored for the daily-driver Today page. Picking one determines the broader visual language for the whole admin app (header weight, color saturation, density, signal-to-chrome ratio).
+
+![Today page — three visual variations](assets/2026-05-20-admin-ops-mockup-today-variations.png)
+
+| Variation | Vibe | Strengths | Trade-offs |
+|---|---|---|---|
+| **1. Operational Minimal** | Clean, focused, table-oriented, calm | Highest information density; least visual noise during long ops sessions; fastest to scan when you know what you're looking for | Risks feeling generic / "yet another admin"; less moment-of-arrival energy |
+| **2. Live Sports Command Center** | Dynamic, vibrant, real-time, energetic | Reinforces the live-ops identity; KPI tiles and live indicators are visually loud which matches the urgency of live matches | More visual chrome competing for attention; can feel exhausting after a 4-hour shift |
+| **3. Neo Editorial Ops** | Premium, sleek, almost editorial / Substack-like | Most distinctive; reads as a thoughtful product rather than an internal tool; nice for screenshots/sharing | Density suffers; not necessarily the best fit for high-frequency triage work |
+
+**Open decision:** which variation drives the implementation. The text descriptions in screens 1-5 above are deliberately style-neutral so they apply to any of the three. The choice changes the design tokens and component styling but not the IA, the data, the routes, or the API surface.
+
+Recommendation deferred — operator preference matters more than my opinion here. Will lock this in before writing the implementation plan.
 
 ## Authentication
 
