@@ -145,6 +145,176 @@ The sidebar polls this every 60s. Phase 2 widens the response shape (`{ duplicat
 
 This abstraction matters because every new exception queue (match stats unresolved, future stat enrichment failures, etc.) lands as a new chip rather than a new sidebar entry.
 
+## Visual reference (mockups)
+
+A reference mockup of five core screens was produced during brainstorming. The image is reserved at:
+
+```
+docs/superpowers/specs/assets/2026-05-20-admin-ops-mockup.png
+```
+
+Once the file is dropped at that path it can be embedded inline below by uncommenting:
+
+```markdown
+<!-- ![Admin ops app mockup — five core screens](assets/2026-05-20-admin-ops-mockup.png) -->
+```
+
+The text descriptions below capture the design intent so it survives even if the image is ever lost. Treat the descriptions as canonical; treat the image as an illustration.
+
+### Screen 1 — Today (HOME)
+
+Header: title `Today — Overview`, subtitle `Your live operations command center`, top-right `Customize` button, `Last updated 10:24:30` timestamp.
+
+**KPI strip — 4 tiles in a row across the top:**
+
+| Tile | Value | Delta | Notes |
+|---|---|---|---|
+| Live Matches | 23 | 6 in progress | Sparkline |
+| Needs Review | 18 | 5 vs yesterday | Sparkline |
+| OOP Pending | 7 | 2 vs yesterday | Sparkline |
+| Streams Live | 23 | No change | Sparkline |
+
+**Two-column middle section:**
+
+- **LIVE NOW** (left, ~⅔ width) — table of currently-live matches, one row per court. Columns: court, pair 1 / pair 2, set scores (current set highlighted), `LIVE` pill, elapsed time. Sample rows from mockup:
+  - Court 1 · A. Tapia / A. Coello vs M. Galán / J. Lebrón · 6-3, 4-0 · 32m
+  - Court 2 · M. Ortega / F. Alonso vs J. Ruiz / A. Arroyo · 4-2, 1-5, 1-6 · 28m
+  - Court 3 · B. González / J. García vs C. Gutiérrez / J. Momo · 1-0, 6-3, 0-1 · 18m
+  - Footer: `View all matches →`
+
+- **REQUIRES ATTENTION** (right, ~⅓ width) — vertical list of queue summaries, each row a `Needs Review` filter:
+  - Duplicate Matches · 5
+  - Unresolved Players · 8
+  - OOP Changes Pending · 3
+  - Awaiting Stream Mapping · 2
+  - Footer: `View all →`
+
+**TODAY'S SCHEDULE** (full width, below) — hour buckets with match count and round label:
+- 09:00 · Round of 16 · 6 matches
+- 11:00 · Quarter Finals · 4 matches
+- 14:00 · Semi Finals · 2 matches
+- 17:00 · Finals · 2 matches
+- Footer: `View full schedule →`
+
+**Two-column bottom section:**
+
+- **RECENT ACTIVITY** (left) — reverse-chrono feed of operator + system events. Sample rows:
+  - 10:24 · Score updated · Court 2 · M. Ortega / F. Alonso vs J. Ruiz / A. Arroyo
+  - 10:18 · Player updated · Court 3 · J. Lebrón
+  - 10:12 · Stream connected · Court 3
+  - 10:05 · OOP change applied · Court 1 · A. Tapia / A. Coello
+  - Footer: `View all activity →`
+
+- **DATA HEALTH** (right) — labeled progress bars:
+  - Overall Score · 98%
+  - Matches · 99%
+  - Players · 97%
+  - Streams · 96%
+  - News & Highlights · 100%
+
+Sidebar bottom (sticky): `All Systems / Operational` green pill.
+
+*Phase scoping reminder:* in Phase 1 ship KPI strip + LIVE NOW + REQUIRES ATTENTION + TODAY'S SCHEDULE + status pill. RECENT ACTIVITY and DATA HEALTH are Phase 2.
+
+### Screen 2 — Tournament Explorer (TOURNAMENT OPS)
+
+Header: title `Tournament Explorer`, subtitle `Discover and manage tournament data`, top-right `+ Add Tournament` button.
+
+Toolbar: search input · `All Status` dropdown · `All Circuits` dropdown · `All Countries` dropdown · date-range picker (`May 12 — May 26, 2025`) · `Filters` button.
+
+Filter chips below toolbar with counts: `All 24 · Live 6 · Upcoming 8 · Completed 10 · Drafts 2`.
+
+Tournament list table:
+
+| # | TOURNAMENT | STATUS | DATES | LOCATION | MATCHES | PROGRESS |
+|---|---|---|---|---|---|---|
+| 1 | Qatar Major 2025 *(Premier Padel)* | LIVE | May 19 – May 25 | Doha, Qatar | 42/56 | 75% bar |
+| 2 | Brussels P2 *(Premier Padel)* | LIVE | May 19 – May 25 | Brussels, Belgium | 28/48 | 58% bar |
+| 3 | Italy Major *(Premier Padel)* | LIVE | May 12 – May 18 | Rome, Italy | 52/64 | 100% bar |
+| 4 | Santiago P1 *(Premier Padel)* | UPCOMING | May 26 – Jun 1 | Santiago, Chile | 0/56 | 0% bar |
+| 5 | Valladolid P2 *(Premier Padel)* | UPCOMING | May 26 – Jun 1 | Valladolid, Spain | 0/48 | 0% bar |
+
+Footer: `Showing 1 to 5 of 24 tournaments` · pagination `1 2 3 4 5 …`.
+
+Each row clicks through to the per-tournament detail page (Phase 2 routing change). In Phase 1 click expands inline / opens drawer using the existing TournamentExplorerTab internals.
+
+### Screen 3 — Needs Review (TOURNAMENT OPS)
+
+Header: title `Needs Review`, subtitle `Items that require human attention`, top-right `Mark all as reviewed` button.
+
+Filter chips with counts: `All 18 · Duplicate Matches 5 · Unresolved Players 8 · OOP Changes 3 · Stream Mapping 2`.
+
+Search input · `Sort: Newest` dropdown.
+
+Typed inbox table:
+
+| TYPE | ITEM | DETAILS | ADDED | ACTIONS |
+|---|---|---|---|---|
+| Duplicate Match | A. Tapia / A. Coello vs M. Galán / J. Lebrón | Qatar Major 2025 | 10:24 | `Review` |
+| Unresolved Player | Juan Martín Di Nenno | Missing nationality | 10:18 | `Review` |
+| OOP Change | Court 1 – Match 12 | Player swapped positions | 10:12 | `Review` |
+| Duplicate Match | B. González / J. García vs C. Gutiérrez / J. Momo | | 10:05 | `Review` |
+| Unresolved Player | Leo Godallier | Missing ranking | 09:58 | `Review` |
+| Stream Mapping | Court 3 – QF | Stream not mapped | 09:45 | `Review` |
+
+Each row's `Review` action opens a typed drawer specific to the queue (Phase 2). In Phase 1 the table only shows Duplicate Match rows; the other filter chips render an empty state with "coming soon" copy.
+
+Footer: `Showing 1 to 6 of 18 items` · pagination.
+
+### Screen 4 — Entry Lists (TOURNAMENT OPS)
+
+Header: title `Entry Lists`, subtitle `Manage tournament entries and pairs`, top-right `Download` + `+ Add Entry` buttons.
+
+Tournament selector dropdown: `Qatar Major 2025` · `All Categories` · `All Status`.
+
+Category sub-tabs with counts: `Men 32 · Women 24 · Qualifying Men 16 · Qualifying Women 12`.
+
+Entry table:
+
+| # | PAIR / PLAYER | RANK | STATUS | POINTS |
+|---|---|---|---|---|
+| 1 | A. Tapia / A. Coello | 1 | Confirmed | 18,680 |
+| 2 | M. Galán / J. Lebrón | 2 | Confirmed | 15,420 |
+| 3 | F. Chingotto / A. Galán | 3 | Confirmed | 13,980 |
+| 4 | J. Garrido / M. Yanguas | 4 | Confirmed | 9,850 |
+| 5 | M. Ortega / F. Alonso | 5 | Confirmed | 8,720 |
+| 6 | J. Rico / Á. Ruiz | 6 | On Hold | 7,650 |
+
+Footer: `Showing 1 to 6 of 32 entries` · pagination.
+
+### Screen 5 — Players (CATALOGS)
+
+Header: title `Players`, subtitle `Browse and manage player profiles`, top-right `+ Add Player` button + `Filters` button.
+
+Toolbar: search input · `All Countries` dropdown.
+
+Players table:
+
+| # | PLAYER | COUNTRY | RANK | POINTS | MATCHES | STATUS |
+|---|---|---|---|---|---|---|
+| 1 | Agustín Tapia | ARG | 1 | 9,560 | 24 | Active |
+| 2 | Arturo Coello | ESP | 2 | 9,120 | 25 | Active |
+| 3 | Alejandro Galán | ESP | 3 | 7,840 | 24 | Active |
+| 4 | Federico Chingotto | ARG | 4 | 7,380 | 24 | Active |
+| 5 | Juan Lebrón | ESP | 5 | 6,300 | 23 | Active |
+| 6 | Martín Di Nenno | ARG | 6 | 5,980 | 22 | Active |
+
+Footer: `Showing 1 to 6 of 2,456 players` · pagination up to page 410.
+
+### Common chrome (all screens)
+
+- **Sidebar** (left, ~220px) — collapsed shows ~44px icon strip. Groups: HOME · TOURNAMENT OPS · CATALOGS · CONTENT · SYSTEM (collapsed by default). Badge on `Needs Review` shows total queue count.
+- **Top bar** — global search input with ⌘K hint (Phase 2) · notification bell with red-dot indicator (Phase 2) · user avatar + initials.
+- **Footer** — `All Systems / Operational` green pill (or yellow / red roll-up).
+
+### Cross-screen patterns
+
+- Tables use sentence case for headers, monospace for IDs / scores, status pills for booleans, hover state highlights the row
+- Action buttons are right-aligned in the page header (`+ Add Tournament`, `+ Add Player`, etc.)
+- Filter chips sit below the toolbar with counts in monospaced superscripts
+- Drawers (Review, edit player, edit pair) slide in from the right at ~480px wide
+- All tables paginate at 10 rows by default
+
 ## Authentication
 
 ### Providers
