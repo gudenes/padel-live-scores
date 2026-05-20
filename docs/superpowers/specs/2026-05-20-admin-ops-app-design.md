@@ -324,9 +324,36 @@ Three styles were explored for the daily-driver Today page. Picking one determin
 | **2. Live Sports Command Center** | Dynamic, vibrant, real-time, energetic | Reinforces the live-ops identity; KPI tiles and live indicators are visually loud which matches the urgency of live matches | More visual chrome competing for attention; can feel exhausting after a 4-hour shift |
 | **3. Neo Editorial Ops** | Premium, sleek, almost editorial / Substack-like | Most distinctive; reads as a thoughtful product rather than an internal tool; nice for screenshots/sharing | Density suffers; not necessarily the best fit for high-frequency triage work |
 
-**Open decision:** which variation drives the implementation. The text descriptions in screens 1-5 above are deliberately style-neutral so they apply to any of the three. The choice changes the design tokens and component styling but not the IA, the data, the routes, or the API surface.
+**Decision:** **Variation 2 — Live Sports Command Center.** Reinforces the live-ops identity, matches the existing PadelNachos brand energy, and is the right tonal fit for the daily-driver workflow (urgency surfaced loudly, not muted).
 
-Recommendation deferred — operator preference matters more than my opinion here. Will lock this in before writing the implementation plan.
+### Design tokens (v1)
+
+Concrete tokens that translate Variation 2's visual language into implementable values. Refined further in the implementation plan; treat these as starting commitments.
+
+| Token | Value | Used for |
+|---|---|---|
+| `--brand-primary` | `#7ED321` *(PadelNachos green — same as main app)* | Primary actions, active nav item, brand accents |
+| `--brand-primary-fg` | `#0a0a0a` | Foreground on primary surfaces (high contrast) |
+| `--bg-canvas` | `#fafafa` | App background |
+| `--bg-card` | `#ffffff` | Card / panel background |
+| `--bg-attention` | `#0f0f10` | **Reverse panel — REQUIRES ATTENTION block specifically.** The signature Variation-2 move. |
+| `--fg-on-attention` | `#fafafa` | Type color on the dark attention panel |
+| `--status-live` | `#22c55e` *(bright green)* | LIVE pills, active match indicators, pulsing dot |
+| `--status-warn` | `#f59e0b` *(amber)* | Needs Review counts, warning badges |
+| `--status-urgent` | `#ef4444` *(red)* | OOP Pending, error states, urgent badges |
+| `--status-neutral` | `#71717a` *(zinc-500)* | Muted text, secondary labels |
+| `--border-subtle` | `#e5e7eb` | Card borders, table dividers |
+| Font: body | `Inter` *(matches main app)* | All UI text |
+| Font: numerics | `Inter`, `font-variant-numeric: tabular-nums` | KPI values, score columns, percentages |
+| KPI value size | `32px` weight `700` | Headline numbers in KPI tiles |
+| KPI label size | `12px` weight `500`, uppercase, `letter-spacing: 0.04em` | KPI labels |
+| Sidebar group label | `10px` weight `700`, uppercase, `letter-spacing: 0.08em`, color `--status-neutral` | HOME / TOURNAMENT OPS / etc. headings |
+
+**Three rules that come with Variation 2:**
+
+1. **Live indicators pulse.** LIVE pills get a subtle pulse animation (1.6s ease-in-out, opacity 1.0 ↔ 0.7) so the eye is drawn to active matches. Honors `prefers-reduced-motion`.
+2. **The attention panel inverts.** REQUIRES ATTENTION uses `--bg-attention` with reverse type. All other panels stay on `--bg-card`. The contrast is what makes the screen feel like a command center rather than a CRUD form.
+3. **Numbers are loud, labels are quiet.** KPI values and table numerics use `--brand-primary-fg` (near-black) at high weight; labels use `--status-neutral` at low weight. Visual hierarchy comes from weight + color, not size alone.
 
 ## Authentication
 
