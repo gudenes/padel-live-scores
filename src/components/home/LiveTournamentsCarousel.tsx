@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useId } from 'react'
-import Image from 'next/image'
+import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { useTranslations, useFormatter } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import {
@@ -133,16 +133,12 @@ function TournamentCarouselCard({
         }}
       >
         {/* Cover image — fills the card; falls back to the tier gradient when null */}
-        {cover && (
-          <Image
-            src={cover}
-            alt=""
-            fill
-            sizes="178px"
-            priority={false}
-            style={{ objectFit: 'cover' }}
-          />
-        )}
+        <TournamentCoverImage
+          src={cover}
+          alt=""
+          variant="tile-portrait"
+          sizes="178px"
+        />
 
         {/* Bottom gradient overlay for legibility */}
         <div
