@@ -108,8 +108,10 @@ export async function PUT(
     const { auth } = await import('@/auth')
     const session = await auth()
     updatedBy = session?.user?.email ?? null
-  } catch {
-    // No session — fine, leave null.
+  } catch (err) {
+    // auth() returns null when there is no session; it only throws on
+    // configuration errors. Log so misconfiguration is visible in logs.
+    console.warn('[ops/docs PUT] auth() threw — leaving updated_by null:', err)
   }
 
   const supabase = getSupabase()
