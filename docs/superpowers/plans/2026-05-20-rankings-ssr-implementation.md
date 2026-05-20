@@ -1330,15 +1330,9 @@ export default async function RankingsPage({ params }: Props) {
 
       <GlobalHeader />
 
-      <p style={{
-        padding: '16px 12px 8px',
-        margin: 0,
-        color: '#cbd5e1',
-        fontSize: 13,
-        lineHeight: 1.55,
-      }}>
-        {t('intro.men_official')}
-      </p>
+      {/* Intro paragraph is sr-only — present in HTML for Googlebot
+          and screen readers, hidden from sighted users. */}
+      <p className="sr-only">{t('intro.men_official')}</p>
 
       {/* SSR'd table — same component the client uses post-toggle.
           Hidden once <RankingsInteractive> mounts (it renders its own
@@ -1442,15 +1436,12 @@ export default async function RankingsPage({ params }: Props) {
 
       <GlobalHeader />
 
-      <p style={{
-        padding: '16px 12px 8px',
-        margin: 0,
-        color: '#cbd5e1',
-        fontSize: 13,
-        lineHeight: 1.55,
-      }}>
-        {t('intro.men_official')}
-      </p>
+      {/* Intro paragraph is sr-only — present in HTML for Googlebot
+          and screen readers, hidden from sighted users. Keeps the
+          mobile UI clean while preserving the keyword-density SEO win.
+          Stays on intro.men_official regardless of client toggles
+          (Google indexes the SSR'd default). */}
+      <p className="sr-only">{t('intro.men_official')}</p>
 
       <RankingsInteractive
         initialPlayers={players}
