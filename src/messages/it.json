@@ -353,11 +353,16 @@
     "liveTournaments": {
       "title": "Tornei in diretta",
       "chipLiveToday": "In diretta / Oggi",
+      "_chipLiveToday_context": "Filter chip above the Live Tournaments home-page carousel. Active when a tournament is currently running today (any tier). The slash is literal. Width budget is narrow — keep short.",
       "chipUpcoming": "In arrivo",
+      "_chipUpcoming_context": "Filter chip for tournaments starting within the next 7 days. Sibling chip to chipLiveToday. Different from the existing `comingUp` key which refers to upcoming individual matches.",
       "matchesTodayCount": "{count, plural, one {# partita oggi} other {# partite oggi}}",
       "restDay": "Giorno di riposo",
+      "_restDay_context": "Status line on a tournament card when the tournament is running but has zero matches scheduled in the user's local day today. Not a holiday or vacation — specifically 'no matches today'.",
       "startsOn": "Inizia {date}",
-      "viewScores": "Vedi punteggi"
+      "_startsOn_context": "Status line on a tournament card under the UPCOMING chip. {date} is a short localised date string (e.g. 'May 22') formatted by next-intl's DATE_SHORT pattern. Adjust prepositions/articles for the language as needed.",
+      "viewScores": "Vedi punteggi",
+      "_viewScores_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short."
     },
     "highlightsAndNews": "Highlights e Notizie",
     "latestNews": "Ultime notizie",
