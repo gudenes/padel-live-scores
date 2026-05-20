@@ -863,11 +863,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 )
               })() : null}
 
-              {/* Title row: flag + title + M/W + FOLLOW.
-                  M/W and FOLLOW both fade out on scroll (inlineOpacity)
-                  and reappear in the chrome navbar (compactOpacity). */}
+              {/* Title row: flag + title on the left; FOLLOW + M/W
+                  stacked vertically on the right.
+                  Both controls fade out on scroll (inlineOpacity) and
+                  reappear in the chrome navbar (compactOpacity). */}
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 10,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
                 marginTop: 6,
               }}>
                 {activeTournamentObj.country ? (
@@ -884,15 +885,26 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   {titleCase(activeTournamentObj.name)}
                 </div>
 
-                {/* Inline M/W toggle — fades out on scroll alongside FOLLOW. */}
+                {/* Right-column controls — FOLLOW on top, M/W below.
+                    Both share the same scroll-fade opacity. */}
                 <div
                   aria-hidden={inlineOpacity <= 0.5}
                   style={{
                     opacity: inlineOpacity,
                     pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
                     flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 6,
                   }}
                 >
+                  <FollowButton
+                    type="tournament"
+                    targetId={activeTournamentObj.id}
+                    variant="follow"
+                    style={{ background: 'rgba(20,20,20,0.92)', color: '#fff' }}
+                  />
                   <div
                     onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
                     style={{
@@ -923,26 +935,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                       transition: 'color 0.2s',
                     }}>W</span>
                   </div>
-                </div>
-
-                {/* Inline FOLLOW — fades out on scroll. Opaque dark
-                    background so the chip stays readable against any
-                    poster brightness. */}
-                <div
-                  tabIndex={inlineOpacity <= 0.5 ? -1 : undefined}
-                  aria-hidden={inlineOpacity <= 0.5}
-                  style={{
-                    opacity: inlineOpacity,
-                    pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
-                    flexShrink: 0,
-                  }}
-                >
-                  <FollowButton
-                    type="tournament"
-                    targetId={activeTournamentObj.id}
-                    variant="follow"
-                    style={{ background: 'rgba(20,20,20,0.92)', color: '#fff' }}
-                  />
                 </div>
               </div>
 
