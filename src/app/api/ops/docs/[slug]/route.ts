@@ -93,7 +93,16 @@ export async function PUT(
 
   // Opportunistic: stamp updated_by with the operator's Auth.js session
   // email when one is present. Many ops requests are made cookie-only
-  // (no full session) — in that case we leave updated_by as null.
+  // (no full Auth.js session) — in that case we leave updated_by as null.
+  //
+  // The dynamic `await import('@/auth')` is deliberate, NOT a candidate
+  // for "fix to top-level import." A top-level import here triggers a
+  // vitest-only module-resolution failure inside next-auth/lib/env.js
+  // ("Cannot find module .../next/server"). Other routes that
+  // import @/auth at the top level (match-rating, leaderboard, etc.)
+  // get away with it because they have no co-located vitest tests —
+  // this one does, so we defer the load to runtime. The cost is one
+  // cached module lookup per PUT call, which Node will memoize anyway.
   let updatedBy: string | null = null
   try {
     const { auth } = await import('@/auth')
