@@ -316,7 +316,21 @@
     "player": "Giocatore",
     "points": "Punti",
     "men": "Uomini",
-    "women": "Donne"
+    "women": "Donne",
+    "empty": "La classifica apparirà qui una volta pubblicata.",
+    "updated": "Aggiornato",
+    "searchAction": "Cerca",
+    "loading": "Caricamento…",
+    "showMore": "Mostra altri",
+    "searchPlaceholder": "Cerca giocatore o paese...",
+    "clearSearch": "Cancella ricerca",
+    "closeSearch": "Chiudi ricerca",
+    "intro": {
+      "men_official": "Segui la classifica ufficiale FIP del padel maschile, aggiornata ogni settimana. I punti di ogni giocatore riflettono i migliori risultati nei tornei Premier Padel P1, P2, Major e FIP Tour all'interno di una finestra mobile di 52 settimane. I punti ottenuti in ciascun torneo scadono esattamente un anno dopo, quindi i giocatori devono difendere i propri risultati settimana dopo settimana. Arturo Coello e Agustín Tapia guidano la classifica attuale, con Juan Lebrón, Alejandro Galán, Franco Stupaczuk e Martín Di Nenno tra i principali sfidanti nel padel professionistico maschile.",
+      "men_race": "Il ranking race FIP traccia l'accumulo di punti della stagione attuale nel padel maschile, azzerandosi il 1° gennaio di ogni anno. A differenza della classifica ufficiale a finestra mobile di 52 settimane, il race conta solo i risultati ottenuti nell'anno solare in corso, offrendo la misura più fedele della forma attuale. I tornei P1, P2 e Major del circuito Premier Padel assegnano il maggior numero di punti. Arturo Coello, Agustín Tapia, Juan Lebrón e Alejandro Galán hanno guidato il race maschile nelle ultime stagioni. La tabella si aggiorna settimanalmente dopo ogni tappa.",
+      "women_official": "La classifica ufficiale FIP del padel femminile è aggiornata ogni settimana e utilizza una finestra mobile di 52 settimane. Ogni giocatrice accumula punti in base alle sue migliori prestazioni nei tornei Premier Padel P1, P2, Major e FIP Tour, con i punti di ogni torneo che scadono esattamente un anno dopo. Le giocatrici devono difendere i propri risultati settimana dopo settimana per mantenere la posizione. Gemma Triay, Delfi Brea, Bea González, Marta Ortega e Ari Sánchez sono tra i nomi di punta nella lotta per il numero 1 mondiale del padel professionistico femminile.",
+      "women_race": "Il ranking race FIP del padel femminile mostra l'accumulo di punti della stagione attuale. I punti race si azzerano il 1° gennaio di ogni anno e contano solo i risultati ottenuti nella stagione in corso, a differenza della classifica ufficiale a 52 settimane. Le vittorie e i percorsi profondi nei tornei Premier Padel P1, P2 e Major hanno il peso maggiore. Gemma Triay, Delfi Brea, Bea González, Marta Ortega e Ari Sánchez si contendono regolarmente le prime posizioni del race femminile, aggiornato settimanalmente per tutta la stagione del circuito Premier Padel."
+    }
   },
   "feed": {
     "feed": "Notizie",
@@ -923,7 +937,8 @@
     },
     "rankings": {
       "title": "Classifica padel — FIP e Premier Padel",
-      "description": "Classifica FIP ufficiale e race ranking del padel. Segui i migliori giocatori e giocatrici al mondo con aggiornamenti in diretta."
+      "description": "Classifica FIP ufficiale e race ranking del padel. Segui i migliori giocatori e giocatrici al mondo con aggiornamenti in diretta.",
+      "jsonld_name": "Classifica FIP padel maschile"
     },
     "feed": {
       "title": "News e highlights padel",
