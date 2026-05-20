@@ -19,6 +19,19 @@ alter table public.ops_docs enable row level security;
 -- No policies for anon / authenticated. Service-role key bypasses RLS.
 -- (Intentional — same pattern as our other ops-only tables.)
 
+-- updated_at maintenance
+create or replace function public.ops_docs_set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger ops_docs_updated_at_trigger
+  before update on public.ops_docs
+  for each row execute function public.ops_docs_set_updated_at();
+
 -- Seed the coverage matrix.
 insert into public.ops_docs (slug, content, updated_by)
 values (
