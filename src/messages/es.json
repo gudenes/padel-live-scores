@@ -350,6 +350,15 @@
     "liveNow": "En directo",
     "ongoing": "En Curso",
     "comingUp": "Próximamente",
+    "liveTournaments": {
+      "title": "Torneos en vivo",
+      "chipLiveToday": "En vivo / Hoy",
+      "chipUpcoming": "Próximamente",
+      "matchesTodayCount": "{count, plural, one {# partido hoy} other {# partidos hoy}}",
+      "restDay": "Día de descanso",
+      "startsOn": "Comienza {date}",
+      "viewScores": "Ver marcadores"
+    },
     "highlightsAndNews": "Momentos y noticias",
     "latestNews": "Últimas noticias",
     "tournamentSpotlight": "Torneo destacado",

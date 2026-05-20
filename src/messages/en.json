@@ -361,6 +361,15 @@
     "liveNow": "Live Now",
     "ongoing": "Ongoing",
     "comingUp": "Coming Up",
+    "liveTournaments": {
+      "title": "Live Tournaments",
+      "chipLiveToday": "Live / Today",
+      "chipUpcoming": "Upcoming",
+      "matchesTodayCount": "{count, plural, one {# match today} other {# matches today}}",
+      "restDay": "Rest day",
+      "startsOn": "Starts {date}",
+      "viewScores": "View Scores"
+    },
     "highlightsAndNews": "Highlights & News",
     "latestNews": "Latest news",
     "tournamentSpotlight": "Tournament Spotlight",
