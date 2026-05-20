@@ -66,6 +66,7 @@ export default function CoverageMatrixTab() {
   const onCancel = () => {
     setEditing(false)
     setSaveError(null)
+    setDraft('') // discard any in-progress edits so a later entry point can't pick up stale state
   }
 
   const onSave = async () => {
@@ -78,11 +79,18 @@ export default function CoverageMatrixTab() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: draft }),
       })
-      const json = await res.json()
       if (!res.ok) {
-        setSaveError(json.error ?? `Save failed (${res.status})`)
+        let errMsg = `Save failed (${res.status})`
+        try {
+          const j = await res.json()
+          if (j?.error && typeof j.error === 'string') errMsg = j.error
+        } catch {
+          // Non-JSON error body — keep the fallback.
+        }
+        setSaveError(errMsg)
         return
       }
+      const json = await res.json()
       setDoc(json.doc as DocRow)
       setEditing(false)
     } catch (e) {
