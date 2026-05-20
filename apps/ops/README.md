@@ -61,8 +61,32 @@ A user can sign in via any provider but only sees the app if they're in the `pub
 
 ## Architecture notes
 
-- Auth.js v5 with database-strategy sessions on the shared Supabase Postgres
-- Session cookie domain `.padelnachos.com` (prod only) → shared with main app
-- Gating in `src/app/(app)/layout.tsx` via `await auth()` + `isUserOperator(user.id)`
-- Direct Supabase access server-side (no proxying through main-app `/api/ops/*`)
-- New routes namespaced under `/api/internal/*` (none in Phase 1; Plan 2 adds them)
+- Auth.js v5 with JWT-strategy sessions (the original spec proposed database
+  sessions but the Credentials provider doesn't create them in v5 — see Plan 1
+  errata for the full reasoning)
+- PostgresAdapter still mounted for `users`, `accounts`, `verification_token`
+  persistence; the `sessions` table goes unused under JWT
+- Cookie domain `.padelnachos.com` in prod (parent-domain scoping — harmless
+  under JWT; cross-subdomain session sharing was deferred indefinitely)
+- Auth + operator gate in `src/app/(app)/layout.tsx` via `await auth()` and
+  `session.user.isOperator` (enriched by the session callback)
+- Direct Supabase access server-side; admin routes namespaced under
+  `/api/internal/*` to avoid colliding with the main app's `/api/admin/*`
+
+## Routes
+
+| Path | Description |
+|---|---|
+| `/` | Root — redirects to `/today` (signed in) or `/login` (anonymous) |
+| `/login` | Three providers: email+password, magic-link, Google |
+| `/forgot-password` | Anti-enumeration reset request |
+| `/reset-password?token=…` | Token consumer + new password form |
+| `/not-authorized` | Shown when a session exists but isOperator is false |
+| `/today` | Daily-driver dashboard (KPIs, LIVE NOW, REQUIRES ATTENTION, schedule) |
+| `/tournament-explorer`, `/entry-lists`, `/needs-review`, `/simulator` | Tournament Ops tabs (stubs until Plan 3) |
+| `/players`, `/brands`, `/streams` | Catalog tabs (stubs until Plan 3) |
+| `/news`, `/highlights` | Content tabs (stubs until Plan 3) |
+| `/system/*` | Diagnostics tabs (stubs until Plan 3) |
+| `/api/internal/today` | GET → full Today payload |
+| `/api/internal/needs-review/counts` | GET → `{ duplicates: number }` |
+| `/api/auth/[...nextauth]` | Auth.js handler |
