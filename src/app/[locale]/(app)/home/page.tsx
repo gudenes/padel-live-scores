@@ -37,6 +37,7 @@ import {
   compareTournamentsForCarousel,
   getLocalDayBoundaryUTC,
 } from '@/lib/live-tournaments-carousel'
+import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
 import { LoginCtaSheet } from '@/components/LoginCtaSheet'
 
@@ -133,6 +134,7 @@ function V3HomePageInner() {
   const [latestNews, setLatestNews] = useState<NewsItem[]>([])
   const [carouselLiveToday, setCarouselLiveToday] = useState<TournamentWithMatchInfo[]>([])
   const [carouselUpcoming, setCarouselUpcoming] = useState<TournamentWithMatchInfo[]>([])
+  const [carouselEnabled, setCarouselEnabled] = useState<boolean>(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [spotlightChampionMen, setSpotlightChampionMen] = useState<TournamentSpotlightHeroProps['defendingChampionMen']>(null)
   const [spotlightChampionWomen, setSpotlightChampionWomen] = useState<TournamentSpotlightHeroProps['defendingChampionWomen']>(null)
@@ -328,6 +330,16 @@ function V3HomePageInner() {
           })() as any,
           'home:carousel-match-counts',
         ),
+        // Feature flag — controls whether the Live Tournaments carousel
+        // renders at all. Public-read RLS; env-var override applied below.
+        wrap(
+          supabase
+            .from('feature_flags')
+            .select('enabled')
+            .eq('key', FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL)
+            .maybeSingle() as any,
+          'home:carousel-flag',
+        ),
       ])
 
       const dataOf = (i: number) => {
@@ -362,6 +374,16 @@ function V3HomePageInner() {
           .sort(compareTournamentsForCarousel)
       setCarouselLiveToday(decorate(carouselLiveRows))
       setCarouselUpcoming(decorate(carouselUpcomingRows))
+
+      // Resolve carousel feature flag (env override wins over DB value).
+      // dataOf(11) from .maybeSingle(): { enabled } when present, [] when
+      // the row is missing, undefined on fetch failure.
+      const flagRow = dataOf(11)
+      const dbEnabled =
+        flagRow && !Array.isArray(flagRow)
+          ? Boolean((flagRow as { enabled?: boolean }).enabled)
+          : null
+      setCarouselEnabled(resolveFlag(FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL, dbEnabled))
 
       const spotlight = tournaments[0] ?? null
       if (spotlight) {
@@ -452,11 +474,13 @@ function V3HomePageInner() {
       <ReferralToast />
       <WelcomeStrip />
 
-      {/* ── LIVE TOURNAMENTS CAROUSEL ─────────────────────────── */}
-      <LiveTournamentsCarousel
-        liveToday={carouselLiveToday}
-        upcoming={carouselUpcoming}
-      />
+      {/* ── LIVE TOURNAMENTS CAROUSEL (feature-flagged) ─────────── */}
+      {carouselEnabled && (
+        <LiveTournamentsCarousel
+          liveToday={carouselLiveToday}
+          upcoming={carouselUpcoming}
+        />
+      )}
 
       {/* ── LIVE NOW ─────────────────────────────────────────── */}
       {liveScorable.length > 0 && (

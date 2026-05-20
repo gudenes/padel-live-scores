@@ -27,6 +27,7 @@ import NewsTab from './NewsTab'
 import HighlightPickerTab from './HighlightPickerTab'
 import TournamentCoversTab from './TournamentCoversTab'
 import CoverageMatrixTab from './CoverageMatrixTab'
+import FeatureFlagsTab from './FeatureFlagsTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -324,7 +325,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker' | 'tournament-covers' | 'coverage-matrix'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker' | 'tournament-covers' | 'coverage-matrix' | 'feature-flags'>('ongoing')
   // Sidebar collapse — persisted across sessions because operators
   // who like the wider workspace want to keep it that way.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -457,6 +458,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
         // Schedule tab retired — apply flow now inline in Tournament
         // Explorer → Matches → OOP subtab (see ScheduleReviewPanel).
         { key: 'coverage-matrix' as const, label: 'Coverage Matrix', badge: null },
+        { key: 'feature-flags' as const, label: 'Feature Flags', badge: null },
         { key: 'architecture' as const, label: 'Architecture', badge: null },
       ],
     },
@@ -984,6 +986,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       </>}
 
       {tab === 'tournament-covers' && <TournamentCoversTab />}
+      {tab === 'feature-flags' && <FeatureFlagsTab />}
 
       {tab === 'yt-channels' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>YouTube Channels</div>
