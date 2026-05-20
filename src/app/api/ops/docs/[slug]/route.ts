@@ -68,3 +68,58 @@ export async function GET(
 
   return Response.json({ doc: data as DocRow })
 }
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ slug: string }> },
+) {
+  const authErr = await checkOpsAuth()
+  if (authErr) return authErr
+
+  const { slug } = await params
+  if (!slug || typeof slug !== 'string' || slug.length > 200) {
+    return Response.json({ error: 'invalid slug' }, { status: 400 })
+  }
+
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return Response.json({ error: 'invalid json' }, { status: 400 })
+  }
+
+  const v = validatePutInput(body)
+  if (!v.ok) return Response.json({ error: v.reason }, { status: 400 })
+
+  // Opportunistic: stamp updated_by with the operator's Auth.js session
+  // email when one is present. Many ops requests are made cookie-only
+  // (no full session) — in that case we leave updated_by as null.
+  let updatedBy: string | null = null
+  try {
+    const { auth } = await import('@/auth')
+    const session = await auth()
+    updatedBy = session?.user?.email ?? null
+  } catch {
+    // No session — fine, leave null.
+  }
+
+  const supabase = getSupabase()
+  const nowIso = new Date().toISOString()
+  const { data, error } = await supabase
+    .from('ops_docs')
+    .upsert(
+      {
+        slug,
+        content: v.value.content,
+        updated_at: nowIso,
+        updated_by: updatedBy,
+      },
+      { onConflict: 'slug' },
+    )
+    .select('slug, content, updated_at, updated_by')
+    .single()
+
+  if (error) return Response.json({ error: error.message }, { status: 500 })
+
+  return Response.json({ doc: data as DocRow })
+}
