@@ -48,6 +48,7 @@ const ISO3_TO_2: Record<string, string> = {
   ESP: 'es', ARG: 'ar', BRA: 'br', POR: 'pt', FRA: 'fr', ITA: 'it',
   BEL: 'be', NLD: 'nl', GER: 'de', GBR: 'gb', DEN: 'dk', SWE: 'se',
   URU: 'uy', PAR: 'py', CHI: 'cl', MEX: 'mx', USA: 'us', AUS: 'au',
+  QAT: 'qa',
 }
 
 // Cache one Intl.DisplayNames instance per locale to avoid re-allocation.

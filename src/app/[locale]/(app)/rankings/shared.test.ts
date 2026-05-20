@@ -25,6 +25,14 @@ describe('countryNameForLocale', () => {
   it('falls back to raw code when Intl cannot resolve it', () => {
     expect(countryNameForLocale('ZZZ', 'en')).toBe('ZZZ')
   })
+
+  it('resolves QAT (Qatar) via the ISO3→ISO2 map', () => {
+    expect(countryNameForLocale('QAT', 'en')).toBe('Qatar')
+  })
+
+  it('resolves QA (Qatar ISO2) directly', () => {
+    expect(countryNameForLocale('QA', 'en')).toBe('Qatar')
+  })
 })
 
 describe('countryFlagUrl', () => {
@@ -42,5 +50,9 @@ describe('countryFlagUrl', () => {
 
   it('returns null for unknown ISO3', () => {
     expect(countryFlagUrl('ZZZ')).toBeNull()
+  })
+
+  it('maps QAT to /flags/qa.png', () => {
+    expect(countryFlagUrl('QAT')).toBe('/flags/qa.png')
   })
 })
