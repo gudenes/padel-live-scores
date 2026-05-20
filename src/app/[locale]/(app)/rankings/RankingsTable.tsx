@@ -20,7 +20,9 @@ type Props = {
 }
 
 export function RankingsTable({ players, rankType, locale, visibleCount }: Props) {
-  const rows = visibleCount ? players.slice(0, visibleCount) : players
+  // Treat `undefined` as "render all". Any number — including 0 —
+  // is a real cap, so visibleCount={0} renders zero rows.
+  const rows = typeof visibleCount === 'number' ? players.slice(0, visibleCount) : players
   return (
     <div style={{
       background: BG_CARD,
@@ -48,6 +50,10 @@ export function RankingsTable({ players, rankType, locale, visibleCount }: Props
             <Link
               href={`/player/${p.id}`}
               prefetch={false}
+              // aria-label keeps the link in the accessibility tree
+              // even when display:contents removes its visual box
+              // (which strips role=link on older Safari/Chrome).
+              aria-label={p.name}
               style={{
                 display: 'contents',
                 color: 'inherit',
