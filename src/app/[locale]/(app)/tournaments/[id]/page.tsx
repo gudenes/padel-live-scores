@@ -744,21 +744,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               {activeTournamentObj ? titleCase(activeTournamentObj.name) : 'Tournament Detail'}
             </span>
 
-            {/* Compact M/W toggle — fades in over progress 0.55 → 0.95
-                (lives in the hero below the FOLLOW row when at scroll=0) */}
-            <div
-              aria-hidden={compactOpacity <= 0.5}
-              style={{
-                opacity: compactOpacity,
-                pointerEvents: compactOpacity > 0.5 ? 'auto' : 'none',
-                flexShrink: 0,
-              }}
-            >
+            {/* M/W toggle — always visible (was previously gated by
+                compactOpacity). Opaque dark background reads against
+                any poster brightness, even with a transparent navbar. */}
+            <div style={{ flexShrink: 0 }}>
               <div
                 onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
                 style={{
                   display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
-                  background: 'rgba(255,255,255,0.04)',
+                  background: 'rgba(20,20,20,0.65)',
                   clipPath: CHUNKY.badge,
                   padding: '4px 6px', position: 'relative', width: 56, height: 28,
                   flexShrink: 0,
@@ -787,18 +781,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               </div>
             </div>
 
-            {/* Compact FOLLOW — fades in over progress 0.55 → 0.95 */}
+            {/* FOLLOW — always visible. Same opaque dark background as
+                M/W so the pair reads as one cluster. */}
             {activeTournamentObj ? (
-              <div
-                tabIndex={compactOpacity <= 0.5 ? -1 : undefined}
-                aria-hidden={compactOpacity <= 0.5}
-                style={{
-                  opacity: compactOpacity,
-                  pointerEvents: compactOpacity > 0.5 ? 'auto' : 'none',
-                  flexShrink: 0,
-                }}
-              >
-                <FollowButton type="tournament" targetId={activeTournamentObj.id} variant="follow" />
+              <div style={{ flexShrink: 0 }}>
+                <FollowButton
+                  type="tournament"
+                  targetId={activeTournamentObj.id}
+                  variant="follow"
+                  style={{ background: 'rgba(20,20,20,0.65)', color: '#fff' }}
+                />
               </div>
             ) : null}
           </div>
@@ -843,76 +835,29 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 3,
               padding: '14px 16px 18px',
             }}>
-              {/* Level + M/W row — kicker pill on the left, gender
-                  toggle on the right. Fills the empty space above the
-                  title without adding a new row to the hero. */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                gap: 10,
-              }}>
-                {activeTournamentObj.level ? (() => {
-                  const pill = getTierPill(activeTournamentObj.level)
-                  return (
-                    <span style={{
-                      display: 'inline-block',
-                      fontSize: 10, fontWeight: 800,
-                      color: pill.color,
-                      background: pill.background,
-                      clipPath: CHUNKY.badge,
-                      padding: '4px 12px',
-                      letterSpacing: 0.7,
-                      textTransform: 'uppercase',
-                    }}>
-                      {levelLabel(activeTournamentObj.level)}
-                    </span>
-                  )
-                })() : <span />}
+              {/* Kicker pill — level indicator above title.
+                  M/W + FOLLOW now live in the chrome navbar (always
+                  visible) so the title row gets full width. */}
+              {activeTournamentObj.level ? (() => {
+                const pill = getTierPill(activeTournamentObj.level)
+                return (
+                  <span style={{
+                    display: 'inline-block',
+                    fontSize: 10, fontWeight: 800,
+                    color: pill.color,
+                    background: pill.background,
+                    clipPath: CHUNKY.badge,
+                    padding: '4px 12px',
+                    letterSpacing: 0.7,
+                    textTransform: 'uppercase',
+                  }}>
+                    {levelLabel(activeTournamentObj.level)}
+                  </span>
+                )
+              })() : null}
 
-                {/* Inline M/W toggle — fades out on scroll, reappears
-                    in the chrome navbar (compactOpacity). */}
-                <div
-                  aria-hidden={inlineOpacity <= 0.5}
-                  style={{
-                    opacity: inlineOpacity,
-                    pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
-                    flexShrink: 0,
-                  }}
-                >
-                  <div
-                    onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
-                      background: 'rgba(20,20,20,0.92)',
-                      clipPath: CHUNKY.badge,
-                      padding: '4px 6px', position: 'relative', width: 56, height: 28,
-                    }}
-                  >
-                    <div style={{
-                      position: 'absolute', top: 3,
-                      left: genderFilter === 'men' ? 4 : 28,
-                      width: 24, height: 22,
-                      background: genderFilter === 'women' ? WOMEN_PURPLE : MEN_BLUE,
-                      clipPath: CHUNKY.badge,
-                      transition: 'left 0.2s ease, background 0.2s ease',
-                    }} />
-                    <span style={{
-                      flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
-                      position: 'relative', zIndex: 1,
-                      color: genderFilter === 'men' ? '#000' : MUTED,
-                      transition: 'color 0.2s',
-                    }}>M</span>
-                    <span style={{
-                      flex: 1, textAlign: 'center', fontSize: 11, fontWeight: 800,
-                      position: 'relative', zIndex: 1,
-                      color: genderFilter === 'women' ? '#000' : MUTED,
-                      transition: 'color 0.2s',
-                    }}>W</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Title row: flag + title + FOLLOW (single row).
-                  FOLLOW fades on scroll, reappears in chrome navbar. */}
+              {/* Title row: flag + title (full width — no inline
+                  controls; SEGUIR and M/W live in the chrome navbar). */}
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 marginTop: 6,
@@ -929,22 +874,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {titleCase(activeTournamentObj.name)}
-                </div>
-                <div
-                  tabIndex={inlineOpacity <= 0.5 ? -1 : undefined}
-                  aria-hidden={inlineOpacity <= 0.5}
-                  style={{
-                    opacity: inlineOpacity,
-                    pointerEvents: inlineOpacity > 0.5 ? 'auto' : 'none',
-                    flexShrink: 0,
-                  }}
-                >
-                  <FollowButton
-                    type="tournament"
-                    targetId={activeTournamentObj.id}
-                    variant="follow"
-                    style={{ background: 'rgba(20,20,20,0.92)', color: '#fff' }}
-                  />
                 </div>
               </div>
 
