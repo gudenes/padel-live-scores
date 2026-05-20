@@ -3,7 +3,6 @@ import {
   compareTournamentsForCarousel,
   buildMatchInfoMap,
   getLocalDayBoundaryUTC,
-  TIER_RANK,
   type TournamentForSort,
   type MatchForAggregation,
 } from '../live-tournaments-carousel'
@@ -16,29 +15,30 @@ const makeT = (overrides: Partial<TournamentForSort>): TournamentForSort => ({
 })
 
 describe('compareTournamentsForCarousel', () => {
-  it('puts Premier tiers (p1/p2/major/finals) before FIP tiers', () => {
+  it('puts Premier tiers before FIP tiers', () => {
     const a = makeT({ id: 'a', level: 'p1' })
-    const b = makeT({ id: 'b', level: 'gold' })
+    const b = makeT({ id: 'b', level: 'fip_gold' })
     const sorted = [b, a].sort(compareTournamentsForCarousel)
     expect(sorted.map(t => t.id)).toEqual(['a', 'b'])
   })
 
-  it('orders Premier tiers by static rank: p1, p2, major, finals', () => {
+  it('orders Premier tiers most-prestigious first: finals, major, p1, p2', () => {
     const finals = makeT({ id: 'finals', level: 'finals' })
     const major = makeT({ id: 'major', level: 'major' })
     const p2 = makeT({ id: 'p2', level: 'p2' })
     const p1 = makeT({ id: 'p1', level: 'p1' })
-    const sorted = [finals, major, p2, p1].sort(compareTournamentsForCarousel)
-    expect(sorted.map(t => t.id)).toEqual(['p1', 'p2', 'major', 'finals'])
+    const sorted = [p2, p1, major, finals].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['finals', 'major', 'p1', 'p2'])
   })
 
-  it('orders FIP tiers by static rank: gold, bronze, rise, future', () => {
-    const future = makeT({ id: 'future', level: 'future' })
-    const rise = makeT({ id: 'rise', level: 'rise' })
-    const bronze = makeT({ id: 'bronze', level: 'bronze' })
-    const gold = makeT({ id: 'gold', level: 'gold' })
-    const sorted = [future, rise, bronze, gold].sort(compareTournamentsForCarousel)
-    expect(sorted.map(t => t.id)).toEqual(['gold', 'bronze', 'rise', 'future'])
+  it('orders FIP tiers by canonical levelTierWeight: platinum, gold, silver, bronze, rise', () => {
+    const rise = makeT({ id: 'rise', level: 'fip_rise' })
+    const bronze = makeT({ id: 'bronze', level: 'fip_bronze' })
+    const silver = makeT({ id: 'silver', level: 'fip_silver' })
+    const gold = makeT({ id: 'gold', level: 'fip_gold' })
+    const platinum = makeT({ id: 'platinum', level: 'fip_platinum' })
+    const sorted = [rise, bronze, silver, gold, platinum].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['platinum', 'gold', 'silver', 'bronze', 'rise'])
   })
 
   it('breaks ties within the same tier by starts_at ascending', () => {
@@ -48,8 +48,8 @@ describe('compareTournamentsForCarousel', () => {
     expect(sorted.map(t => t.id)).toEqual(['earlier', 'later'])
   })
 
-  it('sends unknown tier values to the end', () => {
-    const known = makeT({ id: 'known', level: 'bronze' })
+  it('sends unknown tier values to a low priority slot', () => {
+    const known = makeT({ id: 'known', level: 'fip_bronze' })
     const unknown = makeT({ id: 'unknown', level: 'mystery_tier' })
     const sorted = [unknown, known].sort(compareTournamentsForCarousel)
     expect(sorted.map(t => t.id)).toEqual(['known', 'unknown'])
@@ -62,10 +62,16 @@ describe('compareTournamentsForCarousel', () => {
     expect(sorted.map(t => t.id)).toEqual(['known', 'null'])
   })
 
-  it('exports TIER_RANK with all expected keys', () => {
-    expect(Object.keys(TIER_RANK).sort()).toEqual(
-      ['bronze', 'finals', 'future', 'gold', 'major', 'p1', 'p2', 'rise'].sort()
-    )
+  it('sorts a realistic mixed Premier+FIP input end-to-end', () => {
+    const rows = [
+      makeT({ id: 'fip-gold',   level: 'fip_gold',   starts_at: '2026-05-10T00:00:00Z' }),
+      makeT({ id: 'p1-late',    level: 'p1',         starts_at: '2026-06-01T00:00:00Z' }),
+      makeT({ id: 'p1-early',   level: 'p1',         starts_at: '2026-05-15T00:00:00Z' }),
+      makeT({ id: 'fip-bronze', level: 'fip_bronze', starts_at: '2026-05-09T00:00:00Z' }),
+      makeT({ id: 'finals',     level: 'finals',     starts_at: '2026-05-20T00:00:00Z' }),
+    ]
+    expect(rows.sort(compareTournamentsForCarousel).map(t => t.id))
+      .toEqual(['finals', 'p1-early', 'p1-late', 'fip-gold', 'fip-bronze'])
   })
 })
 
@@ -117,8 +123,9 @@ describe('getLocalDayBoundaryUTC', () => {
     expect(startUTC).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
     expect(endUTC).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
     const ms = new Date(endUTC).getTime() - new Date(startUTC).getTime()
-    expect(ms).toBeGreaterThan(23 * 3_600_000)
-    expect(ms).toBeLessThan(25 * 3_600_000)
+    // Span is normally ~24h, ~23h on DST spring-forward days, ~25h on fall-back days.
+    expect(ms).toBeGreaterThan(22.5 * 3_600_000)
+    expect(ms).toBeLessThan(25.5 * 3_600_000)
   })
 
   it('produces a start <= now <= end window', () => {
