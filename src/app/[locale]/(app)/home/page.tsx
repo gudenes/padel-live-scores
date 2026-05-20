@@ -331,11 +331,11 @@ function V3HomePageInner() {
           'home:carousel-match-counts',
         ),
         // Feature flag — controls whether the Live Tournaments carousel
-        // renders at all. Public-read RLS; env-var override applied below.
+        // renders. Two columns (enabled, enabled_local) resolved by host.
         wrap(
           supabase
             .from('feature_flags')
-            .select('enabled')
+            .select('enabled, enabled_local')
             .eq('key', FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL)
             .maybeSingle() as any,
           'home:carousel-flag',
@@ -375,15 +375,21 @@ function V3HomePageInner() {
       setCarouselLiveToday(decorate(carouselLiveRows))
       setCarouselUpcoming(decorate(carouselUpcomingRows))
 
-      // Resolve carousel feature flag (env override wins over DB value).
-      // dataOf(11) from .maybeSingle(): { enabled } when present, [] when
-      // the row is missing, undefined on fetch failure.
+      // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
+      // dataOf(11) from .maybeSingle(): { enabled, enabled_local } when
+      // present, [] when the row is missing, undefined on fetch failure.
       const flagRow = dataOf(11)
-      const dbEnabled =
+      const flag =
         flagRow && !Array.isArray(flagRow)
-          ? Boolean((flagRow as { enabled?: boolean }).enabled)
+          ? (flagRow as { enabled?: boolean | null; enabled_local?: boolean | null })
           : null
-      setCarouselEnabled(resolveFlag(FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL, dbEnabled))
+      setCarouselEnabled(
+        resolveFlag(
+          flag
+            ? { enabled: flag.enabled ?? null, enabled_local: flag.enabled_local ?? null }
+            : null,
+        ),
+      )
 
       const spotlight = tournaments[0] ?? null
       if (spotlight) {

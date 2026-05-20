@@ -15,7 +15,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('feature_flags')
-    .select('key, enabled, label, description, updated_at, updated_by')
+    .select('key, enabled, enabled_local, label, description, updated_at, updated_by')
     .order('key', { ascending: true })
 
   if (error) {

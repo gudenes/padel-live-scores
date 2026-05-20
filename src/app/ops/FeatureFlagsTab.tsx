@@ -1,27 +1,31 @@
 'use client'
 // src/app/ops/FeatureFlagsTab.tsx
 //
-// Read + toggle rows in the feature_flags table. One row = one
-// on/off switch for a feature surface (e.g. home_live_tournaments_carousel).
-// New flags appear here automatically when an operator runs the
-// matching INSERT in a migration.
+// Read + toggle rows in the feature_flags table. Each flag has TWO
+// independent switches:
+//   - Production — for everyone on the live site (any non-localhost host)
+//   - Local      — for developers on localhost only
+// Both write to the same DB row; the app resolves the right one per host.
 
 import { useEffect, useState } from 'react'
 
 interface FeatureFlag {
   key: string
   enabled: boolean
+  enabled_local: boolean
   label: string
   description: string | null
   updated_at: string
   updated_by: string | null
 }
 
+type Column = 'enabled' | 'enabled_local'
+
 export default function FeatureFlagsTab() {
   const [flags, setFlags] = useState<FeatureFlag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pendingKey, setPendingKey] = useState<string | null>(null)
+  const [pending, setPending] = useState<string | null>(null) // `${key}:${column}`
 
   const refresh = async () => {
     try {
@@ -39,15 +43,15 @@ export default function FeatureFlagsTab() {
 
   useEffect(() => { refresh() }, [])
 
-  const toggle = async (key: string, next: boolean) => {
-    setPendingKey(key)
-    // Optimistic flip — revert on error.
-    setFlags(prev => prev.map(f => (f.key === key ? { ...f, enabled: next } : f)))
+  const toggle = async (key: string, column: Column, next: boolean) => {
+    const pendingId = `${key}:${column}`
+    setPending(pendingId)
+    setFlags(prev => prev.map(f => (f.key === key ? { ...f, [column]: next } : f)))
     try {
       const res = await fetch(`/api/ops/feature-flags/${encodeURIComponent(key)}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ enabled: next }),
+        body: JSON.stringify({ [column]: next }),
       })
       if (!res.ok) {
         const detail = await res.text().catch(() => '')
@@ -56,11 +60,10 @@ export default function FeatureFlagsTab() {
       const json = await res.json()
       setFlags(prev => prev.map(f => (f.key === key ? json.flag : f)))
     } catch (e) {
-      // Revert optimistic flip
-      setFlags(prev => prev.map(f => (f.key === key ? { ...f, enabled: !next } : f)))
-      alert(`Failed to toggle ${key}: ${e instanceof Error ? e.message : e}`)
+      setFlags(prev => prev.map(f => (f.key === key ? { ...f, [column]: !next } : f)))
+      alert(`Failed to toggle ${key}.${column}: ${e instanceof Error ? e.message : e}`)
     } finally {
-      setPendingKey(null)
+      setPending(null)
     }
   }
 
@@ -78,10 +81,9 @@ export default function FeatureFlagsTab() {
     <div style={{ padding: 16, maxWidth: 880 }}>
       <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Feature Flags</h2>
       <p style={{ fontSize: 12, color: '#666', marginBottom: 20, lineHeight: 1.5 }}>
-        On/off switches for shippable-but-not-yet-launched surfaces. Toggling a flag takes
-        effect on the next page load for end users — no deploy needed. Public-read RLS
-        means the home page reads the flag value alongside its other data fetches; ops
-        writes happen here via the service-role API.
+        Each flag has separate switches for production (live site) and local (localhost dev).
+        The app picks based on <code>window.location.hostname</code>. Lets you polish a feature
+        locally while it stays dark in prod — no env vars, no deploys.
       </p>
 
       {flags.length === 0 ? (
@@ -99,27 +101,13 @@ export default function FeatureFlagsTab() {
                 borderRadius: 6,
                 padding: '14px 16px',
                 display: 'flex',
-                gap: 16,
+                gap: 24,
                 alignItems: 'flex-start',
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111' }}>{flag.label}</span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      padding: '2px 6px',
-                      borderRadius: 3,
-                      background: flag.enabled ? '#dcfce7' : '#fee2e2',
-                      color: flag.enabled ? '#166534' : '#991b1b',
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                    }}
-                  >
-                    {flag.enabled ? 'On' : 'Off'}
-                  </span>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 4 }}>
+                  {flag.label}
                 </div>
                 {flag.description && (
                   <div style={{ fontSize: 12, color: '#666', marginBottom: 6, lineHeight: 1.5 }}>
@@ -132,42 +120,89 @@ export default function FeatureFlagsTab() {
                 </div>
               </div>
 
-              <button
-                onClick={() => toggle(flag.key, !flag.enabled)}
-                disabled={pendingKey === flag.key}
-                style={{
-                  flexShrink: 0,
-                  position: 'relative',
-                  width: 48,
-                  height: 26,
-                  borderRadius: 13,
-                  border: 'none',
-                  cursor: pendingKey === flag.key ? 'wait' : 'pointer',
-                  background: flag.enabled ? '#22c55e' : '#d1d5db',
-                  transition: 'background 120ms',
-                  opacity: pendingKey === flag.key ? 0.6 : 1,
-                }}
-                aria-label={`Toggle ${flag.label}`}
-                aria-pressed={flag.enabled}
-              >
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: 3,
-                    left: flag.enabled ? 25 : 3,
-                    width: 20,
-                    height: 20,
-                    borderRadius: '50%',
-                    background: '#fff',
-                    transition: 'left 140ms',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }}
+              <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexShrink: 0 }}>
+                <ToggleColumn
+                  label="Production"
+                  value={flag.enabled}
+                  busy={pending === `${flag.key}:enabled`}
+                  onToggle={next => toggle(flag.key, 'enabled', next)}
                 />
-              </button>
+                <ToggleColumn
+                  label="Local"
+                  value={flag.enabled_local}
+                  busy={pending === `${flag.key}:enabled_local`}
+                  onToggle={next => toggle(flag.key, 'enabled_local', next)}
+                />
+              </div>
             </div>
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function ToggleColumn({
+  label,
+  value,
+  busy,
+  onToggle,
+}: {
+  label: string
+  value: boolean
+  busy: boolean
+  onToggle: (next: boolean) => void
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        {label}
+      </div>
+      <button
+        onClick={() => onToggle(!value)}
+        disabled={busy}
+        style={{
+          position: 'relative',
+          width: 44,
+          height: 24,
+          borderRadius: 12,
+          border: 'none',
+          cursor: busy ? 'wait' : 'pointer',
+          background: value ? '#22c55e' : '#d1d5db',
+          transition: 'background 120ms',
+          opacity: busy ? 0.6 : 1,
+        }}
+        aria-label={`Toggle ${label}`}
+        aria-pressed={value}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 3,
+            left: value ? 23 : 3,
+            width: 18,
+            height: 18,
+            borderRadius: '50%',
+            background: '#fff',
+            transition: 'left 140ms',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          }}
+        />
+      </button>
+      <div
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          padding: '1px 6px',
+          borderRadius: 3,
+          background: value ? '#dcfce7' : '#fee2e2',
+          color: value ? '#166534' : '#991b1b',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+        }}
+      >
+        {value ? 'On' : 'Off'}
+      </div>
     </div>
   )
 }
