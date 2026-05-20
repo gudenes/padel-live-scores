@@ -239,7 +239,7 @@ function TournamentCarouselCard({
               textTransform: 'uppercase',
             }}
           >
-            {t('viewScores')}
+            {t('viewMatches')}
           </div>
         </div>
       </div>
