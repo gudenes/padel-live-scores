@@ -16,7 +16,6 @@ import { getTierGradient, getTierPill } from '@/lib/tournament-tier-style'
 
 export interface TournamentWithMatchInfo extends Tournament {
   matchesToday: number
-  hasLiveMatch: boolean
 }
 
 interface Props {
@@ -80,8 +79,10 @@ function TournamentCarouselCard({
           }}
         />
 
-        {/* LIVE pill */}
-        {tournament.hasLiveMatch && (
+        {/* LIVE chip — presence indicator (tournament is running today
+            with matches scheduled). No pulse; calmer than a "scores
+            ticking" signal. */}
+        {tournament.matchesToday > 0 && (
           <div
             style={{
               position: 'absolute',
@@ -89,10 +90,10 @@ function TournamentCarouselCard({
               left: 9,
               background: '#FF4655',
               color: '#fff',
-              fontSize: 9,
+              fontSize: 8,
               fontWeight: 900,
-              padding: '4px 9px',
-              letterSpacing: 1,
+              padding: '3px 7px',
+              letterSpacing: 0.8,
               clipPath: CHUNKY.badge,
               zIndex: 2,
             }}
