@@ -83,36 +83,13 @@ describe('buildMatchInfoMap', () => {
 
   it('counts matches per tournament_id', () => {
     const rows: MatchForAggregation[] = [
-      { tournament_id: 'A', status: 'scheduled' },
-      { tournament_id: 'A', status: 'finished' },
-      { tournament_id: 'B', status: 'scheduled' },
+      { tournament_id: 'A' },
+      { tournament_id: 'A' },
+      { tournament_id: 'B' },
     ]
     const m = buildMatchInfoMap(rows)
     expect(m.get('A')?.matchesToday).toBe(2)
     expect(m.get('B')?.matchesToday).toBe(1)
-  })
-
-  it('flags hasLiveMatch when at least one match has status live', () => {
-    const rows: MatchForAggregation[] = [
-      { tournament_id: 'A', status: 'scheduled' },
-      { tournament_id: 'A', status: 'live' },
-    ]
-    expect(buildMatchInfoMap(rows).get('A')?.hasLiveMatch).toBe(true)
-  })
-
-  it('flags hasLiveMatch when status is on_court (warmup)', () => {
-    const rows: MatchForAggregation[] = [
-      { tournament_id: 'A', status: 'on_court' },
-    ]
-    expect(buildMatchInfoMap(rows).get('A')?.hasLiveMatch).toBe(true)
-  })
-
-  it('hasLiveMatch is false when no live/on_court matches', () => {
-    const rows: MatchForAggregation[] = [
-      { tournament_id: 'A', status: 'scheduled' },
-      { tournament_id: 'A', status: 'finished' },
-    ]
-    expect(buildMatchInfoMap(rows).get('A')?.hasLiveMatch).toBe(false)
   })
 })
 
