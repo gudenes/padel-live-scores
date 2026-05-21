@@ -1,8 +1,8 @@
-// src/components/road-to-olympics/HomeCard.tsx
+// src/components/road-to-olympics/PromoCard.tsx
 //
-// Persistent card on home/page.tsx pointing fans at the hub. Visible while
-// the countdown is < 365 days. Renders nothing once the IOC milestone has
-// passed (hub stays accessible, just no longer hero-promoted).
+// Pinned card at the top of /feed → Originals pointing fans at the hub.
+// Visible while the countdown is < 365 days. Renders nothing once the IOC
+// milestone has passed (hub stays accessible, just no longer hero-promoted).
 
 'use client'
 
@@ -16,7 +16,7 @@ import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
-export default function RoadToOlympicsHomeCard() {
+export default function RoadToOlympicsPromoCard() {
   const t = useTranslations('roadToOlympics.homeCard')
   const tg = useTranslations('roadToOlympics.glossary')
   const tHub = useTranslations('roadToOlympics')
