@@ -23,7 +23,7 @@ import { useTranslations } from 'next-intl'
 import { useMatchesFilters, type MatchesFilters } from '@/hooks/useMatchesFilters'
 import EmptyState from './EmptyState'
 import MatchesFilterBar from './MatchesFilterBar'
-import MatchesFilterDrawer from './MatchesFilterDrawer'
+import MatchesFilterSheet from './MatchesFilterSheet'
 import type { LiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 
 export interface MatchesFilterClientProps {
@@ -248,7 +248,7 @@ export default function MatchesFilterClient({
         anchorRef={liveBtnRef}
         onClose={() => setToastOpen(false)}
       />
-      <MatchesFilterDrawer
+      <MatchesFilterSheet
         open={drawerOpen}
         filters={filters}
         onChange={setFilters}
