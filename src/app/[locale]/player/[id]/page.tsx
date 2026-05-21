@@ -15,6 +15,7 @@ import { FlagImage } from '@/components/FlagImage'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
+import SlidingInkTabs from '@/components/SlidingInkTabs'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -768,32 +769,30 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         </div>
 
         {/* ── TABS ─────────────────────────────────────────────── */}
-        <div style={{
-          display: 'flex', gap: 2, padding: '0 12px',
-          overflowX: 'auto',
-          borderBottom: `1px solid ${BORDER}`,
-          background: '#0d0d0d',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none',
-        } as React.CSSProperties}>
-          {tabs.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              style={{
-                padding: '12px 12px 10px', fontSize: 11, fontWeight: 700,
-                color: activeTab === t.id ? GREEN : MUTED,
-                borderBottom: `2px solid ${activeTab === t.id ? GREEN : 'transparent'}`,
-                background: 'transparent', border: 'none', borderBottomStyle: 'solid',
-                whiteSpace: 'nowrap', cursor: 'pointer',
-                textTransform: 'uppercase', letterSpacing: 0.6,
-                fontFamily: 'inherit',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* 5 tabs at this label length (ESTADÍSTICAS et al) overflow
+            the flex-equal layout, so we let tabs shrink to content
+            (flex: none) and scroll the strip horizontally instead. */}
+        <SlidingInkTabs<PageTab>
+          tabs={tabs.map(t => ({ key: t.id, label: t.label }))}
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          containerStyle={{
+            padding: '0 12px',
+            borderBottom: `1px solid ${BORDER}`,
+            background: '#0d0d0d',
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+          } as React.CSSProperties}
+          tabStyle={{
+            flex: 'none',
+            padding: '12px 12px 10px',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 0.6,
+            whiteSpace: 'nowrap',
+          }}
+        />
 
         {/* ── TAB CONTENT ──────────────────────────────────────── */}
         {activeTab === 'overview' && (

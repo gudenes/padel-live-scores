@@ -11,6 +11,7 @@ import GlobalHeader from '@/components/nav/GlobalHeader'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
 import { formatYearWeek } from '@/lib/iso-year-week'
+import SlidingInkTabs from '@/components/SlidingInkTabs'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -480,32 +481,28 @@ export default function V3RankingPage() {
       </div>
 
       {/* ── Official / Race tabs ──────────────────────────── */}
-      <div style={{
-        display: 'flex', gap: 0,
-        margin: '12px 16px 0',
-        borderBottom: `1px solid ${BORDER}`,
-      }}>
-        {(['official', 'race'] as RankType[]).map(rt => {
-          const active = rankType === rt
-          return (
-            <button
-              key={rt}
-              onClick={() => { setRankType(rt); setQuery(''); setVisibleCount(50); swipeGoTo(RANK_KEYS.indexOf(rt)) }}
-              style={{
-                flex: 1, padding: '10px 0', border: 'none', cursor: 'pointer',
-                fontWeight: 800, fontSize: 13, letterSpacing: '0.04em',
-                textTransform: 'uppercase', fontFamily: 'inherit',
-                background: 'transparent',
-                color: active ? GREEN : MUTED,
-                borderBottom: `2px solid ${active ? GREEN : 'transparent'}`,
-                transition: 'all 0.2s',
-              }}
-            >
-              {rt === 'official' ? t('official') : t('race')}
-            </button>
-          )
-        })}
-      </div>
+      <SlidingInkTabs<RankType>
+        tabs={[
+          { key: 'official', label: t('official') },
+          { key: 'race', label: t('race') },
+        ]}
+        activeKey={rankType}
+        onChange={(rt) => {
+          setRankType(rt)
+          setQuery('')
+          setVisibleCount(50)
+          swipeGoTo(RANK_KEYS.indexOf(rt))
+        }}
+        containerStyle={{
+          margin: '12px 16px 0',
+          borderBottom: `1px solid ${BORDER}`,
+        }}
+        tabStyle={{
+          padding: '10px 0',
+          fontSize: 13,
+          letterSpacing: '0.04em',
+        }}
+      />
 
       {/* ── Swipeable content area (Official ↔ Race) ────── */}
       <div {...swipeHandlers}>

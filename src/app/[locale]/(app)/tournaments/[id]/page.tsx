@@ -28,6 +28,7 @@ import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
+import SlidingInkTabs from '@/components/SlidingInkTabs'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -222,6 +223,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const navbarLayerOpacity = p
   const compactOpacity     = clamp01((p - 0.55) / 0.4)
   const inlineOpacity      = clamp01((0.7 - p) / 0.4)
+
 
   // ── Fetch ─────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
@@ -712,18 +714,28 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </>
           ) : null}
 
-          {/* Chrome row — back, compact title (fades in), M/W toggle, compact FOLLOW (fades in) */}
+          {/* Chrome row — back, compact title (fades in), M/W toggle, compact FOLLOW (fades in).
+              alignItems: flex-start + small paddingTop pins the buttons
+              to the top of the navbar (right below the safe-area inset)
+              instead of centering them in the 62px chrome-row height.
+              Without this, the buttons float ~30px below the status bar
+              on notched / Capacitor-edge-to-edge devices. */}
           <div style={{
             position: 'relative', zIndex: 2,
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 16px', height: HERO_COLLAPSED,
+            display: 'flex', alignItems: 'flex-start', gap: 10,
+            padding: '6px 16px 12px', height: HERO_COLLAPSED,
           }}>
             <button
               onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
               style={{
-                width: 36, height: 36, border: 'none', cursor: 'pointer', background: 'none',
+                width: 36, height: 36, border: 'none', cursor: 'pointer',
+                // Match the opaque dark backing used by M/W and FOLLOW so
+                // the chevron reads against any cover-image brightness.
+                background: 'rgba(20,20,20,0.85)',
+                clipPath: CHUNKY.badge,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', flexShrink: 0,
+                padding: 0,
               }}
               aria-label={tCommon('back')}
             >
@@ -749,13 +761,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
             {/* M/W toggle — always visible (was previously gated by
                 compactOpacity). Opaque dark background reads against
-                any poster brightness, even with a transparent navbar. */}
-            <div style={{ flexShrink: 0 }}>
+                any poster brightness, even with a transparent navbar.
+                marginTop offsets the toggle a few px below the back
+                button so the pair (M/W + FOLLOW) doesn't crowd against
+                the very top edge of the navbar. */}
+            <div style={{ flexShrink: 0, marginTop: 4 }}>
               <div
                 onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
                 style={{
                   display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
-                  background: 'rgba(20,20,20,0.65)',
+                  background: 'rgba(20,20,20,0.85)',
                   clipPath: CHUNKY.badge,
                   padding: '4px 6px', position: 'relative', width: 56, height: 28,
                   flexShrink: 0,
@@ -785,14 +800,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             </div>
 
             {/* FOLLOW — always visible. Same opaque dark background as
-                M/W so the pair reads as one cluster. */}
+                M/W so the pair reads as one cluster. marginTop matches
+                the toggle's offset above. */}
             {activeTournamentObj ? (
-              <div style={{ flexShrink: 0 }}>
+              <div style={{ flexShrink: 0, marginTop: 4 }}>
                 <FollowButton
                   type="tournament"
                   targetId={activeTournamentObj.id}
                   variant="follow"
-                  style={{ background: 'rgba(20,20,20,0.65)', color: '#fff' }}
+                  style={{ background: 'rgba(20,20,20,0.85)', color: '#fff' }}
                 />
               </div>
             ) : null}
@@ -943,40 +959,22 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         {/* Tabs — sticky just below the navbar. Top offset matches the
             navbar's effective height (62px + safe-area) so tabs stick
             flush below the chrome row on devices with a notch / status
-            bar. */}
-        <div style={{
-          position: 'sticky',
-          top: `calc(env(safe-area-inset-top) + ${HERO_COLLAPSED}px)`,
-          zIndex: 19,
-          background: '#0A0A0A',
-          borderBottom: `1px solid ${BORDER}`,
-          display: 'flex',
-        }}>
-          {(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => {
-            const active = pageTab === tab
-            return (
-              <button
-                key={tab}
-                onClick={() => setPageTab(tab)}
-                style={{
-                  flex: 1, padding: '12px 0', border: 'none', background: 'none', cursor: 'pointer',
-                  fontSize: 12, fontWeight: 800, letterSpacing: 0.5, fontFamily: 'inherit',
-                  color: active ? GREEN : MUTED,
-                  position: 'relative', transition: 'color 0.2s',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {tTournament(tab)}
-                {active && (
-                  <span style={{
-                    position: 'absolute', bottom: -1, left: '15%', right: '15%',
-                    height: 2, background: GREEN,
-                  }} />
-                )}
-              </button>
-            )
-          })}
-        </div>
+            bar. Sliding ink-bar handled by <SlidingInkTabs>. */}
+        <SlidingInkTabs
+          tabs={(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
+            key: tab,
+            label: tTournament(tab),
+          }))}
+          activeKey={pageTab}
+          onChange={setPageTab}
+          containerStyle={{
+            position: 'sticky',
+            top: `calc(env(safe-area-inset-top) + ${HERO_COLLAPSED}px)`,
+            zIndex: 19,
+            background: '#0A0A0A',
+            borderBottom: `1px solid ${BORDER}`,
+          }}
+        />
 
         {/* Coverage disclaimer */}
         {activeTournamentObj && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && (
