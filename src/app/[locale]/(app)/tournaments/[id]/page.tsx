@@ -680,12 +680,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             FULLY TRANSPARENT at scroll=0 (the hero's cover image renders
             through it from z=5 behind), and FULLY OPAQUE black at full
             collapse (covers whatever body content is scrolling past).
-            paddingTop: env(safe-area-inset-top) pushes the chrome row
-            below the status bar / notch on iOS native + standalone PWA. */}
+            ──
+            paddingTop respects env(safe-area-inset-top) so the chrome
+            row sits below the status bar / notch — capped at 12px so
+            Android Capacitor edge-to-edge devices (which report a
+            generous ~24-30pt inset) don't push the buttons unusually
+            far from the top. iOS notched devices still get capped at
+            12px which keeps the chrome readable while leaving more
+            of the cover image visible at the top. */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 25,
           minHeight: HERO_COLLAPSED,
-          paddingTop: 'env(safe-area-inset-top)',
+          paddingTop: 'min(env(safe-area-inset-top), 12px)',
           overflow: 'hidden',
           background: `rgba(10, 10, 10, ${navbarLayerOpacity})`,
         }}>
@@ -826,7 +832,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         <div style={{
           position: 'relative', zIndex: 5,
           height: HERO_EXPANDED,
-          marginTop: `calc(-1 * (env(safe-area-inset-top) + ${HERO_COLLAPSED}px))`,
+          marginTop: `calc(-1 * (min(env(safe-area-inset-top), 12px) + ${HERO_COLLAPSED}px))`,
           overflow: 'hidden',
           background: '#0A0A0A',
         }}>
@@ -969,7 +975,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           onChange={setPageTab}
           containerStyle={{
             position: 'sticky',
-            top: `calc(env(safe-area-inset-top) + ${HERO_COLLAPSED}px)`,
+            top: `calc(min(env(safe-area-inset-top), 12px) + ${HERO_COLLAPSED}px)`,
             zIndex: 19,
             background: '#0A0A0A',
             borderBottom: `1px solid ${BORDER}`,
