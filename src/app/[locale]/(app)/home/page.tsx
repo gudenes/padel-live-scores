@@ -133,7 +133,6 @@ function V3HomePageInner() {
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [latestNews, setLatestNews] = useState<NewsItem[]>([])
   const [carouselLiveToday, setCarouselLiveToday] = useState<TournamentWithMatchInfo[]>([])
-  const [carouselUpcoming, setCarouselUpcoming] = useState<TournamentWithMatchInfo[]>([])
   const [carouselEnabled, setCarouselEnabled] = useState<boolean>(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [spotlightChampionMen, setSpotlightChampionMen] = useState<TournamentSpotlightHeroProps['defendingChampionMen']>(null)
@@ -300,7 +299,8 @@ function V3HomePageInner() {
         wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
         wrap(supabase.from('articles').select('id, title, title_translations, snippet, snippet_translations, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(20) as any, 'home:articles'),
-        // Live Tournaments carousel — 3 queries
+        // Live Tournaments carousel — 2 queries (no UPCOMING after the
+        // chip was dropped in favor of a 'Todos os Eventos' link).
         wrap(
           supabase
             .from('tournaments')
@@ -309,15 +309,6 @@ function V3HomePageInner() {
             .gte('ends_at', (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d.toISOString() })())
             .limit(20) as any,
           'home:carousel-live-today',
-        ),
-        wrap(
-          supabase
-            .from('tournaments')
-            .select('id, name, starts_at, ends_at, country, location, level, logo_url, cover_image_url, prize_money')
-            .gt('starts_at', new Date().toISOString())
-            .lt('starts_at', new Date(Date.now() + 7 * 24 * 3_600_000).toISOString())
-            .limit(20) as any,
-          'home:carousel-upcoming',
         ),
         wrap(
           (async () => {
@@ -361,8 +352,7 @@ function V3HomePageInner() {
 
       // ── Carousel transform ─────────────────────────────────────
       const carouselLiveRows: any[] = dataOf(8)
-      const carouselUpcomingRows: any[] = dataOf(9)
-      const carouselMatchRows: any[] = dataOf(10)
+      const carouselMatchRows: any[] = dataOf(9)
       const matchInfo = buildMatchInfoMap(carouselMatchRows)
       const decorate = (rows: any[]): TournamentWithMatchInfo[] =>
         rows
@@ -373,12 +363,11 @@ function V3HomePageInner() {
           }))
           .sort(compareTournamentsForCarousel)
       setCarouselLiveToday(decorate(carouselLiveRows))
-      setCarouselUpcoming(decorate(carouselUpcomingRows))
 
       // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
-      // dataOf(11) from .maybeSingle(): { enabled, enabled_local } when
+      // dataOf(10) from .maybeSingle(): { enabled, enabled_local } when
       // present, [] when the row is missing, undefined on fetch failure.
-      const flagRow = dataOf(11)
+      const flagRow = dataOf(10)
       const flag =
         flagRow && !Array.isArray(flagRow)
           ? (flagRow as { enabled?: boolean | null; enabled_local?: boolean | null })
@@ -484,7 +473,6 @@ function V3HomePageInner() {
       {carouselEnabled && (
         <LiveTournamentsCarousel
           liveToday={carouselLiveToday}
-          upcoming={carouselUpcoming}
         />
       )}
 
