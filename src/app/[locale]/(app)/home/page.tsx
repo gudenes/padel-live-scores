@@ -17,7 +17,6 @@ import { useAuth } from '@/components/AuthProvider'
 import { useInvite } from '@/hooks/useInvite'
 import TournamentSpotlightHero from '@/components/TournamentSpotlightHero'
 import type { TournamentSpotlightHeroProps } from '@/components/TournamentSpotlightHero'
-import RoadToOlympicsHomeCard from '@/components/road-to-olympics/HomeCard'
 import { useTranslations } from 'next-intl'
 
 // ── Extracted section components ──────────────────────────────
@@ -542,9 +541,6 @@ function V3HomePageInner() {
           <HighlightsPreview highlights={[]} news={latestNews} />
         </>
       )}
-
-      {/* ── ROAD TO OLYMPICS HERO CARD ────────────────────── */}
-      <RoadToOlympicsHomeCard />
 
       {/* ── TOURNAMENT SPOTLIGHT HERO ──────────────────────── */}
       {spotlightTournament && (
