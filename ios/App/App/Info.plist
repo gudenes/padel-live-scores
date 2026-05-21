@@ -21,7 +21,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>9</string>
+	<string>12</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -39,13 +39,6 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<!-- Background modes required for push-notification delivery when the
@@ -62,11 +55,6 @@
 	     Leaving the description avoids App Review nagging. -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Padel Nachos uses your local network to detect display devices when sharing scores.</string>
-	<!-- iOS 14+ ATT framework. Required string if PostHog or Sentry ever
-	     request the IDFA; today they don't, but the string is harmless
-	     to declare and saves a re-submit if we add ad-supported tier. -->
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This identifier is used to deliver personalised match notifications and improve our service. We do not share it with advertisers.</string>
 	<!-- Capacitor Share plugin uses the system share sheet which itself
 	     may invoke ActivityViewController and trigger Photos access on
 	     some pickers. Strings are required to AVOID rejection even
@@ -75,5 +63,30 @@
 	<string>Padel Nachos may request access if you share a screenshot of a match.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Padel Nachos may save a screenshot of a match to your Photos when you tap Share.</string>
+	<!-- Export Compliance: declare that this app uses only "exempt"
+	     encryption (HTTPS to our servers + iOS-provided system frameworks).
+	     Setting this key to false skips the encryption questionnaire that
+	     App Store Connect otherwise prompts on every build submission.
+	     If we ever bundle proprietary/non-standard crypto, flip this to
+	     true and file the annual self-classification report with the US
+	     Bureau of Industry and Security. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Google Sign-In URL scheme — required by GoogleSignIn / Firebase
+	     Auth so the system can deliver the OAuth callback back to our
+	     app via the REVERSED_CLIENT_ID URL scheme (from
+	     GoogleService-Info.plist). Without this, native Google Sign-In
+	     errors with "No URL types found in Info.plist". -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1011492605581-f1bvgnadl1ja4cluoav0f4ftfl33656v</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

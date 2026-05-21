@@ -160,6 +160,32 @@ export default async function AboutPage() {
         </div>
       </section>
 
+      {/* Disclaimer — explicit "not affiliated with" notice for trademark
+          holders. Apple App Review (Guideline 4.1(a)) and equivalent
+          Play Store policies expect this kind of in-app notice when an
+          app surfaces public sports data that includes trademarked
+          tournament/league names and player likenesses. Matches the
+          pattern used by approved competitor apps in the same space. */}
+      <section style={{ padding: '0 20px 28px' }}>
+        <div style={{
+          background: BG_CARD, clipPath: CHUNKY.card,
+          padding: '16px 18px',
+          border: `0.5px solid ${BORDER}`,
+        }}>
+          <div style={{
+            fontSize: 9, fontWeight: 700, color: MUTED,
+            textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: 10,
+          }}>
+            {t('disclaimerTitle')}
+          </div>
+          <p style={{
+            fontSize: 12, lineHeight: 1.7, color: MUTED, margin: 0,
+          }}>
+            {t('disclaimer')}
+          </p>
+        </div>
+      </section>
+
       {/* Contact */}
       <div style={{
         textAlign: 'center', padding: '20px',
