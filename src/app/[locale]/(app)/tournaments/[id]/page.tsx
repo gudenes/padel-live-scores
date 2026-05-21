@@ -691,7 +691,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         <div style={{
           position: 'sticky', top: 0, zIndex: 25,
           minHeight: HERO_COLLAPSED,
-          paddingTop: 'min(env(safe-area-inset-top), 12px)',
+          paddingTop: 'env(safe-area-inset-top)',
           overflow: 'hidden',
           background: `rgba(10, 10, 10, ${navbarLayerOpacity})`,
         }}>
@@ -832,7 +832,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         <div style={{
           position: 'relative', zIndex: 5,
           height: HERO_EXPANDED,
-          marginTop: `calc(-1 * (min(env(safe-area-inset-top), 12px) + ${HERO_COLLAPSED}px))`,
+          marginTop: `calc(-1 * (env(safe-area-inset-top) + ${HERO_COLLAPSED}px))`,
           overflow: 'hidden',
           background: '#0A0A0A',
         }}>
@@ -975,7 +975,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           onChange={setPageTab}
           containerStyle={{
             position: 'sticky',
-            top: `calc(min(env(safe-area-inset-top), 12px) + ${HERO_COLLAPSED}px)`,
+            top: `calc(env(safe-area-inset-top) + ${HERO_COLLAPSED}px)`,
             zIndex: 19,
             background: '#0A0A0A',
             borderBottom: `1px solid ${BORDER}`,
