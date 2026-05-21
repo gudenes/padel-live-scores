@@ -35,6 +35,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { GREEN, MUTED, BG_CARD, localizedTitle, type NewsItem } from './shared'
+import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
 
 // Brand surfaces for the sheet — slightly darker than BG_CARD so the
 // transition from page background reads as elevated content.
@@ -86,6 +87,16 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
   // from the actual `mounted` flag that drives DOM presence.
   const [mounted, setMounted] = useState(false)
   const closeBtnRef = useRef<HTMLButtonElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // The panel itself is the scroll container (overflow: auto on the
+  // sheet div). Pass it as scrollRef so the close-drag is suppressed
+  // while the user is scrolling article content.
+  const swipe = useSwipeDownToClose({
+    onClose,
+    scrollRef: panelRef,
+    disabled: !article,
+  })
 
   // Normalize incoming locale to one of our 5; default to English.
   // Locales like "en-US" reduce to "en".
@@ -254,6 +265,8 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
 
       {/* Sheet panel */}
       <div
+        ref={panelRef}
+        {...swipe.bind}
         style={{
           position: 'relative',
           width: '100%',
@@ -271,6 +284,10 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
           // Tap targets near the bottom safe area on iOS — extend
           // padding-bottom past the home indicator.
           paddingBottom: 'env(safe-area-inset-bottom)',
+          // Swipe-down-to-close: while the user is actively dragging,
+          // this overrides the transform/transition above so the panel
+          // follows their finger.
+          ...swipe.style,
         }}
       >
         {/* Drag handle (decorative — actual drag-to-dismiss isn't

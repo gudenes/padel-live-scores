@@ -1,22 +1,21 @@
 'use client'
 
-// src/components/MatchesFilterDrawer.tsx
+// src/components/MatchesFilterSheet.tsx
 //
-// Slide-in filter drawer for the /matches/[date] page. Renders a portal
-// at the document body so it sits above the phone-frame layout chrome
-// without z-index gymnastics. Reads + writes filter state through
-// useMatchesFilters (localStorage-persisted).
+// Bottom-sheet filter for the /matches/[date] page. Sibling pattern to
+// TournamentsFilterSheet — both filter surfaces open from the bottom on
+// mobile for thumb-friendly dismissal and visual consistency.
 //
-// Animation matches the news-peek-sheet timing already in the app:
-// 280ms cubic-bezier(0.16, 1, 0.3, 1). prefers-reduced-motion users get
-// instant transitions.
+// Renders a portal at document body so it sits above the phone-frame
+// layout chrome without z-index gymnastics. Reads + writes filter state
+// through useMatchesFilters (localStorage-persisted).
 //
 // Mobile polish baked in:
 //   - body scroll lock while open
 //   - backdrop tap closes
 //   - ESC key closes
-//   - focus trapped inside the drawer
-//   - keyboard returns to the trigger button on close
+//   - swipe-down-to-close via useSwipeDownToClose
+//   - focus moves into the sheet on open
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -26,6 +25,7 @@ import {
   type LeagueFilter,
   type CategoryFilter,
 } from '@/hooks/useMatchesFilters'
+import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
 
 // ── Brand tokens (mirror src/components/home/shared.tsx) ────────────────
 const GREEN = '#7ED321'
@@ -43,7 +43,7 @@ const CHUNKY = {
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
-export interface MatchesFilterDrawerProps {
+export interface MatchesFilterSheetProps {
   open: boolean
   filters: MatchesFilters
   onChange: (next: MatchesFilters) => void
@@ -51,15 +51,16 @@ export interface MatchesFilterDrawerProps {
   onClose: () => void
 }
 
-export default function MatchesFilterDrawer({
+export default function MatchesFilterSheet({
   open,
   filters,
   onChange,
   onReset,
   onClose,
-}: MatchesFilterDrawerProps) {
+}: MatchesFilterSheetProps) {
   const t = useTranslations('matches.filters')
-  const drawerRef = useRef<HTMLDivElement>(null)
+  const sheetRef = useRef<HTMLElement>(null)
+  const bodyScrollRef = useRef<HTMLDivElement>(null)
 
   // Mount gate — the portal renders to document.body which doesn't exist
   // during SSR. Returning null until after the first client effect avoids
@@ -84,10 +85,19 @@ export default function MatchesFilterDrawer({
     }
   }, [open, onClose])
 
-  // Move focus into the drawer when it opens.
+  // Move focus into the sheet when it opens.
   useEffect(() => {
-    if (open) drawerRef.current?.focus()
+    if (open) sheetRef.current?.focus()
   }, [open])
+
+  // Swipe-down-to-close. Body div (overflowY: auto) is the inner scroll
+  // container; gesture is suppressed while it's scrolled away from top
+  // so chip taps + content scrolling win.
+  const swipe = useSwipeDownToClose({
+    onClose,
+    scrollRef: bodyScrollRef,
+    disabled: !open,
+  })
 
   // Don't render the portal until after hydration — see `mounted` above.
   if (!mounted) return null
@@ -121,35 +131,57 @@ export default function MatchesFilterDrawer({
         }}
       />
 
-      {/* Drawer */}
+      {/* Sheet */}
       <aside
-        ref={drawerRef}
+        ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-label={t('title')}
         aria-hidden={!open}
         tabIndex={-1}
+        {...swipe.bind}
         style={{
           position: 'fixed',
-          top: 0,
-          right: 0,
           bottom: 0,
-          // 75% / max 300 — narrower than the legacy 86% / 360 because
-          // the trimmed drawer has only 3 sections (League / Category /
-          // Status) and the segmented controls fit comfortably at this
-          // width on every supported device.
-          width: '75%',
-          maxWidth: 300,
+          left: 0,
+          right: 0,
+          maxWidth: 500,
+          margin: '0 auto',
+          // maxHeight rather than fixed height — three small sections
+          // don't need 78% of viewport; let content drive size, cap so
+          // unusually large fonts can't push past safe area.
+          maxHeight: '78vh',
           background: BG_BASE,
-          borderLeft: `1px solid ${BORDER_STRONG}`,
-          transform: open ? 'translateX(0)' : 'translateX(100%)',
+          borderTop: `1px solid ${BORDER_STRONG}`,
+          borderTopLeftRadius: 18,
+          borderTopRightRadius: 18,
+          transform: open ? 'translateY(0)' : 'translateY(100%)',
           transition: 'transform 280ms cubic-bezier(0.16, 1, 0.3, 1)',
           display: 'flex',
           flexDirection: 'column',
           zIndex: 1101,
           outline: 'none',
+          boxShadow: '0 -20px 50px rgba(0,0,0,0.5)',
+          // While the user is dragging the swipe-to-close gesture,
+          // overrides transform/transition above so the panel follows
+          // their finger.
+          ...swipe.style,
         }}
       >
+        {/* Drag handle — visual affordance for the swipe-down gesture */}
+        <div style={{ paddingTop: 8, flexShrink: 0 }}>
+          <div
+            aria-hidden
+            style={{
+              width: 36,
+              height: 4,
+              background: '#4A4A4A',
+              borderRadius: 2,
+              margin: '0 auto',
+            }}
+          />
+        </div>
+
         {/* Header */}
         <div
           style={{
@@ -158,6 +190,7 @@ export default function MatchesFilterDrawer({
             gap: 10,
             padding: '12px 12px 10px',
             borderBottom: `1px solid ${BORDER}`,
+            flexShrink: 0,
           }}
         >
           <div style={{ flex: 1, fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: 0.3 }}>
@@ -189,6 +222,7 @@ export default function MatchesFilterDrawer({
 
         {/* Body — scrollable */}
         <div
+          ref={bodyScrollRef}
           style={{
             flex: 1,
             overflowY: 'auto',
@@ -262,6 +296,8 @@ export default function MatchesFilterDrawer({
             borderTop: `1px solid ${BORDER}`,
             display: 'flex',
             gap: 8,
+            flexShrink: 0,
+            paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
           }}
         >
           <button

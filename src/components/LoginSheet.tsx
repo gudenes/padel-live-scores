@@ -23,6 +23,7 @@ import { Capacitor } from '@capacitor/core'
 import { FirebaseAuthentication } from '@capacitor-firebase/authentication'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import { useTranslations } from 'next-intl'
+import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
 
 // ── V3 Brand constants ────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -58,6 +59,11 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
+
+  // Swipe-down-to-close. No inner scroll container — the sheet's
+  // content fits in viewport with padding, so any downward drag from
+  // the panel can dismiss.
+  const swipe = useSwipeDownToClose({ onClose, disabled: !open })
 
   // Read pending referral from localStorage
   useEffect(() => {
@@ -194,6 +200,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     >
       <div
         onClick={e => e.stopPropagation()}
+        {...swipe.bind}
         style={{
           width: '100%', maxWidth: 500,
           background: BG_CARD,
@@ -202,6 +209,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           borderTop: `2px solid ${GREEN}`,
           animation: 'loginSlideUp 0.3s ease-out',
           position: 'relative',
+          ...swipe.style,
         }}
       >
         {/* Drag handle */}

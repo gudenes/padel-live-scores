@@ -673,14 +673,17 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         borderRight: `0.5px solid ${BORDER}`,
       }}>
 
-        {/* Navbar — sticky 62px bar with chrome + opacity-driven cover bg.
+        {/* Navbar — sticky bar with chrome + opacity-driven cover bg.
             The navbar's own background is rgba(10,10,10, p) so it's
             FULLY TRANSPARENT at scroll=0 (the hero's cover image renders
             through it from z=5 behind), and FULLY OPAQUE black at full
-            collapse (covers whatever body content is scrolling past). */}
+            collapse (covers whatever body content is scrolling past).
+            paddingTop: env(safe-area-inset-top) pushes the chrome row
+            below the status bar / notch on iOS native + standalone PWA. */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 25,
-          height: HERO_COLLAPSED,
+          minHeight: HERO_COLLAPSED,
+          paddingTop: 'env(safe-area-inset-top)',
           overflow: 'hidden',
           background: `rgba(10, 10, 10, ${navbarLayerOpacity})`,
         }}>
@@ -931,9 +934,14 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           ) : null}
         </div>
 
-        {/* Tabs — sticky just below the navbar */}
+        {/* Tabs — sticky just below the navbar. Top offset matches the
+            navbar's effective height (62px + safe-area) so tabs stick
+            flush below the chrome row on devices with a notch / status
+            bar. */}
         <div style={{
-          position: 'sticky', top: HERO_COLLAPSED, zIndex: 19,
+          position: 'sticky',
+          top: `calc(env(safe-area-inset-top) + ${HERO_COLLAPSED}px)`,
+          zIndex: 19,
           background: '#0A0A0A',
           borderBottom: `1px solid ${BORDER}`,
           display: 'flex',

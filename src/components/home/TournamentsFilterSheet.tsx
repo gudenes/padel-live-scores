@@ -13,9 +13,10 @@
 // lives per-match, not per-tournament, so filtering at this level would
 // need a separate query path. Punted to a follow-up if there's demand.
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { GREEN, ORANGE, LIVE_RED, BG_CARD, MUTED, BORDER, CHUNKY } from './shared'
+import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
 
 // ── Magnifier — same SVG used by the home header's global search box.
 //    Keeps the visual language consistent across search inputs.
@@ -183,6 +184,16 @@ export default function TournamentsFilterSheet({
     () => new Set(['europa', 'latam']),
   )
 
+  // Swipe-down-to-close. The inner body div (overflowY: auto) is the
+  // scroll container; the gesture is suppressed while that div is
+  // scrolled away from the top so chip taps + content scrolling win.
+  const bodyScrollRef = useRef<HTMLDivElement>(null)
+  const swipe = useSwipeDownToClose({
+    onClose,
+    scrollRef: bodyScrollRef,
+    disabled: !open,
+  })
+
   // Build region -> available country list once.
   const regionCountries = useMemo(() => {
     const byRegion = new Map<string, string[]>()
@@ -246,6 +257,7 @@ export default function TournamentsFilterSheet({
         role="dialog"
         aria-modal="true"
         aria-label={t('title')}
+        {...swipe.bind}
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0,
           maxWidth: 500, margin: '0 auto',
@@ -255,6 +267,7 @@ export default function TournamentsFilterSheet({
           display: 'flex', flexDirection: 'column',
           boxShadow: '0 -20px 50px rgba(0,0,0,0.5)',
           animation: 'tfs-slide-up 0.22s cubic-bezier(0.2,0,0.2,1)',
+          ...swipe.style,
         }}
       >
         <style>{`
@@ -297,7 +310,7 @@ export default function TournamentsFilterSheet({
         </div>
 
         {/* Body — scrollable */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 14px' }}>
+        <div ref={bodyScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 16px 14px' }}>
 
           {/* ── SEASON (year) ─────────────────────────────── */}
           <Section title={t('season')}>

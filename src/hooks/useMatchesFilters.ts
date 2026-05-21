@@ -2,8 +2,8 @@
 
 // src/hooks/useMatchesFilters.ts
 //
-// Persistent filter state for the matches page. The filter drawer
-// (src/components/MatchesFilterDrawer.tsx) writes here; the filtered list
+// Persistent filter state for the matches page. The filter sheet
+// (src/components/MatchesFilterSheet.tsx) writes here; the filtered list
 // (src/components/MatchesFilteredList.tsx) reads.
 //
 // Two design choices worth calling out:
