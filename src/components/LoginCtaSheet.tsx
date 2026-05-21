@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/components/AuthProvider'
 import { useFollowing } from '@/hooks/useFollowing'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
+import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
 
 const GREEN = '#7ED321'
 const CHUNKY_CARD = 'polygon(0% 4%, 100% 0%, 100% 100%, 0% 100%)'
@@ -59,6 +60,11 @@ export function LoginCtaSheet() {
     openLoginSheet()
   }
 
+  // Hook is called before the early-return so the call order is stable
+  // across renders. Disabled flag keeps it idle when the sheet's not
+  // visible.
+  const swipe = useSwipeDownToClose({ onClose: dismiss, disabled: !visible })
+
   if (!visible) return null
 
   const totalFollows = counts.match + counts.player + counts.tournament + counts.news_source
@@ -76,6 +82,7 @@ export function LoginCtaSheet() {
     >
       <div
         onClick={e => e.stopPropagation()}
+        {...swipe.bind}
         style={{
           width: '100%', maxWidth: 500,
           background: 'linear-gradient(180deg, #1E1E1E, #161616)',
@@ -84,6 +91,7 @@ export function LoginCtaSheet() {
           clipPath: CHUNKY_CARD,
           color: '#fff',
           fontFamily: 'system-ui, -apple-system, sans-serif',
+          ...swipe.style,
         }}
       >
         <h3 style={{ fontSize: 16, fontWeight: 900, textAlign: 'center', marginBottom: 6 }}>
