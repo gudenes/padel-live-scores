@@ -1,11 +1,26 @@
 'use client'
 // src/components/LoginSheet.tsx
-// Bottom sheet for sign-in: Google OAuth + magic link email fallback.
-// Slides up from bottom with dimmed backdrop. V3 brand styling.
+// Bottom sheet for sign-in: Google OAuth + Apple Sign-In + magic link
+// email fallback. Slides up from bottom with dimmed backdrop. V3 brand
+// styling.
+//
+// Native iOS path (Capacitor): uses @capacitor-firebase/authentication
+// to drive Google + Apple sign-in via system UI (no Safari detour),
+// then exchanges the resulting Firebase ID token for an Auth.js session
+// cookie via /api/auth/native-signin. The magic-link input is hidden
+// because the email link would open in Safari and the session cookie
+// would land outside the WebView. (Universal Links to fix that are
+// planned for v1.0.5.)
+//
+// Web + Android path: unchanged — uses next-auth/react signIn(),
+// which handles Google/Apple via web OAuth redirects and Resend for
+// magic links. Apple's external-browser objection was iOS-specific.
 
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { signIn } from 'next-auth/react'
+import { Capacitor } from '@capacitor/core'
+import { FirebaseAuthentication } from '@capacitor-firebase/authentication'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import { useTranslations } from 'next-intl'
 
@@ -55,11 +70,82 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
 
   if (!open || !mounted) return null
 
+  // Native iOS = the only platform that has the "external browser" UX
+  // problem Apple Review called out. Android's WKWebView equivalent
+  // already lets web OAuth complete in-app, so we keep the web flow
+  // there to avoid regressing what's currently shipping under Google
+  // Play closed-test review. Web/PWA also stays on the web flow.
+  //
+  // The `FirebaseAuthentication` registration check is the safety net
+  // for our `server.url`-based Capacitor setup: this JS bundle is
+  // served from Vercel and shared by ALL iOS builds, including any
+  // older TestFlight build that doesn't ship the
+  // @capacitor-firebase/authentication native plugin yet. Without
+  // this check, an older build that loads the new JS would crash on
+  // FirebaseAuthentication.signInWithGoogle() — "Plugin not
+  // implemented". Falling back to the web OAuth flow keeps that path
+  // working.
+  const hasNativeFirebaseAuth =
+    typeof window !== 'undefined' &&
+    !!(window as unknown as { Capacitor?: { isPluginAvailable?: (n: string) => boolean } })
+      .Capacitor?.isPluginAvailable?.('FirebaseAuthentication')
+  const isNativeIos =
+    typeof window !== 'undefined' &&
+    Capacitor.isNativePlatform() &&
+    Capacitor.getPlatform() === 'ios' &&
+    hasNativeFirebaseAuth
+
+  // ── Shared bridge: take a Firebase ID token from a native sign-in
+  // and exchange it for an Auth.js session cookie. After this returns,
+  // the WebView holds the session cookie, so we hard-reload to /home
+  // so all React contexts re-mount in the signed-in state.
+  async function exchangeFirebaseIdToken(idToken: string) {
+    const res = await fetch('/api/auth/native-signin', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ idToken }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      throw new Error(data?.error || `native sign-in failed (${res.status})`)
+    }
+    window.location.href = '/home'
+  }
+
   const handleGoogle = async () => {
+    setError(null)
+    if (isNativeIos) {
+      try {
+        const result = await FirebaseAuthentication.signInWithGoogle()
+        const idToken = result.credential?.idToken
+        if (!idToken) throw new Error('Google sign-in returned no idToken')
+        await exchangeFirebaseIdToken(idToken)
+      } catch (e) {
+        // Surfaces native plugin errors (user cancellation, network
+        // failure, misconfigured OAuth client) so the user sees
+        // something actionable instead of a dead sheet.
+        const msg = (e as Error)?.message || 'sign-in failed'
+        if (!msg.toLowerCase().includes('cancel')) setError(msg)
+      }
+      return
+    }
     await signIn('google', { callbackUrl: '/home' })
   }
 
   const handleApple = async () => {
+    setError(null)
+    if (isNativeIos) {
+      try {
+        const result = await FirebaseAuthentication.signInWithApple()
+        const idToken = result.credential?.idToken
+        if (!idToken) throw new Error('Apple sign-in returned no idToken')
+        await exchangeFirebaseIdToken(idToken)
+      } catch (e) {
+        const msg = (e as Error)?.message || 'sign-in failed'
+        if (!msg.toLowerCase().includes('cancel')) setError(msg)
+      }
+      return
+    }
     await signIn('apple', { callbackUrl: '/home' })
   }
 
@@ -219,48 +305,57 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
               {t('continueApple')}
             </button>
 
-            {/* Divider */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
-              <div style={{ flex: 1, height: 1, background: BORDER }} />
-              <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: '0.5px' }}>{t('or')}</div>
-              <div style={{ flex: 1, height: 1, background: BORDER }} />
-            </div>
+            {/* Magic link block — hidden on native iOS because the email
+                link opens in Safari and the session cookie would land
+                outside the WebView. Universal Links wiring is the v1.0.5
+                fix (see docs/superpowers/plans/handoff-2026-05-21.md if/
+                when we add one). On Android + web, this stays available. */}
+            {!isNativeIos && (
+              <>
+                {/* Divider */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+                  <div style={{ flex: 1, height: 1, background: BORDER }} />
+                  <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, letterSpacing: '0.5px' }}>{t('or')}</div>
+                  <div style={{ flex: 1, height: 1, background: BORDER }} />
+                </div>
 
-            {/* Magic link email */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="email"
-                placeholder={t('emailPlaceholder')}
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleMagicLink()}
-                style={{
-                  flex: 1, background: BG_BASE,
-                  border: `1px solid ${BORDER}`,
-                  clipPath: CLIP.button,
-                  padding: '12px 14px', color: '#fff', fontSize: 13,
-                  outline: 'none', fontFamily: 'inherit',
-                }}
-              />
-              <button
-                onClick={handleMagicLink}
-                disabled={sending || !email.trim()}
-                style={{
-                  background: GREEN, color: '#000',
-                  clipPath: CLIP.button,
-                  padding: '12px 16px', fontWeight: 700, fontSize: 13,
-                  whiteSpace: 'nowrap', cursor: 'pointer', border: 'none',
-                  fontFamily: 'inherit',
-                  opacity: sending || !email.trim() ? 0.5 : 1,
-                }}
-              >
-                {sending ? t('sending') : t('sendLink')}
-              </button>
-            </div>
+                {/* Magic link email */}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    type="email"
+                    placeholder={t('emailPlaceholder')}
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleMagicLink()}
+                    style={{
+                      flex: 1, background: BG_BASE,
+                      border: `1px solid ${BORDER}`,
+                      clipPath: CLIP.button,
+                      padding: '12px 14px', color: '#fff', fontSize: 13,
+                      outline: 'none', fontFamily: 'inherit',
+                    }}
+                  />
+                  <button
+                    onClick={handleMagicLink}
+                    disabled={sending || !email.trim()}
+                    style={{
+                      background: GREEN, color: '#000',
+                      clipPath: CLIP.button,
+                      padding: '12px 16px', fontWeight: 700, fontSize: 13,
+                      whiteSpace: 'nowrap', cursor: 'pointer', border: 'none',
+                      fontFamily: 'inherit',
+                      opacity: sending || !email.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    {sending ? t('sending') : t('sendLink')}
+                  </button>
+                </div>
 
-            <div style={{ textAlign: 'center', color: MUTED, fontSize: 10, marginTop: 14 }}>
-              {t('helperText')}
-            </div>
+                <div style={{ textAlign: 'center', color: MUTED, fontSize: 10, marginTop: 14 }}>
+                  {t('helperText')}
+                </div>
+              </>
+            )}
 
             {error && (
               <div style={{ textAlign: 'center', color: '#FF4655', fontSize: 12, fontWeight: 600, marginTop: 8 }}>{error}</div>

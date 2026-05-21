@@ -151,6 +151,11 @@ function Toggle({ checked, onChange, disabled }: { checked: boolean; onChange: (
 export default function SettingsPage() {
   const t = useTranslations('settings')
   const tNotifs = useTranslations('notifications')
+  // Disclaimer copy lives in `about.*` so the About page and this footer
+  // stay byte-identical across locales without duplicating the long
+  // not-affiliated string. Apple Guideline 4.1(a) wants the disclaimer
+  // visible inside the app, not just in store metadata.
+  const tAbout = useTranslations('about')
   const { user, loading: authLoading } = useAuth()
   const router = useRouter()
 
@@ -451,6 +456,26 @@ export default function SettingsPage() {
         >
           {t('signOut')}
         </button>
+      </div>
+
+      {/* Disclaimer — explicit "not affiliated with" notice for trademark
+          holders. Apple App Review (Guideline 4.1(a)) and equivalent
+          Play Store policies expect this kind of in-app notice when an
+          app surfaces public sports data that includes trademarked
+          tournament/league names and player likenesses. Copy shared
+          with About page via the `about.disclaimer*` keys. */}
+      <div style={{ padding: '0 16px 24px' }}>
+        <div style={{
+          fontSize: 10, fontWeight: 700, color: V3.MUTED,
+          textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8,
+        }}>
+          {tAbout('disclaimerTitle')}
+        </div>
+        <p style={{
+          fontSize: 11, lineHeight: 1.6, color: V3.MUTED, margin: 0,
+        }}>
+          {tAbout('disclaimer')}
+        </p>
       </div>
 
       {/* Edit name sheet — only mounts once profile is hydrated */}

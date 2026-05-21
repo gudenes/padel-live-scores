@@ -765,7 +765,9 @@
     "dataTitle": "Datos y Precisión",
     "dataP1": "Nuestros marcadores provienen de las APIs oficiales de los torneos y se verifican con múltiples fuentes. Durante los partidos en vivo, los datos se actualizan constantemente para mantenerte lo más cerca posible del tiempo real.",
     "dataP2": "Ya seguimos a más de 3.000 jugadores en las categorías masculina y femenina, y nuestra base de datos sigue creciendo cada semana.",
-    "contact": "¿Preguntas? Escríbenos a"
+    "contact": "¿Preguntas? Escríbenos a",
+    "disclaimerTitle": "Aviso legal",
+    "disclaimer": "Padel Nachos es una app independiente para fanáticos del padel. No estamos afiliados ni avalados por Premier Padel, la Federación Internacional de Padel (FIP), Cupra FIP Tour, A1 Padel, ni ningún jugador o liga profesional. Nuestro objetivo es facilitar el acceso a información de torneos, marcadores en vivo y perfiles de jugadores. Todos los datos y fotos provienen de APIs públicamente disponibles."
   },
   "login": {
     "heading": "Inicia sesión en Padel Nachos",

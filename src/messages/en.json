@@ -792,7 +792,9 @@
     "dataTitle": "Data & Accuracy",
     "dataP1": "Our scores come from official tournament APIs and are verified against multiple sources. During live matches, data refreshes constantly to keep you as close to real-time as possible.",
     "dataP2": "We already track more than 3,000 players across men's and women's categories, and our database keeps growing every week.",
-    "contact": "Questions? Reach us at"
+    "contact": "Questions? Reach us at",
+    "disclaimerTitle": "Disclaimer",
+    "disclaimer": "Padel Nachos is an independent app for padel fans. We are not affiliated with or endorsed by Premier Padel, the International Padel Federation (FIP), Cupra FIP Tour, A1 Padel, or any professional player or league. Our goal is to make tournament information, live scores, and player profiles easier to access for fans of the sport. All player data and photos are sourced from publicly available APIs."
   },
   "login": {
     "heading": "Sign in to Padel Nachos",
