@@ -7,7 +7,19 @@
 
 import * as Sentry from '@sentry/nextjs'
 import posthog from 'posthog-js'
+import { Capacitor } from '@capacitor/core'
 import { parseConsent, migrateLegacy } from './consent'
+
+// True when running inside a Capacitor native shell (iOS or Android),
+// false in the web/PWA WebView. We change PostHog's persistence model
+// on native to comply with App Review Guideline 5.1.2(i): no tracking
+// cookies, no localStorage identifiers, no session replay. Events still
+// fire, but each session is anonymous and ephemeral — no cross-session
+// dedup, no cohort retention. Web/PWA users retain the full flow.
+function isCapacitorNative(): boolean {
+  if (typeof window === 'undefined') return false
+  try { return Capacitor.isNativePlatform() } catch { return false }
+}
 
 function readAnalyticsConsent(): boolean {
   if (typeof window === 'undefined') return false
@@ -80,6 +92,7 @@ function initPostHog() {
   if (posthogInitialised) return
   if (typeof window === 'undefined') return
   if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return
+  const native = isCapacitorNative()
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
     api_host: '/ingest',
     ui_host: 'https://eu.posthog.com',
@@ -87,13 +100,23 @@ function initPostHog() {
     // We promote anonymous → identified inside <PostHogIdentify> when
     // the user logs in. Avoids creating profiles for bots / drive-bys.
     person_profiles: 'identified_only',
-    // Capture pageviews automatically (Next.js client routing fires a
-    // popstate that PostHog hooks into). We also capture clicks +
-    // form submits — `autocapture: true` is the default but we set
-    // it explicitly so behavior is locked even if defaults change.
-    autocapture: true,
+    // On Capacitor native shells we run in "memory" mode — identity
+    // lives in RAM and dies with the WebView. No cookies, no
+    // localStorage, no IndexedDB persisted by PostHog. This is the
+    // App Review Guideline 5.1.2(i) compliance lever: Apple's reviewer
+    // flagged tracking cookies in the iOS WebView, so we make sure
+    // PostHog drops none on native. Web/PWA keeps the default
+    // localStorage flow for cross-session continuity.
+    persistence: native ? 'memory' : 'localStorage+cookie',
+    // Pageview + page-leave still fire on native — those are what we
+    // care about for "what screens are people using" — but we disable
+    // autocapture (which scrapes every click/submit and produces
+    // richer cross-session data) and session recording (which is
+    // unambiguously "tracking" in Apple's lens).
+    autocapture: !native,
     capture_pageview: true,
     capture_pageleave: true,
+    disable_session_recording: native,
     // Session replay — masks every input by default (so passwords,
     // emails, search queries never leave the browser). Text content
     // is captured so we can see what the user saw. Switch any
@@ -116,9 +139,13 @@ function initPostHog() {
   posthogInitialised = true
 }
 
-/** Initialise PostHog + Sentry browser SDKs iff the user has consented. */
+/** Initialise PostHog + Sentry browser SDKs iff the user has consented
+ * (web/PWA) or we're on a Capacitor native shell (no consent banner is
+ * shown on native; PostHog runs in memory mode there — see initPostHog).
+ * Sentry is always safe to enable: it does not set tracking cookies and
+ * its error/perf payloads stay between the device and our project. */
 export function initAnalyticsIfAllowed(): void {
-  if (!readAnalyticsConsent()) return
+  if (!readAnalyticsConsent() && !isCapacitorNative()) return
   initSentry()
   initPostHog()
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { Capacitor } from '@capacitor/core'
 import { Link } from '@/i18n/navigation'
 import { useConsent } from '@/hooks/useConsent'
 import { initAnalyticsIfAllowed } from '@/lib/analytics-init'
@@ -20,6 +21,21 @@ export function ConsentBanner() {
   const [customizing, setCustomizing] = useState(false)
 
   if (hasDecided) return null
+
+  // Hide the GDPR cookie banner inside Capacitor native shells (iOS,
+  // Android). The banner is web-only: native runs PostHog in memory
+  // mode (no cookies, no localStorage — see lib/analytics-init.ts),
+  // Vercel Analytics and Google Ads are gated on consent and never
+  // fire when there's no banner to consent through, and Sentry is
+  // non-tracking. The presence of the banner itself was the trigger
+  // for App Review Guideline 5.1.2(i) ("remove the cookie prompts or
+  // revise them to clarify you do not track users"); hiding it on
+  // native removes the surface Apple flagged.
+  if (typeof window !== 'undefined') {
+    try {
+      if (Capacitor.isNativePlatform()) return null
+    } catch { /* @capacitor/core missing or throws — fall through to web banner */ }
+  }
 
   const apply = (next: ConsentState) => {
     setConsent(next)
