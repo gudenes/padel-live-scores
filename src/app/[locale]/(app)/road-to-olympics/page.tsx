@@ -15,6 +15,7 @@ import DecisionMakersDossier from '@/components/road-to-olympics/DecisionMakersD
 import ActionHub from '@/components/road-to-olympics/ActionHub'
 import CorrectionsCTA from '@/components/road-to-olympics/CorrectionsCTA'
 import DisclosureFooter from '@/components/road-to-olympics/DisclosureFooter'
+import BackToHomeButton from '@/components/road-to-olympics/BackToHomeButton'
 import Term from '@/components/road-to-olympics/Term'
 import { SectionTitle } from '@/components/home/shared'
 import { BG_BASE, CHUNKY, MUTED } from '@/components/home/shared-constants'
@@ -143,6 +144,7 @@ export default async function RoadToOlympicsPage() {
         minHeight: '100vh',
         color: '#fff',
       }}>
+        <BackToHomeButton />
         <div style={{ position: 'relative', marginBottom: 14, clipPath: CHUNKY.section, overflow: 'hidden' }}>
           <Image
             src="/road-to-olympics/og/hero.webp"

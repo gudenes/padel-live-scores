@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useFollowing } from '@/hooks/useFollowing'
 import { useAnonPush } from '@/hooks/useAnonPush'
 import { tryEnablePushOrShowInstallNudge } from '@/lib/pwa-install'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const GREEN = '#7ED321'
 const CHUNKY = {
@@ -105,18 +106,20 @@ export function NotificationPromptSheet({ pickedNames, onResolve }: Props) {
           >
             {t('later')}
           </button>
-          <button
+          <PressButton
             onClick={handleEnable}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
-              flex: 1, padding: '12px 0',
-              fontSize: 13, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5,
-              background: GREEN, color: '#000',
-              clipPath: CHUNKY.button, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit',
+              flex: 1,
+              height: 42,
+              fontSize: 13,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
             }}
           >
             {t('enable')}
-          </button>
+          </PressButton>
         </div>
       </div>
     </div>

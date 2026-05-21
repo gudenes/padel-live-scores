@@ -9,6 +9,7 @@ import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { supabase } from '@/lib/supabase'
 import { PickerCard, type PickerPlayer } from './PickerCard'
 import { NotificationPromptSheet } from './NotificationPromptSheet'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const GREEN = '#7ED321'
 const BG_BASE = '#1A1A1A'
@@ -371,19 +372,19 @@ export default function WelcomePickerPage() {
           >
             {t('skip')}
           </button>
-          <button
+          <PressButton
             type="button"
             onClick={handleContinue}
             disabled={!canContinue || submitting}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
-              flex: 1, padding: '14px 0',
-              background: GREEN, color: '#000',
-              fontSize: 13, fontWeight: 900,
-              textTransform: 'uppercase', letterSpacing: 0.6,
-              clipPath: CHUNKY.button,
-              border: 'none', cursor: canContinue ? 'pointer' : 'not-allowed',
+              flex: 1,
+              height: 48,
+              fontSize: 13,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: 0.6,
               opacity: canContinue ? 1 : 0.35,
-              fontFamily: 'inherit',
               transition: 'opacity 0.15s',
             }}
           >
@@ -398,7 +399,7 @@ export default function WelcomePickerPage() {
                 {pickedCount}
               </span>
             )}
-          </button>
+          </PressButton>
         </div>
       </div>
 

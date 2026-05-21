@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { GREEN, BG_CARD, BORDER, CHUNKY } from '@/components/home/shared-constants'
 import CorrectionsModal from './CorrectionsModal'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 export default function CorrectionsCTA() {
   const t = useTranslations('roadToOlympics.corrections')
@@ -32,24 +33,21 @@ export default function CorrectionsCTA() {
             {t('cardBody')}
           </div>
         </div>
-        <button
+        <PressButton
           type="button"
           onClick={() => setOpen(true)}
+          {...PRESS_PRESETS.chunkyInline}
           style={{
-            background: GREEN,
-            color: '#0a0a0a',
+            height: 32,
+            padding: '0 16px',
             fontWeight: 800,
             fontSize: 11,
-            padding: '8px 16px',
-            clipPath: CHUNKY.button,
-            border: 0,
-            cursor: 'pointer',
             whiteSpace: 'nowrap',
             letterSpacing: 0.5,
           }}
         >
           {t('cardCta')}
-        </button>
+        </PressButton>
       </div>
 
       {open && <CorrectionsModal onClose={() => setOpen(false)} />}

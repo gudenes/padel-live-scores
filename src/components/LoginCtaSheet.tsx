@@ -6,6 +6,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useFollowing } from '@/hooks/useFollowing'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const GREEN = '#7ED321'
 const CHUNKY_CARD = 'polygon(0% 4%, 100% 0%, 100% 100%, 0% 100%)'
@@ -113,18 +114,20 @@ export function LoginCtaSheet() {
           >
             {t('later')}
           </button>
-          <button
+          <PressButton
             onClick={handleSignIn}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
-              flex: 1, padding: '11px 0',
-              fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5,
-              background: GREEN, color: '#000',
-              clipPath: CHUNKY_BTN, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit',
+              flex: 1,
+              height: 40,
+              fontSize: 12,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
             }}
           >
             {t('signIn')}
-          </button>
+          </PressButton>
         </div>
       </div>
     </div>

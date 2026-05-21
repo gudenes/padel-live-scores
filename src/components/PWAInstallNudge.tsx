@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import posthog from 'posthog-js'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 import {
   PWA_NUDGE_EVENT,
   markNudgeShown,
@@ -196,19 +197,21 @@ export function PWAInstallNudge() {
           >
             {t('maybeLater')}
           </button>
-          <button
+          <PressButton
             type="button"
             onClick={() => dismiss('got_it')}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
-              flex: 1, padding: '11px 0',
-              fontSize: 12, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.5,
-              background: GREEN, color: '#000',
-              clipPath: CHUNKY.button, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit',
+              flex: 1,
+              height: 40,
+              fontSize: 12,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: 0.5,
             }}
           >
             {t('gotIt')}
-          </button>
+          </PressButton>
         </div>
       </div>
 

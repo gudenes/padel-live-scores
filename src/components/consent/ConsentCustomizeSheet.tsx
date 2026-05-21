@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { ConsentState } from '@/lib/consent'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const GREEN = '#7ED321'
 const CHUNKY = {
@@ -202,26 +203,21 @@ export function ConsentCustomizeSheet({ initial, onSave, onCancel }: Props) {
           >
             {t('customizeCancel')}
           </button>
-          <button
+          <PressButton
             type="button"
             onClick={handleSave}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
               flex: 1,
-              padding: '11px 0',
+              height: 42,
               fontSize: 12,
               fontWeight: 900,
               textTransform: 'uppercase',
               letterSpacing: 0.5,
-              background: GREEN,
-              color: '#000',
-              clipPath: CHUNKY.button,
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
             }}
           >
             {t('customizeSave')}
-          </button>
+          </PressButton>
         </div>
       </div>
     </div>

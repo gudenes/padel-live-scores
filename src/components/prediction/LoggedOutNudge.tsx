@@ -2,8 +2,8 @@
 
 import { useTranslations } from 'next-intl'
 import { useSession } from 'next-auth/react'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
-const GREEN = '#7ED321'
 const CHUNKY = 'polygon(2% 8%, 98% 0%, 100% 92%, 0% 100%)'
 
 function dispatchLoginOpen() {
@@ -33,23 +33,21 @@ export function LoggedOutNudge() {
       }}
     >
       <span>{t('body')}</span>
-      <button
+      <PressButton
         type="button"
         onClick={dispatchLoginOpen}
+        {...PRESS_PRESETS.chunkyTilted}
+        depth={3}
         style={{
-          background: GREEN,
-          color: '#0a0a0a',
-          border: 0,
+          height: 24,
           fontSize: 11,
           fontWeight: 800,
-          padding: '5px 10px',
-          cursor: 'pointer',
-          clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+          padding: '0 10px',
           flexShrink: 0,
         }}
       >
         {t('cta')}
-      </button>
+      </PressButton>
     </div>
   )
 }

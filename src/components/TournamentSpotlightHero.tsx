@@ -10,6 +10,7 @@ import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 // ── Per-section scroll trigger ────────────────────────────────────
 // Each section gets its own IntersectionObserver so animations fire
@@ -607,24 +608,33 @@ export default function TournamentSpotlightHero({
           </div>
         )}
 
-        {/* ── Row 8: CTA Button (visual only — whole card link handles navigation) ── */}
-        <AnimateOnView className="sp-piece sp-piece-8">
-          <div
-            style={{
-              display: 'block',
-              textAlign: 'center',
-              padding: '12px 20px',
-              background: GREEN,
-              color: '#0d1f04',
-              fontSize: 13,
-              fontWeight: 800,
-              clipPath: CHUNKY.button,
-              letterSpacing: 0.5,
-            }}
-          >
-            {t('viewEventDetails')} →
-          </div>
-        </AnimateOnView>
+        {/* ── Row 8: CTA Button — chunkyTilted preset rendered as
+            <Link> so the press :active fires on tap. The whole-card
+            <Link> overlay above sits at zIndex 1 and would otherwise
+            capture taps in this area before the button could go
+            :active. zIndex 2 puts the CTA above the overlay.
+            Both navigate to the same href, so the user experience
+            is identical regardless of which element receives the tap.
+            ──
+            Rendered inline (no AnimateOnView wrapper) so the CTA
+            appears together with the rest of the widget rather than
+            being staggered in 1.6s later with an infinite pulse. ── */}
+        <PressButton
+          as={Link}
+          href={`/tournaments/${tournament.id}`}
+          {...PRESS_PRESETS.chunkyTilted}
+          style={{
+            position: 'relative',
+            zIndex: 2,
+            textAlign: 'center',
+            fontSize: 13,
+            fontWeight: 800,
+            letterSpacing: 0.5,
+            height: 44,
+          }}
+        >
+          {t('viewEventDetails')} →
+        </PressButton>
         </div>{/* end content padding */}
         </div>{/* end zIndex:2 wrapper */}
       </div>

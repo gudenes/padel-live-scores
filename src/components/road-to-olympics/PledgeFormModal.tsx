@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared-constants'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 interface Props {
   onClose: () => void
@@ -53,7 +54,7 @@ export default function PledgeFormModal({ onClose }: Props) {
           <>
             <h2 style={{ color: GREEN, fontSize: 22, fontWeight: 800, margin: '0 0 8px' }}>{t('successTitle')}</h2>
             <p style={{ color: '#ccc', fontSize: 14, lineHeight: 1.5, margin: '0 0 20px' }}>{t('successBody')}</p>
-            <button type="button" onClick={onClose} style={ctaStyle}>OK</button>
+            <PressButton type="button" onClick={onClose} {...PRESS_PRESETS.chunkyTilted} depth={3} style={modalCtaStyle}>OK</PressButton>
           </>
         ) : (
           <form onSubmit={submit}>
@@ -73,9 +74,9 @@ export default function PledgeFormModal({ onClose }: Props) {
               {t('subscribeOptIn')}
             </label>
             {error && <div style={{ color: '#ff7878', fontSize: 12, marginBottom: 10 }}>{error}</div>}
-            <button type="submit" disabled={submitting} style={ctaStyle}>
+            <PressButton type="submit" disabled={submitting} {...PRESS_PRESETS.chunkyTilted} depth={3} style={modalCtaStyle}>
               {submitting ? t('submitting') : t('submit')}
-            </button>
+            </PressButton>
           </form>
         )}
       </div>
@@ -87,9 +88,13 @@ const inputStyle: React.CSSProperties = {
   width: '100%', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)',
   borderRadius: 6, padding: '8px 10px', color: '#fff', fontSize: 13, marginTop: 4,
 }
-const ctaStyle: React.CSSProperties = {
-  background: GREEN, color: '#0a0a0a', fontWeight: 800, fontSize: 13,
-  padding: '10px 18px', clipPath: CHUNKY.button, border: 0, cursor: 'pointer',
+// Layout-only style for the PressButton CTAs in this modal. Visual
+// (background, clipPath, color) comes from PRESS_PRESETS.chunkyTilted.
+const modalCtaStyle: React.CSSProperties = {
+  height: 40,
+  padding: '0 18px',
+  fontSize: 13,
+  fontWeight: 800,
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

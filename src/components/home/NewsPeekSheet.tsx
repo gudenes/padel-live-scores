@@ -36,6 +36,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { GREEN, MUTED, BG_CARD, localizedTitle, type NewsItem } from './shared'
 import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 // Brand surfaces for the sheet — slightly darker than BG_CARD so the
 // transition from page background reads as elevated content.
@@ -458,26 +459,20 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
             {data?.snippet}
           </div>
 
-          {/* Primary action: open original */}
-          <a
+          {/* Primary action: open original. Rendered as <a> via the
+              PressButton "as" prop so href + target + rel still work. */}
+          <PressButton
+            as="a"
             href={article.url}
             target="_blank"
             rel="noopener noreferrer"
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
               width: '100%',
-              padding: 12,
-              borderRadius: 10,
-              background: GREEN,
-              color: '#0a0a0a',
+              height: 44,
+              gap: 8,
               fontSize: 13,
               fontWeight: 700,
-              textDecoration: 'none',
-              border: 'none',
-              cursor: 'pointer',
             }}
             onClick={() => {
               // Close after a tick so the new tab opens before the
@@ -491,7 +486,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               <polyline points="15 3 21 3 21 9"/>
               <line x1="10" y1="14" x2="21" y2="3"/>
             </svg>
-          </a>
+          </PressButton>
 
           {/* Secondary actions — bookmark + share */}
           <div style={{

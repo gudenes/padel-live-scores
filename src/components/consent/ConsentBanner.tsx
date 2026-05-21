@@ -8,6 +8,7 @@ import { useConsent } from '@/hooks/useConsent'
 import { initAnalyticsIfAllowed } from '@/lib/analytics-init'
 import { ConsentCustomizeSheet } from './ConsentCustomizeSheet'
 import type { ConsentState } from '@/lib/consent'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const GREEN = '#7ED321'
 const CHUNKY = {
@@ -145,20 +146,21 @@ export function ConsentBanner() {
           >
             {t('customize')}
           </button>
-          <button
+          <PressButton
             type="button"
             onClick={handleAcceptAll}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
               flex: 1,
-              padding: '10px 0',
-              fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
-              background: GREEN, color: '#000',
-              clipPath: CHUNKY.button, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit',
+              height: 38,
+              fontSize: 11,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
             }}
           >
             {t('acceptAll')}
-          </button>
+          </PressButton>
         </div>
       </div>
 
