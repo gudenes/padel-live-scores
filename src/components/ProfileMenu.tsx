@@ -21,6 +21,14 @@ const CHUNKY = {
 const LOCALES = routing.locales
 type LocaleCode = typeof LOCALES[number]
 
+// Hide the Picks menu entries while the feature is incomplete (no
+// post-match settlement / leaderboard backfill / explainer copy yet).
+// Route `/picks` is still reachable by direct URL — we keep the code in
+// the tree so reviewers and existing pick-takers don't see broken links
+// or 404s, but we don't promote the entry point from the profile menu.
+// Flip back to `true` when the feature is ready to ship.
+const PICKS_ENABLED = false
+
 interface ProfileMenuProps {
   open: boolean
   onClose: () => void
@@ -254,13 +262,15 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
             label={t('notifications')}
             rightSlot={unreadCount > 0 ? <CountBadge tone="red">{unreadCount > 99 ? '99+' : unreadCount}</CountBadge> : <Chevron/>}
           />
-          <Item
-            href="/picks"
-            onClick={onClose}
-            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-            label={t('picks')}
-            rightSlot={picksCount > 0 ? <CountBadge tone="green">{picksCount}</CountBadge> : <Chevron/>}
-          />
+          {PICKS_ENABLED && (
+            <Item
+              href="/picks"
+              onClick={onClose}
+              icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+              label={t('picks')}
+              rightSlot={picksCount > 0 ? <CountBadge tone="green">{picksCount}</CountBadge> : <Chevron/>}
+            />
+          )}
           <Item
             href="/achievements"
             onClick={onClose}
@@ -367,13 +377,15 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
             label={t('notifications')}
             rightSlot={<Chevron/>}
           />
-          <Item
-            href="/picks"
-            onClick={onClose}
-            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-            label={t('picks')}
-            rightSlot={picksCount > 0 ? <CountBadge tone="green">{picksCount}</CountBadge> : <Chevron/>}
-          />
+          {PICKS_ENABLED && (
+            <Item
+              href="/picks"
+              onClick={onClose}
+              icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+              label={t('picks')}
+              rightSlot={picksCount > 0 ? <CountBadge tone="green">{picksCount}</CountBadge> : <Chevron/>}
+            />
+          )}
           <Item
             href="/feed"
             onClick={onClose}
