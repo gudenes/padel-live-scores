@@ -12,6 +12,7 @@ import { Link } from '@/i18n/navigation'
 import stateJson from '@/data/road-to-olympics/state.json'
 import { GREEN, CHUNKY } from '@/components/home/shared-constants'
 import Term from './Term'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
@@ -66,13 +67,23 @@ export default function RoadToOlympicsHomeCard() {
           ioc: (chunks) => <Term short={String(chunks)} definition={tg('ioc')} />,
         })}
       </div>
-      <span style={{
-        background: GREEN, color: '#0a0a0a', fontWeight: 800,
-        fontSize: 11, padding: '6px 14px', clipPath: CHUNKY.button,
-        letterSpacing: 0.5, display: 'inline-block',
-      }}>
+      {/* Rendered as <span> because the whole card is the <Link>;
+          nesting an interactive button would invalidate HTML. The
+          press effect still fires on :active. */}
+      <PressButton
+        as="span"
+        {...PRESS_PRESETS.chunkyInline}
+        style={{
+          display: 'inline-flex',
+          height: 30,
+          padding: '0 14px',
+          fontWeight: 800,
+          fontSize: 11,
+          letterSpacing: 0.5,
+        }}
+      >
         {t('cta')}
-      </span>
+      </PressButton>
     </Link>
   )
 }

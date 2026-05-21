@@ -26,6 +26,7 @@ import {
   type CategoryFilter,
 } from '@/hooks/useMatchesFilters'
 import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 // ── Brand tokens (mirror src/components/home/shared.tsx) ────────────────
 const GREEN = '#7ED321'
@@ -320,26 +321,21 @@ export default function MatchesFilterSheet({
           >
             {t('reset')}
           </button>
-          <button
+          <PressButton
             type="button"
             onClick={onClose}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
               flex: 2,
-              padding: '11px 14px',
-              background: GREEN,
-              border: `1px solid ${GREEN}`,
-              color: '#0A0A0A',
+              height: 40,
               fontSize: 11,
               fontWeight: 800,
               letterSpacing: 0.4,
               textTransform: 'uppercase',
-              cursor: 'pointer',
-              clipPath: CHUNKY.button,
-              fontFamily: 'inherit',
             }}
           >
             {t('apply')}
-          </button>
+          </PressButton>
         </div>
       </aside>
     </>,

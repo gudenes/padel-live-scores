@@ -12,6 +12,7 @@ import { readAllPredictions } from '@/hooks/useMatchPrediction'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { FLAG_BY_LOCALE } from '@/components/icons/FlagIcons'
 import { routing } from '@/i18n/routing'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 const CHUNKY = {
   card: 'polygon(0% 3%, 97% 0%, 100% 97%, 3% 100%)',
@@ -289,21 +290,20 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
             padding: 14,
             borderBottom: '1px solid rgba(255,255,255,0.08)',
           }}>
-            <button
+            {/* Tactile press CTA — chunkyTilted preset = the app's
+                primary CTA look. See /mockups/press-button for the
+                full palette of available presets. */}
+            <PressButton
               type="button"
               onClick={() => { onClose(); openLoginSheet() }}
+              {...PRESS_PRESETS.chunkyTilted}
               style={{
                 width: '100%',
                 height: 36,
-                background: '#7ED321',
-                color: '#0a0a0a',
                 fontSize: 12,
                 fontWeight: 800,
                 letterSpacing: 0.3,
                 textTransform: 'uppercase',
-                clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-                border: 0,
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -316,7 +316,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
                 <line x1="15" y1="12" x2="3" y2="12"/>
               </svg>
               {t('signIn')}
-            </button>
+            </PressButton>
           </div>
 
           <Item

@@ -17,6 +17,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { GREEN, ORANGE, LIVE_RED, BG_CARD, MUTED, BORDER, CHUNKY } from './shared'
 import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 // ── Magnifier — same SVG used by the home header's global search box.
 //    Keeps the visual language consistent across search inputs.
@@ -584,24 +585,20 @@ export default function TournamentsFilterSheet({
           >
             {tCommon('clear')}
           </button>
-          <button
+          <PressButton
             type="button"
             onClick={() => onApply(pending)}
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
               flex: 1,
-              padding: '11px 18px',
-              background: GREEN,
-              border: `1px solid ${GREEN}`,
-              color: '#0A0A0A',
-              clipPath: CHUNKY.button,
-              fontSize: 12, fontWeight: 800,
+              height: 40,
+              fontSize: 12,
+              fontWeight: 800,
               letterSpacing: '0.04em',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
             }}
           >
             {t('applyWithCount', { count: pendingCount })}
-          </button>
+          </PressButton>
         </div>
       </div>
     </>

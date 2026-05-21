@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import PledgeFormModal from './PledgeFormModal'
 import { GREEN, GREEN_DIM, CHUNKY } from '@/components/home/shared-constants'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 interface Props {
   initialCount: number
@@ -51,17 +52,22 @@ export default function PledgeInline({ initialCount }: Props) {
           <br />
           {t('inlineSub')}
         </div>
-        <button
+        <PressButton
           type="button"
           onClick={() => setOpen(true)}
+          {...PRESS_PRESETS.chunkyTilted}
+          depth={3}
           style={{
-            background: GREEN, color: '#0a0a0a', fontWeight: 800,
-            fontSize: 11, padding: '7px 14px', clipPath: CHUNKY.button,
-            letterSpacing: 0.5, border: 0, whiteSpace: 'nowrap', cursor: 'pointer',
+            height: 30,
+            padding: '0 14px',
+            fontWeight: 800,
+            fontSize: 11,
+            letterSpacing: 0.5,
+            whiteSpace: 'nowrap',
           }}
         >
           {t('ctaPrimary')}
-        </button>
+        </PressButton>
       </div>
 
       {open && <PledgeFormModal onClose={handleClose} />}

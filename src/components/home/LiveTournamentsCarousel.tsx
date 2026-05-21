@@ -13,6 +13,7 @@ import {
   levelLabel,
 } from '@/components/home/shared'
 import { getTierGradient, getTierPill } from '@/lib/tournament-tier-style'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 export interface TournamentWithMatchInfo extends Tournament {
   matchesToday: number
@@ -151,22 +152,20 @@ function TournamentCarouselCard({
           <div style={{ fontSize: 10, color: GREEN, fontWeight: 700, marginTop: 2 }}>
             {statusLine}
           </div>
-          <div
+          <PressButton
+            as="div"
+            {...PRESS_PRESETS.chunkyTilted}
             style={{
               marginTop: 6,
-              background: GREEN,
-              color: '#0E1B05',
+              height: 30,
               fontSize: 10,
               fontWeight: 900,
-              padding: '7px 0',
-              textAlign: 'center',
               letterSpacing: 0.4,
-              clipPath: CHUNKY.button,
               textTransform: 'uppercase',
             }}
           >
             {t('viewMatches')}
-          </div>
+          </PressButton>
         </div>
       </div>
     </Link>

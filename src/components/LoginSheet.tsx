@@ -24,6 +24,7 @@ import { FirebaseAuthentication } from '@capacitor-firebase/authentication'
 import LocaleSwitcher from '@/components/LocaleSwitcher'
 import { useTranslations } from 'next-intl'
 import { useSwipeDownToClose } from '@/hooks/useSwipeDownToClose'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 // ── V3 Brand constants ────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -375,20 +376,21 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                       outline: 'none', fontFamily: 'inherit',
                     }}
                   />
-                  <button
+                  <PressButton
                     onClick={handleMagicLink}
                     disabled={sending || !email.trim()}
+                    {...PRESS_PRESETS.chunkyTilted}
                     style={{
-                      background: GREEN, color: '#000',
-                      clipPath: CLIP.button,
-                      padding: '12px 16px', fontWeight: 700, fontSize: 13,
-                      whiteSpace: 'nowrap', cursor: 'pointer', border: 'none',
-                      fontFamily: 'inherit',
+                      height: 44,
+                      padding: '0 16px',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      whiteSpace: 'nowrap',
                       opacity: sending || !email.trim() ? 0.5 : 1,
                     }}
                   >
                     {sending ? t('sending') : t('sendLink')}
-                  </button>
+                  </PressButton>
                 </div>
 
                 <div style={{ textAlign: 'center', color: MUTED, fontSize: 10, marginTop: 14 }}>
