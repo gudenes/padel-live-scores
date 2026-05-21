@@ -28,12 +28,12 @@ export function FlagES({ width = 28, height = 20, className }: Props) {
   )
 }
 
-export function FlagPT({ width = 28, height = 20, className }: Props) {
+export function FlagBR({ width = 28, height = 20, className }: Props) {
   return (
     <svg width={width} height={height} viewBox="0 0 60 36" preserveAspectRatio="xMidYMid slice" className={className}>
-      <rect width="60" height="36" fill="#FF0000"/>
-      <rect width="24" height="36" fill="#006600"/>
-      <circle cx="24" cy="18" r="5" fill="#FFD700" stroke="#fff" strokeWidth="0.5"/>
+      <rect width="60" height="36" fill="#009C3B"/>
+      <polygon points="30,4 54,18 30,32 6,18" fill="#FFDF00"/>
+      <circle cx="30" cy="18" r="7" fill="#002776"/>
     </svg>
   )
 }
@@ -61,7 +61,7 @@ export function FlagFR({ width = 28, height = 20, className }: Props) {
 export const FLAG_BY_LOCALE = {
   en: FlagUK,
   es: FlagES,
-  pt: FlagPT,
+  pt: FlagBR,
   it: FlagIT,
   fr: FlagFR,
 } as const

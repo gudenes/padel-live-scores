@@ -223,35 +223,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
           </div>
         </Link>
         )
-      })() : (
-        <div style={{
-          padding: '14px 14px 12px',
-          borderBottom: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.05)',
-              border: '2px dashed rgba(255,255,255,0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#6B7280',
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="8" r="4"/>
-                <path d="M4 21v-1a8 8 0 0 1 16 0v1"/>
-              </svg>
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>{t('welcomeTitle')}</div>
-              <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>{t('welcomeSub')}</div>
-            </div>
-          </div>
-        </div>
-      )}
+      })() : null}
 
       {user && (
         <>
@@ -313,13 +285,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
 
       {!user && (
         <>
-          {/* Sign in / Create account stack — both buttons open the same LoginSheet
-              which contains both flows internally. The visual split signals the two
-              destinations to users; consolidate if/when LoginSheet exposes a mode arg. */}
           <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
             padding: 14,
             borderBottom: '1px solid rgba(255,255,255,0.08)',
           }}>
@@ -327,6 +293,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
               type="button"
               onClick={() => { onClose(); openLoginSheet() }}
               style={{
+                width: '100%',
                 height: 36,
                 background: '#7ED321',
                 color: '#0a0a0a',
@@ -349,24 +316,6 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
                 <line x1="15" y1="12" x2="3" y2="12"/>
               </svg>
               {t('signIn')}
-            </button>
-            <button
-              type="button"
-              onClick={() => { onClose(); openLoginSheet() }}
-              style={{
-                height: 36,
-                background: 'rgba(255,255,255,0.05)',
-                color: '#fff',
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: 0.3,
-                textTransform: 'uppercase',
-                clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                cursor: 'pointer',
-              }}
-            >
-              {t('createAccount')}
             </button>
           </div>
 
