@@ -27,7 +27,13 @@
 // touch latency.
 
 import { createElement } from 'react'
-import type { ButtonHTMLAttributes, CSSProperties, ElementType, ReactNode } from 'react'
+import type {
+  AnchorHTMLAttributes,
+  ButtonHTMLAttributes,
+  CSSProperties,
+  ElementType,
+  ReactNode,
+} from 'react'
 
 const DEFAULT_ACCENT = '#7ED321'   // PadelNachos lime
 const DEFAULT_SKIRT = '#5FA516'    // Lime, ~18% darker
@@ -125,8 +131,18 @@ export const PRESS_PRESETS = {
   } satisfies PressPreset,
 } as const
 
+// Anchor attributes are intersected in (Partial-wrapped) so callers
+// can pass `href` / `target` / `rel` when rendering as `as="a"` or
+// `as={Link}`. Without this the props type only allows button
+// attributes — TypeScript is lenient for string-element `as="a"` via
+// IntrinsicElements but strict for React-component `as={Link}`.
+type AnchorExtras = Partial<
+  Pick<AnchorHTMLAttributes<HTMLAnchorElement>, 'href' | 'target' | 'rel'>
+>
+
 export interface PressButtonProps
-  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'style'> {
+  extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'style'>,
+    AnchorExtras {
   /** Top face color. Default: PadelNachos lime. */
   accent?: string
   /** Skirt color (darker shade of accent). Default: darker lime. */
