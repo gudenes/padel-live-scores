@@ -721,15 +721,27 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           ) : null}
 
           {/* Chrome row — back, compact title (fades in), M/W toggle, compact FOLLOW (fades in).
-              alignItems: flex-start + small paddingTop pins the buttons
-              to the top of the navbar (right below the safe-area inset)
-              instead of centering them in the 62px chrome-row height.
-              Without this, the buttons float ~30px below the status bar
-              on notched / Capacitor-edge-to-edge devices. */}
+              ──
+              Layout-wise, the chrome row lives at y=env(safe-area-inset-top)
+              (right below the status bar). That's correct for the SCROLLED
+              state when the navbar is opaque and we need clearance under
+              the status bar.
+              At scroll=0 (hero expanded, navbar transparent), we visually
+              pull the chrome row UP via translateY so it hugs the top of
+              the screen — the chrome buttons sit ~12px from the very top
+              of the viewport, partially overlapping the OS status bar
+              text but on top of the cover image which provides enough
+              contrast.
+              The transform interpolates with heroProgress so the chrome
+              row smoothly slides down into its full safe-area clearance
+              as the user scrolls. transform doesn't affect layout, so
+              tabs/hero positioning stays static. */}
           <div style={{
             position: 'relative', zIndex: 2,
             display: 'flex', alignItems: 'flex-start', gap: 10,
             padding: '6px 16px 12px', height: HERO_COLLAPSED,
+            transform: `translateY(calc(-1 * max(0px, env(safe-area-inset-top) - 12px) * ${1 - p}))`,
+            willChange: 'transform',
           }}>
             <button
               onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
