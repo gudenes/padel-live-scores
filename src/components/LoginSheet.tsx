@@ -140,14 +140,27 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     return false
   }
 
+  // After Firebase Auth sign-in completes on the native side, fetch the
+  // Firebase ID token (NOT the provider's OAuth ID token from
+  // result.credential.idToken). firebase-admin's verifyIdToken() only
+  // accepts tokens issued by Firebase Auth — its audience must equal
+  // our Firebase project. The credential.idToken is Google's / Apple's
+  // raw OAuth token, whose audience is the OAuth client ID; sending
+  // that to the backend produces "invalid token". This was the
+  // production sign-in bug in build 12 (2026-05-21).
+  const fetchFirebaseIdToken = async (): Promise<string> => {
+    const { token } = await FirebaseAuthentication.getIdToken()
+    if (!token) throw new Error('Firebase Auth returned no ID token')
+    return token
+  }
+
   const handleGoogle = async () => {
     setError(null)
     if (isNativeIos) {
       try {
-        const result = await FirebaseAuthentication.signInWithGoogle()
-        const idToken = result.credential?.idToken
-        if (!idToken) throw new Error('Google sign-in returned no idToken')
-        await exchangeFirebaseIdToken(idToken)
+        await FirebaseAuthentication.signInWithGoogle()
+        const firebaseIdToken = await fetchFirebaseIdToken()
+        await exchangeFirebaseIdToken(firebaseIdToken)
       } catch (e) {
         // Surfaces native plugin errors (network failure, misconfigured
         // OAuth client) so the user sees something actionable instead of
@@ -163,10 +176,9 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     setError(null)
     if (isNativeIos) {
       try {
-        const result = await FirebaseAuthentication.signInWithApple()
-        const idToken = result.credential?.idToken
-        if (!idToken) throw new Error('Apple sign-in returned no idToken')
-        await exchangeFirebaseIdToken(idToken)
+        await FirebaseAuthentication.signInWithApple()
+        const firebaseIdToken = await fetchFirebaseIdToken()
+        await exchangeFirebaseIdToken(firebaseIdToken)
       } catch (e) {
         if (!isCancelError(e)) setError((e as Error)?.message || 'sign-in failed')
       }
