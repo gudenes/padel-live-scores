@@ -16,7 +16,6 @@ import { getTierGradient, getTierPill } from '@/lib/tournament-tier-style'
 
 export interface TournamentWithMatchInfo extends Tournament {
   matchesToday: number
-  hasLiveMatch: boolean
 }
 
 interface Props {
@@ -54,8 +53,8 @@ function TournamentCarouselCard({
       <div
         style={{
           position: 'relative',
-          width: 178,
-          height: 240,
+          width: 196,
+          height: 264,
           background: tierGradient,
           clipPath: CHUNKY.card,
           overflow: 'hidden',
@@ -66,7 +65,7 @@ function TournamentCarouselCard({
           src={cover}
           alt=""
           variant="tile-portrait"
-          sizes="178px"
+          sizes="196px"
         />
 
         {/* Bottom gradient overlay for legibility */}
@@ -80,8 +79,10 @@ function TournamentCarouselCard({
           }}
         />
 
-        {/* LIVE pill */}
-        {tournament.hasLiveMatch && (
+        {/* LIVE chip — presence indicator (tournament is running today
+            with matches scheduled). No pulse; calmer than a "scores
+            ticking" signal. */}
+        {tournament.matchesToday > 0 && (
           <div
             style={{
               position: 'absolute',
@@ -89,10 +90,10 @@ function TournamentCarouselCard({
               left: 9,
               background: '#FF4655',
               color: '#fff',
-              fontSize: 9,
+              fontSize: 8,
               fontWeight: 900,
-              padding: '4px 9px',
-              letterSpacing: 1,
+              padding: '3px 7px',
+              letterSpacing: 0.8,
               clipPath: CHUNKY.badge,
               zIndex: 2,
             }}
@@ -199,7 +200,7 @@ export default function LiveTournamentsCarousel({ liveToday }: Props) {
         {liveToday.map(tournament => (
           <div
             key={tournament.id}
-            style={{ scrollSnapAlign: 'start', flexShrink: 0, width: 178 }}
+            style={{ scrollSnapAlign: 'start', flexShrink: 0, width: 196 }}
           >
             <TournamentCarouselCard tournament={tournament} />
           </div>

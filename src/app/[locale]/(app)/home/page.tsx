@@ -315,7 +315,7 @@ function V3HomePageInner() {
             const { startUTC, endUTC } = getLocalDayBoundaryUTC()
             return supabase
               .from('matches')
-              .select('tournament_id, status')
+              .select('tournament_id')
               .gte('scheduled_at', startUTC)
               .lte('scheduled_at', endUTC)
           })() as any,
@@ -359,7 +359,6 @@ function V3HomePageInner() {
           .map(r => ({
             ...(r as Tournament),
             matchesToday: matchInfo.get(r.id)?.matchesToday ?? 0,
-            hasLiveMatch: matchInfo.get(r.id)?.hasLiveMatch ?? false,
           }))
           .sort(compareTournamentsForCarousel)
       setCarouselLiveToday(decorate(carouselLiveRows))

@@ -5,13 +5,14 @@
  *   levelTierWeight (Premier first, then FIP in tier order), tie-broken
  *   by ascending starts_at.
  * - buildMatchInfoMap: aggregate raw matches-today rows into per-tournament
- *   { matchesToday, hasLiveMatch }. Uses the canonical isLiveStatus helper.
+ *   { matchesToday }. We no longer key off per-match status because the
+ *   carousel's LIVE chip is purely a presence indicator (tournament is
+ *   running today) — see 2026-05-21-carousel-live-chip-simplification-design.md.
  * - getLocalDayBoundaryUTC: compute today's [startUTC, endUTC] window in the
  *   user's local timezone, suitable for filtering matches.scheduled_at.
  */
 
 import { levelTierWeight } from './tournament-labels'
-import { isLiveStatus } from './tournament-tier'
 
 export interface TournamentForSort {
   id: string
@@ -21,12 +22,10 @@ export interface TournamentForSort {
 
 export interface MatchForAggregation {
   tournament_id: string
-  status: string
 }
 
 export interface MatchInfo {
   matchesToday: number
-  hasLiveMatch: boolean
 }
 
 export function compareTournamentsForCarousel(
@@ -46,11 +45,10 @@ export function buildMatchInfoMap(
   for (const r of rows) {
     let entry = out.get(r.tournament_id)
     if (!entry) {
-      entry = { matchesToday: 0, hasLiveMatch: false }
+      entry = { matchesToday: 0 }
       out.set(r.tournament_id, entry)
     }
     entry.matchesToday += 1
-    if (isLiveStatus(r.status)) entry.hasLiveMatch = true
   }
   return out
 }
