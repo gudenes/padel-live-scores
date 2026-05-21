@@ -146,6 +146,13 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // 10. /mockups/* design previews — internal-only comparison pages
+  // outside the [locale] tree. Skip i18n routing so they resolve at
+  // their raw path instead of being wrapped to /es/mockups/...
+  if (pathname === '/mockups' || pathname.startsWith('/mockups/')) {
+    return NextResponse.next()
+  }
+
   // ── Cookie-wins locale redirect ────────────────────────────────
   //
   // When the user manually picks a language via LocaleSwitcher, we write

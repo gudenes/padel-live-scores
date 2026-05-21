@@ -517,3 +517,35 @@ button:focus { outline: none; }
   border: 0;
 }
 
+/* ── PressButton — tactile 3D press-down effect ───────────────────
+ * Used by <PressButton>. Two stacked layers inside the button:
+ *
+ *   .pn-press        — transparent button wrapper, owns layout
+ *   .pn-press-skirt  — back layer, accent-darker, offset down by depth
+ *   .pn-press-face   — front layer, accent color, holds content
+ *
+ * On :active the face translates down by --pn-press-depth, landing on
+ * the skirt — the user sees the button "press in". Pure CSS so there's
+ * no pointer-event latency on touch. 70ms easing matches the Sentry-
+ * style snap; faster reads as twitchy, slower feels mushy.
+ *
+ *   --pn-press-depth   skirt thickness (default 4px, set inline)
+ *
+ * Box-shadow isn't used for the skirt — it'd be clipped by the face's
+ * clipPath, breaking the effect on chunky polygon CTAs. The two-span
+ * layout works with any shape.
+ */
+.pn-press-face {
+  transition: transform 70ms ease-out;
+  transform: translateY(0);
+}
+.pn-press:active:not(:disabled) .pn-press-face {
+  transform: translateY(var(--pn-press-depth, 4px));
+}
+@media (prefers-reduced-motion: reduce) {
+  .pn-press-face,
+  .pn-press:active:not(:disabled) .pn-press-face {
+    transition: none;
+  }
+}
+
