@@ -53,8 +53,8 @@ function TournamentCarouselCard({
       <div
         style={{
           position: 'relative',
-          width: 178,
-          height: 240,
+          width: 196,
+          height: 264,
           background: tierGradient,
           clipPath: CHUNKY.card,
           overflow: 'hidden',
@@ -65,7 +65,7 @@ function TournamentCarouselCard({
           src={cover}
           alt=""
           variant="tile-portrait"
-          sizes="178px"
+          sizes="196px"
         />
 
         {/* Bottom gradient overlay for legibility */}
@@ -200,7 +200,7 @@ export default function LiveTournamentsCarousel({ liveToday }: Props) {
         {liveToday.map(tournament => (
           <div
             key={tournament.id}
-            style={{ scrollSnapAlign: 'start', flexShrink: 0, width: 178 }}
+            style={{ scrollSnapAlign: 'start', flexShrink: 0, width: 196 }}
           >
             <TournamentCarouselCard tournament={tournament} />
           </div>
