@@ -28,6 +28,20 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
   plugins: {
+    // @capacitor-firebase/authentication — native Google + Apple sign-in
+    // for iOS. The `providers` array tells the plugin which auth methods
+    // to initialise on app start; without it, signInWithGoogle() /
+    // signInWithApple() throw "provider is not enabled". `skipNativeAuth:
+    // false` means the plugin completes the full Firebase auth round-trip
+    // and returns a Firebase ID token (which our /api/auth/native-signin
+    // endpoint then verifies + exchanges for an Auth.js session).
+    //
+    // We do NOT add 'password' or other providers — magic link stays on
+    // the web flow (deferred to v1.0.5 via Universal Links).
+    FirebaseAuthentication: {
+      skipNativeAuth: false,
+      providers: ['google.com', 'apple.com'],
+    },
     SplashScreen: {
       // Show for 2.5s minimum so the brand moment lands; if WebView
       // first-paint is faster, we extend until launchShowDuration so

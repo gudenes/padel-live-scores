@@ -112,6 +112,28 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     window.location.href = '/home'
   }
 
+  // Native plugin errors come from heterogeneous origins (Apple
+  // ASAuthorizationServices, Google Sign-In SDK, Firebase Auth), each
+  // with their own cancel-signal conventions. We swallow every form of
+  // "user dismissed the sheet" silently — surfacing it as red error
+  // text would punish people for tapping Cancel.
+  //
+  // Apple iOS cancel: error message includes `AuthorizationError error 1000`
+  //                   (ASAuthorizationErrorCanceled = 1000) and no "cancel" word
+  // Google iOS cancel: Firebase plugin code === 'auth/cancelled-popup-request'
+  //                    or 'auth/user-cancelled', or message contains "cancel"
+  // Generic plugin cancel: code === 'cancelled' or 'CANCELED'
+  const isCancelError = (e: unknown): boolean => {
+    const err = e as { message?: string; code?: string | number }
+    const msg = (err?.message || '').toLowerCase()
+    const code = String(err?.code ?? '').toLowerCase()
+    if (msg.includes('cancel')) return true                  // catches "canceled" / "cancelled"
+    if (msg.includes('error 1000')) return true              // Apple ASAuthorization cancel
+    if (code === 'cancelled' || code === 'canceled') return true
+    if (code.includes('cancel')) return true                 // e.g. "auth/cancelled-popup-request"
+    return false
+  }
+
   const handleGoogle = async () => {
     setError(null)
     if (isNativeIos) {
@@ -121,11 +143,10 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         if (!idToken) throw new Error('Google sign-in returned no idToken')
         await exchangeFirebaseIdToken(idToken)
       } catch (e) {
-        // Surfaces native plugin errors (user cancellation, network
-        // failure, misconfigured OAuth client) so the user sees
-        // something actionable instead of a dead sheet.
-        const msg = (e as Error)?.message || 'sign-in failed'
-        if (!msg.toLowerCase().includes('cancel')) setError(msg)
+        // Surfaces native plugin errors (network failure, misconfigured
+        // OAuth client) so the user sees something actionable instead of
+        // a dead sheet. Cancels are swallowed silently — see isCancelError.
+        if (!isCancelError(e)) setError((e as Error)?.message || 'sign-in failed')
       }
       return
     }
@@ -141,8 +162,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         if (!idToken) throw new Error('Apple sign-in returned no idToken')
         await exchangeFirebaseIdToken(idToken)
       } catch (e) {
-        const msg = (e as Error)?.message || 'sign-in failed'
-        if (!msg.toLowerCase().includes('cancel')) setError(msg)
+        if (!isCancelError(e)) setError((e as Error)?.message || 'sign-in failed')
       }
       return
     }
