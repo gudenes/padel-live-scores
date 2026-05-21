@@ -40,6 +40,7 @@ import {
 import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
 import { LoginCtaSheet } from '@/components/LoginCtaSheet'
+import { useScrollMemory } from '@/hooks/useScrollMemory'
 
 // ── Match select queries ──────────────────────────────────────
 const MATCH_PLAYER_JOINS = `
@@ -82,6 +83,13 @@ function V3HomePageInner() {
   const tHome = useTranslations('home')
   const tFooter = useTranslations('footer')
   const initialView: 'home' | 'tournaments' = searchParams.get('view') === 'tournaments' ? 'tournaments' : 'home'
+
+  // Persist scroll position across in-tab navigation so router.back()
+  // from /road-to-olympics, /tournaments/[id], /match/[id], etc. lands
+  // the user where they were — not at the "middle" of the page where
+  // browser-native scroll restoration ends up after async data loads
+  // reflow the layout post-restore.
+  useScrollMemory('pn-scroll-home')
 
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState<'home' | 'tournaments'>(initialView)
