@@ -800,11 +800,17 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         </div>
 
         {/* Expanded hero — pulled up to overlap the navbar at scroll=0,
-            scrolls away naturally as the user scrolls. */}
+            scrolls away naturally as the user scrolls.
+            ──
+            marginTop pulls past BOTH the chrome row (HERO_COLLAPSED)
+            AND the safe-area inset, so the cover image fills behind
+            the status bar / notch too. Without the safe-area offset,
+            the transparent navbar's top region would let the page
+            background bleed through as a gray bar on notched devices. */}
         <div style={{
           position: 'relative', zIndex: 5,
           height: HERO_EXPANDED,
-          marginTop: -HERO_COLLAPSED,
+          marginTop: `calc(-1 * (env(safe-area-inset-top) + ${HERO_COLLAPSED}px))`,
           overflow: 'hidden',
           background: '#0A0A0A',
         }}>
