@@ -20,6 +20,15 @@ export interface TournamentDiscoveryResult {
    *  duplicate. Should be 0 in steady state — non-zero values flag
    *  data we'd otherwise have had to clean up retroactively. */
   twinMerges: number;
+  /** Count of FIP events that were SKIPPED because an existing FIP-only
+   *  row with the same physical-event identity (level + country + token
+   *  subset, see `isPhysicalTwin`) is already in the DB. Signals that
+   *  the FIP CMS published the same physical tournament under two
+   *  different slugs (e.g. `fip-silver-london-2026` and
+   *  `fip-silver-hop-london-padel-open-2026`). Non-zero values are
+   *  expected once dupes exist; the count is shown so ops can confirm
+   *  the guard is firing. */
+  fipTwinSkipped: number;
 }
 
 const WP_API_BASE = 'https://www.padelfip.com/wp-json/wp/v2/events';
@@ -67,6 +76,47 @@ function tournamentGroupKey(name: string | null, startsAt: string | null): strin
   if (tokens.length === 0) return null;
   const year = startsAt?.slice(0, 4) ?? '0000';
   return `${tokens.sort().join(' ')}|${year}`;
+}
+
+// Tier / branding tokens that don't identify a *physical* event — every
+// FIP Silver in Spain has "silver" in its name, so it carries no signal
+// about which physical tournament we're looking at. Stripping these
+// leaves only the geographic / sponsor tokens that distinguish events.
+//
+// Includes both the existing TOURNAMENT_NOISE_TOKENS (already filtered
+// by `tournamentTokenize`) and the level-name tokens. Used by
+// `isPhysicalTwin` to find FIP↔FIP duplicate events (different slugs
+// for the same physical tournament — e.g. `fip-silver-london-2026` and
+// `fip-silver-hop-london-padel-open-2026`).
+const TIER_TOKENS: ReadonlySet<string> = new Set([
+  'fip', 'silver', 'gold', 'bronze',
+  'promises', 'beyond', 'hexagon',
+  'p1', 'p2', 'major', 'mens', 'womens',
+]);
+
+function distinctiveTokens(name: string | null | undefined): string[] {
+  return tournamentTokenize(name).filter((t) => !TIER_TOKENS.has(t));
+}
+
+// Decides whether two FIP rows describe the same physical event by
+// comparing their distinctive (post-tier-strip) token sets:
+//   - Both sets must be non-empty (otherwise they only share tier
+//     tokens, which proves nothing — every fip_silver is "silver").
+//   - One set must be a subset of the other.
+//
+// Catches the common FIP CMS pattern of publishing a geographic slug
+// and a sponsor-branded slug for the same event:
+//   {london} ⊂ {hop, london}                → SAME event (skip newer)
+//   {dubai}  ⊂ {damac, dubai}               → SAME event (skip newer)
+//   {istanbul} vs {qnb}                     → DIFFERENT events (no overlap)
+// The third case (full rebrand, no shared geographic token) is not
+// catchable at discovery time and falls through to the post-discovery
+// matchscorer_url-based merge logic in fip-event-page-enricher.
+function isPhysicalTwin(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  if (a.size === 0 || b.size === 0) return false;
+  const [smaller, larger] = a.size <= b.size ? [a, b] : [b, a];
+  for (const t of smaller) if (!larger.has(t)) return false;
+  return true;
 }
 
 interface TwinCandidate {
@@ -125,7 +175,12 @@ export async function runTournamentDiscovery(
   );
 
   if (parsed.length === 0) {
-    return { discovered: 0, scrapeJobId: jobResult.scrapeJobId, twinMerges: 0 };
+    return {
+      discovered: 0,
+      scrapeJobId: jobResult.scrapeJobId,
+      twinMerges: 0,
+      fipTwinSkipped: 0,
+    };
   }
 
   // 3. Upsert (conflict on slug, which is the canonical FIP id post-Plan-1 rename).
@@ -194,6 +249,16 @@ export async function runTournamentDiscovery(
     if (y && /^(19|20)\d{2}$/.test(y)) parsedYears.add(y);
   }
   const twinByGroupKey = new Map<string, TwinCandidate>();
+  // FIP↔FIP twin index: existing FIP-only rows grouped by `level|country`
+  // so we can subset-check incoming events against rows that share the
+  // same tier and host country. Catches the FIP CMS pattern of publishing
+  // a geographic-named slug AND a sponsor-branded slug for the SAME
+  // physical event (London / Hop London Padel Open, Dubai / DAMAC Dubai,
+  // …). See `isPhysicalTwin` for the matching rule.
+  const fipSiblingsByLevelCountry = new Map<
+    string,
+    Array<{ id: string; slug: string | null; name: string; tokens: Set<string> }>
+  >();
   if (parsedYears.size > 0) {
     const yearStart = `${[...parsedYears].sort()[0]}-01-01`;
     const yearEnd = `${[...parsedYears].sort().pop()}-12-31`;
@@ -207,6 +272,31 @@ export async function runTournamentDiscovery(
     for (const c of (cand ?? []) as Array<TwinCandidate & { name: string; starts_at: string | null }>) {
       const key = tournamentGroupKey(c.name, c.starts_at);
       if (key) twinByGroupKey.set(key, c);
+    }
+    // Second pull: FIP-only rows (the inverse of the padelapi-twin set
+    // above). These collide with newly-parsed FIP events when the CMS
+    // publishes the same physical event under two distinct slugs.
+    const { data: fipCand } = await deps.supabase
+      .from('tournaments')
+      .select('id, slug, level, country, name, starts_at')
+      .is('padelapi_id', null)
+      .not('fip_id', 'is', null)
+      .gte('starts_at', yearStart)
+      .lte('starts_at', yearEnd);
+    for (const r of (fipCand ?? []) as Array<{
+      id: string; slug: string | null; level: string | null;
+      country: string | null; name: string; starts_at: string | null;
+    }>) {
+      if (!r.level || !r.country) continue;
+      const key = `${r.level}|${r.country}`;
+      const list = fipSiblingsByLevelCountry.get(key) ?? [];
+      list.push({
+        id: r.id,
+        slug: r.slug,
+        name: r.name,
+        tokens: new Set(distinctiveTokens(r.name)),
+      });
+      fipSiblingsByLevelCountry.set(key, list);
     }
   }
 
@@ -222,13 +312,20 @@ export async function runTournamentDiscovery(
   // Track twin redirects for telemetry — every match here is one
   // duplicate row that would have been created pre-fix.
   const twinMerges: Array<{ twinId: string; slug: string; name: string }> = [];
+  // FIP↔FIP twin skips: parsed events that matched an existing FIP row
+  // and were dropped instead of inserted. Telemetry only; the row is
+  // never created so no FK/data fan-out happens downstream.
+  const fipTwinSkipped: Array<{
+    parsedSlug: string; parsedName: string;
+    canonicalSlug: string | null; canonicalId: string;
+  }> = [];
 
   // twinIds is populated during the map below (twinMerges accumulates as
   // we iterate), so we define a live Set here and fill it incrementally.
   // The downstream batch-split code references the same Set after the map.
   const twinIds = new Set<string>();
 
-  const rows = parsed.map((p) => {
+  const rowsWithNulls = parsed.map((p): Record<string, unknown> | null => {
     const level = resolveFipLevel(p.categoryTermIds, p.slug);
 
     // Twin lookup: if a padelapi-imported row exists with the same
@@ -248,6 +345,53 @@ export async function runTournamentDiscovery(
 
     const existingLevel = twin?.level ?? existingBySlug.get(p.slug)?.level;
     const existingCountry = twin?.country ?? existingBySlug.get(p.slug)?.country;
+
+    // FIP↔FIP physical-twin guard. Skip insertion entirely when an
+    // existing FIP-only row in the same (level, country) bucket has a
+    // distinctive-token set that subsets/supersets this event's tokens
+    // — that pattern reliably identifies the FIP CMS publishing the
+    // same physical tournament under two different slugs. The padelapi-
+    // twin branch above takes precedence (we still want to enrich a
+    // padelapi-linked row even if there's another FIP row floating).
+    //
+    // Why we skip rather than merge: the existing FIP row is already
+    // the canonical (it's been there longer and may have collected
+    // matches via downstream workers). Routing enrichment INTO it
+    // would require changing its slug, which conflicts with the
+    // `slug` unique index and downstream draws/widgets keyed on slug.
+    // Skipping leaves the canonical untouched and prevents the dup
+    // from being re-created on every hourly tick.
+    if (!twin) {
+      const premierLevelGuard = resolvePremierLevel(p.categoryTermIds, p.slug);
+      const effectiveLevel = level ?? premierLevelGuard ?? existingLevel ?? null;
+      const firstCountryTermGuard = p.countryTermIds[0];
+      const resolvedCountryGuard =
+        firstCountryTermGuard != null
+          ? countryByTermId.get(firstCountryTermGuard) ?? null
+          : null;
+      const effectiveCountry = resolvedCountryGuard ?? existingCountry ?? null;
+      if (effectiveLevel && effectiveCountry) {
+        const siblings = fipSiblingsByLevelCountry.get(
+          `${effectiveLevel}|${effectiveCountry}`,
+        );
+        if (siblings && siblings.length > 0) {
+          const parsedDistinctive = new Set(distinctiveTokens(p.name));
+          const physTwin = siblings.find(
+            (sib) => sib.slug !== p.slug && isPhysicalTwin(sib.tokens, parsedDistinctive),
+          );
+          if (physTwin) {
+            fipTwinSkipped.push({
+              parsedSlug: p.slug,
+              parsedName: p.name,
+              canonicalSlug: physTwin.slug,
+              canonicalId: physTwin.id,
+            });
+            return null;
+          }
+        }
+      }
+    }
+
     const row: Record<string, unknown> = {
       ...(twin ? { id: twin.id } : {}),
       name: p.name,
@@ -348,6 +492,12 @@ export async function runTournamentDiscovery(
 
     return row;
   });
+  // Drop the entries skipped by the FIP↔FIP guard above so they never
+  // hit the upsert. `rowsWithNulls` is the post-map array; `rows` is
+  // the same set minus the skipped events.
+  const rows = rowsWithNulls.filter(
+    (r): r is Record<string, unknown> => r != null,
+  );
 
   // Split into two upsert batches: rows targeting an existing padelapi
   // twin go through `onConflict: 'id'` (update by primary key — the
@@ -381,6 +531,7 @@ export async function runTournamentDiscovery(
     discovered: parsed.length,
     scrapeJobId: jobResult.scrapeJobId,
     twinMerges: twinMerges.length,
+    fipTwinSkipped: fipTwinSkipped.length,
   };
 }
 

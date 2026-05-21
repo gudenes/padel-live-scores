@@ -1,15 +1,28 @@
 import { describe, it, expect, vi } from 'vitest';
 import { runTournamentDiscovery } from '../../workers/tournament-discovery.js';
 
-function fakeSupabase(maxModified: string | null, twinCandidates: any[] = []) {
+function fakeSupabase(
+  maxModified: string | null,
+  twinCandidates: any[] = [],
+  fipSiblings: any[] = [],
+) {
   const upserted: any[] = [];
-  // Twin-lookup chain: .select(...).not(...).is(...).gte(...).lte(...) → thenable
+  // padelapi→FIP twin lookup chain — starts with .not('padelapi_id', ...)
   const twinChain = {
     not: (_c: string, _o: string, _v: any) => twinChain,
     is: (_c: string, _v: any) => twinChain,
     gte: (_c: string, _v: any) => twinChain,
     lte: (_c: string, _v: any) => twinChain,
     then: (resolve: any) => resolve({ data: twinCandidates, error: null }),
+  };
+  // FIP↔FIP sibling lookup chain — starts with .is('padelapi_id', null).not(...)
+  // (added 2026-05-21 for the FIP-twin guard).
+  const fipSiblingChain = {
+    not: (_c: string, _o: string, _v: any) => fipSiblingChain,
+    is: (_c: string, _v: any) => fipSiblingChain,
+    gte: (_c: string, _v: any) => fipSiblingChain,
+    lte: (_c: string, _v: any) => fipSiblingChain,
+    then: (resolve: any) => resolve({ data: fipSiblings, error: null }),
   };
   return {
     upserted,
@@ -33,8 +46,10 @@ function fakeSupabase(maxModified: string | null, twinCandidates: any[] = []) {
         }),
         // Supports the slug-based pre-fetch for Premier gap-fill.
         in: async (_col: string, _values: string[]) => ({ data: [], error: null }),
-        // Supports the twin-lookup chain (.not / .is / .gte / .lte).
+        // Padelapi twin chain entry point (starts with `.not`).
         not: (_c: string, _o: string, _v: any) => twinChain,
+        // FIP-sibling chain entry point (starts with `.is`).
+        is: (_c: string, _v: any) => fipSiblingChain,
       }),
       upsert: (rows: any[], opts: any) => {
         upserted.push({ table, rows, opts });
@@ -138,6 +153,13 @@ describe('runTournamentDiscovery', () => {
           lte: (_c: string, _v: any) => twinChain,
           then: (resolve: any) => resolve({ data: [], error: null }),
         };
+        const fipSiblingChain = {
+          not: (_c: string, _o: string, _v: any) => fipSiblingChain,
+          is: (_c: string, _v: any) => fipSiblingChain,
+          gte: (_c: string, _v: any) => fipSiblingChain,
+          lte: (_c: string, _v: any) => fipSiblingChain,
+          then: (resolve: any) => resolve({ data: [], error: null }),
+        };
         return {
           select: (_cols: string) => ({
             order: () => ({
@@ -151,6 +173,7 @@ describe('runTournamentDiscovery', () => {
               error: null,
             }),
             not: (_c: string, _o: string, _v: any) => twinChain,
+            is: (_c: string, _v: any) => fipSiblingChain,
           }),
           upsert: (rows: any[], opts: any) => {
             upserted.push({ table, rows, opts });
@@ -406,6 +429,200 @@ describe('runTournamentDiscovery', () => {
     // Must NOT silently flip to padelgod — must echo 'padelapi' back
     expect(upsertedRow.live_source).toBe('padelapi')
   })
+
+  // ── FIP↔FIP physical-twin guard ────────────────────────────────────
+  //
+  // Repro for the recurring London dup (2026-05-21):
+  // FIP CMS publishes `fip-silver-london-2026` AND
+  // `fip-silver-hop-london-padel-open-2026` as separate posts for the
+  // same physical tournament. Pre-fix, every hourly discovery tick
+  // re-inserted the longer-named row after operators deleted it.
+  //
+  // Fix: a parsed event whose distinctive (post-tier-strip) tokens are
+  // a superset (or subset) of an existing FIP row's tokens — same
+  // level + country — is treated as a duplicate and skipped.
+
+  it('skips a parsed FIP event when an existing FIP sibling has subset tokens (London/Hop London)', async () => {
+    const canonicalId = '11111111-1111-1111-1111-111111111111';
+    const supabase = fakeSupabase(
+      null,
+      [], // no padelapi twins
+      [
+        {
+          // Existing canonical row: distinctive tokens = {london}
+          id: canonicalId,
+          slug: 'fip-silver-london-2026',
+          name: 'FIP SILVER LONDON',
+          level: 'fip_silver',
+          country: 'GB',
+          starts_at: '2026-05-20T00:00:00+00:00',
+        },
+      ],
+    );
+    const httpClient = fakeHttp(
+      [
+        {
+          // Newcomer: distinctive tokens = {hop, london} (padel & open are noise).
+          // {london} ⊂ {hop, london} → physical twin → skip.
+          id: 100,
+          slug: 'fip-silver-hop-london-padel-open-2026',
+          title: { rendered: 'FIP SILVER HOP LONDON PADEL OPEN' },
+          modified_gmt: '2026-05-21T10:00:00',
+          date_gmt: '2026-04-25T08:00:00',
+          country: [42], // resolves to GB below
+          'category-event': [496], // fip_silver
+        },
+      ],
+      // country taxonomy: term 42 → GB (alpha-3 "GBR" normalises to alpha-2 "GB")
+      [{ id: 42, name: 'GBR' }],
+    );
+
+    const result = await runTournamentDiscovery({ supabase: supabase as any, httpClient: httpClient as any });
+
+    expect(result.discovered).toBe(1);
+    expect(result.fipTwinSkipped).toBe(1);
+    // The crucial assertion: NO upsert reached `.from('tournaments').upsert(...)`.
+    expect(supabase.upserted).toHaveLength(0);
+  });
+
+  it('skips when parsed tokens are a subset of an existing sibling (reverse direction)', async () => {
+    // If the longer-branded slug is already canonical and the shorter
+    // geographic slug arrives later, we still skip — keeping the longer
+    // canonical untouched is safer than slug-swapping.
+    const supabase = fakeSupabase(null, [], [
+      {
+        id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        slug: 'fip-silver-damac-dubai-2026',
+        name: 'FIP SILVER DAMAC DUBAI',
+        level: 'fip_silver',
+        country: 'AE',
+        starts_at: '2026-02-16T00:00:00+00:00',
+      },
+    ]);
+    const httpClient = fakeHttp(
+      [
+        {
+          id: 101,
+          slug: 'fip-silver-dubai-2026',
+          title: { rendered: 'FIP SILVER DUBAI' },
+          modified_gmt: '2026-05-21T10:00:00',
+          date_gmt: '2026-04-01T08:00:00',
+          country: [7],
+          'category-event': [496],
+        },
+      ],
+      [{ id: 7, name: 'ARE' }], // ARE → AE
+    );
+
+    const result = await runTournamentDiscovery({ supabase: supabase as any, httpClient: httpClient as any });
+
+    expect(result.fipTwinSkipped).toBe(1);
+    expect(supabase.upserted).toHaveLength(0);
+  });
+
+  it('does NOT skip when sibling is in a different country (false-positive guard)', async () => {
+    // Two distinct events with same level + token "london" but different
+    // countries (e.g. London GB vs London-ON Canada) must NOT collide.
+    const supabase = fakeSupabase(null, [], [
+      {
+        id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        slug: 'fip-silver-london-2026',
+        name: 'FIP SILVER LONDON',
+        level: 'fip_silver',
+        country: 'CA', // different country
+        starts_at: '2026-05-20T00:00:00+00:00',
+      },
+    ]);
+    const httpClient = fakeHttp(
+      [
+        {
+          id: 102,
+          slug: 'fip-silver-london-gb-2026',
+          title: { rendered: 'FIP SILVER LONDON GB' },
+          modified_gmt: '2026-05-21T10:00:00',
+          date_gmt: '2026-04-01T08:00:00',
+          country: [42],
+          'category-event': [496],
+        },
+      ],
+      [{ id: 42, name: 'GBR' }],
+    );
+
+    const result = await runTournamentDiscovery({ supabase: supabase as any, httpClient: httpClient as any });
+
+    expect(result.fipTwinSkipped).toBe(0);
+    expect(supabase.upserted).toHaveLength(1);
+  });
+
+  it('does NOT skip when distinctive tokens do not overlap (Istanbul/QNB Cup rebrand)', async () => {
+    // Full rebrand: existing distinctive = {istanbul}, parsed = {qnb}
+    // (cup is filtered as a noise token). No overlap → no skip.
+    // This is the known limitation: full rebrands fall through and
+    // need a downstream matchscorer_url-based merge to resolve.
+    const supabase = fakeSupabase(null, [], [
+      {
+        id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        slug: 'fip-bronze-istanbul-2026',
+        name: 'FIP BRONZE ISTANBUL',
+        level: 'fip_bronze',
+        country: 'TR',
+        starts_at: '2026-06-01T00:00:00+00:00',
+      },
+    ]);
+    const httpClient = fakeHttp(
+      [
+        {
+          id: 103,
+          slug: 'fip-bronze-qnb-cup-2026',
+          title: { rendered: 'FIP BRONZE QNB CUP' },
+          modified_gmt: '2026-05-21T10:00:00',
+          date_gmt: '2026-04-01T08:00:00',
+          country: [99],
+          'category-event': [497], // fip_bronze
+        },
+      ],
+      [{ id: 99, name: 'TUR' }],
+    );
+
+    const result = await runTournamentDiscovery({ supabase: supabase as any, httpClient: httpClient as any });
+
+    expect(result.fipTwinSkipped).toBe(0);
+    expect(supabase.upserted).toHaveLength(1);
+  });
+
+  it('does NOT skip when sibling has the same slug as parsed (self-match)', async () => {
+    // Re-discovering the same slug must hit the normal upsert path,
+    // not be treated as its own physical twin.
+    const supabase = fakeSupabase(null, [], [
+      {
+        id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        slug: 'fip-silver-london-2026',
+        name: 'FIP SILVER LONDON',
+        level: 'fip_silver',
+        country: 'GB',
+        starts_at: '2026-05-20T00:00:00+00:00',
+      },
+    ]);
+    const httpClient = fakeHttp(
+      [
+        {
+          id: 104,
+          slug: 'fip-silver-london-2026', // same slug as canonical → not a twin
+          title: { rendered: 'FIP SILVER LONDON' },
+          modified_gmt: '2026-05-21T10:00:00',
+          date_gmt: '2026-04-01T08:00:00',
+          country: [42],
+          'category-event': [496],
+        },
+      ],
+      [{ id: 42, name: 'GBR' }],
+    );
+
+    const result = await runTournamentDiscovery({ supabase: supabase as any, httpClient: httpClient as any });
+
+    expect(result.fipTwinSkipped).toBe(0);
+    expect(supabase.upserted).toHaveLength(1);
+  });
 });
 
 // ── Test fixtures for Premier gap-fill tests ──
@@ -436,9 +653,7 @@ function makeMockSupabase(opts: MockOpts) {
       }),
     }),
     from: (_table: string) => {
-      // Twin-lookup chain: the worker queries existing padelapi rows
-      // that have no fip_id yet. Tests in this file don't seed twins,
-      // so this resolves to an empty list.
+      // Padelapi-twin chain (no twin candidates seeded → empty result).
       const twinChain = {
         not: (_c: string, _o: string, _v: any) => twinChain,
         is: (_c: string, _v: any) => twinChain,
@@ -446,10 +661,19 @@ function makeMockSupabase(opts: MockOpts) {
         lte: (_c: string, _v: any) => twinChain,
         then: (resolve: any) => resolve({ data: [], error: null }),
       };
+      // FIP-sibling chain for the FIP↔FIP twin guard (added 2026-05-21).
+      // Tests in this block don't seed siblings; empty list = no skip.
+      const fipSiblingChain = {
+        not: (_c: string, _o: string, _v: any) => fipSiblingChain,
+        is: (_c: string, _v: any) => fipSiblingChain,
+        gte: (_c: string, _v: any) => fipSiblingChain,
+        lte: (_c: string, _v: any) => fipSiblingChain,
+        then: (resolve: any) => resolve({ data: [], error: null }),
+      };
       return {
         select: (_cols?: string) => {
-          // Three select shapes: the worker's "max updated_at" lookup,
-          // the slug pre-fetch for gap-fill, and the twin lookup.
+          // Four select shapes: max updated_at, slug pre-fetch, padelapi-
+          // twin lookup, and FIP-sibling lookup.
           return {
             order: () => ({
               limit: () => ({ maybeSingle: async () => ({ data: null }) }),
@@ -463,6 +687,7 @@ function makeMockSupabase(opts: MockOpts) {
               error: null,
             }),
             not: (_c: string, _o: string, _v: any) => twinChain,
+            is: (_c: string, _v: any) => fipSiblingChain,
           };
         },
         upsert: async (rows: RecordedRow[]) => {
