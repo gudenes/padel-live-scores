@@ -17,6 +17,10 @@ import type { LiveChannel } from './group-builder'
 export interface FilterTournamentStreamsArgs {
   liveVideos: LiveChannel[]
   attributedVideoIds: Set<string>
+  /** Pre-tokenized via `tokenize()` from `fip-stream-title-parser`. Noise
+   *  tokens ('fip', 'padel', 'tour', …) and 4-digit year tokens must already
+   *  be stripped — pass raw `tournament.name.split(' ')` and the overlap
+   *  count will be wrong. */
   tournamentNameTokens: string[]
   minHeuristicTokens?: number
 }

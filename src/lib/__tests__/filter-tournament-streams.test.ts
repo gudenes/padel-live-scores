@@ -100,4 +100,20 @@ describe('filterTournamentStreams', () => {
     })
     expect(result.map(v => v.videoId).sort()).toEqual(['v1', 'v3'])
   })
+
+  it('drops all non-FIP videos when tournamentNameTokens is empty', () => {
+    // Defensive: a tournament whose name tokenizes to nothing (e.g. a name
+    // composed entirely of noise tokens) should not accidentally match every
+    // non-FIP stream. Empty name token set → zero overlap → all non-FIP rows
+    // drop. FIP rows still flow through the canonical attribution branch.
+    const result = filterTournamentStreams({
+      liveVideos: [
+        fipVideo('v1', 'FIP Bronze Marnes — R16'),
+        pmVideo('v2', 'Piste centrale — FIP Bronze Marnes'),
+      ],
+      attributedVideoIds: new Set(['v1']),
+      tournamentNameTokens: [],
+    })
+    expect(result.map(v => v.videoId)).toEqual(['v1'])
+  })
 })
