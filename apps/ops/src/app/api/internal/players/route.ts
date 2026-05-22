@@ -1,6 +1,11 @@
 // apps/ops/src/app/api/internal/players/route.ts
 // Player detail + edit API for ops dashboard.
 // Auth: Auth.js session with isOperator check.
+//
+// Equipment is intentionally NOT selected here — the legacy `players.equipment`
+// jsonb column is deprecated. Source of truth is the `player_equipment` junction;
+// drawer's Equipment tab fetches it via /api/internal/player-equipment.
+// Spec: docs/superpowers/specs/2026-05-22-players-equipment-full-profile-design.md
 
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
@@ -24,7 +29,7 @@ export async function GET(request: Request) {
 
   const { data: player, error } = await supabase
     .from('players')
-    .select('id, name, display_name, country, category, ranking, points, ranking_move, race_ranking, race_points, race_move, external_id, fip_id, avatar_url, profile_url, side, height, birthdate, birthplace, hand, titles, finals, semifinals, win_rate, total_matches, equipment, created_at, updated_at')
+    .select('id, name, display_name, country, category, ranking, points, ranking_move, race_ranking, race_points, race_move, external_id, fip_id, avatar_url, profile_url, side, height, birthdate, birthplace, hand, titles, finals, semifinals, win_rate, total_matches, created_at, updated_at')
     .eq('id', id)
     .single()
 

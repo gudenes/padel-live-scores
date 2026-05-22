@@ -53,7 +53,9 @@ export async function GET(request: Request) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  // Batch-fetch current equipment for all returned players
+  // Equipment is derived from the player_equipment junction (source of truth).
+  // The legacy `players.equipment` text/jsonb column is deprecated — do not read it here.
+  // Junction is canonical per spec 2026-05-22-players-equipment-full-profile-design.md.
   const playerIds = (data ?? []).map(p => p.id)
   let equipmentMap: Record<string, { brand: string; model: string; year: number | null }> = {}
 
