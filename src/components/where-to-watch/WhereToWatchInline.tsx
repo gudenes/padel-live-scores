@@ -5,10 +5,16 @@
 // tab where vertical real estate is plentiful and discoverability beats
 // compactness.
 //
-// Self-hides when buildGroups returns an empty array (same rule as the
-// pill + banner). Region picker is reachable from the footer; tapping
-// it swaps the panel body for the picker (same internal state machine
-// as WhereToWatchPopup).
+// Three render modes:
+//   - matched: at least one channel group survived upstream filtering →
+//     green nudge + ChannelGroup rows
+//   - fallback: no groups, but the caller passed a `fallback` prop →
+//     amber nudge + single FIP TOUR search row that links to a
+//     tournament-scoped YouTube channel-search URL
+//   - hidden: groups empty AND no fallback → return null
+//
+// Filtering itself happens upstream (see filter-tournament-streams on the
+// tournament page); this component just renders what it's handed.
 //
 // Re-uses ChannelGroup + RegionPicker. Some markup is duplicated from
 // WhereToWatchPopup's body — kept inline for now to minimize churn; a
@@ -142,25 +148,23 @@ export function WhereToWatchInline({
             {t('eyebrow')}
           </div>
 
-          {/* Status nudge — green when ≥1 channel matched, amber when fallback. */}
-          {(hasGroups || showFallback) && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 7,
-              fontSize: 10.5,
-              color: hasGroups ? '#8BD89A' : '#D9C77A',
-              background: hasGroups ? 'rgba(82,179,102,0.08)' : 'rgba(217,199,122,0.06)',
-              border: `1px solid ${hasGroups ? 'rgba(82,179,102,0.18)' : 'rgba(217,199,122,0.18)'}`,
-              borderRadius: 6, padding: '6px 9px', marginBottom: 14, lineHeight: 1.35,
-            }}>
-              <span style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: hasGroups ? '#52B366' : '#D9C77A',
-                flexShrink: 0,
-                boxShadow: `0 0 0 3px ${hasGroups ? 'rgba(82,179,102,0.18)' : 'rgba(217,199,122,0.18)'}`,
-              }} />
-              <span>{t(hasGroups ? 'tournamentMatchedNudge' : 'tournamentEmptyNudge')}</span>
-            </div>
-          )}
+          {/* Status nudge — always shown; green when ≥1 channel matched, amber when in fallback mode. */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            fontSize: 10.5,
+            color: hasGroups ? '#8BD89A' : '#D9C77A',
+            background: hasGroups ? 'rgba(82,179,102,0.08)' : 'rgba(217,199,122,0.06)',
+            border: `1px solid ${hasGroups ? 'rgba(82,179,102,0.18)' : 'rgba(217,199,122,0.18)'}`,
+            borderRadius: 6, padding: '6px 9px', marginBottom: 14, lineHeight: 1.35,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: hasGroups ? '#52B366' : '#D9C77A',
+              flexShrink: 0,
+              boxShadow: `0 0 0 3px ${hasGroups ? 'rgba(82,179,102,0.18)' : 'rgba(217,199,122,0.18)'}`,
+            }} />
+            <span>{t(hasGroups ? 'tournamentMatchedNudge' : 'tournamentEmptyNudge')}</span>
+          </div>
 
           {/* Groups (matched mode) OR FIP TOUR fallback row (fallback mode). */}
           {hasGroups && groups.map((g, gi) => (
