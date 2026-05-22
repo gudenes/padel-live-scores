@@ -504,7 +504,11 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       if (!entry.lastIso) entry.lastIso = matchDate(m)
       partnerMap.set(roles.partner.id, entry)
     }
-    const partnersList = [...partnerMap.values()].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses))
+    const partnersList = [...partnerMap.values()].sort((a, b) => {
+      const ta = a.lastIso ? new Date(a.lastIso).getTime() : 0
+      const tb = b.lastIso ? new Date(b.lastIso).getTime() : 0
+      return tb - ta
+    })
 
     // Available years for the season filter — descending (newest first).
     const yearSet = new Set<number>()
