@@ -4,7 +4,7 @@ Standalone Next.js admin app deployed to `admin.padelnachos.com`. Replaces the e
 
 **Spec:** [`docs/superpowers/specs/2026-05-20-admin-ops-app-design.md`](../../docs/superpowers/specs/2026-05-20-admin-ops-app-design.md)
 
-**Phase 1 status:** Plan 1 (foundation) + Plan 2 (sidebar + Today) + Plan 3a (Players + Tournament Explorer) shipped. Plan 3b (remaining 12 tabs) is the next milestone.
+**Phase 1 status:** COMPLETE. Plans 1, 2, 3a, 3b all shipped. Feature parity with the embedded `/ops` route in the main app has been reached. Next: cutover (delete `src/app/ops/*` from the main app) + Phase 2 refactors (list/detail URL routing, typed Needs Review inbox, etc.) per the spec.
 
 ## Local development
 
@@ -175,10 +175,18 @@ A user can sign in via any provider but only sees the app if they're in the `pub
 | `/today` | Daily-driver dashboard (KPIs, LIVE NOW, REQUIRES ATTENTION, schedule) |
 | `/players` | Player catalog (search, edit, merge, dedup) |
 | `/tournament-explorer` | Per-tournament management (matches, draws, schedule review, entry lists) |
-| `/entry-lists`, `/needs-review`, `/simulator` | Tournament Ops tabs (stubs until Plan 3b) |
-| `/brands`, `/streams` | Catalog tabs (stubs until Plan 3b) |
-| `/news`, `/highlights` | Content tabs (stubs until Plan 3) |
-| `/system/*` | Diagnostics tabs (stubs until Plan 3) |
+| `/simulator` | Tournament simulator — create test tournaments, advance scores |
+| `/entry-lists` | Padelgod entry list management (PDF parse, FIP twin linking) |
+| `/needs-review` | Tournament deduplication queue |
+| `/brands` | Brands + rackets catalog with image upload |
+| `/streams` | FIP YouTube court stream resolution |
+| `/news` | News post editor (markdown + translation) |
+| `/highlights` | YouTube highlights picker |
+| `/system/integration-health` | Cron + relay health dashboard |
+| `/system/data-quality` | Match coverage + data freshness metrics |
+| `/system/padelgod-health` | Padelgod worker run history |
+| `/system/shadow-mode` | Padelgod shadow-mode enrollment + divergence inspection |
+| `/system/architecture` | System diagram (SVG) |
 | `/api/internal/today` | GET → full Today payload |
 | `/api/internal/needs-review/counts` | GET → `{ duplicates: number }` |
 | `/api/internal/players` | GET list / PATCH edit |
@@ -191,4 +199,13 @@ A user can sign in via any provider but only sees the app if they're in the `pub
 | `/api/internal/schedule-review` | GET pending / PATCH apply OOP changes |
 | `/api/internal/tournament-draw` | GET tournament draw |
 | `/api/internal/tournament-matches` | GET tournament matches |
+| `/api/internal/news`, `/api/internal/news/[id]`, `/api/internal/news/upload` | News editor + image upload |
+| `/api/internal/highlight-picker` | YouTube highlights candidates |
+| `/api/internal/simulator/{tournaments,create-tournament,purge,score}` | Simulator actions |
+| `/api/internal/fip-streams/{active,unresolved,resolve}` | FIP court stream queue |
+| `/api/internal/seed-entry-list` | Entry list seeding from PDF |
+| `/api/internal/tournament-dedup` | Tournament dedup plan + execute |
+| `/api/internal/padelgod-health` | Padelgod worker stats |
+| `/api/internal/padelgod-shadow/{enroll,enrollments,divergences,health,live,live-cards}` | Shadow mode operations |
+| `/api/internal/ops-status` | Dashboard data feed (used by Integration Health + Data Quality) |
 | `/api/auth/[...nextauth]` | Auth.js handler |
