@@ -4,7 +4,8 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
+import { useRouter, usePathname } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
 import GlobalHeader from '@/components/nav/GlobalHeader'
@@ -153,7 +154,7 @@ function Avatar({ player, size = 40 }: { player: Player; size?: number }) {
   )
 }
 
-function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: RankType; onClick: () => void }) {
+function PlayerRow({ player, rankType, isPulsing, onClick }: { player: Player; rankType: RankType; isPulsing?: boolean; onClick: () => void }) {
   const rank = rankType === 'official' ? player.ranking : player.race_ranking
   const pts = rankType === 'official' ? player.points : player.race_points
   const move = rankType === 'official' ? (player.ranking_move ?? 0) : (player.race_move ?? 0)
@@ -162,6 +163,7 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
 
   return (
     <div
+      data-player-id={player.id}
       onClick={onClick}
       style={{
         display: 'flex', alignItems: 'center', gap: 12,
@@ -169,6 +171,11 @@ function PlayerRow({ player, rankType, onClick }: { player: Player; rankType: Ra
         background: isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent',
         borderBottom: `1px solid ${BORDER}`,
         transition: 'background 0.15s',
+        ...(isPulsing ? {
+          outline: '2px solid #F5A623',
+          boxShadow: '0 0 16px rgba(245,166,35,0.4)',
+          transition: 'outline 1.5s ease-out, box-shadow 1.5s ease-out',
+        } : {}),
       }}
       onMouseEnter={e => (e.currentTarget.style.background = GREEN_DIM)}
       onMouseLeave={e => (e.currentTarget.style.background = isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent')}
@@ -229,8 +236,17 @@ export default function V3RankingPage() {
   const t = useTranslations('rankings')
   const format = useFormatter()
   const router = useRouter()
-  const [rankType, setRankType] = useState<RankType>('official')
-  const [gender, setGender] = useState<Gender>('men')
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const initialGender: Gender =
+    searchParams.get('gender') === 'women' ? 'women' : 'men'
+  const initialType: RankType =
+    searchParams.get('type') === 'race' ? 'race' : 'official'
+  const highlight = searchParams.get('highlight')
+
+  const [rankType, setRankType] = useState<RankType>(initialType)
+  const [gender, setGender] = useState<Gender>(initialGender)
 
   // Swipe between Official / Race tabs
   const RANK_KEYS = useMemo(() => ['official', 'race'] as const, [])
@@ -250,12 +266,28 @@ export default function V3RankingPage() {
     onTabChange: handleTabChange,
   })
   useEffect(() => { swipeGoTo(RANK_KEYS.indexOf(rankType)) }, [rankType, swipeGoTo, RANK_KEYS])
+
+  // Sync gender + rankType to URL params
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    if (gender === 'men') sp.delete('gender'); else sp.set('gender', gender)
+    if (rankType === 'official') sp.delete('type'); else sp.set('type', rankType)
+    const qs = sp.toString()
+    // Use next-intl's locale-stripped pathname; window.location.pathname includes the locale prefix
+    // and the next-intl router would prepend it again (e.g. /es/rankings → /es/es/rankings).
+    const next = qs ? `${pathname}?${qs}` : pathname
+    router.replace(next as Parameters<typeof router.replace>[0], { scroll: false })
+  }, [gender, rankType, router, pathname])
+
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [visibleCount, setVisibleCount] = useState(50)
+  const [pulseId, setPulseId] = useState<string | null>(null)
+  const [highlightHandled, setHighlightHandled] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const searchBoxRef = useRef<HTMLDivElement>(null)
 
@@ -342,6 +374,66 @@ export default function V3RankingPage() {
   }, [])
 
   useEffect(() => { load(rankType, gender) }, [rankType, gender, load])
+
+  // ── Highlight deep-link: scroll to player + pulse ──────────
+  useEffect(() => {
+    if (!highlight || highlightHandled) return
+    if (players.length === 0) return
+
+    const idx = players.findIndex(p => p.id === highlight)
+    if (idx === -1) {
+      // Player not in current gender list — look them up to check their category.
+      let cancelled = false
+      void (async () => {
+        const { data } = await supabase
+          .from('players')
+          .select('id, name, category, ranking, race_ranking')
+          .eq('id', highlight)
+          .single()
+        if (cancelled) return
+        if (data) {
+          const correctGender: Gender = data.category === 'women' ? 'women' : 'men'
+          const rankingVal = rankType === 'official' ? data.ranking : data.race_ranking
+          if (correctGender !== gender) {
+            // Flip gender — effect re-runs after data reloads with the correct gender.
+            setGender(correctGender)
+            setVisibleCount(50)
+            return
+          }
+          if (rankingVal == null || rankingVal > 1000) {
+            console.warn(`[rankings] ${data.name ?? 'player'} not in top 1000`)
+            setHighlightHandled(true)
+          }
+        } else {
+          setHighlightHandled(true)
+        }
+      })()
+      return () => { cancelled = true }
+    }
+
+    // Player is in the loaded list — ensure enough rows are rendered, then scroll.
+    setVisibleCount(v => Math.max(v, idx + 25))
+    setHighlightHandled(true)
+    setTimeout(() => {
+      const row = document.querySelector<HTMLElement>(`[data-player-id="${highlight}"]`)
+      if (!row) return
+      const reduceMotion =
+        typeof window !== 'undefined' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      row.scrollIntoView({ block: 'center', behavior: reduceMotion ? 'auto' : 'smooth' })
+      setPulseId(highlight)
+      // Clean up URL so refresh / back-navigation doesn't re-trigger.
+      const sp = new URLSearchParams(window.location.search)
+      sp.delete('highlight')
+      const qs = sp.toString()
+      // Use next-intl's locale-stripped pathname; see comment on the URL-sync effect above.
+      router.replace(
+        (qs ? `${pathname}?${qs}` : pathname) as Parameters<typeof router.replace>[0],
+        { scroll: false },
+      )
+      setTimeout(() => setPulseId(null), 2000)
+    }, 80)
+  }, [highlight, highlightHandled, players, gender, rankType, router, pathname])
 
   // ── Search filter ──────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -559,6 +651,7 @@ export default function V3RankingPage() {
               key={player.id}
               player={player}
               rankType={rankType}
+              isPulsing={pulseId === player.id}
               onClick={() => router.push(`/player/${player.id}`)}
             />
           ))}
