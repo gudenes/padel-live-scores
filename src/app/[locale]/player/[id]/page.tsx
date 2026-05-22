@@ -14,7 +14,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
-import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { DATE_SHORT, DATE_WITH_YEAR, DATE_WITH_WEEKDAY, TIME_24H } from '@/lib/format-patterns'
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
@@ -504,7 +504,11 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       if (!entry.lastIso) entry.lastIso = matchDate(m)
       partnerMap.set(roles.partner.id, entry)
     }
-    const partnersList = [...partnerMap.values()].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses))
+    const partnersList = [...partnerMap.values()].sort((a, b) => {
+      const ta = a.lastIso ? new Date(a.lastIso).getTime() : 0
+      const tb = b.lastIso ? new Date(b.lastIso).getTime() : 0
+      return tb - ta
+    })
 
     // Available years for the season filter — descending (newest first).
     const yearSet = new Set<number>()
@@ -514,10 +518,34 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     }
     const availableYears = [...yearSet].sort((a, b) => b - a)
 
+    // Earliest scheduled match with a known future time
+    const now = new Date()
+    const nextScheduled = matches
+      .filter(m => m.status === 'scheduled' && m.scheduled_at && new Date(m.scheduled_at) > now)
+      .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())[0] ?? null
+
+    // Earliest upcoming tournament derived from scheduled matches (only when no specific match is found)
+    const nextTournament: DerivedData['nextTournament'] = nextScheduled
+      ? null
+      : (() => {
+          const seen = new Set<string>()
+          return matches
+            .filter(m => {
+              if (m.status !== 'scheduled' || !m.tournament?.starts_at || !m.tournament.id) return false
+              if (new Date(m.tournament.starts_at) <= now) return false
+              if (seen.has(m.tournament.id)) return false
+              seen.add(m.tournament.id)
+              return true
+            })
+            .map(m => m.tournament!)
+            .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ?? null
+        })()
+
     return {
       finished, wins, losses, winRate, last10Matches,
       currentPartner, cpWins, cpLosses, firstPartneredIso, lastPartneredIso,
       partnersList, availableYears,
+      nextScheduled, nextTournament,
     }
   }, [matches, id])
 
@@ -744,6 +772,81 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               })}
             </div>
           )}
+
+          {/* Next match / tournament strip */}
+          {(derived.nextScheduled || derived.nextTournament) && (() => {
+            if (derived.nextScheduled) {
+              const roles = resolveMatchRoles(derived.nextScheduled, id)
+              const oppNames = [roles.opp1, roles.opp2]
+                .filter(Boolean)
+                .map(p => toShortName(p!.display_name?.trim() || p!.name))
+                .join(' / ')
+              const dateStr = derived.nextScheduled.scheduled_at
+                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY)
+                : null
+              const timeStr = derived.nextScheduled.scheduled_at
+                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H)
+                : null
+              return (
+                <div
+                  onClick={() => router.push(`/match/${derived.nextScheduled!.id}` as Parameters<typeof router.push>[0])}
+                  style={{
+                    marginTop: 8, background: 'rgba(245,166,35,0.07)',
+                    border: '1px solid rgba(245,166,35,0.18)', borderRadius: 6,
+                    padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
+                    {tPlayer('nextMatch')}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      vs {oppNames}{derived.nextScheduled.round ? ` · ${derived.nextScheduled.round}` : ''}
+                    </div>
+                    <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {[derived.nextScheduled.tournament?.name ? titleCase(derived.nextScheduled.tournament.name) : null, dateStr, timeStr].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  {derived.nextScheduled.tournament?.level && (
+                    <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
+                      {levelLabel(derived.nextScheduled.tournament.level)}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            const tourn = derived.nextTournament!
+            const dateStr = tourn.starts_at
+              ? format.dateTime(new Date(tourn.starts_at), DATE_WITH_WEEKDAY)
+              : null
+            return (
+              <div
+                onClick={() => router.push(`/tournaments/${tourn.id}` as Parameters<typeof router.push>[0])}
+                style={{
+                  marginTop: 8, background: 'rgba(245,166,35,0.07)',
+                  border: '1px solid rgba(245,166,35,0.18)', borderRadius: 6,
+                  padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
+                  {tPlayer('nextTournament')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {titleCase(tourn.name ?? '')}
+                  </div>
+                  {dateStr && <div style={{ fontSize: 8, color: MUTED, marginTop: 1 }}>{dateStr}</div>}
+                </div>
+                {tourn.level && (
+                  <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
+                    {levelLabel(tourn.level)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* ── TABS ─────────────────────────────────────────────── */}
@@ -1053,6 +1156,19 @@ function OverviewTab({
         )
       })()}
 
+      {/* FIP Ranking — always visible alongside Last 10 when ranking is known */}
+      {player.ranking != null && (
+        <Widget label="FIP Ranking">
+          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
+          {player.points && (
+            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
+              {player.points.toLocaleString()} pts
+            </div>
+          )}
+          <WidgetIcon>#</WidgetIcon>
+        </Widget>
+      )}
+
       {/* Equipment — "Plays with" (wide card with racket image + specs) */}
       {(() => {
         // New relational tables take priority; fall back to legacy JSONB if not migrated yet
@@ -1100,7 +1216,7 @@ function OverviewTab({
         const specRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }
         const specValueStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.65)', fontWeight: 600 }
         return (
-          <Widget label={t('playsWith')}>
+          <Widget wide label={t('playsWith')}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {/* Left — Brand, model, specs */}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1126,7 +1242,7 @@ function OverviewTab({
                 )}
                 {/* Spec rows */}
                 {hasSpecs && (
-                  <div style={{ marginTop: 6 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginTop: 6 }}>
                     {racketShape && (
                       <div style={specRowStyle}>
                         <span>{t('shape')}</span>
@@ -1162,7 +1278,7 @@ function OverviewTab({
                 )}
               </div>
               {/* Right — Racket image */}
-              <div style={{ flexShrink: 0, width: 70, textAlign: 'center' }}>
+              <div style={{ flexShrink: 0, width: 90, textAlign: 'center' }}>
                 {racketImage && !racketImageFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -1170,7 +1286,7 @@ function OverviewTab({
                     alt={racketModel ?? ''}
                     onError={() => setRacketImageFailed(true)}
                     style={{
-                      height: 96, objectFit: 'contain',
+                      height: 110, objectFit: 'contain',
                       filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))',
                     }}
                   />
@@ -1186,20 +1302,6 @@ function OverviewTab({
           </Widget>
         )
       })()}
-      {/* FIP Ranking fallback — shown only when no equipment data */}
-      {!currentEquipment?.racket && !player.equipment?.racket_brand && player.ranking != null ? (
-        /* Fallback: show FIP Ranking if no equipment data */
-        <Widget label="FIP Ranking">
-          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
-          {player.points && (
-            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
-              {player.points.toLocaleString()} pts
-            </div>
-          )}
-          <WidgetIcon>#</WidgetIcon>
-        </Widget>
-      ) : null}
-
       {/* Profile Info — wide */}
       {availableProfileRows.length > 0 && (
         <Widget wide label="Profile Info">

@@ -563,6 +563,8 @@
     "balance_head-heavy": "Haut",
     "balance_balanced": "Moyen",
     "balance_head-light": "Bas",
+    "nextMatch": "Prochain match",
+    "nextTournament": "Prochain tournoi",
     "earningsTab": "Gains",
     "earningsTabNewPill": "NEW",
     "earningsTabNewPill_context": "Badge de découverte sur le nouvel onglet Gains",

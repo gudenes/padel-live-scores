@@ -563,6 +563,8 @@
     "balance_head-heavy": "Alto",
     "balance_balanced": "Médio",
     "balance_head-light": "Baixo",
+    "nextMatch": "Próximo jogo",
+    "nextTournament": "Próximo torneio",
     "earningsTab": "Ganhos",
     "earningsTabNewPill": "NEW",
     "earningsTabNewPill_context": "Distintivo de descoberta no novo separador Ganhos",

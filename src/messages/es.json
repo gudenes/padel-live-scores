@@ -563,6 +563,8 @@
     "balance_head-heavy": "Alto",
     "balance_balanced": "Medio",
     "balance_head-light": "Bajo",
+    "nextMatch": "Próximo partido",
+    "nextTournament": "Próximo torneo",
     "earningsTab": "Ganancias",
     "earningsTabNewPill": "NEW",
     "earningsTabNewPill_context": "Insignia de descubrimiento en la nueva pestaña Ganancias",
