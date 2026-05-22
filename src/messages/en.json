@@ -589,6 +589,8 @@
     "balance_head-heavy": "Head Heavy",
     "balance_balanced": "Balanced",
     "balance_head-light": "Head Light",
+    "nextMatch": "Next match",
+    "nextTournament": "Next tournament",
     "earningsTab": "Earnings",
     "earningsTabNewPill": "NEW",
     "earningsTabNewPill_context": "Discovery badge on the new Earnings tab",
