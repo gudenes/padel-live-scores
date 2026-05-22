@@ -41,4 +41,6 @@ export interface DerivedData {
   lastPartneredIso: string | null
   partnersList: Array<{ partner: PartnerInfo; wins: number; losses: number; lastIso: string | null }>
   availableYears: number[]
+  nextScheduled: MatchRow | null
+  nextTournament: { id: string; name: string | null; country: string | null; level: string | null; starts_at: string | null; ends_at: string | null } | null
 }

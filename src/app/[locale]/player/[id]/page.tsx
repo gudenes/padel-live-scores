@@ -518,10 +518,34 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     }
     const availableYears = [...yearSet].sort((a, b) => b - a)
 
+    // Earliest scheduled match with a known future time
+    const now = new Date()
+    const nextScheduled = matches
+      .filter(m => m.status === 'scheduled' && m.scheduled_at && new Date(m.scheduled_at) > now)
+      .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())[0] ?? null
+
+    // Earliest upcoming tournament derived from scheduled matches (only when no specific match is found)
+    const nextTournament: DerivedData['nextTournament'] = nextScheduled
+      ? null
+      : (() => {
+          const seen = new Set<string>()
+          return matches
+            .filter(m => {
+              if (m.status !== 'scheduled' || !m.tournament?.starts_at || !m.tournament.id) return false
+              if (new Date(m.tournament.starts_at) <= now) return false
+              if (seen.has(m.tournament.id)) return false
+              seen.add(m.tournament.id)
+              return true
+            })
+            .map(m => m.tournament!)
+            .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ?? null
+        })()
+
     return {
       finished, wins, losses, winRate, last10Matches,
       currentPartner, cpWins, cpLosses, firstPartneredIso, lastPartneredIso,
       partnersList, availableYears,
+      nextScheduled, nextTournament,
     }
   }, [matches, id])
 
