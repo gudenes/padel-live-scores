@@ -14,7 +14,7 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
-import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { DATE_SHORT, DATE_WITH_YEAR, DATE_WITH_WEEKDAY, TIME_24H } from '@/lib/format-patterns'
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
@@ -772,6 +772,81 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               })}
             </div>
           )}
+
+          {/* Next match / tournament strip */}
+          {(derived.nextScheduled || derived.nextTournament) && (() => {
+            if (derived.nextScheduled) {
+              const roles = resolveMatchRoles(derived.nextScheduled, id)
+              const oppNames = [roles.opp1, roles.opp2]
+                .filter(Boolean)
+                .map(p => toShortName(p!.display_name?.trim() || p!.name))
+                .join(' / ')
+              const dateStr = derived.nextScheduled.scheduled_at
+                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY)
+                : null
+              const timeStr = derived.nextScheduled.scheduled_at
+                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H)
+                : null
+              return (
+                <div
+                  onClick={() => router.push(`/match/${derived.nextScheduled!.id}` as Parameters<typeof router.push>[0])}
+                  style={{
+                    marginTop: 8, background: 'rgba(245,166,35,0.07)',
+                    border: '1px solid rgba(245,166,35,0.18)', borderRadius: 6,
+                    padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
+                    {tPlayer('nextMatch')}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      vs {oppNames}{derived.nextScheduled.round ? ` · ${derived.nextScheduled.round}` : ''}
+                    </div>
+                    <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {[derived.nextScheduled.tournament?.name ? titleCase(derived.nextScheduled.tournament.name) : null, dateStr, timeStr].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  {derived.nextScheduled.tournament?.level && (
+                    <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
+                      {levelLabel(derived.nextScheduled.tournament.level)}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            const tourn = derived.nextTournament!
+            const dateStr = tourn.starts_at
+              ? format.dateTime(new Date(tourn.starts_at), DATE_WITH_WEEKDAY)
+              : null
+            return (
+              <div
+                onClick={() => router.push(`/tournaments/${tourn.id}` as Parameters<typeof router.push>[0])}
+                style={{
+                  marginTop: 8, background: 'rgba(245,166,35,0.07)',
+                  border: '1px solid rgba(245,166,35,0.18)', borderRadius: 6,
+                  padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
+                  {tPlayer('nextTournament')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {titleCase(tourn.name ?? '')}
+                  </div>
+                  {dateStr && <div style={{ fontSize: 8, color: MUTED, marginTop: 1 }}>{dateStr}</div>}
+                </div>
+                {tourn.level && (
+                  <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
+                    {levelLabel(tourn.level)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* ── TABS ─────────────────────────────────────────────── */}
