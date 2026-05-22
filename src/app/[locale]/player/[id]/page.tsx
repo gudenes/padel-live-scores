@@ -1203,7 +1203,7 @@ function OverviewTab({
         const specRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }
         const specValueStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.65)', fontWeight: 600 }
         return (
-          <Widget label={t('playsWith')}>
+          <Widget wide label={t('playsWith')}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {/* Left — Brand, model, specs */}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1229,7 +1229,7 @@ function OverviewTab({
                 )}
                 {/* Spec rows */}
                 {hasSpecs && (
-                  <div style={{ marginTop: 6 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginTop: 6 }}>
                     {racketShape && (
                       <div style={specRowStyle}>
                         <span>{t('shape')}</span>
@@ -1265,7 +1265,7 @@ function OverviewTab({
                 )}
               </div>
               {/* Right — Racket image */}
-              <div style={{ flexShrink: 0, width: 70, textAlign: 'center' }}>
+              <div style={{ flexShrink: 0, width: 90, textAlign: 'center' }}>
                 {racketImage && !racketImageFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -1273,7 +1273,7 @@ function OverviewTab({
                     alt={racketModel ?? ''}
                     onError={() => setRacketImageFailed(true)}
                     style={{
-                      height: 96, objectFit: 'contain',
+                      height: 110, objectFit: 'contain',
                       filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))',
                     }}
                   />
