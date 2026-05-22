@@ -1465,6 +1465,10 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     // Canonical FIP TOUR attribution: video IDs the discovery cron has
     // mapped to this tournament. Used to gate which FIP-channel live
     // videos belong to the page we're rendering.
+    //
+    // No `state` filter on purpose — youtube_channel_live is pruned ~30 min
+    // after a video goes offline, so archived attribution IDs can never
+    // appear in the live set we intersect against.
     const attributedP = supabase
       .from('fip_court_streams')
       .select('youtube_video_id')
@@ -1523,7 +1527,9 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         setWtwFallback(null)
       }
     }).catch(err => {
-      if (!cancelled) console.warn('[tournament:wtw] fetch failed:', err)
+      if (cancelled) return
+      console.warn('[tournament:wtw] fetch failed:', err)
+      setWtwFallback(null)
     })
 
     return () => { cancelled = true }
