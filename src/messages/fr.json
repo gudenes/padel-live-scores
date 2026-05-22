@@ -1230,6 +1230,10 @@
     "bannerLiveCount": "Regarder en direct · {count, plural, one {# option} other {# options}}",
     "bannerWatchIn": "Regarder en {region}",
     "bannerWhere": "Où regarder",
-    "seoSummary": "Regardez {target} en direct sur {list}{extra, plural, =0 {} one { et # autre diffuseur régional} other { et # autres diffuseurs régionaux}}."
+    "seoSummary": "Regardez {target} en direct sur {list}{extra, plural, =0 {} one { et # autre diffuseur régional} other { et # autres diffuseurs régionaux}}.",
+    "tournamentMatchedNudge": "Affichage des diffusions identifiées pour ce tournoi",
+    "tournamentEmptyNudge": "Nous n'avons pas encore identifié de diffusions pour ce tournoi",
+    "searchFallbackLabel": "Rechercher « {tournament} » sur FIP TOUR",
+    "searchFallbackButton": "Rechercher"
   }
 }

@@ -1230,6 +1230,10 @@
     "bannerLiveCount": "Assistir ao vivo · {count, plural, one {# opção} other {# opções}}",
     "bannerWatchIn": "Assistir em {region}",
     "bannerWhere": "Onde assistir",
-    "seoSummary": "Assista {target} ao vivo em {list}{extra, plural, =0 {} one { e # outra emissora regional} other { e # outras emissoras regionais}}."
+    "seoSummary": "Assista {target} ao vivo em {list}{extra, plural, =0 {} one { e # outra emissora regional} other { e # outras emissoras regionais}}.",
+    "tournamentMatchedNudge": "Mostrando transmissões identificadas para este torneio",
+    "tournamentEmptyNudge": "Ainda não identificamos transmissões para este torneio",
+    "searchFallbackLabel": "Buscar \"{tournament}\" no FIP TOUR",
+    "searchFallbackButton": "Buscar"
   }
 }
