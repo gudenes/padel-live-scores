@@ -21,6 +21,10 @@ import { MatchCard } from '@/components/MatchCard'
 import { WhereToWatchInline } from '@/components/where-to-watch/WhereToWatchInline'
 import type { BroadcasterRow, LiveChannel, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
+import { filterTournamentStreams } from '@/lib/where-to-watch/filter-tournament-streams'
+import { tokenize } from '@/lib/fip-stream-title-parser'
+import { tournamentSearchUrl } from '@/lib/fip-stream-resolver'
+import { isFipTier } from '@/lib/fip-channel'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
@@ -1396,6 +1400,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const [wtwLiveChannels, setWtwLiveChannels] = useState<LiveChannel[]>([])
   const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
   const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
+  const [wtwFallback, setWtwFallback] = useState<{ url: string; tournamentName: string } | null>(null)
 
   const tournamentChannelAbbr = useMemo(
     () => levelToChannelAbbr(tournament?.level),
@@ -1410,15 +1415,23 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     const country = cookieMatch?.[1]?.toLowerCase() || null
     setWtwGeoCountry(country)
 
-    if (!tournamentChannelAbbr) {
+    // Skip entirely if no tournament yet or its level doesn't map to a tracked
+    // circuit (e.g. legacy WPT). Keeps behaviour conservative for tiers we
+    // haven't decided to surface streams for.
+    if (!tournament || !tournamentChannelAbbr) {
       setWtwBroadcasters([])
       setWtwLiveChannels([])
       setWtwChannelsMeta([])
+      setWtwFallback(null)
       return
     }
 
     let cancelled = false
     const STALE_MS = 30 * 60 * 1000
+    const tournamentNameTokens = tokenize(tournament.name)
+    const tournamentId = tournament.id
+    const tournamentName = tournament.name
+    const tournamentLevel = tournament.level
 
     // Fetch all active broadcasters (across countries) so the region
     // picker can switch without a round-trip; buildGroups filters by
@@ -1432,23 +1445,36 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       .order('display_order', { ascending: true })
       .order('is_free', { ascending: false })
 
+    // Live channels across ALL active YouTube channels (no abbreviation
+    // filter). Per-tournament filtering happens in-memory via
+    // filterTournamentStreams once all queries resolve.
     const liveChannelsP = supabase
       .from('youtube_channel_live')
       .select(`video_id, title, channel:youtube_channels!inner(id, name, abbreviation, color_hex, display_order)`)
       .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
       .eq('channel.is_active', true)
-      .eq('channel.abbreviation', tournamentChannelAbbr)
 
+    // All active channels' metadata (no abbreviation filter — broadcaster-only
+    // groups still need channel meta to render even when a channel isn't
+    // currently live).
     const channelsMetaP = supabase
       .from('youtube_channels')
       .select('id, name, abbreviation, color_hex, display_order')
       .eq('is_active', true)
-      .eq('abbreviation', tournamentChannelAbbr)
 
-    Promise.all([broadcastersP, liveChannelsP, channelsMetaP]).then(([bRes, lcRes, cmRes]) => {
+    // Canonical FIP TOUR attribution: video IDs the discovery cron has
+    // mapped to this tournament. Used to gate which FIP-channel live
+    // videos belong to the page we're rendering.
+    const attributedP = supabase
+      .from('fip_court_streams')
+      .select('youtube_video_id')
+      .eq('tournament_id', tournamentId)
+
+    Promise.all([broadcastersP, liveChannelsP, channelsMetaP, attributedP]).then(([bRes, lcRes, cmRes, attRes]) => {
       if (cancelled) return
       setWtwBroadcasters(((bRes.data ?? []) as BroadcasterRow[]))
-      const liveRows = (lcRes.data ?? []).map((r: any) => {
+
+      const allLiveVideos = (lcRes.data ?? []).map((r: any) => {
         const ch = Array.isArray(r.channel) ? r.channel[0] : r.channel
         if (!ch) return null
         return {
@@ -1463,7 +1489,18 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           },
         }
       }).filter((x: LiveChannel | null): x is LiveChannel => x !== null)
-      setWtwLiveChannels(liveRows)
+
+      const attributedSet = new Set(
+        (attRes.data ?? []).map((r: any) => r.youtube_video_id as string)
+      )
+
+      const filteredLive = filterTournamentStreams({
+        liveVideos: allLiveVideos,
+        attributedVideoIds: attributedSet,
+        tournamentNameTokens,
+      })
+      setWtwLiveChannels(filteredLive)
+
       const channelsMeta = (cmRes.data ?? []).map((r: any) => ({
         id: r.id as string,
         name: r.name as string,
@@ -1472,12 +1509,25 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         displayOrder: r.display_order as number,
       }))
       setWtwChannelsMeta(channelsMeta)
+
+      // FIP-TOUR-only fallback: when nothing matched and this is an FIP-tier
+      // tournament, surface a single tournament-scoped channel-search row.
+      // Premier and other tiers do NOT get a fallback (the search URL is FIP
+      // TOUR's handle — would mislead on a Premier page).
+      if (filteredLive.length === 0 && isFipTier(tournamentLevel)) {
+        setWtwFallback({
+          url: tournamentSearchUrl(tournamentName),
+          tournamentName,
+        })
+      } else {
+        setWtwFallback(null)
+      }
     }).catch(err => {
       if (!cancelled) console.warn('[tournament:wtw] fetch failed:', err)
     })
 
     return () => { cancelled = true }
-  }, [tournamentChannelAbbr])
+  }, [tournament?.id, tournament?.name, tournament?.level, tournamentChannelAbbr])
 
   useEffect(() => {
     if (!tournament?.id || !tournament?.name || !tournament?.level || !tournament?.starts_at) return
@@ -1853,6 +1903,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         channelsMeta={wtwChannelsMeta}
         todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
         geoCountry={wtwGeoCountry}
+        fallback={wtwFallback}
       />
 
       {/* Schedule */}
