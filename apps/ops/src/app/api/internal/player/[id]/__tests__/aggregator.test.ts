@@ -69,9 +69,22 @@ function makeCtx(id: string) {
 }
 
 describe('GET /api/internal/player/[id]', () => {
-  it('returns 404 when the player does not exist', async () => {
-    // players lookup returns null
+  it('returns 404 when the player does not exist (null data, null error)', async () => {
+    // Defensive fallback path: some clients/mocks return data:null with no error.
     tableHandlers.set('players', () => buildQueryStub({ data: null, error: null }))
+
+    const res = await GET(makeRequest(), makeCtx('p-missing'))
+    expect(res.status).toBe(404)
+    const body = await res.json()
+    expect(body).toMatchObject({ error: expect.stringMatching(/not found/i) })
+  })
+
+  it('returns 404 when PostgREST returns PGRST116 (real "no rows" shape)', async () => {
+    // Real PostgREST .single() returns this exact shape when the row is missing.
+    // Exercises the `error.code === 'PGRST116'` branch in the route.
+    tableHandlers.set('players', () =>
+      buildQueryStub({ data: null, error: { code: 'PGRST116', message: 'Not found' } }),
+    )
 
     const res = await GET(makeRequest(), makeCtx('p-missing'))
     expect(res.status).toBe(404)
@@ -185,6 +198,21 @@ describe('PATCH /api/internal/player/[id]', () => {
       makeCtx('p1'),
     )
     expect(res.status).toBe(400)
+  })
+
+  it('rejects array body payloads with 400', async () => {
+    // Arrays satisfy `typeof === 'object'` so a bare Array.isArray check
+    // is required to keep them out of the update path.
+    const res = await PATCH(
+      makeRequest('http://localhost/api/internal/player/p1', {
+        method: 'PATCH',
+        body: JSON.stringify([{ name: 'x' }]),
+      }),
+      makeCtx('p1'),
+    )
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body).toMatchObject({ error: expect.stringMatching(/empty or invalid/i) })
   })
 
   it('returns 401 when the caller is not an operator', async () => {

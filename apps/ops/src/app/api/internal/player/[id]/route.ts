@@ -152,8 +152,8 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  if (!body || typeof body !== 'object' || Object.keys(body).length === 0) {
-    return NextResponse.json({ error: 'Empty update payload' }, { status: 400 })
+  if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length === 0) {
+    return NextResponse.json({ error: 'Empty or invalid update payload' }, { status: 400 })
   }
 
   // Reject unknown fields up front — fail loudly rather than silently dropping.
