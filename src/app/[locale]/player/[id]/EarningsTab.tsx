@@ -189,7 +189,11 @@ export function EarningsTab({ playerId, initialYear, onYearChange }: Props) {
               console.warn('[EarningsTab] orphaned earning row, skipping', r.id)
               return null
             }
-            const round: TournamentRoundCode = r.round_eliminated === 'F' ? 'W' : r.round_eliminated
+            // round_eliminated is now authoritative: 'W' for champions, 'F'
+            // for finalists, other codes for earlier-round eliminations. No
+            // coercion needed — see compute-earnings.ts and the
+            // 20260522000000_earnings_allow_winner migration.
+            const round = r.round_eliminated as TournamentRoundCode
             const dateText = format.dateTime(new Date(r.earned_at), { month: 'short', year: 'numeric' })
             const amount = format.number(r.per_player_eur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
             return (

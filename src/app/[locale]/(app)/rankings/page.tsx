@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
+import { useRouter, usePathname } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
@@ -236,6 +236,7 @@ export default function V3RankingPage() {
   const t = useTranslations('rankings')
   const format = useFormatter()
   const router = useRouter()
+  const pathname = usePathname()
   const searchParams = useSearchParams()
 
   const initialGender: Gender =
@@ -273,9 +274,11 @@ export default function V3RankingPage() {
     if (gender === 'men') sp.delete('gender'); else sp.set('gender', gender)
     if (rankType === 'official') sp.delete('type'); else sp.set('type', rankType)
     const qs = sp.toString()
-    const next = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    // Use next-intl's locale-stripped pathname; window.location.pathname includes the locale prefix
+    // and the next-intl router would prepend it again (e.g. /es/rankings → /es/es/rankings).
+    const next = qs ? `${pathname}?${qs}` : pathname
     router.replace(next as Parameters<typeof router.replace>[0], { scroll: false })
-  }, [gender, rankType, router])
+  }, [gender, rankType, router, pathname])
 
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
@@ -423,13 +426,14 @@ export default function V3RankingPage() {
       const sp = new URLSearchParams(window.location.search)
       sp.delete('highlight')
       const qs = sp.toString()
+      // Use next-intl's locale-stripped pathname; see comment on the URL-sync effect above.
       router.replace(
-        (qs ? `${window.location.pathname}?${qs}` : window.location.pathname) as Parameters<typeof router.replace>[0],
+        (qs ? `${pathname}?${qs}` : pathname) as Parameters<typeof router.replace>[0],
         { scroll: false },
       )
       setTimeout(() => setPulseId(null), 2000)
     }, 80)
-  }, [highlight, highlightHandled, players, gender, rankType, router])
+  }, [highlight, highlightHandled, players, gender, rankType, router, pathname])
 
   // ── Search filter ──────────────────────────────────────────
   const filtered = useMemo(() => {

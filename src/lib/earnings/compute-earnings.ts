@@ -190,7 +190,10 @@ export function computeEarningsForTournament(
         player_id: t.player_id,
         tournament_id: tournament.id,
         category: t.category,
-        round_eliminated: t.terminal_round,
+        // Persist 'W' for tournament champions so consumers can distinguish
+        // them from finalists. Both reach the Final (terminal_round='F') but
+        // only the winning pair has is_winner=true.
+        round_eliminated: t.is_winner && t.terminal_round === 'F' ? 'W' : t.terminal_round,
         per_player_eur: resolved.per_player_eur,
         source: resolved.source,
         earned_at: tournament.ends_at,

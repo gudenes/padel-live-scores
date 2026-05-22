@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Link, useRouter } from '@/i18n/navigation'
+import { Link, useRouter, usePathname } from '@/i18n/navigation'
 import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { parseSetScore, toShortName } from '@/types/match'
@@ -304,6 +304,7 @@ function shouldShowNewPill(): boolean {
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const pathname = usePathname()
   const tPlayer = useTranslations('player')
   const tCommon = useTranslations('common')
   const format = useFormatter()
@@ -542,9 +543,11 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       sp.set('year', String(selectedYear))
     }
     const qs = sp.toString()
-    const next = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+    // Use next-intl's locale-stripped pathname; window.location.pathname includes the locale prefix
+    // and the next-intl router would prepend it again, causing /es/es/... double-prefix bug.
+    const next = qs ? `${pathname}?${qs}` : pathname
     router.replace(next, { scroll: false })
-  }, [activeTab, selectedYear, router])
+  }, [activeTab, selectedYear, router, pathname])
 
   // Fall-through guard: if ?tab=earnings lands on a player with no earnings data, reset to overview.
   useEffect(() => {
@@ -716,7 +719,6 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                       clipPath: 'polygon(0% 3%, 99% 0%, 100% 97%, 1% 100%)',
                       border: 'none', cursor: clickable ? 'pointer' : 'default',
                       position: 'relative',
-                      boxShadow: clickable ? 'inset 0 0 0 1.5px rgba(245,166,35,0.4)' : undefined,
                       fontFamily: 'inherit',
                     }}
                   >
@@ -730,12 +732,11 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                     </div>
                     {clickable && (
                       <span style={{
-                        position: 'absolute', top: 3, right: 5,
+                        position: 'absolute', top: 4, right: 5,
                         width: 5, height: 5,
-                        borderTop: '1.5px solid ' + ORANGE,
-                        borderRight: '1.5px solid ' + ORANGE,
+                        borderTop: '1.5px solid rgba(255,255,255,0.35)',
+                        borderRight: '1.5px solid rgba(255,255,255,0.35)',
                         transform: 'rotate(45deg)',
-                        opacity: 0.7,
                       }} />
                     )}
                   </Tag>
@@ -918,10 +919,9 @@ function OverviewTab({
             <span style={{
               position: 'absolute', top: 8, right: 8,
               width: 6, height: 6,
-              borderTop: '1.5px solid ' + ORANGE,
-              borderRight: '1.5px solid ' + ORANGE,
+              borderTop: '1.5px solid rgba(255,255,255,0.35)',
+              borderRight: '1.5px solid rgba(255,255,255,0.35)',
               transform: 'rotate(45deg)',
-              opacity: 0.7,
               pointerEvents: 'none',
             }} />
           </div>
@@ -951,10 +951,9 @@ function OverviewTab({
             <span style={{
               position: 'absolute', top: 8, right: 8,
               width: 6, height: 6,
-              borderTop: '1.5px solid ' + ORANGE,
-              borderRight: '1.5px solid ' + ORANGE,
+              borderTop: '1.5px solid rgba(255,255,255,0.35)',
+              borderRight: '1.5px solid rgba(255,255,255,0.35)',
               transform: 'rotate(45deg)',
-              opacity: 0.7,
               pointerEvents: 'none',
             }} />
           </div>
