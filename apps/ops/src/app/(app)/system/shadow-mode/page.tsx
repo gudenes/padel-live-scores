@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import PadelgodShadowTab from './_components/PadelgodShadowTab'
 
 export const metadata = { title: 'Shadow Mode · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="Shadow Mode" />
+export default function ShadowModePage() {
+  return <PadelgodShadowTab />
 }

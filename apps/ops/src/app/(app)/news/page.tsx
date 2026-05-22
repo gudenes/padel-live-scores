@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import NewsTab from './_components/NewsTab'
 
 export const metadata = { title: 'News · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="News" />
+export default function NewsPage() {
+  return <NewsTab />
 }

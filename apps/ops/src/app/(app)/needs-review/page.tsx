@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import TournamentDedupTab from './_components/TournamentDedupTab'
 
 export const metadata = { title: 'Needs Review · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="Needs Review" />
+export default function NeedsReviewPage() {
+  return <TournamentDedupTab />
 }

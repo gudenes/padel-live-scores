@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import { DataQuality } from './_components/DataQuality'
 
 export const metadata = { title: 'Data Quality · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="Data Quality" />
+export default function DataQualityPage() {
+  return <DataQuality />
 }
