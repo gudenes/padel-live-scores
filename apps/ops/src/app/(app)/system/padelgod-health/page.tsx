@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import PadelgodHealthTab from './_components/PadelgodHealthTab'
 
 export const metadata = { title: 'Padelgod Health · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="Padelgod Health" />
+export default function PadelgodHealthPage() {
+  return <PadelgodHealthTab />
 }
