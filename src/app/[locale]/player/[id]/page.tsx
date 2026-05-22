@@ -1156,6 +1156,19 @@ function OverviewTab({
         )
       })()}
 
+      {/* FIP Ranking — always visible alongside Last 10 when ranking is known */}
+      {player.ranking != null && (
+        <Widget label="FIP Ranking">
+          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
+          {player.points && (
+            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
+              {player.points.toLocaleString()} pts
+            </div>
+          )}
+          <WidgetIcon>#</WidgetIcon>
+        </Widget>
+      )}
+
       {/* Equipment — "Plays with" (wide card with racket image + specs) */}
       {(() => {
         // New relational tables take priority; fall back to legacy JSONB if not migrated yet
@@ -1289,20 +1302,6 @@ function OverviewTab({
           </Widget>
         )
       })()}
-      {/* FIP Ranking fallback — shown only when no equipment data */}
-      {!currentEquipment?.racket && !player.equipment?.racket_brand && player.ranking != null ? (
-        /* Fallback: show FIP Ranking if no equipment data */
-        <Widget label="FIP Ranking">
-          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
-          {player.points && (
-            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
-              {player.points.toLocaleString()} pts
-            </div>
-          )}
-          <WidgetIcon>#</WidgetIcon>
-        </Widget>
-      ) : null}
-
       {/* Profile Info — wide */}
       {availableProfileRows.length > 0 && (
         <Widget wide label="Profile Info">
