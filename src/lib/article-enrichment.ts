@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { extract } from '@extractus/article-extractor'
+import GoogleNewsDecoder from 'google-news-decoder'
 import { ARTICLE_TOPICS, isValidTopic, type ArticleTopic } from './article-topics'
 import { resolveEntity, type EntityType } from './entity-resolver'
 
@@ -47,10 +48,24 @@ function htmlToText(html: string): string {
     .trim()
 }
 
+/** Google News RSS URLs are aliases — decode to the real article URL.
+ *  Returns the input unchanged for non-Google-News URLs. */
+async function resolveRedirect(url: string): Promise<string> {
+  if (!url.includes('news.google.com')) return url
+  const decoder = new GoogleNewsDecoder()
+  const result = await decoder.decodeGoogleNewsUrl(url) as { status: boolean; decodedUrl?: string; message?: string }
+  if (result?.status && result.decodedUrl) return result.decodedUrl
+  throw new Error(`google_news_decode_failed: ${result?.message ?? 'unknown'}`)
+}
+
 export async function fetchArticleBody(url: string, timeoutMs = 15000): Promise<FetchedBody> {
+  // Decode Google News URLs first — pending rows from pre-enrichment ingest
+  // still carry raw news.google.com/rss/articles/... that need to be resolved.
+  const realUrl = await resolveRedirect(url)
+
   // @extractus/article-extractor wraps node-fetch under the hood; we cap with Promise.race for timeout.
   const article = await Promise.race([
-    extract(url),
+    extract(realUrl),
     new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
   ]) as Awaited<ReturnType<typeof extract>>
 
