@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import { IntegrationHealth } from './_components/IntegrationHealth'
 
 export const metadata = { title: 'Integration Health · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="Integration Health" />
+export default function IntegrationHealthPage() {
+  return <IntegrationHealth />
 }

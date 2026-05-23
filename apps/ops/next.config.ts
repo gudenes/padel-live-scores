@@ -6,6 +6,7 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ['pdf-parse', 'sharp'],
   turbopack: { root: dirname },
   images: {
     remotePatterns: [

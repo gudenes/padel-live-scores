@@ -44,7 +44,7 @@ function dayDateFromMatch(m: MatchForStream): string | null {
   return iso.slice(0, 10)
 }
 
-function tournamentSearchUrl(tournamentName: string): string {
+export function tournamentSearchUrl(tournamentName: string): string {
   const q = encodeURIComponent(tournamentName)
   return `https://www.youtube.com/@${FIP_CHANNEL_HANDLE}/search?query=${q}`
 }

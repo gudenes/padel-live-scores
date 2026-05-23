@@ -5,6 +5,7 @@
 import { usePathname } from '@/i18n/navigation'
 import BottomNavV3 from '@/components/nav/BottomNavV3'
 import { BadgeToastProvider } from '@/components/BadgeToast'
+import DesktopDownloadRail from '@/components/DesktopDownloadRail'
 
 // Routes that render their own focused chrome and should NOT show the
 // app's bottom nav. The picker uses its own sticky Continue/Skip CTA at
@@ -19,6 +20,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <BadgeToastProvider>
       <div style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
       {!hideNav && <BottomNavV3 />}
+      {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
+          shells. Self-gated for mobile/tablet via CSS media query. Skipped
+          on full-screen routes for the same reason BottomNavV3 is. */}
+      {!hideNav && <DesktopDownloadRail />}
     </BadgeToastProvider>
   )
 }

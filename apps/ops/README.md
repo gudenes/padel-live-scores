@@ -4,6 +4,8 @@ Standalone Next.js admin app deployed to `admin.padelnachos.com`. Replaces the e
 
 **Spec:** [`docs/superpowers/specs/2026-05-20-admin-ops-app-design.md`](../../docs/superpowers/specs/2026-05-20-admin-ops-app-design.md)
 
+**Phase 1 status:** COMPLETE. Plans 1, 2, 3a, 3b all shipped. Feature parity with the embedded `/ops` route in the main app has been reached. Next: cutover (delete `src/app/ops/*` from the main app) + Phase 2 refactors (list/detail URL routing, typed Needs Review inbox, etc.) per the spec.
+
 ## Local development
 
 ```bash
@@ -171,10 +173,52 @@ A user can sign in via any provider but only sees the app if they're in the `pub
 | `/reset-password?token=…` | Token consumer + new password form |
 | `/not-authorized` | Shown when a session exists but isOperator is false |
 | `/today` | Daily-driver dashboard (KPIs, LIVE NOW, REQUIRES ATTENTION, schedule) |
-| `/tournament-explorer`, `/entry-lists`, `/needs-review`, `/simulator` | Tournament Ops tabs (stubs until Plan 3) |
-| `/players`, `/brands`, `/streams` | Catalog tabs (stubs until Plan 3) |
-| `/news`, `/highlights` | Content tabs (stubs until Plan 3) |
-| `/system/*` | Diagnostics tabs (stubs until Plan 3) |
+| `/players` | Player catalog (search, edit, merge, dedup) |
+| `/tournament-explorer` | Per-tournament management (matches, draws, schedule review, entry lists) |
+| `/simulator` | Tournament simulator — create test tournaments, advance scores |
+| `/entry-lists` | Padelgod entry list management (PDF parse, FIP twin linking) |
+| `/needs-review` | Tournament deduplication queue |
+| `/brands` | Brands + rackets catalog with image upload |
+| `/streams` | FIP YouTube court stream resolution |
+| `/news` | News post editor (markdown + translation) |
+| `/highlights` | YouTube highlights picker |
+| `/system/integration-health` | Cron + relay health dashboard |
+| `/system/data-quality` | Match coverage + data freshness metrics |
+| `/system/padelgod-health` | Padelgod worker run history |
+| `/system/shadow-mode` | Padelgod shadow-mode enrollment + divergence inspection |
+| `/system/architecture` | System diagram (SVG) |
 | `/api/internal/today` | GET → full Today payload |
 | `/api/internal/needs-review/counts` | GET → `{ duplicates: number }` |
+| `/api/internal/players` | GET list / PATCH edit |
+| `/api/internal/players/merge` | POST merge two players |
+| `/api/internal/search-players` | GET search by name + filters |
+| `/api/internal/duplicate-scan` | GET cluster detection (AI-assisted) |
+| `/api/internal/tournament-explorer` | GET tournament list |
+| `/api/internal/refresh-tournament` | POST trigger padelgod re-sync |
+| `/api/internal/tournament-prize` | PATCH prize money |
+| `/api/internal/schedule-review` | GET pending / PATCH apply OOP changes |
+| `/api/internal/tournament-draw` | GET tournament draw |
+| `/api/internal/tournament-matches` | GET tournament matches |
+| `/api/internal/news`, `/api/internal/news/[id]`, `/api/internal/news/upload` | News editor + image upload |
+| `/api/internal/highlight-picker` | YouTube highlights candidates |
+| `/api/internal/simulator/{tournaments,create-tournament,purge,score}` | Simulator actions |
+| `/api/internal/fip-streams/{active,unresolved,resolve}` | FIP court stream queue |
+| `/api/internal/seed-entry-list` | Entry list seeding from PDF |
+| `/api/internal/tournament-dedup` | Tournament dedup plan + execute |
+| `/api/internal/padelgod-health` | Padelgod worker stats |
+| `/api/internal/padelgod-shadow/{enroll,enrollments,divergences,health,live,live-cards}` | Shadow mode operations |
+| `/api/internal/ops-status` | Dashboard data feed (used by Integration Health + Data Quality) |
 | `/api/auth/[...nextauth]` | Auth.js handler |
+
+## Player equipment + full profile (added 2026-05-22)
+
+- **`/players`** — list view. Equipment column reads from the `player_equipment` junction (not the deprecated `players.equipment` jsonb).
+- **`/players/<id>`** — dedicated full-profile page. Sections: header, Identity, Profile (save-on-blur), Equipment (3-state UX with inline brand/racket create), Match history (last 50), Earnings (grouped by year DESC), Coaches, Activity placeholder.
+- **Drawer** — fast triage from the list. "Open full profile →" link in header navigates to `/players/<id>`. Table rows have a `↗` shortcut next to the name. The full-profile page's "Open in drawer" link uses `?drawer=<id>` to re-open the drawer from the list.
+
+**Equipment data flow:**
+- Source of truth: `player_equipment` junction table
+- Operator writes go through `POST /api/internal/player-equipment` which ENDs any active row before INSERTing the new one (auto-end-previous with same-day semantics)
+- Backdated `started_at` earlier than the active row is REJECTED with 400 (would corrupt history)
+- `notes` field on the junction is persisted; year range 1990-2030 enforced on rackets
+- The deprecated `players.equipment` jsonb column will be dropped in a follow-up migration after 1 week of prod verification

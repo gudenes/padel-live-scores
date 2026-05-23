@@ -25,11 +25,18 @@ export type EarningSource =
   | 'fip_tour_rulebook_pct' // Cupra rulebook % × prize_money_eur
   | 'manual'                // ops UI override (out of scope this PR)
 
+// 'W' is an outcome (tournament champion), not a bracket round, so we widen
+// here rather than mutating RoundCode (which is used elsewhere for actual
+// bracket positions). When is_winner is true and terminal_round is 'F', the
+// engine persists 'W' so consumers (UI, ranking aggregations) can tell the
+// champion apart from the runner-up without a sibling-row lookup.
+export type EarningTerminalCode = RoundCode | 'W'
+
 export type EarningRow = {
   player_id: string
   tournament_id: string
   category: Category
-  round_eliminated: RoundCode
+  round_eliminated: EarningTerminalCode
   per_player_eur: number
   source: EarningSource
   earned_at: string  // ISO 8601 — tournament.ends_at (match.finished_at is unreliable)

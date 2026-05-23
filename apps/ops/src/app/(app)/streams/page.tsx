@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import FipStreamsTab from './_components/FipStreamsTab'
 
 export const metadata = { title: 'Streams · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="Streams" />
+export default function StreamsPage() {
+  return <FipStreamsTab />
 }

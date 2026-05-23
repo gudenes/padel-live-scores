@@ -563,7 +563,35 @@
     "shape_hybrid": "Híbrida",
     "balance_head-heavy": "Alto",
     "balance_balanced": "Médio",
-    "balance_head-light": "Baixo"
+    "balance_head-light": "Baixo",
+    "nextMatch": "Próximo jogo",
+    "nextTournament": "Próximo torneio",
+    "earningsTab": "Ganhos",
+    "earningsTabNewPill": "NEW",
+    "earningsTabNewPill_context": "Distintivo de descoberta no novo separador Ganhos",
+    "ytdEarningsCard": "YTD {year}",
+    "careerEarningsCard": "Carreira",
+    "earningsEventsCount": "{count, plural, one {# evento} other {# eventos}}",
+    "earningsTournamentsCount": "{count, plural, one {# torneio} other {# torneios}}",
+    "noEarningsForYear": "Sem ganhos em {year}",
+    "earningsAllYears": "Tudo",
+    "titlesCalloutLabel": "Títulos {year} · {count}",
+    "wonWithPartner": "c/ {partnerName}",
+    "seasonTournamentsCount": "{count, plural, one {# torneio} other {# torneios}}",
+    "playerNotInTop1000": "{name} não está no top 1000",
+    "viewInRankings": "Ver {name} no ranking",
+    "roundLabel": {
+      "W": "Vencedor",
+      "F": "Final",
+      "SF": "SF",
+      "QF": "QF",
+      "R16": "R16",
+      "R32": "R32",
+      "R64": "R64",
+      "Q1": "Q1",
+      "Q2": "Q2",
+      "Q3": "Q3"
+    }
   },
   "followButton": {
     "follow": "Seguir",
@@ -1046,6 +1074,20 @@
     "retry": "Tentar novamente",
     "banner": "Offline — última conexão às {time}"
   },
+  "download": {
+    "ariaLabel": "Baixe o app Padel Nachos",
+    "eyebrow": "Padel Nachos",
+    "title": "Leve o padel ao vivo com você.",
+    "body": "Alertas push. Placar instantâneo. O app completo, no iOS e no Android.",
+    "appStoreAria": "Baixe Padel Nachos na App Store",
+    "appStoreEyebrow": "Baixar na",
+    "appStoreName": "App Store",
+    "playStoreAria": "Obtenha Padel Nachos no Google Play",
+    "playStoreEyebrow": "DISPONÍVEL NO",
+    "playStoreName": "Google Play",
+    "metaStrong": "Grátis para sempre.",
+    "metaTail": "Disponível em cinco idiomas."
+  },
   "consent": {
     "title": "Usamos cookies",
     "body": "Usamos cookies para melhorar pontuações e rankings, entender como o app é usado e (em breve) enviar alertas de partidas ao vivo nos dispositivos que você escolher.",
@@ -1231,7 +1273,11 @@
     "bannerLiveCount": "Assistir ao vivo · {count, plural, one {# opção} other {# opções}}",
     "bannerWatchIn": "Assistir em {region}",
     "bannerWhere": "Onde assistir",
-    "seoSummary": "Assista {target} ao vivo em {list}{extra, plural, =0 {} one { e # outra emissora regional} other { e # outras emissoras regionais}}."
+    "seoSummary": "Assista {target} ao vivo em {list}{extra, plural, =0 {} one { e # outra emissora regional} other { e # outras emissoras regionais}}.",
+    "tournamentMatchedNudge": "Mostrando transmissões identificadas para este torneio",
+    "tournamentEmptyNudge": "Ainda não identificamos transmissões para este torneio",
+    "searchFallbackLabel": "Buscar \"{tournament}\" no FIP TOUR",
+    "searchFallbackButton": "Buscar"
   },
   "foryou": {
     "swipeHint": "Deslize para o próximo",

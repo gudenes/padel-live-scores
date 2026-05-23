@@ -32,6 +32,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
       { href: '/players', label: 'Players' },
       { href: '/brands', label: 'Brands & Equipment' },
       { href: '/streams', label: 'Streams' },
+      { href: '/yt-channels', label: 'YT Channels' },
     ],
   },
   {
@@ -48,6 +49,8 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
       { href: '/system/data-quality', label: 'Data Quality' },
       { href: '/system/padelgod-health', label: 'Padelgod Health' },
       { href: '/system/shadow-mode', label: 'Shadow Mode' },
+      { href: '/system/coverage-matrix', label: 'Coverage Matrix' },
+      { href: '/system/feature-flags', label: 'Feature Flags' },
       { href: '/system/architecture', label: 'Architecture' },
     ],
   },
