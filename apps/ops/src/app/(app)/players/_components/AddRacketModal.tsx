@@ -5,12 +5,22 @@
 // a brand_id from the parent), this modal owns the brand picker itself and has no
 // player-assignment side effects — it only writes to the rackets/brands catalog.
 //
-// Flow: pick (or inline-create) brand → fill model/year → optional image →
-//   POST /api/internal/rackets → optional upload + PATCH image_url → success state.
+// Flow: pick (or inline-create) brand → fill model/year/shape/weight/balance/etc
+// → (optional) image → POST /api/internal/rackets → optional upload + PATCH
+// image_url → success state.
+//
+// The form fields + the URL-paste AI extract affordance live in the shared
+// RacketFieldsForm; this modal only owns the brand picker.
 
 import { useState, useEffect } from 'react'
 import Combobox from './Combobox'
 import CreateBrandModal from './CreateBrandModal'
+import RacketFieldsForm, {
+  emptyRacketFields,
+  validateRacketFields,
+  racketFieldsToCreatePayload,
+  type RacketFieldsValue,
+} from './RacketFieldsForm'
 
 interface Brand {
   id: string
@@ -26,11 +36,10 @@ interface Props {
 export default function AddRacketModal({ onClose, onCreated }: Props) {
   const [brands, setBrands] = useState<Brand[]>([])
   const [brandId, setBrandId] = useState<string | null>(null)
-  const [model, setModel] = useState('')
-  const [year, setYear] = useState<string>('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [fields, setFields] = useState<RacketFieldsValue>(emptyRacketFields)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [brandHint, setBrandHint] = useState<string | null>(null)
   const [createBrandText, setCreateBrandText] = useState<string | null>(null)
   const [success, setSuccess] = useState<{ racket: { id: string; model: string }; warning: string | null } | null>(null)
 
@@ -54,37 +63,39 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
     }
   }, [success, onClose, onCreated])
 
+  // Try to auto-select the brand when AI extract returns a brand name hint.
+  function handleBrandSuggest(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    const norm = trimmed.toLowerCase()
+    const match = brands.find((b) => b.name.toLowerCase() === norm)
+    if (match) {
+      setBrandId(match.id)
+      setBrandHint(null)
+    } else {
+      setBrandHint(trimmed)
+    }
+  }
+
   async function handleSave() {
     if (!brandId) {
       setError('Pick a brand')
       return
     }
-    const trimmed = model.trim()
-    if (!trimmed) {
-      setError('Model is required')
+    const validation = validateRacketFields(fields)
+    if (validation) {
+      setError(validation)
       return
-    }
-    if (year) {
-      const yearNum = Number(year)
-      if (!Number.isInteger(yearNum) || yearNum < 1990 || yearNum > 2030) {
-        setError('Year must be between 1990 and 2030')
-        return
-      }
     }
     setSaving(true)
     setError(null)
 
     try {
-      // 1. Create racket
+      // 1. Create racket — POST accepts all 5 new fields directly.
       const createRes = await fetch('/api/internal/rackets', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          brand_id: brandId,
-          model: trimmed,
-          year: year ? Number(year) : null,
-          image_url: null,
-        }),
+        body: JSON.stringify(racketFieldsToCreatePayload(fields, brandId)),
       })
       if (!createRes.ok) {
         const d = await createRes.json().catch(() => ({}))
@@ -99,12 +110,12 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
       //    Partial failures surface as a warning — the racket row exists either
       //    way, so we MUST NOT let the operator retry the create (would dup).
       let imageWarning: string | null = null
-      if (imageFile) {
+      if (fields.imageFile) {
         try {
           const fd = new FormData()
           fd.append('kind', 'racket')
           fd.append('entityId', racket.id)
-          fd.append('file', imageFile)
+          fd.append('file', fields.imageFile)
           const up = await fetch('/api/internal/upload-equipment-image', { method: 'POST', body: fd })
           if (!up.ok) {
             imageWarning = 'Racket created, image upload failed — retry from the Brands tab.'
@@ -138,7 +149,7 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg p-6 w-[440px] max-h-[90vh] overflow-auto"
+        className="bg-white rounded-lg p-6 w-[480px] max-h-[90vh] overflow-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -173,51 +184,31 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
         ) : (
           <div className="flex flex-col gap-4">
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">BRAND</div>
+              <div className="text-[11px] font-semibold text-gray-500 mb-1">BRAND *</div>
               <Combobox
                 options={brands.map((b) => ({ id: b.id, label: b.name }))}
                 value={brandId}
-                onChange={setBrandId}
+                onChange={(id) => {
+                  setBrandId(id)
+                  if (id) setBrandHint(null)
+                }}
                 onCreate={(t) => setCreateBrandText(t)}
                 createLabel={(t) => `+ Create brand "${t}"`}
                 placeholder="Pick a brand…"
               />
+              {brandHint && !brandId && (
+                <div className="mt-1.5 text-[11px] text-amber-700">
+                  Brand &quot;{brandHint}&quot; not in catalog — create it via the picker above.
+                </div>
+              )}
             </div>
 
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">MODEL</div>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="e.g. Vibora Black Mamba Edition"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
-              />
-            </div>
-
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">YEAR (optional)</div>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1990}
-                max={2030}
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                placeholder="e.g. 2026"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
-              />
-            </div>
-
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">IMAGE (optional)</div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                className="text-xs"
-              />
-            </div>
+            <RacketFieldsForm
+              value={fields}
+              onChange={setFields}
+              onBrandSuggest={handleBrandSuggest}
+              disabled={saving}
+            />
 
             {error && <div className="text-xs text-red-600">{error}</div>}
 
@@ -249,6 +240,7 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
                 .catch(() => ({ brands: [] }))) as { brands?: Brand[] }
               setBrands(updated.brands ?? [])
               setBrandId(newBrand.id)
+              setBrandHint(null)
               setCreateBrandText(null)
             }}
           />

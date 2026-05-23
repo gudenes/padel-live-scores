@@ -4,8 +4,18 @@
 // Flow: create racket → (optional) upload image with new racket id → PATCH image_url.
 // Mirrors CreateBrandModal's structure — the upload route requires a racket UUID,
 // so the create-then-upload order is mandatory.
+//
+// The form fields + the URL-paste AI extract affordance live in the shared
+// RacketFieldsForm. Brand is fixed by the parent so we don't expose a picker
+// and we ignore any brand hint returned by AI extract.
 
 import { useState } from 'react'
+import RacketFieldsForm, {
+  emptyRacketFields,
+  validateRacketFields,
+  racketFieldsToCreatePayload,
+  type RacketFieldsValue,
+} from './RacketFieldsForm'
 
 interface Props {
   initialModel: string
@@ -15,39 +25,26 @@ interface Props {
 }
 
 export default function CreateRacketModal({ initialModel, brandId, onClose, onCreated }: Props) {
-  const [model, setModel] = useState(initialModel)
-  const [year, setYear] = useState<string>('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [fields, setFields] = useState<RacketFieldsValue>({ ...emptyRacketFields, model: initialModel })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [partialSuccess, setPartialSuccess] = useState<{ racket: { id: string; model: string }; warning: string } | null>(null)
 
   async function handleSave() {
-    const trimmed = model.trim()
-    if (!trimmed) {
-      setError('Model is required')
+    const validation = validateRacketFields(fields)
+    if (validation) {
+      setError(validation)
       return
-    }
-    if (year) {
-      const yearNum = Number(year)
-      if (!Number.isInteger(yearNum) || yearNum < 1990 || yearNum > 2030) {
-        setError('Year must be between 1990 and 2030')
-        return
-      }
     }
     setSaving(true)
     setError(null)
 
     try {
-      // 1. Create racket
+      // 1. Create racket — POST accepts all 5 new fields directly.
       const createRes = await fetch('/api/internal/rackets', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          brand_id: brandId,
-          model: trimmed,
-          year: year ? Number(year) : null,
-        }),
+        body: JSON.stringify(racketFieldsToCreatePayload(fields, brandId)),
       })
       if (!createRes.ok) {
         const d = await createRes.json().catch(() => ({}))
@@ -63,12 +60,12 @@ export default function CreateRacketModal({ initialModel, brandId, onClose, onCr
       //    image didn't land — the racket row itself exists either way, so we
       //    must NOT let them retry the create (would dup the racket).
       let imageWarning: string | null = null
-      if (imageFile) {
+      if (fields.imageFile) {
         try {
           const fd = new FormData()
           fd.append('kind', 'racket')
           fd.append('entityId', racket.id)
-          fd.append('file', imageFile)
+          fd.append('file', fields.imageFile)
           const up = await fetch('/api/internal/upload-equipment-image', { method: 'POST', body: fd })
           if (!up.ok) {
             imageWarning = 'Racket created, image upload failed — retry from the Brands tab.'
@@ -106,7 +103,7 @@ export default function CreateRacketModal({ initialModel, brandId, onClose, onCr
       className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]"
       onClick={onClose}
     >
-      <div className="bg-white rounded-lg p-6 w-96" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg p-6 w-[460px] max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <div className="text-base font-semibold">Create racket</div>
           <button onClick={onClose} className="text-gray-400 cursor-pointer" aria-label="Close">
@@ -132,38 +129,7 @@ export default function CreateRacketModal({ initialModel, brandId, onClose, onCr
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">MODEL</div>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
-                autoFocus
-              />
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">YEAR (optional)</div>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1990}
-                max={2030}
-                value={year}
-                onChange={(e) => setYear(e.target.value)}
-                placeholder="e.g. 2026"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
-              />
-            </div>
-            <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">IMAGE (optional)</div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                className="text-xs"
-              />
-            </div>
+            <RacketFieldsForm value={fields} onChange={setFields} disabled={saving} />
             {error && <div className="text-xs text-red-600">{error}</div>}
             <div className="flex gap-2 justify-end pt-2">
               <button
