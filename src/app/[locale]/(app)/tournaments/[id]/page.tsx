@@ -8,7 +8,7 @@ import Image from 'next/image'
 import { useFormatter, useTranslations, useLocale } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useSearchParams } from 'next/navigation'
-import { useRouter, Link } from '@/i18n/navigation'
+import { useRouter, usePathname, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, parseSetFromGames, isWarmingUp, toShortName } from '@/types/match'
 import { hydrateThinPlayers } from '@/lib/thin-match-player'
@@ -201,10 +201,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'story' | 'draw'>(
+  // Animated arrival from home's "VER PARTIDOS" card: when intent=matches is
+  // present alongside tab=matches, mount on Overview and slide to Matches
+  // after a short beat (see the mount effect below).
+  const wantsMatchesAnimation =
+    searchParams.get('intent') === 'matches' && paramTab === 'matches'
+
+  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw'>(
     // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
     // share links and bookmarks keep working.
-    paramTab === 'draw'
+    wantsMatchesAnimation
+      ? 'overview'
+      : paramTab === 'draw'
       ? 'draw'
       : paramTab === 'story' || paramTab === 'recap'
       ? 'story'
@@ -212,6 +220,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       ? 'matches'
       : 'overview'
   )
+
+  // Tracks whether the user has manually changed tabs, so the scheduled
+  // animated-arrival commit doesn't override a tap that happens during the dwell.
+  const userChangedTabRef = useRef(false)
+  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw') => {
+    userChangedTabRef.current = true
+    setPageTabState(next)
+  }, [])
+
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   // prefers-reduced-motion snaps between expanded and collapsed
@@ -224,6 +241,36 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const navbarLayerOpacity = p
   const compactOpacity     = clamp01((p - 0.55) / 0.4)
   const inlineOpacity      = clamp01((0.7 - p) / 0.4)
+
+  // Animated arrival from home's "VER PARTIDOS": mount on Overview,
+  // slide to Matches after a short beat (or commit immediately under
+  // reduced-motion). The visible animation is SlidingInkTabs' existing
+  // spring on activeKey change.
+  const pathname = usePathname()
+  useEffect(() => {
+    if (!wantsMatchesAnimation) return
+
+    const commit = () => {
+      if (userChangedTabRef.current) return
+      setPageTabState('matches')
+
+      // Strip ?intent so refresh/back doesn't replay the animation.
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('intent')
+      const qs = params.toString()
+      router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false })
+    }
+
+    if (reducedMotion) {
+      commit()
+      return
+    }
+
+    const t = window.setTimeout(commit, 280)
+    return () => window.clearTimeout(t)
+    // Intentionally mount-only — animated arrival fires once per navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
 
   // ── Fetch ─────────────────────────────────────────────────────
