@@ -569,23 +569,41 @@ button:focus { outline: none; }
 }
 /* Only show at desktop widths (≥1280px). Below that, mobile/tablet
    users either have the app or are running the mobile-first PWA —
-   pushing them to install duplicates of what they already have. */
+   pushing them to install duplicates of what they already have.
+   Positioning uses left:50% + margin-left rather than right:max(…)
+   because Next.js's CSS minifier strips the calc() wrapper around the
+   subtraction in `right: max(32px, calc(50% - 600px))`, leaving the
+   bare `50% - 600px` expression which some browsers (and our build
+   pipeline) refuse to evaluate. The left/margin-left pair is browser-
+   universal and trivially minifies. */
 @media (min-width: 1280px) {
   .pn-download-rail {
     display: block;
     position: fixed;
     top: 96px;
-    /* Anchor relative to viewport centre — keeps the rail roughly 64px
-       to the right of the centred ~480px app column on any screen
-       width, with a 32px minimum margin from the right viewport edge
-       on narrower desktops. */
-    right: max(32px, calc(50% - 600px));
+    /* Anchor 304px to the right of viewport centre: 240px (half the
+       centred 480px-wide app column) + 64px (gutter). Rail extends
+       right from there to its 280px width. */
+    left: 50%;
+    margin-left: 304px;
+    right: auto;
     width: 280px;
     z-index: 100;
     pointer-events: auto;
     isolation: isolate;
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', system-ui, sans-serif;
     animation: pn-download-rail-fade 0.6s ease-out 0.4s both;
+  }
+}
+/* On very wide screens (≥1900px) the rail would otherwise float far
+   from the right viewport edge. Pull it slightly right to feel
+   balanced with the centred app, but cap at a fixed right offset so
+   it doesn't drift indefinitely on ultrawide monitors. */
+@media (min-width: 1900px) {
+  .pn-download-rail {
+    left: auto;
+    margin-left: 0;
+    right: 80px;
   }
 }
 @keyframes pn-download-rail-fade {
