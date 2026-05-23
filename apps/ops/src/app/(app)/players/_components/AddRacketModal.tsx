@@ -152,13 +152,18 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
     }
   }, [imagePreviewUrl])
 
+  // Preview precedence mirrors RacketFieldsForm's local preview:
+  // processed transparent → local file → extracted URL → null.
+  const previewImageUrl =
+    fields.transparentDataUrl ?? imagePreviewUrl ?? fields.extractedImageUrl ?? null
+
   const previewRacket = {
     model: fields.model || null,
     year: fields.year ? Number(fields.year) : null,
     shape: fields.shape || null,
     weight_grams: fields.weightGrams ? Number(fields.weightGrams) : null,
     balance: fields.balance || null,
-    image_url: imagePreviewUrl,
+    image_url: previewImageUrl,
     product_url: fields.productUrl || null,
   }
 
@@ -197,13 +202,16 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
 
       // 2. (Optional) Upload image + PATCH image_url. Partial failures surface
       //    as a warning — the racket row exists either way.
+      //    If the operator toggled "Remove background", we convert the cached
+      //    data URL into a PNG File and upload that instead of the raw file.
       let imageWarning: string | null = null
-      if (fields.imageFile) {
+      const effectiveImageFile = await resolveEffectiveImageFile(fields)
+      if (effectiveImageFile) {
         try {
           const fd = new FormData()
           fd.append('kind', 'racket')
           fd.append('entityId', racket.id)
-          fd.append('file', fields.imageFile)
+          fd.append('file', effectiveImageFile)
           const up = await fetch('/api/internal/upload-equipment-image', {
             method: 'POST',
             body: fd,
@@ -268,7 +276,9 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
   }
 
   // ── Render helpers ─────────────────────────────────────────
-  const modalWidth = step === 2 ? 'w-[760px]' : 'w-[480px]'
+  // Both steps share a 760px container so the form (with 2-column rows + image
+  // preview) doesn't need vertical scrolling on a typical laptop screen.
+  const modalWidth = 'w-[760px]'
 
   return (
     <div
@@ -361,6 +371,20 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
       </div>
     </div>
   )
+}
+
+// ── Helper: pick the right File to upload ───────────────────
+// When the operator opted into background removal, `transparentDataUrl` holds
+// a base64 PNG produced by the processing endpoint. We need a File for the
+// existing /api/internal/upload-equipment-image route, so we convert here.
+// Falls back to the raw file (or null) when no transparent variant exists.
+async function resolveEffectiveImageFile(fields: RacketFieldsValue): Promise<File | null> {
+  if (fields.transparentDataUrl) {
+    const res = await fetch(fields.transparentDataUrl)
+    const blob = await res.blob()
+    return new File([blob], 'racket-transparent.png', { type: 'image/png' })
+  }
+  return fields.imageFile
 }
 
 // ── Step 1 view ─────────────────────────────────────────────

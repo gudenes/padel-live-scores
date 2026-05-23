@@ -24,6 +24,18 @@ interface Props {
   onCreated: (racket: { id: string; model: string }) => void
 }
 
+// When "Remove background" was toggled on, fields.transparentDataUrl holds the
+// processed PNG as a base64 data URL. The upload-equipment-image route wants a
+// File, so we convert here. Falls back to the raw upload (or null).
+async function resolveEffectiveImageFile(fields: RacketFieldsValue): Promise<File | null> {
+  if (fields.transparentDataUrl) {
+    const res = await fetch(fields.transparentDataUrl)
+    const blob = await res.blob()
+    return new File([blob], 'racket-transparent.png', { type: 'image/png' })
+  }
+  return fields.imageFile
+}
+
 export default function CreateRacketModal({ initialModel, brandId, onClose, onCreated }: Props) {
   const [fields, setFields] = useState<RacketFieldsValue>({ ...emptyRacketFields, model: initialModel })
   const [saving, setSaving] = useState(false)
@@ -59,13 +71,16 @@ export default function CreateRacketModal({ initialModel, brandId, onClose, onCr
       //    On partial failure we keep the modal open so the operator knows the
       //    image didn't land — the racket row itself exists either way, so we
       //    must NOT let them retry the create (would dup the racket).
+      //    If "Remove background" was toggled on, fields.transparentDataUrl
+      //    holds the processed PNG — convert to a File and upload it instead.
       let imageWarning: string | null = null
-      if (fields.imageFile) {
+      const effectiveImageFile = await resolveEffectiveImageFile(fields)
+      if (effectiveImageFile) {
         try {
           const fd = new FormData()
           fd.append('kind', 'racket')
           fd.append('entityId', racket.id)
-          fd.append('file', fields.imageFile)
+          fd.append('file', effectiveImageFile)
           const up = await fetch('/api/internal/upload-equipment-image', { method: 'POST', body: fd })
           if (!up.ok) {
             imageWarning = 'Racket created, image upload failed — retry from the Brands tab.'

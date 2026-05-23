@@ -14,7 +14,7 @@
 // resolves it against its brand list via `onBrandSuggest`; CreateRacketModal
 // ignores it (brand is fixed by the parent AssignRacketModal).
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 // Match BrandsTab.tsx (SHAPE_OPTIONS, BALANCE_OPTIONS) so dropdowns are uniform.
 export const SHAPE_OPTIONS = ['diamond', 'round', 'teardrop', 'hybrid'] as const
@@ -32,6 +32,13 @@ export interface RacketFieldsValue {
   surfaceMaterial: string
   productUrl: string
   imageFile: File | null
+  /** Image URL returned by AI extract (remote). The toggle uses it to POST to
+   *  the background-removal endpoint when no local file is set. */
+  extractedImageUrl: string | null
+  /** PNG data URL produced by /api/internal/process-racket-image. When set,
+   *  the preview displays this image and AddRacketModal converts it to a File
+   *  before the upload step. */
+  transparentDataUrl: string | null
 }
 
 export const emptyRacketFields: RacketFieldsValue = {
@@ -43,6 +50,8 @@ export const emptyRacketFields: RacketFieldsValue = {
   surfaceMaterial: '',
   productUrl: '',
   imageFile: null,
+  extractedImageUrl: null,
+  transparentDataUrl: null,
 }
 
 interface ExtractSpecs {
@@ -70,9 +79,66 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
   const [extractUrl, setExtractUrl] = useState('')
   const [extracting, setExtracting] = useState(false)
   const [extractMessage, setExtractMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
+  const [processingTransparency, setProcessingTransparency] = useState(false)
+  const [transparencyError, setTransparencyError] = useState<string | null>(null)
 
   function patch(partial: Partial<RacketFieldsValue>) {
     onChange({ ...value, ...partial })
+  }
+
+  // Local blob URL for the uploaded file. Memoized + revoked to avoid leaks
+  // when the operator picks a new file mid-flow.
+  const localBlobUrl = useMemo(
+    () => (value.imageFile ? URL.createObjectURL(value.imageFile) : null),
+    [value.imageFile],
+  )
+  useEffect(() => {
+    return () => {
+      if (localBlobUrl) URL.revokeObjectURL(localBlobUrl)
+    }
+  }, [localBlobUrl])
+
+  // Preview precedence: processed transparent PNG → local upload → extracted URL.
+  const previewSrc = value.transparentDataUrl ?? localBlobUrl ?? value.extractedImageUrl
+  const hasProcessableImage = value.imageFile != null || (value.extractedImageUrl != null && value.extractedImageUrl.length > 0)
+
+  async function handleRemoveBackground() {
+    setTransparencyError(null)
+    // Toggle off → revert to original image. Operator can re-click to reprocess.
+    if (value.transparentDataUrl) {
+      patch({ transparentDataUrl: null })
+      return
+    }
+    setProcessingTransparency(true)
+    try {
+      let res: Response
+      if (value.imageFile) {
+        const fd = new FormData()
+        fd.append('file', value.imageFile)
+        res = await fetch('/api/internal/process-racket-image', { method: 'POST', body: fd })
+      } else if (value.extractedImageUrl) {
+        res = await fetch('/api/internal/process-racket-image', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ url: value.extractedImageUrl }),
+        })
+      } else {
+        setTransparencyError('No image to process yet.')
+        setProcessingTransparency(false)
+        return
+      }
+      const json = (await res.json().catch(() => ({}))) as { dataUrl?: string; error?: string }
+      if (!res.ok || !json.dataUrl) {
+        setTransparencyError(json.error ?? `Processing failed (${res.status})`)
+        setProcessingTransparency(false)
+        return
+      }
+      patch({ transparentDataUrl: json.dataUrl })
+    } catch (err) {
+      setTransparencyError(err instanceof Error ? err.message : 'Processing failed')
+    } finally {
+      setProcessingTransparency(false)
+    }
   }
 
   async function handleExtract() {
@@ -101,6 +167,10 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
       }
       const specs = json.specs
       // Spread into form. Year/weight come back as numbers — coerce to string for inputs.
+      // We capture `image_url` into `extractedImageUrl` so the preview can render
+      // the remote URL and the "Remove background" toggle has something to send
+      // to the processing endpoint without forcing the operator to download +
+      // re-upload the file manually.
       onChange({
         ...value,
         model: specs.model ?? value.model,
@@ -110,10 +180,9 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
         balance: isBalance(specs.balance) ? specs.balance : value.balance,
         surfaceMaterial: specs.surface_material ?? value.surfaceMaterial,
         productUrl: specs.product_url ?? trimmed,
-        // imageFile stays null — the extracted image_url goes to product_url's sibling
-        // hint (we don't auto-download the remote image into a File). The image_url
-        // itself is communicated up via onChange only if the modal wires it; for now
-        // we keep image upload as an operator action (file picker below).
+        extractedImageUrl: specs.image_url ?? value.extractedImageUrl,
+        // Re-extract invalidates any previously-processed transparent image.
+        transparentDataUrl: null,
       })
       if (specs.brand && onBrandSuggest) {
         onBrandSuggest(specs.brand)
@@ -162,55 +231,53 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
         )}
       </div>
 
-      {/* Model */}
-      <div>
-        <div className="mb-1 text-[11px] font-semibold text-gray-500">MODEL *</div>
-        <input
-          type="text"
-          value={value.model}
-          onChange={(e) => patch({ model: e.target.value })}
-          placeholder="e.g. Vertex 04"
-          className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
-          disabled={disabled}
-        />
+      {/* Row: Model (2/3) + Year (1/3) */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="col-span-2">
+          <div className="mb-1 text-[11px] font-semibold text-gray-500">MODEL *</div>
+          <input
+            type="text"
+            value={value.model}
+            onChange={(e) => patch({ model: e.target.value })}
+            placeholder="e.g. Vertex 04"
+            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            disabled={disabled}
+          />
+        </div>
+        <div>
+          <div className="mb-1 text-[11px] font-semibold text-gray-500">YEAR</div>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1990}
+            max={2030}
+            value={value.year}
+            onChange={(e) => patch({ year: e.target.value })}
+            placeholder="2026"
+            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            disabled={disabled}
+          />
+        </div>
       </div>
 
-      {/* Year */}
-      <div>
-        <div className="mb-1 text-[11px] font-semibold text-gray-500">YEAR (optional)</div>
-        <input
-          type="number"
-          inputMode="numeric"
-          min={1990}
-          max={2030}
-          value={value.year}
-          onChange={(e) => patch({ year: e.target.value })}
-          placeholder="e.g. 2026"
-          className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
-          disabled={disabled}
-        />
-      </div>
-
-      {/* Shape */}
-      <div>
-        <div className="mb-1 text-[11px] font-semibold text-gray-500">SHAPE (optional)</div>
-        <select
-          value={value.shape}
-          onChange={(e) => patch({ shape: e.target.value as RacketShape })}
-          className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
-          disabled={disabled}
-        >
-          <option value="">--</option>
-          {SHAPE_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Weight + Balance (2-col) */}
+      {/* Row: Shape + Weight */}
       <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="mb-1 text-[11px] font-semibold text-gray-500">SHAPE</div>
+          <select
+            value={value.shape}
+            onChange={(e) => patch({ shape: e.target.value as RacketShape })}
+            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            disabled={disabled}
+          >
+            <option value="">--</option>
+            {SHAPE_OPTIONS.map((s) => (
+              <option key={s} value={s}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <div className="mb-1 text-[11px] font-semibold text-gray-500">WEIGHT (g)</div>
           <input
@@ -225,6 +292,10 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
             disabled={disabled}
           />
         </div>
+      </div>
+
+      {/* Row: Balance + Surface material */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <div className="mb-1 text-[11px] font-semibold text-gray-500">BALANCE</div>
           <select
@@ -241,31 +312,80 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
             ))}
           </select>
         </div>
+        <div>
+          <div className="mb-1 text-[11px] font-semibold text-gray-500">SURFACE MATERIAL</div>
+          <input
+            type="text"
+            value={value.surfaceMaterial}
+            onChange={(e) => patch({ surfaceMaterial: e.target.value })}
+            placeholder="Carbon fiber"
+            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            disabled={disabled}
+          />
+        </div>
       </div>
 
-      {/* Surface material */}
-      <div>
-        <div className="mb-1 text-[11px] font-semibold text-gray-500">SURFACE MATERIAL (optional)</div>
-        <input
-          type="text"
-          value={value.surfaceMaterial}
-          onChange={(e) => patch({ surfaceMaterial: e.target.value })}
-          placeholder="Carbon fiber"
-          className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
-          disabled={disabled}
-        />
-      </div>
-
-      {/* Image */}
+      {/* Image + preview + background-removal toggle */}
       <div>
         <div className="mb-1 text-[11px] font-semibold text-gray-500">IMAGE (optional)</div>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => patch({ imageFile: e.target.files?.[0] ?? null })}
-          className="text-xs"
-          disabled={disabled}
-        />
+        <div className="flex items-start gap-3">
+          <div className="flex-1 flex flex-col gap-2">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) =>
+                patch({
+                  imageFile: e.target.files?.[0] ?? null,
+                  // New upload invalidates any prior processed image.
+                  transparentDataUrl: null,
+                })
+              }
+              className="text-xs"
+              disabled={disabled}
+            />
+            {hasProcessableImage && (
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  disabled={processingTransparency || disabled}
+                  onClick={handleRemoveBackground}
+                  className="self-start text-[11px] font-semibold border border-gray-200 rounded px-2 py-1 bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                >
+                  {processingTransparency
+                    ? 'Processing…'
+                    : value.transparentDataUrl
+                      ? 'Restore original'
+                      : 'Remove background'}
+                </button>
+                {transparencyError && (
+                  <div className="text-[11px] text-red-600">{transparencyError}</div>
+                )}
+              </div>
+            )}
+          </div>
+          {previewSrc && (
+            <div
+              className="w-24 h-24 rounded border border-gray-200 flex items-center justify-center overflow-hidden shrink-0"
+              style={
+                value.transparentDataUrl
+                  ? {
+                      backgroundImage:
+                        'linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)',
+                      backgroundSize: '16px 16px',
+                      backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
+                    }
+                  : { backgroundColor: '#ffffff' }
+              }
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewSrc}
+                alt="Racket preview"
+                className="max-w-full max-h-full object-contain"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Product URL */}
