@@ -1,19 +1,12 @@
 // src/app/api/cron/enrich-articles/route.ts
 // Runs every 15 minutes. Picks up to 20 articles where enrichment_status='pending',
 // oldest first. Sonnet summary + entity tagging + topic insert + Haiku translation.
+//
+// DIAGNOSTIC: imports are deferred into the handler so any module-eval failure
+// (e.g. bundler not finding jsdom transitive deps) surfaces as JSON instead of
+// an opaque framework 500. Revert to top-level imports once root cause is fixed.
 
-import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase'
-import { logOpsEvent } from '@/lib/ops-logger'
-import { fetchFeatureFlag, FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
-import {
-  fetchArticleBody,
-  callSonnetForEnrichment,
-  translateSummary,
-  linkEntitiesToArticle,
-  insertArticleTopics,
-} from '@/lib/article-enrichment'
 
 export const maxDuration = 300        // 5 min — 20 articles × ~10s each
 export const dynamic = 'force-dynamic'
@@ -31,12 +24,43 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const meta = await logOpsEvent('cron:enrich-articles', async () => {
-    const supabase = createServerClient()
+  // Defer imports — surface module-eval errors as JSON.
+  let mods
+  try {
+    const [anthropicMod, supabaseMod, opsLoggerMod, flagsMod, enrichmentMod] = await Promise.all([
+      import('@anthropic-ai/sdk'),
+      import('@/lib/supabase'),
+      import('@/lib/ops-logger'),
+      import('@/lib/feature-flags'),
+      import('@/lib/article-enrichment'),
+    ])
+    mods = {
+      Anthropic: anthropicMod.default,
+      createServerClient: supabaseMod.createServerClient,
+      logOpsEvent: opsLoggerMod.logOpsEvent,
+      fetchFeatureFlag: flagsMod.fetchFeatureFlag,
+      FLAG_KEYS: flagsMod.FLAG_KEYS,
+      resolveFlag: flagsMod.resolveFlag,
+      fetchArticleBody: enrichmentMod.fetchArticleBody,
+      callSonnetForEnrichment: enrichmentMod.callSonnetForEnrichment,
+      translateSummary: enrichmentMod.translateSummary,
+      linkEntitiesToArticle: enrichmentMod.linkEntitiesToArticle,
+      insertArticleTopics: enrichmentMod.insertArticleTopics,
+    }
+  } catch (e) {
+    return NextResponse.json({
+      error: 'module_load_failed',
+      message: (e as Error).message,
+      stack: (e as Error).stack?.split('\n').slice(0, 8).join('\n'),
+    }, { status: 500 })
+  }
+
+  const meta = await mods.logOpsEvent('cron:enrich-articles', async () => {
+    const supabase = mods.createServerClient()
 
     // Flag gate
-    const flag = await fetchFeatureFlag(supabase, FLAG_KEYS.NEWS_PIPELINE_ENRICHMENT)
-    if (!resolveFlag(flag)) {
+    const flag = await mods.fetchFeatureFlag(supabase, mods.FLAG_KEYS.NEWS_PIPELINE_ENRICHMENT)
+    if (!mods.resolveFlag(flag)) {
       return { skipped: 'flag_off' }
     }
 
@@ -55,12 +79,34 @@ export async function GET(req: NextRequest) {
       return { processed: 0, enriched: 0, failed: 0 }
     }
 
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const anthropic = new mods.Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
     let enriched = 0, failed = 0
     for (const article of candidates) {
       try {
-        await enrichOne(supabase, anthropic, article)
+        // 1. Fetch body
+        const { text: body, title: extractedTitle } = await mods.fetchArticleBody(article.source_url)
+        const headline = extractedTitle ?? article.title
+
+        // 2. Sonnet
+        const enrichedResult = await mods.callSonnetForEnrichment(anthropic, headline, body)
+
+        // 3. Translate
+        const translations = await mods.translateSummary(anthropic, enrichedResult.summary_md)
+
+        // 4. Insert junctions
+        await mods.linkEntitiesToArticle(supabase, article.id, enrichedResult.entities)
+        await mods.insertArticleTopics(supabase, article.id, enrichedResult.topics)
+
+        // 5. Mark enriched
+        const { error: updateErr } = await supabase.from('articles').update({
+          summary_md: enrichedResult.summary_md,
+          summary_translations: translations,
+          enrichment_status: 'enriched',
+          enriched_at: new Date().toISOString(),
+          enrichment_model: 'claude-sonnet-4-5',
+        }).eq('id', article.id)
+        if (updateErr) throw new Error(`db_update: ${updateErr.message}`)
         enriched++
       } catch (err) {
         const reason = (err as Error).message
@@ -79,34 +125,4 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json(meta)
-}
-
-async function enrichOne(
-  supabase: ReturnType<typeof createServerClient>,
-  anthropic: Anthropic,
-  article: { id: string; source_url: string; title: string; enrichment_retry_count: number | null },
-) {
-  // 1. Fetch body
-  const { text: body, title: extractedTitle } = await fetchArticleBody(article.source_url)
-  const headline = extractedTitle ?? article.title
-
-  // 2. Sonnet
-  const enrichedResult = await callSonnetForEnrichment(anthropic, headline, body)
-
-  // 3. Translate
-  const translations = await translateSummary(anthropic, enrichedResult.summary_md)
-
-  // 4. Insert junctions
-  await linkEntitiesToArticle(supabase, article.id, enrichedResult.entities)
-  await insertArticleTopics(supabase, article.id, enrichedResult.topics)
-
-  // 5. Mark enriched
-  const { error } = await supabase.from('articles').update({
-    summary_md: enrichedResult.summary_md,
-    summary_translations: translations,
-    enrichment_status: 'enriched',
-    enriched_at: new Date().toISOString(),
-    enrichment_model: 'claude-sonnet-4-5',
-  }).eq('id', article.id)
-  if (error) throw new Error(`db_update: ${error.message}`)
 }
