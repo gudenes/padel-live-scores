@@ -107,7 +107,10 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
             ref={el => { cardRefs.current[i] = el }}
             style={{
               position: 'relative',
-              height: `calc(100vh - ${PEEK_PX}px)`,
+              // Use svh (small viewport) so the URL bar is accounted for —
+            // 100vh on mobile is the LARGE viewport (URL bar hidden), which
+            // makes cards taller than visible space and hides the peek.
+            height: `calc(100svh - ${PEEK_PX}px)`,
               scrollSnapAlign: 'start',
               scrollSnapStop: 'always',
             }}
