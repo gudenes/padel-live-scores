@@ -24,6 +24,7 @@ import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
+import { pickDefaultRound, type PickDefaultRoundMatch } from '@/lib/pick-default-round'
 import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
@@ -453,32 +454,32 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return map
   }, [allMatches, availableRounds, activeTournament, activeTournamentObj, genderFilter])
 
-  // ── Auto-select round: prefer live > today > most advanced ──
+  // ── Auto-select round: live > today > most-advanced-finished > Q1 ──
   useEffect(() => {
     if (availableRounds.length === 0) return
     const todayKey = localDateKey(new Date())
-    const hasLive = availableRounds.find(r =>
-      allMatches.some(m =>
-        m.status === 'live' &&
-        normalizeRoundFull(m.round as string) === r &&
-        (!activeTournament || (m as any).tournament?.id === activeTournament)
-      )
-    )
-    const hasToday = availableRounds.find(r =>
-      allMatches.some(m => {
-        if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
-        if (normalizeRoundFull(m.round as string) !== r) return false
-        const src = (m as any).scheduled_at ?? (m as any).started_at
-        return src && src.slice(0, 10) === todayKey
-      })
-    )
+    const candidates: PickDefaultRoundMatch[] = allMatches.map(m => {
+      const src = (m as any).scheduled_at ?? (m as any).started_at
+      return {
+        normalizedRound: normalizeRoundFull(m.round as string),
+        status: m.status as string,
+        scheduledDateKey: typeof src === 'string' ? src.slice(0, 10) : null,
+        tournamentId: (m as any).tournament?.id ?? null,
+      }
+    })
+    const smartDefault = pickDefaultRound({
+      availableRounds,
+      matches: candidates,
+      activeTournamentId: activeTournament ?? null,
+      todayKey,
+    })
     setSelectedRound(prev => {
       if (paramRound && !prev) {
         const normalized = normalizeRoundFull(paramRound)
         if (availableRounds.includes(normalized)) return normalized
       }
       if (prev && availableRounds.includes(prev)) return prev
-      return hasLive ?? hasToday ?? availableRounds[0] ?? null
+      return smartDefault
     })
   }, [availableRounds, activeTournament, paramRound, allMatches])
 
