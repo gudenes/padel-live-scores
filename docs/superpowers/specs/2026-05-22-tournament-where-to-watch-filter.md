@@ -215,3 +215,20 @@ The matches page (`/matches/[date]`) and the per-match `WhereToWatchBanner` deli
 ### Follow-up
 
 The `fip-streams-discover` cron and the `fip_court_streams` / `fip_streams_unresolved` tables are effectively dead infrastructure. A separate cleanup task will delete them and drop the now-redundant `attributedVideoIds` parameter. Tracked separately so this PR stays focused on the user-visible fix.
+
+## Cleanup completed — 2026-05-23
+
+The follow-up landed. Deletions:
+
+- `src/app/api/cron/fip-streams-discover/` — the cron route (was never registered in `vercel.json`; last `ops_events` entry was 2026-05-14).
+- `src/app/api/ops/fip-streams/{active,resolve,unresolved}/` — the ops endpoints that backed the operator-resolve flow.
+- `src/app/ops/FipStreamsTab.tsx` — orphaned ops UI (the tab was already unwired from `OpsClient`).
+- `src/lib/fip-stream-resolver.ts` + its test — the per-match resolver. The `streamTier` field on `MatchesDayMatch` was set in two places but no UI component ever read it, so dropping it is a zero-regression change.
+- `supabase/migrations/20260523000000_drop_fip_streams_tables.sql` — drops `fip_court_streams` and `fip_streams_unresolved` with `CASCADE`.
+- `parseFipStreamTitle` removed from `src/lib/fip-stream-title-parser.ts` (only the deleted cron called it). `tokenize` stays — it's still the shared tokenizer for `filterTournamentStreams`.
+- `FIP_UPLOADS_PLAYLIST_ID` removed from `src/lib/fip-channel.ts` (same reason).
+
+Function signature changes:
+
+- `filterTournamentStreams` no longer takes `attributedVideoIds`. The `applyFipHeuristic` flag stays — callers still need to opt in to FIP-channel matching, but it's now the only mode for that channel rather than a fallback after an attribution miss. Strict-mode tests in the original suite were dropped; the kept tests cover heuristic on/off, min-token threshold, mixed batches, and empty inputs.
+- `tournamentSearchUrl` moved from `fip-stream-resolver.ts` (deleted) to `fip-channel.ts` so the tournament page can still build the FIP-TOUR fallback row.

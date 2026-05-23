@@ -88,10 +88,6 @@ export interface Match {
   viewer_count?: number
   avg_rating?: number | null
   rating_count?: number
-  // Optional: populated server-side by resolveStreamForMatch for FIP-tier
-  // matches that have a YouTube stream (any tier 1-4). Undefined / null on
-  // non-FIP matches and on FIP matches we couldn't resolve.
-  streamTier?: import('@/lib/fip-stream-resolver').StreamTier | null
 }
 
 // ── Warmup detection ──────────────────────────────────────────

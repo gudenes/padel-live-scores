@@ -14,7 +14,6 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { fetchMatchesDay } from '@/lib/fetch-matches-day'
-import { resolveStreamsForMatches } from '@/lib/fip-stream-resolver'
 import { getLocaleHomeTz, isIsoDate } from '@/lib/locale-time'
 
 export const revalidate = 60 // 1 min — fresh enough for live, cheap enough at scale
@@ -36,31 +35,6 @@ export async function GET(req: Request) {
 
   try {
     const payload = await fetchMatchesDay(supabase, date, tz)
-
-    // Decorate each match with its FIP-stream tier (mirror of the page-level wiring).
-    const { groups } = payload
-    const allMatches = groups.flatMap((g) => g.matches)
-    if (process.env.NEXT_PUBLIC_FIP_STREAMS_ENABLED === 'true' && allMatches.length > 0) {
-      const tournamentNames: Record<string, string> = {}
-      for (const g of groups) {
-        tournamentNames[g.tournamentId] = g.tournamentName
-      }
-      const tiers = await resolveStreamsForMatches(
-        supabase,
-        allMatches.map((m) => ({
-          id: m.id,
-          tournament_id: m.tournament?.id ?? '',
-          tournament_level: m.tournament?.level ?? null,
-          court: m.court,
-          scheduled_at: m.scheduled_at,
-          played_at: m.finished_at ?? null,
-        })),
-        tournamentNames,
-      )
-      for (const g of groups) {
-        g.matches = g.matches.map((m) => ({ ...m, streamTier: tiers.get(m.id) ?? null }))
-      }
-    }
 
     return NextResponse.json(payload, {
       headers: {
