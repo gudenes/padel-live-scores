@@ -209,3 +209,16 @@ A user can sign in via any provider but only sees the app if they're in the `pub
 | `/api/internal/padelgod-shadow/{enroll,enrollments,divergences,health,live,live-cards}` | Shadow mode operations |
 | `/api/internal/ops-status` | Dashboard data feed (used by Integration Health + Data Quality) |
 | `/api/auth/[...nextauth]` | Auth.js handler |
+
+## Player equipment + full profile (added 2026-05-22)
+
+- **`/players`** — list view. Equipment column reads from the `player_equipment` junction (not the deprecated `players.equipment` jsonb).
+- **`/players/<id>`** — dedicated full-profile page. Sections: header, Identity, Profile (save-on-blur), Equipment (3-state UX with inline brand/racket create), Match history (last 50), Earnings (grouped by year DESC), Coaches, Activity placeholder.
+- **Drawer** — fast triage from the list. "Open full profile →" link in header navigates to `/players/<id>`. Table rows have a `↗` shortcut next to the name. The full-profile page's "Open in drawer" link uses `?drawer=<id>` to re-open the drawer from the list.
+
+**Equipment data flow:**
+- Source of truth: `player_equipment` junction table
+- Operator writes go through `POST /api/internal/player-equipment` which ENDs any active row before INSERTing the new one (auto-end-previous with same-day semantics)
+- Backdated `started_at` earlier than the active row is REJECTED with 400 (would corrupt history)
+- `notes` field on the junction is persisted; year range 1990-2030 enforced on rackets
+- The deprecated `players.equipment` jsonb column will be dropped in a follow-up migration after 1 week of prod verification
