@@ -106,7 +106,7 @@ function TournamentSpotlightInner({ tournament, matchCount }: { tournament: Tour
       )}
 
       <Link
-        href={`/tournaments/${tournament.id}`}
+        href={`/tournaments/${tournament.id}?tab=matches&intent=matches`}
         style={{
           display: 'inline-block',
           marginTop: 14,
