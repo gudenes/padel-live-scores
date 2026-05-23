@@ -82,8 +82,8 @@ type FeedItem =
   | { type: 'video'; data: Highlight }
   | { type: 'news'; data: NewsItem }
 
-type FeedTab = 'news' | 'videos' | 'originals' | 'saved'
-const FEED_TABS: readonly FeedTab[] = ['news', 'videos', 'originals', 'saved']
+type FeedTab = 'foryou' | 'news' | 'videos' | 'originals' | 'saved'
+const FEED_TABS: readonly FeedTab[] = ['foryou', 'news', 'videos', 'originals', 'saved']
 const DEFAULT_TAB: FeedTab = 'news'
 
 function parseTab(value: string | null): FeedTab {
@@ -925,6 +925,8 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
         )
       case 'originals':
         return [] // Originals tab renders the `originals` prop directly, not clusters
+      case 'foryou':
+        return [] // For You tab renders <ForYouTab> directly (wired in Task 5.6), not clusters
     }
   })()
 
