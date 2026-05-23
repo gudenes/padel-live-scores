@@ -1072,6 +1072,20 @@
     "retry": "Try again",
     "banner": "Offline — last connected at {time}"
   },
+  "download": {
+    "ariaLabel": "Get the Padel Nachos app",
+    "eyebrow": "Padel Nachos",
+    "title": "Take live padel with you.",
+    "body": "Push alerts. Instant scores. The full app, on iOS and Android.",
+    "appStoreAria": "Download Padel Nachos on the App Store",
+    "appStoreEyebrow": "Download on the",
+    "appStoreName": "App Store",
+    "playStoreAria": "Get Padel Nachos on Google Play",
+    "playStoreEyebrow": "GET IT ON",
+    "playStoreName": "Google Play",
+    "metaStrong": "Free forever.",
+    "metaTail": "Available in five languages."
+  },
   "consent": {
     "title": "We use cookies",
     "body": "We use cookies to improve scores and rankings, understand how people use the app, and (soon) send you live-match alerts on devices you choose.",
