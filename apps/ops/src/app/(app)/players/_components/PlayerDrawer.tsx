@@ -3,6 +3,7 @@
 // Right-side overlay drawer for editing player details.
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { PlayerDetail } from './types'
 import EquipmentTab from './EquipmentTab'
 
@@ -404,6 +405,21 @@ export default function PlayerDrawer({
 
               {/* Nav + close */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                <Link
+                  href={`/players/${player.id}`}
+                  title="Open full profile"
+                  style={{
+                    fontSize: 11,
+                    color: '#2563EB',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    marginBottom: 2,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Open full profile →
+                </Link>
                 <button
                   onClick={onClose}
                   title="Close (Esc)"

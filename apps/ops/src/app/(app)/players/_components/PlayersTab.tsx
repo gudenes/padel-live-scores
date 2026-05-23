@@ -4,6 +4,7 @@
 // Merge/duplicate detection flow is preserved intact here.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import type { PlayerSummary, PlayerDetail, DataFilter, CategoryFilter, FilterCounts } from './types'
 import FilterChips from './FilterChips'
 import PlayersTable from './PlayersTable'
@@ -38,6 +39,11 @@ const sectionLabel: React.CSSProperties = {
 // ── Component ────────────────────────────────────────────────────
 
 export default function PlayersTab() {
+  // ── Router / query-param wiring ────────────────────────────────
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const drawerParamConsumedRef = useRef(false)
+
   // ── Search / list state ────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<PlayerSummary[]>([])
@@ -141,6 +147,19 @@ export default function PlayersTab() {
   }, [searchQuery, fetchData])
 
   useEffect(() => { fetchCounts() }, [fetchCounts])
+
+  // On mount, honor ?drawer=<id> — open that player in the drawer and clear
+  // the param so it doesn't re-fire on re-renders or back-nav. ref-guarded
+  // to prevent a feedback loop if the URL refreshes before router.replace lands.
+  useEffect(() => {
+    if (drawerParamConsumedRef.current) return
+    const drawerId = searchParams.get('drawer')
+    if (!drawerId) return
+    drawerParamConsumedRef.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActivePlayerId(drawerId)
+    router.replace('/players')
+  }, [searchParams, router])
 
   // Refetch when non-search params change (filter/page)
   useEffect(() => {

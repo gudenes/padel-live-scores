@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import Link from 'next/link'
 import { PlayerSummary, computeCompleteness } from './types'
 
 interface PlayersTableProps {
@@ -274,8 +275,31 @@ export default function PlayersTable({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
-                        {player.display_name || player.name}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
+                          {player.display_name || player.name}
+                        </span>
+                        <Link
+                          href={`/players/${player.id}`}
+                          title="Open full profile"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            fontSize: 12,
+                            color: '#9ca3af',
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                            lineHeight: 1,
+                            padding: '0 2px',
+                          }}
+                          onMouseEnter={(e) => {
+                            ;(e.currentTarget as HTMLAnchorElement).style.color = '#111'
+                          }}
+                          onMouseLeave={(e) => {
+                            ;(e.currentTarget as HTMLAnchorElement).style.color = '#9ca3af'
+                          }}
+                        >
+                          ↗
+                        </Link>
                       </span>
                     </td>
 
