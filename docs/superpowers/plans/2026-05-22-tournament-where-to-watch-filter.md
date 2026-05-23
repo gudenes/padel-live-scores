@@ -879,3 +879,44 @@ After completing Task 7, the engineer should confirm:
 - [ ] Manual smoke test covered all four scenarios in Task 7.
 
 If any of those fail: fix inline, commit the fix, and re-verify.
+
+---
+
+## Addendum — 2026-05-23: FIP-channel heuristic fallback
+
+Discovered during the Task 7 smoke test: `fip-streams-discover` has never reliably populated `fip_court_streams` (cron not in `vercel.json`, last `ops_events` entry 2026-05-14, all logged runs scored `newly_matched: 0`, root cause = two bugs in the in-route matcher). Spec gets an Amendment section laying out the full diagnosis; this plan picks up two extra tasks:
+
+### Task 8 — `applyFipHeuristic` flag in `filterTournamentStreams`
+
+Add an opt-in fallback. When the caller passes `applyFipHeuristic: true`, a FIP-channel video that misses attribution falls through to the same `≥minHeuristicTokens` title-overlap check non-FIP videos already use. Default remains `false`, so the matches page and per-match resolver are untouched.
+
+**Tests added:**
+- Keeps a non-attributed FIP video when flag is on and overlap ≥ min.
+- Drops a non-attributed FIP video when flag is on but overlap < min.
+- Attribution still wins when both attribution and heuristic would match.
+- Mixed batch: heuristic keeps the matching FIP video, drops the unrelated one.
+- Strict mode (default) still drops a heuristic-eligible FIP video.
+
+### Task 9 — Tournament page sets the flag from the active-window check
+
+```ts
+const applyFipHeuristic =
+  startsAtMs != null && endsAtMs != null &&
+  nowMs >= startsAtMs &&
+  nowMs <= endsAtMs + 24 * 60 * 60 * 1000
+```
+
+24-hour grace at the tail covers late finals on the closing day. Defensive: if either date is missing the flag stays off.
+
+### Task 10 — Smoke test the heuristic in the browser
+
+Reload an active FIP-tier tournament (Oeiras / Marnes if Finals are still live / Latina) and confirm the live FIP TOUR video surfaces with the green nudge instead of the amber search fallback. Cross-check that a past-edition tournament still shows the amber fallback (flag = false outside the active window).
+
+### Task 11 — Spawn the cleanup task
+
+After this PR is in good shape, spawn a separate session to:
+
+- Delete `/api/cron/fip-streams-discover/route.ts`.
+- Drop `fip_court_streams` + `fip_streams_unresolved` tables (one migration).
+- Remove `attributedVideoIds` from `FilterTournamentStreamsArgs` and update all call sites + tests.
+- Update the ops-dashboard "FIP Streams" tab if it exists, or remove it.

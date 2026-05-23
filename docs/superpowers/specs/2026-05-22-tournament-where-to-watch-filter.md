@@ -185,3 +185,33 @@ Five locales (EN/ES/PT/IT/FR). Spanish copy from the mockup is the reference; tr
 5. Update `WhereToWatchInline.tsx` props + render logic.
 6. Rewire the WTW `useEffect` in `tournaments/[id]/page.tsx`.
 7. Manual verification on the three scenarios above.
+
+## Amendment — 2026-05-23: FIP-channel heuristic fallback
+
+The original Decision #2 (FIP TOUR is canonical, "FIP rows are kept iff video_id is in the attributed set") relied on `fip-streams-discover` reliably populating `fip_court_streams`. Smoke testing this PR uncovered that the cron has never reliably done so:
+
+- Last `ops_events` entry is **2026-05-14 17:15 UTC**; the cron is not in `vercel.json` and has been silent since.
+- Across the 9 days of telemetry that *do* exist, every single run reported `newly_matched: 0` against 50 scanned videos. The 3 rows in `fip_court_streams` all have `link_method: 'manual'` — they were operator backfills, not cron output.
+- Root cause is two bugs in [the cron's matcher](src/app/api/cron/fip-streams-discover/route.ts): (a) it requires `parsed.court` to be non-null (rejects every "Finals" / "Semifinals" video), and (b) the subset check inside `matchTournament` is reversed — it asks "is every *title* token in the *name* token set?" instead of the other direction, so any title with extra context (round number, sponsor, court label) fails.
+
+Concrete user-facing consequence: with FIP TOUR live-streaming "FIP BRONZE MARNES - Finals" right now, the Marnes tournament page shows the amber FIP-TOUR-search fallback row instead of the actual live link, because no attribution row exists.
+
+### Revised rule
+
+`filterTournamentStreams` gains an opt-in `applyFipHeuristic: boolean` parameter (default `false`, preserving the original strict behaviour). When `true`:
+
+- A FIP-channel video that **misses** attribution falls through to the same `≥minHeuristicTokens` title-overlap check non-FIP channels already use.
+- Attribution still wins when present, so manual operator backfills retain priority over heuristic guesses.
+
+The tournament page sets the flag to `true` only when `now ∈ [starts_at, ends_at + 24h]`. Past editions of the same event therefore can't hijack a current live stream — the false-positive risk that motivated the original strict rule is neutralised by the active-window gate.
+
+### Why opt-in rather than always-on
+
+The matches page (`/matches/[date]`) and the per-match `WhereToWatchBanner` deliberately keep the default-false behaviour:
+
+- The matches page has no per-tournament tokens to overlap against — it shows live channels generically.
+- The per-match banner is fed by [resolveStreamsForMatches](src/lib/fip-stream-resolver.ts), which intentionally uses canonical attribution for its tier hierarchy and replay-offset semantics.
+
+### Follow-up
+
+The `fip-streams-discover` cron and the `fip_court_streams` / `fip_streams_unresolved` tables are effectively dead infrastructure. A separate cleanup task will delete them and drop the now-redundant `attributedVideoIds` parameter. Tracked separately so this PR stays focused on the user-visible fix.
