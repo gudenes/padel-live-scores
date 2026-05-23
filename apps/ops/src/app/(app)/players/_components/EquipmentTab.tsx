@@ -2,10 +2,17 @@
 // apps/ops/src/app/(app)/players/_components/EquipmentTab.tsx
 // Self-contained equipment management for a single player.
 // Renders three states: empty / current+history / modal trigger.
-// The assign modal is a stub here — real implementation lands in Task B2.
+//
+// Two entry points for creating an assignment:
+//   • "+ Assign existing" → AssignRacketModal (pick from catalog, fast path)
+//   • "+ Add new"        → AddRacketModal (full racket create + AI URL extract +
+//                          bg-transparency toggle, with the current player
+//                          pre-filled in step 2)
 
 import { useState, useEffect, useCallback } from 'react'
 import AssignRacketModal from './AssignRacketModal'
+import AddRacketModal from './AddRacketModal'
+import type { PlayerLite } from './PlayerPicker'
 
 export interface EquipmentEntry {
   id: string
@@ -23,12 +30,19 @@ export interface EquipmentEntry {
 
 interface Props {
   playerId: string
+  /**
+   * Optional — when provided, the "+ Add new" button pre-fills this player in
+   * AddRacketModal step 2 so the operator can save+assign in one shot.
+   * If omitted, "+ Add new" still works but opens with an empty picker.
+   */
+  player?: PlayerLite | null
 }
 
-export default function EquipmentTab({ playerId }: Props) {
+export default function EquipmentTab({ playerId, player = null }: Props) {
   const [entries, setEntries] = useState<EquipmentEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [showAssign, setShowAssign] = useState(false)
+  const [showAddRacket, setShowAddRacket] = useState(false)
 
   const refetch = useCallback(async () => {
     const res = await fetch(`/api/internal/player-equipment?player_id=${playerId}`)
@@ -84,10 +98,14 @@ export default function EquipmentTab({ playerId }: Props) {
           <CurrentCard
             entry={current}
             onChange={() => setShowAssign(true)}
+            onAddNew={() => setShowAddRacket(true)}
             onEnd={endCurrent}
           />
         ) : (
-          <EmptyCard onAssign={() => setShowAssign(true)} />
+          <EmptyCard
+            onAssign={() => setShowAssign(true)}
+            onAddNew={() => setShowAddRacket(true)}
+          />
         )}
       </div>
 
@@ -115,6 +133,26 @@ export default function EquipmentTab({ playerId }: Props) {
           }}
         />
       )}
+
+      {showAddRacket && (
+        <AddRacketModal
+          initialPlayer={player ?? null}
+          onClose={() => {
+            // Refetch on every close — the modal handles the assignment POST
+            // internally when the operator hits "Save & assign", but doesn't
+            // expose a separate callback for that path. Cheap to refetch even
+            // on cancel (single endpoint, scoped to this player).
+            setShowAddRacket(false)
+            refetch()
+          }}
+          onCreated={() => {
+            // Catalog-only success path also routes through onClose above,
+            // but keep this hook in place in case the modal is updated later
+            // to fire onCreated without onClose.
+            refetch()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -122,10 +160,12 @@ export default function EquipmentTab({ playerId }: Props) {
 function CurrentCard({
   entry,
   onChange,
+  onAddNew,
   onEnd,
 }: {
   entry: EquipmentEntry
   onChange: () => void
+  onAddNew: () => void
   onEnd: () => void
 }) {
   return (
@@ -158,6 +198,12 @@ function CurrentCard({
           Change
         </button>
         <button
+          onClick={onAddNew}
+          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer"
+        >
+          + Add new
+        </button>
+        <button
           onClick={onEnd}
           className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-red-600 cursor-pointer"
         >
@@ -168,16 +214,30 @@ function CurrentCard({
   )
 }
 
-function EmptyCard({ onAssign }: { onAssign: () => void }) {
+function EmptyCard({
+  onAssign,
+  onAddNew,
+}: {
+  onAssign: () => void
+  onAddNew: () => void
+}) {
   return (
-    <div className="px-3.5 py-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-xs flex items-center justify-between">
+    <div className="px-3.5 py-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-xs flex items-center justify-between gap-2">
       <span>No racket currently assigned</span>
-      <button
-        onClick={onAssign}
-        className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer"
-      >
-        + Assign racket
-      </button>
+      <div className="flex gap-2 flex-shrink-0">
+        <button
+          onClick={onAssign}
+          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer hover:bg-gray-50"
+        >
+          + Assign existing
+        </button>
+        <button
+          onClick={onAddNew}
+          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer hover:bg-gray-50"
+        >
+          + Add new
+        </button>
+      </div>
     </div>
   )
 }

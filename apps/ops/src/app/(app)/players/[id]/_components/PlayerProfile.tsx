@@ -103,10 +103,26 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
             <ProfileSection player={state.data.player} />
           </div>
           {/* Equipment full-width. EquipmentTab is the same component the
-              drawer uses; it fetches its own data, so we pass only playerId. */}
+              drawer uses; we pass the player object so its "+ Add new racket"
+              entry point can pre-fill the player in AddRacketModal step 2. */}
           <section className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
             <h2 className="text-sm font-semibold text-gray-900 mb-3">Equipment</h2>
-            <EquipmentTab playerId={state.data.player.id} />
+            <EquipmentTab
+              playerId={state.data.player.id}
+              player={{
+                id: state.data.player.id,
+                name: state.data.player.name,
+                display_name: state.data.player.display_name,
+                country: state.data.player.country,
+                ranking: state.data.player.ranking,
+                category:
+                  state.data.player.category === 'men' ||
+                  state.data.player.category === 'women'
+                    ? state.data.player.category
+                    : null,
+                avatar_url: state.data.player.avatar_url,
+              }}
+            />
           </section>
           {/* Match history full-width. */}
           <div className="mt-4">

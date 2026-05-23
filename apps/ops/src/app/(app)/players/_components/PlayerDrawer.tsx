@@ -645,7 +645,20 @@ export default function PlayerDrawer({
           )}
 
           {!loading && player && tab === 'equipment' && (
-            <EquipmentTab playerId={player.id} />
+            <EquipmentTab
+              playerId={player.id}
+              player={{
+                id: player.id,
+                name: player.name,
+                display_name: player.display_name,
+                country: player.country,
+                ranking: player.ranking,
+                category: player.category === 'men' || player.category === 'women'
+                  ? player.category
+                  : null,
+                avatar_url: player.avatar_url,
+              }}
+            />
           )}
         </div>
 

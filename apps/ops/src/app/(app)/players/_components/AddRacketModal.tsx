@@ -49,6 +49,8 @@ interface Brand {
 interface Props {
   onClose: () => void
   onCreated?: (racket: { id: string; model: string }) => void
+  /** Pre-populate step 2's player picker. Operator can still change or clear. */
+  initialPlayer?: PlayerLite | null
 }
 
 interface SuccessState {
@@ -58,7 +60,7 @@ interface SuccessState {
   assignmentWarning: string | null
 }
 
-export default function AddRacketModal({ onClose, onCreated }: Props) {
+export default function AddRacketModal({ onClose, onCreated, initialPlayer = null }: Props) {
   // ── Step 1 state ───────────────────────────────────────────
   const [step, setStep] = useState<1 | 2>(1)
   const [brands, setBrands] = useState<Brand[]>([])
@@ -68,7 +70,11 @@ export default function AddRacketModal({ onClose, onCreated }: Props) {
   const [createBrandText, setCreateBrandText] = useState<string | null>(null)
 
   // ── Step 2 state ───────────────────────────────────────────
-  const [selectedPlayer, setSelectedPlayer] = useState<PlayerLite | null>(null)
+  // When `initialPlayer` is provided (e.g. opened from a player drawer/profile),
+  // pre-fill the picker so the operator can save+assign in one shot. Step 1 is
+  // still the first view — they may want to fill racket fields before glancing
+  // at step 2.
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerLite | null>(initialPlayer)
   const [startedAt, setStartedAt] = useState<string>(() =>
     new Date().toISOString().slice(0, 10),
   )
