@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     const { data: candidates, error } = await supabase
       .from('articles')
-      .select('id, source_url, title, enrichment_retry_count')
+      .select('id, source_url:url, title, enrichment_retry_count')
       .eq('enrichment_status', 'pending')
       .lt('enrichment_retry_count', MAX_RETRIES + 1)
       .order('created_at', { ascending: true })
