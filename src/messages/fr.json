@@ -1288,6 +1288,7 @@
     "readSource": "Lire l'article original à la source",
     "source": "Source",
     "empty": "Pas encore d'articles personnalisés. Reviens bientôt.",
-    "endOfFeed": "Tu es à jour"
+    "endOfFeed": "Tu es à jour",
+    "swipeHintBack": "Glisse vers le bas pour le précédent"
   }
 }

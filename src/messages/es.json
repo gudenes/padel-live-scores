@@ -1288,6 +1288,7 @@
     "readSource": "Leer artículo original en la fuente",
     "source": "Fuente",
     "empty": "Aún no hay artículos personalizados. Vuelve pronto.",
-    "endOfFeed": "Estás al día"
+    "endOfFeed": "Estás al día",
+    "swipeHintBack": "Desliza hacia abajo para el anterior"
   }
 }

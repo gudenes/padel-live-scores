@@ -1315,6 +1315,7 @@
     "readSource": "Read original article at source",
     "source": "Source",
     "empty": "No personalized articles yet. Check back soon.",
-    "endOfFeed": "You're all caught up"
+    "endOfFeed": "You're all caught up",
+    "swipeHintBack": "Swipe down for previous"
   }
 }
