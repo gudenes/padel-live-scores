@@ -530,12 +530,40 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     })
   }, [availableRounds, activeTournament, paramRound, allMatches])
 
-  // ── Auto-scroll stage strip ───────────────────────────────────
+  // ── Auto-scroll stage strip: center the active round chip ─────
+  // Uses container.scrollTo (not scrollIntoView) so the strip's horizontal
+  // scroll is the only thing that moves — scrollIntoView would also nudge
+  // the page's vertical scroll on iOS/Webkit. Wrapped in rAF so layout
+  // (sticky strip + hero image height) is settled before we measure.
+  //
+  // Uses getBoundingClientRect-based math (not offsetLeft) because the
+  // strip container has no CSS positioning context, so offsetLeft returns
+  // a position relative to <body>, not the container.
+  //
+  // Depends on pageTab so we re-fire when the matches view mounts: the
+  // round strip is only in the DOM when pageTab === 'matches', and
+  // selectedRound can be computed earlier (during the animated-arrival
+  // dwell where pageTab is still 'overview'). Without this dep, the
+  // first-fire of the effect finds no active button and silently bails.
   useEffect(() => {
+    if (pageTab !== 'matches') return
     if (!selectedRound || !stageStripRef.current) return
-    const btn = stageStripRef.current.querySelector<HTMLElement>('[data-active="true"]')
-    if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-  }, [selectedRound])
+    const container = stageStripRef.current
+    const raf = requestAnimationFrame(() => {
+      const btn = container.querySelector<HTMLElement>('[data-active="true"]')
+      if (!btn) return
+      const cRect = container.getBoundingClientRect()
+      const bRect = btn.getBoundingClientRect()
+      // Button's left position relative to the container's content origin
+      // (i.e., what scrollLeft would need to be to place btn at container's left edge).
+      const btnLeftInScrollSpace = bRect.left - cRect.left + container.scrollLeft
+      const target = btnLeftInScrollSpace - (container.clientWidth - bRect.width) / 2
+      const max = container.scrollWidth - container.clientWidth
+      const clamped = Math.max(0, Math.min(target, max))
+      container.scrollTo({ left: clamped, behavior: 'smooth' })
+    })
+    return () => cancelAnimationFrame(raf)
+  }, [selectedRound, pageTab])
 
   // ── Filtered matches ──────────────────────────────────────────
   const filtered = useMemo(() => {
