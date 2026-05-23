@@ -1299,6 +1299,10 @@
     "bannerLiveCount": "Watch live · {count, plural, one {# option} other {# options}}",
     "bannerWatchIn": "Watch in {region}",
     "bannerWhere": "Where to watch",
-    "seoSummary": "Watch {target} live on {list}{extra, plural, =0 {} one { and # other regional broadcaster} other { and # other regional broadcasters}}."
+    "seoSummary": "Watch {target} live on {list}{extra, plural, =0 {} one { and # other regional broadcaster} other { and # other regional broadcasters}}.",
+    "tournamentMatchedNudge": "Showing streams identified for this tournament",
+    "tournamentEmptyNudge": "We haven't identified streams for this tournament yet",
+    "searchFallbackLabel": "Search \"{tournament}\" on FIP TOUR",
+    "searchFallbackButton": "Search"
   }
 }

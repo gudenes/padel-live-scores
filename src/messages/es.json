@@ -1272,6 +1272,10 @@
     "bannerLiveCount": "Ver en directo · {count, plural, one {# opción} other {# opciones}}",
     "bannerWatchIn": "Ver en {region}",
     "bannerWhere": "Dónde ver",
-    "seoSummary": "Mira {target} en directo en {list}{extra, plural, =0 {} one { y # otra emisora regional} other { y # otras emisoras regionales}}."
+    "seoSummary": "Mira {target} en directo en {list}{extra, plural, =0 {} one { y # otra emisora regional} other { y # otras emisoras regionales}}.",
+    "tournamentMatchedNudge": "Mostrando transmisiones identificadas para este torneo",
+    "tournamentEmptyNudge": "Aún no identificamos transmisiones para este torneo",
+    "searchFallbackLabel": "Buscar \"{tournament}\" en FIP TOUR",
+    "searchFallbackButton": "Buscar"
   }
 }
