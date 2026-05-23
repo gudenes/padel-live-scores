@@ -341,7 +341,8 @@
       "close": "Fechar",
       "autoTranslated": "Traduzido automaticamente · {from} → {to}",
       "previewUnavailable": "Pré-visualização indisponível. Toque abaixo para ler na fonte."
-    }
+    },
+    "foryou": "Para Você"
   },
   "home": {
     "liveNow": "Ao Vivo Agora",
@@ -1231,5 +1232,16 @@
     "bannerWatchIn": "Assistir em {region}",
     "bannerWhere": "Onde assistir",
     "seoSummary": "Assista {target} ao vivo em {list}{extra, plural, =0 {} one { e # outra emissora regional} other { e # outras emissoras regionais}}."
+  },
+  "foryou": {
+    "swipeHint": "Deslize para o próximo",
+    "aiSummary": "Resumo IA",
+    "save": "Salvar",
+    "unsave": "Remover",
+    "share": "Compartilhar",
+    "readSource": "Ler artigo original na fonte",
+    "source": "Fonte",
+    "empty": "Ainda não há artigos personalizados. Volte em breve.",
+    "endOfFeed": "Está em dia"
   }
 }

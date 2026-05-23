@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 
 export function SwipeHint({ visible = true }: { visible?: boolean }) {
-  const t = useTranslations('feed.foryou')
+  const t = useTranslations('foryou')
   if (!visible) return null
   return (
     <div

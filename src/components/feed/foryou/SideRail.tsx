@@ -11,7 +11,7 @@ export interface SideRailProps {
 }
 
 export function SideRail({ isSaved, onSave, onShare, onReadSource }: SideRailProps) {
-  const t = useTranslations('feed.foryou')
+  const t = useTranslations('foryou')
   return (
     <div style={{
       position: 'absolute',

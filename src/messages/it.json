@@ -341,7 +341,8 @@
       "close": "Chiudi",
       "autoTranslated": "Tradotto automaticamente · {from} → {to}",
       "previewUnavailable": "Anteprima non disponibile. Tocca sotto per leggere alla fonte."
-    }
+    },
+    "foryou": "Per Te"
   },
   "home": {
     "liveNow": "In Diretta",
@@ -1231,5 +1232,16 @@
     "bannerWatchIn": "Guarda in {region}",
     "bannerWhere": "Dove guardare",
     "seoSummary": "Guarda {target} live su {list}{extra, plural, =0 {} one { e # altra emittente regionale} other { e # altre emittenti regionali}}."
+  },
+  "foryou": {
+    "swipeHint": "Scorri per il prossimo",
+    "aiSummary": "Riepilogo IA",
+    "save": "Salva",
+    "unsave": "Rimuovi",
+    "share": "Condividi",
+    "readSource": "Leggi articolo originale alla fonte",
+    "source": "Fonte",
+    "empty": "Ancora nessun articolo personalizzato. Torna presto.",
+    "endOfFeed": "Sei aggiornato"
   }
 }

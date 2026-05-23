@@ -352,7 +352,8 @@
       "close": "Close",
       "autoTranslated": "Auto-translated · {from} → {to}",
       "previewUnavailable": "Preview unavailable. Tap below to read at the source."
-    }
+    },
+    "foryou": "For You"
   },
   "home": {
     "liveNow": "Live Now",
@@ -1258,5 +1259,16 @@
     "bannerWatchIn": "Watch in {region}",
     "bannerWhere": "Where to watch",
     "seoSummary": "Watch {target} live on {list}{extra, plural, =0 {} one { and # other regional broadcaster} other { and # other regional broadcasters}}."
+  },
+  "foryou": {
+    "swipeHint": "Swipe up for next",
+    "aiSummary": "AI Summary",
+    "save": "Save",
+    "unsave": "Unsave",
+    "share": "Share",
+    "readSource": "Read original article at source",
+    "source": "Source",
+    "empty": "No personalized articles yet. Check back soon.",
+    "endOfFeed": "You're all caught up"
   }
 }
