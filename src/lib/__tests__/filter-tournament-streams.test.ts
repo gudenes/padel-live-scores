@@ -116,4 +116,80 @@ describe('filterTournamentStreams', () => {
     })
     expect(result.map(v => v.videoId)).toEqual(['v1'])
   })
+
+  // ── applyFipHeuristic opt-in fallback ─────────────────────────────
+  // The default behaviour (strict FIP attribution) is locked in by the
+  // tests above. These tests cover the opt-in heuristic path that the
+  // tournament page uses when a tournament is currently active.
+
+  it('keeps a non-attributed FIP TOUR video when applyFipHeuristic is true and tokens overlap ≥ min', () => {
+    // The Marnes-style case that motivated the relaxation: live FIP TOUR
+    // video for the active tournament, no attribution row, but the title
+    // and the tournament name share enough significant tokens.
+    const result = filterTournamentStreams({
+      liveVideos: [fipVideo('v1', 'FIP BRONZE MARNES - Finals')],
+      attributedVideoIds: new Set(),
+      tournamentNameTokens: ['bronze', 'marnes'],
+      applyFipHeuristic: true,
+    })
+    expect(result.map(v => v.videoId)).toEqual(['v1'])
+  })
+
+  it('drops a non-attributed FIP TOUR video when applyFipHeuristic is true but token overlap is < min', () => {
+    // Heuristic-on doesn't mean "match anything FIP" — it still requires
+    // the same min-overlap that non-FIP channels need, preventing a
+    // currently-active tournament from grabbing every unrelated live FIP
+    // video.
+    const result = filterTournamentStreams({
+      liveVideos: [fipVideo('v1', 'FIP Bronze Yogyakarta — R32 — Court 4')],
+      attributedVideoIds: new Set(),
+      tournamentNameTokens: ['bronze', 'marnes'],
+      applyFipHeuristic: true,
+    })
+    // Title shares "bronze" with the name but no city token → 1 overlap < min 2 → drop.
+    expect(result).toEqual([])
+  })
+
+  it('attribution wins over heuristic even when both would match', () => {
+    // An attribution row always keeps a video regardless of the flag.
+    // The heuristic branch is the *fallback* path; we never want it to
+    // accidentally surface a stream attribution had already kept.
+    const result = filterTournamentStreams({
+      liveVideos: [fipVideo('v1', 'FIP BRONZE MARNES - Finals')],
+      attributedVideoIds: new Set(['v1']),
+      tournamentNameTokens: ['bronze', 'marnes'],
+      applyFipHeuristic: true,
+    })
+    expect(result.map(v => v.videoId)).toEqual(['v1'])
+  })
+
+  it('processes a heuristic-eligible FIP video alongside an unrelated FIP video on the same channel', () => {
+    // Two FIP TOUR videos in the same batch: one currently belongs to the
+    // active tournament (token overlap), one doesn't (different event).
+    // Heuristic should pick only the matching one.
+    const result = filterTournamentStreams({
+      liveVideos: [
+        fipVideo('v1', 'FIP BRONZE MARNES - Finals'),
+        fipVideo('v2', 'FIP BRONZE YOGYAKARTA - Quarterfinals'),
+      ],
+      attributedVideoIds: new Set(),
+      tournamentNameTokens: ['bronze', 'marnes'],
+      applyFipHeuristic: true,
+    })
+    expect(result.map(v => v.videoId)).toEqual(['v1'])
+  })
+
+  it('strict mode (default) still drops a FIP video that the heuristic would have matched', () => {
+    // Regression guard: callers that don't opt in (e.g. matches page,
+    // pre-relaxation behaviour) keep the original strict-attribution
+    // contract. Same input as the keep-via-heuristic test above, just
+    // without the flag.
+    const result = filterTournamentStreams({
+      liveVideos: [fipVideo('v1', 'FIP BRONZE MARNES - Finals')],
+      attributedVideoIds: new Set(),
+      tournamentNameTokens: ['bronze', 'marnes'],
+      // applyFipHeuristic omitted → default false
+    })
+    expect(result).toEqual([])
+  })
 })
