@@ -44,7 +44,8 @@ export default function EarningsSection({ earnings }: { earnings: Earning[] }) {
   // doesn't silently flip the section.
   const byYear = new Map<number, Earning[]>()
   for (const e of earnings) {
-    const year = new Date(e.earned_at).getFullYear()
+    const year = e.earned_at ? new Date(e.earned_at).getFullYear() : NaN
+    if (Number.isNaN(year)) continue // skip malformed / missing earned_at
     const bucket = byYear.get(year)
     if (bucket) bucket.push(e)
     else byYear.set(year, [e])
