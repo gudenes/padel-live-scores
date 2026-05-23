@@ -8,6 +8,8 @@ import { SideRail } from './SideRail'
 export interface ForYouArticle {
   id: string
   title: string
+  /** Eager Haiku translation populated by sync-articles on ingest. Falls back to `title`. */
+  title_translations: Partial<Record<string, string>> | null
   source_url: string
   source_name: string | null
   favicon_url: string | null
@@ -17,6 +19,27 @@ export interface ForYouArticle {
   summary_md: string | null
   summary_translations: Record<string, string>
   tournament_level: string | null
+}
+
+function pickTitle(article: ForYouArticle, locale: string): string {
+  const short = (locale ?? 'en').slice(0, 2).toLowerCase()
+  const translated = article.title_translations?.[short]
+  return translated && translated.trim().length > 0 ? translated : article.title
+}
+
+function AISparkleIcon({ size = 12, color = 'rgba(184,143,255,0.85)' }: { size?: number; color?: string }) {
+  return (
+    <svg
+      aria-hidden
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      style={{ color, flexShrink: 0 }}
+    >
+      <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+    </svg>
+  )
 }
 
 export interface ForYouCardProps {
@@ -29,12 +52,13 @@ export interface ForYouCardProps {
 export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps) {
   const t = useTranslations('foryou')
   const locale = useLocale()
+  const localizedTitle = pickTitle(article, locale)
   const localizedSummary = article.summary_translations?.[locale] ?? article.summary_md ?? ''
   const bullets = localizedSummary.split('\n').map(s => s.trim()).filter(s => s.startsWith('•'))
 
   const onShare = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
-      try { await navigator.share({ title: article.title, url: article.source_url }) } catch {}
+      try { await navigator.share({ title: localizedTitle, url: article.source_url }) } catch {}
     } else {
       navigator.clipboard?.writeText(article.source_url)
     }
@@ -91,8 +115,12 @@ export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps
         onReadSource={onReadSource}
       />
 
-      {/* Card content */}
-      <div style={{ position: 'absolute', left: 0, right: 0, top: 360, bottom: 64, padding: '0 20px', zIndex: 4, overflowY: 'auto' }}>
+      {/* Card content — no scroll so the swipe gesture isn't intercepted */}
+      <div style={{
+        position: 'absolute', left: 0, right: 0, top: 360, bottom: 24, padding: '0 20px',
+        zIndex: 4,
+        overflow: 'hidden',
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#B0B0B0', marginBottom: 10 }}>
           {article.favicon_url && (
             <Image src={article.favicon_url} alt="" width={16} height={16} style={{ borderRadius: 3 }} unoptimized />
@@ -104,10 +132,13 @@ export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps
               <span>{relativeTime(article.published_at)}</span>
             </>
           )}
+          <span aria-label={t('aiSummary')} title={t('aiSummary')} style={{ display: 'inline-flex' }}>
+            <AISparkleIcon />
+          </span>
         </div>
 
         <h1 style={{ fontSize: 24, lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.015em', color: '#fff', marginBottom: 14 }}>
-          {article.title}
+          {localizedTitle}
         </h1>
 
         <ul style={{ listStyle: 'none', margin: '0 0 14px', padding: 0 }}>
@@ -118,18 +149,6 @@ export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps
             </li>
           ))}
         </ul>
-
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 5,
-          padding: '4px 10px',
-          background: 'rgba(184,143,255,0.08)',
-          border: '1px solid rgba(184,143,255,0.2)',
-          borderRadius: 999,
-          fontSize: 9, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
-          color: 'rgba(184,143,255,0.85)',
-        }}>
-          {t('aiSummary')}
-        </div>
       </div>
     </div>
   )
