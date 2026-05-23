@@ -6,7 +6,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["192.168.1.169"],
-  serverExternalPackages: ['pdf-parse', 'jsdom', '@mozilla/readability'],
+  serverExternalPackages: ['pdf-parse'],
   // pdfjs-dist (loaded by pdf-parse) lazily loads `pdf.worker.mjs` at first
   // getDocument() call. Vercel's bundler doesn't auto-trace this worker file
   // because the path is constructed dynamically inside pdfjs. Explicitly
