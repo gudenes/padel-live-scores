@@ -35,7 +35,7 @@ export default async function FeedPage({ params }: Props) {
     (flag.enabled === true) ||
     isInForYouAllowList(session?.user?.email)
 
-  const foryouArticles = showForYou ? await loadForYouArticles(supabase, locale) : []
+  const foryouArticles = showForYou ? await loadForYouArticles(supabase) : []
 
   return (
     <FeedClient

@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
-import { fetchAndUpsertSource } from '@/lib/fetch-source'
+import { fetchAndUpsertSource, type SourceRow } from '@/lib/fetch-source'
 import { logOpsEvent } from '@/lib/ops-logger'
 
 export const maxDuration = 800
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     let totalAdded = 0
     let failed = 0
     for (const src of sources ?? []) {
-      const result = await fetchAndUpsertSource(supabase, src as any)
+      const result = await fetchAndUpsertSource(supabase, src as SourceRow)
       totalAdded += result.added
       if (result.error) failed++
       await supabase.from('news_sources').update({

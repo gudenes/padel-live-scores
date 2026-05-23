@@ -28,7 +28,6 @@ export interface ForYouArticleRow {
  */
 export async function loadForYouArticles(
   supabase: SupabaseClient,
-  _locale: string,
 ): Promise<ForYouArticleRow[]> {
   const { data } = await supabase
     .from('articles')
@@ -39,7 +38,10 @@ export async function loadForYouArticles(
     .eq('enrichment_status', 'enriched')
     .order('published_at', { ascending: false })
     .limit(50)
-  return (data ?? []).map((r: any) => ({
+  type RawRow = Omit<ForYouArticleRow, 'tournament_level' | 'summary_translations'> & {
+    summary_translations: Record<string, string> | null
+  }
+  return (data as RawRow[] | null ?? []).map(r => ({
     id: r.id,
     title: r.title,
     source_url: r.source_url,
