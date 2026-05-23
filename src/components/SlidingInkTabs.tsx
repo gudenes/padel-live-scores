@@ -81,6 +81,23 @@ export default function SlidingInkTabs<K extends string = string>({
   const isFirstRef = useRef(true)
   const previousKeyRef = useRef<K>(activeKey)
 
+  // Measure the active label and write the ink-bar position+width vars.
+  // Returns the measured {x, w} so callers can decide whether to update.
+  // Snap-style (no animation) — used for first mount and corrective re-snaps.
+  function snapToActive(): { x: number; w: number } | null {
+    const container = containerRef.current
+    const activeLabel = labelRefs.current.get(activeKey)
+    if (!container || !activeLabel) return null
+    const containerRect = container.getBoundingClientRect()
+    const labelRect = activeLabel.getBoundingClientRect()
+    const x = labelRect.left - containerRect.left
+    const w = labelRect.width
+    container.style.setProperty('--sit-x', `${x}px`)
+    container.style.setProperty('--sit-x-from', `${x}px`)
+    container.style.setProperty('--sit-w', `${w}px`)
+    return { x, w }
+  }
+
   // Measure the active label span and update CSS vars so the bar
   // slides + resizes to match. useLayoutEffect avoids the "bar pops
   // from 0px on first paint" frame that useEffect would produce.
@@ -103,7 +120,20 @@ export default function SlidingInkTabs<K extends string = string>({
       container.style.setProperty('--sit-w', `${w}px`)
       isFirstRef.current = false
       previousKeyRef.current = activeKey
-      return
+
+      // Corrective re-snap on the next animation frame. The useLayoutEffect
+      // measurement above can be stale when the container hasn't fully
+      // settled (sticky parent, hidden ancestor, font load reflow). Without
+      // this, the bar can sit at a wrong x until a window resize fires.
+      // We only update if measurements actually changed, to avoid a
+      // pointless style write.
+      const raf = requestAnimationFrame(() => {
+        const next = snapToActive()
+        // snapToActive already wrote the values; the early return cases
+        // (container/label gone) leave the previous values in place.
+        void next
+      })
+      return () => cancelAnimationFrame(raf)
     }
     if (previousKeyRef.current === activeKey) return
 
@@ -121,25 +151,35 @@ export default function SlidingInkTabs<K extends string = string>({
       container.classList.remove('sit-animating')
     }, SLIDE_MS + 40)
     return () => window.clearTimeout(cleanup)
+    // snapToActive is intentionally excluded — it's a stable function
+    // reference within this render and closes over activeKey via the dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey])
 
-  // Reposition on viewport resize (orientation flip, content reflow).
-  // Snap, no animation — just re-measure.
+  // Reposition on viewport resize and container reflow. Snap, no
+  // animation. ResizeObserver catches the cases that don't trigger a
+  // window resize event: font swaps, parent layout shifts (hero image
+  // load), sticky positioning settling after scroll.
   useEffect(() => {
-    function handleResize() {
-      const container = containerRef.current
+    const container = containerRef.current
+    if (!container) return
+
+    const handle = () => { snapToActive() }
+    window.addEventListener('resize', handle)
+
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(handle)
+      ro.observe(container)
       const activeLabel = labelRefs.current.get(activeKey)
-      if (!container || !activeLabel) return
-      const containerRect = container.getBoundingClientRect()
-      const labelRect = activeLabel.getBoundingClientRect()
-      const x = labelRect.left - containerRect.left
-      const w = labelRect.width
-      container.style.setProperty('--sit-x', `${x}px`)
-      container.style.setProperty('--sit-x-from', `${x}px`)
-      container.style.setProperty('--sit-w', `${w}px`)
+      if (activeLabel) ro.observe(activeLabel)
     }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handle)
+      ro?.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey])
 
   return (
