@@ -1073,6 +1073,20 @@
     "retry": "Tentar novamente",
     "banner": "Offline — última conexão às {time}"
   },
+  "download": {
+    "ariaLabel": "Baixe o app Padel Nachos",
+    "eyebrow": "Padel Nachos",
+    "title": "Leve o padel ao vivo com você.",
+    "body": "Alertas push. Placar instantâneo. O app completo, no iOS e no Android.",
+    "appStoreAria": "Baixe Padel Nachos na App Store",
+    "appStoreEyebrow": "Baixar na",
+    "appStoreName": "App Store",
+    "playStoreAria": "Obtenha Padel Nachos no Google Play",
+    "playStoreEyebrow": "DISPONÍVEL NO",
+    "playStoreName": "Google Play",
+    "metaStrong": "Grátis para sempre.",
+    "metaTail": "Disponível em cinco idiomas."
+  },
   "consent": {
     "title": "Usamos cookies",
     "body": "Usamos cookies para melhorar pontuações e rankings, entender como o app é usado e (em breve) enviar alertas de partidas ao vivo nos dispositivos que você escolher.",
