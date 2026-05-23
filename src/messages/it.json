@@ -1289,6 +1289,7 @@
     "source": "Fonte",
     "empty": "Ancora nessun articolo personalizzato. Torna presto.",
     "endOfFeed": "Sei aggiornato",
-    "swipeHintBack": "Scorri verso il basso per il precedente"
+    "swipeHintBack": "Scorri verso il basso per il precedente",
+    "readArticle": "Leggi articolo"
   }
 }

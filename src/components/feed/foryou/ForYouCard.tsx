@@ -3,7 +3,6 @@
 import Image from 'next/image'
 import { useTranslations, useLocale } from 'next-intl'
 import { ChunkyPressButton } from './ChunkyPressButton'
-import { SideRail } from './SideRail'
 
 export interface ForYouArticle {
   id: string
@@ -21,37 +20,20 @@ export interface ForYouArticle {
   tournament_level: string | null
 }
 
+export interface ForYouCardProps {
+  article: ForYouArticle
+  onBack: () => void
+  /** Deprecated — scroll-snap in ForYouTab now handles the peek via shorter
+   *  card containers. Kept for backwards-compat with the scratch route. */
+  peekPx?: number
+}
+
 function pickTitle(article: ForYouArticle, locale: string): string {
   const short = (locale ?? 'en').slice(0, 2).toLowerCase()
   const translated = article.title_translations?.[short]
   return translated && translated.trim().length > 0 ? translated : article.title
 }
 
-function AISparkleIcon({ size = 12, color = 'rgba(184,143,255,0.85)' }: { size?: number; color?: string }) {
-  return (
-    <svg
-      aria-hidden
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      style={{ color, flexShrink: 0 }}
-    >
-      <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
-    </svg>
-  )
-}
-
-export interface ForYouCardProps {
-  article: ForYouArticle
-  isSaved: boolean
-  onSave: () => void
-  onBack: () => void
-}
-
-/** Render summary_md as flowing prose.
- *  Old bullet-format articles get flattened by stripping leading "• " and
- *  joining with spaces, so they still read OK after the format change. */
 function summaryToParagraph(summary: string): string {
   if (summary.includes('\n') || summary.startsWith('•')) {
     return summary
@@ -63,7 +45,15 @@ function summaryToParagraph(summary: string): string {
   return summary.trim()
 }
 
-export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps) {
+function AISparkleIcon({ size = 12, color = 'rgba(184,143,255,0.85)' }: { size?: number; color?: string }) {
+  return (
+    <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{ color, flexShrink: 0 }}>
+      <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z" />
+    </svg>
+  )
+}
+
+export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
   const t = useTranslations('foryou')
   const locale = useLocale()
   const localizedTitle = pickTitle(article, locale)
@@ -79,19 +69,17 @@ export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps
   }
   const onReadSource = () => { window.open(article.source_url, '_blank', 'noopener,noreferrer') }
 
+  // Bottom CTAs sit at the bottom of the card itself.
+  // (Browser scroll-snap shows the next-card peek BELOW this card naturally.)
+  const buttonsBottom = peekPx + 14
+  const contentBottom = buttonsBottom + 44 + 14
+
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#0a0a0a', overflow: 'hidden' }}>
       {/* Hero */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 420, overflow: 'hidden' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 380, overflow: 'hidden' }}>
         {article.image_url ? (
-          <Image
-            src={article.image_url}
-            alt=""
-            fill
-            sizes="100vw"
-            style={{ objectFit: 'cover', objectPosition: 'center 30%' }}
-            unoptimized
-          />
+          <Image src={article.image_url} alt="" fill sizes="100vw" style={{ objectFit: 'cover', objectPosition: 'center 30%' }} unoptimized />
         ) : (
           <div style={{ background: '#0a0a0a', height: '100%' }} />
         )}
@@ -121,19 +109,10 @@ export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps
         </div>
       )}
 
-      {/* Side rail */}
-      <SideRail
-        isSaved={isSaved}
-        onSave={onSave}
-        onShare={onShare}
-        onReadSource={onReadSource}
-      />
-
-      {/* Card content — no scroll so the swipe gesture isn't intercepted */}
+      {/* Card content — clamped, no scroll */}
       <div style={{
-        position: 'absolute', left: 0, right: 0, top: 360, bottom: 24, padding: '0 20px',
-        zIndex: 4,
-        overflow: 'hidden',
+        position: 'absolute', left: 0, right: 0, top: 340, bottom: contentBottom,
+        padding: '0 20px', zIndex: 4, overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#B0B0B0', marginBottom: 10 }}>
           {article.favicon_url && (
@@ -154,26 +133,40 @@ export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps
         <h1 style={{
           fontSize: 22, lineHeight: 1.15, fontWeight: 800, letterSpacing: '-0.015em',
           color: '#fff', marginBottom: 14,
-          // Cap title to 3 lines so the card never overflows; rare long titles get a fade-clip
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
+          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}>
           {localizedTitle}
         </h1>
 
-        <p
-          style={{
-            fontSize: 15, lineHeight: 1.55, color: '#D8D8D8', margin: 0,
-            // Cap to ~6 lines max — keeps the card height predictable
-            display: '-webkit-box',
-            WebkitLineClamp: 6,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
+        <p style={{
+          fontSize: 15, lineHeight: 1.5, color: '#D8D8D8', margin: 0,
+          display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        }}
           dangerouslySetInnerHTML={{ __html: renderInlineBold(paragraph) }}
         />
+      </div>
+
+      {/* Bottom CTAs — Read article + Share, equal width */}
+      <div style={{
+        position: 'absolute', left: 16, right: 16, bottom: buttonsBottom,
+        display: 'flex', gap: 10, zIndex: 5,
+      }}>
+        <ChunkyPressButton ariaLabel={t('readSource')} variant="green" onClick={onReadSource} style={{ flex: 1 }}>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 0', fontSize: 13, fontWeight: 700 }}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M14 3h7v7M10 14L21 3M21 14v7H3V3h7" />
+            </svg>
+            {t('readArticle')}
+          </span>
+        </ChunkyPressButton>
+        <ChunkyPressButton ariaLabel={t('share')} onClick={onShare} style={{ flex: 1 }}>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '12px 0', fontSize: 13, fontWeight: 700 }}>
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path d="M16 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM10.59 13.5l4.83 2.83M15.41 7.66l-4.82 2.83" />
+            </svg>
+            {t('share')}
+          </span>
+        </ChunkyPressButton>
       </div>
     </div>
   )
@@ -187,7 +180,6 @@ function relativeTime(iso: string): string {
   return `${Math.round(dh / 24)}d ago`
 }
 
-/** Only allow **bold** — no other markdown to keep this safe. */
 function renderInlineBold(s: string): string {
   return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
 }
