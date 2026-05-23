@@ -79,7 +79,11 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
   const showHint = currentIndex === 0 && !hintDismissed
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: '#0a0a0a' }}>
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: '#0a0a0a',
+      zIndex: 1000,  // above BottomNavV3 (z=200) — guarantees true fullscreen
+    }}>
       {/* Scroll container — browser owns gesture, momentum, snap */}
       <div
         ref={scrollRef}
@@ -123,8 +127,22 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
         </div>
       </div>
 
-      {/* Swipe hint — overlays the scroll container, only on first card,
-       *  positioned via absolute relative to the position:fixed parent */}
+      {/* Grayed-out tint on the next-article peek zone — fades transparent
+       *  at top to semi-dark at bottom. Visually says "there's more below"
+       *  without stealing attention from the current card. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          bottom: 0, left: 0, right: 0,
+          height: PEEK_PX + 8,
+          background: 'linear-gradient(180deg, rgba(10,10,10,0) 0%, rgba(10,10,10,0.45) 50%, rgba(10,10,10,0.65) 100%)',
+          pointerEvents: 'none',
+          zIndex: 5,
+        }}
+      />
+
+      {/* Swipe hint — first card only */}
       {showHint && <SwipeHint visible direction="up" />}
     </div>
   )
