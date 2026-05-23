@@ -15,6 +15,8 @@ import ProfileHeader, { type ProfileHeaderPlayer } from './ProfileHeader'
 import IdentitySection, { type IdentitySectionPlayer } from './IdentitySection'
 import ProfileSection, { type ProfileSectionPlayer } from './ProfileSection'
 import MatchHistorySection, { type MatchHistoryRow } from './MatchHistorySection'
+import EarningsSection, { type Earning } from './EarningsSection'
+import CoachesSection from './CoachesSection'
 import EquipmentTab from '../../_components/EquipmentTab'
 
 // Shape of the aggregator response. The interface is the union of fields read
@@ -31,7 +33,7 @@ interface AggregatorResponse {
   player: AggregatorPlayer
   equipment: unknown[]
   recentMatches: MatchHistoryRow[]
-  earnings: unknown[]
+  earnings: Earning[]
 }
 
 type LoadState =
@@ -113,6 +115,16 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
               matches={state.data.recentMatches}
             />
           </div>
+          {/* Earnings + Coaches side-by-side on lg, stacked on mobile. */}
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <EarningsSection earnings={state.data.earnings} />
+            <CoachesSection coaches={state.data.player.coaches} />
+          </div>
+          {/* Activity placeholder — audit log not wired yet. */}
+          <section className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+            <h2 className="text-sm font-semibold text-gray-900 mb-1">Activity</h2>
+            <div className="text-xs text-gray-400">Audit log coming soon.</div>
+          </section>
         </>
       )}
     </div>
