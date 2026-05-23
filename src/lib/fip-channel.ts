@@ -10,12 +10,14 @@ export const FIP_CHANNEL_HANDLE = 'padelfip'
 // Channel URL: https://www.youtube.com/@padelfip
 export const FIP_CHANNEL_ID = 'UCo2fCPOJnS95_PNOta5Jafg'
 
-// uploads playlist ID is derived from channel ID: replace 'UC' prefix with 'UU'.
-export const FIP_UPLOADS_PLAYLIST_ID = `UU${FIP_CHANNEL_ID.slice(2)}`
-
 // Use the @-handle URL — YouTube deprecated the /c/ vanity URLs in 2023
 // and they don't always redirect for channels that haven't claimed one.
 export const FIP_CHANNEL_URL = `https://www.youtube.com/@${FIP_CHANNEL_HANDLE}`
+
+export function tournamentSearchUrl(tournamentName: string): string {
+  const q = encodeURIComponent(tournamentName)
+  return `https://www.youtube.com/@${FIP_CHANNEL_HANDLE}/search?query=${q}`
+}
 
 export const FIP_TOURNAMENT_LEVELS = [
   'fip_bronze',

@@ -19,7 +19,7 @@ src/
   app/
     [locale]/(app)/        # User-facing i18n pages (home, matches, ranking, tournaments, feed, player, match)
     api/
-      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings, premier-*, social-drafts, oop-monitor, fip-streams-discover)
+      cron/                # Vercel cron jobs (scores, sync, articles, highlights, rankings, premier-*, social-drafts, oop-monitor)
       admin/               # Protected maintenance endpoints
       ops/                 # Ops dashboard APIs
       feed/                # Article click tracking, video reporting
@@ -62,7 +62,6 @@ Separate B2B SaaS Next.js app at `apps/labs/`, deployed to `padellabs.tech`. Sha
 | `match_stats_unresolved` | Queue for unlinkable Premier match stats | `source`, `source_id`, `reason`, `resolved_at` |
 | `social_posts` | Auto-generated draft posts | `title`, `caption`, `hashtags`, `platform`, `pillar`, `status` |
 | `player_ranking_snapshots` | Append-only FIP ranking history | `(player_id, type, year, week)` unique, `ranking`, `points`, `ranking_move`, `source` |
-| `fip_court_streams` / `fip_streams_unresolved` | FIP YouTube stream mapping + ops queue | (see "FIP YouTube streams") |
 
 ### Relationships
 - `matches` → `tournaments`, `sets` → `matches`, `games` → `sets` + `matches`
@@ -139,7 +138,6 @@ Script: `scripts/merge-tournament-duplicates.ts` (supports `--dry-run`, pre-flig
 | `/api/cron/sync` | Mon 4am UTC | Full sync: tournaments, players, seasons, FIP logos |
 | `/api/cron/sync-articles` | Hourly :40 | News from RSS + FIP WP API |
 | `/api/cron/sync-highlights` | Hourly :20 | YouTube highlights |
-| `/api/cron/fip-streams-discover` | Every 15 min | FIP YouTube livestream discovery |
 | `/api/cron/premier-discovery` | Mon 4am UTC | Link Premier tournaments + matches |
 | `/api/cron/premier-stats` | Hourly :13 | Per-set stats from Premier API |
 | `/api/cron/social-drafts` | Mon 8am UTC | Generate post drafts via Claude API |
@@ -394,9 +392,9 @@ curl -X POST http://localhost:3002/api/admin/test-push \
 
 ## FIP YouTube streams
 
-`fip_court_streams` + `fip_streams_unresolved` power the "Where to watch" affordance on FIP-tier match rows. Discovery cron `/api/cron/fip-streams-discover` runs every 15 min via the FIP channel's `uploads` playlist (~200 quota units/day). Tier fallback: court stream → tournament-scoped channel search → generic FIP channel URL. Feature-flagged behind `NEXT_PUBLIC_FIP_STREAMS_ENABLED`. Premier matches unaffected — they use the existing `WhereToWatch`.
+Tournament-page "Where to watch" filters live FIP-channel videos at query time using `filterTournamentStreams` ([src/lib/where-to-watch/filter-tournament-streams.ts](src/lib/where-to-watch/filter-tournament-streams.ts)) — title-token overlap against `tournament.name`. The FIP-channel branch is opt-in (`applyFipHeuristic`); the tournament page only sets it for tournaments inside their active window (`now ∈ [starts_at, ends_at + 24h]`) so past editions of the same event can't collide with a current live stream.
 
-See [docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md](docs/superpowers/specs/2026-04-30-fip-youtube-streams-design.md).
+There is no per-match stream affordance and no attribution table — both were dead infrastructure (the discovery cron never auto-matched a row end-to-end; the `streamTier` field on matches was set but never rendered). See the cleanup PR for context, and [docs/superpowers/specs/2026-05-22-tournament-where-to-watch-filter.md](docs/superpowers/specs/2026-05-22-tournament-where-to-watch-filter.md) for the design that replaced it.
 
 ## Supabase soft recovery
 
