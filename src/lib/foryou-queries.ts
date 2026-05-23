@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export interface ForYouArticleRow {
   id: string
   title: string
+  title_translations: Partial<Record<string, string>> | null
   source_url: string
   source_name: string | null
   favicon_url: string | null
@@ -32,18 +33,20 @@ export async function loadForYouArticles(
   const { data } = await supabase
     .from('articles')
     .select(`
-      id, title, source_url:url, source_name, favicon_url, image_url,
+      id, title, title_translations, source_url:url, source_name, favicon_url, image_url,
       published_at, language, summary_md, summary_translations
     `)
     .eq('enrichment_status', 'enriched')
     .order('published_at', { ascending: false })
     .limit(50)
-  type RawRow = Omit<ForYouArticleRow, 'tournament_level' | 'summary_translations'> & {
+  type RawRow = Omit<ForYouArticleRow, 'tournament_level' | 'summary_translations' | 'title_translations'> & {
     summary_translations: Record<string, string> | null
+    title_translations: Partial<Record<string, string>> | null
   }
   return (data as RawRow[] | null ?? []).map(r => ({
     id: r.id,
     title: r.title,
+    title_translations: r.title_translations ?? null,
     source_url: r.source_url,
     source_name: r.source_name,
     favicon_url: r.favicon_url,
