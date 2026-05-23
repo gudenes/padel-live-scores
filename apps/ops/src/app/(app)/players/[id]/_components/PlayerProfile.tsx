@@ -12,14 +12,16 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import ProfileHeader, { type ProfileHeaderPlayer } from './ProfileHeader'
+import IdentitySection, { type IdentitySectionPlayer } from './IdentitySection'
+import ProfileSection, { type ProfileSectionPlayer } from './ProfileSection'
 
-// Shape of the aggregator response. Sections in later tasks will narrow
-// further, but for C1 we only need `player` for the header.
-interface AggregatorPlayer extends ProfileHeaderPlayer {
-  // Future fields (consumed by C2-C4) are tolerated by widening to unknown
-  // at the JSON boundary; this interface stays additive.
-  [key: string]: unknown
-}
+// Shape of the aggregator response. The interface is the union of fields read
+// by the sections rendered so far — ProfileHeader (C1), Identity + Profile
+// (C2). C3/C4 will extend this with whatever extra columns they consume.
+interface AggregatorPlayer
+  extends ProfileHeaderPlayer,
+    IdentitySectionPlayer,
+    ProfileSectionPlayer {}
 
 interface AggregatorResponse {
   player: AggregatorPlayer
@@ -88,9 +90,12 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
           <div className="mt-4">
             <ProfileHeader player={state.data.player} />
           </div>
-          {/* Sections (Identity, Profile, Equipment, Match history, Earnings,
-              Coaches, Activity) land in C2–C4 and consume `state.data`. */}
-          <div id="sections" data-player-id={playerId} className="mt-6" />
+          {/* Identity + Profile (C2). Equipment + Match history (C3) and
+              Earnings + Coaches + Activity (C4) will land below this grid. */}
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <IdentitySection player={state.data.player} />
+            <ProfileSection player={state.data.player} />
+          </div>
         </>
       )}
     </div>

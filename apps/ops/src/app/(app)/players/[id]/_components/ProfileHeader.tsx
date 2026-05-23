@@ -101,6 +101,9 @@ export default function ProfileHeader({ player }: { player: ProfileHeaderPlayer 
               Open public page ↗
             </a>
           )}
+          {/* TODO(D1): wire /players?drawer=<id> to actually open the
+              PlayerDrawer on the list page. Today the param is inert; D1 adds
+              the query-string-driven open behavior. */}
           <Link
             href={`/players?drawer=${player.id}`}
             className="px-3 py-1.5 text-xs border border-gray-200 rounded bg-white text-gray-900 hover:bg-gray-50 cursor-pointer"
