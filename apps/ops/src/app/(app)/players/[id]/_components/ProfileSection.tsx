@@ -8,7 +8,14 @@
 // Local state mirrors the server so subsequent edits see the latest value; on
 // save failure we alert() the response text. v1 keeps this dead-simple.
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+
+// Birthdate may arrive as either 'YYYY-MM-DD' or a full ISO timestamp depending on
+// Supabase column type. <input type="date"> only accepts YYYY-MM-DD as defaultValue.
+function toDateInputValue(v: string | null): string {
+  if (!v) return ''
+  return v.slice(0, 10)
+}
 
 export interface ProfileSectionPlayer {
   id: string
@@ -52,6 +59,10 @@ export default function ProfileSection({
   const [player, setPlayer] = useState<ProfileSectionPlayer>(initial)
   const [saving, setSaving] = useState<string | null>(null)
 
+  // Track committed values per field so blur-without-change is a no-op.
+  // This prevents a tab-through across 10 inputs firing 10 PATCH writes.
+  const committedRef = useRef<Record<string, string>>({})
+
   async function save(field: keyof ProfileSectionPlayer, value: unknown) {
     setSaving(field as string)
     try {
@@ -86,9 +97,17 @@ export default function ProfileSection({
             </div>
             <input
               type={f.type ?? 'text'}
-              defaultValue={player[f.key] ?? ''}
+              defaultValue={
+                f.type === 'date'
+                  ? toDateInputValue(player[f.key])
+                  : player[f.key] ?? ''
+              }
               onBlur={(e) => {
-                const v = e.target.value || null
+                const raw = e.target.value
+                const initial = committedRef.current[f.key] ?? (player[f.key] ?? '')
+                if (raw === initial) return // no-op blur
+                committedRef.current[f.key] = raw
+                const v = raw || null
                 setPlayer((p) => ({ ...p, [f.key]: v }))
                 save(f.key, v)
               }}
@@ -112,6 +131,10 @@ export default function ProfileSection({
               .split(',')
               .map((s) => s.trim())
               .filter(Boolean)
+            const prevJson = committedRef.current.coaches ?? JSON.stringify(player.coaches ?? [])
+            const nextJson = JSON.stringify(arr)
+            if (nextJson === prevJson) return // no-op blur
+            committedRef.current.coaches = nextJson
             setPlayer((p) => ({ ...p, coaches: arr }))
             save('coaches', arr)
           }}
