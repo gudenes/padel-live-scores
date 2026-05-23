@@ -42,19 +42,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json() as { player_id?: string; racket_id?: string; started_at?: string }
-  const { player_id, racket_id, started_at } = body
+  const body = await request.json() as {
+    player_id?: string
+    racket_id?: string
+    started_at?: string
+    notes?: string
+  }
+  const { player_id, racket_id, started_at, notes } = body
 
   if (!player_id || !racket_id) {
     return Response.json({ error: 'Missing required fields: player_id, racket_id' }, { status: 400 })
   }
 
   const supabase = serviceClient()
+  const effectiveStart = started_at ?? new Date().toISOString().split('T')[0]
 
-  // End any current equipment assignment
+  // End any current equipment assignment on the same day the new one starts
+  // (same-day auto-end per the spec — keeps the history contiguous without
+  // a one-day gap or overlap).
   const { error: endError } = await supabase
     .from('player_equipment')
-    .update({ ended_at: new Date().toISOString().split('T')[0] })
+    .update({ ended_at: effectiveStart })
     .eq('player_id', player_id)
     .is('ended_at', null)
 
@@ -68,8 +76,9 @@ export async function POST(request: Request) {
     .insert({
       player_id,
       racket_id,
-      started_at: started_at ?? new Date().toISOString().split('T')[0],
+      started_at: effectiveStart,
       ended_at: null,
+      notes: notes ?? null,
     })
     .select('*, racket:padel_rackets(*, brand:padel_brands(id, name, logo_url))')
     .single()
