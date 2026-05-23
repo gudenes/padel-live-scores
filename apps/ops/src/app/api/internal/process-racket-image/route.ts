@@ -57,19 +57,64 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Could not read image dimensions' }, { status: 422 })
     }
     const { data, info } = await image.raw().toBuffer({ resolveWithObject: true })
+    const { width, height } = info
 
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i]
-      const g = data[i + 1]
-      const b = data[i + 2]
+    // Edge-flood-fill: only remove near-white pixels REACHABLE from an image edge
+    // via a chain of other near-white pixels. Interior near-white pixels (e.g. a
+    // white racket frame surrounded by colored pixels) are preserved.
+    //
+    // Uses an iterative DFS with a stack to avoid recursion + minimize
+    // allocations. Memory: visited bitmap = width*height bytes (~640KB for 800x800).
+    const visited = new Uint8Array(width * height)
+    const stack: number[] = []
+
+    // Helper: is this pixel near-white enough to be a candidate for transparency?
+    const isNearWhite = (pixelIdx: number): boolean => {
+      const r = data[pixelIdx]
+      const g = data[pixelIdx + 1]
+      const b = data[pixelIdx + 2]
+      return Math.min(r, g, b) >= WHITE_THRESHOLD - EDGE_FEATHER
+    }
+
+    // Seed: every pixel on the four edges
+    for (let x = 0; x < width; x++) {
+      stack.push(x) // top row
+      stack.push((height - 1) * width + x) // bottom row
+    }
+    for (let y = 1; y < height - 1; y++) {
+      stack.push(y * width) // left column
+      stack.push(y * width + (width - 1)) // right column
+    }
+
+    // Iterative flood-fill
+    while (stack.length > 0) {
+      const idx = stack.pop()!
+      if (visited[idx]) continue
+      visited[idx] = 1
+
+      const pixelIdx = idx * 4
+      if (!isNearWhite(pixelIdx)) continue // wall — flood stops here
+
+      // Apply transparency (with feathering)
+      const r = data[pixelIdx]
+      const g = data[pixelIdx + 1]
+      const b = data[pixelIdx + 2]
       const minRGB = Math.min(r, g, b)
       if (minRGB >= WHITE_THRESHOLD) {
-        data[i + 3] = 0
-      } else if (minRGB >= WHITE_THRESHOLD - EDGE_FEATHER) {
-        // linear feather between threshold-edge .. threshold → alpha 255 .. 0
+        data[pixelIdx + 3] = 0
+      } else {
+        // partial alpha for soft edges in the feather zone
         const t = (minRGB - (WHITE_THRESHOLD - EDGE_FEATHER)) / EDGE_FEATHER
-        data[i + 3] = Math.round(data[i + 3] * (1 - t))
+        data[pixelIdx + 3] = Math.round(data[pixelIdx + 3] * (1 - t))
       }
+
+      // Push 4 neighbors
+      const x = idx % width
+      const y = (idx - x) / width
+      if (x > 0) stack.push(idx - 1)
+      if (x < width - 1) stack.push(idx + 1)
+      if (y > 0) stack.push(idx - width)
+      if (y < height - 1) stack.push(idx + width)
     }
 
     const out = await sharp(data, {
