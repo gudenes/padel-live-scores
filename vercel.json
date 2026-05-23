@@ -18,6 +18,14 @@
       "schedule": "*/15 * * * *"
     },
     {
+      "path": "/api/cron/regenerate-dynamic-sources",
+      "schedule": "0 5 * * 1"
+    },
+    {
+      "path": "/api/cron/sync-articles-dynamic",
+      "schedule": "0 3 * * 3"
+    },
+    {
       "path": "/api/cron/quality-scores",
       "schedule": "7 * * * *"
     },
