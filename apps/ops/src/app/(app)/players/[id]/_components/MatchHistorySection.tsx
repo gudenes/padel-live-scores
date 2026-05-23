@@ -21,12 +21,14 @@ export interface MatchHistoryRow {
   pair2_player2_id: string | null
 }
 
-function pairOf(m: MatchHistoryRow, playerId: string): 1 | 2 {
-  // The aggregator only returns rows where the player appears in one of the
-  // four player slots, so defaulting to pair 2 is safe when pair 1 doesn't
-  // match. We don't fail-loud here because it's a UI surface, not a writer.
+function pairOf(m: MatchHistoryRow, playerId: string): 1 | 2 | null {
+  // Returns 1 or 2 if the player is in that pair, null otherwise.
+  // The aggregator's OR clause should always place the player in one of the
+  // four slots, but if data drifts we'd rather render '—' than mislabel an
+  // absent player as W/L.
   if (m.pair1_player1_id === playerId || m.pair1_player2_id === playerId) return 1
-  return 2
+  if (m.pair2_player1_id === playerId || m.pair2_player2_id === playerId) return 2
+  return null
 }
 
 function outcomeLabel(m: MatchHistoryRow, playerId: string): 'W' | 'L' | '—' {
@@ -34,7 +36,9 @@ function outcomeLabel(m: MatchHistoryRow, playerId: string): 'W' | 'L' | '—' {
     return '—'
   }
   if (m.winner_pair == null) return '—'
-  return m.winner_pair === pairOf(m, playerId) ? 'W' : 'L'
+  const pair = pairOf(m, playerId)
+  if (pair == null) return '—'
+  return m.winner_pair === pair ? 'W' : 'L'
 }
 
 export default function MatchHistorySection({
