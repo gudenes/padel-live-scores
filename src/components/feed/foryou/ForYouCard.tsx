@@ -76,16 +76,25 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#0a0a0a', overflow: 'hidden' }}>
-      {/* Hero */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 380, overflow: 'hidden' }}>
+      {/* Hero — taller, true-center crop. Sports/action photos look better
+       *  with center-center than the old "center 30%" (which pulled the
+       *  crop toward the top, exposing sky/ceiling/background). */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 430, overflow: 'hidden' }}>
         {article.image_url ? (
-          <Image src={article.image_url} alt="" fill sizes="100vw" style={{ objectFit: 'cover', objectPosition: 'center 30%' }} unoptimized />
+          <Image
+            src={article.image_url}
+            alt=""
+            fill
+            sizes="100vw"
+            style={{ objectFit: 'cover', objectPosition: 'center center' }}
+            unoptimized
+          />
         ) : (
           <div style={{ background: '#0a0a0a', height: '100%' }} />
         )}
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(10,10,10,.6) 0%, rgba(10,10,10,.2) 12%, rgba(10,10,10,0) 30%, rgba(10,10,10,0) 50%, rgba(10,10,10,.6) 75%, rgba(10,10,10,.95) 92%, #0a0a0a 100%)',
+          background: 'linear-gradient(180deg, rgba(10,10,10,.6) 0%, rgba(10,10,10,.2) 12%, rgba(10,10,10,0) 30%, rgba(10,10,10,0) 55%, rgba(10,10,10,.6) 78%, rgba(10,10,10,.95) 95%, #0a0a0a 100%)',
         }} />
       </div>
 
@@ -109,9 +118,11 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
         </div>
       )}
 
-      {/* Card content — clamped, no scroll */}
+      {/* Card content — clamped, no scroll. Top tracks hero height
+       *  (430) minus the gradient overlap zone (~40px) so content starts
+       *  on the dark portion of the gradient. */}
       <div style={{
-        position: 'absolute', left: 0, right: 0, top: 340, bottom: contentBottom,
+        position: 'absolute', left: 0, right: 0, top: 390, bottom: contentBottom,
         padding: '0 20px', zIndex: 4, overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#B0B0B0', marginBottom: 10 }}>
