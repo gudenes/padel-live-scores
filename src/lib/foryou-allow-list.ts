@@ -5,7 +5,8 @@
 
 const ALLOW_LIST = new Set<string>([
   // Add operator + tester emails here, lowercase.
-  // e.g. 'operator@padelnachos.com',
+  // Remove this list (or empty it) at public ON.
+  'gudenes@gmail.com',
 ])
 
 export function isInForYouAllowList(email: string | null | undefined): boolean {
