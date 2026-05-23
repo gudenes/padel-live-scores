@@ -1,169 +1,131 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ForYouCard, type ForYouArticle } from './ForYouCard'
 import { SwipeHint } from './SwipeHint'
-import { useVerticalSwipeNavigation } from '@/hooks/useVerticalSwipeNavigation'
 
 export interface ForYouTabProps {
   articles: ForYouArticle[]
   exitHref?: string
 }
 
-const COMMIT_MS = 280
-const SNAP_MS = 200
-const PEEK_PX = 60        // height of next-article peek showing above viewport bottom
+const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
 
+/**
+ * Vertical card swiper using native CSS scroll-snap. The browser handles
+ * drag, momentum, rubber-band, and snap — all on the compositor thread.
+ * IntersectionObserver tracks which card is "current" for hint dismissal.
+ *
+ * Industry pattern: TikTok / YouTube Shorts / LiveScore web — all use
+ * native scroll + snap-align rather than JS-driven gesture handlers.
+ */
 export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
   const t = useTranslations('foryou')
   const router = useRouter()
-  const [index, setIndex] = useState(0)
-  const [dragY, setDragY] = useState(0)
-  const [transitioning, setTransitioning] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [hintDismissed, setHintDismissed] = useState(false)
 
   useEffect(() => {
-    if (!transitioning) return
-    const id = setTimeout(() => setTransitioning(false), COMMIT_MS)
-    return () => clearTimeout(id)
-  }, [transitioning])
-
-  const swipeNext = useCallback(() => {
-    setIndex(i => {
-      if (i >= articles.length - 1) return i
-      setTransitioning(true)
-      if (typeof localStorage !== 'undefined') localStorage.setItem('foryou_swipe_hint_dismissed', '1')
-      return i + 1
-    })
-    setDragY(0)
-  }, [articles.length])
-
-  const swipePrev = useCallback(() => {
-    setIndex(i => {
-      if (i <= 0) return i
-      setTransitioning(true)
-      return i - 1
-    })
-    setDragY(0)
+    if (typeof localStorage === 'undefined') return
+    if (localStorage.getItem('foryou_swipe_hint_dismissed') === '1') {
+      setHintDismissed(true)
+    }
   }, [])
 
-  const handleDragMove = useCallback((dy: number) => {
-    if (index === 0 && dy < 0) dy = dy / 3
-    if (index === articles.length - 1 && dy > 0) dy = dy / 3
-    setDragY(dy)
-  }, [index, articles.length])
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const observer = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+            const idx = Number(entry.target.getAttribute('data-card-idx'))
+            if (!isNaN(idx)) {
+              setCurrentIndex(idx)
+              if (idx > 0 && !hintDismissed) {
+                setHintDismissed(true)
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('foryou_swipe_hint_dismissed', '1')
+                }
+              }
+            }
+          }
+        }
+      },
+      { root: scrollRef.current, threshold: [0.5, 0.8] },
+    )
+    cardRefs.current.forEach(el => el && observer.observe(el))
+    return () => observer.disconnect()
+  }, [articles.length, hintDismissed])
 
-  const handleDragEnd = useCallback(() => {
-    setDragY(0)
-  }, [])
-
-  useVerticalSwipeNavigation(containerRef, {
-    onNext: swipeNext,
-    onPrev: swipePrev,
-    onDragMove: handleDragMove,
-    onDragEnd: handleDragEnd,
-    enabled: articles.length > 0,
-  })
+  const onBack = useCallback(() => router.push(exitHref), [router, exitHref])
 
   if (articles.length === 0) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: 24 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', color: 'rgba(255,255,255,0.5)',
+        textAlign: 'center', padding: 24,
+      }}>
         {t('empty')}
       </div>
     )
   }
 
-  const current = articles[index]
-  const next = articles[index + 1]
-  const prev = articles[index - 1]
-
-  const hintDismissed = typeof localStorage !== 'undefined' && localStorage.getItem('foryou_swipe_hint_dismissed') === '1'
-  const isLast = index >= articles.length - 1
-  const isFirst = index === 0
-
-  const isDragging = dragY !== 0 && !transitioning
-  const transitionStyle = isDragging
-    ? 'none'
-    : `transform ${transitioning ? COMMIT_MS : SNAP_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+  const isLast = currentIndex >= articles.length - 1
+  const showHint = currentIndex === 0 && !hintDismissed
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'fixed', inset: 0,
-        background: '#0a0a0a',
-        overflow: 'hidden',
-        touchAction: 'none',
-        userSelect: 'none',
-      }}
-    >
-      {/* Prev card peek — top 60px visible at idle when index > 0 */}
-      {prev && (
-        <div style={{
-          position: 'absolute', left: 0, right: 0,
-          top: 0,
-          bottom: `calc(100% - ${PEEK_PX}px)`,
-          overflow: 'hidden',
-          transform: `translateY(${-dragY}px)`,
-          transition: transitionStyle,
-          willChange: 'transform',
-          zIndex: 1,
-        }}>
-          {/* Render the BOTTOM of the prev card by anchoring it inside this slim window */}
-          <div style={{ position: 'absolute', inset: 0, bottom: `auto`, height: '100vh', top: `calc(-100vh + ${PEEK_PX}px)` }}>
-            <ForYouCard article={prev} onBack={() => router.push(exitHref)} peekPx={0} />
-          </div>
-        </div>
-      )}
+    <div style={{ position: 'fixed', inset: 0, background: '#0a0a0a' }}>
+      {/* Scroll container — browser owns gesture, momentum, snap */}
+      <div
+        ref={scrollRef}
+        style={{
+          position: 'absolute', inset: 0,
+          overflowY: 'auto',
+          scrollSnapType: 'y mandatory',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar { display: none; }
+        `}</style>
 
-      {/* Current card — full viewport */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        transform: `translateY(${-dragY}px)`,
-        transition: transitionStyle,
-        willChange: 'transform',
-        zIndex: 5,
-      }}>
-        <ForYouCard article={current} onBack={() => router.push(exitHref)} peekPx={PEEK_PX} />
+        {articles.map((article, i) => (
+          <div
+            key={article.id}
+            data-card-idx={i}
+            ref={el => { cardRefs.current[i] = el }}
+            style={{
+              position: 'relative',
+              height: `calc(100vh - ${PEEK_PX}px)`,
+              scrollSnapAlign: 'start',
+              scrollSnapStop: 'always',
+            }}
+          >
+            <ForYouCard article={article} onBack={onBack} peekPx={0} />
+          </div>
+        ))}
+
+        {/* End-of-feed sentinel — shown after the last card has been scrolled past */}
+        <div style={{
+          height: PEEK_PX + 40,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'rgba(255,255,255,0.45)',
+          fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+        }}>
+          {isLast ? t('endOfFeed') : ''}
+        </div>
       </div>
 
-      {/* Next card peek — bottom 60px (= top of next card) visible at idle */}
-      {next && (
-        <div style={{
-          position: 'absolute', left: 0, right: 0,
-          top: `calc(100% - ${PEEK_PX}px)`,
-          height: '100vh',
-          overflow: 'hidden',
-          transform: `translateY(${-dragY}px)`,
-          transition: transitionStyle,
-          willChange: 'transform',
-          zIndex: 10,    // above current (peek covers current's last 60px)
-        }}>
-          <ForYouCard article={next} onBack={() => router.push(exitHref)} peekPx={0} />
-        </div>
-      )}
-
-      {/* Swipe hint — fades out once user has swiped */}
-      {!hintDismissed && !isLast && dragY === 0 && (
-        <SwipeHint visible direction="up" />
-      )}
-      {!isFirst && dragY === 0 && (
-        <SwipeHint visible direction="down" subtle />
-      )}
-
-      {isLast && dragY === 0 && (
-        <div style={{
-          position: 'absolute', bottom: PEEK_PX + 14, left: 0, right: 0,
-          textAlign: 'center', color: 'rgba(255,255,255,0.45)',
-          fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
-          pointerEvents: 'none',
-          zIndex: 6,
-        }}>
-          {t('endOfFeed')}
-        </div>
-      )}
+      {/* Swipe hint — overlays the scroll container, only on first card,
+       *  positioned via absolute relative to the position:fixed parent */}
+      {showHint && <SwipeHint visible direction="up" />}
     </div>
   )
 }

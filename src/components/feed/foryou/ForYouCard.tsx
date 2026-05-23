@@ -23,7 +23,8 @@ export interface ForYouArticle {
 export interface ForYouCardProps {
   article: ForYouArticle
   onBack: () => void
-  /** Height reserved at the bottom for the next-article peek (set by ForYouTab). */
+  /** Deprecated — scroll-snap in ForYouTab now handles the peek via shorter
+   *  card containers. Kept for backwards-compat with the scratch route. */
   peekPx?: number
 }
 
@@ -68,9 +69,9 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
   }
   const onReadSource = () => { window.open(article.source_url, '_blank', 'noopener,noreferrer') }
 
-  // Bottom CTAs sit ABOVE the peek zone with a small gap.
+  // Bottom CTAs sit at the bottom of the card itself.
+  // (Browser scroll-snap shows the next-card peek BELOW this card naturally.)
   const buttonsBottom = peekPx + 14
-  // Content area ends above the buttons (which are ~44px tall).
   const contentBottom = buttonsBottom + 44 + 14
 
   return (
