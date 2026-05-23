@@ -1,7 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { JSDOM } from 'jsdom'
-import { Readability } from '@mozilla/readability'
+import { extract } from '@extractus/article-extractor'
 import { ARTICLE_TOPICS, isValidTopic, type ArticleTopic } from './article-topics'
 import { resolveEntity, type EntityType } from './entity-resolver'
 
@@ -34,27 +33,35 @@ export interface FetchedBody {
   title: string | null
 }
 
+/** Strip HTML tags to get plain text. The extractor returns content as HTML
+ *  (preserving paragraph structure); Claude works better with plain text. */
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export async function fetchArticleBody(url: string, timeoutMs = 15000): Promise<FetchedBody> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: { 'User-Agent': 'PadelNachosBot/1.0 (+https://padelnachos.com)' },
-    })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const html = await res.text()
-    const dom = new JSDOM(html, { url })
-    const reader = new Readability(dom.window.document as unknown as Document)
-    const article = reader.parse()
-    if (!article || !article.textContent || article.textContent.length < MIN_BODY_CHARS) {
-      throw new Error(`body_too_short:${article?.textContent?.length ?? 0}`)
-    }
-    return { text: article.textContent, title: article.title ?? null }
-  } finally {
-    clearTimeout(timeoutId)
+  // @extractus/article-extractor wraps node-fetch under the hood; we cap with Promise.race for timeout.
+  const article = await Promise.race([
+    extract(url),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
+  ]) as Awaited<ReturnType<typeof extract>>
+
+  if (!article || !article.content) {
+    throw new Error('no_article_content')
   }
+  const text = htmlToText(article.content)
+  if (text.length < MIN_BODY_CHARS) {
+    throw new Error(`body_too_short:${text.length}`)
+  }
+  return { text, title: article.title ?? null }
 }
 
 // ── Claude call ────────────────────────────────────────────────────────
