@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
+  try {
   const meta = await logOpsEvent('cron:enrich-articles', async () => {
     const supabase = createServerClient()
 
@@ -78,6 +79,15 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json(meta)
+  } catch (e) {
+    // TEMP diagnostic — surface handler crash as JSON.
+    return NextResponse.json({
+      error: 'handler_crashed',
+      message: (e as Error).message,
+      name: (e as Error).name,
+      stack: (e as Error).stack?.split('\n').slice(0, 14).join('\n'),
+    }, { status: 500 })
+  }
 }
 
 async function enrichOne(
