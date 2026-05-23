@@ -4,11 +4,13 @@
 // Merge/duplicate detection flow is preserved intact here.
 
 import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import type { PlayerSummary, PlayerDetail, DataFilter, CategoryFilter, FilterCounts } from './types'
 import FilterChips from './FilterChips'
 import PlayersTable from './PlayersTable'
 import BulkActionsBar from './BulkActionsBar'
 import PlayerDrawer from './PlayerDrawer'
+import AddRacketModal from './AddRacketModal'
 
 // ── Fields to compare during merge ──────────────────────────────
 const MERGE_FIELDS: (keyof PlayerDetail)[] = [
@@ -38,6 +40,11 @@ const sectionLabel: React.CSSProperties = {
 // ── Component ────────────────────────────────────────────────────
 
 export default function PlayersTab() {
+  // ── Router / query-param wiring ────────────────────────────────
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const drawerParamConsumedRef = useRef(false)
+
   // ── Search / list state ────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('')
   const [results, setResults] = useState<PlayerSummary[]>([])
@@ -73,6 +80,9 @@ export default function PlayersTab() {
   const [mergeMessage, setMergeMessage] = useState<string | null>(null)
   const [mergePreview, setMergePreview] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
+
+  // ── Add racket (catalog-only) state ────────────────────────────
+  const [showAddRacket, setShowAddRacket] = useState(false)
 
   // ── Duplicate scan state ───────────────────────────────────────
   interface DupGroup {
@@ -141,6 +151,19 @@ export default function PlayersTab() {
   }, [searchQuery, fetchData])
 
   useEffect(() => { fetchCounts() }, [fetchCounts])
+
+  // On mount, honor ?drawer=<id> — open that player in the drawer and clear
+  // the param so it doesn't re-fire on re-renders or back-nav. ref-guarded
+  // to prevent a feedback loop if the URL refreshes before router.replace lands.
+  useEffect(() => {
+    if (drawerParamConsumedRef.current) return
+    const drawerId = searchParams.get('drawer')
+    if (!drawerId) return
+    drawerParamConsumedRef.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActivePlayerId(drawerId)
+    router.replace('/players')
+  }, [searchParams, router])
 
   // Refetch when non-search params change (filter/page)
   useEffect(() => {
@@ -391,6 +414,12 @@ export default function PlayersTab() {
           }}
         />
         {searching && <span style={{ fontSize: 10, color: '#9ca3af' }}>Searching...</span>}
+        <button
+          onClick={() => setShowAddRacket(true)}
+          className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded bg-white hover:bg-gray-50 cursor-pointer whitespace-nowrap"
+        >
+          + Add racket
+        </button>
         <button
           onClick={() => runDupScan('rules')}
           disabled={dupScanning}
@@ -768,6 +797,11 @@ export default function PlayersTab() {
         onSaved={() => fetchData()}
         onNavigate={handleDrawerNavigate}
       />
+
+      {/* Standalone "+ Add racket" catalog modal (no player assignment) */}
+      {showAddRacket && (
+        <AddRacketModal onClose={() => setShowAddRacket(false)} />
+      )}
     </div>
   )
 }

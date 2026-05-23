@@ -3,7 +3,9 @@
 // Right-side overlay drawer for editing player details.
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
+import Link from 'next/link'
 import { PlayerDetail } from './types'
+import EquipmentTab from './EquipmentTab'
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 
@@ -36,27 +38,6 @@ export interface PlayerDrawerProps {
   onClose: () => void
   onSaved: () => void
   onNavigate: (direction: 'prev' | 'next') => void
-}
-
-interface Brand {
-  id: string
-  name: string
-  logo_url: string | null
-}
-
-interface Racket {
-  id: string
-  model: string
-  year: number | null
-  image_url: string | null
-  brand: Brand
-}
-
-interface EquipmentEntry {
-  id: string
-  started_at: string | null
-  ended_at: string | null
-  racket: Racket & { brand: Brand }
 }
 
 type TabId = 'profile' | 'ids' | 'equipment'
@@ -160,7 +141,6 @@ export default function PlayerDrawer({
 }: PlayerDrawerProps) {
   const [player, setPlayer] = useState<PlayerDetail | null>(null)
   const [matchCount, setMatchCount] = useState<number>(0)
-  const [equipmentHistory, setEquipmentHistory] = useState<EquipmentEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<TabId>('profile')
 
@@ -169,14 +149,6 @@ export default function PlayerDrawer({
   const [original, setOriginal] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState<'ok' | 'err' | null>(null)
-
-  // Equipment assignment
-  const [brands, setBrands] = useState<Brand[]>([])
-  const [rackets, setRackets] = useState<Racket[]>([])
-  const [selectedBrandId, setSelectedBrandId] = useState<string>('')
-  const [selectedRacketId, setSelectedRacketId] = useState<string>('')
-  const [showEquipmentPicker, setShowEquipmentPicker] = useState(false)
-  const [assigningEquip, setAssigningEquip] = useState(false)
 
   const drawerRef = useRef<HTMLDivElement>(null)
 
@@ -215,44 +187,17 @@ export default function PlayerDrawer({
     }
   }, [])
 
-  const fetchEquipment = useCallback(async (id: string) => {
-    const res = await fetch(`/api/internal/player-equipment?player_id=${id}`)
-    if (!res.ok) return
-    const data = await res.json() as { equipment: EquipmentEntry[] }
-    setEquipmentHistory(data.equipment ?? [])
-  }, [])
-
-  const fetchBrands = useCallback(async () => {
-    if (brands.length > 0) return
-    const res = await fetch('/api/internal/brands')
-    if (!res.ok) return
-    const data = await res.json() as { brands: Brand[] }
-    setBrands(data.brands ?? [])
-  }, [brands.length])
-
-  const fetchRackets = useCallback(async (brandId: string) => {
-    setRackets([])
-    setSelectedRacketId('')
-    if (!brandId) return
-    const res = await fetch(`/api/internal/rackets?brand_id=${brandId}`)
-    if (!res.ok) return
-    const data = await res.json() as { rackets: Racket[] }
-    setRackets(data.rackets ?? [])
-  }, [])
-
   // ── Effects ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!playerId) {
       setPlayer(null)
-      setEquipmentHistory([])
       setForm({})
       setOriginal({})
       return
     }
     fetchPlayer(playerId)
-    fetchEquipment(playerId)
-  }, [playerId, fetchPlayer, fetchEquipment])
+  }, [playerId, fetchPlayer])
 
   // Keyboard: Escape closes, arrows navigate
   useEffect(() => {
@@ -276,11 +221,6 @@ export default function PlayerDrawer({
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [playerId, onClose, onNavigate])
-
-  // Brand selection → load rackets
-  useEffect(() => {
-    if (selectedBrandId) fetchRackets(selectedBrandId)
-  }, [selectedBrandId, fetchRackets])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -318,29 +258,9 @@ export default function PlayerDrawer({
     }
   }
 
-  async function handleAssignEquipment() {
-    if (!player || !selectedRacketId) return
-    setAssigningEquip(true)
-    const res = await fetch('/api/internal/player-equipment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ player_id: player.id, racket_id: selectedRacketId }),
-    })
-    setAssigningEquip(false)
-    if (res.ok) {
-      setShowEquipmentPicker(false)
-      setSelectedBrandId('')
-      setSelectedRacketId('')
-      fetchEquipment(player.id)
-      onSaved()
-    }
-  }
-
   // ── Render ───────────────────────────────────────────────────────────────
 
   if (!playerId) return null
-
-  const currentEquipment = equipmentHistory.find((e) => !e.ended_at)
 
   return (
     <>
@@ -485,6 +405,21 @@ export default function PlayerDrawer({
 
               {/* Nav + close */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                <Link
+                  href={`/players/${player.id}`}
+                  title="Open full profile"
+                  style={{
+                    fontSize: 11,
+                    color: '#2563EB',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    marginBottom: 2,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Open full profile →
+                </Link>
                 <button
                   onClick={onClose}
                   title="Close (Esc)"
@@ -710,249 +645,20 @@ export default function PlayerDrawer({
           )}
 
           {!loading && player && tab === 'equipment' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {/* Current equipment */}
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginBottom: 8 }}>
-                  CURRENT EQUIPMENT
-                </div>
-                {currentEquipment ? (
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: 12,
-                      alignItems: 'center',
-                      padding: '10px 12px',
-                      background: '#f9fafb',
-                      borderRadius: 8,
-                      border: '1px solid #e5e7eb',
-                    }}
-                  >
-                    {currentEquipment.racket.image_url && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={currentEquipment.racket.image_url}
-                        alt={currentEquipment.racket.model}
-                        style={{ width: 48, height: 48, objectFit: 'contain', flexShrink: 0 }}
-                      />
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>
-                        {currentEquipment.racket.brand.name}
-                      </div>
-                      <div style={{ fontSize: 12, color: '#6B7280' }}>
-                        {currentEquipment.racket.model}
-                        {currentEquipment.racket.year && (
-                          <span style={{ color: '#9ca3af', marginLeft: 4 }}>{currentEquipment.racket.year}</span>
-                        )}
-                      </div>
-                      {currentEquipment.started_at && (
-                        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
-                          Since {currentEquipment.started_at}
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => {
-                        setShowEquipmentPicker(true)
-                        fetchBrands()
-                      }}
-                      style={{
-                        padding: '5px 10px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 4,
-                        background: '#fff',
-                        color: '#111',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Change
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      padding: '12px 14px',
-                      background: '#fafafa',
-                      borderRadius: 8,
-                      border: '1px dashed #e5e7eb',
-                      color: '#9ca3af',
-                      fontSize: 12,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <span>No equipment assigned</span>
-                    <button
-                      onClick={() => {
-                        setShowEquipmentPicker(true)
-                        fetchBrands()
-                      }}
-                      style={{
-                        padding: '5px 10px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 4,
-                        background: '#fff',
-                        color: '#111',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Assign
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Equipment picker */}
-              {showEquipmentPicker && (
-                <div
-                  style={{
-                    padding: 12,
-                    background: '#f9fafb',
-                    borderRadius: 8,
-                    border: '1px solid #e5e7eb',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                  }}
-                >
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#111' }}>
-                    Assign new racket
-                  </div>
-                  <Field label="Brand">
-                    <select
-                      style={selectStyle}
-                      value={selectedBrandId}
-                      onChange={(e) => setSelectedBrandId(e.target.value)}
-                    >
-                      <option value="">Select brand…</option>
-                      {brands.map((b) => (
-                        <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
-                    </select>
-                  </Field>
-                  {selectedBrandId && (
-                    <Field label="Racket">
-                      <select
-                        style={selectStyle}
-                        value={selectedRacketId}
-                        onChange={(e) => setSelectedRacketId(e.target.value)}
-                      >
-                        <option value="">Select racket…</option>
-                        {rackets.map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.model}{r.year ? ` (${r.year})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                  )}
-                  <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                    <button
-                      onClick={handleAssignEquipment}
-                      disabled={!selectedRacketId || assigningEquip}
-                      style={{
-                        flex: 1,
-                        padding: '6px 12px',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        background: selectedRacketId && !assigningEquip ? '#111' : '#e5e7eb',
-                        color: selectedRacketId && !assigningEquip ? '#fff' : '#9ca3af',
-                        border: 'none',
-                        borderRadius: 4,
-                        cursor: selectedRacketId && !assigningEquip ? 'pointer' : 'not-allowed',
-                      }}
-                    >
-                      {assigningEquip ? 'Saving…' : 'Confirm'}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowEquipmentPicker(false)
-                        setSelectedBrandId('')
-                        setSelectedRacketId('')
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        fontSize: 12,
-                        fontWeight: 500,
-                        background: 'none',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: 4,
-                        cursor: 'pointer',
-                        color: '#6B7280',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Equipment history */}
-              {equipmentHistory.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', marginBottom: 8 }}>
-                    HISTORY
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {equipmentHistory.map((entry) => (
-                      <div
-                        key={entry.id}
-                        style={{
-                          display: 'flex',
-                          gap: 10,
-                          alignItems: 'center',
-                          padding: '8px 10px',
-                          background: entry.ended_at ? '#f9fafb' : 'transparent',
-                          borderRadius: 6,
-                          border: '1px solid #e5e7eb',
-                          opacity: entry.ended_at ? 0.7 : 1,
-                        }}
-                      >
-                        {entry.racket.image_url && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={entry.racket.image_url}
-                            alt={entry.racket.model}
-                            style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0 }}
-                          />
-                        )}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>
-                            {entry.racket.brand.name} {entry.racket.model}
-                          </div>
-                          <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 1 }}>
-                            {entry.started_at ?? '?'}
-                            {' → '}
-                            {entry.ended_at ?? 'present'}
-                          </div>
-                        </div>
-                        {!entry.ended_at && (
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 6px',
-                              background: '#dcfce7',
-                              color: '#166534',
-                              fontSize: 10,
-                              fontWeight: 600,
-                              borderRadius: 4,
-                            }}
-                          >
-                            Current
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <EquipmentTab
+              playerId={player.id}
+              player={{
+                id: player.id,
+                name: player.name,
+                display_name: player.display_name,
+                country: player.country,
+                ranking: player.ranking,
+                category: player.category === 'men' || player.category === 'women'
+                  ? player.category
+                  : null,
+                avatar_url: player.avatar_url,
+              }}
+            />
           )}
         </div>
 
