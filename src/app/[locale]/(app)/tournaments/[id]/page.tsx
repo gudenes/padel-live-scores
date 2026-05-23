@@ -1433,6 +1433,24 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     const tournamentName = tournament.name
     const tournamentLevel = tournament.level
 
+    // Opt into the FIP-channel title-token heuristic *only* for currently-
+    // active tournaments. The window [starts_at, ends_at + 24h] is wide
+    // enough to cover late finals on the final day but tight enough to
+    // exclude past editions of the same event still in the DB. Past
+    // editions are the original false-positive concern the strict-
+    // attribution rule was built around — gating on the active window
+    // neutralises that risk.
+    //
+    // If either date is missing we leave the flag off (defensive — we
+    // can't temporally place this tournament safely).
+    const nowMs = Date.now()
+    const startsAtMs = tournament.starts_at ? new Date(tournament.starts_at).getTime() : null
+    const endsAtMs = tournament.ends_at ? new Date(tournament.ends_at).getTime() : null
+    const applyFipHeuristic =
+      startsAtMs != null && endsAtMs != null &&
+      nowMs >= startsAtMs &&
+      nowMs <= endsAtMs + 24 * 60 * 60 * 1000
+
     // Fetch all active broadcasters (across countries) so the region
     // picker can switch without a round-trip; buildGroups filters by
     // the effective country at render time.
@@ -1462,9 +1480,15 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       .select('id, name, abbreviation, color_hex, display_order')
       .eq('is_active', true)
 
-    // Canonical FIP TOUR attribution: video IDs the discovery cron has
-    // mapped to this tournament. Used to gate which FIP-channel live
-    // videos belong to the page we're rendering.
+    // Canonical FIP TOUR attribution: video IDs explicitly mapped to this
+    // tournament (manual ops backfills + anything the discovery cron ever
+    // attributed). Always wins inside filterTournamentStreams, so an
+    // operator-set row beats heuristic guesses even when both would match.
+    //
+    // For tournaments inside their active window we *also* apply a title-
+    // token heuristic on top — that's what surfaces live FIP TOUR videos
+    // the attribution pipeline never produced (see applyFipHeuristic above
+    // and filter-tournament-streams.ts for the long-form rationale).
     //
     // No `state` filter on purpose — youtube_channel_live is pruned ~30 min
     // after a video goes offline, so archived attribution IDs can never
@@ -1502,6 +1526,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         liveVideos: allLiveVideos,
         attributedVideoIds: attributedSet,
         tournamentNameTokens,
+        applyFipHeuristic,
       })
       setWtwLiveChannels(filteredLive)
 
