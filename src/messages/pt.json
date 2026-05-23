@@ -341,7 +341,8 @@
       "close": "Fechar",
       "autoTranslated": "Traduzido automaticamente · {from} → {to}",
       "previewUnavailable": "Pré-visualização indisponível. Toque abaixo para ler na fonte."
-    }
+    },
+    "foryou": "Para Você"
   },
   "home": {
     "liveNow": "Ao Vivo Agora",
@@ -1277,5 +1278,16 @@
     "tournamentEmptyNudge": "Ainda não identificamos transmissões para este torneio",
     "searchFallbackLabel": "Buscar \"{tournament}\" no FIP TOUR",
     "searchFallbackButton": "Buscar"
+  },
+  "foryou": {
+    "swipeHint": "Deslize para o próximo",
+    "aiSummary": "Resumo IA",
+    "save": "Salvar",
+    "unsave": "Remover",
+    "share": "Compartilhar",
+    "readSource": "Ler artigo original na fonte",
+    "source": "Fonte",
+    "empty": "Ainda não há artigos personalizados. Volte em breve.",
+    "endOfFeed": "Está em dia"
   }
 }

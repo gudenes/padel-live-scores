@@ -19,6 +19,8 @@ import SearchOverlay from '@/components/nav/SearchOverlay'
 import FeedTabs from './FeedTabs'
 import { markFeedVisited } from '@/hooks/useFeedLastVisit'
 import NewsCardOriginal from '@/components/news/NewsCard'
+import { ForYouTab } from '@/components/feed/foryou/ForYouTab'
+import type { ForYouArticle } from '@/components/feed/foryou/ForYouCard'
 import RoadToOlympicsPromoCard from '@/components/road-to-olympics/PromoCard'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
@@ -82,8 +84,8 @@ type FeedItem =
   | { type: 'video'; data: Highlight }
   | { type: 'news'; data: NewsItem }
 
-type FeedTab = 'news' | 'videos' | 'originals' | 'saved'
-const FEED_TABS: readonly FeedTab[] = ['news', 'videos', 'originals', 'saved']
+type FeedTab = 'foryou' | 'news' | 'videos' | 'originals' | 'saved'
+const FEED_TABS: readonly FeedTab[] = ['foryou', 'news', 'videos', 'originals', 'saved']
 const DEFAULT_TAB: FeedTab = 'news'
 
 function parseTab(value: string | null): FeedTab {
@@ -662,22 +664,32 @@ function FeedSkeleton() {
 
 interface FeedClientProps {
   originals: NewsPost[]
+  showForYou?: boolean
+  foryouArticles?: ForYouArticle[]
 }
 
-export default function FeedClient({ originals }: FeedClientProps) {
+export default function FeedClient({ originals, showForYou = false, foryouArticles = [] }: FeedClientProps) {
   return (
     <Suspense fallback={<FeedSkeleton />}>
-      <V3FeedPage originals={originals} />
+      <V3FeedPage originals={originals} showForYou={showForYou} foryouArticles={foryouArticles} />
     </Suspense>
   )
 }
 
-function V3FeedPage({ originals }: { originals: NewsPost[] }) {
+function V3FeedPage({ originals, showForYou, foryouArticles }: { originals: NewsPost[]; showForYou: boolean; foryouArticles: ForYouArticle[] }) {
   const tFeed = useTranslations('feed')
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const activeTab = parseTab(searchParams.get('tab'))
+  const activeTab = (() => {
+    const urlTabRaw = searchParams.get('tab')
+    const urlTab = parseTab(urlTabRaw)
+    // If the URL has no tab param, default to foryou when the flag is on.
+    if (!urlTabRaw) return showForYou ? 'foryou' : DEFAULT_TAB
+    // If the URL requests foryou but the flag is off, coerce to news.
+    if (urlTab === 'foryou' && !showForYou) return DEFAULT_TAB
+    return urlTab
+  })()
 
   const setTab = useCallback((tab: FeedTab) => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
@@ -925,6 +937,8 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
         )
       case 'originals':
         return [] // Originals tab renders the `originals` prop directly, not clusters
+      case 'foryou':
+        return [] // For You tab renders <ForYouTab> directly (wired in Task 5.6), not clusters
     }
   })()
 
@@ -935,10 +949,12 @@ function V3FeedPage({ originals }: { originals: NewsPost[] }) {
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
 
       {/* Tab row (sticky under header) */}
-      <FeedTabs active={activeTab} onChange={setTab} />
+      <FeedTabs active={activeTab} onChange={setTab} showForYou={showForYou} />
 
       {/* Feed content */}
-      {activeTab === 'originals' ? (
+      {activeTab === 'foryou' ? (
+        <ForYouTab articles={foryouArticles} />
+      ) : activeTab === 'originals' ? (
         <>
           <div style={{ padding: '0 16px' }}>
             <RoadToOlympicsPromoCard />

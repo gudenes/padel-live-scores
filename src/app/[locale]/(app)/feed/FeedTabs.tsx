@@ -6,22 +6,28 @@ import { useTranslations } from 'next-intl'
 // Tab union is duplicated here intentionally — FeedTabs is self-contained
 // and doesn't import from its parent. FeedClient's local `FeedTab` type has
 // the same shape; TS accepts structural matching across the prop boundary.
-type FeedTabId = 'news' | 'videos' | 'originals' | 'saved'
+export type FeedTabId = 'foryou' | 'news' | 'videos' | 'originals' | 'saved'
 
 const GREEN = '#7ED321'
 const MUTED = '#6B7280'
 const BG_BASE = '#1A1A1A'
 const CHUNKY = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 
-const TAB_ORDER: readonly FeedTabId[] = ['news', 'videos', 'originals', 'saved']
+const BASE_TAB_ORDER: readonly FeedTabId[] = ['news', 'videos', 'originals', 'saved']
 
 interface Props {
   active: FeedTabId
   onChange: (tab: FeedTabId) => void
+  /** When true, surfaces a "For You" tab at position 0. Gated server-side
+   *  by the `foryou_enabled` feature flag + per-email allow-list. */
+  showForYou?: boolean
 }
 
-export default function FeedTabs({ active, onChange }: Props) {
+export default function FeedTabs({ active, onChange, showForYou = false }: Props) {
   const t = useTranslations('feed')
+  const tabOrder: readonly FeedTabId[] = showForYou
+    ? (['foryou', ...BASE_TAB_ORDER] as const)
+    : BASE_TAB_ORDER
   return (
     <div
       style={{
@@ -36,7 +42,7 @@ export default function FeedTabs({ active, onChange }: Props) {
         padding: '10px 16px',
       }}
     >
-      {TAB_ORDER.map(id => (
+      {tabOrder.map(id => (
         <button
           key={id}
           type="button"

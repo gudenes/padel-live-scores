@@ -32,53 +32,29 @@ interface ArticleSource {
   lookbackDays?: number
 }
 
-const SOURCES: ArticleSource[] = [
-  // Google News — multi-language padel coverage
-  {
-    key: 'google-news-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
-    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+premier+padel&hl=en&gl=US&ceid=US:en',
-  },
-  {
-    key: 'google-news-es', name: 'Google News', icon: 'G', language: 'es', weight: 1.0,
-    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+premier+padel&hl=es&gl=ES&ceid=ES:es',
-  },
-  {
-    key: 'google-news-pt', name: 'Google News', icon: 'G', language: 'pt', weight: 1.0,
-    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+premier+padel&hl=pt-PT&gl=PT&ceid=PT:pt-150',
-  },
-  {
-    key: 'google-news-br', name: 'Google News', icon: 'G', language: 'pt', weight: 1.0,
-    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+premier+padel&hl=pt-BR&gl=BR&ceid=BR:pt-419',
-  },
-  // Olympic-track padel news for /road-to-olympics BeatsFeed.
-  // Google News doesn't honor compound OR queries, so we run two simple
-  // single-keyword feeds and let the BeatsFeed regex (in src/lib/road-to-
-  // olympics/beats.ts) do the rest of the filtering.
-  {
-    key: 'google-news-olympics-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
-    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+olympic&hl=en-US&gl=US&ceid=US:en',
-    lookbackDays: 90,
-  },
-  {
-    key: 'google-news-ioc-en', name: 'Google News', icon: 'G', language: 'en', weight: 1.0,
-    type: 'rss', url: 'https://news.google.com/rss/search?q=padel+ioc&hl=en-US&gl=US&ceid=US:en',
-    lookbackDays: 90,
-  },
-  // Dedicated padel sites
-  {
-    key: 'padel-addict', name: 'Padel Addict', icon: 'PA', language: 'es', weight: 1.2,
-    type: 'rss', url: 'https://padeladdict.com/feed/',
-  },
-  {
-    key: 'padel-magazine', name: 'Padel Magazine', icon: 'PM', language: 'fr', weight: 1.2,
-    type: 'rss', url: 'https://padelmagazine.fr/feed/',
-  },
-  // FIP official — WordPress REST API
-  {
-    key: 'fip', name: 'FIP', icon: 'FIP', language: 'en', weight: 1.5,
-    type: 'wp-api', url: 'https://www.padelfip.com/wp-json/wp/v2/posts?per_page=15&_embed=wp:featuredmedia',
-  },
-]
+// Source catalog — loaded from `news_sources` table (operator-managed via
+// /api/news-sources in apps/ops). The hard-coded SOURCES array was migrated
+// to DB rows in supabase/migrations/20260524_news_pipeline_seed.sql.
+async function loadStaticSources(supabase: SupabaseClient): Promise<ArticleSource[]> {
+  const { data, error } = await supabase
+    .from('news_sources')
+    .select('key, name, url, source_type, language, weight, lookback_days')
+    .eq('cadence', 'hourly')
+    .eq('enabled', true)
+    .eq('query_kind', 'static')
+    .order('key')
+  if (error) throw new Error(`load sources: ${error.message}`)
+  return (data ?? []).map(r => ({
+    key: r.key,
+    name: r.name,
+    icon: r.name.charAt(0).toUpperCase() || '?',
+    language: r.language,
+    weight: r.weight,
+    type: r.source_type as 'rss' | 'wp-api',
+    url: r.url,
+    lookbackDays: r.lookback_days,
+  }))
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -390,7 +366,8 @@ export async function GET(req: NextRequest) {
       const results: Record<string, { fetched: number; error?: string }> = {}
       let totalUpserted = 0
 
-      for (const source of SOURCES) {
+      const sources = await loadStaticSources(supabase)
+      for (const source of sources) {
         try {
           const rows = source.type === 'wp-api'
             ? await fetchFIP(source)
@@ -469,6 +446,15 @@ export async function GET(req: NextRequest) {
         } catch (err) {
           results[source.key] = { fetched: 0, error: String(err) }
         }
+
+        // Health writeback — record this source's last-fetch outcome
+        const articlesAddedThisRun = results[source.key]?.fetched ?? 0
+        const fetchErr = results[source.key]?.error ?? null
+        await supabase.from('news_sources').update({
+          last_fetch_at: new Date().toISOString(),
+          last_fetch_status: fetchErr ? 'error' : (articlesAddedThisRun === 0 ? 'empty' : 'success'),
+          last_fetch_error: fetchErr ? fetchErr.slice(0, 500) : null,
+        }).eq('key', source.key)
       }
 
       return {

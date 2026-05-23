@@ -341,7 +341,8 @@
       "close": "Fermer",
       "autoTranslated": "Traduit automatiquement · {from} → {to}",
       "previewUnavailable": "Aperçu indisponible. Touchez ci-dessous pour lire à la source."
-    }
+    },
+    "foryou": "Pour Toi"
   },
   "home": {
     "liveNow": "En direct",
@@ -1277,5 +1278,16 @@
     "tournamentEmptyNudge": "Nous n'avons pas encore identifié de diffusions pour ce tournoi",
     "searchFallbackLabel": "Rechercher « {tournament} » sur FIP TOUR",
     "searchFallbackButton": "Rechercher"
+  },
+  "foryou": {
+    "swipeHint": "Glisse pour le suivant",
+    "aiSummary": "Résumé IA",
+    "save": "Enregistrer",
+    "unsave": "Retirer",
+    "share": "Partager",
+    "readSource": "Lire l'article original à la source",
+    "source": "Source",
+    "empty": "Pas encore d'articles personnalisés. Reviens bientôt.",
+    "endOfFeed": "Tu es à jour"
   }
 }
