@@ -1316,6 +1316,7 @@
     "source": "Source",
     "empty": "No personalized articles yet. Check back soon.",
     "endOfFeed": "You're all caught up",
-    "swipeHintBack": "Swipe down for previous"
+    "swipeHintBack": "Swipe down for previous",
+    "readArticle": "Read article"
   }
 }
