@@ -14,10 +14,14 @@ import Link from 'next/link'
 import ProfileHeader, { type ProfileHeaderPlayer } from './ProfileHeader'
 import IdentitySection, { type IdentitySectionPlayer } from './IdentitySection'
 import ProfileSection, { type ProfileSectionPlayer } from './ProfileSection'
+import MatchHistorySection, { type MatchHistoryRow } from './MatchHistorySection'
+import EquipmentTab from '../../_components/EquipmentTab'
 
 // Shape of the aggregator response. The interface is the union of fields read
 // by the sections rendered so far — ProfileHeader (C1), Identity + Profile
-// (C2). C3/C4 will extend this with whatever extra columns they consume.
+// (C2), Match history (C3). C4 will extend this with whatever extra columns
+// it consumes. Equipment renders via EquipmentTab which fetches its own data,
+// so the aggregator's `equipment` slot stays `unknown[]` here.
 interface AggregatorPlayer
   extends ProfileHeaderPlayer,
     IdentitySectionPlayer,
@@ -26,7 +30,7 @@ interface AggregatorPlayer
 interface AggregatorResponse {
   player: AggregatorPlayer
   equipment: unknown[]
-  recentMatches: unknown[]
+  recentMatches: MatchHistoryRow[]
   earnings: unknown[]
 }
 
@@ -90,11 +94,24 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
           <div className="mt-4">
             <ProfileHeader player={state.data.player} />
           </div>
-          {/* Identity + Profile (C2). Equipment + Match history (C3) and
-              Earnings + Coaches + Activity (C4) will land below this grid. */}
+          {/* Identity + Profile (C2). Equipment + Match history (C3) land
+              full-width below. Earnings + Coaches + Activity (C4) follow. */}
           <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
             <IdentitySection player={state.data.player} />
             <ProfileSection player={state.data.player} />
+          </div>
+          {/* Equipment full-width. EquipmentTab is the same component the
+              drawer uses; it fetches its own data, so we pass only playerId. */}
+          <section className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3">Equipment</h2>
+            <EquipmentTab playerId={state.data.player.id} />
+          </section>
+          {/* Match history full-width. */}
+          <div className="mt-4">
+            <MatchHistorySection
+              playerId={state.data.player.id}
+              matches={state.data.recentMatches}
+            />
           </div>
         </>
       )}
