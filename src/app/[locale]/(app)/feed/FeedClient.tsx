@@ -942,6 +942,12 @@ function V3FeedPage({ originals, showForYou, foryouArticles }: { originals: News
     }
   })()
 
+  // For You is immersive — hide global chrome (AppHeader + tabs) when active.
+  // Exit via the in-card back-chip which navigates to /feed?tab=news.
+  if (activeTab === 'foryou') {
+    return <ForYouTab articles={foryouArticles} exitHref="/feed?tab=news" />
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: BG_BASE }}>
       {/* Header */}
@@ -952,9 +958,7 @@ function V3FeedPage({ originals, showForYou, foryouArticles }: { originals: News
       <FeedTabs active={activeTab} onChange={setTab} showForYou={showForYou} />
 
       {/* Feed content */}
-      {activeTab === 'foryou' ? (
-        <ForYouTab articles={foryouArticles} />
-      ) : activeTab === 'originals' ? (
+      {activeTab === 'originals' ? (
         <>
           <div style={{ padding: '0 16px' }}>
             <RoadToOlympicsPromoCard />

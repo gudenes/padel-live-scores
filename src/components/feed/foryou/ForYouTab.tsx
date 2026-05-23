@@ -10,86 +10,158 @@ import { useFollowing } from '@/hooks/useFollowing'
 
 export interface ForYouTabProps {
   articles: ForYouArticle[]
+  /** Where the in-card back-chip navigates. Defaults to /feed (exits immersive
+   *  mode without losing the user). */
+  exitHref?: string
 }
 
-type SlideDir = 'in-up' | 'in-down' | 'idle'
+const COMMIT_MS = 320  // slide-up duration after commit
+const SNAP_MS = 220    // snap-back duration when drag cancels
 
-/** 320ms — a touch longer than 250ms (which felt rushed in user testing).
- *  Keep in sync with the @keyframes duration below. */
-const SLIDE_MS = 320
-
-export function ForYouTab({ articles }: ForYouTabProps) {
+export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
   const t = useTranslations('foryou')
   const router = useRouter()
   const [index, setIndex] = useState(0)
-  const [slideDir, setSlideDir] = useState<SlideDir>('idle')
+  const [dragY, setDragY] = useState(0)             // signed drag delta (px). positive = swiped up
+  const [transitioning, setTransitioning] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const { isFollowing, toggle } = useFollowing()
 
-  // Re-trigger the CSS animation whenever index changes by keying the card
-  // on `${index}-${slideDir}` and resetting slideDir → idle after the
-  // animation completes. The 'idle' frame uses no animation, so subsequent
-  // re-renders (e.g. bookmark toggle) don't replay the slide.
+  // Reset transitioning flag after commit animation
   useEffect(() => {
-    if (slideDir === 'idle') return
-    const id = setTimeout(() => setSlideDir('idle'), SLIDE_MS)
+    if (!transitioning) return
+    const id = setTimeout(() => setTransitioning(false), COMMIT_MS)
     return () => clearTimeout(id)
-  }, [slideDir])
+  }, [transitioning])
 
   const swipeNext = useCallback(() => {
     setIndex(i => {
       if (i >= articles.length - 1) return i
-      setSlideDir('in-up')
+      setTransitioning(true)
+      if (typeof localStorage !== 'undefined') localStorage.setItem('foryou_swipe_hint_dismissed', '1')
       return i + 1
     })
-    if (typeof localStorage !== 'undefined') localStorage.setItem('foryou_swipe_hint_dismissed', '1')
+    setDragY(0)
   }, [articles.length])
 
   const swipePrev = useCallback(() => {
     setIndex(i => {
       if (i <= 0) return i
-      setSlideDir('in-down')
+      setTransitioning(true)
       return i - 1
     })
+    setDragY(0)
+  }, [])
+
+  const handleDragMove = useCallback((dy: number) => {
+    // Resist over-scroll at boundaries — show a small peek but with rubber-band
+    if (index === 0 && dy < 0) dy = dy / 3
+    if (index === articles.length - 1 && dy > 0) dy = dy / 3
+    setDragY(dy)
+  }, [index, articles.length])
+
+  const handleDragEnd = useCallback(() => {
+    // If swipe didn't commit (didn't cross threshold), snap back.
+    // If it committed, swipeNext/swipePrev already set dragY=0 with transition.
+    setDragY(0)
   }, [])
 
   useVerticalSwipeNavigation(containerRef, {
     onNext: swipeNext,
     onPrev: swipePrev,
+    onDragMove: handleDragMove,
+    onDragEnd: handleDragEnd,
     enabled: articles.length > 0,
   })
 
   if (articles.length === 0) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'rgba(255,255,255,0.5)', textAlign: 'center', padding: 24 }}>
         {t('empty')}
       </div>
     )
   }
 
   const current = articles[index]
+  const next = articles[index + 1]
+  const prev = articles[index - 1]
+
   const hintDismissed = typeof localStorage !== 'undefined' && localStorage.getItem('foryou_swipe_hint_dismissed') === '1'
   const isLast = index >= articles.length - 1
+  const isFirst = index === 0
   const isSaved = isFollowing('article', current.id)
 
+  // During drag, parent transforms current card by -dragY (since dragging up
+  // pulls it up, off-screen) and next/prev cards by their offset minus dragY.
+  // Transitions are on during snap/commit, off during raw drag (so finger
+  // tracks pixel-perfect).
+  const isDragging = dragY !== 0 && !transitioning
+  const transitionStyle = isDragging
+    ? 'none'
+    : `transform ${transitioning ? COMMIT_MS : SNAP_MS}ms cubic-bezier(0.16, 1, 0.3, 1)`
+
   return (
-    <div ref={containerRef} style={{ position: 'relative', height: 'calc(100vh - 64px)', overflow: 'hidden', touchAction: 'pan-y' }}>
-      <div
-        key={index}
-        className={slideDir === 'in-up' ? 'foryou-slide-up' : slideDir === 'in-down' ? 'foryou-slide-down' : ''}
-        style={{ position: 'absolute', inset: 0 }}
-      >
+    <div
+      ref={containerRef}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#0a0a0a',
+        overflow: 'hidden',
+        touchAction: 'none',          // own all vertical gestures
+        userSelect: 'none',
+      }}
+    >
+      {/* Previous card (peeks in from top when user swipes down) */}
+      {prev && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          transform: `translateY(calc(-100% - ${dragY}px))`,
+          transition: transitionStyle,
+          willChange: 'transform',
+        }}>
+          <ForYouCard article={prev} isSaved={isFollowing('article', prev.id)} onSave={() => {}} onBack={() => router.push(exitHref)} />
+        </div>
+      )}
+
+      {/* Current card */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        transform: `translateY(${-dragY}px)`,
+        transition: transitionStyle,
+        willChange: 'transform',
+      }}>
         <ForYouCard
           article={current}
           isSaved={isSaved}
           onSave={() => toggle('article', current.id)}
-          onBack={() => router.back()}
+          onBack={() => router.push(exitHref)}
         />
       </div>
-      <SwipeHint visible={!hintDismissed && !isLast} />
-      {isLast && (
+
+      {/* Next card (peeks in from bottom when user swipes up) */}
+      {next && (
         <div style={{
-          position: 'absolute', bottom: 76, left: 0, right: 0,
+          position: 'absolute', inset: 0,
+          transform: `translateY(calc(100% - ${dragY}px))`,
+          transition: transitionStyle,
+          willChange: 'transform',
+        }}>
+          <ForYouCard article={next} isSaved={isFollowing('article', next.id)} onSave={() => {}} onBack={() => router.push(exitHref)} />
+        </div>
+      )}
+
+      {/* Hints — bidirectional now that we render prev card too */}
+      {!hintDismissed && !isLast && dragY === 0 && (
+        <SwipeHint visible direction="up" />
+      )}
+      {!isFirst && dragY === 0 && (
+        <SwipeHint visible direction="down" subtle />
+      )}
+
+      {isLast && dragY === 0 && (
+        <div style={{
+          position: 'absolute', bottom: 30, left: 0, right: 0,
           textAlign: 'center', color: 'rgba(255,255,255,0.45)',
           fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
           pointerEvents: 'none',
@@ -97,32 +169,6 @@ export function ForYouTab({ articles }: ForYouTabProps) {
           {t('endOfFeed')}
         </div>
       )}
-      <style jsx>{`
-        /* Slide-up: new card enters from the bottom (next swipe).
-         * Spring-y ease — cubic-bezier(0.16, 1, 0.3, 1) is the "easeOutExpo"
-         * curve that lands cards with a slight overshoot-cushion feel. */
-        :global(.foryou-slide-up) {
-          animation: foryouSlideUp 320ms cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        :global(.foryou-slide-down) {
-          animation: foryouSlideDown 320ms cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        @keyframes foryouSlideUp {
-          from { transform: translateY(100%); opacity: 0.4; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-        @keyframes foryouSlideDown {
-          from { transform: translateY(-100%); opacity: 0.4; }
-          to   { transform: translateY(0);     opacity: 1; }
-        }
-        /* Respect users' reduced-motion preference — drop the animation, keep the snap. */
-        @media (prefers-reduced-motion: reduce) {
-          :global(.foryou-slide-up),
-          :global(.foryou-slide-down) {
-            animation: none;
-          }
-        }
-      `}</style>
     </div>
   )
 }
