@@ -1,20 +1,24 @@
-# Home Card → Matches Tab, Animated Arrival
+# Home Card → Matches Tab, Animated Arrival + Smart Round Default
 
 **Date:** 2026-05-23
 **Status:** Design — pending implementation
-**Scope:** Tiny UX polish on the home → tournament-detail navigation
+**Scope:** Two related polishes to the home → tournament-detail flow
 
 ## Problem
 
-On the home page, the "TORNEOS EN VIVO" (Live Tournaments) section renders cards with a "VER PARTIDOS" (See Matches) CTA. The intent of that CTA is unambiguous: the user wants to see the tournament's matches *right now*.
+Two issues on the home → tournament-detail flow:
 
-Today the link lands on the tournament detail page's default tab (Overview, or Story for completed events). The user then has to scan the page, find the tabs, and tap "Partidos". The CTA's promise — "see matches" — isn't delivered without a second interaction.
+1. **The "VER PARTIDOS" CTA undersells itself.** The home page "TORNEOS EN VIVO" cards have a "VER PARTIDOS" (See Matches) button whose intent is unambiguous: the user wants to see the tournament's matches *right now*. Today the link lands on the tournament detail page's default tab (Overview, or Story for completed events). The user then has to scan the page, find the tabs, and tap "Partidos". The CTA's promise isn't delivered without a second interaction.
 
-## Goal
+2. **The Matches tab can default to a stale round.** The round auto-select effect picks `live → today → availableRounds[0]`. The first-available fallback is almost always Q1, which is wrong any time the tournament has progressed past quals without something live or scheduled today (between-day gaps, mornings before play starts, finals weekend, completed tournaments). The user lands on a round they don't care about.
 
-Tapping "VER PARTIDOS" lands on the tournament detail page and **visibly transitions** to the Matches tab as part of arrival, so the user sees the tab activate without having to tap it themselves. The animation also doubles as a spatial cue ("you went from home to here, and here is the matches view of this tournament").
+## Goals
 
-Scope is intentionally narrow: only this one CTA. Other deep-links that already pass `?tab=matches` (notifications, shared URLs, etc.) keep their current direct-land behavior.
+**Animated arrival.** Tapping "VER PARTIDOS" lands on the detail page and **visibly transitions** to the Matches tab as part of arrival, so the user sees the tab activate without having to tap it themselves. The animation doubles as a spatial cue ("you went from home to here, and here is the matches view of this tournament").
+
+**Smart round default.** Whenever the Matches tab loads (any entry point), the round selector defaults to *the most advanced round that is currently being played or has any in-tournament progress*, not Q1.
+
+Scope on the animation is intentionally narrow — only the "VER PARTIDOS" CTA carries the animation flag. The round-default change applies everywhere because it's a fix to a generic fallback, not a feature.
 
 ## Existing plumbing we can build on
 
@@ -125,12 +129,74 @@ If a single-frame Overview flash is unacceptable for reduced-motion users, the a
 
 [tournaments/[id]/page.tsx:370](src/app/[locale]/(app)/tournaments/[id]/page.tsx:370) currently defaults completed tournaments to the Story tab when no `?tab` is present. Because `wantsMatchesAnimation` requires `paramTab === 'matches'`, that explicit param wins — a completed tournament reached from "VER PARTIDOS" still animates to Matches as intended. No change needed there.
 
+### 5. Smarter round auto-selection
+
+[tournaments/[id]/page.tsx:456](src/app/[locale]/(app)/tournaments/[id]/page.tsx:456) — replace the fallback chain.
+
+**Today:** `hasLive ?? hasToday ?? availableRounds[0]`. The final fallback is the first round in the strip — usually Q1 — which is almost never what the user wants when they open the Matches tab on a tournament in progress.
+
+**New logic:** walk `availableRounds` from most advanced → least advanced, picking the **last (most advanced) round** that satisfies the strongest predicate available, in priority order:
+
+1. **Has a live match** (`status === 'live' || 'on_court'`) — somebody is playing right now
+2. **Has a match scheduled today** (`scheduled_at.slice(0,10) === todayKey`) — today's slate
+3. **Has a finished match** (`status === 'finished'`) — most recent completed round
+4. Final fallback: `availableRounds[0]` — only if the tournament has no progress whatsoever (all matches purely scheduled in the future)
+
+```tsx
+const reverseRounds = [...availableRounds].reverse()
+const inTournament = (m: any) =>
+  !activeTournament || (m as any).tournament?.id === activeTournament
+const inRound = (r: string) => (m: any) =>
+  inTournament(m) && normalizeRoundFull(m.round as string) === r
+
+const mostAdvancedLive = reverseRounds.find(r =>
+  allMatches.some(m =>
+    inRound(r)(m) && (m.status === 'live' || (m.status as string) === 'on_court')
+  )
+)
+const mostAdvancedToday = reverseRounds.find(r =>
+  allMatches.some(m => {
+    if (!inRound(r)(m)) return false
+    const src = (m as any).scheduled_at ?? (m as any).started_at
+    return src && src.slice(0, 10) === todayKey
+  })
+)
+const mostAdvancedFinished = reverseRounds.find(r =>
+  allMatches.some(m => inRound(r)(m) && m.status === 'finished')
+)
+
+setSelectedRound(prev => {
+  if (paramRound && !prev) {
+    const normalized = normalizeRoundFull(paramRound)
+    if (availableRounds.includes(normalized)) return normalized
+  }
+  if (prev && availableRounds.includes(prev)) return prev
+  return (
+    mostAdvancedLive
+    ?? mostAdvancedToday
+    ?? mostAdvancedFinished
+    ?? availableRounds[0]
+    ?? null
+  )
+})
+```
+
+**Why "most advanced" wins within each predicate.** In real padel tournaments, rounds run in sequence — Q1 doesn't overlap with R16. Cases where two rounds simultaneously contain live matches are rare; when they happen (e.g., an over-running quals match while R32 starts on another court), the more-advanced round is the more interesting one for a casual fan opening the page.
+
+**Why the priority order matters.** If R16 has only finished matches and Q3 has a live match (e.g., a late quals dragging on), the live match wins because the predicate priority is `live > today > finished`. This contradicts the pure "always pick the most advanced round" rule, deliberately — *live action takes precedence over completed action regardless of round position*.
+
+**Why this changes `availableRounds[0]` behavior carefully.** The first-available fallback is preserved at the very bottom of the chain. So a tournament whose schedule has been published but where no match has yet been played, scheduled today, or live (e.g., 36 hours before Day 1) still lands on Q1. Only tournaments with *some* progress get the smart pick.
+
+`paramRound` and the "preserve user's prior selection" branch are unchanged — operator deep-links and in-session user choices still win.
+
 ## What we are NOT doing
 
 - Auto-scrolling the page. Tabs are sticky; animation alone is the signal. If it feels under-baked in practice, add scroll as a follow-up.
 - Animating other home-page CTAs. One card, one polish. Evaluate after shipping.
 - Syncing every `pageTab` change back to the URL. We only mutate the URL once (to strip `intent`). Local-state tabs remain the model.
 - Adding any new animation primitive. We reuse SlidingInkTabs' existing spring.
+- Changing how `availableRounds` is built or ordered. We only change the *selection* logic over an existing ordered list. The strip's visual order, round labels, and date sub-labels are untouched.
+- Persisting the smart round pick across navigations. The auto-select effect already short-circuits if the user has manually changed `selectedRound` during the session; that behavior is unchanged.
 
 ## Risk / edge cases
 
@@ -145,7 +211,11 @@ If a single-frame Overview flash is unacceptable for reduced-motion users, the a
 ## Files touched
 
 - [src/components/home/TournamentSpotlight.tsx](src/components/home/TournamentSpotlight.tsx) — 1 line: extend the link's `href`.
-- [src/app/[locale]/(app)/tournaments/[id]/page.tsx](src/app/[locale]/(app)/tournaments/[id]/page.tsx) — extend the initial-tab branch, add a `userChangedTabRef` + wrapped `setPageTab`, add one mount effect.
+- [src/app/[locale]/(app)/tournaments/[id]/page.tsx](src/app/[locale]/(app)/tournaments/[id]/page.tsx):
+  - extend the initial-tab branch (animated arrival)
+  - add a `userChangedTabRef` + wrapped `setPageTab`
+  - add one mount effect (animated arrival timer)
+  - replace the `hasLive ?? hasToday ?? availableRounds[0]` fallback chain in the round-auto-select effect with the four-tier priority chain (smart round default)
 
 No new components, no new dependencies, no migrations.
 
@@ -157,3 +227,8 @@ No new components, no new dependencies, no migrations.
 4. With `prefers-reduced-motion: reduce`, the page commits to Matches on first effect with no 280ms dwell and no ink-bar travel animation. (A single hydration frame of Overview is acceptable — see §3.)
 5. Tapping any other tab during the dwell wins — the auto-animation does not override the user's choice.
 6. Deep-link `/tournaments/{id}?tab=matches` (no `intent`) still lands directly on Matches with no animation. Notifications and shared links unchanged.
+7. Open the Matches tab of a tournament where R16 has matches today and Q1 has only finished matches → R16 is selected. (Today's screenshot case still works.)
+8. Open the Matches tab of a tournament where SF finished yesterday, F is scheduled tomorrow, nothing today, nothing live → SF is selected (most-advanced finished). The user does NOT land on Q1.
+9. Open the Matches tab of a tournament where Q3 has a live match and R16 has only scheduled-future matches → Q3 is selected (live beats most-advanced).
+10. Open the Matches tab of a tournament that hasn't started — all matches scheduled for tomorrow or later → Q1 is selected (the fallback survives the "no progress" case).
+11. Manually pick a different round, navigate away to another tab, come back → the manual pick is preserved (the existing `prev && availableRounds.includes(prev)` branch is untouched).
