@@ -49,12 +49,26 @@ export interface ForYouCardProps {
   onBack: () => void
 }
 
+/** Render summary_md as flowing prose.
+ *  Old bullet-format articles get flattened by stripping leading "• " and
+ *  joining with spaces, so they still read OK after the format change. */
+function summaryToParagraph(summary: string): string {
+  if (summary.includes('\n') || summary.startsWith('•')) {
+    return summary
+      .split('\n')
+      .map(line => line.replace(/^•\s*/, '').trim())
+      .filter(Boolean)
+      .join(' ')
+  }
+  return summary.trim()
+}
+
 export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps) {
   const t = useTranslations('foryou')
   const locale = useLocale()
   const localizedTitle = pickTitle(article, locale)
   const localizedSummary = article.summary_translations?.[locale] ?? article.summary_md ?? ''
-  const bullets = localizedSummary.split('\n').map(s => s.trim()).filter(s => s.startsWith('•'))
+  const paragraph = summaryToParagraph(localizedSummary)
 
   const onShare = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
@@ -137,18 +151,29 @@ export function ForYouCard({ article, isSaved, onSave, onBack }: ForYouCardProps
           </span>
         </div>
 
-        <h1 style={{ fontSize: 24, lineHeight: 1.1, fontWeight: 800, letterSpacing: '-0.015em', color: '#fff', marginBottom: 14 }}>
+        <h1 style={{
+          fontSize: 22, lineHeight: 1.15, fontWeight: 800, letterSpacing: '-0.015em',
+          color: '#fff', marginBottom: 14,
+          // Cap title to 3 lines so the card never overflows; rare long titles get a fade-clip
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>
           {localizedTitle}
         </h1>
 
-        <ul style={{ listStyle: 'none', margin: '0 0 14px', padding: 0 }}>
-          {bullets.map((line, i) => (
-            <li key={i} style={{ fontSize: 14, lineHeight: 1.5, color: '#D8D8D8', paddingLeft: 16, position: 'relative', marginBottom: 7 }}>
-              <span style={{ position: 'absolute', left: 0, top: 8, width: 5, height: 5, background: '#7ED321', borderRadius: '50%' }} />
-              <span dangerouslySetInnerHTML={{ __html: renderInlineBold(line.replace(/^•\s*/, '')) }} />
-            </li>
-          ))}
-        </ul>
+        <p
+          style={{
+            fontSize: 15, lineHeight: 1.55, color: '#D8D8D8', margin: 0,
+            // Cap to ~6 lines max — keeps the card height predictable
+            display: '-webkit-box',
+            WebkitLineClamp: 6,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+          dangerouslySetInnerHTML={{ __html: renderInlineBold(paragraph) }}
+        />
       </div>
     </div>
   )

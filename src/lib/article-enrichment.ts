@@ -15,15 +15,19 @@ const SYSTEM_PROMPT = `You are extracting structured padel news data from an art
 Return a single JSON object matching this schema (no prose, no markdown fences):
 
 {
-  "summary_md": "• bullet 1\\n• bullet 2\\n• bullet 3",
+  "summary_md": "A single paragraph of 60-80 words summarising the article. Bold key terms with **markdown bold**. No bullets, no line breaks.",
   "entities": [{ "type": "player|tournament|brand", "mention": "verbatim string", "confidence": 0.0-1.0 }],
   "topics": [{ "topic": "${ARTICLE_TOPICS.join('|')}", "confidence": 0.0-1.0 }]
 }
 
-Rules:
-- 3-4 bullets, English, max 25 words per bullet.
-- Bullets MUST start with "• " (bullet + space).
-- Bold key terms with **markdown bold**.
+Rules for summary_md:
+- ONE paragraph. No bullets ("•"), no line breaks ("\\n").
+- 60-80 words. Tight, declarative. Lead with the news, follow with context.
+- English (the canonical; translations to other locales happen in a separate Haiku call).
+- **Bold** the key player names, tournament names, and scorelines.
+- No clichés ("a thrilling match"). No author voice ("I think", "we see").
+
+Rules for entities and topics:
 - Confidence on entities reflects how sure you are it's THIS specific entity, not just that the name appears.
 - Don't invent entities. Only return mentions that appear in the article.`
 
