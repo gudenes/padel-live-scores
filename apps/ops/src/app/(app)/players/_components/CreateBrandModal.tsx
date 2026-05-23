@@ -17,6 +17,7 @@ export default function CreateBrandModal({ initialName, onClose, onCreated }: Pr
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [partialSuccess, setPartialSuccess] = useState<{ brand: { id: string; name: string }; warning: string } | null>(null)
 
   async function handleSave() {
     const trimmed = name.trim()
@@ -43,25 +44,43 @@ export default function CreateBrandModal({ initialName, onClose, onCreated }: Pr
       const created = (await createRes.json()) as { brand: { id: string; name: string } }
       const brand = created.brand
 
-      // 2. (Optional) Upload logo and patch logo_url onto the new brand
+      // 2. (Optional) Upload logo and patch logo_url onto the new brand.
+      //    On partial failure we keep the modal open so the operator knows the
+      //    logo didn't land — the brand row itself exists either way, so we
+      //    must NOT let them retry the create (would dup the brand).
+      let logoWarning: string | null = null
       if (logoFile) {
-        const fd = new FormData()
-        fd.set('kind', 'brand')
-        fd.set('entityId', brand.id)
-        fd.set('file', logoFile)
-        const up = await fetch('/api/internal/upload-equipment-image', { method: 'POST', body: fd })
-        if (up.ok) {
-          const { url } = (await up.json()) as { url: string }
-          await fetch('/api/internal/brands', {
-            method: 'PATCH',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ id: brand.id, updates: { logo_url: url } }),
-          })
+        try {
+          const fd = new FormData()
+          fd.append('kind', 'brand')
+          fd.append('entityId', brand.id)
+          fd.append('file', logoFile)
+          const up = await fetch('/api/internal/upload-equipment-image', { method: 'POST', body: fd })
+          if (!up.ok) {
+            logoWarning = 'Logo upload failed — you can retry from the Brands tab.'
+          } else {
+            const upData = (await up.json()) as { url: string }
+            const patchRes = await fetch('/api/internal/brands', {
+              method: 'PATCH',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ id: brand.id, updates: { logo_url: upData.url } }),
+            })
+            if (!patchRes.ok) {
+              logoWarning = 'Logo uploaded but failed to attach to the brand — retry from the Brands tab.'
+            }
+          }
+        } catch {
+          logoWarning = 'Logo upload failed — you can retry from the Brands tab.'
         }
-        // Logo failures are non-blocking — brand exists, operator can re-upload later.
       }
 
-      onCreated({ id: brand.id, name: brand.name })
+      setSaving(false)
+
+      if (logoWarning) {
+        setPartialSuccess({ brand, warning: logoWarning })
+      } else {
+        onCreated({ id: brand.id, name: brand.name })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Create failed')
       setSaving(false)
@@ -80,43 +99,62 @@ export default function CreateBrandModal({ initialName, onClose, onCreated }: Pr
             ×
           </button>
         </div>
-        <div className="flex flex-col gap-3">
-          <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">NAME</div>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
-              autoFocus
-            />
+        {partialSuccess ? (
+          <div className="flex flex-col gap-3">
+            <div className="text-sm text-green-700">
+              Brand &quot;<strong>{partialSuccess.brand.name}</strong>&quot; created successfully.
+            </div>
+            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              {partialSuccess.warning}
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => onCreated(partialSuccess.brand)}
+                className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
-          <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">LOGO (optional)</div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-              className="text-xs"
-            />
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <div className="text-[11px] font-semibold text-gray-500 mb-1">NAME</div>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
+                autoFocus
+              />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-gray-500 mb-1">LOGO (optional)</div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
+                className="text-xs"
+              />
+            </div>
+            {error && <div className="text-xs text-red-600">{error}</div>}
+            <div className="flex gap-2 justify-end pt-2">
+              <button
+                onClick={onClose}
+                className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer disabled:opacity-50"
+              >
+                {saving ? 'Creating…' : 'Create'}
+              </button>
+            </div>
           </div>
-          {error && <div className="text-xs text-red-600">{error}</div>}
-          <div className="flex gap-2 justify-end pt-2">
-            <button
-              onClick={onClose}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer disabled:opacity-50"
-            >
-              {saving ? 'Creating…' : 'Create'}
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )
