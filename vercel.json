@@ -14,6 +14,10 @@
       "schedule": "40 */1 * * *"
     },
     {
+      "path": "/api/cron/enrich-articles",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/quality-scores",
       "schedule": "7 * * * *"
     },
