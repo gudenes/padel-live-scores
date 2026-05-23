@@ -21,6 +21,18 @@ export const dynamic = 'force-dynamic'
 const BATCH_SIZE = 20
 const MAX_RETRIES = 2
 
+/**
+ * Sliding window: by default we only enrich articles published in the last
+ * `ENRICHMENT_WINDOW_DAYS` days (default 7). Older articles stay pending
+ * indefinitely so we don't drain Sonnet budget on stale content. Widen the
+ * env var (or set ENRICHMENT_WINDOW_DAYS=36500 for "all-time") once we've
+ * validated the pipeline on recent articles.
+ *
+ * Ordering is newest-first within the window — so brand-new articles always
+ * take priority over slightly older ones.
+ */
+const WINDOW_DAYS = Math.max(1, parseInt(process.env.ENRICHMENT_WINDOW_DAYS ?? '7', 10))
+
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (
@@ -40,12 +52,14 @@ export async function GET(req: NextRequest) {
       return { skipped: 'flag_off' }
     }
 
+    const cutoffIso = new Date(Date.now() - WINDOW_DAYS * 86400_000).toISOString()
     const { data: candidates, error } = await supabase
       .from('articles')
       .select('id, source_url:url, title, enrichment_retry_count')
       .eq('enrichment_status', 'pending')
       .lt('enrichment_retry_count', MAX_RETRIES + 1)
-      .order('created_at', { ascending: true })
+      .gte('published_at', cutoffIso)
+      .order('published_at', { ascending: false, nullsFirst: false })
       .limit(BATCH_SIZE)
 
     if (error) {
