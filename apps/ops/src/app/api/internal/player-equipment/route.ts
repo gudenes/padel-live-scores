@@ -57,6 +57,22 @@ export async function POST(request: Request) {
   const supabase = serviceClient()
   const effectiveStart = started_at ?? new Date().toISOString().split('T')[0]
 
+  // Guard against backdated starts that would corrupt the active row's history
+  // by writing ended_at < started_at. ISO YYYY-MM-DD strings compare correctly
+  // lexicographically.
+  const { data: activeRow } = await supabase
+    .from('player_equipment')
+    .select('started_at')
+    .eq('player_id', player_id)
+    .is('ended_at', null)
+    .maybeSingle()
+
+  if (activeRow?.started_at && effectiveStart < activeRow.started_at) {
+    return Response.json({
+      error: `Cannot create assignment with start ${effectiveStart} — current active assignment started ${activeRow.started_at}. Edit the active assignment first or pick a start date on/after ${activeRow.started_at}.`,
+    }, { status: 400 })
+  }
+
   // End any current equipment assignment on the same day the new one starts
   // (same-day auto-end per the spec — keeps the history contiguous without
   // a one-day gap or overlap).

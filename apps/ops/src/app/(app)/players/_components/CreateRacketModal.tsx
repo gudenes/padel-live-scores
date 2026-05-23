@@ -28,6 +28,13 @@ export default function CreateRacketModal({ initialModel, brandId, onClose, onCr
       setError('Model is required')
       return
     }
+    if (year) {
+      const yearNum = Number(year)
+      if (!Number.isInteger(yearNum) || yearNum < 1990 || yearNum > 2030) {
+        setError('Year must be between 1990 and 2030')
+        return
+      }
+    }
     setSaving(true)
     setError(null)
 
@@ -140,6 +147,8 @@ export default function CreateRacketModal({ initialModel, brandId, onClose, onCr
               <input
                 type="number"
                 inputMode="numeric"
+                min={1990}
+                max={2030}
                 value={year}
                 onChange={(e) => setYear(e.target.value)}
                 placeholder="e.g. 2026"
