@@ -10,6 +10,7 @@ import FilterChips from './FilterChips'
 import PlayersTable from './PlayersTable'
 import BulkActionsBar from './BulkActionsBar'
 import PlayerDrawer from './PlayerDrawer'
+import AddRacketModal from './AddRacketModal'
 
 // ── Fields to compare during merge ──────────────────────────────
 const MERGE_FIELDS: (keyof PlayerDetail)[] = [
@@ -79,6 +80,9 @@ export default function PlayersTab() {
   const [mergeMessage, setMergeMessage] = useState<string | null>(null)
   const [mergePreview, setMergePreview] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
+
+  // ── Add racket (catalog-only) state ────────────────────────────
+  const [showAddRacket, setShowAddRacket] = useState(false)
 
   // ── Duplicate scan state ───────────────────────────────────────
   interface DupGroup {
@@ -410,6 +414,12 @@ export default function PlayersTab() {
           }}
         />
         {searching && <span style={{ fontSize: 10, color: '#9ca3af' }}>Searching...</span>}
+        <button
+          onClick={() => setShowAddRacket(true)}
+          className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded bg-white hover:bg-gray-50 cursor-pointer whitespace-nowrap"
+        >
+          + Add racket
+        </button>
         <button
           onClick={() => runDupScan('rules')}
           disabled={dupScanning}
@@ -787,6 +797,11 @@ export default function PlayersTab() {
         onSaved={() => fetchData()}
         onNavigate={handleDrawerNavigate}
       />
+
+      {/* Standalone "+ Add racket" catalog modal (no player assignment) */}
+      {showAddRacket && (
+        <AddRacketModal onClose={() => setShowAddRacket(false)} />
+      )}
     </div>
   )
 }
