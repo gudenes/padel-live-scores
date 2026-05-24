@@ -4,7 +4,7 @@
 
 **Goal:** Build a Python OCR worker that reads padel scores from YouTube broadcast scoreboards, writes immutable snapshots to a `padelgod` schema table, and runs a TypeScript shadow-diff worker that measures agreement against Crionet ground truth. V1 ships as shadow-only — zero writes to `public.matches`.
 
-**Architecture:** New Python service in `apps/ocr-worker/` deployed to Railway; new tables in `padelgod` schema (mirroring existing `oop_snapshots` / `results_snapshots` pattern); new TypeScript worker `shadow-diff-ocr` in `padelgod/src/workers/` registered in `padelgod/src/scheduler.ts`; new ops tab `src/app/ops/OcrHealthTab.tsx` reading from new ops API routes.
+**Architecture:** New Python service in `apps/ocr-worker/` deployed to Railway; new tables in `padelgod` schema (mirroring existing `oop_snapshots` / `results_snapshots` pattern); new TypeScript worker `shadow-diff-ocr` in `padelgod/src/workers/` registered in `padelgod/src/scheduler.ts`; new ops tab in the standalone `apps/ops/` admin app (deployed to `admin.padelnachos.com`) at `apps/ops/src/app/(app)/system/ocr-health/`, reading from new API routes at `apps/ops/src/app/api/internal/ocr-health` and `apps/ops/src/app/api/internal/ocr-diff-label`.
 
 **Tech Stack:**
 - Python 3.12 + `pytesseract` + `opencv-python-headless` + `yt-dlp` + `httpx` + `supabase-py`
@@ -75,20 +75,28 @@ padelgod/src/workers/
 padelgod/src/workers/__tests__/
   shadow-diff-ocr.test.ts
 
-src/app/ops/
-  OcrHealthTab.tsx
+apps/ops/src/app/(app)/system/ocr-health/
+  page.tsx                             # server component, imports tab
+  _components/
+    OcrHealthTab.tsx                   # client component, fetches + renders
 
-src/app/api/ops/
-  ocr-health/route.ts
-  ocr-diff-label/route.ts
+apps/ops/src/app/api/internal/ocr-health/
+  route.ts
+  __tests__/route.test.ts
+
+apps/ops/src/app/api/internal/ocr-diff-label/
+  route.ts
+  __tests__/route.test.ts
 ```
 
 **Modified:**
 
 ```
 padelgod/src/scheduler.ts             # register shadow-diff-ocr worker
-src/app/ops/OpsClient.tsx             # add OcrHealthTab to tab list
+apps/ops/src/components/Sidebar.tsx   # add OCR Health link to System group
 ```
+
+> **Important context for Tasks 13-15:** The ops dashboard is a **standalone Next.js app** at [`apps/ops/`](../../apps/ops/) deployed to `admin.padelnachos.com` — NOT the `/ops` route in the main Next.js app (that route is being deprecated per [apps/ops/README.md](../../apps/ops/README.md)). The standalone app uses **Auth.js v5** (not the `ops_token` cookie), with `session.user.isOperator` as the authorization gate. Server reads use `serviceClient()` from `apps/ops/src/lib/supabase`. API routes live under `apps/ops/src/app/api/internal/<feature>/route.ts`. Pages live under `apps/ops/src/app/(app)/system/<feature>/page.tsx` + a sibling `_components/<Feature>Tab.tsx`. The sidebar registry is at `apps/ops/src/components/Sidebar.tsx`.
 
 ---
 
@@ -2497,314 +2505,484 @@ git commit -m "feat(padelgod): shadow-diff-ocr worker comparing OCR to public.se
 
 ---
 
-## Task 13: Ops API — `/api/ops/ocr-health` route
+## Task 13: Ops API — `/api/internal/ocr-health` route (in `apps/ops/`)
 
 **Files:**
-- Create: `src/app/api/ops/ocr-health/route.ts`
-- Create: `src/app/api/ops/ocr-health/__tests__/route.test.ts`
+- Create: `apps/ops/src/app/api/internal/ocr-health/route.ts`
+- Create: `apps/ops/src/app/api/internal/ocr-health/__tests__/route.test.ts`
 
 **Spec reference:** §8 (top stats panel)
 
-- [ ] **Step 1: Inspect an existing ops API route for pattern**
+**Conventions to match** (from existing `apps/ops/src/app/api/internal/padelgod-health/route.ts`):
+- Auth via `await auth()` from `@/lib/auth`; reject if `!session?.user?.isOperator`
+- Supabase via `serviceClient()` from `@/lib/supabase` (NOT `createServerSupabase`)
+- `export const dynamic = 'force-dynamic'`
+- Test mocks via `vi.hoisted` for both `@/lib/auth` and `@/lib/supabase`
 
-Read `src/app/api/ops/padelgod-health/route.ts` (or similar) to confirm the auth + Supabase service-key pattern. Existing ops routes read the `ops_token` cookie set by `/ops?token=$CRON_SECRET` middleware.
+- [ ] **Step 1: Inspect an existing apps/ops API route**
+
+Read `apps/ops/src/app/api/internal/padelgod-health/route.ts` end-to-end to confirm the patterns above. Also skim `apps/ops/src/app/api/internal/player-equipment/__tests__/post-auto-end.test.ts` for the test mock shape (especially the `vi.hoisted` factory and chainable Supabase stub).
 
 - [ ] **Step 2: Write the failing test**
 
-Create `src/app/api/ops/ocr-health/__tests__/route.test.ts`:
+Create `apps/ops/src/app/api/internal/ocr-health/__tests__/route.test.ts`:
 
 ```typescript
-import { describe, it, expect, vi } from 'vitest';
-import { GET } from '../route';
-import { NextRequest } from 'next/server';
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('@/lib/supabase', () => ({
-  createServerSupabase: () => ({
+const { authMock, serviceClientMock } = vi.hoisted(() => ({
+  authMock: vi.fn(),
+  serviceClientMock: vi.fn(),
+}))
+
+vi.mock('@/lib/auth', () => ({ auth: authMock }))
+vi.mock('@/lib/supabase', () => ({ serviceClient: serviceClientMock }))
+
+import { GET } from '../route'
+
+function buildSupabaseStub(opts: {
+  diffEvents: Array<{ agreement: string; lag_seconds: number | null }>
+  snapshots: Array<{ ocr_confidence: number | null }>
+}) {
+  let call = 0
+  return {
     schema: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
-    then: undefined,
-    execute: vi.fn().mockResolvedValue({
-      data: [
-        { agreement: 'match' },
-        { agreement: 'match' },
-        { agreement: 'sets_disagree' },
-        { agreement: 'no_crionet_baseline' },
-      ],
-      error: null,
+    from: vi.fn(function (this: any) {
+      call += 1
+      return this
     }),
-  }),
-}));
+    select: vi.fn().mockReturnThis(),
+    gte: vi.fn(function (this: any) {
+      // First .from('ocr_diff_events') chain returns diffEvents;
+      // second .from('ocr_snapshots') chain returns snapshots.
+      const promise = call === 1
+        ? Promise.resolve({ data: opts.diffEvents, error: null })
+        : Promise.resolve({ data: opts.snapshots, error: null })
+      return promise
+    }),
+  }
+}
 
-describe('GET /api/ops/ocr-health', () => {
+describe('GET /api/internal/ocr-health', () => {
+  beforeEach(() => {
+    authMock.mockReset()
+    serviceClientMock.mockReset()
+  })
+
+  it('returns 401 when no operator session', async () => {
+    authMock.mockResolvedValueOnce({ user: { isOperator: false } })
+    const res = await GET()
+    expect(res.status).toBe(401)
+  })
+
   it('returns agreement counts and match rate', async () => {
-    const req = new NextRequest('http://localhost/api/ops/ocr-health', {
-      headers: { cookie: 'ops_token=valid' },
-    });
-    const res = await GET(req);
-    const json = await res.json();
+    authMock.mockResolvedValueOnce({ user: { isOperator: true, email: 'op@x.com' } })
+    serviceClientMock.mockReturnValueOnce(
+      buildSupabaseStub({
+        diffEvents: [
+          { agreement: 'match', lag_seconds: 2 },
+          { agreement: 'match', lag_seconds: 3 },
+          { agreement: 'sets_disagree', lag_seconds: 4 },
+          { agreement: 'no_crionet_baseline', lag_seconds: null },
+        ],
+        snapshots: [
+          { ocr_confidence: 0.9 },
+          { ocr_confidence: 0.8 },
+          { ocr_confidence: null },
+        ],
+      }),
+    )
 
-    expect(res.status).toBe(200);
-    expect(json.totalDiffs).toBe(4);
-    expect(json.matchRate).toBeCloseTo(0.5);
-    expect(json.agreementCounts.match).toBe(2);
-    expect(json.agreementCounts.sets_disagree).toBe(1);
-  });
-});
+    const res = await GET()
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json.totalDiffs).toBe(4)
+    expect(json.matchRate).toBeCloseTo(0.5)
+    expect(json.agreementCounts.match).toBe(2)
+    expect(json.agreementCounts.sets_disagree).toBe(1)
+    expect(json.totalSnapshots).toBe(3)
+    expect(json.meanConfidence).toBeCloseTo(0.85)
+    expect(json.meanLagSeconds).toBeCloseTo(3)
+  })
+})
 ```
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run:
+Run from the `apps/ops` directory:
 ```bash
-npx vitest run src/app/api/ops/ocr-health/__tests__/route.test.ts
+cd apps/ops && npm test -- ocr-health
 ```
 
 Expected: FAIL — module `../route` not found.
 
 - [ ] **Step 4: Implement the route**
 
-Create `src/app/api/ops/ocr-health/route.ts`:
+Create `apps/ops/src/app/api/internal/ocr-health/route.ts`:
 
 ```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createServerSupabase } from '@/lib/supabase';
+// apps/ops/src/app/api/internal/ocr-health/route.ts
+//
+// GET /api/internal/ocr-health
+//
+// Aggregate health view for the OCR worker shadow-diff pipeline.
+// Reads padelgod.ocr_diff_events + padelgod.ocr_snapshots from the last
+// 24 hours and computes the metrics rendered by the OCR Health tab.
+//
+// Auth: Auth.js session — isOperator required.
+// Supabase: serviceClient() (cross-schema read into padelgod).
 
-const WINDOW_HOURS = 24;
+import { NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { serviceClient } from '@/lib/supabase'
 
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic'
 
-export async function GET(_req: NextRequest) {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('ops_token')?.value;
-  if (!token) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+const WINDOW_HOURS = 24
+
+interface DiffEventRow {
+  agreement: string
+  lag_seconds: number | null
+}
+
+interface SnapshotRow {
+  ocr_confidence: number | null
+}
+
+interface HealthResponse {
+  windowHours: number
+  totalDiffs: number
+  totalSnapshots: number
+  matchRate: number
+  agreementCounts: Record<string, number>
+  meanLagSeconds: number | null
+  meanConfidence: number | null
+}
+
+export async function GET() {
+  const session = await auth()
+  if (!session?.user?.isOperator) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const supabase = createServerSupabase();
-  const cutoff = new Date(Date.now() - WINDOW_HOURS * 3600_000).toISOString();
+  const supabase = serviceClient()
+  const cutoff = new Date(Date.now() - WINDOW_HOURS * 3600_000).toISOString()
 
-  const { data, error } = await supabase
+  const { data: diffData, error: diffError } = (await supabase
     .schema('padelgod')
     .from('ocr_diff_events')
-    .select('agreement, lag_seconds, ocr_score')
-    .gte('checked_at', cutoff);
+    .select('agreement, lag_seconds')
+    .gte('checked_at', cutoff)) as { data: DiffEventRow[] | null; error: { message: string } | null }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (diffError) {
+    return NextResponse.json({ error: diffError.message }, { status: 500 })
   }
 
-  const rows = data ?? [];
-  const agreementCounts: Record<string, number> = {};
-  let totalLag = 0;
-  let lagSamples = 0;
-  for (const row of rows) {
-    agreementCounts[row.agreement] = (agreementCounts[row.agreement] ?? 0) + 1;
+  const diffRows = diffData ?? []
+  const agreementCounts: Record<string, number> = {}
+  let totalLag = 0
+  let lagSamples = 0
+  for (const row of diffRows) {
+    agreementCounts[row.agreement] = (agreementCounts[row.agreement] ?? 0) + 1
     if (row.lag_seconds != null) {
-      totalLag += row.lag_seconds;
-      lagSamples += 1;
+      totalLag += row.lag_seconds
+      lagSamples += 1
     }
   }
 
-  const totalDiffs = rows.length;
-  const matchCount = agreementCounts['match'] ?? 0;
-  const matchRate = totalDiffs > 0 ? matchCount / totalDiffs : 0;
-  const meanLag = lagSamples > 0 ? totalLag / lagSamples : null;
+  const totalDiffs = diffRows.length
+  const matchCount = agreementCounts['match'] ?? 0
+  const matchRate = totalDiffs > 0 ? matchCount / totalDiffs : 0
+  const meanLag = lagSamples > 0 ? totalLag / lagSamples : null
 
-  // Confidence stats from ocr_snapshots in same window
-  const { data: snapshots } = await supabase
+  const { data: snapData } = (await supabase
     .schema('padelgod')
     .from('ocr_snapshots')
     .select('ocr_confidence')
-    .gte('captured_at', cutoff);
+    .gte('captured_at', cutoff)) as { data: SnapshotRow[] | null; error: { message: string } | null }
 
-  const confidences = (snapshots ?? [])
-    .map((s: any) => s.ocr_confidence)
-    .filter((c: any) => c != null) as number[];
+  const snapRows = snapData ?? []
+  const confidences = snapRows
+    .map((s) => s.ocr_confidence)
+    .filter((c): c is number => c != null)
   const meanConfidence = confidences.length > 0
     ? confidences.reduce((a, b) => a + b, 0) / confidences.length
-    : null;
+    : null
 
-  return NextResponse.json({
+  const body: HealthResponse = {
     windowHours: WINDOW_HOURS,
     totalDiffs,
-    totalSnapshots: snapshots?.length ?? 0,
+    totalSnapshots: snapRows.length,
     matchRate,
     agreementCounts,
     meanLagSeconds: meanLag,
     meanConfidence,
-  });
+  }
+
+  return NextResponse.json(body, { headers: { 'cache-control': 'no-store' } })
 }
 ```
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run:
 ```bash
-npx vitest run src/app/api/ops/ocr-health/__tests__/route.test.ts
+cd apps/ops && npm test -- ocr-health
 ```
 
-Expected: PASS.
+Expected: 2/2 tests PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/app/api/ops/ocr-health/
-git commit -m "feat(ops-api): /api/ops/ocr-health aggregation endpoint"
+git add apps/ops/src/app/api/internal/ocr-health/
+git commit -m "feat(admin): /api/internal/ocr-health aggregation endpoint"
 ```
 
 ---
 
-## Task 14: Ops API — `/api/ops/ocr-diff-label` route
+## Task 14: Ops API — `/api/internal/ocr-diff-label` route (in `apps/ops/`)
 
 **Files:**
-- Create: `src/app/api/ops/ocr-diff-label/route.ts`
-- Create: `src/app/api/ops/ocr-diff-label/__tests__/route.test.ts`
+- Create: `apps/ops/src/app/api/internal/ocr-diff-label/route.ts`
+- Create: `apps/ops/src/app/api/internal/ocr-diff-label/__tests__/route.test.ts`
 
 **Spec reference:** §8 ("OCR was right / wrong" buttons)
 
+**Convention difference from the old plan:** Operator identity comes from the Auth.js session (`session.user.email`), NOT from the request body. The frontend doesn't pass `operatorEmail` anymore.
+
 - [ ] **Step 1: Write the failing test**
 
-Create `src/app/api/ops/ocr-diff-label/__tests__/route.test.ts`:
+Create `apps/ops/src/app/api/internal/ocr-diff-label/__tests__/route.test.ts`:
 
 ```typescript
-import { describe, it, expect, vi } from 'vitest';
-import { POST } from '../route';
-import { NextRequest } from 'next/server';
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { NextRequest } from 'next/server'
 
-const mockUpdate = vi.fn().mockReturnValue({
-  eq: vi.fn().mockReturnValue({
-    execute: vi.fn().mockResolvedValue({ data: [{ id: 1 }], error: null }),
-  }),
-});
+const { authMock, serviceClientMock, updateMock, eqMock } = vi.hoisted(() => ({
+  authMock: vi.fn(),
+  serviceClientMock: vi.fn(),
+  updateMock: vi.fn(),
+  eqMock: vi.fn(),
+}))
 
-vi.mock('@/lib/supabase', () => ({
-  createServerSupabase: () => ({
-    schema: () => ({
-      from: () => ({
-        update: mockUpdate,
-      }),
-    }),
-  }),
-}));
+vi.mock('@/lib/auth', () => ({ auth: authMock }))
+vi.mock('@/lib/supabase', () => ({ serviceClient: serviceClientMock }))
 
-describe('POST /api/ops/ocr-diff-label', () => {
-  it('writes a correct label to notes', async () => {
-    const req = new NextRequest('http://localhost/api/ops/ocr-diff-label', {
+import { POST } from '../route'
+
+function buildSupabaseStub() {
+  // .schema('padelgod').from('ocr_diff_events').update({...}).eq('id', n) → { error: null }
+  eqMock.mockResolvedValue({ data: [{ id: 1 }], error: null })
+  updateMock.mockReturnValue({ eq: eqMock })
+  return {
+    schema: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    update: updateMock,
+  }
+}
+
+beforeEach(() => {
+  authMock.mockReset()
+  serviceClientMock.mockReset()
+  updateMock.mockReset()
+  eqMock.mockReset()
+})
+
+describe('POST /api/internal/ocr-diff-label', () => {
+  it('returns 401 when not operator', async () => {
+    authMock.mockResolvedValueOnce({ user: { isOperator: false } })
+    const req = new NextRequest('http://localhost/api/internal/ocr-diff-label', {
       method: 'POST',
-      headers: { cookie: 'ops_token=valid', 'content-type': 'application/json' },
-      body: JSON.stringify({ diffId: 42, label: 'correct', operatorEmail: 'g@x.com' }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(200);
-    expect(mockUpdate).toHaveBeenCalledWith(
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ diffId: 42, label: 'correct' }),
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(401)
+  })
+
+  it('writes a "correct" label to notes', async () => {
+    authMock.mockResolvedValueOnce({ user: { isOperator: true, email: 'op@x.com' } })
+    serviceClientMock.mockReturnValueOnce(buildSupabaseStub())
+
+    const req = new NextRequest('http://localhost/api/internal/ocr-diff-label', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ diffId: 42, label: 'correct' }),
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    expect(updateMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        notes: expect.stringContaining('correct'),
+        notes: expect.stringContaining('operator_label=correct'),
       }),
-    );
-  });
+    )
+    // Notes string should contain the session's operator email
+    const updateArg = updateMock.mock.calls[0][0]
+    expect(updateArg.notes).toContain('by=op@x.com')
+  })
 
   it('rejects unknown labels', async () => {
-    const req = new NextRequest('http://localhost/api/ops/ocr-diff-label', {
+    authMock.mockResolvedValueOnce({ user: { isOperator: true, email: 'op@x.com' } })
+    const req = new NextRequest('http://localhost/api/internal/ocr-diff-label', {
       method: 'POST',
-      headers: { cookie: 'ops_token=valid', 'content-type': 'application/json' },
-      body: JSON.stringify({ diffId: 42, label: 'maybe', operatorEmail: 'g@x.com' }),
-    });
-    const res = await POST(req);
-    expect(res.status).toBe(400);
-  });
-});
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ diffId: 42, label: 'maybe' }),
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects missing diffId', async () => {
+    authMock.mockResolvedValueOnce({ user: { isOperator: true, email: 'op@x.com' } })
+    const req = new NextRequest('http://localhost/api/internal/ocr-diff-label', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ label: 'correct' }),
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(400)
+  })
+})
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run:
 ```bash
-npx vitest run src/app/api/ops/ocr-diff-label/__tests__/route.test.ts
+cd apps/ops && npm test -- ocr-diff-label
 ```
 
 Expected: FAIL — module not found.
 
 - [ ] **Step 3: Implement the route**
 
-Create `src/app/api/ops/ocr-diff-label/route.ts`:
+Create `apps/ops/src/app/api/internal/ocr-diff-label/route.ts`:
 
 ```typescript
-import { NextRequest, NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { createServerSupabase } from '@/lib/supabase';
+// apps/ops/src/app/api/internal/ocr-diff-label/route.ts
+//
+// POST /api/internal/ocr-diff-label
+//
+// Operator labeling endpoint for the OCR Health tab's "OCR was right /
+// wrong" buttons. Writes a one-line attribution string into
+// padelgod.ocr_diff_events.notes including the labeling operator's email
+// (sourced from the Auth.js session, not the request body).
+//
+// Auth: Auth.js session — isOperator required.
+// Supabase: serviceClient().
 
-export const dynamic = 'force-dynamic';
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
+import { serviceClient } from '@/lib/supabase'
 
-const ALLOWED_LABELS = new Set(['correct', 'incorrect']);
+export const dynamic = 'force-dynamic'
+
+const ALLOWED_LABELS = new Set(['correct', 'incorrect'])
+
+interface RequestBody {
+  diffId?: number
+  label?: string
+}
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  if (!cookieStore.get('ops_token')) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  const session = await auth()
+  if (!session?.user?.isOperator) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  const body = await req.json();
-  const { diffId, label, operatorEmail } = body;
+  const body = (await req.json()) as RequestBody
+  const { diffId, label } = body
 
-  if (typeof diffId !== 'number' || !ALLOWED_LABELS.has(label)) {
-    return NextResponse.json({ error: 'invalid input' }, { status: 400 });
+  if (typeof diffId !== 'number' || !label || !ALLOWED_LABELS.has(label)) {
+    return NextResponse.json({ error: 'invalid input' }, { status: 400 })
   }
 
-  const note = `operator_label=${label} by=${operatorEmail ?? 'unknown'} at=${new Date().toISOString()}`;
+  const operatorEmail = session.user.email ?? 'unknown'
+  const note = `operator_label=${label} by=${operatorEmail} at=${new Date().toISOString()}`
 
-  const supabase = createServerSupabase();
+  const supabase = serviceClient()
   const { error } = await supabase
     .schema('padelgod')
     .from('ocr_diff_events')
     .update({ notes: note })
-    .eq('id', diffId);
+    .eq('id', diffId)
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true })
 }
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run:
 ```bash
-npx vitest run src/app/api/ops/ocr-diff-label/__tests__/route.test.ts
+cd apps/ops && npm test -- ocr-diff-label
 ```
 
-Expected: both tests PASS.
+Expected: 4/4 tests PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/app/api/ops/ocr-diff-label/
-git commit -m "feat(ops-api): operator labeling endpoint for OCR diff events"
+git add apps/ops/src/app/api/internal/ocr-diff-label/
+git commit -m "feat(admin): operator labeling endpoint for OCR diff events"
 ```
 
 ---
 
-## Task 15: Ops page — `OcrHealthTab.tsx`
+## Task 15: Ops page — OCR Health route + tab (in `apps/ops/`)
 
 **Files:**
-- Create: `src/app/ops/OcrHealthTab.tsx`
-- Modify: `src/app/ops/OpsClient.tsx` (register tab)
+- Create: `apps/ops/src/app/(app)/system/ocr-health/page.tsx` (server component, thin wrapper)
+- Create: `apps/ops/src/app/(app)/system/ocr-health/_components/OcrHealthTab.tsx` (client component, fetches + renders)
+- Modify: `apps/ops/src/components/Sidebar.tsx` (add nav entry under the "System" group)
 
 **Spec reference:** §8
 
-- [ ] **Step 1: Read existing tab pattern**
+**Conventions to match** (from existing `apps/ops/src/app/(app)/system/padelgod-health/`):
+- Page is a server component that just imports and renders the Tab; sets `metadata.title` and `dynamic = 'force-dynamic'`.
+- Tab is a client component (`'use client'`) under `_components/`.
+- Auth happens at the layout level via `(app)/layout.tsx` — the Tab does not need to check auth itself.
+- Fetch the API directly via `fetch('/api/internal/ocr-health')` (same origin).
+- Poll on a 30s interval.
 
-Open `src/app/ops/PadelgodHealthTab.tsx` (or similar). The tab is a client component that fetches from its API route and renders. Match the styling and data-fetching conventions.
+- [ ] **Step 1: Read the existing pattern**
 
-- [ ] **Step 2: Create `OcrHealthTab.tsx`**
+Read these for shape reference:
+- `apps/ops/src/app/(app)/system/padelgod-health/page.tsx` — server wrapper
+- `apps/ops/src/app/(app)/system/padelgod-health/_components/PadelgodHealthTab.tsx` — client tab w/ 30s polling
+- `apps/ops/src/components/Sidebar.tsx` — find the `'System'` group (around line 46-55) where new System pages are registered
 
-Create `src/app/ops/OcrHealthTab.tsx`:
+- [ ] **Step 2: Create the page server wrapper**
+
+Create `apps/ops/src/app/(app)/system/ocr-health/page.tsx`:
+
+```tsx
+import OcrHealthTab from './_components/OcrHealthTab'
+
+export const metadata = { title: 'OCR Health · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
+
+export default function OcrHealthPage() {
+  return <OcrHealthTab />
+}
+```
+
+- [ ] **Step 3: Create the Tab client component**
+
+Create `apps/ops/src/app/(app)/system/ocr-health/_components/OcrHealthTab.tsx`:
 
 ```tsx
 'use client'
+// apps/ops/src/app/(app)/system/ocr-health/_components/OcrHealthTab.tsx
+//
+// V1 OCR Health tab — reads /api/internal/ocr-health and renders the
+// graduation-decision metrics for the OCR worker shadow-diff pipeline.
+//
+// Polls every 30 seconds. No write operations from this file (the
+// operator labeling buttons that POST to /api/internal/ocr-diff-label
+// live alongside the disagreements table in V2 — out of scope here).
 
 import { useEffect, useState } from 'react'
 
@@ -2827,15 +3005,15 @@ export default function OcrHealthTab() {
     let alive = true
     const fetchData = async () => {
       try {
-        const res = await fetch('/api/ops/ocr-health')
+        const res = await fetch('/api/internal/ocr-health')
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = (await res.json()) as OcrHealthData
         if (alive) {
           setData(json)
           setError(null)
         }
-      } catch (e: any) {
-        if (alive) setError(e.message)
+      } catch (e: unknown) {
+        if (alive) setError(e instanceof Error ? e.message : String(e))
       } finally {
         if (alive) setLoading(false)
       }
@@ -2848,15 +3026,17 @@ export default function OcrHealthTab() {
     }
   }, [])
 
-  if (loading) return <div className="p-4">Loading OCR health…</div>
-  if (error) return <div className="p-4 text-red-600">Error: {error}</div>
+  if (loading) return <div style={{ padding: 24 }}>Loading OCR health…</div>
+  if (error) return <div style={{ padding: 24, color: 'crimson' }}>Error: {error}</div>
   if (!data) return null
 
   return (
-    <div className="p-4 space-y-6">
-      <h2 className="text-xl font-semibold">OCR Health — last {data.windowHours}h</h2>
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 600, margin: 0 }}>
+        OCR Health — last {data.windowHours}h
+      </h2>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <Stat label="Total snapshots" value={data.totalSnapshots.toLocaleString()} />
         <Stat label="Total diffs" value={data.totalDiffs.toLocaleString()} />
         <Stat
@@ -2872,18 +3052,28 @@ export default function OcrHealthTab() {
       </div>
 
       <div>
-        <h3 className="text-lg font-medium mb-2">Agreement breakdown</h3>
-        <div className="space-y-1">
+        <h3 style={{ fontSize: 16, fontWeight: 500, marginBottom: 8 }}>
+          Agreement breakdown
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {Object.entries(data.agreementCounts).map(([k, v]) => (
-            <div key={k} className="flex justify-between border-b py-1">
-              <span className="font-mono text-sm">{k}</span>
+            <div
+              key={k}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid var(--border-subtle, #eee)',
+                padding: '6px 0',
+              }}
+            >
+              <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{k}</span>
               <span>{v}</span>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="text-sm text-neutral-500">
+      <div style={{ fontSize: 13, color: 'var(--text-muted, #777)' }}>
         Auto-refreshing every 30s. V1 thresholds for graduation: sets agreement ≥95%, confidence ≥0.85.
       </div>
     </div>
@@ -2900,9 +3090,21 @@ function Stat({
   highlight?: boolean
 }) {
   return (
-    <div className="border rounded p-3">
-      <div className="text-xs text-neutral-500">{label}</div>
-      <div className={`text-2xl font-semibold ${highlight ? 'text-green-600' : ''}`}>
+    <div
+      style={{
+        border: '1px solid var(--border-subtle, #eee)',
+        borderRadius: 6,
+        padding: 12,
+      }}
+    >
+      <div style={{ fontSize: 11, color: 'var(--text-muted, #777)' }}>{label}</div>
+      <div
+        style={{
+          fontSize: 24,
+          fontWeight: 600,
+          color: highlight ? 'var(--accent-green, #1a7f37)' : 'inherit',
+        }}
+      >
         {value}
       </div>
     </div>
@@ -2910,35 +3112,36 @@ function Stat({
 }
 ```
 
-- [ ] **Step 3: Register the tab in `OpsClient.tsx`**
+> **Style note:** apps/ops uses inline `style` props with CSS custom properties (matching the existing PadelgodHealthTab pattern), NOT Tailwind. If you see Tailwind classes in earlier drafts, replace them. If `apps/ops` later adopts Tailwind, this tab can migrate alongside.
 
-Open `src/app/ops/OpsClient.tsx`. Near the top, after other tab imports, add:
+- [ ] **Step 4: Register in the Sidebar**
+
+Open `apps/ops/src/components/Sidebar.tsx`. Find the `'System'` group (around line 46-55). Add a new item to its `items` array:
 
 ```tsx
-import OcrHealthTab from './OcrHealthTab'
+{ href: '/system/ocr-health', label: 'OCR Health' },
 ```
 
-Find the tab-list rendering block (search for `PadelgodHealthTab` to find the pattern). Add a new tab entry alongside the others. The exact insertion point depends on the existing tab list structure — match the surrounding pattern (likely an array of `{ id, label, component }` objects or a switch over `activeTab`).
+Place it logically — e.g., right after `'Shadow Mode'` since OCR Health is also a shadow-data observability view. Don't reorder anything else.
 
-Example addition (adapt to actual structure):
-```tsx
-{ id: 'ocr-health', label: 'OCR Health', component: <OcrHealthTab /> },
-```
+- [ ] **Step 5: Verify the page renders locally**
 
-- [ ] **Step 4: Verify the page renders**
-
-Run dev server:
 ```bash
+cd apps/ops
 npm run dev
+# → http://localhost:3004
 ```
 
-Visit `http://localhost:3002/ops?token=<CRON_SECRET>` and click the new "OCR Health" tab. Expected: page renders, shows zeros if no data, doesn't crash.
+Log in as an operator account (the apps/ops Auth.js flow — Google OAuth or email/password). Click "OCR Health" in the System group of the sidebar. Expected: page renders, shows zeros if no data, doesn't crash.
 
-- [ ] **Step 5: Commit**
+If the route returns 401, the session lookup is failing — verify you're logged in and that `session.user.isOperator` is true (per the `(app)/layout.tsx` gate).
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/app/ops/OcrHealthTab.tsx src/app/ops/OpsClient.tsx
-git commit -m "feat(ops): OCR Health tab"
+git add apps/ops/src/app/\(app\)/system/ocr-health/ \
+        apps/ops/src/components/Sidebar.tsx
+git commit -m "feat(admin): OCR Health tab in System group"
 ```
 
 ---
@@ -2952,7 +3155,7 @@ After all 15 tasks land:
 1. Confirm the Railway OCR worker is running (check Railway logs).
 2. Confirm snapshots are being written: `SELECT count(*) FROM padelgod.ocr_snapshots WHERE captured_at > now() - interval '1 hour'` → expect ~1,200 for a single court.
 3. Confirm shadow-diff-ocr is running: `SELECT count(*) FROM padelgod.ocr_diff_events WHERE checked_at > now() - interval '1 hour'` → expect 12 (one per 5min cron run, ~once per match per window).
-4. Open `/ops?token=$CRON_SECRET` → OCR Health tab → confirm stats populate.
+4. Open `https://admin.padelnachos.com/system/ocr-health` (or `http://localhost:3004/system/ocr-health` locally) and confirm stats populate. The page is gated by Auth.js operator session — log in as a known operator account if redirected.
 
 - [ ] **Begin the 2-week shadow measurement window**
 
