@@ -1,8 +1,22 @@
 'use client'
 
+import { useState, type SyntheticEvent } from 'react'
 import Image from 'next/image'
 import { useTranslations, useLocale } from 'next-intl'
 import { ChunkyPressButton } from './ChunkyPressButton'
+
+/**
+ * Photo treatment: pick between cover (immersive crop) and contain (letterbox
+ * + blurred backdrop) per-image based on aspect ratio. Landscape source photos
+ * (AR > 1.4) get the contain treatment so we don't squish them vertically;
+ * portrait/square photos get the cover treatment with an upper-third bias
+ * (`center 30%`) so faces survive the crop.
+ *
+ * The threshold of 1.4 was picked empirically: 16:9 ≈ 1.78, 4:3 ≈ 1.33. So
+ * "TV-shape" landscape uses contain; 4:3 and squarer uses cover.
+ */
+const LANDSCAPE_AR_THRESHOLD = 1.4
+type FitMode = 'cover' | 'contain'
 
 export interface ForYouArticle {
   id: string
@@ -60,6 +74,18 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
   const localizedSummary = article.summary_translations?.[locale] ?? article.summary_md ?? ''
   const paragraph = summaryToParagraph(localizedSummary)
 
+  // Default to 'cover' for the SSR / initial paint; once the image actually
+  // loads we measure the natural aspect ratio and swap to 'contain' for wide
+  // landscape photos (see LANDSCAPE_AR_THRESHOLD note above).
+  const [fitMode, setFitMode] = useState<FitMode>('cover')
+  const handleImageLoad = (e: SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget
+    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+      const ar = img.naturalWidth / img.naturalHeight
+      setFitMode(ar > LANDSCAPE_AR_THRESHOLD ? 'contain' : 'cover')
+    }
+  }
+
   const onShare = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try { await navigator.share({ title: localizedTitle, url: article.source_url }) } catch {}
@@ -76,25 +102,51 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
 
   return (
     <div style={{ position: 'absolute', inset: 0, background: '#0a0a0a', overflow: 'hidden' }}>
-      {/* Hero — taller, true-center crop. Sports/action photos look better
-       *  with center-center than the old "center 30%" (which pulled the
-       *  crop toward the top, exposing sky/ceiling/background). */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 430, overflow: 'hidden' }}>
+      {/* Hero — hybrid photo treatment.
+       *  Landscape photos (AR > 1.4) render `contain` with a blurred copy as
+       *  side-bar backdrop, so we never crop heads or squish the image. Other
+       *  shapes render `cover` with an upper-third bias (`center 30%`) so
+       *  faces in news photos survive the crop.
+       *  Gradient is lighter than the old version to eat less of the photo. */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 430, overflow: 'hidden', background: '#0a0a0a' }}>
         {article.image_url ? (
-          <Image
-            src={article.image_url}
-            alt=""
-            fill
-            sizes="100vw"
-            style={{ objectFit: 'cover', objectPosition: 'center center' }}
-            unoptimized
-          />
+          <>
+            {/* Blurred backdrop — only meaningful in contain mode where the
+             *  letterbox bars would otherwise be solid black. Rendered as a
+             *  plain CSS background for cheap GPU compositing. */}
+            {fitMode === 'contain' && (
+              <div
+                aria-hidden
+                style={{
+                  position: 'absolute', inset: 0, zIndex: 0,
+                  backgroundImage: `url("${article.image_url}")`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  filter: 'blur(30px) brightness(0.55) saturate(1.1)',
+                  transform: 'scale(1.2)', // hide blur edge clipping
+                }}
+              />
+            )}
+            <Image
+              src={article.image_url}
+              alt=""
+              fill
+              sizes="100vw"
+              onLoad={handleImageLoad}
+              style={{
+                objectFit: fitMode,
+                objectPosition: fitMode === 'cover' ? 'center 30%' : 'center center',
+                zIndex: 1,
+              }}
+              unoptimized
+            />
+          </>
         ) : (
           <div style={{ background: '#0a0a0a', height: '100%' }} />
         )}
         <div style={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(180deg, rgba(10,10,10,.6) 0%, rgba(10,10,10,.2) 12%, rgba(10,10,10,0) 30%, rgba(10,10,10,0) 55%, rgba(10,10,10,.6) 78%, rgba(10,10,10,.95) 95%, #0a0a0a 100%)',
+          position: 'absolute', inset: 0, zIndex: 2,
+          background: 'linear-gradient(180deg, rgba(10,10,10,.35) 0%, rgba(10,10,10,0) 20%, rgba(10,10,10,0) 65%, rgba(10,10,10,.7) 85%, rgba(10,10,10,.95) 96%, #0a0a0a 100%)',
         }} />
       </div>
 
