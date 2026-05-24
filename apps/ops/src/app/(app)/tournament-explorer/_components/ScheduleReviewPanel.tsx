@@ -22,6 +22,7 @@
 // stay visually aligned.
 
 import React, { useCallback, useEffect, useState } from 'react'
+import { PlayerLink } from '@/components/PlayerLink'
 
 // ── Types (shared with the API — keep in sync with schedule-review/route.ts) ─
 
@@ -31,11 +32,26 @@ type PlayerSlotKey =
   | 'pair2_player1_id'
   | 'pair2_player2_id'
 
+/** Per-slot player payload — see route.ts for shape provenance.
+ *  Optional in the type so older (cached) responses without the nested
+ *  block fall back to the legacy team1Display / team2Display strings
+ *  without crashing. */
+interface ExplorerPlayer {
+  id: string | null
+  name: string
+  avatar_url: string | null
+  ranking: number | null
+  padelapi_id: string | null
+  fip_id: string | null
+}
+
 interface PlayerSlotDiff {
   slot: PlayerSlotKey
   currentId: string | null
   oopName: string | null
   resolvedNewId: string | null
+  country?: string | null
+  player?: ExplorerPlayer | null
 }
 
 interface ScheduleMatch {
@@ -547,7 +563,11 @@ export default function ScheduleReviewPanel({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {m.team1Display}
+                        <TeamCell
+                          p1={m.playerSlots[0]}
+                          p2={m.playerSlots[1]}
+                          fallback={m.team1Display}
+                        />
                       </td>
                       <td
                         style={{
@@ -559,7 +579,11 @@ export default function ScheduleReviewPanel({
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {m.team2Display}
+                        <TeamCell
+                          p1={m.playerSlots[2]}
+                          p2={m.playerSlots[3]}
+                          fallback={m.team2Display}
+                        />
                       </td>
                       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
                         {m.confidence === 'none' && !hasManualLink ? (
@@ -729,6 +753,51 @@ const chipGreen: React.CSSProperties = {
   background: '#dcfce7',
   color: '#166534',
   letterSpacing: '0.03em',
+}
+
+/**
+ * Render a pair as "Player1 / Player2", each name routed through PlayerLink
+ * (status-dot + deep-link to /players/[id] when resolved). Country code
+ * (when present on the OOP row) is appended in muted gray, matching the
+ * legacy "(ESP)" annotation in team1Display.
+ *
+ * Falls back to the legacy concatenated `fallback` string when the
+ * `playerSlots` block is missing on the API response (older cache hits or
+ * if a slot didn't have a name at all).
+ */
+function TeamCell({
+  p1,
+  p2,
+  fallback,
+}: {
+  p1: PlayerSlotDiff | undefined
+  p2: PlayerSlotDiff | undefined
+  fallback: string
+}) {
+  const slot1 = p1?.player ?? null
+  const slot2 = p2?.player ?? null
+  if (!slot1 && !slot2) return <>{fallback}</>
+  return (
+    <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+      {slot1 && (
+        <>
+          <PlayerLink player={slot1} />
+          {p1?.country && (
+            <span style={{ fontSize: 10, color: '#888' }}>({p1.country})</span>
+          )}
+        </>
+      )}
+      {slot1 && slot2 && <span style={{ color: '#9ca3af' }}>/</span>}
+      {slot2 && (
+        <>
+          <PlayerLink player={slot2} />
+          {p2?.country && (
+            <span style={{ fontSize: 10, color: '#888' }}>({p2.country})</span>
+          )}
+        </>
+      )}
+    </span>
+  )
 }
 
 function SummaryTile({
