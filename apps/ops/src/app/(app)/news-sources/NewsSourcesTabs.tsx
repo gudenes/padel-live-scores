@@ -1,13 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { SourcesTable } from './SourcesTable'
 import { SuggestionsTable } from './SuggestionsTable'
 import { DiscoveryHealth } from './DiscoveryHealth'
+import { AddSourceDrawer } from './AddSourceDrawer'
 
 type Tab = 'sources' | 'suggestions' | 'health'
 
 export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
+  const [showAddDrawer, setShowAddDrawer] = useState(false)
+
   return (
     <div style={{ padding: 24, maxWidth: 1280, margin: '0 auto' }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, color: '#fff' }}>News Sources</h1>
@@ -16,7 +20,26 @@ export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
         <TabLink active={activeTab === 'suggestions'} href="?tab=suggestions">Suggestions</TabLink>
         <TabLink active={activeTab === 'health'}      href="?tab=health">Discovery Health</TabLink>
       </nav>
-      {activeTab === 'sources'     && <SourcesTable />}
+      {activeTab === 'sources' && (
+        <>
+          <div style={{ padding: '12px 8px', display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => setShowAddDrawer(true)}
+              style={{ background: '#7ED321', color: '#0a0a0a', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }}
+            >
+              + Add Source
+            </button>
+            {/* Reserved for Task 4.3: Discover with AI button */}
+          </div>
+          <SourcesTable />
+          {showAddDrawer && (
+            <AddSourceDrawer
+              onClose={() => setShowAddDrawer(false)}
+              onSaved={() => { setShowAddDrawer(false); window.location.reload() }}
+            />
+          )}
+        </>
+      )}
       {activeTab === 'suggestions' && <SuggestionsTable />}
       {activeTab === 'health'      && <DiscoveryHealth />}
     </div>
