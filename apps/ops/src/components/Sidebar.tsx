@@ -45,8 +45,11 @@ export function Sidebar({ userEmail }: Props) {
   const badges: Record<string, number> =
     needsReviewCount > 0 ? { '/needs-review': needsReviewCount } : {}
 
+  // Both columns are rendered as direct siblings (no flex wrapper) so they
+  // participate in the outer AppLayout flex row. This lets each column use
+  // `position: sticky` and stay anchored to the viewport on long pages.
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <>
       <SidebarPrimary
         activeAreaId={activeAreaId}
         needsReviewCount={needsReviewCount}
@@ -57,6 +60,6 @@ export function Sidebar({ userEmail }: Props) {
         activePageHref={activePageHref}
         badges={badges}
       />
-    </div>
+    </>
   )
 }
