@@ -158,6 +158,20 @@ function titleCase(name: string): string {
 // about the top few tiers and let newer levels fall through as raw
 // keys, which uppercased to "FIP_BEYOND" etc. inside the level pill.
 
+// Does a match's pair N (1 or 2) have at least one resolved player?
+// The fip-draw-populator inserts every bracket cell — including ones
+// where an opponent is still "winner of Q1 #5" (one pair fully TBD).
+// PARTIDAS hides those scaffold rows; CUADRO keeps them. A pair is
+// considered resolved if EITHER player has an id or a name set.
+function hasResolvedPair(m: unknown, pairN: 1 | 2): boolean {
+  const r = m as Record<string, unknown>
+  const p1Id = r[`pair${pairN}_player1_id`]
+  const p1Name = r[`pair${pairN}_player1_name`]
+  const p2Id = r[`pair${pairN}_player2_id`]
+  const p2Name = r[`pair${pairN}_player2_name`]
+  return !!(p1Id || p1Name || p2Id || p2Name)
+}
+
 // ══════════════════════════════════════════════════════════════
 // ── Wrapper (unwraps async params) ───────────────────────────
 // ══════════════════════════════════════════════════════════════
@@ -445,6 +459,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     for (const m of allMatches) {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
       if ((m as any).category !== genderFilter) continue
+      // Skip bracket-scaffold rows (one or both pairs entirely TBD). The
+      // fip-draw-populator inserts every bracket cell, including ones where
+      // an opponent is still "winner of Q1 #N" — those belong in CUADRO,
+      // not in the round chip strip on PARTIDAS.
+      if (!hasResolvedPair(m, 1) || !hasResolvedPair(m, 2)) continue
       const r = m.round as string | null
       if (r) seen.add(normalizeRoundFull(r))
     }
@@ -604,6 +623,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
       if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
       if ((m as any).category !== genderFilter) return false
+      // Same scaffold filter as availableRounds: hide bracket cells whose
+      // opponents haven't been determined yet. CUADRO still shows them.
+      if (!hasResolvedPair(m, 1) || !hasResolvedPair(m, 2)) return false
       return true
     })
     // Defense-in-depth dedup: cross-source ingest sometimes leaves two
