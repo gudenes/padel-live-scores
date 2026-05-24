@@ -60,7 +60,8 @@ export async function createNewsSource(input: CreateNewsSourceInput): Promise<Ne
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
     RETURNING id, key, name, url, source_type, language, weight, lookback_days,
               cadence, query_kind, query_entity_id, enabled, created_at, created_by,
-              notes, last_fetch_at, last_fetch_status, last_fetch_error, articles_last_7d
+              notes, last_fetch_at, last_fetch_status, last_fetch_error, articles_last_7d,
+              extraction_quality_pct, auto_disabled_at
   `, [
     input.key,
     input.name,
@@ -82,7 +83,9 @@ export interface UpdateNewsSourceInput {
   id: string
   name?: string
   url?: string
+  language?: string
   weight?: number
+  cadence?: string
   lookback_days?: number
   enabled?: boolean
   notes?: string
@@ -113,7 +116,8 @@ export async function updateNewsSource(input: UpdateNewsSourceInput): Promise<Ne
     WHERE id = $${i}
     RETURNING id, key, name, url, source_type, language, weight, lookback_days,
               cadence, query_kind, query_entity_id, enabled, created_at, created_by,
-              notes, last_fetch_at, last_fetch_status, last_fetch_error, articles_last_7d
+              notes, last_fetch_at, last_fetch_status, last_fetch_error, articles_last_7d,
+              extraction_quality_pct, auto_disabled_at
   `, values)
   return rows[0] ?? null
 }
