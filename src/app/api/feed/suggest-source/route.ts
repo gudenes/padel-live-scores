@@ -71,6 +71,12 @@ export async function POST(req: NextRequest) {
   })
   if (error) return NextResponse.json({ error: 'insert_failed' }, { status: 500 })
 
+  // Non-blocking observability event
+  void supabase.from('ops_events').insert({
+    kind: 'feed.suggest_source.received',
+    metadata: { url, has_email: !!email, detected_type: detected.type, status: initialStatus },
+  })
+
   return NextResponse.json({
     ok: true,
     status: initialStatus,
