@@ -79,6 +79,7 @@ def run_one_iteration(supabase, config: Config, calibration: dict) -> int | None
             supabase, frame, snapshot_id,
             confidence=confidence,
             threshold=config.confidence_threshold,
+            random_sample_rate=config.frame_retention_rate,
         )
         if storage_path:
             supabase.schema("padelgod").table("ocr_snapshots").update(

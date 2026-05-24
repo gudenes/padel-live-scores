@@ -43,6 +43,12 @@ class Config:
     worker_version: str
     frame_interval_seconds: int = 3
     confidence_threshold: float = 0.7
+    # Probability of retaining a frame to Supabase Storage for a *normal* (≥threshold
+    # confidence) snapshot. Low-confidence frames are always retained regardless.
+    # Default 0.01 (1 %) gives a steady trickle of frames for baseline inspection
+    # without blowing up the bucket. Operators can bump this to 1.0 during smoke
+    # tests so every snapshot becomes inspectable from the admin OCR Health drawer.
+    frame_retention_rate: float = 0.01
 
 
 def load_config() -> Config:
@@ -61,4 +67,5 @@ def load_config() -> Config:
         worker_version=_resolve_worker_version(),
         frame_interval_seconds=int(os.environ.get("OCR_FRAME_INTERVAL_SECONDS", "3")),
         confidence_threshold=float(os.environ.get("OCR_CONFIDENCE_THRESHOLD", "0.7")),
+        frame_retention_rate=float(os.environ.get("OCR_FRAME_RETENTION_RATE", "0.01")),
     )
