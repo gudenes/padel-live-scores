@@ -42,6 +42,9 @@ interface ExplorerPlayer {
   ranking: number | null
   padelapi_id: string | null
   fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+   * Does NOT affect status. Null when slot was unresolved. */
+  country: string | null
 }
 
 interface DrawMatch {
@@ -192,6 +195,7 @@ export async function GET(request: Request) {
     ranking: number | null
     padelapi_id: string | null
     fip_id: string | null
+    country: string | null
   }
 
   const nameSlotsByCategory = new Map<Category, Set<string>>()
@@ -214,7 +218,7 @@ export async function GET(request: Request) {
   if (categoriesNeeded.length > 0) {
     const { data: byNameRows, error: byNameErr } = await supabase
       .from('players')
-      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, fip_id')
+      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, fip_id, country')
       .in('category', categoriesNeeded)
     if (byNameErr) {
       return Response.json(
@@ -233,6 +237,7 @@ export async function GET(request: Request) {
       ranking: number | null
       padelapi_id: string | null
       fip_id: string | null
+      country: string | null
     }>) {
       const norm = p.normalized_name ?? normalize(p.name)
       const wanted = nameSlotsByCategory.get(p.category)
@@ -246,6 +251,7 @@ export async function GET(request: Request) {
         ranking: p.ranking,
         padelapi_id: p.padelapi_id,
         fip_id: p.fip_id,
+        country: p.country,
       })
     }
     for (const [k, candidates] of byKey) {
@@ -257,7 +263,11 @@ export async function GET(request: Request) {
   // Build the per-slot ExplorerPlayer. `name` is the canonical display
   // (scraped); enrichment is whatever the unique-hit resolver returned.
   // Returns null when no name was scraped at all.
-  const buildSlot = (name: string | null, category: Category): ExplorerPlayer | null => {
+  const buildSlot = (
+    name: string | null,
+    category: Category,
+    teamCountry: string | null = null,
+  ): ExplorerPlayer | null => {
     if (!name) return null
     const norm = normalize(name)
     const resolved = norm ? playersByNormCat.get(`${category}::${norm}`) ?? null : null
@@ -268,6 +278,10 @@ export async function GET(request: Request) {
       ranking: resolved?.ranking ?? null,
       padelapi_id: resolved?.padelapi_id ?? null,
       fip_id: resolved?.fip_id ?? null,
+      // Prefer the resolved player's country (canonical); fall back to the
+      // draw snapshot's team-level country so the hover card still has a flag
+      // even when the slot didn't resolve to a public.players row.
+      country: resolved?.country ?? teamCountry ?? null,
     }
   }
 
@@ -300,10 +314,10 @@ export async function GET(request: Request) {
       team2Player2Name: r.team2_player2_name,
       team2Country: r.team2_country,
       team2Seed: r.team2_seed,
-      team1Player1: buildSlot(r.team1_player1_name, r.category),
-      team1Player2: buildSlot(r.team1_player2_name, r.category),
-      team2Player1: buildSlot(r.team2_player1_name, r.category),
-      team2Player2: buildSlot(r.team2_player2_name, r.category),
+      team1Player1: buildSlot(r.team1_player1_name, r.category, r.team1_country),
+      team1Player2: buildSlot(r.team1_player2_name, r.category, r.team1_country),
+      team2Player1: buildSlot(r.team2_player1_name, r.category, r.team2_country),
+      team2Player2: buildSlot(r.team2_player2_name, r.category, r.team2_country),
       setScores: r.set_scores,
       winnerTeam: r.winner_team,
       status: r.status,

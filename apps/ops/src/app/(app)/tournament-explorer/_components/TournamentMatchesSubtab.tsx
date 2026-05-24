@@ -25,6 +25,8 @@ interface ExplorerPlayer {
   ranking: number | null
   padelapi_id: string | null
   fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8). */
+  country: string | null
 }
 
 interface ExplorerMatch {
@@ -139,6 +141,7 @@ function TeamCell({
               ranking: null,
               padelapi_id: null,
               fip_id: null,
+              country: null,
             }
           }
         />
@@ -154,6 +157,7 @@ function TeamCell({
               ranking: null,
               padelapi_id: null,
               fip_id: null,
+              country: null,
             }
           }
         />

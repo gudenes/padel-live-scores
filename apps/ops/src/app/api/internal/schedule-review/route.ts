@@ -39,6 +39,10 @@ interface ExplorerPlayer {
   ranking: number | null
   padelapi_id: string | null
   fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+   * Falls back to the OOP-side country code (slot.country) when the slot didn't
+   * resolve to a public.players row. Does NOT affect status. */
+  country: string | null
 }
 
 // ── Name normalization (inlined from src/lib/player-resolver.ts) ─────────────
@@ -201,10 +205,10 @@ export async function GET(request: Request) {
     .select(`
       id, round, court, scheduled_at, schedule_label, category, status,
       pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id,
-      pair1_player1:players!matches_pair1_player1_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id),
-      pair1_player2:players!matches_pair1_player2_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id),
-      pair2_player1:players!matches_pair2_player1_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id),
-      pair2_player2:players!matches_pair2_player2_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id)
+      pair1_player1:players!matches_pair1_player1_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country),
+      pair1_player2:players!matches_pair1_player2_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country),
+      pair2_player1:players!matches_pair2_player1_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country),
+      pair2_player2:players!matches_pair2_player2_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country)
     `)
     .eq('tournament_id', tournamentId)
     .in('status', ['scheduled', 'live', 'finished'])
@@ -416,6 +420,11 @@ export async function GET(request: Request) {
             ranking: enriched?.ranking ?? null,
             padelapi_id: enriched?.padelapi_id ?? null,
             fip_id: enriched?.fip_id ?? null,
+            // Prefer the resolved player's country; fall back to the OOP-side
+            // country code so the hover-card flag still renders for unlinked
+            // / unresolved slots. Country backfill for `resolvedNewId` slots
+            // happens in the post-pass below.
+            country: enriched?.country ?? country ?? null,
           }
         }
         return { slot, currentId, oopName, resolvedNewId, country, player }
@@ -482,11 +491,17 @@ export async function GET(request: Request) {
   if (resolvedNewIds.size > 0) {
     const { data: enrichRows } = await supabase
       .from('players')
-      .select('id, avatar_url, ranking, padelapi_id, fip_id')
+      .select('id, avatar_url, ranking, padelapi_id, fip_id, country')
       .in('id', [...resolvedNewIds])
     const enrichById = new Map<
       string,
-      { avatar_url: string | null; ranking: number | null; padelapi_id: string | null; fip_id: string | null }
+      {
+        avatar_url: string | null
+        ranking: number | null
+        padelapi_id: string | null
+        fip_id: string | null
+        country: string | null
+      }
     >()
     for (const p of (enrichRows ?? []) as Array<{
       id: string
@@ -494,12 +509,14 @@ export async function GET(request: Request) {
       ranking: number | null
       padelapi_id: string | null
       fip_id: string | null
+      country: string | null
     }>) {
       enrichById.set(p.id, {
         avatar_url: p.avatar_url,
         ranking: p.ranking,
         padelapi_id: p.padelapi_id,
         fip_id: p.fip_id,
+        country: p.country,
       })
     }
     for (const m of scheduleMatches) {
@@ -511,6 +528,9 @@ export async function GET(request: Request) {
             s.player.ranking = e.ranking
             s.player.padelapi_id = e.padelapi_id
             s.player.fip_id = e.fip_id
+            // Resolved player country wins over the OOP-side fallback, but
+            // only when populated — keep the OOP code as a last resort.
+            if (e.country) s.player.country = e.country
           }
         }
       }

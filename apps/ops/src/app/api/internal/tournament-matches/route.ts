@@ -49,6 +49,9 @@ interface ExplorerPlayer {
   ranking: number | null
   padelapi_id: string | null
   fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+   * Does NOT affect status. Null when slot was unresolved. */
+  country: string | null
 }
 
 interface ExplorerMatch {
@@ -518,6 +521,7 @@ export async function GET(request: Request) {
     ranking: number | null
     padelapi_id: string | null
     fip_id: string | null
+    country: string | null
   }
 
   // Pass 1: collect all linked player UUIDs.
@@ -537,7 +541,7 @@ export async function GET(request: Request) {
   if (linkedPlayerIds.size > 0) {
     const { data: byIdRows, error: byIdErr } = await supabase
       .from('players')
-      .select('id, name, avatar_url, ranking, padelapi_id, fip_id')
+      .select('id, name, avatar_url, ranking, padelapi_id, fip_id, country')
       .in('id', [...linkedPlayerIds])
     if (byIdErr) {
       return Response.json(
@@ -590,7 +594,7 @@ export async function GET(request: Request) {
   if (categoriesNeeded.length > 0) {
     const { data: byNameRows, error: byNameErr } = await supabase
       .from('players')
-      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, fip_id')
+      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, fip_id, country')
       .in('category', categoriesNeeded)
     if (byNameErr) {
       return Response.json(
@@ -609,6 +613,7 @@ export async function GET(request: Request) {
       ranking: number | null
       padelapi_id: string | null
       fip_id: string | null
+      country: string | null
     }>) {
       const norm = p.normalized_name ?? normalize(p.name)
       const wanted = nameSlotsByCategory.get(p.category)
@@ -622,6 +627,7 @@ export async function GET(request: Request) {
         ranking: p.ranking,
         padelapi_id: p.padelapi_id,
         fip_id: p.fip_id,
+        country: p.country,
       })
     }
     for (const [k, rows] of byKey) {
@@ -654,6 +660,7 @@ export async function GET(request: Request) {
       ranking: resolved?.ranking ?? null,
       padelapi_id: resolved?.padelapi_id ?? null,
       fip_id: resolved?.fip_id ?? null,
+      country: resolved?.country ?? null,
     }
   }
 

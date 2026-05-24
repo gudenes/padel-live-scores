@@ -18,6 +18,8 @@ export interface PlayerLinkInput {
   padelapi_id?: string | null
   /** Carried for tooltip / external-id badges only — does NOT affect status. */
   fip_id?: string | null
+  /** Carried for hover card / flag display only — does NOT affect status. */
+  country?: string | null
 }
 
 /**

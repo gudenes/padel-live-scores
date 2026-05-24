@@ -43,6 +43,9 @@ interface ExplorerPlayer {
   ranking: number | null
   padelapi_id: string | null
   fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+   *  Falls back to the OOP-side country code when the slot didn't resolve. */
+  country: string | null
 }
 
 interface PlayerSlotDiff {

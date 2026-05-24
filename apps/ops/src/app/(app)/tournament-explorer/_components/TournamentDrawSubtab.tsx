@@ -27,6 +27,8 @@ interface ExplorerPlayer {
   ranking: number | null
   padelapi_id: string | null
   fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8). */
+  country: string | null
 }
 
 interface DrawMatch {
@@ -111,11 +113,16 @@ function TeamCell({
   p2,
   p1Name,
   p2Name,
+  teamCountry,
 }: {
   p1: ExplorerPlayer | null | undefined
   p2: ExplorerPlayer | null | undefined
   p1Name: string | null
   p2Name: string | null
+  /** Team-level country from the draw snapshot — used as a fallback for the
+   *  hover-card flag when the nested per-slot block is missing (older API
+   *  responses or cache hits). */
+  teamCountry?: string | null
 }) {
   const hasP1 = p1Name && p1Name.length > 0
   const hasP2 = p2Name && p2Name.length > 0
@@ -132,6 +139,7 @@ function TeamCell({
               ranking: null,
               padelapi_id: null,
               fip_id: null,
+              country: teamCountry ?? null,
             }
           }
         />
@@ -147,6 +155,7 @@ function TeamCell({
               ranking: null,
               padelapi_id: null,
               fip_id: null,
+              country: teamCountry ?? null,
             }
           }
         />
@@ -294,6 +303,7 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
                             p2={m.team1Player2}
                             p1Name={m.team1Player1Name}
                             p2Name={m.team1Player2Name}
+                            teamCountry={m.team1Country}
                           />
                           {m.team1Country && (
                             <span style={{ fontSize: 10, color: '#888', marginLeft: 6 }}>({m.team1Country})</span>
@@ -308,6 +318,7 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
                             p2={m.team2Player2}
                             p1Name={m.team2Player1Name}
                             p2Name={m.team2Player2Name}
+                            teamCountry={m.team2Country}
                           />
                           {m.team2Country && (
                             <span style={{ fontSize: 10, color: '#888', marginLeft: 6 }}>({m.team2Country})</span>

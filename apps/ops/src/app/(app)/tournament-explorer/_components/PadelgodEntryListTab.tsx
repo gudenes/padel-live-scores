@@ -37,6 +37,8 @@ interface EntryPlayer {
   resolvedAvatarUrl?: string | null
   resolvedRanking?: number | null
   resolvedPadelapiId?: string | null
+  // Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+  resolvedCountry?: string | null
 }
 
 interface EntryTeam {
@@ -671,6 +673,7 @@ function PlayerCell({ p }: { p: EntryPlayer }) {
             ranking: p.resolvedRanking ?? null,
             padelapi_id: p.resolvedPadelapiId ?? null,
             fip_id: p.fipId,
+            country: p.resolvedCountry ?? p.country,
           }}
         />
       </div>

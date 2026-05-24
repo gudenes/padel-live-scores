@@ -41,6 +41,9 @@ interface EntryPlayer {
   resolvedAvatarUrl: string | null
   resolvedRanking: number | null
   resolvedPadelapiId: string | null
+  // Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+  // Does NOT affect status; falls back to the snapshot country when missing.
+  resolvedCountry: string | null
 }
 
 interface EntryTeam {
@@ -225,13 +228,14 @@ export async function GET(request: Request) {
     avatar_url: string | null
     ranking: number | null
     padelapi_id: string | null
+    country: string | null
   }
 
   const byFipId = new Map<string, ResolvedPlayer>()
   if (fipIdsNonNull.length > 0) {
     const { data: byFipRows, error: fipErr } = await supabase
       .from('players')
-      .select('id, name, fip_id, avatar_url, ranking, padelapi_id')
+      .select('id, name, fip_id, avatar_url, ranking, padelapi_id, country')
       .in('fip_id', fipIdsNonNull)
     if (fipErr) {
       return Response.json(
@@ -246,6 +250,7 @@ export async function GET(request: Request) {
       avatar_url: string | null
       ranking: number | null
       padelapi_id: string | null
+      country: string | null
     }>) {
       byFipId.set(row.fip_id, {
         id: row.id,
@@ -253,6 +258,7 @@ export async function GET(request: Request) {
         avatar_url: row.avatar_url,
         ranking: row.ranking,
         padelapi_id: row.padelapi_id,
+        country: row.country,
       })
     }
   }
@@ -278,7 +284,7 @@ export async function GET(request: Request) {
     )
     const { data: playerRows, error: nameErr } = await supabase
       .from('players')
-      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id')
+      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, country')
       .in('category', [...categoriesNeeded])
 
     if (nameErr) {
@@ -297,6 +303,7 @@ export async function GET(request: Request) {
       avatar_url: string | null
       ranking: number | null
       padelapi_id: string | null
+      country: string | null
     }>) {
       const norm = p.normalized_name ?? normalize(p.name)
       const key = `${p.category}::${norm}`
@@ -308,6 +315,7 @@ export async function GET(request: Request) {
         avatar_url: p.avatar_url,
         ranking: p.ranking,
         padelapi_id: p.padelapi_id,
+        country: p.country,
       })
     }
 
@@ -327,6 +335,7 @@ export async function GET(request: Request) {
     let resolvedAvatarUrl: string | null = null
     let resolvedRanking: number | null = null
     let resolvedPadelapiId: string | null = null
+    let resolvedCountry: string | null = null
     let resolutionMethod: ResolutionMethod = 'none'
 
     if (r.fip_id && byFipId.has(r.fip_id)) {
@@ -336,6 +345,7 @@ export async function GET(request: Request) {
       resolvedAvatarUrl = hit.avatar_url
       resolvedRanking = hit.ranking
       resolvedPadelapiId = hit.padelapi_id
+      resolvedCountry = hit.country
       resolutionMethod = 'fip_id'
     } else {
       const key = `${r.category}::${normalize(r.name)}`
@@ -346,6 +356,7 @@ export async function GET(request: Request) {
         resolvedAvatarUrl = hit.avatar_url
         resolvedRanking = hit.ranking
         resolvedPadelapiId = hit.padelapi_id
+        resolvedCountry = hit.country
         resolutionMethod = 'name_exact'
       }
     }
@@ -364,6 +375,7 @@ export async function GET(request: Request) {
       resolvedAvatarUrl,
       resolvedRanking,
       resolvedPadelapiId,
+      resolvedCountry,
       _category: r.category,
     }
   })
