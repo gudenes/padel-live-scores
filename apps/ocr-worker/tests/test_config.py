@@ -87,3 +87,34 @@ def test_explicit_version_wins_over_railway_sha(monkeypatch):
 
     config = load_config()
     assert config.worker_version == "v1.1.0"
+
+
+def test_frame_retention_rate_defaults_to_one_percent(monkeypatch):
+    """Without OCR_FRAME_RETENTION_RATE set, retention rate defaults to 0.01."""
+    _set_required(monkeypatch)
+    monkeypatch.delenv("OCR_FRAME_RETENTION_RATE", raising=False)
+
+    config = load_config()
+    assert config.frame_retention_rate == 0.01
+
+
+def test_frame_retention_rate_override(monkeypatch):
+    """OCR_FRAME_RETENTION_RATE=1.0 retains every frame (smoke-test mode)."""
+    _set_required(monkeypatch)
+    monkeypatch.setenv("OCR_FRAME_RETENTION_RATE", "1.0")
+
+    config = load_config()
+    assert config.frame_retention_rate == 1.0
+
+
+def test_frame_retention_rate_invalid_raises(monkeypatch):
+    """Non-numeric OCR_FRAME_RETENTION_RATE raises ValueError at load time.
+
+    Fail-fast beats silent fall-through: a typo like 'true' shouldn't
+    coerce to 0.0 and silently disable retention.
+    """
+    _set_required(monkeypatch)
+    monkeypatch.setenv("OCR_FRAME_RETENTION_RATE", "not-a-float")
+
+    with pytest.raises(ValueError):
+        load_config()
