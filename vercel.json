@@ -2,6 +2,10 @@
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- . ':(exclude)apps/labs'",
   "crons": [
     {
+      "path": "/api/cron/process-factsheets",
+      "schedule": "8 */2 * * *"
+    },
+    {
       "path": "/api/cron/sync-highlights",
       "schedule": "20 */1 * * *"
     },

@@ -496,6 +496,7 @@
     "perPlayer": "por jogador",
     "prizeBreakdown": "Distribuição do prêmio",
     "inferredPrizeNote": "Estimado a partir do prêmio total",
+    "downloadFactsheet": "Baixar ficha",
     "events": "Eventos",
     "bracket": {
       "noDrawForCategory": "Sem dados de quadro para esta categoria."

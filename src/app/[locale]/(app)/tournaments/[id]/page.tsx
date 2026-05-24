@@ -345,7 +345,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, cover_image_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, cover_image_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug, factsheet_url, factsheet_data')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -1998,6 +1998,103 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           </div>
         </>
       )}
+
+      {/* Factsheet download — FIP publishes a PDF factsheet on most
+          Platinum/Major/Premier events; detected by padelgod's
+          fip-event-page-enricher and stored on tournament.factsheet_url. */}
+      {tournament?.factsheet_url && (
+        <a
+          href={tournament.factsheet_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '12px 14px',
+            background: BG_CARD,
+            clipPath: CHUNKY.card,
+            border: `1px solid ${BORDER}`,
+            color: '#fff',
+            textDecoration: 'none',
+            fontSize: 13,
+            fontWeight: 600,
+            marginBottom: 16,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <polyline points="9 15 12 18 15 15" />
+          </svg>
+          <span style={{ flex: 1 }}>{tTournament('downloadFactsheet')}</span>
+          <span style={{ color: MUTED, fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>PDF</span>
+        </a>
+      )}
+
+      {/* Prize money breakdown — extracted from the factsheet PDF by the
+          process-factsheets cron. Per-round per-player payouts. */}
+      {(() => {
+        type PrizeRow = { round_label?: string; per_player_eur?: number | null }
+        const pm = tournament?.factsheet_data?.prize_money as PrizeRow[] | undefined
+        const rows = (pm ?? []).filter(p => p && typeof p.per_player_eur === 'number' && p.per_player_eur > 0)
+        if (rows.length === 0) return null
+
+        // Friendly labels — Claude returns enum-ish keys; show humans
+        // something readable. Fallback to the raw value title-cased.
+        const labelMap: Record<string, string> = {
+          winner: 'Winner',
+          finalist: 'Finalist',
+          semifinalist: 'Semifinalist',
+          quarterfinalist: 'Quarterfinalist',
+          round_16: 'Round of 16',
+          round_32: 'Round of 32',
+          last_of_qualy: 'Last of Qualy',
+          qualy_bonus: 'Qualy bonus',
+        }
+        const labelize = (raw: string | undefined) =>
+          labelMap[raw ?? ''] ?? (raw ?? '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        const formatEur = (v: number) => new Intl.NumberFormat('en', {
+          style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
+        }).format(v)
+
+        return (
+          <>
+            <SectionHeader label={tTournament('prizeBreakdown')} />
+            <div style={{
+              background: BG_CARD,
+              clipPath: CHUNKY.card,
+              border: `1px solid ${BORDER}`,
+              padding: '4px 14px',
+              marginBottom: 16,
+            }}>
+              {rows.map((p, i) => (
+                <div
+                  key={`${p.round_label}-${i}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 0',
+                    borderBottom: i === rows.length - 1 ? 'none' : `1px solid ${BORDER}`,
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>
+                    {labelize(p.round_label)}
+                  </span>
+                  <span style={{ fontSize: 13, color: GREEN, fontWeight: 700 }}>
+                    {formatEur(p.per_player_eur as number)}
+                    <span style={{ color: MUTED, fontWeight: 400, fontSize: 10, marginLeft: 4 }}>
+                      / {tTournament('perPlayer')}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      })()}
 
       {/* Champion (current tournament, only once the final has been played) */}
       {currentChampion && (
