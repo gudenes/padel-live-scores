@@ -5,10 +5,11 @@ import Link from 'next/link'
 import { SourcesTable } from './SourcesTable'
 import { SuggestionsTable } from './SuggestionsTable'
 import { DiscoveryHealth } from './DiscoveryHealth'
+import { ArticlesTable } from './ArticlesTable'
 import { AddSourceDrawer } from './AddSourceDrawer'
 import { DiscoverWithAIModal } from './DiscoverWithAIModal'
 
-type Tab = 'sources' | 'suggestions' | 'health'
+type Tab = 'sources' | 'suggestions' | 'articles' | 'health'
 
 export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
   const [showAddDrawer, setShowAddDrawer] = useState(false)
@@ -20,6 +21,7 @@ export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
       <nav style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         <TabLink active={activeTab === 'sources'}     href="?tab=sources">Sources</TabLink>
         <TabLink active={activeTab === 'suggestions'} href="?tab=suggestions">Suggestions</TabLink>
+        <TabLink active={activeTab === 'articles'}    href="?tab=articles">Articles</TabLink>
         <TabLink active={activeTab === 'health'}      href="?tab=health">Discovery Health</TabLink>
       </nav>
       {activeTab === 'sources' && (
@@ -54,6 +56,7 @@ export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
         </>
       )}
       {activeTab === 'suggestions' && <SuggestionsTable />}
+      {activeTab === 'articles'    && <ArticlesTable />}
       {activeTab === 'health'      && <DiscoveryHealth />}
     </div>
   )
