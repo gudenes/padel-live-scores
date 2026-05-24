@@ -1,4 +1,5 @@
 """OCR worker orchestrator — one process per stream."""
+import re
 import signal
 import sys
 import time
@@ -65,6 +66,9 @@ def run_one_iteration(supabase, config: Config, calibration: dict) -> int | None
             threshold=config.confidence_threshold,
         )
         if storage_path:
+            supabase.schema("padelgod").table("ocr_snapshots").update(
+                {"frame_storage_path": storage_path}
+            ).eq("id", snapshot_id).execute()
             logger.info("retained_frame", snapshot_id=snapshot_id, path=storage_path)
 
         logger.info(
@@ -72,7 +76,7 @@ def run_one_iteration(supabase, config: Config, calibration: dict) -> int | None
             snapshot_id=snapshot_id,
             match_id=match_id,
             confidence=confidence,
-            parse_error=parsed["parse_error"],
+            parse_error=parsed.get("parse_error", False),
         )
         return snapshot_id
 
@@ -83,7 +87,6 @@ def run_one_iteration(supabase, config: Config, calibration: dict) -> int | None
 
 def _extract_youtube_video_id(url: str) -> str:
     """Pull the video id from a watch URL or live URL."""
-    import re
     m = re.search(r"(?:v=|youtu\.be/|/live/)([A-Za-z0-9_-]{11})", url)
     return m.group(1) if m else "unknown"
 
