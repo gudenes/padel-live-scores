@@ -1,25 +1,30 @@
 // apps/ops/src/components/SidebarPrimary.tsx
-// Icon column. Renders the brand mark + 5 area entries (icon + label).
-// Stateless: parent owns activeAreaId. Click handler navigates to the
-// first page of the clicked area + spawns a lime ripple.
+// Icon column. Renders the brand mark + 5 area entries (icon + label) + user
+// menu at the bottom. Stateless wrt area state; the user menu owns its own
+// popover state. Click handler navigates to the area's first page + spawns
+// a lime ripple.
 'use client'
 
 import Link from 'next/link'
 import type { MouseEvent } from 'react'
 import { AREAS, type AreaId } from '@/lib/sidebar-areas'
 import { spawnRipple } from '@/lib/click-ripple'
+import { SidebarUserMenu } from './SidebarUserMenu'
 
 interface Props {
   activeAreaId: AreaId
   /** Shown as an amber badge on the tournament-ops icon (Needs Review surfaces here). */
   needsReviewCount: number
+  /** Operator email — drives the avatar initial + popover. Null = hide the menu. */
+  userEmail: string | null
 }
 
-export function SidebarPrimary({ activeAreaId, needsReviewCount }: Props) {
+export function SidebarPrimary({ activeAreaId, needsReviewCount, userEmail }: Props) {
   return (
     <nav
       style={{
-        width: 78,
+        width: 92,
+        minHeight: '100vh',
         background: 'var(--bg-card)',
         borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
@@ -37,6 +42,9 @@ export function SidebarPrimary({ activeAreaId, needsReviewCount }: Props) {
           badge={area.id === 'tournament-ops' && needsReviewCount > 0 ? needsReviewCount : undefined}
         />
       ))}
+      <div style={{ marginTop: 'auto' }}>
+        <SidebarUserMenu userEmail={userEmail} />
+      </div>
     </nav>
   )
 }
