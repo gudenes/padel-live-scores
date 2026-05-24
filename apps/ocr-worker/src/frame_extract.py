@@ -11,8 +11,9 @@ def extract_last_frame(segment_bytes: bytes) -> np.ndarray:
     """
     Decode the last frame of a .ts HLS segment and return it as a BGR ndarray.
 
-    Uses ffmpeg via subprocess to seek to ~50ms before the end of the segment
-    and dump that frame as PNG.
+    Uses ffmpeg via subprocess with `-update 1` to overwrite the same PNG for
+    every decoded frame; the final write is therefore the last frame of the
+    segment.
     """
     with tempfile.TemporaryDirectory() as tmp:
         seg_path = Path(tmp) / "segment.ts"
