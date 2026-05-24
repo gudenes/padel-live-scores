@@ -39,6 +39,8 @@ describe('sidebar-areas', () => {
       ['/streams', 'catalogs'],
       ['/yt-channels', 'catalogs'],
       ['/news', 'content'],
+      ['/news-sources', 'content'],
+      ['/news-sources?tab=articles', 'content'],
       ['/highlights', 'content'],
       ['/system/integration-health', 'system'],
       ['/system/data-quality', 'system'],

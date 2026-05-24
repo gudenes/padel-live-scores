@@ -100,6 +100,7 @@ export const AREAS: ReadonlyArray<Area> = [
     iconPath: fileTextIcon,
     pages: [
       { href: '/news', label: 'News' },
+      { href: '/news-sources', label: 'News Sources' },
       { href: '/highlights', label: 'Highlights' },
     ],
   },
@@ -144,6 +145,7 @@ export function areaFor(pathname: string): AreaId {
 
   if (
     path === '/news' || path.startsWith('/news/') ||
+    path === '/news-sources' || path.startsWith('/news-sources/') ||
     path === '/highlights' || path.startsWith('/highlights/')
   ) return 'content'
 
