@@ -22,6 +22,7 @@ import { runMatchStatsFetcher } from './workers/match-stats-fetcher.js';
 import { runLivePollerManager } from './workers/live-poller-manager.js';
 import { runShadowDiffFinalizer } from './workers/shadow-diff-finalizer.js';
 import { runShadowDiffLive } from './workers/shadow-diff-live.js';
+import { runShadowDiffOcr } from './workers/shadow-diff-ocr.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
@@ -75,6 +76,7 @@ export interface SchedulerFlags {
   enableLivePollerManager: boolean;
   enableShadowDiffFinalizer: boolean;
   enableShadowDiffLive: boolean;
+  enableShadowDiffOcr: boolean;
   enableCloseStaleLiveSweeper: boolean;
   enableScheduleHintsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
@@ -129,6 +131,7 @@ export type WorkerName =
   | 'live-poller-manager'
   | 'shadow-diff-finalizer'
   | 'shadow-diff-live'
+  | 'shadow-diff-ocr'
   | 'close-stale-live-sweeper'
   | 'schedule-hints-writer';
 
@@ -156,6 +159,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'live-poller-manager',
   'shadow-diff-finalizer',
   'shadow-diff-live',
+  'shadow-diff-ocr',
   'close-stale-live-sweeper',
   'schedule-hints-writer',
 ];
@@ -248,6 +252,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     });
     case 'shadow-diff-finalizer': return (deps) => runShadowDiffFinalizer({ supabase: deps.supabase, logger: deps.logger });
     case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
+    case 'shadow-diff-ocr':       return (deps) => runShadowDiffOcr({ supabase: deps.supabase, logger: deps.logger });
     case 'close-stale-live-sweeper': return (deps) => runCloseStaleLiveSweeper({ supabase: deps.supabase, logger: deps.logger });
     case 'schedule-hints-writer':   return (deps) => runScheduleHintsWriter({
       supabase: deps.supabase,
@@ -540,6 +545,16 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'shadow-diff-live',
       cron: '*/1 * * * *', // every minute, snapshots per-live-match latency
       run: getWorkerRunner('shadow-diff-live')!,
+    });
+  }
+  if (flags.enableShadowDiffOcr) {
+    entries.push({
+      name: 'shadow-diff-ocr',
+      // Every 5 min at :3/:8/:13/... — offset from results-fetcher (:00/:05/...)
+      // and match-stats-fetcher (:00/:05/...) so it reads freshly-written sets.
+      // DB-only worker; reads padelgod.ocr_snapshots, writes padelgod.ocr_diff_events.
+      cron: '3-58/5 * * * *',
+      run: getWorkerRunner('shadow-diff-ocr')!,
     });
   }
   if (flags.enableCloseStaleLiveSweeper) {

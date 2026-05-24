@@ -113,6 +113,7 @@ export const AREAS: ReadonlyArray<Area> = [
       { href: '/system/data-quality', label: 'Data Quality' },
       { href: '/system/padelgod-health', label: 'Padelgod Health' },
       { href: '/system/shadow-mode', label: 'Shadow Mode' },
+      { href: '/system/ocr-health', label: 'OCR Health' },
       { href: '/system/coverage-matrix', label: 'Coverage Matrix' },
       { href: '/system/feature-flags', label: 'Feature Flags' },
       { href: '/system/architecture', label: 'Architecture' },
