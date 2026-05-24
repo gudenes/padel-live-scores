@@ -16,5 +16,16 @@ def generate_full_frame():
     cv2.imwrite("sample_full_frame.png", frame)
 
 
+def generate_scoreboard():
+    """High-contrast scoreboard crop suitable for OCR."""
+    img = np.full((120, 600, 3), 245, dtype=np.uint8)
+    cv2.putText(img, "COELLO TAPIA  6  4  30", (10, 50),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (10, 10, 10), 2)
+    cv2.putText(img, "GALAN CHINGO  3  2  15", (10, 100),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.9, (10, 10, 10), 2)
+    cv2.imwrite("sample_scoreboard.png", img)
+
+
 if __name__ == "__main__":
     generate_full_frame()
+    generate_scoreboard()
