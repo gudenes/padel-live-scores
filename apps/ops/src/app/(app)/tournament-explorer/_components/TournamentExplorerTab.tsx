@@ -875,16 +875,23 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           here so operators see what fans see (and can catch parse misses
           before they hit prod). */}
       {(t.factsheet_url || t.factsheet_data) && (() => {
-        const schedule = t.factsheet_data?.schedule ?? []
-        const rows = schedule.filter(
+        const scheduleRaw = t.factsheet_data?.schedule ?? []
+        const scheduleRows = scheduleRaw.filter(
           s => s && typeof s.date === 'string' && typeof s.round_label === 'string',
+        )
+        const prizeMoneyRaw = t.factsheet_data?.prize_money ?? []
+        const prizeRows = prizeMoneyRaw.filter(
+          p => p && typeof p.round === 'string' && typeof p.amount === 'number',
         )
         const processedAt = t.factsheet_processed_at
           ? new Date(t.factsheet_processed_at).toISOString().slice(0, 16).replace('T', ' ')
           : null
+        // ok = processed AND we extracted at least one of schedule/prize.
+        // empty = processed but both arrays came back empty (= parse miss).
+        const hasAnyData = scheduleRows.length > 0 || prizeRows.length > 0
         const status = !t.factsheet_url ? 'no-pdf'
           : !t.factsheet_processed_at ? 'pending'
-          : rows.length === 0 ? 'empty'
+          : !hasAnyData ? 'empty'
           : 'ok'
         const statusColor = status === 'ok' ? '#16a34a'
           : status === 'pending' ? '#f59e0b'
@@ -913,33 +920,64 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
                 )}
               </span>
             </div>
-            {rows.length > 0 ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'auto auto 1fr',
-                gap: '6px 14px',
-                fontSize: 12,
-                alignItems: 'center',
-              }}>
-                {rows.map((s, i) => (
-                  <React.Fragment key={`${s.date}-${i}`}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#666', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
-                      {s.date}
-                    </span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: s.start_time ? '#16a34a' : '#bbb', fontFamily: 'ui-monospace, SFMono-Regular, monospace', minWidth: 44 }}>
-                      {s.start_time || '—'}
-                    </span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>
-                      {s.round_label}
-                    </span>
-                  </React.Fragment>
-                ))}
+            {scheduleRows.length > 0 && (
+              <div style={{ marginBottom: prizeRows.length > 0 ? 14 : 0 }}>
+                <div style={{ fontSize: 9, color: '#bbb', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 6 }}>
+                  Schedule
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'auto auto 1fr',
+                  gap: '6px 14px',
+                  fontSize: 12,
+                  alignItems: 'center',
+                }}>
+                  {scheduleRows.map((s, i) => (
+                    <React.Fragment key={`s-${s.date}-${i}`}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#666', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
+                        {s.date}
+                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: s.start_time ? '#16a34a' : '#bbb', fontFamily: 'ui-monospace, SFMono-Regular, monospace', minWidth: 44 }}>
+                        {s.start_time || '—'}
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>
+                        {s.round_label}
+                      </span>
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
-            ) : (
+            )}
+            {prizeRows.length > 0 && (
+              <div>
+                <div style={{ fontSize: 9, color: '#bbb', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Prize money (factsheet)</span>
+                  <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0 }}>
+                    cross-check vs Prize breakdown above
+                  </span>
+                </div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                  gap: 8,
+                  fontSize: 12,
+                }}>
+                  {prizeRows.map((p, i) => (
+                    <div key={`p-${p.round}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+                      <span style={{ color: '#666' }}>{p.round}</span>
+                      <span style={{ fontWeight: 700, color: '#111', fontVariantNumeric: 'tabular-nums' }}>
+                        €{(p.amount as number).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {!hasAnyData && (
               <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>
                 {status === 'no-pdf' ? 'No factsheet URL on this tournament.'
                   : status === 'pending' ? 'Factsheet URL set; awaiting next /api/cron/process-factsheets run.'
-                  : 'Factsheet processed, but no schedule rows extracted (parse miss or missing schedule section in PDF).'}
+                  : 'Factsheet processed, but neither schedule nor prize-money rows were extracted (parse miss or missing sections in PDF).'}
               </div>
             )}
           </div>
