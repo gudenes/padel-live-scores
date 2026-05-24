@@ -24,8 +24,8 @@ interface Stats {
 export function DiscoveryHealth() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [buckets, setBuckets] = useState<QualityBucket[]>([])
-  const [disables, setDisables] = useState<Array<{ metadata: Record<string, unknown>; created_at: string }>>([])
-  const [discoveries, setDiscoveries] = useState<Array<{ metadata: Record<string, unknown>; created_at: string }>>([])
+  const [disables, setDisables] = useState<Array<{ meta: Record<string, unknown>; created_at: string }>>([])
+  const [discoveries, setDiscoveries] = useState<Array<{ meta: Record<string, unknown>; created_at: string }>>([])
   const [trends, setTrends] = useState<Array<{ key: string; name: string; daily: number[] }>>([])
 
   useEffect(() => {
@@ -110,7 +110,7 @@ export function DiscoveryHealth() {
           <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: 'var(--brand-primary-fg)' }}>
             {disables.map((e, i) => (
               <li key={i}>
-                <strong>{String(e.metadata.source_name)}</strong> — {String(e.metadata.reason)}
+                <strong>{String(e.meta.source_name)}</strong> — {String(e.meta.reason)}
                 <span style={{ color: 'var(--status-neutral)', marginLeft: 8 }}>{new Date(e.created_at).toLocaleString()}</span>
               </li>
             ))}
@@ -127,10 +127,10 @@ export function DiscoveryHealth() {
               {discoveries.map((e, i) => (
                 <tr key={i}>
                   <td>{new Date(e.created_at).toLocaleDateString()}</td>
-                  <td>{String(e.metadata.focus)}</td>
-                  <td align="right">{String(e.metadata.candidates_found)}</td>
-                  <td align="right">{String(e.metadata.candidates_kept)}</td>
-                  <td align="right">${(Number(e.metadata.cost_usd) || 0).toFixed(2)}</td>
+                  <td>{String(e.meta.focus)}</td>
+                  <td align="right">{String(e.meta.candidates_found)}</td>
+                  <td align="right">{String(e.meta.candidates_kept)}</td>
+                  <td align="right">${(Number(e.meta.cost_usd) || 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   // Rate-limit (per-day across all operators — telemetry, not per-user)
   const { rows: limitRows } = await pgPool().query<{ runs: number }>(
     `SELECT count(*)::int AS runs FROM ops_events
-       WHERE kind = 'news_source.ai_discovery.run'
+       WHERE source = 'news_source.ai_discovery.run'
          AND created_at > now() - interval '24 hours'`,
   )
   if ((limitRows[0]?.runs ?? 0) >= RUNS_PER_DAY) {
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   const usage = resp.usage ?? { input_tokens: 0, output_tokens: 0 }
   const costUsd = (usage.input_tokens / 1_000_000) * 3 + (usage.output_tokens / 1_000_000) * 15  // Sonnet 4.5 rough
   await pgPool().query(
-    `INSERT INTO ops_events (kind, metadata) VALUES ('news_source.ai_discovery.run', $1)`,
+    `INSERT INTO ops_events (source, status, meta) VALUES ('news_source.ai_discovery.run', 'ok', $1)`,
     [JSON.stringify({ focus: body.focus, max, candidates_found: candidates.length, candidates_kept: kept.length, cost_usd: costUsd })],
   )
 

@@ -73,8 +73,9 @@ export async function POST(req: NextRequest) {
 
   // Non-blocking observability event
   void supabase.from('ops_events').insert({
-    kind: 'feed.suggest_source.received',
-    metadata: { url, has_email: !!email, detected_type: detected.type, status: initialStatus },
+    source: 'feed.suggest_source.received',
+    status: 'ok',
+    meta: { url, has_email: !!email, detected_type: detected.type, suggestion_status: initialStatus },
   })
 
   return NextResponse.json({

@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   if (!kind) return NextResponse.json({ error: 'missing kind' }, { status: 400 })
 
   const { rows } = await pgPool().query(
-    `SELECT id, kind, metadata, created_at FROM ops_events WHERE kind = $1 ORDER BY created_at DESC LIMIT $2`,
+    `SELECT id, source, status, meta, error_message, created_at
+       FROM ops_events WHERE source = $1 ORDER BY created_at DESC LIMIT $2`,
     [kind, limit],
   )
   return NextResponse.json({ events: rows })
