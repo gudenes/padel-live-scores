@@ -39,6 +39,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
     label: 'Content',
     items: [
       { href: '/news', label: 'News' },
+      { href: '/news-sources', label: 'News Sources' },
       { href: '/highlights', label: 'Highlights' },
     ],
   },

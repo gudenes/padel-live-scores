@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import crypto from 'crypto'
+import { detectSource } from '@/lib/source-detector-public'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,14 +49,37 @@ export async function POST(req: NextRequest) {
     .maybeSingle()
   const initialStatus: 'pending' | 'duplicate' = existing ? 'duplicate' : 'pending'
 
+  // NEW: run detector synchronously (non-fatal — fall through on failure)
+  let detected: { type: string; name?: string; language?: string; sample: unknown[]; notes?: string } = {
+    type: 'unknown', sample: [],
+  }
+  try {
+    detected = await detectSource(url)
+  } catch {
+    // detector failure is non-fatal — fall through with 'unknown'
+  }
+
   const { error } = await supabase.from('news_source_suggestions').insert({
     url,
     note,
     suggested_by_email: email,
     suggested_by_ip: ipHash,
     status: initialStatus,
+    submitted_by_kind: 'user',
+    detected_type: detected.type,
+    detected_payload: { name: detected.name, language: detected.language, sample: detected.sample, notes: detected.notes },
   })
   if (error) return NextResponse.json({ error: 'insert_failed' }, { status: 500 })
 
-  return NextResponse.json({ ok: true, status: initialStatus })
+  // Non-blocking observability event
+  void supabase.from('ops_events').insert({
+    kind: 'feed.suggest_source.received',
+    metadata: { url, has_email: !!email, detected_type: detected.type, status: initialStatus },
+  })
+
+  return NextResponse.json({
+    ok: true,
+    status: initialStatus,
+    detected: { type: detected.type, name: detected.name },
+  })
 }

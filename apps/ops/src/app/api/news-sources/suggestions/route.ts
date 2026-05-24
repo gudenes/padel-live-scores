@@ -15,6 +15,9 @@ interface SuggestionRow {
   reviewed_at: string | null
   review_note: string | null
   approved_source_id: string | null
+  submitted_by_kind: 'user' | 'ai_discovery'
+  detected_type: string | null
+  detected_payload: { name?: string; language?: string; sample?: Array<{ title: string }>; notes?: string } | null
 }
 
 export async function GET() {
@@ -24,7 +27,8 @@ export async function GET() {
   }
   const { rows } = await pgPool().query<SuggestionRow>(`
     SELECT id, url, note, suggested_by_email, status, created_at,
-           reviewed_by, reviewed_at, review_note, approved_source_id
+           reviewed_by, reviewed_at, review_note, approved_source_id,
+           submitted_by_kind, detected_type, detected_payload
     FROM news_source_suggestions
     WHERE status = 'pending'
     ORDER BY created_at DESC

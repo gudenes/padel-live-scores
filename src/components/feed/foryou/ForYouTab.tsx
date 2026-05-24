@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ForYouCard, type ForYouArticle } from './ForYouCard'
 import { SwipeHint } from './SwipeHint'
+import { SuggestSourceSheet } from './SuggestSourceSheet'
+import { supabase } from '@/lib/supabase'
+import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 
 export interface ForYouTabProps {
   articles: ForYouArticle[]
@@ -23,17 +26,31 @@ const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
  */
 export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
   const t = useTranslations('foryou')
+  const tSuggest = useTranslations('foryou.suggest')
   const router = useRouter()
   const scrollRef = useRef<HTMLDivElement>(null)
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [hintDismissed, setHintDismissed] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [suggestEnabled, setSuggestEnabled] = useState(false)
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
     if (localStorage.getItem('foryou_swipe_hint_dismissed') === '1') {
       setHintDismissed(true)
     }
+  }, [])
+
+  useEffect(() => {
+    supabase
+      .from('feature_flags')
+      .select('enabled, enabled_local')
+      .eq('key', FLAG_KEYS.SUGGEST_A_SOURCE_BUTTON)
+      .maybeSingle()
+      .then(({ data }) => {
+        setSuggestEnabled(resolveFlag(data ?? null))
+      })
   }, [])
 
   useEffect(() => {
@@ -122,13 +139,31 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
         {/* End-of-feed sentinel — shown after the last card has been scrolled past */}
         <div style={{
           height: PEEK_PX + 40,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 16,
           color: 'rgba(255,255,255,0.45)',
           fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
         }}>
           {isLast ? t('endOfFeed') : ''}
+          {isLast && suggestEnabled && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+              <button
+                onClick={() => setSheetOpen(true)}
+                style={{
+                  background: '#7ED321', color: '#0a0a0a', border: 0,
+                  padding: '14px 28px', fontWeight: 700, cursor: 'pointer',
+                  clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                  fontSize: 14, letterSpacing: '0.02em', textTransform: 'none',
+                }}
+              >
+                + {tSuggest('button')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      <SuggestSourceSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
 
       {/* Grayed-out tint on the next-article peek zone — fades transparent
        *  at top to semi-dark at bottom. Visually says "there's more below"
