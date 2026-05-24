@@ -3,6 +3,7 @@ import os
 from dataclasses import dataclass
 
 
+# Strictly-required vars — the worker can't run without these.
 REQUIRED_VARS = [
     "SUPABASE_URL",
     "SUPABASE_SERVICE_KEY",
@@ -10,8 +11,25 @@ REQUIRED_VARS = [
     "OCR_YOUTUBE_URL",
     "OCR_TOURNAMENT_ID",
     "OCR_COURT_LABEL",
-    "OCR_WORKER_VERSION",
 ]
+
+
+def _resolve_worker_version() -> str:
+    """Resolve the worker version with a Railway-aware fallback chain.
+
+    Order of preference:
+      1. ``OCR_WORKER_VERSION`` set explicitly (e.g. a release tag).
+      2. ``RAILWAY_GIT_COMMIT_SHA`` — Railway auto-injects this on every
+         deploy. Using it here means operators don't need to manually
+         template a commit SHA into the Variables tab.
+      3. ``"unknown"`` — local dev fallback so ``load_config()`` doesn't
+         raise when neither var is set.
+    """
+    return (
+        os.environ.get("OCR_WORKER_VERSION")
+        or os.environ.get("RAILWAY_GIT_COMMIT_SHA")
+        or "unknown"
+    )
 
 
 @dataclass
@@ -40,7 +58,7 @@ def load_config() -> Config:
         youtube_url=os.environ["OCR_YOUTUBE_URL"],
         tournament_id=os.environ["OCR_TOURNAMENT_ID"],
         court_label=os.environ["OCR_COURT_LABEL"],
-        worker_version=os.environ["OCR_WORKER_VERSION"],
+        worker_version=_resolve_worker_version(),
         frame_interval_seconds=int(os.environ.get("OCR_FRAME_INTERVAL_SECONDS", "3")),
         confidence_threshold=float(os.environ.get("OCR_CONFIDENCE_THRESHOLD", "0.7")),
     )
