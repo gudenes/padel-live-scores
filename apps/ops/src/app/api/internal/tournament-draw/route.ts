@@ -9,15 +9,46 @@
 
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import { normalize } from '@/lib/player-resolver'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
 type Category = 'men' | 'women'
 type DrawType = 'main_draw' | 'qualifying'
 
+/**
+ * Per-slot player payload powering the shared PlayerLink component in the
+ * Draw subtab. Each draw match has up to 4 slots (2 pairs × 2 players);
+ * each carries enough fields to drive the status dot + deep-link to
+ * /players/[id].
+ *
+ * `id` is null when we couldn't resolve the scraped name back to a
+ * `public.players` row (PlayerLink renders plain italic text, status =
+ * "unresolved"). When `id` is set, the enrichment fields determine whether
+ * PlayerLink shows "thin" or "enriched".
+ *
+ * `name` is always the scraped name from the draw snapshot (canonical
+ * display) — we don't overwrite it with the resolved player's name even
+ * when the resolved name differs slightly, because the operator is
+ * debugging exactly that mismatch.
+ *
+ * Note: `padelgod.draw_snapshots` carries no player FKs (unlike
+ * `public.matches`), so resolution is purely name+category. See route body.
+ */
+interface ExplorerPlayer {
+  id: string | null
+  name: string
+  avatar_url: string | null
+  ranking: number | null
+  padelapi_id: string | null
+  fip_id: string | null
+}
+
 interface DrawMatch {
   drawPosition: number | null
   roundLabel: string | null
+  // Raw scraped names — kept for back-compat with any consumer that
+  // doesn't read the nested per-slot players block.
   team1Player1Name: string | null
   team1Player2Name: string | null
   team1Country: string | null
@@ -26,6 +57,12 @@ interface DrawMatch {
   team2Player2Name: string | null
   team2Country: string | null
   team2Seed: number | null
+  // Per-slot enriched payloads — preferred for rendering. null when no
+  // name was scraped for that slot at all.
+  team1Player1: ExplorerPlayer | null
+  team1Player2: ExplorerPlayer | null
+  team2Player1: ExplorerPlayer | null
+  team2Player2: ExplorerPlayer | null
   setScores: unknown | null
   winnerTeam: number | null
   status: string | null
@@ -134,6 +171,106 @@ export async function GET(request: Request) {
   }
   const latest = rows.filter((r) => latestJobPerBucket.get(bucketKey(r)) === r.scrape_job_id)
 
+  // ── Player enrichment ────────────────────────────────────────────────
+  //
+  // `draw_snapshots` carries no player FKs — every slot is a scraped name.
+  // So resolution is name+category only (unlike tournament-matches, which
+  // also has a UUID-lookup pass via public.matches.pair*_player*_id).
+  //
+  // For each (category, normalized_name) pair seen on the latest rows,
+  // look up `public.players` and accept only unique hits (ambiguous
+  // matches stay unresolved — PlayerLink will render italic gray).
+  //
+  // Effect: tournaments whose entries already exist as canonical players
+  // get PlayerLink coverage even when the FIP-side widget has no
+  // crionet_widget mapping yet.
+
+  type ResolvedPlayer = {
+    id: string
+    name: string
+    avatar_url: string | null
+    ranking: number | null
+    padelapi_id: string | null
+    fip_id: string | null
+  }
+
+  const nameSlotsByCategory = new Map<Category, Set<string>>()
+  const addName = (name: string | null, category: Category) => {
+    if (!name) return
+    const norm = normalize(name)
+    if (!norm) return
+    if (!nameSlotsByCategory.has(category)) nameSlotsByCategory.set(category, new Set())
+    nameSlotsByCategory.get(category)!.add(norm)
+  }
+  for (const r of latest) {
+    addName(r.team1_player1_name, r.category)
+    addName(r.team1_player2_name, r.category)
+    addName(r.team2_player1_name, r.category)
+    addName(r.team2_player2_name, r.category)
+  }
+
+  const playersByNormCat = new Map<string, ResolvedPlayer>()
+  const categoriesNeeded = [...nameSlotsByCategory.keys()]
+  if (categoriesNeeded.length > 0) {
+    const { data: byNameRows, error: byNameErr } = await supabase
+      .from('players')
+      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, fip_id')
+      .in('category', categoriesNeeded)
+    if (byNameErr) {
+      return Response.json(
+        { error: `players name lookup failed: ${byNameErr.message}` },
+        { status: 500 },
+      )
+    }
+
+    const byKey = new Map<string, ResolvedPlayer[]>()
+    for (const p of (byNameRows ?? []) as Array<{
+      id: string
+      name: string
+      normalized_name: string | null
+      category: Category
+      avatar_url: string | null
+      ranking: number | null
+      padelapi_id: string | null
+      fip_id: string | null
+    }>) {
+      const norm = p.normalized_name ?? normalize(p.name)
+      const wanted = nameSlotsByCategory.get(p.category)
+      if (!wanted || !wanted.has(norm)) continue
+      const key = `${p.category}::${norm}`
+      if (!byKey.has(key)) byKey.set(key, [])
+      byKey.get(key)!.push({
+        id: p.id,
+        name: p.name,
+        avatar_url: p.avatar_url,
+        ranking: p.ranking,
+        padelapi_id: p.padelapi_id,
+        fip_id: p.fip_id,
+      })
+    }
+    for (const [k, candidates] of byKey) {
+      if (candidates.length === 1) playersByNormCat.set(k, candidates[0]!)
+      // ambiguous → leave unresolved
+    }
+  }
+
+  // Build the per-slot ExplorerPlayer. `name` is the canonical display
+  // (scraped); enrichment is whatever the unique-hit resolver returned.
+  // Returns null when no name was scraped at all.
+  const buildSlot = (name: string | null, category: Category): ExplorerPlayer | null => {
+    if (!name) return null
+    const norm = normalize(name)
+    const resolved = norm ? playersByNormCat.get(`${category}::${norm}`) ?? null : null
+    return {
+      id: resolved?.id ?? null,
+      name,
+      avatar_url: resolved?.avatar_url ?? null,
+      ranking: resolved?.ranking ?? null,
+      padelapi_id: resolved?.padelapi_id ?? null,
+      fip_id: resolved?.fip_id ?? null,
+    }
+  }
+
   // Bucket by (category, draw_type) → round_label → matches.
   const blockMap = new Map<string, DrawBlock>()
   for (const r of latest) {
@@ -163,6 +300,10 @@ export async function GET(request: Request) {
       team2Player2Name: r.team2_player2_name,
       team2Country: r.team2_country,
       team2Seed: r.team2_seed,
+      team1Player1: buildSlot(r.team1_player1_name, r.category),
+      team1Player2: buildSlot(r.team1_player2_name, r.category),
+      team2Player1: buildSlot(r.team2_player1_name, r.category),
+      team2Player2: buildSlot(r.team2_player2_name, r.category),
       setScores: r.set_scores,
       winnerTeam: r.winner_team,
       status: r.status,
