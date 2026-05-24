@@ -44,6 +44,12 @@ async function getDuplicatePlayersCount(): Promise<number> {
     if (error) console.warn('[needs-review-counts] players query failed:', error.message)
     return 0
   }
+  // Hit the PostgREST 10k row cap → the badge count is potentially low.
+  // Acceptable today (~4000 players) but log so we notice if the table grows.
+  // Migrate to paginatedSelect when this fires.
+  if (data.length === 10000) {
+    console.warn('[needs-review-counts] hit 10k row cap on players read — count may be undercounted')
+  }
   return countDuplicateGroups(data as PlayerRow[])
 }
 
