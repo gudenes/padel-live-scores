@@ -5,6 +5,7 @@ import {
   listNewsSources,
   createNewsSource,
   updateNewsSource,
+  approveSuggestionWithSource,
   type CreateNewsSourceInput,
   type UpdateNewsSourceInput,
 } from '@/lib/news-sources-queries'
@@ -25,7 +26,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.isOperator) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
-  const body = await req.json() as Partial<CreateNewsSourceInput>
+  const body = await req.json() as Partial<CreateNewsSourceInput> & { from_suggestion_id?: string }
   for (const f of ['key', 'name', 'url', 'source_type', 'language', 'cadence'] as const) {
     if (!body[f]) return NextResponse.json({ error: `missing field: ${f}` }, { status: 400 })
   }
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
       ...body as CreateNewsSourceInput,
       created_by: session.user.email ?? 'unknown',
     })
+    if (body.from_suggestion_id) {
+      await approveSuggestionWithSource(body.from_suggestion_id, source.id, session.user.email ?? 'unknown')
+    }
     return NextResponse.json({ source })
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 })
