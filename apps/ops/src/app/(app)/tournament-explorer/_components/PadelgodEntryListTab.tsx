@@ -15,6 +15,7 @@
 // pattern-match across the two ops surfaces.
 
 import { useState, useEffect, useCallback } from 'react'
+import { PlayerLink } from '@/components/PlayerLink'
 
 // ── Types mirror the GET response from /api/ops/padelgod-entry-list ─────
 
@@ -32,6 +33,10 @@ interface EntryPlayer {
   resolvedPlayerId: string | null
   resolvedPlayerName: string | null
   resolutionMethod: ResolutionMethod
+  // Enrichment fields used by PlayerLink to colour the status dot.
+  resolvedAvatarUrl?: string | null
+  resolvedRanking?: number | null
+  resolvedPadelapiId?: string | null
 }
 
 interface EntryTeam {
@@ -657,9 +662,20 @@ function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
 function PlayerCell({ p }: { p: EntryPlayer }) {
   return (
     <div>
-      <div style={{ fontWeight: 500, color: '#111' }}>{p.name}</div>
+      <div style={{ fontWeight: 500, color: '#111' }}>
+        <PlayerLink
+          player={{
+            id: p.resolvedPlayerId,
+            name: p.resolvedPlayerName ?? p.name,
+            avatar_url: p.resolvedAvatarUrl ?? null,
+            ranking: p.resolvedRanking ?? null,
+            padelapi_id: p.resolvedPadelapiId ?? null,
+            fip_id: p.fipId,
+          }}
+        />
+      </div>
       {p.resolvedPlayerId && p.resolvedPlayerName && p.resolvedPlayerName !== p.name && (
-        <div style={{ fontSize: 10, color: '#666' }}>→ {p.resolvedPlayerName}</div>
+        <div style={{ fontSize: 10, color: '#666' }}>(scraped as: {p.name})</div>
       )}
     </div>
   )
