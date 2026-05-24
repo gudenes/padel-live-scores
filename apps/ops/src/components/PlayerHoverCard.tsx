@@ -17,6 +17,8 @@ interface Props {
   player: PlayerLinkInput
   /** Called when the card requests close (mouse left the card). */
   onClose: () => void
+  /** Called when the cursor enters the card itself (parent uses this to cancel its pending close timer). */
+  onMouseEnter?: () => void
 }
 
 const CARD_WIDTH = 280
@@ -57,7 +59,7 @@ function computePosition(anchor: HTMLElement): {
   return { top, left, placement: wantsAbove ? 'above' : 'below' }
 }
 
-export function PlayerHoverCard({ anchor, player, onClose }: Props) {
+export function PlayerHoverCard({ anchor, player, onClose, onMouseEnter }: Props) {
   // SSR guard — document.body doesn't exist on the server. Cheap ref check
   // means we don't need a setState-in-effect dance.
   const isClient = typeof document !== 'undefined'
@@ -108,6 +110,7 @@ export function PlayerHoverCard({ anchor, player, onClose }: Props) {
       ref={cardRef}
       role="dialog"
       aria-label={`${player.name} preview`}
+      onMouseEnter={onMouseEnter}
       onMouseLeave={onClose}
       style={{
         position: 'absolute',

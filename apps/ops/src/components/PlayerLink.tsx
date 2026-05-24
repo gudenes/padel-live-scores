@@ -1,20 +1,28 @@
+// apps/ops/src/components/PlayerLink.tsx
 // Shared player-name renderer used across Entry Lists, Tournament Matches,
 // Draws, OOP, and any other operator surface that lists players.
-// Renders a status dot + name. When linked, the name links to /players/[id].
-// On hover, a tooltip explains the dot color.
+// - Status dot indicates linked/thin/unresolved
+// - Hovering opens PlayerHoverCard (200ms delay, 100ms close grace)
+// - Click opens the global PlayerDrawer via context (no navigation)
+// - Unresolved players: italic gray text, no hover card, no click
 'use client'
 
-import Link from 'next/link'
-import type { ReactNode } from 'react'
-import { computePlayerLinkStatus, type PlayerLinkInput, type PlayerLinkStatus } from '@/lib/player-link-status'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
+import {
+  computePlayerLinkStatus,
+  type PlayerLinkInput,
+  type PlayerLinkStatus,
+} from '@/lib/player-link-status'
+import { PlayerHoverCard } from './PlayerHoverCard'
+import { useOpenPlayerDrawer } from './player-drawer-context'
 
 interface Props {
   player: PlayerLinkInput
-  /** Optional small badges rendered after the name (e.g. FIP, padelapi). Defaults to none. */
+  /** Optional small badges rendered after the name. Defaults to none. */
   badges?: ReactNode
-  /** Hide the status dot — useful when the surface already shows resolution status another way. */
+  /** Hide the status dot. */
   hideDot?: boolean
-  /** Override the tooltip text. */
+  /** Override tooltip text (otherwise derived from status). */
   tooltip?: string
 }
 
@@ -30,9 +38,57 @@ const STATUS_TOOLTIP: Record<PlayerLinkStatus, string> = {
   unresolved: 'No profile yet — name only',
 }
 
+const HOVER_OPEN_DELAY_MS = 200
+const HOVER_CLOSE_GRACE_MS = 100
+
 export function PlayerLink({ player, badges, hideDot, tooltip }: Props) {
   const status = computePlayerLinkStatus(player)
   const tip = tooltip ?? STATUS_TOOLTIP[status]
+  const drawer = useOpenPlayerDrawer()
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+  const setNameRef = useCallback((el: HTMLElement | null) => {
+    setAnchorEl(el)
+  }, [])
+  const [showCard, setShowCard] = useState(false)
+  const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const cancelTimers = () => {
+    if (openTimerRef.current) {
+      clearTimeout(openTimerRef.current)
+      openTimerRef.current = null
+    }
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+  }
+
+  const scheduleOpen = () => {
+    if (status === 'unresolved') return
+    cancelTimers()
+    openTimerRef.current = setTimeout(() => {
+      setShowCard(true)
+      openTimerRef.current = null
+    }, HOVER_OPEN_DELAY_MS)
+  }
+
+  const scheduleClose = () => {
+    cancelTimers()
+    closeTimerRef.current = setTimeout(() => {
+      setShowCard(false)
+      closeTimerRef.current = null
+    }, HOVER_CLOSE_GRACE_MS)
+  }
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!player.id) return
+    e.preventDefault()
+    cancelTimers()
+    setShowCard(false)
+    drawer.open(player.id)
+  }
+
   const dot = !hideDot && (
     <span
       aria-hidden
@@ -60,33 +116,73 @@ export function PlayerLink({ player, badges, hideDot, tooltip }: Props) {
         {player.name}
       </span>
     ) : (
-      <Link
-        href={`/players/${player.id}`}
+      <span
+        ref={setNameRef}
         title={tip}
+        onMouseEnter={scheduleOpen}
+        onMouseLeave={scheduleClose}
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleClick(e as unknown as React.MouseEvent)
+          }
+        }}
         style={{
           color: 'inherit',
-          textDecoration: 'none',
+          cursor: 'pointer',
           borderBottom: '1px dashed transparent',
-          transition: 'border-color var(--dur-fast, 120ms) var(--ease-out, ease-out), color var(--dur-fast, 120ms) var(--ease-out, ease-out)',
+          transition:
+            'border-color var(--dur-fast, 120ms) var(--ease-out, ease-out), color var(--dur-fast, 120ms) var(--ease-out, ease-out)',
         }}
-        onMouseEnter={(e) => {
+        onFocus={(e) => {
+          e.currentTarget.style.outline = '2px solid var(--lime, #84cc16)'
+          e.currentTarget.style.outlineOffset = '2px'
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.outline = 'none'
+        }}
+        onMouseOver={(e) => {
           e.currentTarget.style.borderBottomColor = 'var(--lime, #84cc16)'
           e.currentTarget.style.color = 'var(--lime-deep, #65a30d)'
         }}
-        onMouseLeave={(e) => {
+        onMouseOut={(e) => {
           e.currentTarget.style.borderBottomColor = 'transparent'
           e.currentTarget.style.color = 'inherit'
         }}
       >
         {player.name}
-      </Link>
+      </span>
     )
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, lineHeight: 1.3 }}>
-      {dot}
-      {nameNode}
-      {badges}
-    </span>
+    <>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, lineHeight: 1.3 }}>
+        {dot}
+        {nameNode}
+        {badges}
+      </span>
+
+      {showCard && anchorEl && (
+        <PlayerHoverCard
+          anchor={anchorEl}
+          player={player}
+          onClose={() => {
+            // Card's onMouseLeave fires this; close immediately
+            cancelTimers()
+            setShowCard(false)
+          }}
+          onMouseEnter={() => {
+            // Cursor moved from name into card — cancel pending close
+            if (closeTimerRef.current) {
+              clearTimeout(closeTimerRef.current)
+              closeTimerRef.current = null
+            }
+          }}
+        />
+      )}
+    </>
   )
 }
