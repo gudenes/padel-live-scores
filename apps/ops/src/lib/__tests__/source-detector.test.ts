@@ -12,6 +12,15 @@ describe('matchUrlPattern (no network)', () => {
     expect(matchUrlPattern('https://example.com/wp-json/wp/v2/posts?per_page=10')).toBe('wp-api')
   })
 
+  it('does NOT match WP-API on bogus suffix paths', () => {
+    expect(matchUrlPattern('https://example.com/wp-json/wp/v2/posts-preview')).toBeNull()
+    expect(matchUrlPattern('https://example.com/wp-json/wp/v2/posts-other-thing')).toBeNull()
+  })
+
+  it('also matches WP-API single-post path', () => {
+    expect(matchUrlPattern('https://example.com/wp-json/wp/v2/posts/123')).toBe('wp-api')
+  })
+
   it('matches common RSS shapes', () => {
     expect(matchUrlPattern('https://example.com/feed/')).toBe('rss')
     expect(matchUrlPattern('https://example.com/feed')).toBe('rss')

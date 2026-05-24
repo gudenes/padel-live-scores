@@ -32,7 +32,7 @@ export function matchUrlPattern(input: string): DetectedType | null {
   if (u.hostname === 'news.google.com' && u.pathname.startsWith('/rss/search')) {
     return 'google-news-search'
   }
-  if (u.pathname.includes('/wp-json/wp/v2/posts')) {
+  if (u.pathname === '/wp-json/wp/v2/posts' || u.pathname.startsWith('/wp-json/wp/v2/posts/')) {
     return 'wp-api'
   }
   // /feed, /feed/, /rss, /rss/, /atom.xml, *.rss
