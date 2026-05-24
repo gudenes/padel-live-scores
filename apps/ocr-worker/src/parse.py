@@ -1,5 +1,4 @@
 """Parse raw tesseract output into a structured padel score."""
-import re
 from typing import Optional, TypedDict
 
 
