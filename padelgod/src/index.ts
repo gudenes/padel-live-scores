@@ -159,6 +159,7 @@ async function main() {
       enableLivePollerManager: env.ENABLE_LIVE_POLLER_MANAGER,
       enableShadowDiffFinalizer: env.ENABLE_SHADOW_DIFF_FINALIZER,
       enableShadowDiffLive: env.ENABLE_SHADOW_DIFF_LIVE,
+      enableShadowDiffOcr: env.ENABLE_SHADOW_DIFF_OCR,
       enableCloseStaleLiveSweeper: env.ENABLE_CLOSE_STALE_LIVE_SWEEPER,
       enableScheduleHintsWriter: env.ENABLE_SCHEDULE_HINTS_WRITER,
       scheduleHintsWriterDryRun: env.SCHEDULE_HINTS_WRITER_DRY_RUN,

@@ -142,6 +142,9 @@ const EnvSchema = z.object({
   ENABLE_LIVE_POLLER_MANAGER: boolEnv(true),
   ENABLE_SHADOW_DIFF_FINALIZER: boolEnv(true),
   ENABLE_SHADOW_DIFF_LIVE: boolEnv(true),
+  // OCR diff worker — compares padelgod.ocr_snapshots against public.sets.
+  // Default OFF until the Python OCR worker is deployed and producing snapshots.
+  ENABLE_SHADOW_DIFF_OCR: boolEnv(false),
   ENABLE_CLOSE_STALE_LIVE_SWEEPER: boolEnv(true),
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
