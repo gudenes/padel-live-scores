@@ -4,13 +4,23 @@
 
 import { pgPool } from './db'
 
-export async function logOpsEvent(kind: string, metadata: Record<string, unknown>): Promise<void> {
+interface LogOpts {
+  status?: 'ok' | 'error' | 'partial'
+  errorMessage?: string | null
+}
+
+export async function logOpsEvent(
+  source: string,
+  meta: Record<string, unknown>,
+  opts: LogOpts = {},
+): Promise<void> {
   try {
     await pgPool().query(
-      `INSERT INTO ops_events (kind, metadata) VALUES ($1, $2)`,
-      [kind, JSON.stringify(metadata)],
+      `INSERT INTO ops_events (source, status, meta, error_message)
+       VALUES ($1, $2, $3, $4)`,
+      [source, opts.status ?? 'ok', JSON.stringify(meta), opts.errorMessage ?? null],
     )
   } catch (e) {
-    console.error(`ops_events insert failed for ${kind}:`, e)
+    console.error(`ops_events insert failed for ${source}:`, e)
   }
 }

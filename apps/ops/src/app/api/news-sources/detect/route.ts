@@ -25,9 +25,9 @@ export async function POST(req: NextRequest | Request) {
   try {
     const result = await detectSource(url)
     if (result.type === 'unknown') {
-      await logOpsEvent('news_source.detect.failed', { url, reason: result.notes ?? 'unknown' })
+      await logOpsEvent('news_source.detect', { url, reason: result.notes ?? 'unknown' }, { status: 'error', errorMessage: result.notes ?? null })
     } else {
-      await logOpsEvent('news_source.detect.success', {
+      await logOpsEvent('news_source.detect', {
         url,
         type: result.type,
         name: result.name,
