@@ -11,7 +11,7 @@ from supabase import create_client
 
 from src.config import Config, load_config
 from src.frame_extract import extract_last_frame
-from src.ocr import run_ocr
+from src.ocr import calibration_is_columnar, ocr_columnar, run_ocr
 from src.parse import parse_score
 from src.resolver import resolve_match_id
 from src.scoreboard_crop import crop_scoreboard, load_calibration
@@ -37,9 +37,24 @@ def run_one_iteration(supabase, config: Config, calibration: dict) -> int | None
         segment_bytes = fetch_latest_hls_segment(config.youtube_url)
         frame_at = datetime.now(tz=timezone.utc)
         frame = extract_last_frame(segment_bytes)
-        crop = crop_scoreboard(frame, calibration)
-        raw_text, confidence = run_ocr(crop)
-        parsed = parse_score(raw_text)
+
+        # V1.1: prefer column-aware OCR when the calibration describes columns.
+        # Otherwise fall back to the V1 single-pass path so non-Premier
+        # scoreboards (or older calibration files) keep working.
+        if calibration_is_columnar(calibration):
+            parsed = ocr_columnar(frame, calibration)
+            # ocr_columnar doesn't return a tesseract confidence — the
+            # per-cell sweep accepts cells based on validity, not a single
+            # confidence value. Treat overall_confidence as 1.0 when all
+            # required cells parsed; 0.0 when parse_error is set. This is a
+            # placeholder until V1.2 surfaces per-cell confidences.
+            raw_text = None
+            confidence = 0.0 if parsed["parse_error"] else 1.0
+        else:
+            crop = crop_scoreboard(frame, calibration)
+            raw_text, confidence = run_ocr(crop)
+            parsed = parse_score(raw_text)
+
         match_id = resolve_match_id(
             supabase, config.court_label, config.tournament_id, frame_at,
         )
