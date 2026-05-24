@@ -137,3 +137,40 @@ function decodeXmlEntities(s: string): string {
     })
 }
 function stripHtml(s: string): string { return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() }
+
+/**
+ * Parse the HTML head for <link rel="alternate" type="application/rss+xml">.
+ * Returns the absolute URL of the discovered feed, or null. Prefers RSS over
+ * Atom when both are declared. Resolves relative hrefs against pageUrl.
+ */
+export function findFeedLinkInHtml(html: string, pageUrl: string): string | null {
+  // Look only inside <head> if present, fall back to whole doc
+  const headMatch = html.match(/<head[\s>][\s\S]*?<\/head>/i)
+  const scope = headMatch ? headMatch[0] : html
+
+  const linkRe = /<link\b[^>]*>/gi
+  let rss: string | null = null
+  let atom: string | null = null
+  for (const tag of scope.match(linkRe) ?? []) {
+    const rel = tag.match(/\brel\s*=\s*["']?alternate["']?/i)
+    if (!rel) continue
+    const type = tag.match(/\btype\s*=\s*["']([^"']+)["']/i)?.[1].toLowerCase()
+    const href = tag.match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1]
+    if (!href) continue
+    let absolute: string
+    try { absolute = new URL(href, pageUrl).toString() } catch { continue }
+    if (type === 'application/rss+xml' && !rss) rss = absolute
+    else if (type === 'application/atom+xml' && !atom) atom = absolute
+  }
+  return rss ?? atom
+}
+
+export function extractHtmlTitle(html: string): string | undefined {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)
+  return m ? decodeXmlEntities(m[1]).trim() : undefined
+}
+
+export function extractHtmlLang(html: string): string | undefined {
+  const m = html.match(/<html\b[^>]*\blang\s*=\s*["']([a-zA-Z]{2})/i)
+  return m ? m[1].toLowerCase() : undefined
+}

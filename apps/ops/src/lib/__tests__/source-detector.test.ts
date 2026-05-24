@@ -101,3 +101,47 @@ describe('normalizeUrl', () => {
       .toBe('https://example.com/path?keep=1')
   })
 })
+
+import { findFeedLinkInHtml, extractHtmlTitle, extractHtmlLang } from '../source-detector'
+
+describe('findFeedLinkInHtml', () => {
+  it('finds an absolute RSS link', () => {
+    const html = `<head><link rel="alternate" type="application/rss+xml" href="https://example.com/feed.xml" title="Site Feed"></head>`
+    expect(findFeedLinkInHtml(html, 'https://example.com/')).toBe('https://example.com/feed.xml')
+  })
+
+  it('resolves a relative RSS link against the page URL', () => {
+    const html = `<link rel="alternate" type="application/rss+xml" href="/feed/">`
+    expect(findFeedLinkInHtml(html, 'https://example.com/section/padel/'))
+      .toBe('https://example.com/feed/')
+  })
+
+  it('finds an Atom link if no RSS is present', () => {
+    const html = `<link rel="alternate" type="application/atom+xml" href="/atom.xml">`
+    expect(findFeedLinkInHtml(html, 'https://example.com')).toBe('https://example.com/atom.xml')
+  })
+
+  it('prefers RSS over Atom when both are declared', () => {
+    const html = `
+      <link rel="alternate" type="application/atom+xml" href="/atom.xml">
+      <link rel="alternate" type="application/rss+xml" href="/feed/">
+    `
+    expect(findFeedLinkInHtml(html, 'https://example.com')).toBe('https://example.com/feed/')
+  })
+
+  it('returns null when no feed link is declared', () => {
+    expect(findFeedLinkInHtml('<html><body>nothing</body></html>', 'https://example.com')).toBeNull()
+  })
+})
+
+describe('extractHtmlTitle / extractHtmlLang', () => {
+  it('extracts <title>', () => {
+    expect(extractHtmlTitle('<html><head><title>Hello World</title></head></html>'))
+      .toBe('Hello World')
+  })
+  it('extracts <html lang>', () => {
+    expect(extractHtmlLang('<html lang="es-ES"><body></body></html>')).toBe('es')
+    expect(extractHtmlLang('<html lang="en"><body></body></html>')).toBe('en')
+    expect(extractHtmlLang('<html><body></body></html>')).toBeUndefined()
+  })
+})
