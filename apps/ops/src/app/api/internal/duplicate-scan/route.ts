@@ -1,82 +1,26 @@
 // apps/ops/src/app/api/internal/duplicate-scan/route.ts
 // Scans the players table for potential duplicates.
 // Two modes:
-//   ?mode=rules (default) — fast rule-based scan
-//   ?mode=ai — sends players to Claude grouped by country for full AI-driven dedup
+//   ?mode=rules (default) — fast rule-based scan via @/lib/player-duplicate-rules
+//   ?mode=ai — Claude-driven scan over country-grouped players
 // Auth: session cookie (isOperator)
+//
+// Rules algorithm (shared with the Needs Review counts endpoint):
+//   1. Same fip_id  →  definitive
+//   2. Same external_id  →  definitive
+//   3. Normalized full name + same country
+//   4. First + surname tokens + same country
+// See @/lib/player-duplicate-rules for details.
 
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
 import Anthropic from '@anthropic-ai/sdk'
-
-function normalize(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
-}
-
-function nameTokens(name: string): { first: string; surname: string } {
-  const parts = normalize(name).split(' ').filter(t => t.length > 1)
-  if (parts.length === 0) return { first: '', surname: '' }
-  if (parts.length === 1) return { first: parts[0], surname: '' }
-  return { first: parts[0], surname: parts[parts.length - 1] }
-}
-
-interface PlayerRow {
-  id: string
-  name: string
-  country: string | null
-  ranking: number | null
-  points: number | null
-  category: string | null
-  avatar_url: string | null
-  fip_id: string | null
-  external_id: string | null
-}
-
-interface DuplicateGroup {
-  reasons: string[]
-  players: PlayerRow[]
-  aiVerified?: boolean
-  mergeGuidance?: string // AI recommendation on which to keep and why
-}
-
-// ── Rule-based scan ─────────────────────────────────────────────
-
-function findRuleBasedDuplicates(players: PlayerRow[]): DuplicateGroup[] {
-  const seen = new Set<string>()
-  const groups: DuplicateGroup[] = []
-
-  for (let i = 0; i < players.length; i++) {
-    for (let j = i + 1; j < players.length; j++) {
-      const a = players[i]
-      const b = players[j]
-      const pairKey = [a.id, b.id].sort().join('|')
-      if (seen.has(pairKey)) continue
-
-      const tokA = nameTokens(a.name)
-      const tokB = nameTokens(b.name)
-
-      const sameFirstLetter = tokA.first && tokB.first && tokA.first[0] === tokB.first[0]
-      if (!sameFirstLetter) continue
-      const sameSurname = tokA.surname && tokB.surname && tokA.surname === tokB.surname
-      if (!sameSurname) continue
-      const sameCountry = a.country && b.country && a.country === b.country
-      if (!sameCountry) continue
-
-      const bothRanked = a.ranking !== null && b.ranking !== null
-      if (bothRanked) {
-        const rankDiff = Math.abs(a.ranking! - b.ranking!)
-        if (rankDiff > 10) continue
-        groups.push({ reasons: [`Same surname + country (rank diff: ${rankDiff})`], players: [a, b] })
-      } else {
-        groups.push({ reasons: ['Same surname + country'], players: [a, b] })
-      }
-      seen.add(pairKey)
-    }
-  }
-
-  return groups
-}
+import {
+  type PlayerRow,
+  type DuplicateGroup,
+  findRuleBasedDuplicates,
+} from '@/lib/player-duplicate-rules'
 
 // ── AI-driven scan ──────────────────────────────────────────────
 
