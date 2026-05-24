@@ -1,11 +1,13 @@
 'use client'
-// src/app/ops/players/PlayerDrawer.tsx
-// Right-side overlay drawer for editing player details.
+// apps/ops/src/components/PlayerDrawer.tsx
+// Right-side overlay drawer for editing player details. Mounted at app-shell
+// scope by PlayerDrawerHost (see player-drawer-context.tsx) — any surface that
+// renders a <PlayerLink /> can open it via useOpenPlayerDrawer().open(id).
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { PlayerDetail } from './types'
-import EquipmentTab from './EquipmentTab'
+import { PlayerDetail } from '@/app/(app)/players/_components/types'
+import EquipmentTab from '@/app/(app)/players/_components/EquipmentTab'
 
 // ─── Style constants ──────────────────────────────────────────────────────────
 
@@ -36,8 +38,17 @@ const selectStyle: React.CSSProperties = {
 export interface PlayerDrawerProps {
   playerId: string | null
   onClose: () => void
-  onSaved: () => void
-  onNavigate: (direction: 'prev' | 'next') => void
+  /**
+   * Optional — fires after a successful PATCH save. PlayersTab uses it to
+   * refresh the list. Surfaces that don't own a list (e.g. PlayerLink opens
+   * from Matches / Draws / OOP) can omit it.
+   */
+  onSaved?: () => void
+  /**
+   * Optional — wires the drawer's arrow-key + prev/next button affordance to
+   * the surrounding list. Only PlayersTab sets this today.
+   */
+  onNavigate?: (direction: 'prev' | 'next') => void
 }
 
 type TabId = 'profile' | 'ids' | 'equipment'
@@ -211,10 +222,10 @@ export default function PlayerDrawer({
         onClose()
       } else if (e.key === 'ArrowUp' && !isEditing) {
         e.preventDefault()
-        onNavigate('prev')
+        onNavigate?.('prev')
       } else if (e.key === 'ArrowDown' && !isEditing) {
         e.preventDefault()
-        onNavigate('next')
+        onNavigate?.('next')
       }
     }
 
@@ -251,7 +262,7 @@ export default function PlayerDrawer({
     if (res.ok) {
       setSaveMsg('ok')
       setOriginal(form)
-      onSaved()
+      onSaved?.()
       setTimeout(() => setSaveMsg(null), 2500)
     } else {
       setSaveMsg('err')
@@ -437,7 +448,7 @@ export default function PlayerDrawer({
                   ✕
                 </button>
                 <button
-                  onClick={() => onNavigate('prev')}
+                  onClick={() => onNavigate?.('prev')}
                   title="Previous player (↑)"
                   style={{
                     background: 'none',
@@ -453,7 +464,7 @@ export default function PlayerDrawer({
                   ↑
                 </button>
                 <button
-                  onClick={() => onNavigate('next')}
+                  onClick={() => onNavigate?.('next')}
                   title="Next player (↓)"
                   style={{
                     background: 'none',

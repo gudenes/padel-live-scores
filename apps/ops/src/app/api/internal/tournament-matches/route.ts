@@ -20,11 +20,39 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import { normalize } from '@/lib/player-resolver'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
 type Category = 'men' | 'women'
 type Status = 'scheduled' | 'on_court' | 'live' | 'finished' | 'retired' | 'walkover' | string
+
+/**
+ * Per-slot player payload powering the shared PlayerLink component in the
+ * Matches subtab. Each match has 4 slots (2 pairs × 2 players); each carries
+ * enough fields to drive the status dot + deep-link to /players/[id].
+ *
+ * `id` is null when we couldn't resolve the scraped name back to a
+ * `public.players` row (the link is rendered as plain text, status =
+ * "unresolved"). When `id` is set, the enrichment fields determine whether
+ * PlayerLink shows "thin" or "enriched".
+ *
+ * `name` is always the scraped name from the OOP/results snapshot (canonical
+ * display) — we don't overwrite it with the resolved player's name even when
+ * the resolved name differs slightly, because the operator is debugging
+ * exactly that mismatch.
+ */
+interface ExplorerPlayer {
+  id: string | null
+  name: string
+  avatar_url: string | null
+  ranking: number | null
+  padelapi_id: string | null
+  fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+   * Does NOT affect status. Null when slot was unresolved. */
+  country: string | null
+}
 
 interface ExplorerMatch {
   // Identity
@@ -38,11 +66,18 @@ interface ExplorerMatch {
   // Classification
   category: Category
   roundLabel: string | null
-  // Teams (raw names as captured by padelgod)
+  // Teams (raw names as captured by padelgod) — kept for back-compat and any
+  // legacy consumer that doesn't read the nested per-slot players block.
   team1Player1Name: string | null
   team1Player2Name: string | null
   team2Player1Name: string | null
   team2Player2Name: string | null
+  // Per-slot enriched payloads — preferred for rendering (carry status dot
+  // colour + clickable link). When name is missing entirely, the slot is null.
+  team1Player1: ExplorerPlayer | null
+  team1Player2: ExplorerPlayer | null
+  team2Player1: ExplorerPlayer | null
+  team2Player2: ExplorerPlayer | null
   // Result (if played)
   setScores: unknown | null
   winnerTeam: number | null
@@ -318,21 +353,26 @@ export async function GET(request: Request) {
     if (ro?.match_widget_id) widgetIdsForLookup.push(ro.match_widget_id)
   }
 
-  const linkedMatchByWidgetId = new Map<
-    string,
-    {
-      id: string
-      external_id: string | null
-      scheduled_at: string | null
-      // The simplified-pipeline marker. NULL when the row was created
-      // by the legacy static-reconciler (synthetic widget id stored in
-      // entity_external_ids only); set when fip-draw-populator wrote
-      // the row using the canonical composite key. Used by the ops
-      // dashboard to show NEW vs LEGACY badges per match during the
-      // migration soak phase.
-      widget_id_composite: string | null
-    }
-  >()
+  type LinkedMatch = {
+    id: string
+    external_id: string | null
+    scheduled_at: string | null
+    // The simplified-pipeline marker. NULL when the row was created
+    // by the legacy static-reconciler (synthetic widget id stored in
+    // entity_external_ids only); set when fip-draw-populator wrote
+    // the row using the canonical composite key. Used by the ops
+    // dashboard to show NEW vs LEGACY badges per match during the
+    // migration soak phase.
+    widget_id_composite: string | null
+    // Player FKs on the linked public.matches row. NULL when reconciler
+    // couldn't resolve a slot (thin match) — those slots fall back to
+    // name-only display.
+    pair1_player1_id: string | null
+    pair1_player2_id: string | null
+    pair2_player1_id: string | null
+    pair2_player2_id: string | null
+  }
+  const linkedMatchByWidgetId = new Map<string, LinkedMatch>()
   if (tournamentWidgetId && widgetIdsForLookup.length > 0) {
     const compositeIds = widgetIdsForLookup.map((w) => `${tournamentWidgetId}:${w}`)
 
@@ -341,7 +381,7 @@ export async function GET(request: Request) {
     // public.matches. Single round-trip, no sidecar table.
     const { data: directRows, error: directErr } = await supabase
       .from('matches')
-      .select('id, external_id, scheduled_at, widget_id_composite')
+      .select('id, external_id, scheduled_at, widget_id_composite, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
       .in('widget_id_composite', compositeIds)
     if (directErr) {
       return Response.json(
@@ -354,6 +394,10 @@ export async function GET(request: Request) {
       external_id: string | null
       scheduled_at: string | null
       widget_id_composite: string | null
+      pair1_player1_id: string | null
+      pair1_player2_id: string | null
+      pair2_player1_id: string | null
+      pair2_player2_id: string | null
     }>) {
       if (!m.widget_id_composite) continue
       const idx = m.widget_id_composite.indexOf(':')
@@ -364,6 +408,10 @@ export async function GET(request: Request) {
         external_id: m.external_id,
         scheduled_at: m.scheduled_at,
         widget_id_composite: m.widget_id_composite,
+        pair1_player1_id: m.pair1_player1_id,
+        pair1_player2_id: m.pair1_player2_id,
+        pair2_player1_id: m.pair2_player1_id,
+        pair2_player2_id: m.pair2_player2_id,
       })
     }
 
@@ -412,7 +460,7 @@ export async function GET(request: Request) {
       if (matchIds.length > 0) {
         const { data: matchRows, error: matchErr } = await supabase
           .from('matches')
-          .select('id, external_id, scheduled_at, widget_id_composite')
+          .select('id, external_id, scheduled_at, widget_id_composite, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
           .in('id', matchIds)
         if (matchErr) {
           return Response.json(
@@ -425,6 +473,10 @@ export async function GET(request: Request) {
           external_id: string | null
           scheduled_at: string | null
           widget_id_composite: string | null
+          pair1_player1_id: string | null
+          pair1_player2_id: string | null
+          pair2_player1_id: string | null
+          pair2_player2_id: string | null
         }>) {
           const widget = matchIdToWidget.get(m.id)
           if (widget) {
@@ -433,10 +485,182 @@ export async function GET(request: Request) {
               external_id: m.external_id,
               scheduled_at: m.scheduled_at,
               widget_id_composite: m.widget_id_composite,
+              pair1_player1_id: m.pair1_player1_id,
+              pair1_player2_id: m.pair1_player2_id,
+              pair2_player1_id: m.pair2_player1_id,
+              pair2_player2_id: m.pair2_player2_id,
             })
           }
         }
       }
+    }
+  }
+
+  // ── Player enrichment ────────────────────────────────────────────────
+  //
+  // Two-pass resolution so PlayerLink can show the proper status dot +
+  // deep-link for every slot, not just the linked ones:
+  //
+  //   Pass 1 — UUID lookup. Linked matches carry up to 4 player FKs each
+  //   (pair{1,2}_player{1,2}_id). Collect the union and fetch enrichment
+  //   in one batch keyed by id.
+  //
+  //   Pass 2 — name+category fallback. For unlinked slots (or linked
+  //   matches with NULL player FKs — common for thin reconciler rows),
+  //   try a normalized-name+category lookup against `public.players`.
+  //   Only accept unique hits (matches the entry-list route's pattern).
+  //
+  // Effect: even tournaments with zero crionet_widget mappings get
+  // PlayerLink coverage when the scraped name happens to match a
+  // canonical row by normalized name.
+
+  type ResolvedPlayer = {
+    id: string
+    name: string
+    avatar_url: string | null
+    ranking: number | null
+    padelapi_id: string | null
+    fip_id: string | null
+    country: string | null
+  }
+
+  // Pass 1: collect all linked player UUIDs.
+  const linkedPlayerIds = new Set<string>()
+  for (const linked of linkedMatchByWidgetId.values()) {
+    for (const id of [
+      linked.pair1_player1_id,
+      linked.pair1_player2_id,
+      linked.pair2_player1_id,
+      linked.pair2_player2_id,
+    ]) {
+      if (id) linkedPlayerIds.add(id)
+    }
+  }
+
+  const playersById = new Map<string, ResolvedPlayer>()
+  if (linkedPlayerIds.size > 0) {
+    const { data: byIdRows, error: byIdErr } = await supabase
+      .from('players')
+      .select('id, name, avatar_url, ranking, padelapi_id, fip_id, country')
+      .in('id', [...linkedPlayerIds])
+    if (byIdErr) {
+      return Response.json(
+        { error: `players read failed: ${byIdErr.message}` },
+        { status: 500 },
+      )
+    }
+    for (const p of (byIdRows ?? []) as ResolvedPlayer[]) {
+      playersById.set(p.id, p)
+    }
+  }
+
+  // Pass 2: collect (category, scraped name) pairs for slots that didn't
+  // resolve via UUID. We iterate the merged source rows directly so we
+  // don't duplicate the merge logic below.
+  const nameSlotsByCategory = new Map<Category, Set<string>>() // category → set of normalized names
+
+  const collectName = (name: string | null, category: Category | undefined) => {
+    if (!name || !category) return
+    const norm = normalize(name)
+    if (!norm) return
+    if (!nameSlotsByCategory.has(category)) {
+      nameSlotsByCategory.set(category, new Set())
+    }
+    nameSlotsByCategory.get(category)!.add(norm)
+  }
+
+  for (const key of allKeys) {
+    const res = resultsByKey.get(key)
+    const oop = oopByKey.get(key)
+    const widget = res?.match_widget_id ?? oop?.match_widget_id ?? null
+    const linked = widget ? linkedMatchByWidgetId.get(widget) ?? null : null
+    const category = (res?.category ?? oop?.category) as Category | undefined
+    const slots: Array<{ name: string | null; id: string | null }> = [
+      { name: res?.team1_player1_name ?? oop?.team1_player1_name ?? null, id: linked?.pair1_player1_id ?? null },
+      { name: res?.team1_player2_name ?? oop?.team1_player2_name ?? null, id: linked?.pair1_player2_id ?? null },
+      { name: res?.team2_player1_name ?? oop?.team2_player1_name ?? null, id: linked?.pair2_player1_id ?? null },
+      { name: res?.team2_player2_name ?? oop?.team2_player2_name ?? null, id: linked?.pair2_player2_id ?? null },
+    ]
+    for (const s of slots) {
+      if (s.id) continue // covered by Pass 1
+      collectName(s.name, category)
+    }
+  }
+
+  // Resolve name+category lookups. Only unique (category, normalized_name)
+  // hits are accepted — ambiguous matches stay unresolved.
+  const playersByNormCat = new Map<string, ResolvedPlayer>()
+  const categoriesNeeded = [...nameSlotsByCategory.keys()]
+  if (categoriesNeeded.length > 0) {
+    const { data: byNameRows, error: byNameErr } = await supabase
+      .from('players')
+      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, fip_id, country')
+      .in('category', categoriesNeeded)
+    if (byNameErr) {
+      return Response.json(
+        { error: `players name lookup failed: ${byNameErr.message}` },
+        { status: 500 },
+      )
+    }
+
+    const byKey = new Map<string, ResolvedPlayer[]>()
+    for (const p of (byNameRows ?? []) as Array<{
+      id: string
+      name: string
+      normalized_name: string | null
+      category: Category
+      avatar_url: string | null
+      ranking: number | null
+      padelapi_id: string | null
+      fip_id: string | null
+      country: string | null
+    }>) {
+      const norm = p.normalized_name ?? normalize(p.name)
+      const wanted = nameSlotsByCategory.get(p.category)
+      if (!wanted || !wanted.has(norm)) continue
+      const key = `${p.category}::${norm}`
+      if (!byKey.has(key)) byKey.set(key, [])
+      byKey.get(key)!.push({
+        id: p.id,
+        name: p.name,
+        avatar_url: p.avatar_url,
+        ranking: p.ranking,
+        padelapi_id: p.padelapi_id,
+        fip_id: p.fip_id,
+        country: p.country,
+      })
+    }
+    for (const [k, rows] of byKey) {
+      if (rows.length === 1) playersByNormCat.set(k, rows[0]!)
+      // ambiguous → leave unresolved
+    }
+  }
+
+  // Build a single per-slot resolver. `name` is the canonical display
+  // string (the scraped name from the snapshot); enrichment comes from
+  // whichever pass hit. Returns null when no name was scraped at all.
+  const buildSlot = (
+    name: string | null,
+    category: Category | undefined,
+    linkedId: string | null,
+  ): ExplorerPlayer | null => {
+    if (!name) return null
+    let resolved: ResolvedPlayer | null = null
+    if (linkedId && playersById.has(linkedId)) {
+      resolved = playersById.get(linkedId)!
+    } else if (category) {
+      const norm = normalize(name)
+      const key = `${category}::${norm}`
+      resolved = playersByNormCat.get(key) ?? null
+    }
+    return {
+      id: resolved?.id ?? null,
+      name,
+      avatar_url: resolved?.avatar_url ?? null,
+      ranking: resolved?.ranking ?? null,
+      padelapi_id: resolved?.padelapi_id ?? null,
+      fip_id: resolved?.fip_id ?? null,
+      country: resolved?.country ?? null,
     }
   }
 
@@ -448,6 +672,12 @@ export async function GET(request: Request) {
     const widget = res?.match_widget_id ?? oop?.match_widget_id ?? null
     const linked = widget ? linkedMatchByWidgetId.get(widget) ?? null : null
 
+    const category = (res?.category ?? oop?.category) as Category
+    const t1p1Name = res?.team1_player1_name ?? oop?.team1_player1_name ?? null
+    const t1p2Name = res?.team1_player2_name ?? oop?.team1_player2_name ?? null
+    const t2p1Name = res?.team2_player1_name ?? oop?.team2_player1_name ?? null
+    const t2p2Name = res?.team2_player2_name ?? oop?.team2_player2_name ?? null
+
     // Prefer results fields where available (played > scheduled).
     matches.push({
       source: res && oop ? 'both' : res ? 'results' : 'oop',
@@ -456,12 +686,16 @@ export async function GET(request: Request) {
       court: res?.court ?? oop?.court ?? null,
       courtPosition: oop?.court_position ?? null,
       scheduledLabel: oop?.scheduled_label ?? null,
-      category: (res?.category ?? oop?.category) as Category,
+      category,
       roundLabel: res?.round_label ?? oop?.round_label ?? null,
-      team1Player1Name: res?.team1_player1_name ?? oop?.team1_player1_name ?? null,
-      team1Player2Name: res?.team1_player2_name ?? oop?.team1_player2_name ?? null,
-      team2Player1Name: res?.team2_player1_name ?? oop?.team2_player1_name ?? null,
-      team2Player2Name: res?.team2_player2_name ?? oop?.team2_player2_name ?? null,
+      team1Player1Name: t1p1Name,
+      team1Player2Name: t1p2Name,
+      team2Player1Name: t2p1Name,
+      team2Player2Name: t2p2Name,
+      team1Player1: buildSlot(t1p1Name, category, linked?.pair1_player1_id ?? null),
+      team1Player2: buildSlot(t1p2Name, category, linked?.pair1_player2_id ?? null),
+      team2Player1: buildSlot(t2p1Name, category, linked?.pair2_player1_id ?? null),
+      team2Player2: buildSlot(t2p2Name, category, linked?.pair2_player2_id ?? null),
       setScores: res?.set_scores ?? null,
       winnerTeam: res?.winner_team ?? null,
       status: res?.status ?? oop?.status ?? null,

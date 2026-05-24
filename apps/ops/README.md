@@ -253,3 +253,67 @@ The admin app uses a two-column drilldown sidebar (Sentry / Discord / VS Code pa
 **Needs Review badge** appears on the Tournament Ops primary icon AND on the Needs Review row in the secondary column, so the count is visible regardless of which area is open. Polled from `/api/internal/needs-review/counts` every 60s.
 
 **To add a new page:** update `AREAS` in `src/lib/sidebar-areas.tsx` (add a `Page` entry to the appropriate area), then ensure `areaFor(pathname)` routes its href to the right area.
+
+### PlayerLink — clickable player names with linkage status (added 2026-05-24)
+
+Operator surfaces that render player rosters (Entry Lists, Tournament Matches, Tournament Draws, Schedule Review) use a shared `<PlayerLink player={...} />` component (`src/components/PlayerLink.tsx`) that renders:
+
+- A **status dot** indicating linkage state:
+  - **Lime** — `enriched`: linked to a DB row that has an avatar, ranking, or padelapi_id
+  - **Amber** — `thin`: linked to a DB row that lacks all enrichment fields (placeholder created from name+FIP scrape)
+  - **Gray** — `unresolved`: no DB row, just a free-text name from a feed
+- The **player name** itself — clickable, navigating to `/players/<id>` when linked, or italic-gray non-link when unresolved
+- A **tooltip** explaining the dot color
+- Optional **trailing badges** (e.g. FIP / padelapi external IDs)
+
+**Status helper:** `src/lib/player-link-status.ts` exports `computePlayerLinkStatus(player)` — pure function used by the component, TDD'd with 7 cases.
+
+**Each surface's API was extended** to return per-player enrichment fields (`avatar_url`, `ranking`, `padelapi_id`) alongside the existing name resolution. Legacy flat-field names (`team*Name`, `team*Display`) remain on responses for cache back-compat — the component falls back to a name-only PlayerLinkInput when the nested player block is absent.
+
+**To add PlayerLink to a new surface:**
+1. Make sure the surface's API returns `{ id, name, avatar_url, ranking, padelapi_id, fip_id }` for each player slot (id = null if unresolved)
+2. Import `PlayerLink` from `@/components/PlayerLink`
+3. Replace `{player.name}` renders with `<PlayerLink player={{ id, name, avatar_url, ranking, padelapi_id, fip_id }} />`
+
+#### Hover preview card
+
+Hovering a linked player name (lime or amber dot) reveals a `<PlayerHoverCard />` (`src/components/PlayerHoverCard.tsx`) after a **200ms open delay**. A **100ms close grace** keeps the card alive while the cursor travels from the link to the card itself, so you can click "Open full profile" without flicker.
+
+- **Contents:** avatar (or initials fallback), country + category + ranking line, external IDs (FIP / padelapi), and an "Open full profile →" link to `/players/<id>`.
+- **No lazy fetch:** the card consumes the same `PlayerLinkInput` already passed to `PlayerLink` — no extra network calls. APIs that feed these surfaces include `country` and `category` alongside the other enrichment fields.
+- **Portal-mounted at `document.body`** so it escapes any `overflow: hidden` ancestors (drawer scroll regions, table cells, etc.) and never gets clipped.
+- **Edge-aware placement:** the card opens below the anchor by default, but flips above when the anchor is near the viewport bottom. Left position is clamped 8px inside both viewport edges.
+
+Unresolved names (gray dot, italic gray text) get **no hover card and no click target** — there's nothing in the database to preview or open.
+
+#### Click → global drawer
+
+Clicking a linked player name opens the `PlayerDrawer` **in place** instead of navigating to `/players/<id>`. The drawer is mounted **once** at the app shell:
+
+- `PlayerDrawerProvider` wraps `(app)/layout.tsx` and owns `openPlayerId` state plus the register/emit machinery for list-aware callbacks (`src/components/player-drawer-context.tsx`).
+- `PlayerDrawerHost` sits inside the provider and renders the actual `<PlayerDrawer />` whenever `openPlayerId` is set (`src/components/PlayerDrawerHost.tsx`).
+- `PlayerDrawer.tsx` lives at `src/components/PlayerDrawer.tsx` (moved up from `app/(app)/players/_components/` in Plan 8 so it's reachable from every surface).
+
+Any component opens the drawer with the narrow public hook:
+
+```tsx
+import { useOpenPlayerDrawer } from '@/components/player-drawer-context'
+
+const { open } = useOpenPlayerDrawer()
+open(playerId)
+```
+
+Pages that own a player list (currently just `PlayersTab`) register list-aware callbacks so the drawer can refresh the row after an edit and respond to its built-in ↑/↓ prev/next buttons:
+
+```tsx
+import { useRegisterDrawerCallbacks } from '@/components/player-drawer-context'
+
+useRegisterDrawerCallbacks({
+  onSaved: () => refetchList(),
+  onNavigate: (direction) => moveFocus(direction),
+})
+```
+
+Surfaces that don't own a list (Matches, Draws, OOP, Entry Lists) simply skip the registration — the drawer's prev/next buttons no-op and nothing fires on save.
+
+The legacy `?drawer=<id>` URL pattern is preserved: `PlayersTab` mirrors `openPlayerId` to the query string so deep links from the full profile page (`/players/<id>` → "Open in drawer") still work.

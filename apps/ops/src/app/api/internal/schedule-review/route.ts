@@ -15,6 +15,36 @@ import {
 } from '@/lib/oop-snapshots-reader'
 import { resolveOopPlayerToId } from '@/lib/oop-player-lookup'
 
+/**
+ * Per-slot player payload powering the shared PlayerLink component in the
+ * Schedule Review panel. `id` is null when the slot hasn't been resolved
+ * back to a `public.players` row yet (PlayerLink renders plain italic text,
+ * status = "unresolved"). When `id` is set, the enrichment fields determine
+ * whether PlayerLink shows "thin" or "enriched".
+ *
+ * `name` is always the OOP-side display string ("L. Perez Parra") — we
+ * don't overwrite with the resolved player's canonical name because the
+ * operator is reviewing exactly that mismatch.
+ *
+ * For schedule review specifically, a slot resolves through either:
+ *   (a) `bestMatch.pair{1,2}_player{1,2}_id` — DB FK already present, or
+ *   (b) `resolvedNewId` — OOP proposed a player for a currently-null slot.
+ * Either path counts as "resolved" for link/enrichment purposes; PlayerLink
+ * itself doesn't care which.
+ */
+interface ExplorerPlayer {
+  id: string | null
+  name: string
+  avatar_url: string | null
+  ranking: number | null
+  padelapi_id: string | null
+  fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+   * Falls back to the OOP-side country code (slot.country) when the slot didn't
+   * resolve to a public.players row. Does NOT affect status. */
+  country: string | null
+}
+
 // ── Name normalization (inlined from src/lib/player-resolver.ts) ─────────────
 
 function normalize(s: string): string {
@@ -54,6 +84,14 @@ interface PlayerSlotDiff {
   currentId: string | null
   oopName: string | null
   resolvedNewId: string | null
+  /** Country code as captured from the OOP widget (e.g. "ESP") — used for the
+   *  small `(ESP)` annotation rendered next to PlayerLink. Null when the
+   *  widget row didn't carry a flag. */
+  country: string | null
+  /** Per-slot enriched payload powering PlayerLink. Falls back to a name-only
+   *  shape (id=null, all enrichment null) when no DB row is linked yet. Null
+   *  when the OOP widget didn't have a name at all for this slot. */
+  player: ExplorerPlayer | null
 }
 
 interface ScheduleMatch {
@@ -159,15 +197,18 @@ export async function GET(request: Request) {
   // 3. Get all DB matches for this tournament. We select both the player
   //    name (for fuzzy-match display + legacy logic) AND the raw FK id
   //    (for per-slot diff + Option A safety guard in PATCH).
+  //    Enrichment fields (avatar_url, ranking, padelapi_id, fip_id) ride
+  //    along on the embedded player rows so we can build ExplorerPlayer
+  //    payloads for PlayerLink without a second round trip.
   const { data: dbMatches } = await supabase
     .from('matches')
     .select(`
       id, round, court, scheduled_at, schedule_label, category, status,
       pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id,
-      pair1_player1:players!matches_pair1_player1_id_fkey(name),
-      pair1_player2:players!matches_pair1_player2_id_fkey(name),
-      pair2_player1:players!matches_pair2_player1_id_fkey(name),
-      pair2_player2:players!matches_pair2_player2_id_fkey(name)
+      pair1_player1:players!matches_pair1_player1_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country),
+      pair1_player2:players!matches_pair1_player2_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country),
+      pair2_player1:players!matches_pair2_player1_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country),
+      pair2_player2:players!matches_pair2_player2_id_fkey(id, name, avatar_url, ranking, padelapi_id, fip_id, country)
     `)
     .eq('tournament_id', tournamentId)
     .in('status', ['scheduled', 'live', 'finished'])
@@ -317,17 +358,34 @@ export async function GET(request: Request) {
       : false
 
     // ── Per-slot player diff ───────────────────────────────────────────
-    const oopSlotNames: Record<PlayerSlotKey, string | null> = {
-      pair1_player1_id: oop.team1[0]?.fullDisplay || null,
-      pair1_player2_id: oop.team1[1]?.fullDisplay || null,
-      pair2_player1_id: oop.team2[0]?.fullDisplay || null,
-      pair2_player2_id: oop.team2[1]?.fullDisplay || null,
+    // Each slot carries both the legacy diff fields (currentId / oopName /
+    // resolvedNewId driving the apply UX) AND a nested ExplorerPlayer
+    // payload that the shared PlayerLink component reads in the UI.
+    //
+    // `currentId`-based enrichment is taken from the embedded join on
+    // dbMatches (avatar_url / ranking / padelapi_id / fip_id). For slots
+    // resolved only via `resolvedNewId`, enrichment is filled in by a
+    // batch fetch AFTER this loop so we don't issue per-slot HTTP calls.
+    const oopSlotPlayers: Record<PlayerSlotKey, { name: string | null; country: string | null }> = {
+      pair1_player1_id: { name: oop.team1[0]?.fullDisplay || null, country: oop.team1[0]?.country ?? null },
+      pair1_player2_id: { name: oop.team1[1]?.fullDisplay || null, country: oop.team1[1]?.country ?? null },
+      pair2_player1_id: { name: oop.team2[0]?.fullDisplay || null, country: oop.team2[0]?.country ?? null },
+      pair2_player2_id: { name: oop.team2[1]?.fullDisplay || null, country: oop.team2[1]?.country ?? null },
     }
     const dbSlotIds: Record<PlayerSlotKey, string | null> = {
       pair1_player1_id: (bestMatch?.pair1_player1_id ?? null) as string | null,
       pair1_player2_id: (bestMatch?.pair1_player2_id ?? null) as string | null,
       pair2_player1_id: (bestMatch?.pair2_player1_id ?? null) as string | null,
       pair2_player2_id: (bestMatch?.pair2_player2_id ?? null) as string | null,
+    }
+    // Embedded player rows from the dbMatches join (one per slot). Used to
+    // populate the ExplorerPlayer enrichment for slots whose `currentId`
+    // is non-null.
+    const dbSlotPlayers: Record<PlayerSlotKey, ExplorerPlayer | null> = {
+      pair1_player1_id: (bestMatch?.pair1_player1 ?? null) as ExplorerPlayer | null,
+      pair1_player2_id: (bestMatch?.pair1_player2 ?? null) as ExplorerPlayer | null,
+      pair2_player1_id: (bestMatch?.pair2_player1 ?? null) as ExplorerPlayer | null,
+      pair2_player2_id: (bestMatch?.pair2_player2 ?? null) as ExplorerPlayer | null,
     }
     const SLOT_KEYS: PlayerSlotKey[] = [
       'pair1_player1_id',
@@ -338,7 +396,7 @@ export async function GET(request: Request) {
     const playerSlots: PlayerSlotDiff[] = await Promise.all(
       SLOT_KEYS.map(async (slot): Promise<PlayerSlotDiff> => {
         const currentId = bestMatch ? dbSlotIds[slot] : null
-        const oopName = oopSlotNames[slot]
+        const { name: oopName, country } = oopSlotPlayers[slot]
         let resolvedNewId: string | null = null
         if (bestMatch && currentId === null && oopName && oop.category) {
           resolvedNewId = await resolveOopPlayerToId(
@@ -347,7 +405,29 @@ export async function GET(request: Request) {
             oop.category,
           )
         }
-        return { slot, currentId, oopName, resolvedNewId }
+        // Build the ExplorerPlayer slot. Display name is always the OOP-side
+        // string (canonical for this surface — operator is reviewing the
+        // schedule change). Enrichment comes from the embedded player join
+        // when `currentId` is set; otherwise it's filled in by the post-pass
+        // batch fetch keyed off `resolvedNewId`.
+        let player: ExplorerPlayer | null = null
+        if (oopName) {
+          const enriched = currentId ? dbSlotPlayers[slot] : null
+          player = {
+            id: currentId ?? resolvedNewId ?? null,
+            name: oopName,
+            avatar_url: enriched?.avatar_url ?? null,
+            ranking: enriched?.ranking ?? null,
+            padelapi_id: enriched?.padelapi_id ?? null,
+            fip_id: enriched?.fip_id ?? null,
+            // Prefer the resolved player's country; fall back to the OOP-side
+            // country code so the hover-card flag still renders for unlinked
+            // / unresolved slots. Country backfill for `resolvedNewId` slots
+            // happens in the post-pass below.
+            country: enriched?.country ?? country ?? null,
+          }
+        }
+        return { slot, currentId, oopName, resolvedNewId, country, player }
       }),
     )
 
@@ -392,6 +472,70 @@ export async function GET(request: Request) {
       proposedScheduleLabel: oop.scheduleLabel,
     }
   }))
+
+  // ── Post-pass: enrich `resolvedNewId` slots ─────────────────────────
+  //
+  // Slots that resolved via `resolveOopPlayerToId` only carry a UUID at
+  // this point — no avatar / ranking / padelapi_id. Batch-fetch the
+  // matching player rows in one round-trip and mutate the slot's
+  // `player` field so PlayerLink shows "enriched" instead of "thin"
+  // when the resolved row actually has enrichment.
+  const resolvedNewIds = new Set<string>()
+  for (const m of scheduleMatches) {
+    for (const s of m.playerSlots) {
+      if (s.resolvedNewId && s.currentId === null) {
+        resolvedNewIds.add(s.resolvedNewId)
+      }
+    }
+  }
+  if (resolvedNewIds.size > 0) {
+    const { data: enrichRows } = await supabase
+      .from('players')
+      .select('id, avatar_url, ranking, padelapi_id, fip_id, country')
+      .in('id', [...resolvedNewIds])
+    const enrichById = new Map<
+      string,
+      {
+        avatar_url: string | null
+        ranking: number | null
+        padelapi_id: string | null
+        fip_id: string | null
+        country: string | null
+      }
+    >()
+    for (const p of (enrichRows ?? []) as Array<{
+      id: string
+      avatar_url: string | null
+      ranking: number | null
+      padelapi_id: string | null
+      fip_id: string | null
+      country: string | null
+    }>) {
+      enrichById.set(p.id, {
+        avatar_url: p.avatar_url,
+        ranking: p.ranking,
+        padelapi_id: p.padelapi_id,
+        fip_id: p.fip_id,
+        country: p.country,
+      })
+    }
+    for (const m of scheduleMatches) {
+      for (const s of m.playerSlots) {
+        if (s.player && s.resolvedNewId && s.currentId === null) {
+          const e = enrichById.get(s.resolvedNewId)
+          if (e) {
+            s.player.avatar_url = e.avatar_url
+            s.player.ranking = e.ranking
+            s.player.padelapi_id = e.padelapi_id
+            s.player.fip_id = e.fip_id
+            // Resolved player country wins over the OOP-side fallback, but
+            // only when populated — keep the OOP code as a last resort.
+            if (e.country) s.player.country = e.country
+          }
+        }
+      }
+    }
+  }
 
   return Response.json({
     day,

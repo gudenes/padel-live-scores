@@ -9,9 +9,9 @@ import type { PlayerSummary, PlayerDetail, DataFilter, CategoryFilter, FilterCou
 import FilterChips from './FilterChips'
 import PlayersTable from './PlayersTable'
 import BulkActionsBar from './BulkActionsBar'
-import PlayerDrawer from './PlayerDrawer'
 import AddRacketModal from './AddRacketModal'
 import DuplicatePlayersPanel from '@/components/DuplicatePlayersPanel'
+import { useOpenPlayerDrawer, useRegisterDrawerCallbacks } from '@/components/player-drawer-context'
 
 // ── Fields to compare during merge ──────────────────────────────
 const MERGE_FIELDS: (keyof PlayerDetail)[] = [
@@ -63,8 +63,11 @@ export default function PlayersTab() {
   // ── Selection state ────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  // ── Drawer state ───────────────────────────────────────────────
-  const [activePlayerId, setActivePlayerId] = useState<string | null>(null)
+  // ── Drawer state — sourced from the global PlayerDrawerProvider so any
+  //    surface (Matches, Draws, OOP, …) can also open the drawer. PlayersTab
+  //    still drives ↑/↓ navigation + onSaved refresh via useRegisterDrawerCallbacks.
+  const drawer = useOpenPlayerDrawer()
+  const activePlayerId = drawer.openPlayerId
 
   // ── Merge state ────────────────────────────────────────────────
   const [mergeMode, setMergeMode] = useState(false)
@@ -145,10 +148,9 @@ export default function PlayersTab() {
     const drawerId = searchParams.get('drawer')
     if (!drawerId) return
     drawerParamConsumedRef.current = true
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setActivePlayerId(drawerId)
+    drawer.open(drawerId)
     router.replace('/players')
-  }, [searchParams, router])
+  }, [searchParams, router, drawer])
 
   // Refetch when non-search params change (filter/page)
   useEffect(() => {
@@ -187,8 +189,8 @@ export default function PlayersTab() {
   }, [results])
 
   const handleRowClick = useCallback((id: string) => {
-    setActivePlayerId(id)
-  }, [])
+    drawer.open(id)
+  }, [drawer])
 
   const handlePageChange = useCallback((p: number) => {
     setPage(p)
@@ -201,9 +203,16 @@ export default function PlayersTab() {
     if (idx === -1) return
     const nextIdx = dir === 'prev' ? idx - 1 : idx + 1
     if (nextIdx >= 0 && nextIdx < results.length) {
-      setActivePlayerId(results[nextIdx].id)
+      drawer.open(results[nextIdx].id)
     }
-  }, [activePlayerId, results])
+  }, [activePlayerId, results, drawer])
+
+  // Register list-aware drawer callbacks. The host (mounted in (app)/layout.tsx)
+  // forwards onSaved + onNavigate through these refs.
+  useRegisterDrawerCallbacks({
+    onSaved: fetchData,
+    onNavigate: handleDrawerNavigate,
+  })
 
   // ── Merge: fetch player detail ─────────────────────────────────
 
@@ -562,13 +571,9 @@ export default function PlayersTab() {
         </div>
       )}
 
-      {/* Player drawer (edit panel) */}
-      <PlayerDrawer
-        playerId={activePlayerId}
-        onClose={() => setActivePlayerId(null)}
-        onSaved={() => fetchData()}
-        onNavigate={handleDrawerNavigate}
-      />
+      {/* Player drawer is rendered globally by PlayerDrawerHost in (app)/layout.tsx.
+          PlayersTab registers onSaved + onNavigate via useRegisterDrawerCallbacks
+          above so list refresh + ↑/↓ navigation still work. */}
 
       {/* Standalone "+ Add racket" catalog modal (no player assignment) */}
       {showAddRacket && (

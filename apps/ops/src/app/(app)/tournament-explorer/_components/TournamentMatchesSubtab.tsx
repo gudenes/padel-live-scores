@@ -11,8 +11,23 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import ScheduleReviewPanel from './ScheduleReviewPanel'
+import { PlayerLink } from '@/components/PlayerLink'
 
 // ── Types (mirror /api/internal/tournament-matches response) ─────────────────
+
+/** Per-slot player payload — see route.ts for shape provenance.
+ *  Optional in the type so older (cached) responses without the nested
+ *  block fall back to the legacy team*Name flat fields without crashing. */
+interface ExplorerPlayer {
+  id: string | null
+  name: string
+  avatar_url: string | null
+  ranking: number | null
+  padelapi_id: string | null
+  fip_id: string | null
+  /** Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8). */
+  country: string | null
+}
 
 interface ExplorerMatch {
   source: 'results' | 'oop' | 'both'
@@ -27,6 +42,10 @@ interface ExplorerMatch {
   team1Player2Name: string | null
   team2Player1Name: string | null
   team2Player2Name: string | null
+  team1Player1?: ExplorerPlayer | null
+  team1Player2?: ExplorerPlayer | null
+  team2Player1?: ExplorerPlayer | null
+  team2Player2?: ExplorerPlayer | null
   setScores: unknown | null
   winnerTeam: number | null
   status: string | null
@@ -87,12 +106,64 @@ function formatAgo(iso: string | null | undefined): string {
   return `${days}d ago`
 }
 
-function renderTeam(
-  p1: string | null,
-  p2: string | null,
-): string {
-  if (p1 && p2) return `${p1} / ${p2}`
-  return p1 ?? p2 ?? '—'
+/**
+ * Render a pair as `Player1 / Player2`, each name routed through PlayerLink
+ * for status-dot + deep-link. Falls back to plain text from the flat
+ * team*Name fields when the nested per-slot block is missing (older API
+ * responses or cache hits).
+ *
+ * When neither name is present, renders a single em-dash placeholder so the
+ * table cell still has a visual line.
+ */
+function TeamCell({
+  p1,
+  p2,
+  p1Name,
+  p2Name,
+}: {
+  p1: ExplorerPlayer | null | undefined
+  p2: ExplorerPlayer | null | undefined
+  p1Name: string | null
+  p2Name: string | null
+}) {
+  const hasP1 = p1Name && p1Name.length > 0
+  const hasP2 = p2Name && p2Name.length > 0
+  if (!hasP1 && !hasP2) return <>—</>
+  return (
+    <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+      {hasP1 && (
+        <PlayerLink
+          player={
+            p1 ?? {
+              id: null,
+              name: p1Name!,
+              avatar_url: null,
+              ranking: null,
+              padelapi_id: null,
+              fip_id: null,
+              country: null,
+            }
+          }
+        />
+      )}
+      {hasP1 && hasP2 && <span style={{ color: '#9ca3af' }}>/</span>}
+      {hasP2 && (
+        <PlayerLink
+          player={
+            p2 ?? {
+              id: null,
+              name: p2Name!,
+              avatar_url: null,
+              ranking: null,
+              padelapi_id: null,
+              fip_id: null,
+              country: null,
+            }
+          }
+        />
+      )}
+    </span>
+  )
 }
 
 /**
@@ -490,10 +561,20 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
                   </td>
                   <td style={{ ...td, fontSize: 11, color: '#555' }}>{m.roundLabel ?? '—'}</td>
                   <td style={{ ...td, ...winnerStyle(1) }}>
-                    {renderTeam(m.team1Player1Name, m.team1Player2Name)}
+                    <TeamCell
+                      p1={m.team1Player1}
+                      p2={m.team1Player2}
+                      p1Name={m.team1Player1Name}
+                      p2Name={m.team1Player2Name}
+                    />
                   </td>
                   <td style={{ ...td, ...winnerStyle(2) }}>
-                    {renderTeam(m.team2Player1Name, m.team2Player2Name)}
+                    <TeamCell
+                      p1={m.team2Player1}
+                      p2={m.team2Player2}
+                      p1Name={m.team2Player1Name}
+                      p2Name={m.team2Player2Name}
+                    />
                   </td>
                   <td style={{ ...td, fontFamily: 'monospace', fontSize: 11 }}>
                     {renderSetScores(m.setScores)}

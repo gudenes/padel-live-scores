@@ -36,6 +36,14 @@ interface EntryPlayer {
   resolvedPlayerId: string | null
   resolvedPlayerName: string | null
   resolutionMethod: ResolutionMethod
+  // Enrichment fields from the resolved players row — power PlayerLink's
+  // status dot (enriched / thin / unresolved) across ops surfaces.
+  resolvedAvatarUrl: string | null
+  resolvedRanking: number | null
+  resolvedPadelapiId: string | null
+  // Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
+  // Does NOT affect status; falls back to the snapshot country when missing.
+  resolvedCountry: string | null
 }
 
 interface EntryTeam {
@@ -214,11 +222,20 @@ export async function GET(request: Request) {
     .map((r) => r.fip_id)
     .filter((f): f is string => !!f)
 
-  const byFipId = new Map<string, { id: string; name: string }>()
+  type ResolvedPlayer = {
+    id: string
+    name: string
+    avatar_url: string | null
+    ranking: number | null
+    padelapi_id: string | null
+    country: string | null
+  }
+
+  const byFipId = new Map<string, ResolvedPlayer>()
   if (fipIdsNonNull.length > 0) {
     const { data: byFipRows, error: fipErr } = await supabase
       .from('players')
-      .select('id, name, fip_id')
+      .select('id, name, fip_id, avatar_url, ranking, padelapi_id, country')
       .in('fip_id', fipIdsNonNull)
     if (fipErr) {
       return Response.json(
@@ -230,8 +247,19 @@ export async function GET(request: Request) {
       id: string
       name: string
       fip_id: string
+      avatar_url: string | null
+      ranking: number | null
+      padelapi_id: string | null
+      country: string | null
     }>) {
-      byFipId.set(row.fip_id, { id: row.id, name: row.name })
+      byFipId.set(row.fip_id, {
+        id: row.id,
+        name: row.name,
+        avatar_url: row.avatar_url,
+        ranking: row.ranking,
+        padelapi_id: row.padelapi_id,
+        country: row.country,
+      })
     }
   }
 
@@ -241,7 +269,7 @@ export async function GET(request: Request) {
   const needsNameLookup = latestRows.filter(
     (r) => !(r.fip_id && byFipId.has(r.fip_id)),
   )
-  const byNormCat = new Map<string, { id: string; name: string }>()
+  const byNormCat = new Map<string, ResolvedPlayer>()
   if (needsNameLookup.length > 0) {
     const normKeys = new Set<string>()
     for (const r of needsNameLookup) {
@@ -256,7 +284,7 @@ export async function GET(request: Request) {
     )
     const { data: playerRows, error: nameErr } = await supabase
       .from('players')
-      .select('id, name, normalized_name, category')
+      .select('id, name, normalized_name, category, avatar_url, ranking, padelapi_id, country')
       .in('category', [...categoriesNeeded])
 
     if (nameErr) {
@@ -266,18 +294,29 @@ export async function GET(request: Request) {
       )
     }
 
-    const byKey = new Map<string, Array<{ id: string; name: string }>>()
+    const byKey = new Map<string, ResolvedPlayer[]>()
     for (const p of (playerRows ?? []) as Array<{
       id: string
       name: string
       normalized_name: string | null
       category: 'men' | 'women'
+      avatar_url: string | null
+      ranking: number | null
+      padelapi_id: string | null
+      country: string | null
     }>) {
       const norm = p.normalized_name ?? normalize(p.name)
       const key = `${p.category}::${norm}`
       if (!normKeys.has(key)) continue
       if (!byKey.has(key)) byKey.set(key, [])
-      byKey.get(key)!.push({ id: p.id, name: p.name })
+      byKey.get(key)!.push({
+        id: p.id,
+        name: p.name,
+        avatar_url: p.avatar_url,
+        ranking: p.ranking,
+        padelapi_id: p.padelapi_id,
+        country: p.country,
+      })
     }
 
     // Only accept unique matches — ambiguous (>1) is deliberately left
@@ -293,12 +332,20 @@ export async function GET(request: Request) {
   > = latestRows.map((r) => {
     let resolvedPlayerId: string | null = null
     let resolvedPlayerName: string | null = null
+    let resolvedAvatarUrl: string | null = null
+    let resolvedRanking: number | null = null
+    let resolvedPadelapiId: string | null = null
+    let resolvedCountry: string | null = null
     let resolutionMethod: ResolutionMethod = 'none'
 
     if (r.fip_id && byFipId.has(r.fip_id)) {
       const hit = byFipId.get(r.fip_id)!
       resolvedPlayerId = hit.id
       resolvedPlayerName = hit.name
+      resolvedAvatarUrl = hit.avatar_url
+      resolvedRanking = hit.ranking
+      resolvedPadelapiId = hit.padelapi_id
+      resolvedCountry = hit.country
       resolutionMethod = 'fip_id'
     } else {
       const key = `${r.category}::${normalize(r.name)}`
@@ -306,6 +353,10 @@ export async function GET(request: Request) {
         const hit = byNormCat.get(key)!
         resolvedPlayerId = hit.id
         resolvedPlayerName = hit.name
+        resolvedAvatarUrl = hit.avatar_url
+        resolvedRanking = hit.ranking
+        resolvedPadelapiId = hit.padelapi_id
+        resolvedCountry = hit.country
         resolutionMethod = 'name_exact'
       }
     }
@@ -321,6 +372,10 @@ export async function GET(request: Request) {
       resolvedPlayerId,
       resolvedPlayerName,
       resolutionMethod,
+      resolvedAvatarUrl,
+      resolvedRanking,
+      resolvedPadelapiId,
+      resolvedCountry,
       _category: r.category,
     }
   })
