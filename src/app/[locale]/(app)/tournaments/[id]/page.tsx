@@ -533,8 +533,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // ── Auto-scroll stage strip: center the active round chip ─────
   // Uses container.scrollTo (not scrollIntoView) so the strip's horizontal
   // scroll is the only thing that moves — scrollIntoView would also nudge
-  // the page's vertical scroll on iOS/Webkit. Wrapped in rAF so layout
-  // (sticky strip + hero image height) is settled before we measure.
+  // the page's vertical scroll on iOS/Webkit.
   //
   // Uses getBoundingClientRect-based math (not offsetLeft) because the
   // strip container has no CSS positioning context, so offsetLeft returns
@@ -545,24 +544,54 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // selectedRound can be computed earlier (during the animated-arrival
   // dwell where pageTab is still 'overview'). Without this dep, the
   // first-fire of the effect finds no active button and silently bails.
+  //
+  // The first-paint measurement can produce a wrong target when the
+  // strip's clientWidth isn't fully settled (hero image loading,
+  // cookie banner shifting layout, sticky positioning). We retry on
+  // every ResizeObserver tick of the container until we successfully
+  // center, then stop — that way the user's manual scrolls aren't
+  // fought by later size changes.
   useEffect(() => {
     if (pageTab !== 'matches') return
     if (!selectedRound || !stageStripRef.current) return
     const container = stageStripRef.current
-    const raf = requestAnimationFrame(() => {
+
+    let centered = false
+    const center = () => {
+      if (centered) return
       const btn = container.querySelector<HTMLElement>('[data-active="true"]')
       if (!btn) return
       const cRect = container.getBoundingClientRect()
       const bRect = btn.getBoundingClientRect()
-      // Button's left position relative to the container's content origin
-      // (i.e., what scrollLeft would need to be to place btn at container's left edge).
+      // Guard against transient layout where dimensions are tiny/zero.
+      // A real round chip is wider than 30px; a real strip wider than 100px.
+      if (container.clientWidth < 100 || bRect.width < 30) return
+
       const btnLeftInScrollSpace = bRect.left - cRect.left + container.scrollLeft
       const target = btnLeftInScrollSpace - (container.clientWidth - bRect.width) / 2
       const max = container.scrollWidth - container.clientWidth
       const clamped = Math.max(0, Math.min(target, max))
       container.scrollTo({ left: clamped, behavior: 'smooth' })
-    })
-    return () => cancelAnimationFrame(raf)
+      centered = true
+    }
+
+    const raf = requestAnimationFrame(center)
+
+    // ResizeObserver retries center() each time the strip's size changes,
+    // catching the case where the initial rAF ran before layout settled.
+    // The `centered` flag ensures we only commit once per round selection.
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        if (!centered) requestAnimationFrame(center)
+      })
+      ro.observe(container)
+    }
+
+    return () => {
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
+    }
   }, [selectedRound, pageTab])
 
   // ── Filtered matches ──────────────────────────────────────────

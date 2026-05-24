@@ -149,6 +149,14 @@ export default function SlidingInkTabs<K extends string = string>({
 
     const cleanup = window.setTimeout(() => {
       container.classList.remove('sit-animating')
+      // Corrective re-snap after the slide finishes. If layout was still
+      // settling when the animation path measured (font load, parent
+      // reflow), the bar landed at a stale x. Re-measure now that the
+      // slide is done and quietly correct. .sit-animating is already
+      // removed so this is an instant jump, not a re-animation — visually
+      // imperceptible at the end of the slide, but avoids the bar
+      // resting under the wrong tab.
+      snapToActive()
     }, SLIDE_MS + 40)
     return () => window.clearTimeout(cleanup)
     // snapToActive is intentionally excluded — it's a stable function
@@ -171,8 +179,11 @@ export default function SlidingInkTabs<K extends string = string>({
     if (typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(handle)
       ro.observe(container)
-      const activeLabel = labelRefs.current.get(activeKey)
-      if (activeLabel) ro.observe(activeLabel)
+      // Observe every label — a width change in a non-active tab (e.g.
+      // a translation finishing load) shifts the active tab's x position
+      // without changing its own size, so observing only the active
+      // label would miss it.
+      labelRefs.current.forEach(label => ro!.observe(label))
     }
 
     return () => {
