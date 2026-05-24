@@ -24,6 +24,8 @@ interface Stats {
 export function DiscoveryHealth() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [buckets, setBuckets] = useState<QualityBucket[]>([])
+  const [disables, setDisables] = useState<Array<{ metadata: Record<string, unknown>; created_at: string }>>([])
+  const [discoveries, setDiscoveries] = useState<Array<{ metadata: Record<string, unknown>; created_at: string }>>([])
 
   useEffect(() => {
     fetch('/api/news-sources/quality-distribution')
@@ -47,6 +49,13 @@ export function DiscoveryHealth() {
           .slice(0, 20),
       })
     })
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/news-sources/recent-events?kind=news_source.auto_disabled&limit=10')
+      .then(r => r.json()).then(d => setDisables(d.events ?? [])).catch(() => {})
+    fetch('/api/news-sources/recent-events?kind=news_source.ai_discovery.run&limit=5')
+      .then(r => r.json()).then(d => setDiscoveries(d.events ?? [])).catch(() => {})
   }, [])
 
   if (!stats) return <div style={{ color: '#888' }}>Loading...</div>
@@ -88,6 +97,40 @@ export function DiscoveryHealth() {
           ))}
         </tbody>
       </table>
+
+      <section style={{ padding: 16 }}>
+        <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#888', textTransform: 'uppercase' }}>Recent auto-disables</h4>
+        {disables.length === 0 ? <div style={{ color: '#666', fontSize: 12 }}>None in the recent log.</div> : (
+          <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: '#ccc' }}>
+            {disables.map((e, i) => (
+              <li key={i}>
+                <strong>{String(e.metadata.source_name)}</strong> — {String(e.metadata.reason)}
+                <span style={{ color: '#666', marginLeft: 8 }}>{new Date(e.created_at).toLocaleString()}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section style={{ padding: 16 }}>
+        <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#888', textTransform: 'uppercase' }}>AI discovery runs</h4>
+        {discoveries.length === 0 ? <div style={{ color: '#666', fontSize: 12 }}>No runs yet.</div> : (
+          <table style={{ width: '100%', fontSize: 12, color: '#ccc' }}>
+            <thead><tr style={{ color: '#666' }}><th align="left">Date</th><th align="left">Focus</th><th align="right">Found</th><th align="right">Kept</th><th align="right">Cost</th></tr></thead>
+            <tbody>
+              {discoveries.map((e, i) => (
+                <tr key={i}>
+                  <td>{new Date(e.created_at).toLocaleDateString()}</td>
+                  <td>{String(e.metadata.focus)}</td>
+                  <td align="right">{String(e.metadata.candidates_found)}</td>
+                  <td align="right">{String(e.metadata.candidates_kept)}</td>
+                  <td align="right">${(Number(e.metadata.cost_usd) || 0).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </div>
   )
 }
