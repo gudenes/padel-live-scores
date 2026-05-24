@@ -27,4 +27,4 @@ pytest
 | `OCR_COURT_LABEL` | Matches `public.matches.court` (e.g. 'Pista Central') |
 | `OCR_FRAME_INTERVAL_SECONDS` | Optional, default 3 |
 | `OCR_CONFIDENCE_THRESHOLD` | Optional, default 0.7 |
-| `OCR_WORKER_VERSION` | Injected at build from `git rev-parse --short HEAD` |
+| `OCR_WORKER_VERSION` | Optional. Falls back to `RAILWAY_GIT_COMMIT_SHA` (auto-injected by Railway) then to `"unknown"`. Set explicitly only when pinning a release tag (e.g. `v1.1.0`). |
