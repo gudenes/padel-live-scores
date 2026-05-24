@@ -60,6 +60,16 @@ interface TournamentWithSources {
   draw_size_md: number | null
   draw_size_qd: number | null
   slug: string | null
+  // Factsheet PDF (separate pipeline from prize_breakdown / schedule_notes —
+  // see API route comment). Carries wall-clock start times the FIP HTML
+  // page doesn't expose. Null on every tournament without a published
+  // factsheet.
+  factsheet_url: string | null
+  factsheet_data: {
+    schedule?: Array<{ date?: string; round_label?: string; start_time?: string | null }>
+    prize_money?: Array<{ round?: string; amount?: number }>
+  } | null
+  factsheet_processed_at: string | null
   // Status
   status: string | null
   entry_list_status: string | null
@@ -857,6 +867,84 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           }}>{t.schedule_notes}</pre>
         </div>
       )}
+
+      {/* Factsheet PDF — when the FIP event page publishes a structured
+          factsheet PDF, /api/cron/process-factsheets ML-extracts a per-day
+          schedule with wall-clock start times into factsheet_data. This is
+          what the user-facing app surfaces as "MATCH SCHEDULE" — mirror it
+          here so operators see what fans see (and can catch parse misses
+          before they hit prod). */}
+      {(t.factsheet_url || t.factsheet_data) && (() => {
+        const schedule = t.factsheet_data?.schedule ?? []
+        const rows = schedule.filter(
+          s => s && typeof s.date === 'string' && typeof s.round_label === 'string',
+        )
+        const processedAt = t.factsheet_processed_at
+          ? new Date(t.factsheet_processed_at).toISOString().slice(0, 16).replace('T', ' ')
+          : null
+        const status = !t.factsheet_url ? 'no-pdf'
+          : !t.factsheet_processed_at ? 'pending'
+          : rows.length === 0 ? 'empty'
+          : 'ok'
+        const statusColor = status === 'ok' ? '#16a34a'
+          : status === 'pending' ? '#f59e0b'
+          : '#9ca3af'
+        return (
+          <div style={{ ...card, marginBottom: 12 }}>
+            <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%',
+                  background: statusColor, display: 'inline-block',
+                }} />
+                Factsheet PDF
+              </span>
+              <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                {processedAt && <span>processed {processedAt} UTC</span>}
+                {t.factsheet_url && (
+                  <a
+                    href={t.factsheet_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 700 }}
+                  >
+                    Open PDF →
+                  </a>
+                )}
+              </span>
+            </div>
+            {rows.length > 0 ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'auto auto 1fr',
+                gap: '6px 14px',
+                fontSize: 12,
+                alignItems: 'center',
+              }}>
+                {rows.map((s, i) => (
+                  <React.Fragment key={`${s.date}-${i}`}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#666', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
+                      {s.date}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: s.start_time ? '#16a34a' : '#bbb', fontFamily: 'ui-monospace, SFMono-Regular, monospace', minWidth: 44 }}>
+                      {s.start_time || '—'}
+                    </span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>
+                      {s.round_label}
+                    </span>
+                  </React.Fragment>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>
+                {status === 'no-pdf' ? 'No factsheet URL on this tournament.'
+                  : status === 'pending' ? 'Factsheet URL set; awaiting next /api/cron/process-factsheets run.'
+                  : 'Factsheet processed, but no schedule rows extracted (parse miss or missing schedule section in PDF).'}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Tournament phases — each round + earliest scheduled_at across
           its matches. Tells operators when each phase actually starts

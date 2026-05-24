@@ -1843,12 +1843,6 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   })()
   const displayMatches = totalMatches || expectedMatches
 
-  // Schedule
-  const schedule = availableRounds.map(round => {
-    const count = genderMatches.filter(m => normalizeRoundFull(m.round as string) === round).length
-    return { round, date: roundDates[round] ?? '', count }
-  })
-
   const StatCard = ({ value, label, accent }: { value: string | number; label: string; accent?: boolean }) => (
     <div style={{
       background: BG_CARD,
@@ -2230,32 +2224,6 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         fallback={wtwFallback}
       />
 
-      {/* Schedule */}
-      {schedule.length > 0 && (
-        <>
-          <SectionHeader label="Schedule" />
-          <div style={{
-            background: BG_CARD,
-            clipPath: CHUNKY.card,
-            border: `1px solid ${BORDER}`,
-            padding: '4px 14px',
-          }}>
-            {schedule.map((s, i) => (
-              <div key={s.round} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
-                borderBottom: i < schedule.length - 1 ? `0.5px solid ${BORDER}` : 'none',
-              }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? GREEN : MUTED, width: 50 }}>
-                  {s.date.split('-')[0]?.trim() || '\u2014'}
-                </span>
-                <span style={{ fontSize: 12, color: MUTED, flex: 1 }}>
-                  {s.round} ({s.count} {s.count === 1 ? 'match' : 'matches'})
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
     </div>
   )
 }

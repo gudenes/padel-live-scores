@@ -70,6 +70,20 @@ interface TournamentWithSources {
   } | null
   draw_size_md: number | null
   draw_size_qd: number | null
+  // Factsheet PDF — when an FIP event publishes a structured factsheet PDF
+  // on its event page, /api/cron/process-factsheets ML-extracts the per-day
+  // schedule (with start times) and per-round prize_money into
+  // factsheet_data via the Claude API. This is a separate pipeline from
+  // prize_breakdown (which is HTML-scraped by padelgod's
+  // fip-event-page-enricher) — the factsheet is the richer source when it
+  // exists, because it carries wall-clock start times that the HTML page
+  // doesn't expose. Null on every tournament without a published factsheet.
+  factsheet_url: string | null
+  factsheet_data: {
+    schedule?: Array<{ date?: string; round_label?: string; start_time?: string | null }>
+    prize_money?: Array<{ round?: string; amount?: number }>
+  } | null
+  factsheet_processed_at: string | null
   // Status
   status: string | null
   entry_list_status: string | null
@@ -161,6 +175,7 @@ export async function GET(request: Request) {
       'country, location, venue, venue_address, venue_type, n_courts, surface, ' +
       'level, prize_money, prize_money_fip, prize_money_eur, prize_money_eur_source, prize_breakdown, signup_fee_eur, ' +
       'registration_status, schedule_notes, draw_size_md, draw_size_qd, ' +
+      'factsheet_url, factsheet_data, factsheet_processed_at, ' +
       'status, entry_list_status, logo_url',
     )
     .or(
