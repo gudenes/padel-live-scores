@@ -10,6 +10,7 @@
 // Polls every 30 seconds.
 
 import { useEffect, useState } from 'react'
+import SnapshotDrawer from './SnapshotDrawer'
 
 interface ParsedScore {
   pair1_label?: string | null
@@ -59,6 +60,7 @@ export default function OcrHealthTab() {
   const [data, setData] = useState<OcrHealthData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [openSnapshotId, setOpenSnapshotId] = useState<number | null>(null)
 
   useEffect(() => {
     let alive = true
@@ -196,6 +198,7 @@ export default function OcrHealthTab() {
               'Conf',
               'Status',
             ]}
+            onRowClick={(i) => setOpenSnapshotId(data.recentSnapshots[i].id)}
             rows={data.recentSnapshots.map((s) => {
               const p = s.parsed_score
               const isErr = p?.parse_error === true
@@ -236,9 +239,18 @@ export default function OcrHealthTab() {
       </Section>
 
       <div style={{ fontSize: 13, color: 'var(--text-muted, #777)' }}>
-        Auto-refreshing every 30s. V1 graduation thresholds: sets agreement
+        Auto-refreshing every 30s. Click any recent snapshot to see the captured
+        frame with calibration overlay. V1 graduation thresholds: sets agreement
         ≥95%, mean confidence ≥0.85.
       </div>
+
+      {openSnapshotId !== null && (
+        <SnapshotDrawer
+          key={openSnapshotId}
+          snapshotId={openSnapshotId}
+          onClose={() => setOpenSnapshotId(null)}
+        />
+      )}
     </div>
   )
 }
@@ -311,9 +323,12 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
 function Table({
   headers,
   rows,
+  onRowClick,
 }: {
   headers: string[]
   rows: React.ReactNode[][]
+  /** If provided, each row becomes clickable and the index is passed back. */
+  onRowClick?: (rowIndex: number) => void
 }) {
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -341,7 +356,24 @@ function Table({
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i}>
+            <tr
+              key={i}
+              onClick={onRowClick ? () => onRowClick(i) : undefined}
+              style={{
+                cursor: onRowClick ? 'pointer' : 'default',
+                transition: 'background 80ms ease',
+              }}
+              onMouseEnter={(e) => {
+                if (onRowClick)
+                  (e.currentTarget as HTMLTableRowElement).style.background =
+                    'var(--bg-subtle, #f6f8fa)'
+              }}
+              onMouseLeave={(e) => {
+                if (onRowClick)
+                  (e.currentTarget as HTMLTableRowElement).style.background =
+                    'transparent'
+              }}
+            >
               {row.map((cell, j) => (
                 <td
                   key={j}
