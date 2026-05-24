@@ -43,6 +43,11 @@ export type SourceName =
   | 'padelapi'          // padelapi.org — primary live/schedule data
   | 'fip'               // FIP WordPress API / scraper
   | 'fip_official'      // FIP official ranking feed (subset of 'fip')
+  | 'factsheet_pdf'     // /api/cron/process-factsheets — Claude-extracted from
+                        //   official FIP factsheet PDFs. Higher priority than
+                        //   'fip' for fields the factsheet publishes (the PDF
+                        //   is the canonical source; the HTML scrape is a
+                        //   fallback).
   | 'premierpadel'      // Premier Padel API — per-set match stats
   | 'manual'            // Hand-edited via ops dashboard
   | 'simulated'         // Dev/test simulator
@@ -184,7 +189,13 @@ export const SOURCE_PRIORITY: Record<FieldKey, PriorityList> = {
   'tournament.venue_type':         ['fip', 'manual'],
   'tournament.registration_status': ['fip'],
   'tournament.signup_fee_eur':     ['fip', 'manual'],
-  'tournament.prize_breakdown':    ['fip', 'manual'],
+  // factsheet_pdf beats fip because the factsheet PDF is the canonical
+  // source — FIP's HTML scrape has had locale-parsing bugs for European
+  // events (9.375 misread as 9.38, 421,88 as 42188). 'manual' is last,
+  // matching the file-wide convention (manual is a gap-fill fallback,
+  // not an override that survives syncs); no ops UI edits this field
+  // today anyway.
+  'tournament.prize_breakdown':    ['factsheet_pdf', 'fip', 'manual'],
   'tournament.schedule_notes':     ['fip', 'manual'],
 
   // ── Matches ──────────────────────────────────────────────────

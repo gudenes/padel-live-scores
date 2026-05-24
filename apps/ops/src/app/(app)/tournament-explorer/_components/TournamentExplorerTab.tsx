@@ -872,123 +872,49 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
         </div>
       )}
 
-      {/* Factsheet PDF — when the FIP event page publishes a structured
-          factsheet PDF, /api/cron/process-factsheets ML-extracts a per-day
-          schedule with wall-clock start times into factsheet_data. This is
-          what the user-facing app surfaces as "MATCH SCHEDULE" — mirror it
-          here so operators see what fans see (and can catch parse misses
-          before they hit prod). */}
-      {(t.factsheet_url || t.factsheet_data) && (() => {
-        const scheduleRaw = t.factsheet_data?.schedule ?? []
-        const scheduleRows = scheduleRaw.filter(
-          s => s && typeof s.date === 'string' && typeof s.round_label === 'string',
-        )
-        const prizeMoneyRaw = t.factsheet_data?.prize_money ?? []
-        // Keep rows with a round_label even when per_player_eur is null —
-        // qualifying rounds are typically listed but unpaid, and ops
-        // wants to see the full extracted list.
-        const prizeRows = prizeMoneyRaw.filter(
-          p => p && typeof p.round_label === 'string',
-        )
+      {/* Factsheet PDF — slim metadata strip. The schedule + prize_money
+          extracted from the PDF now land in canonical columns
+          (round_schedule via the ENRICHABLE patch path, prize_breakdown
+          via mapFactsheetPrize + source-priority — see
+          /api/cron/process-factsheets), so the Prize breakdown card
+          above this and the Phases card below show factsheet-sourced
+          values automatically. This strip just exposes the source PDF
+          + last-processed timestamp + a status dot so operators can
+          tell at a glance whether the factsheet pipeline ran. */}
+      {(t.factsheet_url || t.factsheet_processed_at) && (() => {
         const processedAt = t.factsheet_processed_at
           ? new Date(t.factsheet_processed_at).toISOString().slice(0, 16).replace('T', ' ')
           : null
-        // ok = processed AND we extracted at least one of schedule/prize.
-        // empty = processed but both arrays came back empty (= parse miss).
-        const hasAnyData = scheduleRows.length > 0 || prizeRows.length > 0
         const status = !t.factsheet_url ? 'no-pdf'
           : !t.factsheet_processed_at ? 'pending'
-          : !hasAnyData ? 'empty'
           : 'ok'
         const statusColor = status === 'ok' ? '#16a34a'
           : status === 'pending' ? '#f59e0b'
           : '#9ca3af'
+        const statusLabel = status === 'ok' ? `processed ${processedAt} UTC`
+          : status === 'pending' ? 'awaiting next /api/cron/process-factsheets run'
+          : 'no factsheet URL on this tournament'
         return (
-          <div style={{ ...card, marginBottom: 12 }}>
-            <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <span style={{
-                  width: 6, height: 6, borderRadius: '50%',
-                  background: statusColor, display: 'inline-block',
-                }} />
+          <div style={{ ...card, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: statusColor, display: 'inline-block',
+              }} />
+              <span style={{ color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
                 Factsheet PDF
               </span>
-              <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0, fontSize: 10, display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-                {processedAt && <span>processed {processedAt} UTC</span>}
-                {t.factsheet_url && (
-                  <a
-                    href={t.factsheet_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 700 }}
-                  >
-                    Open PDF →
-                  </a>
-                )}
-              </span>
-            </div>
-            {scheduleRows.length > 0 && (
-              <div style={{ marginBottom: prizeRows.length > 0 ? 14 : 0 }}>
-                <div style={{ fontSize: 9, color: '#bbb', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 6 }}>
-                  Schedule
-                </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'auto auto 1fr',
-                  gap: '6px 14px',
-                  fontSize: 12,
-                  alignItems: 'center',
-                }}>
-                  {scheduleRows.map((s, i) => (
-                    <React.Fragment key={`s-${s.date}-${i}`}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#666', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
-                        {s.date}
-                      </span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: s.start_time ? '#16a34a' : '#bbb', fontFamily: 'ui-monospace, SFMono-Regular, monospace', minWidth: 44 }}>
-                        {s.start_time || '—'}
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>
-                        {s.round_label}
-                      </span>
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            )}
-            {prizeRows.length > 0 && (
-              <div>
-                <div style={{ fontSize: 9, color: '#bbb', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Prize money (factsheet)</span>
-                  <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0 }}>
-                    cross-check vs Prize breakdown above
-                  </span>
-                </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: 8,
-                  fontSize: 12,
-                }}>
-                  {prizeRows.map((p, i) => {
-                    const hasAmount = typeof p.per_player_eur === 'number'
-                    return (
-                      <div key={`p-${p.round_label}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
-                        <span style={{ color: '#666' }}>{p.round_label}</span>
-                        <span style={{ fontWeight: 700, color: hasAmount ? '#111' : '#bbb', fontVariantNumeric: 'tabular-nums' }}>
-                          {hasAmount ? `€${(p.per_player_eur as number).toLocaleString()}` : '—'}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-            {!hasAnyData && (
-              <div style={{ fontSize: 11, color: '#9ca3af', fontStyle: 'italic' }}>
-                {status === 'no-pdf' ? 'No factsheet URL on this tournament.'
-                  : status === 'pending' ? 'Factsheet URL set; awaiting next /api/cron/process-factsheets run.'
-                  : 'Factsheet processed, but neither schedule nor prize-money rows were extracted (parse miss or missing sections in PDF).'}
-              </div>
+              <span style={{ color: '#666' }}>{statusLabel}</span>
+            </span>
+            {t.factsheet_url && (
+              <a
+                href={t.factsheet_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 700, fontSize: 11 }}
+              >
+                Open PDF →
+              </a>
             )}
           </div>
         )
