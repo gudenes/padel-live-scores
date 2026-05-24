@@ -1,29 +1,21 @@
 // apps/ops/src/lib/needs-review-counts.ts
-// Counts for the Needs Review queue. Phase 1: an approximate duplicate-
-// tournament-cluster count based on normalized name + year + level. The
-// precise count requires the full dedup clustering algorithm (diacritic
-// strip, noise-token filter, token subset match) which lives in
-// /api/ops/tournament-dedup in the main app and will land in apps/ops
-// when Plan 3 lifts that tab.
+// Counts for the Needs Review sidebar badge. Returns both queues:
+//   - duplicates       — approximate tournament-cluster count (existing)
+//   - duplicatePlayers — rules-scan groups from @/lib/player-duplicate-rules
 //
-// Approximate is fine for a sidebar badge — it's a "look at this" hint,
-// not an authoritative count. Phase 2 expands the response with
-// unresolvedPlayers / oopChanges / streamMapping.
+// The player count runs the rules scan inline (~200-500ms for ~4000 players).
+// Acceptable for the 60s sidebar poll. Cache later if measured slow.
 
 import { pgPool } from './db'
+import { serviceClient } from './supabase'
+import { countDuplicateGroups, type PlayerRow } from './player-duplicate-rules'
 
 export interface NeedsReviewCounts {
   duplicates: number
-  // Phase 2 additions:
-  // unresolvedPlayers: number
-  // oopChanges: number
-  // streamMapping: number
+  duplicatePlayers: number
 }
 
-export async function getNeedsReviewCounts(): Promise<NeedsReviewCounts> {
-  // Count groups of (normalized_name, year, level) with more than one
-  // tournament. Approximate vs the canonical dedup; meaningful enough for
-  // the badge.
+async function getDuplicateTournamentsCount(): Promise<number> {
   const r = await pgPool().query(`
     select count(*)::text as count from (
       select lower(regexp_replace(coalesce(name, ''), '\\s+', ' ', 'g')) as norm_name,
@@ -37,5 +29,34 @@ export async function getNeedsReviewCounts(): Promise<NeedsReviewCounts> {
   `)
   const raw = r.rows[0]?.count
   const n = raw == null ? 0 : parseInt(String(raw), 10)
-  return { duplicates: Number.isFinite(n) ? n : 0 }
+  return Number.isFinite(n) ? n : 0
+}
+
+async function getDuplicatePlayersCount(): Promise<number> {
+  const supabase = serviceClient()
+  // Minimal columns — only what the rules logic reads.
+  // PostgREST cap is 10k; we have ~4000 players today.
+  const { data, error } = await supabase
+    .from('players')
+    .select('id, name, country, ranking, points, category, avatar_url, fip_id, external_id')
+    .range(0, 9999)
+  if (error || !data) {
+    if (error) console.warn('[needs-review-counts] players query failed:', error.message)
+    return 0
+  }
+  // Hit the PostgREST 10k row cap → the badge count is potentially low.
+  // Acceptable today (~4000 players) but log so we notice if the table grows.
+  // Migrate to paginatedSelect when this fires.
+  if (data.length === 10000) {
+    console.warn('[needs-review-counts] hit 10k row cap on players read — count may be undercounted')
+  }
+  return countDuplicateGroups(data as PlayerRow[])
+}
+
+export async function getNeedsReviewCounts(): Promise<NeedsReviewCounts> {
+  const [duplicates, duplicatePlayers] = await Promise.all([
+    getDuplicateTournamentsCount(),
+    getDuplicatePlayersCount(),
+  ])
+  return { duplicates, duplicatePlayers }
 }

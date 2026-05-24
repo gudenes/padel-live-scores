@@ -496,6 +496,7 @@
     "perPlayer": "par joueur",
     "prizeBreakdown": "Répartition du prize money",
     "inferredPrizeNote": "Estimé à partir du prize money total",
+    "downloadFactsheet": "Télécharger la fiche",
     "events": "Évènements",
     "bracket": {
       "noDrawForCategory": "Aucune donnée de tableau pour cette catégorie."

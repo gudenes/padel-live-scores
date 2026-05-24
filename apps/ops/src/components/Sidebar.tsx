@@ -89,8 +89,8 @@ export function Sidebar({ userEmail }: { userEmail?: string | null }) {
       try {
         const r = await fetch('/api/internal/needs-review/counts', { cache: 'no-store' })
         if (!r.ok) return
-        const json = (await r.json()) as { duplicates?: number }
-        if (!cancelled) setNeedsReviewCount(json.duplicates ?? 0)
+        const json = (await r.json()) as { duplicates?: number; duplicatePlayers?: number }
+        if (!cancelled) setNeedsReviewCount((json.duplicates ?? 0) + (json.duplicatePlayers ?? 0))
       } catch {
         /* network blip — keep last value */
       }
