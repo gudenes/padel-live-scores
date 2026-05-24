@@ -253,3 +253,24 @@ The admin app uses a two-column drilldown sidebar (Sentry / Discord / VS Code pa
 **Needs Review badge** appears on the Tournament Ops primary icon AND on the Needs Review row in the secondary column, so the count is visible regardless of which area is open. Polled from `/api/internal/needs-review/counts` every 60s.
 
 **To add a new page:** update `AREAS` in `src/lib/sidebar-areas.tsx` (add a `Page` entry to the appropriate area), then ensure `areaFor(pathname)` routes its href to the right area.
+
+### PlayerLink — clickable player names with linkage status (added 2026-05-24)
+
+Operator surfaces that render player rosters (Entry Lists, Tournament Matches, Tournament Draws, Schedule Review) use a shared `<PlayerLink player={...} />` component (`src/components/PlayerLink.tsx`) that renders:
+
+- A **status dot** indicating linkage state:
+  - **Lime** — `enriched`: linked to a DB row that has an avatar, ranking, or padelapi_id
+  - **Amber** — `thin`: linked to a DB row that lacks all enrichment fields (placeholder created from name+FIP scrape)
+  - **Gray** — `unresolved`: no DB row, just a free-text name from a feed
+- The **player name** itself — clickable, navigating to `/players/<id>` when linked, or italic-gray non-link when unresolved
+- A **tooltip** explaining the dot color
+- Optional **trailing badges** (e.g. FIP / padelapi external IDs)
+
+**Status helper:** `src/lib/player-link-status.ts` exports `computePlayerLinkStatus(player)` — pure function used by the component, TDD'd with 7 cases.
+
+**Each surface's API was extended** to return per-player enrichment fields (`avatar_url`, `ranking`, `padelapi_id`) alongside the existing name resolution. Legacy flat-field names (`team*Name`, `team*Display`) remain on responses for cache back-compat — the component falls back to a name-only PlayerLinkInput when the nested player block is absent.
+
+**To add PlayerLink to a new surface:**
+1. Make sure the surface's API returns `{ id, name, avatar_url, ranking, padelapi_id, fip_id }` for each player slot (id = null if unresolved)
+2. Import `PlayerLink` from `@/components/PlayerLink`
+3. Replace `{player.name}` renders with `<PlayerLink player={{ id, name, avatar_url, ranking, padelapi_id, fip_id }} />`
