@@ -10,6 +10,8 @@ interface Source {
   name: string
 }
 
+interface QualityBucket { bucket: 'green' | 'orange' | 'red' | 'gray'; count: number }
+
 interface Stats {
   total: number
   enabled: number
@@ -21,6 +23,14 @@ interface Stats {
 
 export function DiscoveryHealth() {
   const [stats, setStats] = useState<Stats | null>(null)
+  const [buckets, setBuckets] = useState<QualityBucket[]>([])
+
+  useEffect(() => {
+    fetch('/api/news-sources/quality-distribution')
+      .then(r => r.json())
+      .then(d => setBuckets(d.buckets ?? []))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/news-sources').then(r => r.json()).then(d => {
@@ -41,8 +51,24 @@ export function DiscoveryHealth() {
 
   if (!stats) return <div style={{ color: '#888' }}>Loading...</div>
 
+  const bucketTotal = buckets.reduce((a, x) => a + x.count, 0) || 1
+
   return (
     <div>
+      <section style={{ padding: '0 0 24px' }}>
+        <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quality distribution</h4>
+        <div style={{ display: 'flex', gap: 4, height: 24 }}>
+          {(['green', 'orange', 'red', 'gray'] as const).map(b => {
+            const c = buckets.find(x => x.bucket === b)?.count ?? 0
+            const color = { green: '#7ED321', orange: '#F5A623', red: '#E53935', gray: '#444' }[b]
+            return c > 0 ? (
+              <div key={b} title={`${b}: ${c}`} style={{ width: `${(c / bucketTotal) * 100}%`, background: color, color: '#000', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {c}
+              </div>
+            ) : null
+          })}
+        </div>
+      </section>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 32 }}>
         <Stat label="Total"    value={stats.total} />
         <Stat label="Enabled"  value={stats.enabled} />

@@ -148,6 +148,25 @@ export async function suggestUniqueKey(seed: string): Promise<string> {
   return `${base}-${Date.now()}`
 }
 
+export interface QualityBucket { bucket: 'green' | 'orange' | 'red' | 'gray'; count: number }
+
+export async function getQualityDistribution(): Promise<QualityBucket[]> {
+  const { rows } = await pgPool().query<QualityBucket>(`
+    SELECT
+      CASE
+        WHEN extraction_quality_pct IS NULL THEN 'gray'
+        WHEN extraction_quality_pct >= 80 THEN 'green'
+        WHEN extraction_quality_pct >= 50 THEN 'orange'
+        ELSE 'red'
+      END AS bucket,
+      count(*)::int AS count
+    FROM news_sources
+    WHERE enabled = true
+    GROUP BY bucket
+  `)
+  return rows
+}
+
 /**
  * Mark a suggestion as approved and link it to the newly created news_source.
  * Called after createNewsSource when POST /api/news-sources receives from_suggestion_id.
