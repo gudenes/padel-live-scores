@@ -30,7 +30,18 @@ export async function GET(req: NextRequest) {
       // non-fatal — continue
     }
 
-    return { cutoff, ok: true, quality_updated: qUpdated ?? null }
+    // Step 3: auto-disable dead sources (with circuit breaker)
+    const { data: disableResult, error: dErr } = await supabase.rpc('auto_disable_dead_sources')
+    if (dErr) {
+      console.error('auto-disable failed:', dErr)
+    }
+
+    return {
+      cutoff,
+      ok: true,
+      quality_updated: qUpdated ?? null,
+      auto_disable: disableResult?.[0] ?? null,
+    }
   })
 
   return NextResponse.json(meta)
