@@ -29,14 +29,14 @@ export function DiscoverWithAIModal({ onClose, onDone }: Props) {
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#000a', zIndex: 80 }} />
-      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#0f0f0f', color: '#fff', border: '1px solid #2a2a2a', padding: 24, zIndex: 81, minWidth: 420, maxWidth: '90vw' }}>
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'var(--bg-card)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: 24, zIndex: 81, minWidth: 420, maxWidth: '90vw' }}>
         <h3 style={{ margin: 0, fontSize: 16 }}>Discover Sources with AI</h3>
-        <p style={{ color: '#aaa', fontSize: 12, marginTop: 8 }}>Find padel news sources you don&apos;t already ingest. Costs ~$0.50 per run.</p>
+        <p style={{ color: 'var(--status-neutral)', fontSize: 12, marginTop: 8 }}>Find padel news sources you don&apos;t already ingest. Costs ~$0.50 per run.</p>
 
         {!result ? (
           <>
             <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase' }}>Focus</div>
+              <div style={{ fontSize: 11, color: 'var(--status-neutral)', fontWeight: 700, textTransform: 'uppercase' }}>Focus</div>
               <select value={focus} onChange={e => setFocus(e.target.value as Focus)} style={selectStyle}>
                 <option value="broad">Broad -- any padel news site</option>
                 <option value="spanish">Spanish (.es / Argentine / Mexican)</option>
@@ -54,13 +54,13 @@ export function DiscoverWithAIModal({ onClose, onDone }: Props) {
               )}
             </div>
             <div style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase' }}>Max candidates</div>
+              <div style={{ fontSize: 11, color: 'var(--status-neutral)', fontWeight: 700, textTransform: 'uppercase' }}>Max candidates</div>
               <select value={max} onChange={e => setMax(Number(e.target.value))} style={selectStyle}>
                 {[5, 10, 15].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             </div>
 
-            {error && <div style={{ color: '#E53935', fontSize: 12, marginTop: 12 }}>{error}</div>}
+            {error && <div style={{ color: 'var(--status-urgent)', fontSize: 12, marginTop: 12 }}>{error}</div>}
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
               <button onClick={onClose} style={btnSecondary}>Cancel</button>
@@ -69,8 +69,8 @@ export function DiscoverWithAIModal({ onClose, onDone }: Props) {
           </>
         ) : (
           <div style={{ marginTop: 16, textAlign: 'center' }}>
-            <div style={{ color: '#7ED321', fontSize: 32 }}>OK</div>
-            <p style={{ color: '#ccc' }}>Found {result.candidates_kept} candidates (of {result.candidates_found} Claude returned). Review them in the Suggestions tab.</p>
+            <div style={{ color: 'var(--status-live)', fontSize: 32 }}>OK</div>
+            <p style={{ color: 'var(--brand-primary-fg)' }}>Found {result.candidates_kept} candidates (of {result.candidates_found} Claude returned). Review them in the Suggestions tab.</p>
             <button onClick={() => { onDone(); onClose() }} style={btnPrimary}>OK</button>
           </div>
         )}
@@ -79,6 +79,6 @@ export function DiscoverWithAIModal({ onClose, onDone }: Props) {
   )
 }
 
-const selectStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 8, fontSize: 13 }
-const btnPrimary: React.CSSProperties = { background: '#7ED321', color: '#0a0a0a', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
-const btnSecondary: React.CSSProperties = { background: '#1a1a1a', color: '#ccc', border: 0, padding: '8px 16px', cursor: 'pointer' }
+const selectStyle: React.CSSProperties = { width: '100%', background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: 8, fontSize: 13 }
+const btnPrimary: React.CSSProperties = { background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
+const btnSecondary: React.CSSProperties = { background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: '8px 16px', cursor: 'pointer' }

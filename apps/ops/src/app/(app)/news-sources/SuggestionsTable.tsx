@@ -55,34 +55,34 @@ export function SuggestionsTable() {
     setRows(rs => rs?.filter(r => r.id !== id) ?? null)
   }
 
-  if (!rows) return <div style={{ color: '#888' }}>Loading...</div>
-  if (rows.length === 0) return <div style={{ color: '#888', padding: 16 }}>No pending suggestions.</div>
+  if (!rows) return <div style={{ color: 'var(--status-neutral)' }}>Loading...</div>
+  if (rows.length === 0) return <div style={{ color: 'var(--status-neutral)', padding: 16 }}>No pending suggestions.</div>
 
   return (
     <div>
       {rows.map(r => (
-        <div key={r.id} style={{ padding: 16, borderBottom: '1px solid #2a2a2a' }}>
+        <div key={r.id} style={{ padding: 16, borderBottom: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={kindChip(r.submitted_by_kind)}>{r.submitted_by_kind === 'ai_discovery' ? 'AI' : 'USER'}</span>
-            <a href={r.url} target="_blank" rel="noopener" style={{ fontWeight: 700, color: '#fff' }}>{r.url}</a>
+            <a href={r.url} target="_blank" rel="noopener" style={{ fontWeight: 700, color: 'var(--brand-primary-fg)' }}>{r.url}</a>
           </div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--status-neutral)', marginTop: 4 }}>
             {r.suggested_by_email ? `${r.suggested_by_email} · ` : ''}
             {new Date(r.created_at).toLocaleString()}
           </div>
-          {r.note && <div style={{ fontSize: 12, marginTop: 6, color: '#ccc' }}>{r.note}</div>}
+          {r.note && <div style={{ fontSize: 12, marginTop: 6, color: 'var(--brand-primary-fg)' }}>{r.note}</div>}
           {r.detected_type && r.detected_type !== 'unknown' && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#7ED321' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--status-live)' }}>
               Detected as {r.detected_type} — {r.detected_payload?.sample?.length ?? 0} recent articles
               {r.detected_payload?.sample?.length ? (
-                <ul style={{ paddingLeft: 16, marginTop: 4, color: '#aaa', fontSize: 11 }}>
+                <ul style={{ paddingLeft: 16, marginTop: 4, color: 'var(--status-neutral)', fontSize: 11 }}>
                   {r.detected_payload.sample.slice(0, 3).map((s, i) => <li key={i}>{s.title}</li>)}
                 </ul>
               ) : null}
             </div>
           )}
           {r.detected_type === 'unknown' && (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#F5A623' }}>Detection failed — manual review needed</div>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--status-warn)' }}>Detection failed — manual review needed</div>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
@@ -102,12 +102,12 @@ function kindChip(kind: 'user' | 'ai_discovery'): React.CSSProperties {
     padding: '2px 8px',
     fontSize: 10,
     fontWeight: 700,
-    color: isAi ? '#0a0a0a' : '#ccc',
-    background: isAi ? '#7ED321' : '#2a2a2a',
+    color: isAi ? 'var(--brand-primary-fg)' : 'var(--brand-primary-fg)',
+    background: isAi ? 'var(--brand-primary)' : 'var(--border-subtle)',
     borderRadius: 3,
     letterSpacing: 0.5,
   }
 }
 
-const btnPrimary: React.CSSProperties = { background: '#7ED321', color: '#0a0a0a', border: 0, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
-const btnSecondary: React.CSSProperties = { background: '#1a1a1a', color: '#ccc', border: 0, padding: '6px 12px', fontSize: 12, cursor: 'pointer' }
+const btnPrimary: React.CSSProperties = { background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)', border: 0, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
+const btnSecondary: React.CSSProperties = { background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: '6px 12px', fontSize: 12, cursor: 'pointer' }

@@ -88,7 +88,7 @@ export function EditSourceDrawer({ source, onClose, onSaved, onDeleted }: Props)
     <Drawer onClose={onClose} title={`Edit - ${source.name}`}>
       <div style={{ padding: 20 }}>
         {/* Health banner */}
-        <div style={{ padding: 12, background: '#1a1a1a', marginBottom: 16, fontSize: 12, color: '#ccc' }}>
+        <div style={{ padding: 12, background: 'var(--bg-canvas)', marginBottom: 16, fontSize: 12, color: 'var(--brand-primary-fg)' }}>
           <div>
             Quality: {source.extraction_quality_pct == null ? 'no data yet' : `${source.extraction_quality_pct.toFixed(0)}% over last 30 days`}
           </div>
@@ -99,7 +99,7 @@ export function EditSourceDrawer({ source, onClose, onSaved, onDeleted }: Props)
 
         {/* Auto-disabled banner */}
         {source.auto_disabled_at && (
-          <div style={{ padding: 12, background: '#F5A62320', borderLeft: '3px solid #F5A623', marginBottom: 16, fontSize: 12 }}>
+          <div style={{ padding: 12, background: '#F5A62320', borderLeft: '3px solid var(--status-warn)', marginBottom: 16, fontSize: 12 }}>
             Auto-disabled on {new Date(source.auto_disabled_at).toLocaleString()}.
             <div style={{ marginTop: 8 }}>
               <button onClick={reEnable} style={btnPrimary}>Re-enable</button>
@@ -122,23 +122,23 @@ export function EditSourceDrawer({ source, onClose, onSaved, onDeleted }: Props)
         </Field>
         <Field label="Lookback days"><input type="number" value={lookbackDays} onChange={e => setLookbackDays(Number(e.target.value))} style={inputStyle} /></Field>
         <Field label="Enabled">
-          <label style={{ color: '#ccc' }}><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} /> Active</label>
+          <label style={{ color: 'var(--brand-primary-fg)' }}><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} /> Active</label>
         </Field>
         <Field label="Notes"><textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} rows={3} style={{ ...inputStyle, fontFamily: 'inherit' }} /></Field>
 
         {recentArticles.length > 0 && (
           <Field label="Last 10 articles from this source">
-            <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: '#aaa' }}>
+            <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: 'var(--status-neutral)' }}>
               {recentArticles.slice(0, 10).map((a, i) => <li key={i}>{a.title} - {new Date(a.published_at).toLocaleDateString()}</li>)}
             </ul>
           </Field>
         )}
 
-        {retestResult && <div style={{ fontSize: 12, color: '#7ED321', marginTop: 8 }}>{retestResult}</div>}
-        {error && <div style={{ marginTop: 12, color: '#E53935', fontSize: 12 }}>{error}</div>}
+        {retestResult && <div style={{ fontSize: 12, color: 'var(--status-live)', marginTop: 8 }}>{retestResult}</div>}
+        {error && <div style={{ marginTop: 12, color: 'var(--status-urgent)', fontSize: 12 }}>{error}</div>}
 
         <div style={{ marginTop: 20, display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-          <button onClick={del} disabled={deleting} style={{ ...btnSecondary, color: '#E53935' }}>
+          <button onClick={del} disabled={deleting} style={{ ...btnSecondary, color: 'var(--status-urgent)' }}>
             {deleting ? 'Deleting...' : 'Delete'}
           </button>
           <div style={{ display: 'flex', gap: 8 }}>
@@ -155,12 +155,12 @@ export function EditSourceDrawer({ source, onClose, onSaved, onDeleted }: Props)
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--status-neutral)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
       {children}
     </div>
   )
 }
 
-const inputStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 8, fontSize: 13 }
-const btnPrimary: React.CSSProperties = { background: '#7ED321', color: '#0a0a0a', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
-const btnSecondary: React.CSSProperties = { background: '#1a1a1a', color: '#ccc', border: 0, padding: '8px 16px', cursor: 'pointer' }
+const inputStyle: React.CSSProperties = { width: '100%', background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: 8, fontSize: 13 }
+const btnPrimary: React.CSSProperties = { background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
+const btnSecondary: React.CSSProperties = { background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: '8px 16px', cursor: 'pointer' }

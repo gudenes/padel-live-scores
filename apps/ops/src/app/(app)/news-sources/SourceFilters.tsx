@@ -36,10 +36,10 @@ const GROUPS: ChipGroup<keyof Filters>[] = [
 
 export function SourceFilters({ value, onChange, total, matched }: { value: Filters; onChange: (f: Filters) => void; total: number; matched: number }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, padding: '12px 8px', borderBottom: '1px solid #2a2a2a', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, padding: '12px 8px', borderBottom: '1px solid var(--border-subtle)', alignItems: 'center' }}>
       {GROUPS.map(g => (
         <div key={g.field} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: '#888', fontWeight: 700, textTransform: 'uppercase' }}>{g.label}</span>
+          <span style={{ fontSize: 11, color: 'var(--status-neutral)', fontWeight: 700, textTransform: 'uppercase' }}>{g.label}</span>
           {g.options.map(opt => {
             const active = value[g.field] === opt.value
             return (
@@ -47,9 +47,9 @@ export function SourceFilters({ value, onChange, total, matched }: { value: Filt
                 key={String(opt.value)}
                 onClick={() => onChange({ ...value, [g.field]: opt.value })}
                 style={{
-                  background: active ? '#7ED321' : '#1a1a1a',
-                  color: active ? '#0a0a0a' : '#ccc',
-                  border: 0, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  background: active ? 'var(--brand-primary)' : 'var(--bg-canvas)',
+                  color: active ? 'var(--brand-primary-fg)' : 'var(--brand-primary-fg)',
+                  border: active ? 0 : '1px solid var(--border-subtle)', padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   clipPath: 'polygon(4% 0%, 100% 0%, 96% 100%, 0% 100%)',
                 }}
               >{opt.label}</button>
@@ -57,7 +57,7 @@ export function SourceFilters({ value, onChange, total, matched }: { value: Filt
           })}
         </div>
       ))}
-      <div style={{ marginLeft: 'auto', fontSize: 11, color: '#888' }}>
+      <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--status-neutral)' }}>
         {matched} / {total}
       </div>
     </div>

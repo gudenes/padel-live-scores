@@ -16,7 +16,7 @@ export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
 
   return (
     <div style={{ padding: 24, maxWidth: 1280, margin: '0 auto' }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, color: '#fff' }}>News Sources</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, color: 'var(--brand-primary-fg)' }}>News Sources</h1>
       <nav style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         <TabLink active={activeTab === 'sources'}     href="?tab=sources">Sources</TabLink>
         <TabLink active={activeTab === 'suggestions'} href="?tab=suggestions">Suggestions</TabLink>
@@ -27,13 +27,13 @@ export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
           <div style={{ padding: '12px 8px', display: 'flex', gap: 8 }}>
             <button
               onClick={() => setShowAddDrawer(true)}
-              style={{ background: '#7ED321', color: '#0a0a0a', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }}
+              style={{ background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }}
             >
               + Add Source
             </button>
             <button
               onClick={() => setShowDiscover(true)}
-              style={{ background: '#1a1a1a', color: '#ccc', border: '1px solid #2a2a2a', padding: '8px 16px', fontWeight: 700, cursor: 'pointer' }}
+              style={{ background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: '8px 16px', fontWeight: 700, cursor: 'pointer' }}
             >
               Discover with AI
             </button>
@@ -63,8 +63,8 @@ function TabLink({ active, href, children }: { active: boolean; href: string; ch
   return (
     <Link href={href} style={{
       padding: '8px 14px',
-      background: active ? '#7ED321' : '#1A1A1A',
-      color: active ? '#0a0a0a' : '#6B7280',
+      background: active ? 'var(--brand-primary)' : 'var(--bg-canvas)',
+      color: active ? 'var(--brand-primary-fg)' : 'var(--status-neutral)',
       fontSize: 12, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase',
       textDecoration: 'none',
       clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',

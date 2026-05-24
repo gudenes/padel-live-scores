@@ -25,9 +25,9 @@ export interface Source {
 }
 
 const HEALTH_BUCKETS = [
-  { min: 80, max: 100, color: '#7ED321', label: 'healthy' },
-  { min: 20, max: 79.99, color: '#F5A623', label: 'errors' },
-  { min: 0, max: 19.99, color: '#E53935', label: 'low-yield' },
+  { min: 80, max: 100, color: 'var(--status-live)', label: 'healthy' },
+  { min: 20, max: 79.99, color: 'var(--status-warn)', label: 'errors' },
+  { min: 0, max: 19.99, color: 'var(--status-urgent)', label: 'low-yield' },
 ] as const
 
 export function SourcesTable() {
@@ -43,7 +43,7 @@ export function SourcesTable() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  if (!rows) return <div style={{ color: '#888' }}>Loading...</div>
+  if (!rows) return <div style={{ color: 'var(--status-neutral)' }}>Loading...</div>
 
   const filtered = applyFilters(rows, filters)
 
@@ -52,13 +52,13 @@ export function SourcesTable() {
       <SourceFilters value={filters} onChange={setFilters} total={rows.length} matched={filtered.length} />
 
       {filtered.length === 0 ? (
-        <div style={{ color: '#888', padding: 16 }}>No sources match the current filters.</div>
+        <div style={{ color: 'var(--status-neutral)', padding: 16 }}>No sources match the current filters.</div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: '#fff' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: 'var(--brand-primary-fg)' }}>
           <thead>
-            <tr style={{ background: '#1A1A1A', textAlign: 'left' }}>
+            <tr style={{ background: 'var(--bg-canvas)', textAlign: 'left' }}>
               {['Key', 'Name', 'Type', 'Lang', 'Cadence', 'Kind', 'Quality', 'Health', '7d', 'Enabled'].map(h => (
-                <th key={h} style={{ padding: 8, fontWeight: 700, color: '#888' }}>{h}</th>
+                <th key={h} style={{ padding: 8, fontWeight: 700, color: 'var(--status-neutral)' }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -66,12 +66,12 @@ export function SourcesTable() {
             {filtered.map(r => (
               <tr key={r.id}
                   onClick={() => setEditing(r)}
-                  style={{ borderBottom: '1px solid #2a2a2a', cursor: 'pointer', opacity: r.enabled ? 1 : 0.5 }}>
+                  style={{ borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer', opacity: r.enabled ? 1 : 0.5 }}>
                 <td style={{ padding: 8, fontFamily: 'monospace' }}>{r.key}</td>
                 <td style={{ padding: 8 }}>
                   {r.name}
                   {r.auto_disabled_at && (
-                    <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', background: '#F5A62330', color: '#F5A623', borderRadius: 4 }}>
+                    <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', background: '#F5A62330', color: 'var(--status-warn)', borderRadius: 4 }}>
                       auto-disabled
                     </span>
                   )}
@@ -79,7 +79,7 @@ export function SourcesTable() {
                 <td style={{ padding: 8 }}>{r.source_type}</td>
                 <td style={{ padding: 8 }}>{r.language}</td>
                 <td style={{ padding: 8 }}>{r.cadence}</td>
-                <td style={{ padding: 8, color: '#888' }}>{r.query_kind ?? '—'}</td>
+                <td style={{ padding: 8, color: 'var(--status-neutral)' }}>{r.query_kind ?? '—'}</td>
                 <td style={{ padding: 8 }}><QualityDot pct={r.extraction_quality_pct} /></td>
                 <td style={{ padding: 8 }}><HealthDot status={r.last_fetch_status} lastFetch={r.last_fetch_at} /></td>
                 <td style={{ padding: 8, textAlign: 'right' }}>{r.articles_last_7d}</td>
@@ -115,12 +115,12 @@ function applyFilters(rows: Source[], f: Filters): Source[] {
 }
 
 function QualityDot({ pct }: { pct: number | null }) {
-  if (pct == null) return <span title="Not enough data yet (<5 fetches in 30d)" style={dotStyle('#444')} />
+  if (pct == null) return <span title="Not enough data yet (<5 fetches in 30d)" style={dotStyle('var(--border-subtle)')} />
   const bucket = HEALTH_BUCKETS.find(b => pct >= b.min && pct <= b.max) ?? HEALTH_BUCKETS[2]
   return (
     <span title={`${pct.toFixed(0)}% over last 30 days`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
       <span style={dotStyle(bucket.color)} />
-      <span style={{ fontSize: 11, color: '#aaa' }}>{pct.toFixed(0)}%</span>
+      <span style={{ fontSize: 11, color: 'var(--status-neutral)' }}>{pct.toFixed(0)}%</span>
     </span>
   )
 }
@@ -129,10 +129,10 @@ function HealthDot({ status, lastFetch }: { status: string | null; lastFetch: st
   const now = Date.now()
   const lf = lastFetch ? Date.parse(lastFetch) : 0
   const ageH = (now - lf) / 3_600_000
-  let color = '#666'
-  if (status === 'success' && ageH < 2) color = '#7ED321'
-  else if (status === 'error' && ageH < 24) color = '#F5A623'
-  else if (ageH > 24 * 7) color = '#E53935'
+  let color = 'var(--status-neutral)'
+  if (status === 'success' && ageH < 2) color = 'var(--status-live)'
+  else if (status === 'error' && ageH < 24) color = 'var(--status-warn)'
+  else if (ageH > 24 * 7) color = 'var(--status-urgent)'
   return <span style={dotStyle(color)} />
 }
 

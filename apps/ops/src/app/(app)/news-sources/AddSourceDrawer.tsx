@@ -71,13 +71,13 @@ export function AddSourceDrawer({ onClose, onSaved }: Props) {
     <Drawer onClose={onClose} title="Add Source">
       {(stage === 'paste' || stage === 'detecting') && (
         <div style={{ padding: 20 }}>
-          <p style={{ color: '#aaa', marginBottom: 16 }}>
+          <p style={{ color: 'var(--brand-primary-fg)', marginBottom: 16 }}>
             Paste a URL — RSS feed, news section, or Google News search.
           </p>
           <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..."
             style={inputStyle} disabled={stage === 'detecting'} />
-          {error && <div style={{ marginTop: 12, color: '#E53935', fontSize: 12 }}>{error}
-            <button onClick={() => setStage('manual')} style={{ marginLeft: 8, color: '#7ED321', background: 'none', border: 0, cursor: 'pointer' }}>Use Advanced mode</button>
+          {error && <div style={{ marginTop: 12, color: 'var(--status-urgent)', fontSize: 12 }}>{error}
+            <button onClick={() => setStage('manual')} style={{ marginLeft: 8, color: 'var(--status-live)', background: 'none', border: 0, cursor: 'pointer' }}>Use Advanced mode</button>
           </div>}
           <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={onClose} style={btnSecondary}>Cancel</button>
@@ -90,9 +90,9 @@ export function AddSourceDrawer({ onClose, onSaved }: Props) {
 
       {(stage === 'confirm' || stage === 'saving') && detected && (
         <div style={{ padding: 20 }}>
-          <div style={{ color: '#7ED321', marginBottom: 12 }}>Detected as {detected.type}</div>
+          <div style={{ color: 'var(--status-live)', marginBottom: 12 }}>Detected as {detected.type}</div>
           <Field label="Name"><input value={name} onChange={e => setName(e.target.value)} style={inputStyle} /></Field>
-          <Field label="URL"><code style={{ color: '#888', fontSize: 12, wordBreak: 'break-all' }}>{detected.url}</code></Field>
+          <Field label="URL"><code style={{ color: 'var(--status-neutral)', fontSize: 12, wordBreak: 'break-all' }}>{detected.url}</code></Field>
           <Field label="Language">
             <select value={language} onChange={e => setLanguage(e.target.value)} style={inputStyle}>
               {['en','es','pt','it','fr'].map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
@@ -102,14 +102,14 @@ export function AddSourceDrawer({ onClose, onSaved }: Props) {
 
           {detected.sample.length > 0 && (
             <Field label="Sample articles">
-              <ul style={{ paddingLeft: 16, margin: 0, color: '#ccc', fontSize: 12 }}>
+              <ul style={{ paddingLeft: 16, margin: 0, color: 'var(--brand-primary-fg)', fontSize: 12 }}>
                 {detected.sample.map((s, i) => <li key={i}>{s.title}{s.pubDate ? ` — ${s.pubDate}` : ''}</li>)}
               </ul>
             </Field>
           )}
 
           <details style={{ marginTop: 16 }} open={showAdvanced} onToggle={e => setShowAdvanced((e.target as HTMLDetailsElement).open)}>
-            <summary style={{ cursor: 'pointer', color: '#888' }}>Advanced (weight, cadence, lookback, notes)</summary>
+            <summary style={{ cursor: 'pointer', color: 'var(--status-neutral)' }}>Advanced (weight, cadence, lookback, notes)</summary>
             <div style={{ paddingTop: 12 }}>
               <Field label="Weight"><input type="number" step="0.1" value={weight} onChange={e => setWeight(Number(e.target.value))} style={inputStyle} /></Field>
               <Field label="Cadence">
@@ -127,7 +127,7 @@ export function AddSourceDrawer({ onClose, onSaved }: Props) {
             </div>
           </details>
 
-          {error && <div style={{ marginTop: 12, color: '#E53935', fontSize: 12 }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, color: 'var(--status-urgent)', fontSize: 12 }}>{error}</div>}
           <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <button onClick={onClose} style={btnSecondary}>Cancel</button>
             <button onClick={save} disabled={stage === 'saving'} style={btnPrimary}>
@@ -139,7 +139,7 @@ export function AddSourceDrawer({ onClose, onSaved }: Props) {
 
       {stage === 'manual' && (
         <div style={{ padding: 20 }}>
-          <p style={{ color: '#aaa', marginBottom: 12 }}>
+          <p style={{ color: 'var(--brand-primary-fg)', marginBottom: 12 }}>
             Manual entry. Use this when detection failed or the source needs custom config.
           </p>
           <Field label="URL"><input value={url} onChange={e => setUrl(e.target.value)} style={inputStyle} /></Field>
@@ -169,10 +169,10 @@ export function Drawer({ children, onClose, title }: { children: React.ReactNode
   return (
     <>
       <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#000a', zIndex: 80 }} />
-      <aside style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, maxWidth: '100vw', background: '#0f0f0f', color: '#fff', borderLeft: '1px solid #2a2a2a', zIndex: 81, overflowY: 'auto' }}>
-        <header style={{ padding: '16px 20px', borderBottom: '1px solid #2a2a2a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <aside style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 480, maxWidth: '100vw', background: 'var(--bg-card)', color: 'var(--brand-primary-fg)', borderLeft: '1px solid var(--border-subtle)', zIndex: 81, overflowY: 'auto' }}>
+        <header style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, fontSize: 16 }}>{title}</h3>
-          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 0, color: '#888', cursor: 'pointer', fontSize: 20 }}>x</button>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 0, color: 'var(--status-neutral)', cursor: 'pointer', fontSize: 20 }}>x</button>
         </header>
         {children}
       </aside>
@@ -183,12 +183,12 @@ export function Drawer({ children, onClose, title }: { children: React.ReactNode
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--status-neutral)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
       {children}
     </div>
   )
 }
 
-const inputStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 8, fontSize: 13 }
-const btnPrimary: React.CSSProperties = { background: '#7ED321', color: '#0a0a0a', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
-const btnSecondary: React.CSSProperties = { background: '#1a1a1a', color: '#ccc', border: 0, padding: '8px 16px', cursor: 'pointer' }
+const inputStyle: React.CSSProperties = { width: '100%', background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: 8, fontSize: 13 }
+const btnPrimary: React.CSSProperties = { background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
+const btnSecondary: React.CSSProperties = { background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: '8px 16px', cursor: 'pointer' }
