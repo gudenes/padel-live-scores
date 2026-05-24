@@ -520,6 +520,8 @@
     "inferredPrizeNote": "Estimated from total prize pool",
     "downloadFactsheet": "Download factsheet",
     "_downloadFactsheet_context": "CTA on a clickable card linking to a PDF tournament factsheet hosted on padelfip.com",
+    "matchSchedule": "Match schedule",
+    "_matchSchedule_context": "Section header above a day-by-day list of when each tournament round plays (date + start time + round name). Sourced from the factsheet PDF. Use the same noun as for a TV/sports schedule.",
     "events": "Events",
     "_events_context": "Header on the tournaments listing page. Plural noun \"tournaments\". ES: \"Eventos\".",
     "bracket": {
