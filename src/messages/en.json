@@ -376,11 +376,7 @@
       "viewRecap": "View Recap",
       "_viewRecap_context": "Variant of viewMatches shown on a crowned/finished tournament card. Same chunky CTA position. Hint: the user is going to see the tournament's results, brackets and champions rather than live matches.",
       "crowned": "Champion",
-      "_crowned_context": "Top-left gold pill on a recently-crowned tournament card (sibling of the LIVE red pill). The tournament's final is done and the trophy has been awarded. 6-8 chars max — must fit in a small chunky badge. Avoid words like 'finished' or 'closed' — the vibe is celebratory.",
-      "finalMTbd": "Men's final: TBD",
-      "_finalMTbd_context": "Muted placeholder line on a crowned card when the men's final hasn't finished yet (e.g. women's final played Friday, men's on Saturday). Card upgrades to full champion treatment once both finals close. Keep short — fits one line on a 196px card.",
-      "finalWTbd": "Women's final: TBD",
-      "_finalWTbd_context": "Same as finalMTbd but for the women's bracket."
+      "_crowned_context": "Top-left gold pill on a recently-crowned tournament card (sibling of the LIVE red pill). The tournament's final is done and the trophy has been awarded. 6-8 chars max — must fit in a small chunky badge. Avoid words like 'finished' or 'closed' — the vibe is celebratory."
     },
     "highlightsAndNews": "Highlights & News",
     "latestNews": "Latest news",

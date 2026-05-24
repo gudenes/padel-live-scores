@@ -438,17 +438,24 @@ function V3HomePageInner() {
             matchesToday: matchInfo.get(r.id)?.matchesToday ?? 0,
             champions: championsByTournament.get(r.id),
           }))
-          // Drop tournaments that are neither live today nor recently
-          // crowned — otherwise the loosened back-window would render
-          // a blank card for any tournament in a rest day.
-          .filter(t => t.matchesToday > 0 || t.champions)
+          // Drop tournaments that are neither live today nor fully
+          // crowned (both M+W finals decided). Half-crowned (one final
+          // done) is allowed only if it still has matches today —
+          // otherwise the card would be in a confusing limbo state.
+          .filter(t => {
+            const bothCrowned = !!(t.champions?.men && t.champions?.women)
+            return t.matchesToday > 0 || bothCrowned
+          })
           // Live cards first, then crowned, with tier ordering within
-          // each bucket. Live tournaments are the most urgent affordance;
-          // crowned ones are nice-to-show celebration.
+          // each bucket. Live = matches today + not yet fully crowned.
+          // A tournament whose finals played TODAY and won counts as
+          // crowned (sort it later), not live — the celebration wins.
           .sort((a, b) => {
-            const aLive = a.matchesToday > 0 ? 0 : 1
-            const bLive = b.matchesToday > 0 ? 0 : 1
-            if (aLive !== bLive) return aLive - bLive
+            const aBothCrowned = !!(a.champions?.men && a.champions?.women)
+            const bBothCrowned = !!(b.champions?.men && b.champions?.women)
+            const aBucket = aBothCrowned ? 1 : 0
+            const bBucket = bBothCrowned ? 1 : 0
+            if (aBucket !== bBucket) return aBucket - bBucket
             return compareTournamentsForCarousel(a, b)
           })
       setCarouselLiveToday(decorate(carouselLiveRows))

@@ -362,9 +362,7 @@
       "viewMatches": "Ver jogos",
       "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short.",
       "viewRecap": "Ver resumo",
-      "crowned": "Campeão",
-      "finalMTbd": "Final M: a definir",
-      "finalWTbd": "Final F: a definir"
+      "crowned": "Campeão"
     },
     "highlightsAndNews": "Destaques e Notícias",
     "latestNews": "Últimas notícias",
