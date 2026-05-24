@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-const { authMock, serviceClientMock, updateMock, eqMock } = vi.hoisted(() => ({
+const { authMock, serviceClientMock, updateMock, eqMock, selectMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
   serviceClientMock: vi.fn(),
   updateMock: vi.fn(),
   eqMock: vi.fn(),
+  selectMock: vi.fn(),
 }))
 
 vi.mock('@/lib/auth', () => ({ auth: authMock }))
@@ -13,9 +14,16 @@ vi.mock('@/lib/supabase', () => ({ serviceClient: serviceClientMock }))
 
 import { POST } from '../route'
 
-function buildSupabaseStub() {
-  // .schema('padelgod').from('ocr_diff_events').update({...}).eq('id', n) → { error: null }
-  eqMock.mockResolvedValue({ data: [{ id: 1 }], error: null })
+function buildSupabaseStub(opts?: {
+  affected?: Array<{ id: number }>
+  error?: { message: string } | null
+}) {
+  // .schema('padelgod').from('ocr_diff_events').update({...}).eq('id', n).select('id') → { data, error }
+  selectMock.mockResolvedValue({
+    data: opts?.affected ?? [{ id: 1 }],
+    error: opts?.error ?? null,
+  })
+  eqMock.mockReturnValue({ select: selectMock })
   updateMock.mockReturnValue({ eq: eqMock })
   return {
     schema: vi.fn().mockReturnThis(),
@@ -84,5 +92,20 @@ describe('POST /api/internal/ocr-diff-label', () => {
     })
     const res = await POST(req)
     expect(res.status).toBe(400)
+  })
+
+  it('returns 404 when diffId does not exist', async () => {
+    authMock.mockResolvedValueOnce({ user: { isOperator: true, email: 'op@x.com' } })
+    serviceClientMock.mockReturnValueOnce(buildSupabaseStub({ affected: [] }))
+
+    const req = new NextRequest('http://localhost/api/internal/ocr-diff-label', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ diffId: 999999, label: 'correct' }),
+    })
+    const res = await POST(req)
+    expect(res.status).toBe(404)
+    const json = await res.json()
+    expect(json.error).toContain('not found')
   })
 })

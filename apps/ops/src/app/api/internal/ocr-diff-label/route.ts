@@ -40,14 +40,18 @@ export async function POST(req: NextRequest) {
   const note = `operator_label=${label} by=${operatorEmail} at=${new Date().toISOString()}`
 
   const supabase = serviceClient()
-  const { error } = await supabase
+  const { data, error } = await supabase
     .schema('padelgod')
     .from('ocr_diff_events')
     .update({ notes: note })
     .eq('id', diffId)
+    .select('id')
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+  if (!data || data.length === 0) {
+    return NextResponse.json({ error: 'diff event not found' }, { status: 404 })
   }
   return NextResponse.json({ ok: true })
 }
