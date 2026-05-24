@@ -6,11 +6,13 @@ import { SourcesTable } from './SourcesTable'
 import { SuggestionsTable } from './SuggestionsTable'
 import { DiscoveryHealth } from './DiscoveryHealth'
 import { AddSourceDrawer } from './AddSourceDrawer'
+import { DiscoverWithAIModal } from './DiscoverWithAIModal'
 
 type Tab = 'sources' | 'suggestions' | 'health'
 
 export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
   const [showAddDrawer, setShowAddDrawer] = useState(false)
+  const [showDiscover, setShowDiscover] = useState(false)
 
   return (
     <div style={{ padding: 24, maxWidth: 1280, margin: '0 auto' }}>
@@ -29,13 +31,24 @@ export function NewsSourcesTabs({ activeTab }: { activeTab: Tab }) {
             >
               + Add Source
             </button>
-            {/* Reserved for Task 4.3: Discover with AI button */}
+            <button
+              onClick={() => setShowDiscover(true)}
+              style={{ background: '#1a1a1a', color: '#ccc', border: '1px solid #2a2a2a', padding: '8px 16px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              Discover with AI
+            </button>
           </div>
           <SourcesTable />
           {showAddDrawer && (
             <AddSourceDrawer
               onClose={() => setShowAddDrawer(false)}
               onSaved={() => { setShowAddDrawer(false); window.location.reload() }}
+            />
+          )}
+          {showDiscover && (
+            <DiscoverWithAIModal
+              onClose={() => setShowDiscover(false)}
+              onDone={() => { /* could switch to suggestions tab — for now just close */ }}
             />
           )}
         </>
