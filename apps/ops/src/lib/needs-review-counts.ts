@@ -40,7 +40,10 @@ async function getDuplicatePlayersCount(): Promise<number> {
     .from('players')
     .select('id, name, country, ranking, points, category, avatar_url, fip_id, external_id')
     .range(0, 9999)
-  if (error || !data) return 0
+  if (error || !data) {
+    if (error) console.warn('[needs-review-counts] players query failed:', error.message)
+    return 0
+  }
   return countDuplicateGroups(data as PlayerRow[])
 }
 

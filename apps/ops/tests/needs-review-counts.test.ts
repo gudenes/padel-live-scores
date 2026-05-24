@@ -85,16 +85,26 @@ describe('getNeedsReviewCounts', () => {
   })
 
   it('runs both queries in parallel via Promise.all', async () => {
-    // Track resolution order. Both should be awaited together — if they
-    // were sequential the second mock would never be invoked before the
-    // first resolves.
-    queryMock.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ rows: [{ count: '2' }] }), 10)))
-    rangeMock.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ data: [], error: null }), 10)))
-    const start = Date.now()
+    // Assert START timestamps are within a few ms of each other — not that
+    // total elapsed time is under a threshold (flaky on CI). If the calls
+    // were sequential, the second start would be ~20ms after the first.
+    const callTimestamps: { source: 'pg' | 'supabase'; t: number }[] = []
+    queryMock.mockImplementation(async () => {
+      callTimestamps.push({ source: 'pg', t: Date.now() })
+      await new Promise(r => setTimeout(r, 20))
+      return { rows: [{ count: '2' }] }
+    })
+    rangeMock.mockImplementation(async () => {
+      callTimestamps.push({ source: 'supabase', t: Date.now() })
+      await new Promise(r => setTimeout(r, 20))
+      return { data: [], error: null }
+    })
     await getNeedsReviewCounts()
-    const elapsed = Date.now() - start
-    // Sequential would be ~20ms, parallel ~10ms. Leave headroom for CI jitter.
-    expect(elapsed).toBeLessThan(18)
+    // Both must have started before either finished — i.e. the start-time gap
+    // must be much less than the 20ms each call takes.
+    expect(callTimestamps).toHaveLength(2)
+    const gap = Math.abs(callTimestamps[1].t - callTimestamps[0].t)
+    expect(gap).toBeLessThan(5) // well under the 20ms each call takes
     expect(queryMock).toHaveBeenCalledTimes(1)
     expect(rangeMock).toHaveBeenCalledTimes(1)
   })
