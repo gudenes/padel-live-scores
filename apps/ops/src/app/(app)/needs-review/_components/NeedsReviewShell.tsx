@@ -122,6 +122,7 @@ function Chip({
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       style={{
         padding: '6px 12px',
         fontSize: 12,
