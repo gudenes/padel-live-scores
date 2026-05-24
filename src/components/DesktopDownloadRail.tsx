@@ -10,8 +10,13 @@
 //   • Renders only at viewport ≥ 1280px (CSS media query)
 //   • Renders only outside Capacitor native shells (the user is already
 //     in the app; offering a download CTA inside the app would be silly)
-//   • Sticky-positioned with `position: fixed` so it doesn't push the
-//     center column or affect mobile layout in any way
+//   • Portalled to document.body so it escapes the .app-screen wrapper's
+//     `contain: paint`, which would otherwise turn `position: fixed`
+//     into "anchored to the 412px phone column" rather than viewport.
+//     Without the portal the rail rendered inside the phone column,
+//     bleeding into the centred app content. The bottom nav was hit
+//     by the same constraint and solved it differently (sticky in the
+//     scroll container) — see globals.css:430-465 for the comment chain.
 //   • Click events are captured to PostHog as `download_badge_click`
 //     with `{ platform: 'ios' | 'android' }` so we can measure web→
 //     native install conversion
@@ -20,7 +25,8 @@
 
 import { Capacitor } from '@capacitor/core'
 import posthog from 'posthog-js'
-import { useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 
 const APP_STORE_URL = 'https://apps.apple.com/app/id6770290540'
@@ -43,7 +49,18 @@ export default function DesktopDownloadRail() {
   const t = useTranslations('download')
   const isNative = useSyncExternalStore(subscribeNoop, getNativeSnapshot, getNativeServerSnapshot)
 
+  // We need to portal the <aside> out to document.body so `position: fixed`
+  // anchors to the viewport rather than the .app-screen wrapper (which
+  // has `contain: paint` + `overflow: auto` on desktop, turning itself
+  // into a containing block for fixed-positioned descendants).
+  // createPortal needs a real DOM target, so we hold off until first
+  // client render — SSR returns null, then the effect flips `mounted`
+  // on hydration and the portal mounts.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   if (isNative) return null
+  if (!mounted) return null
 
   const onAppStoreClick = () => {
     try { posthog.capture('download_badge_click', { platform: 'ios' }) } catch { /* analytics best-effort */ }
@@ -52,7 +69,7 @@ export default function DesktopDownloadRail() {
     try { posthog.capture('download_badge_click', { platform: 'android' }) } catch { /* analytics best-effort */ }
   }
 
-  return (
+  return createPortal(
     <aside
       className="pn-download-rail"
       aria-label={t('ariaLabel')}
@@ -133,6 +150,7 @@ export default function DesktopDownloadRail() {
         <span className="pn-download-rail__meta-strong">{t('metaStrong')}</span>{' '}
         {t('metaTail')}
       </div>
-    </aside>
+    </aside>,
+    document.body,
   )
 }
