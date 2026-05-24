@@ -81,7 +81,18 @@ interface TournamentWithSources {
   factsheet_url: string | null
   factsheet_data: {
     schedule?: Array<{ date?: string; round_label?: string; start_time?: string | null }>
-    prize_money?: Array<{ round?: string; amount?: number }>
+    // Real shape from /api/cron/process-factsheets (Claude extractor):
+    // `round_label` is the PDF's own label ("winner", "finalist",
+    // "round_16", "q1", …). `per_player_eur` is what each player
+    // wins, `total_pair_eur` is actually the total round payout
+    // across all teams (despite the name). Either money field can be
+    // null when the PDF lists a round but doesn't publish a payout
+    // for it (qualifying rounds, typically).
+    prize_money?: Array<{
+      round_label?: string
+      per_player_eur?: number | null
+      total_pair_eur?: number | null
+    }>
   } | null
   factsheet_processed_at: string | null
   // Status

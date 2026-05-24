@@ -67,7 +67,11 @@ interface TournamentWithSources {
   factsheet_url: string | null
   factsheet_data: {
     schedule?: Array<{ date?: string; round_label?: string; start_time?: string | null }>
-    prize_money?: Array<{ round?: string; amount?: number }>
+    prize_money?: Array<{
+      round_label?: string
+      per_player_eur?: number | null
+      total_pair_eur?: number | null
+    }>
   } | null
   factsheet_processed_at: string | null
   // Status
@@ -880,8 +884,11 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           s => s && typeof s.date === 'string' && typeof s.round_label === 'string',
         )
         const prizeMoneyRaw = t.factsheet_data?.prize_money ?? []
+        // Keep rows with a round_label even when per_player_eur is null —
+        // qualifying rounds are typically listed but unpaid, and ops
+        // wants to see the full extracted list.
         const prizeRows = prizeMoneyRaw.filter(
-          p => p && typeof p.round === 'string' && typeof p.amount === 'number',
+          p => p && typeof p.round_label === 'string',
         )
         const processedAt = t.factsheet_processed_at
           ? new Date(t.factsheet_processed_at).toISOString().slice(0, 16).replace('T', ' ')
@@ -958,18 +965,21 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
                 </div>
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                   gap: 8,
                   fontSize: 12,
                 }}>
-                  {prizeRows.map((p, i) => (
-                    <div key={`p-${p.round}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
-                      <span style={{ color: '#666' }}>{p.round}</span>
-                      <span style={{ fontWeight: 700, color: '#111', fontVariantNumeric: 'tabular-nums' }}>
-                        €{(p.amount as number).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
+                  {prizeRows.map((p, i) => {
+                    const hasAmount = typeof p.per_player_eur === 'number'
+                    return (
+                      <div key={`p-${p.round_label}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+                        <span style={{ color: '#666' }}>{p.round_label}</span>
+                        <span style={{ fontWeight: 700, color: hasAmount ? '#111' : '#bbb', fontVariantNumeric: 'tabular-nums' }}>
+                          {hasAmount ? `€${(p.per_player_eur as number).toLocaleString()}` : '—'}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}
