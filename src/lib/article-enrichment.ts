@@ -132,10 +132,23 @@ export function validateEnrichmentShape(obj: unknown): asserts obj is Enrichment
     if (typeof e.mention !== 'string' || !e.mention) throw new Error('entity.mention must be non-empty string')
     if (typeof e.confidence !== 'number' || e.confidence < 0 || e.confidence > 1) throw new Error('entity.confidence out of range')
   }
+  // Topics: silently drop unknown values (matches the comment in article-topics.ts).
+  // Hard-throwing here was the cause of ~30 "unknown topic: tournament" enrichment
+  // failures — Claude returns sensible-but-off-vocab topics often enough that we
+  // shouldn't reject the whole article over a single bad entry. Confidence
+  // out-of-range still fails since that signals a malformed response.
+  const validTopics: Array<{ topic: ArticleTopic; confidence: number }> = []
   for (const t of o.topics as Array<Record<string, unknown>>) {
-    if (!isValidTopic(t.topic as string)) throw new Error(`unknown topic: ${t.topic}`)
-    if (typeof t.confidence !== 'number' || t.confidence < 0 || t.confidence > 1) throw new Error('topic.confidence out of range')
+    if (typeof t.confidence !== 'number' || t.confidence < 0 || t.confidence > 1) {
+      throw new Error('topic.confidence out of range')
+    }
+    if (isValidTopic(t.topic as string)) {
+      validTopics.push({ topic: t.topic as ArticleTopic, confidence: t.confidence })
+    } else {
+      console.warn(`article-enrichment: dropped unknown topic "${t.topic}"`)
+    }
   }
+  o.topics = validTopics
 }
 
 // ── Translation ────────────────────────────────────────────────────────

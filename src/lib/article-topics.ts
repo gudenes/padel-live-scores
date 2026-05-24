@@ -10,6 +10,8 @@ export const ARTICLE_TOPICS = [
   'controversy',
   'olympics',
   'business',
+  'tournament',
+  'rivalry',
 ] as const
 
 export type ArticleTopic = (typeof ARTICLE_TOPICS)[number]
