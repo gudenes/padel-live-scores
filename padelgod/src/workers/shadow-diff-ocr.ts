@@ -14,6 +14,24 @@ export interface ShadowDiffOcrResult {
   agreementCounts: Record<string, number>;
 }
 
+/**
+ * Agreement classification between an OCR snapshot and the canonical
+ * public.sets / public.games rows for the same match.
+ *
+ * V1 emits only:
+ *   - 'match'                — sets agree
+ *   - 'sets_disagree'        — sets differ
+ *   - 'no_crionet_baseline'  — OCR has data but Crionet has none, or parse_error
+ *
+ * V2 will additionally emit:
+ *   - 'game_disagree'        — current_game differs (requires reading public.games)
+ *   - 'both_disagree'        — sets AND game differ
+ *   - 'pair_label_mismatch'  — OCR'd player names don't match the resolved match
+ *
+ * The wider type matches the DB CHECK constraint on padelgod.ocr_diff_events
+ * (which accepts all six) so the worker can grow into the V2 cases without
+ * a schema change.
+ */
 type Agreement =
   | 'match'
   | 'sets_disagree'
