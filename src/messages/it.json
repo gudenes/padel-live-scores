@@ -349,7 +349,7 @@
     "ongoing": "In Corso",
     "comingUp": "In Programma",
     "liveTournaments": {
-      "title": "Tornei in diretta",
+      "title": "Tornei",
       "chipLiveToday": "In diretta / Oggi",
       "_chipLiveToday_context": "Filter chip above the Live Tournaments home-page carousel. Active when a tournament is currently running today (any tier). The slash is literal. Width budget is narrow — keep short.",
       "chipUpcoming": "In arrivo",
@@ -360,7 +360,9 @@
       "startsOn": "Inizia {date}",
       "_startsOn_context": "Status line on a tournament card under the UPCOMING chip. {date} is a short localised date string (e.g. 'May 22') formatted by next-intl's DATE_SHORT pattern. Adjust prepositions/articles for the language as needed.",
       "viewMatches": "Vedi partite",
-      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short."
+      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short.",
+      "viewRecap": "Vedi resoconto",
+      "crowned": "Campione"
     },
     "highlightsAndNews": "Highlights e Notizie",
     "latestNews": "Ultime notizie",

@@ -349,7 +349,7 @@
     "ongoing": "Em Andamento",
     "comingUp": "Em Breve",
     "liveTournaments": {
-      "title": "Torneios ao vivo",
+      "title": "Torneios",
       "chipLiveToday": "Ao vivo / Hoje",
       "_chipLiveToday_context": "Filter chip above the Live Tournaments home-page carousel. Active when a tournament is currently running today (any tier). The slash is literal. Width budget is narrow — keep short.",
       "chipUpcoming": "Em breve",
@@ -360,7 +360,9 @@
       "startsOn": "Começa {date}",
       "_startsOn_context": "Status line on a tournament card under the UPCOMING chip. {date} is a short localised date string (e.g. 'May 22') formatted by next-intl's DATE_SHORT pattern. Adjust prepositions/articles for the language as needed.",
       "viewMatches": "Ver jogos",
-      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short."
+      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short.",
+      "viewRecap": "Ver resumo",
+      "crowned": "Campeão"
     },
     "highlightsAndNews": "Destaques e Notícias",
     "latestNews": "Últimas notícias",
