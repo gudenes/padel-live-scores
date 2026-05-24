@@ -34,6 +34,7 @@ include = ["src*"]
 testpaths = ["tests"]
 python_files = "test_*.py"
 asyncio_mode = "auto"
+markers = ["slow: integration tests requiring network/external processes"]
 
 [tool.ruff]
 line-length = 100
