@@ -613,12 +613,21 @@ export function MatchCard({
                 // Kosovan / other less-tracked players render flagless.
                 // normalizeCountry inside FlagImage handles alpha-3 → -2.
                 const m = match as unknown as Record<string, string | null>
-                const p1Country = p1?.country
+                let p1Country: string | null = p1?.country
                   ?? m[`pair${pairNum}_player1_country`]
                   ?? null
-                const p2Country = p2?.country
+                let p2Country: string | null = p2?.country
                   ?? m[`pair${pairNum}_player2_country`]
                   ?? null
+                // Partner fallback: the dual-flag stack is designed to
+                // always show two overlapping flags. When only one player
+                // has a country, the lone flag lands in the offset slot
+                // and looks like a layout glitch. Padel pairs are usually
+                // same-country, so mirroring the partner's country is the
+                // visually-correct default — and matches the same-country
+                // stack the design optimises for (Trujillo/Cordoba etc.).
+                if (!p1Country && p2Country) p1Country = p2Country
+                else if (!p2Country && p1Country) p2Country = p1Country
                 return (
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
