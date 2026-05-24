@@ -21,11 +21,18 @@ export function SidebarSecondary({ activeAreaId, activePageHref, badges }: Props
     <div
       style={{
         width: 248,
+        height: '100vh',
         background: 'var(--bg-card)',
         borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
+        // Sticky so the page list stays anchored to the viewport when the
+        // main content scrolls. Pairs with the sticky primary column.
+        position: 'sticky',
+        top: 0,
+        alignSelf: 'flex-start',
+        overflowY: 'auto',
       }}
     >
       <header style={{ padding: '18px 20px 12px' }}>

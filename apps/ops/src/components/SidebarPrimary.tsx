@@ -24,13 +24,19 @@ export function SidebarPrimary({ activeAreaId, needsReviewCount, userEmail }: Pr
     <nav
       style={{
         width: 92,
-        minHeight: '100vh',
+        height: '100vh',
         background: 'var(--bg-card)',
         borderRight: '1px solid var(--border-subtle)',
         display: 'flex',
         flexDirection: 'column',
         padding: '14px 0 16px',
         flexShrink: 0,
+        // Sticky so the user menu at the bottom is always reachable when
+        // the main page scrolls (e.g. long player profile pages).
+        position: 'sticky',
+        top: 0,
+        alignSelf: 'flex-start',
+        overflowY: 'auto',
       }}
     >
       <BrandMark />
