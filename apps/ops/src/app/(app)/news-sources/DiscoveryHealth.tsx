@@ -26,6 +26,12 @@ export function DiscoveryHealth() {
   const [buckets, setBuckets] = useState<QualityBucket[]>([])
   const [disables, setDisables] = useState<Array<{ metadata: Record<string, unknown>; created_at: string }>>([])
   const [discoveries, setDiscoveries] = useState<Array<{ metadata: Record<string, unknown>; created_at: string }>>([])
+  const [trends, setTrends] = useState<Array<{ key: string; name: string; daily: number[] }>>([])
+
+  useEffect(() => {
+    fetch('/api/news-sources/volume-trends')
+      .then(r => r.json()).then(d => setTrends(d.trends ?? [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/news-sources/quality-distribution')
@@ -131,7 +137,31 @@ export function DiscoveryHealth() {
           </table>
         )}
       </section>
+
+      {trends.length > 0 && (
+        <section style={{ padding: 16 }}>
+          <h4 style={{ margin: '0 0 8px', fontSize: 13, color: '#888', textTransform: 'uppercase' }}>30-day volume — top 10 sources</h4>
+          {trends.map(t => (
+            <div key={t.key} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4, fontSize: 12 }}>
+              <div style={{ width: 160, color: '#ccc', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{t.name}</div>
+              <Sparkline values={t.daily} />
+              <div style={{ width: 40, textAlign: 'right', color: '#888' }}>{t.daily.reduce((a, b) => a + b, 0)}</div>
+            </div>
+          ))}
+        </section>
+      )}
     </div>
+  )
+}
+
+function Sparkline({ values, width = 200, height = 24 }: { values: number[]; width?: number; height?: number }) {
+  const max = Math.max(1, ...values)
+  const step = width / Math.max(1, values.length - 1)
+  const points = values.map((v, i) => `${i * step},${height - (v / max) * height}`).join(' ')
+  return (
+    <svg width={width} height={height} style={{ background: '#1a1a1a' }}>
+      <polyline points={points} fill="none" stroke="#7ED321" strokeWidth={1.5} />
+    </svg>
   )
 }
 
