@@ -8,7 +8,7 @@ import Image from 'next/image'
 import { useFormatter, useTranslations, useLocale } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useSearchParams } from 'next/navigation'
-import { useRouter, Link } from '@/i18n/navigation'
+import { useRouter, usePathname, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, parseSetFromGames, isWarmingUp, toShortName } from '@/types/match'
 import { hydrateThinPlayers } from '@/lib/thin-match-player'
@@ -28,6 +28,7 @@ import { isFipTier } from '@/lib/fip-channel'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
+import { pickDefaultRound, type PickDefaultRoundMatch } from '@/lib/pick-default-round'
 import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
@@ -204,10 +205,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'story' | 'draw'>(
+  // Animated arrival from home's "VER PARTIDOS" card: when intent=matches is
+  // present alongside tab=matches, mount on Overview and slide to Matches
+  // after a short beat (see the mount effect below).
+  const wantsMatchesAnimation =
+    searchParams.get('intent') === 'matches' && paramTab === 'matches'
+
+  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw'>(
     // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
     // share links and bookmarks keep working.
-    paramTab === 'draw'
+    wantsMatchesAnimation
+      ? 'overview'
+      : paramTab === 'draw'
       ? 'draw'
       : paramTab === 'story' || paramTab === 'recap'
       ? 'story'
@@ -215,6 +224,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       ? 'matches'
       : 'overview'
   )
+
+  // Tracks whether the user has manually changed tabs, so the scheduled
+  // animated-arrival commit doesn't override a tap that happens during the dwell.
+  const userChangedTabRef = useRef(false)
+  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw') => {
+    userChangedTabRef.current = true
+    setPageTabState(next)
+  }, [])
+
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   // prefers-reduced-motion snaps between expanded and collapsed
@@ -227,6 +245,36 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const navbarLayerOpacity = p
   const compactOpacity     = clamp01((p - 0.55) / 0.4)
   const inlineOpacity      = clamp01((0.7 - p) / 0.4)
+
+  // Animated arrival from home's "VER PARTIDOS": mount on Overview,
+  // slide to Matches after a short beat (or commit immediately under
+  // reduced-motion). The visible animation is SlidingInkTabs' existing
+  // spring on activeKey change.
+  const pathname = usePathname()
+  useEffect(() => {
+    if (!wantsMatchesAnimation) return
+
+    const commit = () => {
+      if (userChangedTabRef.current) return
+      setPageTabState('matches')
+
+      // Strip ?intent so refresh/back doesn't replay the animation.
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('intent')
+      const qs = params.toString()
+      router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false })
+    }
+
+    if (reducedMotion) {
+      commit()
+      return
+    }
+
+    const t = window.setTimeout(commit, 280)
+    return () => window.clearTimeout(t)
+    // Intentionally mount-only — animated arrival fires once per navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
 
   // ── Fetch ─────────────────────────────────────────────────────
@@ -457,41 +505,98 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return map
   }, [allMatches, availableRounds, activeTournament, activeTournamentObj, genderFilter])
 
-  // ── Auto-select round: prefer live > today > most advanced ──
+  // ── Auto-select round: live > today > most-advanced-finished > Q1 ──
   useEffect(() => {
     if (availableRounds.length === 0) return
     const todayKey = localDateKey(new Date())
-    const hasLive = availableRounds.find(r =>
-      allMatches.some(m =>
-        m.status === 'live' &&
-        normalizeRoundFull(m.round as string) === r &&
-        (!activeTournament || (m as any).tournament?.id === activeTournament)
-      )
-    )
-    const hasToday = availableRounds.find(r =>
-      allMatches.some(m => {
-        if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
-        if (normalizeRoundFull(m.round as string) !== r) return false
-        const src = (m as any).scheduled_at ?? (m as any).started_at
-        return src && src.slice(0, 10) === todayKey
-      })
-    )
+    const candidates: PickDefaultRoundMatch[] = allMatches.map(m => {
+      const src = (m as any).scheduled_at ?? (m as any).started_at
+      return {
+        normalizedRound: normalizeRoundFull(m.round as string),
+        status: m.status as string,
+        scheduledDateKey: typeof src === 'string' ? src.slice(0, 10) : null,
+        tournamentId: (m as any).tournament?.id ?? null,
+      }
+    })
+    const smartDefault = pickDefaultRound({
+      availableRounds,
+      matches: candidates,
+      activeTournamentId: activeTournament ?? null,
+      todayKey,
+    })
     setSelectedRound(prev => {
       if (paramRound && !prev) {
         const normalized = normalizeRoundFull(paramRound)
         if (availableRounds.includes(normalized)) return normalized
       }
       if (prev && availableRounds.includes(prev)) return prev
-      return hasLive ?? hasToday ?? availableRounds[0] ?? null
+      return smartDefault
     })
   }, [availableRounds, activeTournament, paramRound, allMatches])
 
-  // ── Auto-scroll stage strip ───────────────────────────────────
+  // ── Auto-scroll stage strip: center the active round chip ─────
+  // Uses container.scrollTo (not scrollIntoView) so the strip's horizontal
+  // scroll is the only thing that moves — scrollIntoView would also nudge
+  // the page's vertical scroll on iOS/Webkit.
+  //
+  // Uses getBoundingClientRect-based math (not offsetLeft) because the
+  // strip container has no CSS positioning context, so offsetLeft returns
+  // a position relative to <body>, not the container.
+  //
+  // Depends on pageTab so we re-fire when the matches view mounts: the
+  // round strip is only in the DOM when pageTab === 'matches', and
+  // selectedRound can be computed earlier (during the animated-arrival
+  // dwell where pageTab is still 'overview'). Without this dep, the
+  // first-fire of the effect finds no active button and silently bails.
+  //
+  // The first-paint measurement can produce a wrong target when the
+  // strip's clientWidth isn't fully settled (hero image loading,
+  // cookie banner shifting layout, sticky positioning). We retry on
+  // every ResizeObserver tick of the container until we successfully
+  // center, then stop — that way the user's manual scrolls aren't
+  // fought by later size changes.
   useEffect(() => {
+    if (pageTab !== 'matches') return
     if (!selectedRound || !stageStripRef.current) return
-    const btn = stageStripRef.current.querySelector<HTMLElement>('[data-active="true"]')
-    if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-  }, [selectedRound])
+    const container = stageStripRef.current
+
+    let centered = false
+    const center = () => {
+      if (centered) return
+      const btn = container.querySelector<HTMLElement>('[data-active="true"]')
+      if (!btn) return
+      const cRect = container.getBoundingClientRect()
+      const bRect = btn.getBoundingClientRect()
+      // Guard against transient layout where dimensions are tiny/zero.
+      // A real round chip is wider than 30px; a real strip wider than 100px.
+      if (container.clientWidth < 100 || bRect.width < 30) return
+
+      const btnLeftInScrollSpace = bRect.left - cRect.left + container.scrollLeft
+      const target = btnLeftInScrollSpace - (container.clientWidth - bRect.width) / 2
+      const max = container.scrollWidth - container.clientWidth
+      const clamped = Math.max(0, Math.min(target, max))
+      container.scrollTo({ left: clamped, behavior: 'smooth' })
+      centered = true
+    }
+
+    const raf = requestAnimationFrame(center)
+
+    // ResizeObserver retries center() each time the strip's size changes,
+    // catching the case where the initial rAF ran before layout settled.
+    // The `centered` flag ensures we only commit once per round selection.
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        if (!centered) requestAnimationFrame(center)
+      })
+      ro.observe(container)
+    }
+
+    return () => {
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
+    }
+  }, [selectedRound, pageTab])
 
   // ── Filtered matches ──────────────────────────────────────────
   const filtered = useMemo(() => {
