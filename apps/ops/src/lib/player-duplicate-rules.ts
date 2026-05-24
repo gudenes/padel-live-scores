@@ -28,7 +28,7 @@ export function normalize(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9\s]/g, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -43,11 +43,22 @@ export function nameTokens(name: string): { first: string; surname: string } {
 
 /**
  * Rule-based duplicate detection.
- * Looks for:
- *   - same fip_id (definitive)
- *   - same external_id (definitive)
- *   - normalized full name + same country
- *   - first + surname tokens match + same country
+ * Looks for clusters via 4 strategies, in this order:
+ *   1. Same fip_id (definitive)
+ *   2. Same external_id (definitive)
+ *   3. Normalized full name + same country
+ *   4. First + surname tokens + same country
+ *
+ * Cluster dedup: a cluster (by sorted member IDs) is only emitted once even
+ * if multiple strategies find the same exact members.
+ *
+ * Subset overlap (v1 behavior): if strategy 1 finds {A,B,C} and strategy 3
+ * finds {A,B}, BOTH clusters are emitted. The operator sees two separate
+ * suggestions and picks the one that matches their merge intent. Future
+ * versions may suppress subsets — pin tests when behavior changes.
+ *
+ * Strategy order matters only for the `reasons` label — the first strategy
+ * to claim a cluster's exact member set wins the reason string.
  */
 export function findRuleBasedDuplicates(players: PlayerRow[]): DuplicateGroup[] {
   const groups: DuplicateGroup[] = []
@@ -90,7 +101,7 @@ export function findRuleBasedDuplicates(players: PlayerRow[]): DuplicateGroup[] 
   for (const p of players) {
     const norm = normalize(p.name)
     if (!norm) continue
-    const key = `${norm}::${p.country ?? ''}`
+    const key = `${norm}::${p.country ?? '__null__'}`
     const list = byNameCountry.get(key) ?? []
     list.push(p)
     byNameCountry.set(key, list)
@@ -111,7 +122,7 @@ export function findRuleBasedDuplicates(players: PlayerRow[]): DuplicateGroup[] 
   for (const p of players) {
     const t = nameTokens(p.name)
     if (!t.first || !t.surname) continue
-    const key = `${t.first}::${t.surname}::${p.country ?? ''}`
+    const key = `${t.first}::${t.surname}::${p.country ?? '__null__'}`
     const list = byTokenCountry.get(key) ?? []
     list.push(p)
     byTokenCountry.set(key, list)
