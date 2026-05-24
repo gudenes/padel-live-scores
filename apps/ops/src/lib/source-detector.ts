@@ -174,3 +174,153 @@ export function extractHtmlLang(html: string): string | undefined {
   const m = html.match(/<html\b[^>]*\blang\s*=\s*["']([a-zA-Z]{2})/i)
   return m ? m[1].toLowerCase() : undefined
 }
+
+// ---------------------------------------------------------------------------
+// detectSource — full detection ladder (Step 1–5)
+// ---------------------------------------------------------------------------
+
+type Fetcher = (url: string, init?: RequestInit) => Promise<Response>
+
+export interface DetectOptions {
+  fetcher?: Fetcher
+  timeoutMs?: number
+}
+
+const COMMON_FEED_PATHS = ['/feed/', '/rss/', '/feed.xml', '/wp-json/wp/v2/posts?per_page=1'] as const
+const UA = 'PadelNachosBot/1.0 (+https://padelnachos.com)'
+
+/**
+ * Run the full detection ladder. See spec §6.2.
+ * Pass a custom `fetcher` for tests (must return Response-like).
+ */
+export async function detectSource(input: string, opts: DetectOptions = {}): Promise<DetectedSource> {
+  const fetcher = opts.fetcher ?? globalThis.fetch.bind(globalThis)
+  const timeoutMs = opts.timeoutMs ?? 15_000
+  const triedNotes: string[] = []
+
+  // Step 1: URL pattern
+  const pattern = matchUrlPattern(input)
+  if (pattern === 'google-news-search') {
+    return { type: 'google-news-search', url: input, sample: [] }
+  }
+
+  // Validate input is a URL we can fetch
+  let parsedUrl: URL
+  try { parsedUrl = new URL(input) } catch {
+    return { type: 'unknown', url: input, sample: [], notes: 'invalid_url' }
+  }
+
+  // Step 2: content sniff
+  const fetchOnce = withTimeout(fetcher, timeoutMs)
+  const primary = await safeFetch(fetchOnce, input)
+  if (primary?.ok) {
+    const ct = primary.headers.get('content-type') ?? ''
+    const body = await primary.text()
+    if (looksLikeFeed(ct, body)) {
+      const parsed = parseFeedXml(body)
+      if (parsed) return finalize({ ...parsed, url: input }, parsedUrl)
+    }
+    if (pattern === 'wp-api' || ct.includes('application/json')) {
+      const wp = parseWpJson(body, input)
+      if (wp) return finalize({ ...wp, url: input }, parsedUrl)
+    }
+
+    // Step 3: HTML auto-discovery
+    if (ct.includes('text/html') || /<html[\s>]/i.test(body)) {
+      const feedHref = findFeedLinkInHtml(body, input)
+      if (feedHref && feedHref !== input) {
+        const sub = await safeFetch(fetchOnce, feedHref)
+        if (sub?.ok) {
+          const subBody = await sub.text()
+          const parsed = parseFeedXml(subBody)
+          if (parsed) {
+            const htmlLang = extractHtmlLang(body)
+            return finalize(
+              { ...parsed, url: feedHref, name: parsed.name ?? extractHtmlTitle(body), language: htmlLang ?? parsed.language },
+              new URL(feedHref),
+            )
+          }
+        }
+        triedNotes.push(`html-discovery pointed to ${feedHref} but fetch/parse failed`)
+      }
+    }
+  } else {
+    triedNotes.push(`primary fetch failed (status ${primary?.status ?? 'no response'})`)
+  }
+
+  // Step 4: common-path fallback
+  for (const path of COMMON_FEED_PATHS) {
+    const candidate = new URL(path, parsedUrl).toString()
+    if (candidate === input) continue
+    const r = await safeFetch(fetchOnce, candidate)
+    if (!r?.ok) continue
+    const body = await r.text()
+    const ct = r.headers.get('content-type') ?? ''
+    if (looksLikeFeed(ct, body)) {
+      const parsed = parseFeedXml(body)
+      if (parsed) return finalize({ ...parsed, url: candidate }, new URL(candidate))
+    }
+    if (path.includes('wp-json') || ct.includes('application/json')) {
+      const wp = parseWpJson(body, candidate)
+      if (wp) return finalize({ ...wp, url: candidate }, new URL(candidate))
+    }
+  }
+
+  // Step 5: give up
+  return {
+    type: 'unknown',
+    url: input,
+    sample: [],
+    notes: ['no feed link found in HTML, no common-path feed responded', ...triedNotes].join('; '),
+  }
+}
+
+function finalize(
+  partial: { type: DetectedType; url: string; name?: string; language?: string; sample: DetectedSource['sample'] },
+  parsedUrl: URL,
+): DetectedSource {
+  return {
+    ...partial,
+    language: partial.language ?? extractLanguageFromTld(parsedUrl.toString()),
+  }
+}
+
+function looksLikeFeed(contentType: string, body: string): boolean {
+  if (/(rss|atom)\+xml/i.test(contentType)) return true
+  const head = body.slice(0, 256).toLowerCase()
+  return head.includes('<rss') || head.includes('<feed') || head.includes('<channel')
+}
+
+interface WpJsonOut { type: 'wp-api'; name?: string; sample: DetectedSource['sample'] }
+function parseWpJson(body: string, url: string): WpJsonOut | null {
+  try {
+    const json = JSON.parse(body)
+    if (!Array.isArray(json)) return null
+    const sample = json.slice(0, 3).map((p: { title?: { rendered?: string }; date?: string; excerpt?: { rendered?: string } }) => ({
+      title: stripHtml(p.title?.rendered ?? ''),
+      ...(p.date ? { pubDate: p.date } : {}),
+      ...(p.excerpt?.rendered ? { snippet: stripHtml(p.excerpt.rendered).slice(0, 200) } : {}),
+    })).filter((s: { title: string }) => s.title)
+    if (sample.length === 0) return null
+    return { type: 'wp-api', name: new URL(url).hostname, sample }
+  } catch {
+    return null
+  }
+}
+
+async function safeFetch(fetcher: Fetcher, url: string): Promise<Response | null> {
+  try {
+    return await fetcher(url, { headers: { 'user-agent': UA, accept: 'application/rss+xml, application/atom+xml, text/html, application/json;q=0.8, */*;q=0.5' } })
+  } catch {
+    return null
+  }
+}
+
+function withTimeout(fetcher: Fetcher, ms: number): Fetcher {
+  return async (url, init) => {
+    const ctl = new AbortController()
+    const timer = setTimeout(() => ctl.abort(), ms)
+    try { return await fetcher(url, { ...init, signal: ctl.signal }) }
+    finally { clearTimeout(timer) }
+  }
+}

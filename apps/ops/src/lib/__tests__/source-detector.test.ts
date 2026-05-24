@@ -145,3 +145,99 @@ describe('extractHtmlTitle / extractHtmlLang', () => {
     expect(extractHtmlLang('<html><body></body></html>')).toBeUndefined()
   })
 })
+
+import { detectSource } from '../source-detector'
+
+function fakeFetch(responses: Record<string, { status: number; contentType?: string; body: string }>) {
+  return async (url: string): Promise<Response> => {
+    const r = responses[url]
+    if (!r) return new Response('not found', { status: 404 })
+    return new Response(r.body, {
+      status: r.status,
+      headers: r.contentType ? { 'content-type': r.contentType } : {},
+    })
+  }
+}
+
+describe('detectSource (full ladder)', () => {
+  it('Step 1 fast-path: Google News URL needs no network', async () => {
+    const fetcher = fakeFetch({}) // no responses needed — never called
+    const result = await detectSource('https://news.google.com/rss/search?q=padel&hl=es', { fetcher })
+    expect(result.type).toBe('google-news-search')
+    expect(result.url).toBe('https://news.google.com/rss/search?q=padel&hl=es')
+  })
+
+  it('Step 2: content-sniff RSS returns rss with sample', async () => {
+    const fetcher = fakeFetch({
+      'https://blog.example.com/feed': {
+        status: 200,
+        contentType: 'application/rss+xml',
+        body: `<rss><channel><title>Blog</title><language>en</language>
+          <item><title>Post One</title></item>
+          <item><title>Post Two</title></item>
+          </channel></rss>`,
+      },
+    })
+    const result = await detectSource('https://blog.example.com/feed', { fetcher })
+    expect(result.type).toBe('rss')
+    expect(result.name).toBe('Blog')
+    expect(result.language).toBe('en')
+    expect(result.sample).toHaveLength(2)
+  })
+
+  it('Step 3: HTML auto-discovery follows <link rel="alternate">', async () => {
+    const fetcher = fakeFetch({
+      'https://example.es/padel/': {
+        status: 200,
+        contentType: 'text/html',
+        body: `<html lang="es"><head><title>Padel News</title>
+          <link rel="alternate" type="application/rss+xml" href="/padel/feed.xml">
+        </head><body>...</body></html>`,
+      },
+      'https://example.es/padel/feed.xml': {
+        status: 200,
+        contentType: 'application/rss+xml',
+        body: `<rss><channel><title>Padel Feed</title>
+          <item><title>News A</title></item></channel></rss>`,
+      },
+    })
+    const result = await detectSource('https://example.es/padel/', { fetcher })
+    expect(result.type).toBe('rss')
+    expect(result.url).toBe('https://example.es/padel/feed.xml')
+    expect(result.name).toBe('Padel Feed')
+    expect(result.language).toBe('es')
+  })
+
+  it('Step 4: common-path fallback hits /feed/ when HTML had no alternate', async () => {
+    const fetcher = fakeFetch({
+      'https://example.com/': {
+        status: 200,
+        contentType: 'text/html',
+        body: `<html><body>plain page no alternate</body></html>`,
+      },
+      'https://example.com/feed/': {
+        status: 200,
+        contentType: 'application/rss+xml',
+        body: `<rss><channel><title>Fallback Feed</title>
+          <item><title>Hi</title></item></channel></rss>`,
+      },
+    })
+    const result = await detectSource('https://example.com/', { fetcher })
+    expect(result.type).toBe('rss')
+    expect(result.name).toBe('Fallback Feed')
+  })
+
+  it('Step 5: returns unknown with notes when everything fails', async () => {
+    const fetcher = fakeFetch({
+      'https://nothing.example/': { status: 200, contentType: 'text/html', body: '<html><body>nope</body></html>' },
+    })
+    const result = await detectSource('https://nothing.example/', { fetcher })
+    expect(result.type).toBe('unknown')
+    expect(result.notes).toMatch(/no feed/i)
+  })
+
+  it('returns unknown on invalid URL without throwing', async () => {
+    const result = await detectSource('not a url', { fetcher: fakeFetch({}) })
+    expect(result.type).toBe('unknown')
+  })
+})
