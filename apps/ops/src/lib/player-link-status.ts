@@ -20,6 +20,8 @@ export interface PlayerLinkInput {
   fip_id?: string | null
   /** Carried for hover card / flag display only — does NOT affect status. */
   country?: string | null
+  /** Carried for hover card display only — does NOT affect status. */
+  category?: 'men' | 'women' | null
 }
 
 /**
