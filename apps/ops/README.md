@@ -222,3 +222,34 @@ A user can sign in via any provider but only sees the app if they're in the `pub
 - Backdated `started_at` earlier than the active row is REJECTED with 400 (would corrupt history)
 - `notes` field on the junction is persisted; year range 1990-2030 enforced on rackets
 - The deprecated `players.equipment` jsonb column will be dropped in a follow-up migration after 1 week of prod verification
+
+### Needs Review (updated 2026-05-23)
+
+`/needs-review` is a 2-queue inbox with filter chips:
+
+- **Tournaments** (`?queue=tournaments`, default) — duplicate-tournament dedup. Click cluster → review canonical vs duplicates → merge / keep / dismiss.
+- **Players** (`?queue=players`) — rules + AI scan for duplicate player rows. Mounted via the shared `DuplicatePlayersPanel` component which is also used by the Players tab (no regression for operators who scan from there).
+
+The sidebar **Needs Review** badge sums both queue counts.
+
+**Shared rules logic:** [`src/lib/player-duplicate-rules.ts`](src/lib/player-duplicate-rules.ts) defines the canonical duplicate-detection algorithm (4 strategies: shared `fip_id` / shared `external_id` / normalized name + country / first+surname tokens + country). Used by both the sidebar-badge counts endpoint AND the scan endpoint, so "what counts as a duplicate" is consistent across the dashboard.
+
+URL state: `?queue=<id>` is bookmarkable. Invalid values fall back to `tournaments`. Chip switches use `router.replace` so the back button skips them.
+
+The per-field merge editor only appears in the Players tab (where the surrounding `PlayerDrawer` state can host it). On `/needs-review`, merges are "keep selected, delete other" — operators can still polish the surviving row by opening it in the Players tab.
+
+### Sidebar 2-column layout (added 2026-05-24)
+
+The admin app uses a two-column drilldown sidebar (Sentry / Discord / VS Code pattern):
+
+- **Primary column** (78px) — 5 area icons + brand mark. Areas: Home / Tournament Ops / Catalogs / Content / System. The active area is derived from `pathname` via `areaFor(pathname)` in `src/lib/sidebar-areas.tsx`.
+- **Secondary column** (248px) — pages within the active area + signed-in-as footer at bottom.
+- **Activity rail** (280px, right side) — stub event feed. Real backend endpoint coming in a follow-up PR. Collapse state persisted in localStorage (`ops_activity_rail_collapsed`).
+
+**Active state cue:** lime pill background + spring-in left edge bar + bold lime-deep text. No dots.
+
+**Click ripple:** lime ink-wash spawned from the click point (icon container on primary, full row on secondary), via the shared `spawnRipple` helper in `src/lib/click-ripple.ts`. Respects `prefers-reduced-motion`.
+
+**Needs Review badge** appears on the Tournament Ops primary icon AND on the Needs Review row in the secondary column, so the count is visible regardless of which area is open. Polled from `/api/internal/needs-review/counts` every 60s.
+
+**To add a new page:** update `AREAS` in `src/lib/sidebar-areas.tsx` (add a `Page` entry to the appropriate area), then ensure `areaFor(pathname)` routes its href to the right area.

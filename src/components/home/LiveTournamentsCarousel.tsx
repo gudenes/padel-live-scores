@@ -47,7 +47,7 @@ function TournamentCarouselCard({
 
   return (
     <Link
-      href={`/tournaments/${tournament.id}`}
+      href={`/tournaments/${tournament.id}?tab=matches&intent=matches`}
       aria-label={ariaLabel}
       style={{ textDecoration: 'none', color: '#fff' }}
     >

@@ -15,6 +15,7 @@ import {
   parseDrawSizes,
   parseOverviewFields,
   parsePrizeBreakdown,
+  parseFactsheetUrl,
 } from '../parsers/fip-event-page-detail.js';
 
 export interface FipEventPageEnricherDeps {
@@ -49,6 +50,7 @@ export interface TournamentRow {
   prize_money_fip: number | null;
   prize_breakdown: unknown;
   level: string | null;
+  factsheet_url: string | null;
 }
 
 const FIP_BASE = 'https://www.padelfip.com';
@@ -119,7 +121,8 @@ export async function runFipEventPageEnricher(
         'venue, venue_address, venue_type, signup_fee_eur, schedule_notes, ' +
         'round_schedule, ' +
         'draw_size_md, draw_size_qd, ' +
-        'registration_status, prize_money_fip, prize_breakdown, level',
+        'registration_status, prize_money_fip, prize_breakdown, level, ' +
+        'factsheet_url',
     )
     .or(`source.eq.fip,fip_id.not.is.null`)
     .or(`ends_at.is.null,ends_at.gte.${cutoff}`)
@@ -258,6 +261,17 @@ export async function runFipEventPageEnricher(
       writeFromFip('prize_money_fip', t.prize_money_fip, drawSize.prizeMoney)
       writeFromFip('prize_breakdown', t.prize_breakdown, prizeBreakdown)
       writeFromFip('registration_status', t.registration_status, overview.registrationStatus)
+
+      // Factsheet PDF: detect link from event page. When the URL CHANGES,
+      // also reset factsheet_processed_at so the processor cron re-extracts
+      // against the new file. If we ever see a re-upload (FACTSHEET-2.pdf
+      // replacing FACTSHEET-1.pdf, or a year/month folder bump), this
+      // ensures the cached factsheet_data refreshes.
+      const newFactsheetUrl = parseFactsheetUrl(html)
+      if (newFactsheetUrl && newFactsheetUrl !== t.factsheet_url) {
+        patch.factsheet_url = newFactsheetUrl
+        patch.factsheet_processed_at = null
+      }
 
       // For padelapi-survivor rows, registration_status still flips
       // open→closed during the life cycle and padelapi doesn't track

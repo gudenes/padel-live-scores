@@ -496,6 +496,8 @@
     "perPlayer": "por jugador",
     "prizeBreakdown": "Desglose del premio",
     "inferredPrizeNote": "Estimado a partir del premio total",
+    "downloadFactsheet": "Descargar ficha",
+    "matchSchedule": "Calendario de partidos",
     "events": "Eventos",
     "bracket": {
       "noDrawForCategory": "No hay datos de cuadro para esta categoría."
@@ -1290,6 +1292,30 @@
     "empty": "Aún no hay artículos personalizados. Vuelve pronto.",
     "endOfFeed": "Estás al día",
     "swipeHintBack": "Desliza hacia abajo para el anterior",
-    "readArticle": "Leer artículo"
+    "readArticle": "Leer artículo",
+    "suggest": {
+      "button": "Sugerir una fuente",
+      "title": "Sugerir una fuente de noticias",
+      "description": "¿Conoces un sitio de noticias de padel que aún no cubrimos? Pega la URL y la añadiremos al feed Para Ti.",
+      "urlLabel": "URL",
+      "urlPlaceholder": "https://...",
+      "noteLabel": "¿Por qué es buena esta fuente? (opcional)",
+      "emailLabel": "Email (opcional)",
+      "submit": "Enviar",
+      "cancel": "Cancelar",
+      "done": "Hecho",
+      "successHappy": "Detectamos que es {type} de \"{name}\". Lo revisaremos y lo añadiremos en pocos días.",
+      "successDup": "Ya cubrimos este sitio. ¡Gracias por pensarnos!",
+      "successDefault": "Recibido. Le echaremos un vistazo. (No pudimos detectar el tipo de feed, así que necesitará revisión manual.)",
+      "errorInvalidUrl": "Introduce una URL válida (empieza con http:// o https://)",
+      "errorRateLimit": "Has alcanzado el límite de hoy (3 envíos). Inténtalo de nuevo mañana.",
+      "errorGeneric": "Algo salió mal. Por favor, inténtalo de nuevo.",
+      "typeLabel": {
+        "rss": "un feed RSS",
+        "wp-api": "un sitio WordPress",
+        "google-news-search": "una búsqueda de Google News",
+        "unknown": "una fuente de noticias"
+      }
+    }
   }
 }

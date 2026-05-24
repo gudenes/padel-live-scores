@@ -393,3 +393,32 @@ export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
   if (hits === 0) return null;
   return { ...rounds, currency: 'EUR', per: 'player', source: 'scraped' };
 }
+
+/**
+ * Extract the factsheet PDF URL from an event page. FIP links a downloadable
+ * factsheet on most Platinum/Major/Premier events — a 2-4 page PDF with
+ * prize money breakdown, daily schedule, points table, sponsor list, venue
+ * address, etc. Used by the factsheet-processor cron to feed Claude.
+ *
+ * URL pattern observed:
+ *   https://www.padelfip.com/wp-content/uploads/YYYY/MM/[SLUG]_FACTSHEET[-N].pdf
+ *
+ * Match anything in `wp-content/uploads/` ending in `.pdf` and containing
+ * "factsheet" (case-insensitive). If multiple match, prefer the most recent
+ * year/month folder (handles re-uploaded factsheets keeping older copies).
+ */
+export function parseFactsheetUrl(html: string): string | null {
+  const re = /https?:\/\/[^\s"'<>]*?wp-content\/uploads\/[^\s"'<>]*?factsheet[^\s"'<>]*?\.pdf/gi;
+  const matches = html.match(re);
+  if (!matches || matches.length === 0) return null;
+  // Newest year/month wins on duplicates. The path component is /YYYY/MM/
+  // — sort lexicographically descending picks the most recent.
+  const sorted = [...new Set(matches)].sort((a, b) => {
+    const aDate = a.match(/uploads\/(\d{4})\/(\d{2})\//);
+    const bDate = b.match(/uploads\/(\d{4})\/(\d{2})\//);
+    const aKey = aDate ? `${aDate[1] ?? ''}${aDate[2] ?? ''}` : '';
+    const bKey = bDate ? `${bDate[1] ?? ''}${bDate[2] ?? ''}` : '';
+    return bKey.localeCompare(aKey);
+  });
+  return sorted[0] ?? null;
+}

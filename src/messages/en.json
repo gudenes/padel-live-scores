@@ -518,6 +518,10 @@
     "perPlayer": "per player",
     "prizeBreakdown": "Prize breakdown",
     "inferredPrizeNote": "Estimated from total prize pool",
+    "downloadFactsheet": "Download factsheet",
+    "_downloadFactsheet_context": "CTA on a clickable card linking to a PDF tournament factsheet hosted on padelfip.com",
+    "matchSchedule": "Match schedule",
+    "_matchSchedule_context": "Section header above a day-by-day list of when each tournament round plays (date + start time + round name). Sourced from the factsheet PDF. Use the same noun as for a TV/sports schedule.",
     "events": "Events",
     "_events_context": "Header on the tournaments listing page. Plural noun \"tournaments\". ES: \"Eventos\".",
     "bracket": {
@@ -1317,6 +1321,30 @@
     "empty": "No personalized articles yet. Check back soon.",
     "endOfFeed": "You're all caught up",
     "swipeHintBack": "Swipe down for previous",
-    "readArticle": "Read article"
+    "readArticle": "Read article",
+    "suggest": {
+      "button": "Suggest a source",
+      "title": "Suggest a news source",
+      "description": "Know a padel news site we don't yet cover? Paste the URL and we'll add it to the For You feed.",
+      "urlLabel": "URL",
+      "urlPlaceholder": "https://...",
+      "noteLabel": "Why is this site good? (optional)",
+      "emailLabel": "Email (optional)",
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "done": "Done",
+      "successHappy": "We detected this is {type} for \"{name}\". We'll review and add it within a few days.",
+      "successDup": "We already cover this site. Thanks for thinking of us though!",
+      "successDefault": "Got it. We'll take a look. (We weren't able to detect what type of feed this is, so it'll need manual review.)",
+      "errorInvalidUrl": "Please enter a valid URL (starts with http:// or https://)",
+      "errorRateLimit": "You've reached today's submission limit (3 per day). Try again tomorrow.",
+      "errorGeneric": "Something went wrong. Please try again.",
+      "typeLabel": {
+        "rss": "an RSS feed",
+        "wp-api": "a WordPress site",
+        "google-news-search": "a Google News search",
+        "unknown": "a news source"
+      }
+    }
   }
 }

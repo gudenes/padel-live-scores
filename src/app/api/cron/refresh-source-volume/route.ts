@@ -23,7 +23,25 @@ export async function GET(req: NextRequest) {
     const cutoff = new Date(Date.now() - 7 * 86400_000).toISOString()
     const { error } = await supabase.rpc('refresh_news_sources_volume_7d', { cutoff_ts: cutoff })
     if (error) throw new Error(`rpc: ${error.message}`)
-    return { cutoff, ok: true }
+
+    const { data: qUpdated, error: qErr } = await supabase.rpc('refresh_source_quality_pct')
+    if (qErr) {
+      console.error('quality refresh failed:', qErr)
+      // non-fatal — continue
+    }
+
+    // Step 3: auto-disable dead sources (with circuit breaker)
+    const { data: disableResult, error: dErr } = await supabase.rpc('auto_disable_dead_sources')
+    if (dErr) {
+      console.error('auto-disable failed:', dErr)
+    }
+
+    return {
+      cutoff,
+      ok: true,
+      quality_updated: qUpdated ?? null,
+      auto_disable: disableResult?.[0] ?? null,
+    }
   })
 
   return NextResponse.json(meta)
