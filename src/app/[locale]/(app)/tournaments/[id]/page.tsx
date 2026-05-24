@@ -1843,7 +1843,8 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   })()
   const displayMatches = totalMatches || expectedMatches
 
-  // Schedule
+  // Schedule — derived from the matches table so it works for every
+  // tournament, not just the ~10% with a published factsheet PDF.
   const schedule = availableRounds.map(round => {
     const count = genderMatches.filter(m => normalizeRoundFull(m.round as string) === round).length
     return { round, date: roundDates[round] ?? '', count }
@@ -2096,75 +2097,6 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         )
       })()}
 
-      {/* Tournament Schedule — day-by-day plan with start times extracted
-          from the factsheet PDF. Complements the round chips on the
-          Matches tab (which only show dates) by adding wall-clock start
-          times — the main thing players + fans want to know. */}
-      {(() => {
-        type ScheduleRow = { date?: string; round_label?: string; start_time?: string | null }
-        const sched = tournament?.factsheet_data?.schedule as ScheduleRow[] | undefined
-        const rows = (sched ?? []).filter(s => s && typeof s.date === 'string' && typeof s.round_label === 'string')
-        if (rows.length === 0) return null
-
-        const fmtDate = (iso: string) => {
-          try {
-            return format.dateTime(new Date(iso + 'T00:00:00Z'), { weekday: 'short', day: 'numeric', month: 'short' })
-          } catch {
-            return iso
-          }
-        }
-
-        return (
-          <>
-            <SectionHeader label={tTournament('matchSchedule')} />
-            <div style={{
-              background: BG_CARD,
-              clipPath: CHUNKY.card,
-              border: `1px solid ${BORDER}`,
-              padding: '4px 14px',
-              marginBottom: 16,
-            }}>
-              {rows.map((s, i) => (
-                <div
-                  key={`${s.date}-${i}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 0',
-                    borderBottom: i === rows.length - 1 ? 'none' : `1px solid ${BORDER}`,
-                  }}
-                >
-                  <span style={{
-                    fontSize: 11, fontWeight: 700, letterSpacing: 0.5,
-                    color: MUTED, textTransform: 'uppercase',
-                    minWidth: 88, flexShrink: 0,
-                  }}>
-                    {fmtDate(s.date!)}
-                  </span>
-                  {s.start_time ? (
-                    <span style={{
-                      fontSize: 12, fontWeight: 700, color: GREEN,
-                      minWidth: 44, flexShrink: 0,
-                    }}>
-                      {s.start_time}
-                    </span>
-                  ) : (
-                    <span style={{ minWidth: 44, flexShrink: 0 }} />
-                  )}
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, color: '#fff',
-                    overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>
-                    {s.round_label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </>
-        )
-      })()}
-
       {/* Champion (current tournament, only once the final has been played) */}
       {currentChampion && (
         <ChampionTile
@@ -2230,7 +2162,9 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         fallback={wtwFallback}
       />
 
-      {/* Schedule */}
+      {/* Schedule — date + round + match count, computed from the matches
+          table so every tournament has it (the factsheet PDF schedule was
+          richer but only ~10% of events publish one). */}
       {schedule.length > 0 && (
         <>
           <SectionHeader label="Schedule" />
@@ -2246,7 +2180,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
                 borderBottom: i < schedule.length - 1 ? `0.5px solid ${BORDER}` : 'none',
               }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? GREEN : MUTED, width: 50 }}>
-                  {s.date.split('-')[0]?.trim() || '\u2014'}
+                  {s.date.split('-')[0]?.trim() || '—'}
                 </span>
                 <span style={{ fontSize: 12, color: MUTED, flex: 1 }}>
                   {s.round} ({s.count} {s.count === 1 ? 'match' : 'matches'})

@@ -60,6 +60,20 @@ interface TournamentWithSources {
   draw_size_md: number | null
   draw_size_qd: number | null
   slug: string | null
+  // Factsheet PDF (separate pipeline from prize_breakdown / schedule_notes —
+  // see API route comment). Carries wall-clock start times the FIP HTML
+  // page doesn't expose. Null on every tournament without a published
+  // factsheet.
+  factsheet_url: string | null
+  factsheet_data: {
+    schedule?: Array<{ date?: string; round_label?: string; start_time?: string | null }>
+    prize_money?: Array<{
+      round_label?: string
+      per_player_eur?: number | null
+      total_pair_eur?: number | null
+    }>
+  } | null
+  factsheet_processed_at: string | null
   // Status
   status: string | null
   entry_list_status: string | null
@@ -857,6 +871,54 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           }}>{t.schedule_notes}</pre>
         </div>
       )}
+
+      {/* Factsheet PDF — slim metadata strip. The schedule + prize_money
+          extracted from the PDF now land in canonical columns
+          (round_schedule via the ENRICHABLE patch path, prize_breakdown
+          via mapFactsheetPrize + source-priority — see
+          /api/cron/process-factsheets), so the Prize breakdown card
+          above this and the Phases card below show factsheet-sourced
+          values automatically. This strip just exposes the source PDF
+          + last-processed timestamp + a status dot so operators can
+          tell at a glance whether the factsheet pipeline ran. */}
+      {(t.factsheet_url || t.factsheet_processed_at) && (() => {
+        const processedAt = t.factsheet_processed_at
+          ? new Date(t.factsheet_processed_at).toISOString().slice(0, 16).replace('T', ' ')
+          : null
+        const status = !t.factsheet_url ? 'no-pdf'
+          : !t.factsheet_processed_at ? 'pending'
+          : 'ok'
+        const statusColor = status === 'ok' ? '#16a34a'
+          : status === 'pending' ? '#f59e0b'
+          : '#9ca3af'
+        const statusLabel = status === 'ok' ? `processed ${processedAt} UTC`
+          : status === 'pending' ? 'awaiting next /api/cron/process-factsheets run'
+          : 'no factsheet URL on this tournament'
+        return (
+          <div style={{ ...card, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: statusColor, display: 'inline-block',
+              }} />
+              <span style={{ color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+                Factsheet PDF
+              </span>
+              <span style={{ color: '#666' }}>{statusLabel}</span>
+            </span>
+            {t.factsheet_url && (
+              <a
+                href={t.factsheet_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 700, fontSize: 11 }}
+              >
+                Open PDF →
+              </a>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Tournament phases — each round + earliest scheduled_at across
           its matches. Tells operators when each phase actually starts

@@ -15,6 +15,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 import Anthropic from '@anthropic-ai/sdk'
+import { mapFactsheetPrize, type FactsheetPrizeRow } from '@/lib/factsheet-mappers'
+import { shouldOverwrite } from '@/lib/source-priority'
 
 export const runtime = 'nodejs'
 export const maxDuration = 120
@@ -292,10 +294,32 @@ async function processOne(row: TournamentRow): Promise<{ ok: boolean; error?: st
 
   const { accepted, rejected } = applyPatchGuards(parsed.patch ?? {}, currentState)
 
+  // Derive canonical prize_breakdown from factsheet_data.prize_money
+  // outside the ENRICHABLE/patch path. The patch path uses mergeMissing
+  // semantics (existing keys win on conflict), which is wrong for this
+  // field: the HTML scrape has produced buggy values for European
+  // events (9.375 → 9.38, 421,88 → 42188 — see padelgod fip-event-page
+  // -detail.ts), and the factsheet PDF is the canonical source. We
+  // gate the write through shouldOverwrite() against the current
+  // prize_breakdown.source, so 'manual' or future higher-priority
+  // sources won't be clobbered.
+  const meta = parsed.meta as { prize_money?: FactsheetPrizeRow[] } | undefined
+  const factsheetPrize = mapFactsheetPrize(meta?.prize_money)
+  const existingPrize = row.prize_breakdown as { source?: string } | null | undefined
+  const existingSource = existingPrize?.source as 'fip' | 'manual' | 'factsheet_pdf' | undefined
+
   const update: Record<string, unknown> = {
     factsheet_data: parsed.meta ?? null,
     factsheet_processed_at: new Date().toISOString(),
     ...accepted,
+  }
+
+  if (factsheetPrize && shouldOverwrite(
+    'tournament.prize_breakdown',
+    existingSource ?? null,
+    'factsheet_pdf',
+  )) {
+    update.prize_breakdown = factsheetPrize
   }
 
   const { error: updErr } = await supabase
@@ -323,7 +347,11 @@ export async function GET(request: Request) {
 
   // Pull tournament rows including the current state of every enrichable
   // column so we can gate writes and tell Claude what's already set.
-  const selectCols = ['id', 'name', 'factsheet_url', ...Object.keys(ENRICHABLE)].join(', ')
+  // `prize_breakdown` isn't in ENRICHABLE (we derive it deterministically
+  // from factsheet_data.prize_money instead of letting Claude propose it
+  // via the patch path — see processOne) so we add it to the select
+  // explicitly so the source-priority guard can read the current source.
+  const selectCols = ['id', 'name', 'factsheet_url', 'prize_breakdown', ...Object.keys(ENRICHABLE)].join(', ')
 
   let query = supabase
     .from('tournaments')
