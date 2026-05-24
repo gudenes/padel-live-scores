@@ -606,6 +606,19 @@ export function MatchCard({
                 const isWinner = winner === pairNum
                 const isLoser = winner !== 0 && winner !== pairNum
                 const seed = pairNum === 1 ? match.pair1_seed : match.pair2_seed
+                // Country fallback to the raw thin-match columns: padelgod
+                // captures alpha-3 codes (e.g. "ALB") on the matches row
+                // even when the joined players row has null country (or
+                // doesn't exist yet). Without this, Albanian / Georgian /
+                // Kosovan / other less-tracked players render flagless.
+                // normalizeCountry inside FlagImage handles alpha-3 → -2.
+                const m = match as unknown as Record<string, string | null>
+                const p1Country = p1?.country
+                  ?? m[`pair${pairNum}_player1_country`]
+                  ?? null
+                const p2Country = p2?.country
+                  ?? m[`pair${pairNum}_player2_country`]
+                  ?? null
                 return (
                   <div key={pairNum} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
@@ -619,10 +632,10 @@ export function MatchCard({
                     {/* Stacked dual flags */}
                     <div style={{ position: 'relative', width: 26, height: 20, flexShrink: 0 }}>
                       <div style={{ position: 'absolute', top: 0, left: 0, zIndex: 2 }}>
-                        <FlagImage country={p1?.country ?? null} size={16} />
+                        <FlagImage country={p1Country} size={16} />
                       </div>
                       <div style={{ position: 'absolute', top: 6, left: 8, zIndex: 1 }}>
-                        <FlagImage country={p2?.country ?? null} size={16} />
+                        <FlagImage country={p2Country} size={16} />
                       </div>
                     </div>
                     <span style={{
