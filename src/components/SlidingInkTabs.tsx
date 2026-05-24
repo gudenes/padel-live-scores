@@ -121,19 +121,26 @@ export default function SlidingInkTabs<K extends string = string>({
       isFirstRef.current = false
       previousKeyRef.current = activeKey
 
-      // Corrective re-snap on the next animation frame. The useLayoutEffect
-      // measurement above can be stale when the container hasn't fully
-      // settled (sticky parent, hidden ancestor, font load reflow). Without
-      // this, the bar can sit at a wrong x until a window resize fires.
-      // We only update if measurements actually changed, to avoid a
-      // pointless style write.
-      const raf = requestAnimationFrame(() => {
-        const next = snapToActive()
-        // snapToActive already wrote the values; the early return cases
-        // (container/label gone) leave the previous values in place.
-        void next
-      })
-      return () => cancelAnimationFrame(raf)
+      // Stabilization loop: re-snap each frame for a fixed window. A
+      // single rAF isn't enough on pages where layout shifts later than
+      // one frame — e.g., a wrapping ".app-frame" mockup on desktop
+      // that re-positions after hydration, an async hero image loading,
+      // or fonts swapping in. The shift can happen 100ms+ after mount,
+      // and the first frames are often "stable but wrong" (the layout
+      // just hasn't shifted yet), so early-termination on stability is
+      // unreliable — we just run for the full window. Each frame is a
+      // few getBoundingClientRect reads + idempotent CSS-var writes;
+      // negligible.
+      const MAX_FRAMES = 180 // ~3s at 60fps
+      let frames = 0
+      let rafId = 0
+      const loop = () => {
+        frames++
+        snapToActive()
+        if (frames < MAX_FRAMES) rafId = requestAnimationFrame(loop)
+      }
+      rafId = requestAnimationFrame(loop)
+      return () => cancelAnimationFrame(rafId)
     }
     if (previousKeyRef.current === activeKey) return
 
