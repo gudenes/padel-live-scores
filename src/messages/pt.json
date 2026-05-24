@@ -1290,6 +1290,30 @@
     "empty": "Ainda não há artigos personalizados. Volte em breve.",
     "endOfFeed": "Está em dia",
     "swipeHintBack": "Deslize para baixo para o anterior",
-    "readArticle": "Ler artigo"
+    "readArticle": "Ler artigo",
+    "suggest": {
+      "button": "Sugerir uma fonte",
+      "title": "Sugerir uma fonte de notícias",
+      "description": "Conhece um site de notícias de padel que ainda não cobrimos? Cole o URL e adicionamo-lo ao feed Para Ti.",
+      "urlLabel": "URL",
+      "urlPlaceholder": "https://...",
+      "noteLabel": "Por que é uma boa fonte? (opcional)",
+      "emailLabel": "Email (opcional)",
+      "submit": "Enviar",
+      "cancel": "Cancelar",
+      "done": "Concluído",
+      "successHappy": "Detetámos que é {type} de \"{name}\". Vamos rever e adicionar em poucos dias.",
+      "successDup": "Já cobrimos este site. Obrigado por pensar em nós!",
+      "successDefault": "Recebido. Vamos dar uma vista de olhos. (Não conseguimos detetar o tipo de feed, por isso será preciso revisão manual.)",
+      "errorInvalidUrl": "Introduza um URL válido (começa com http:// ou https://)",
+      "errorRateLimit": "Atingiu o limite de hoje (3 envios). Tente novamente amanhã.",
+      "errorGeneric": "Algo correu mal. Tente novamente.",
+      "typeLabel": {
+        "rss": "um feed RSS",
+        "wp-api": "um site WordPress",
+        "google-news-search": "uma pesquisa do Google News",
+        "unknown": "uma fonte de notícias"
+      }
+    }
   }
 }

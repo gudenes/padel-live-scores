@@ -1290,6 +1290,30 @@
     "empty": "Pas encore d'articles personnalisés. Reviens bientôt.",
     "endOfFeed": "Tu es à jour",
     "swipeHintBack": "Glisse vers le bas pour le précédent",
-    "readArticle": "Lire l'article"
+    "readArticle": "Lire l'article",
+    "suggest": {
+      "button": "Suggérer une source",
+      "title": "Suggérer une source d'actualités",
+      "description": "Vous connaissez un site d'actualités padel que nous ne couvrons pas encore ? Collez l'URL et nous l'ajouterons au flux Pour Vous.",
+      "urlLabel": "URL",
+      "urlPlaceholder": "https://...",
+      "noteLabel": "Pourquoi est-ce une bonne source ? (facultatif)",
+      "emailLabel": "E-mail (facultatif)",
+      "submit": "Envoyer",
+      "cancel": "Annuler",
+      "done": "Terminé",
+      "successHappy": "Nous avons détecté que c'est {type} de \"{name}\". Nous examinerons et l'ajouterons dans quelques jours.",
+      "successDup": "Nous couvrons déjà ce site. Merci d'y avoir pensé !",
+      "successDefault": "Bien reçu. Nous y jetterons un œil. (Nous n'avons pas pu détecter le type de flux, donc une revue manuelle sera nécessaire.)",
+      "errorInvalidUrl": "Veuillez saisir une URL valide (commence par http:// ou https://)",
+      "errorRateLimit": "Vous avez atteint la limite d'aujourd'hui (3 envois). Réessayez demain.",
+      "errorGeneric": "Une erreur s'est produite. Veuillez réessayer.",
+      "typeLabel": {
+        "rss": "un flux RSS",
+        "wp-api": "un site WordPress",
+        "google-news-search": "une recherche Google News",
+        "unknown": "une source d'actualités"
+      }
+    }
   }
 }
