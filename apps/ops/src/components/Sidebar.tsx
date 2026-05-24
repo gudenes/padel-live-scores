@@ -1,6 +1,8 @@
 // apps/ops/src/components/Sidebar.tsx
-// Two-column sidebar shell: SidebarPrimary (icons) + SidebarSecondary (pages)
-// + auth footer at the bottom. Owns badge polling for the Needs Review queue.
+// Two-column sidebar shell: SidebarPrimary (icons + user menu) + SidebarSecondary
+// (pages). The signed-in-as / sign-out affordance now lives in the primary
+// column's footer (was previously at the bottom of the secondary column).
+// Owns badge polling for the Needs Review queue.
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -45,41 +47,16 @@ export function Sidebar({ userEmail }: Props) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
-      <SidebarPrimary activeAreaId={activeAreaId} needsReviewCount={needsReviewCount} />
-
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-        <SidebarSecondary
-          activeAreaId={activeAreaId}
-          activePageHref={activePageHref}
-          badges={badges}
-        />
-
-        {userEmail && (
-          <div
-            style={{
-              borderTop: '1px solid var(--border-subtle)',
-              padding: '12px 16px',
-              fontSize: 11,
-              color: 'var(--status-neutral)',
-              width: 248,
-              background: 'var(--bg-card)',
-            }}
-          >
-            <div style={{ marginBottom: 2 }}>Signed in as</div>
-            <div
-              style={{
-                fontSize: 12,
-                color: 'var(--brand-primary-fg)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {userEmail}
-            </div>
-          </div>
-        )}
-      </div>
+      <SidebarPrimary
+        activeAreaId={activeAreaId}
+        needsReviewCount={needsReviewCount}
+        userEmail={userEmail}
+      />
+      <SidebarSecondary
+        activeAreaId={activeAreaId}
+        activePageHref={activePageHref}
+        badges={badges}
+      />
     </div>
   )
 }
