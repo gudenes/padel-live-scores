@@ -46,12 +46,32 @@ describe('validateEnrichmentShape', () => {
     })).toThrow(/entity type/)
   })
 
-  it('rejects topics outside the closed vocabulary', () => {
+  it('drops topics outside the closed vocabulary (does NOT throw)', () => {
+    const obj = {
+      summary_md: '• a',
+      entities: [],
+      topics: [
+        { topic: 'made-up', confidence: 0.7 },
+        { topic: 'preview', confidence: 0.8 },
+        { topic: 'also-bogus', confidence: 0.5 },
+      ],
+    }
+    expect(() => validateEnrichmentShape(obj)).not.toThrow()
+    // Only the in-vocabulary topic survives.
+    expect((obj as { topics: Array<{ topic: string }> }).topics).toEqual([
+      { topic: 'preview', confidence: 0.8 },
+    ])
+  })
+
+  it('accepts new vocabulary entries: tournament and rivalry', () => {
     expect(() => validateEnrichmentShape({
       summary_md: '• a',
       entities: [],
-      topics: [{ topic: 'made-up', confidence: 0.7 }],
-    })).toThrow(/topic/)
+      topics: [
+        { topic: 'tournament', confidence: 0.9 },
+        { topic: 'rivalry', confidence: 0.7 },
+      ],
+    })).not.toThrow()
   })
 
   it('rejects confidence out of range', () => {
