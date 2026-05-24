@@ -13,6 +13,8 @@ import { GET } from '../route'
 function buildSupabaseStub(opts: {
   diffEvents: Array<{ agreement: string; lag_seconds: number | null }>
   snapshots: Array<{ ocr_confidence: number | null }>
+  diffError?: { message: string } | null
+  snapError?: { message: string } | null
 }) {
   let call = 0
   return {
@@ -26,8 +28,8 @@ function buildSupabaseStub(opts: {
       // First .from('ocr_diff_events') chain returns diffEvents;
       // second .from('ocr_snapshots') chain returns snapshots.
       const promise = call === 1
-        ? Promise.resolve({ data: opts.diffEvents, error: null })
-        : Promise.resolve({ data: opts.snapshots, error: null })
+        ? Promise.resolve({ data: opts.diffEvents, error: opts.diffError ?? null })
+        : Promise.resolve({ data: opts.snapshots, error: opts.snapError ?? null })
       return promise
     }),
   }
@@ -74,5 +76,20 @@ describe('GET /api/internal/ocr-health', () => {
     expect(json.totalSnapshots).toBe(3)
     expect(json.meanConfidence).toBeCloseTo(0.85)
     expect(json.meanLagSeconds).toBeCloseTo(3)
+  })
+
+  it('returns 500 when snapshots query fails', async () => {
+    authMock.mockResolvedValueOnce({ user: { isOperator: true, email: 'op@x.com' } })
+    serviceClientMock.mockReturnValueOnce(
+      buildSupabaseStub({
+        diffEvents: [{ agreement: 'match', lag_seconds: 1 }],
+        snapshots: [],
+        snapError: { message: 'permission denied on padelgod.ocr_snapshots' },
+      }),
+    )
+    const res = await GET()
+    expect(res.status).toBe(500)
+    const json = await res.json()
+    expect(json.error).toContain('permission denied')
   })
 })

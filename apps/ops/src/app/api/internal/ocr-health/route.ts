@@ -72,11 +72,15 @@ export async function GET() {
   const matchRate = totalDiffs > 0 ? matchCount / totalDiffs : 0
   const meanLag = lagSamples > 0 ? totalLag / lagSamples : null
 
-  const { data: snapData } = (await supabase
+  const { data: snapData, error: snapError } = (await supabase
     .schema('padelgod')
     .from('ocr_snapshots')
     .select('ocr_confidence')
     .gte('captured_at', cutoff)) as { data: SnapshotRow[] | null; error: { message: string } | null }
+
+  if (snapError) {
+    return NextResponse.json({ error: snapError.message }, { status: 500 })
+  }
 
   const snapRows = snapData ?? []
   const confidences = snapRows
