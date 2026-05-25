@@ -11,6 +11,7 @@ import type { FipTwinHit } from '@/lib/fip-twin-finder'
 import { TournamentExplorerPicker } from './TournamentExplorerPicker'
 import { TournamentExplorerHeader } from './TournamentExplorerHeader'
 import { EntryListSection } from './EntryListSection'
+import { ResolvePartnerModal, type ResolvePartnerContext } from './ResolvePartnerModal'
 
 export interface TournamentExplorerClientProps {
   tournaments: TournamentListItem[]
@@ -21,7 +22,7 @@ export interface TournamentExplorerClientProps {
 export function TournamentExplorerClient({ tournaments, selectedId, initial }: TournamentExplorerClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [resolveCtx, setResolveCtx] = useState<{ parsedName: string; category: 'men' | 'women'; countryHint: string | null } | null>(null)
+  const [resolveCtx, setResolveCtx] = useState<ResolvePartnerContext | null>(null)
   const [resolveBanner, setResolveBanner] = useState<string | null>(null)
 
   const handleSelect = useCallback((id: string) => {
@@ -33,6 +34,11 @@ export function TournamentExplorerClient({ tournaments, selectedId, initial }: T
 
   const handleResolveClick = useCallback((p: EntryPlayer, category: 'men' | 'women') => {
     setResolveCtx({ parsedName: p.name, category, countryHint: p.country ?? null })
+  }, [])
+
+  const handleResolved = useCallback(() => {
+    setResolveCtx(null)
+    setResolveBanner('Resolved. Click "Re-seed from FIP PDF" to refresh the snapshot.')
   }, [])
 
   return (
@@ -54,17 +60,7 @@ export function TournamentExplorerClient({ tournaments, selectedId, initial }: T
       {selectedId && !initial?.entryList && (
         <div style={{ fontSize: 13, color: 'var(--status-neutral)' }}>Tournament not found.</div>
       )}
-      {/* ResolvePartnerModal, FipSeedPanel, FipTwinBanner land in Tasks 10–11. */}
-      {/* Stub: log resolveCtx when set so we can verify the click path. */}
-      {resolveCtx && (
-        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--status-neutral)' }}>
-          Will resolve: <code>{resolveCtx.parsedName}</code> ({resolveCtx.category}, {resolveCtx.countryHint ?? '—'})
-          {' — '}
-          <button type="button" onClick={() => setResolveCtx(null)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', textDecoration: 'underline' }}>
-            cancel
-          </button>
-        </div>
-      )}
+      <ResolvePartnerModal ctx={resolveCtx} onClose={() => setResolveCtx(null)} onResolved={handleResolved} />
     </div>
   )
 }
