@@ -10,6 +10,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import { pgPool } from '@/lib/db'
+import { normalizeName } from '@/lib/normalize-name'
 
 // -- GET: Fetch single player with match count ───────────────────
 export async function GET(request: Request) {
@@ -52,6 +54,63 @@ export async function GET(request: Request) {
   }
 
   return Response.json({ player, matchCount: count ?? 0 })
+}
+
+// -- POST: Create a new player (operator action from ResolvePartnerModal) ──
+// Inserts a public.players row. If `sourceName` is provided, also upserts
+// an alias in entity_external_ids so the parsed PDF name resolves instantly
+// on future fetcher runs.
+export async function POST(request: Request) {
+  const session = await auth()
+  if (!session?.user?.isOperator) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  let body: { name?: string; country?: string; category?: string; sourceName?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'invalid json' }, { status: 400 })
+  }
+  const name = typeof body.name === 'string' ? body.name.trim() : null
+  const country = typeof body.country === 'string' ? body.country.trim() || null : null
+  const category = body.category === 'men' || body.category === 'women' ? body.category : null
+  const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim() || null : null
+
+  if (!name) return NextResponse.json({ error: 'missing required field: name' }, { status: 400 })
+  if (!category) return NextResponse.json({ error: 'category must be men or women' }, { status: 400 })
+
+  const pool = pgPool()
+  const insertRes = await pool.query(
+    `insert into public.players (name, country, category, normalized_name, created_at, updated_at)
+     values ($1, $2, $3, $4, now(), now())
+     returning id`,
+    [name, country, category, normalizeName(name)],
+  )
+  const playerId = insertRes.rows[0]?.id as string | undefined
+  if (!playerId) {
+    return NextResponse.json({ error: 'create failed' }, { status: 500 })
+  }
+
+  let aliasWritten = false
+  if (sourceName) {
+    try {
+      await pool.query(
+        `insert into public.entity_external_ids
+           (entity_type, entity_id, source, external_id, metadata, last_seen_at)
+         values ('player', $1, 'alias', $2, jsonb_build_object('normalized', $3::text), now())
+         on conflict (source, entity_type, external_id) do update
+           set entity_id = excluded.entity_id,
+               metadata = excluded.metadata,
+               last_seen_at = excluded.last_seen_at`,
+        [playerId, sourceName, normalizeName(sourceName)],
+      )
+      aliasWritten = true
+    } catch (err) {
+      console.warn(`[ops/players POST] alias upsert failed for ${playerId} (sourceName="${sourceName}")`, err)
+    }
+  }
+
+  return NextResponse.json({ id: playerId, ok: true, aliasWritten })
 }
 
 // -- PATCH: Update player fields ─────────────────────────────────
