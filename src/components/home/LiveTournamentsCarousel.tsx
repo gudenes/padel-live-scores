@@ -46,7 +46,6 @@ export interface TournamentWithMatchInfo extends Tournament {
 }
 
 const GOLD = '#F5C842'
-const GOLD_SOFT = 'rgba(245,200,66,0.18)'
 
 interface Props {
   liveToday: TournamentWithMatchInfo[]
@@ -133,8 +132,8 @@ function TournamentCarouselCard({
               position: 'absolute',
               top: 9,
               left: 9,
-              background: GOLD_SOFT,
-              color: GOLD,
+              background: GOLD,
+              color: '#0A0A0A',
               fontSize: 8,
               fontWeight: 900,
               padding: '3px 7px',
@@ -144,7 +143,6 @@ function TournamentCarouselCard({
               display: 'flex',
               alignItems: 'center',
               gap: 3,
-              border: `1px solid ${GOLD}`,
             }}
           >
             <span aria-hidden style={{ fontSize: 9 }}>★</span>
