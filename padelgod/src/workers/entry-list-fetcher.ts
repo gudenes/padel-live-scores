@@ -63,6 +63,15 @@ import { searchFipPlayer } from '../lib/fip-player-search.js';
 import { normalizeCountry } from '../lib/country.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { pdfToText } from '../lib/pdf-text.js';
+import {
+  normalizeName,
+  loadDbPlayerIndex,
+  loadAliasIndex,
+  resolvePlayerByName,
+  storeAlias,
+  type DbPlayerIndex,
+  type AliasIndex,
+} from '../lib/db-resolver.js';
 
 export interface EntryListFetcherDeps {
   supabase: SupabaseClient;
@@ -91,112 +100,10 @@ export interface ActiveTournament {
 
 type Category = 'men' | 'women';
 
-interface DbPlayerRow {
-  id: string;
-  fip_id: string | null;
-  name: string;
-  normalized_name: string | null;
-  country: string | null;
-  ranking: number | null;
-  category: 'men' | 'women' | null;
-}
-
 interface ResolvedPlayer {
   fipId: string;
   name: string;
   country: string | null;
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-function normalizeName(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-/** Build a category-scoped index keyed on normalized name. Multiple players
- *  may share a normalized name (e.g. two "Juan Garcia" in the men's pool);
- *  we keep them all and let the resolver narrow by country + ranking. */
-function indexPlayersByName(rows: DbPlayerRow[]): Map<string, DbPlayerRow[]> {
-  const map = new Map<string, DbPlayerRow[]>();
-  for (const r of rows) {
-    const key = r.normalized_name ?? normalizeName(r.name);
-    if (!key) continue;
-    if (!map.has(key)) map.set(key, []);
-    map.get(key)!.push(r);
-  }
-  return map;
-}
-
-/** Resolve a parsed player against the DB index. Returns the fip_id when:
- *  (a) exactly one player matches by name + category, OR
- *  (b) multiple match but exactly one has the same country, OR
- *  (c) multiple match by name+country, narrow by ranking proximity.
- *  Returns null on ambiguity or zero matches — caller falls back to FIP
- *  search. */
-function resolveFromDb(
-  parsedName: string,
-  parsedCountry: string | null,
-  parsedRanking: number,
-  index: Map<string, DbPlayerRow[]>
-): string | null {
-  const key = normalizeName(parsedName);
-  if (!key) return null;
-  const candidates = index.get(key);
-  if (!candidates || candidates.length === 0) return null;
-
-  // Single hit → done.
-  if (candidates.length === 1) {
-    return candidates[0]!.fip_id ?? null;
-  }
-
-  // Filter by country (alpha-2 normalized on both sides).
-  const wantCountry = normalizeCountry(parsedCountry);
-  const sameCountry = wantCountry
-    ? candidates.filter((c) => normalizeCountry(c.country) === wantCountry)
-    : candidates;
-  if (sameCountry.length === 1) return sameCountry[0]!.fip_id ?? null;
-  if (sameCountry.length === 0) return null;
-
-  // Still ambiguous — pick by ranking proximity. Skip when the parsed
-  // ranking is 0 (PDF didn't show one) since every candidate would be
-  // equidistant from 0.
-  if (parsedRanking > 0) {
-    let best = sameCountry[0]!;
-    let bestDist = Math.abs((best.ranking ?? Number.MAX_SAFE_INTEGER) - parsedRanking);
-    for (let i = 1; i < sameCountry.length; i++) {
-      const c = sameCountry[i]!;
-      const d = Math.abs((c.ranking ?? Number.MAX_SAFE_INTEGER) - parsedRanking);
-      if (d < bestDist) {
-        best = c;
-        bestDist = d;
-      }
-    }
-    return best.fip_id ?? null;
-  }
-
-  // Genuinely ambiguous — refuse to guess.
-  return null;
-}
-
-/** Load candidate players for a category. Bounded: ~5k rows max for the
- *  men/women pool — well under any pagination limit. */
-async function loadDbPlayerIndex(
-  supabase: SupabaseClient,
-  category: Category
-): Promise<Map<string, DbPlayerRow[]>> {
-  const { data, error } = await supabase
-    .from('players')
-    .select('id, fip_id, name, normalized_name, country, ranking, category')
-    .eq('category', category);
-  if (error) {
-    throw new Error(`players read failed for ${category}: ${error.message}`);
-  }
-  return indexPlayersByName((data ?? []) as DbPlayerRow[]);
 }
 
 // ── Per-tournament work ──────────────────────────────────────────────────
@@ -258,32 +165,46 @@ const DRAW_TYPE_DB: Record<DrawType, 'main_draw' | 'qualifying'> = {
 
 async function resolveTeamPlayer(
   http: AxiosInstance,
+  supabase: SupabaseClient,
   parsedName: string,
   parsedCountry: string,
   parsedRanking: number,
   category: Category,
-  dbIndex: Map<string, DbPlayerRow[]>
+  dbIndex: DbPlayerIndex,
+  aliasIndex: AliasIndex
 ): Promise<ResolvedPlayer | null> {
-  // 1. DB hit — fastest, no external call.
-  const dbFipId = resolveFromDb(parsedName, parsedCountry, parsedRanking, dbIndex);
-  if (dbFipId) {
-    return { fipId: dbFipId, name: parsedName, country: parsedCountry || null };
+  // 1. DB chain: alias → exact → subset → typo (via db-resolver).
+  const hit = resolvePlayerByName(
+    { name: parsedName, country: parsedCountry, ranking: parsedRanking },
+    dbIndex,
+    aliasIndex
+  );
+  if (hit && hit.fipId) {
+    // Persist the alias on every fuzzy hit so the next snapshot is O(1).
+    // Skip for 'exact' (would be a no-op) and 'alias' (already there).
+    if (hit.matchType === 'subset' || hit.matchType === 'typo') {
+      await storeAlias(supabase, hit.playerId, parsedName);
+      // Keep the in-memory index in sync so subsequent rows in this same
+      // fetcher run hit the alias path instead of re-running fuzzy.
+      aliasIndex.set(normalizeName(parsedName), hit.playerId);
+    }
+    return { fipId: hit.fipId, name: parsedName, country: parsedCountry || null };
   }
   // 2. FIP search fallback for players we don't have yet.
-  const hit = await searchFipPlayer(http, {
+  const fipHit = await searchFipPlayer(http, {
     name: parsedName,
     country: parsedCountry,
     category,
     rankingHint: parsedRanking || null,
   });
-  if (!hit) return null;
+  if (!fipHit) return null;
   return {
     // Use the raw FIP id (e.g. "P203884"). The legacy "fip-" prefix
     // convention was unwound in the merge-duplicate-players PR — see
     // CLAUDE.md "Player fip_id format" section.
-    fipId: hit.playerId,
-    name: hit.fullName,
-    country: hit.nationality,
+    fipId: fipHit.playerId,
+    name: fipHit.fullName,
+    country: fipHit.nationality,
   };
 }
 
@@ -292,12 +213,14 @@ async function processCategory(
   tournamentId: string,
   category: Category,
   pdfUrl: string,
-  dbIndex: Map<string, DbPlayerRow[]>
+  dbIndex: DbPlayerIndex,
+  aliasIndex: AliasIndex
 ): Promise<{
   snapshotsInserted: number;
   playersResolved: number;
   playersUnresolved: number;
 }> {
+  const supabase = deps.supabase;
   let parsedTeams: ParsedTeam[] = [];
 
   // Wrap the network + parse work in a scrape_job for audit-trail parity
@@ -332,19 +255,23 @@ async function processCategory(
   for (const team of parsedTeams) {
     const r1 = await resolveTeamPlayer(
       deps.httpClient,
+      supabase,
       team.player1.name,
       team.player1.country,
       team.player1.ranking,
       category,
-      dbIndex
+      dbIndex,
+      aliasIndex
     );
     const r2 = await resolveTeamPlayer(
       deps.httpClient,
+      supabase,
       team.player2.name,
       team.player2.country,
       team.player2.ranking,
       category,
-      dbIndex
+      dbIndex,
+      aliasIndex
     );
 
     if (r1) resolved++;
@@ -429,11 +356,12 @@ export async function processTournament(
     return { snapshotsInserted: 0, playersResolved: 0, playersUnresolved: 0, pdfsFound: false };
   }
 
-  // Pre-load the player index ONCE per category, reuse across all teams.
-  // Avoids quadratic re-fetching when a tournament has 256 players.
-  const [menIndex, womenIndex] = await Promise.all([
-    pdfUrls.men ? loadDbPlayerIndex(deps.supabase, 'men') : Promise.resolve(new Map()),
-    pdfUrls.women ? loadDbPlayerIndex(deps.supabase, 'women') : Promise.resolve(new Map()),
+  // Pre-load the player index ONCE per category and the alias index once
+  // per tournament run. Reuse across all teams to avoid quadratic fetching.
+  const [menIndex, womenIndex, aliasIndex] = await Promise.all([
+    pdfUrls.men ? loadDbPlayerIndex(deps.supabase, 'men') : Promise.resolve(new Map() as DbPlayerIndex),
+    pdfUrls.women ? loadDbPlayerIndex(deps.supabase, 'women') : Promise.resolve(new Map() as DbPlayerIndex),
+    loadAliasIndex(deps.supabase),
   ]);
 
   let snapshotsInserted = 0;
@@ -441,13 +369,13 @@ export async function processTournament(
   let playersUnresolved = 0;
 
   if (pdfUrls.men) {
-    const out = await processCategory(deps, t.tournament_id, 'men', pdfUrls.men, menIndex);
+    const out = await processCategory(deps, t.tournament_id, 'men', pdfUrls.men, menIndex, aliasIndex);
     snapshotsInserted += out.snapshotsInserted;
     playersResolved += out.playersResolved;
     playersUnresolved += out.playersUnresolved;
   }
   if (pdfUrls.women) {
-    const out = await processCategory(deps, t.tournament_id, 'women', pdfUrls.women, womenIndex);
+    const out = await processCategory(deps, t.tournament_id, 'women', pdfUrls.women, womenIndex, aliasIndex);
     snapshotsInserted += out.snapshotsInserted;
     playersResolved += out.playersResolved;
     playersUnresolved += out.playersUnresolved;

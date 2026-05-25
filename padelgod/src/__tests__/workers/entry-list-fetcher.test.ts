@@ -47,10 +47,12 @@ function fakeSupabase(opts: {
 }) {
   const inserted: InsertedSnapshot[] = [];
   const scrapeJobUpdates: any[] = [];
+  const aliasUpserts: Array<{ row: any; opts: any }> = [];
 
   return {
     inserted,
     scrapeJobUpdates,
+    aliasUpserts,
     schema: () => ({
       from: (t: string) => {
         if (t === 'entry_list_snapshots') {
@@ -110,6 +112,23 @@ function fakeSupabase(opts: {
               return Promise.resolve({ data: rows, error: null });
             },
           }),
+        };
+      }
+      if (t === 'entity_external_ids') {
+        return {
+          // Reads via loadAliasIndex use paginatedSelect → .range(start, end)
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                range: () => Promise.resolve({ data: [], error: null }),
+              }),
+            }),
+          }),
+          // Writes via storeAlias use .upsert(row, opts)
+          upsert: (row: any, upsertOpts: any) => {
+            aliasUpserts.push({ row, opts: upsertOpts });
+            return Promise.resolve({ data: null, error: null });
+          },
         };
       }
       return {
@@ -366,6 +385,85 @@ describe('runEntryListFetcher (FIP PDF mode)', () => {
     // Team 2 still writes both rows with seeds + linked partner ids.
     const chingotto = supabase.inserted.find((r) => r.fip_id === 'fip-P0010');
     expect(chingotto!.partner_fip_id).toBe('fip-P0011');
+  });
+
+  it('resolves a parsed name to an existing player via subset fuzzy and writes an alias (Alejandro Ruiz Granados case)', async () => {
+    // Live data: FIP Platinum Albania 2026, MD seed 7. The PDF lists "Alejandro
+    // Ruiz Granados" but FIP indexes him as "Alejandro Ruiz" (P000012). Pre-fix
+    // the fetcher's DB lookup missed him (only exact-name match) and FIP search
+    // didn't recover. With the new db-resolver chain, subset fuzzy catches the
+    // match and storeAlias persists the variant for next time.
+    const pdfText = [
+      'FIP TEST',
+      'ENTRY LIST Hombres\'s',
+      'Last Update: 22/5/2026',
+      'Pos Ranking Player Country',
+      '1\t22 Alejandro Ruiz Granados ESP',
+      '2500 points 23 Juanlu Esbri ESP',
+      '2480 points 4980',
+    ].join('\n');
+
+    const supabase = fakeSupabase({
+      activeTournaments: [{
+        tournament_id: 't1',
+        tournament_name: 'FIP Test',
+        slug: 'fip-test-2026',
+        starts_at: '2026-05-26T00:00:00Z',
+        ends_at: '2026-05-30T00:00:00Z',
+      }],
+      dbPlayers: [
+        // Note: DB has "Alejandro Ruiz" (the canonical FIP name) — the PDF's
+        // "Alejandro Ruiz Granados" is the longer variant. Subset fuzzy: every
+        // shorter-side token ("alejandro", "ruiz") appears in the longer side.
+        { id: 'u-ruiz', fip_id: 'P000012', name: 'Alejandro Ruiz', normalized_name: 'alejandro ruiz', country: 'ES', ranking: 23, category: 'men' },
+        { id: 'u-esbri', fip_id: 'P000052', name: 'Juanlu Esbri', normalized_name: 'juanlu esbri', country: 'ES', ranking: 23, category: 'men' },
+      ],
+    });
+
+    vi.mocked(pdfToText)
+      .mockImplementationOnce(async () => pdfText)
+      .mockImplementation(async () => '');
+
+    const httpClient = {
+      get: vi.fn()
+        .mockResolvedValueOnce({ data: eventPageHtml })
+        .mockResolvedValue({ data: new ArrayBuffer(8) }),
+      post: vi.fn().mockResolvedValueOnce({
+        data: ajaxJson(
+          'https://www.padelfip.com/wp-content/uploads/men.pdf',
+          'https://www.padelfip.com/wp-content/uploads/women.pdf'
+        ),
+      }),
+    };
+
+    const result = await runEntryListFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    expect(result.totalPlayersResolved).toBe(2);
+    expect(result.totalPlayersUnresolved).toBe(0);
+
+    // Both partners resolved → 2 rows (one per resolved player).
+    expect(supabase.inserted).toHaveLength(2);
+
+    // The Ruiz row carries the right fip_id and cross-refs Esbri as partner.
+    const ruizRow = supabase.inserted.find((r) => r.fip_id === 'P000012');
+    expect(ruizRow).toBeDefined();
+    expect(ruizRow!.partner_fip_id).toBe('P000052');
+
+    // The alias was upserted for the long parsed name.
+    expect(supabase.aliasUpserts.some((u) =>
+      u.row.external_id === 'Alejandro Ruiz Granados' && u.row.entity_id === 'u-ruiz'
+    )).toBe(true);
+
+    // FIP search must NOT have been called — alias-rescue stays purely local.
+    // The httpClient was called ONCE for the event page + ONCE for POST + 2 for PDFs = 3 GETs, 1 POST.
+    // No additional GET to fip.com/wp-json/fip/v1/player/search.
+    const fipSearchCalls = httpClient.get.mock.calls.filter((c: any[]) =>
+      typeof c[0] === 'string' && c[0].includes('/wp-json/fip/v1/player/search')
+    );
+    expect(fipSearchCalls).toHaveLength(0);
   });
 
   it('soft-skips a failing tournament without taking the rest of the run down', async () => {
