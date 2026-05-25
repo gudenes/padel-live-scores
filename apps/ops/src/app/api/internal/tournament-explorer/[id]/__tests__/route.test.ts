@@ -18,6 +18,7 @@ beforeEach(() => {
 describe('GET /api/internal/tournament-explorer/[id]', () => {
   it('returns 401 when not an operator', async () => {
     const { auth } = await import('@/lib/auth')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(auth).mockResolvedValueOnce({ user: { isOperator: false } } as any)
     const res = await GET(new Request('http://x/'), { params: Promise.resolve({ id: 't1' }) })
     expect(res.status).toBe(401)

@@ -34,7 +34,12 @@ export async function getActiveTournamentList(): Promise<TournamentListItem[]> {
        order by t.starts_at desc nulls last`,
     [cutoff],
   )
-  return res.rows.map((r: any) => ({
+  type TournamentRow = {
+    id: string; name: string; starts_at: string | null; ends_at: string | null
+    source: string | null; level: string | null; country: string | null
+    fip_id: string | null; latest_snapshot_at: string | null
+  }
+  return (res.rows as TournamentRow[]).map((r) => ({
     id: r.id,
     name: r.name,
     starts_at: r.starts_at,

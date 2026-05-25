@@ -148,11 +148,12 @@ export async function getEntryListPayload(tournamentId: string): Promise<EntryLi
 
   // Second pass: for rows whose fip_id didn't resolve, try by normalized
   // name + category (covers padelapi-created players without fip_id).
-  const unresolvedRows = snapsRes.rows.filter((r: any) => !r.resolved_player_id)
+  type SnapRow = { resolved_player_id: string | null; name: string; category: string }
+  const unresolvedRows = (snapsRes.rows as SnapRow[]).filter((r) => !r.resolved_player_id)
   const byNormName = new Map<string, { id: string; name: string }>()
   if (unresolvedRows.length > 0) {
-    const wantNames = [...new Set(unresolvedRows.map((r: any) => normalizeName(r.name)))]
-    const wantCategories = [...new Set(unresolvedRows.map((r: any) => r.category))]
+    const wantNames = [...new Set(unresolvedRows.map((r) => normalizeName(r.name)))]
+    const wantCategories = [...new Set(unresolvedRows.map((r) => r.category))]
     const nameLookupRes = await pool.query(
       `select id, name, normalized_name, category from public.players
         where normalized_name = any($1::text[])
