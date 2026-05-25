@@ -113,8 +113,11 @@ interface ExistingMatch {
   court_order: number | null;
   /** Used by Pass B to enforce gap-fill semantics — only write
    *  scheduled_at when current is NULL or a midnight-UTC placeholder
-   *  (see isPlaceholderScheduledAt). */
+   *  (see isPlaceholderScheduledAt), OR when the existing value is a
+   *  "Followed by" estimate that may shift as the OOP chain evolves
+   *  (see isScheduledAtWriteEligible). */
   scheduled_at: string | null;
+  schedule_label: string | null;
 }
 
 /**
@@ -136,6 +139,36 @@ export function isPlaceholderScheduledAt(value: string | null): boolean {
   // Avoid a Date round-trip — string-match the time component.
   // Accepts both "T00:00:00" and "T00:00:00.000" sub-second forms.
   return /T00:00:00(?:\.0+)?(?:Z|[+-]00:00)?$/.test(value);
+}
+
+/**
+ * Pass B eligibility predicate — whether to re-estimate scheduled_at
+ * on this OOP run.
+ *
+ * Eligible when:
+ *   - scheduled_at is NULL (never been set);
+ *   - it's the padelapi midnight-UTC placeholder (date-only, no time);
+ *   - the row's current `schedule_label` is "Followed by". These values
+ *     are pure chain-derived estimates: any change to absolute anchors
+ *     upstream on the same court (a new "Not before X PM" landing, a
+ *     court_order shuffle, a walkover finishing earlier than expected)
+ *     shifts the correct estimate downstream, so we must always recompute
+ *     rather than freeze the first guess.
+ *
+ * Firm rows ("Starting at X PM", "Not before X PM") are NOT eligible —
+ * those carry an absolute time and are preserved across runs so we don't
+ * clobber manual overrides or padelapi-sourced firm times. The CAS guard
+ * on the UPDATE still protects against a concurrent writer landing a
+ * firmer value between our read and write.
+ */
+export function isScheduledAtWriteEligible(
+  scheduledAt: string | null,
+  scheduleLabel: string | null,
+): boolean {
+  if (scheduledAt == null) return true;
+  if (isPlaceholderScheduledAt(scheduledAt)) return true;
+  if (scheduleLabel && /followed by/i.test(scheduleLabel)) return true;
+  return false;
 }
 
 // ── Main entry ─────────────────────────────────────────────────────────
@@ -271,8 +304,10 @@ export async function runFipOopWriter(
       if (r.day_date && r.scheduled_label) {
         allOopForParser.push({ matchId: existing.id, row: r });
         if (
-          existing.scheduled_at == null ||
-          isPlaceholderScheduledAt(existing.scheduled_at)
+          isScheduledAtWriteEligible(
+            existing.scheduled_at,
+            existing.schedule_label,
+          )
         ) {
           writeEligible.set(existing.id, existing.scheduled_at);
         }
@@ -557,7 +592,7 @@ async function loadExistingMatchesByPrefix(
 ): Promise<Map<string, ExistingMatch>> {
   const { data, error } = await supabase
     .from('matches')
-    .select('id, widget_id_composite, round, court, court_order, scheduled_at')
+    .select('id, widget_id_composite, round, court, court_order, scheduled_at, schedule_label')
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
     throw new Error(
@@ -584,6 +619,7 @@ async function loadExistingMatchesByPrefix(
  * line in `src/lib/country-timezone.ts` (the mirror keeps padelgod
  * in sync; the country-timezone drift test in CI catches divergence).
  */
+
 async function getTournamentTimezone(
   supabase: SupabaseClient,
   tournamentId: string,
