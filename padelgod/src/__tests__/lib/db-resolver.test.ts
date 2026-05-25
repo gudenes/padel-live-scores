@@ -102,6 +102,92 @@ describe('loadAliasIndex', () => {
   });
 });
 
+import { resolvePlayerByName } from '../../lib/db-resolver.js';
+import type { DbPlayerIndex, DbPlayerRow, AliasIndex } from '../../lib/db-resolver.js';
+
+function buildIndexes(
+  players: Array<{ id: string; fip_id: string | null; name: string; country?: string; ranking?: number }>,
+  aliases: Array<{ playerId: string; alias: string }> = []
+) {
+  const dbIndex: DbPlayerIndex = new Map();
+  for (const p of players) {
+    const row: DbPlayerRow = {
+      id: p.id,
+      fip_id: p.fip_id,
+      name: p.name,
+      normalized_name: normalizeName(p.name),
+      country: p.country ?? null,
+      ranking: p.ranking ?? null,
+      category: 'men',
+    };
+    const key = row.normalized_name!;
+    if (!dbIndex.has(key)) dbIndex.set(key, []);
+    dbIndex.get(key)!.push(row);
+  }
+  const aliasIndex: AliasIndex = new Map();
+  for (const a of aliases) {
+    aliasIndex.set(normalizeName(a.alias), a.playerId);
+  }
+  return { dbIndex, aliasIndex };
+}
+
+describe('resolvePlayerByName', () => {
+  it('hits alias index first when present', () => {
+    const { dbIndex, aliasIndex } = buildIndexes(
+      [{ id: 'u-ruiz', fip_id: 'P000012', name: 'Alejandro Ruiz', country: 'ES', ranking: 23 }],
+      [{ playerId: 'u-ruiz', alias: 'Alejandro Ruiz Granados' }]
+    );
+    const r = resolvePlayerByName(
+      { name: 'Alejandro Ruiz Granados', country: 'ES', ranking: 22 },
+      dbIndex,
+      aliasIndex
+    );
+    expect(r).toEqual({ playerId: 'u-ruiz', fipId: 'P000012', matchType: 'alias' });
+  });
+
+  it('falls through to exact normalized match', () => {
+    const { dbIndex, aliasIndex } = buildIndexes([
+      { id: 'u1', fip_id: 'P1', name: 'Juan Lebron', country: 'ES', ranking: 1 },
+    ]);
+    const r = resolvePlayerByName({ name: 'Juan Lebron', country: 'ES', ranking: 1 }, dbIndex, aliasIndex);
+    expect(r?.matchType).toBe('exact');
+  });
+
+  it('falls through to subset fuzzy for full-vs-short-name pairs', () => {
+    const { dbIndex, aliasIndex } = buildIndexes([
+      { id: 'u-ruiz', fip_id: 'P000012', name: 'Alejandro Ruiz', country: 'ES', ranking: 23 },
+    ]);
+    const r = resolvePlayerByName(
+      { name: 'Alejandro Ruiz Granados', country: 'ES', ranking: 22 },
+      dbIndex,
+      aliasIndex
+    );
+    expect(r).toEqual({ playerId: 'u-ruiz', fipId: 'P000012', matchType: 'subset' });
+  });
+
+  it('blocks subset match when country disagrees', () => {
+    const { dbIndex, aliasIndex } = buildIndexes([
+      { id: 'u-ruiz', fip_id: 'P000012', name: 'Alejandro Ruiz', country: 'AR', ranking: 23 },
+    ]);
+    const r = resolvePlayerByName(
+      { name: 'Alejandro Ruiz Granados', country: 'ES', ranking: 22 },
+      dbIndex,
+      aliasIndex
+    );
+    expect(r).toBeNull();
+  });
+
+  it('returns null when no candidate matches', () => {
+    const { dbIndex, aliasIndex } = buildIndexes([]);
+    const r = resolvePlayerByName(
+      { name: 'Martin Muedini', country: 'AL', ranking: 0 },
+      dbIndex,
+      aliasIndex
+    );
+    expect(r).toBeNull();
+  });
+});
+
 describe('loader error handling', () => {
   it('loadDbPlayerIndex throws with category in message when supabase errors', async () => {
     const errSupabase = {

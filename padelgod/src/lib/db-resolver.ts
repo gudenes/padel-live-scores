@@ -23,6 +23,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { paginatedSelect } from './db-paginate.js';
+import { normalizeCountry } from './country.js';
 
 export function normalizeName(s: string): string {
   return s
@@ -173,4 +174,118 @@ export async function loadAliasIndex(supabase: SupabaseClient): Promise<AliasInd
     map.set(norm, r.entity_id);
   }
   return map;
+}
+
+export interface ResolveInput {
+  name: string;
+  country: string | null;
+  ranking: number;
+}
+
+export interface ResolveHit {
+  playerId: string;
+  fipId: string | null;
+  matchType: 'alias' | 'exact' | 'subset' | 'typo';
+}
+
+const SUBSET_THRESHOLD = 1.0; // every shorter-side token must appear in longer
+const TYPO_THRESHOLD = 0.9;
+
+/**
+ * Resolve a parsed PDF entry against pre-loaded indexes.
+ * Chain: alias → exact normalized → subset fuzzy (country-narrowed) → typo
+ *        fuzzy (country-narrowed). Returns null when no confident match.
+ *
+ * Country comparison is via normalizeCountry so 3-letter FIP codes (ESP)
+ * compare equal to the 2-letter ISO codes (ES) we store in public.players.
+ */
+export function resolvePlayerByName(
+  input: ResolveInput,
+  dbIndex: DbPlayerIndex,
+  aliasIndex: AliasIndex,
+): ResolveHit | null {
+  const norm = normalizeName(input.name);
+  if (!norm) return null;
+
+  // 1. Alias hit. Refuse to cross category boundaries: if the aliased player
+  //    isn't in this category-scoped dbIndex, treat as miss.
+  const aliasPlayerId = aliasIndex.get(norm);
+  if (aliasPlayerId) {
+    for (const rows of dbIndex.values()) {
+      for (const r of rows) {
+        if (r.id === aliasPlayerId) {
+          return { playerId: r.id, fipId: r.fip_id, matchType: 'alias' };
+        }
+      }
+    }
+    // Alias points to a player not in this category — silent miss; continue
+    // through the rest of the chain so we don't lose a legitimate exact hit.
+  }
+
+  // 2. Exact normalized name
+  const exactCandidates = dbIndex.get(norm);
+  if (exactCandidates && exactCandidates.length > 0) {
+    const pick = pickByCountryAndRanking(exactCandidates, input);
+    if (pick) return { playerId: pick.id, fipId: pick.fip_id, matchType: 'exact' };
+  }
+
+  // 3. Subset fuzzy — every shorter-side token appears in the longer side
+  const wantCountry = normalizeCountry(input.country);
+  let bestSubset: { row: DbPlayerRow; score: number } | null = null;
+  for (const candidates of dbIndex.values()) {
+    for (const c of candidates) {
+      if (wantCountry && c.country && normalizeCountry(c.country) !== wantCountry) continue;
+      const score = subsetSimilarity(input.name, c.name);
+      if (score >= SUBSET_THRESHOLD && (!bestSubset || score > bestSubset.score)) {
+        bestSubset = { row: c, score };
+      }
+    }
+  }
+  if (bestSubset) {
+    return { playerId: bestSubset.row.id, fipId: bestSubset.row.fip_id, matchType: 'subset' };
+  }
+
+  // 4. Typo-tolerant fuzzy — same country gate, ≥0.9 threshold
+  let bestTypo: { row: DbPlayerRow; score: number } | null = null;
+  for (const candidates of dbIndex.values()) {
+    for (const c of candidates) {
+      if (wantCountry && c.country && normalizeCountry(c.country) !== wantCountry) continue;
+      const score = typoTolerantSimilarity(input.name, c.name);
+      if (score >= TYPO_THRESHOLD && (!bestTypo || score > bestTypo.score)) {
+        bestTypo = { row: c, score };
+      }
+    }
+  }
+  if (bestTypo) {
+    return { playerId: bestTypo.row.id, fipId: bestTypo.row.fip_id, matchType: 'typo' };
+  }
+
+  return null;
+}
+
+function pickByCountryAndRanking(
+  candidates: DbPlayerRow[],
+  input: ResolveInput,
+): DbPlayerRow | null {
+  if (candidates.length === 1) return candidates[0]!;
+  const wantCountry = normalizeCountry(input.country);
+  const sameCountry = wantCountry
+    ? candidates.filter((c) => normalizeCountry(c.country) === wantCountry)
+    : candidates;
+  if (sameCountry.length === 1) return sameCountry[0]!;
+  if (sameCountry.length === 0) return null;
+  if (input.ranking > 0) {
+    let best = sameCountry[0]!;
+    let bestDist = Math.abs((best.ranking ?? Number.MAX_SAFE_INTEGER) - input.ranking);
+    for (let i = 1; i < sameCountry.length; i++) {
+      const c = sameCountry[i]!;
+      const d = Math.abs((c.ranking ?? Number.MAX_SAFE_INTEGER) - input.ranking);
+      if (d < bestDist) {
+        best = c;
+        bestDist = d;
+      }
+    }
+    return best;
+  }
+  return null;
 }
