@@ -186,6 +186,21 @@ describe('resolvePlayerByName', () => {
     );
     expect(r).toBeNull();
   });
+
+  it('falls through to typo-tolerant fuzzy for transliteration variants', () => {
+    const { dbIndex, aliasIndex } = buildIndexes([
+      { id: 'u-lopez', fip_id: 'P999', name: 'Gianina Lopez', country: 'AR', ranking: 50 },
+    ]);
+    // "Giannina" has edit-distance 1 from "Gianina" on a ≥4-char token — typo hit.
+    // Subset would fail: "giannina" is not in {"gianina", "lopez"}, so the chain
+    // can only succeed via the typo step.
+    const r = resolvePlayerByName(
+      { name: 'Giannina Lopez', country: 'AR', ranking: 50 },
+      dbIndex,
+      aliasIndex
+    );
+    expect(r).toEqual({ playerId: 'u-lopez', fipId: 'P999', matchType: 'typo' });
+  });
 });
 
 describe('loader error handling', () => {
