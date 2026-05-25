@@ -41,4 +41,21 @@ describe('synthesizeGhostPartners', () => {
     const out = synthesizeGhostPartners(teams);
     expect((out[0].player2 as any).isGhostPartner).toBeUndefined();
   });
+
+  it('leaves a solo player (no partnerName) untouched', () => {
+    const teams = [
+      {
+        player1: {
+          fipId: 'P1', name: 'Solo', country: 'AL', seed: 7, drawType: 'main_draw' as const,
+          partnerFipId: null, partnerName: null,
+          resolvedPlayerId: 'u-solo', resolvedPlayerName: 'Solo', resolutionMethod: 'fip_id' as const,
+        },
+        player2: null,
+        seed: 7,
+        drawType: 'main_draw' as const,
+      },
+    ];
+    const out = synthesizeGhostPartners(teams);
+    expect(out[0].player2).toBeNull();
+  });
 });

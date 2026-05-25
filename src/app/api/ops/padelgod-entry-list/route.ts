@@ -368,10 +368,6 @@ export async function GET(request: Request) {
   }
 
   const teamsByCategory: Record<'men' | 'women', EntryTeam[]> = { men: [], women: [] }
-  const playersByCategory: Record<
-    'men' | 'women',
-    Array<EntryPlayer & { _category: 'men' | 'women' }>
-  > = { men: [], women: [] }
 
   for (const members of grouped.values()) {
     if (members.length === 0) continue
@@ -396,7 +392,6 @@ export async function GET(request: Request) {
       seed: teamSeed,
       drawType: p1.drawType,
     })
-    playersByCategory[cat].push(...members)
   }
 
   // Sort: main draw before qualifying, then seed ascending, unseeded last.
