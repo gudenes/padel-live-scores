@@ -12,8 +12,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    // `suppressHydrationWarning` on the html + body elements only — silences
+    // React's hydration mismatch error when a system-level browser extension
+    // (Bitdefender's `bis_register`/`__processed_*` injectors, Grammarly,
+    // ColorZilla, etc.) mutates attributes on those elements before React
+    // hydrates. The flag does NOT cascade to children, so real hydration
+    // bugs further down the tree still surface as errors.
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   )
 }
