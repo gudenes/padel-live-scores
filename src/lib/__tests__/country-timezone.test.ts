@@ -37,4 +37,15 @@ describe('countryToTimezone', () => {
       expect(() => new Intl.DateTimeFormat('en-CA', { timeZone: tz! }).format(new Date())).not.toThrow()
     }
   })
+
+  it('covers new FIP destinations added 2026-05 (Albania, Senegal, Georgia, Malta)', () => {
+    // Pinned to lock in entries added after the 2026-05-25 incident
+    // where FIP PLATINUM ALBANIA matches were stuck with no scheduled_at
+    // because the country fell through the lookup. If FIP keeps
+    // expanding, add new entries here as you add them above.
+    expect(countryToTimezone('AL')).toBe('Europe/Tirane')
+    expect(countryToTimezone('SN')).toBe('Africa/Dakar')
+    expect(countryToTimezone('GE')).toBe('Asia/Tbilisi')
+    expect(countryToTimezone('MT')).toBe('Europe/Malta')
+  })
 })
