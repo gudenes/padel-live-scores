@@ -52,6 +52,10 @@ interface EntryPlayer {
   resolvedPlayerId: string | null
   resolvedPlayerName: string | null
   resolutionMethod: ResolutionMethod
+  /** True when this row was fabricated from a surviving teammate's `partner_name`
+   *  because the resolver could not match the partner to any player. The UI
+   *  renders these with a RESOLVE chip so operators can link/create. */
+  isGhostPartner?: boolean
 }
 
 interface EntryTeam {
@@ -397,6 +401,7 @@ export async function GET(request: Request) {
 
   // Sort: main draw before qualifying, then seed ascending, unseeded last.
   for (const cat of ['men', 'women'] as const) {
+    teamsByCategory[cat] = synthesizeGhostPartners(teamsByCategory[cat])
     teamsByCategory[cat].sort((a, b) => {
       const drawOrder = (d: DrawType) => (d === 'main_draw' ? 0 : 1)
       const dd = drawOrder(a.drawType) - drawOrder(b.drawType)
@@ -410,17 +415,18 @@ export async function GET(request: Request) {
 
   const categories: CategoryBlock[] = (['men', 'women'] as const).map((cat) => {
     const teams = teamsByCategory[cat]
-    const players = playersByCategory[cat]
-    const playersTotal = players.length
-    const playersResolved = players.filter(
-      (p) => p.resolvedPlayerId !== null,
-    ).length
-    const playersWithFipId = players.filter((p) => !!p.fipId).length
+    // Count player1 + player2 (including ghosts) so the UI's "Players" tile
+    // reflects PDF reality, not snapshot-row count.
+    const allPlayers = teams.flatMap((t) => (t.player2 ? [t.player1, t.player2] : [t.player1]))
+    const playersTotal = allPlayers.length
+    const playersResolved = allPlayers.filter((p) => p.resolvedPlayerId !== null).length
+    const playersWithFipId = allPlayers.filter((p) => !!p.fipId).length
     const playersMissingFromDb = playersTotal - playersResolved
     const teamsFullyResolved = teams.filter(
       (t) =>
         t.player1.resolvedPlayerId !== null &&
-        (t.player2 === null || t.player2.resolvedPlayerId !== null),
+        t.player2 !== null &&
+        t.player2.resolvedPlayerId !== null,
     ).length
     return {
       category: cat,
@@ -466,4 +472,33 @@ function emptyCategoryBlock(cat: 'men' | 'women'): CategoryBlock {
       teamsFullyResolved: 0,
     },
   }
+}
+
+/**
+ * Walk the teams produced by pair-grouping. For any team whose `player2` is
+ * null but whose `player1.partnerName` carries a raw PDF name, synthesize a
+ * ghost EntryPlayer for player2 so the UI can render the dropped name with a
+ * RESOLVE chip.
+ *
+ * Exported for unit testing.
+ */
+export function synthesizeGhostPartners(teams: EntryTeam[]): EntryTeam[] {
+  return teams.map((t) => {
+    if (t.player2 !== null) return t
+    if (!t.player1.partnerName) return t
+    const ghost: EntryPlayer = {
+      fipId: null,
+      name: t.player1.partnerName,
+      country: null,
+      seed: null,
+      drawType: t.drawType,
+      partnerFipId: t.player1.fipId,
+      partnerName: t.player1.name,
+      resolvedPlayerId: null,
+      resolvedPlayerName: null,
+      resolutionMethod: 'none',
+      isGhostPartner: true,
+    }
+    return { ...t, player2: ghost }
+  })
 }
