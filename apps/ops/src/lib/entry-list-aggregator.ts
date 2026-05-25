@@ -97,13 +97,26 @@ export function synthesizeGhostPartners(teams: EntryTeam[]): EntryTeam[] {
 export async function getEntryListPayload(tournamentId: string): Promise<EntryListPayload | null> {
   const pool = pgPool()
 
+  // `pg` parses `timestamptz` columns into JS Date objects by default; the
+  // UI does `.slice(0, 10)` on these so we normalize to ISO 8601 strings
+  // here. Same convention applied to captured_at below.
+  const toIso = (v: Date | string | null | undefined): string | null =>
+    v == null ? null : v instanceof Date ? v.toISOString() : v
+
   const tourRes = await pool.query(
     `select id, name, starts_at, ends_at, source, level, country, fip_id
        from public.tournaments where id = $1`,
     [tournamentId],
   )
-  const tournament = tourRes.rows[0] as TournamentRef | undefined
-  if (!tournament) return null
+  const tourRow = tourRes.rows[0] as
+    | { id: string; name: string; starts_at: Date | string | null; ends_at: Date | string | null; source: string | null; level: string | null; country: string | null; fip_id: string | null }
+    | undefined
+  if (!tourRow) return null
+  const tournament: TournamentRef = {
+    ...tourRow,
+    starts_at: toIso(tourRow.starts_at),
+    ends_at: toIso(tourRow.ends_at),
+  }
 
   // Latest scrape_job_id per category.
   // `distinct on (category)` picks the row with the largest captured_at per
@@ -127,10 +140,12 @@ export async function getEntryListPayload(tournamentId: string): Promise<EntryLi
 
   const jobIdsByCategory = new Map<string, string>()
   let overallCapturedAt: string | null = null
-  for (const r of latestJobsRes.rows as Array<{ category: string; scrape_job_id: string; captured_at: string }>) {
+  for (const r of latestJobsRes.rows as Array<{ category: string; scrape_job_id: string; captured_at: Date | string }>) {
     jobIdsByCategory.set(r.category, r.scrape_job_id)
-    // ISO 8601 timestamps sort lexicographically — string `>` is safe here.
-    if (!overallCapturedAt || r.captured_at > overallCapturedAt) overallCapturedAt = r.captured_at
+    // captured_at arrives as a Date instance from pg; normalize to ISO 8601
+    // before lex-comparing so the `>` comparison stays meaningful.
+    const iso = toIso(r.captured_at)
+    if (iso && (!overallCapturedAt || iso > overallCapturedAt)) overallCapturedAt = iso
   }
 
   // Snapshot rows from the latest job per category, with public.players join.

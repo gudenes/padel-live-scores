@@ -34,20 +34,27 @@ export async function getActiveTournamentList(): Promise<TournamentListItem[]> {
        order by t.starts_at desc nulls last`,
     [cutoff],
   )
+  // `pg` parses `timestamptz` columns into JS `Date` objects by default —
+  // raw row values for starts_at / ends_at / latest_snapshot_at are Date
+  // instances at runtime, not strings. Normalize to ISO 8601 here so the
+  // exported `TournamentListItem` shape matches its declared `string | null`
+  // type and consumers can call `.slice(0, 10)` for the date prefix.
   type TournamentRow = {
-    id: string; name: string; starts_at: string | null; ends_at: string | null
+    id: string; name: string; starts_at: Date | string | null; ends_at: Date | string | null
     source: string | null; level: string | null; country: string | null
-    fip_id: string | null; latest_snapshot_at: string | null
+    fip_id: string | null; latest_snapshot_at: Date | string | null
   }
+  const toIso = (v: Date | string | null): string | null =>
+    v == null ? null : v instanceof Date ? v.toISOString() : v
   return (res.rows as TournamentRow[]).map((r) => ({
     id: r.id,
     name: r.name,
-    starts_at: r.starts_at,
-    ends_at: r.ends_at,
+    starts_at: toIso(r.starts_at),
+    ends_at: toIso(r.ends_at),
     source: r.source,
     level: r.level,
     country: r.country,
     fip_id: r.fip_id,
-    latestSnapshotAt: r.latest_snapshot_at,
+    latestSnapshotAt: toIso(r.latest_snapshot_at),
   }))
 }
