@@ -123,6 +123,11 @@ export type AliasIndex = Map<string, string>; // normalized alias \u2192 player 
  * Build a category-scoped index keyed on normalized name. Multiple players
  * can share a normalized name; we keep them all and let the resolver narrow
  * by country + ranking.
+ *
+ * No pagination: FIP-registered players per gender sit ~5k as of 2026,
+ * comfortably under the project's 10k PostgREST cap. The category filter
+ * keeps the response size bounded. Revisit if the pool grows past ~8k —
+ * switch to `paginatedSelect` (see `loadAliasIndex` for the pattern).
  */
 export async function loadDbPlayerIndex(
   supabase: SupabaseClient,
