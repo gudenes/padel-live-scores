@@ -51,6 +51,7 @@ export function ActivityRail() {
       <button
         onClick={toggle}
         title="Open activity feed"
+        suppressHydrationWarning
         style={{
           width: 32,
           height: '100vh',
@@ -75,6 +76,7 @@ export function ActivityRail() {
 
   return (
     <aside
+      suppressHydrationWarning
       style={{
         width: 280,
         background: 'var(--bg-card)',
