@@ -4,11 +4,13 @@
 // picker → selection → entry-list-display flow with URL-driven state.
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import type { TournamentListItem } from '@/lib/tournament-list-aggregator'
-import type { EntryListPayload } from '@/lib/entry-list-aggregator'
+import type { EntryListPayload, EntryPlayer } from '@/lib/entry-list-aggregator'
 import type { FipTwinHit } from '@/lib/fip-twin-finder'
 import { TournamentExplorerPicker } from './TournamentExplorerPicker'
+import { TournamentExplorerHeader } from './TournamentExplorerHeader'
+import { EntryListSection } from './EntryListSection'
 
 export interface TournamentExplorerClientProps {
   tournaments: TournamentListItem[]
@@ -19,23 +21,49 @@ export interface TournamentExplorerClientProps {
 export function TournamentExplorerClient({ tournaments, selectedId, initial }: TournamentExplorerClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [resolveCtx, setResolveCtx] = useState<{ parsedName: string; category: 'men' | 'women'; countryHint: string | null } | null>(null)
+  const [resolveBanner, setResolveBanner] = useState<string | null>(null)
 
   const handleSelect = useCallback((id: string) => {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     params.set('tournament_id', id)
+    setResolveBanner(null)
     router.push(`/tournament-explorer?${params.toString()}`)
   }, [router, searchParams])
+
+  const handleResolveClick = useCallback((p: EntryPlayer, category: 'men' | 'women') => {
+    setResolveCtx({ parsedName: p.name, category, countryHint: p.country ?? null })
+  }, [])
 
   return (
     <div>
       <TournamentExplorerPicker tournaments={tournaments} selectedId={selectedId} onSelect={handleSelect} />
-      {selectedId && initial?.entryList && (
-        <div style={{ fontSize: 13, color: 'var(--status-neutral)' }}>
-          Selected: <strong>{initial.entryList.tournament.name}</strong> — full entry-list rendering lands in Task 9.
+
+      {resolveBanner && (
+        <div style={{ marginBottom: 12, padding: 10, background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 12, color: '#065f46' }}>
+          {resolveBanner}
         </div>
+      )}
+
+      {selectedId && initial?.entryList && (
+        <>
+          <TournamentExplorerHeader payload={initial.entryList} />
+          <EntryListSection payload={initial.entryList} onResolveClick={handleResolveClick} />
+        </>
       )}
       {selectedId && !initial?.entryList && (
         <div style={{ fontSize: 13, color: 'var(--status-neutral)' }}>Tournament not found.</div>
+      )}
+      {/* ResolvePartnerModal, FipSeedPanel, FipTwinBanner land in Tasks 10–11. */}
+      {/* Stub: log resolveCtx when set so we can verify the click path. */}
+      {resolveCtx && (
+        <div style={{ marginTop: 12, fontSize: 11, color: 'var(--status-neutral)' }}>
+          Will resolve: <code>{resolveCtx.parsedName}</code> ({resolveCtx.category}, {resolveCtx.countryHint ?? '—'})
+          {' — '}
+          <button type="button" onClick={() => setResolveCtx(null)} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', textDecoration: 'underline' }}>
+            cancel
+          </button>
+        </div>
       )}
     </div>
   )
