@@ -19,6 +19,7 @@
 // - Flag emoji use Twemoji (next/og's default PNG emoji provider).
 
 import { ImageResponse } from 'next/og'
+import { countryToTimezone } from '@/lib/country-timezone'
 
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
@@ -94,29 +95,12 @@ const initial = (n: string | null) => (n?.trim()[0]?.toUpperCase() ?? '?')
 
 // Tournament country → rough IANA timezone. Scheduled_at comes back UTC,
 // and for the OG image we want the time shown in the venue's local time.
-const COUNTRY_TZ: Record<string, string> = {
-  EG: 'Africa/Cairo',
-  ES: 'Europe/Madrid',
-  IT: 'Europe/Rome',
-  FR: 'Europe/Paris',
-  DE: 'Europe/Berlin',
-  NL: 'Europe/Amsterdam',
-  BE: 'Europe/Brussels',
-  PT: 'Europe/Lisbon',
-  AR: 'America/Argentina/Buenos_Aires',
-  MX: 'America/Mexico_City',
-  US: 'America/New_York',
-  BR: 'America/Sao_Paulo',
-  QA: 'Asia/Qatar',
-  AE: 'Asia/Dubai',
-  SA: 'Asia/Riyadh',
-  GB: 'Europe/London',
-  DK: 'Europe/Copenhagen',
-  SE: 'Europe/Stockholm',
-}
+// Resolved via the shared `countryToTimezone()` map — same source the rest
+// of the app uses, so we don't drift behind when a new circuit destination
+// lands.
 
 function formatScheduled(iso: string, country: string | null): { time: string; date: string } {
-  const tz = (country && COUNTRY_TZ[country.toUpperCase()]) ?? 'UTC'
+  const tz = countryToTimezone(country) ?? 'UTC'
   const d = new Date(iso)
   const time = new Intl.DateTimeFormat('en-GB', {
     timeZone: tz,
