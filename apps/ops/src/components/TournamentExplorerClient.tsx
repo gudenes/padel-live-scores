@@ -2,6 +2,23 @@
 // apps/ops/src/components/TournamentExplorerClient.tsx
 // Client-side orchestration for the Tournament Explorer page. Owns the
 // picker → selection → entry-list-display flow with URL-driven state.
+//
+// Operator flow for resolving an unresolved partner (ghost row):
+//   1. Operator clicks RESOLVE chip on a ghost partner row.
+//   2. `handleResolveClick` opens the ResolvePartnerModal with the parsed
+//      name + category + country hint.
+//   3. Operator picks Link (search + Link button) or Create (form + Create
+//      button). The modal POSTs to /api/internal/player-aliases or
+//      /api/internal/players respectively.
+//   4. On modal success, `handleResolved` closes the modal and shows a
+//      banner instructing the operator to click "Re-seed from FIP PDF".
+//   5. **The entry list is NOT auto-refreshed after step 4.** The alias /
+//      player row exists in `public.*`, but the *snapshot* in
+//      `padelgod.entry_list_snapshots` still shows the partner as
+//      unresolved until padelgod's next fetch — or until the operator
+//      clicks the FipSeedPanel button which calls `router.refresh()` post
+//      re-seed. The banner makes this explicit; the operator finishes the
+//      loop themselves.
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useCallback, useState } from 'react'

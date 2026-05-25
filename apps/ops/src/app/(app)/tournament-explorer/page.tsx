@@ -3,7 +3,6 @@
 // + selected tournament's entry list if the URL has ?tournament_id=...) and
 // hands off to the client component for interactivity.
 
-import { auth } from '@/lib/auth'
 import { getActiveTournamentList } from '@/lib/tournament-list-aggregator'
 import { getEntryListPayload } from '@/lib/entry-list-aggregator'
 import { findFipTwin } from '@/lib/fip-twin-finder'
@@ -19,8 +18,10 @@ export default async function TournamentExplorerPage({
 }) {
   const sp = await searchParams
   const selectedId = typeof sp.tournament_id === 'string' ? sp.tournament_id : null
-  const [, tournaments, initial] = await Promise.all([
-    auth(),
+  // (app)/layout.tsx already gates this route on `session.user.isOperator` and
+  // redirects unauthenticated requests to /login before this component runs,
+  // so we skip a second auth read here — the layout's auth is authoritative.
+  const [tournaments, initial] = await Promise.all([
     getActiveTournamentList(),
     selectedId
       ? Promise.all([getEntryListPayload(selectedId), findFipTwin(selectedId)]).then(([entryList, twin]) => ({
