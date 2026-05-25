@@ -1,4 +1,10 @@
-// src/lib/country-timezone.ts
+// padelgod/src/lib/country-timezone.ts
+//
+// Mirror of src/lib/country-timezone.ts (Next.js project). Padelgod runs
+// as a separate Railway service and doesn't share imports with the
+// Next.js app — same trade-off used by `db-paginate.ts`, `avatar-rehost.ts`,
+// and `fip-player-search.ts`. Keep this file BYTE-IDENTICAL with the
+// Next.js side except for this header. If you edit one, mirror the other.
 //
 // Static map from ISO 3166-1 alpha-2 country codes to IANA timezone
 // identifiers, scoped to the padel circuit. Used as a fallback when
