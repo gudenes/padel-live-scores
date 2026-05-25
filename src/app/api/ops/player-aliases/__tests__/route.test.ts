@@ -8,7 +8,8 @@ vi.mock('@supabase/supabase-js', () => ({
     from: () => ({
       upsert: (row: any, opts: any) => {
         upserts.push({ row, opts });
-        return { select: () => ({ single: () => Promise.resolve({ data: { id: 'a1' }, error: null }) }) };
+        // Route awaits the upsert directly now (no .select().single() chain).
+        return Promise.resolve({ data: null, error: null });
       },
     }),
   }),

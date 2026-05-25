@@ -9,20 +9,12 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { checkOpsAuth } from '@/lib/ops-auth'
+import { normalize as normalizeName } from '@/lib/player-resolver'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!,
 )
-
-function normalizeName(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
 
 export async function POST(request: Request) {
   const authErr = await checkOpsAuth()
@@ -35,13 +27,19 @@ export async function POST(request: Request) {
     return Response.json({ error: 'invalid json' }, { status: 400 })
   }
 
-  const { playerId, alias } = body
-  if (!playerId || !alias || typeof playerId !== 'string' || typeof alias !== 'string') {
+  const playerId = typeof body.playerId === 'string' ? body.playerId.trim() : null
+  // Alias originates from a browser input field — trim before validation and
+  // storage so whitespace-padded values can't pollute the alias index.
+  const alias = typeof body.alias === 'string' ? body.alias.trim() : null
+  if (!playerId || !alias) {
     return Response.json({ error: 'missing required fields: playerId, alias' }, { status: 400 })
   }
   const norm = normalizeName(alias)
   if (!norm) return Response.json({ error: 'alias normalizes to empty' }, { status: 400 })
 
+  // No .select().single() suffix — we only need success/failure. The suffix
+  // can produce spurious PGRST116 errors on certain conflict paths and adds
+  // no value when the row contents are already known to the caller.
   const { error } = await supabase
     .from('entity_external_ids')
     .upsert(
@@ -55,8 +53,6 @@ export async function POST(request: Request) {
       },
       { onConflict: 'source,entity_type,external_id' },
     )
-    .select()
-    .single()
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 })
