@@ -37,6 +37,9 @@ describe('typoTolerantSimilarity', () => {
   });
 });
 
+// Test-only fake supabase client. Only supports the .from().select().eq()
+// chain shape used by loadDbPlayerIndex and loadAliasIndex. Do not reuse
+// for queries that add .order() / .limit() / .range() — extend it instead.
 function fakeSupabase(playerRows: any[], aliasRows: any[]) {
   return {
     from: (table: string) => {
@@ -54,7 +57,9 @@ function fakeSupabase(playerRows: any[], aliasRows: any[]) {
           select: () => ({
             eq: () => ({
               eq: () => ({
-                then: (res: any) => Promise.resolve({ data: aliasRows, error: null }).then(res),
+                // .range() is what paginatedSelect calls; return a single page
+                // with all aliasRows so the helper stops after the first fetch.
+                range: () => Promise.resolve({ data: aliasRows, error: null }),
               }),
             }),
           }),
@@ -94,5 +99,37 @@ describe('loadAliasIndex', () => {
     expect(idx.get('alejandro ruiz granados')).toBe('u-ruiz');
     expect(idx.get('david gala sanchez')).toBe('u-gala');
     expect(idx.size).toBe(2);
+  });
+});
+
+describe('loader error handling', () => {
+  it('loadDbPlayerIndex throws with category in message when supabase errors', async () => {
+    const errSupabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            then: (res: any) => Promise.resolve({ data: null, error: { message: 'connection refused' } }).then(res),
+          }),
+        }),
+      }),
+    } as any;
+    await expect(loadDbPlayerIndex(errSupabase, 'men')).rejects.toThrow(/men.*connection refused/);
+  });
+
+  it('loadAliasIndex throws with descriptive prefix when supabase errors', async () => {
+    // loadAliasIndex now uses paginatedSelect, which calls buildQuery once
+    // per page. Return an error on the first call.
+    const errSupabase = {
+      from: () => ({
+        select: () => ({
+          eq: () => ({
+            eq: () => ({
+              range: () => Promise.resolve({ data: null, error: { message: 'pg_timeout' } }),
+            }),
+          }),
+        }),
+      }),
+    } as any;
+    await expect(loadAliasIndex(errSupabase)).rejects.toThrow(/entity_external_ids.*pg_timeout/);
   });
 });

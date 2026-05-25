@@ -22,6 +22,7 @@
 // hit step 2 instantly.
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { paginatedSelect } from './db-paginate.js';
 
 export function normalizeName(s: string): string {
   return s
@@ -149,20 +150,24 @@ export async function loadDbPlayerIndex(
  * (see storeAlias) so this index grows monotonically over time.
  */
 export async function loadAliasIndex(supabase: SupabaseClient): Promise<AliasIndex> {
-  const { data, error } = await supabase
-    .from('entity_external_ids')
-    .select('entity_id, external_id, metadata')
-    .eq('entity_type', 'player')
-    .eq('source', 'alias');
-  if (error) {
-    throw new Error(`alias read failed: ${error.message}`);
-  }
-  const map: AliasIndex = new Map();
-  for (const r of (data ?? []) as Array<{
+  // Aliases are monotonically growing across the whole project — paginate
+  // to stay safe against the PostgREST 10k cap.
+  const rows = await paginatedSelect<{
     entity_id: string;
     external_id: string;
     metadata: { normalized?: string } | null;
-  }>) {
+  }>(
+    (start, end) =>
+      supabase
+        .from('entity_external_ids')
+        .select('entity_id, external_id, metadata')
+        .eq('entity_type', 'player')
+        .eq('source', 'alias')
+        .range(start, end),
+    { what: 'entity_external_ids (player aliases)' },
+  );
+  const map: AliasIndex = new Map();
+  for (const r of rows) {
     const norm = r.metadata?.normalized ?? normalizeName(r.external_id);
     if (!norm) continue;
     map.set(norm, r.entity_id);
