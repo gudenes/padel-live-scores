@@ -397,10 +397,15 @@ export function MatchCard({
       <style>{PULSE_KEYFRAMES}</style>
       <div
         style={{
-          background: BG_CARD,
+          // Live rows revert to the BA-era solid surface for tighter density:
+          // live data packs chips + pip + set scores + serving indicator into a
+          // small space, so the boxed look earns its weight back. Scheduled/
+          // finished rows keep the post-2026-05-03 translucent surface where
+          // list scanning is the dominant use case.
+          background: isLive ? '#141414' : BG_CARD,
           border: `1px solid ${borderColor}`,
           clipPath: CHUNKY.card,
-          // Asymmetric vertical padding: top has the 6px chip-row marginBottom
+          // Asymmetric vertical padding: top has the chip-row marginBottom
           // adding to the gap between chips and pair 1 text, so bottom can be
           // tighter to feel balanced. Without this, live cards look bottom-heavy
           // because there's nothing below the last pair row but card chrome.
@@ -457,7 +462,10 @@ export function MatchCard({
             flexWrap: 'wrap',
             alignItems: 'center',
             gap: 6,
-            marginBottom: 6,
+            // Live rows revert to the BA-era 10px breathing room between
+            // chips and pair 1 — more vertical separation reads better with
+            // the smaller name typography below.
+            marginBottom: isLive ? 10 : 6,
             position: 'relative',
             zIndex: 2,
           }}
@@ -648,7 +656,11 @@ export function MatchCard({
                       </div>
                     </div>
                     <span style={{
-                      fontSize: 13, fontWeight: isWinner ? 700 : 600,
+                      // BA-era density restored on live rows only: smaller
+                      // names + heavier winner weight match the compact spec
+                      // the matches list used pre-2026-05-03 readability uplift.
+                      fontSize: isLive ? 12 : 13,
+                      fontWeight: isWinner ? (isLive ? 800 : 700) : 600,
                       color: isLoser ? '#B0B5BE' : '#fff',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{pair}</span>
@@ -725,7 +737,12 @@ export function MatchCard({
                         <span
                           key={ps.raw.id}
                           style={{
-                            fontSize: 16,
+                            // BA-era set-score size on live rows. The current
+                            // point pip (below) stays at 17px in both eras —
+                            // it's the dominant signal on a live row and the
+                            // pip wasn't part of the 2026-05-03 readability
+                            // uplift.
+                            fontSize: isLive ? 15 : 16,
                             fontWeight: 700,
                             fontFamily: 'monospace',
                             color: isCurrent

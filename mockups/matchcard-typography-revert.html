@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MatchCard typography — current (post-uplift) vs Buenos Aires-era (pre-uplift)</title>
+<style>
+  :root {
+    --bg: #131312;
+    --muted: #B0B5BE;
+    --live-red: #FF4655;
+    --pair1-color: #7ED321;
+    --pair2-color: #4A90E2;
+    --green: #7ED321;
+    --orange: #F5A623;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: #fff;
+    font-family: 'SF Pro Display', system-ui, -apple-system, sans-serif;
+    padding: 32px 24px 80px;
+  }
+  .header {
+    max-width: 880px;
+    margin: 0 auto 32px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.2px;
+    margin: 0 0 8px;
+  }
+  .lede {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+    max-width: 720px;
+  }
+  .lede strong { color: #fff; font-weight: 700; }
+  .stage {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    max-width: 880px;
+    margin: 0 auto;
+  }
+  @media (max-width: 720px) {
+    .stage { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 18px 20px 24px;
+  }
+  .panel-title {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 4px;
+  }
+  .panel-title .since {
+    color: rgba(255,255,255,0.35);
+    font-weight: 600;
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+  }
+  .panel-sub {
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 0 0 16px;
+  }
+  .panel-sub code {
+    background: rgba(255,255,255,0.05);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+
+  /* MatchCard skeleton — mirrors src/components/MatchCard.tsx layout */
+  .card {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 14px 12px 16px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    position: relative;
+  }
+  /* Live-state accent (preserved on both variants — status signal) */
+  .card.live {
+    border-left: 3px solid var(--live-red);
+  }
+  .chip-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+  .chip {
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+  }
+  .chip.live {
+    background: rgba(255,70,85,0.18);
+    color: var(--live-red);
+    font-weight: 800;
+  }
+  .body {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 16px;
+  }
+  .pairs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pair {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #fff;
+  }
+  .pair.loser { color: var(--muted); opacity: 0.65; }
+  .flag {
+    width: 14px;
+    height: 10px;
+    background: linear-gradient(to bottom, #FF6B6B 50%, #1F2A37 50%);
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .scores {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: right;
+  }
+  .score-row {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+  .pip { color: var(--orange); font-weight: 800; }
+
+  /* ── CURRENT (post-uplift) spec ─────────────────────────── */
+  .v-current .card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid transparent;
+  }
+  .v-current .card.live { border-color: rgba(255,70,85,0.0); /* still bright via left bar */ }
+  .v-current .pill-row { margin-bottom: 6px; }
+  .v-current .pair-name { font-size: 13px; font-weight: 600; }
+  .v-current .pair.winner .pair-name { font-weight: 700; }
+  .v-current .score-row .games { font-size: 16px; font-weight: 700; }
+  .v-current .score-row .points { font-size: 17px; font-weight: 800; }
+
+  /* ── BA-ERA (pre-uplift) spec ───────────────────────────── */
+  .v-ba .card {
+    background: #141414;
+    border: 1px solid #222;
+  }
+  .v-ba .pill-row { margin-bottom: 10px; }
+  .v-ba .pair-name { font-size: 12px; font-weight: 600; }
+  .v-ba .pair.winner .pair-name { font-weight: 800; }
+  .v-ba .score-row .games { font-size: 15px; font-weight: 700; }
+  .v-ba .score-row .points { font-size: 17px; font-weight: 800; }
+
+  /* The single shared "pill row" — meta + status */
+  .pill-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px; /* overridden by variant */
+  }
+
+  .legend {
+    margin-top: 14px;
+    color: rgba(255,255,255,0.45);
+    font-size: 11px;
+    line-height: 1.6;
+  }
+  .legend code {
+    background: rgba(255,255,255,0.05);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 10.5px;
+  }
+
+  .why {
+    max-width: 880px;
+    margin: 40px auto 0;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px;
+    padding: 24px 28px;
+  }
+  .why h2 {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  .why p {
+    color: rgba(255,255,255,0.78);
+    font-size: 14px;
+    line-height: 1.6;
+    margin: 0 0 12px;
+  }
+  .why p:last-child { margin-bottom: 0; }
+  .why strong { color: #fff; font-weight: 700; }
+  .why a { color: var(--green); text-decoration: none; }
+  .why a:hover { text-decoration: underline; }
+  .why .timeline {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+  }
+  .why .timeline li {
+    color: rgba(255,255,255,0.78);
+    font-size: 13px;
+    line-height: 1.55;
+    margin: 0 0 6px;
+    padding-left: 18px;
+    position: relative;
+  }
+  .why .timeline li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+  }
+  .why .timeline li.now::before { background: var(--green); }
+  .why .timeline strong { color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>MatchCard typography — current vs Buenos Aires era</h1>
+  <p class="lede">Side-by-side using real data from <strong>FIP PLATINUM ALBANIA</strong> live matches just measured in production. Live-state border and behavior are identical across both variants — only typography + card surface differ.</p>
+</div>
+
+<div class="stage">
+
+  <!-- LEFT: current (post-uplift) -->
+  <div class="panel v-current">
+    <p class="panel-title">Current spec <span class="since">since 2026-05-03</span></p>
+    <p class="panel-sub">Player <code>13px / 600</code> · Score <code>16px / 700</code> · Point <code>17px / 800</code> · Card <code>rgba(255,255,255,0.03)</code> translucent</p>
+
+    <!-- ON COURT live match -->
+    <div class="card live">
+      <div class="pill-row">
+        <span class="chip">Q2</span>
+        <span class="chip">COURT 4</span>
+        <span class="chip live">LIVE</span>
+      </div>
+      <div class="body">
+        <div class="pairs">
+          <div class="pair winner">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">I. Val Lopez / L. Bahurel</span>
+          </div>
+          <div class="pair">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">L. Uriarte Medina / L. Buteau</span>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="score-row"><span class="games">3</span><span class="points pip">30</span></div>
+          <div class="score-row"><span class="games">0</span><span class="points">15</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Second live match -->
+    <div class="card live">
+      <div class="pill-row">
+        <span class="chip">Q2</span>
+        <span class="chip">CENTRAL COURT</span>
+        <span class="chip live">LIVE</span>
+      </div>
+      <div class="body">
+        <div class="pairs">
+          <div class="pair">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">G. Rosi / A. Garcia Roman</span>
+          </div>
+          <div class="pair winner">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">E. Sahin / O. Çiftçi</span>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="score-row"><span class="games">1</span><span class="points">0</span></div>
+          <div class="score-row"><span class="games">6 2</span><span class="points pip">15</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Finished match -->
+    <div class="card">
+      <div class="pill-row">
+        <span class="chip">Q1</span>
+        <span class="chip">COURT 3</span>
+        <span class="chip" style="background:rgba(126,211,33,0.16); color: var(--green); font-weight:800;">FINISHED</span>
+      </div>
+      <div class="body">
+        <div class="pairs">
+          <div class="pair winner">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">M. Minelli / L. Alonso De Lera</span>
+          </div>
+          <div class="pair loser">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">P. Araus / V. Atencia Basilio</span>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="score-row"><span class="games">6 6</span></div>
+          <div class="score-row"><span class="games">3 4</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">Translucent card surface, no visible border, names lead the scan rhythm. Score is dominant but doesn't shout.</div>
+  </div>
+
+  <!-- RIGHT: Buenos Aires era (pre-uplift) -->
+  <div class="panel v-ba">
+    <p class="panel-title">Buenos Aires-era spec <span class="since">pre-2026-05-03</span></p>
+    <p class="panel-sub">Player <code>12px / 600 (winner 800)</code> · Score <code>15px / 700</code> · Card <code>#141414</code> solid + <code>#222</code> border</p>
+
+    <div class="card live">
+      <div class="pill-row">
+        <span class="chip">Q2</span>
+        <span class="chip">COURT 4</span>
+        <span class="chip live">LIVE</span>
+      </div>
+      <div class="body">
+        <div class="pairs">
+          <div class="pair winner">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">I. Val Lopez / L. Bahurel</span>
+          </div>
+          <div class="pair">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">L. Uriarte Medina / L. Buteau</span>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="score-row"><span class="games">3</span><span class="points pip">30</span></div>
+          <div class="score-row"><span class="games">0</span><span class="points">15</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card live">
+      <div class="pill-row">
+        <span class="chip">Q2</span>
+        <span class="chip">CENTRAL COURT</span>
+        <span class="chip live">LIVE</span>
+      </div>
+      <div class="body">
+        <div class="pairs">
+          <div class="pair">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">G. Rosi / A. Garcia Roman</span>
+          </div>
+          <div class="pair winner">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">E. Sahin / O. Çiftçi</span>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="score-row"><span class="games">1</span><span class="points">0</span></div>
+          <div class="score-row"><span class="games">6 2</span><span class="points pip">15</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="pill-row">
+        <span class="chip">Q1</span>
+        <span class="chip">COURT 3</span>
+        <span class="chip" style="background:rgba(126,211,33,0.16); color: var(--green); font-weight:800;">FINISHED</span>
+      </div>
+      <div class="body">
+        <div class="pairs">
+          <div class="pair winner">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">M. Minelli / L. Alonso De Lera</span>
+          </div>
+          <div class="pair loser">
+            <span class="flag" aria-hidden="true"></span>
+            <span class="pair-name">P. Araus / V. Atencia Basilio</span>
+          </div>
+        </div>
+        <div class="scores">
+          <div class="score-row"><span class="games">6 6</span></div>
+          <div class="score-row"><span class="games">3 4</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">Boxed card with visible border, denser pair stack, smaller names. Winner weight 800 makes the W stand out more.</div>
+  </div>
+
+</div>
+
+<div class="why">
+  <h2>Why this happened</h2>
+  <p>The matches list and the home page's "Latest Results" widget both use the same data shape but used to render with different typography. The matches list was tighter (smaller names, more compact, boxed) — that's the look the user remembers from Buenos Aires P1 in Q1 2026.</p>
+
+  <ul class="timeline">
+    <li><strong>Pre-2026-05-03 (BA era):</strong> MatchCard at 12px/15px/weight 800. Compact, dense, boxed card with <code>#141414</code> background + <code>#222</code> border. Worked great for power users scanning many rows.</li>
+    <li><strong>2026-05-03 (commit <code>00aaeb085</code>):</strong> PR <em>"feat(matches): readability uplift on MatchCard"</em> deliberately moved MatchCard up to <strong>13px / 16px / weight 700</strong> so it matched the home page Latest Results card. Spec rationale: <em>"settings work for a single-match deep dive but penalise list scanning, which is the dominant use case."</em> Also switched card surface from solid <code>#141414</code> to translucent <code>rgba(255,255,255,0.03)</code> and dropped the visible border (live-state left bar still preserved as a status signal).</li>
+    <li><strong>Today (post-uplift):</strong> Albania matches render with this newer spec. Player names 1px larger, scores 1px larger, no boxed border, winner weight slightly lighter. <strong>This is by design</strong>, not an accident — the spec is at <a href="../docs/superpowers/specs/2026-05-03-matchcard-readability-uplift-design.md">docs/superpowers/specs/2026-05-03-matchcard-readability-uplift-design.md</a>.</li>
+    <li class="now"><strong>The user is correctly remembering BA looking more compact.</strong> Albania uses the post-uplift spec; if you want the BA density back, this is a deliberate revert (not a regression).</li>
+  </ul>
+
+  <p><strong>Two paths if you want denser back:</strong></p>
+  <p><strong>(A) Full revert</strong> — restore the BA-era numeric values on every MatchCard render. Easy, ~5 numeric changes in one file. Reopens the trade-off the May 3 spec settled (density at the cost of list-scanning ergonomics on the matches page, which is the dominant use case).</p>
+  <p><strong>(B) Live-only density</strong> — keep the current spec on scheduled/finished rows, drop the live-row to BA-era values. Live matches benefit from compactness because the current-point pip + serving indicator + set scores already pack a lot in. More work (status-gated typography), but preserves the uplift gains where they matter and tightens live rows where information density is highest.</p>
+</div>
+
+</body>
+</html>
