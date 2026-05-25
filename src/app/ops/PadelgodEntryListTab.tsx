@@ -705,6 +705,7 @@ function PlayerCell({ p, onResolveClick }: { p: EntryPlayer; onResolveClick?: (p
         <div style={{ fontWeight: 500, color: '#991b1b', display: 'flex', alignItems: 'center', gap: 6 }}>
           {p.name}
           <button
+            type="button"
             onClick={() => onResolveClick?.(p)}
             title="Click to link to existing player or create new"
             style={{
