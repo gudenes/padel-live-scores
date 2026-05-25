@@ -22,6 +22,7 @@ A specific symptom triggered this work: `/es/home` shows as "not indexed" in GSC
 
 - No Bing Webmaster, no GA4, no Ahrefs/Semrush in MVP.
 - No MCP server installation — the dashboard uses a direct GSC API client. (MCP can be added later for ad-hoc Claude Code queries; it's not coupled to this work.)
+- No service-account-based auth — Google Cloud org policy `iam.managed.disableServiceAccountKeyCreation` blocks JSON key creation by default. We use OAuth 2.0 with a refresh token tied to the operator's Google account instead.
 - No "fix it for me" buttons. The Opportunities view is diagnostic — every action is human-decided.
 - No per-page-type slicing on the headline KPI (only per-locale).
 - No threshold alerting beyond the daily digest.
@@ -37,7 +38,7 @@ A separate task already spawned: **"Add locale URLs + hreflang to all sitemaps."
 │              Google Search Console (data: day-3 to day-2)        │
 └──────────────────────────────────┬──────────────────────────────┘
                                    │ Search Analytics API
-                                   │ (service-account JWT auth)
+                                   │ (OAuth 2.0, refresh-token auth)
                                    ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │   apps/ops cron endpoints (Vercel)                               │
@@ -165,7 +166,7 @@ Auth:    Bearer ${CRON_SECRET} (same pattern as existing apps/ops internal route
 
 **Why pull page-level then bucket client-side, rather than 5 filtered API calls:** 1 request vs 6, simpler retry, accurate English count (English is unprefixed — awkward as a GSC filter). 25k row limit is comfortably above ~1k unique URLs/day.
 
-**GSC client:** thin wrapper, no SDK. Service-account JWT auth via `google-auth-library`. Token cached in-memory per Lambda invocation.
+**GSC client:** thin wrapper, no SDK. OAuth 2.0 auth via `google-auth-library`'s `UserRefreshClient`: cron presents the refresh token at startup, library mints a short-lived access token, token cached in-memory per Lambda invocation. Auth chosen this way to sidestep the `iam.managed.disableServiceAccountKeyCreation` org-policy enforcement on the GCP account; OAuth doesn't require service-account JSON keys.
 
 **Locale parser (shared helper):** `parseLocaleFromUrl(url: string): { locale, page_type }`. Used by both `seo_top_pages` ingest and `sitemap_url_snapshot` ingest so classification stays consistent.
 
@@ -373,31 +374,48 @@ Snapshot taken 2026-05-25 09:02 UTC.
 | Resend error | Log to Sentry, write `status='failed'` to `seo_digest_sends`, don't retry within tick |
 | Already sent today (`status='sent'` row exists) | No-op; protects against double-send |
 
-## Setup checklist (operator, one-time, ~30 min)
+## Setup checklist (operator, one-time, ~15 min)
 
-1. **Google Cloud Console**
-   - Reuse or create GCP project
-   - Enable "Google Search Console API"
-   - Create service account; download JSON key
-   - Note `client_email` (looks like `padel-seo@<project>.iam.gserviceaccount.com`)
+**Auth model:** OAuth 2.0 with a long-lived refresh token tied to Gustavo's Google account (the same one that already has GSC access). No service-account JSON; sidesteps `iam.managed.disableServiceAccountKeyCreation` org policy.
 
-2. **Google Search Console**
-   - Confirmed property type: **URL prefix property** (`https://padelnachos.com/`)
-   - Settings → Users and permissions → Add user → paste service account email as **Owner** (Restricted is not enough for Search Analytics API)
-   - *Optional later:* also add a **domain property** (`padelnachos.com`, no protocol) for future-proof subdomain aggregation. Not blocking MVP.
+1. **Google Cloud Console — OAuth consent screen**
+   - Confirm GCP project (`My First Project` is fine)
+   - APIs & Services → OAuth consent screen
+   - User type: **External**; publishing status: **Testing**
+   - App name: `Padel SEO Dashboard` (or any label)
+   - User support email: gustavo@padellabs.tech
+   - Developer contact: same
+   - **Test users:** add gustavo@padellabs.tech (must match the Google account that owns GSC access)
+   - Scopes: leave default; we'll request `https://www.googleapis.com/auth/webmasters.readonly` at consent time, no need to pre-declare for Testing apps
 
-3. **Vercel `padel-ops` project env vars**
+2. **Google Cloud Console — OAuth client**
+   - APIs & Services → Credentials → **+ CREATE CREDENTIALS → OAuth client ID**
+   - Application type: **Desktop app** (simplest; supports the loopback flow)
+   - Name: `padel-seo-dashboard-cli`
+   - After creation: download the JSON (or copy `client_id` + `client_secret` directly). Keep safe.
+
+3. **One-time refresh-token mint (CLI)**
+   - Run a small Node script (lives at `apps/ops/scripts/mint-gsc-refresh-token.ts`, shipped with the implementation): opens a browser, prompts you to sign in as gustavo@padellabs.tech, grants the `webmasters.readonly` scope, captures the OAuth callback, prints the resulting **refresh token** to stdout.
+   - Copy the refresh token. Keep safe — it doesn't expire as long as the consent isn't revoked and the OAuth app stays in Testing (Google rotates refresh tokens on apps in Production every ~6 months, but Testing apps are exempt; we leave it in Testing).
+
+4. **Google Search Console — no changes needed**
+   - The OAuth user (you) already has Owner access to the `https://padelnachos.com/` URL prefix property. The refresh token inherits your access.
+   - *Optional later:* also add a **domain property** for future-proof subdomain aggregation. Not blocking MVP.
+
+5. **Vercel `padel-ops` project env vars**
    ```
-   GSC_SERVICE_ACCOUNT_JSON   (paste full JSON, single line)
+   GSC_OAUTH_CLIENT_ID        (from step 2)
+   GSC_OAUTH_CLIENT_SECRET    (from step 2)
+   GSC_OAUTH_REFRESH_TOKEN    (from step 3)
    GSC_SITE_URL               https://padelnachos.com/
    SEO_DIGEST_RECIPIENTS      gustavo@padellabs.tech
    RESEND_API_KEY             (already set, confirm)
    CRON_SECRET                (already set, confirm)
    ```
 
-4. **Supabase migration** — single file under `supabase/migrations/` creating the five tables.
+6. **Supabase migration** — single file under `supabase/migrations/` creating the five tables.
 
-5. **`apps/ops/vercel.json`** — extend with three crons:
+7. **`apps/ops/vercel.json`** — extend with three crons:
    ```json
    {
      "crons": [
@@ -408,13 +426,7 @@ Snapshot taken 2026-05-25 09:02 UTC.
    }
    ```
 
-6. **Verify GSC access** — once env vars are set:
-   ```bash
-   # From a shell with the JSON key loaded:
-   curl -H "Authorization: Bearer $TOKEN" \
-     "https://searchconsole.googleapis.com/webmasters/v3/sites"
-   ```
-   The response should list `https://padelnachos.com/`. Empty response = re-grant as Owner.
+8. **Verify GSC access** — once env vars are set, the implementation includes a one-shot probe endpoint at `POST /api/internal/seo-snapshot?probe=true` that lists sites the OAuth credentials can read. Should return `https://padelnachos.com/`. Empty response = OAuth scope misconfigured or test user not added.
 
 ## Rollout sequence
 
@@ -446,7 +458,7 @@ Takes ~3 minutes.
 
 | Risk | Mitigation |
 |---|---|
-| Service account loses GSC access silently (someone removes it) | 403 from GSC → fail loud in cron, surfaces in Vercel cron failure email + Sentry |
+| OAuth refresh token revoked or consent reset (e.g. account password change can sometimes invalidate) | 401 from GSC → fail loud in cron, surfaces in Vercel cron failure email + Sentry. Re-run the one-time mint script to issue a new refresh token. |
 | GSC API rate limits during backfill | 2-second sleep between backfill calls keeps us well under 1,200/min |
 | Resend deliverability to Gmail/etc. | Existing welcome-email flow already lives at the same Resend account; same deliverability profile |
 | Daily digest gets ignored after the novelty wears off | Subject-line headline + "Worth a look" bullets are designed for inbox-only consumption — opening rate doesn't matter if the subject conveys state |
@@ -458,3 +470,4 @@ None. All decisions resolved during brainstorming:
 - GSC property type confirmed (URL prefix → `https://padelnachos.com/`)
 - Recipient set (gustavo@padellabs.tech)
 - Scope locked (Approach A + Opportunities; no MCP, no GA4, no Bing)
+- Auth model: OAuth 2.0 refresh token (service-account JSON blocked by org policy)
