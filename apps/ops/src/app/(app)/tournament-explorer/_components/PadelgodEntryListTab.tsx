@@ -202,27 +202,13 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
   const [linkError, setLinkError] = useState<string | null>(null)
 
   // Unresolved-partner resolve flow state — opened by clicking the RESOLVE
-  // chip on a ghost player2 row.
+  // chip on a ghost player2 row. `openResolve` / `handleResolved` callbacks
+  // are declared LATER in the component (after fetchDetail) because
+  // handleResolved depends on fetchDetail; const bindings aren't hoisted, so
+  // referencing fetchDetail before its declaration throws a Temporal Dead
+  // Zone "Cannot access X before initialization" runtime error.
   const [resolveCtx, setResolveCtx] = useState<UnresolvedPartnerContext | null>(null)
   const [resolveBanner, setResolveBanner] = useState<string | null>(null)
-  const openResolve = useCallback((p: EntryPlayer) => {
-    setResolveCtx({ parsedName: p.name, category: activeCategory, countryHint: p.country ?? null })
-  }, [activeCategory])
-  const handleResolved = useCallback(() => {
-    setResolveCtx(null)
-    setResolveBanner('Resolved. Refreshing the entry list…')
-    // Re-fetch the snapshot view. The aggregator now consults the alias index
-    // we just wrote, so the ghost row will become a resolved row on this next
-    // load — no re-seed scrape required.
-    if (selectedTournamentId) {
-      void fetchDetail(selectedTournamentId).then(() => {
-        setResolveBanner('Resolved.')
-        // Auto-dismiss the banner after a couple seconds — refresh is the
-        // visible confirmation; banner is just a brief acknowledgement.
-        setTimeout(() => setResolveBanner(null), 2500)
-      })
-    }
-  }, [selectedTournamentId, fetchDetail])
 
   // ── Initial fetch: tournament list (standalone only) ──
   useEffect(() => {
@@ -285,6 +271,25 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
     },
     [activeCategory],
   )
+
+  // Resolve-flow callbacks — declared AFTER fetchDetail because handleResolved
+  // depends on it (see resolveCtx/resolveBanner state declaration above).
+  const openResolve = useCallback((p: EntryPlayer) => {
+    setResolveCtx({ parsedName: p.name, category: activeCategory, countryHint: p.country ?? null })
+  }, [activeCategory])
+  const handleResolved = useCallback(() => {
+    setResolveCtx(null)
+    setResolveBanner('Resolved. Refreshing the entry list…')
+    // Re-fetch the snapshot view. The aggregator now consults the alias index
+    // we just wrote, so the ghost row will become a resolved row on this next
+    // load — no re-seed scrape required.
+    if (selectedTournamentId) {
+      void fetchDetail(selectedTournamentId).then(() => {
+        setResolveBanner('Resolved.')
+        setTimeout(() => setResolveBanner(null), 2500)
+      })
+    }
+  }, [selectedTournamentId, fetchDetail])
 
   useEffect(() => {
     if (selectedTournamentId) {
