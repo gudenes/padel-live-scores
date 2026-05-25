@@ -29,3 +29,75 @@ export function normalizeName(s: string): string {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 }
+
+function tokens(name: string): string[] {
+  return normalizeName(name)
+    .split(' ')
+    .filter((t) => t.length > 1);
+}
+
+/** Levenshtein distance (two-row DP). */
+function editDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  let prev = new Array<number>(n + 1);
+  let curr = new Array<number>(n + 1);
+  for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      curr[j] =
+        a[i - 1] === b[j - 1]
+          ? prev[j - 1]!
+          : 1 + Math.min(prev[j - 1]!, prev[j]!, curr[j - 1]!);
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n]!;
+}
+
+/**
+ * Fraction of shorter-side tokens that appear in the longer side.
+ * Returns 1.0 when the shorter name is wholly a subset of the longer name.
+ * Use to catch PDF-full-name \u2194 DB-short-name pairs.
+ */
+export function subsetSimilarity(a: string, b: string): number {
+  const ta = new Set(tokens(a));
+  const tb = new Set(tokens(b));
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let overlap = 0;
+  for (const t of ta) if (tb.has(t)) overlap++;
+  return overlap / Math.min(ta.size, tb.size);
+}
+
+/**
+ * Like subsetSimilarity but tolerates 1-char edit-distance on tokens \u22654 chars
+ * on BOTH sides. Catches transliteration differences ("Giannina"/"Gianina").
+ * Short tokens (initials, "de"/"la") stay strict to avoid false positives.
+ */
+export function typoTolerantSimilarity(a: string, b: string): number {
+  const ta = tokens(a);
+  const tb = tokens(b);
+  if (ta.length === 0 || tb.length === 0) return 0;
+  const used = new Array<boolean>(tb.length).fill(false);
+  let overlap = 0;
+  for (const t of ta) {
+    for (let i = 0; i < tb.length; i++) {
+      if (used[i]) continue;
+      const u = tb[i]!;
+      if (t === u) {
+        overlap++;
+        used[i] = true;
+        break;
+      }
+      if (t.length >= 4 && u.length >= 4 && editDistance(t, u) <= 1) {
+        overlap++;
+        used[i] = true;
+        break;
+      }
+    }
+  }
+  return overlap / Math.min(ta.length, tb.length);
+}
