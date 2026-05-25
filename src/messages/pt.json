@@ -304,10 +304,10 @@
   "rankings": {
     "rankings": "Classificação",
     "official": "Oficial",
-    "race": "Corrida",
+    "race": "Race",
     "loadingRankings": "Carregando classificação...",
     "noRankings": "Nenhuma classificação ainda",
-    "noRaceRankings": "Nenhuma classificação de corrida ainda",
+    "noRaceRankings": "Nenhuma classificação Race ainda",
     "noResults": "Nenhum resultado para \"{query}\"",
     "rank": "Posição",
     "player": "Jogador",

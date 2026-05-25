@@ -120,6 +120,7 @@ interface PlayerRow {
   ranking: number | null;
   points: number | null;
   ranking_move: number | null;
+  ranking_date: string | null;
   race_ranking: number | null;
   race_points: number | null;
   race_move: number | null;
@@ -173,6 +174,7 @@ function seedPlayer(p: Partial<PlayerRow> & { id: string; fip_id: string; catego
     ranking: p.ranking ?? null,
     points: p.points ?? null,
     ranking_move: p.ranking_move ?? null,
+    ranking_date: p.ranking_date ?? null,
     race_ranking: p.race_ranking ?? null,
     race_points: p.race_points ?? null,
     race_move: p.race_move ?? null,
@@ -226,6 +228,7 @@ function makeSupabase() {
             ranking: row.ranking ?? null,
             points: row.points ?? null,
             ranking_move: row.ranking_move ?? null,
+            ranking_date: row.ranking_date ?? null,
             race_ranking: row.race_ranking ?? null,
             race_points: row.race_points ?? null,
             race_move: row.race_move ?? null,
@@ -610,5 +613,52 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     );
 
     sentrySpy.mockRestore();
+  });
+
+  it('writes players.ranking_date for both official + race upserts (existing + new)', async () => {
+    // Seed one existing men's player. Race side will hit the same player; we
+    // check both the update path (existing match) and the insert path (new row).
+    seedPlayer({
+      id: 'cccc1111-0000-0000-0000-000000000001',
+      fip_id: 'P000001', category: 'men', name: 'Existing Player',
+      ranking: 99, points: 100, ranking_date: '2026-04-01T00:00:00Z',
+    });
+
+    // Race substrings must be set BEFORE official: the race URL string
+    // `search_type=race&gender=male&limit=` also contains `gender=male&limit`,
+    // so the mock's first-match iteration would otherwise route race calls
+    // to the official handler.
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 1, race_points: 500 }),
+      raceRow({ player_id: 'P000004', race_rank: 2, race_points: 400 }), // new — race-only
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1, race_points: 600 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 21000 }),
+      officialRow({ player_id: 'P000003', rank: 2, points: 20000 }), // new
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000 }), // new
+    ]);
+
+    await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    // Every player touched this run must have a non-null ranking_date.
+    // This is the regression-guard: the previous bug left it frozen at the
+    // last write from the legacy Vercel sync, so the "Updated <date>"
+    // footer + rank-updated nudge never advanced after the padelgod migration.
+    const touched = ['P000001', 'P000002', 'P000003', 'P000004'];
+    for (const fip of touched) {
+      const p = state.players.find(pl => pl.fip_id === fip);
+      expect(p, `player ${fip} should exist`).toBeDefined();
+      expect(p!.ranking_date, `player ${fip} should have ranking_date set`).not.toBeNull();
+    }
+
+    // The existing player's stale 2026-04-01 ranking_date should be bumped
+    // by either the official or race phase (race runs last, so it wins).
+    const existing = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(existing.ranking_date).not.toBe('2026-04-01T00:00:00Z');
   });
 });

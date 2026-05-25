@@ -304,10 +304,10 @@
   "rankings": {
     "rankings": "Clasificación",
     "official": "Oficial",
-    "race": "Carrera",
+    "race": "Race",
     "loadingRankings": "Cargando clasificación...",
     "noRankings": "Aún no hay clasificación",
-    "noRaceRankings": "Aún no hay clasificación de carrera",
+    "noRaceRankings": "Aún no hay clasificación Race",
     "noResults": "Sin resultados para \"{query}\"",
     "rank": "Puesto",
     "player": "Jugador",
