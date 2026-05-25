@@ -1,42 +1,45 @@
 // match-stats-fetcher — polls Crionet's POST /screen/getmatchstats for
-// Premier-tier matches and writes the parsed payload to `public.match_stats`.
+// covered-tier matches and writes the parsed payload to `public.match_stats`.
 //
-// COVERAGE — PREMIER-TIER ONLY
-// ----------------------------
-// Crionet publishes per-match stats ONLY for Premier-tier events: P1, P2,
-// Major, Premier_Mens, Premier_Womens. FIP-tier (Bronze / Silver / Gold)
-// matches still get entity_external_ids → crionet_widget mappings during
-// discovery, but the stats endpoint returns nothing useful for them. The
-// worker hard-filters to Premier-tier before any HTTP call so we don't:
-//   - waste a request to Crionet per FIP match every cron tick,
+// COVERAGE
+// --------
+// Crionet publishes per-match stats for Premier Padel (P1, P2, Major,
+// Premier_Mens, Premier_Womens) AND for FIP Platinum — the top FIP tier
+// shares Crionet's match-stats endpoint with Premier. Lower FIP tiers
+// (Bronze / Silver / Gold) still get entity_external_ids → crionet_widget
+// mappings during discovery, but the stats endpoint returns nothing useful
+// for them. The worker hard-filters to the covered tiers before any HTTP
+// call so we don't:
+//   - waste a request to Crionet per ineligible match every cron tick,
 //   - burn slots in the 20-match-per-run batch budget on non-eligible rows
-//     (which would starve genuinely eligible Premier matches), or
+//     (which would starve genuinely eligible matches), or
 //   - pollute scrape_jobs with no-op runs.
-// `result.skippedNonPremier` surfaces the count for observability. If a new
-// stats source ever covers FIP-tier, widen `isPremierTier()` accordingly.
+// `result.skippedNonPremier` surfaces the count for observability. If a
+// new stats source ever covers more tiers, widen `isPremierTier()`
+// accordingly.
 //
 // FETCH POLICY
 // ------------
 // The cron at every 5 min decides what to fetch by combining match status
 // with the existing-stats timestamp:
 //
-//   status='live' or 'on_court'  (Premier)     → ALWAYS fetch. Crionet's
+//   status='live' or 'on_court'  (covered tier) → ALWAYS fetch. Crionet's
 //     endpoint serves evolving aggregates during play (1st-serve %,
 //     longest-streak, total points won, …); each tick refreshes the per-set
 //     rows so the match-detail page tracks reality through the match.
 //     `result.fetchedLive` surfaces the count.
 //
-//   status='finished'  (Premier)               → fetch when no crionet
+//   status='finished'  (covered tier)          → fetch when no crionet
 //     stats exist yet OR when the most recent `computed_at` is BEFORE
 //     `finished_at`. The second case captures the final aggregates one
 //     more time after the last live tick — without it, the displayed
 //     stats would freeze at the last-pre-final live snapshot (usually
 //     1–5 min stale on a normal match end).
 //
-//   status='finished'  (Premier)  + final stats already captured
+//   status='finished'  (covered tier) + final stats already captured
 //                                              → skip. Stable rows.
 //
-//   any non-Premier-tier match                 → skip; counted as
+//   any non-covered-tier match                 → skip; counted as
 //                                                `skippedNonPremier`.
 //
 // Batch size caps the per-run Crionet load at MATCH_STATS_BATCH_SIZE
@@ -89,20 +92,23 @@ export interface MatchStatsFetcherResult {
   fetchedPostFinish: number;
   skipped: number;
   rowsUpserted: number;
-  /** Mappings dropped because the match's tournament wasn't Premier-tier
-   *  (Crionet only publishes stats for P1/P2/Major/Premier_*). Tracked
-   *  separately from the general `skipped` counter so a healthy run on a
-   *  mostly-FIP day doesn't look like a regression. */
+  /** Mappings dropped because the match's tournament tier isn't covered
+   *  by Crionet's stats endpoint (Crionet publishes for P1/P2/Major/
+   *  Premier_* and fip_platinum; lower FIP tiers return no useful data).
+   *  Tracked separately from the general `skipped` counter so a healthy
+   *  run on a mostly-FIP day doesn't look like a regression. The name
+   *  predates fip_platinum coverage — kept for log/metric continuity. */
   skippedNonPremier: number;
 }
 
 /**
- * Whether a tournament's `level` column denotes a Premier-tier event.
+ * Whether a tournament's `level` column denotes a tier Crionet covers
+ * with per-match stats.
  *
- * Premier-tier (P1 / P2 / Major / Premier_Mens / Premier_Womens) is the
- * ONLY tier Crionet exposes per-match stats for. FIP-tier (Bronze / Silver
- * / Gold) tournaments return no useful data from the stats endpoint and
- * are filtered out before any HTTP call.
+ * Covered tiers: P1 / P2 / Major / Premier_Mens / Premier_Womens (Premier
+ * Padel) and fip_platinum (the top FIP Tour tier, which shares Crionet's
+ * stats endpoint). Lower FIP tiers (Bronze / Silver / Gold) return no
+ * useful data and are filtered out before any HTTP call.
  *
  * Case-insensitive prefix match — `level` strings come from upstream
  * sources in mixed case (e.g. "P1", "Premier_Mens", "Major", "Bronze").
@@ -114,7 +120,8 @@ export function isPremierTier(level: string | null): boolean {
     n.startsWith('p1') ||
     n.startsWith('p2') ||
     n.startsWith('major') ||
-    n.startsWith('premier')
+    n.startsWith('premier') ||
+    n === 'fip_platinum'
   );
 }
 
