@@ -130,8 +130,13 @@ export async function POST(request: Request) {
   }
 
   // Auto-alias the source PDF name so the next snapshot resolves instantly.
+  // Best-effort: if the alias write fails (table missing column, RLS, etc.)
+  // we still return success because the player row exists and an operator
+  // can re-link manually via /api/ops/player-aliases. We surface the partial
+  // success via `aliasWritten: false` so the UI can warn the operator.
+  let aliasWritten = true
   if (sourceName) {
-    await supabase.from('entity_external_ids').upsert(
+    const { error: aliasErr } = await supabase.from('entity_external_ids').upsert(
       {
         entity_type: 'player',
         entity_id: data.id,
@@ -142,7 +147,13 @@ export async function POST(request: Request) {
       },
       { onConflict: 'source,entity_type,external_id' },
     )
+    if (aliasErr) {
+      console.warn(
+        `[ops/players POST] alias upsert failed for player ${data.id} (sourceName="${sourceName}"): ${aliasErr.message}`,
+      )
+      aliasWritten = false
+    }
   }
 
-  return Response.json({ id: data.id, ok: true })
+  return Response.json({ id: data.id, ok: true, aliasWritten })
 }

@@ -263,11 +263,12 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
   useEffect(() => {
     if (selectedTournamentId) {
-      // Clear any prior seed banner + twin state — both are tied to the
-      // previous tournament.
+      // Clear any prior seed banner, twin state, and resolve banner — all
+      // are tied to the previous tournament.
       setSeedResult(null)
       setTwin(null)
       setLinkError(null)
+      setResolveBanner(null)
       void fetchDetail(selectedTournamentId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
