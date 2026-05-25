@@ -44,6 +44,11 @@ interface EntryPlayer {
   // Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
   // Does NOT affect status; falls back to the snapshot country when missing.
   resolvedCountry: string | null
+  // True when this row was synthesized server-side from a surviving teammate's
+  // `partner_name` because the padelgod fetcher could not resolve the partner.
+  // The UI renders these with a RESOLVE chip + click handler that opens the
+  // unresolved-partner modal (link to existing player / create new).
+  isGhostPartner?: boolean
 }
 
 interface EntryTeam {
@@ -438,7 +443,11 @@ export async function GET(request: Request) {
   }
 
   // Sort: main draw before qualifying, then seed ascending, unseeded last.
+  // synthesizeGhostPartners runs BEFORE the sort so ghost rows participate
+  // in the ordering naturally (their team_seed comes from the surviving
+  // partner, so the row stays at the correct seed position).
   for (const cat of ['men', 'women'] as const) {
+    teamsByCategory[cat] = synthesizeGhostPartners(teamsByCategory[cat])
     teamsByCategory[cat].sort((a, b) => {
       const drawOrder = (d: DrawType) => (d === 'main_draw' ? 0 : 1)
       const dd = drawOrder(a.drawType) - drawOrder(b.drawType)
@@ -452,17 +461,23 @@ export async function GET(request: Request) {
 
   const categories: CategoryBlock[] = (['men', 'women'] as const).map((cat) => {
     const teams = teamsByCategory[cat]
-    const players = playersByCategory[cat]
-    const playersTotal = players.length
-    const playersResolved = players.filter(
-      (p) => p.resolvedPlayerId !== null,
-    ).length
-    const playersWithFipId = players.filter((p) => !!p.fipId).length
+    // Stats derived from teams (which include ghost player2 entries) instead
+    // of the raw snapshot rows. This makes `playersTotal` reflect PDF reality
+    // (84 expected for FIP PLATINUM ALBANIA men's) rather than snapshot-row
+    // count (80, missing the 4 unresolved partners). `playersMissingFromDb`
+    // is then a meaningful red number rather than always 0.
+    const allPlayers = teams.flatMap((t) => (t.player2 ? [t.player1, t.player2] : [t.player1]))
+    const playersTotal = allPlayers.length
+    const playersResolved = allPlayers.filter((p) => p.resolvedPlayerId !== null).length
+    const playersWithFipId = allPlayers.filter((p) => !!p.fipId).length
     const playersMissingFromDb = playersTotal - playersResolved
+    // Strict: requires BOTH players resolved. Ghosts (synthesized above) have
+    // resolvedPlayerId=null so they correctly disqualify their team here.
     const teamsFullyResolved = teams.filter(
       (t) =>
         t.player1.resolvedPlayerId !== null &&
-        (t.player2 === null || t.player2.resolvedPlayerId !== null),
+        t.player2 !== null &&
+        t.player2.resolvedPlayerId !== null,
     ).length
     return {
       category: cat,
@@ -493,6 +508,38 @@ function stripCategory(
 ): EntryPlayer {
   const { _category: _cat, ...rest } = p
   return rest
+}
+
+/**
+ * Walk the teams produced by pair-grouping. For any team whose `player2` is
+ * null but whose `player1.partnerName` carries a raw PDF name, synthesize a
+ * ghost EntryPlayer for player2 so the UI can render the dropped name with a
+ * RESOLVE chip. Other resolved-player enrichment fields are nulled out —
+ * a ghost has, by definition, never been resolved to a public.players row.
+ */
+function synthesizeGhostPartners(teams: EntryTeam[]): EntryTeam[] {
+  return teams.map((t) => {
+    if (t.player2 !== null) return t
+    if (!t.player1.partnerName) return t
+    const ghost: EntryPlayer = {
+      fipId: null,
+      name: t.player1.partnerName,
+      country: null,
+      seed: null,
+      drawType: t.drawType,
+      partnerFipId: t.player1.fipId,
+      partnerName: t.player1.name,
+      resolvedPlayerId: null,
+      resolvedPlayerName: null,
+      resolutionMethod: 'none',
+      resolvedAvatarUrl: null,
+      resolvedRanking: null,
+      resolvedPadelapiId: null,
+      resolvedCountry: null,
+      isGhostPartner: true,
+    }
+    return { ...t, player2: ghost }
+  })
 }
 
 function emptyCategoryBlock(cat: 'men' | 'women'): CategoryBlock {

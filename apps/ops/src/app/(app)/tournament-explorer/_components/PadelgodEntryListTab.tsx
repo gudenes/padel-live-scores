@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { PlayerLink } from '@/components/PlayerLink'
+import UnresolvedPartnerModal, { type UnresolvedPartnerContext } from './UnresolvedPartnerModal'
 
 // ── Types mirror the GET response from /api/ops/padelgod-entry-list ─────
 
@@ -39,6 +40,10 @@ interface EntryPlayer {
   resolvedPadelapiId?: string | null
   // Resolved player's country — feeds PlayerLink hover card flag (T3 of Plan 8).
   resolvedCountry?: string | null
+  // True when this row was synthesized server-side from a surviving teammate's
+  // `partner_name` because padelgod couldn't resolve the partner. UI renders
+  // these with a red RESOLVE chip that opens the UnresolvedPartnerModal.
+  isGhostPartner?: boolean
 }
 
 interface EntryTeam {
@@ -195,6 +200,18 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
   const [twin, setTwin] = useState<TwinResponse | null>(null)
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
+
+  // Unresolved-partner resolve flow state — opened by clicking the RESOLVE
+  // chip on a ghost player2 row.
+  const [resolveCtx, setResolveCtx] = useState<UnresolvedPartnerContext | null>(null)
+  const [resolveBanner, setResolveBanner] = useState<string | null>(null)
+  const openResolve = useCallback((p: EntryPlayer) => {
+    setResolveCtx({ parsedName: p.name, category: activeCategory, countryHint: p.country ?? null })
+  }, [activeCategory])
+  const handleResolved = useCallback(() => {
+    setResolveCtx(null)
+    setResolveBanner('Resolved. Click "Re-seed from FIP PDF" to refresh the snapshot.')
+  }, [])
 
   // ── Initial fetch: tournament list (standalone only) ──
   useEffect(() => {
@@ -509,16 +526,28 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
             })}
           </div>
 
-          {activeBlock && <CategoryTable block={activeBlock} />}
+          {activeBlock && <CategoryTable block={activeBlock} onResolveClick={openResolve} />}
         </>
       )}
+
+      {resolveBanner && (
+        <div style={{ marginTop: 12, padding: 10, background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 12, color: '#065f46' }}>
+          {resolveBanner}
+        </div>
+      )}
+
+      <UnresolvedPartnerModal
+        ctx={resolveCtx}
+        onClose={() => setResolveCtx(null)}
+        onResolved={handleResolved}
+      />
     </div>
   )
 }
 
 // ── Per-category stats + teams table ────────────────────────────────────
 
-function CategoryTable({ block }: { block: CategoryBlock }) {
+function CategoryTable({ block, onResolveClick }: { block: CategoryBlock; onResolveClick?: (p: EntryPlayer) => void }) {
   const { stats, teams, category } = block
 
   if (teams.length === 0) {
@@ -573,16 +602,16 @@ function CategoryTable({ block }: { block: CategoryBlock }) {
       </div>
 
       {mainDrawTeams.length > 0 && (
-        <DrawSection label="Main Draw" teams={mainDrawTeams} />
+        <DrawSection label="Main Draw" teams={mainDrawTeams} onResolveClick={onResolveClick} />
       )}
       {qualifyingTeams.length > 0 && (
-        <DrawSection label="Qualifying" teams={qualifyingTeams} />
+        <DrawSection label="Qualifying" teams={qualifyingTeams} onResolveClick={onResolveClick} />
       )}
     </div>
   )
 }
 
-function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
+function DrawSection({ label, teams, onResolveClick }: { label: string; teams: EntryTeam[]; onResolveClick?: (p: EntryPlayer) => void }) {
   const isMain = label === 'Main Draw'
   return (
     <div style={{ marginBottom: 16 }}>
@@ -636,7 +665,7 @@ function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
                   <PlayerCell p={t.player1} />
                 </td>
                 <td style={tdStyle}>
-                  {t.player2 ? <PlayerCell p={t.player2} /> : <span style={{ color: '#ccc' }}>—</span>}
+                  {t.player2 ? <PlayerCell p={t.player2} onResolveClick={onResolveClick} /> : <span style={{ color: '#ccc' }}>—</span>}
                 </td>
                 <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: '#555' }}>
                   {t.player1.country ?? '—'}
@@ -661,7 +690,29 @@ function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
   )
 }
 
-function PlayerCell({ p }: { p: EntryPlayer }) {
+function PlayerCell({ p, onResolveClick }: { p: EntryPlayer; onResolveClick?: (p: EntryPlayer) => void }) {
+  if (p.isGhostPartner) {
+    return (
+      <div>
+        <div style={{ fontWeight: 500, color: '#991b1b', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {p.name}
+          <button
+            type="button"
+            onClick={() => onResolveClick?.(p)}
+            title="Click to link to existing player or create new"
+            style={{
+              fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+              background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca',
+              cursor: 'pointer', letterSpacing: '0.03em',
+            }}
+          >
+            RESOLVE
+          </button>
+        </div>
+        <div style={{ fontSize: 10, color: '#666' }}>not in DB / FIP search</div>
+      </div>
+    )
+  }
   return (
     <div>
       <div style={{ fontWeight: 500, color: '#111' }}>

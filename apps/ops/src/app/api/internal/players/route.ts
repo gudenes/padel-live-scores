@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import { normalize } from '@/lib/player-resolver'
 
 // -- GET: Fetch single player with match count ───────────────────
 export async function GET(request: Request) {
@@ -80,4 +81,81 @@ export async function PATCH(request: Request) {
   }
 
   return Response.json({ ok: true })
+}
+
+// -- POST: Create a new player from ops UI (e.g. unresolved entry-list partner)
+//
+// Body: { name, country?, category, sourceName? }
+//   - name        : canonical display name to store in players.name
+//   - country     : ISO-2 (or 2-3 letter PDF code) — accepted as-is
+//   - category    : 'men' | 'women' (required so resolver scopes future lookups)
+//   - sourceName  : optional original PDF name to auto-alias for next snapshots
+//
+// Returns: { id: string, ok: true, aliasWritten: boolean }
+//
+// This route deliberately does NOT set fip_id or external_id — those land via
+// FIP/padelapi sync workers when (or if) the player appears in official rankings.
+// Operator-created players carry name + country + category only, and the alias
+// bridges PDF text to this row until that happens.
+export async function POST(request: Request) {
+  const session = await auth()
+  if (!session?.user?.isOperator) {
+    return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
+  }
+  let body: { name?: string; country?: string; category?: string; sourceName?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'invalid json' }, { status: 400 })
+  }
+  const name = typeof body.name === 'string' ? body.name.trim() : null
+  const country = typeof body.country === 'string' ? body.country.trim() || null : null
+  const category = body.category === 'men' || body.category === 'women' ? body.category : null
+  const sourceName = typeof body.sourceName === 'string' ? body.sourceName.trim() || null : null
+
+  if (!name) return NextResponse.json({ error: 'missing required field: name' }, { status: 400 })
+  if (!category) return NextResponse.json({ error: 'category must be men or women' }, { status: 400 })
+
+  const supabase = serviceClient()
+  const { data, error } = await supabase
+    .from('players')
+    .insert({
+      name,
+      country,
+      category,
+      normalized_name: normalize(name),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message ?? 'create failed' }, { status: 500 })
+  }
+
+  // Auto-alias the source PDF name so the next snapshot resolves instantly.
+  // Best-effort: a failure here doesn't undo the player insert. Surface the
+  // partial-success via `aliasWritten: false` so the UI can warn.
+  let aliasWritten = false
+  if (sourceName) {
+    const { error: aliasErr } = await supabase.from('entity_external_ids').upsert(
+      {
+        entity_type: 'player',
+        entity_id: data.id,
+        source: 'alias',
+        external_id: sourceName,
+        metadata: { normalized: normalize(sourceName) },
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: 'source,entity_type,external_id' },
+    )
+    if (aliasErr) {
+      console.warn(`[ops/players POST] alias upsert failed for ${data.id} (sourceName="${sourceName}"): ${aliasErr.message}`)
+    } else {
+      aliasWritten = true
+    }
+  }
+
+  return NextResponse.json({ id: data.id, ok: true, aliasWritten })
 }
