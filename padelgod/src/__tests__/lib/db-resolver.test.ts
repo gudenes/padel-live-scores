@@ -203,6 +203,33 @@ describe('resolvePlayerByName', () => {
   });
 });
 
+import { storeAlias } from '../../lib/db-resolver.js';
+
+describe('storeAlias', () => {
+  it('upserts an alias row with metadata.normalized', async () => {
+    const upserts: any[] = [];
+    const supabase = {
+      from: (table: string) => {
+        expect(table).toBe('entity_external_ids');
+        return {
+          upsert: (row: any, opts: any) => {
+            upserts.push({ row, opts });
+            return Promise.resolve({ error: null });
+          },
+        };
+      },
+    } as any;
+    await storeAlias(supabase, 'u-ruiz', 'Alejandro Ruiz Granados');
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0].row.entity_type).toBe('player');
+    expect(upserts[0].row.entity_id).toBe('u-ruiz');
+    expect(upserts[0].row.source).toBe('alias');
+    expect(upserts[0].row.external_id).toBe('Alejandro Ruiz Granados');
+    expect(upserts[0].row.metadata).toEqual({ normalized: 'alejandro ruiz granados' });
+    expect(upserts[0].opts.onConflict).toBe('source,entity_type,external_id');
+  });
+});
+
 describe('loader error handling', () => {
   it('loadDbPlayerIndex throws with category in message when supabase errors', async () => {
     const errSupabase = {

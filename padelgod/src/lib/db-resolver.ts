@@ -269,6 +269,36 @@ export function resolvePlayerByName(
   return null;
 }
 
+/**
+ * Persist a fuzzy-match success as an alias for future O(1) lookup.
+ * Idempotent: relies on the entity_external_ids unique index
+ * (source, entity_type, external_id).
+ * Non-throwing: alias storage is non-critical and must not break resolution.
+ */
+export async function storeAlias(
+  supabase: SupabaseClient,
+  playerId: string,
+  rawName: string
+): Promise<void> {
+  const norm = normalizeName(rawName);
+  if (!norm) return;
+  try {
+    await supabase.from('entity_external_ids').upsert(
+      {
+        entity_type: 'player',
+        entity_id: playerId,
+        source: 'alias',
+        external_id: rawName,
+        metadata: { normalized: norm },
+        last_seen_at: new Date().toISOString(),
+      },
+      { onConflict: 'source,entity_type,external_id' }
+    );
+  } catch {
+    // swallow — best-effort
+  }
+}
+
 function pickByCountryAndRanking(
   candidates: DbPlayerRow[],
   input: ResolveInput,
