@@ -32,6 +32,10 @@ interface EntryPlayer {
   resolvedPlayerId: string | null
   resolvedPlayerName: string | null
   resolutionMethod: ResolutionMethod
+  /** True when this row was synthesized server-side from a surviving teammate's
+   *  partner_name because the fetcher could not match the partner. Render with
+   *  a RESOLVE chip + click handler that opens the resolve modal. */
+  isGhostPartner?: boolean
 }
 
 interface EntryTeam {
@@ -350,6 +354,13 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
   const activeBlock = detail?.categories.find((c) => c.category === activeCategory) ?? null
 
+  // Placeholder click handler — Task 11 will replace this with the modal trigger.
+  // For now, the RESOLVE chip is visually wired and logs to console so manual
+  // QA can verify the click is reaching the right component.
+  const handleResolveClick = useCallback((p: EntryPlayer) => {
+    console.log('[PadelgodEntryListTab] RESOLVE clicked for', p)
+  }, [])
+
   return (
     <div>
       {!embedded && (
@@ -502,7 +513,7 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
             })}
           </div>
 
-          {activeBlock && <CategoryTable block={activeBlock} />}
+          {activeBlock && <CategoryTable block={activeBlock} onResolveClick={handleResolveClick} />}
         </>
       )}
     </div>
@@ -511,7 +522,7 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
 // ── Per-category stats + teams table ────────────────────────────────────
 
-function CategoryTable({ block }: { block: CategoryBlock }) {
+function CategoryTable({ block, onResolveClick }: { block: CategoryBlock; onResolveClick?: (p: EntryPlayer) => void }) {
   const { stats, teams, category } = block
 
   if (teams.length === 0) {
@@ -566,16 +577,16 @@ function CategoryTable({ block }: { block: CategoryBlock }) {
       </div>
 
       {mainDrawTeams.length > 0 && (
-        <DrawSection label="Main Draw" teams={mainDrawTeams} />
+        <DrawSection label="Main Draw" teams={mainDrawTeams} onResolveClick={onResolveClick} />
       )}
       {qualifyingTeams.length > 0 && (
-        <DrawSection label="Qualifying" teams={qualifyingTeams} />
+        <DrawSection label="Qualifying" teams={qualifyingTeams} onResolveClick={onResolveClick} />
       )}
     </div>
   )
 }
 
-function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
+function DrawSection({ label, teams, onResolveClick }: { label: string; teams: EntryTeam[]; onResolveClick?: (p: EntryPlayer) => void }) {
   const isMain = label === 'Main Draw'
   return (
     <div style={{ marginBottom: 16 }}>
@@ -629,7 +640,7 @@ function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
                   <PlayerCell p={t.player1} />
                 </td>
                 <td style={tdStyle}>
-                  {t.player2 ? <PlayerCell p={t.player2} /> : <span style={{ color: '#ccc' }}>—</span>}
+                  {t.player2 ? <PlayerCell p={t.player2} onResolveClick={onResolveClick} /> : <span style={{ color: '#ccc' }}>—</span>}
                 </td>
                 <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: '#555' }}>
                   {t.player1.country ?? '—'}
@@ -654,7 +665,28 @@ function DrawSection({ label, teams }: { label: string; teams: EntryTeam[] }) {
   )
 }
 
-function PlayerCell({ p }: { p: EntryPlayer }) {
+function PlayerCell({ p, onResolveClick }: { p: EntryPlayer; onResolveClick?: (p: EntryPlayer) => void }) {
+  if (p.isGhostPartner) {
+    return (
+      <div>
+        <div style={{ fontWeight: 500, color: '#991b1b', display: 'flex', alignItems: 'center', gap: 6 }}>
+          {p.name}
+          <button
+            onClick={() => onResolveClick?.(p)}
+            title="Click to link to existing player or create new"
+            style={{
+              fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
+              background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca',
+              cursor: 'pointer', letterSpacing: '0.03em',
+            }}
+          >
+            RESOLVE
+          </button>
+        </div>
+        <div style={{ fontSize: 10, color: '#666' }}>not in DB / FIP search</div>
+      </div>
+    )
+  }
   return (
     <div>
       <div style={{ fontWeight: 500, color: '#111' }}>{p.name}</div>
