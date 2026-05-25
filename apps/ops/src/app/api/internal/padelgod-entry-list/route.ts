@@ -71,6 +71,17 @@ interface CategoryBlock {
   }
 }
 
+// public.players row shape used by the alias-driven ghost resolution.
+type AliasResolvedPlayer = {
+  id: string
+  name: string
+  fip_id: string | null
+  avatar_url: string | null
+  ranking: number | null
+  padelapi_id: string | null
+  country: string | null
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
@@ -331,6 +342,73 @@ export async function GET(request: Request) {
     }
   }
 
+  // ── Alias-based resolution for unresolved partners ──────────────────────
+  //
+  // When the snapshot has a surviving partner row with `partner_fip_id` NULL
+  // and a `partner_name` populated, that means padelgod dropped the partner
+  // at fetch time. The UI would render a ghost with a RESOLVE chip. BUT —
+  // if an operator has already clicked Link or Create in the modal, an alias
+  // exists in `entity_external_ids` mapping the raw partner_name to a real
+  // public.players row. Consult that index here so the resolution is
+  // reflected immediately on next page load, without waiting for the next
+  // padelgod fetcher tick or a manual re-seed.
+  const unresolvedPartnerNames = new Set<string>()
+  for (const r of latestRows) {
+    if (!r.partner_fip_id && r.partner_name) unresolvedPartnerNames.add(r.partner_name)
+  }
+  const byAliasPartnerName = new Map<string, AliasResolvedPlayer>()
+  if (unresolvedPartnerNames.size > 0) {
+    const { data: aliasRows, error: aliasErr } = await supabase
+      .from('entity_external_ids')
+      .select('entity_id, external_id, metadata')
+      .eq('entity_type', 'player')
+      .eq('source', 'alias')
+      .in('external_id', [...unresolvedPartnerNames])
+    if (aliasErr) {
+      return Response.json(
+        { error: `aliases read failed: ${aliasErr.message}` },
+        { status: 500 },
+      )
+    }
+    type AliasRow = { entity_id: string; external_id: string; metadata: { normalized?: string } | null }
+    const aliasPlayerIds = new Set<string>()
+    const aliasByNormalized = new Map<string, string>() // norm partner_name → playerId
+    for (const a of (aliasRows ?? []) as AliasRow[]) {
+      const norm = a.metadata?.normalized ?? normalize(a.external_id)
+      if (!norm) continue
+      aliasByNormalized.set(norm, a.entity_id)
+      aliasPlayerIds.add(a.entity_id)
+    }
+    if (aliasPlayerIds.size > 0) {
+      const { data: aliasPlayers, error: pErr } = await supabase
+        .from('players')
+        .select('id, name, fip_id, avatar_url, ranking, padelapi_id, country')
+        .in('id', [...aliasPlayerIds])
+      if (pErr) {
+        return Response.json(
+          { error: `aliased players read failed: ${pErr.message}` },
+          { status: 500 },
+        )
+      }
+      const playerById = new Map<string, AliasResolvedPlayer>()
+      for (const p of (aliasPlayers ?? []) as Array<{
+        id: string; name: string; fip_id: string | null
+        avatar_url: string | null; ranking: number | null
+        padelapi_id: string | null; country: string | null
+      }>) {
+        playerById.set(p.id, {
+          id: p.id, name: p.name, fip_id: p.fip_id,
+          avatar_url: p.avatar_url, ranking: p.ranking,
+          padelapi_id: p.padelapi_id, country: p.country,
+        })
+      }
+      for (const [norm, pid] of aliasByNormalized) {
+        const player = playerById.get(pid)
+        if (player) byAliasPartnerName.set(norm, player)
+      }
+    }
+  }
+
   // Build resolved player view per row.
   const resolved: Array<
     EntryPlayer & { _category: 'men' | 'women' }
@@ -447,7 +525,7 @@ export async function GET(request: Request) {
   // in the ordering naturally (their team_seed comes from the surviving
   // partner, so the row stays at the correct seed position).
   for (const cat of ['men', 'women'] as const) {
-    teamsByCategory[cat] = synthesizeGhostPartners(teamsByCategory[cat])
+    teamsByCategory[cat] = synthesizeGhostPartners(teamsByCategory[cat], byAliasPartnerName)
     teamsByCategory[cat].sort((a, b) => {
       const drawOrder = (d: DrawType) => (d === 'main_draw' ? 0 : 1)
       const dd = drawOrder(a.drawType) - drawOrder(b.drawType)
@@ -512,15 +590,48 @@ function stripCategory(
 
 /**
  * Walk the teams produced by pair-grouping. For any team whose `player2` is
- * null but whose `player1.partnerName` carries a raw PDF name, synthesize a
- * ghost EntryPlayer for player2 so the UI can render the dropped name with a
- * RESOLVE chip. Other resolved-player enrichment fields are nulled out —
- * a ghost has, by definition, never been resolved to a public.players row.
+ * null but whose `player1.partnerName` carries a raw PDF name, decide how to
+ * render the missing partner:
+ *
+ *   1. If an alias exists in `entity_external_ids` mapping `partner_name` to
+ *      a real player, synthesize a RESOLVED player2 (PlayerLink renders the
+ *      canonical name, ResolutionChip is NAME, no RESOLVE chip). This is the
+ *      "instant resolution after Link/Create" path — the operator-stored
+ *      alias is the source of truth, no re-seed needed.
+ *
+ *   2. Otherwise synthesize a GHOST player2 (isGhostPartner=true). The UI
+ *      renders the raw parsed name with a red RESOLVE chip and a "not in DB
+ *      / FIP search" subtitle.
  */
-function synthesizeGhostPartners(teams: EntryTeam[]): EntryTeam[] {
+function synthesizeGhostPartners(
+  teams: EntryTeam[],
+  byAliasPartnerName: Map<string, AliasResolvedPlayer>,
+): EntryTeam[] {
   return teams.map((t) => {
     if (t.player2 !== null) return t
     if (!t.player1.partnerName) return t
+    const aliasHit = byAliasPartnerName.get(normalize(t.player1.partnerName))
+    if (aliasHit) {
+      // Operator already linked / created this player via the Resolve modal.
+      // Render as a fully-resolved partner — no ghost chip, no RESOLVE button.
+      const aliased: EntryPlayer = {
+        fipId: aliasHit.fip_id,
+        name: t.player1.partnerName,
+        country: aliasHit.country,
+        seed: null,
+        drawType: t.drawType,
+        partnerFipId: t.player1.fipId,
+        partnerName: t.player1.name,
+        resolvedPlayerId: aliasHit.id,
+        resolvedPlayerName: aliasHit.name,
+        resolutionMethod: 'name_exact',
+        resolvedAvatarUrl: aliasHit.avatar_url,
+        resolvedRanking: aliasHit.ranking,
+        resolvedPadelapiId: aliasHit.padelapi_id,
+        resolvedCountry: aliasHit.country,
+      }
+      return { ...t, player2: aliased }
+    }
     const ghost: EntryPlayer = {
       fipId: null,
       name: t.player1.partnerName,

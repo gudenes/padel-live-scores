@@ -210,8 +210,19 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
   }, [activeCategory])
   const handleResolved = useCallback(() => {
     setResolveCtx(null)
-    setResolveBanner('Resolved. Click "Re-seed from FIP PDF" to refresh the snapshot.')
-  }, [])
+    setResolveBanner('Resolved. Refreshing the entry list…')
+    // Re-fetch the snapshot view. The aggregator now consults the alias index
+    // we just wrote, so the ghost row will become a resolved row on this next
+    // load — no re-seed scrape required.
+    if (selectedTournamentId) {
+      void fetchDetail(selectedTournamentId).then(() => {
+        setResolveBanner('Resolved.')
+        // Auto-dismiss the banner after a couple seconds — refresh is the
+        // visible confirmation; banner is just a brief acknowledgement.
+        setTimeout(() => setResolveBanner(null), 2500)
+      })
+    }
+  }, [selectedTournamentId, fetchDetail])
 
   // ── Initial fetch: tournament list (standalone only) ──
   useEffect(() => {
@@ -493,6 +504,20 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
           onSeed={handleSeedFromFip}
           result={seedResult}
         />
+      )}
+
+      {/* Resolve banner — brief acknowledgement after a Link / Create action.
+          handleResolved already re-fetches the snapshot view (the aggregator
+          consults the alias index we just wrote, so the ghost row turns into
+          a resolved row immediately). The banner auto-dismisses ~2.5s after
+          the refresh completes. */}
+      {resolveBanner && (
+        <div style={{
+          margin: '12px 0', padding: 12, background: '#ecfdf5', border: '1px solid #a7f3d0',
+          borderRadius: 8, fontSize: 12, color: '#065f46',
+        }}>
+          {resolveBanner}
+        </div>
       )}
 
       {detail && !loadingDetail && (
