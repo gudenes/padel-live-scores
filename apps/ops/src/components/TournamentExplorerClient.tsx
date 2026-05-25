@@ -12,6 +12,8 @@ import { TournamentExplorerPicker } from './TournamentExplorerPicker'
 import { TournamentExplorerHeader } from './TournamentExplorerHeader'
 import { EntryListSection } from './EntryListSection'
 import { ResolvePartnerModal, type ResolvePartnerContext } from './ResolvePartnerModal'
+import { FipSeedPanel } from './FipSeedPanel'
+import { FipTwinBanner } from './FipTwinBanner'
 
 export interface TournamentExplorerClientProps {
   tournaments: TournamentListItem[]
@@ -54,6 +56,10 @@ export function TournamentExplorerClient({ tournaments, selectedId, initial }: T
       {selectedId && initial?.entryList && (
         <>
           <TournamentExplorerHeader payload={initial.entryList} />
+          {initial.twin && !initial.entryList.tournament.fip_id && (
+            <FipTwinBanner tournamentId={initial.entryList.tournament.id} twin={initial.twin} />
+          )}
+          <FipSeedPanel tournamentId={initial.entryList.tournament.id} hasFipId={!!initial.entryList.tournament.fip_id} />
           <EntryListSection payload={initial.entryList} onResolveClick={handleResolveClick} />
         </>
       )}
