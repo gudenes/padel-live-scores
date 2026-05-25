@@ -106,6 +106,9 @@ export async function getEntryListPayload(tournamentId: string): Promise<EntryLi
   if (!tournament) return null
 
   // Latest scrape_job_id per category.
+  // `distinct on (category)` picks the row with the largest captured_at per
+  // category. Sub-second ties (parallel runs / clock skew) are rare for an
+  // hourly worker but non-deterministic if they occur.
   const latestJobsRes = await pool.query(
     `select distinct on (category) category, scrape_job_id, captured_at
        from padelgod.entry_list_snapshots
@@ -126,6 +129,7 @@ export async function getEntryListPayload(tournamentId: string): Promise<EntryLi
   let overallCapturedAt: string | null = null
   for (const r of latestJobsRes.rows as Array<{ category: string; scrape_job_id: string; captured_at: string }>) {
     jobIdsByCategory.set(r.category, r.scrape_job_id)
+    // ISO 8601 timestamps sort lexicographically — string `>` is safe here.
     if (!overallCapturedAt || r.captured_at > overallCapturedAt) overallCapturedAt = r.captured_at
   }
 
@@ -155,6 +159,9 @@ export async function getEntryListPayload(tournamentId: string): Promise<EntryLi
           and category = any($2::text[])`,
       [wantNames, wantCategories],
     )
+    // The two `any()` filters scope by name AND category separately rather
+    // than per-pair, so a name shared across genders fetches both rows. At
+    // ops-tool scale (<200 rows) this is negligible; revisit if needed.
     const byKey = new Map<string, Array<{ id: string; name: string }>>()
     for (const p of nameLookupRes.rows as Array<{ id: string; name: string; normalized_name: string; category: string }>) {
       const key = `${p.category}::${p.normalized_name}`
@@ -212,19 +219,19 @@ export async function getEntryListPayload(tournamentId: string): Promise<EntryLi
 
   // Pair into teams using fip_id pair-key (or name fallback). Partition by
   // draw_type so a player who appears in MD and Q isn't merged across draws.
-  const pairKey = (p: EntryPlayer): string => {
+  const pairKey = (category: 'men' | 'women', p: EntryPlayer): string => {
     if (p.fipId && p.partnerFipId) {
       const [a, b] = [p.fipId, p.partnerFipId].sort()
-      return `${p.drawType}::fip::${a}::${b}`
+      return `${category}::${p.drawType}::fip::${a}::${b}`
     }
     const me = normalizeName(p.name)
     const partner = p.partnerName ? normalizeName(p.partnerName) : ''
     const [a, b] = [me, partner].sort()
-    return `${p.drawType}::name::${a}::${b}`
+    return `${category}::${p.drawType}::name::${a}::${b}`
   }
   const grouped = new Map<string, Array<{ _category: 'men' | 'women'; player: EntryPlayer }>>()
   for (const r of resolved) {
-    const k = `${r._category}::${pairKey(r.player)}`
+    const k = pairKey(r._category, r.player)
     if (!grouped.has(k)) grouped.set(k, [])
     grouped.get(k)!.push(r)
   }
@@ -268,6 +275,11 @@ export async function getEntryListPayload(tournamentId: string): Promise<EntryLi
     const playersResolved = allPlayers.filter((p) => p.resolvedPlayerId !== null).length
     const playersWithFipId = allPlayers.filter((p) => !!p.fipId).length
     const playersMissingFromDb = playersTotal - playersResolved
+    // Strict: requires BOTH players resolved. Ghosts (synthesized above) have
+    // resolvedPlayerId=null so they correctly disqualify. Truly-solo entries
+    // (no partnerName, no ghost) also fail because padel is doubles — a team
+    // with one player isn't complete. Diverges intentionally from the legacy
+    // route's lenient definition.
     const teamsFullyResolved = teams.filter(
       (t) => t.player1.resolvedPlayerId !== null && t.player2 !== null && t.player2.resolvedPlayerId !== null,
     ).length
