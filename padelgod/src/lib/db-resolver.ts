@@ -21,6 +21,8 @@
 // Aliases are auto-stored on successful fuzzy match so subsequent snapshots
 // hit step 2 instantly.
 
+import type { SupabaseClient } from '@supabase/supabase-js';
+
 export function normalizeName(s: string): string {
   return s
     .toLowerCase()
@@ -100,4 +102,70 @@ export function typoTolerantSimilarity(a: string, b: string): number {
     }
   }
   return overlap / Math.min(ta.length, tb.length);
+}
+
+export interface DbPlayerRow {
+  id: string;
+  fip_id: string | null;
+  name: string;
+  normalized_name: string | null;
+  country: string | null;
+  ranking: number | null;
+  category: 'men' | 'women' | null;
+}
+
+export type DbPlayerIndex = Map<string, DbPlayerRow[]>;
+export type AliasIndex = Map<string, string>; // normalized alias \u2192 player UUID
+
+/**
+ * Build a category-scoped index keyed on normalized name. Multiple players
+ * can share a normalized name; we keep them all and let the resolver narrow
+ * by country + ranking.
+ */
+export async function loadDbPlayerIndex(
+  supabase: SupabaseClient,
+  category: 'men' | 'women'
+): Promise<DbPlayerIndex> {
+  const { data, error } = await supabase
+    .from('players')
+    .select('id, fip_id, name, normalized_name, country, ranking, category')
+    .eq('category', category);
+  if (error) {
+    throw new Error(`players read failed for ${category}: ${error.message}`);
+  }
+  const map: DbPlayerIndex = new Map();
+  for (const r of (data ?? []) as DbPlayerRow[]) {
+    const key = r.normalized_name ?? normalizeName(r.name);
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(r);
+  }
+  return map;
+}
+
+/**
+ * Load all player aliases from entity_external_ids. Returns a Map keyed on
+ * the normalized alias text. Aliases are auto-stored by past fuzzy matches
+ * (see storeAlias) so this index grows monotonically over time.
+ */
+export async function loadAliasIndex(supabase: SupabaseClient): Promise<AliasIndex> {
+  const { data, error } = await supabase
+    .from('entity_external_ids')
+    .select('entity_id, external_id, metadata')
+    .eq('entity_type', 'player')
+    .eq('source', 'alias');
+  if (error) {
+    throw new Error(`alias read failed: ${error.message}`);
+  }
+  const map: AliasIndex = new Map();
+  for (const r of (data ?? []) as Array<{
+    entity_id: string;
+    external_id: string;
+    metadata: { normalized?: string } | null;
+  }>) {
+    const norm = r.metadata?.normalized ?? normalizeName(r.external_id);
+    if (!norm) continue;
+    map.set(norm, r.entity_id);
+  }
+  return map;
 }
