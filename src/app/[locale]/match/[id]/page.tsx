@@ -12,6 +12,7 @@ import MomentumChart from './MomentumChart'
 import BottomNav from '@/components/nav/BottomNavV3'
 import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
 import { DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
+import { countryToTimezone } from '@/lib/country-timezone'
 import { useMatchPrediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
@@ -525,7 +526,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const duration = (match as any).duration as string | null
   const matchDate = match.started_at ? format.dateTime(new Date(match.started_at), DATE_WITH_WEEKDAY) : null
 
-  const tz = ((match as any).tournament)?.timezone ?? 'UTC'
+  // Fall back to country lookup when `tournaments.timezone` is null — common
+  // for FIP-tier events that arrive ahead of the FIP enricher's hourly pass,
+  // and for any country missing from the padelapi sync's location-override
+  // table. Without this fallback the "Zona horaria" row collapses to "UTC"
+  // for half the FIP circuit (e.g. AL → Europe/Tirane).
+  const _tournamentMeta = (match as any).tournament as { timezone?: string | null; country?: string | null } | undefined
+  const tz = _tournamentMeta?.timezone ?? countryToTimezone(_tournamentMeta?.country ?? null) ?? 'UTC'
 
   // ── Shared styles ──────────────────────────────────────────────────────────
   const scoreNumStyle = (won: boolean, dim: boolean, live: boolean): React.CSSProperties => ({
