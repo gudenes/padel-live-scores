@@ -7,7 +7,11 @@
 // - [date] segment: YYYY-MM-DD | today | yesterday | tomorrow
 // - Aliases redirect to the canonical YYYY-MM-DD URL (in the locale's home TZ)
 // - Invalid segments 404
-// - ISR: revalidate every 5 minutes
+// - Force-dynamic: live match scores / status / presence-only state
+//   evolve minute-to-minute. ISR's stale cache served Albania matches
+//   with pre-PR-#436 presence-only-live decisions for the full 5-minute
+//   window after deploy — see incident 2026-05-25. Also AppHeader pages
+//   must be force-dynamic per project convention.
 
 import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -29,7 +33,7 @@ import type { LiveChannel } from '@/lib/where-to-watch/group-builder'
 import { fetchActiveBroadcasters, fetchChannelsMeta } from '@/lib/where-to-watch/fetch-broadcasters'
 import { circuitsForToday } from '@/lib/where-to-watch/circuit-map'
 
-export const revalidate = 300 // 5 min
+export const dynamic = 'force-dynamic'
 
 const BG_BASE = '#1A1A1A'
 
