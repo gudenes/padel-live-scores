@@ -161,6 +161,8 @@ async function main() {
       enableShadowDiffLive: env.ENABLE_SHADOW_DIFF_LIVE,
       enableShadowDiffOcr: env.ENABLE_SHADOW_DIFF_OCR,
       enableCloseStaleLiveSweeper: env.ENABLE_CLOSE_STALE_LIVE_SWEEPER,
+      enableFipCmsOrphanPrune: env.ENABLE_FIP_CMS_ORPHAN_PRUNE,
+      fipCmsOrphanPruneDryRun: env.FIP_CMS_ORPHAN_PRUNE_DRY_RUN,
       enableScheduleHintsWriter: env.ENABLE_SCHEDULE_HINTS_WRITER,
       scheduleHintsWriterDryRun: env.SCHEDULE_HINTS_WRITER_DRY_RUN,
       scheduleHintsExpectedDurationMin: env.SCHEDULE_HINTS_EXPECTED_DURATION_MIN,

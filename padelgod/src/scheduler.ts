@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
 import type { Logger } from 'pino';
 import { runTournamentDiscovery } from './workers/tournament-discovery.js';
+import { runFipCmsOrphanPrune } from './workers/fip-cms-orphan-prune.js';
 import { runWidgetCodeLookup } from './workers/widget-code-lookup.js';
 import { runPlayerRankings } from './workers/player-rankings.js';
 import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
@@ -78,6 +79,11 @@ export interface SchedulerFlags {
   enableShadowDiffLive: boolean;
   enableShadowDiffOcr: boolean;
   enableCloseStaleLiveSweeper: boolean;
+  enableFipCmsOrphanPrune: boolean;
+  /** Same dry-run semantics as the other FIP workers. Defaults to true
+   *  for safety; flip in Railway once the first run's dry-run output
+   *  is reviewed. */
+  fipCmsOrphanPruneDryRun: boolean;
   enableScheduleHintsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   scheduleHintsWriterDryRun: boolean;
@@ -133,6 +139,7 @@ export type WorkerName =
   | 'shadow-diff-live'
   | 'shadow-diff-ocr'
   | 'close-stale-live-sweeper'
+  | 'fip-cms-orphan-prune'
   | 'schedule-hints-writer';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
@@ -161,6 +168,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'shadow-diff-live',
   'shadow-diff-ocr',
   'close-stale-live-sweeper',
+  'fip-cms-orphan-prune',
   'schedule-hints-writer',
 ];
 
@@ -254,6 +262,14 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
     case 'shadow-diff-ocr':       return (deps) => runShadowDiffOcr({ supabase: deps.supabase, logger: deps.logger });
     case 'close-stale-live-sweeper': return (deps) => runCloseStaleLiveSweeper({ supabase: deps.supabase, logger: deps.logger });
+    case 'fip-cms-orphan-prune':     return (deps) => runFipCmsOrphanPrune({
+      supabase: deps.supabase,
+      httpClient: deps.httpClient,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure (see buildSchedule below).
+      dryRun: true,
+    });
     case 'schedule-hints-writer':   return (deps) => runScheduleHintsWriter({
       supabase: deps.supabase,
       logger: deps.logger,
@@ -565,6 +581,23 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // state). Reads from our own DB — no external calls, safe to run frequently.
       cron: '*/5 * * * *',
       run: getWorkerRunner('close-stale-live-sweeper')!,
+    });
+  }
+  if (flags.enableFipCmsOrphanPrune) {
+    entries.push({
+      name: 'fip-cms-orphan-prune',
+      // Daily at 04:15 UTC (off-hours, well outside any tournament-day
+      // workload). Stamps + sweeps orphan FIP rows; idempotent. One
+      // FIP WP /events round-trip per run, ~2 paginated requests.
+      cron: '15 4 * * *',
+      run: async (deps) => {
+        return runFipCmsOrphanPrune({
+          supabase: deps.supabase,
+          httpClient: deps.httpClient,
+          logger: deps.logger,
+          dryRun: flags.fipCmsOrphanPruneDryRun,
+        });
+      },
     });
   }
   if (flags.enableScheduleHintsWriter) {

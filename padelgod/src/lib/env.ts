@@ -147,6 +147,17 @@ const EnvSchema = z.object({
   // is deployed and producing padelgod.ocr_snapshots rows.
   ENABLE_SHADOW_DIFF_OCR: boolEnv(false),
   ENABLE_CLOSE_STALE_LIVE_SWEEPER: boolEnv(true),
+  // fip-cms-orphan-prune — stamps + sweeps orphan FIP-source tournament
+  // rows whose slugs disappeared from the FIP WP /events response. Runs
+  // daily at 04:15 UTC. Default OFF — operator flips on in Railway
+  // after the 2026-05-25 cleanup migration applies (which adds
+  // ON DELETE CASCADE for padelgod.scrape_jobs.tournament_id; without
+  // that the DELETE bounces on the FK and the worker logs a warn).
+  ENABLE_FIP_CMS_ORPHAN_PRUNE: boolEnv(false),
+  // Dry-run: when true (default), logs proposed stamps/clears/deletes
+  // but makes no DB writes. Flip to false once the first day's log
+  // output looks correct.
+  FIP_CMS_ORPHAN_PRUNE_DRY_RUN: boolEnv(true),
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
   // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.
