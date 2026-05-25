@@ -113,6 +113,14 @@ const EnvSchema = z.object({
   // posture as the other writers.
   ENABLE_FIP_RESULTS_WRITER: boolEnv(false),
   FIP_RESULTS_WRITER_DRY_RUN: boolEnv(true),
+  // fip-draw-results-writer — settles pre-match walkovers that the FIP
+  // event page captures but matchscorerlive never publishes a results
+  // row for. Reads padelgod.draw_snapshots (source='fip_event_page')
+  // and flips public.matches.status + winner_pair on composite-keyed
+  // rows. See worker docblock for the translation table. Same safety
+  // posture as the other writers (default OFF + dry-run ON).
+  ENABLE_FIP_DRAW_RESULTS_WRITER: boolEnv(false),
+  FIP_DRAW_RESULTS_WRITER_DRY_RUN: boolEnv(true),
   // fip-winner-propagator — simplified-pipeline writer #4. When a match
   // is finished with a winner, the propagator copies the winning pair's
   // 2 player UUIDs into the next-round match via bracket math. Pure

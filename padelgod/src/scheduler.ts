@@ -13,6 +13,7 @@ import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
 import { runFipEntryListPopulator } from './workers/fip-entry-list-populator.js';
 import { runFipOopWriter } from './workers/fip-oop-writer.js';
 import { runFipResultsWriter } from './workers/fip-results-writer.js';
+import { runFipDrawResultsWriter } from './workers/fip-draw-results-writer.js';
 import { runScheduleHintsWriter } from './workers/schedule-hints-writer.js';
 import { runFipWinnerPropagator } from './workers/fip-winner-propagator.js';
 import { runFipDrawLinker } from './workers/fip-draw-linker.js';
@@ -65,6 +66,9 @@ export interface SchedulerFlags {
   enableFipResultsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipResultsWriterDryRun: boolean;
+  enableFipDrawResultsWriter: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  fipDrawResultsWriterDryRun: boolean;
   enableFipWinnerPropagator: boolean;
   /** Same dry-run semantics. Independent. */
   fipWinnerPropagatorDryRun: boolean;
@@ -129,6 +133,7 @@ export type WorkerName =
   | 'fip-entry-list-populator'
   | 'fip-oop-writer'
   | 'fip-results-writer'
+  | 'fip-draw-results-writer'
   | 'fip-winner-propagator'
   | 'oop-fetcher'
   | 'results-fetcher'
@@ -158,6 +163,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-entry-list-populator',
   'fip-oop-writer',
   'fip-results-writer',
+  'fip-draw-results-writer',
   'fip-winner-propagator',
   'oop-fetcher',
   'results-fetcher',
@@ -231,6 +237,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       dryRun: true,
     });
     case 'fip-results-writer':   return (deps) => runFipResultsWriter({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure (buildSchedule below).
+      dryRun: true,
+    });
+    case 'fip-draw-results-writer': return (deps) => runFipDrawResultsWriter({
       supabase: deps.supabase,
       logger: deps.logger,
       // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
@@ -479,6 +492,25 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipResultsWriterDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableFipDrawResultsWriter) {
+    entries.push({
+      name: 'fip-draw-results-writer',
+      // Hourly at :40 — runs 5 min after fip-draw-fetcher (:35) so
+      // draw_snapshots from the current hour have landed. No upstream
+      // contention with fip-results-writer (every 5 min from :02): the
+      // terminal-status guard ensures whoever flipped a match first
+      // wins, the other becomes a no-op. Hourly is the right cadence
+      // here — fip-draw-fetcher itself only runs hourly.
+      cron: '40 * * * *',
+      run: async (deps) => {
+        return runFipDrawResultsWriter({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipDrawResultsWriterDryRun,
         });
       },
     });
