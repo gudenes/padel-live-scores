@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PadelNacho · Buttons Reference</title>
+<style>
+  :root {
+    --bg: #0F0F10;
+    --panel: #141414;
+    --panel-2: #1A1A1A;
+    --ink: #fff;
+    --ink-dim: #9CA3AF;
+    --ink-mute: #5C5F66;
+    --border: rgba(255,255,255,.06);
+    --green: #7ED321;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif; scroll-behavior: smooth; }
+
+  /* ============================================================ */
+  /* PAGE LAYOUT with sticky TOC                                  */
+  /* ============================================================ */
+  .layout {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 28px;
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 28px 24px 80px;
+  }
+  @media (max-width: 920px) { .layout { grid-template-columns: 1fr; } }
+
+  .toc {
+    position: sticky;
+    top: 28px;
+    align-self: start;
+    background: #16181B;
+    border: 1px solid var(--border);
+    padding: 18px 16px;
+    font-size: 12px;
+    line-height: 1.7;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+  .toc h4 {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 0 0 10px;
+    font-weight: 800;
+  }
+  .toc .toc-group { margin-bottom: 14px; }
+  .toc .toc-group:last-child { margin-bottom: 0; }
+  .toc a {
+    display: block;
+    color: var(--ink-dim);
+    text-decoration: none;
+    padding: 2px 0;
+  }
+  .toc a:hover { color: var(--green); }
+  .toc a.sub { padding-left: 12px; color: var(--ink-mute); font-size: 11.5px; }
+  @media (max-width: 920px) {
+    .toc { position: static; max-height: none; }
+  }
+
+  /* Main content */
+  .main { min-width: 0; }
+  h1 { font-size: 26px; font-weight: 900; letter-spacing: -.5px; margin: 0 0 6px; }
+  .lead { color: var(--ink-dim); margin: 0; max-width: 820px; font-size: 14px; line-height: 1.6; }
+  .lead code, code.inline { background: #0A0A0A; padding: 1.5px 6px; color: #DDD; font-family: ui-monospace, monospace; font-size: 12px; }
+
+  /* Anchor link helper for headings */
+  .anchor {
+    color: var(--ink-mute);
+    margin-left: 8px;
+    font-size: 11px;
+    text-decoration: none;
+    opacity: 0;
+    transition: opacity 120ms;
+    font-family: ui-monospace, monospace;
+  }
+  h2:hover .anchor, h3:hover .anchor, .lib-cell:hover .anchor-mini { opacity: 1; }
+  .anchor-mini {
+    font-family: ui-monospace, monospace;
+    color: var(--ink-mute);
+    font-size: 9px;
+    margin-top: 6px;
+    opacity: .5;
+    transition: opacity 120ms;
+  }
+
+  /* ============================================================ */
+  /* PressButton                                                  */
+  /* ============================================================ */
+  .pn-press {
+    position: relative;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    display: inline-block;
+    --pn-press-depth: 5px;
+    margin-bottom: var(--pn-press-depth);
+    color: #0a0a0a;
+  }
+  .pn-press[data-block="1"] { display: block; width: 100%; }
+  .pn-press .pn-press-skirt { position: absolute; inset: 0; transform: translateY(var(--pn-press-depth)); background: #558D14; }
+  .pn-press .pn-press-face {
+    position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; height: 100%;
+    background: #7ED321; color: inherit;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22);
+    box-sizing: border-box;
+    transition: transform 70ms ease-out;
+    transform: translateY(0);
+    font-weight: 900; letter-spacing: 0.4px; text-transform: uppercase; user-select: none;
+  }
+  .pn-press:active:not([disabled]) .pn-press-face { transform: translateY(var(--pn-press-depth)); }
+  .pn-press[disabled] { cursor: not-allowed; opacity: .42; }
+  .pn-press .pn-press-face svg { width: 1em; height: 1em; flex-shrink: 0; fill: currentColor; }
+  .pn-press.icon-only .pn-press-face { padding-left: 0 !important; padding-right: 0 !important; aspect-ratio: 1 / 1; }
+  .pn-press.icon-trailing .pn-press-face { flex-direction: row-reverse; }
+
+  .shape-chunky-tilted .pn-press-face,
+  .shape-chunky-tilted .pn-press-skirt { clip-path: polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%); }
+  .shape-pill .pn-press-face,
+  .shape-pill .pn-press-skirt { border-radius: 999px; }
+
+  .intent-primary  .pn-press-face { background: #7ED321; } .intent-primary  .pn-press-skirt { background: #558D14; }
+  .intent-live     .pn-press-face { background: #FF4655; color: #fff; } .intent-live    .pn-press-skirt { background: #99131D; }
+  .intent-gold     .pn-press-face { background: #EAB308; color: #1A1A1A; } .intent-gold .pn-press-skirt { background: #8A6A00; }
+  .intent-neutral  .pn-press-face { background: #2A2A2A; color: #fff; } .intent-neutral .pn-press-skirt { background: #0A0A0A; }
+  .intent-ghost    .pn-press-face { background: transparent; color: #7ED321; box-shadow: inset 0 0 0 2px #7ED321; } .intent-ghost .pn-press-skirt { background: #2F4D10; }
+  .intent-info     .pn-press-face { background: #4A9EFF; color: #fff; } .intent-info .pn-press-skirt { background: #1A4F8A; }
+  .intent-yt       .pn-press-face { background: #FF0000; color: #fff; } .intent-yt    .pn-press-skirt { background: #800000; }
+  .intent-premier  .pn-press-face { background: linear-gradient(135deg, #8B5CF6, #6B46C1); color:#fff; } .intent-premier .pn-press-skirt { background: #3D2270; }
+
+  .size-xs  { --pn-press-depth: 3px; } .size-xs .pn-press-face { font-size: 10px; padding: 7px 12px; } .size-xs.icon-only .pn-press-face { padding: 7px; }
+  .size-sm  { --pn-press-depth: 4px; } .size-sm .pn-press-face { font-size: 11px; padding: 9px 16px; } .size-sm.icon-only .pn-press-face { padding: 9px; }
+  .size-md  { --pn-press-depth: 5px; } .size-md .pn-press-face { font-size: 12px; padding: 12px 22px; } .size-md.icon-only .pn-press-face { padding: 12px; }
+  .size-lg  { --pn-press-depth: 6px; } .size-lg .pn-press-face { font-size: 13px; padding: 15px 28px; } .size-lg.icon-only .pn-press-face { padding: 15px; }
+  .size-xl  { --pn-press-depth: 7px; } .size-xl .pn-press-face { font-size: 14px; padding: 17px 32px; }
+
+  .pulse-live .pn-press-face { animation: pulseFace 1.8s ease-in-out infinite; }
+  @keyframes pulseFace {
+    0%,100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 0 0 0 rgba(255,70,85,0); }
+    50%     { box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 0 18px 2px rgba(255,70,85,.55); }
+  }
+
+  /* ============================================================ */
+  /* Section chrome                                               */
+  /* ============================================================ */
+  section.block { margin-top: 32px; background: var(--panel-2); border: 1px solid var(--border); padding: 22px; scroll-margin-top: 20px; }
+  section.block > header { margin-bottom: 16px; }
+  section.block > header .num { font-size: 11px; color: #7ED321; font-weight: 900; letter-spacing: 2px; background: rgba(126,211,33,.08); padding: 4px 9px; margin-right: 12px; }
+  section.block > header h2 { font-size: 19px; font-weight: 900; margin: 4px 0 0; display: inline-block; }
+  section.block > header p { color: var(--ink-dim); font-size: 13px; margin: 6px 0 0; line-height: 1.6; max-width: 860px; }
+
+  /* Quick reference table */
+  .qref { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12.5px; }
+  .qref th, .qref td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  .qref th { font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--ink-mute); font-weight: 800; }
+  .qref td.id { font-family: ui-monospace, monospace; color: var(--green); white-space: nowrap; }
+  .qref td.color { white-space: nowrap; }
+  .qref td.color .swatch { display: inline-block; width: 12px; height: 12px; vertical-align: -2px; margin-right: 7px; border: 1px solid rgba(255,255,255,.08); }
+
+  /* Library grid */
+  .lib-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+  @media (max-width: 1080px) { .lib-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .lib-grid { grid-template-columns: 1fr; } }
+  .lib-cell {
+    background:#0F1012; padding: 22px 14px 16px; text-align: center;
+    display:flex; flex-direction:column; align-items:center; gap: 6px;
+    scroll-margin-top: 20px;
+  }
+  .lib-cell .lib-name { font-size:10px; letter-spacing:1.4px; color:var(--ink-mute); text-transform:uppercase; }
+
+  /* Match row replica */
+  .match-row {
+    background: #0a0a0a;
+    padding: 14px 14px 16px;
+    clip-path: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+  }
+  .match-row .mr-head { display: flex; justify-content: space-between; font-size: 9.5px; font-weight: 800; letter-spacing: .6px; color: #9CA3AF; margin-bottom: 10px; }
+  .match-row .mr-head .tag { background:#6B46C1; color:#fff; padding:3px 7px; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); }
+  .match-row .mr-head .live { background:#FF4655; color:#fff; padding:3px 7px; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); }
+  .match-row .mr-head .final { background:#2A2A2A; color:#fff; padding:3px 7px; clip-path: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%); }
+  .match-row .mr-pair { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+  .match-row .mr-pair .name { color: #E5E7EB; }
+  .match-row .mr-pair .name.winner { font-weight: 800; color: #fff; }
+  .match-row .mr-pair .scores { display: flex; gap: 14px; }
+  .match-row .mr-pair .scores span { width: 14px; text-align: center; font-weight: 700; color: #fff; }
+  .match-row .mr-pair .scores .current { color: #7ED321; font-weight: 900; }
+  .match-row .mr-actions { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+
+  .star-strip { display: flex; gap: 4px; }
+  .star-strip svg { width: 22px; height: 22px; fill: #3a3a3a; cursor: pointer; transition: fill 100ms; }
+  .star-strip svg.on { fill: #EAB308; filter: drop-shadow(0 0 6px rgba(234,179,8,.4)); }
+
+  .scenario-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; margin-top: 14px; }
+  @media (max-width: 760px) { .scenario-row { grid-template-columns: 1fr; } }
+  .scenario-card { background: #0F1012; padding: 18px; scroll-margin-top: 20px; }
+  .scenario-card .scenario-title { font-size: 10px; letter-spacing: 1.5px; font-weight: 800; color: var(--ink-mute); text-transform: uppercase; margin-bottom: 14px; }
+
+  .pos-row { display: flex; gap: 14px; justify-content: center; align-items: flex-end; flex-wrap: wrap; margin-top: 16px; }
+  .pos-cell { display: flex; flex-direction: column; gap: 6px; align-items: center; scroll-margin-top: 20px; }
+  .pos-cell small { font-size: 10px; color: var(--ink-mute); letter-spacing: 1.2px; text-transform: uppercase; }
+
+  .codebox {
+    margin-top: 14px; background: #07070A; border: 1px solid var(--border);
+    padding: 18px 20px; overflow-x: auto;
+    font-family: ui-monospace, "SF Mono", monospace; font-size: 12.5px; line-height: 1.6;
+    color: #D9DBDF; white-space: pre;
+  }
+  .codebox .k { color: #C792EA; } .codebox .s { color: #C3E88D; } .codebox .n { color: #82AAFF; }
+  .codebox .c { color: #546E7A; font-style: italic; } .codebox .p { color: #FFCB6B; } .codebox .t { color: #89DDFF; }
+
+  /* Hero "how to use" card */
+  .howto {
+    margin-top: 16px;
+    background: linear-gradient(135deg, rgba(126,211,33,.06), rgba(126,211,33,.02));
+    border: 1px solid rgba(126,211,33,.25);
+    padding: 18px 20px;
+    font-size: 13px;
+    color: var(--ink);
+    line-height: 1.65;
+  }
+  .howto b { color: var(--green); }
+  .howto .row-of-pills { margin-top: 10px; }
+  .howto code { background: rgba(0,0,0,.45); padding: 1.5px 7px; font-family: ui-monospace, monospace; font-size: 12px; color: #C3E88D; }
+</style>
+</head>
+<body>
+
+<!-- SVG icon sprite -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+    <symbol id="i-tv" viewBox="0 0 24 24"><path d="M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z"/></symbol>
+    <symbol id="i-yt" viewBox="0 0 24 24"><path d="M21.6 7.2s-.2-1.4-.8-2c-.8-.8-1.6-.8-2-.9-2.8-.2-7-.2-7-.2s-4.2 0-7 .2c-.4 0-1.2.1-2 .9-.6.6-.8 2-.8 2S2 8.9 2 10.5v1.6c0 1.6.2 3.3.2 3.3s.2 1.4.8 2c.8.8 1.8.8 2.3.9 1.6.2 6.7.2 6.7.2s4.2 0 7-.2c.4 0 1.2-.1 2-.9.6-.6.8-2 .8-2s.2-1.6.2-3.3v-1.6c0-1.6-.2-3.3-.2-3.3zM10 14.5v-6l5.2 3-5.2 3z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2zm6-6V11c0-3.07-1.64-5.64-4.5-6.32V4a1.5 1.5 0 1 0-3 0v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></symbol>
+    <symbol id="i-bookmark-out" viewBox="0 0 24 24"><path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.72-4.8 5.74-7.39A.998.998 0 0 0 18.95 4H5.04c-.83 0-1.3.95-.79 1.61z"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9.29 6.71a.996.996 0 0 0 0 1.41L13.17 12l-3.88 3.88a.996.996 0 1 0 1.41 1.41l4.59-4.59a.996.996 0 0 0 0-1.41L10.7 6.71c-.38-.39-1.02-.39-1.41 0z"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5a2 2 0 0 0-2-2zm0 16H5V8h14v11z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></symbol>
+  </defs>
+</svg>
+
+<div class="layout">
+
+  <!-- ================ STICKY TOC ================ -->
+  <nav class="toc">
+    <h4>How to refer</h4>
+    <div style="font-size:11px; color:var(--ink-dim); line-height:1.55; margin-bottom:14px;">
+      Each variant has an anchor ID. Refer to it as <code style="background:#0A0A0A;padding:1px 4px;font-size:10.5px;">#where-to-watch</code> — Claude will find it.
+    </div>
+
+    <div class="toc-group">
+      <h4>Cheat sheets</h4>
+      <a href="#intent-picker">Intent picker</a>
+      <a href="#size-picker">Size picker</a>
+      <a href="#variant-index">Variant index</a>
+    </div>
+
+    <div class="toc-group">
+      <h4>Real scenarios</h4>
+      <a href="#where-to-watch">Where to Watch</a>
+      <a href="#rate-match">Rate Match</a>
+    </div>
+
+    <div class="toc-group">
+      <h4>Library</h4>
+      <a href="#lib-where-to-watch" class="sub">Where to Watch</a>
+      <a href="#lib-watch-yt" class="sub">Watch on YouTube</a>
+      <a href="#lib-watch-live" class="sub">Watch Live · pulse</a>
+      <a href="#lib-rate-match" class="sub">Rate Match</a>
+      <a href="#lib-notify" class="sub">Notify Me</a>
+      <a href="#lib-follow" class="sub">Follow</a>
+      <a href="#lib-saved" class="sub">Saved · check</a>
+      <a href="#lib-open-draw" class="sub">Open Draw</a>
+      <a href="#lib-filter" class="sub">Filter</a>
+      <a href="#lib-calendar" class="sub">Calendar</a>
+      <a href="#lib-get-app" class="sub">Get App</a>
+      <a href="#lib-tickets" class="sub">Buy Tickets</a>
+    </div>
+
+    <div class="toc-group">
+      <h4>Layout</h4>
+      <a href="#position">Icon position</a>
+      <a href="#size-scale">Size scale</a>
+      <a href="#toolbar">Toolbar pattern</a>
+    </div>
+
+    <div class="toc-group">
+      <h4>Reference</h4>
+      <a href="#code-api">Code API</a>
+      <a href="#presets">All presets</a>
+    </div>
+  </nav>
+
+  <!-- ================ MAIN ================ -->
+  <main class="main">
+
+    <h1>Buttons — style reference</h1>
+    <p class="lead">Canonical reference for every PressButton variant. Built on the production <code>&lt;PressButton&gt;</code> face/skirt mechanism (<code>src/components/PressButton.tsx</code>) — every variant here translates 1-to-1 to a real button you can ship. Click any button to feel the press.</p>
+
+    <div class="howto">
+      <b>How to use this reference.</b> Each variant has an anchor ID — copy it from the TOC or the small <code>#id</code> labels under each example. When you want to replace a button, refer to it like:
+      <div class="row-of-pills" style="margin-top:10px;">
+        <span style="font-family:ui-monospace,monospace;font-size:12px;color:#C3E88D;">"Replace the YouTube link with <code>#lib-watch-yt</code> from the mockup"</span><br>
+        <span style="font-family:ui-monospace,monospace;font-size:12px;color:#C3E88D;">"Use <code>#where-to-watch</code> for the FIP stream affordance"</span>
+      </div>
+    </div>
+
+    <!-- =================================================== -->
+    <!-- INTENT PICKER                                        -->
+    <!-- =================================================== -->
+    <section class="block" id="intent-picker">
+      <header>
+        <span class="num">REF</span>
+        <h2>Intent picker <a class="anchor" href="#intent-picker">#intent-picker</a></h2>
+        <p>Colour follows the <i>action verb</i>, not the icon. "Where to Watch" is red because it's a watch action, not because red is striking. Pick by job, not by aesthetic.</p>
+      </header>
+      <table class="qref">
+        <thead><tr><th>Job</th><th>Preset</th><th>Face / Skirt</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td>Primary CTA (default)</td><td class="id">chunkyTilted</td><td class="color"><span class="swatch" style="background:#7ED321"></span>#7ED321 / #558D14</td><td>Tournament cards, follow, primary submits</td></tr>
+          <tr><td>Watch / live action</td><td class="id">chunkyLive</td><td class="color"><span class="swatch" style="background:#FF4655"></span>#FF4655 / #99131D</td><td>Where to Watch, Watch Live, live-stream CTAs</td></tr>
+          <tr><td>YouTube outbound</td><td class="id">chunkyYouTube</td><td class="color"><span class="swatch" style="background:#FF0000"></span>#FF0000 / #800000</td><td>FIP stream links, channel CTAs</td></tr>
+          <tr><td>Premium / engagement</td><td class="id">chunkyGold</td><td class="color"><span class="swatch" style="background:#EAB308"></span>#EAB308 / #8A6A00</td><td>Rate Match, Go Premium, badges</td></tr>
+          <tr><td>Premier-tier branded</td><td class="id">chunkyPremier</td><td class="color"><span class="swatch" style="background:linear-gradient(135deg,#8B5CF6,#6B46C1)"></span>Purple gradient / #3D2270</td><td>Premier-only flows, draw opens</td></tr>
+          <tr><td>Secondary / cancel</td><td class="id">chunkyNeutral</td><td class="color"><span class="swatch" style="background:#2A2A2A"></span>#2A2A2A / #0A0A0A</td><td>Cancel, dismiss, toolbar actions</td></tr>
+          <tr><td>Tertiary over photo</td><td class="id">chunkyGhost</td><td class="color"><span class="swatch" style="background:transparent;border-color:#7ED321;"></span>transparent / #2F4D10</td><td>Follow over hero cover, outline CTAs</td></tr>
+          <tr><td>Info / non-conversion</td><td class="id">chunkyInfo</td><td class="color"><span class="swatch" style="background:#4A9EFF"></span>#4A9EFF / #1A4F8A</td><td>Filters, settings, Open Draw</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- SIZE PICKER                                          -->
+    <!-- =================================================== -->
+    <section class="block" id="size-picker">
+      <header>
+        <span class="num">REF</span>
+        <h2>Size picker <a class="anchor" href="#size-picker">#size-picker</a></h2>
+        <p>Depth scales with size so a chip doesn't carry a hero-sized skirt. Default is <code>md</code>.</p>
+      </header>
+      <table class="qref">
+        <thead><tr><th>Size</th><th>Depth</th><th>Font · padding</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td class="id">xs</td><td>3px</td><td>10px · 7×12</td><td>Inline chips, filter rows, dense toolbars</td></tr>
+          <tr><td class="id">sm</td><td>4px</td><td>11px · 9×16</td><td>Match-row actions, card-level CTAs</td></tr>
+          <tr><td class="id">md</td><td>5px</td><td>12px · 12×22</td><td><b style="color:var(--green);">Default.</b> Tournament cards, standard CTAs</td></tr>
+          <tr><td class="id">lg</td><td>6px</td><td>13px · 15×28</td><td>Hero CTAs, page-level actions</td></tr>
+          <tr><td class="id">xl</td><td>7px</td><td>14px · 17×32</td><td>Sticky bottom CTAs, splash / Get-the-App</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- VARIANT INDEX                                        -->
+    <!-- =================================================== -->
+    <section class="block" id="variant-index">
+      <header>
+        <span class="num">REF</span>
+        <h2>Variant index <a class="anchor" href="#variant-index">#variant-index</a></h2>
+        <p>Every named variant in this reference. Click an ID to jump to the live example.</p>
+      </header>
+      <table class="qref">
+        <thead><tr><th>Anchor</th><th>What it is</th><th>Recipe</th></tr></thead>
+        <tbody>
+          <tr><td class="id"><a href="#where-to-watch" style="color:inherit">#where-to-watch</a></td><td>Live match row with TV-icon CTA + icon-only bookmark</td><td>intent-live + size-sm + i-tv</td></tr>
+          <tr><td class="id"><a href="#rate-match" style="color:inherit">#rate-match</a></td><td>Finished match with 5-star strip + Submit Rating</td><td>intent-gold + size-sm + i-star</td></tr>
+          <tr><td class="id"><a href="#lib-where-to-watch" style="color:inherit">#lib-where-to-watch</a></td><td>Standalone "Where to Watch" CTA</td><td>intent-live + size-md + i-tv</td></tr>
+          <tr><td class="id"><a href="#lib-watch-yt" style="color:inherit">#lib-watch-yt</a></td><td>"Watch on YouTube" outbound link</td><td>intent-yt + size-md + i-yt</td></tr>
+          <tr><td class="id"><a href="#lib-watch-live" style="color:inherit">#lib-watch-live</a></td><td>"Watch Live" with red glow pulse</td><td>intent-live + size-md + pulse-live + i-play</td></tr>
+          <tr><td class="id"><a href="#lib-rate-match" style="color:inherit">#lib-rate-match</a></td><td>"Rate Match" standalone CTA</td><td>intent-gold + size-md + i-star</td></tr>
+          <tr><td class="id"><a href="#lib-notify" style="color:inherit">#lib-notify</a></td><td>"Notify Me" primary action</td><td>intent-primary + size-md + i-bell</td></tr>
+          <tr><td class="id"><a href="#lib-follow" style="color:inherit">#lib-follow</a></td><td>"Follow" outline over photo</td><td>intent-ghost + size-md + i-plus</td></tr>
+          <tr><td class="id"><a href="#lib-saved" style="color:inherit">#lib-saved</a></td><td>Bookmarked state — "Saved" with checkmark</td><td>intent-primary + size-md + i-check</td></tr>
+          <tr><td class="id"><a href="#lib-open-draw" style="color:inherit">#lib-open-draw</a></td><td>"Open Draw" with trailing chevron</td><td>intent-info + size-md + i-chevron-right (trailing)</td></tr>
+          <tr><td class="id"><a href="#lib-filter" style="color:inherit">#lib-filter</a></td><td>"Filter Events" toolbar action</td><td>intent-neutral + size-md + i-filter</td></tr>
+          <tr><td class="id"><a href="#lib-calendar" style="color:inherit">#lib-calendar</a></td><td>"View Calendar" secondary</td><td>intent-neutral + size-md + i-calendar</td></tr>
+          <tr><td class="id"><a href="#lib-get-app" style="color:inherit">#lib-get-app</a></td><td>"Get the App" premium upsell</td><td>intent-gold + size-md + i-download</td></tr>
+          <tr><td class="id"><a href="#lib-tickets" style="color:inherit">#lib-tickets</a></td><td>"Buy Tickets" external link</td><td>intent-primary + size-md + i-external (trailing)</td></tr>
+          <tr><td class="id"><a href="#io-bookmark" style="color:inherit">#io-bookmark</a></td><td>Icon-only bookmark</td><td>intent-neutral + size-md + icon-only + i-bookmark-out</td></tr>
+          <tr><td class="id"><a href="#io-share" style="color:inherit">#io-share</a></td><td>Icon-only share</td><td>intent-primary + size-md + icon-only + i-share</td></tr>
+          <tr><td class="id"><a href="#io-heart" style="color:inherit">#io-heart</a></td><td>Icon-only heart pill</td><td>intent-live + size-md + icon-only + shape-pill + i-heart</td></tr>
+          <tr><td class="id"><a href="#toolbar-match" style="color:inherit">#toolbar-match</a></td><td>Match-detail toolbar pattern</td><td>3 × icon-only neutral + 1 live CTA</td></tr>
+          <tr><td class="id"><a href="#toolbar-player" style="color:inherit">#toolbar-player</a></td><td>Player card actions pattern</td><td>1 primary Follow + 1 icon-only bell</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- REAL SCENARIOS                                       -->
+    <!-- =================================================== -->
+    <section class="block">
+      <header>
+        <span class="num">01</span>
+        <h2>Real scenarios</h2>
+        <p>The two flows in the wild. Drop these into an actual screen by copying the recipe.</p>
+      </header>
+      <div class="scenario-row">
+
+        <div class="scenario-card" id="where-to-watch">
+          <div class="scenario-title">#where-to-watch — Live match row</div>
+          <div class="match-row">
+            <div class="mr-head">
+              <span class="tag">P1 · ITALY MAJOR · QF</span>
+              <span class="live">● LIVE</span>
+            </div>
+            <div class="mr-pair">
+              <span class="name">Tapia / Coello</span>
+              <span class="scores"><span>6</span><span>4</span><span class="current">3</span></span>
+            </div>
+            <div class="mr-pair">
+              <span class="name">Chingotto / Galán</span>
+              <span class="scores"><span>3</span><span class="current">6</span><span>2</span></span>
+            </div>
+            <div class="mr-actions">
+              <button class="pn-press shape-chunky-tilted intent-live size-sm" data-block="1" style="flex:1;">
+                <span class="pn-press-skirt"></span>
+                <span class="pn-press-face"><svg><use href="#i-tv"/></svg>Where to Watch</span>
+              </button>
+              <button class="pn-press shape-chunky-tilted intent-neutral size-sm icon-only" aria-label="Bookmark">
+                <span class="pn-press-skirt"></span>
+                <span class="pn-press-face"><svg><use href="#i-bookmark-out"/></svg></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="scenario-card" id="rate-match">
+          <div class="scenario-title">#rate-match — Finished match prompt</div>
+          <div class="match-row">
+            <div class="mr-head">
+              <span class="tag" style="background:#92750E; color:#1A1A1A;">FIP GOLD · F</span>
+              <span class="final">FINAL</span>
+            </div>
+            <div class="mr-pair">
+              <span class="name winner">Stupaczuk / Di Nenno <span style="opacity:.6">★</span></span>
+              <span class="scores"><span>6</span><span>7</span><span></span></span>
+            </div>
+            <div class="mr-pair">
+              <span class="name">Lebrón / Garrido</span>
+              <span class="scores"><span>3</span><span>5</span><span></span></span>
+            </div>
+            <div style="margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.07);">
+              <div style="font-size:11px; color:#9CA3AF; margin-bottom:8px;">How was this match?</div>
+              <div class="star-strip" data-rating="0">
+                <svg class="rate-star" data-i="1"><use href="#i-star"/></svg>
+                <svg class="rate-star" data-i="2"><use href="#i-star"/></svg>
+                <svg class="rate-star" data-i="3"><use href="#i-star"/></svg>
+                <svg class="rate-star" data-i="4"><use href="#i-star"/></svg>
+                <svg class="rate-star" data-i="5"><use href="#i-star"/></svg>
+              </div>
+              <button class="pn-press shape-chunky-tilted intent-gold size-sm" data-block="1" style="margin-top:14px;">
+                <span class="pn-press-skirt"></span>
+                <span class="pn-press-face"><svg><use href="#i-star"/></svg>Submit Rating</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- LIBRARY                                              -->
+    <!-- =================================================== -->
+    <section class="block">
+      <header>
+        <span class="num">02</span>
+        <h2>Library — common icon + label combos</h2>
+        <p>Hover a cell to see its anchor ID. Copy and paste it as the reference name when asking to replace a button.</p>
+      </header>
+      <div class="lib-grid">
+
+        <div class="lib-cell" id="lib-where-to-watch">
+          <div class="lib-name">Where to Watch</div>
+          <button class="pn-press shape-chunky-tilted intent-live size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>Where to Watch</span></button>
+          <div class="anchor-mini">#lib-where-to-watch</div>
+        </div>
+
+        <div class="lib-cell" id="lib-watch-yt">
+          <div class="lib-name">Watch on YouTube</div>
+          <button class="pn-press shape-chunky-tilted intent-yt size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-yt"/></svg>Watch on YouTube</span></button>
+          <div class="anchor-mini">#lib-watch-yt</div>
+        </div>
+
+        <div class="lib-cell" id="lib-watch-live">
+          <div class="lib-name">Watch Live · pulse</div>
+          <button class="pn-press shape-chunky-tilted intent-live size-md pulse-live"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-play"/></svg>Watch Live</span></button>
+          <div class="anchor-mini">#lib-watch-live</div>
+        </div>
+
+        <div class="lib-cell" id="lib-rate-match">
+          <div class="lib-name">Rate Match</div>
+          <button class="pn-press shape-chunky-tilted intent-gold size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-star"/></svg>Rate Match</span></button>
+          <div class="anchor-mini">#lib-rate-match</div>
+        </div>
+
+        <div class="lib-cell" id="lib-notify">
+          <div class="lib-name">Notify Me</div>
+          <button class="pn-press shape-chunky-tilted intent-primary size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-bell"/></svg>Notify Me</span></button>
+          <div class="anchor-mini">#lib-notify</div>
+        </div>
+
+        <div class="lib-cell" id="lib-follow">
+          <div class="lib-name">Follow · ghost</div>
+          <button class="pn-press shape-chunky-tilted intent-ghost size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-plus"/></svg>Follow</span></button>
+          <div class="anchor-mini">#lib-follow</div>
+        </div>
+
+        <div class="lib-cell" id="lib-saved">
+          <div class="lib-name">Saved · check</div>
+          <button class="pn-press shape-chunky-tilted intent-primary size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-check"/></svg>Saved</span></button>
+          <div class="anchor-mini">#lib-saved</div>
+        </div>
+
+        <div class="lib-cell" id="lib-open-draw">
+          <div class="lib-name">Open Draw · trailing</div>
+          <button class="pn-press shape-chunky-tilted intent-info size-md icon-trailing"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-chevron-right"/></svg>Open Draw</span></button>
+          <div class="anchor-mini">#lib-open-draw</div>
+        </div>
+
+        <div class="lib-cell" id="lib-filter">
+          <div class="lib-name">Filter</div>
+          <button class="pn-press shape-chunky-tilted intent-neutral size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-filter"/></svg>Filter Events</span></button>
+          <div class="anchor-mini">#lib-filter</div>
+        </div>
+
+        <div class="lib-cell" id="lib-calendar">
+          <div class="lib-name">View Calendar</div>
+          <button class="pn-press shape-chunky-tilted intent-neutral size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-calendar"/></svg>View Calendar</span></button>
+          <div class="anchor-mini">#lib-calendar</div>
+        </div>
+
+        <div class="lib-cell" id="lib-get-app">
+          <div class="lib-name">Get the App</div>
+          <button class="pn-press shape-chunky-tilted intent-gold size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-download"/></svg>Get the App</span></button>
+          <div class="anchor-mini">#lib-get-app</div>
+        </div>
+
+        <div class="lib-cell" id="lib-tickets">
+          <div class="lib-name">Buy Tickets · ext.</div>
+          <button class="pn-press shape-chunky-tilted intent-primary size-md icon-trailing"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-external"/></svg>Buy Tickets</span></button>
+          <div class="anchor-mini">#lib-tickets</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- POSITION                                             -->
+    <!-- =================================================== -->
+    <section class="block" id="position">
+      <header>
+        <span class="num">03</span>
+        <h2>Icon position <a class="anchor" href="#position">#position</a></h2>
+        <p>Leading for verbs. Trailing for direction. Icon-only for tight toolbars (always pair with <code>aria-label</code>).</p>
+      </header>
+      <div class="pos-row">
+        <div class="pos-cell" id="io-bookmark">
+          <small>icon-only · neutral</small>
+          <button class="pn-press shape-chunky-tilted intent-neutral size-md icon-only" aria-label="Bookmark"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-bookmark-out"/></svg></span></button>
+          <div class="anchor-mini">#io-bookmark</div>
+        </div>
+        <div class="pos-cell" id="io-share">
+          <small>icon-only · primary</small>
+          <button class="pn-press shape-chunky-tilted intent-primary size-md icon-only" aria-label="Share"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-share"/></svg></span></button>
+          <div class="anchor-mini">#io-share</div>
+        </div>
+        <div class="pos-cell" id="io-heart">
+          <small>icon-only · pill · live</small>
+          <button class="pn-press shape-pill intent-live size-md icon-only" aria-label="Like" style="--pn-press-depth:4px;"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-heart"/></svg></span></button>
+          <div class="anchor-mini">#io-heart</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- SIZE SCALE                                           -->
+    <!-- =================================================== -->
+    <section class="block" id="size-scale">
+      <header>
+        <span class="num">04</span>
+        <h2>Size scale <a class="anchor" href="#size-scale">#size-scale</a></h2>
+        <p>Icons sized to <code>1em</code> — size token controls everything together.</p>
+      </header>
+      <div class="pos-row">
+        <div class="pos-cell"><small>xs</small><button class="pn-press shape-chunky-tilted intent-live size-xs"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>Watch</span></button></div>
+        <div class="pos-cell"><small>sm</small><button class="pn-press shape-chunky-tilted intent-live size-sm"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>Where to Watch</span></button></div>
+        <div class="pos-cell"><small>md (default)</small><button class="pn-press shape-chunky-tilted intent-live size-md"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>Where to Watch</span></button></div>
+        <div class="pos-cell"><small>lg</small><button class="pn-press shape-chunky-tilted intent-live size-lg"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>Where to Watch</span></button></div>
+        <div class="pos-cell"><small>xl</small><button class="pn-press shape-chunky-tilted intent-live size-xl"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>Where to Watch</span></button></div>
+      </div>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- TOOLBAR PATTERN                                       -->
+    <!-- =================================================== -->
+    <section class="block" id="toolbar">
+      <header>
+        <span class="num">05</span>
+        <h2>Toolbar pattern <a class="anchor" href="#toolbar">#toolbar</a></h2>
+        <p>Row of quick actions, mostly icon-only. Save space without losing the press tactility.</p>
+      </header>
+      <div class="scenario-row">
+
+        <div class="scenario-card" id="toolbar-match">
+          <div class="scenario-title">#toolbar-match — Match-detail toolbar</div>
+          <div style="background:#0a0a0a; padding: 14px; display:flex; gap: 8px; align-items:center;">
+            <div style="flex:1; font-size:13px; font-weight:700;">Tapia / Coello vs Chingotto / Galán</div>
+            <button class="pn-press shape-chunky-tilted intent-neutral size-sm icon-only" aria-label="Bookmark"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-bookmark-out"/></svg></span></button>
+            <button class="pn-press shape-chunky-tilted intent-neutral size-sm icon-only" aria-label="Notify"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-bell"/></svg></span></button>
+            <button class="pn-press shape-chunky-tilted intent-neutral size-sm icon-only" aria-label="Share"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-share"/></svg></span></button>
+            <button class="pn-press shape-chunky-tilted intent-live size-sm" style="margin-left:4px;"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>Watch</span></button>
+          </div>
+        </div>
+
+        <div class="scenario-card" id="toolbar-player">
+          <div class="scenario-title">#toolbar-player — Player card actions</div>
+          <div style="background:#0a0a0a; padding: 14px; display:flex; gap: 8px; align-items:center;">
+            <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#4A9EFF,#6B46C1); flex-shrink:0;"></div>
+            <div style="flex:1; font-size:13px; font-weight:700;">Arturo Coello</div>
+            <button class="pn-press shape-chunky-tilted intent-primary size-sm"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-plus"/></svg>Follow</span></button>
+            <button class="pn-press shape-chunky-tilted intent-neutral size-sm icon-only" aria-label="Notify"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-bell"/></svg></span></button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- CODE                                                 -->
+    <!-- =================================================== -->
+    <section class="block" id="code-api">
+      <header>
+        <span class="num">06</span>
+        <h2>Code API <a class="anchor" href="#code-api">#code-api</a></h2>
+        <p>Drop-in additions to <code>src/components/PressButton.tsx</code>. The face/skirt mechanism is unchanged — these are pure preset + ergonomic-prop additions.</p>
+      </header>
+      <div class="codebox"><span class="c">// 1. New intent presets — add to PRESS_PRESETS</span>
+
+<span class="p">chunkyLive</span>:    { clipPath: <span class="s">'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)'</span>, accent: <span class="s">'#FF4655'</span>, skirt: <span class="s">'#99131D'</span>, textColor: <span class="s">'#fff'</span>,    depth: <span class="n">5</span> },
+<span class="p">chunkyYouTube</span>: { clipPath: <span class="s">'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)'</span>, accent: <span class="s">'#FF0000'</span>, skirt: <span class="s">'#800000'</span>, textColor: <span class="s">'#fff'</span>,    depth: <span class="n">5</span> },
+<span class="p">chunkyGold</span>:    { clipPath: <span class="s">'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)'</span>, accent: <span class="s">'#EAB308'</span>, skirt: <span class="s">'#8A6A00'</span>, textColor: <span class="s">'#1A1A1A'</span>, depth: <span class="n">5</span> },
+<span class="p">chunkyNeutral</span>: { clipPath: <span class="s">'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)'</span>, accent: <span class="s">'#2A2A2A'</span>, skirt: <span class="s">'#0A0A0A'</span>, textColor: <span class="s">'#fff'</span>,    depth: <span class="n">5</span> },
+<span class="p">chunkyGhost</span>:   { clipPath: <span class="s">'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)'</span>, accent: <span class="s">'transparent'</span>, skirt: <span class="s">'#2F4D10'</span>, textColor: <span class="s">'#7ED321'</span>, depth: <span class="n">5</span> },
+<span class="p">chunkyInfo</span>:    { clipPath: <span class="s">'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)'</span>, accent: <span class="s">'#4A9EFF'</span>, skirt: <span class="s">'#1A4F8A'</span>, textColor: <span class="s">'#fff'</span>,    depth: <span class="n">5</span> },
+
+<span class="c">// 2. Size + icon ergonomic props</span>
+
+<span class="k">interface</span> <span class="p">PressButtonProps</span> {
+  <span class="c">// ... existing ...</span>
+  <span class="p">size</span>?: <span class="s">'xs'</span> | <span class="s">'sm'</span> | <span class="s">'md'</span> | <span class="s">'lg'</span> | <span class="s">'xl'</span>     <span class="c">// default 'md'</span>
+  <span class="p">iconLeading</span>?:  <span class="t">ReactNode</span>
+  <span class="p">iconTrailing</span>?: <span class="t">ReactNode</span>
+  <span class="p">iconOnly</span>?: <span class="t">boolean</span>                                  <span class="c">// square aspect, requires aria-label</span>
+  <span class="p">pulse</span>?: <span class="t">boolean</span>                                     <span class="c">// red glow for "live" intent</span>
+}
+
+<span class="c">// 3. Call site</span>
+
+<span class="t">&lt;PressButton</span>
+  <span class="p">{...PRESS_PRESETS.chunkyLive}</span>
+  <span class="p">size</span>=<span class="s">"sm"</span>
+  <span class="p">iconLeading</span>=<span class="p">{</span><span class="t">&lt;TvIcon /&gt;</span><span class="p">}</span>
+  <span class="p">onClick</span>=<span class="p">{</span>openStreamSheet<span class="p">}</span>
+<span class="t">&gt;</span>
+  Where to Watch
+<span class="t">&lt;/PressButton&gt;</span></div>
+    </section>
+
+    <!-- =================================================== -->
+    <!-- ALL PRESETS RECAP                                    -->
+    <!-- =================================================== -->
+    <section class="block" id="presets">
+      <header>
+        <span class="num">07</span>
+        <h2>All presets at a glance <a class="anchor" href="#presets">#presets</a></h2>
+        <p>One-line preview of every intent — same size, same icon, so the colour pair is what reads.</p>
+      </header>
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:14px;">
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-primary size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-check"/></svg>chunkyTilted · primary</span></button></div>
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-live size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-tv"/></svg>chunkyLive</span></button></div>
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-yt size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-yt"/></svg>chunkyYouTube</span></button></div>
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-gold size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-star"/></svg>chunkyGold</span></button></div>
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-premier size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-chevron-right"/></svg>chunkyPremier</span></button></div>
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-neutral size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-filter"/></svg>chunkyNeutral</span></button></div>
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-ghost size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-plus"/></svg>chunkyGhost</span></button></div>
+        <div style="display:flex; gap:10px; align-items:center;"><button class="pn-press shape-chunky-tilted intent-info size-md" data-block="1"><span class="pn-press-skirt"></span><span class="pn-press-face"><svg><use href="#i-calendar"/></svg>chunkyInfo</span></button></div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  document.querySelectorAll('.star-strip').forEach(strip => {
+    const stars = strip.querySelectorAll('.rate-star');
+    let current = 0;
+    stars.forEach(star => {
+      const i = parseInt(star.dataset.i, 10);
+      star.addEventListener('mouseenter', () => stars.forEach(s => s.classList.toggle('on', parseInt(s.dataset.i, 10) <= i)));
+      star.addEventListener('mouseleave', () => stars.forEach(s => s.classList.toggle('on', parseInt(s.dataset.i, 10) <= current)));
+      star.addEventListener('click', () => { current = i; strip.dataset.rating = i; });
+    });
+  });
+</script>
+</body>
+</html>
