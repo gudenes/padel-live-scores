@@ -375,8 +375,8 @@
       "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short.",
       "viewRecap": "View Recap",
       "_viewRecap_context": "Variant of viewMatches shown on a crowned/finished tournament card. Same chunky CTA position. Hint: the user is going to see the tournament's results, brackets and champions rather than live matches.",
-      "crowned": "Champion",
-      "_crowned_context": "Top-left gold pill on a recently-crowned tournament card (sibling of the LIVE red pill). The tournament's final is done and the trophy has been awarded. 6-8 chars max — must fit in a small chunky badge. Avoid words like 'finished' or 'closed' — the vibe is celebratory."
+      "crowned": "Finished",
+      "_crowned_context": "Top-left gold pill on a recently-crowned tournament card (sibling of the LIVE red pill). The tournament's final is done and the trophy has been awarded. 6-10 chars max — must fit in a small chunky badge. Tone is terse / factual (state-of-event), not celebratory — pair words like 'finished', 'concluded', 'finalized'."
     },
     "highlightsAndNews": "Highlights & News",
     "latestNews": "Latest news",
