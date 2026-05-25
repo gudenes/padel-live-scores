@@ -15,6 +15,7 @@
 // pattern-match across the two ops surfaces.
 
 import { useState, useEffect, useCallback } from 'react'
+import UnresolvedPartnerModal, { UnresolvedPartnerContext } from './UnresolvedPartnerModal'
 
 // ── Types mirror the GET response from /api/ops/padelgod-entry-list ─────
 
@@ -193,6 +194,11 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState<string | null>(null)
 
+  // Unresolved partner modal state — opened by clicking RESOLVE on a ghost
+  // partner row. On success, a banner instructs the operator to re-seed.
+  const [resolveCtx, setResolveCtx] = useState<UnresolvedPartnerContext | null>(null)
+  const [resolveBanner, setResolveBanner] = useState<string | null>(null)
+
   // ── Initial fetch: tournament list (standalone only) ──
   useEffect(() => {
     // When embedded, the parent (TournamentExplorer) already picked a
@@ -354,11 +360,17 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
 
   const activeBlock = detail?.categories.find((c) => c.category === activeCategory) ?? null
 
-  // Placeholder click handler — Task 11 will replace this with the modal trigger.
-  // For now, the RESOLVE chip is visually wired and logs to console so manual
-  // QA can verify the click is reaching the right component.
   const handleResolveClick = useCallback((p: EntryPlayer) => {
-    console.log('[PadelgodEntryListTab] RESOLVE clicked for', p)
+    setResolveCtx({
+      parsedName: p.name,
+      category: activeCategory,
+      countryHint: p.country ?? null,
+    })
+  }, [activeCategory])
+
+  const handleResolved = useCallback(() => {
+    setResolveCtx(null)
+    setResolveBanner('Resolved. Click "Re-seed from FIP PDF" to refresh the snapshot.')
   }, [])
 
   return (
@@ -516,6 +528,27 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
           {activeBlock && <CategoryTable block={activeBlock} onResolveClick={handleResolveClick} />}
         </>
       )}
+
+      {resolveBanner && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 10,
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            borderRadius: 6,
+            fontSize: 12,
+            color: '#065f46',
+          }}
+        >
+          {resolveBanner}
+        </div>
+      )}
+      <UnresolvedPartnerModal
+        ctx={resolveCtx}
+        onClose={() => setResolveCtx(null)}
+        onResolved={handleResolved}
+      />
     </div>
   )
 }
