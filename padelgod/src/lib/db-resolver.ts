@@ -229,8 +229,10 @@ export function resolvePlayerByName(
     if (pick) return { playerId: pick.id, fipId: pick.fip_id, matchType: 'exact' };
   }
 
-  // 3. Subset fuzzy — every shorter-side token appears in the longer side
+  // Country narrow shared by both fuzzy steps below.
   const wantCountry = normalizeCountry(input.country);
+
+  // 3. Subset fuzzy — every shorter-side token appears in the longer side
   let bestSubset: { row: DbPlayerRow; score: number } | null = null;
   for (const candidates of dbIndex.values()) {
     for (const c of candidates) {
@@ -245,7 +247,11 @@ export function resolvePlayerByName(
     return { playerId: bestSubset.row.id, fipId: bestSubset.row.fip_id, matchType: 'subset' };
   }
 
-  // 4. Typo-tolerant fuzzy — same country gate, ≥0.9 threshold
+  // 4. Typo-tolerant fuzzy — same country gate, ≥0.9 threshold.
+  //    Worst-case path: scans ALL dbIndex entries (no inverted index) and
+  //    runs an O(token_count^2) Levenshtein per candidate. At ~5k players
+  //    × 3 tokens this is comfortably <100ms per name. Revisit if the
+  //    player index grows past ~20k or if subset hits become rare.
   let bestTypo: { row: DbPlayerRow; score: number } | null = null;
   for (const candidates of dbIndex.values()) {
     for (const c of candidates) {
@@ -287,5 +293,12 @@ function pickByCountryAndRanking(
     }
     return best;
   }
-  return null;
+  // No usable ranking to break a same-country tie. This is uncommon — most
+  // ranked entries carry a ranking in the PDF — but for WC/0-rank entries
+  // we still prefer an arbitrary exact hit over falling through to the
+  // fuzzy steps, which would then write a spurious alias for what is
+  // really a known-name collision. Pick the first survivor deterministically;
+  // the alternative (null) leads the caller into matchType='subset'/'typo'
+  // for what should be matchType='exact'.
+  return sameCountry[0]!;
 }
