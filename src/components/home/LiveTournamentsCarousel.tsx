@@ -13,6 +13,7 @@ import {
   levelLabel,
 } from '@/components/home/shared'
 import { getTierGradient, getTierPill } from '@/lib/tournament-tier-style'
+import { hasStarted, daysUntilStart } from '@/lib/live-tournaments-carousel'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 /**
@@ -74,12 +75,21 @@ function TournamentCarouselCard({
   // treatment wins. Half-crowned (only one gender's final done) keeps
   // the LIVE treatment because there's still a match to play.
   const isCrowned = !!(tournament.champions?.men && tournament.champions?.women)
+  const started = hasStarted(tournament.starts_at)
+  const isUpcoming = !isCrowned && !started
 
   const statusLine = isCrowned
     ? format.relativeTime(new Date(tournament.champions!.crownedAt))
     : tournament.matchesToday > 0
       ? t('matchesTodayCount', { count: tournament.matchesToday })
-      : t('restDay')
+      : isUpcoming
+        ? (() => {
+            const days = daysUntilStart(tournament.starts_at)
+            if (days <= 0) return t('startsToday')
+            if (days === 1) return t('startsTomorrow')
+            return t('startsInDays', { count: days })
+          })()
+        : t('restDay')
 
   const ariaLabel = [tournament.name, tierLabel, statusLine].filter(Boolean).join(', ')
 
@@ -165,6 +175,24 @@ function TournamentCarouselCard({
             }}
           >
             LIVE
+          </div>
+        ) : isUpcoming ? (
+          <div
+            style={{
+              position: 'absolute',
+              top: 9,
+              left: 9,
+              background: '#fff',
+              color: '#0F172A',
+              fontSize: 8,
+              fontWeight: 900,
+              padding: '3px 7px',
+              letterSpacing: 0.8,
+              clipPath: CHUNKY.badge,
+              zIndex: 2,
+            }}
+          >
+            {t('upcomingChip')}
           </div>
         ) : null}
 
