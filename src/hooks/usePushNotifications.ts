@@ -106,12 +106,26 @@ export function usePushNotifications() {
       // OS-level permission). Subscription state is queried from the
       // server because the device token is opaque to JS until the next
       // registration event fires.
-      void import('@capacitor-firebase/messaging').then(({ FirebaseMessaging }) => {
-        return FirebaseMessaging.checkPermissions().then((p) => {
-          if (cancelled) return
-          setPermission(mapNativePermission(p.receive))
-        })
-      })
+      //
+      // Both plugin variants share the same `checkPermissions` shape, so
+      // we probe each in turn. We deliberately don't fall through to
+      // `loadPushPlugin()` here because that would force the legacy
+      // plugin to register() during a read-only probe.
+      void (async () => {
+        try {
+          const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
+          const p = await FirebaseMessaging.checkPermissions()
+          if (!cancelled) setPermission(mapNativePermission(p.receive))
+        } catch {
+          try {
+            const { PushNotifications } = await import('@capacitor/push-notifications')
+            const p = await PushNotifications.checkPermissions()
+            if (!cancelled) setPermission(mapNativePermission(p.receive))
+          } catch {
+            /* both plugins unavailable — leave permission as 'default' */
+          }
+        }
+      })()
       if (user) {
         void fetch('/api/user/native-push-subscriptions', { cache: 'no-store' })
           .then((r) => (r.ok ? r.json() : { subscribed: false }))
@@ -148,9 +162,12 @@ export function usePushNotifications() {
       return false
     }
     try {
-      const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
-      const perm = await FirebaseMessaging.requestPermissions()
-      const mapped = mapNativePermission(perm.receive)
+      // loadPushPlugin transparently falls back to @capacitor/push-notifications
+      // when @capacitor-firebase/messaging isn't built into the AAB. Lets
+      // users on pre-2026-05-17 builds register without a Play Store update.
+      const { loadPushPlugin } = await import('@/lib/push-plugin')
+      const plugin = await loadPushPlugin()
+      const mapped = await plugin.requestPermissions()
       setPermission(mapped)
       if (mapped !== 'granted') {
         setLastError({ kind: 'os-denied' })
@@ -159,11 +176,10 @@ export function usePushNotifications() {
 
       let token: string
       try {
-        const res = await FirebaseMessaging.getToken()
-        token = res.token
+        token = await plugin.getToken()
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
-        console.error('[Push native] getToken failed:', e)
+        console.error(`[Push native] getToken failed (kind=${plugin.kind}):`, e)
         setLastError({ kind: 'token-unavailable', message })
         setEnabled(false)
         return false

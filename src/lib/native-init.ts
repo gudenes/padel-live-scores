@@ -92,58 +92,59 @@ export async function initNative(): Promise<void> {
     console.warn('[native-init] App.appUrlOpen listener failed', err)
   }
 
-  // Push notifications: @capacitor-firebase/messaging delivers FCM tokens
-  // on BOTH platforms. On Android the Firebase Cloud Messaging SDK is the
-  // native messaging layer (token format unchanged from the previous
-  // @capacitor/push-notifications setup — same Firebase project, same
-  // app instance, same FCM token). On iOS, the AppDelegate registers
-  // with APNs and Firebase exchanges that token for an FCM token, which
-  // this plugin surfaces here. Server-side fan-out (/api/push/notify)
-  // ships a single firebase-admin send() call per token and doesn't
-  // care which platform produced it.
+  // Push notifications: route through loadPushPlugin() so the boot path
+  // also works on AABs older than 2026-05-17 (before
+  // @capacitor-firebase/messaging was wired into android/). Those users
+  // auto-register via the legacy @capacitor/push-notifications plugin —
+  // no Play Store update required to restore push delivery.
+  //
+  // Server-side fan-out (/api/push/notify) sends a single firebase-admin
+  // call per token regardless of which plugin produced it; both plugins
+  // register with the same Firebase project so token shape and delivery
+  // path are identical. On iOS, only the modern plugin is available
+  // (no legacy fallback in the iOS AAB), which is fine — that's the
+  // platform the migration was for.
   try {
-    // Dynamic import — see top-of-file comment. Bundler emits this as
-    // a separate chunk and skips it entirely on web. Only ever runs
-    // after the `Capacitor.isNativePlatform()` early-return above.
-    const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
+    const { loadPushPlugin } = await import('@/lib/push-plugin')
+    const plugin = await loadPushPlugin()
+    console.info(`[native-init] push plugin kind=${plugin.kind}`)
 
-    const perm = await FirebaseMessaging.requestPermissions()
-    if (perm.receive !== 'granted') {
-      console.info('[native-init] push permission not granted:', perm.receive)
+    const perm = await plugin.requestPermissions()
+    if (perm !== 'granted') {
+      console.info('[native-init] push permission not granted:', perm)
       return
     }
 
-    // getToken() triggers the native registration on both platforms and
-    // also wires up the 'tokenReceived' event for future refreshes.
-    // Android: returns immediately with the cached FCM token.
-    // iOS: blocks briefly while APNs registration completes, then
-    // returns the FCM token derived from the APNs device token.
     try {
-      const { token } = await FirebaseMessaging.getToken()
+      const token = await plugin.getToken()
       await persistDeviceToken(token)
     } catch (err) {
-      console.warn('[native-init] FirebaseMessaging.getToken failed', err)
+      console.warn(`[native-init] getToken failed (kind=${plugin.kind})`, err)
     }
 
-    // Token rotates periodically (every ~few weeks per device, or when
-    // user reinstalls). Re-persist when that happens.
-    await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
-      await persistDeviceToken(token)
-    })
-
-    // When user taps a notification, route the WebView to the deep link
-    // embedded in the data payload. FirebaseMessaging types `data` as
-    // `{}` (any unknown keys), so cast through `Record<string, unknown>`
-    // to read our app-specific `url` field.
-    await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
-      const data = event.notification.data as Record<string, unknown> | undefined
-      const url = data?.url
-      if (typeof url === 'string' && url.startsWith('/')) {
-        window.location.href = url
-      }
-    })
+    // Wire token-refresh + notification-tap listeners only on the modern
+    // plugin. The legacy plugin has equivalent events but slightly
+    // different shapes; loading its module again just to attach handlers
+    // (when this side of the branch only runs on fresh AABs anyway)
+    // isn't worth the extra chunk. Old-AAB users miss auto-token-refresh
+    // handling — acceptable tradeoff since Android FCM tokens rotate
+    // rarely and the Settings toggle re-subscribe picks up a fresh token
+    // on demand. They'll get the listeners once we ship a new AAB.
+    if (plugin.kind === 'firebase') {
+      const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
+      await FirebaseMessaging.addListener('tokenReceived', async ({ token }) => {
+        await persistDeviceToken(token)
+      })
+      await FirebaseMessaging.addListener('notificationActionPerformed', (event) => {
+        const data = event.notification.data as Record<string, unknown> | undefined
+        const url = data?.url
+        if (typeof url === 'string' && url.startsWith('/')) {
+          window.location.href = url
+        }
+      })
+    }
   } catch (err) {
-    console.warn('[native-init] FirebaseMessaging setup failed', err)
+    console.warn('[native-init] push setup failed', err)
   }
 }
 
