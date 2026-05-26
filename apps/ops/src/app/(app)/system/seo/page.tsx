@@ -73,15 +73,15 @@ export default async function Page() {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.5rem' }}>SEO Health</h1>
-          <p style={{ margin: '0.25rem 0 0', opacity: 0.6, fontSize: '0.85rem' }}>
+          <p style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
             {latestIngest
               ? `Last ingest: ${latestIngest.day} (data) · fetched ${new Date(latestIngest.fetched_at).toLocaleString('en-GB', { timeZone: 'UTC' })} UTC`
               : 'No data yet'}
           </p>
         </div>
-        <nav style={{ display: 'flex', gap: '1rem' }}>
-          <span style={{ borderBottom: '2px solid var(--accent, #4ade80)', paddingBottom: '0.25rem' }}>Overview</span>
-          <Link href="/system/seo/opportunities" style={{ opacity: 0.6 }}>Opportunities →</Link>
+        <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <span style={{ borderBottom: '2px solid var(--brand-primary)', paddingBottom: '0.25rem', fontWeight: 500 }}>Overview</span>
+          <Link href="/system/seo/opportunities" style={{ color: '#6b7280', textDecoration: 'none' }}>Opportunities →</Link>
         </nav>
       </header>
 

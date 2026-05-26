@@ -22,7 +22,7 @@ export function Sparkline({ data, width = 200, height = 40 }: Props) {
     <svg width={width} height={height} aria-label="clicks last 90 days">
       <polyline
         fill="none"
-        stroke="var(--accent, #4ade80)"
+        stroke="#16a34a"
         strokeWidth="1.5"
         points={points}
       />
