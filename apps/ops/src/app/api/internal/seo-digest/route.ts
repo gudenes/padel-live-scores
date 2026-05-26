@@ -123,9 +123,10 @@ export async function POST(req: Request) {
   const html = buildDigestHtml(data)
 
   const resend = new Resend(process.env.RESEND_API_KEY!)
-  let sentOk = true
-  let lastError: string | null = null
+  let allOk = true
   for (const to of recipients) {
+    let recipientOk = true
+    let recipientError: string | null = null
     try {
       await resend.emails.send({
         from: 'SEO Dashboard <seo@padelnachos.com>',
@@ -134,17 +135,18 @@ export async function POST(req: Request) {
         html,
       })
     } catch (e) {
-      sentOk = false
-      lastError = String(e)
+      recipientOk = false
+      recipientError = String(e)
+      allOk = false
     }
     await pool.query(
       `insert into public.seo_digest_sends (digest_date, recipient, status, error)
          values ($1, $2, $3, $4)
          on conflict (digest_date, recipient) do update set
            status = excluded.status, error = excluded.error, sent_at = now()`,
-      [today, to, sentOk ? 'sent' : 'failed', lastError],
+      [today, to, recipientOk ? 'sent' : 'failed', recipientError],
     )
   }
 
-  return NextResponse.json({ ok: sentOk, day: today, recipients: recipients.length })
+  return NextResponse.json({ ok: allOk, day: today, recipients: recipients.length })
 }
