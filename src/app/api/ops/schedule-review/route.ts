@@ -126,10 +126,16 @@ export async function GET(request: Request) {
   const widgetIdsPresent = oopDay.matches
     .map((m) => m.matchCode)
     .filter((c): c is string => !!c)
+  // Pass `tournamentId` so the lookup can fall back to
+  // matches.widget_id_composite for populator-owned rows whose sidecar
+  // hasn't been backfilled by live polling yet — the failure mode that
+  // hid today's MQ025 for FIP BRONZE ABU DHABI (54 of 76 matches had
+  // widget_id_composite set but no entity_external_ids sidecar).
   const widgetIdToMatchId = await lookupMatchesByWidgetIds(
     supabase,
     matchscorerCode,
     widgetIdsPresent,
+    { tournamentId },
   )
 
   // 2. Get tournament timezone
