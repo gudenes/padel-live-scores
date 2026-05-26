@@ -8,7 +8,9 @@ import type { SnapshotRow } from './seo-compute'
 export async function getRecentSnapshots(daysBack: number): Promise<SnapshotRow[]> {
   const cutoff = new Date(Date.now() - daysBack * 86_400_000).toISOString().slice(0, 10)
   const { rows } = await pgPool().query<SnapshotRow>(
-    `select day::text as day, locale, clicks, impressions, avg_position, ctr
+    `select day::text as day, locale, clicks, impressions,
+            avg_position::float as avg_position,
+            ctr::float as ctr
        from public.seo_snapshots
       where day >= $1
       order by day asc, locale asc`,
