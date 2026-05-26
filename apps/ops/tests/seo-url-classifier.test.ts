@@ -55,4 +55,14 @@ describe('parseLocaleFromUrl', () => {
     expect(parseLocaleFromUrl('https://padelnachos.com/en/home'))
       .toEqual({ locale: 'en', page_type: 'other' })
   })
+
+  it('classifies bare /es (no trailing slash) as other/es', () => {
+    expect(parseLocaleFromUrl('https://padelnachos.com/es'))
+      .toEqual({ locale: 'es', page_type: 'other' })
+  })
+
+  it('returns en/other for a malformed URL', () => {
+    expect(parseLocaleFromUrl('not a valid url'))
+      .toEqual({ locale: 'en', page_type: 'other' })
+  })
 })

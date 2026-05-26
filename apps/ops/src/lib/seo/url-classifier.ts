@@ -23,7 +23,12 @@ export function parseLocaleFromUrl(url: string): UrlClassification {
 
   const m = path.match(LOCALE_PREFIX_RE)
   const locale: Locale = m ? (m[1] as Locale) : 'en'
-  // rest starts with /, no locale prefix
+  // The regex captures the locale prefix WITH its trailing '/' or end-of-string
+  // anchor (e.g. matches "/es/" or "/es"). We slice m[0].length - 1 to KEEP the
+  // leading '/' so the page_type regexes below can match against '/home',
+  // '/matches', etc. uniformly. For the bare-locale case '/es' (no trailing /),
+  // the resulting `rest` is 's' — which intentionally falls through to
+  // page_type='other', the correct answer for a content-less locale root.
   const rest = m ? path.slice(m[0].length - 1) : path
 
   let page_type: PageType = 'other'
