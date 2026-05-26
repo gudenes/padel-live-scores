@@ -5,8 +5,8 @@
 
 import { NextResponse } from 'next/server'
 import { pgPool } from '@/lib/db'
-import { GscClient } from '@/lib/seo/gsc-client'
-import { parseLocaleFromUrl, type Locale } from '@/lib/seo/url-classifier'
+import { GscClient, type GscRow } from '@/lib/seo/gsc-client'
+import { parseLocaleFromUrl } from '@/lib/seo/url-classifier'
 
 function isoDaysAgo(n: number): string {
   return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10)
@@ -24,6 +24,9 @@ export async function POST(req: Request) {
   const url = new URL(req.url)
   const probe = url.searchParams.get('probe') === 'true'
   const targetDay = url.searchParams.get('day') ?? isoDaysAgo(3)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDay)) {
+    return NextResponse.json({ error: 'invalid_day', message: 'day must be YYYY-MM-DD' }, { status: 400 })
+  }
 
   let gsc
   try {
@@ -41,15 +44,34 @@ export async function POST(req: Request) {
     }
   }
 
-  // Pull 1: page-level totals to derive locale buckets
-  const pageTotals = await gsc.query({
-    startDate: targetDay,
-    endDate: targetDay,
-    dimensions: ['page', 'date'],
-    rowLimit: 25_000,
-  })
+  let pageTotals: GscRow[]
+  let topQueries: GscRow[]
+  let topPages: GscRow[]
+  try {
+    pageTotals = await gsc.query({
+      startDate: targetDay,
+      endDate: targetDay,
+      dimensions: ['page', 'date'],
+      rowLimit: 25_000,
+    })
+    topQueries = await gsc.query({
+      startDate: targetDay,
+      endDate: targetDay,
+      dimensions: ['query'],
+      rowLimit: 20,
+    })
+    topPages = await gsc.query({
+      startDate: targetDay,
+      endDate: targetDay,
+      dimensions: ['page'],
+      rowLimit: 200,
+    })
+  } catch (e) {
+    console.error('[seo-snapshot] GSC pull failed:', e)
+    return NextResponse.json({ error: 'gsc_pull_failed', message: String(e) }, { status: 502 })
+  }
 
-  // Aggregate into 6 buckets: total + 5 locales
+  // Aggregate page-level totals into 6 buckets: total + 5 locales
   const buckets = new Map<string, {
     clicks: number; impressions: number; posSum: number; posWeight: number
   }>()
@@ -71,22 +93,6 @@ export async function POST(req: Request) {
       }
     }
   }
-
-  // Pull 2: top queries
-  const topQueries = await gsc.query({
-    startDate: targetDay,
-    endDate: targetDay,
-    dimensions: ['query'],
-    rowLimit: 20,
-  })
-
-  // Pull 3: top pages
-  const topPages = await gsc.query({
-    startDate: targetDay,
-    endDate: targetDay,
-    dimensions: ['page'],
-    rowLimit: 200,
-  })
 
   const pool = pgPool()
 
