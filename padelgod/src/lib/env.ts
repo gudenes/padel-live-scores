@@ -107,6 +107,13 @@ const EnvSchema = z.object({
   // Same safety posture as the populator: default OFF + dry-run ON.
   ENABLE_FIP_OOP_WRITER: boolEnv(false),
   FIP_OOP_WRITER_DRY_RUN: boolEnv(true),
+  // fip-draw-reconciler — auto-corrects public.matches when the latest
+  // fip_event_page draw_snapshot disagrees (the populator's NULL-only
+  // fill rule never overwrites already-set FKs, so a mid-tournament draw
+  // edit leaves stale teams pinned). Safety posture: default OFF +
+  // dry-run ON. See docs/superpowers/specs/2026-05-26-fip-draw-reconciler-design.md.
+  ENABLE_FIP_DRAW_RECONCILER: boolEnv(false),
+  FIP_DRAW_RECONCILER_DRY_RUN: boolEnv(true),
   // fip-results-writer — simplified-pipeline writer #3. Reads
   // padelgod.results_snapshots and UPDATEs matches.status + winner_pair
   // + UPSERTs sets rows for composite-keyed matches. Same safety

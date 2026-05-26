@@ -147,6 +147,8 @@ async function main() {
       fipEntryListPopulatorDryRun: env.FIP_ENTRY_LIST_POPULATOR_DRY_RUN,
       enableFipOopWriter: env.ENABLE_FIP_OOP_WRITER,
       fipOopWriterDryRun: env.FIP_OOP_WRITER_DRY_RUN,
+      enableFipDrawReconciler: env.ENABLE_FIP_DRAW_RECONCILER,
+      fipDrawReconcilerDryRun: env.FIP_DRAW_RECONCILER_DRY_RUN,
       enableFipResultsWriter: env.ENABLE_FIP_RESULTS_WRITER,
       fipResultsWriterDryRun: env.FIP_RESULTS_WRITER_DRY_RUN,
       enableFipDrawResultsWriter: env.ENABLE_FIP_DRAW_RESULTS_WRITER,
