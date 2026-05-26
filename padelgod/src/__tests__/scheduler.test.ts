@@ -156,4 +156,16 @@ describe('buildSchedule', () => {
     const schedule = buildSchedule(flags as any);
     expect(schedule.filter(s => s.name === 'player-rankings')).toHaveLength(0);
   });
+
+  it('schedules fip-draw-reconciler hourly at :50 when enabled', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableFipDrawReconciler: true } as any);
+    const entry = sched.find((s) => s.name === 'fip-draw-reconciler');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('50 * * * *');
+  });
+
+  it('omits fip-draw-reconciler when flag is off', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableFipDrawReconciler: false } as any);
+    expect(sched.map((s) => s.name)).not.toContain('fip-draw-reconciler');
+  });
 });

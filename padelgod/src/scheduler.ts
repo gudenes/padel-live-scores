@@ -12,6 +12,7 @@ import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
 import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
 import { runFipEntryListPopulator } from './workers/fip-entry-list-populator.js';
 import { runFipOopWriter } from './workers/fip-oop-writer.js';
+import { runFipDrawReconciler } from './workers/fip-draw-reconciler.js';
 import { runFipResultsWriter } from './workers/fip-results-writer.js';
 import { runFipDrawResultsWriter } from './workers/fip-draw-results-writer.js';
 import { runScheduleHintsWriter } from './workers/schedule-hints-writer.js';
@@ -63,6 +64,9 @@ export interface SchedulerFlags {
   enableFipOopWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipOopWriterDryRun: boolean;
+  enableFipDrawReconciler: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  fipDrawReconcilerDryRun: boolean;
   enableFipResultsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipResultsWriterDryRun: boolean;
@@ -132,6 +136,7 @@ export type WorkerName =
   | 'fip-draw-populator'
   | 'fip-entry-list-populator'
   | 'fip-oop-writer'
+  | 'fip-draw-reconciler'
   | 'fip-results-writer'
   | 'fip-draw-results-writer'
   | 'fip-winner-propagator'
@@ -162,6 +167,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-draw-populator',
   'fip-entry-list-populator',
   'fip-oop-writer',
+  'fip-draw-reconciler',
   'fip-results-writer',
   'fip-draw-results-writer',
   'fip-winner-propagator',
@@ -234,6 +240,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       logger: deps.logger,
       // Same admin-trigger dry-run-SAFE default as populator. Scheduled
       // cron entry threads the real env flag via closure.
+      dryRun: true,
+    });
+    case 'fip-draw-reconciler':  return (deps) => runFipDrawReconciler({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure.
       dryRun: true,
     });
     case 'fip-results-writer':   return (deps) => runFipResultsWriter({
@@ -476,6 +489,25 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipOopWriterDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableFipDrawReconciler) {
+    entries.push({
+      name: 'fip-draw-reconciler',
+      // Hourly at :50 — sequenced ≥15 min AFTER fip-draw-populator
+      // (:47, writes/updates public.matches from latest draw_snapshot).
+      // Reads the same draw_snapshot rows the populator just consumed
+      // and applies a full-sync patch when the populator's NULL-only
+      // UPDATE rule left stale teams/seeds/round/status behind.
+      // DB-only worker; no upstream contention.
+      cron: '50 * * * *',
+      run: async (deps) => {
+        return runFipDrawReconciler({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipDrawReconcilerDryRun,
         });
       },
     });
