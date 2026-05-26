@@ -943,7 +943,16 @@
           "sub": "Nuevas funciones, eventos y noticias ocasionales"
         }
       },
-      "saveError": "No se pudo guardar — inténtalo de nuevo"
+      "saveError": "No se pudo guardar — inténtalo de nuevo",
+      "errors": {
+        "notSignedIn": "Inicia sesión para activar las notificaciones push.",
+        "osDenied": "Las notificaciones están bloqueadas en los ajustes del dispositivo. Actívalas en Ajustes → Apps → PadelNachos → Notificaciones.",
+        "tokenUnavailable": "No se pudo obtener el token del dispositivo: {message}. Reinicia la app e inténtalo de nuevo.",
+        "serverAuth": "Tu sesión expiró. Vuelve a iniciar sesión.",
+        "serverError": "Error del servidor (estado {status}). Inténtalo de nuevo en un momento.",
+        "network": "Error de red: {message}. Comprueba tu conexión y reinténtalo.",
+        "notSupported": "Las notificaciones push no están disponibles en este navegador."
+      }
     },
     "settingsLinkRow": {
       "label": "Notificaciones",

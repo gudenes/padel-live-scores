@@ -943,7 +943,16 @@
           "sub": "Nouvelles fonctionnalités, événements, actualités"
         }
       },
-      "saveError": "Enregistrement impossible — réessayez"
+      "saveError": "Enregistrement impossible — réessayez",
+      "errors": {
+        "notSignedIn": "Connectez-vous pour activer les notifications push.",
+        "osDenied": "Les notifications sont bloquées dans les paramètres de l'appareil. Activez-les dans Paramètres → Applications → PadelNachos → Notifications.",
+        "tokenUnavailable": "Impossible d'obtenir le jeton de l'appareil : {message}. Redémarrez l'application et réessayez.",
+        "serverAuth": "Votre session a expiré. Veuillez vous reconnecter.",
+        "serverError": "Erreur serveur (statut {status}). Veuillez réessayer dans un instant.",
+        "network": "Erreur réseau : {message}. Vérifiez votre connexion et réessayez.",
+        "notSupported": "Les notifications push ne sont pas prises en charge dans ce navigateur."
+      }
     },
     "settingsLinkRow": {
       "label": "Notifications",

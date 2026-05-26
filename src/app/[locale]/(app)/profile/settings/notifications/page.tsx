@@ -10,7 +10,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
-import { usePushNotifications } from '@/hooks/usePushNotifications'
+import { usePushNotifications, type SubscribeError } from '@/hooks/usePushNotifications'
 import { KNOWN_CATEGORIES, type NotificationCategory, type ChannelPrefs } from '@/lib/notification-categories'
 
 type Group = { key: 'groupMatches' | 'groupAchievements' | 'groupOther'; categories: NotificationCategory[] }
@@ -54,9 +54,37 @@ function Toggle({ on, onChange, disabled, ariaLabel }: { on: boolean; onChange: 
 export default function NotificationPrefsPage() {
   const t = useTranslations('notifications.settings')
   const router = useRouter()
-  const { enabled: pushEnabled, toggle: togglePush, permission, supported } = usePushNotifications()
+  const { enabled: pushEnabled, toggle: togglePush, permission, supported, lastError, clearError } = usePushNotifications()
   const [prefs, setPrefs] = useState<Record<NotificationCategory, ChannelPrefs> | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  // Map structured subscribe-error → localized message. The whole point of
+  // these errors is to give the user (and us, when debugging) a specific
+  // reason the toggle failed instead of the previous silent swallow.
+  const formatSubscribeError = useCallback((err: SubscribeError): string => {
+    switch (err.kind) {
+      case 'not-signed-in':      return t('errors.notSignedIn')
+      case 'os-denied':          return t('errors.osDenied')
+      case 'token-unavailable':  return t('errors.tokenUnavailable', { message: err.message })
+      case 'server-auth':        return t('errors.serverAuth')
+      case 'server-error':       return t('errors.serverError', { status: err.status })
+      case 'network':            return t('errors.network', { message: err.message })
+      case 'not-supported':      return t('errors.notSupported')
+    }
+  }, [t])
+
+  // When the hook reports a fresh subscribe failure, surface it as a toast.
+  // 6s gives enough time to read the (sometimes long) error details without
+  // becoming a permanent UI element.
+  useEffect(() => {
+    if (!lastError) return
+    setToast(formatSubscribeError(lastError))
+    const timer = setTimeout(() => {
+      setToast(null)
+      clearError()
+    }, 6000)
+    return () => clearTimeout(timer)
+  }, [lastError, formatSubscribeError, clearError])
 
   useEffect(() => {
     let cancelled = false
