@@ -4,6 +4,7 @@ import {
   buildMatchInfoMap,
   getLocalDayBoundaryUTC,
   hasStarted,
+  daysUntilStart,
   type TournamentForSort,
   type MatchForAggregation,
 } from '../live-tournaments-carousel'
@@ -136,5 +137,50 @@ describe('hasStarted', () => {
     const now = new Date('2026-05-26T12:00:00Z')
     const startsAt = new Date(now.getTime() + 7 * 86_400_000).toISOString()
     expect(hasStarted(startsAt, now)).toBe(false)
+  })
+})
+
+describe('daysUntilStart', () => {
+  it('returns 0 when starts_at is later today (user local)', () => {
+    // 09:00 local now, start at 18:00 local same day
+    const now = new Date('2026-05-26T09:00:00')
+    const startsAt = new Date('2026-05-26T18:00:00').toISOString()
+    expect(daysUntilStart(startsAt, now)).toBe(0)
+  })
+
+  it('returns 0 when starts_at was earlier today (defensive — caller branches on hasStarted first)', () => {
+    const now = new Date('2026-05-26T23:30:00')
+    const startsAt = new Date('2026-05-26T06:00:00').toISOString()
+    expect(daysUntilStart(startsAt, now)).toBe(0)
+  })
+
+  it('returns 1 when starts_at is tomorrow even with only a few hours gap', () => {
+    // 23:30 today, start at 06:00 tomorrow — only 6.5h later but a calendar day away
+    const now = new Date('2026-05-26T23:30:00')
+    const startsAt = new Date('2026-05-27T06:00:00').toISOString()
+    expect(daysUntilStart(startsAt, now)).toBe(1)
+  })
+
+  it('returns 7 when starts_at is 7 calendar days from now', () => {
+    const now = new Date('2026-05-26T12:00:00')
+    const startsAt = new Date('2026-06-02T12:00:00').toISOString()
+    expect(daysUntilStart(startsAt, now)).toBe(7)
+  })
+
+  it('returns 3 when starts_at is 3 days away regardless of time-of-day', () => {
+    // now = 23:00 today, starts_at = 01:00 in 3 days (only ~50 hours later
+    // but 3 calendar days). Comparison is calendar-day diff, not 24h chunks.
+    const now = new Date('2026-05-26T23:00:00')
+    const startsAt = new Date('2026-05-29T01:00:00').toISOString()
+    expect(daysUntilStart(startsAt, now)).toBe(3)
+  })
+
+  it('handles DST spring-forward without drifting off by 1', () => {
+    // US Eastern DST 2026: clocks jump from 02:00 EST → 03:00 EDT on Mar 8.
+    // A tournament starting Mar 9 at noon, viewed from Mar 7 at noon, is 2
+    // calendar days away even though the wall-clock gap is 47h (not 48h).
+    const now = new Date('2026-03-07T12:00:00')
+    const startsAt = new Date('2026-03-09T12:00:00').toISOString()
+    expect(daysUntilStart(startsAt, now)).toBe(2)
   })
 })

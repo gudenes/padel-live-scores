@@ -10,6 +10,11 @@
  *   running today) — see 2026-05-21-carousel-live-chip-simplification-design.md.
  * - getLocalDayBoundaryUTC: compute today's [startUTC, endUTC] window in the
  *   user's local timezone, suitable for filtering matches.scheduled_at.
+ * - hasStarted: predicate the carousel card uses to branch its status line
+ *   between live-today/rest-day copy and upcoming-event copy.
+ * - daysUntilStart: whole-day diff from today (user local) to the tournament's
+ *   start day. Used by the upcoming-event copy to render "Starts in N days /
+ *   tomorrow / today".
  */
 
 import { levelTierWeight } from './tournament-labels'
@@ -78,4 +83,28 @@ export function getLocalDayBoundaryUTC(now: Date = new Date()): {
  */
 export function hasStarted(startsAt: string, now: Date = new Date()): boolean {
   return new Date(startsAt).getTime() <= now.getTime()
+}
+
+/**
+ * Whole-day diff between today (user local) and the calendar day of the
+ * tournament's `starts_at`. Returns:
+ *   0  → starts today (including earlier today; caller is expected to branch
+ *        on hasStarted first if it cares about "already started")
+ *   1  → starts tomorrow
+ *   N  → starts in N days
+ *
+ * Uses local-time calendar-day comparison via toLocaleDateString('en-CA'),
+ * which produces a stable YYYY-MM-DD string regardless of host locale and
+ * is DST-safe (DST shifts the wall clock but not the calendar date).
+ */
+export function daysUntilStart(startsAt: string, now: Date = new Date()): number {
+  const toLocalDateStr = (d: Date) => d.toLocaleDateString('en-CA')
+  // Parse YYYY-MM-DDT00:00:00 as local time so the diff is in calendar days,
+  // not 24h chunks (which would drift on DST transitions).
+  const startOfDay = (s: string) => new Date(`${s}T00:00:00`).getTime()
+  const todayMs = startOfDay(toLocalDateStr(now))
+  const startMs = startOfDay(toLocalDateStr(new Date(startsAt)))
+  // Round to nearest whole day to absorb any sub-millisecond noise from
+  // DST math on the underlying Date object.
+  return Math.round((startMs - todayMs) / 86_400_000)
 }
