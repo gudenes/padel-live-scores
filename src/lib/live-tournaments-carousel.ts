@@ -68,3 +68,14 @@ export function getLocalDayBoundaryUTC(now: Date = new Date()): {
     endUTC: end.toISOString(),
   }
 }
+
+/**
+ * True iff the tournament has begun. Used by the carousel card to branch
+ * between "live today / rest day" status lines and "starts in N days /
+ * tomorrow / today" status lines. The "equal to now" edge case resolves
+ * to true so a tournament whose listed start time is exactly `now` shows
+ * the live-today branch rather than flicker into the upcoming branch.
+ */
+export function hasStarted(startsAt: string, now: Date = new Date()): boolean {
+  return new Date(startsAt).getTime() <= now.getTime()
+}

@@ -3,6 +3,7 @@ import {
   compareTournamentsForCarousel,
   buildMatchInfoMap,
   getLocalDayBoundaryUTC,
+  hasStarted,
   type TournamentForSort,
   type MatchForAggregation,
 } from '../live-tournaments-carousel'
@@ -110,5 +111,30 @@ describe('getLocalDayBoundaryUTC', () => {
     const { startUTC, endUTC } = getLocalDayBoundaryUTC(now)
     expect(new Date(startUTC).getTime()).toBeLessThanOrEqual(now.getTime())
     expect(new Date(endUTC).getTime()).toBeGreaterThanOrEqual(now.getTime())
+  })
+})
+
+describe('hasStarted', () => {
+  it('returns true when starts_at is in the past', () => {
+    const now = new Date('2026-05-26T12:00:00Z')
+    const startsAt = new Date(now.getTime() - 1).toISOString()
+    expect(hasStarted(startsAt, now)).toBe(true)
+  })
+
+  it('returns true when starts_at equals now', () => {
+    const now = new Date('2026-05-26T12:00:00Z')
+    expect(hasStarted(now.toISOString(), now)).toBe(true)
+  })
+
+  it('returns false when starts_at is in the future', () => {
+    const now = new Date('2026-05-26T12:00:00Z')
+    const startsAt = new Date(now.getTime() + 1).toISOString()
+    expect(hasStarted(startsAt, now)).toBe(false)
+  })
+
+  it('returns false for a tournament starting 7 days from now', () => {
+    const now = new Date('2026-05-26T12:00:00Z')
+    const startsAt = new Date(now.getTime() + 7 * 86_400_000).toISOString()
+    expect(hasStarted(startsAt, now)).toBe(false)
   })
 })
