@@ -156,11 +156,15 @@ describe('computeReconciliationPatch — pair orientation', () => {
 });
 
 describe('computeReconciliationPatch — MD011 BYE transition', () => {
-  it('replaces pair2 + sets walkover/winner_pair when draw says BYE-walkover and DB has the wrong team', () => {
+  it("replaces pair2 + sets status='bye' + winner_pair when draw says BYE-walkover and DB has the wrong team", () => {
     // Albania MD011 verbatim:
     //   DB held Leal/Guerrero as pair2 (status=scheduled); the latest FIP
     //   draw shows the slot is a walkover-bye for Garrido/Bergamini (seed 5)
     //   on the T2 side (T1 empty).
+    // The FIP draw encodes BYE-through as status='walkover' with one team
+    // empty. Our schema has a distinct 'bye' status — match-detail page
+    // renders 'walkover' as a finished "WINNER (W/O)" banner, which is
+    // wrong for an auto-advance. Use 'bye' instead.
     const draw = baseDraw({
       match_widget_id: 'MD011',
       round_label: 'R16',
@@ -187,7 +191,7 @@ describe('computeReconciliationPatch — MD011 BYE transition', () => {
       pair2_player1_country: null,
       pair2_player2_country: null,
       pair2_seed: 5,
-      status: 'walkover',
+      status: 'bye',
       winner_pair: 2,
     });
   });
@@ -199,12 +203,32 @@ describe('computeReconciliationPatch — MD011 BYE transition', () => {
       team2_player1_name: 'Garrido', team2_player2_name: 'Bergamini',
     });
     const existing = baseExisting({
-      status: 'walkover', round: 'R16', round_canonical: 'R16',
+      status: 'bye', round: 'R16', round_canonical: 'R16',
       pair2_player1_id: GARRIDO, pair2_player2_id: BERGAMINI,
       pair2_seed: 5, winner_pair: 2,
     });
     const resolved = baseResolved({ p2p1: GARRIDO, p2p2: BERGAMINI });
     expect(computeReconciliationPatch(draw, existing, resolved)).toBeNull();
+  });
+
+  it("flips an existing status='walkover' BYE row to 'bye' (the regression fix path)", () => {
+    // Captures the regression that prompted this fix: rows that were
+    // already in DB as status='walkover' with the right team/seed/winner
+    // must still be re-patched to status='bye' on the next run.
+    const draw = baseDraw({
+      match_widget_id: 'MD011', round_label: 'R16', status: 'walkover',
+      team2_seed: 5,
+      team2_player1_name: 'Garrido', team2_player2_name: 'Bergamini',
+    });
+    const existing = baseExisting({
+      status: 'walkover', round: 'R16', round_canonical: 'R16',
+      pair2_player1_id: GARRIDO, pair2_player2_id: BERGAMINI,
+      pair2_seed: 5, winner_pair: 2,
+    });
+    const resolved = baseResolved({ p2p1: GARRIDO, p2p2: BERGAMINI });
+    expect(computeReconciliationPatch(draw, existing, resolved)).toEqual({
+      status: 'bye',
+    });
   });
 
   it('places bye-recipient on pair1 when draw has T1 named and T2 empty', () => {
@@ -224,7 +248,7 @@ describe('computeReconciliationPatch — MD011 BYE transition', () => {
       pair1_player1_country: null,
       pair1_player2_country: null,
       pair1_seed: 1,
-      status: 'walkover',
+      status: 'bye',
       winner_pair: 1,
     });
   });
