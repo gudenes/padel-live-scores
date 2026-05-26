@@ -1,1 +1,7 @@
-{}
+{
+  "crons": [
+    { "path": "/api/internal/seo-snapshot",  "schedule": "0 9 * * *" },
+    { "path": "/api/internal/sitemap-crawl", "schedule": "15 9 * * *" },
+    { "path": "/api/internal/seo-digest",    "schedule": "30 9 * * *" }
+  ]
+}

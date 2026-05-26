@@ -116,6 +116,7 @@ export const AREAS: ReadonlyArray<Area> = [
       { href: '/system/ocr-health', label: 'OCR Health' },
       { href: '/system/coverage-matrix', label: 'Coverage Matrix' },
       { href: '/system/feature-flags', label: 'Feature Flags' },
+      { href: '/system/seo', label: 'SEO' },
       { href: '/system/architecture', label: 'Architecture' },
     ],
   },
