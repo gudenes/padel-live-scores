@@ -301,6 +301,15 @@ describe('runFipEventPageEnricher — end to end', () => {
                 }),
               }),
             }),
+            // Matchscorer-conflict probe: no other tournament owns
+            // FIP-2026-B0118, so the write proceeds.
+            eq: () => ({
+              neq: () => ({
+                limit: () => ({
+                  maybeSingle: async () => ({ data: null, error: null }),
+                }),
+              }),
+            }),
           }),
           update: (patch: Record<string, unknown>) => ({
             eq: async (_col: string, id: string) => {
@@ -354,6 +363,143 @@ describe('runFipEventPageEnricher — end to end', () => {
     // 'page_regex' is the right bucket — the code IS regex-extracted
     // from the FIP event page HTML.
     expect(cached.extraction_method).toBe('page_regex');
+  });
+
+  it('skips matchscorer_url write when another tournament already owns the code', async () => {
+    // Detection layer guarding against the duplicate pattern that
+    // produced FIP BRONZE ABU DHABI / FIP BRONZE DAMAC ABU DHABI both
+    // carrying matchscorer_url=FIP-2026-1601: FIP's CMS publishes two
+    // rows for the same physical tournament under different slugs, both
+    // event pages embed the SAME matchscorer code. The discovery
+    // `isPhysicalTwin` guard (PR #372) catches the sponsor-suffix
+    // subset case, but not full rebrands — and any dup that predates
+    // that guard sits in the DB until manually merged. Here we make
+    // sure the enricher refuses to write a matchscorer code that
+    // another tournament already owns, so the canonical row keeps
+    // ownership and the dup stays detectable.
+    //
+    // Compose the fixture: KL (venue + dates + prize money + reg
+    // status) + Singapore's matchscorer JS block. Lets us assert that
+    // the *other* fields still land while matchscorer_url is held
+    // back, instead of a no-op update.
+    const singaporeHtml =
+      klHtml +
+      readFileSync(
+        join(__dirname, '..', 'fixtures', 'fip-event-singapore-b3.html'),
+        'utf8',
+      );
+
+    const updates: Array<{ id: string; patch: Record<string, unknown> }> = [];
+    const cacheUpserts: Array<Record<string, unknown>> = [];
+    const warnings: Array<{ msg: string; ctx: Record<string, unknown> }> = [];
+    const logger = {
+      warn: (ctx: Record<string, unknown>, msg: string) =>
+        warnings.push({ msg, ctx }),
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['logger'];
+
+    const supabase = {
+      from: (table: string) => {
+        if (table !== 'tournaments') {
+          throw new Error(`unexpected public table: ${table}`);
+        }
+        return {
+          select: () => ({
+            // Initial candidate fetch (existing path).
+            or: () => ({
+              or: () => ({
+                limit: async () => ({
+                  data: [
+                    {
+                      id: 'sg-id',
+                      slug: 'fip-beyond-b3-singapore',
+                      fip_id: 'fip-beyond-b3-singapore',
+                      matchscorer_url: null,
+                      starts_at: null,
+                      ends_at: null,
+                      venue: null,
+                      venue_address: null,
+                      venue_type: null,
+                      signup_fee_eur: null,
+                      schedule_notes: null,
+                      round_schedule: null,
+                      draw_size_md: null,
+                      draw_size_qd: null,
+                      registration_status: null,
+                      prize_money_fip: null,
+                      prize_breakdown: null,
+                      level: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              }),
+            }),
+            // Conflict-check chain (new path). Returns a canonical
+            // tournament that already owns FIP-2026-B0118.
+            eq: (_col: string, val: string) => ({
+              neq: () => ({
+                limit: () => ({
+                  maybeSingle: async () => {
+                    if (val === 'FIP-2026-B0118') {
+                      return {
+                        data: {
+                          id: 'canonical-id',
+                          name: 'FIP BEYOND CANONICAL',
+                        },
+                        error: null,
+                      };
+                    }
+                    return { data: null, error: null };
+                  },
+                }),
+              }),
+            }),
+          }),
+          update: (patch: Record<string, unknown>) => ({
+            eq: async (_col: string, id: string) => {
+              updates.push({ id, patch });
+              return { error: null };
+            },
+          }),
+        };
+      },
+      schema: () => ({
+        from: () => ({
+          upsert: async (row: Record<string, unknown>) => {
+            cacheUpserts.push(row);
+            return { error: null };
+          },
+        }),
+      }),
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['supabase'];
+
+    const httpClient = {
+      get: async () => ({ data: singaporeHtml, headers: {} }),
+    } as unknown as Parameters<typeof runFipEventPageEnricher>[0]['httpClient'];
+
+    await runFipEventPageEnricher({ supabase, httpClient, logger });
+
+    // The row still gets enriched for the OTHER fields the page
+    // exposes — only matchscorer_url is held back.
+    expect(updates).toHaveLength(1);
+    expect(updates[0]!.patch.matchscorer_url).toBeUndefined();
+
+    // widget_id_cache mirror is gated on the matchscorer write
+    // succeeding — if we skipped the write, we must skip the mirror
+    // too (otherwise we'd point a SECOND cache row at the same code,
+    // and downstream workers would race over it).
+    expect(cacheUpserts).toHaveLength(0);
+
+    // The conflict must surface in logs so ops can run the merge.
+    const conflictWarning = warnings.find((w) =>
+      w.msg.toLowerCase().includes('matchscorer'),
+    );
+    expect(conflictWarning, 'expected a matchscorer-conflict warning').toBeDefined();
+    expect(conflictWarning!.ctx).toMatchObject({
+      matchscorerCode: 'FIP-2026-B0118',
+      tournamentId: 'sg-id',
+      conflictTournamentId: 'canonical-id',
+    });
   });
 
   it('does NOT call widget_id_cache when the page has no matchscorer code', async () => {
