@@ -1,7 +1,7 @@
-import { PlanStub } from '@/components/PlanStub'
+import HighlightPickerTab from './_components/HighlightPickerTab'
 
 export const metadata = { title: 'Highlights · PadelNachos Admin' }
 
 export default function Page() {
-  return <PlanStub title="Highlights" />
+  return <HighlightPickerTab />
 }

@@ -66,11 +66,26 @@ describe('isPresenceOnlyLive', () => {
   it('returns false when tournament is Premier-tier (PBP is expected soon)', () => {
     expect(isPresenceOnlyLive(
       { status: 'live' },
-      { level: 'P1' },
+      { level: 'p1' },
     )).toBe(false)
     expect(isPresenceOnlyLive(
       { status: 'on_court' },
-      { level: 'Premier_Mens' },
+      { level: 'major' },
+    )).toBe(false)
+  })
+
+  // FIP Platinum gets PBP from Crionet via padelgod's live-poller —
+  // we have evolving sets/games on the match-detail page during play.
+  // Distinct from Bronze/Silver/Gold which never see PBP. The Live
+  // Feed tab on a Platinum match must NOT be hidden.
+  it('returns false for fip_platinum live matches (Crionet PBP via padelgod)', () => {
+    expect(isPresenceOnlyLive(
+      { status: 'live' },
+      { level: 'fip_platinum' },
+    )).toBe(false)
+    expect(isPresenceOnlyLive(
+      { status: 'on_court' },
+      { level: 'fip_platinum' },
     )).toBe(false)
   })
 

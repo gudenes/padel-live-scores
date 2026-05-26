@@ -1,7 +1,8 @@
-import { PlanStub } from '@/components/PlanStub'
+import TournamentExplorerTab from './_components/TournamentExplorerTab'
 
 export const metadata = { title: 'Tournament Explorer · PadelNachos Admin' }
+export const dynamic = 'force-dynamic'
 
-export default function Page() {
-  return <PlanStub title="Tournament Explorer" />
+export default function TournamentExplorerPage() {
+  return <TournamentExplorerTab />
 }

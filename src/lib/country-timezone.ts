@@ -75,6 +75,7 @@ const COUNTRY_TZ: Record<string, string> = {
   AE: 'Asia/Dubai',
   BH: 'Asia/Bahrain',
   EG: 'Africa/Cairo',
+  GE: 'Asia/Tbilisi', // Georgia — FIP PROMISES Tbilisi
   IL: 'Asia/Jerusalem',
   JO: 'Asia/Amman',
   KW: 'Asia/Kuwait',
@@ -84,6 +85,7 @@ const COUNTRY_TZ: Record<string, string> = {
 
   // Africa
   MA: 'Africa/Casablanca',
+  SN: 'Africa/Dakar', // Senegal — FIP BRONZE Dakar
   TN: 'Africa/Tunis',
   ZA: 'Africa/Johannesburg',
 

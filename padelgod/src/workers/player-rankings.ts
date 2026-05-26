@@ -205,6 +205,7 @@ async function upsertOfficialPlayers(
   supabase: SupabaseClient,
   rows: FipOfficialPlayer[],
   category: 'men' | 'women',
+  rankingDate: string,
 ): Promise<ResolvedPlayer[]> {
   const byFipId = new Map<string, FipOfficialPlayer>();
   for (const r of rows) byFipId.set(r.player_id.replace(/^fip-/, ''), r);
@@ -230,6 +231,7 @@ async function upsertOfficialPlayers(
         ranking: fipRow.rank,
         points: fipRow.points,
         ranking_move: fipRow.move,
+        ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
       };
@@ -249,6 +251,7 @@ async function upsertOfficialPlayers(
         ranking: fipRow.rank,
         points: fipRow.points,
         ranking_move: fipRow.move,
+        ranking_date: rankingDate,
         profile_url: fipRow.url || null,
         last_updated_by: 'padelgod',
         updated_at: now,
@@ -266,6 +269,7 @@ async function upsertRacePlayers(
   supabase: SupabaseClient,
   rows: FipRacePlayer[],
   category: 'men' | 'women',
+  rankingDate: string,
 ): Promise<ResolvedPlayer[]> {
   const byFipId = new Map<string, FipRacePlayer>();
   for (const r of rows) byFipId.set(r.player_id.replace(/^fip-/, ''), r);
@@ -291,6 +295,7 @@ async function upsertRacePlayers(
         race_ranking: fipRow.race_rank,
         race_points: fipRow.race_points,
         race_move: fipRow.race_move,
+        ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
       };
@@ -309,6 +314,7 @@ async function upsertRacePlayers(
         race_ranking: fipRow.race_rank,
         race_points: fipRow.race_points,
         race_move: fipRow.race_move,
+        ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
         profile_attempt_at: PROFILE_ATTEMPT_SENTINEL,
@@ -457,7 +463,7 @@ async function runOfficialPhase(
         const rowsByFipId = new Map<string, FipOfficialPlayer>();
         for (const r of players) rowsByFipId.set(r.player_id.replace(/^fip-/, ''), r);
 
-        const resolved = await upsertOfficialPlayers(deps.supabase, players, category);
+        const resolved = await upsertOfficialPlayers(deps.supabase, players, category, rd!);
         updated = resolved.filter(r => r.outcome === 'updated').length;
         created = resolved.filter(r => r.outcome === 'created').length;
 
@@ -520,7 +526,8 @@ async function runRacePhase(
         const rowsByFipId = new Map<string, FipRacePlayer>();
         for (const r of players) rowsByFipId.set(r.player_id.replace(/^fip-/, ''), r);
 
-        const resolved = await upsertRacePlayers(deps.supabase, players, category);
+        const raceMondayIso = isoYearWeek(new Date()).mondayIso;
+        const resolved = await upsertRacePlayers(deps.supabase, players, category, raceMondayIso);
         updated = resolved.filter(r => r.outcome === 'updated').length;
         created = resolved.filter(r => r.outcome === 'created').length;
 

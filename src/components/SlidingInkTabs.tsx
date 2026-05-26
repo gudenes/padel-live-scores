@@ -80,6 +80,28 @@ export default function SlidingInkTabs<K extends string = string>({
   const labelRefs = useRef<Map<K, HTMLSpanElement>>(new Map())
   const isFirstRef = useRef(true)
   const previousKeyRef = useRef<K>(activeKey)
+  // Mirror activeKey into a ref so the stabilization-loop closure (kept
+  // in a `[]`-deps useEffect) reads current values instead of a stale
+  // capture from mount.
+  const activeKeyRef = useRef(activeKey)
+  activeKeyRef.current = activeKey
+
+  // Measure the active label and write the ink-bar position+width vars.
+  // Returns the measured {x, w} so callers can decide whether to update.
+  // Snap-style (no animation) — used for first mount and corrective re-snaps.
+  function snapToActive(): { x: number; w: number } | null {
+    const container = containerRef.current
+    const activeLabel = labelRefs.current.get(activeKey)
+    if (!container || !activeLabel) return null
+    const containerRect = container.getBoundingClientRect()
+    const labelRect = activeLabel.getBoundingClientRect()
+    const x = labelRect.left - containerRect.left
+    const w = labelRect.width
+    container.style.setProperty('--sit-x', `${x}px`)
+    container.style.setProperty('--sit-x-from', `${x}px`)
+    container.style.setProperty('--sit-w', `${w}px`)
+    return { x, w }
+  }
 
   // Measure the active label span and update CSS vars so the bar
   // slides + resizes to match. useLayoutEffect avoids the "bar pops
@@ -103,6 +125,10 @@ export default function SlidingInkTabs<K extends string = string>({
       container.style.setProperty('--sit-w', `${w}px`)
       isFirstRef.current = false
       previousKeyRef.current = activeKey
+      // The stabilization loop lives in its own useEffect below — it
+      // must survive React StrictMode's double-invoke of this effect
+      // (cleanup-then-re-run), and it must not be tied to activeKey
+      // changes that would cancel it mid-window.
       return
     }
     if (previousKeyRef.current === activeKey) return
@@ -119,27 +145,86 @@ export default function SlidingInkTabs<K extends string = string>({
 
     const cleanup = window.setTimeout(() => {
       container.classList.remove('sit-animating')
+      // Corrective re-snap after the slide finishes. If layout was still
+      // settling when the animation path measured (font load, parent
+      // reflow), the bar landed at a stale x. Re-measure now that the
+      // slide is done and quietly correct. .sit-animating is already
+      // removed so this is an instant jump, not a re-animation — visually
+      // imperceptible at the end of the slide, but avoids the bar
+      // resting under the wrong tab.
+      snapToActive()
     }, SLIDE_MS + 40)
     return () => window.clearTimeout(cleanup)
+    // snapToActive is intentionally excluded — it's a stable function
+    // reference within this render and closes over activeKey via the dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey])
 
-  // Reposition on viewport resize (orientation flip, content reflow).
-  // Snap, no animation — just re-measure.
+  // Stabilization loop: re-snap each frame for the first ~3s after
+  // mount. A single useLayoutEffect measurement isn't enough on pages
+  // where layout shifts later than one frame — e.g., a wrapping
+  // ".app-frame" mockup that re-positions after hydration, an async
+  // hero image loading, or fonts swapping in. Empirically observed
+  // shifts ~600ms after first paint that would otherwise leave the
+  // bar resting under the wrong tab.
+  //
+  // Lives in its own `[]`-deps useEffect (not the useLayoutEffect
+  // above) for two reasons:
+  //   1. React StrictMode double-invokes effects in dev. If the loop
+  //      were started inside the isFirstRef branch, the second
+  //      invocation would see isFirstRef=false (set by the first),
+  //      skip the loop, and never restart it.
+  //   2. The useLayoutEffect's cleanup fires on every activeKey
+  //      change. If the loop lived there, any tab switch within 3s
+  //      of mount would cancel it.
+  //
+  // Bails when activeKey changes from its mount value so the slide
+  // animation can take over without the loop fighting it.
   useEffect(() => {
-    function handleResize() {
-      const container = containerRef.current
-      const activeLabel = labelRefs.current.get(activeKey)
-      if (!container || !activeLabel) return
-      const containerRect = container.getBoundingClientRect()
-      const labelRect = activeLabel.getBoundingClientRect()
-      const x = labelRect.left - containerRect.left
-      const w = labelRect.width
-      container.style.setProperty('--sit-x', `${x}px`)
-      container.style.setProperty('--sit-x-from', `${x}px`)
-      container.style.setProperty('--sit-w', `${w}px`)
+    const initialKey = activeKeyRef.current
+    const MAX_FRAMES = 180 // ~3s at 60fps
+    let frames = 0
+    let rafId = 0
+    const loop = () => {
+      frames++
+      // Tab switched mid-stabilization — let the animation path own
+      // it. The animation path includes its own post-slide re-snap.
+      if (activeKeyRef.current !== initialKey) return
+      snapToActive()
+      if (frames < MAX_FRAMES) rafId = requestAnimationFrame(loop)
     }
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    rafId = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(rafId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Reposition on viewport resize and container reflow. Snap, no
+  // animation. ResizeObserver catches the cases that don't trigger a
+  // window resize event: font swaps, parent layout shifts (hero image
+  // load), sticky positioning settling after scroll.
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const handle = () => { snapToActive() }
+    window.addEventListener('resize', handle)
+
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(handle)
+      ro.observe(container)
+      // Observe every label — a width change in a non-active tab (e.g.
+      // a translation finishing load) shifts the active tab's x position
+      // without changing its own size, so observing only the active
+      // label would miss it.
+      labelRefs.current.forEach(label => ro!.observe(label))
+    }
+
+    return () => {
+      window.removeEventListener('resize', handle)
+      ro?.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeKey])
 
   return (

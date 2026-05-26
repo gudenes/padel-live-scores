@@ -10,6 +10,9 @@
  *   running today) — see 2026-05-21-carousel-live-chip-simplification-design.md.
  * - getLocalDayBoundaryUTC: compute today's [startUTC, endUTC] window in the
  *   user's local timezone, suitable for filtering matches.scheduled_at.
+ * - hasStarted / daysUntilStart: predicates for the UPCOMING-card branch,
+ *   used by tournaments whose starts_at is in the future but within the
+ *   carousel's 7-day forward window.
  */
 
 import { levelTierWeight } from './tournament-labels'
@@ -51,6 +54,21 @@ export function buildMatchInfoMap(
     entry.matchesToday += 1
   }
   return out
+}
+
+export function hasStarted(startsAt: string, now: Date = new Date()): boolean {
+  return new Date(startsAt).getTime() <= now.getTime()
+}
+
+export function daysUntilStart(startsAt: string, now: Date = new Date()): number {
+  // Whole-day calendar diff in the user's local timezone. We render
+  // YYYY-MM-DD strings via en-CA, parse them as local midnight, and
+  // divide the millisecond gap by 24h. Math.round (not floor) covers
+  // DST transitions where the gap is 23h or 25h instead of 24h.
+  const fmt = (d: Date) => d.toLocaleDateString('en-CA')
+  const startMidnight = new Date(`${fmt(new Date(startsAt))}T00:00:00`)
+  const nowMidnight = new Date(`${fmt(now)}T00:00:00`)
+  return Math.round((startMidnight.getTime() - nowMidnight.getTime()) / 86_400_000)
 }
 
 export function getLocalDayBoundaryUTC(now: Date = new Date()): {

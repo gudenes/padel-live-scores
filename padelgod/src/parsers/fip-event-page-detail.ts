@@ -307,14 +307,22 @@ function roundLabelToKey(label: string): RoundKey | null {
 }
 
 /**
- * Parse a single numeric amount from raw text. Handles both:
- *   US-style decimal:        "1,234.56" → 1234.56
- *   European-style decimal:  "349,65"   → 349.65
+ * Parse a single numeric amount from raw text. Handles:
+ *   US-style decimal:        "1,234.56" → 1234.56,  "212.5"   → 212.5
+ *   European-style decimal:  "349,65"   → 349.65,   "1.234,56" → 1234.56
+ *   European-style thousands: "9.375"   → 9375     (no decimal)
  *   Plain integer:           "999"      → 999
  *
- * The disambiguator is the LAST separator's position. If the last separator
- * is followed by exactly 2 digits (DD), it's a decimal. Otherwise the
- * separator is treated as thousands and stripped.
+ * The disambiguator is the LAST separator's position:
+ *  - 1 or 2 trailing digits → decimal mark (`212.5`, `349,65`).
+ *  - 3+ trailing digits     → thousands grouping (`9.375`, `1,234`),
+ *    so we strip every separator.
+ *
+ * Padel prize amounts never use 1-digit thousands grouping, so 1
+ * trailing digit unambiguously means decimal. 3 trailing digits is
+ * ambiguous in principle (`1.234` could be 1.234 or 1234) but in the
+ * FIP HTML it's always thousands — a per-player payout of `1.234€`
+ * doesn't exist.
  *
  * Currency symbols / spaces are stripped before parsing.
  */
@@ -322,7 +330,8 @@ function parsePrizeAmount(raw: string): number | null {
   const cleaned = raw.replace(/[€\s]/g, '');
   if (cleaned === '') return null;
 
-  // Find the last separator (',' or '.') and check if it's a decimal mark.
+  // Find the last separator (',' or '.') and decide whether it's a
+  // decimal mark or a thousands separator.
   const lastDot = cleaned.lastIndexOf('.');
   const lastComma = cleaned.lastIndexOf(',');
   const lastSep = Math.max(lastDot, lastComma);
@@ -332,14 +341,16 @@ function parsePrizeAmount(raw: string): number | null {
     normalised = cleaned;
   } else {
     const trailing = cleaned.length - lastSep - 1;
-    if (trailing === 2) {
-      // "349,65" or "1.234,56" or "1,234.56" — last separator is decimal.
-      // Strip every other separator, then convert the decimal to '.'.
+    if (trailing === 1 || trailing === 2) {
+      // "212.5", "349,65", "1.234,56", "1,234.56" — last separator is
+      // decimal. Strip every OTHER separator, then convert the decimal
+      // to '.'.
       const head = cleaned.slice(0, lastSep).replace(/[.,]/g, '');
       const tail = cleaned.slice(lastSep + 1);
       normalised = `${head}.${tail}`;
     } else {
-      // Separators are pure thousands grouping — strip them all.
+      // 3+ trailing digits → separators are pure thousands grouping
+      // ("9.375", "1,234"). Strip them all.
       normalised = cleaned.replace(/[.,]/g, '');
     }
   }
@@ -353,8 +364,14 @@ export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
   let hits = 0;
 
   // Layout 1 — HTML table: <th scope="row">LABEL</th><td>AMOUNT</td>
-  // (Used by KL Bronze, Cyprus Silver, and most events the existing
-  // enricher already covers.)
+  // (Used by KL Bronze, Cyprus Silver, FIP Platinum Albania, and most
+  // events the existing enricher already covers.)
+  //
+  // Uses parsePrizeAmount (same as Layout 2 below) so the locale-aware
+  // logic handles both US-style ("212.5") and European-style
+  // ("9.375" thousands, "421,88" decimal) values. The earlier
+  // hand-rolled strip-comma path broke Albania's mixed European table
+  // (winner 9.375 → 9.38, r32 421,88 → 42188).
   const tableRe =
     /<th[^>]*scope="row"[^>]*>\s*([^<]+?)\s*<\/th>\s*<td[^>]*>\s*€?\s*([0-9][\d.,]*)\s*€?\s*<\/td>/gi;
   let m: RegExpExecArray | null;
@@ -362,11 +379,8 @@ export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
     const label = m[1]!.toUpperCase().replace(/\s+/g, ' ').trim();
     const key = roundLabelToKey(label);
     if (!key) continue;
-    // Existing US-style strip — table layout has only ever shown amounts
-    // without European decimals in observed pages.
-    const raw = m[2]!.replace(/,/g, '');
-    const amount = Number.parseFloat(raw);
-    if (!Number.isFinite(amount) || amount < 0) continue;
+    const amount = parsePrizeAmount(m[2]!);
+    if (amount == null) continue;
     rounds[key] = Math.round(amount * 100) / 100;
     hits++;
   }
@@ -392,4 +406,33 @@ export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
 
   if (hits === 0) return null;
   return { ...rounds, currency: 'EUR', per: 'player', source: 'scraped' };
+}
+
+/**
+ * Extract the factsheet PDF URL from an event page. FIP links a downloadable
+ * factsheet on most Platinum/Major/Premier events — a 2-4 page PDF with
+ * prize money breakdown, daily schedule, points table, sponsor list, venue
+ * address, etc. Used by the factsheet-processor cron to feed Claude.
+ *
+ * URL pattern observed:
+ *   https://www.padelfip.com/wp-content/uploads/YYYY/MM/[SLUG]_FACTSHEET[-N].pdf
+ *
+ * Match anything in `wp-content/uploads/` ending in `.pdf` and containing
+ * "factsheet" (case-insensitive). If multiple match, prefer the most recent
+ * year/month folder (handles re-uploaded factsheets keeping older copies).
+ */
+export function parseFactsheetUrl(html: string): string | null {
+  const re = /https?:\/\/[^\s"'<>]*?wp-content\/uploads\/[^\s"'<>]*?factsheet[^\s"'<>]*?\.pdf/gi;
+  const matches = html.match(re);
+  if (!matches || matches.length === 0) return null;
+  // Newest year/month wins on duplicates. The path component is /YYYY/MM/
+  // — sort lexicographically descending picks the most recent.
+  const sorted = [...new Set(matches)].sort((a, b) => {
+    const aDate = a.match(/uploads\/(\d{4})\/(\d{2})\//);
+    const bDate = b.match(/uploads\/(\d{4})\/(\d{2})\//);
+    const aKey = aDate ? `${aDate[1] ?? ''}${aDate[2] ?? ''}` : '';
+    const bKey = bDate ? `${bDate[1] ?? ''}${bDate[2] ?? ''}` : '';
+    return bKey.localeCompare(aKey);
+  });
+  return sorted[0] ?? null;
 }

@@ -8,7 +8,7 @@ import Image from 'next/image'
 import { useFormatter, useTranslations, useLocale } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { useSearchParams } from 'next/navigation'
-import { useRouter, Link } from '@/i18n/navigation'
+import { useRouter, usePathname, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, countryFlag, pairName, parseSetScore, parseSetFromGames, isWarmingUp, toShortName } from '@/types/match'
 import { hydrateThinPlayers } from '@/lib/thin-match-player'
@@ -21,9 +21,14 @@ import { MatchCard } from '@/components/MatchCard'
 import { WhereToWatchInline } from '@/components/where-to-watch/WhereToWatchInline'
 import type { BroadcasterRow, LiveChannel, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
+import { filterTournamentStreams } from '@/lib/where-to-watch/filter-tournament-streams'
+import { tokenize } from '@/lib/fip-stream-title-parser'
+import { tournamentSearchUrl } from '@/lib/fip-stream-resolver'
+import { isFipTier } from '@/lib/fip-channel'
 import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
+import { pickDefaultRound, type PickDefaultRoundMatch } from '@/lib/pick-default-round'
 import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
@@ -153,6 +158,20 @@ function titleCase(name: string): string {
 // about the top few tiers and let newer levels fall through as raw
 // keys, which uppercased to "FIP_BEYOND" etc. inside the level pill.
 
+// Does a match's pair N (1 or 2) have at least one resolved player?
+// The fip-draw-populator inserts every bracket cell — including ones
+// where an opponent is still "winner of Q1 #5" (one pair fully TBD).
+// PARTIDAS hides those scaffold rows; CUADRO keeps them. A pair is
+// considered resolved if EITHER player has an id or a name set.
+function hasResolvedPair(m: unknown, pairN: 1 | 2): boolean {
+  const r = m as Record<string, unknown>
+  const p1Id = r[`pair${pairN}_player1_id`]
+  const p1Name = r[`pair${pairN}_player1_name`]
+  const p2Id = r[`pair${pairN}_player2_id`]
+  const p2Name = r[`pair${pairN}_player2_name`]
+  return !!(p1Id || p1Name || p2Id || p2Name)
+}
+
 // ══════════════════════════════════════════════════════════════
 // ── Wrapper (unwraps async params) ───────────────────────────
 // ══════════════════════════════════════════════════════════════
@@ -200,10 +219,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
   const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
-  const [pageTab, setPageTab] = useState<'matches' | 'overview' | 'story' | 'draw'>(
+  // Animated arrival from home's "VER PARTIDOS" card: when intent=matches is
+  // present alongside tab=matches, mount on Overview and slide to Matches
+  // after a short beat (see the mount effect below).
+  const wantsMatchesAnimation =
+    searchParams.get('intent') === 'matches' && paramTab === 'matches'
+
+  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw'>(
     // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
     // share links and bookmarks keep working.
-    paramTab === 'draw'
+    wantsMatchesAnimation
+      ? 'overview'
+      : paramTab === 'draw'
       ? 'draw'
       : paramTab === 'story' || paramTab === 'recap'
       ? 'story'
@@ -211,6 +238,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       ? 'matches'
       : 'overview'
   )
+
+  // Tracks whether the user has manually changed tabs, so the scheduled
+  // animated-arrival commit doesn't override a tap that happens during the dwell.
+  const userChangedTabRef = useRef(false)
+  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw') => {
+    userChangedTabRef.current = true
+    setPageTabState(next)
+  }, [])
+
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   // prefers-reduced-motion snaps between expanded and collapsed
@@ -223,6 +259,36 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const navbarLayerOpacity = p
   const compactOpacity     = clamp01((p - 0.55) / 0.4)
   const inlineOpacity      = clamp01((0.7 - p) / 0.4)
+
+  // Animated arrival from home's "VER PARTIDOS": mount on Overview,
+  // slide to Matches after a short beat (or commit immediately under
+  // reduced-motion). The visible animation is SlidingInkTabs' existing
+  // spring on activeKey change.
+  const pathname = usePathname()
+  useEffect(() => {
+    if (!wantsMatchesAnimation) return
+
+    const commit = () => {
+      if (userChangedTabRef.current) return
+      setPageTabState('matches')
+
+      // Strip ?intent so refresh/back doesn't replay the animation.
+      const params = new URLSearchParams(searchParams.toString())
+      params.delete('intent')
+      const qs = params.toString()
+      router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false })
+    }
+
+    if (reducedMotion) {
+      commit()
+      return
+    }
+
+    const t = window.setTimeout(commit, 280)
+    return () => window.clearTimeout(t)
+    // Intentionally mount-only — animated arrival fires once per navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
 
   // ── Fetch ─────────────────────────────────────────────────────
@@ -279,7 +345,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const fetchTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
-      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, cover_image_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug')
+      .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, cover_image_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug, factsheet_url, factsheet_data')
       .order('starts_at', { ascending: false })
     if (data) setTournaments(data)
   }, [])
@@ -393,6 +459,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     for (const m of allMatches) {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) continue
       if ((m as any).category !== genderFilter) continue
+      // Skip bracket-scaffold rows (one or both pairs entirely TBD). The
+      // fip-draw-populator inserts every bracket cell, including ones where
+      // an opponent is still "winner of Q1 #N" — those belong in CUADRO,
+      // not in the round chip strip on PARTIDAS.
+      if (!hasResolvedPair(m, 1) || !hasResolvedPair(m, 2)) continue
       const r = m.round as string | null
       if (r) seen.add(normalizeRoundFull(r))
     }
@@ -453,41 +524,98 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return map
   }, [allMatches, availableRounds, activeTournament, activeTournamentObj, genderFilter])
 
-  // ── Auto-select round: prefer live > today > most advanced ──
+  // ── Auto-select round: live > today > most-advanced-finished > Q1 ──
   useEffect(() => {
     if (availableRounds.length === 0) return
     const todayKey = localDateKey(new Date())
-    const hasLive = availableRounds.find(r =>
-      allMatches.some(m =>
-        m.status === 'live' &&
-        normalizeRoundFull(m.round as string) === r &&
-        (!activeTournament || (m as any).tournament?.id === activeTournament)
-      )
-    )
-    const hasToday = availableRounds.find(r =>
-      allMatches.some(m => {
-        if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
-        if (normalizeRoundFull(m.round as string) !== r) return false
-        const src = (m as any).scheduled_at ?? (m as any).started_at
-        return src && src.slice(0, 10) === todayKey
-      })
-    )
+    const candidates: PickDefaultRoundMatch[] = allMatches.map(m => {
+      const src = (m as any).scheduled_at ?? (m as any).started_at
+      return {
+        normalizedRound: normalizeRoundFull(m.round as string),
+        status: m.status as string,
+        scheduledDateKey: typeof src === 'string' ? src.slice(0, 10) : null,
+        tournamentId: (m as any).tournament?.id ?? null,
+      }
+    })
+    const smartDefault = pickDefaultRound({
+      availableRounds,
+      matches: candidates,
+      activeTournamentId: activeTournament ?? null,
+      todayKey,
+    })
     setSelectedRound(prev => {
       if (paramRound && !prev) {
         const normalized = normalizeRoundFull(paramRound)
         if (availableRounds.includes(normalized)) return normalized
       }
       if (prev && availableRounds.includes(prev)) return prev
-      return hasLive ?? hasToday ?? availableRounds[0] ?? null
+      return smartDefault
     })
   }, [availableRounds, activeTournament, paramRound, allMatches])
 
-  // ── Auto-scroll stage strip ───────────────────────────────────
+  // ── Auto-scroll stage strip: center the active round chip ─────
+  // Uses container.scrollTo (not scrollIntoView) so the strip's horizontal
+  // scroll is the only thing that moves — scrollIntoView would also nudge
+  // the page's vertical scroll on iOS/Webkit.
+  //
+  // Uses getBoundingClientRect-based math (not offsetLeft) because the
+  // strip container has no CSS positioning context, so offsetLeft returns
+  // a position relative to <body>, not the container.
+  //
+  // Depends on pageTab so we re-fire when the matches view mounts: the
+  // round strip is only in the DOM when pageTab === 'matches', and
+  // selectedRound can be computed earlier (during the animated-arrival
+  // dwell where pageTab is still 'overview'). Without this dep, the
+  // first-fire of the effect finds no active button and silently bails.
+  //
+  // The first-paint measurement can produce a wrong target when the
+  // strip's clientWidth isn't fully settled (hero image loading,
+  // cookie banner shifting layout, sticky positioning). We retry on
+  // every ResizeObserver tick of the container until we successfully
+  // center, then stop — that way the user's manual scrolls aren't
+  // fought by later size changes.
   useEffect(() => {
+    if (pageTab !== 'matches') return
     if (!selectedRound || !stageStripRef.current) return
-    const btn = stageStripRef.current.querySelector<HTMLElement>('[data-active="true"]')
-    if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
-  }, [selectedRound])
+    const container = stageStripRef.current
+
+    let centered = false
+    const center = () => {
+      if (centered) return
+      const btn = container.querySelector<HTMLElement>('[data-active="true"]')
+      if (!btn) return
+      const cRect = container.getBoundingClientRect()
+      const bRect = btn.getBoundingClientRect()
+      // Guard against transient layout where dimensions are tiny/zero.
+      // A real round chip is wider than 30px; a real strip wider than 100px.
+      if (container.clientWidth < 100 || bRect.width < 30) return
+
+      const btnLeftInScrollSpace = bRect.left - cRect.left + container.scrollLeft
+      const target = btnLeftInScrollSpace - (container.clientWidth - bRect.width) / 2
+      const max = container.scrollWidth - container.clientWidth
+      const clamped = Math.max(0, Math.min(target, max))
+      container.scrollTo({ left: clamped, behavior: 'smooth' })
+      centered = true
+    }
+
+    const raf = requestAnimationFrame(center)
+
+    // ResizeObserver retries center() each time the strip's size changes,
+    // catching the case where the initial rAF ran before layout settled.
+    // The `centered` flag ensures we only commit once per round selection.
+    let ro: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => {
+        if (!centered) requestAnimationFrame(center)
+      })
+      ro.observe(container)
+    }
+
+    return () => {
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
+    }
+  }, [selectedRound, pageTab])
 
   // ── Filtered matches ──────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -495,6 +623,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       if (activeTournament && (m as any).tournament?.id !== activeTournament) return false
       if (selectedRound && normalizeRoundFull(m.round as string) !== selectedRound) return false
       if ((m as any).category !== genderFilter) return false
+      // Same scaffold filter as availableRounds: hide bracket cells whose
+      // opponents haven't been determined yet. CUADRO still shows them.
+      if (!hasResolvedPair(m, 1) || !hasResolvedPair(m, 2)) return false
       return true
     })
     // Defense-in-depth dedup: cross-source ingest sometimes leaves two
@@ -1396,6 +1527,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const [wtwLiveChannels, setWtwLiveChannels] = useState<LiveChannel[]>([])
   const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
   const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
+  const [wtwFallback, setWtwFallback] = useState<{ url: string; tournamentName: string } | null>(null)
 
   const tournamentChannelAbbr = useMemo(
     () => levelToChannelAbbr(tournament?.level),
@@ -1410,15 +1542,41 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
     const country = cookieMatch?.[1]?.toLowerCase() || null
     setWtwGeoCountry(country)
 
-    if (!tournamentChannelAbbr) {
+    // Skip entirely if no tournament yet or its level doesn't map to a tracked
+    // circuit (e.g. legacy WPT). Keeps behaviour conservative for tiers we
+    // haven't decided to surface streams for.
+    if (!tournament || !tournamentChannelAbbr) {
       setWtwBroadcasters([])
       setWtwLiveChannels([])
       setWtwChannelsMeta([])
+      setWtwFallback(null)
       return
     }
 
     let cancelled = false
     const STALE_MS = 30 * 60 * 1000
+    const tournamentNameTokens = tokenize(tournament.name)
+    const tournamentId = tournament.id
+    const tournamentName = tournament.name
+    const tournamentLevel = tournament.level
+
+    // Opt into the FIP-channel title-token heuristic *only* for currently-
+    // active tournaments. The window [starts_at, ends_at + 24h] is wide
+    // enough to cover late finals on the final day but tight enough to
+    // exclude past editions of the same event still in the DB. Past
+    // editions are the original false-positive concern the strict-
+    // attribution rule was built around — gating on the active window
+    // neutralises that risk.
+    //
+    // If either date is missing we leave the flag off (defensive — we
+    // can't temporally place this tournament safely).
+    const nowMs = Date.now()
+    const startsAtMs = tournament.starts_at ? new Date(tournament.starts_at).getTime() : null
+    const endsAtMs = tournament.ends_at ? new Date(tournament.ends_at).getTime() : null
+    const applyFipHeuristic =
+      startsAtMs != null && endsAtMs != null &&
+      nowMs >= startsAtMs &&
+      nowMs <= endsAtMs + 24 * 60 * 60 * 1000
 
     // Fetch all active broadcasters (across countries) so the region
     // picker can switch without a round-trip; buildGroups filters by
@@ -1432,23 +1590,46 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       .order('display_order', { ascending: true })
       .order('is_free', { ascending: false })
 
+    // Live channels across ALL active YouTube channels (no abbreviation
+    // filter). Per-tournament filtering happens in-memory via
+    // filterTournamentStreams once all queries resolve.
     const liveChannelsP = supabase
       .from('youtube_channel_live')
       .select(`video_id, title, channel:youtube_channels!inner(id, name, abbreviation, color_hex, display_order)`)
       .gt('last_seen_at', new Date(Date.now() - STALE_MS).toISOString())
       .eq('channel.is_active', true)
-      .eq('channel.abbreviation', tournamentChannelAbbr)
 
+    // All active channels' metadata (no abbreviation filter — broadcaster-only
+    // groups still need channel meta to render even when a channel isn't
+    // currently live).
     const channelsMetaP = supabase
       .from('youtube_channels')
       .select('id, name, abbreviation, color_hex, display_order')
       .eq('is_active', true)
-      .eq('abbreviation', tournamentChannelAbbr)
 
-    Promise.all([broadcastersP, liveChannelsP, channelsMetaP]).then(([bRes, lcRes, cmRes]) => {
+    // Canonical FIP TOUR attribution: video IDs explicitly mapped to this
+    // tournament (manual ops backfills + anything the discovery cron ever
+    // attributed). Always wins inside filterTournamentStreams, so an
+    // operator-set row beats heuristic guesses even when both would match.
+    //
+    // For tournaments inside their active window we *also* apply a title-
+    // token heuristic on top — that's what surfaces live FIP TOUR videos
+    // the attribution pipeline never produced (see applyFipHeuristic above
+    // and filter-tournament-streams.ts for the long-form rationale).
+    //
+    // No `state` filter on purpose — youtube_channel_live is pruned ~30 min
+    // after a video goes offline, so archived attribution IDs can never
+    // appear in the live set we intersect against.
+    const attributedP = supabase
+      .from('fip_court_streams')
+      .select('youtube_video_id')
+      .eq('tournament_id', tournamentId)
+
+    Promise.all([broadcastersP, liveChannelsP, channelsMetaP, attributedP]).then(([bRes, lcRes, cmRes, attRes]) => {
       if (cancelled) return
       setWtwBroadcasters(((bRes.data ?? []) as BroadcasterRow[]))
-      const liveRows = (lcRes.data ?? []).map((r: any) => {
+
+      const allLiveVideos = (lcRes.data ?? []).map((r: any) => {
         const ch = Array.isArray(r.channel) ? r.channel[0] : r.channel
         if (!ch) return null
         return {
@@ -1463,7 +1644,19 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           },
         }
       }).filter((x: LiveChannel | null): x is LiveChannel => x !== null)
-      setWtwLiveChannels(liveRows)
+
+      const attributedSet = new Set(
+        (attRes.data ?? []).map((r: any) => r.youtube_video_id as string)
+      )
+
+      const filteredLive = filterTournamentStreams({
+        liveVideos: allLiveVideos,
+        attributedVideoIds: attributedSet,
+        tournamentNameTokens,
+        applyFipHeuristic,
+      })
+      setWtwLiveChannels(filteredLive)
+
       const channelsMeta = (cmRes.data ?? []).map((r: any) => ({
         id: r.id as string,
         name: r.name as string,
@@ -1472,12 +1665,27 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         displayOrder: r.display_order as number,
       }))
       setWtwChannelsMeta(channelsMeta)
+
+      // FIP-TOUR-only fallback: when nothing matched and this is an FIP-tier
+      // tournament, surface a single tournament-scoped channel-search row.
+      // Premier and other tiers do NOT get a fallback (the search URL is FIP
+      // TOUR's handle — would mislead on a Premier page).
+      if (filteredLive.length === 0 && isFipTier(tournamentLevel)) {
+        setWtwFallback({
+          url: tournamentSearchUrl(tournamentName),
+          tournamentName,
+        })
+      } else {
+        setWtwFallback(null)
+      }
     }).catch(err => {
-      if (!cancelled) console.warn('[tournament:wtw] fetch failed:', err)
+      if (cancelled) return
+      console.warn('[tournament:wtw] fetch failed:', err)
+      setWtwFallback(null)
     })
 
     return () => { cancelled = true }
-  }, [tournamentChannelAbbr])
+  }, [tournament?.id, tournament?.name, tournament?.level, tournamentChannelAbbr])
 
   useEffect(() => {
     if (!tournament?.id || !tournament?.name || !tournament?.level || !tournament?.starts_at) return
@@ -1635,7 +1843,8 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   })()
   const displayMatches = totalMatches || expectedMatches
 
-  // Schedule
+  // Schedule — derived from the matches table so it works for every
+  // tournament, not just the ~10% with a published factsheet PDF.
   const schedule = availableRounds.map(round => {
     const count = genderMatches.filter(m => normalizeRoundFull(m.round as string) === round).length
     return { round, date: roundDates[round] ?? '', count }
@@ -1791,6 +2000,103 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         </>
       )}
 
+      {/* Factsheet download — FIP publishes a PDF factsheet on most
+          Platinum/Major/Premier events; detected by padelgod's
+          fip-event-page-enricher and stored on tournament.factsheet_url. */}
+      {tournament?.factsheet_url && (
+        <a
+          href={tournament.factsheet_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '12px 14px',
+            background: BG_CARD,
+            clipPath: CHUNKY.card,
+            border: `1px solid ${BORDER}`,
+            color: '#fff',
+            textDecoration: 'none',
+            fontSize: 13,
+            fontWeight: 600,
+            marginBottom: 16,
+          }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <polyline points="9 15 12 18 15 15" />
+          </svg>
+          <span style={{ flex: 1 }}>{tTournament('downloadFactsheet')}</span>
+          <span style={{ color: MUTED, fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>PDF</span>
+        </a>
+      )}
+
+      {/* Prize money breakdown — extracted from the factsheet PDF by the
+          process-factsheets cron. Per-round per-player payouts. */}
+      {(() => {
+        type PrizeRow = { round_label?: string; per_player_eur?: number | null }
+        const pm = tournament?.factsheet_data?.prize_money as PrizeRow[] | undefined
+        const rows = (pm ?? []).filter(p => p && typeof p.per_player_eur === 'number' && p.per_player_eur > 0)
+        if (rows.length === 0) return null
+
+        // Friendly labels — Claude returns enum-ish keys; show humans
+        // something readable. Fallback to the raw value title-cased.
+        const labelMap: Record<string, string> = {
+          winner: 'Winner',
+          finalist: 'Finalist',
+          semifinalist: 'Semifinalist',
+          quarterfinalist: 'Quarterfinalist',
+          round_16: 'Round of 16',
+          round_32: 'Round of 32',
+          last_of_qualy: 'Last of Qualy',
+          qualy_bonus: 'Qualy bonus',
+        }
+        const labelize = (raw: string | undefined) =>
+          labelMap[raw ?? ''] ?? (raw ?? '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        const formatEur = (v: number) => new Intl.NumberFormat('en', {
+          style: 'currency', currency: 'EUR', maximumFractionDigits: 0,
+        }).format(v)
+
+        return (
+          <>
+            <SectionHeader label={tTournament('prizeBreakdown')} />
+            <div style={{
+              background: BG_CARD,
+              clipPath: CHUNKY.card,
+              border: `1px solid ${BORDER}`,
+              padding: '4px 14px',
+              marginBottom: 16,
+            }}>
+              {rows.map((p, i) => (
+                <div
+                  key={`${p.round_label}-${i}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 0',
+                    borderBottom: i === rows.length - 1 ? 'none' : `1px solid ${BORDER}`,
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: '#fff', fontWeight: 600 }}>
+                    {labelize(p.round_label)}
+                  </span>
+                  <span style={{ fontSize: 13, color: GREEN, fontWeight: 700 }}>
+                    {formatEur(p.per_player_eur as number)}
+                    <span style={{ color: MUTED, fontWeight: 400, fontSize: 10, marginLeft: 4 }}>
+                      / {tTournament('perPlayer')}
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      })()}
+
       {/* Champion (current tournament, only once the final has been played) */}
       {currentChampion && (
         <ChampionTile
@@ -1853,9 +2159,12 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         channelsMeta={wtwChannelsMeta}
         todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
         geoCountry={wtwGeoCountry}
+        fallback={wtwFallback}
       />
 
-      {/* Schedule */}
+      {/* Schedule — date + round + match count, computed from the matches
+          table so every tournament has it (the factsheet PDF schedule was
+          richer but only ~10% of events publish one). */}
       {schedule.length > 0 && (
         <>
           <SectionHeader label="Schedule" />
@@ -1871,7 +2180,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
                 borderBottom: i < schedule.length - 1 ? `0.5px solid ${BORDER}` : 'none',
               }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? GREEN : MUTED, width: 50 }}>
-                  {s.date.split('-')[0]?.trim() || '\u2014'}
+                  {s.date.split('-')[0]?.trim() || '—'}
                 </span>
                 <span style={{ fontSize: 12, color: MUTED, flex: 1 }}>
                   {s.round} ({s.count} {s.count === 1 ? 'match' : 'matches'})

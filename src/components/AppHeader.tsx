@@ -10,23 +10,12 @@ import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import ProfileButton from '@/components/ProfileButton'
 
-import { useInvite } from '@/hooks/useInvite'
-import { useAuth } from '@/components/AuthProvider'
-
 const CHUNKY = {
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
 }
 
 export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void }) {
   const tHome = useTranslations('home')
-  const tCommon = useTranslations('common')
-  const { user } = useAuth()
-  const { shareNow } = useInvite()
-
-  // Defer auth-dependent rendering until after hydration to avoid
-  // React #418 — SSR has user=null, client has cached user.
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
 
   // Rotating search hints — all 5 translated per locale (keys live under `home`)
   const searchHints = [
@@ -112,33 +101,6 @@ export default function AppHeader({ onSearchOpen }: { onSearchOpen?: () => void 
           {searchHints[hintIdx]}
         </span>
       </div>
-
-      {/* Share icon — always visible */}
-      {mounted && (
-        <button
-          onClick={() => { void shareNow() }}
-          aria-label={tCommon('shareApp')}
-          style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            clipPath: CHUNKY.button,
-            width: 34, height: 34,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-            marginRight: 8,
-            padding: 0,
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7ED321" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-        </button>
-      )}
 
       {/* Profile / Login */}
       <ProfileButton />

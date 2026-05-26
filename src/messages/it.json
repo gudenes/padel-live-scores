@@ -341,25 +341,30 @@
       "close": "Chiudi",
       "autoTranslated": "Tradotto automaticamente · {from} → {to}",
       "previewUnavailable": "Anteprima non disponibile. Tocca sotto per leggere alla fonte."
-    }
+    },
+    "foryou": "Per Te"
   },
   "home": {
     "liveNow": "In Diretta",
     "ongoing": "In Corso",
     "comingUp": "In Programma",
     "liveTournaments": {
-      "title": "Tornei in diretta",
-      "chipLiveToday": "In diretta / Oggi",
-      "_chipLiveToday_context": "Filter chip above the Live Tournaments home-page carousel. Active when a tournament is currently running today (any tier). The slash is literal. Width budget is narrow — keep short.",
-      "chipUpcoming": "In arrivo",
-      "_chipUpcoming_context": "Filter chip for tournaments starting within the next 7 days. Sibling chip to chipLiveToday. Different from the existing `comingUp` key which refers to upcoming individual matches.",
+      "title": "Tornei",
+      "upcomingChip": "PROSSIMO",
+      "_upcomingChip_context": "Small chip in the top-left slot of a tournament carousel card whose start date is in the future (not yet running). Counterpart to the red LIVE chip and the gold CROWNED chip. Uppercase by convention. Width budget is tight — keep short.",
       "matchesTodayCount": "{count, plural, one {# partita oggi} other {# partite oggi}}",
       "restDay": "Giorno di riposo",
       "_restDay_context": "Status line on a tournament card when the tournament is running but has zero matches scheduled in the user's local day today. Not a holiday or vacation — specifically 'no matches today'.",
-      "startsOn": "Inizia {date}",
-      "_startsOn_context": "Status line on a tournament card under the UPCOMING chip. {date} is a short localised date string (e.g. 'May 22') formatted by next-intl's DATE_SHORT pattern. Adjust prepositions/articles for the language as needed.",
+      "startsToday": "Inizia oggi",
+      "_startsToday_context": "Status line on an UPCOMING tournament card whose start date is the user's local today but matches haven't begun yet. Sibling keys: startsTomorrow (count=1), startsInDays (count>=2).",
+      "startsTomorrow": "Inizia domani",
+      "_startsTomorrow_context": "Status line on an UPCOMING tournament card whose start date is exactly one calendar day after today in the user's local timezone. Sibling keys: startsToday (count=0), startsInDays (count>=2).",
+      "startsInDays": "Inizia tra {count, plural, one {# giorno} other {# giorni}}",
+      "_startsInDays_context": "Status line on an UPCOMING tournament card whose start date is 2+ days away (within the 7-day carousel window). {count} is the whole-day diff between today and the tournament's start date in the user's local timezone. Sibling keys: startsToday (count=0), startsTomorrow (count=1).",
       "viewMatches": "Vedi partite",
-      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short."
+      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short.",
+      "viewRecap": "Vedi resoconto",
+      "crowned": "Concluso"
     },
     "highlightsAndNews": "Highlights e Notizie",
     "latestNews": "Ultime notizie",
@@ -495,6 +500,8 @@
     "perPlayer": "per giocatore",
     "prizeBreakdown": "Distribuzione premio",
     "inferredPrizeNote": "Stimato dal montepremi totale",
+    "downloadFactsheet": "Scarica scheda",
+    "matchSchedule": "Calendario partite",
     "events": "Eventi",
     "bracket": {
       "noDrawForCategory": "Nessun dato di tabellone per questa categoria."
@@ -562,7 +569,35 @@
     "shape_hybrid": "Ibrida",
     "balance_head-heavy": "Alto",
     "balance_balanced": "Medio",
-    "balance_head-light": "Basso"
+    "balance_head-light": "Basso",
+    "nextMatch": "Prossima partita",
+    "nextTournament": "Prossimo torneo",
+    "earningsTab": "Guadagni",
+    "earningsTabNewPill": "NEW",
+    "earningsTabNewPill_context": "Distintivo di scoperta nella nuova scheda Guadagni",
+    "ytdEarningsCard": "YTD {year}",
+    "careerEarningsCard": "Carriera",
+    "earningsEventsCount": "{count, plural, one {# evento} other {# eventi}}",
+    "earningsTournamentsCount": "{count, plural, one {# torneo} other {# tornei}}",
+    "noEarningsForYear": "Nessun guadagno nel {year}",
+    "earningsAllYears": "Tutto",
+    "titlesCalloutLabel": "Titoli {year} · {count}",
+    "wonWithPartner": "c/ {partnerName}",
+    "seasonTournamentsCount": "{count, plural, one {# torneo} other {# tornei}}",
+    "playerNotInTop1000": "{name} non è nella top 1000",
+    "viewInRankings": "Vedi {name} nelle classifiche",
+    "roundLabel": {
+      "W": "Vincitore",
+      "F": "Finale",
+      "SF": "SF",
+      "QF": "QF",
+      "R16": "R16",
+      "R32": "R32",
+      "R64": "R64",
+      "Q1": "Q1",
+      "Q2": "Q2",
+      "Q3": "Q3"
+    }
   },
   "followButton": {
     "follow": "Segui",
@@ -1045,6 +1080,20 @@
     "retry": "Riprova",
     "banner": "Offline — ultima connessione alle {time}"
   },
+  "download": {
+    "ariaLabel": "Scarica l'app Padel Nachos",
+    "eyebrow": "Padel Nachos",
+    "title": "Porta il padel in diretta con te.",
+    "body": "Avvisi push. Punteggi all'istante. L'app completa, su iOS e Android.",
+    "appStoreAria": "Scarica Padel Nachos sull'App Store",
+    "appStoreEyebrow": "Scarica su",
+    "appStoreName": "App Store",
+    "playStoreAria": "Scarica Padel Nachos su Google Play",
+    "playStoreEyebrow": "DISPONIBILE SU",
+    "playStoreName": "Google Play",
+    "metaStrong": "Gratis per sempre.",
+    "metaTail": "Disponibile in cinque lingue."
+  },
   "consent": {
     "title": "Usiamo i cookie",
     "body": "Usiamo i cookie per migliorare punteggi e classifiche, capire come viene usata l'app e (presto) inviarti notifiche di partite live sui dispositivi che scegli.",
@@ -1230,6 +1279,47 @@
     "bannerLiveCount": "Guarda live · {count, plural, one {# opzione} other {# opzioni}}",
     "bannerWatchIn": "Guarda in {region}",
     "bannerWhere": "Dove guardare",
-    "seoSummary": "Guarda {target} live su {list}{extra, plural, =0 {} one { e # altra emittente regionale} other { e # altre emittenti regionali}}."
+    "seoSummary": "Guarda {target} live su {list}{extra, plural, =0 {} one { e # altra emittente regionale} other { e # altre emittenti regionali}}.",
+    "tournamentMatchedNudge": "Stiamo mostrando le trasmissioni identificate per questo torneo",
+    "tournamentEmptyNudge": "Non abbiamo ancora identificato trasmissioni per questo torneo",
+    "searchFallbackLabel": "Cerca \"{tournament}\" su FIP TOUR",
+    "searchFallbackButton": "Cerca"
+  },
+  "foryou": {
+    "swipeHint": "Scorri per il prossimo",
+    "aiSummary": "Riepilogo IA",
+    "save": "Salva",
+    "unsave": "Rimuovi",
+    "share": "Condividi",
+    "readSource": "Leggi articolo originale alla fonte",
+    "source": "Fonte",
+    "empty": "Ancora nessun articolo personalizzato. Torna presto.",
+    "endOfFeed": "Sei aggiornato",
+    "swipeHintBack": "Scorri verso il basso per il precedente",
+    "readArticle": "Leggi articolo",
+    "suggest": {
+      "button": "Suggerisci una fonte",
+      "title": "Suggerisci una fonte di notizie",
+      "description": "Conosci un sito di notizie di padel che non copriamo ancora? Incolla l'URL e lo aggiungeremo al feed Per Te.",
+      "urlLabel": "URL",
+      "urlPlaceholder": "https://...",
+      "noteLabel": "Perché è una buona fonte? (opzionale)",
+      "emailLabel": "Email (opzionale)",
+      "submit": "Invia",
+      "cancel": "Annulla",
+      "done": "Fatto",
+      "successHappy": "Abbiamo rilevato che è {type} di \"{name}\". Lo esamineremo e lo aggiungeremo entro pochi giorni.",
+      "successDup": "Copriamo già questo sito. Grazie per averci pensato!",
+      "successDefault": "Ricevuto. Daremo un'occhiata. (Non siamo riusciti a rilevare il tipo di feed, quindi richiederà revisione manuale.)",
+      "errorInvalidUrl": "Inserisci un URL valido (inizia con http:// o https://)",
+      "errorRateLimit": "Hai raggiunto il limite di oggi (3 invii). Riprova domani.",
+      "errorGeneric": "Qualcosa è andato storto. Riprova.",
+      "typeLabel": {
+        "rss": "un feed RSS",
+        "wp-api": "un sito WordPress",
+        "google-news-search": "una ricerca Google News",
+        "unknown": "una fonte di notizie"
+      }
+    }
   }
 }

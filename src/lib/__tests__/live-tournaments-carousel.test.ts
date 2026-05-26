@@ -3,6 +3,8 @@ import {
   compareTournamentsForCarousel,
   buildMatchInfoMap,
   getLocalDayBoundaryUTC,
+  hasStarted,
+  daysUntilStart,
   type TournamentForSort,
   type MatchForAggregation,
 } from '../live-tournaments-carousel'
@@ -110,5 +112,50 @@ describe('getLocalDayBoundaryUTC', () => {
     const { startUTC, endUTC } = getLocalDayBoundaryUTC(now)
     expect(new Date(startUTC).getTime()).toBeLessThanOrEqual(now.getTime())
     expect(new Date(endUTC).getTime()).toBeGreaterThanOrEqual(now.getTime())
+  })
+})
+
+describe('hasStarted', () => {
+  it('returns true when starts_at is in the past', () => {
+    expect(hasStarted('2026-05-20T00:00:00Z', new Date('2026-05-21T00:00:00Z'))).toBe(true)
+  })
+  it('returns false when starts_at is in the future', () => {
+    expect(hasStarted('2026-05-22T00:00:00Z', new Date('2026-05-21T00:00:00Z'))).toBe(false)
+  })
+  it('returns true at the exact starts_at instant', () => {
+    expect(hasStarted('2026-05-21T12:00:00Z', new Date('2026-05-21T12:00:00Z'))).toBe(true)
+  })
+})
+
+describe('daysUntilStart', () => {
+  it('returns 0 for a tournament starting today', () => {
+    expect(daysUntilStart('2026-05-21T08:00:00', new Date('2026-05-21T15:00:00'))).toBe(0)
+  })
+  it('returns 1 for tomorrow', () => {
+    expect(daysUntilStart('2026-05-22T08:00:00', new Date('2026-05-21T15:00:00'))).toBe(1)
+  })
+  it('returns the calendar-day diff for 5 days out', () => {
+    expect(daysUntilStart('2026-05-26T08:00:00', new Date('2026-05-21T15:00:00'))).toBe(5)
+  })
+  it('survives DST spring-forward (47h gap maps to 2 calendar days)', () => {
+    // 2026 US DST starts 2026-03-08. Sun 2am skips to 3am; days 2026-03-08 to 2026-03-10 are 47h apart.
+    expect(daysUntilStart('2026-03-10T08:00:00', new Date('2026-03-08T08:00:00'))).toBe(2)
+  })
+})
+
+describe('compareTournamentsForCarousel: mixed live/upcoming window', () => {
+  // Regression guard: Premier-first must hold even when ranking a Premier
+  // event starting in 5 days against a FIP event running right now.
+  it('Premier Major starting in 5d still beats FIP Silver running today', () => {
+    const liveSilver = makeT({ id: 'silver-live', level: 'fip_silver', starts_at: '2026-05-20T00:00:00Z' })
+    const futureMajor = makeT({ id: 'major-future', level: 'major', starts_at: '2026-05-26T00:00:00Z' })
+    const sorted = [liveSilver, futureMajor].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['major-future', 'silver-live'])
+  })
+  it('within Premier tier, earlier starts_at wins regardless of live/upcoming', () => {
+    const upcomingP1 = makeT({ id: 'p1-upcoming', level: 'p1', starts_at: '2026-05-22T00:00:00Z' })
+    const liveP1 = makeT({ id: 'p1-live', level: 'p1', starts_at: '2026-05-21T00:00:00Z' })
+    const sorted = [upcomingP1, liveP1].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['p1-live', 'p1-upcoming'])
   })
 })

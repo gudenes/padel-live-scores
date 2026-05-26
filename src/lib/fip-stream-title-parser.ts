@@ -36,7 +36,7 @@ function stripDiacritics(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
-function tokenize(s: string): string[] {
+export function tokenize(s: string): string[] {
   return stripDiacritics(s)
     .toLowerCase()
     .split(/[^a-z0-9]+/)

@@ -1,0 +1,10 @@
+{
+  "stream_label": "premier_padel_mid_set_1",
+  "notes": "Premier Padel Tour broadcast scoreboard, mid-first-set state (0 completed sets). Calibrated against the Qatar Airways Doha 2026 women's broadcast (SANCHEZ/USTERO vs CASTELLO/RUFO, https://www.youtube.com/watch?v=PlesWHaaGMg). 1920x1080 source frames assumed. Layout shifts when sets complete; later set states need a separate calibration (V1.2 — currently a known limitation). The scoreboard graphic appears top-left, with white text on a dark navy nameplate for player names and a slightly-lighter background for the score columns.",
+  "scoreboard_bbox": [100, 60, 460, 60],
+  "row_layout": "two_pair_horizontal",
+  "pair_label_column": {"x": 0, "width": 270},
+  "set_columns": [],
+  "current_set_column": {"x": 298, "width": 25},
+  "current_game_column": {"x": 325, "width": 55}
+}

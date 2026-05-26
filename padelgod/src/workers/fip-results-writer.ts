@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import { parseSetScores } from './static-reconciler.js';
 import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
+import { paginatedSelect } from '../lib/db-paginate.js';
 
 /**
  * fip-results-writer — simplified-pipeline writer #3.
@@ -316,25 +317,65 @@ async function getActiveWidgetIdCode(
   return (data?.widget_id as string | undefined) ?? null;
 }
 
+/**
+ * How far back (hours) `loadLatestResultsRows` looks. Bounds the scan so
+ * tournaments with a tall snapshot history (results-fetcher writes ~80
+ * widgets × 288 ticks/day) don't blow the PostgREST statement timeout.
+ * Any match that needs the writer's attention has by definition had a
+ * recent snapshot — the terminal-status regression guard makes older
+ * already-applied snapshots no-ops anyway.
+ */
+const RESULTS_LOOKBACK_HOURS = 24;
+
 async function loadLatestResultsRows(
   supabase: SupabaseClient,
   tournamentId: string
 ): Promise<ResultsRow[]> {
-  const { data, error } = await supabase
-    .schema('padelgod')
-    .from('results_snapshots')
-    .select(
-      'tournament_id, match_widget_id, category, day_number, round_label, court, ' +
-        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-        'set_scores, winner_team, status, captured_at'
-    )
-    .eq('tournament_id', tournamentId);
-  if (error) {
-    throw new Error(
-      `results_snapshots read failed (tournament=${tournamentId}): ${error.message}`
-    );
-  }
-  const rows = (data ?? []) as unknown as ResultsRow[];
+  // Pagination + recent-window filter are required: per-tournament
+  // `results_snapshots` rows accumulate at ~80 widgets × 288 ticks/day,
+  // so a multi-day tournament holds 50k–100k rows. Two problems land on
+  // top of each other:
+  //
+  //   1. PostgREST's `db_max_rows` cap (10k) silently truncates any
+  //      unranged read. Without an ORDER BY the returned slice is
+  //      roughly insertion order (oldest first) — for long events that
+  //      means the LATEST captures (today's Finals) are exactly what
+  //      gets dropped, and the dedup-by-widget Map below never sees the
+  //      terminal row. FIP BRONZE LATINA 2026-05-24 hit this on the
+  //      men's Final retirement (21k+ rows at the time).
+  //   2. Even with pagination, sorting captured_at DESC across the full
+  //      table requires a full scan + sort and exceeds Supabase's
+  //      statement timeout on the biggest tournaments (FIP BRONZE
+  //      YOGYAKARTA was at 66k+ rows in the same incident).
+  //
+  // The recent-window filter (captured_at >= now() - 24h) bounds the
+  // scan to a few hundred rows per tournament and plays nicely with
+  // `idx_results_snap_recent (captured_at DESC)`. See CLAUDE.md →
+  // "PostgREST 10k cap" for the project policy, and
+  // `fip-oop-writer.ts::loadLatestOopRows` for the sibling pagination
+  // pattern (oop_snapshots is small enough to skip the window filter).
+  const sinceIso = new Date(
+    Date.now() - RESULTS_LOOKBACK_HOURS * 3600_000
+  ).toISOString();
+  const rows = await paginatedSelect<ResultsRow>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('results_snapshots')
+        .select(
+          'tournament_id, match_widget_id, category, day_number, round_label, court, ' +
+            'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+            'set_scores, winner_team, status, captured_at'
+        )
+        .eq('tournament_id', tournamentId)
+        .gte('captured_at', sinceIso)
+        .order('captured_at', { ascending: false })
+        .range(start, end),
+    {
+      what: `results_snapshots (tournament=${tournamentId})`,
+      pageSize: 10_000,
+    },
+  );
 
   const latest = new Map<string, ResultsRow>();
   for (const r of rows) {

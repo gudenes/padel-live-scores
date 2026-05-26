@@ -15,6 +15,7 @@ import {
   parseDrawSizes,
   parseOverviewFields,
   parsePrizeBreakdown,
+  parseFactsheetUrl,
 } from '../parsers/fip-event-page-detail.js';
 
 export interface FipEventPageEnricherDeps {
@@ -49,6 +50,7 @@ export interface TournamentRow {
   prize_money_fip: number | null;
   prize_breakdown: unknown;
   level: string | null;
+  factsheet_url: string | null;
 }
 
 const FIP_BASE = 'https://www.padelfip.com';
@@ -119,7 +121,8 @@ export async function runFipEventPageEnricher(
         'venue, venue_address, venue_type, signup_fee_eur, schedule_notes, ' +
         'round_schedule, ' +
         'draw_size_md, draw_size_qd, ' +
-        'registration_status, prize_money_fip, prize_breakdown, level',
+        'registration_status, prize_money_fip, prize_breakdown, level, ' +
+        'factsheet_url',
     )
     .or(`source.eq.fip,fip_id.not.is.null`)
     .or(`ends_at.is.null,ends_at.gte.${cutoff}`)
@@ -189,7 +192,60 @@ export async function runFipEventPageEnricher(
 
       writeFromFip('starts_at', t.starts_at, dates.startsAt)
       writeFromFip('ends_at', t.ends_at, dates.endsAt)
-      writeFromFip('matchscorer_url', t.matchscorer_url, matchscorer?.code ?? null)
+
+      // Matchscorer-code conflict check.
+      //
+      // The matchscorer code is the authoritative identity of a
+      // physical tournament — Crionet hosts ONE bracket per code. If
+      // another tournament row already carries this code, the two
+      // rows describe the same physical event and writing here would
+      // create (or perpetuate) a duplicate. The discovery worker's
+      // `isPhysicalTwin` guard catches the sponsor-suffix subset case
+      // (`{abu, dhabi} ⊂ {damac, abu, dhabi}`) but not full rebrands,
+      // and any dup that predates that guard (PR #372, 2026-05-21)
+      // sits in the DB until merged. Skipping the write here keeps
+      // the canonical row owning the code; the orphan stays
+      // detectable for `scripts/merge-matchscorer-duplicates.ts`.
+      //
+      // Also gates the `widget_id_cache` mirror — pointing a second
+      // cache row at the same code would race downstream workers
+      // over which tournament_id owns the bracket.
+      let matchscorerConflict: { id: string; name: string } | null = null
+      if (matchscorer?.code) {
+        const { data: conflict, error: conflictErr } = await deps.supabase
+          .from('tournaments')
+          .select('id, name')
+          .eq('matchscorer_url', matchscorer.code)
+          .neq('id', t.id)
+          .limit(1)
+          .maybeSingle()
+        if (conflictErr) {
+          // Don't fail enrichment over a probe — log and proceed
+          // without writing the code (defensive default; if the
+          // probe is unreliable, treating it as "no conflict" risks
+          // silently creating dupes).
+          deps.logger?.warn(
+            { tournamentId: t.id, slug, err: conflictErr.message },
+            'fip-event-page-enricher: matchscorer_url conflict probe failed — skipping matchscorer write',
+          )
+          matchscorerConflict = { id: 'probe-failed', name: '' }
+        } else if (conflict) {
+          matchscorerConflict = conflict as { id: string; name: string }
+          deps.logger?.warn(
+            {
+              tournamentId: t.id,
+              tournamentName: t.slug,
+              conflictTournamentId: matchscorerConflict.id,
+              conflictTournamentName: matchscorerConflict.name,
+              matchscorerCode: matchscorer.code,
+            },
+            'fip-event-page-enricher: matchscorer_url conflict — another tournament already owns this code; skipping write. Run scripts/merge-matchscorer-duplicates.ts to resolve.',
+          )
+        }
+      }
+      if (!matchscorerConflict) {
+        writeFromFip('matchscorer_url', t.matchscorer_url, matchscorer?.code ?? null)
+      }
 
       // Mirror the matchscorer code into padelgod.widget_id_cache. Two
       // workers populate that table:
@@ -212,7 +268,7 @@ export async function runFipEventPageEnricher(
       // hit the 12-attempt circuit breaker without finding the code).
       // See `widget-code-lookup` worker + the Tournament Explorer's
       // `padelgod.widget_id_cache` fallback merged in `ef1c036`.
-      if (matchscorer?.code) {
+      if (matchscorer?.code && !matchscorerConflict) {
         const { error: cacheErr } = await deps.supabase
           .schema('padelgod')
           .from('widget_id_cache')
@@ -258,6 +314,17 @@ export async function runFipEventPageEnricher(
       writeFromFip('prize_money_fip', t.prize_money_fip, drawSize.prizeMoney)
       writeFromFip('prize_breakdown', t.prize_breakdown, prizeBreakdown)
       writeFromFip('registration_status', t.registration_status, overview.registrationStatus)
+
+      // Factsheet PDF: detect link from event page. When the URL CHANGES,
+      // also reset factsheet_processed_at so the processor cron re-extracts
+      // against the new file. If we ever see a re-upload (FACTSHEET-2.pdf
+      // replacing FACTSHEET-1.pdf, or a year/month folder bump), this
+      // ensures the cached factsheet_data refreshes.
+      const newFactsheetUrl = parseFactsheetUrl(html)
+      if (newFactsheetUrl && newFactsheetUrl !== t.factsheet_url) {
+        patch.factsheet_url = newFactsheetUrl
+        patch.factsheet_processed_at = null
+      }
 
       // For padelapi-survivor rows, registration_status still flips
       // open→closed during the life cycle and padelapi doesn't track
