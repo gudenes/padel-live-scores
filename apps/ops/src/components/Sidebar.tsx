@@ -49,6 +49,7 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
       { href: '/system/padelgod-health', label: 'Padelgod Health' },
       { href: '/system/shadow-mode', label: 'Shadow Mode' },
       { href: '/system/architecture', label: 'Architecture' },
+      { href: '/system/seo', label: 'SEO' },
     ],
   },
 ] as const
