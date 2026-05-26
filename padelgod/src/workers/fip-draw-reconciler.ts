@@ -231,7 +231,25 @@ function computeByePatch(
   }
 
   // Status + winner_pair
-  if (existing.status !== 'walkover') patch.status = 'walkover';
+  //
+  // BYE-through cells get our schema's `status='bye'`, NOT `'walkover'`.
+  // The FIP draw_snapshot encodes both "real walkover" (both teams named,
+  // one withdrew) and "BYE-through" (one side empty, seeded team auto-
+  // advances) as `status='walkover'`. Our schema has separate semantics:
+  //
+  //   - `walkover` → match was scheduled, opponent withdrew, team won by W/O
+  //   - `bye`      → team auto-advanced because no opponent assigned
+  //
+  // The match-detail page in the Next.js app treats `walkover` as
+  // `isFinished` and renders a "WINNER" banner with a W/O badge
+  // (src/app/[locale]/match/[id]/page.tsx:480). For a BYE row that
+  // representation is wrong — the team didn't win anything; they just
+  // had no opponent. MatchCard already renders `'bye'` with a
+  // distinct "Bye" label (src/app/components/MatchCard.tsx:56). Using
+  // `'bye'` here keeps the bracket honest. `winner_pair` is still set
+  // on the bye side so fip-winner-propagator can advance the team to
+  // the next round.
+  if (existing.status !== 'bye') patch.status = 'bye';
   if (existing.winner_pair !== byePair) patch.winner_pair = byePair;
 
   // Round drift
