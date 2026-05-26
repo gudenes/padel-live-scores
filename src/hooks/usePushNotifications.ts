@@ -19,6 +19,20 @@ import { useAuth } from '@/components/AuthProvider'
 import { Capacitor } from '@capacitor/core'
 import { cacheFcmToken, postFcmToken } from '@/lib/persist-fcm-token'
 
+// Structured failure reasons surfaced to the UI when a subscribe attempt
+// can't complete. Pre-fix (silent fail), users would tap the master toggle
+// and see nothing happen — no toast, no banner, no console output unless
+// they were remote-debugging the WebView. Returning a discriminator lets
+// the Settings page render an actionable message per cause.
+export type SubscribeError =
+  | { kind: 'not-signed-in' }
+  | { kind: 'os-denied' }
+  | { kind: 'token-unavailable'; message: string }
+  | { kind: 'server-auth' }       // POST returned 401 — session cookie missing
+  | { kind: 'server-error'; status: number }
+  | { kind: 'network'; message: string }
+  | { kind: 'not-supported' }
+
 // Same key the rest of the app uses (see persist-fcm-token.ts).
 const FCM_TOKEN_STORAGE_KEY = 'padelnachos:fcm-token'
 
@@ -51,6 +65,7 @@ function mapNativePermission(
 export function usePushNotifications() {
   const { user } = useAuth()
   const [enabled, setEnabled] = useState(false)
+  const [lastError, setLastError] = useState<SubscribeError | null>(null)
   // Lazy-initialize all the synchronous values at first client render so
   // we never call setState inside useEffect (`react-hooks/set-state-in-effect`)
   // and keep SSR safe (typeof window check runs only on the client).
@@ -127,21 +142,52 @@ export function usePushNotifications() {
   // Doing the get+post inline guarantees the row exists before the toggle
   // settles. UPSERT on the server side makes duplicate POSTs harmless.
   const subscribeNative = useCallback(async () => {
-    if (!user) return false
+    setLastError(null)
+    if (!user) {
+      setLastError({ kind: 'not-signed-in' })
+      return false
+    }
     try {
       const { FirebaseMessaging } = await import('@capacitor-firebase/messaging')
       const perm = await FirebaseMessaging.requestPermissions()
       const mapped = mapNativePermission(perm.receive)
       setPermission(mapped)
-      if (mapped !== 'granted') return false
+      if (mapped !== 'granted') {
+        setLastError({ kind: 'os-denied' })
+        return false
+      }
 
-      const { token } = await FirebaseMessaging.getToken()
+      let token: string
+      try {
+        const res = await FirebaseMessaging.getToken()
+        token = res.token
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e)
+        console.error('[Push native] getToken failed:', e)
+        setLastError({ kind: 'token-unavailable', message })
+        setEnabled(false)
+        return false
+      }
+
       cacheFcmToken(token)
-      const ok = await postFcmToken(token)
-      setEnabled(ok)
-      return ok
+      const result = await postFcmToken(token)
+      if (!result.ok) {
+        if (result.status === 401) {
+          setLastError({ kind: 'server-auth' })
+        } else if (result.status === null) {
+          setLastError({ kind: 'network', message: result.error })
+        } else {
+          setLastError({ kind: 'server-error', status: result.status })
+        }
+        setEnabled(false)
+        return false
+      }
+      setEnabled(true)
+      return true
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
       console.error('[Push native] subscribe failed:', e)
+      setLastError({ kind: 'token-unavailable', message })
       setEnabled(false)
       return false
     }
@@ -192,21 +238,35 @@ export function usePushNotifications() {
 
   // ── Web Push subscribe/unsubscribe (unchanged from pre-fix) ─────────
   const subscribeWeb = useCallback(async () => {
-    if (!user || !supported) return false
+    setLastError(null)
+    if (!user) {
+      setLastError({ kind: 'not-signed-in' })
+      return false
+    }
+    if (!supported) {
+      setLastError({ kind: 'not-supported' })
+      return false
+    }
 
     let perm: NotificationPermission
     try {
       perm = await Notification.requestPermission()
       setPermission(perm)
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
       console.error('[Push] Permission request failed:', e)
+      setLastError({ kind: 'token-unavailable', message })
       return false
     }
-    if (perm !== 'granted') return false
+    if (perm !== 'granted') {
+      setLastError({ kind: 'os-denied' })
+      return false
+    }
 
     const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
     if (!vapidKey) {
       console.error('[Push] VAPID public key not configured')
+      setLastError({ kind: 'token-unavailable', message: 'VAPID public key not configured' })
       return false
     }
 
@@ -218,14 +278,25 @@ export function usePushNotifications() {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
       })
-      await fetch('/api/user/push-subscriptions', {
+      const res = await fetch('/api/user/push-subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint: subscription.endpoint, keys: subscription.toJSON().keys }),
       })
+      if (!res.ok) {
+        if (res.status === 401) {
+          setLastError({ kind: 'server-auth' })
+        } else {
+          setLastError({ kind: 'server-error', status: res.status })
+        }
+        setEnabled(false)
+        return false
+      }
       return true
     } catch (e) {
+      const message = e instanceof Error ? e.message : String(e)
       console.error('[Push] Subscribe failed:', e)
+      setLastError({ kind: 'network', message })
       setEnabled(false)
       return false
     }
@@ -277,5 +348,7 @@ export function usePushNotifications() {
     }
   }, [enabled, subscribe, unsubscribe])
 
-  return { enabled, supported, permission, toggle, subscribe, unsubscribe }
+  const clearError = useCallback(() => setLastError(null), [])
+
+  return { enabled, supported, permission, toggle, subscribe, unsubscribe, lastError, clearError }
 }

@@ -38,11 +38,24 @@ export function cacheFcmToken(token: string): void {
 }
 
 /**
- * POST the token to the backend. Returns true on success, false on any
- * failure (including 401 if the user isn't authenticated yet — that's
- * expected during app boot before the auth session loads).
+ * Result of posting the FCM token to the backend.
+ *
+ * `status` discriminates 401 (auth missing — expected during boot before
+ * AuthProvider has hydrated the session) from 5xx / network failures, so
+ * the UI can surface a specific message instead of swallowing every miss
+ * as the same opaque failure.
+ *
+ *   { ok: true, status: 200 }                — stored
+ *   { ok: false, status: 401 }               — auth missing
+ *   { ok: false, status: 5xx }               — server error
+ *   { ok: false, status: null, error: '…' }  — network / fetch threw
  */
-export async function postFcmToken(token: string): Promise<boolean> {
+export type PostFcmTokenResult =
+  | { ok: true; status: number }
+  | { ok: false; status: number; error?: undefined }
+  | { ok: false; status: null; error: string }
+
+export async function postFcmToken(token: string): Promise<PostFcmTokenResult> {
   try {
     const res = await fetch('/api/user/native-push-subscriptions', {
       method: 'POST',
@@ -53,10 +66,13 @@ export async function postFcmToken(token: string): Promise<boolean> {
         locale: navigator.language?.split('-')[0] || 'en',
       }),
     })
-    return res.ok
+    if (res.ok) return { ok: true, status: res.status }
+    console.warn('[persist-fcm-token] POST returned', res.status)
+    return { ok: false, status: res.status }
   } catch (err) {
-    console.warn('[persist-fcm-token] POST failed', err)
-    return false
+    const message = err instanceof Error ? err.message : String(err)
+    console.warn('[persist-fcm-token] POST threw', err)
+    return { ok: false, status: null, error: message }
   }
 }
 

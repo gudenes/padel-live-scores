@@ -935,7 +935,16 @@
           "sub": "New features, events, occasional news"
         }
       },
-      "saveError": "Couldn't save — please try again"
+      "saveError": "Couldn't save — please try again",
+      "errors": {
+        "notSignedIn": "Please sign in to enable push notifications.",
+        "osDenied": "Notifications are blocked in your device settings. Enable them in Settings → Apps → PadelNachos → Notifications.",
+        "tokenUnavailable": "Couldn't get a device token: {message}. Restart the app and try again.",
+        "serverAuth": "Your session expired. Please sign in again.",
+        "serverError": "Server error (status {status}). Please try again in a moment.",
+        "network": "Network error: {message}. Check your connection and retry.",
+        "notSupported": "Push notifications aren't supported in this browser."
+      }
     },
     "settingsLinkRow": {
       "label": "Notifications",
