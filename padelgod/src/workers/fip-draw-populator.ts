@@ -6,6 +6,15 @@ import type { Logger } from 'pino';
 // for the project policy.
 import { paginatedSelect } from '../lib/db-paginate.js';
 import { roundCanonical } from '../lib/round-canonical.js';
+// Low-level name/fip_id/player-UUID primitives — shared with
+// fip-draw-reconciler. The populator's higher-level tiered
+// `resolveFourPlayers` (bracket overlay + partner anchor) stays in
+// this file because it's coupled to the INSERT flow.
+import {
+  normalizeName as sharedNormalizeName,
+  loadPlayersByFipId as sharedLoadPlayersByFipId,
+  loadEntryListNameMap as sharedLoadEntryListNameMap,
+} from '../lib/draw-resolver.js';
 
 /**
  * fip-draw-populator — simplified-pipeline writer #1.
@@ -198,13 +207,6 @@ interface DrawRow {
   source: 'fip_event_page' | 'oop_snapshot';
 }
 
-interface EntryListRow {
-  name: string | null;
-  fip_id: string | null;
-  category: 'men' | 'women';
-  captured_at: string;
-}
-
 interface ExistingMatch {
   id: string;
   widget_id_composite: string;
@@ -242,19 +244,9 @@ const AMATEUR_TIER_LEVELS: ReadonlySet<string> = new Set([
 
 // ── Name normalization ─────────────────────────────────────────────────
 
-/**
- * Minimal name normalizer: lowercase, strip accents via NFKD, collapse
- * whitespace. Deliberately small — we're matching long-form → long-form
- * from the same FIP source, not doing fuzzy cross-source resolution.
- */
-export function normalizeName(name: string): string {
-  return name
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+// `normalizeName` lives in ../lib/draw-resolver.ts now (shared with the
+// reconciler). Re-exported here so existing test imports stay valid.
+export const normalizeName = sharedNormalizeName;
 /**
  * Build the short-form Crionet uses in OOP snapshots: first initial + dot +
  * space + all tokens after the first. For compound surnames the full compound
@@ -1735,46 +1727,10 @@ async function loadLatestOopRowsAsDrawRows(
 
 /**
  * @deprecated Use `buildPairIndex` instead. Kept exported for any external
- * callers that may still import this directly. The returned `nameToFipId`
- * map is also available as `(await buildPairIndex(...)).nameToFipId`.
+ * callers that may still import this directly. Body lives in
+ * ../lib/draw-resolver.ts now (shared with the reconciler).
  */
-export async function loadEntryListNameMap(
-  supabase: SupabaseClient,
-  tournamentId: string
-): Promise<Map<string, string>> {
-  // Paginate. Entry-list snapshots accumulate over time: each scrape
-  // appends a fresh batch of all the players, so a tournament running
-  // for a week with daily refreshes can easily exceed 5,000 rows.
-  // Without pagination the women's roster — which is typically scraped
-  // after the men's — falls past the 1000-row cap and disappears,
-  // breaking match-resolution for every women's match.
-  const rows = await paginatedSelect<EntryListRow>(
-    (start, end) =>
-      supabase
-        .schema('padelgod')
-        .from('entry_list_snapshots')
-        .select('name, fip_id, category, captured_at')
-        .eq('tournament_id', tournamentId)
-        .range(start, end),
-    { what: `entry_list_snapshots (tournament=${tournamentId})` },
-  );
-
-  // Latest captured_at per category — entry list may be updated over
-  // time and we always want the freshest roster.
-  const maxByCat = new Map<string, string>();
-  for (const r of rows) {
-    const prev = maxByCat.get(r.category);
-    if (!prev || r.captured_at > prev) maxByCat.set(r.category, r.captured_at);
-  }
-
-  const nameToFipId = new Map<string, string>();
-  for (const r of rows) {
-    if (!r.name || !r.fip_id) continue;
-    if (r.captured_at !== maxByCat.get(r.category)) continue;
-    nameToFipId.set(normalizeName(r.name), r.fip_id);
-  }
-  return nameToFipId;
-}
+export const loadEntryListNameMap = sharedLoadEntryListNameMap;
 
 /**
  * Pair-aware entry-list index.
@@ -1918,24 +1874,8 @@ export async function buildBracketOverlay(
   return overlay;
 }
 
-async function loadPlayersByFipId(
-  supabase: SupabaseClient,
-  fipIds: Set<string>
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  if (fipIds.size === 0) return map;
-  const { data, error } = await supabase
-    .from('players')
-    .select('id, fip_id')
-    .in('fip_id', Array.from(fipIds));
-  if (error) {
-    throw new Error(`players read failed: ${error.message}`);
-  }
-  for (const row of (data ?? []) as { id: string; fip_id: string }[]) {
-    if (row.id && row.fip_id) map.set(row.fip_id, row.id);
-  }
-  return map;
-}
+// Body lives in ../lib/draw-resolver.ts now (shared with the reconciler).
+const loadPlayersByFipId = sharedLoadPlayersByFipId;
 
 async function loadExistingMatchesByPrefix(
   supabase: SupabaseClient,

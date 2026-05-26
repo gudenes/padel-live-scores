@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
 import type { Logger } from 'pino';
 import { runTournamentDiscovery } from './workers/tournament-discovery.js';
+import { runFipCmsOrphanPrune } from './workers/fip-cms-orphan-prune.js';
 import { runWidgetCodeLookup } from './workers/widget-code-lookup.js';
 import { runPlayerRankings } from './workers/player-rankings.js';
 import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
@@ -11,7 +12,9 @@ import { runFipDrawFetcher } from './workers/fip-draw-fetcher.js';
 import { runFipDrawPopulator } from './workers/fip-draw-populator.js';
 import { runFipEntryListPopulator } from './workers/fip-entry-list-populator.js';
 import { runFipOopWriter } from './workers/fip-oop-writer.js';
+import { runFipDrawReconciler } from './workers/fip-draw-reconciler.js';
 import { runFipResultsWriter } from './workers/fip-results-writer.js';
+import { runFipDrawResultsWriter } from './workers/fip-draw-results-writer.js';
 import { runScheduleHintsWriter } from './workers/schedule-hints-writer.js';
 import { runFipWinnerPropagator } from './workers/fip-winner-propagator.js';
 import { runFipDrawLinker } from './workers/fip-draw-linker.js';
@@ -22,6 +25,7 @@ import { runMatchStatsFetcher } from './workers/match-stats-fetcher.js';
 import { runLivePollerManager } from './workers/live-poller-manager.js';
 import { runShadowDiffFinalizer } from './workers/shadow-diff-finalizer.js';
 import { runShadowDiffLive } from './workers/shadow-diff-live.js';
+import { runShadowDiffOcr } from './workers/shadow-diff-ocr.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
@@ -60,9 +64,15 @@ export interface SchedulerFlags {
   enableFipOopWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipOopWriterDryRun: boolean;
+  enableFipDrawReconciler: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  fipDrawReconcilerDryRun: boolean;
   enableFipResultsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipResultsWriterDryRun: boolean;
+  enableFipDrawResultsWriter: boolean;
+  /** Same dry-run semantics as the populator flag. Independent. */
+  fipDrawResultsWriterDryRun: boolean;
   enableFipWinnerPropagator: boolean;
   /** Same dry-run semantics. Independent. */
   fipWinnerPropagatorDryRun: boolean;
@@ -75,7 +85,13 @@ export interface SchedulerFlags {
   enableLivePollerManager: boolean;
   enableShadowDiffFinalizer: boolean;
   enableShadowDiffLive: boolean;
+  enableShadowDiffOcr: boolean;
   enableCloseStaleLiveSweeper: boolean;
+  enableFipCmsOrphanPrune: boolean;
+  /** Same dry-run semantics as the other FIP workers. Defaults to true
+   *  for safety; flip in Railway once the first run's dry-run output
+   *  is reviewed. */
+  fipCmsOrphanPruneDryRun: boolean;
   enableScheduleHintsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   scheduleHintsWriterDryRun: boolean;
@@ -120,7 +136,9 @@ export type WorkerName =
   | 'fip-draw-populator'
   | 'fip-entry-list-populator'
   | 'fip-oop-writer'
+  | 'fip-draw-reconciler'
   | 'fip-results-writer'
+  | 'fip-draw-results-writer'
   | 'fip-winner-propagator'
   | 'oop-fetcher'
   | 'results-fetcher'
@@ -129,7 +147,9 @@ export type WorkerName =
   | 'live-poller-manager'
   | 'shadow-diff-finalizer'
   | 'shadow-diff-live'
+  | 'shadow-diff-ocr'
   | 'close-stale-live-sweeper'
+  | 'fip-cms-orphan-prune'
   | 'schedule-hints-writer';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
@@ -147,7 +167,9 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-draw-populator',
   'fip-entry-list-populator',
   'fip-oop-writer',
+  'fip-draw-reconciler',
   'fip-results-writer',
+  'fip-draw-results-writer',
   'fip-winner-propagator',
   'oop-fetcher',
   'results-fetcher',
@@ -156,7 +178,9 @@ export const ALL_WORKERS: WorkerName[] = [
   'live-poller-manager',
   'shadow-diff-finalizer',
   'shadow-diff-live',
+  'shadow-diff-ocr',
   'close-stale-live-sweeper',
+  'fip-cms-orphan-prune',
   'schedule-hints-writer',
 ];
 
@@ -218,7 +242,21 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // cron entry threads the real env flag via closure.
       dryRun: true,
     });
+    case 'fip-draw-reconciler':  return (deps) => runFipDrawReconciler({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure.
+      dryRun: true,
+    });
     case 'fip-results-writer':   return (deps) => runFipResultsWriter({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure (buildSchedule below).
+      dryRun: true,
+    });
+    case 'fip-draw-results-writer': return (deps) => runFipDrawResultsWriter({
       supabase: deps.supabase,
       logger: deps.logger,
       // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
@@ -248,7 +286,16 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     });
     case 'shadow-diff-finalizer': return (deps) => runShadowDiffFinalizer({ supabase: deps.supabase, logger: deps.logger });
     case 'shadow-diff-live':      return (deps) => runShadowDiffLive({ supabase: deps.supabase, logger: deps.logger });
+    case 'shadow-diff-ocr':       return (deps) => runShadowDiffOcr({ supabase: deps.supabase, logger: deps.logger });
     case 'close-stale-live-sweeper': return (deps) => runCloseStaleLiveSweeper({ supabase: deps.supabase, logger: deps.logger });
+    case 'fip-cms-orphan-prune':     return (deps) => runFipCmsOrphanPrune({
+      supabase: deps.supabase,
+      httpClient: deps.httpClient,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure (see buildSchedule below).
+      dryRun: true,
+    });
     case 'schedule-hints-writer':   return (deps) => runScheduleHintsWriter({
       supabase: deps.supabase,
       logger: deps.logger,
@@ -446,6 +493,25 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       },
     });
   }
+  if (flags.enableFipDrawReconciler) {
+    entries.push({
+      name: 'fip-draw-reconciler',
+      // Hourly at :50 — sequenced ≥15 min AFTER fip-draw-populator
+      // (:47, writes/updates public.matches from latest draw_snapshot).
+      // Reads the same draw_snapshot rows the populator just consumed
+      // and applies a full-sync patch when the populator's NULL-only
+      // UPDATE rule left stale teams/seeds/round/status behind.
+      // DB-only worker; no upstream contention.
+      cron: '50 * * * *',
+      run: async (deps) => {
+        return runFipDrawReconciler({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipDrawReconcilerDryRun,
+        });
+      },
+    });
+  }
   if (flags.enableFipResultsWriter) {
     entries.push({
       name: 'fip-results-writer',
@@ -458,6 +524,25 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipResultsWriterDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableFipDrawResultsWriter) {
+    entries.push({
+      name: 'fip-draw-results-writer',
+      // Hourly at :40 — runs 5 min after fip-draw-fetcher (:35) so
+      // draw_snapshots from the current hour have landed. No upstream
+      // contention with fip-results-writer (every 5 min from :02): the
+      // terminal-status guard ensures whoever flipped a match first
+      // wins, the other becomes a no-op. Hourly is the right cadence
+      // here — fip-draw-fetcher itself only runs hourly.
+      cron: '40 * * * *',
+      run: async (deps) => {
+        return runFipDrawResultsWriter({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.fipDrawResultsWriterDryRun,
         });
       },
     });
@@ -542,6 +627,16 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       run: getWorkerRunner('shadow-diff-live')!,
     });
   }
+  if (flags.enableShadowDiffOcr) {
+    entries.push({
+      name: 'shadow-diff-ocr',
+      // Every 5 min at :3/:8/:13/... — offset from results-fetcher (:00/:05/...)
+      // and match-stats-fetcher (:00/:05/...) so it reads freshly-written sets.
+      // DB-only worker; reads padelgod.ocr_snapshots, writes padelgod.ocr_diff_events.
+      cron: '3-58/5 * * * *',
+      run: getWorkerRunner('shadow-diff-ocr')!,
+    });
+  }
   if (flags.enableCloseStaleLiveSweeper) {
     entries.push({
       name: 'close-stale-live-sweeper',
@@ -550,6 +645,23 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // state). Reads from our own DB — no external calls, safe to run frequently.
       cron: '*/5 * * * *',
       run: getWorkerRunner('close-stale-live-sweeper')!,
+    });
+  }
+  if (flags.enableFipCmsOrphanPrune) {
+    entries.push({
+      name: 'fip-cms-orphan-prune',
+      // Daily at 04:15 UTC (off-hours, well outside any tournament-day
+      // workload). Stamps + sweeps orphan FIP rows; idempotent. One
+      // FIP WP /events round-trip per run, ~2 paginated requests.
+      cron: '15 4 * * *',
+      run: async (deps) => {
+        return runFipCmsOrphanPrune({
+          supabase: deps.supabase,
+          httpClient: deps.httpClient,
+          logger: deps.logger,
+          dryRun: flags.fipCmsOrphanPruneDryRun,
+        });
+      },
     });
   }
   if (flags.enableScheduleHintsWriter) {

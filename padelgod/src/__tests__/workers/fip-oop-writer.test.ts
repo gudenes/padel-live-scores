@@ -3,6 +3,7 @@ import {
   runFipOopWriter,
   buildOopPatch,
   isPlaceholderScheduledAt,
+  isScheduledAtWriteEligible,
 } from '../../workers/fip-oop-writer.js';
 
 describe('isPlaceholderScheduledAt', () => {
@@ -32,6 +33,52 @@ describe('isPlaceholderScheduledAt', () => {
     // (UTC), not midnight UTC. Hypothetical exact midnight in a non-UTC
     // tz isn't a placeholder.
     expect(isPlaceholderScheduledAt('2026-05-01T22:00:00+00:00')).toBe(false);
+  });
+});
+
+describe('isScheduledAtWriteEligible', () => {
+  it('eligible when scheduled_at is null (never been set)', () => {
+    expect(isScheduledAtWriteEligible(null, null)).toBe(true);
+    expect(isScheduledAtWriteEligible(null, 'Followed by')).toBe(true);
+    expect(isScheduledAtWriteEligible(null, 'Starting at 5:00 PM')).toBe(true);
+  });
+
+  it('eligible when scheduled_at is the midnight-UTC padelapi placeholder', () => {
+    expect(isScheduledAtWriteEligible('2026-05-02T00:00:00+00:00', null)).toBe(true);
+    expect(isScheduledAtWriteEligible('2026-05-02T00:00:00Z', 'Followed by')).toBe(true);
+  });
+
+  it('eligible when current value is a "Followed by" estimate (chain can shift)', () => {
+    // Regression: FIP PLATINUM ALBANIA Q3 (2026-05-25) — the Q3 "Followed by"
+    // match was estimated at 12:00 UTC early in the day off a 09:00-anchored
+    // chain. Later in the day the OOP grew to include Q2 "Not before 3 PM"
+    // and Q3 "Not before 5 PM" rows; court_order rolled to 5, but
+    // scheduled_at stayed stuck at 12:00 UTC because the firm-only filter
+    // refused to overwrite. Allowing "Followed by" rows to re-enter the
+    // estimation pool fixes this — the chain now resolves to 16:30 UTC
+    // (15:00 + 90 min) on the next run.
+    expect(isScheduledAtWriteEligible('2026-05-25T12:00:00+00:00', 'Followed by')).toBe(true);
+    // Case-insensitive match — OOP capitalisation has wobbled historically.
+    expect(isScheduledAtWriteEligible('2026-05-25T12:00:00+00:00', 'followed by')).toBe(true);
+    expect(isScheduledAtWriteEligible('2026-05-25T12:00:00+00:00', 'FOLLOWED BY')).toBe(true);
+  });
+
+  it('NOT eligible when current value is firm — "Starting at" or "Not before"', () => {
+    // Absolute-time labels carry an authoritative time we must not clobber.
+    // Manual ops Schedule Review edits and padelapi-sourced firm times both
+    // land here, and re-estimating would undo operator intent.
+    expect(
+      isScheduledAtWriteEligible('2026-05-25T15:00:00+00:00', 'Starting at 5:00 PM'),
+    ).toBe(false);
+    expect(
+      isScheduledAtWriteEligible('2026-05-25T15:00:00+00:00', 'Not before 5:00 PM'),
+    ).toBe(false);
+  });
+
+  it('NOT eligible when scheduled_at is firm and schedule_label is null', () => {
+    // Defensive: a real scheduled_at with no label is treated as firm
+    // (e.g. a hand-set value or a legacy row predating schedule_label).
+    expect(isScheduledAtWriteEligible('2026-05-25T15:00:00+00:00', null)).toBe(false);
   });
 });
 

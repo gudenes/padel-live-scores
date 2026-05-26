@@ -186,17 +186,30 @@ export async function readOopFromSnapshots(
 
 /**
  * Look up canonical `public.matches.id` values for a batch of Crionet widget
- * ids via `entity_external_ids` (source='crionet_widget'). The external_id
- * format is `{tournamentWidgetId}:{matchWidgetId}` (e.g. "FIP-2026-1701:MD017").
+ * ids. The composite format is `{tournamentWidgetId}:{matchWidgetId}` (e.g.
+ * "FIP-2026-1701:MD017").
  *
- * Returns a Map from match widget id (e.g. "MD017") to match UUID for entries
- * found. Entries not found are simply absent from the map — callers should
- * fall back to fuzzy name matching for those.
+ * Two-tier lookup:
+ *   1. `entity_external_ids` (source='crionet_widget') — populated by the
+ *      live poller / static reconciler / match-identifier. Authoritative
+ *      when present.
+ *   2. `matches.widget_id_composite` — populator-owned rows (created by
+ *      `fip-draw-populator`) carry the composite in this hot column but
+ *      aren't registered in the sidecar until live polling fires. Only
+ *      consulted when caller passes `tournamentId`, so the column lookup
+ *      is scoped to one tournament and can't accidentally hijack a sibling
+ *      tournament's stray row that shares a composite. Mirrors padelgod's
+ *      `match-identifier.ts` step 2.
+ *
+ * Returns a Map from match widget id (e.g. "MD017") to match UUID for
+ * entries found. Entries not found are absent from the map — callers
+ * should fall back to fuzzy name matching for those.
  */
 export async function lookupMatchesByWidgetIds(
   supabase: SupabaseClient,
   tournamentWidgetId: string,
   matchWidgetIds: string[],
+  options?: { tournamentId?: string | null },
 ): Promise<Map<string, string>> {
   if (matchWidgetIds.length === 0) return new Map()
 
@@ -225,5 +238,36 @@ export async function lookupMatchesByWidgetIds(
       out.set(matchWidgetId, row.entity_id)
     }
   }
+
+  // Tier 2: fall back to matches.widget_id_composite for widget ids not
+  // resolved via the sidecar. Scoped to `tournamentId` so a stray row
+  // in a sibling tournament that happens to share a composite can't
+  // hijack the mapping. Without tournamentId we skip this tier entirely
+  // — legacy callers stay on the sidecar-only behaviour.
+  const tournamentId = options?.tournamentId
+  if (tournamentId) {
+    const missing = matchWidgetIds.filter((id) => !out.has(id))
+    if (missing.length > 0) {
+      const missingComposites = missing.map((id) => `${tournamentWidgetId}:${id}`)
+      const { data: colRows, error: colErr } = await supabase
+        .from('matches')
+        .select('id, widget_id_composite')
+        .eq('tournament_id', tournamentId)
+        .in('widget_id_composite', missingComposites)
+      if (colErr) {
+        throw new Error(`matches widget_id_composite lookup failed: ${colErr.message}`)
+      }
+      for (const row of (colRows ?? []) as Array<{ id: string; widget_id_composite: string }>) {
+        const colonIdx = row.widget_id_composite.indexOf(':')
+        if (colonIdx < 0) continue
+        const matchWidgetId = row.widget_id_composite.slice(colonIdx + 1)
+        // Defensive: only fill in if still missing (sidecar always wins).
+        if (matchWidgetId && !out.has(matchWidgetId)) {
+          out.set(matchWidgetId, row.id)
+        }
+      }
+    }
+  }
+
   return out
 }

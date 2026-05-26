@@ -27,9 +27,18 @@ type Props = {
    *  Used by PairRow to highlight the SPECIFIC row (top or bottom) the
    *  user is following — and dim the opponent row in the same cell. */
   trackedPairKey: string | null
+  /** True when this cell sits in the bracket's first round (R64 for a
+   *  64-team draw, R32 for a 32-team draw, R16 for a 16-team draw).
+   *  A first-round BYE follows the conventional bracket notation
+   *  "BYE/BYE vs Team [W]" — the bye-recipient genuinely "wins" their
+   *  first-round slot. Later-round byes are unusual (typically only seen
+   *  on seeded teams that draw a forfeit before play) and are shown
+   *  with a muted "BYE" tag instead so users don't read them as a
+   *  played-and-won match. */
+  isFirstRound: boolean
 }
 
-export default function BracketCell({ node, highlight, onTrackPair, pairKey, markersByPair, trackedPairKey }: Props) {
+export default function BracketCell({ node, highlight, onTrackPair, pairKey, markersByPair, trackedPairKey, isFirstRound }: Props) {
   const t = useTranslations('draw')
   const format = useFormatter()
   const router = useRouter()
@@ -170,9 +179,9 @@ export default function BracketCell({ node, highlight, onTrackPair, pairKey, mar
         opacity, color: '#fff', position: 'relative', cursor: 'pointer',
       }}
     >
-      <PairRow match={m} side={1} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} trackedPairKey={trackedPairKey} />
+      <PairRow match={m} side={1} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} trackedPairKey={trackedPairKey} isFirstRound={isFirstRound} />
       <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '1px 0' }} />
-      <PairRow match={m} side={2} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} trackedPairKey={trackedPairKey} />
+      <PairRow match={m} side={2} onTrackPair={onTrackPair} pairKey={pairKey} markersByPair={markersByPair} trackedPairKey={trackedPairKey} isFirstRound={isFirstRound} />
       {m.status === 'scheduled' && m.scheduled_at && (
         <div style={{ color: MUTED, fontStyle: 'italic', fontSize: 10, padding: '1px 0 0' }}>
           {format.dateTime(new Date(m.scheduled_at), TIME_24H)}
@@ -191,14 +200,37 @@ type PairRowProps = {
   pairKey: (a: string, b: string) => string
   markersByPair: Map<string, 'Q' | 'WC' | 'LL'>
   trackedPairKey: string | null
+  /** See BracketCell Props.isFirstRound — drives whether a BYE row
+   *  renders the conventional W badge (first round) or the muted "BYE"
+   *  tag (later rounds). */
+  isFirstRound: boolean
 }
 
-function PairRow({ match, side, onTrackPair, pairKey, markersByPair, trackedPairKey }: PairRowProps) {
+function PairRow({ match, side, onTrackPair, pairKey, markersByPair, trackedPairKey, isFirstRound }: PairRowProps) {
   const p1 = side === 1 ? match.pair1_player1 : match.pair2_player1
   const p2 = side === 1 ? match.pair1_player2 : match.pair2_player2
   const seed = side === 1 ? match.pair1_seed : match.pair2_seed
-  const isWinner = match.winner_pair === side
-  const isLoser = match.winner_pair && match.winner_pair !== side
+  // BYE rows. The pair stored on `match.winner_pair`'s side genuinely
+  // advances to the next round; `winner_pair` is kept set by
+  // fip-draw-reconciler so bracket-builder, match-roles, and final-winner
+  // detection still derive the correct advancement.
+  //
+  // Rendering rules by round:
+  //   - FIRST round bye (R64/R32/R16 depending on draw size): conventional
+  //     bracket notation is "BYE/BYE vs Team [W]". Keep the W badge —
+  //     this is what users expect for a normal first-round bye.
+  //   - LATER round bye (e.g. a seeded team that drew a walkover into
+  //     the QF): unusual case. Show a muted "BYE" tag instead so users
+  //     don't read it as a played-and-won match.
+  //
+  // Cast to string: the shared MatchStatus union in src/types/match.ts
+  // doesn't list 'bye' (it predates the bye-status path), but the DB
+  // schema supports it and fip-draw-reconciler writes it. MatchCard.tsx
+  // uses the same string-compare shape.
+  const isBye = (match.status as string) === 'bye'
+  const isLaterRoundBye = isBye && !isFirstRound
+  const isWinner = !isLaterRoundBye && match.winner_pair === side
+  const isLoser = !isLaterRoundBye && match.winner_pair && match.winner_pair !== side
   const isLive = match.status === 'live'
   const sets = match.sets ?? []
   const setScore = (sn: number) => {
@@ -309,6 +341,19 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair, trackedPair
           clipPath: 'polygon(3% 5%,97% 0%,100% 95%,0% 100%)',
         }}>
           W
+        </span>
+      )}
+      {isLaterRoundBye && match.winner_pair === side && (
+        // Later-round auto-advance marker — visually distinct from W
+        // (muted slab vs green clipped-shape badge) so users read it as
+        // "advanced via bye" and not "won the match". First-round byes
+        // keep the W badge above (conventional bracket notation).
+        <span style={{
+          padding: '1px 6px', background: 'rgba(255,255,255,0.06)',
+          color: MUTED, fontSize: 9, fontWeight: 700, letterSpacing: '0.4px',
+          textTransform: 'uppercase',
+        }}>
+          Bye
         </span>
       )}
       <span style={{ display: 'flex', gap: 4, fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>

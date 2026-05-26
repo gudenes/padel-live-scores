@@ -35,6 +35,7 @@ import {
   buildMatchInfoMap,
   compareTournamentsForCarousel,
   getLocalDayBoundaryUTC,
+  hasStarted,
 } from '@/lib/live-tournaments-carousel'
 import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
@@ -306,17 +307,23 @@ function V3HomePageInner() {
         wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
         wrap(supabase.from('articles').select('id, title, title_translations, snippet, snippet_translations, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(20) as any, 'home:articles'),
-        // Live Tournaments carousel — 2 queries (no UPCOMING after the
-        // chip was dropped in favor of a 'Todos os Eventos' link).
+        // Tournaments carousel — 3 queries: window of tournaments, per-
+        // tournament match count for today, and finals matches finished
+        // in the last 48h so we can attach champion treatment to crowned
+        // cards. Window covers three buckets the card renders distinctly:
+        //   - LIVE: starts_at <= now AND ends_at >= now-48h
+        //   - UPCOMING: now < starts_at <= now+7d
+        //   - CROWNED: tournament with finals decided in the back-window
         wrap(
           supabase
             .from('tournaments')
             .select('id, name, starts_at, ends_at, country, location, level, logo_url, cover_image_url, prize_money')
-            // Window covers two buckets:
-            //   - running today: starts_at in past <= now+7d, ends_at >= today-midnight
-            //   - starting in next 7 days: starts_at in future <= now+7d, ends_at always future
+            // Forward 7 days for upcoming events.
             .lte('starts_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
-            .gte('ends_at', (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d.toISOString() })())
+            // Back-window: 48h before midnight-of-today so a tournament
+            // whose final finished yesterday or the day before still
+            // surfaces with its champion treatment.
+            .gte('ends_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
             .limit(40) as any,
           'home:carousel-window',
         ),
@@ -341,6 +348,33 @@ function V3HomePageInner() {
             .maybeSingle() as any,
           'home:carousel-flag',
         ),
+        // Finals matches finished in the last 48h — feeds the "crowned"
+        // treatment on the carousel card so freshly-finished tournaments
+        // stay visible with their champion(s) for a sticky window
+        // instead of disappearing the moment ends_at passes. We grab
+        // both M and W finals and a winner-pair player resolution; the
+        // home transform turns rows into a per-tournament champion map.
+        wrap(
+          supabase
+            .from('matches')
+            .select(`
+              tournament_id, category, round, status, winner_pair, finished_at,
+              pair1_player1_id, pair1_player1_name, pair1_player1_country,
+              pair1_player2_id, pair1_player2_name, pair1_player2_country,
+              pair2_player1_id, pair2_player1_name, pair2_player1_country,
+              pair2_player2_id, pair2_player2_name, pair2_player2_country,
+              pair1_player1:players!matches_pair1_player1_id_fkey(name, country),
+              pair1_player2:players!matches_pair1_player2_id_fkey(name, country),
+              pair2_player1:players!matches_pair2_player1_id_fkey(name, country),
+              pair2_player2:players!matches_pair2_player2_id_fkey(name, country)
+            `)
+            .in('round', ['Finals', 'F', 'Final'])
+            .in('status', ['finished', 'retired', 'walkover'])
+            .gte('finished_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+            .not('winner_pair', 'is', null)
+            .limit(50) as any,
+          'home:carousel-recent-finals',
+        ),
       ])
 
       const dataOf = (i: number) => {
@@ -363,17 +397,83 @@ function V3HomePageInner() {
       // ── Carousel transform ─────────────────────────────────────
       const carouselLiveRows: any[] = dataOf(8)
       const carouselMatchRows: any[] = dataOf(9)
+      const recentFinalsRows: any[] = dataOf(11)
       const matchInfo = buildMatchInfoMap(carouselMatchRows)
+
+      // Build per-tournament champion map from recent finals. Winner_pair
+      // tells us which pair is the champion; we prefer the joined players
+      // row but fall back to the thin-match name/country columns (same
+      // policy as MatchCard) so champions render even when the player
+      // FK didn't resolve. crownedAt = the latest finished_at across the
+      // tournament's finals — drives the "Coronado hace Xh" relative time.
+      type ChampionPair = { player1Name: string; player1Country: string | null; player2Name: string; player2Country: string | null }
+      type Champions = { men?: ChampionPair; women?: ChampionPair; crownedAt: string }
+      const championsByTournament = new Map<string, Champions>()
+      for (const m of recentFinalsRows) {
+        const winner = m.winner_pair
+        if (winner !== 1 && winner !== 2) continue
+        const p1 = winner === 1 ? m.pair1_player1 : m.pair2_player1
+        const p2 = winner === 1 ? m.pair1_player2 : m.pair2_player2
+        const p1NameRaw = winner === 1 ? m.pair1_player1_name : m.pair2_player1_name
+        const p2NameRaw = winner === 1 ? m.pair1_player2_name : m.pair2_player2_name
+        const p1CountryRaw = winner === 1 ? m.pair1_player1_country : m.pair2_player1_country
+        const p2CountryRaw = winner === 1 ? m.pair1_player2_country : m.pair2_player2_country
+        const pair: ChampionPair = {
+          player1Name: p1?.name ?? p1NameRaw ?? 'TBD',
+          player1Country: p1?.country ?? p1CountryRaw ?? null,
+          player2Name: p2?.name ?? p2NameRaw ?? 'TBD',
+          player2Country: p2?.country ?? p2CountryRaw ?? null,
+        }
+        let entry = championsByTournament.get(m.tournament_id)
+        if (!entry) {
+          entry = { crownedAt: m.finished_at }
+          championsByTournament.set(m.tournament_id, entry)
+        } else if (m.finished_at > entry.crownedAt) {
+          entry.crownedAt = m.finished_at
+        }
+        if (m.category === 'men') entry.men = pair
+        else if (m.category === 'women') entry.women = pair
+      }
+
       const decorate = (rows: any[]): TournamentWithMatchInfo[] =>
         rows
           .map(r => ({
             ...(r as Tournament),
             matchesToday: matchInfo.get(r.id)?.matchesToday ?? 0,
+            champions: championsByTournament.get(r.id),
           }))
-          .sort(compareTournamentsForCarousel)
-      // Cap at 10 visible cards. The "Todos los eventos" link in the section
-      // header absorbs overflow; deeper discovery happens on /tournaments.
-      setCarouselLiveToday(decorate(carouselLiveRows).slice(0, 10))
+          // Keep rows in any of the three carousel buckets. Drops
+          // tournaments that are running but have zero matches today
+          // and aren't crowned (would otherwise be a confusing "in
+          // progress with nothing to show" state). Upcoming and
+          // crowned rows always survive — they have their own status
+          // affordances on the card.
+          .filter(t => {
+            const bothCrowned = !!(t.champions?.men && t.champions?.women)
+            const upcoming = !hasStarted(t.starts_at)
+            return t.matchesToday > 0 || bothCrowned || upcoming
+          })
+          // Bucket order on the rail: LIVE (matches happening now) →
+          // UPCOMING (next 7 days, hype) → CROWNED (recently finished,
+          // celebratory wrap-up). Within each bucket the canonical
+          // tier-first comparator (Premier before FIP) decides order.
+          .sort((a, b) => {
+            const bucketOf = (t: TournamentWithMatchInfo): number => {
+              const bothCrowned = !!(t.champions?.men && t.champions?.women)
+              if (bothCrowned) return 2
+              if (!hasStarted(t.starts_at)) return 1
+              return 0
+            }
+            const aBucket = bucketOf(a)
+            const bBucket = bucketOf(b)
+            if (aBucket !== bBucket) return aBucket - bBucket
+            return compareTournamentsForCarousel(a, b)
+          })
+          // Cap the rail at 10 cards. The window can pull up to 40 rows
+          // (back-48h + today + forward-7d); the slice keeps the rail
+          // scannable on small screens.
+          .slice(0, 10)
+      setCarouselLiveToday(decorate(carouselLiveRows))
 
       // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
       // dataOf(10) from .maybeSingle(): { enabled, enabled_local } when

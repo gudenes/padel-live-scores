@@ -75,26 +75,6 @@ describe('compareTournamentsForCarousel', () => {
     expect(rows.sort(compareTournamentsForCarousel).map(t => t.id))
       .toEqual(['finals', 'p1-early', 'p1-late', 'fip-gold', 'fip-bronze'])
   })
-
-  it('puts a Premier tournament starting in 5 days before a FIP Platinum running today', () => {
-    // Regression guard for the 7-day-window carousel: even though the FIP
-    // Platinum is happening *now*, the Premier P1 starting later this week
-    // should still occupy a higher slot. Tier-first ordering, not date-first.
-    const platinumToday = makeT({ id: 'platinum-today', level: 'fip_platinum', starts_at: '2026-05-26T00:00:00Z' })
-    const p1InFiveDays = makeT({ id: 'p1-in-5d',        level: 'p1',           starts_at: '2026-05-31T00:00:00Z' })
-    const sorted = [platinumToday, p1InFiveDays].sort(compareTournamentsForCarousel)
-    expect(sorted.map(t => t.id)).toEqual(['p1-in-5d', 'platinum-today'])
-  })
-
-  it('within the same tier, prefers today over future when both are in the 7-day window', () => {
-    // FIP Bronze running today must sort before another FIP Bronze starting
-    // in 3 days — confirms the starts_at tiebreaker still works at the
-    // bottom of the tier table.
-    const bronzeToday    = makeT({ id: 'bronze-today',    level: 'fip_bronze', starts_at: '2026-05-26T00:00:00Z' })
-    const bronzeInThree  = makeT({ id: 'bronze-in-3d',    level: 'fip_bronze', starts_at: '2026-05-29T00:00:00Z' })
-    const sorted = [bronzeInThree, bronzeToday].sort(compareTournamentsForCarousel)
-    expect(sorted.map(t => t.id)).toEqual(['bronze-today', 'bronze-in-3d'])
-  })
 })
 
 describe('buildMatchInfoMap', () => {
@@ -137,70 +117,45 @@ describe('getLocalDayBoundaryUTC', () => {
 
 describe('hasStarted', () => {
   it('returns true when starts_at is in the past', () => {
-    const now = new Date('2026-05-26T12:00:00Z')
-    const startsAt = new Date(now.getTime() - 1).toISOString()
-    expect(hasStarted(startsAt, now)).toBe(true)
+    expect(hasStarted('2026-05-20T00:00:00Z', new Date('2026-05-21T00:00:00Z'))).toBe(true)
   })
-
-  it('returns true when starts_at equals now', () => {
-    const now = new Date('2026-05-26T12:00:00Z')
-    expect(hasStarted(now.toISOString(), now)).toBe(true)
-  })
-
   it('returns false when starts_at is in the future', () => {
-    const now = new Date('2026-05-26T12:00:00Z')
-    const startsAt = new Date(now.getTime() + 1).toISOString()
-    expect(hasStarted(startsAt, now)).toBe(false)
+    expect(hasStarted('2026-05-22T00:00:00Z', new Date('2026-05-21T00:00:00Z'))).toBe(false)
   })
-
-  it('returns false for a tournament starting 7 days from now', () => {
-    const now = new Date('2026-05-26T12:00:00Z')
-    const startsAt = new Date(now.getTime() + 7 * 86_400_000).toISOString()
-    expect(hasStarted(startsAt, now)).toBe(false)
+  it('returns true at the exact starts_at instant', () => {
+    expect(hasStarted('2026-05-21T12:00:00Z', new Date('2026-05-21T12:00:00Z'))).toBe(true)
   })
 })
 
 describe('daysUntilStart', () => {
-  it('returns 0 when starts_at is later today (user local)', () => {
-    // 09:00 local now, start at 18:00 local same day
-    const now = new Date('2026-05-26T09:00:00')
-    const startsAt = new Date('2026-05-26T18:00:00').toISOString()
-    expect(daysUntilStart(startsAt, now)).toBe(0)
+  it('returns 0 for a tournament starting today', () => {
+    expect(daysUntilStart('2026-05-21T08:00:00', new Date('2026-05-21T15:00:00'))).toBe(0)
   })
-
-  it('returns 0 when starts_at was earlier today (defensive — caller branches on hasStarted first)', () => {
-    const now = new Date('2026-05-26T23:30:00')
-    const startsAt = new Date('2026-05-26T06:00:00').toISOString()
-    expect(daysUntilStart(startsAt, now)).toBe(0)
+  it('returns 1 for tomorrow', () => {
+    expect(daysUntilStart('2026-05-22T08:00:00', new Date('2026-05-21T15:00:00'))).toBe(1)
   })
-
-  it('returns 1 when starts_at is tomorrow even with only a few hours gap', () => {
-    // 23:30 today, start at 06:00 tomorrow — only 6.5h later but a calendar day away
-    const now = new Date('2026-05-26T23:30:00')
-    const startsAt = new Date('2026-05-27T06:00:00').toISOString()
-    expect(daysUntilStart(startsAt, now)).toBe(1)
+  it('returns the calendar-day diff for 5 days out', () => {
+    expect(daysUntilStart('2026-05-26T08:00:00', new Date('2026-05-21T15:00:00'))).toBe(5)
   })
-
-  it('returns 7 when starts_at is 7 calendar days from now', () => {
-    const now = new Date('2026-05-26T12:00:00')
-    const startsAt = new Date('2026-06-02T12:00:00').toISOString()
-    expect(daysUntilStart(startsAt, now)).toBe(7)
+  it('survives DST spring-forward (47h gap maps to 2 calendar days)', () => {
+    // 2026 US DST starts 2026-03-08. Sun 2am skips to 3am; days 2026-03-08 to 2026-03-10 are 47h apart.
+    expect(daysUntilStart('2026-03-10T08:00:00', new Date('2026-03-08T08:00:00'))).toBe(2)
   })
+})
 
-  it('returns 3 when starts_at is 3 days away regardless of time-of-day', () => {
-    // now = 23:00 today, starts_at = 01:00 in 3 days (only ~50 hours later
-    // but 3 calendar days). Comparison is calendar-day diff, not 24h chunks.
-    const now = new Date('2026-05-26T23:00:00')
-    const startsAt = new Date('2026-05-29T01:00:00').toISOString()
-    expect(daysUntilStart(startsAt, now)).toBe(3)
+describe('compareTournamentsForCarousel: mixed live/upcoming window', () => {
+  // Regression guard: Premier-first must hold even when ranking a Premier
+  // event starting in 5 days against a FIP event running right now.
+  it('Premier Major starting in 5d still beats FIP Silver running today', () => {
+    const liveSilver = makeT({ id: 'silver-live', level: 'fip_silver', starts_at: '2026-05-20T00:00:00Z' })
+    const futureMajor = makeT({ id: 'major-future', level: 'major', starts_at: '2026-05-26T00:00:00Z' })
+    const sorted = [liveSilver, futureMajor].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['major-future', 'silver-live'])
   })
-
-  it('handles DST spring-forward without drifting off by 1', () => {
-    // US Eastern DST 2026: clocks jump from 02:00 EST → 03:00 EDT on Mar 8.
-    // A tournament starting Mar 9 at noon, viewed from Mar 7 at noon, is 2
-    // calendar days away even though the wall-clock gap is 47h (not 48h).
-    const now = new Date('2026-03-07T12:00:00')
-    const startsAt = new Date('2026-03-09T12:00:00').toISOString()
-    expect(daysUntilStart(startsAt, now)).toBe(2)
+  it('within Premier tier, earlier starts_at wins regardless of live/upcoming', () => {
+    const upcomingP1 = makeT({ id: 'p1-upcoming', level: 'p1', starts_at: '2026-05-22T00:00:00Z' })
+    const liveP1 = makeT({ id: 'p1-live', level: 'p1', starts_at: '2026-05-21T00:00:00Z' })
+    const sorted = [upcomingP1, liveP1].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['p1-live', 'p1-upcoming'])
   })
 })

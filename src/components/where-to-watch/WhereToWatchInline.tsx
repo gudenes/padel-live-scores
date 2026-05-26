@@ -5,10 +5,16 @@
 // tab where vertical real estate is plentiful and discoverability beats
 // compactness.
 //
-// Self-hides when buildGroups returns an empty array (same rule as the
-// pill + banner). Region picker is reachable from the footer; tapping
-// it swaps the panel body for the picker (same internal state machine
-// as WhereToWatchPopup).
+// Three render modes:
+//   - matched: at least one channel group survived upstream filtering →
+//     green nudge + ChannelGroup rows
+//   - fallback: no groups, but the caller passed a `fallback` prop →
+//     amber nudge + single FIP TOUR search row that links to a
+//     tournament-scoped YouTube channel-search URL
+//   - hidden: groups empty AND no fallback → return null
+//
+// Filtering itself happens upstream (see filter-tournament-streams on the
+// tournament page); this component just renders what it's handed.
 //
 // Re-uses ChannelGroup + RegionPicker. Some markup is duplicated from
 // WhereToWatchPopup's body — kept inline for now to minimize churn; a
@@ -50,10 +56,15 @@ export interface WhereToWatchInlineProps {
   channelsMeta?: ChannelMeta[]
   todayCircuits: string[]
   geoCountry: string | null
+  /** When the upstream filter found zero matches but wants a FIP TOUR
+   *  search row to stand in. Set to null/undefined to suppress the panel
+   *  when groups are empty (current behaviour for non-FIP tournaments). */
+  fallback?: { url: string; tournamentName: string } | null
 }
 
 export function WhereToWatchInline({
   liveChannels, broadcasters, channelsMeta = [], todayCircuits, geoCountry,
+  fallback = null,
 }: WhereToWatchInlineProps) {
   const t = useTranslations('whereToWatch')
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -82,7 +93,9 @@ export function WhereToWatchInline({
     [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry],
   )
 
-  if (groups.length === 0) return null
+  const hasGroups = groups.length > 0
+  const showFallback = !hasGroups && fallback != null
+  if (!hasGroups && !showFallback) return null
 
   const regionName = effectiveCountry
     ? (ISO2_TO_NAME[effectiveCountry.toLowerCase()] ?? effectiveCountry.toUpperCase())
@@ -135,8 +148,26 @@ export function WhereToWatchInline({
             {t('eyebrow')}
           </div>
 
-          {/* Groups */}
-          {groups.map((g, gi) => (
+          {/* Status nudge — always shown; green when ≥1 channel matched, amber when in fallback mode. */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            fontSize: 10.5,
+            color: hasGroups ? '#8BD89A' : '#D9C77A',
+            background: hasGroups ? 'rgba(82,179,102,0.08)' : 'rgba(217,199,122,0.06)',
+            border: `1px solid ${hasGroups ? 'rgba(82,179,102,0.18)' : 'rgba(217,199,122,0.18)'}`,
+            borderRadius: 6, padding: '6px 9px', marginBottom: 14, lineHeight: 1.35,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: hasGroups ? '#52B366' : '#D9C77A',
+              flexShrink: 0,
+              boxShadow: `0 0 0 3px ${hasGroups ? 'rgba(82,179,102,0.18)' : 'rgba(217,199,122,0.18)'}`,
+            }} />
+            <span>{t(hasGroups ? 'tournamentMatchedNudge' : 'tournamentEmptyNudge')}</span>
+          </div>
+
+          {/* Groups (matched mode) OR FIP TOUR fallback row (fallback mode). */}
+          {hasGroups && groups.map((g, gi) => (
             <ChannelGroup
               key={g.channelId}
               group={g}
@@ -144,6 +175,47 @@ export function WhereToWatchInline({
               country={effectiveCountry}
             />
           ))}
+          {showFallback && fallback && (
+            <div>
+              {/* FIP TOUR channel header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                <div style={{
+                  width: 38, height: 38, borderRadius: '50%',
+                  background: '#1A4DAA', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontWeight: 800, fontSize: 13, letterSpacing: 0.5,
+                  flexShrink: 0,
+                }}>FIP</div>
+                <span style={{
+                  fontWeight: 800, fontSize: 14, letterSpacing: 0.5,
+                  textTransform: 'uppercase', color: '#fff',
+                }}>FIP TOUR</span>
+              </div>
+              {/* Search row */}
+              <a href={fallback.url} target="_blank" rel="noopener noreferrer" style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 0', textDecoration: 'none', color: 'inherit',
+              }}>
+                <span style={{ flex: 1, fontSize: 13, color: '#E5E7EB', lineHeight: 1.35 }}>
+                  {t('searchFallbackLabel', { tournament: fallback.tournamentName })}
+                </span>
+                <span style={{
+                  background: 'transparent', color: ORANGE,
+                  border: `1px solid rgba(245,166,35,0.4)`,
+                  fontWeight: 800, fontSize: 11, letterSpacing: 0.6,
+                  padding: '7px 12px', borderRadius: 4,
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  textTransform: 'uppercase', flexShrink: 0,
+                }}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <circle cx="11" cy="11" r="7" stroke={ORANGE} strokeWidth="2.5" />
+                    <line x1="16" y1="16" x2="21" y2="21" stroke={ORANGE} strokeWidth="2.5" />
+                  </svg>
+                  {t('searchFallbackButton')}
+                </span>
+              </a>
+            </div>
+          )}
 
           {/* Region footer */}
           <div style={{

@@ -10,11 +10,9 @@
  *   running today) — see 2026-05-21-carousel-live-chip-simplification-design.md.
  * - getLocalDayBoundaryUTC: compute today's [startUTC, endUTC] window in the
  *   user's local timezone, suitable for filtering matches.scheduled_at.
- * - hasStarted: predicate the carousel card uses to branch its status line
- *   between live-today/rest-day copy and upcoming-event copy.
- * - daysUntilStart: whole-day diff from today (user local) to the tournament's
- *   start day. Used by the upcoming-event copy to render "Starts in N days /
- *   tomorrow / today".
+ * - hasStarted / daysUntilStart: predicates for the UPCOMING-card branch,
+ *   used by tournaments whose starts_at is in the future but within the
+ *   carousel's 7-day forward window.
  */
 
 import { levelTierWeight } from './tournament-labels'
@@ -58,6 +56,21 @@ export function buildMatchInfoMap(
   return out
 }
 
+export function hasStarted(startsAt: string, now: Date = new Date()): boolean {
+  return new Date(startsAt).getTime() <= now.getTime()
+}
+
+export function daysUntilStart(startsAt: string, now: Date = new Date()): number {
+  // Whole-day calendar diff in the user's local timezone. We render
+  // YYYY-MM-DD strings via en-CA, parse them as local midnight, and
+  // divide the millisecond gap by 24h. Math.round (not floor) covers
+  // DST transitions where the gap is 23h or 25h instead of 24h.
+  const fmt = (d: Date) => d.toLocaleDateString('en-CA')
+  const startMidnight = new Date(`${fmt(new Date(startsAt))}T00:00:00`)
+  const nowMidnight = new Date(`${fmt(now)}T00:00:00`)
+  return Math.round((startMidnight.getTime() - nowMidnight.getTime()) / 86_400_000)
+}
+
 export function getLocalDayBoundaryUTC(now: Date = new Date()): {
   startUTC: string
   endUTC: string
@@ -72,40 +85,4 @@ export function getLocalDayBoundaryUTC(now: Date = new Date()): {
     startUTC: start.toISOString(),
     endUTC: end.toISOString(),
   }
-}
-
-/**
- * True iff the tournament has begun. Used by the carousel card to branch
- * between "live today / rest day" status lines and "starts in N days /
- * tomorrow / today" status lines. The "equal to now" edge case resolves
- * to true so a tournament whose listed start time is exactly `now` shows
- * the live-today branch rather than flicker into the upcoming branch.
- */
-export function hasStarted(startsAt: string, now: Date = new Date()): boolean {
-  return new Date(startsAt).getTime() <= now.getTime()
-}
-
-/**
- * Whole-day diff between today (user local) and the calendar day of the
- * tournament's `starts_at`. Returns:
- *   0  → starts today (including earlier today; caller is expected to branch
- *        on hasStarted first if it cares about "already started")
- *   1  → starts tomorrow
- *   N  → starts in N days
- *
- * Uses local-time calendar-day comparison via toLocaleDateString('en-CA'),
- * which produces a stable YYYY-MM-DD string regardless of host locale and
- * is DST-safe (DST shifts the wall clock but not the calendar date).
- */
-export function daysUntilStart(startsAt: string, now: Date = new Date()): number {
-  const toLocalDateStr = (d: Date) => d.toLocaleDateString('en-CA')
-  // Parse YYYY-MM-DDT00:00:00 as local time so the diff is in calendar days,
-  // not 24h chunks (which would drift on DST transitions).
-  const startOfDay = (s: string) => new Date(`${s}T00:00:00`).getTime()
-  const todayMs = startOfDay(toLocalDateStr(now))
-  const startMs = startOfDay(toLocalDateStr(new Date(startsAt)))
-  // Round (not floor): midnight-to-midnight UTC gaps are 23h or 25h across
-  // a DST boundary, so a 2-calendar-day diff that straddles spring-forward
-  // is 47h (1.9583 days) — floor would return 1.
-  return Math.round((startMs - todayMs) / 86_400_000)
 }

@@ -514,6 +514,46 @@ describe('runMatchStatsFetcher', () => {
     expect(result.skippedNonPremier).toBe(0);
   });
 
+  // FIP Platinum (top FIP Tour tier — category 18 in the FIP CMS) shares
+  // Crionet's match-stats endpoint with Premier Padel. Empirically
+  // confirmed against FIP PLATINUM ALBANIA 2026 (widget FIP-2026-2214):
+  // padelgod's live-poller writes PBP to sets/games and the same Crionet
+  // widget exposes per-match stats. Lower FIP tiers (Bronze / Silver /
+  // Gold) remain excluded — the stats endpoint returns nothing useful
+  // for them.
+  it('treats fip_platinum as a covered tier (shares Crionet stats with Premier)', async () => {
+    const fixtureHtml = readFileSync(FIXTURE_PATH, 'utf-8');
+    const platinumMatchId = 'match-platinum-uuid';
+    const fipGoldMatchId = 'match-fip-gold-uuid';
+
+    const supabase = fakeSupabase({
+      mappings: [
+        { entity_id: platinumMatchId, external_id: 'FIP-2026-2214:MQ001' },
+        { entity_id: fipGoldMatchId, external_id: 'FIP-2026-9002:MQ002' },
+      ],
+      finishedMatchIds: [platinumMatchId, fipGoldMatchId],
+      tournaments: [
+        { id: 't-platinum', level: 'fip_platinum' },
+        { id: 't-fip-gold', level: 'Gold' },
+      ],
+      matchTournaments: {
+        [platinumMatchId]: 't-platinum',
+        [fipGoldMatchId]: 't-fip-gold',
+      },
+    });
+    const httpClient = { post: vi.fn(async () => ({ data: fixtureHtml })) };
+
+    const result = await runMatchStatsFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+
+    // Platinum match fetched; Gold dropped at the tier gate.
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+    expect(result.fetched).toBe(1);
+    expect(result.skippedNonPremier).toBe(1);
+  });
+
   // Live-mode: Crionet publishes the stats endpoint during a match too,
   // not just after the final point. Polling it every cron tick while a
   // Premier match is `live` lets the match-detail page show evolving

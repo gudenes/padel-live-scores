@@ -304,10 +304,10 @@
   "rankings": {
     "rankings": "Classement",
     "official": "Officiel",
-    "race": "Course",
+    "race": "Race",
     "loadingRankings": "Chargement du classement...",
     "noRankings": "Aucun classement pour l'instant",
-    "noRaceRankings": "Aucun classement de course pour l'instant",
+    "noRaceRankings": "Aucun classement Race pour l'instant",
     "noResults": "Aucun résultat pour \"{query}\"",
     "rank": "Rang",
     "player": "Joueur",
@@ -341,7 +341,8 @@
       "close": "Fermer",
       "autoTranslated": "Traduit automatiquement · {from} → {to}",
       "previewUnavailable": "Aperçu indisponible. Touchez ci-dessous pour lire à la source."
-    }
+    },
+    "foryou": "Pour Toi"
   },
   "home": {
     "liveNow": "En direct",
@@ -350,16 +351,20 @@
     "liveTournaments": {
       "title": "Tournois",
       "upcomingChip": "À VENIR",
-      "_upcomingChip_context": "Small chip in the top-left slot of a tournament carousel card whose start date is in the future (not yet running). Counterpart to the red LIVE chip. Uppercase by convention. Width budget is tight — keep short.",
+      "_upcomingChip_context": "Small chip in the top-left slot of a tournament carousel card whose start date is in the future (not yet running). Counterpart to the red LIVE chip and the gold CROWNED chip. Uppercase by convention. Width budget is tight — keep short.",
       "matchesTodayCount": "{count, plural, one {# match aujourd'hui} other {# matchs aujourd'hui}}",
       "restDay": "Jour de repos",
       "_restDay_context": "Status line on a tournament card when the tournament is running but has zero matches scheduled in the user's local day today. Not a holiday or vacation — specifically 'no matches today'.",
       "startsToday": "Commence aujourd'hui",
+      "_startsToday_context": "Status line on an UPCOMING tournament card whose start date is the user's local today but matches haven't begun yet. Sibling keys: startsTomorrow (count=1), startsInDays (count>=2).",
       "startsTomorrow": "Commence demain",
-      "startsInDays": "{count, plural, one {Commence dans # jour} other {Commence dans # jours}}",
-      "_startsInDays_context": "Status line on a tournament card whose start date is 2+ days away (within the 7-day carousel window). {count} is the whole-day diff between today and the tournament's start date in the user's local timezone. Sibling keys: startsToday (count=0), startsTomorrow (count=1).",
+      "_startsTomorrow_context": "Status line on an UPCOMING tournament card whose start date is exactly one calendar day after today in the user's local timezone. Sibling keys: startsToday (count=0), startsInDays (count>=2).",
+      "startsInDays": "Commence dans {count, plural, one {# jour} other {# jours}}",
+      "_startsInDays_context": "Status line on an UPCOMING tournament card whose start date is 2+ days away (within the 7-day carousel window). {count} is the whole-day diff between today and the tournament's start date in the user's local timezone. Sibling keys: startsToday (count=0), startsTomorrow (count=1).",
       "viewMatches": "Voir les matchs",
-      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short."
+      "_viewMatches_context": "Chunky CTA at the bottom of each tournament card. Tapping the card opens the tournament detail page. Width budget is narrow — keep short.",
+      "viewRecap": "Voir le résumé",
+      "crowned": "Terminé"
     },
     "highlightsAndNews": "Highlights & Actualités",
     "latestNews": "Dernières actualités",
@@ -495,6 +500,8 @@
     "perPlayer": "par joueur",
     "prizeBreakdown": "Répartition du prize money",
     "inferredPrizeNote": "Estimé à partir du prize money total",
+    "downloadFactsheet": "Télécharger la fiche",
+    "matchSchedule": "Calendrier des matchs",
     "events": "Évènements",
     "bracket": {
       "noDrawForCategory": "Aucune donnée de tableau pour cette catégorie."
@@ -562,7 +569,35 @@
     "shape_hybrid": "Hybride",
     "balance_head-heavy": "Haut",
     "balance_balanced": "Moyen",
-    "balance_head-light": "Bas"
+    "balance_head-light": "Bas",
+    "nextMatch": "Prochain match",
+    "nextTournament": "Prochain tournoi",
+    "earningsTab": "Gains",
+    "earningsTabNewPill": "NEW",
+    "earningsTabNewPill_context": "Badge de découverte sur le nouvel onglet Gains",
+    "ytdEarningsCard": "YTD {year}",
+    "careerEarningsCard": "Carrière",
+    "earningsEventsCount": "{count, plural, one {# événement} other {# événements}}",
+    "earningsTournamentsCount": "{count, plural, one {# tournoi} other {# tournois}}",
+    "noEarningsForYear": "Aucun gain en {year}",
+    "earningsAllYears": "Tous",
+    "titlesCalloutLabel": "Titres {year} · {count}",
+    "wonWithPartner": "avec {partnerName}",
+    "seasonTournamentsCount": "{count, plural, one {# tournoi} other {# tournois}}",
+    "playerNotInTop1000": "{name} n'est pas dans le top 1000",
+    "viewInRankings": "Voir {name} au classement",
+    "roundLabel": {
+      "W": "Vainqueur",
+      "F": "Finale",
+      "SF": "SF",
+      "QF": "QF",
+      "R16": "R16",
+      "R32": "R32",
+      "R64": "R64",
+      "Q1": "Q1",
+      "Q2": "Q2",
+      "Q3": "Q3"
+    }
   },
   "followButton": {
     "follow": "Suivre",
@@ -1054,6 +1089,20 @@
     "retry": "Réessayer",
     "banner": "Hors ligne — dernière connexion à {time}"
   },
+  "download": {
+    "ariaLabel": "Télécharger l'app Padel Nachos",
+    "eyebrow": "Padel Nachos",
+    "title": "Le padel en direct, partout avec vous.",
+    "body": "Notifications push. Scores instantanés. L'app complète, sur iOS et Android.",
+    "appStoreAria": "Télécharger Padel Nachos sur l'App Store",
+    "appStoreEyebrow": "Télécharger dans l'",
+    "appStoreName": "App Store",
+    "playStoreAria": "Obtenir Padel Nachos sur Google Play",
+    "playStoreEyebrow": "DISPONIBLE SUR",
+    "playStoreName": "Google Play",
+    "metaStrong": "Gratuit, pour toujours.",
+    "metaTail": "Disponible en cinq langues."
+  },
   "consent": {
     "title": "Nous utilisons des cookies",
     "body": "Nous utilisons des cookies pour améliorer les scores et classements, comprendre comment l'app est utilisée et (bientôt) vous envoyer des alertes en direct sur les appareils de votre choix.",
@@ -1239,6 +1288,47 @@
     "bannerLiveCount": "Regarder en direct · {count, plural, one {# option} other {# options}}",
     "bannerWatchIn": "Regarder en {region}",
     "bannerWhere": "Où regarder",
-    "seoSummary": "Regardez {target} en direct sur {list}{extra, plural, =0 {} one { et # autre diffuseur régional} other { et # autres diffuseurs régionaux}}."
+    "seoSummary": "Regardez {target} en direct sur {list}{extra, plural, =0 {} one { et # autre diffuseur régional} other { et # autres diffuseurs régionaux}}.",
+    "tournamentMatchedNudge": "Affichage des diffusions identifiées pour ce tournoi",
+    "tournamentEmptyNudge": "Nous n'avons pas encore identifié de diffusions pour ce tournoi",
+    "searchFallbackLabel": "Rechercher « {tournament} » sur FIP TOUR",
+    "searchFallbackButton": "Rechercher"
+  },
+  "foryou": {
+    "swipeHint": "Glisse pour le suivant",
+    "aiSummary": "Résumé IA",
+    "save": "Enregistrer",
+    "unsave": "Retirer",
+    "share": "Partager",
+    "readSource": "Lire l'article original à la source",
+    "source": "Source",
+    "empty": "Pas encore d'articles personnalisés. Reviens bientôt.",
+    "endOfFeed": "Tu es à jour",
+    "swipeHintBack": "Glisse vers le bas pour le précédent",
+    "readArticle": "Lire l'article",
+    "suggest": {
+      "button": "Suggérer une source",
+      "title": "Suggérer une source d'actualités",
+      "description": "Vous connaissez un site d'actualités padel que nous ne couvrons pas encore ? Collez l'URL et nous l'ajouterons au flux Pour Vous.",
+      "urlLabel": "URL",
+      "urlPlaceholder": "https://...",
+      "noteLabel": "Pourquoi est-ce une bonne source ? (facultatif)",
+      "emailLabel": "E-mail (facultatif)",
+      "submit": "Envoyer",
+      "cancel": "Annuler",
+      "done": "Terminé",
+      "successHappy": "Nous avons détecté que c'est {type} de \"{name}\". Nous examinerons et l'ajouterons dans quelques jours.",
+      "successDup": "Nous couvrons déjà ce site. Merci d'y avoir pensé !",
+      "successDefault": "Bien reçu. Nous y jetterons un œil. (Nous n'avons pas pu détecter le type de flux, donc une revue manuelle sera nécessaire.)",
+      "errorInvalidUrl": "Veuillez saisir une URL valide (commence par http:// ou https://)",
+      "errorRateLimit": "Vous avez atteint la limite d'aujourd'hui (3 envois). Réessayez demain.",
+      "errorGeneric": "Une erreur s'est produite. Veuillez réessayer.",
+      "typeLabel": {
+        "rss": "un flux RSS",
+        "wp-api": "un site WordPress",
+        "google-news-search": "une recherche Google News",
+        "unknown": "une source d'actualités"
+      }
+    }
   }
 }

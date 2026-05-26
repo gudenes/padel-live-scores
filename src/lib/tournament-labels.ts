@@ -25,20 +25,20 @@ export function levelLabel(level: string | null): string {
   return level ? (map[level] ?? level) : ''
 }
 
-// Premier Padel levels — the top-tier events whose data flows through
-// padelapi.org with full point-by-point coverage. Used to gate UI
-// surfaces that only make sense for premier-coverage matches (Score
-// Recap, Live Feed) and to bucket the matches-page tournament list.
+// Levels with full point-by-point + match-stats coverage. Used to gate
+// UI surfaces that only make sense for that data shape (Score Recap,
+// Live Feed) and to bucket the matches-page tournament list.
 //
-// Note: `fip_platinum` is NOT in this set even though it's the
-// highest FIP tier — Premier Padel and FIP Platinum are different
-// circuits. Platinum's stats coverage is not on the same level as
-// Premier's per-point feed.
+// Membership: Premier Padel (Major / Finals / P1 / P2 — padelapi feed)
+// + fip_platinum (top FIP Tour tier — padelgod's Crionet live-poller
+// + match-stats-fetcher cover it). Lower FIP tiers (Gold / Silver /
+// Bronze) don't get PBP from any source and stay excluded.
 const PREMIER_LEVELS = new Set([
   'major',
   'finals',
   'p1',
   'p2',
+  'fip_platinum',
   'wpt_final',
   'wpt_1000',
   'wpt_master',
@@ -46,7 +46,7 @@ const PREMIER_LEVELS = new Set([
 ])
 
 export function isPremierLevel(level: string | null | undefined): boolean {
-  return !!level && PREMIER_LEVELS.has(level)
+  return !!level && PREMIER_LEVELS.has(level.toLowerCase())
 }
 
 // Tier weight for sorting/spotlight selection. Lower number = higher tier.

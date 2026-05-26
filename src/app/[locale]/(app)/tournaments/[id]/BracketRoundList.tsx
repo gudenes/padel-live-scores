@@ -376,6 +376,7 @@ export default function BracketRoundList({
                       pairKey={pairKeyFor}
                       markersByPair={markersByPair}
                       trackedPairKey={trackedPairKey}
+                      isFirstRound={r === rounds[0]}
                     />
                   </div>
                 )

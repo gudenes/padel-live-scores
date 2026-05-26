@@ -19,6 +19,12 @@
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "4100", "--directory", "mockups"],
       "port": 4100
+    },
+    {
+      "name": "Public (static)",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4200", "--directory", "public"],
+      "port": 4200
     }
   ]
 }

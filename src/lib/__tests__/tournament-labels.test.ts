@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  isPremierLevel,
   levelLabel,
   mostAdvancedRound,
   mostAdvancedRoundEntry,
@@ -26,6 +27,38 @@ describe('levelLabel', () => {
 
   it('returns empty string for null', () => {
     expect(levelLabel(null)).toBe('')
+  })
+})
+
+describe('isPremierLevel', () => {
+  it('classifies Premier Padel levels as Premier', () => {
+    expect(isPremierLevel('p1')).toBe(true)
+    expect(isPremierLevel('p2')).toBe(true)
+    expect(isPremierLevel('major')).toBe(true)
+    expect(isPremierLevel('finals')).toBe(true)
+  })
+
+  it('is case-insensitive (DB writes lowercase but legacy callers may hand mixed case)', () => {
+    expect(isPremierLevel('P1')).toBe(true)
+    expect(isPremierLevel('Major')).toBe(true)
+    expect(isPremierLevel('FIP_PLATINUM')).toBe(true)
+  })
+
+  it('classifies fip_platinum as Premier (shares Crionet PBP + stats coverage)', () => {
+    expect(isPremierLevel('fip_platinum')).toBe(true)
+  })
+
+  it('rejects lower FIP tiers (Bronze / Silver / Gold)', () => {
+    expect(isPremierLevel('fip_bronze')).toBe(false)
+    expect(isPremierLevel('fip_silver')).toBe(false)
+    expect(isPremierLevel('fip_gold')).toBe(false)
+    expect(isPremierLevel('fip_other')).toBe(false)
+    expect(isPremierLevel('fip_promises')).toBe(false)
+  })
+
+  it('returns false for null/undefined', () => {
+    expect(isPremierLevel(null)).toBe(false)
+    expect(isPremierLevel(undefined)).toBe(false)
   })
 })
 

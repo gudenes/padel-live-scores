@@ -267,6 +267,52 @@ describe('parsePrizeBreakdown — Cyprus fixture (FIP Silver)', () => {
   });
 });
 
+describe('parsePrizeBreakdown — FIP Platinum Albania (mixed European format)', () => {
+  // Regression fixture: Albania publishes the table layout with two
+  // different European number formats in the same table — "9.375"
+  // (thousands separator) and "421,88" (decimal separator). The earlier
+  // Layout-1 strip-comma path misread both (winner 9.375 → 9.38, r32
+  // 421,88 → 42188). Captured 2026-05-24.
+  it('parses European thousands ("9.375") and European decimal ("421,88") in table layout', () => {
+    const html = `
+      <html><body><table>
+        <tbody>
+          <tr><th scope="row">WINNER</th><td>9.375 €</td></tr>
+          <tr><th scope="row">FINALIST</th><td>4.688 €</td></tr>
+          <tr><th scope="row">SEMI FINAL</th><td>2.531 €</td></tr>
+          <tr><th scope="row">QUARTER FINAL</th><td>1.406 €</td></tr>
+          <tr><th scope="row">ROUND 16</th><td>750 €</td></tr>
+          <tr><th scope="row">ROUND 32</th><td>421,88 €</td></tr>
+        </tbody>
+      </table></body></html>
+    `;
+    const breakdown = parsePrizeBreakdown(html);
+    expect(breakdown).not.toBeNull();
+    expect(breakdown!.winner).toBe(9375);
+    expect(breakdown!.finalist).toBe(4688);
+    expect(breakdown!.sf).toBe(2531);
+    expect(breakdown!.qf).toBe(1406);
+    expect(breakdown!.r16).toBe(750);
+    expect(breakdown!.r32).toBe(421.88);
+  });
+
+  it('preserves single-decimal US-style values ("212.5")', () => {
+    // Regression: the parsePrizeAmount fix has to keep trailing=1
+    // values as decimals (KL fixture has sf=212.5, finalist=807.5),
+    // not strip the period as thousands.
+    const html = `
+      <html><body><table>
+        <tr><th scope="row">SEMI FINAL</th><td>212.5</td></tr>
+        <tr><th scope="row">WINNER</th><td>807.5</td></tr>
+      </table></body></html>
+    `;
+    const breakdown = parsePrizeBreakdown(html);
+    expect(breakdown).not.toBeNull();
+    expect(breakdown!.sf).toBe(212.5);
+    expect(breakdown!.winner).toBe(807.5);
+  });
+});
+
 describe('parsePrizeBreakdown — Qatar Doha II fixture (<p>-layout)', () => {
   it('parses the <p>+<br/>+dash layout used by some Bronze events', () => {
     const breakdown = parsePrizeBreakdown(qatarHtml);

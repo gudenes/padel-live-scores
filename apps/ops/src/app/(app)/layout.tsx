@@ -1,11 +1,14 @@
 // apps/ops/src/app/(app)/layout.tsx
-// Auth + operator gate, plus the sidebar shell for every (app)/ route.
-// The sidebar (client component) owns collapse state + badge polling;
-// the layout passes the operator's email through for the footer.
+// Auth + operator gate, plus the sidebar + main + activity rail shell
+// for every (app)/ route. Also mounts the PlayerDrawerProvider + host so any
+// surface can open the drawer via useOpenPlayerDrawer().
 
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/Sidebar'
+import { ActivityRail } from '@/components/ActivityRail'
+import { PlayerDrawerProvider } from '@/components/player-drawer-context'
+import { PlayerDrawerHost } from '@/components/PlayerDrawerHost'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -16,15 +19,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect('/not-authorized')
   }
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        background: 'var(--bg-canvas)',
-      }}
-    >
-      <Sidebar userEmail={session.user.email ?? null} />
-      <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
-    </div>
+    <PlayerDrawerProvider>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          background: 'var(--bg-canvas)',
+        }}
+      >
+        <Sidebar userEmail={session.user.email ?? null} />
+        <main style={{ flex: 1, minWidth: 0 }}>{children}</main>
+        <ActivityRail />
+      </div>
+      <PlayerDrawerHost />
+    </PlayerDrawerProvider>
   )
 }

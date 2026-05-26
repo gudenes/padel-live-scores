@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "overrides": {
+    "html-encoding-sniffer": "3.0.0"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.82.0",
     "@auth/pg-adapter": "^1.11.2",
@@ -22,6 +25,7 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
+    "@extractus/article-extractor": "^8.1.0",
     "@sentry/nextjs": "^10.50.0",
     "@supabase/supabase-js": "^2.99.3",
     "@tailwindcss/typography": "^0.5.19",

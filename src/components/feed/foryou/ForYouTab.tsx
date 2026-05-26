@@ -1,0 +1,187 @@
+'use client'
+
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { ForYouCard, type ForYouArticle } from './ForYouCard'
+import { SwipeHint } from './SwipeHint'
+import { SuggestSourceSheet } from './SuggestSourceSheet'
+import { supabase } from '@/lib/supabase'
+import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
+
+export interface ForYouTabProps {
+  articles: ForYouArticle[]
+  exitHref?: string
+}
+
+const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
+
+/**
+ * Vertical card swiper using native CSS scroll-snap. The browser handles
+ * drag, momentum, rubber-band, and snap — all on the compositor thread.
+ * IntersectionObserver tracks which card is "current" for hint dismissal.
+ *
+ * Industry pattern: TikTok / YouTube Shorts / LiveScore web — all use
+ * native scroll + snap-align rather than JS-driven gesture handlers.
+ */
+export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
+  const t = useTranslations('foryou')
+  const tSuggest = useTranslations('foryou.suggest')
+  const router = useRouter()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [hintDismissed, setHintDismissed] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [suggestEnabled, setSuggestEnabled] = useState(false)
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') return
+    if (localStorage.getItem('foryou_swipe_hint_dismissed') === '1') {
+      setHintDismissed(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    supabase
+      .from('feature_flags')
+      .select('enabled, enabled_local')
+      .eq('key', FLAG_KEYS.SUGGEST_A_SOURCE_BUTTON)
+      .maybeSingle()
+      .then(({ data }) => {
+        setSuggestEnabled(resolveFlag(data ?? null))
+      })
+  }, [])
+
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const observer = new IntersectionObserver(
+      entries => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+            const idx = Number(entry.target.getAttribute('data-card-idx'))
+            if (!isNaN(idx)) {
+              setCurrentIndex(idx)
+              if (idx > 0 && !hintDismissed) {
+                setHintDismissed(true)
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('foryou_swipe_hint_dismissed', '1')
+                }
+              }
+            }
+          }
+        }
+      },
+      { root: scrollRef.current, threshold: [0.5, 0.8] },
+    )
+    cardRefs.current.forEach(el => el && observer.observe(el))
+    return () => observer.disconnect()
+  }, [articles.length, hintDismissed])
+
+  const onBack = useCallback(() => router.push(exitHref), [router, exitHref])
+
+  if (articles.length === 0) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', color: 'rgba(255,255,255,0.5)',
+        textAlign: 'center', padding: 24,
+      }}>
+        {t('empty')}
+      </div>
+    )
+  }
+
+  const isLast = currentIndex >= articles.length - 1
+  const showHint = currentIndex === 0 && !hintDismissed
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0,
+      background: '#0a0a0a',
+      zIndex: 1000,  // above BottomNavV3 (z=200) — guarantees true fullscreen
+    }}>
+      {/* Scroll container — browser owns gesture, momentum, snap */}
+      <div
+        ref={scrollRef}
+        style={{
+          position: 'absolute', inset: 0,
+          overflowY: 'auto',
+          scrollSnapType: 'y mandatory',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+          scrollbarWidth: 'none',
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar { display: none; }
+        `}</style>
+
+        {articles.map((article, i) => (
+          <div
+            key={article.id}
+            data-card-idx={i}
+            ref={el => { cardRefs.current[i] = el }}
+            style={{
+              position: 'relative',
+              // Use svh (small viewport) so the URL bar is accounted for —
+            // 100vh on mobile is the LARGE viewport (URL bar hidden), which
+            // makes cards taller than visible space and hides the peek.
+            height: `calc(100svh - ${PEEK_PX}px)`,
+              scrollSnapAlign: 'start',
+              scrollSnapStop: 'always',
+            }}
+          >
+            <ForYouCard article={article} onBack={onBack} peekPx={0} />
+          </div>
+        ))}
+
+        {/* End-of-feed sentinel — shown after the last card has been scrolled past */}
+        <div style={{
+          height: PEEK_PX + 40,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 16,
+          color: 'rgba(255,255,255,0.45)',
+          fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+        }}>
+          {isLast ? t('endOfFeed') : ''}
+          {isLast && suggestEnabled && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+              <button
+                onClick={() => setSheetOpen(true)}
+                style={{
+                  background: '#7ED321', color: '#0a0a0a', border: 0,
+                  padding: '14px 28px', fontWeight: 700, cursor: 'pointer',
+                  clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+                  fontSize: 14, letterSpacing: '0.02em', textTransform: 'none',
+                }}
+              >
+                + {tSuggest('button')}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <SuggestSourceSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
+
+      {/* Grayed-out tint on the next-article peek zone — fades transparent
+       *  at top to semi-dark at bottom. Visually says "there's more below"
+       *  without stealing attention from the current card. */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          bottom: 0, left: 0, right: 0,
+          height: PEEK_PX + 8,
+          background: 'linear-gradient(180deg, rgba(10,10,10,0) 0%, rgba(10,10,10,0.45) 50%, rgba(10,10,10,0.65) 100%)',
+          pointerEvents: 'none',
+          zIndex: 5,
+        }}
+      />
+
+      {/* Swipe hint — first card only */}
+      {showHint && <SwipeHint visible direction="up" />}
+    </div>
+  )
+}

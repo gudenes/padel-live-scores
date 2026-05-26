@@ -3,7 +3,8 @@
 // Player profile — v3 brand styling with tabbed dashboard + widget grid (A2 layout).
 
 import { useState, useEffect, useMemo, useRef, use } from 'react'
-import { Link, useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
+import { Link, useRouter, usePathname } from '@/i18n/navigation'
 import { useTranslations, useFormatter } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { parseSetScore, toShortName } from '@/types/match'
@@ -13,9 +14,15 @@ import { withTimeout } from '@/lib/with-timeout'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { useInViewOnce } from '@/hooks/useInViewOnce'
-import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
+import { DATE_SHORT, DATE_WITH_YEAR, DATE_WITH_WEEKDAY, TIME_24H } from '@/lib/format-patterns'
+import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
+import { titleCase } from '@/lib/title-case'
+import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
+import { SeasonTab } from './SeasonTab'
+import { EarningsTab } from './EarningsTab'
+import { Widget, WidgetIcon } from './Widget'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -120,84 +127,6 @@ function Last10SparkBar({
   )
 }
 
-// Monthly performance chart bar (Season tab). Two stacked fills:
-// the loss area (red, bottom-up full height) and the wins overlay
-// (green, bottom-up to wrHeight%). Both grow from the bottom edge
-// when the chart enters the viewport.
-function MonthlyBar({
-  total,
-  height,
-  wrHeight,
-  monthLabel,
-  rowIndex,
-  red,
-  green,
-}: {
-  total: number
-  height: number
-  wrHeight: number
-  monthLabel: string
-  rowIndex: number
-  red: string
-  green: string
-}) {
-  const barRef = useRef<HTMLDivElement>(null)
-  const inView = useInViewOnce(barRef)
-  const animationStyle: React.CSSProperties = {
-    transformOrigin: 'bottom center',
-    transform: inView ? 'scaleY(1)' : 'scaleY(0)',
-    transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
-  }
-  return (
-    <div
-      ref={barRef}
-      style={{
-        flex: 1,
-        position: 'relative',
-        height: `${height}%`,
-        minHeight: total === 0 ? 4 : undefined,
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: total === 0 ? 'rgba(255,255,255,0.05)' : red,
-          clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
-          ...animationStyle,
-        }}
-      />
-      {total > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: `${wrHeight}%`,
-            background: green,
-            clipPath: 'polygon(0% 8%, 100% 0%, 100% 100%, 0% 100%)',
-            ...animationStyle,
-          }}
-        />
-      )}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: -18,
-          left: 0,
-          right: 0,
-          textAlign: 'center',
-          fontSize: 8,
-          color: '#6B7280',
-        }}
-      >
-        {monthLabel}
-      </div>
-    </div>
-  )
-}
-
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
 const GREEN_DIM = 'rgba(126,211,33,0.15)'
@@ -205,7 +134,6 @@ const ORANGE = '#F5A623'
 const LIVE_RED = '#FF4655'
 const BG_BASE = '#1A1A1A'
 const BG_CARD = '#141414'
-const BG_CARD2 = '#0F0F0F'
 const MUTED = '#6B7280'
 const BORDER = 'rgba(255,255,255,0.06)'
 const MEN_BLUE = '#4A9EFF'
@@ -220,8 +148,6 @@ const CHUNKY = {
 }
 
 // ── Types ──────────────────────────────────────────────────────
-type PageTab = 'overview' | 'season' | 'partners' | 'matches' | 'stats'
-
 interface PlayerRow {
   id: string
   name: string
@@ -247,32 +173,6 @@ interface PlayerRow {
     racket_image?: string
     brand_logo?: string
   } | null
-}
-
-interface MatchRow {
-  id: string
-  status: string
-  round: string | null
-  started_at: string | null
-  finished_at: string | null
-  scheduled_at: string | null
-  winner_pair: number | null
-  category: string | null
-  duration: number | null
-  tournament: { id: string; name: string | null; country: string | null; level: string | null; starts_at: string | null; ends_at: string | null } | null
-  pair1_player1: PartnerInfo | null
-  pair1_player2: PartnerInfo | null
-  pair2_player1: PartnerInfo | null
-  pair2_player2: PartnerInfo | null
-  sets: Array<{ set_score: string | null; set_number: number }>
-}
-
-interface PartnerInfo {
-  id: string
-  name: string
-  display_name: string | null
-  country: string | null
-  avatar_url: string | null
 }
 
 // Round avatar for a partner/player — uses avatar_url when available,
@@ -331,15 +231,6 @@ function PartnerAvatar({
   )
 }
 
-const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'II', 'III', 'IV', 'BNL'])
-function titleCase(name: string): string {
-  return name.split(' ').map(word => {
-    if (KEEP_UPPER.has(word.toUpperCase())) return word.toUpperCase()
-    if (word.length <= 1) return word.toUpperCase()
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  }).join(' ')
-}
-
 // ── Match helpers ─────────────────────────────────────────────
 // Best-effort date for a match: finished > started > scheduled.
 // Used for both sorting (newest first) and display.
@@ -358,19 +249,6 @@ function matchTime(m: MatchRow): number {
   return d ? new Date(d).getTime() : 0
 }
 
-function resolveMatchRoles(match: MatchRow, playerId: string) {
-  const isP1 = match.pair1_player1?.id === playerId || match.pair1_player2?.id === playerId
-  const partner = isP1
-    ? (match.pair1_player1?.id === playerId ? match.pair1_player2 : match.pair1_player1)
-    : (match.pair2_player1?.id === playerId ? match.pair2_player2 : match.pair2_player1)
-  const opp1 = isP1 ? match.pair2_player1 : match.pair1_player1
-  const opp2 = isP1 ? match.pair2_player2 : match.pair1_player2
-  const myPair = isP1 ? 1 : 2
-  const isTerminal = match.status === 'finished' || match.status === 'retired' || match.status === 'walkover'
-  const won = isTerminal && match.winner_pair === myPair
-  const lost = isTerminal && match.winner_pair != null && match.winner_pair !== myPair
-  return { isP1, partner, opp1, opp2, myPair, won, lost }
-}
 
 function scoreString(sets: Array<{ set_score: string | null; set_number: number }>): string {
   return [...(sets ?? [])]
@@ -400,23 +278,60 @@ function computeAge(birthdate: string | null): number | null {
 }
 
 
+// ── NEW pill — show for 30 days after first visit ─────────────
+const NEW_PILL_STORAGE_KEY = 'ganhos_tab_new_until'
+const NEW_PILL_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+function shouldShowNewPill(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    const raw = window.localStorage.getItem(NEW_PILL_STORAGE_KEY)
+    if (!raw) {
+      const until = Date.now() + NEW_PILL_TTL_MS
+      window.localStorage.setItem(NEW_PILL_STORAGE_KEY, String(until))
+      return true
+    }
+    const until = Number(raw)
+    return Number.isFinite(until) && Date.now() < until
+  } catch {
+    return false
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  PAGE
 // ═══════════════════════════════════════════════════════════════
 export default function PlayerPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
+  const pathname = usePathname()
   const tPlayer = useTranslations('player')
   const tCommon = useTranslations('common')
   const format = useFormatter()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
+  const searchParams = useSearchParams()
+
+  const initialTab = ((): PageTab => {
+    const t = searchParams.get('tab')
+    const valid: PageTab[] = ['overview', 'season', 'partners', 'matches', 'stats', 'earnings']
+    return (t && (valid as string[]).includes(t)) ? (t as PageTab) : 'overview'
+  })()
+
+  const initialYear = ((): number | null => {
+    const y = searchParams.get('year')
+    if (!y) return null
+    if (y === 'all') return null
+    if (/^\d{4}$/.test(y)) return Number(y)
+    return null
+  })()
+
   const [player, setPlayer] = useState<PlayerRow | null>(null)
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
-  const [activeTab, setActiveTab] = useState<PageTab>('overview')
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [activeTab, setActiveTab] = useState<PageTab>(initialTab)
+  const [selectedYear, setSelectedYear] = useState<number | null>(initialYear)
   const [currentEquipment, setCurrentEquipment] = useState<{
     racket: {
       id: string
@@ -589,7 +504,11 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       if (!entry.lastIso) entry.lastIso = matchDate(m)
       partnerMap.set(roles.partner.id, entry)
     }
-    const partnersList = [...partnerMap.values()].sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses))
+    const partnersList = [...partnerMap.values()].sort((a, b) => {
+      const ta = a.lastIso ? new Date(a.lastIso).getTime() : 0
+      const tb = b.lastIso ? new Date(b.lastIso).getTime() : 0
+      return tb - ta
+    })
 
     // Available years for the season filter — descending (newest first).
     const yearSet = new Set<number>()
@@ -599,10 +518,34 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     }
     const availableYears = [...yearSet].sort((a, b) => b - a)
 
+    // Earliest scheduled match with a known future time
+    const now = new Date()
+    const nextScheduled = matches
+      .filter(m => m.status === 'scheduled' && m.scheduled_at && new Date(m.scheduled_at) > now)
+      .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())[0] ?? null
+
+    // Earliest upcoming tournament derived from scheduled matches (only when no specific match is found)
+    const nextTournament: DerivedData['nextTournament'] = nextScheduled
+      ? null
+      : (() => {
+          const seen = new Set<string>()
+          return matches
+            .filter(m => {
+              if (m.status !== 'scheduled' || !m.tournament?.starts_at || !m.tournament.id) return false
+              if (new Date(m.tournament.starts_at) <= now) return false
+              if (seen.has(m.tournament.id)) return false
+              seen.add(m.tournament.id)
+              return true
+            })
+            .map(m => m.tournament!)
+            .sort((a, b) => new Date(a.starts_at!).getTime() - new Date(b.starts_at!).getTime())[0] ?? null
+        })()
+
     return {
       finished, wins, losses, winRate, last10Matches,
       currentPartner, cpWins, cpLosses, firstPartneredIso, lastPartneredIso,
       partnersList, availableYears,
+      nextScheduled, nextTournament,
     }
   }, [matches, id])
 
@@ -612,6 +555,34 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       setSelectedYear(derived.availableYears[0])
     }
   }, [derived.availableYears, selectedYear])
+
+  // Sync active tab + selected year back into the URL (without polluting history).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const sp = new URLSearchParams(window.location.search)
+    if (activeTab === 'overview') {
+      sp.delete('tab')
+    } else {
+      sp.set('tab', activeTab)
+    }
+    if (selectedYear == null) {
+      sp.delete('year')
+    } else {
+      sp.set('year', String(selectedYear))
+    }
+    const qs = sp.toString()
+    // Use next-intl's locale-stripped pathname; window.location.pathname includes the locale prefix
+    // and the next-intl router would prepend it again, causing /es/es/... double-prefix bug.
+    const next = qs ? `${pathname}?${qs}` : pathname
+    router.replace(next, { scroll: false })
+  }, [activeTab, selectedYear, router, pathname])
+
+  // Fall-through guard: if ?tab=earnings lands on a player with no earnings data, reset to overview.
+  useEffect(() => {
+    if (activeTab === 'earnings' && !(earnings != null && earnings.allTimeEur > 0)) {
+      setActiveTab('overview')
+    }
+  }, [activeTab, earnings])
 
   // ── Loading / not found ──────────────────────────────────────
   if (loading) return (
@@ -638,20 +609,25 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const categoryColor = player.category === 'men' ? MEN_BLUE : player.category === 'women' ? WOMEN_PURPLE : MUTED
 
   // Hero stat chips — pick the 4 most relevant available metrics
-  const heroStats: Array<{ label: string; value: string; accent?: 'green' | 'orange' }> = []
+  type HeroStat = { label: string; value: string; accent?: 'green' | 'orange'; onClick?: () => void; ariaLabel?: string }
+  const heroStats: HeroStat[] = []
   if (derived.winRate != null) heroStats.push({ label: tPlayer('winRate'), value: `${derived.winRate}%`, accent: 'green' })
   else if (player.win_rate) heroStats.push({ label: tPlayer('winRate'), value: `${player.win_rate}%`, accent: 'green' })
-  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange' })
+  if (player.titles) heroStats.push({ label: tPlayer('titles'), value: String(player.titles), accent: 'orange', onClick: () => { setSelectedYear(new Date().getUTCFullYear()); setActiveTab('season') }, ariaLabel: 'View titles in Season tab' })
   if (derived.finished.length > 0) heroStats.push({ label: tPlayer('record'), value: `${derived.wins}-${derived.losses}`, accent: 'green' })
   else if (player.total_matches) heroStats.push({ label: tPlayer('matches'), value: String(player.total_matches) })
-  if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange' })
+  if (player.points) heroStats.push({ label: tPlayer('fipPts'), value: player.points.toLocaleString(), accent: 'orange', onClick: () => { const g = player.category === 'women' ? 'women' : 'men'; router.push(`/rankings?gender=${g}&type=official&highlight=${player.id}` as Parameters<typeof router.push>[0]) }, ariaLabel: tPlayer('viewInRankings', { name: player.display_name?.trim() || player.name }) })
 
-  const tabs: Array<{ id: PageTab; label: string }> = [
+  const hasEarnings = earnings != null && earnings.allTimeEur > 0
+  const showNewPill = hasEarnings && shouldShowNewPill()
+
+  const tabs: Array<{ id: PageTab; label: string; isNew?: boolean }> = [
     { id: 'overview', label: tPlayer('overview') },
     { id: 'season', label: tPlayer('season') },
     { id: 'partners', label: tPlayer('partners') },
     { id: 'matches', label: tPlayer('matches') },
     { id: 'stats', label: tPlayer('stats') },
+    ...(hasEarnings ? [{ id: 'earnings' as const, label: tPlayer('earningsTab'), isNew: showNewPill }] : []),
   ]
 
   return (
@@ -719,15 +695,24 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             {/* Name + identity */}
             <div style={{ flex: 1, minWidth: 0 }}>
               {player.ranking != null && (
-                <span style={{
-                  display: 'inline-block',
-                  background: GREEN, color: '#000',
-                  fontSize: 9, fontWeight: 800, padding: '3px 9px',
-                  clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-                  marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5,
-                }}>
+                <button
+                  onClick={() => {
+                    const g = player.category === 'women' ? 'women' : 'men'
+                    router.push(`/rankings?gender=${g}&type=official&highlight=${player.id}` as Parameters<typeof router.push>[0])
+                  }}
+                  aria-label={tPlayer('viewInRankings', { name: player.display_name?.trim() || player.name })}
+                  style={{
+                    display: 'inline-block',
+                    background: GREEN, color: '#000',
+                    fontSize: 9, fontWeight: 800, padding: '3px 9px',
+                    clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
+                    marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5,
+                    border: 'none', cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
                   #{player.ranking} {player.category === 'women' ? 'Women' : player.category === 'men' ? 'World' : 'Ranked'}
-                </span>
+                </button>
               )}
               <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>
                 {titleCase(player.display_name?.trim() || player.name)}
@@ -749,31 +734,147 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           {/* Stat chips row */}
           {heroStats.length > 0 && (
             <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-              {heroStats.slice(0, 4).map(s => (
-                <div key={s.label} style={{
-                  flex: 1, background: BG_CARD, padding: '9px 6px', textAlign: 'center',
-                  clipPath: 'polygon(0% 3%, 99% 0%, 100% 97%, 1% 100%)',
-                }}>
-                  <div style={{
-                    fontSize: 16, fontWeight: 800, lineHeight: 1,
-                    color: s.accent === 'orange' ? ORANGE : s.accent === 'green' ? GREEN : '#fff',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}>{s.value}</div>
-                  <div style={{ fontSize: 8, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>
-                    {s.label}
-                  </div>
-                </div>
-              ))}
+              {heroStats.slice(0, 4).map(s => {
+                const clickable = s.onClick != null
+                const Tag = clickable ? 'button' : 'div'
+                return (
+                  <Tag
+                    key={s.label}
+                    onClick={s.onClick}
+                    aria-label={s.ariaLabel}
+                    style={{
+                      flex: 1, background: BG_CARD, padding: '9px 6px', textAlign: 'center',
+                      clipPath: 'polygon(0% 3%, 99% 0%, 100% 97%, 1% 100%)',
+                      border: 'none', cursor: clickable ? 'pointer' : 'default',
+                      position: 'relative',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{
+                      fontSize: 16, fontWeight: 800, lineHeight: 1,
+                      color: s.accent === 'orange' ? ORANGE : s.accent === 'green' ? GREEN : '#fff',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>{s.value}</div>
+                    <div style={{ fontSize: 8, color: MUTED, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 4 }}>
+                      {s.label}
+                    </div>
+                    {clickable && (
+                      <span style={{
+                        position: 'absolute', top: 4, right: 5,
+                        width: 5, height: 5,
+                        borderTop: '1.5px solid rgba(255,255,255,0.35)',
+                        borderRight: '1.5px solid rgba(255,255,255,0.35)',
+                        transform: 'rotate(45deg)',
+                      }} />
+                    )}
+                  </Tag>
+                )
+              })}
             </div>
           )}
+
+          {/* Next match / tournament strip */}
+          {(derived.nextScheduled || derived.nextTournament) && (() => {
+            if (derived.nextScheduled) {
+              const roles = resolveMatchRoles(derived.nextScheduled, id)
+              const oppNames = [roles.opp1, roles.opp2]
+                .filter(Boolean)
+                .map(p => toShortName(p!.display_name?.trim() || p!.name))
+                .join(' / ')
+              const dateStr = derived.nextScheduled.scheduled_at
+                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY)
+                : null
+              const timeStr = derived.nextScheduled.scheduled_at
+                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H)
+                : null
+              return (
+                <div
+                  onClick={() => router.push(`/match/${derived.nextScheduled!.id}` as Parameters<typeof router.push>[0])}
+                  style={{
+                    marginTop: 8, background: 'rgba(245,166,35,0.07)',
+                    border: '1px solid rgba(245,166,35,0.18)', borderRadius: 6,
+                    padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
+                    {tPlayer('nextMatch')}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      vs {oppNames}{derived.nextScheduled.round ? ` · ${derived.nextScheduled.round}` : ''}
+                    </div>
+                    <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {[derived.nextScheduled.tournament?.name ? titleCase(derived.nextScheduled.tournament.name) : null, dateStr, timeStr].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  {derived.nextScheduled.tournament?.level && (
+                    <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
+                      {levelLabel(derived.nextScheduled.tournament.level)}
+                    </div>
+                  )}
+                </div>
+              )
+            }
+            const tourn = derived.nextTournament!
+            const dateStr = tourn.starts_at
+              ? format.dateTime(new Date(tourn.starts_at), DATE_WITH_WEEKDAY)
+              : null
+            return (
+              <div
+                onClick={() => router.push(`/tournaments/${tourn.id}` as Parameters<typeof router.push>[0])}
+                style={{
+                  marginTop: 8, background: 'rgba(245,166,35,0.07)',
+                  border: '1px solid rgba(245,166,35,0.18)', borderRadius: 6,
+                  padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
+                  {tPlayer('nextTournament')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {titleCase(tourn.name ?? '')}
+                  </div>
+                  {dateStr && <div style={{ fontSize: 8, color: MUTED, marginTop: 1 }}>{dateStr}</div>}
+                </div>
+                {tourn.level && (
+                  <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
+                    {levelLabel(tourn.level)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
 
         {/* ── TABS ─────────────────────────────────────────────── */}
         {/* 5 tabs at this label length (ESTADÍSTICAS et al) overflow
             the flex-equal layout, so we let tabs shrink to content
-            (flex: none) and scroll the strip horizontally instead. */}
+            (flex: none) and scroll the strip horizontally instead.
+            Tabs with `isNew` get an orange NEW pill inline in the label. */}
         <SlidingInkTabs<PageTab>
-          tabs={tabs.map(t => ({ key: t.id, label: t.label }))}
+          tabs={tabs.map(t => ({
+            key: t.id,
+            label: t.isNew ? (
+              <>
+                {t.label}
+                <span style={{
+                  background: ORANGE,
+                  color: '#000',
+                  fontSize: 7,
+                  fontWeight: 800,
+                  padding: '1px 4px',
+                  borderRadius: 2,
+                  marginLeft: 4,
+                  verticalAlign: 'top',
+                }}>
+                  {tPlayer('earningsTabNewPill')}
+                </span>
+              </>
+            ) : t.label,
+          }))}
           activeKey={activeTab}
           onChange={setActiveTab}
           containerStyle={{
@@ -803,6 +904,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             playerId={id}
             router={router}
             setActiveTab={setActiveTab}
+            setSelectedYear={setSelectedYear}
             currentEquipment={currentEquipment}
             earnings={earnings}
           />
@@ -813,6 +915,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             playerId={id}
             selectedYear={selectedYear ?? derived.availableYears[0] ?? new Date().getFullYear()}
             onYearChange={setSelectedYear}
+            storedTitlesTotal={player.titles ?? null}
           />
         )}
         {activeTab === 'partners' && (
@@ -824,6 +927,13 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         {activeTab === 'stats' && (
           <StatsTab player={player} derived={derived} matches={matches} playerId={id} />
         )}
+        {activeTab === 'earnings' && hasEarnings && (
+          <EarningsTab
+            playerId={id}
+            initialYear={selectedYear ?? 'all'}
+            onYearChange={(y) => setSelectedYear(y === 'all' ? null : y)}
+          />
+        )}
       </div>
       <BottomNav />
     </>
@@ -833,23 +943,8 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 // ═══════════════════════════════════════════════════════════════
 //  OVERVIEW TAB — Widget grid (from Concept C)
 // ═══════════════════════════════════════════════════════════════
-interface DerivedData {
-  finished: MatchRow[]
-  wins: number
-  losses: number
-  winRate: number | null
-  last10Matches: MatchRow[]
-  currentPartner: PartnerInfo | null
-  cpWins: number
-  cpLosses: number
-  firstPartneredIso: string | null
-  lastPartneredIso: string | null
-  partnersList: Array<{ partner: PartnerInfo; wins: number; losses: number; lastIso: string | null }>
-  availableYears: number[]
-}
-
 function OverviewTab({
-  player, matches, derived, playerId, router, setActiveTab, currentEquipment, earnings,
+  player, matches, derived, playerId, router, setActiveTab, setSelectedYear, currentEquipment, earnings,
 }: {
   player: PlayerRow
   matches: MatchRow[]
@@ -857,6 +952,7 @@ function OverviewTab({
   playerId: string
   router: ReturnType<typeof useRouter>
   setActiveTab: (t: PageTab) => void
+  setSelectedYear: (y: number | null) => void
   currentEquipment: {
     racket: {
       id: string
@@ -900,26 +996,70 @@ function OverviewTab({
       {/* Career earnings — YTD + All-Time tiles (PR 2C) */}
       {earnings != null && earnings.allTimeEur > 0 && (
         <>
-          <Widget label={t('ytdEarnings')}>
-            <div style={{
-              fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.1, marginTop: 4,
-            }}>
-              {format.number(earnings.ytdEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-            </div>
-            <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {new Date().getUTCFullYear()}
-            </div>
-          </Widget>
-          <Widget label={t('allTimeEarnings')}>
-            <div style={{
-              fontSize: 22, fontWeight: 800, color: GREEN, lineHeight: 1.1, marginTop: 4,
-            }}>
-              {format.number(earnings.allTimeEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-            </div>
-            <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {t('earningsSinceLabel', { year: 2024 })}
-            </div>
-          </Widget>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => { setSelectedYear(new Date().getUTCFullYear()); setActiveTab('earnings') }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setSelectedYear(new Date().getUTCFullYear())
+                setActiveTab('earnings')
+              }
+            }}
+            style={{ cursor: 'pointer', position: 'relative' }}
+          >
+            <Widget label={t('ytdEarnings')}>
+              <div style={{
+                fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.1, marginTop: 4,
+              }}>
+                {format.number(earnings.ytdEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+              </div>
+              <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                {new Date().getUTCFullYear()}
+              </div>
+            </Widget>
+            <span style={{
+              position: 'absolute', top: 8, right: 8,
+              width: 6, height: 6,
+              borderTop: '1.5px solid rgba(255,255,255,0.35)',
+              borderRight: '1.5px solid rgba(255,255,255,0.35)',
+              transform: 'rotate(45deg)',
+              pointerEvents: 'none',
+            }} />
+          </div>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => { setSelectedYear(null); setActiveTab('earnings') }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setSelectedYear(null)
+                setActiveTab('earnings')
+              }
+            }}
+            style={{ cursor: 'pointer', position: 'relative' }}
+          >
+            <Widget label={t('allTimeEarnings')}>
+              <div style={{
+                fontSize: 22, fontWeight: 800, color: GREEN, lineHeight: 1.1, marginTop: 4,
+              }}>
+                {format.number(earnings.allTimeEur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+              </div>
+              <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                {t('earningsSinceLabel', { year: 2024 })}
+              </div>
+            </Widget>
+            <span style={{
+              position: 'absolute', top: 8, right: 8,
+              width: 6, height: 6,
+              borderTop: '1.5px solid rgba(255,255,255,0.35)',
+              borderRight: '1.5px solid rgba(255,255,255,0.35)',
+              transform: 'rotate(45deg)',
+              pointerEvents: 'none',
+            }} />
+          </div>
         </>
       )}
 
@@ -1016,6 +1156,19 @@ function OverviewTab({
         )
       })()}
 
+      {/* FIP Ranking — always visible alongside Last 10 when ranking is known */}
+      {player.ranking != null && (
+        <Widget label="FIP Ranking">
+          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
+          {player.points && (
+            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
+              {player.points.toLocaleString()} pts
+            </div>
+          )}
+          <WidgetIcon>#</WidgetIcon>
+        </Widget>
+      )}
+
       {/* Equipment — "Plays with" (wide card with racket image + specs) */}
       {(() => {
         // New relational tables take priority; fall back to legacy JSONB if not migrated yet
@@ -1063,7 +1216,7 @@ function OverviewTab({
         const specRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }
         const specValueStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.65)', fontWeight: 600 }
         return (
-          <Widget label={t('playsWith')}>
+          <Widget wide label={t('playsWith')}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               {/* Left — Brand, model, specs */}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -1089,7 +1242,7 @@ function OverviewTab({
                 )}
                 {/* Spec rows */}
                 {hasSpecs && (
-                  <div style={{ marginTop: 6 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginTop: 6 }}>
                     {racketShape && (
                       <div style={specRowStyle}>
                         <span>{t('shape')}</span>
@@ -1125,7 +1278,7 @@ function OverviewTab({
                 )}
               </div>
               {/* Right — Racket image */}
-              <div style={{ flexShrink: 0, width: 70, textAlign: 'center' }}>
+              <div style={{ flexShrink: 0, width: 90, textAlign: 'center' }}>
                 {racketImage && !racketImageFailed ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -1133,7 +1286,7 @@ function OverviewTab({
                     alt={racketModel ?? ''}
                     onError={() => setRacketImageFailed(true)}
                     style={{
-                      height: 96, objectFit: 'contain',
+                      height: 110, objectFit: 'contain',
                       filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))',
                     }}
                   />
@@ -1149,20 +1302,6 @@ function OverviewTab({
           </Widget>
         )
       })()}
-      {/* FIP Ranking fallback — shown only when no equipment data */}
-      {!currentEquipment?.racket && !player.equipment?.racket_brand && player.ranking != null ? (
-        /* Fallback: show FIP Ranking if no equipment data */
-        <Widget label="FIP Ranking">
-          <div style={{ fontSize: 26, fontWeight: 800, color: GREEN, lineHeight: 1 }}>#{player.ranking}</div>
-          {player.points && (
-            <div style={{ fontSize: 10, color: MUTED, marginTop: 4 }}>
-              {player.points.toLocaleString()} pts
-            </div>
-          )}
-          <WidgetIcon>#</WidgetIcon>
-        </Widget>
-      ) : null}
-
       {/* Profile Info — wide */}
       {availableProfileRows.length > 0 && (
         <Widget wide label="Profile Info">
@@ -1208,186 +1347,6 @@ function OverviewTab({
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-// ── Widget building blocks ───────────────────────────────────
-function Widget({ label, wide = false, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
-  return (
-    <div style={{
-      background: BG_CARD, padding: 12,
-      clipPath: CHUNKY.card,
-      position: 'relative',
-      minHeight: 92,
-      gridColumn: wide ? '1 / -1' : undefined,
-    }}>
-      <div style={{
-        fontSize: 9, color: ORANGE, textTransform: 'uppercase',
-        letterSpacing: 1, fontWeight: 700, marginBottom: 8,
-      }}>
-        {label}
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function WidgetIcon({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{
-      position: 'absolute', top: 10, right: 10,
-      width: 22, height: 22,
-      background: 'rgba(245,166,35,0.1)', color: ORANGE,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 11, fontWeight: 700,
-      clipPath: CHUNKY.iconChip,
-    }}>
-      {children}
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-//  SEASON TAB — monthly breakdown + summary
-// ═══════════════════════════════════════════════════════════════
-function SeasonTab({
-  derived, playerId, selectedYear, onYearChange,
-}: {
-  derived: DerivedData
-  playerId: string
-  selectedYear: number
-  onYearChange: (year: number) => void
-}) {
-  const t = useTranslations('player')
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-  // Compute season data for the selected year from the full finished match list.
-  const { seasonWins, seasonLosses, monthly } = useMemo(() => {
-    const ms = derived.finished.filter(m => {
-      const d = matchDate(m)
-      return d != null && new Date(d).getFullYear() === selectedYear
-    })
-    const wins = ms.filter(m => resolveMatchRoles(m, playerId).won).length
-    const losses = ms.length - wins
-    const mo: Array<{ wins: number; losses: number }> = Array.from({ length: 12 }, () => ({ wins: 0, losses: 0 }))
-    for (const m of ms) {
-      const d = matchDate(m)
-      if (!d) continue
-      const month = new Date(d).getMonth()
-      if (resolveMatchRoles(m, playerId).won) mo[month].wins++
-      else mo[month].losses++
-    }
-    return { seasonWins: wins, seasonLosses: losses, monthly: mo }
-  }, [derived.finished, selectedYear, playerId])
-
-  const maxTotal = Math.max(1, ...monthly.map(m => m.wins + m.losses))
-  const seasonTotal = seasonWins + seasonLosses
-  const seasonWr = seasonTotal > 0 ? Math.round((seasonWins / seasonTotal) * 100) : null
-
-  // Year chip selector — always render even if current year has no matches.
-  const yearSelector = (
-    <div style={{
-      display: 'flex', gap: 6, padding: '0 4px 4px',
-      overflowX: 'auto', scrollbarWidth: 'none',
-    } as React.CSSProperties}>
-      {derived.availableYears.length === 0 ? (
-        <div style={{ fontSize: 11, color: MUTED }}>{t('noSeasonsAvailable')}</div>
-      ) : derived.availableYears.map(year => {
-        const active = year === selectedYear
-        return (
-          <button
-            key={year}
-            onClick={() => onYearChange(year)}
-            style={{
-              padding: '6px 12px', fontSize: 11, fontWeight: 700,
-              background: active ? GREEN : BG_CARD,
-              color: active ? '#000' : '#fff',
-              border: 'none', cursor: 'pointer',
-              clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
-              fontFamily: 'inherit',
-              whiteSpace: 'nowrap',
-              letterSpacing: 0.3,
-            }}
-          >
-            {year}
-          </button>
-        )
-      })}
-    </div>
-  )
-
-  if (seasonTotal === 0) {
-    return (
-      <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {yearSelector}
-        <div style={{ padding: '32px 12px', textAlign: 'center', color: MUTED, fontSize: 12 }}>
-          {t('noMatchesForSeason', { year: selectedYear })}
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-
-      {yearSelector}
-
-      {/* Summary stat row */}
-      <Widget wide label={t('seasonLabel', { year: selectedYear })}>
-        <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-          <SeasonStat value={`${seasonWins}-${seasonLosses}`} label={t('record')} />
-          <SeasonStat value={seasonWr != null ? `${seasonWr}%` : '—'} label={t('winRate')} accent="green" />
-          <SeasonStat value={String(seasonTotal)} label={t('matches')} />
-        </div>
-      </Widget>
-
-      {/* Monthly chart */}
-      <Widget wide label={t('monthlyPerformance')}>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 100, padding: '8px 0 22px', marginTop: 4 }}>
-          {monthly.map((mo, i) => {
-            const total = mo.wins + mo.losses
-            const height = total === 0 ? 4 : (total / maxTotal) * 100
-            const wrHeight = total === 0 ? 0 : (mo.wins / total) * 100
-            return (
-              <MonthlyBar
-                key={i}
-                total={total}
-                height={height}
-                wrHeight={wrHeight}
-                monthLabel={months[i]}
-                rowIndex={i}
-                red={LIVE_RED}
-                green={GREEN}
-              />
-            )
-          })}
-        </div>
-        <div style={{ display: 'flex', gap: 12, fontSize: 9, color: MUTED, marginTop: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, background: GREEN }} /> Wins
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <div style={{ width: 8, height: 8, background: LIVE_RED }} /> Losses
-          </div>
-        </div>
-      </Widget>
-    </div>
-  )
-}
-
-function SeasonStat({ value, label, accent }: { value: string; label: string; accent?: 'green' | 'orange' }) {
-  return (
-    <div style={{
-      flex: 1, background: BG_CARD2, padding: '10px 8px', textAlign: 'center',
-      clipPath: 'polygon(0% 3%, 99% 0%, 100% 97%, 1% 100%)',
-    }}>
-      <div style={{
-        fontSize: 18, fontWeight: 800,
-        color: accent === 'orange' ? ORANGE : accent === 'green' ? GREEN : '#fff',
-        fontVariantNumeric: 'tabular-nums', lineHeight: 1,
-      }}>{value}</div>
-      <div style={{ fontSize: 9, color: MUTED, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
     </div>
   )
 }

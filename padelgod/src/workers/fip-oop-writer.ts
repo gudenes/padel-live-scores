@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import { paginatedSelect } from '../lib/db-paginate.js';
+import { countryToTimezone } from '../lib/country-timezone.js';
 import {
   parseOopScheduledAtBatch,
   type OopScheduleRow,
@@ -112,8 +113,11 @@ interface ExistingMatch {
   court_order: number | null;
   /** Used by Pass B to enforce gap-fill semantics — only write
    *  scheduled_at when current is NULL or a midnight-UTC placeholder
-   *  (see isPlaceholderScheduledAt). */
+   *  (see isPlaceholderScheduledAt), OR when the existing value is a
+   *  "Followed by" estimate that may shift as the OOP chain evolves
+   *  (see isScheduledAtWriteEligible). */
   scheduled_at: string | null;
+  schedule_label: string | null;
 }
 
 /**
@@ -135,6 +139,36 @@ export function isPlaceholderScheduledAt(value: string | null): boolean {
   // Avoid a Date round-trip — string-match the time component.
   // Accepts both "T00:00:00" and "T00:00:00.000" sub-second forms.
   return /T00:00:00(?:\.0+)?(?:Z|[+-]00:00)?$/.test(value);
+}
+
+/**
+ * Pass B eligibility predicate — whether to re-estimate scheduled_at
+ * on this OOP run.
+ *
+ * Eligible when:
+ *   - scheduled_at is NULL (never been set);
+ *   - it's the padelapi midnight-UTC placeholder (date-only, no time);
+ *   - the row's current `schedule_label` is "Followed by". These values
+ *     are pure chain-derived estimates: any change to absolute anchors
+ *     upstream on the same court (a new "Not before X PM" landing, a
+ *     court_order shuffle, a walkover finishing earlier than expected)
+ *     shifts the correct estimate downstream, so we must always recompute
+ *     rather than freeze the first guess.
+ *
+ * Firm rows ("Starting at X PM", "Not before X PM") are NOT eligible —
+ * those carry an absolute time and are preserved across runs so we don't
+ * clobber manual overrides or padelapi-sourced firm times. The CAS guard
+ * on the UPDATE still protects against a concurrent writer landing a
+ * firmer value between our read and write.
+ */
+export function isScheduledAtWriteEligible(
+  scheduledAt: string | null,
+  scheduleLabel: string | null,
+): boolean {
+  if (scheduledAt == null) return true;
+  if (isPlaceholderScheduledAt(scheduledAt)) return true;
+  if (scheduleLabel && /followed by/i.test(scheduleLabel)) return true;
+  return false;
 }
 
 // ── Main entry ─────────────────────────────────────────────────────────
@@ -270,8 +304,10 @@ export async function runFipOopWriter(
       if (r.day_date && r.scheduled_label) {
         allOopForParser.push({ matchId: existing.id, row: r });
         if (
-          existing.scheduled_at == null ||
-          isPlaceholderScheduledAt(existing.scheduled_at)
+          isScheduledAtWriteEligible(
+            existing.scheduled_at,
+            existing.schedule_label,
+          )
         ) {
           writeEligible.set(existing.id, existing.scheduled_at);
         }
@@ -280,21 +316,30 @@ export async function runFipOopWriter(
 
     // 5. Pass B — scheduled_at gap-fill from OOP day_date + label.
     if (writeEligible.size > 0) {
-      const tournamentTimezone = await getTournamentTimezone(
-        supabase,
-        t.tournament_id,
-      );
+      const { tz: tournamentTimezone, country, name } =
+        await getTournamentTimezone(supabase, t.tournament_id);
       if (!tournamentTimezone) {
         // No tz on the tournament row + country fallback didn't resolve.
-        // Skip — without tz we can't compute UTC. Operator can set the
-        // tournament's timezone column manually and the next run picks it up.
+        // Skip — without tz we can't compute UTC. Two common fixes:
+        //   (a) country is unset upstream → fix the sync that should
+        //       populate `tournaments.country`, OR set it manually in
+        //       the ops UI and the next run picks up.
+        //   (b) country is a new circuit destination not yet in
+        //       `src/lib/country-timezone.ts` → add it there (the
+        //       mirror + drift test keep padelgod aligned).
+        // The warn includes name + country so operators can act on it
+        // before play day. FIP PLATINUM ALBANIA 2026-05-25 was the
+        // first incident that surfaced this gap silently — see
+        // CLAUDE.md → "Timezone display" / the country-timezone lib.
         result.scheduledAtSkippedNoTimezone += writeEligible.size;
         logger?.warn(
           {
             tournamentId: t.tournament_id,
+            tournamentName: name,
+            country,
             candidates: writeEligible.size,
           },
-          'fip-oop-writer: skipping scheduled_at writes — no timezone resolvable',
+          'fip-oop-writer: skipping scheduled_at writes — no timezone resolvable (add country to src/lib/country-timezone.ts, or populate tournaments.timezone/country)',
         );
       } else {
         const oopBatch: OopScheduleRow[] = allOopForParser.map(
@@ -547,7 +592,7 @@ async function loadExistingMatchesByPrefix(
 ): Promise<Map<string, ExistingMatch>> {
   const { data, error } = await supabase
     .from('matches')
-    .select('id, widget_id_composite, round, court, court_order, scheduled_at')
+    .select('id, widget_id_composite, round, court, court_order, scheduled_at, schedule_label')
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
     throw new Error(
@@ -561,74 +606,27 @@ async function loadExistingMatchesByPrefix(
   return map;
 }
 
-// Country → IANA timezone fallback for tournaments where the timezone
-// column is null. Mirrors the smaller subset of the map used by the
-// Vercel sync's inferTimezone helper. Kept inline to avoid pulling a
-// Next.js-side module into padelgod.
-const COUNTRY_TIMEZONES: Readonly<Record<string, string>> = Object.freeze({
-  ES: 'Europe/Madrid',
-  FR: 'Europe/Paris',
-  IT: 'Europe/Rome',
-  DE: 'Europe/Berlin',
-  PT: 'Europe/Lisbon',
-  GB: 'Europe/London',
-  US: 'America/New_York',
-  MX: 'America/Mexico_City',
-  AR: 'America/Argentina/Buenos_Aires',
-  BR: 'America/Sao_Paulo',
-  SA: 'Asia/Riyadh',
-  AE: 'Asia/Dubai',
-  QA: 'Asia/Qatar',
-  HK: 'Asia/Hong_Kong',
-  SG: 'Asia/Singapore',
-  JP: 'Asia/Tokyo',
-  AU: 'Australia/Sydney',
-  ZA: 'Africa/Johannesburg',
-  MA: 'Africa/Casablanca',
-  EG: 'Africa/Cairo',
-  SE: 'Europe/Stockholm',
-  NL: 'Europe/Amsterdam',
-  BE: 'Europe/Brussels',
-  AT: 'Europe/Vienna',
-  CH: 'Europe/Zurich',
-  PL: 'Europe/Warsaw',
-  CZ: 'Europe/Prague',
-  RO: 'Europe/Bucharest',
-  GR: 'Europe/Athens',
-  TR: 'Europe/Istanbul',
-  IL: 'Asia/Jerusalem',
-  KZ: 'Asia/Almaty',
-  UZ: 'Asia/Tashkent',
-  KG: 'Asia/Bishkek',
-  CL: 'America/Santiago',
-  CO: 'America/Bogota',
-  PY: 'America/Asuncion',
-  PE: 'America/Lima',
-  EC: 'America/Guayaquil',
-  UY: 'America/Montevideo',
-  CN: 'Asia/Shanghai',
-  IN: 'Asia/Kolkata',
-  TH: 'Asia/Bangkok',
-  PH: 'Asia/Manila',
-  MY: 'Asia/Kuala_Lumpur',
-  ID: 'Asia/Jakarta',
-  KW: 'Asia/Kuwait',
-  TN: 'Africa/Tunis',
-  CI: 'Africa/Abidjan',
-  KE: 'Africa/Nairobi',
-  CA: 'America/Toronto',
-  HR: 'Europe/Zagreb',
-  BO: 'America/La_Paz',
-  CY: 'Asia/Nicosia',
-});
+/**
+ * Resolve the IANA timezone for a tournament. Prefers the explicit
+ * `tournaments.timezone` column; falls back to a country-code lookup
+ * via the shared {@link countryToTimezone} map (mirrored from the
+ * Next.js side — see `padelgod/src/lib/country-timezone.ts`).
+ *
+ * Returns null when neither source resolves. When that happens the
+ * caller logs a warn including the tournament name + country code so
+ * we hear about new circuit destinations before play day rather than
+ * after a user notices missing schedules. Adding a new country = one
+ * line in `src/lib/country-timezone.ts` (the mirror keeps padelgod
+ * in sync; the country-timezone drift test in CI catches divergence).
+ */
 
 async function getTournamentTimezone(
   supabase: SupabaseClient,
   tournamentId: string,
-): Promise<string | null> {
+): Promise<{ tz: string | null; country: string | null; name: string | null }> {
   const { data, error } = await supabase
     .from('tournaments')
-    .select('timezone, country')
+    .select('name, timezone, country')
     .eq('id', tournamentId)
     .maybeSingle();
   if (error) {
@@ -637,8 +635,8 @@ async function getTournamentTimezone(
     );
   }
   const explicit = (data?.timezone as string | null | undefined) ?? null;
-  if (explicit) return explicit;
   const country = (data?.country as string | null | undefined) ?? null;
-  if (!country) return null;
-  return COUNTRY_TIMEZONES[country.toUpperCase()] ?? null;
+  const name = (data?.name as string | null | undefined) ?? null;
+  if (explicit) return { tz: explicit, country, name };
+  return { tz: countryToTimezone(country), country, name };
 }

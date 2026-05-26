@@ -107,12 +107,27 @@ const EnvSchema = z.object({
   // Same safety posture as the populator: default OFF + dry-run ON.
   ENABLE_FIP_OOP_WRITER: boolEnv(false),
   FIP_OOP_WRITER_DRY_RUN: boolEnv(true),
+  // fip-draw-reconciler — auto-corrects public.matches when the latest
+  // fip_event_page draw_snapshot disagrees (the populator's NULL-only
+  // fill rule never overwrites already-set FKs, so a mid-tournament draw
+  // edit leaves stale teams pinned). Safety posture: default OFF +
+  // dry-run ON. See docs/superpowers/specs/2026-05-26-fip-draw-reconciler-design.md.
+  ENABLE_FIP_DRAW_RECONCILER: boolEnv(false),
+  FIP_DRAW_RECONCILER_DRY_RUN: boolEnv(true),
   // fip-results-writer — simplified-pipeline writer #3. Reads
   // padelgod.results_snapshots and UPDATEs matches.status + winner_pair
   // + UPSERTs sets rows for composite-keyed matches. Same safety
   // posture as the other writers.
   ENABLE_FIP_RESULTS_WRITER: boolEnv(false),
   FIP_RESULTS_WRITER_DRY_RUN: boolEnv(true),
+  // fip-draw-results-writer — settles pre-match walkovers that the FIP
+  // event page captures but matchscorerlive never publishes a results
+  // row for. Reads padelgod.draw_snapshots (source='fip_event_page')
+  // and flips public.matches.status + winner_pair on composite-keyed
+  // rows. See worker docblock for the translation table. Same safety
+  // posture as the other writers (default OFF + dry-run ON).
+  ENABLE_FIP_DRAW_RESULTS_WRITER: boolEnv(false),
+  FIP_DRAW_RESULTS_WRITER_DRY_RUN: boolEnv(true),
   // fip-winner-propagator — simplified-pipeline writer #4. When a match
   // is finished with a winner, the propagator copies the winning pair's
   // 2 player UUIDs into the next-round match via bracket math. Pure
@@ -142,7 +157,22 @@ const EnvSchema = z.object({
   ENABLE_LIVE_POLLER_MANAGER: boolEnv(true),
   ENABLE_SHADOW_DIFF_FINALIZER: boolEnv(true),
   ENABLE_SHADOW_DIFF_LIVE: boolEnv(true),
+  // OCR diff worker — compares padelgod.ocr_snapshots against public.sets.
+  // Enabled by operator in Railway after the Python OCR worker (Task 11)
+  // is deployed and producing padelgod.ocr_snapshots rows.
+  ENABLE_SHADOW_DIFF_OCR: boolEnv(false),
   ENABLE_CLOSE_STALE_LIVE_SWEEPER: boolEnv(true),
+  // fip-cms-orphan-prune — stamps + sweeps orphan FIP-source tournament
+  // rows whose slugs disappeared from the FIP WP /events response. Runs
+  // daily at 04:15 UTC. Default OFF — operator flips on in Railway
+  // after the 2026-05-25 cleanup migration applies (which adds
+  // ON DELETE CASCADE for padelgod.scrape_jobs.tournament_id; without
+  // that the DELETE bounces on the FK and the worker logs a warn).
+  ENABLE_FIP_CMS_ORPHAN_PRUNE: boolEnv(false),
+  // Dry-run: when true (default), logs proposed stamps/clears/deletes
+  // but makes no DB writes. Flip to false once the first day's log
+  // output looks correct.
+  FIP_CMS_ORPHAN_PRUNE_DRY_RUN: boolEnv(true),
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
   // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.

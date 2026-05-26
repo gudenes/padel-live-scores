@@ -12,7 +12,7 @@ import { BOOKMARK_EVENT, type BookmarkEventDetail } from '@/components/BookmarkT
 import { useAnonPush } from '@/hooks/useAnonPush'
 import { tryEnablePushOrShowInstallNudge } from '@/lib/pwa-install'
 
-export type FollowType = 'match' | 'player' | 'tournament' | 'news_source'
+export type FollowType = 'match' | 'player' | 'tournament' | 'news_source' | 'article'
 
 const STORAGE_KEY = 'pn_following'
 const LEGACY_STORAGE_KEY = 'pn_bookmarked_matches'
@@ -22,16 +22,18 @@ interface FollowingStore {
   players: string[]
   tournaments: string[]
   news_sources: string[]
+  articles: string[]
 }
 
 function emptyStore(): FollowingStore {
-  return { matches: [], players: [], tournaments: [], news_sources: [] }
+  return { matches: [], players: [], tournaments: [], news_sources: [], articles: [] }
 }
 
 function typeToField(type: FollowType): keyof FollowingStore {
   if (type === 'match') return 'matches'
   if (type === 'player') return 'players'
   if (type === 'tournament') return 'tournaments'
+  if (type === 'article') return 'articles'
   return 'news_sources'
 }
 
@@ -56,6 +58,7 @@ function readLocalStorage(): FollowingStore {
       players: store.players ?? [],
       tournaments: store.tournaments ?? [],
       news_sources: store.news_sources ?? [],
+      articles: store.articles ?? [],
     }
   } catch {
     return emptyStore()
@@ -114,6 +117,7 @@ export function useFollowing() {
     player: new Set(),
     tournament: new Set(),
     news_source: new Set(),
+    article: new Set(),
   })
   const [loaded, setLoaded] = useState(false)
 
@@ -190,6 +194,7 @@ export function useFollowing() {
           player: dbPlayers,
           tournament: dbTournaments,
           news_source: new Set(local.news_sources),
+          article: new Set(local.articles),
         })
       } else {
         setStore({
@@ -197,6 +202,7 @@ export function useFollowing() {
           player: new Set(local.players),
           tournament: new Set(local.tournaments),
           news_source: new Set(local.news_sources),
+          article: new Set(local.articles),
         })
       }
 
@@ -226,8 +232,8 @@ export function useFollowing() {
         if (isCurrently) next[type].delete(targetId)
         else next[type].add(targetId)
 
-        // Always sync localStorage (source of truth for anonymous + news_sources)
-        if (!user || type === 'news_source') {
+        // Always sync localStorage (source of truth for anonymous + news_sources + articles)
+        if (!user || type === 'news_source' || type === 'article') {
           const field = typeToField(type)
           const local = readLocalStorage()
           local[field] = [...next[type]]
@@ -272,10 +278,11 @@ export function useFollowing() {
         }
       }
 
-      // Fire bookmark feedback toast (skip news_source — not a user-facing bookmark)
+      // Fire bookmark feedback toast (skip news_source + article — not user-facing bookmarks
+      // that need toast feedback in the current toast component's type union)
       // Suppressed entirely when `silent: true` — used by the picker which writes
       // many follows at once and surfaces a single consolidated prompt instead.
-      if (!silent && type !== 'news_source' && typeof window !== 'undefined') {
+      if (!silent && type !== 'news_source' && type !== 'article' && typeof window !== 'undefined') {
         // Attach the enable-push CTA on the first follow/bookmark-ADD when:
         //   (a) the action is a net-new follow (not an unfollow), and
         //   (b) the type is one the user wants real-time alerts on
@@ -316,8 +323,8 @@ export function useFollowing() {
         }))
       }
 
-      // Persist to Supabase for authenticated users (non-news_source types only)
-      if (user && type !== 'news_source') {
+      // Persist to Supabase for authenticated users (non-news_source, non-article types only)
+      if (user && type !== 'news_source' && type !== 'article') {
         const dbType = typeToDbType(type)
         // Invalidate dedup cache so a subsequent parent re-render that
         // retriggers load() fetches fresh data instead of a pre-mutation
@@ -351,6 +358,7 @@ export function useFollowing() {
     player: store.player.size,
     tournament: store.tournament.size,
     news_source: store.news_source.size,
+    article: store.article.size,
   }
 
   return { isFollowing, toggle, getFollowed, counts, loaded }

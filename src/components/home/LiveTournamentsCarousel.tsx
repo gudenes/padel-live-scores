@@ -1,7 +1,7 @@
 'use client'
 
 import TournamentCoverImage from '@/components/TournamentCoverImage'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import {
   CHUNKY,
@@ -13,12 +13,40 @@ import {
   levelLabel,
 } from '@/components/home/shared'
 import { getTierGradient, getTierPill } from '@/lib/tournament-tier-style'
-import { daysUntilStart, hasStarted } from '@/lib/live-tournaments-carousel'
+import { hasStarted, daysUntilStart } from '@/lib/live-tournaments-carousel'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
+
+/**
+ * One pair of champion players from a winner_pair=1 or =2 finals row.
+ * Names + countries fall back to the thin-match raw columns when the
+ * joined players row is missing (same policy as MatchCard).
+ */
+export interface ChampionPair {
+  player1Name: string
+  player1Country: string | null
+  player2Name: string
+  player2Country: string | null
+}
+
+/**
+ * Champion data attached to a tournament when one or both finals
+ * finished in the carousel's back-window (currently 48h). When only
+ * one gender's final is done the other side stays undefined and the
+ * card renders "Final M: TBD" / "Final W: TBD" in muted style.
+ */
+export interface TournamentChampions {
+  men?: ChampionPair
+  women?: ChampionPair
+  /** Latest finished_at across this tournament's finals — drives "Coronado hace Xh". */
+  crownedAt: string
+}
 
 export interface TournamentWithMatchInfo extends Tournament {
   matchesToday: number
+  champions?: TournamentChampions
 }
+
+const GOLD = '#F5C842'
 
 interface Props {
   liveToday: TournamentWithMatchInfo[]
@@ -30,6 +58,7 @@ function TournamentCarouselCard({
   tournament: TournamentWithMatchInfo
 }) {
   const t = useTranslations('home.liveTournaments')
+  const format = useFormatter()
 
   const level = tournament.level ?? ''
   const tierGradient = getTierGradient(level)
@@ -39,23 +68,34 @@ function TournamentCarouselCard({
   const cover = tournament.cover_image_url ?? null
   const city = tournament.location ?? countryName(tournament.country)
 
+  // Treatment decision: a tournament is "crowned" the moment both M+W
+  // finals are decided, regardless of whether the finals were scheduled
+  // today. matchesToday is for the LIVE chip on still-in-progress
+  // tournaments — once the trophies are awarded the celebratory
+  // treatment wins. Half-crowned (only one gender's final done) keeps
+  // the LIVE treatment because there's still a match to play.
+  const isCrowned = !!(tournament.champions?.men && tournament.champions?.women)
   const started = hasStarted(tournament.starts_at)
-  const statusLine = started
-    ? (tournament.matchesToday > 0
-        ? t('matchesTodayCount', { count: tournament.matchesToday })
-        : t('restDay'))
-    : (() => {
-        const d = daysUntilStart(tournament.starts_at)
-        if (d <= 0) return t('startsToday')
-        if (d === 1) return t('startsTomorrow')
-        return t('startsInDays', { count: d })
-      })()
+  const isUpcoming = !isCrowned && !started
+
+  const statusLine = isCrowned
+    ? format.relativeTime(new Date(tournament.champions!.crownedAt))
+    : tournament.matchesToday > 0
+      ? t('matchesTodayCount', { count: tournament.matchesToday })
+      : isUpcoming
+        ? (() => {
+            const days = daysUntilStart(tournament.starts_at)
+            if (days <= 0) return t('startsToday')
+            if (days === 1) return t('startsTomorrow')
+            return t('startsInDays', { count: days })
+          })()
+        : t('restDay')
 
   const ariaLabel = [tournament.name, tierLabel, statusLine].filter(Boolean).join(', ')
 
   return (
     <Link
-      href={`/tournaments/${tournament.id}`}
+      href={`/tournaments/${tournament.id}?tab=matches&intent=matches`}
       aria-label={ariaLabel}
       style={{ textDecoration: 'none', color: '#fff' }}
     >
@@ -69,29 +109,56 @@ function TournamentCarouselCard({
           overflow: 'hidden',
         }}
       >
-        {/* Cover image — fills the card; falls back to the tier gradient when null */}
-        <TournamentCoverImage
-          src={cover}
-          alt=""
-          variant="tile-portrait"
-          sizes="196px"
-        />
+        {/* Cover image — desaturated for the crowned treatment so the
+            gold accent + champion names pop without competing with the
+            tournament artwork. Filter is the only diff vs. live cards. */}
+        <div style={{ position: 'absolute', inset: 0, filter: isCrowned ? 'saturate(0.55) brightness(0.85)' : 'none' }}>
+          <TournamentCoverImage
+            src={cover}
+            alt=""
+            variant="tile-portrait"
+            sizes="196px"
+          />
+        </div>
 
-        {/* Bottom gradient overlay for legibility */}
+        {/* Bottom gradient overlay for legibility — extra dark on
+            crowned so 4-line champion block has solid contrast. */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background:
-              'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0.95) 100%)',
+            background: isCrowned
+              ? 'linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.92) 60%, rgba(0,0,0,0.98) 100%)'
+              : 'linear-gradient(180deg, rgba(0,0,0,0.25) 0%, rgba(0,0,0,0.85) 70%, rgba(0,0,0,0.95) 100%)',
             pointerEvents: 'none',
           }}
         />
 
-        {/* LIVE chip — presence indicator (tournament is running today
-            with matches scheduled). No pulse; calmer than a "scores
-            ticking" signal. */}
-        {started && tournament.matchesToday > 0 && (
+        {/* Top-left chip — LIVE (red) for live, CHAMPION (gold) for
+            crowned. Calmer than a pulsing scores ticker. */}
+        {isCrowned ? (
+          <div
+            style={{
+              position: 'absolute',
+              top: 9,
+              left: 9,
+              background: GOLD,
+              color: '#0A0A0A',
+              fontSize: 8,
+              fontWeight: 900,
+              padding: '3px 7px',
+              letterSpacing: 0.8,
+              clipPath: CHUNKY.badge,
+              zIndex: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 3,
+            }}
+          >
+            <span aria-hidden style={{ fontSize: 9 }}>★</span>
+            {t('crowned')}
+          </div>
+        ) : tournament.matchesToday > 0 ? (
           <div
             style={{
               position: 'absolute',
@@ -109,12 +176,7 @@ function TournamentCarouselCard({
           >
             LIVE
           </div>
-        )}
-
-        {/* UPCOMING chip — neutral counterpart to LIVE, shown on
-            not-yet-started cards. Muted so the tier pill on the right
-            stays the dominant identifier. */}
-        {!started && (
+        ) : isUpcoming ? (
           <div
             style={{
               position: 'absolute',
@@ -132,7 +194,7 @@ function TournamentCarouselCard({
           >
             {t('upcomingChip')}
           </div>
-        )}
+        ) : null}
 
         {/* Level pill */}
         {tierLabel && (
@@ -180,7 +242,16 @@ function TournamentCarouselCard({
           {city && (
             <div style={{ fontSize: 10.5, color: '#9CA3AF' }}>{city}</div>
           )}
-          <div style={{ fontSize: 10, color: GREEN, fontWeight: 700, marginTop: 2 }}>
+          <div style={{
+            fontSize: 10,
+            // Gold tints the relative time on crowned cards; green
+            // tints the matches-today count on live cards. Same slot,
+            // semantic colour.
+            color: isCrowned ? GOLD : GREEN,
+            fontWeight: 700,
+            marginTop: 2,
+            textTransform: isCrowned ? 'capitalize' : 'none',
+          }}>
             {statusLine}
           </div>
           <PressButton
@@ -195,7 +266,7 @@ function TournamentCarouselCard({
               textTransform: 'uppercase',
             }}
           >
-            {t('viewMatches')}
+            {isCrowned ? t('viewRecap') : t('viewMatches')}
           </PressButton>
         </div>
       </div>

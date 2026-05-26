@@ -6,6 +6,14 @@
 // Schemas:
 //   - urlset:       https://www.sitemaps.org/schemas/sitemap/0.9
 //   - sitemapindex: https://www.sitemaps.org/schemas/sitemap/0.9
+//   - xhtml:link:   https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap
+
+export interface SitemapAlternate {
+  /** BCP 47 language tag (e.g. "en", "es") or "x-default". */
+  hreflang: string
+  /** Absolute URL for that locale variant. */
+  href: string
+}
 
 export interface SitemapUrl {
   /** Absolute URL (e.g. https://padelnachos.com/match/abc). */
@@ -15,6 +23,8 @@ export interface SitemapUrl {
   changefreq?: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never'
   /** 0.0–1.0. Default 0.5 if omitted. */
   priority?: number
+  /** Locale variants for this URL. Emitted as <xhtml:link rel="alternate"> children. */
+  alternates?: SitemapAlternate[]
 }
 
 export interface SitemapIndexEntry {
@@ -23,6 +33,9 @@ export interface SitemapIndexEntry {
   /** Newest lastmod among the URLs in this child sitemap. */
   lastmod?: string
 }
+
+const LOCALES = ['en', 'es', 'pt', 'it', 'fr'] as const
+type Locale = (typeof LOCALES)[number]
 
 /** Escape `&`, `<`, `>`, `"`, `'` for safe XML embedding. */
 function escapeXml(s: string): string {
@@ -35,9 +48,11 @@ function escapeXml(s: string): string {
 }
 
 export function buildUrlSet(urls: SitemapUrl[]): string {
+  // Always declare the xhtml namespace — cheap, and lets callers add
+  // alternates without having to think about the root attribute.
   const lines: string[] = [
     '<?xml version="1.0" encoding="UTF-8"?>',
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">',
   ]
   for (const u of urls) {
     lines.push('  <url>')
@@ -45,6 +60,13 @@ export function buildUrlSet(urls: SitemapUrl[]): string {
     if (u.lastmod) lines.push(`    <lastmod>${escapeXml(u.lastmod)}</lastmod>`)
     if (u.changefreq) lines.push(`    <changefreq>${u.changefreq}</changefreq>`)
     if (typeof u.priority === 'number') lines.push(`    <priority>${u.priority.toFixed(1)}</priority>`)
+    if (u.alternates) {
+      for (const alt of u.alternates) {
+        lines.push(
+          `    <xhtml:link rel="alternate" hreflang="${escapeXml(alt.hreflang)}" href="${escapeXml(alt.href)}"/>`,
+        )
+      }
+    }
     lines.push('  </url>')
   }
   lines.push('</urlset>')
@@ -76,4 +98,37 @@ export function xmlResponse(body: string, maxAgeSeconds: number): Response {
       'cache-control': `public, s-maxage=${maxAgeSeconds}, stale-while-revalidate=${maxAgeSeconds * 2}`,
     },
   })
+}
+
+function urlForLocale(baseUrl: string, locale: Locale, path: string): string {
+  return locale === 'en' ? `${baseUrl}${path}` : `${baseUrl}/${locale}${path}`
+}
+
+/**
+ * Expand a single path into one SitemapUrl per locale, each carrying the
+ * full hreflang block (every locale + x-default → English).
+ *
+ * Reference: https://developers.google.com/search/docs/specialty/international/localized-versions#sitemap
+ */
+export function expandPathForLocales(
+  baseUrl: string,
+  path: string,
+  meta: Omit<SitemapUrl, 'loc' | 'alternates'> = {},
+): SitemapUrl[] {
+  // Empty path → bare base URL (no trailing slash). Otherwise ensure leading slash.
+  const cleanPath = path === '' ? '' : path.startsWith('/') ? path : `/${path}`
+
+  // Compute the hreflang block once and share it across all 5 variants —
+  // every locale's <url> entry lists the same alternates.
+  const alternates: SitemapAlternate[] = LOCALES.map(loc => ({
+    hreflang: loc,
+    href: urlForLocale(baseUrl, loc, cleanPath),
+  }))
+  alternates.push({ hreflang: 'x-default', href: urlForLocale(baseUrl, 'en', cleanPath) })
+
+  return LOCALES.map(locale => ({
+    ...meta,
+    loc: urlForLocale(baseUrl, locale, cleanPath),
+    alternates,
+  }))
 }

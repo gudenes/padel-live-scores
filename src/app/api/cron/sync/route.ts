@@ -15,6 +15,7 @@ import { logOpsEvent } from '@/lib/ops-logger'
 import { padelapiPausedResponse } from '@/lib/padelapi-pause'
 import { filterUpdateByPriority } from '@/lib/source-priority'
 import { sanitizeDurationHHMM } from '@/lib/match-duration'
+import { countryToTimezone } from '@/lib/country-timezone'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -87,42 +88,11 @@ async function fetchFromApi(
 // Automatically assigns timezone to tournaments based on country code
 // and location name. Priority: location override → country fallback.
 // Documented in Notion: Tournament Timezone Mapping
-const COUNTRY_TIMEZONES: Record<string, string> = {
-  ES: 'Europe/Madrid',
-  FR: 'Europe/Paris',
-  IT: 'Europe/Rome',
-  DE: 'Europe/Berlin',
-  PT: 'Europe/Lisbon',
-  GB: 'Europe/London',
-  US: 'America/New_York',
-  MX: 'America/Mexico_City',
-  AR: 'America/Argentina/Buenos_Aires',
-  BR: 'America/Sao_Paulo',
-  SA: 'Asia/Riyadh',
-  AE: 'Asia/Dubai',
-  QA: 'Asia/Qatar',
-  HK: 'Asia/Hong_Kong',
-  SG: 'Asia/Singapore',
-  JP: 'Asia/Tokyo',
-  AU: 'Australia/Sydney',
-  ZA: 'Africa/Johannesburg',
-  MA: 'Africa/Casablanca',
-  EG: 'Africa/Cairo',
-  SE: 'Europe/Stockholm',
-  NL: 'Europe/Amsterdam',
-  BE: 'Europe/Brussels',
-  AT: 'Europe/Vienna',
-  CH: 'Europe/Zurich',
-  PL: 'Europe/Warsaw',
-  CZ: 'Europe/Prague',
-  RO: 'Europe/Bucharest',
-  GR: 'Europe/Athens',
-  TR: 'Europe/Istanbul',
-  IL: 'Asia/Jerusalem',
-  KZ: 'Asia/Almaty',
-  UZ: 'Asia/Tashkent',
-  KG: 'Asia/Bishkek',
-}
+// Country lookup is delegated to the shared `countryToTimezone()` helper
+// in `src/lib/country-timezone.ts` so this route, the OG image, the match
+// page, and padelgod's writer all draw from the same map. Add new countries
+// there, not here. Location overrides stay local — they're padelapi-specific
+// city resolutions for multi-tz countries (Cancún vs Mexico City etc).
 
 // Location overrides — cities that differ from country default
 const LOCATION_OVERRIDES: Array<{ pattern: RegExp; timezone: string }> = [
@@ -152,11 +122,8 @@ function inferTimezone(country: string | null, location: string | null): string 
       }
     }
   }
-  // Fall back to country
-  if (country && COUNTRY_TIMEZONES[country.toUpperCase()]) {
-    return COUNTRY_TIMEZONES[country.toUpperCase()]
-  }
-  return null
+  // Fall back to the shared country → IANA map.
+  return countryToTimezone(country)
 }
 
 // ── Normalize player names ────────────────────────────────────
