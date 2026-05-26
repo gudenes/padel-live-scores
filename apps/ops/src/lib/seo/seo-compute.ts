@@ -29,6 +29,11 @@ export interface WindowDelta {
 
 export function windowDelta(current: number, prior: number): WindowDelta {
   if (prior === 0 && current === 0) return { deltaPct: 0, direction: 'flat' }
+  // Sentinel: when prior is 0 but current isn't, percent-change is undefined
+  // (division by zero). We return deltaPct=999 as a UI-friendly cap so the
+  // headline tile can render "↑ 999%" without throwing. Consumers that want
+  // a cleaner story for this case can detect `deltaPct === 999` and render
+  // "↑ from zero" or similar.
   if (prior === 0) return { deltaPct: 999, direction: 'up' }
   const raw = ((current - prior) / prior) * 100
   const deltaPct = Math.round(raw)
@@ -41,7 +46,7 @@ export function weightedAvgPosition(rows: SnapshotRow[]): number | null {
   let weighted = 0
   let totalImpr = 0
   for (const r of rows) {
-    if (r.avg_position == null) continue
+    if (r.avg_position === null) continue
     weighted += r.avg_position * r.impressions
     totalImpr += r.impressions
   }
