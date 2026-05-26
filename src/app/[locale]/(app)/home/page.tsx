@@ -312,10 +312,13 @@ function V3HomePageInner() {
           supabase
             .from('tournaments')
             .select('id, name, starts_at, ends_at, country, location, level, logo_url, cover_image_url, prize_money')
-            .lte('starts_at', new Date().toISOString())
+            // Window covers two buckets:
+            //   - running today: starts_at in past <= now+7d, ends_at >= today-midnight
+            //   - starting in next 7 days: starts_at in future <= now+7d, ends_at always future
+            .lte('starts_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
             .gte('ends_at', (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d.toISOString() })())
-            .limit(20) as any,
-          'home:carousel-live-today',
+            .limit(40) as any,
+          'home:carousel-window',
         ),
         wrap(
           (async () => {
@@ -368,7 +371,9 @@ function V3HomePageInner() {
             matchesToday: matchInfo.get(r.id)?.matchesToday ?? 0,
           }))
           .sort(compareTournamentsForCarousel)
-      setCarouselLiveToday(decorate(carouselLiveRows))
+      // Cap at 10 visible cards. The "Todos los eventos" link in the section
+      // header absorbs overflow; deeper discovery happens on /tournaments.
+      setCarouselLiveToday(decorate(carouselLiveRows).slice(0, 10))
 
       // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
       // dataOf(10) from .maybeSingle(): { enabled, enabled_local } when
