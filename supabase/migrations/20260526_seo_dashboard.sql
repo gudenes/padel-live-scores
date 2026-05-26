@@ -38,7 +38,7 @@ create table public.seo_top_pages (
   rank        smallint not null,
   primary key (day, url)
 );
-create index seo_top_pages_day_locale_impr_idx
+create index seo_top_pages_day_locale_impressions_idx
   on public.seo_top_pages (day desc, locale, impressions desc);
 
 create table public.sitemap_url_snapshot (
