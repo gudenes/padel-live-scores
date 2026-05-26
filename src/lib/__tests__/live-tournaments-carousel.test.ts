@@ -75,6 +75,26 @@ describe('compareTournamentsForCarousel', () => {
     expect(rows.sort(compareTournamentsForCarousel).map(t => t.id))
       .toEqual(['finals', 'p1-early', 'p1-late', 'fip-gold', 'fip-bronze'])
   })
+
+  it('puts a Premier tournament starting in 5 days before a FIP Platinum running today', () => {
+    // Regression guard for the 7-day-window carousel: even though the FIP
+    // Platinum is happening *now*, the Premier P1 starting later this week
+    // should still occupy a higher slot. Tier-first ordering, not date-first.
+    const platinumToday = makeT({ id: 'platinum-today', level: 'fip_platinum', starts_at: '2026-05-26T00:00:00Z' })
+    const p1InFiveDays = makeT({ id: 'p1-in-5d',        level: 'p1',           starts_at: '2026-05-31T00:00:00Z' })
+    const sorted = [platinumToday, p1InFiveDays].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['p1-in-5d', 'platinum-today'])
+  })
+
+  it('within the same tier, prefers today over future when both are in the 7-day window', () => {
+    // FIP Bronze running today must sort before another FIP Bronze starting
+    // in 3 days — confirms the starts_at tiebreaker still works at the
+    // bottom of the tier table.
+    const bronzeToday    = makeT({ id: 'bronze-today',    level: 'fip_bronze', starts_at: '2026-05-26T00:00:00Z' })
+    const bronzeInThree  = makeT({ id: 'bronze-in-3d',    level: 'fip_bronze', starts_at: '2026-05-29T00:00:00Z' })
+    const sorted = [bronzeInThree, bronzeToday].sort(compareTournamentsForCarousel)
+    expect(sorted.map(t => t.id)).toEqual(['bronze-today', 'bronze-in-3d'])
+  })
 })
 
 describe('buildMatchInfoMap', () => {
