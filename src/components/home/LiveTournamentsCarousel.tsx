@@ -111,6 +111,29 @@ function TournamentCarouselCard({
           </div>
         )}
 
+        {/* UPCOMING chip — neutral counterpart to LIVE, shown on
+            not-yet-started cards. Muted so the tier pill on the right
+            stays the dominant identifier. */}
+        {!started && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 9,
+              left: 9,
+              background: 'rgba(255,255,255,0.18)',
+              color: '#fff',
+              fontSize: 8,
+              fontWeight: 900,
+              padding: '3px 7px',
+              letterSpacing: 0.8,
+              clipPath: CHUNKY.badge,
+              zIndex: 2,
+            }}
+          >
+            {t('upcomingChip')}
+          </div>
+        )}
+
         {/* Level pill */}
         {tierLabel && (
           <div

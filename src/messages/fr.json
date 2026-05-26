@@ -348,7 +348,9 @@
     "ongoing": "En Cours",
     "comingUp": "À venir",
     "liveTournaments": {
-      "title": "Tournois en direct",
+      "title": "Tournois",
+      "upcomingChip": "À VENIR",
+      "_upcomingChip_context": "Small chip in the top-left slot of a tournament carousel card whose start date is in the future (not yet running). Counterpart to the red LIVE chip. Uppercase by convention. Width budget is tight — keep short.",
       "matchesTodayCount": "{count, plural, one {# match aujourd'hui} other {# matchs aujourd'hui}}",
       "restDay": "Jour de repos",
       "_restDay_context": "Status line on a tournament card when the tournament is running but has zero matches scheduled in the user's local day today. Not a holiday or vacation — specifically 'no matches today'.",
