@@ -104,7 +104,8 @@ export function daysUntilStart(startsAt: string, now: Date = new Date()): number
   const startOfDay = (s: string) => new Date(`${s}T00:00:00`).getTime()
   const todayMs = startOfDay(toLocalDateStr(now))
   const startMs = startOfDay(toLocalDateStr(new Date(startsAt)))
-  // Round to nearest whole day to absorb any sub-millisecond noise from
-  // DST math on the underlying Date object.
+  // Round (not floor): midnight-to-midnight UTC gaps are 23h or 25h across
+  // a DST boundary, so a 2-calendar-day diff that straddles spring-forward
+  // is 47h (1.9583 days) — floor would return 1.
   return Math.round((startMs - todayMs) / 86_400_000)
 }
