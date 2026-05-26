@@ -13,6 +13,7 @@ import {
   levelLabel,
 } from '@/components/home/shared'
 import { getTierGradient, getTierPill } from '@/lib/tournament-tier-style'
+import { daysUntilStart, hasStarted } from '@/lib/live-tournaments-carousel'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 export interface TournamentWithMatchInfo extends Tournament {
@@ -38,10 +39,17 @@ function TournamentCarouselCard({
   const cover = tournament.cover_image_url ?? null
   const city = tournament.location ?? countryName(tournament.country)
 
-  const statusLine =
-    tournament.matchesToday > 0
-      ? t('matchesTodayCount', { count: tournament.matchesToday })
-      : t('restDay')
+  const started = hasStarted(tournament.starts_at)
+  const statusLine = started
+    ? (tournament.matchesToday > 0
+        ? t('matchesTodayCount', { count: tournament.matchesToday })
+        : t('restDay'))
+    : (() => {
+        const d = daysUntilStart(tournament.starts_at)
+        if (d <= 0) return t('startsToday')
+        if (d === 1) return t('startsTomorrow')
+        return t('startsInDays', { count: d })
+      })()
 
   const ariaLabel = [tournament.name, tierLabel, statusLine].filter(Boolean).join(', ')
 
@@ -83,7 +91,7 @@ function TournamentCarouselCard({
         {/* LIVE chip — presence indicator (tournament is running today
             with matches scheduled). No pulse; calmer than a "scores
             ticking" signal. */}
-        {tournament.matchesToday > 0 && (
+        {started && tournament.matchesToday > 0 && (
           <div
             style={{
               position: 'absolute',
