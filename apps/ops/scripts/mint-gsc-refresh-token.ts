@@ -53,7 +53,8 @@ async function main() {
       if (!code) {
         res.writeHead(400, { 'content-type': 'text/plain' })
         res.end('Missing code parameter')
-        return
+        server.close()
+        return reject(new Error('Missing code parameter'))
       }
       try {
         const { tokens } = await oauth.getToken(code)
