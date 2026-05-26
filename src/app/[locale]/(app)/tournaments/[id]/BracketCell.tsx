@@ -197,8 +197,20 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair, trackedPair
   const p1 = side === 1 ? match.pair1_player1 : match.pair2_player1
   const p2 = side === 1 ? match.pair1_player2 : match.pair2_player2
   const seed = side === 1 ? match.pair1_seed : match.pair2_seed
-  const isWinner = match.winner_pair === side
-  const isLoser = match.winner_pair && match.winner_pair !== side
+  // BYE rows: pair stored on `match.winner_pair`'s side genuinely advances
+  // to the next round, but they didn't win a *match* — there was none to
+  // play. Suppress the "W" badge and `isLoser` dimming for bye rows so the
+  // bracket reads correctly. `winner_pair` stays set on the row (kept by
+  // fip-draw-reconciler) so bracket-builder, match-roles, and final-winner
+  // detection still derive the right advancement. See the BYE branch below
+  // for the dedicated "BYE" tag that replaces the W badge.
+  // Cast to string: the shared MatchStatus union in src/types/match.ts
+  // doesn't list 'bye' (it predates the bye-status path), but the DB
+  // schema supports it and fip-draw-reconciler writes it. MatchCard.tsx
+  // uses the same string-compare shape.
+  const isBye = (match.status as string) === 'bye'
+  const isWinner = !isBye && match.winner_pair === side
+  const isLoser = !isBye && match.winner_pair && match.winner_pair !== side
   const isLive = match.status === 'live'
   const sets = match.sets ?? []
   const setScore = (sn: number) => {
@@ -309,6 +321,18 @@ function PairRow({ match, side, onTrackPair, pairKey, markersByPair, trackedPair
           clipPath: 'polygon(3% 5%,97% 0%,100% 95%,0% 100%)',
         }}>
           W
+        </span>
+      )}
+      {isBye && match.winner_pair === side && (
+        // Auto-advance marker — visually distinct from W (muted slab vs
+        // green clipped-shape badge) so users read it as "advanced via bye"
+        // and not "won the match".
+        <span style={{
+          padding: '1px 6px', background: 'rgba(255,255,255,0.06)',
+          color: MUTED, fontSize: 9, fontWeight: 700, letterSpacing: '0.4px',
+          textTransform: 'uppercase',
+        }}>
+          Bye
         </span>
       )}
       <span style={{ display: 'flex', gap: 4, fontVariantNumeric: 'tabular-nums', fontSize: 11 }}>
