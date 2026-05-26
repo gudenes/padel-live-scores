@@ -5,8 +5,25 @@
 // apps/ops/scripts/mint-gsc-refresh-token.ts and stored in Vercel env.
 // We use OAuth (not service-account JSON) because the GCP org policy
 // iam.managed.disableServiceAccountKeyCreation blocks key creation.
+//
+// Token caching: UserRefreshClient caches the short-lived access token
+// in memory and only refreshes when it expires. Re-use the same
+// GscClient instance for the lifetime of a Lambda invocation to avoid
+// redundant token-refresh round-trips.
 
 import { UserRefreshClient } from 'google-auth-library'
+
+const FETCH_TIMEOUT_MS = 10_000
+
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(id)
+  }
+}
 
 const SEARCH_ANALYTICS_URL = (siteUrl: string) =>
   `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`
@@ -16,6 +33,8 @@ const LIST_SITES_URL = 'https://searchconsole.googleapis.com/webmasters/v3/sites
 export interface GscQueryInput {
   startDate: string  // YYYY-MM-DD
   endDate: string    // YYYY-MM-DD
+  // Curated subset of GSC's dimensions. The API supports more
+  // (searchAppearance, searchType, …); expand if a future task needs them.
   dimensions: Array<'page' | 'query' | 'date' | 'country' | 'device'>
   rowLimit?: number
 }
@@ -57,7 +76,7 @@ export class GscClient {
 
   async listSites(): Promise<{ siteUrl: string; permissionLevel: string }[]> {
     const { token } = await this.auth.getAccessToken()
-    const res = await fetch(LIST_SITES_URL, {
+    const res = await fetchWithTimeout(LIST_SITES_URL, {
       headers: { Authorization: `Bearer ${token}` },
     })
     if (!res.ok) throw new Error(`GSC listSites failed: ${res.status} ${await res.text()}`)
@@ -67,7 +86,7 @@ export class GscClient {
 
   async query(input: GscQueryInput): Promise<GscRow[]> {
     const { token } = await this.auth.getAccessToken()
-    const res = await fetch(SEARCH_ANALYTICS_URL(this.siteUrl), {
+    const res = await fetchWithTimeout(SEARCH_ANALYTICS_URL(this.siteUrl), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
