@@ -29,6 +29,7 @@ import { runShadowDiffOcr } from './workers/shadow-diff-ocr.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
+import { runModelPredictionSnapshot } from './workers/model-prediction-snapshot.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -97,6 +98,10 @@ export interface SchedulerFlags {
   scheduleHintsWriterDryRun: boolean;
   /** Default 90. Override via env to tune the "running over" threshold. */
   scheduleHintsExpectedDurationMin: number;
+  enableModelPredictionSnapshot: boolean;
+  /** When true, the model-prediction-snapshot worker computes everything
+   *  but skips DB writes. Same dry-run pattern as fipDrawPopulator. */
+  modelPredictionSnapshotDryRun: boolean;
 }
 
 export interface SchedulerDeps {
@@ -679,6 +684,18 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           expectedDurationMinutes: flags.scheduleHintsExpectedDurationMin,
         });
       },
+    });
+  }
+  if (flags.enableModelPredictionSnapshot) {
+    entries.push({
+      name: 'model-prediction-snapshot',
+      cron: '25 * * * *', // hourly at :25
+      run: async (d) =>
+        runModelPredictionSnapshot({
+          supabase: d.supabase,
+          logger: d.logger,
+          dryRun: flags.modelPredictionSnapshotDryRun,
+        }),
     });
   }
   return entries;
