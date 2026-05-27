@@ -1,7 +1,8 @@
 // src/app/api/user/notification-prefs/route.ts
-// GET    → { prefs: Record<category, { push, inApp }> }  (resolved with defaults)
-// PATCH  body: { category, push?, inApp? }
+// GET    → { prefs: Record<category, { push }> }  (resolved with defaults)
+// PATCH  body: { category, push }
 //        → { ok: true, prefs: <resolved> }
+// Stale clients sending { category, push, inApp } are tolerated — inApp is silently ignored.
 
 import { getUserOrFail } from '../_auth'
 import {
@@ -33,8 +34,10 @@ export async function PATCH(request: Request) {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
+  // Accept { category, push } from the new Settings page.
+  // Stale clients may still send inApp — accepted and silently ignored.
   const body = await request.json().catch(() => null) as
-    | { category?: unknown; push?: unknown; inApp?: unknown }
+    | { category?: unknown; push?: unknown; [key: string]: unknown }
     | null
   if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
 
@@ -44,9 +47,8 @@ export async function PATCH(request: Request) {
   const category = body.category as NotificationCategory
 
   const hasPush = typeof body.push === 'boolean'
-  const hasInApp = typeof body.inApp === 'boolean'
-  if (!hasPush && !hasInApp) {
-    return Response.json({ error: 'Expected push and/or inApp boolean' }, { status: 400 })
+  if (!hasPush) {
+    return Response.json({ error: 'Expected push boolean' }, { status: 400 })
   }
 
   // Read-modify-write the JSONB. Concurrent writes for the same user are
@@ -61,8 +63,7 @@ export async function PATCH(request: Request) {
   const current = (row?.notification_prefs ?? {}) as
     Record<string, Partial<ChannelPrefs>>
   const nextCategory = { ...(current[category] ?? {}) }
-  if (hasPush) nextCategory.push = body.push as boolean
-  if (hasInApp) nextCategory.inApp = body.inApp as boolean
+  nextCategory.push = body.push as boolean
   const next = { ...current, [category]: nextCategory }
 
   const { error: writeErr } = await supabase
