@@ -895,7 +895,6 @@
     "markAllRead": "Tout marquer comme lu",
     "filterAll": "Tout",
     "filterMatches": "Matchs",
-    "filterBadges": "Badges",
     "empty": "Aucune notification pour le moment",
     "emptySubtitle": "Nous vous avertirons quand vos matchs commenceront",
     "daySeparator": {
@@ -905,45 +904,73 @@
     },
     "settings": {
       "title": "Notifications",
-      "permissionDeniedTitle": "Notifications bloquées",
-      "permissionDeniedBody": "Les notifications push n'arriveront pas tant que vous ne les réactiverez pas dans les paramètres du navigateur.",
+      "blocked": {
+        "title": "Notifications bloquées",
+        "body": "Ouvrir les paramètres de l'appareil pour autoriser",
+        "cta": "Ouvrir"
+      },
       "masterLabel": "Notifications push",
-      "columnPush": "PUSH",
-      "columnInApp": "IN-APP",
       "groupMatches": "Matchs",
-      "groupAchievements": "Badges",
-      "groupOther": "Autres",
+      "groupUpdates": "Actualités",
+      "saveHint": "Les modifications sont enregistrées automatiquement",
+      "saveError": "Enregistrement impossible — réessayez",
+      "mute": {
+        "label": "Couper les notifications",
+        "sub": "Désactiver temporairement toutes les push",
+        "cta": "Couper…",
+        "activeUntil": "Coupé · {time}",
+        "activeForever": "Coupé",
+        "durations": {
+          "1h": "1 heure",
+          "4h": "4 heures",
+          "tomorrow": "Jusqu'à demain 8h",
+          "forever": "Jusqu'à ce que je réactive"
+        }
+      },
+      "sounds": {
+        "label": "Sons de notification",
+        "sub": "Gérer dans les paramètres de l'appareil"
+      },
       "category": {
         "match_live_follow": {
           "label": "Joueur suivi en direct",
-          "sub": "Quand un joueur que vous suivez va jouer"
+          "sub": "Un joueur que vous suivez est sur le point de jouer"
         },
         "match_live_bookmark": {
           "label": "Match enregistré en direct",
-          "sub": "Quand un match que vous avez enregistré commence"
+          "sub": "Un match enregistré commence"
         },
         "match_finished": {
           "label": "Match terminé",
           "sub": "Résultats des matchs que vous suivez"
         },
-        "match_upcoming": {
-          "label": "Match sur le point de commencer",
-          "sub": "30 min avant un match suivi"
-        },
-        "badge_earned": {
-          "label": "Badge obtenu",
-          "sub": "Quand vous débloquez un nouveau badge"
-        },
-        "streak_milestone": {
-          "label": "Série atteinte",
-          "sub": "Séries de 3, 7, 30 et 100 jours"
+        "ranking_updated": {
+          "label": "Classements mis à jour",
+          "sub": "Mise à jour hebdomadaire du classement FIP"
         },
         "marketing": {
           "label": "Nouveautés produit",
           "sub": "Nouvelles fonctionnalités, événements, actualités"
         }
       },
-      "saveError": "Enregistrement impossible — réessayez",
+      "nudge": {
+        "match": {
+          "title": "Soyez notifié quand ce match commence",
+          "body": "Les notifications push pour les matchs enregistrés sont désactivées. Activez-les pour recevoir une alerte au démarrage.",
+          "cta": "Activer"
+        },
+        "player": {
+          "title": "Soyez notifié quand ce joueur joue",
+          "body": "Les notifications push pour les joueurs suivis sont désactivées. Activez-les pour recevoir une alerte quand il joue.",
+          "cta": "Activer"
+        },
+        "osBlocked": {
+          "title": "Les notifications sont désactivées sur cet appareil",
+          "body": "Les alertes de matchs ne vous parviendront pas tant que vous n'aurez pas activé les notifications pour PadelNachos dans les paramètres de l'appareil.",
+          "cta": "Ouvrir les paramètres"
+        },
+        "dismiss": "Plus tard"
+      },
       "errors": {
         "notSignedIn": "Connectez-vous pour activer les notifications push.",
         "osDenied": "Les notifications sont bloquées dans les paramètres de l'appareil. Activez-les dans Paramètres → Applications → PadelNachos → Notifications.",
@@ -957,7 +984,8 @@
     "settingsLinkRow": {
       "label": "Notifications",
       "sub": "Choisissez pour quoi être notifié"
-    }
+    },
+    "filterUpdates": "Actualités"
   },
   "editorial": {
     "badgePreview": "Preview",

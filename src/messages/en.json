@@ -927,7 +927,6 @@
     "markAllRead": "Mark all read",
     "filterAll": "All",
     "filterMatches": "Matches",
-    "filterBadges": "Badges",
     "empty": "No notifications yet",
     "emptySubtitle": "We'll let you know when your matches go live",
     "daySeparator": {
@@ -937,45 +936,73 @@
     },
     "settings": {
       "title": "Notifications",
-      "permissionDeniedTitle": "Notifications blocked",
-      "permissionDeniedBody": "Push notifications won't arrive until you re-enable them in your browser settings.",
+      "blocked": {
+        "title": "Notifications blocked",
+        "body": "Open device settings to allow",
+        "cta": "Open"
+      },
       "masterLabel": "Push notifications",
-      "columnPush": "PUSH",
-      "columnInApp": "IN-APP",
       "groupMatches": "Matches",
-      "groupAchievements": "Achievements",
-      "groupOther": "Other",
+      "groupUpdates": "Updates",
+      "saveHint": "Changes save automatically",
+      "saveError": "Couldn't save — please try again",
+      "mute": {
+        "label": "Mute notifications",
+        "sub": "Temporarily disable all push",
+        "cta": "Mute…",
+        "activeUntil": "Muted · {time}",
+        "activeForever": "Muted",
+        "durations": {
+          "1h": "1 hour",
+          "4h": "4 hours",
+          "tomorrow": "Until tomorrow 8 AM",
+          "forever": "Until I turn it back on"
+        }
+      },
+      "sounds": {
+        "label": "Notification sounds",
+        "sub": "Manage in device settings"
+      },
       "category": {
         "match_live_follow": {
           "label": "Followed player goes live",
-          "sub": "When a player you follow is about to play"
+          "sub": "A player you follow is about to play"
         },
         "match_live_bookmark": {
           "label": "Bookmarked match goes live",
-          "sub": "When a match you saved starts"
+          "sub": "A match you saved is starting"
         },
         "match_finished": {
           "label": "Match finished",
           "sub": "Results for matches you follow"
         },
-        "match_upcoming": {
-          "label": "Match starting soon",
-          "sub": "30 min before a followed match"
-        },
-        "badge_earned": {
-          "label": "Badge earned",
-          "sub": "When you unlock a new badge"
-        },
-        "streak_milestone": {
-          "label": "Streak milestone",
-          "sub": "3, 7, 30, 100-day streaks"
+        "ranking_updated": {
+          "label": "Rankings updated",
+          "sub": "Weekly FIP rankings refresh"
         },
         "marketing": {
           "label": "Product updates",
           "sub": "New features, events, occasional news"
         }
       },
-      "saveError": "Couldn't save — please try again",
+      "nudge": {
+        "match": {
+          "title": "Get notified when this match starts",
+          "body": "Push notifications for bookmarked matches are turned off. Enable to get a banner when this one goes live.",
+          "cta": "Turn on"
+        },
+        "player": {
+          "title": "Get notified when this player plays",
+          "body": "Push notifications for followed players are turned off. Enable to get a banner when they're on court.",
+          "cta": "Turn on"
+        },
+        "osBlocked": {
+          "title": "Notifications are off on this device",
+          "body": "Match alerts won't reach you until you enable notifications for PadelNachos in device settings.",
+          "cta": "Open settings"
+        },
+        "dismiss": "Not now"
+      },
       "errors": {
         "notSignedIn": "Please sign in to enable push notifications.",
         "osDenied": "Notifications are blocked in your device settings. Enable them in Settings → Apps → PadelNachos → Notifications.",
@@ -989,7 +1016,8 @@
     "settingsLinkRow": {
       "label": "Notifications",
       "sub": "Choose what you're notified about"
-    }
+    },
+    "filterUpdates": "Updates"
   },
   "editorial": {
     "badgePreview": "Preview",
