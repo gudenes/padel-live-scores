@@ -416,21 +416,22 @@ export async function POST(request: Request) {
       body = liveBody
     }
 
-    if (resolved.inApp) {
-      inAppRows.push({
-        user_id: userId,
-        category,
-        title,
-        body,
-        url: `/match/${matchId}`,
-        metadata: {
-          match_id: matchId,
-          reason: reason.kind,
-          event: isFinishedEvent ? 'finished' : 'live',
-          ...(reason.followedPlayerName ? { followed_player_name: reason.followedPlayerName } : {}),
-        },
-      })
-    }
+    // In-app delivery is always on as of 2026-05-27. The inbox is benign and
+    // never benefited from per-category opt-out — see notification-categories.ts.
+    // Push delivery below (the noisy channel) is still gated by resolved.push.
+    inAppRows.push({
+      user_id: userId,
+      category,
+      title,
+      body,
+      url: `/match/${matchId}`,
+      metadata: {
+        match_id: matchId,
+        reason: reason.kind,
+        event: isFinishedEvent ? 'finished' : 'live',
+        ...(reason.followedPlayerName ? { followed_player_name: reason.followedPlayerName } : {}),
+      },
+    })
 
     if (resolved.push) {
       // Resolve the icon URL once per recipient (same for web push + FCM):
