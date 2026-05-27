@@ -65,8 +65,10 @@ match_live_follow:   { push: true }
 match_live_bookmark: { push: true }
 match_finished:      { push: true }
 ranking_updated:     { push: true }   // weekly cadence — low-frequency, fine to default on
-marketing:           { push: false }  // opt-in only
+marketing:           { push: true }   // opt-out model — user can disable in Settings
 ```
+
+**Marketing-on-by-default note (2026-05-27 decision):** all 5 categories default to `push: true`. For marketing specifically this means every signup is enrolled in product-update pushes; users opt out via the Settings toggle. If user signups via OAuth go through `events.createUser` we should confirm we're not auto-suppressing this in the welcome flow. The first marketing push send (whenever Phase 3+ ships marketing) MUST honor the per-user stored override, not just the default — same as every other category.
 
 > Note: `inApp` is no longer a per-category preference (see §4). In-app notifications fire for every category by default — only push is configurable.
 
@@ -318,26 +320,37 @@ Delete keys: `notifications.settings.category.match_upcoming.*`, `badge_earned.*
 
 ## 11. Implementation phases
 
-**Phase 1 — Web-only redesign (ships via Vercel, no AAB needed):**
+### This spec covers Phases 1 + 2 (single implementation plan)
+
+These ship together: Phase 1 is the full UI redesign (Vercel-only), Phase 2 is the small native rebuild that turns on the deep-link buttons Phase 1 already wired. Coupling them in a single plan keeps the "Open settings" affordance consistent end-to-end (no shipped UI button that does nothing until a later release).
+
+**Phase 1 — Web-only redesign (ships via Vercel):**
 - IconSlider component + replace toggles on Settings page
 - Drop 3 categories from `notification-categories.ts` + UI
-- Add `ranking_updated` category to prefs UI (pref persistence works; fan-out comes later)
+- Add `ranking_updated` category to prefs UI (pref persistence works; fan-out comes in Phase 3)
 - Per-row save-feedback (saving → saved)
 - Gear icon on `/notifications`
 - Bookmark nudge component + trigger from bookmark/follow surfaces
-- i18n keys
+- Mute action + duration sheet
+- Filter pill cleanup on `/notifications` (drop "Badges")
+- i18n keys (add new, remove dead)
 - Blocked banner + nudge State 2 use the **toast-fallback** for "Open settings" (no native plugin yet)
 
-**Phase 2 — Native AAB release:**
+**Phase 2 — Native AAB release (bundled in same plan):**
 - Add `@capacitor-community/native-settings`, `cap sync android`
-- Wire blocked-banner + nudge State 2 buttons to the real `NativeSettings.open()` call
+- Wire blocked-banner + nudge State 2 buttons to the real `NativeSettings.open()` call (replacing the toast fallback)
 - Bump versionCode + build + Play Store rollout
 
-**Phase 3 — Rankings notification fan-out:**
-- New padelgod worker `ranking-notify-fanout` (post-snapshot step)
+### Phase 3 — Rankings notification fan-out (SEPARATE PR, future plan)
+
+Deferred per 2026-05-27 decision. Will get its own design refinement + implementation plan when scheduled:
+- New padelgod worker `ranking-notify-fanout` (post-snapshot step in player-rankings worker)
 - New endpoint `/api/push/notify-ranking`
-- Frequency cap logic
+- Per-user "top 3 movers" composer + generic fallback for users following many players
+- Frequency cap: max 1 push per user per ISO week
 - E2E test on a small cohort before opening to all users
+
+The Settings page already exposes the `ranking_updated` toggle after Phase 1 ships — users can opt out before any sends happen.
 
 ---
 
@@ -363,10 +376,10 @@ Delete keys: `notifications.settings.category.match_upcoming.*`, `badge_earned.*
 
 ---
 
-## 13. Open questions for review
+## 13. Decisions (resolved 2026-05-27)
 
-1. **Mute durations** — proposed list is {1h, 4h, until tomorrow 8am, until I turn it back on}. Want to add custom or shorter (15min)?
-2. **Marketing category default** — currently `push: false`. Confirm staying opt-in.
-3. **`ranking_updated` default** — proposed `push: true` (weekly cadence is low-frequency). Could go `false` to be conservative.
-4. **`inApp` field deprecation** — confirm OK to ignore stored values rather than running a migration to clear them. The orphans cost ~50 bytes per user; cleanup is optional.
-5. **Phase 3 timing** — does the rankings notification fan-out ship in this same body of work, or as a follow-up?
+1. ✅ **Mute durations** — `{1h, 4h, until tomorrow 8am, until I turn it back on}`. No additions.
+2. ✅ **Marketing default** — `push: true` (opt-out, not opt-in). Every signup is enrolled; user can disable in Settings.
+3. ✅ **`ranking_updated` default** — `push: true`.
+4. ✅ **`inApp` orphan keys** — leave in JSONB. No SQL migration. New resolver ignores them.
+5. ✅ **Phase 3 (rankings fan-out)** — SEPARATE PR / future plan. Not in this body of work. Toggle ships in Phase 1; sends ship later.
