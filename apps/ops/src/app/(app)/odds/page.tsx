@@ -23,24 +23,36 @@ export default async function LiveOddsPage({ searchParams }: { searchParams: Pro
     getOngoingTournamentOutlooks(),
   ])
 
-  // Hydrate player names for the match table
+  // Hydrate player names for the match table.
+  // IMPORTANT: TBD-pair match rows have null player IDs. Passing nulls through
+  // `.in('id', [...])` poisons the entire query and returns zero rows, so every
+  // pair would render as "? / ?". Filter to non-empty strings before the call.
   const supabase = createServiceClient()
   const playerIds = new Set<string>()
+  const addId = (id: string | null | undefined) => {
+    if (typeof id === 'string' && id.length > 0) playerIds.add(id)
+  }
   for (const r of dayRows) {
     const m = r.match
-    playerIds.add(m.pair1_player1_id)
-    playerIds.add(m.pair1_player2_id)
-    playerIds.add(m.pair2_player1_id)
-    playerIds.add(m.pair2_player2_id)
+    addId(m.pair1_player1_id)
+    addId(m.pair1_player2_id)
+    addId(m.pair2_player1_id)
+    addId(m.pair2_player2_id)
   }
   for (const o of outlooks) {
-    playerIds.add(o.pair_player1_id)
-    playerIds.add(o.pair_player2_id)
+    addId(o.pair_player1_id)
+    addId(o.pair_player2_id)
   }
-  const { data: pl } = await supabase.from('players').select('id, name').in('id', [...playerIds])
-  const nameById = new Map<string, string>((pl ?? []).map((p) => [p.id, p.name]))
-  const fmtPair = (id1: string, id2: string) =>
-    `${nameById.get(id1)?.split(' ').slice(-1)[0] ?? '?'} / ${nameById.get(id2)?.split(' ').slice(-1)[0] ?? '?'}`
+  const nameById = new Map<string, string>()
+  if (playerIds.size > 0) {
+    const { data: pl } = await supabase.from('players').select('id, name').in('id', [...playerIds])
+    for (const p of pl ?? []) nameById.set(p.id, p.name)
+  }
+  const fmtPair = (id1: string | null | undefined, id2: string | null | undefined) => {
+    const n1 = id1 ? (nameById.get(id1)?.split(' ').slice(-1)[0] ?? '?') : 'TBD'
+    const n2 = id2 ? (nameById.get(id2)?.split(' ').slice(-1)[0] ?? '?') : 'TBD'
+    return `${n1} / ${n2}`
+  }
 
   const liveRows: LiveMatchRow[] = dayRows.map((r) => ({
     match: r.match as LiveMatchRow['match'],
