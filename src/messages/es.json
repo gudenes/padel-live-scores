@@ -895,7 +895,6 @@
     "markAllRead": "Marcar todo como leído",
     "filterAll": "Todo",
     "filterMatches": "Partidos",
-    "filterBadges": "Logros",
     "empty": "Aún no hay notificaciones",
     "emptySubtitle": "Te avisaremos cuando tus partidos empiecen",
     "daySeparator": {
@@ -905,45 +904,73 @@
     },
     "settings": {
       "title": "Notificaciones",
-      "permissionDeniedTitle": "Notificaciones bloqueadas",
-      "permissionDeniedBody": "Las notificaciones push no llegarán hasta que las vuelvas a activar en la configuración de tu navegador.",
+      "blocked": {
+        "title": "Notificaciones bloqueadas",
+        "body": "Abre los ajustes del dispositivo para permitirlas",
+        "cta": "Abrir"
+      },
       "masterLabel": "Notificaciones push",
-      "columnPush": "PUSH",
-      "columnInApp": "EN APP",
       "groupMatches": "Partidos",
-      "groupAchievements": "Logros",
-      "groupOther": "Otros",
+      "groupUpdates": "Actualizaciones",
+      "saveHint": "Los cambios se guardan automáticamente",
+      "saveError": "No se pudo guardar — inténtalo de nuevo",
+      "mute": {
+        "label": "Silenciar notificaciones",
+        "sub": "Desactivar temporalmente todas las push",
+        "cta": "Silenciar…",
+        "activeUntil": "Silenciado · {time}",
+        "activeForever": "Silenciado",
+        "durations": {
+          "1h": "1 hora",
+          "4h": "4 horas",
+          "tomorrow": "Hasta mañana a las 8:00",
+          "forever": "Hasta que lo reactive"
+        }
+      },
+      "sounds": {
+        "label": "Sonidos de notificación",
+        "sub": "Administrar en los ajustes del dispositivo"
+      },
       "category": {
         "match_live_follow": {
           "label": "Jugador seguido en directo",
-          "sub": "Cuando un jugador que sigues va a jugar"
+          "sub": "Un jugador que sigues está a punto de jugar"
         },
         "match_live_bookmark": {
           "label": "Partido guardado en directo",
-          "sub": "Cuando comienza un partido que has guardado"
+          "sub": "Un partido que guardaste está empezando"
         },
         "match_finished": {
-          "label": "Partido finalizado",
-          "sub": "Resultados de los partidos que sigues"
+          "label": "Partido terminado",
+          "sub": "Resultados de partidos que sigues"
         },
-        "match_upcoming": {
-          "label": "Partido a punto de empezar",
-          "sub": "30 min antes de un partido seguido"
-        },
-        "badge_earned": {
-          "label": "Insignia ganada",
-          "sub": "Cuando desbloqueas una nueva insignia"
-        },
-        "streak_milestone": {
-          "label": "Racha alcanzada",
-          "sub": "Rachas de 3, 7, 30 y 100 días"
+        "ranking_updated": {
+          "label": "Rankings actualizados",
+          "sub": "Actualización semanal del ranking FIP"
         },
         "marketing": {
           "label": "Novedades del producto",
           "sub": "Nuevas funciones, eventos y noticias ocasionales"
         }
       },
-      "saveError": "No se pudo guardar — inténtalo de nuevo",
+      "nudge": {
+        "match": {
+          "title": "Recibe notificación cuando empiece este partido",
+          "body": "Las notificaciones push para partidos guardados están desactivadas. Actívalas para recibir un aviso cuando empiece.",
+          "cta": "Activar"
+        },
+        "player": {
+          "title": "Recibe notificación cuando juegue este jugador",
+          "body": "Las notificaciones push para jugadores seguidos están desactivadas. Actívalas para recibir un aviso cuando esté en la pista.",
+          "cta": "Activar"
+        },
+        "osBlocked": {
+          "title": "Las notificaciones están desactivadas en este dispositivo",
+          "body": "No te llegarán avisos de partidos hasta que actives las notificaciones para PadelNachos en los ajustes del dispositivo.",
+          "cta": "Abrir ajustes"
+        },
+        "dismiss": "Ahora no"
+      },
       "errors": {
         "notSignedIn": "Inicia sesión para activar las notificaciones push.",
         "osDenied": "Las notificaciones están bloqueadas en los ajustes del dispositivo. Actívalas en Ajustes → Apps → PadelNachos → Notificaciones.",
@@ -957,7 +984,8 @@
     "settingsLinkRow": {
       "label": "Notificaciones",
       "sub": "Elige sobre qué te avisamos"
-    }
+    },
+    "filterUpdates": "Actualizaciones"
   },
   "editorial": {
     "badgePreview": "Preview",

@@ -1,0 +1,68 @@
+/*
+ * IconSlider — chunky-tilted toggle with check/X icon in the thumb.
+ *
+ * Anatomy:
+ *   .track  — 52×28px, clip-path tilt, transitions background + box-shadow
+ *   .thumb  — 22×22px, slides 24px left↔right, holds two icons (crossfade)
+ *
+ * States:
+ *   OFF — track has subtle inset green border, thumb on LEFT, X visible
+ *   ON  — track filled green, thumb on RIGHT, check visible
+ *
+ * Disabled (master off, or row currently saving) — opacity 0.4, no events.
+ *
+ * Accessibility: parent <button> uses role="switch" + aria-checked.
+ */
+.track {
+  width: 52px;
+  height: 28px;
+  position: relative;
+  background: rgba(126, 211, 33, 0.06);
+  box-shadow: inset 0 0 0 1.5px rgba(126, 211, 33, 0.35);
+  clip-path: polygon(0% 8%, 100% 0%, 100% 92%, 0% 100%);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 220ms ease-out, box-shadow 220ms ease-out, opacity 150ms;
+  border: 0;
+  padding: 0;
+}
+
+.track.on {
+  background: #7ED321;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.track:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  background: #0a0a0a;
+  clip-path: polygon(0% 8%, 100% 0%, 100% 92%, 0% 100%);
+  transition: left 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.track.on .thumb { left: 27px; }
+
+.iconX, .iconCheck {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  transition: opacity 180ms ease-out;
+}
+
+.iconX { opacity: 1; color: rgba(255, 255, 255, 0.45); }
+.iconCheck { opacity: 0; color: #7ED321; }
+
+.track.on .iconX { opacity: 0; }
+.track.on .iconCheck { opacity: 1; }

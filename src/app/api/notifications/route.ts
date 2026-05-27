@@ -2,7 +2,7 @@
 // GET current user's notifications, newest first. Supports:
 //   - ?limit=30      (clamped server-side to 1..100)
 //   - ?before=ISO    (cursor — returns created_at < before)
-//   - ?filter=all|matches|badges
+//   - ?filter=all|matches|updates
 //
 // Returns: { items: NotificationRow[], nextCursor: string | null }
 //   nextCursor is the created_at of the last row, null when fewer than

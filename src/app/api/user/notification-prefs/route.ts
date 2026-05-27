@@ -1,7 +1,8 @@
 // src/app/api/user/notification-prefs/route.ts
-// GET    → { prefs: Record<category, { push, inApp }> }  (resolved with defaults)
-// PATCH  body: { category, push?, inApp? }
-//        → { ok: true, prefs: <resolved> }
+// GET    → { prefs: Record<category, { push }>, mute_until: string | null }
+// PATCH  body: { category, push }          → { ok: true, prefs: <resolved> }
+//        body: { mute_until }              → { ok: true }  (mute-only patch)
+// Stale clients sending { category, push, inApp } are tolerated — inApp is silently ignored.
 
 import { getUserOrFail } from '../_auth'
 import {
@@ -17,7 +18,7 @@ export async function GET() {
 
   const { data, error: dbErr } = await supabase
     .from('profiles')
-    .select('notification_prefs')
+    .select('notification_prefs, notification_mute_until')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -26,17 +27,40 @@ export async function GET() {
   const stored = (data?.notification_prefs ?? null) as
     | Record<string, Partial<ChannelPrefs>>
     | null
-  return Response.json({ prefs: resolveAllPrefs(stored) })
+  return Response.json({
+    prefs: resolveAllPrefs(stored),
+    mute_until: (data as { notification_mute_until?: string | null } | null)?.notification_mute_until ?? null,
+  })
 }
 
 export async function PATCH(request: Request) {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
+  // Accept { category, push } from the new Settings page.
+  // Stale clients may still send inApp — accepted and silently ignored.
   const body = await request.json().catch(() => null) as
-    | { category?: unknown; push?: unknown; inApp?: unknown }
+    | { category?: unknown; push?: unknown; [key: string]: unknown }
     | null
   if (!body) return Response.json({ error: 'Invalid JSON' }, { status: 400 })
+
+  // Mute-only patch — no `category` key, just `mute_until`
+  if ('mute_until' in body && !('category' in body)) {
+    const value = body.mute_until === null ? null : String(body.mute_until)
+    // Validate: must be null, 'forever', or parseable ISO date
+    if (value !== null && value !== 'forever') {
+      const parsed = Date.parse(value)
+      if (Number.isNaN(parsed)) {
+        return Response.json({ error: 'invalid mute_until' }, { status: 400 })
+      }
+    }
+    const { error: dbErr } = await supabase
+      .from('profiles')
+      .update({ notification_mute_until: value })
+      .eq('id', user.id)
+    if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 })
+    return Response.json({ ok: true })
+  }
 
   if (!isKnownCategory(body.category)) {
     return Response.json({ error: 'Unknown category' }, { status: 400 })
@@ -44,9 +68,8 @@ export async function PATCH(request: Request) {
   const category = body.category as NotificationCategory
 
   const hasPush = typeof body.push === 'boolean'
-  const hasInApp = typeof body.inApp === 'boolean'
-  if (!hasPush && !hasInApp) {
-    return Response.json({ error: 'Expected push and/or inApp boolean' }, { status: 400 })
+  if (!hasPush) {
+    return Response.json({ error: 'Expected push boolean' }, { status: 400 })
   }
 
   // Read-modify-write the JSONB. Concurrent writes for the same user are
@@ -61,8 +84,7 @@ export async function PATCH(request: Request) {
   const current = (row?.notification_prefs ?? {}) as
     Record<string, Partial<ChannelPrefs>>
   const nextCategory = { ...(current[category] ?? {}) }
-  if (hasPush) nextCategory.push = body.push as boolean
-  if (hasInApp) nextCategory.inApp = body.inApp as boolean
+  nextCategory.push = body.push as boolean
   const next = { ...current, [category]: nextCategory }
 
   const { error: writeErr } = await supabase

@@ -22,6 +22,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hideNav = FULLSCREEN_ROUTES.has(pathname) || isForYouTab
   return (
     <BadgeToastProvider>
+      {/* NotificationNudgeProvider moved UP to [locale]/layout.tsx so it
+          also covers /match/[id] and /player/[id] (those routes live
+          outside this (app) group but still need the nudge context). */}
       <div style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
       {!hideNav && <BottomNavV3 />}
       {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
