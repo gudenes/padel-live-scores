@@ -7,32 +7,30 @@
 //   - /profile/settings/notifications  (UI render)
 //   - /notifications  (filter pill → category IN list)
 //
-// Adding a new category is a one-line change here — no migration needed.
+// 2026-05-27 changes:
+//   - Dropped match_upcoming, badge_earned, streak_milestone (never fired).
+//   - Added ranking_updated (weekly FIP rankings refresh).
+//   - ChannelPrefs simplified from { push, inApp } to { push } only. In-app
+//     delivery is always-on now; the inbox is benign and configurable
+//     channel-by-channel was needless cognitive load. Existing stored
+//     `inApp` keys in profiles.notification_prefs JSONB become orphans
+//     this resolver silently drops — no SQL migration needed.
 
-export type ChannelPrefs = { push: boolean; inApp: boolean }
+export type ChannelPrefs = { push: boolean }
 
 export type NotificationCategory =
   | 'match_live_follow'
   | 'match_live_bookmark'
   | 'match_finished'
-  | 'match_upcoming'
-  | 'badge_earned'
-  | 'streak_milestone'
+  | 'ranking_updated'
   | 'marketing'
 
 export const CATEGORY_DEFAULTS: Record<NotificationCategory, ChannelPrefs> = {
-  match_live_follow:   { push: true,  inApp: true  },
-  match_live_bookmark: { push: true,  inApp: true  },
-  // match_finished now defaults push:true (2026-04-23). The /api/push/notify
-  // endpoint auto-detects finished events from match.status and fires a
-  // "Match finished 🏆 X won 6-3, 6-4" notification. Users can opt out via
-  // the notifications settings page — the resolvePrefs override path still
-  // respects stored prefs as before.
-  match_finished:      { push: true,  inApp: true  },
-  match_upcoming:      { push: false, inApp: true  },
-  badge_earned:        { push: true,  inApp: true  },
-  streak_milestone:    { push: true,  inApp: true  },
-  marketing:           { push: false, inApp: false },
+  match_live_follow:   { push: true },
+  match_live_bookmark: { push: true },
+  match_finished:      { push: true },
+  ranking_updated:     { push: true },  // weekly cadence, low-frequency, fine to default on
+  marketing:           { push: true },  // opt-out model (2026-05-27 decision)
 }
 
 export const KNOWN_CATEGORIES = Object.keys(CATEGORY_DEFAULTS) as NotificationCategory[]
@@ -42,12 +40,9 @@ export function isKnownCategory(value: unknown): value is NotificationCategory {
 }
 
 /**
- * Merge a stored JSONB prefs object with the code defaults for a given
- * category. Missing keys (or entire missing category) fall back to
- * defaults; partial overrides ({ push: false }) keep the default inApp.
- *
- * stored is whatever came out of `profiles.notification_prefs` — may be
- * null, {}, or a partial object.
+ * Merge a stored JSONB prefs object with code defaults for a given category.
+ * Missing `push` or missing category entry falls back to defaults. Stored
+ * orphan keys (e.g. `inApp` from before 2026-05-27) are silently dropped.
  */
 export function resolvePrefs(
   stored: Record<string, Partial<ChannelPrefs>> | null | undefined,
@@ -58,7 +53,6 @@ export function resolvePrefs(
   if (!override) return { ...defaults }
   return {
     push: typeof override.push === 'boolean' ? override.push : defaults.push,
-    inApp: typeof override.inApp === 'boolean' ? override.inApp : defaults.inApp,
   }
 }
 
@@ -75,15 +69,15 @@ export function resolveAllPrefs(
 
 /** Filter pill → list of categories. 'all' returns null (= no filter). */
 export function categoryFilter(
-  filter: 'all' | 'matches' | 'badges' | string,
+  filter: 'all' | 'matches' | 'updates' | string,
 ): NotificationCategory[] | null {
   switch (filter) {
     case 'all':
       return null
     case 'matches':
-      return ['match_live_follow', 'match_live_bookmark', 'match_finished', 'match_upcoming']
-    case 'badges':
-      return ['badge_earned', 'streak_milestone']
+      return ['match_live_follow', 'match_live_bookmark', 'match_finished']
+    case 'updates':
+      return ['ranking_updated', 'marketing']
     default:
       return []
   }

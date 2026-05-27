@@ -1,137 +1,113 @@
-/**
- * notification-categories.test.ts
- *
- * Unit tests for the pure defaults/resolver/filter module.
- * Run with: npx vitest run src/lib/__tests__/notification-categories.test.ts
- */
-
 import { describe, it, expect } from 'vitest'
 import {
-  CATEGORY_DEFAULTS,
   KNOWN_CATEGORIES,
+  CATEGORY_DEFAULTS,
   isKnownCategory,
   resolvePrefs,
   resolveAllPrefs,
   categoryFilter,
 } from '../notification-categories'
 
-describe('CATEGORY_DEFAULTS', () => {
-  it('contains exactly 7 categories', () => {
-    expect(KNOWN_CATEGORIES).toHaveLength(7)
+describe('notification-categories', () => {
+  describe('KNOWN_CATEGORIES', () => {
+    it('contains exactly the 5 supported categories', () => {
+      expect(new Set(KNOWN_CATEGORIES)).toEqual(
+        new Set(['match_live_follow', 'match_live_bookmark', 'match_finished', 'ranking_updated', 'marketing']),
+      )
+    })
+
+    it('does NOT contain the deprecated categories', () => {
+      expect(KNOWN_CATEGORIES).not.toContain('match_upcoming')
+      expect(KNOWN_CATEGORIES).not.toContain('badge_earned')
+      expect(KNOWN_CATEGORIES).not.toContain('streak_milestone')
+    })
   })
 
-  it('marketing defaults to off for both channels', () => {
-    expect(CATEGORY_DEFAULTS.marketing).toEqual({ push: false, inApp: false })
+  describe('CATEGORY_DEFAULTS', () => {
+    it('every active category defaults to push: true', () => {
+      expect(CATEGORY_DEFAULTS.match_live_follow.push).toBe(true)
+      expect(CATEGORY_DEFAULTS.match_live_bookmark.push).toBe(true)
+      expect(CATEGORY_DEFAULTS.match_finished.push).toBe(true)
+      expect(CATEGORY_DEFAULTS.ranking_updated.push).toBe(true)
+    })
+
+    it('marketing defaults to push: true (opt-out per 2026-05-27 decision)', () => {
+      expect(CATEGORY_DEFAULTS.marketing.push).toBe(true)
+    })
+
+    it('ChannelPrefs has only a push field — no inApp', () => {
+      for (const key of KNOWN_CATEGORIES) {
+        expect(Object.keys(CATEGORY_DEFAULTS[key])).toEqual(['push'])
+      }
+    })
   })
 
-  it('match_live_* defaults to on for both channels', () => {
-    expect(CATEGORY_DEFAULTS.match_live_follow).toEqual({ push: true, inApp: true })
-    expect(CATEGORY_DEFAULTS.match_live_bookmark).toEqual({ push: true, inApp: true })
+  describe('isKnownCategory', () => {
+    it('returns true for current categories', () => {
+      expect(isKnownCategory('match_live_follow')).toBe(true)
+      expect(isKnownCategory('ranking_updated')).toBe(true)
+    })
+
+    it('returns false for deprecated categories', () => {
+      expect(isKnownCategory('badge_earned')).toBe(false)
+      expect(isKnownCategory('streak_milestone')).toBe(false)
+      expect(isKnownCategory('match_upcoming')).toBe(false)
+    })
+
+    it('returns false for non-strings', () => {
+      expect(isKnownCategory(null)).toBe(false)
+      expect(isKnownCategory(42)).toBe(false)
+    })
   })
 
-  it('match_finished defaults to push on, inApp on (changed 2026-04-23)', () => {
-    // Bumped from push:false in 2026-04-23 — see notification-categories.ts.
-    // /api/push/notify checks the category-specific flag and now sends a
-    // push when a followed match finishes.
-    expect(CATEGORY_DEFAULTS.match_finished).toEqual({ push: true, inApp: true })
+  describe('resolvePrefs', () => {
+    it('falls back to defaults when stored is null', () => {
+      expect(resolvePrefs(null, 'match_live_follow')).toEqual({ push: true })
+    })
+
+    it('returns stored override when present', () => {
+      const stored = { match_live_follow: { push: false } }
+      expect(resolvePrefs(stored, 'match_live_follow')).toEqual({ push: false })
+    })
+
+    it('ignores orphan inApp keys from old stored prefs', () => {
+      const stored = { match_finished: { push: false, inApp: true } as unknown as { push: boolean } }
+      expect(resolvePrefs(stored, 'match_finished')).toEqual({ push: false })
+    })
+
+    it('falls back when stored has a category with no push key', () => {
+      const stored = { match_finished: {} as { push: boolean } }
+      expect(resolvePrefs(stored, 'match_finished')).toEqual({ push: true })
+    })
   })
 
-  it('match_upcoming defaults to push off, inApp on', () => {
-    expect(CATEGORY_DEFAULTS.match_upcoming).toEqual({ push: false, inApp: true })
-  })
-})
-
-describe('isKnownCategory', () => {
-  it('returns true for each known category', () => {
-    for (const k of KNOWN_CATEGORIES) expect(isKnownCategory(k)).toBe(true)
+  describe('resolveAllPrefs', () => {
+    it('returns one entry per KNOWN_CATEGORIES, no more', () => {
+      const out = resolveAllPrefs(null)
+      expect(Object.keys(out).sort()).toEqual([...KNOWN_CATEGORIES].sort())
+    })
   })
 
-  it('returns false for unknown strings', () => {
-    expect(isKnownCategory('foo')).toBe(false)
-    expect(isKnownCategory('')).toBe(false)
-  })
+  describe('categoryFilter', () => {
+    it('returns null for "all"', () => {
+      expect(categoryFilter('all')).toBeNull()
+    })
 
-  it('returns false for non-strings', () => {
-    expect(isKnownCategory(null)).toBe(false)
-    expect(isKnownCategory(undefined)).toBe(false)
-    expect(isKnownCategory(42)).toBe(false)
-  })
-})
+    it('returns the 3 match categories for "matches"', () => {
+      expect(new Set(categoryFilter('matches'))).toEqual(
+        new Set(['match_live_follow', 'match_live_bookmark', 'match_finished']),
+      )
+    })
 
-describe('resolvePrefs', () => {
-  it('returns defaults when stored is null', () => {
-    expect(resolvePrefs(null, 'match_live_follow')).toEqual({ push: true, inApp: true })
-  })
+    it('returns the 2 update categories for "updates"', () => {
+      expect(new Set(categoryFilter('updates'))).toEqual(
+        new Set(['ranking_updated', 'marketing']),
+      )
+    })
 
-  it('returns defaults when stored is undefined', () => {
-    expect(resolvePrefs(undefined, 'marketing')).toEqual({ push: false, inApp: false })
-  })
-
-  it('returns defaults when stored is empty', () => {
-    expect(resolvePrefs({}, 'match_live_bookmark')).toEqual({ push: true, inApp: true })
-  })
-
-  it('returns defaults when the category key is missing', () => {
-    expect(resolvePrefs({ marketing: { push: true, inApp: true } }, 'match_finished'))
-      .toEqual({ push: true, inApp: true })
-  })
-
-  it('uses stored override when both channels set', () => {
-    expect(resolvePrefs({ match_live_follow: { push: false, inApp: false } }, 'match_live_follow'))
-      .toEqual({ push: false, inApp: false })
-  })
-
-  it('merges partial override (push only) with default inApp', () => {
-    expect(resolvePrefs({ match_live_follow: { push: false } }, 'match_live_follow'))
-      .toEqual({ push: false, inApp: true })
-  })
-
-  it('merges partial override (inApp only) with default push', () => {
-    expect(resolvePrefs({ badge_earned: { inApp: false } }, 'badge_earned'))
-      .toEqual({ push: true, inApp: false })
-  })
-
-  it('ignores non-boolean junk in override', () => {
-    const junk = { match_live_follow: { push: 'yes' as unknown as boolean } }
-    expect(resolvePrefs(junk, 'match_live_follow')).toEqual({ push: true, inApp: true })
-  })
-})
-
-describe('resolveAllPrefs', () => {
-  it('returns all 7 categories', () => {
-    const all = resolveAllPrefs(null)
-    expect(Object.keys(all)).toHaveLength(7)
-    expect(all.match_live_follow).toEqual({ push: true, inApp: true })
-    expect(all.marketing).toEqual({ push: false, inApp: false })
-  })
-
-  it('applies overrides per category', () => {
-    const stored = { marketing: { push: true, inApp: true } }
-    const all = resolveAllPrefs(stored)
-    expect(all.marketing).toEqual({ push: true, inApp: true })
-    expect(all.match_live_follow).toEqual({ push: true, inApp: true })
-  })
-})
-
-describe('categoryFilter', () => {
-  it('returns null for "all" (no filter)', () => {
-    expect(categoryFilter('all')).toBeNull()
-  })
-
-  it('returns the 4 match categories for "matches"', () => {
-    expect(categoryFilter('matches')).toEqual([
-      'match_live_follow',
-      'match_live_bookmark',
-      'match_finished',
-      'match_upcoming',
-    ])
-  })
-
-  it('returns the 2 badge categories for "badges"', () => {
-    expect(categoryFilter('badges')).toEqual(['badge_earned', 'streak_milestone'])
-  })
-
-  it('returns empty list for unknown filter', () => {
-    expect(categoryFilter('zzz')).toEqual([])
+    it('returns empty array for unknown filter values (including the old "badges")', () => {
+      expect(categoryFilter('badges')).toEqual([])
+      expect(categoryFilter('foo')).toEqual([])
+    })
   })
 })
