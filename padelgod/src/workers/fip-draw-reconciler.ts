@@ -127,12 +127,52 @@ function teamHasNames(
   return !!((p1 && p1.trim()) || (p2 && p2.trim()));
 }
 
-function isBye(draw: DrawForReconcile): boolean {
+function isBye(
+  draw: DrawForReconcile,
+  ctx?: ReconcileContext,
+): boolean {
   if (draw.status !== 'walkover') return false;
   const t1 = teamHasNames(draw.team1_player1_name, draw.team1_player2_name);
   const t2 = teamHasNames(draw.team2_player1_name, draw.team2_player2_name);
   // BYE = walkover with exactly one side named (other is the "BYE" feeder)
-  return t1 !== t2;
+  if (t1 === t2) return false;
+  // First-round-of-MD guard. FIP renders TWO cell shapes identically:
+  //
+  //   (a) a real R32 BYE for a top seed (status='walkover', one side empty)
+  //   (b) a LATER-round cell waiting on a feeder (R16 with team1 empty
+  //       because the R32 winner hasn't been determined yet)
+  //
+  // Only (a) is an actual BYE event. (b) is a TBD opponent slot that
+  // will be filled by fip-winner-propagator once the prior round settles.
+  // The populator already has this guard
+  // (fip-draw-populator.ts::computeFirstRoundByCategory) — mirror it.
+  //
+  // ctx.firstMdRoundCanonical is the first MAIN-DRAW round for the
+  // category in this tournament (R32 for a 28-pair MD, R16 for a 16-pair
+  // WD, etc.). When the draw's round is not the first MD round, we
+  // refuse to treat it as a BYE — even if the cell shape matches.
+  //
+  // Back-compat: if ctx is absent (callers from older tests / one-off
+  // scripts), skip the guard and preserve pre-fix behaviour.
+  if (ctx?.firstMdRoundCanonical) {
+    const drawCanon = normalizeRoundShort(draw.round_label);
+    if (drawCanon !== null && drawCanon !== ctx.firstMdRoundCanonical) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Optional context the orchestrator passes per-tournament so the patch
+ *  builder can distinguish real BYE-through cells from later-round
+ *  TBD-feeder cells that happen to share the same DOM shape. See the
+ *  comment in `isBye` for the full rationale. */
+export interface ReconcileContext {
+  /** Canonical short-form of the FIRST main-draw round for the draw's
+   *  category in this tournament (e.g. 'R32' for a 28-pair MD, 'R16'
+   *  for a 16-pair WD). When undefined, the first-round-of-MD guard is
+   *  disabled. */
+  firstMdRoundCanonical?: string | null;
 }
 
 /** Same SET of resolved UUIDs (intra-pair slot order ignored). */
@@ -300,7 +340,21 @@ function computeNonByePatch(
 
   applyRoundPatch(patch, draw, existing);
 
-  if (draw.status === 'walkover' && existing.status === 'scheduled') {
+  // scheduled → walkover transition: only when the draw shows a REAL
+  // walkover (both teams named). When the draw shows walkover with one
+  // side empty, that's the BYE-through / TBD-feeder shape — handled by
+  // computeByePatch when it's a real bye (first MD round), or ignored
+  // when the first-round-of-MD guard rejects it as a late-round TBD
+  // feeder (in which case writing status='walkover' here would degrade
+  // the row to a misleading W/O banner with no winner_pair).
+  const drawHasBothTeams =
+    teamHasNames(draw.team1_player1_name, draw.team1_player2_name) &&
+    teamHasNames(draw.team2_player1_name, draw.team2_player2_name);
+  if (
+    draw.status === 'walkover' &&
+    existing.status === 'scheduled' &&
+    drawHasBothTeams
+  ) {
     patch.status = 'walkover';
   }
 
@@ -385,13 +439,51 @@ export function computeReconciliationPatch(
   draw: DrawForReconcile,
   existing: ExistingForReconcile,
   resolved: ResolvedFour,
+  ctx?: ReconcileContext,
 ): Record<string, unknown> | null {
   if (TERMINAL_STATUSES.has(existing.status)) return null;
   // `live` is its own gate so the result counter can split out
   // skippedTerminal vs skippedLive at the worker level. The pure builder
   // collapses both — only the orchestrator distinguishes them.
   if (existing.status === 'live') return null;
-  if (isBye(draw)) return computeByePatch(draw, existing, resolved);
+
+  const drawIsBye = isBye(draw, ctx);
+
+  // Unbye reversal. When the existing row was previously bye-flagged
+  // (either status='bye' OR status='walkover' with winner_pair set from
+  // the pre-PR-#453 era) AND the draw now shows a normal scheduled match
+  // with both teams populated, roll the row back to scheduled + clear
+  // winner_pair. Without this, false-positive byes from earlier runs
+  // never self-heal because computeNonByePatch only transitions
+  // scheduled → walkover, never the reverse. We also fold in any
+  // pair/seed drift detected by computeNonByePatch in the same patch.
+  //
+  // The trigger is narrow:
+  //   - existing is bye-like (the only states that carry a stale winner_pair
+  //     from a misfired bye patch)
+  //   - the draw's CURRENT shape would not produce a bye on this run
+  //     (drawIsBye === false, with the first-round guard applied)
+  //   - draw is now scheduled with BOTH teams named (the smoking gun:
+  //     a real walkover keeps draw.status='walkover' indefinitely)
+  const existingIsByeLike =
+    existing.status === 'bye' ||
+    (existing.status === 'walkover' && existing.winner_pair !== null);
+  const drawHasBothTeams =
+    teamHasNames(draw.team1_player1_name, draw.team1_player2_name) &&
+    teamHasNames(draw.team2_player1_name, draw.team2_player2_name);
+  if (
+    existingIsByeLike &&
+    !drawIsBye &&
+    draw.status === 'scheduled' &&
+    drawHasBothTeams
+  ) {
+    const drift = computeNonByePatch(draw, existing, resolved) ?? {};
+    drift.status = 'scheduled';
+    drift.winner_pair = null;
+    return drift;
+  }
+
+  if (drawIsBye) return computeByePatch(draw, existing, resolved);
   return computeNonByePatch(draw, existing, resolved);
 }
 
@@ -405,6 +497,9 @@ interface TournamentRow {
 
 interface DrawSnapshotRow {
   match_widget_id: string | null;
+  /** 'men' | 'women' — needed to pick the FIRST main-draw round per
+   *  category for the first-round-of-MD guard on the bye patch. */
+  category: string | null;
   round_label: string | null;
   status: string | null;
   team1_seed: number | null;
@@ -415,6 +510,35 @@ interface DrawSnapshotRow {
   team2_player2_name: string | null;
   captured_at: string;
 }
+
+/** Compute the canonical FIRST main-draw round (R128 > R64 > R32 > ...)
+ *  per category from a flat list of draw snapshots. Mirrors the
+ *  populator's `computeFirstRoundByCategory` but emits canonical short
+ *  forms so the reconciler can compare against `normalizeRoundShort`
+ *  output without an extra normalisation step at every call site. */
+function computeFirstMdRoundCanonicalByCategory(
+  rows: ReadonlyArray<{ category: string | null; round_label: string | null }>,
+): Map<string, string> {
+  const out = new Map<string, string>();
+  const bestDepth = new Map<string, number>();
+  for (const r of rows) {
+    if (!r.category || !r.round_label) continue;
+    const canon = normalizeRoundShort(r.round_label);
+    if (!canon) continue;
+    const depth = MAIN_DRAW_ROUND_DEPTH[canon];
+    if (depth == null) continue;
+    const prev = bestDepth.get(r.category);
+    if (prev == null || depth > prev) {
+      bestDepth.set(r.category, depth);
+      out.set(r.category, canon);
+    }
+  }
+  return out;
+}
+
+const MAIN_DRAW_ROUND_DEPTH: Record<string, number> = {
+  R128: 128, R64: 64, R32: 32, R16: 16, QF: 8, SF: 4, F: 2,
+};
 
 interface ExistingMatchRow {
   id: string;
@@ -494,6 +618,14 @@ export async function runFipDrawReconciler(
       Array.from(existingByWidget.values()).map((m) => m.id),
     );
 
+    // First main-draw round per category. Used to gate the bye patch:
+    // only first-MD-round walkover+one-empty cells are real BYE-through
+    // events; later-round cells with the same shape are TBD feeders.
+    // See `isBye` and `ReconcileContext` for the full rationale.
+    const firstMdRoundByCategory = computeFirstMdRoundCanonicalByCategory(
+      Array.from(latestDraw.values()),
+    );
+
     result.tournamentsProcessed += 1;
 
     for (const [widget, existing] of existingByWidget) {
@@ -541,10 +673,15 @@ export async function runFipDrawReconciler(
         team2_player2_name: draw.team2_player2_name,
       };
 
-      const patch = computeReconciliationPatch(drawForReconcile, existing, resolved);
+      const ctx: ReconcileContext = {
+        firstMdRoundCanonical: draw.category
+          ? firstMdRoundByCategory.get(draw.category) ?? null
+          : null,
+      };
+      const patch = computeReconciliationPatch(drawForReconcile, existing, resolved, ctx);
       if (!patch) { result.matchesUnchanged += 1; continue; }
 
-      const bye = isBye(drawForReconcile);
+      const bye = isBye(drawForReconcile, ctx);
       if (dryRun) {
         logger?.info(
           { matchId: existing.id, widget, patch, bye },
@@ -613,7 +750,7 @@ async function loadLatestFipDrawSnapshots(
         .schema('padelgod')
         .from('draw_snapshots')
         .select(
-          'match_widget_id, round_label, status, team1_seed, team2_seed, ' +
+          'match_widget_id, category, round_label, status, team1_seed, team2_seed, ' +
             'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, captured_at',
         )
         .eq('tournament_id', tournamentId)

@@ -350,3 +350,167 @@ describe('computeReconciliationPatch — seed-only drift', () => {
     });
   });
 });
+
+// ─── Late-round-bye false-positive — see PR following the 2026-05-27 Albania
+// incident. Reconciler must NOT treat a later-round walkover+one-empty cell
+// as a real BYE event; those describe TBD feeders, not auto-advancers. The
+// populator already has this guard (see computeFirstRoundByCategory). Mirror
+// it via the ctx.firstMdRoundCanonical context param. ────────────────────
+describe('computeReconciliationPatch — first-round-of-MD guard on isBye', () => {
+  it('does NOT bye-patch a later-round walkover+one-empty cell when ctx says first MD round is earlier', () => {
+    // Albania MD011 verbatim (the bug): R16 cell waiting on R32 winner.
+    // FIP renders it as walkover with team1 empty + team2 seeded; this
+    // is a TBD feeder, not a real BYE.
+    const draw = baseDraw({
+      match_widget_id: 'MD011',
+      round_label: 'R16',
+      status: 'walkover',
+      team2_seed: 5,
+      team2_player1_name: 'Javier Garrido',
+      team2_player2_name: 'Lucas Bergamini',
+    });
+    const existing = baseExisting({
+      round: 'R16', round_canonical: 'R16',
+      pair2_player1_id: GARRIDO, pair2_player2_id: BERGAMINI,
+      pair2_seed: 5,
+    });
+    const resolved = baseResolved({ p2p1: GARRIDO, p2p2: BERGAMINI });
+    // R32 is the first MD round for a 28-pair draw — R16 is NOT.
+    const patch = computeReconciliationPatch(draw, existing, resolved, {
+      firstMdRoundCanonical: 'R32',
+    });
+    // Should not write status='bye'/'walkover' nor set winner_pair.
+    // (computeNonByePatch branch may write status='walkover' for the
+    // scheduled→walkover edge, but no winner_pair / pair-clearing.)
+    expect(patch).toBeNull();
+  });
+
+  it('STILL bye-patches a first-round walkover+one-empty cell when ctx matches', () => {
+    // Same shape as MD011 but on R32 (first MD round in a 28-pair draw).
+    // Real R32 bye for the seed — must produce the bye patch.
+    const draw = baseDraw({
+      match_widget_id: 'MD011',
+      round_label: 'R32',
+      status: 'walkover',
+      team2_seed: 5,
+      team2_player1_name: 'Javier Garrido',
+      team2_player2_name: 'Lucas Bergamini',
+    });
+    const existing = baseExisting({
+      round: 'R32', round_canonical: 'R32',
+    });
+    const resolved = baseResolved({ p2p1: GARRIDO, p2p2: BERGAMINI });
+    const patch = computeReconciliationPatch(draw, existing, resolved, {
+      firstMdRoundCanonical: 'R32',
+    });
+    expect(patch).toEqual({
+      pair2_player1_id: GARRIDO,
+      pair2_player2_id: BERGAMINI,
+      pair2_player1_name: null,
+      pair2_player2_name: null,
+      pair2_player1_country: null,
+      pair2_player2_country: null,
+      pair2_seed: 5,
+      status: 'bye',
+      winner_pair: 2,
+    });
+  });
+});
+
+describe('computeReconciliationPatch — unbye reversal', () => {
+  it("reverses status='bye' + winner_pair when draw later shows scheduled with both teams named", () => {
+    // The cure path: a row was wrongly bye-flagged by an earlier
+    // reconciler run (before the first-round guard or before the draw
+    // refreshed). The draw now shows the real R16 match scheduled with
+    // both teams populated. We must roll the row back to scheduled +
+    // clear winner_pair so the bracket and match page render correctly.
+    const draw = baseDraw({
+      match_widget_id: 'MD011',
+      round_label: 'R16',
+      status: 'scheduled',
+      team2_seed: 5,
+      team1_player1_name: 'Maximiliano Arce Simo',
+      team1_player2_name: 'Alejandro Arroyo',
+      team2_player1_name: 'Javier Garrido',
+      team2_player2_name: 'Lucas Bergamini',
+    });
+    const existing = baseExisting({
+      status: 'bye', winner_pair: 2,
+      round: 'R16', round_canonical: 'R16',
+      pair1_player1_id: 'arce-uuid', pair1_player2_id: 'arroyo-uuid',
+      pair2_player1_id: GARRIDO, pair2_player2_id: BERGAMINI,
+      pair2_seed: 5,
+    });
+    const resolved = baseResolved({
+      p1p1: 'arce-uuid', p1p2: 'arroyo-uuid',
+      p2p1: GARRIDO, p2p2: BERGAMINI,
+    });
+    expect(computeReconciliationPatch(draw, existing, resolved, {
+      firstMdRoundCanonical: 'R32',
+    })).toEqual({
+      status: 'scheduled',
+      winner_pair: null,
+    });
+  });
+
+  it("reverses status='walkover' + winner_pair (the pre-PR-453 false-positive shape) when draw now shows scheduled with both teams named", () => {
+    // WD015 verbatim: pre-PR-#453 the reconciler wrote status='walkover'
+    // for BYE-through cells. Some rows never got the walkover→bye retro
+    // flip because the draw had already moved to scheduled by then.
+    // Existing winner_pair makes the match page render "WINNER (W/O)".
+    const draw = baseDraw({
+      match_widget_id: 'WD015',
+      round_label: 'R16',
+      status: 'scheduled',
+      team2_seed: 2,
+      team1_player1_name: 'Carmen Castillon Gamez',
+      team1_player2_name: 'Maria Portillo Perez',
+      team2_player1_name: 'Marina Guinart España',
+      team2_player2_name: 'Veronica Virseda',
+    });
+    const existing = baseExisting({
+      status: 'walkover', winner_pair: 2,
+      round: 'R16', round_canonical: 'R16',
+      pair1_player1_id: 'castillon-uuid', pair1_player2_id: 'portillo-uuid',
+      pair2_player1_id: 'guinart-uuid', pair2_player2_id: 'virseda-uuid',
+      pair2_seed: 2,
+    });
+    const resolved = baseResolved({
+      p1p1: 'castillon-uuid', p1p2: 'portillo-uuid',
+      p2p1: 'guinart-uuid', p2p2: 'virseda-uuid',
+    });
+    expect(computeReconciliationPatch(draw, existing, resolved, {
+      firstMdRoundCanonical: 'R32',
+    })).toEqual({
+      status: 'scheduled',
+      winner_pair: null,
+    });
+  });
+
+  it("does NOT unbye a genuine walkover (existing walkover+winner, draw still walkover with both teams named)", () => {
+    // A real walkover: both teams named, one withdrew. The draw keeps
+    // showing walkover (no R-prior winner to flip it back to scheduled
+    // because the bracket was always populated). winner_pair must stay
+    // — that's the team that didn't withdraw.
+    const draw = baseDraw({
+      round_label: 'R16',
+      status: 'walkover',
+      team1_player1_name: 'Barahona', team1_player2_name: 'Alfonso',
+      team2_player1_name: 'Hernandez', team2_player2_name: 'Collado',
+      team1_seed: 9,
+    });
+    const existing = baseExisting({
+      status: 'walkover', winner_pair: 1,
+      round: 'R16', round_canonical: 'R16',
+      pair1_player1_id: BARAHONA, pair1_player2_id: ALFONSO,
+      pair2_player1_id: HERNANDEZ, pair2_player2_id: COLLADO,
+      pair1_seed: 9,
+    });
+    const resolved = baseResolved({
+      p1p1: BARAHONA, p1p2: ALFONSO, p2p1: HERNANDEZ, p2p2: COLLADO,
+    });
+    expect(computeReconciliationPatch(draw, existing, resolved, {
+      firstMdRoundCanonical: 'R32',
+    })).toBeNull();
+  });
+});
