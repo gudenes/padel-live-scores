@@ -84,6 +84,7 @@ export async function getMatchOddsForDay(dateIso: string) {
     .select('*')
     .in('match_id', matchIds)
     .order('created_at', { ascending: false })
+    .limit(Math.min(9999, matchIds.length * 24))
   const latestByMatch = new Map<string, MatchPredictionRow>()
   for (const p of preds ?? []) {
     if (!latestByMatch.has(p.match_id)) latestByMatch.set(p.match_id, p as MatchPredictionRow)
@@ -92,24 +93,49 @@ export async function getMatchOddsForDay(dateIso: string) {
   return matches.map((m) => ({ match: m, prediction: latestByMatch.get(m.id) ?? null }))
 }
 
-// Latest tournament predictions per tournament (for landing-page outlook
-// cards). De-duped to the most recent row per (tournament, category, pair).
+// Latest tournament predictions per tournament (for landing-page outlook cards).
+// Strategy: fetch list of in-scope tournaments first, then per tournament pull
+// the latest snapshot set. Keeps the query bounded regardless of how many
+// snapshots have accumulated.
 export async function getOngoingTournamentOutlooks() {
   const supabase = createServiceClient()
-  const { data } = await supabase
-    .from('model_tournament_predictions')
-    .select('*, tournaments!inner(id, name, level, status, ends_at)')
-    .gte('tournaments.ends_at', new Date().toISOString())
-    .order('created_at', { ascending: false })
-    .limit(500)
-  const seen = new Set<string>()
-  const latest = (data ?? []).filter((r: { tournament_id: string; category: string; pair_player1_id: string; pair_player2_id: string }) => {
-    const k = `${r.tournament_id}::${r.category}::${r.pair_player1_id}::${r.pair_player2_id}`
-    if (seen.has(k)) return false
-    seen.add(k)
-    return true
-  })
-  return latest
+  const nowIso = new Date().toISOString()
+
+  // Step 1: find in-scope tournaments (only those that still have matches to come)
+  const { data: tournaments } = await supabase
+    .from('tournaments')
+    .select('id, name, level, status, ends_at')
+    .gte('ends_at', nowIso)
+    .order('starts_at', { ascending: true })
+
+  if (!tournaments || tournaments.length === 0) return []
+
+  // Step 2: per tournament + category, pull the latest snapshot batch.
+  // 64 rows is enough for a 32-pair draw at single-snapshot granularity.
+  const results: any[] = []
+  for (const t of tournaments) {
+    for (const category of ['men', 'women'] as const) {
+      const { data: rows } = await supabase
+        .from('model_tournament_predictions')
+        .select('*')
+        .eq('tournament_id', t.id)
+        .eq('category', category)
+        .order('created_at', { ascending: false })
+        .limit(64)
+
+      if (!rows || rows.length === 0) continue
+
+      // Dedup to latest per pair (within this tournament + category).
+      const seen = new Set<string>()
+      for (const r of rows) {
+        const k = `${r.pair_player1_id}::${r.pair_player2_id}`
+        if (seen.has(k)) continue
+        seen.add(k)
+        results.push({ ...r, tournaments: t })
+      }
+    }
+  }
+  return results
 }
 
 // Calibration page data — raw scored rows within the rolling window.
