@@ -25,6 +25,7 @@ import { IconSlider } from '@/components/IconSlider'
 import { SaveStateSlot, type SaveState } from '@/components/SaveStateSlot'
 import { MuteDurationSheet } from '@/components/MuteDurationSheet'
 import { openSystemNotificationSettings, isNativeRuntime } from '@/lib/native-settings'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 type Group = { key: 'groupMatches' | 'groupUpdates'; categories: NotificationCategory[] }
 const GROUPS: Group[] = [
@@ -175,17 +176,27 @@ export default function NotificationPrefsPage() {
               <div style={{ color: '#ff7884', fontSize: 12.5, fontWeight: 700 }}>{t('blocked.title')}</div>
               <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11.5, marginTop: 2 }}>{t('blocked.body')}</div>
             </div>
-            <button
+            {/* Permission-blocked CTA — uses production PressButton with
+                live (red) intent. Face/skirt depth + chunky-tilt clip-path
+                inherited from PRESS_PRESETS.chunkyInline; accent overridden
+                to the alarm-red used elsewhere in the notify pipeline. */}
+            <PressButton
+              {...PRESS_PRESETS.chunkyInline}
+              accent="#FF4655"
+              skirt="#99131D"
+              textColor="#fff"
               onClick={() => openSystemNotificationSettings()}
               style={{
-                background: '#FF4655', color: '#fff', border: 0, padding: '6px 12px',
-                fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
-                clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
-                cursor: 'pointer', flexShrink: 0,
+                flexShrink: 0,
+                padding: '6px 12px',
+                fontSize: 10,
+                fontWeight: 900,
+                textTransform: 'uppercase',
+                letterSpacing: 0.4,
               }}
             >
               {t('blocked.cta')}
-            </button>
+            </PressButton>
           </div>
         )}
 

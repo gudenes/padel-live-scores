@@ -16,6 +16,7 @@ import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import type { NudgeCategory, NudgeState } from '@/hooks/useNotificationNudge'
 import { openSystemNotificationSettings } from '@/lib/native-settings'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
 interface NotificationNudgeSheetProps {
   state: NudgeState
@@ -45,11 +46,17 @@ export function NotificationNudgeSheet({ state, category, onDismiss, onTurnOn }:
   const ctaLabel = isOsBlocked
     ? t('osBlocked.cta')
     : t(`${subjectKey}.cta`)
-  const ctaColor = isOsBlocked ? '#FF4655' : '#7ED321'
-  const ctaTextColor = isOsBlocked ? '#fff' : '#0a0a0a'
   const iconBg = isOsBlocked ? 'rgba(245,70,85,0.10)' : 'rgba(126,211,33,0.10)'
   const iconBorder = isOsBlocked ? 'rgba(245,70,85,0.30)' : 'rgba(126,211,33,0.30)'
   const iconColor = isOsBlocked ? '#ff7884' : '#7ED321'
+
+  // Map nudge state → PressButton intent. Reuses the production face/skirt
+  // depth + chunky-tilt silhouette (see src/components/PressButton.tsx +
+  // /mockup-buttons.html). Live intent for os-blocked (red, alarm state),
+  // primary intent for master-off / pref-off (green, "turn it on" CTA).
+  const ctaPress = isOsBlocked
+    ? { accent: '#FF4655', skirt: '#99131D', textColor: '#fff' }
+    : { accent: PRESS_PRESETS.chunkyInline.accent, skirt: PRESS_PRESETS.chunkyInline.skirt, textColor: '#0a0a0a' }
 
   const handleCta = () => {
     if (isOsBlocked) {
@@ -99,34 +106,47 @@ export function NotificationNudgeSheet({ state, category, onDismiss, onTurnOn }:
         </div>
         <h2 style={{ fontSize: 16, fontWeight: 800, margin: '0 0 8px', textAlign: 'center', color: '#fff' }}>{title}</h2>
         <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, textAlign: 'center', marginBottom: 18, padding: '0 8px' }}>{body}</div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        {/* Bottom CTA row — primary uses production PressButton (face/skirt
+            depth + chunky-tilted clip-path, see src/components/PressButton.tsx).
+            Dismiss stays a simple chunky-tilted ghost button — no depth feel
+            since ghost CTAs across the app don't get face/skirt treatment. */}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
           <button
             type="button"
             onClick={onDismiss}
             style={{
-              flex: 1, padding: '10px 14px',
-              background: 'transparent', color: 'rgba(255,255,255,0.75)',
+              flex: 1,
+              padding: '10px 14px',
+              marginBottom: PRESS_PRESETS.chunkyInline.depth, // align with PressButton's depth offset
+              background: 'transparent',
+              color: 'rgba(255,255,255,0.75)',
               border: '1.5px solid rgba(255,255,255,0.22)',
-              fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
+              fontSize: 11,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
               clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
               cursor: 'pointer',
+              fontFamily: 'inherit',
             }}
           >
             {t('dismiss')}
           </button>
-          <button
-            type="button"
+          <PressButton
+            {...PRESS_PRESETS.chunkyInline}
+            {...ctaPress}
             onClick={handleCta}
             style={{
-              flex: 1, padding: '10px 14px',
-              background: ctaColor, color: ctaTextColor, border: 0,
-              fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
-              clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
-              cursor: 'pointer',
+              flex: 1,
+              padding: '10px 14px',
+              fontSize: 11,
+              fontWeight: 900,
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
             }}
           >
             {ctaLabel}
-          </button>
+          </PressButton>
         </div>
       </div>
     </>
