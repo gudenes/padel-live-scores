@@ -353,16 +353,18 @@ export async function POST(request: Request) {
 
   // ── Batch-fetch prefs + subscriptions in parallel ──────────
   const [prefsRes, subsRes] = await Promise.all([
-    supabase.from('profiles').select('id, notification_prefs').in('id', filteredUserIds),
+    supabase.from('profiles').select('id, notification_prefs, notification_mute_until').in('id', filteredUserIds),
     supabase.from('push_subscriptions').select('id, user_id, endpoint, keys').in('user_id', filteredUserIds),
   ])
 
   const prefsByUser = new Map<string, Record<string, Partial<ChannelPrefs>>>()
+  const muteUntilByUser = new Map<string, string | null>()
   for (const row of prefsRes.data ?? []) {
     prefsByUser.set(
       row.id as string,
       (row.notification_prefs ?? {}) as Record<string, Partial<ChannelPrefs>>,
     )
+    muteUntilByUser.set(row.id as string, (row as { notification_mute_until?: string | null }).notification_mute_until ?? null)
   }
 
   const subsByUser = new Map<string, typeof subsRes.data>()
@@ -433,7 +435,13 @@ export async function POST(request: Request) {
       },
     })
 
-    if (resolved.push) {
+    // Skip push fan-out for users with an active mute. In-app delivery
+    // still runs (history preserved). Mute is push-only.
+    const muteUntil = muteUntilByUser.get(userId) ?? null
+    const isMuted = muteUntil === 'forever' ||
+      (typeof muteUntil === 'string' && muteUntil !== 'forever' && new Date(muteUntil) > new Date())
+
+    if (!isMuted && resolved.push) {
       // Resolve the icon URL once per recipient (same for web push + FCM):
       // follow → followed player's avatar (fallback to circuit logo if no avatar)
       // bookmark → circuit logo based on tournament.level
