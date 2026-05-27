@@ -93,11 +93,15 @@ export async function getMatchOddsForDay(dateIso: string) {
   return matches.map((m) => ({ match: m, prediction: latestByMatch.get(m.id) ?? null }))
 }
 
+type TournamentOutlookRow = TournamentPredictionRow & {
+  tournaments: { id: string; name: string; level: string | null; status: string | null; ends_at: string }
+}
+
 // Latest tournament predictions per tournament (for landing-page outlook cards).
 // Strategy: fetch list of in-scope tournaments first, then per tournament pull
 // the latest snapshot set. Keeps the query bounded regardless of how many
 // snapshots have accumulated.
-export async function getOngoingTournamentOutlooks() {
+export async function getOngoingTournamentOutlooks(): Promise<TournamentOutlookRow[]> {
   const supabase = createServiceClient()
   const nowIso = new Date().toISOString()
 
@@ -110,11 +114,10 @@ export async function getOngoingTournamentOutlooks() {
 
   if (!tournaments || tournaments.length === 0) return []
 
-  // Step 2: per tournament + category, pull the latest snapshot batch.
+  // Step 2: per tournament + category, pull the latest snapshot batch in parallel.
   // 64 rows is enough for a 32-pair draw at single-snapshot granularity.
-  const results: any[] = []
-  for (const t of tournaments) {
-    for (const category of ['men', 'women'] as const) {
+  const fetches = tournaments.flatMap((t) =>
+    (['men', 'women'] as const).map(async (category) => {
       const { data: rows } = await supabase
         .from('model_tournament_predictions')
         .select('*')
@@ -122,19 +125,20 @@ export async function getOngoingTournamentOutlooks() {
         .eq('category', category)
         .order('created_at', { ascending: false })
         .limit(64)
-
-      if (!rows || rows.length === 0) continue
-
+      if (!rows || rows.length === 0) return []
       // Dedup to latest per pair (within this tournament + category).
       const seen = new Set<string>()
+      const result: TournamentOutlookRow[] = []
       for (const r of rows) {
         const k = `${r.pair_player1_id}::${r.pair_player2_id}`
         if (seen.has(k)) continue
         seen.add(k)
-        results.push({ ...r, tournaments: t })
+        result.push({ ...(r as TournamentPredictionRow), tournaments: t })
       }
-    }
-  }
+      return result
+    }),
+  )
+  const results = (await Promise.all(fetches)).flat()
   return results
 }
 
@@ -142,11 +146,29 @@ export async function getOngoingTournamentOutlooks() {
 export async function getCalibrationData(windowDays: number) {
   const supabase = createServiceClient()
   const cutoff = new Date(Date.now() - windowDays * 86_400_000).toISOString()
-  const { data } = await supabase
-    .from('prediction_scores')
-    .select('brier_score, log_loss, predicted_prob_winner, scored_at, model_version, match_id')
-    .gte('scored_at', cutoff)
-  return data ?? []
+  // Paginate to avoid PostgREST 10k cap silent truncation
+  const out: Array<{
+    brier_score: number
+    log_loss: number
+    predicted_prob_winner: number
+    scored_at: string
+    model_version: string
+    match_id: string
+  }> = []
+  const batch = 1000
+  let start = 0
+  while (true) {
+    const { data } = await supabase
+      .from('prediction_scores')
+      .select('brier_score, log_loss, predicted_prob_winner, scored_at, model_version, match_id')
+      .gte('scored_at', cutoff)
+      .range(start, start + batch - 1)
+    if (!data || data.length === 0) break
+    out.push(...(data as typeof out))
+    if (data.length < batch) break
+    start += batch
+  }
+  return out
 }
 
 // Data freshness signals (used by ModelFreshnessPanel).
@@ -170,8 +192,14 @@ export async function getModelFreshness() {
   // (Slightly approximate — counts ALL finished matches not just in-scope.
   //  Good enough as a health signal; refine if false-positives appear.)
 
+  const latestSnapshotAt = latestSnapshot?.created_at ?? null
+  const snapshotAgeMin = latestSnapshotAt
+    ? Math.round((Date.now() - new Date(latestSnapshotAt).getTime()) / 60_000)
+    : null
+
   return {
-    latestSnapshotAt: latestSnapshot?.created_at ?? null,
+    latestSnapshotAt,
+    snapshotAgeMin,
     trainingMatchCount: latestSnapshot?.training_match_count ?? null,
     modelVersion: latestSnapshot?.model_version ?? null,
     unscoredFinishedLast7d: unscoredFinishedCount ?? 0,

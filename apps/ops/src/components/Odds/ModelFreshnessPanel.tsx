@@ -2,7 +2,7 @@
 // Snapshot-age + training-size + scoring-backlog health chips for /odds/calibration.
 
 export interface ModelFreshnessPanelProps {
-  latestSnapshotAt: string | null
+  snapshotAgeMin: number | null   // computed in the page server component
   trainingMatchCount: number | null
   modelVersion: string | null
   unscoredFinishedLast7d: number
@@ -12,7 +12,7 @@ export interface ModelFreshnessPanelProps {
 
 export function ModelFreshnessPanel(props: ModelFreshnessPanelProps) {
   const {
-    latestSnapshotAt,
+    snapshotAgeMin,
     trainingMatchCount,
     modelVersion,
     unscoredFinishedLast7d,
@@ -20,9 +20,6 @@ export function ModelFreshnessPanel(props: ModelFreshnessPanelProps) {
     favoriteHitRate30d,
   } = props
 
-  const snapshotAgeMin = latestSnapshotAt
-    ? Math.round((Date.now() - new Date(latestSnapshotAt).getTime()) / 60_000)
-    : null
   const snapshotColor =
     snapshotAgeMin == null ? 'var(--status-neutral)' :
     snapshotAgeMin <= 90 ? 'var(--status-positive)' :

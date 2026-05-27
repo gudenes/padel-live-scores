@@ -125,7 +125,7 @@ export default async function CalibrationPage() {
 
       <h2 style={{ fontSize: 14, fontWeight: 700, margin: '32px 0 12px' }}>Model freshness</h2>
       <ModelFreshnessPanel
-        latestSnapshotAt={freshness.latestSnapshotAt}
+        snapshotAgeMin={freshness.snapshotAgeMin}
         trainingMatchCount={freshness.trainingMatchCount}
         modelVersion={freshness.modelVersion}
         unscoredFinishedLast7d={freshness.unscoredFinishedLast7d}
