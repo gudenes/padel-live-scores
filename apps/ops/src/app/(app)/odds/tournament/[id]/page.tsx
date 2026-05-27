@@ -76,30 +76,39 @@ export default async function TournamentOddsPage({ params }: PageProps) {
 
   const snapshotAt = latestByPair[0]?.created_at ?? ''
 
-  // Build top-5 series per category for the chart
-  const chartByCat: Record<'men' | 'women', Array<{ name: string; color: string; points: Array<{ t: string; value: number }> }>> = { men: [], women: [] }
-  for (const cat of ['men', 'women'] as const) {
+  // Build top-5 series per category for the chart.
+  // Parallelize the per-pair history queries — they're independent and we want
+  // the page to fan out, not serialize.
+  const colors = ['#ff6b2b', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5']
+
+  async function buildSeriesForCategory(cat: 'men' | 'women') {
     const top5 = byCategory[cat].slice(0, 5)
-    const series: Array<{ name: string; color: string; points: Array<{ t: string; value: number }> }> = []
-    const colors = ['#ff6b2b', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5']
-    for (let i = 0; i < top5.length; i++) {
-      const p = top5[i]
-      if (!p) continue
-      const { data: history } = await supabase
-        .from('model_tournament_predictions')
-        .select('created_at, champ_prob')
-        .eq('tournament_id', id)
-        .eq('category', cat)
-        .eq('pair_player1_id', p.pair_player1_id)
-        .eq('pair_player2_id', p.pair_player2_id)
-        .order('created_at', { ascending: true })
-      series.push({
-        name: pairName(p.pair_player1_id, p.pair_player2_id),
-        color: colors[i % colors.length]!,
-        points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.champ_prob) })),
-      })
-    }
-    chartByCat[cat] = series
+    return Promise.all(
+      top5.map(async (p, i) => {
+        const { data: history } = await supabase
+          .from('model_tournament_predictions')
+          .select('created_at, champ_prob')
+          .eq('tournament_id', id)
+          .eq('category', cat)
+          .eq('pair_player1_id', p.pair_player1_id)
+          .eq('pair_player2_id', p.pair_player2_id)
+          .order('created_at', { ascending: true })
+        return {
+          name: pairName(p.pair_player1_id, p.pair_player2_id),
+          color: colors[i % colors.length]!,
+          points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.champ_prob) })),
+        }
+      }),
+    )
+  }
+
+  const [menSeries, womenSeries] = await Promise.all([
+    buildSeriesForCategory('men'),
+    buildSeriesForCategory('women'),
+  ])
+  const chartByCat: Record<'men' | 'women', Array<{ name: string; color: string; points: Array<{ t: string; value: number }> }>> = {
+    men: menSeries,
+    women: womenSeries,
   }
 
   return (
