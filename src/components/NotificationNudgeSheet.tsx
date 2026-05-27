@@ -83,7 +83,7 @@ export function NotificationNudgeSheet({ state, category, onDismiss, onTurnOn }:
           color: iconColor,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 12px',
-          clipPath: 'polygon(0% 5%, 100% 95%, 0% 100%)',
+          clipPath: 'polygon(0% 5%, 100% 0%, 100% 95%, 0% 100%)',
         }}>
           {isOsBlocked ? (
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -108,7 +108,7 @@ export function NotificationNudgeSheet({ state, category, onDismiss, onTurnOn }:
               background: 'transparent', color: 'rgba(255,255,255,0.75)',
               border: '1.5px solid rgba(255,255,255,0.22)',
               fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
-              clipPath: 'polygon(0% 4%, 100% 96%, 0% 100%)',
+              clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
               cursor: 'pointer',
             }}
           >
@@ -121,7 +121,7 @@ export function NotificationNudgeSheet({ state, category, onDismiss, onTurnOn }:
               flex: 1, padding: '10px 14px',
               background: ctaColor, color: ctaTextColor, border: 0,
               fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
-              clipPath: 'polygon(0% 4%, 100% 96%, 0% 100%)',
+              clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
               cursor: 'pointer',
             }}
           >
