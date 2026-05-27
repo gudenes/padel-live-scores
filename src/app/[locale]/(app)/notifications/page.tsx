@@ -186,22 +186,38 @@ export default function NotificationsPage() {
           </button>
           <h1 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>{t('title')}</h1>
         </div>
-        {unreadCount > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {unreadCount > 0 && (
+            <button
+              onClick={() => void markAll()}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#7ED321',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              {t('markAllRead')}
+            </button>
+          )}
           <button
-            onClick={() => void markAll()}
+            type="button"
+            onClick={() => router.push('/profile/settings/notifications')}
+            aria-label="Notification settings"
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#7ED321',
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: 'pointer',
-              padding: 0,
+              background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.65)',
+              cursor: 'pointer', padding: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            {t('markAllRead')}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
           </button>
-        )}
+        </div>
       </div>
 
       {/* Filter pills */}
