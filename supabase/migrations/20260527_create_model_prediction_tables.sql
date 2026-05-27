@@ -24,7 +24,8 @@ CREATE TABLE IF NOT EXISTS model_predictions (
   halflife_days         INTEGER NOT NULL
 );
 
-COMMENT ON TABLE model_predictions IS 'Per-match Elo-model odds snapshots. Append-only; latest row per match_id is current.';
+COMMENT ON TABLE model_predictions IS
+  'Per-match Elo-model odds snapshots. Append-only; latest row per match_id is current. Written by the hourly odds cron. Server-only access via service-role key — admin/worker writes, admin pages read. No RLS policies.';
 
 CREATE INDEX IF NOT EXISTS model_predictions_match_created_idx
   ON model_predictions (match_id, created_at DESC);
@@ -54,7 +55,8 @@ CREATE TABLE IF NOT EXISTS model_tournament_predictions (
   halflife_days         INTEGER NOT NULL
 );
 
-COMMENT ON TABLE model_tournament_predictions IS 'Per-pair Monte Carlo championship/finalist/semi probabilities. Append-only.';
+COMMENT ON TABLE model_tournament_predictions IS
+  'Per-pair Monte Carlo championship/finalist/semi probabilities. Append-only; latest row per (tournament_id, category, pair) is current. Server-only access via service-role key — admin/worker writes, admin pages read. No RLS policies.';
 
 CREATE INDEX IF NOT EXISTS model_tournament_predictions_tcat_created_idx
   ON model_tournament_predictions (tournament_id, category, created_at DESC);
@@ -78,9 +80,13 @@ CREATE TABLE IF NOT EXISTS prediction_scores (
   CONSTRAINT prediction_scores_match_id_unique UNIQUE (match_id)
 );
 
-COMMENT ON TABLE prediction_scores IS 'Per-match calibration scoring. UNIQUE(match_id) = one score per match.';
+COMMENT ON TABLE prediction_scores IS
+  'Per-match calibration scoring (Brier + log-loss). UNIQUE(match_id) = one score per match. Server-only access via service-role key — admin/worker writes, admin pages read. No RLS policies.';
 
 CREATE INDEX IF NOT EXISTS prediction_scores_version_scored_idx
   ON prediction_scores (model_version, scored_at);
+
+CREATE INDEX IF NOT EXISTS prediction_scores_prediction_id_idx
+  ON prediction_scores (prediction_id);
 
 COMMIT;
