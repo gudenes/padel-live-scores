@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cold-start launch splash drawable.
+
+  Wraps splash_bitmap.png in a centered <bitmap> on a black background. Without
+  this XML wrapper, Android's windowBackground stretches a raw PNG to fill the
+  activity bounds — which on modern tall phones (1080×2400, aspect 0.45) blows
+  up our 0.667-aspect PNGs vertically, making the wordmark look bloated.
+
+  android:gravity="center" keeps the bitmap at its intrinsic size, centered on
+  the black backdrop. The black layer underneath ensures any uncovered area
+  (top/bottom letterbox) renders solid black, matching @color/splash_bg used
+  by the running-activity theme below.
+
+  Referenced from values/styles.xml as @drawable/splash for
+  AppTheme.NoActionBarLaunch's windowBackground.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:drawable="@color/splash_bg" />
+  <item>
+    <bitmap
+      android:src="@drawable/splash_bitmap"
+      android:gravity="center" />
+  </item>
+</layer-list>
