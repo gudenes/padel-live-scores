@@ -18,6 +18,7 @@ export interface PredictionScorerDeps {
 export interface PredictionScorerResult {
   scored: number;
   skippedNoSnapshot: number;
+  skippedNoScheduledTime: number;
   errors: number;
   durationMs: number;
 }
@@ -72,13 +73,25 @@ export async function runPredictionScorer(
     .limit(BATCH_LIMIT);
   if (error) {
     logger?.error({ err: error }, 'prediction-scorer match query failed');
-    return { scored: 0, skippedNoSnapshot: 0, errors: 1, durationMs: Date.now() - startMs };
+    return {
+      scored: 0,
+      skippedNoSnapshot: 0,
+      skippedNoScheduledTime: 0,
+      errors: 1,
+      durationMs: Date.now() - startMs,
+    };
   }
 
   // 2. Filter to those without a prediction_scores row
   const matchIds = (unscored ?? []).map((m) => m.id);
   if (matchIds.length === 0) {
-    return { scored: 0, skippedNoSnapshot: 0, errors: 0, durationMs: Date.now() - startMs };
+    return {
+      scored: 0,
+      skippedNoSnapshot: 0,
+      skippedNoScheduledTime: 0,
+      errors: 0,
+      durationMs: Date.now() - startMs,
+    };
   }
   const { data: alreadyScored } = await supabase
     .from('prediction_scores')
@@ -89,16 +102,26 @@ export async function runPredictionScorer(
 
   let scored = 0;
   let skippedNoSnapshot = 0;
+  let skippedNoScheduledTime = 0;
   let errors = 0;
 
   for (const m of todo) {
     try {
+      if (!m.scheduled_at) {
+        skippedNoScheduledTime++;
+        logger?.info(
+          { matchId: m.id },
+          'no scheduled_at, cannot determine pre-match cutoff — skipping',
+        );
+        continue;
+      }
+
       // 3. Latest pre-match snapshot
       const { data: snap } = await supabase
         .from('model_predictions')
         .select('id, pair1_prob, pair2_prob, model_version')
         .eq('match_id', m.id)
-        .lt('created_at', m.scheduled_at ?? m.finished_at)
+        .lt('created_at', m.scheduled_at)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -141,8 +164,8 @@ export async function runPredictionScorer(
 
   const durationMs = Date.now() - startMs;
   logger?.info(
-    { scored, skippedNoSnapshot, errors, durationMs },
+    { scored, skippedNoSnapshot, skippedNoScheduledTime, errors, durationMs },
     'prediction-scorer complete',
   );
-  return { scored, skippedNoSnapshot, errors, durationMs };
+  return { scored, skippedNoSnapshot, skippedNoScheduledTime, errors, durationMs };
 }
