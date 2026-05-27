@@ -677,3 +677,13 @@ button:focus { outline: none; }
   color: var(--text-secondary);
   font-weight: 500;
 }
+
+/* SaveStateSlot animations — see src/components/SaveStateSlot.tsx */
+@keyframes pn-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes pn-flashout {
+  0%, 60% { opacity: 1; }
+  100% { opacity: 0; }
+}
