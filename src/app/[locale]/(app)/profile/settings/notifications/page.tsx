@@ -24,9 +24,7 @@ import { type NotificationCategory, type ChannelPrefs } from '@/lib/notification
 import { IconSlider } from '@/components/IconSlider'
 import { SaveStateSlot, type SaveState } from '@/components/SaveStateSlot'
 import { MuteDurationSheet } from '@/components/MuteDurationSheet'
-
-// Placeholder until Task 21 wires the real Capacitor plugin
-function openSystemNotificationSettings() { console.warn('[settings] openSystemNotificationSettings called — placeholder') }
+import { openSystemNotificationSettings } from '@/lib/native-settings'
 
 type Group = { key: 'groupMatches' | 'groupUpdates'; categories: NotificationCategory[] }
 const GROUPS: Group[] = [

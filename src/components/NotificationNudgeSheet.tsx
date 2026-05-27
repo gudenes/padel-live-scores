@@ -15,11 +15,7 @@
 import { useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import type { NudgeCategory, NudgeState } from '@/hooks/useNotificationNudge'
-
-// Placeholder until Task 21 wires the real Capacitor plugin
-function openSystemNotificationSettings() {
-  console.warn('[nudge] openSystemNotificationSettings called — placeholder')
-}
+import { openSystemNotificationSettings } from '@/lib/native-settings'
 
 interface NotificationNudgeSheetProps {
   state: NudgeState
