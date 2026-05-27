@@ -241,6 +241,45 @@ export default function NotificationPrefsPage() {
           )}
         </div>
 
+        {/* Notification sounds deep-link */}
+        <button
+          type="button"
+          onClick={() => openSystemNotificationSettings()}
+          style={{
+            padding: '14px',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+            cursor: 'pointer', textAlign: 'left',
+            color: 'inherit',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+            <span style={{
+              width: 32, height: 32, background: 'rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(255,255,255,0.75)',
+              clipPath: 'polygon(0% 5%, 100% 0%, 100% 95%, 0% 100%)',
+              flexShrink: 0,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.25 }}>{t('sounds.label')}</span>
+              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>{t('sounds.sub')}</span>
+            </div>
+          </div>
+          <span style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 6 15 12 9 18" />
+            </svg>
+          </span>
+        </button>
+
         {/* Master push toggle */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
