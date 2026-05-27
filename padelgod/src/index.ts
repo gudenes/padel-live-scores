@@ -172,6 +172,7 @@ async function main() {
       scheduleHintsExpectedDurationMin: env.SCHEDULE_HINTS_EXPECTED_DURATION_MIN,
       enableModelPredictionSnapshot: env.ENABLE_MODEL_PREDICTION_SNAPSHOT,
       modelPredictionSnapshotDryRun: env.MODEL_PREDICTION_SNAPSHOT_DRY_RUN,
+      enablePredictionScorer: env.ENABLE_PREDICTION_SCORER,
     });
     // Build the notify config for live-poller-manager. Both env vars must be
     // present — otherwise we pass `undefined` and the hook inside
