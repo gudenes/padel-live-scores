@@ -20,7 +20,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { usePushNotifications, type SubscribeError } from '@/hooks/usePushNotifications'
-import { KNOWN_CATEGORIES, type NotificationCategory, type ChannelPrefs } from '@/lib/notification-categories'
+import { type NotificationCategory, type ChannelPrefs } from '@/lib/notification-categories'
 import { IconSlider } from '@/components/IconSlider'
 import { SaveStateSlot, type SaveState } from '@/components/SaveStateSlot'
 
@@ -180,11 +180,50 @@ export default function NotificationPrefsPage() {
 
         {/* Category groups — populated in Task 7 */}
         {prefs && GROUPS.map(group => (
-          <section key={group.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <section key={group.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.7, padding: '10px 4px 2px' }}>
               {t(group.key)}
             </div>
-            {/* Rows added in Task 7 */}
+            {group.categories.map(cat => {
+              const pref = prefs[cat]
+              const state = saveStates[cat] ?? 'idle'
+              const disabledByMaster = !pushEnabled || permissionDenied
+              return (
+                <div
+                  key={cat}
+                  style={{
+                    padding: '14px',
+                    background: 'rgba(255,255,255,0.04)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 12,
+                    opacity: disabledByMaster ? 0.45 : 1,
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.25 }}>
+                      {t(`category.${cat}.label`)}
+                    </span>
+                    <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>
+                      {t(`category.${cat}.sub`)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                    <IconSlider
+                      checked={pref.push}
+                      onChange={(next) => void patchCategory(cat, { push: next })}
+                      disabled={disabledByMaster}
+                      ariaLabel={t(`category.${cat}.label`)}
+                    />
+                    <SaveStateSlot
+                      state={state}
+                      onSavedFlashEnd={() => setSaveStates(s => ({ ...s, [cat]: 'idle' }))}
+                    />
+                  </div>
+                </div>
+              )
+            })}
           </section>
         ))}
 
@@ -210,14 +249,6 @@ export default function NotificationPrefsPage() {
         </div>
       )}
 
-      {/* KNOWN_CATEGORIES keeps the import live for future category rows */}
-      {false && <span>{KNOWN_CATEGORIES.join(',')}</span>}
-
-      {/* saveStates used by per-category rows in Task 7 */}
-      {false && <span>{JSON.stringify(saveStates)}</span>}
-
-      {/* patchCategory wired in Task 7 */}
-      {false && <span>{String(patchCategory)}</span>}
     </main>
   )
 }
