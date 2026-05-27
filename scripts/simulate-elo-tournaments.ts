@@ -33,6 +33,17 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  fipPriorElo,
+  pairWinProbability,
+  trainElo,
+  toDecimal,
+  toAmerican,
+  toFractional,
+  type TrainingMatch,
+  type PlayerSnapshot,
+  type TrainResult,
+} from '../padelgod/src/lib/elo-model'
 
 function loadEnv() {
   try {
@@ -66,10 +77,9 @@ const MC_RUNS = 20_000
 // Set to a huge number (e.g. 99999) via --halflife=99999 to disable decay.
 const DEFAULT_HALFLIFE_DAYS = 180
 
-// Form window: how far back to look when computing the "form delta" displayed
-// next to each pair. Does NOT affect probabilities — it's the change in Elo
-// over this window, purely informational.
-const FORM_WINDOW_DAYS = 30
+// Form window for the "form delta" column lives in the shared lib
+// (FORM_WINDOW_DAYS in padelgod/src/lib/elo-model). trainElo applies it
+// internally — the script just consumes the snapshot returned in TrainResult.
 
 // Parse CLI args
 const argv = process.argv.slice(2)
@@ -83,27 +93,8 @@ const dateArg = argv.find((a) => a.startsWith('--date='))?.split('=')[1] ?? null
 const tournamentIds = argv.filter((a) => !a.startsWith('--'))
 const TARGET_IDS = tournamentIds.length > 0 ? tournamentIds : DEFAULT_TARGETS
 
-// Elo prior from FIP ranking: top-ranked players start higher.
-//   rank 1   -> ~2200
-//   rank 10  -> ~1900
-//   rank 50  -> ~1550
-//   rank 200 -> ~1100
-//   unranked -> 1300
-function fipPriorElo(ranking: number | null | undefined): number {
-  if (!ranking || ranking <= 0) return 1300
-  return Math.max(1100, 2200 - 250 * Math.log10(ranking))
-}
-
-// K-factor by tournament tier — higher tier = bigger updates (results carry more signal).
-function kFactor(level: string | null): number {
-  const l = (level ?? '').toLowerCase()
-  if (l === 'major' || l === 'premier_p1') return 36
-  if (l === 'premier_p2' || l === 'fip_platinum') return 30
-  if (l === 'fip_gold') return 24
-  if (l === 'fip_silver') return 20
-  if (l === 'fip_bronze' || l === 'fip_beyond' || l === 'fip_promises') return 14
-  return 18
-}
+// (fipPriorElo / kFactor / pairWinProbability now imported from
+// padelgod/src/lib/elo-model — see top of file.)
 
 // ---------------------------------------------------------------------------
 // Pagination helper (defensive against 10k cap)
@@ -123,28 +114,8 @@ async function paginated<T>(fn: (start: number, end: number) => any, batch = 100
 }
 
 // ---------------------------------------------------------------------------
-// Elo training
+// Elo training — types + trainElo imported from padelgod/src/lib/elo-model
 // ---------------------------------------------------------------------------
-
-interface TrainingMatch {
-  id: string
-  tournament_id: string | null
-  finished_at: string | null
-  scheduled_at: string | null
-  pair1_player1_id: string | null
-  pair1_player2_id: string | null
-  pair2_player1_id: string | null
-  pair2_player2_id: string | null
-  winner_pair: number | null
-  tournament_level?: string | null
-}
-
-interface PlayerSnapshot {
-  id: string
-  name: string
-  ranking: number | null
-  category: string | null
-}
 
 async function loadPlayers(): Promise<Map<string, PlayerSnapshot>> {
   const rows = await paginated<PlayerSnapshot>((s, e) =>
@@ -178,81 +149,6 @@ async function loadTournamentLevels(): Promise<Map<string, string>> {
     supabase.from('tournaments').select('id, level').range(s, e),
   )
   return new Map(rows.map((r) => [r.id, r.level ?? '']))
-}
-
-interface TrainResult {
-  elo: Map<string, number>             // final per-player Elo at asOfDate
-  eloFormStart: Map<string, number>    // snapshot at (asOfDate - FORM_WINDOW_DAYS)
-  halflifeDays: number
-}
-
-function trainElo(
-  matches: TrainingMatch[],
-  players: Map<string, PlayerSnapshot>,
-  tournamentLevels: Map<string, string>,
-  asOfIso: string,
-  halflifeDays: number,
-): TrainResult {
-  const elo = new Map<string, number>()
-  const getR = (pid: string) => {
-    let r = elo.get(pid)
-    if (r == null) {
-      r = fipPriorElo(players.get(pid)?.ranking ?? null)
-      elo.set(pid, r)
-    }
-    return r
-  }
-
-  const asOfMs = new Date(asOfIso).getTime()
-  const formSnapshotCutoffMs = asOfMs - FORM_WINDOW_DAYS * 86_400_000
-  let eloFormStart: Map<string, number> | null = null
-
-  let skipped = 0
-  for (const m of matches) {
-    if (!m.pair1_player1_id || !m.pair1_player2_id || !m.pair2_player1_id || !m.pair2_player2_id) {
-      skipped++
-      continue
-    }
-    if (m.winner_pair !== 1 && m.winner_pair !== 2) {
-      skipped++
-      continue
-    }
-
-    // When we cross the (asOfDate - 30d) threshold, snapshot current Elo so we
-    // can later compute "Elo change in the last 30 days" = form.
-    const matchMs = new Date(m.scheduled_at ?? m.finished_at ?? asOfIso).getTime()
-    if (!eloFormStart && matchMs >= formSnapshotCutoffMs) {
-      eloFormStart = new Map(elo)
-    }
-
-    const r1a = getR(m.pair1_player1_id)
-    const r1b = getR(m.pair1_player2_id)
-    const r2a = getR(m.pair2_player1_id)
-    const r2b = getR(m.pair2_player2_id)
-    const t1 = (r1a + r1b) / 2
-    const t2 = (r2a + r2b) / 2
-    const expected1 = 1 / (1 + 10 ** ((t2 - t1) / 400))
-    const actual1 = m.winner_pair === 1 ? 1 : 0
-    const kBase = kFactor(tournamentLevels.get(m.tournament_id ?? '') ?? null)
-
-    // Time decay: matches days old contribute K * 0.5^(days/halflife). Anchored
-    // to asOfDate so the same training pass yields the same Elo regardless of
-    // when we run the script.
-    const ageDays = Math.max(0, (asOfMs - matchMs) / 86_400_000)
-    const decay = Math.pow(0.5, ageDays / halflifeDays)
-    const k = kBase * decay
-
-    const delta = k * (actual1 - expected1)
-    elo.set(m.pair1_player1_id, r1a + delta)
-    elo.set(m.pair1_player2_id, r1b + delta)
-    elo.set(m.pair2_player1_id, r2a - delta)
-    elo.set(m.pair2_player2_id, r2b - delta)
-  }
-  if (!eloFormStart) eloFormStart = new Map(elo) // no recent matches → form = 0 for everyone
-  console.log(
-    `  trained on ${matches.length - skipped} matches (skipped ${skipped}, halflife=${halflifeDays}d)`,
-  )
-  return { elo, eloFormStart, halflifeDays }
 }
 
 // ---------------------------------------------------------------------------
@@ -390,7 +286,7 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function pickWinner(a: SurvivingPair, b: SurvivingPair): SurvivingPair {
-  const pA = 1 / (1 + 10 ** ((b.team_elo - a.team_elo) / 400))
+  const pA = pairWinProbability(a.team_elo, b.team_elo)
   return Math.random() < pA ? a : b
 }
 
@@ -463,47 +359,9 @@ function fmtPct(x: number): string {
 }
 
 // ---------------------------------------------------------------------------
-// Odds conversion (fair odds, no vig) — see docs/superpowers/specs/2026-05-27-elo-odds-model-design.md
+// Odds conversion (toDecimal / toAmerican / toFractional) imported from
+// padelgod/src/lib/elo-model — see docs/superpowers/specs/2026-05-27-elo-odds-model-design.md
 // ---------------------------------------------------------------------------
-
-function toDecimal(p: number): number {
-  if (p <= 0) return 999.99
-  return 1 / p
-}
-
-function toAmerican(p: number): number {
-  if (p >= 0.5) return -Math.round((100 * p) / (1 - p))
-  return Math.round((100 * (1 - p)) / p)
-}
-
-/** Round a fraction (1-p)/p to a recognizable ratio like 1/4, 5/2, 9/1. */
-function toFractional(p: number): string {
-  if (p <= 0) return '999/1'
-  if (p >= 1) return '1/999'
-  const ratio = (1 - p) / p
-  // Try small integer denominators 1..10, plus 1/N for big favourites
-  if (ratio < 1) {
-    // odds-on favourite — return 1/N form
-    const denom = Math.round(1 / ratio)
-    return `1/${denom}`
-  }
-  // Try N/1, N/2, N/3, N/4 — pick the closest to the actual ratio
-  const candidates: Array<[number, number]> = []
-  for (let d = 1; d <= 6; d++) {
-    const n = Math.round(ratio * d)
-    if (n >= 1) candidates.push([n, d])
-  }
-  let best = candidates[0]!
-  let bestErr = Infinity
-  for (const [n, d] of candidates) {
-    const err = Math.abs(ratio - n / d)
-    if (err < bestErr) {
-      bestErr = err
-      best = [n, d]
-    }
-  }
-  return `${best[0]}/${best[1]}`
-}
 
 function fmtAmerican(american: number): string {
   return american > 0 ? `+${american}` : `${american}`
@@ -662,7 +520,7 @@ async function listMatchesWithOdds(
                (elo.get(p2Ids[1]) ?? fipPriorElo(players.get(p2Ids[1])?.ranking))
     const elo1 = e1 / 2
     const elo2 = e2 / 2
-    const p1 = 1 / (1 + 10 ** ((elo2 - elo1) / 400))
+    const p1 = pairWinProbability(elo1, elo2)
     const p2 = 1 - p1
 
     const fmtLine = (name: string, p: number) =>
@@ -715,6 +573,10 @@ async function run() {
     const training = await loadTrainingMatches(meta.starts_at)
     console.log(`  ${training.length} finished matches available pre-tournament`)
     const trainResult = trainElo(training, players, tournamentLevels, meta.starts_at, HALFLIFE_DAYS)
+    const skipped = training.length - trainResult.trainedCount
+    console.log(
+      `  trained on ${trainResult.trainedCount} matches (skipped ${skipped}, halflife=${HALFLIFE_DAYS}d)`,
+    )
 
     // --- Per-match odds mode short-circuits before the tournament-MC block ---
     if (modeArg === 'matches') {
