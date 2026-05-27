@@ -29,6 +29,8 @@ import { runShadowDiffOcr } from './workers/shadow-diff-ocr.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
+import { runModelPredictionSnapshot } from './workers/model-prediction-snapshot.js';
+import { runPredictionScorer } from './workers/prediction-scorer.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -97,6 +99,13 @@ export interface SchedulerFlags {
   scheduleHintsWriterDryRun: boolean;
   /** Default 90. Override via env to tune the "running over" threshold. */
   scheduleHintsExpectedDurationMin: number;
+  enableModelPredictionSnapshot: boolean;
+  /** When true, the model-prediction-snapshot worker computes everything
+   *  but skips DB writes. Same dry-run pattern as fipDrawPopulator. */
+  modelPredictionSnapshotDryRun: boolean;
+  /** prediction-scorer is append-only with `ON CONFLICT DO NOTHING`, so a
+   *  single enable-flag is sufficient — no dry-run needed. */
+  enablePredictionScorer: boolean;
 }
 
 export interface SchedulerDeps {
@@ -150,7 +159,9 @@ export type WorkerName =
   | 'shadow-diff-ocr'
   | 'close-stale-live-sweeper'
   | 'fip-cms-orphan-prune'
-  | 'schedule-hints-writer';
+  | 'schedule-hints-writer'
+  | 'model-prediction-snapshot'
+  | 'prediction-scorer';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -182,6 +193,8 @@ export const ALL_WORKERS: WorkerName[] = [
   'close-stale-live-sweeper',
   'fip-cms-orphan-prune',
   'schedule-hints-writer',
+  'model-prediction-snapshot',
+  'prediction-scorer',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -304,6 +317,19 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       dryRun: true,
       expectedDurationMinutes: 90, // matches env default
     });
+    case 'model-prediction-snapshot': return (deps) => runModelPredictionSnapshot({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger always dry-run-safe. Scheduled cron threads the real
+      // env flag via closure (see buildSchedule below).
+      dryRun: true,
+    });
+    case 'prediction-scorer':
+      return async (d) =>
+        runPredictionScorer({
+          supabase: d.supabase,
+          logger: d.logger,
+        });
     default: return null;
   }
 }
@@ -679,6 +705,31 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           expectedDurationMinutes: flags.scheduleHintsExpectedDurationMin,
         });
       },
+    });
+  }
+  if (flags.enableModelPredictionSnapshot) {
+    entries.push({
+      name: 'model-prediction-snapshot',
+      cron: '25 * * * *', // hourly at :25
+      run: async (d) =>
+        runModelPredictionSnapshot({
+          supabase: d.supabase,
+          logger: d.logger,
+          dryRun: flags.modelPredictionSnapshotDryRun,
+        }),
+    });
+  }
+  if (flags.enablePredictionScorer) {
+    entries.push({
+      name: 'prediction-scorer',
+      // Every 10 minutes, offset from the model-prediction-snapshot worker
+      // (:25). Append-only via `ON CONFLICT DO NOTHING`, so no dry-run flag.
+      cron: '3,13,23,33,43,53 * * * *',
+      run: async (d) =>
+        runPredictionScorer({
+          supabase: d.supabase,
+          logger: d.logger,
+        }),
     });
   }
   return entries;

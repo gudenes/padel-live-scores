@@ -5,7 +5,7 @@
 
 import type { ReactNode } from 'react'
 
-export type AreaId = 'home' | 'tournament-ops' | 'catalogs' | 'content' | 'system'
+export type AreaId = 'home' | 'tournament-ops' | 'model-odds' | 'catalogs' | 'content' | 'system'
 
 export interface Page {
   href: string
@@ -58,6 +58,15 @@ const fileTextIcon = (
   </>
 )
 
+const chartIcon = (
+  <>
+    <line x1="3" y1="20" x2="21" y2="20" />
+    <line x1="3" y1="20" x2="3" y2="4" />
+    <polyline points="6 14 10 10 14 13 19 7" />
+    <circle cx="19" cy="7" r="1.5" />
+  </>
+)
+
 const settingsIcon = (
   <>
     <circle cx="12" cy="12" r="3" />
@@ -81,6 +90,16 @@ export const AREAS: ReadonlyArray<Area> = [
       { href: '/entry-lists', label: 'Entry Lists' },
       { href: '/needs-review', label: 'Needs Review' },
       { href: '/simulator', label: 'Simulator' },
+    ],
+  },
+  {
+    id: 'model-odds',
+    label: 'Model & Odds',
+    iconPath: chartIcon,
+    pages: [
+      { href: '/odds', label: 'Live Odds' },
+      { href: '/odds/methodology', label: 'Methodology' },
+      { href: '/odds/calibration', label: 'Calibration' },
     ],
   },
   {
@@ -137,6 +156,8 @@ export function areaFor(pathname: string): AreaId {
     path === '/needs-review' || path.startsWith('/needs-review/') ||
     path === '/simulator' || path.startsWith('/simulator/')
   ) return 'tournament-ops'
+
+  if (path === '/odds' || path.startsWith('/odds/')) return 'model-odds'
 
   if (
     path === '/players' || path.startsWith('/players/') ||

@@ -183,6 +183,19 @@ const EnvSchema = z.object({
   // Override the "running over" threshold (minutes). Default 90. Tune if
   // the average match duration at the venues warrants it.
   SCHEDULE_HINTS_EXPECTED_DURATION_MIN: z.coerce.number().int().positive().default(90),
+  // model-prediction-snapshot — hourly worker that computes Elo + Monte
+  // Carlo odds snapshots for active tournaments. Runs at :25 each hour.
+  // Defaults OFF + DRY-RUN so enabling it in Railway is a two-step commit
+  // (same pattern as fip-draw-populator). Dry-run defaults TRUE — operators
+  // must explicitly opt-OUT to start writing rows.
+  ENABLE_MODEL_PREDICTION_SNAPSHOT: boolEnv(false),
+  MODEL_PREDICTION_SNAPSHOT_DRY_RUN: boolEnv(true),
+  // prediction-scorer — every 10 min worker that scores finished matches
+  // against their pre-match snapshot (Brier / log-loss). Append-only with
+  // `ON CONFLICT DO NOTHING`, so no dry-run flag is needed — a single
+  // enable-flag is sufficient. Defaults OFF; flip to true in Railway after
+  // model-prediction-snapshot has been writing rows for a few cycles.
+  ENABLE_PREDICTION_SCORER: boolEnv(false),
   // Web push notification hook — set to the padelnachos.com origin to fire
   // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
   // Both vars optional: if either is unset, notify is skipped silently (so
