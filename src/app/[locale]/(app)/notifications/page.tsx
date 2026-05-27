@@ -11,7 +11,7 @@ import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import NotificationRow, { type NotificationRowData } from '@/components/NotificationRow'
 
-type Filter = 'all' | 'matches' | 'badges'
+type Filter = 'all' | 'matches' | 'updates'
 
 function dayBucket(iso: string, timezone: string | undefined, locale: string): string {
   const d = new Date(iso)
@@ -222,7 +222,7 @@ export default function NotificationsPage() {
 
       {/* Filter pills */}
       <div style={{ display: 'flex', gap: 8, padding: '12px 16px' }}>
-        {(['all', 'matches', 'badges'] as Filter[]).map((f) => {
+        {(['all', 'matches', 'updates'] as Filter[]).map((f) => {
           const active = filter === f
           return (
             <button
@@ -239,7 +239,7 @@ export default function NotificationsPage() {
                 cursor: 'pointer',
               }}
             >
-              {f === 'all' ? t('filterAll') : f === 'matches' ? t('filterMatches') : t('filterBadges')}
+              {f === 'all' ? t('filterAll') : f === 'matches' ? t('filterMatches') : t('filterUpdates')}
             </button>
           )
         })}
