@@ -8,6 +8,7 @@
 import React from 'react'
 import { useTranslations } from 'next-intl'
 import { useFollowing, FollowType } from '@/hooks/useFollowing'
+import { useNotificationNudge } from '@/hooks/useNotificationNudge'
 
 // ── Brand colors ────────────────────────────────────────────────
 const GREEN  = '#7ED321'
@@ -72,6 +73,7 @@ export default function FollowButton({
   style,
 }: FollowButtonProps) {
   const { isFollowing, toggle } = useFollowing()
+  const { triggerNudge } = useNotificationNudge()
   const t = useTranslations('followButton')
   const active = isFollowing(type, targetId)
 
@@ -79,6 +81,20 @@ export default function FollowButton({
     e.preventDefault()
     e.stopPropagation()
     toggle(type, targetId)
+    // Nudge the user to enable notifications if their state can't reach them.
+    // Fire-and-forget; provider decides whether to actually show.
+    // Only fires on CREATE (active === false → going from unfollowed to followed)
+    // and only for the two follow types we send push notifications about today.
+    // Tournament/news_source/article follows don't have a push category, so
+    // nudging on those would be misleading ("Get notified when this player plays"
+    // shown after a tournament bookmark).
+    if (!active) {
+      if (type === 'match') {
+        triggerNudge({ category: 'match_live_bookmark' })
+      } else if (type === 'player') {
+        triggerNudge({ category: 'match_live_follow' })
+      }
+    }
   }
 
   // ── star / heart icon-only buttons ───────────────────────────
