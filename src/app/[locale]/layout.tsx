@@ -5,6 +5,7 @@ import type { Metadata } from 'next'
 import { routing } from '@/i18n/routing'
 import { BookmarkToastProvider } from '@/components/BookmarkToast'
 import { LoginSheetProvider } from '@/components/LoginSheetProvider'
+import { NotificationNudgeProvider } from '@/components/NotificationNudgeProvider'
 import { buildLocaleRootMetadata } from '@/lib/seo-metadata'
 import { ConsentBanner } from '@/components/consent/ConsentBanner'
 import { PWAInstallNudge } from '@/components/PWAInstallNudge'
@@ -44,9 +45,15 @@ export default async function LocaleLayout({
     <NextIntlClientProvider locale={locale} messages={messages}>
       <LoginSheetProvider>
         <BookmarkToastProvider>
-          {children}
-          <ConsentBanner />
-          <PWAInstallNudge />
+          {/* NotificationNudgeProvider mounted at the locale level (not the
+              (app) group) so it covers match/[id] and player/[id] detail
+              pages — those live outside the (app) route group but still
+              expose follow/bookmark surfaces that need to trigger the nudge. */}
+          <NotificationNudgeProvider>
+            {children}
+            <ConsentBanner />
+            <PWAInstallNudge />
+          </NotificationNudgeProvider>
         </BookmarkToastProvider>
       </LoginSheetProvider>
     </NextIntlClientProvider>
