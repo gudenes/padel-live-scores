@@ -6,10 +6,12 @@
 export const MODEL_VERSION = 'v0-td180-fip-prior';
 
 // ─── Cold-start prior ────────────────────────────────────────────────────────
-//   rank 1   → 2200
-//   rank 10  → ~1950
-//   rank 50  → ~1675
-//   rank 200 → ~1225
+//   rank 1     → 2200
+//   rank 10    → ~1950
+//   rank 50    → ~1775
+//   rank 100   → ~1700
+//   rank 200   → ~1625
+//   rank 1000  → ~1450
 //   floored at 1100 for very-low-ranked / unranked-but-given-a-number cases
 //   defaults to 1300 for null / 0 / negative
 export function fipPriorElo(ranking: number | null | undefined): number {

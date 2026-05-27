@@ -67,9 +67,10 @@ prior_elo = max(1100, 2200 - 250 × log10(rank))
 |---|---|
 | 1 | 2200 |
 | 10 | 1950 |
-| 50 | 1675 |
-| 100 | 1500 |
-| 200 | 1225 |
+| 50 | 1775 |
+| 100 | 1700 |
+| 200 | 1625 |
+| 1000 | 1450 |
 | Unranked | 1300 (flat default) |
 
 This means the model gives reasonable predictions even for tournaments where we have little or no match history for some entrants.

@@ -19,8 +19,14 @@ describe('fipPriorElo', () => {
   it('rank 10 → ~1950', () => {
     expect(fipPriorElo(10)).toBeCloseTo(1950, 0);
   });
-  it('rank 200 → ~1225', () => {
-    expect(fipPriorElo(200)).toBeCloseTo(1225, 0);
+  it('rank 50 → ~1775', () => {
+    expect(fipPriorElo(50)).toBeCloseTo(1775, 0);
+  });
+  it('rank 200 → ~1625', () => {
+    expect(fipPriorElo(200)).toBeCloseTo(1625, 0);
+  });
+  it('rank 1000 → ~1450', () => {
+    expect(fipPriorElo(1000)).toBeCloseTo(1450, 0);
   });
   it('null rank → 1300 default', () => {
     expect(fipPriorElo(null)).toBe(1300);
