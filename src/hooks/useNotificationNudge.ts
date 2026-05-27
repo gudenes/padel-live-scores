@@ -9,10 +9,11 @@ import { useCallback, useContext } from 'react'
 import { NotificationNudgeContext } from '@/components/NotificationNudgeProvider'
 
 export type NudgeCategory = 'match_live_bookmark' | 'match_live_follow'
-export type NudgeState = 'os-blocked' | 'pref-off'
+export type NudgeState = 'os-blocked' | 'master-off' | 'pref-off'
 
 export interface NudgeContext {
   osPermission: NotificationPermission // 'granted' | 'denied' | 'default'
+  pushEnabled: boolean                  // master push subscription state (web push subscription OR native FCM token registered)
   categoryPushPref: boolean             // user's current push pref for the category
   now: number                           // injectable for tests
   storage: Storage                      // injectable for tests
@@ -27,9 +28,15 @@ function dismissalKey(category: NudgeCategory): string {
 /**
  * Pure decision function. Returns the nudge state to show, or null to skip.
  *
- *   os-blocked  — OS perm denied (takes priority — pref doesn't matter)
- *   pref-off    — OS perm OK but in-app push pref disabled
- *   null        — fully configured OR dismissed in the last 7 days
+ * Priority order (most severe → most granular):
+ *   os-blocked  — OS perm denied. Can't fix from inside the app, need to
+ *                 deep-link to system settings.
+ *   master-off  — OS perm OK, but the master push toggle is off (no active
+ *                 web push subscription / no FCM token). User can re-enable
+ *                 with one tap → triggers togglePush().
+ *   pref-off    — OS perm OK + master is on, but THIS specific category is
+ *                 disabled. One PATCH to flip it back on.
+ *   null        — fully configured OR dismissed in the last 7 days.
  */
 export function shouldShowNudge(category: NudgeCategory, ctx: NudgeContext): NudgeState | null {
   // Dismissal first — short-circuit before any other logic
@@ -39,10 +46,13 @@ export function shouldShowNudge(category: NudgeCategory, ctx: NudgeContext): Nud
     if (elapsed < DISMISSAL_WINDOW_MS) return null
   }
 
-  // OS blocked beats pref-off
+  // OS blocked is most severe
   if (ctx.osPermission === 'denied') return 'os-blocked'
 
-  // Pref disabled
+  // Master toggle off — push subscription doesn't exist
+  if (!ctx.pushEnabled) return 'master-off'
+
+  // Per-category pref disabled
   if (!ctx.categoryPushPref) return 'pref-off'
 
   return null

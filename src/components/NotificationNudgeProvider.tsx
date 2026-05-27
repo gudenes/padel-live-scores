@@ -27,7 +27,7 @@ interface ActiveNudge {
 }
 
 export function NotificationNudgeProvider({ children }: { children: ReactNode }) {
-  const { permission } = usePushNotifications()
+  const { permission, enabled: pushEnabled, subscribe: subscribePush } = usePushNotifications()
   const [prefs, setPrefs] = useState<Record<NotificationCategory, ChannelPrefs> | null>(null)
   const [active, setActive] = useState<ActiveNudge | null>(null)
 
@@ -50,12 +50,13 @@ export function NotificationNudgeProvider({ children }: { children: ReactNode })
     const categoryPushPref = prefs[category]?.push ?? true
     const verdict = shouldShowNudge(category, {
       osPermission: permission,
+      pushEnabled,
       categoryPushPref,
       now: Date.now(),
       storage: window.localStorage,
     })
     if (verdict) setActive({ category, state: verdict })
-  }, [prefs, permission])
+  }, [prefs, permission, pushEnabled])
 
   const dismiss = useCallback(() => {
     if (active) recordDismissal(active.category, Date.now(), window.localStorage)
@@ -63,27 +64,40 @@ export function NotificationNudgeProvider({ children }: { children: ReactNode })
   }, [active])
 
   const turnOn = useCallback(async () => {
-    if (!active || active.state !== 'pref-off') {
+    if (!active) {
       setActive(null)
       return
     }
-    // PATCH the in-app pref to push:true, then dismiss
-    try {
-      await fetch('/api/user/notification-prefs', {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ category: active.category, push: true }),
-      })
-      // Refetch prefs so other consumers see the update
-      const res = await fetch('/api/user/notification-prefs', { cache: 'no-store' })
-      if (res.ok) {
-        const body = await res.json() as { prefs: Record<NotificationCategory, ChannelPrefs> }
-        setPrefs(body.prefs)
-      }
-    } catch { /* silent — sheet still dismisses */ }
+
+    // Different "turn on" actions depending on what's broken:
+    //   - master-off → call togglePush (which subscribes & registers the
+    //                  Web Push subscription / FCM token)
+    //   - pref-off   → PATCH the per-category in-app pref to push:true
+    //   - os-blocked → handled in the sheet's CTA (deep-link to OS settings)
+    //                  not via turnOn — but guard against it anyway.
+    if (active.state === 'master-off') {
+      try {
+        await subscribePush()
+      } catch { /* silent — sheet still dismisses */ }
+    } else if (active.state === 'pref-off') {
+      try {
+        await fetch('/api/user/notification-prefs', {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ category: active.category, push: true }),
+        })
+        // Refetch prefs so other consumers see the update
+        const res = await fetch('/api/user/notification-prefs', { cache: 'no-store' })
+        if (res.ok) {
+          const body = await res.json() as { prefs: Record<NotificationCategory, ChannelPrefs> }
+          setPrefs(body.prefs)
+        }
+      } catch { /* silent — sheet still dismisses */ }
+    }
+
     recordDismissal(active.category, Date.now(), window.localStorage)
     setActive(null)
-  }, [active])
+  }, [active, subscribePush])
 
   return (
     <NotificationNudgeContext.Provider value={{ publish }}>

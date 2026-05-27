@@ -24,9 +24,10 @@ describe('shouldShowNudge', () => {
     storage = new MemStorage()
   })
 
-  it('returns null when everything is already configured (OS granted + pref on)', () => {
+  it('returns null when everything is already configured (OS granted + master on + pref on)', () => {
     const ctx: NudgeContext = {
       osPermission: 'granted',
+      pushEnabled: true,
       categoryPushPref: true,
       now: new Date('2026-05-27T12:00:00Z').getTime(),
       storage: storage as unknown as Storage,
@@ -34,9 +35,10 @@ describe('shouldShowNudge', () => {
     expect(shouldShowNudge('match_live_bookmark', ctx)).toBeNull()
   })
 
-  it('returns "os-blocked" when OS denied, regardless of pref', () => {
+  it('returns "os-blocked" when OS denied, regardless of master / pref', () => {
     const ctx: NudgeContext = {
       osPermission: 'denied',
+      pushEnabled: true,
       categoryPushPref: true,
       now: Date.now(),
       storage: storage as unknown as Storage,
@@ -44,9 +46,21 @@ describe('shouldShowNudge', () => {
     expect(shouldShowNudge('match_live_bookmark', ctx)).toBe('os-blocked')
   })
 
-  it('returns "pref-off" when OS granted but pref disabled', () => {
+  it('returns "master-off" when OS granted but master push is off', () => {
     const ctx: NudgeContext = {
       osPermission: 'granted',
+      pushEnabled: false,
+      categoryPushPref: true,
+      now: Date.now(),
+      storage: storage as unknown as Storage,
+    }
+    expect(shouldShowNudge('match_live_bookmark', ctx)).toBe('master-off')
+  })
+
+  it('returns "pref-off" when OS granted + master on but pref disabled', () => {
+    const ctx: NudgeContext = {
+      osPermission: 'granted',
+      pushEnabled: true,
       categoryPushPref: false,
       now: Date.now(),
       storage: storage as unknown as Storage,
@@ -54,14 +68,26 @@ describe('shouldShowNudge', () => {
     expect(shouldShowNudge('match_live_bookmark', ctx)).toBe('pref-off')
   })
 
-  it('prioritizes os-blocked over pref-off (both broken)', () => {
+  it('prioritizes os-blocked over master-off and pref-off (all broken)', () => {
     const ctx: NudgeContext = {
       osPermission: 'denied',
+      pushEnabled: false,
       categoryPushPref: false,
       now: Date.now(),
       storage: storage as unknown as Storage,
     }
     expect(shouldShowNudge('match_live_bookmark', ctx)).toBe('os-blocked')
+  })
+
+  it('prioritizes master-off over pref-off when OS is granted', () => {
+    const ctx: NudgeContext = {
+      osPermission: 'granted',
+      pushEnabled: false,
+      categoryPushPref: false,
+      now: Date.now(),
+      storage: storage as unknown as Storage,
+    }
+    expect(shouldShowNudge('match_live_bookmark', ctx)).toBe('master-off')
   })
 
   it('returns null when category was dismissed within last 7 days', () => {
@@ -70,6 +96,7 @@ describe('shouldShowNudge', () => {
     storage.setItem('pn:nudge-dismissed:match_live_bookmark', String(fourDaysAgo))
     const ctx: NudgeContext = {
       osPermission: 'denied',
+      pushEnabled: false,
       categoryPushPref: false,
       now,
       storage: storage as unknown as Storage,
@@ -83,6 +110,7 @@ describe('shouldShowNudge', () => {
     storage.setItem('pn:nudge-dismissed:match_live_bookmark', String(eightDaysAgo))
     const ctx: NudgeContext = {
       osPermission: 'denied',
+      pushEnabled: false,
       categoryPushPref: false,
       now,
       storage: storage as unknown as Storage,
@@ -95,6 +123,7 @@ describe('shouldShowNudge', () => {
     storage.setItem('pn:nudge-dismissed:match_live_bookmark', String(now))
     const ctx: NudgeContext = {
       osPermission: 'denied',
+      pushEnabled: false,
       categoryPushPref: false,
       now,
       storage: storage as unknown as Storage,
