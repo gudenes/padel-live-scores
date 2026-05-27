@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { usePathname } from '@/i18n/navigation'
 import BottomNavV3 from '@/components/nav/BottomNavV3'
 import { BadgeToastProvider } from '@/components/BadgeToast'
+import { NotificationNudgeProvider } from '@/components/NotificationNudgeProvider'
 import DesktopDownloadRail from '@/components/DesktopDownloadRail'
 
 // Routes that render their own focused chrome and should NOT show the
@@ -22,7 +23,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hideNav = FULLSCREEN_ROUTES.has(pathname) || isForYouTab
   return (
     <BadgeToastProvider>
-      <div style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
+      <NotificationNudgeProvider>
+        <div style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
+      </NotificationNudgeProvider>
       {!hideNav && <BottomNavV3 />}
       {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
           shells. Self-gated for mobile/tablet via CSS media query. Skipped
