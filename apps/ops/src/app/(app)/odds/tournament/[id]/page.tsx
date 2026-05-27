@@ -4,6 +4,7 @@
 // Task 5.3 will add a top-5 champ% movement chart.
 
 import { notFound } from 'next/navigation'
+import { OddsMovementChart } from '@/components/Odds/OddsMovementChart'
 import { PairOddsRow } from '@/components/Odds/PairOddsRow'
 import type { TournamentPredictionRow } from '@/lib/odds-data'
 import { createServiceClient } from '@/lib/supabase'
@@ -75,6 +76,32 @@ export default async function TournamentOddsPage({ params }: PageProps) {
 
   const snapshotAt = latestByPair[0]?.created_at ?? ''
 
+  // Build top-5 series per category for the chart
+  const chartByCat: Record<'men' | 'women', Array<{ name: string; color: string; points: Array<{ t: string; value: number }> }>> = { men: [], women: [] }
+  for (const cat of ['men', 'women'] as const) {
+    const top5 = byCategory[cat].slice(0, 5)
+    const series: Array<{ name: string; color: string; points: Array<{ t: string; value: number }> }> = []
+    const colors = ['#ff6b2b', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5']
+    for (let i = 0; i < top5.length; i++) {
+      const p = top5[i]
+      if (!p) continue
+      const { data: history } = await supabase
+        .from('model_tournament_predictions')
+        .select('created_at, champ_prob')
+        .eq('tournament_id', id)
+        .eq('category', cat)
+        .eq('pair_player1_id', p.pair_player1_id)
+        .eq('pair_player2_id', p.pair_player2_id)
+        .order('created_at', { ascending: true })
+      series.push({
+        name: pairName(p.pair_player1_id, p.pair_player2_id),
+        color: colors[i % colors.length]!,
+        points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.champ_prob) })),
+      })
+    }
+    chartByCat[cat] = series
+  }
+
   return (
     <div style={{ padding: 32, maxWidth: 1024 }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{tournament.name}</h1>
@@ -88,30 +115,36 @@ export default async function TournamentOddsPage({ params }: PageProps) {
           {byCategory[cat].length === 0 ? (
             <div style={{ color: 'var(--status-neutral)' }}>No {cat} predictions yet.</div>
           ) : (
-            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
-              {byCategory[cat].map((r) => (
-                <div
-                  key={`${r.pair_player1_id}::${r.pair_player2_id}`}
-                  style={{ padding: 10, borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: 16 }}
-                >
-                  <PairOddsRow
-                    name={pairName(r.pair_player1_id, r.pair_player2_id)}
-                    seed={r.pair_seed}
-                    prob={Number(r.champ_prob)}
-                    form={Number(r.team_form)}
-                  />
-                  <span style={{ minWidth: 56, textAlign: 'right' }}>
-                    Final: {(Number(r.finalist_prob) * 100).toFixed(1)}%
-                  </span>
-                  <span style={{ minWidth: 56, textAlign: 'right' }}>
-                    SF: {(Number(r.semi_prob) * 100).toFixed(1)}%
-                  </span>
-                  <span style={{ minWidth: 56, textAlign: 'right', color: 'var(--status-neutral)' }}>
-                    Elo {Math.round(Number(r.team_elo))}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <>
+              <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+                {byCategory[cat].map((r) => (
+                  <div
+                    key={`${r.pair_player1_id}::${r.pair_player2_id}`}
+                    style={{ padding: 10, borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: 16 }}
+                  >
+                    <PairOddsRow
+                      name={pairName(r.pair_player1_id, r.pair_player2_id)}
+                      seed={r.pair_seed}
+                      prob={Number(r.champ_prob)}
+                      form={Number(r.team_form)}
+                    />
+                    <span style={{ minWidth: 56, textAlign: 'right' }}>
+                      Final: {(Number(r.finalist_prob) * 100).toFixed(1)}%
+                    </span>
+                    <span style={{ minWidth: 56, textAlign: 'right' }}>
+                      SF: {(Number(r.semi_prob) * 100).toFixed(1)}%
+                    </span>
+                    <span style={{ minWidth: 56, textAlign: 'right', color: 'var(--status-neutral)' }}>
+                      Elo {Math.round(Number(r.team_elo))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ marginTop: 16 }}>
+                <h3 style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Top-5 champ% movement</h3>
+                <OddsMovementChart series={chartByCat[cat]} yLabel="Champ %" />
+              </div>
+            </>
           )}
         </section>
       ))}

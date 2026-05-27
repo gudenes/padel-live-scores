@@ -5,6 +5,7 @@
 // Task 5.3 will wire in the movement chart.
 
 import { notFound } from 'next/navigation'
+import { OddsMovementChart } from '@/components/Odds/OddsMovementChart'
 import { createServiceClient } from '@/lib/supabase'
 
 export const metadata = { title: 'Match Odds · PadelNachos Admin' }
@@ -102,6 +103,12 @@ export default async function MatchOddsPage({ params }: PageProps) {
   const pair1 = pairLabel(match.pair1_player1_id, match.pair1_player2_id)
   const pair2 = pairLabel(match.pair2_player1_id, match.pair2_player2_id)
 
+  const { data: history } = await supabase
+    .from('model_predictions')
+    .select('created_at, pair1_prob, pair2_prob')
+    .eq('match_id', id)
+    .order('created_at', { ascending: true })
+
   return (
     <div style={{ padding: 32, maxWidth: 900 }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
@@ -138,6 +145,22 @@ export default async function MatchOddsPage({ params }: PageProps) {
           />
         </div>
       )}
+
+      <h2 style={{ fontSize: 14, fontWeight: 700, margin: '32px 0 8px' }}>Probability movement</h2>
+      <OddsMovementChart
+        series={[
+          {
+            name: pair1,
+            color: '#ff6b2b',
+            points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.pair1_prob) })),
+          },
+          {
+            name: pair2,
+            color: '#ffd166',
+            points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.pair2_prob) })),
+          },
+        ]}
+      />
 
       {score && (
         <div
