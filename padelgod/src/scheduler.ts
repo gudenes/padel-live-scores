@@ -155,7 +155,8 @@ export type WorkerName =
   | 'shadow-diff-ocr'
   | 'close-stale-live-sweeper'
   | 'fip-cms-orphan-prune'
-  | 'schedule-hints-writer';
+  | 'schedule-hints-writer'
+  | 'model-prediction-snapshot';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -187,6 +188,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'close-stale-live-sweeper',
   'fip-cms-orphan-prune',
   'schedule-hints-writer',
+  'model-prediction-snapshot',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -308,6 +310,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // env flag via closure (see buildSchedule below).
       dryRun: true,
       expectedDurationMinutes: 90, // matches env default
+    });
+    case 'model-prediction-snapshot': return (deps) => runModelPredictionSnapshot({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger always dry-run-safe. Scheduled cron threads the real
+      // env flag via closure (see buildSchedule below).
+      dryRun: true,
     });
     default: return null;
   }
