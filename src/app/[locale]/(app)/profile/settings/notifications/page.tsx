@@ -23,6 +23,7 @@ import { usePushNotifications, type SubscribeError } from '@/hooks/usePushNotifi
 import { type NotificationCategory, type ChannelPrefs } from '@/lib/notification-categories'
 import { IconSlider } from '@/components/IconSlider'
 import { SaveStateSlot, type SaveState } from '@/components/SaveStateSlot'
+import { MuteDurationSheet } from '@/components/MuteDurationSheet'
 
 // Placeholder until Task 21 wires the real Capacitor plugin
 function openSystemNotificationSettings() { console.warn('[settings] openSystemNotificationSettings called — placeholder') }
@@ -41,16 +42,25 @@ export default function NotificationPrefsPage() {
   const [saveStates, setSaveStates] = useState<Partial<Record<NotificationCategory | '__master__', SaveState>>>({})
   const [masterSaveState, setMasterSaveState] = useState<SaveState>('idle')
   const [toast, setToast] = useState<string | null>(null)
+  const [muteUntil, setMuteUntil] = useState<string | null>(null)
+  const [muteSheetOpen, setMuteSheetOpen] = useState(false)
 
   // ── Load prefs from server ─────────────────────────────────────
+  // Augment the existing prefs-load effect — mute_until lives at the same endpoint
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const res = await fetch('/api/user/notification-prefs', { cache: 'no-store' })
         if (!res.ok) return
-        const body = await res.json() as { prefs: Record<NotificationCategory, ChannelPrefs> }
-        if (!cancelled) setPrefs(body.prefs)
+        const body = await res.json() as {
+          prefs: Record<NotificationCategory, ChannelPrefs>
+          mute_until?: string | null
+        }
+        if (!cancelled) {
+          setPrefs(body.prefs)
+          setMuteUntil(body.mute_until ?? null)
+        }
       } catch { /* silent — error toast covers user-initiated saves only */ }
     })()
     return () => { cancelled = true }
@@ -75,6 +85,24 @@ export default function NotificationPrefsPage() {
     const timer = setTimeout(() => { setToast(null); clearError() }, 6000)
     return () => clearTimeout(timer)
   }, [lastError, formatSubscribeError, clearError])
+
+  // ── Mute PATCH with optimistic rollback ────────────────────────
+  const patchMute = useCallback(async (until: string | null) => {
+    const prev = muteUntil
+    setMuteUntil(until)
+    try {
+      const res = await fetch('/api/user/notification-prefs', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ mute_until: until }),
+      })
+      if (!res.ok) throw new Error('save failed')
+    } catch {
+      setMuteUntil(prev)
+      setToast(t('saveError'))
+      setTimeout(() => setToast(null), 2500)
+    }
+  }, [muteUntil, t])
 
   // ── Per-category PATCH with optimistic rollback + per-row save state ──
   const patchCategory = useCallback(async (category: NotificationCategory, next: ChannelPrefs) => {
@@ -157,6 +185,61 @@ export default function NotificationPrefsPage() {
             </button>
           </div>
         )}
+
+        {/* Mute action row */}
+        <div style={{
+          padding: '14px',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0 }}>
+            <span style={{
+              width: 32, height: 32, background: 'rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'rgba(255,255,255,0.75)',
+              clipPath: 'polygon(0% 5%, 100% 0%, 100% 95%, 0% 100%)',
+              flexShrink: 0,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M13.73 21a2 2 0 0 1-3.46 0M18 8a6 6 0 0 0-9.33-5M6.26 6.26A6 6 0 0 0 6 8c0 7-3 9-3 9h14M1 1l22 22" />
+              </svg>
+            </span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.25 }}>{t('mute.label')}</span>
+              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>{t('mute.sub')}</span>
+            </div>
+          </div>
+          {muteUntil ? (
+            <button
+              type="button"
+              onClick={() => void patchMute(null)}
+              style={{
+                background: '#EAB308', color: '#1A1A1A', border: 0, padding: '7px 13px',
+                fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
+                clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              {muteUntil === 'forever' ? t('mute.activeForever') : t('mute.activeUntil', { time: new Date(muteUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) })}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setMuteSheetOpen(true)}
+              style={{
+                background: 'transparent', color: 'rgba(255,255,255,0.65)',
+                border: '1.5px solid rgba(255,255,255,0.20)', padding: '7px 13px',
+                fontSize: 10, fontWeight: 900, textTransform: 'uppercase', letterSpacing: 0.4,
+                clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              {t('mute.cta')}
+            </button>
+          )}
+        </div>
 
         {/* Master push toggle */}
         <div style={{
@@ -249,6 +332,11 @@ export default function NotificationPrefsPage() {
         </div>
       )}
 
+      <MuteDurationSheet
+        open={muteSheetOpen}
+        onClose={() => setMuteSheetOpen(false)}
+        onPick={(until) => void patchMute(until)}
+      />
     </main>
   )
 }
