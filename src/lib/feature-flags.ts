@@ -21,6 +21,7 @@ export const FLAG_KEYS = {
   NEWS_PIPELINE_ENRICHMENT:       'news_pipeline_enrichment',
   FORYOU_ENABLED:                 'foryou_enabled',
   SUGGEST_A_SOURCE_BUTTON:        'suggest_a_source_button',
+  HOME_NEWS_IMMERSIVE_LINK:       'home_news_immersive_link',
 } as const
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS]
