@@ -74,6 +74,26 @@ export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst, onClose, 
     return [articles[idx], ...articles.slice(0, idx), ...articles.slice(idx + 1)]
   }, [articles, pinnedFirst])
 
+  // When the pinned article changes (e.g. user closed the overlay and opened
+  // a different card from the home rail), jump the scroll container back to
+  // the top so the newly-pinned article is in view. Without this, scrollTop
+  // is preserved from the previous session — and since the article order
+  // changes, the old offset lands on a different (stale) card.
+  //
+  // Direct scrollTop assignment (rather than scrollTo with behavior) avoids
+  // a competing animation with the overlay's slide-up transition, and side-
+  // steps a TS type mismatch where `behavior: 'instant'` isn't in older
+  // ScrollBehavior unions.
+  //
+  // Also reset `currentIndex` so end-of-feed and hint logic key off the new
+  // top of the feed.
+  useEffect(() => {
+    if (!pinnedFirst) return
+    const el = scrollRef.current
+    if (el) el.scrollTop = 0
+    setCurrentIndex(0)
+  }, [pinnedFirst])
+
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
     if (localStorage.getItem('foryou_swipe_hint_dismissed') === '1') {
