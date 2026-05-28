@@ -203,7 +203,12 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
 
         <p style={{
           fontSize: 15, lineHeight: 1.5, color: '#D8D8D8', margin: 0,
-          display: '-webkit-box', WebkitLineClamp: 5, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          // 8-line clamp: most modern phones (800+ px svh) have room for
+          // ~280-380px of body, comfortably fitting 8 lines @ 22.5px each.
+          // Smaller viewports (iPhone SE @ 667px) may visually clip the
+          // last line against the action-chip row; `overflow: hidden` on
+          // the parent keeps the layout intact.
+          display: '-webkit-box', WebkitLineClamp: 8, WebkitBoxOrient: 'vertical', overflow: 'hidden',
         }}
           dangerouslySetInnerHTML={{ __html: renderInlineBold(paragraph) }}
         />
