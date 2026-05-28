@@ -13,6 +13,19 @@ export interface ForYouTabProps {
   articles: ForYouArticle[]
   exitHref?: string
   pinnedFirst?: string
+  /**
+   * Optional close handler. When provided, the back button calls this
+   * instead of `router.push(exitHref)`. Used by ForYouOverlay so the
+   * back chip dismisses the overlay rather than navigating to /feed.
+   */
+  onClose?: () => void
+  /**
+   * When true, the root container uses `position: absolute; inset: 0`
+   * instead of `position: fixed; inset: 0`. ForYouOverlay sets this so
+   * the feed fills its centered panel (mobile frame) instead of escaping
+   * to the viewport. Default: false (standalone fullscreen mode).
+   */
+  embedded?: boolean
 }
 
 const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
@@ -25,7 +38,7 @@ const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
  * Industry pattern: TikTok / YouTube Shorts / LiveScore web — all use
  * native scroll + snap-align rather than JS-driven gesture handlers.
  */
-export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst }: ForYouTabProps) {
+export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst, onClose, embedded = false }: ForYouTabProps) {
   const t = useTranslations('foryou')
   const tSuggest = useTranslations('foryou.suggest')
   const router = useRouter()
@@ -60,6 +73,26 @@ export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst }: ForYouT
     if (idx <= 0) return articles
     return [articles[idx], ...articles.slice(0, idx), ...articles.slice(idx + 1)]
   }, [articles, pinnedFirst])
+
+  // When the pinned article changes (e.g. user closed the overlay and opened
+  // a different card from the home rail), jump the scroll container back to
+  // the top so the newly-pinned article is in view. Without this, scrollTop
+  // is preserved from the previous session — and since the article order
+  // changes, the old offset lands on a different (stale) card.
+  //
+  // Direct scrollTop assignment (rather than scrollTo with behavior) avoids
+  // a competing animation with the overlay's slide-up transition, and side-
+  // steps a TS type mismatch where `behavior: 'instant'` isn't in older
+  // ScrollBehavior unions.
+  //
+  // Also reset `currentIndex` so end-of-feed and hint logic key off the new
+  // top of the feed.
+  useEffect(() => {
+    if (!pinnedFirst) return
+    const el = scrollRef.current
+    if (el) el.scrollTop = 0
+    setCurrentIndex(0)
+  }, [pinnedFirst])
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
@@ -104,7 +137,12 @@ export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst }: ForYouT
     return () => observer.disconnect()
   }, [orderedArticles.length, hintDismissed])
 
-  const onBack = useCallback(() => router.push(exitHref), [router, exitHref])
+  // When `onClose` is provided (overlay mode), dismiss instead of navigating.
+  // Standalone mode keeps the original router.push(exitHref) behavior.
+  const onBack = useCallback(() => {
+    if (onClose) onClose()
+    else router.push(exitHref)
+  }, [onClose, router, exitHref])
 
   if (orderedArticles.length === 0) {
     return (
@@ -123,9 +161,12 @@ export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst }: ForYouT
 
   return (
     <div style={{
-      position: 'fixed', inset: 0,
+      // In embedded mode (inside ForYouOverlay), use absolute so the
+      // feed fills its centered mobile-frame parent. Standalone mode
+      // keeps `fixed` to guarantee true fullscreen at /feed?tab=foryou.
+      position: embedded ? 'absolute' : 'fixed', inset: 0,
       background: '#0a0a0a',
-      zIndex: 1000,  // above BottomNavV3 (z=200) — guarantees true fullscreen
+      zIndex: embedded ? 'auto' : 1000,  // when embedded, parent owns z-order
     }}>
       {/* Scroll container — browser owns gesture, momentum, snap */}
       <div

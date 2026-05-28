@@ -1325,6 +1325,9 @@
   "foryou": {
     "swipeHint": "Scorri per il prossimo",
     "aiSummary": "Riepilogo IA",
+    "aiSummaryExplainTitle": "Cos'è un Riepilogo IA?",
+    "aiSummaryExplainBody": "Usiamo l'IA per leggere l'articolo completo e scrivere un riepilogo breve e neutrale nella tua lingua. Non sono le parole del giornalista — è una parafrasi, quindi tocca la fonte qui sopra per leggere la storia originale.",
+    "aiSummaryExplainClose": "Capito",
     "save": "Salva",
     "unsave": "Rimuovi",
     "share": "Condividi",

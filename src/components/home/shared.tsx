@@ -78,6 +78,14 @@ export interface NewsItem {
    *  present in the user's locale, the home card renders that
    *  instead of the source `snippet` for free. */
   snippet_translations?: Partial<Record<string, string>> | null
+  /** Source-language full summary (markdown, may contain bullets/newlines).
+   *  Used as a translation fallback on the home card when
+   *  `snippet_translations` is missing but `summary_translations` exists. */
+  summary_md?: string | null
+  /** Eager translation cache for the full summary — populated on ingest.
+   *  Present today; we mine it for the home card's snippet line so the
+   *  card matches the language the overlay renders. */
+  summary_translations?: Partial<Record<string, string>> | null
   /** Icon URL — may be null when source has no favicon configured.
    *  Renderers use a Google favicon fallback in that case. */
   source_icon: string | null
@@ -95,15 +103,52 @@ export function localizedTitle(n: NewsItem, userLocale: string): string {
   return translated && translated.trim().length > 0 ? translated : n.title
 }
 
-/** Pick the localised snippet (or the source snippet) for a NewsItem.
- *  Returns null when no snippet is available so renderers can choose
- *  to skip the snippet line entirely instead of showing an empty box. */
+/** Flatten a markdown summary into a single-line paragraph so the home
+ *  card can render it inside a `WebkitLineClamp` block without exposing
+ *  raw `•` bullets or newline gaps. Mirrors `summaryToParagraph` in
+ *  ForYouCard — kept inline here to avoid pulling a feed-only file into
+ *  the home bundle. */
+function flattenSummary(summary: string): string {
+  const trimmed = summary.trim()
+  if (!trimmed) return ''
+  if (!trimmed.includes('\n') && !trimmed.startsWith('•')) return trimmed
+  return trimmed
+    .split('\n')
+    .map(line => line.replace(/^•\s*/, '').trim())
+    .filter(Boolean)
+    .join(' ')
+}
+
+/** Pick the localised snippet for a NewsItem.
+ *
+ *  Priority (top wins):
+ *    1. `snippet_translations[locale]` — explicit per-locale short snippet.
+ *       Reserved for future; not populated by current enrichment.
+ *    2. `summary_translations[locale]` — full translated summary, flattened
+ *       and CSS-clamped by the renderer. This is what makes the home card
+ *       match the language the For You overlay shows (the overlay reads
+ *       from the same field). Populated today by the enrichment cron.
+ *    3. `snippet` — source-language short snippet.
+ *    4. `summary_md` — source-language full summary as last resort.
+ *
+ *  Returns null when nothing is available so renderers can choose to skip
+ *  the snippet line entirely instead of showing an empty box. */
 export function localizedSnippet(n: NewsItem, userLocale: string): string | null {
   const short = (userLocale ?? 'en').slice(0, 2).toLowerCase()
-  const translated = n.snippet_translations?.[short]
-  if (translated && translated.trim().length > 0) return translated
-  const source = n.snippet?.trim()
-  return source && source.length > 0 ? source : null
+
+  const translatedSnippet = n.snippet_translations?.[short]?.trim()
+  if (translatedSnippet) return translatedSnippet
+
+  const translatedSummary = n.summary_translations?.[short]?.trim()
+  if (translatedSummary) return flattenSummary(translatedSummary)
+
+  const sourceSnippet = n.snippet?.trim()
+  if (sourceSnippet) return sourceSnippet
+
+  const sourceSummary = n.summary_md?.trim()
+  if (sourceSummary) return flattenSummary(sourceSummary)
+
+  return null
 }
 
 // ── Helpers ────────────────────────────────────────────────────

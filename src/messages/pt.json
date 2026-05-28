@@ -1325,6 +1325,9 @@
   "foryou": {
     "swipeHint": "Deslize para o próximo",
     "aiSummary": "Resumo IA",
+    "aiSummaryExplainTitle": "O que é um Resumo IA?",
+    "aiSummaryExplainBody": "Usamos IA para ler o artigo completo e escrever um resumo breve e neutro no seu idioma. Não são as palavras do jornalista — é uma paráfrase, por isso toque na fonte acima para ler a história original.",
+    "aiSummaryExplainClose": "Entendi",
     "save": "Salvar",
     "unsave": "Remover",
     "share": "Compartilhar",

@@ -37,10 +37,18 @@ export interface FetchNewsOptions {
   applyDedup?: boolean
 }
 
+// The DB column is `url`; we alias it to `source_url` (PostgREST syntax) so
+// the returned shape matches ForYouArticle. Without this alias, Supabase
+// returns an empty result since `source_url` doesn't exist as a column.
+//
+// NOTE: `tournament_level` is also part of ForYouArticle but does NOT exist
+// as a column on `articles` (would cause PostgREST error 42703). The existing
+// foryou-queries.ts hard-codes `tournament_level: null` in its mapper — we
+// do the same after the fetch.
 const SELECT_FIELDS = [
-  'id', 'title', 'title_translations', 'source_url', 'source_name', 'source_key',
+  'id', 'title', 'title_translations', 'source_url:url', 'source_name', 'source_key',
   'source_icon', 'favicon_url', 'image_url', 'language', 'published_at',
-  'snippet', 'summary_md', 'summary_translations', 'tournament_level',
+  'snippet', 'summary_md', 'summary_translations',
 ].join(',')
 
 export async function fetchClusteredNews(
@@ -50,11 +58,17 @@ export async function fetchClusteredNews(
   const limit = opts.limit ?? 50
   const applyDedup = opts.applyDedup !== false
 
+  // Filter out articles without an image_url — the home rail card and the
+  // For You hero are both image-led, and an empty <img> tag looks broken.
+  // Same filter the legacy home page used before the V2 alignment. About
+  // half the enriched corpus has an image today; a future backfill could
+  // extract og:image from source pages to raise that ratio.
   const { data, error } = await supabase
     .from('articles')
     .select(SELECT_FIELDS)
     .eq('enrichment_status', 'enriched')
     .eq('status', 'active')
+    .not('image_url', 'is', null)
     .order('published_at', { ascending: false })
     .limit(limit)
 
@@ -63,7 +77,10 @@ export async function fetchClusteredNews(
     return []
   }
 
-  let rows = data as unknown as ArticleRow[]
+  // tournament_level isn't fetched (column doesn't exist on articles);
+  // hard-code null so the shape matches ForYouArticle for downstream consumers.
+  let rows: ArticleRow[] = (data as unknown as Omit<ArticleRow, 'tournament_level'>[])
+    .map(r => ({ ...r, tournament_level: null }))
 
   // Pinned-first reordering (client-side — small N so cost is negligible).
   if (opts.pinnedFirst) {

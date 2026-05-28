@@ -6,7 +6,8 @@
 // Dismiss paths: swipe-down gesture, browser back (popstate), backdrop click, ESC.
 // Body scroll is locked while open. Deep-links via pushState on open.
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useForYouOverlay } from '@/hooks/useForYouOverlay'
 import { fetchClusteredNews, type ClusteredArticle, type ArticleRow } from '@/lib/news-feed-queries'
 import { supabase } from '@/lib/supabase'
@@ -29,9 +30,27 @@ export function ForYouOverlay() {
   const [articles, setArticles] = useState<ForYouArticle[]>([])
   const [loading, setLoading] = useState(false)
 
+  // Wrapped dismiss that also reverts the history entry pushed on open. We
+  // pushed `/feed?tab=foryou&article=X` so the layout's hideNav logic and
+  // the OS back gesture both think the user is on the foryou tab. Without
+  // popping that entry on user-initiated close (back chip / backdrop / ESC),
+  // pathname stays at /feed and isForYouTab stays true — which keeps the
+  // bottom nav hidden after the overlay slides away.
+  //
+  // `history.back()` triggers our popstate listener, which calls the raw
+  // `closeForYou` from the context. We guard the back() call behind a state
+  // check so popstate-driven closes (browser/OS back gesture) don't recurse.
+  const dismissOverlay = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.state?.foryouOverlay) {
+      window.history.back()
+    } else {
+      closeForYou()
+    }
+  }, [closeForYou])
+
   // Swipe-down dismiss — spreads `bind` + `style` onto the panel element.
   const swipe = useSwipeDownToClose({
-    onClose: closeForYou,
+    onClose: dismissOverlay,
     scrollRef,
     disabled: !isOpen,
   })
@@ -74,15 +93,15 @@ export function ForYouOverlay() {
     }
   }, [isOpen])
 
-  // ESC dismiss.
+  // ESC dismiss — goes through dismissOverlay so the URL reverts too.
   useEffect(() => {
     if (!isOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeForYou()
+      if (e.key === 'Escape') dismissOverlay()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isOpen, closeForYou])
+  }, [isOpen, dismissOverlay])
 
   // Stay unmounted on first render until the overlay is triggered.
   if (!isOpen && !articleId) return null
@@ -90,16 +109,32 @@ export function ForYouOverlay() {
   const duration = getReducedMotion() ? 0 : DURATION_MS
   const transition = `${duration}ms ${EASING}`
 
-  return (
+  // Render via portal to document.body so the overlay escapes any
+  // ancestor `transform` / `filter` / `contain` containing block that
+  // would otherwise constrain `position: fixed; inset: 0` to a parent.
+  // Without the portal, the home page's centered narrow-column layout
+  // was clipping the overlay vertically — Tournament Spotlight Hero
+  // showed through at the bottom of the viewport. SSR-safe: only
+  // mount the portal on the client (document is undefined in SSR).
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
     <>
-      {/* Backdrop */}
+      {/* Backdrop — covers the entire viewport so taps on the dark sides
+       *  of the mobile-frame column also dismiss. z-index above
+       *  GlobalHeader (100). */}
       <div
-        onClick={closeForYou}
+        onClick={dismissOverlay}
         aria-hidden
         style={{
           position: 'fixed',
-          inset: 0,
-          zIndex: 90,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100dvh',
+          zIndex: 200,
           background: 'rgba(0,0,0,0.5)',
           opacity: isOpen ? 1 : 0,
           pointerEvents: isOpen ? 'auto' : 'none',
@@ -107,46 +142,67 @@ export function ForYouOverlay() {
         }}
       />
 
-      {/* Slide-up panel */}
+      {/* Centering wrapper — matches the .app-screen mobile frame
+       *  (max-width 500, centered). Uses explicit left/right offsets
+       *  via `max(0px, calc(50% - 250px))` rather than width + transform
+       *  so we don't fight with the panel's slide-Y transform.
+       *  pointer-events: none lets backdrop clicks pass through the
+       *  dark sides; only the inner panel captures pointer events. */}
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="For You"
-        {...swipe.bind}
         style={{
           position: 'fixed',
-          inset: 0,
-          zIndex: 91,
-          background: '#0a0a0a',
-          transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
-          transition: `transform ${transition}`,
-          ...swipe.style,
+          top: 0,
+          bottom: 0,
+          left: 'max(0px, calc(50% - 250px))',
+          right: 'max(0px, calc(50% - 250px))',
+          zIndex: 201,
+          pointerEvents: 'none',
         }}
       >
-        {articles.length > 0 && articleId ? (
-          <ForYouTab
-            articles={articles}
-            pinnedFirst={articleId}
-            exitHref="/feed"
-          />
-        ) : (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#666',
-              fontSize: 14,
-            }}
-          >
-            {loading ? 'Loading...' : null}
-          </div>
-        )}
+        {/* Slide-up panel — the only thing that translates Y. */}
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="For You"
+          {...swipe.bind}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: '#0a0a0a',
+            transform: isOpen ? 'translateY(0)' : 'translateY(100%)',
+            transition: `transform ${transition}`,
+            pointerEvents: isOpen ? 'auto' : 'none',
+            ...swipe.style,
+          }}
+        >
+          {articles.length > 0 && articleId ? (
+            <ForYouTab
+              articles={articles}
+              pinnedFirst={articleId}
+              exitHref="/feed"
+              onClose={dismissOverlay}
+              embedded
+            />
+          ) : (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#666',
+                fontSize: 14,
+              }}
+            >
+              {loading ? 'Loading...' : null}
+            </div>
+          )}
+        </div>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }
 
