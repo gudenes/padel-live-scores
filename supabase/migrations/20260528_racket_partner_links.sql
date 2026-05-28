@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS partners (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  country_code TEXT NOT NULL,           -- ISO alpha-2, e.g. 'BR'
+  country_code TEXT NOT NULL CHECK (country_code ~ '^[A-Z]{2}$'),   -- ISO alpha-2 uppercase, e.g. 'BR'
   fallback_url TEXT NOT NULL,           -- homepage when no per-racket override
   active BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -31,11 +31,14 @@ CREATE INDEX IF NOT EXISTS racket_partner_links_partner_idx
 
 -- Click attribution columns (additive — no migration of existing rows).
 ALTER TABLE racket_clicks ADD COLUMN IF NOT EXISTS country_code TEXT;
-ALTER TABLE racket_clicks ADD COLUMN IF NOT EXISTS partner_id UUID REFERENCES partners(id);
+ALTER TABLE racket_clicks ADD COLUMN IF NOT EXISTS partner_id UUID REFERENCES partners(id) ON DELETE SET NULL;
 ALTER TABLE racket_clicks ADD COLUMN IF NOT EXISTS resolved_url TEXT;
 
 ALTER TABLE partners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE racket_partner_links ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public read partners" ON partners;
 CREATE POLICY "Public read partners" ON partners FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public read racket_partner_links" ON racket_partner_links;
 CREATE POLICY "Public read racket_partner_links" ON racket_partner_links FOR SELECT USING (true);
