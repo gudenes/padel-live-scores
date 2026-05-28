@@ -8,6 +8,9 @@ import {
 } from './shared'
 import NewsPeekSheet from './NewsPeekSheet'
 import type { ClusteredArticle } from '@/lib/news-feed-queries'
+import { supabase } from '@/lib/supabase'
+import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
+import { useForYouOverlay } from '@/hooks/useForYouOverlay'
 
 const BOOKMARKED_ARTICLES_KEY = 'padel-bookmarked-articles'
 
@@ -18,11 +21,25 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
   const [peekArticle, setPeekArticle] = useState<NewsItem | null>(null)
   // Which cluster (by primary article id) has its sibling list expanded.
   const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null)
+  // Feature flag: when ON, card taps open the For You overlay instead of the peek sheet.
+  const [immersiveEnabled, setImmersiveEnabled] = useState(false)
   const isExpanded = (clusterId: string) => expandedClusterId === clusterId
   const toggleExpand = (e: React.MouseEvent, clusterId: string) => {
     e.stopPropagation()
     setExpandedClusterId(prev => prev === clusterId ? null : clusterId)
   }
+  const { openForYou } = useForYouOverlay()
+
+  useEffect(() => {
+    supabase
+      .from('feature_flags')
+      .select('enabled, enabled_local')
+      .eq('key', FLAG_KEYS.HOME_NEWS_IMMERSIVE_LINK)
+      .maybeSingle()
+      .then(({ data }) => {
+        setImmersiveEnabled(resolveFlag(data ?? null))
+      })
+  }, [])
 
   useEffect(() => {
     try {
@@ -142,7 +159,11 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                 onClick={(e) => {
                   if (e.metaKey || e.ctrlKey || e.shiftKey || (e as React.MouseEvent).button === 1) return
                   e.preventDefault()
-                  setPeekArticle(cluster.primary as never)
+                  if (immersiveEnabled) {
+                    openForYou(cluster.primary.id)
+                  } else {
+                    setPeekArticle(cluster.primary as never)
+                  }
                 }}
                 style={{
                   textDecoration: 'none', color: 'inherit',
@@ -307,9 +328,11 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                           type="button"
                           onClick={e => {
                             e.stopPropagation()
-                            // Task 3.3 adds the flag-gated branch to openForYou(sib.id).
-                            // For now use the legacy peek-sheet path:
-                            setPeekArticle(sib as never)
+                            if (immersiveEnabled) {
+                              openForYou(sib.id)
+                            } else {
+                              setPeekArticle(sib as never)
+                            }
                           }}
                           style={{
                             width: '100%', textAlign: 'left',
