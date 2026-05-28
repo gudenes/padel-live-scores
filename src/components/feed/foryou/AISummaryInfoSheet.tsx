@@ -58,13 +58,17 @@ export function AISummaryInfoSheet({ open, onClose }: Props) {
           {t('aiSummaryExplainBody')}
         </p>
 
-        {/* Chunky-tilted press button (see public/mockup-buttons.html) —
-            same primitive used by the "Read article" / "Share" CTAs at the
-            bottom of every For You card, so this CTA inherits the same
-            tactile press animation and angular silhouette. */}
+        {/* #lib-saved variant from public/mockup-buttons.html — chunky-tilted
+            shape, intent-primary (green), leading checkmark icon. Same
+            primitive used by "Read article" at the bottom of every For You
+            card. The check icon signals confirmation ("got it / understood")
+            which matches the explainer-acknowledgement semantics. */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
           <ChunkyPressButton variant="green" onClick={onClose} ariaLabel={t('aiSummaryExplainClose')}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '12px 22px', fontSize: 14, fontWeight: 800 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', fontSize: 14, fontWeight: 800 }}>
+              <svg aria-hidden width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+              </svg>
               {t('aiSummaryExplainClose')}
             </span>
           </ChunkyPressButton>
