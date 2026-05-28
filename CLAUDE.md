@@ -292,7 +292,7 @@ Auth: middleware sets httpOnly `ops_token` cookie on `/ops?token=$CRON_SECRET`. 
 Config: `next.config.ts` needs `serverExternalPackages: ['pdf-parse']` for pdf-parse in API routes.
 
 ### Equipment database
-Four tables: `padel_brands`, `padel_rackets`, `player_equipment` (history junction), `racket_clicks` (affiliate tracking). APIs at `/api/ops/{brands,rackets,player-equipment}`, `/api/racket-click`. Ops "Brands & Equipment" tab + "Plays with" player widget.
+Six tables: `padel_brands`, `padel_rackets`, `player_equipment` (history junction), `racket_clicks` (affiliate tracking; includes `country_code` / `partner_id` / `resolved_url` for partner attribution), `partners` (country-keyed ecommerce partners — one active per country), `racket_partner_links` (per-racket URL overrides for a partner). APIs at `/api/ops/{brands,rackets,player-equipment,partners,racket-partner-links}`, `/api/racket-click` (resolves redirects via [`src/lib/racket-partner-resolver.ts`](src/lib/racket-partner-resolver.ts) — reads `geo-country` cookie, falls through to original `product_url` if no active partner for the country). Ops "Brands & Equipment" tab includes a Partners section + "Plays with" player widget.
 
 ### SEO
 - Dynamic sitemap (`src/app/sitemap.ts`) — tournaments, matches (90d), players
