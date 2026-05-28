@@ -109,6 +109,7 @@ export const AREAS: ReadonlyArray<Area> = [
     pages: [
       { href: '/players', label: 'Players' },
       { href: '/brands', label: 'Brands & Equipment' },
+      { href: '/partners', label: 'Partners' },
       { href: '/streams', label: 'Streams' },
       { href: '/yt-channels', label: 'YT Channels' },
     ],
@@ -162,6 +163,7 @@ export function areaFor(pathname: string): AreaId {
   if (
     path === '/players' || path.startsWith('/players/') ||
     path === '/brands' || path.startsWith('/brands/') ||
+    path === '/partners' || path.startsWith('/partners/') ||
     path === '/streams' || path.startsWith('/streams/') ||
     path === '/yt-channels' || path.startsWith('/yt-channels/')
   ) return 'catalogs'
