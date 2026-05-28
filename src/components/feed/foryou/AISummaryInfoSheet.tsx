@@ -9,6 +9,7 @@
 // the For You feed which already lives above the home page).
 
 import { useTranslations } from 'next-intl'
+import { ChunkyPressButton } from './ChunkyPressButton'
 
 interface Props {
   open: boolean
@@ -57,19 +58,16 @@ export function AISummaryInfoSheet({ open, onClose }: Props) {
           {t('aiSummaryExplainBody')}
         </p>
 
+        {/* Chunky-tilted press button (see public/mockup-buttons.html) —
+            same primitive used by the "Read article" / "Share" CTAs at the
+            bottom of every For You card, so this CTA inherits the same
+            tactile press animation and angular silhouette. */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-          <button
-            onClick={onClose}
-            style={{
-              background: '#7ED321', color: '#0a0a0a',
-              border: 0, padding: '10px 18px',
-              fontWeight: 800, fontSize: 14,
-              borderRadius: 8,
-              cursor: 'pointer',
-            }}
-          >
-            {t('aiSummaryExplainClose')}
-          </button>
+          <ChunkyPressButton variant="green" onClick={onClose} ariaLabel={t('aiSummaryExplainClose')}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '12px 22px', fontSize: 14, fontWeight: 800 }}>
+              {t('aiSummaryExplainClose')}
+            </span>
+          </ChunkyPressButton>
         </div>
       </div>
     </>
