@@ -7,10 +7,11 @@ import {
   Highlight, NewsItem, formatViews, timeAgo, localizedTitle, localizedSnippet,
 } from './shared'
 import NewsPeekSheet from './NewsPeekSheet'
+import type { ClusteredArticle } from '@/lib/news-feed-queries'
 
 const BOOKMARKED_ARTICLES_KEY = 'padel-bookmarked-articles'
 
-function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[]; news: NewsItem[] }) {
+function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[]; news: ClusteredArticle[] }) {
   const userLocale = useLocale()
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
   // Selected article for the peek sheet. Null = sheet closed.
@@ -37,9 +38,9 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
   // visible card (+ next on prefetch) actually fetches its image, so
   // raising the cap from 6 → 20 has no measurable cost. "See all →"
   // still goes to /feed for the full archive.
-  const articles = news.slice(0, 20)
+  const clusters = news.slice(0, 20)
 
-  if (videos.length === 0 && articles.length === 0) return null
+  if (videos.length === 0 && clusters.length === 0) return null
 
   // Shared CSS for both horizontal scroll regions. Hides scrollbar across
   // browsers and turns on iOS momentum scrolling. scroll-snap is per-row
@@ -58,7 +59,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
     <div>
       {/* ── Videos row — current compact carousel, 252px cards ── */}
       {videos.length > 0 && (
-        <div style={{ ...rowBase, gap: 12, padding: '0 16px', marginBottom: articles.length > 0 ? 14 : 0 }}>
+        <div style={{ ...rowBase, gap: 12, padding: '0 16px', marginBottom: clusters.length > 0 ? 14 : 0 }}>
           {videos.map(v => (
             <a
               key={v.id}
@@ -105,7 +106,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
           on the start edge so a one-thumb swipe advances exactly one card.
           The snippet line gives the reader enough context to decide whether
           to tap into the peek sheet. */}
-      {articles.length > 0 && (
+      {clusters.length > 0 && (
         <div
           style={{
             ...rowBase,
@@ -115,20 +116,26 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
             scrollBehavior: 'smooth',
           }}
         >
-          {articles.map(n => {
+          {clusters.map(cluster => {
+            const article = cluster.primary
+            const siblingCount = cluster.siblings.length
+            // Cast to NewsItem for the shared localizedTitle/localizedSnippet helpers.
+            // ArticleRow uses source_url; access the URL directly via article.source_url.
+            const n = article as unknown as NewsItem
+            const articleUrl = article.source_url
             const title = localizedTitle(n, userLocale)
             const snippet = localizedSnippet(n, userLocale)
-            const isBookmarked = bookmarked.has(n.id)
+            const isBookmarked = bookmarked.has(article.id)
             return (
               <a
-                key={n.id}
-                href={n.url}
+                key={article.id}
+                href={articleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => {
                   if (e.metaKey || e.ctrlKey || e.shiftKey || (e as React.MouseEvent).button === 1) return
                   e.preventDefault()
-                  setPeekArticle(n)
+                  setPeekArticle(cluster.primary as never)
                 }}
                 style={{
                   textDecoration: 'none', color: 'inherit',
@@ -155,11 +162,11 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                   clipPath: CHUNKY.card,
                   overflow: 'hidden',
                 }}>
-                  {n.image_url && (
+                  {article.image_url && (
                     <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={n.image_url}
+                        src={article.image_url}
                         alt=""
                         loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -179,12 +186,28 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                       }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={n.source_icon || `https://www.google.com/s2/favicons?domain=${new URL(n.url).hostname}&sz=64`}
-                          alt={n.source_name}
+                          src={article.source_icon || article.favicon_url || `https://www.google.com/s2/favicons?domain=${new URL(articleUrl).hostname}&sz=64`}
+                          alt={article.source_name ?? undefined}
                           loading="lazy"
                           style={{ width: 22, height: 22, borderRadius: 4 }}
                         />
                       </div>
+                      {/* +N sources chip — static badge in this task (Task 3.2 adds expand) */}
+                      {siblingCount > 0 && (
+                        <span
+                          aria-label={`${siblingCount} other sources`}
+                          style={{
+                            position: 'absolute', top: 6, right: 6,
+                            padding: '3px 7px',
+                            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+                            borderRadius: 10,
+                            color: '#fff', fontSize: 9, fontWeight: 700,
+                            pointerEvents: 'none',
+                          }}
+                        >
+                          +{siblingCount} sources
+                        </span>
+                      )}
                     </div>
                   )}
                   <div style={{ padding: '14px 16px 14px' }}>
@@ -199,7 +222,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                       <span style={{
                         width: 5, height: 5, borderRadius: '50%', background: GREEN,
                       }} />
-                      {n.source_name} &middot; {timeAgo(n.published_at)}
+                      {article.source_name} &middot; {timeAgo(article.published_at)}
                     </div>
 
                     <div style={{
@@ -225,7 +248,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                         focal point of the card. */}
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                       <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBookmark(n.id) }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBookmark(article.id) }}
                         aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark article'}
                         style={{
                           background: 'none', border: 'none', cursor: 'pointer',
@@ -242,8 +265,8 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                           e.preventDefault()
                           e.stopPropagation()
                           const nav = typeof navigator !== 'undefined' ? navigator : null
-                          if (nav?.share) void nav.share({ title: n.title, url: n.url }).catch(() => {})
-                          else if (nav?.clipboard) void nav.clipboard.writeText(n.url)
+                          if (nav?.share) void nav.share({ title: article.title, url: articleUrl }).catch(() => {})
+                          else if (nav?.clipboard) void nav.clipboard.writeText(articleUrl)
                         }}
                         aria-label="Share article"
                         style={{
