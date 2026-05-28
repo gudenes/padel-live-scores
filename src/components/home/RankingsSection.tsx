@@ -100,7 +100,7 @@ function RankingsSectionInner({ men, women, gender }: { men: RankedPlayer[]; wom
         scrollbarWidth: 'none',
       }}>
         {players.map((p, i) => (
-          <PlayerBustCard key={p.id} player={p} rank={i + 1} />
+          <PlayerBustCard key={p.id} player={p} rank={p.ranking ?? i + 1} />
         ))}
       </div>
     </div>
