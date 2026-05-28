@@ -121,15 +121,27 @@ function flattenSummary(summary: string): string {
 
 /** Pick the localised snippet for a NewsItem.
  *
+ *  Important data-model detail: `summary_md` is ALWAYS English (the AI
+ *  summary is generated in English from the source article). The
+ *  `summary_translations` map only contains the non-English locales —
+ *  {es, pt, it, fr}. So for an English user, the right "translated"
+ *  summary lives in `summary_md`, NOT in `summary_translations.en`
+ *  (which never gets populated). The overlay (ForYouCard) already
+ *  handles this with `summary_translations[locale] ?? summary_md`.
+ *
  *  Priority (top wins):
  *    1. `snippet_translations[locale]` — explicit per-locale short snippet.
  *       Reserved for future; not populated by current enrichment.
- *    2. `summary_translations[locale]` — full translated summary, flattened
- *       and CSS-clamped by the renderer. This is what makes the home card
- *       match the language the For You overlay shows (the overlay reads
- *       from the same field). Populated today by the enrichment cron.
- *    3. `snippet` — source-language short snippet.
- *    4. `summary_md` — source-language full summary as last resort.
+ *    2. The "locale-correct summary":
+ *         - locale === 'en'  → `summary_md` (canonical English)
+ *         - locale !== 'en'  → `summary_translations[locale]`
+ *       Flattened and CSS-clamped by the renderer.
+ *    3. `snippet` — source-language short snippet. May not match the
+ *       user's locale (this was the bug pre-fix: English user got a
+ *       Spanish snippet because we tried the source language before
+ *       the English summary).
+ *    4. `summary_md` — last-resort English fallback for non-en users
+ *       when no translation exists yet.
  *
  *  Returns null when nothing is available so renderers can choose to skip
  *  the snippet line entirely instead of showing an empty box. */
@@ -139,8 +151,14 @@ export function localizedSnippet(n: NewsItem, userLocale: string): string | null
   const translatedSnippet = n.snippet_translations?.[short]?.trim()
   if (translatedSnippet) return translatedSnippet
 
-  const translatedSummary = n.summary_translations?.[short]?.trim()
-  if (translatedSummary) return flattenSummary(translatedSummary)
+  // For 'en', the canonical English summary IS the "translation". For
+  // other locales, look in the translation map. Treating these two
+  // sources as a single conceptual "locale-correct summary" closes the
+  // gap that left English users seeing Spanish source snippets.
+  const localeCorrectSummary = short === 'en'
+    ? n.summary_md?.trim()
+    : n.summary_translations?.[short]?.trim()
+  if (localeCorrectSummary) return flattenSummary(localeCorrectSummary)
 
   const sourceSnippet = n.snippet?.trim()
   if (sourceSnippet) return sourceSnippet
