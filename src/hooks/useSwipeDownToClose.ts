@@ -67,6 +67,13 @@ export interface UseSwipeDownToCloseResult {
 const DISTANCE_FRACTION = 0.3 // 30% of panel height
 const VELOCITY_THRESHOLD = 0.5 // px per ms
 const HORIZONTAL_TOLERANCE_PX = 24 // cancel if user swipes sideways
+// When the inner scroll container moved recently, don't arm the close
+// gesture — the user is mid-navigation (e.g. just snapped back from
+// card 1 → card 0 and is starting another back-swipe). Without this
+// guard, fast double-swipes from a mid-feed card to the first card
+// trigger an accidental close on the second swipe. 300ms covers the
+// scroll-snap settle window with a small margin.
+const RECENT_SCROLL_LOCKOUT_MS = 300
 
 export function useSwipeDownToClose({
   onClose,
@@ -79,6 +86,10 @@ export function useSwipeDownToClose({
   const lastYRef = useRef<number>(0)
   const lastTimeRef = useRef<number>(0)
   const panelHeightRef = useRef<number>(0)
+  // Timestamp of the last scroll event observed on the inner container.
+  // Used by the recent-scroll lockout in onTouchStart. Initialised to 0
+  // so the first gesture after mount is never blocked.
+  const lastScrollAtRef = useRef<number>(0)
   const [translate, setTranslate] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
@@ -92,6 +103,17 @@ export function useSwipeDownToClose({
     return () => mql.removeEventListener?.('change', onChange)
   }, [])
 
+  // Track recent scroll activity on the inner container. Each scroll event
+  // refreshes the timestamp; the next touchstart consults it. We listen
+  // passively so scroll performance is unaffected.
+  useEffect(() => {
+    const el = scrollRef?.current
+    if (!el) return
+    const onScroll = () => { lastScrollAtRef.current = performance.now() }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
+  }, [scrollRef])
+
   function reset() {
     startYRef.current = null
     startXRef.current = null
@@ -104,6 +126,12 @@ export function useSwipeDownToClose({
     // If the gesture starts on a scrolled-down inner container, let
     // the native scroll handle it — don't hijack.
     if (scrollRef?.current && scrollRef.current.scrollTop > 0) return
+    // Recent-scroll lockout: if the inner container moved within the
+    // lockout window, the user is mid-navigation (e.g. just snapped back
+    // to scrollTop=0 and is starting another back-swipe). Without this,
+    // a fast double-swipe from card 2 → card 1 → close fires the close
+    // gesture on swipe #3 because the snap to card 0 already settled.
+    if (performance.now() - lastScrollAtRef.current < RECENT_SCROLL_LOCKOUT_MS) return
     const t = e.touches[0]
     if (!t) return
     startYRef.current = t.clientY
