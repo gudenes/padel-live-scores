@@ -16,6 +16,13 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
   // Selected article for the peek sheet. Null = sheet closed.
   const [peekArticle, setPeekArticle] = useState<NewsItem | null>(null)
+  // Which cluster (by primary article id) has its sibling list expanded.
+  const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null)
+  const isExpanded = (clusterId: string) => expandedClusterId === clusterId
+  const toggleExpand = (e: React.MouseEvent, clusterId: string) => {
+    e.stopPropagation()
+    setExpandedClusterId(prev => prev === clusterId ? null : clusterId)
+  }
 
   useEffect(() => {
     try {
@@ -192,21 +199,25 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                           style={{ width: 22, height: 22, borderRadius: 4 }}
                         />
                       </div>
-                      {/* +N sources chip — static badge in this task (Task 3.2 adds expand) */}
+                      {/* +N sources chip — interactive, expands sibling list */}
                       {siblingCount > 0 && (
-                        <span
-                          aria-label={`${siblingCount} other sources`}
+                        <button
+                          type="button"
+                          onClick={e => toggleExpand(e, cluster.primary.id)}
+                          aria-label={`${siblingCount} other sources — ${isExpanded(cluster.primary.id) ? 'collapse' : 'expand'}`}
+                          aria-expanded={isExpanded(cluster.primary.id)}
                           style={{
                             position: 'absolute', top: 6, right: 6,
                             padding: '3px 7px',
                             background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
                             borderRadius: 10,
                             color: '#fff', fontSize: 9, fontWeight: 700,
-                            pointerEvents: 'none',
+                            border: 0, cursor: 'pointer',
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
                           }}
                         >
-                          +{siblingCount} sources
-                        </span>
+                          +{siblingCount} sources {isExpanded(cluster.primary.id) ? '▴' : '▾'}
+                        </button>
                       )}
                     </div>
                   )}
@@ -283,6 +294,48 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                       </button>
                     </div>
                   </div>
+                  {/* Expanded siblings list — shown when +N chip is tapped */}
+                  {isExpanded(cluster.primary.id) && cluster.siblings.length > 0 && (
+                    <div style={{
+                      padding: '8px 12px 10px',
+                      borderTop: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(0,0,0,0.25)',
+                    }}>
+                      {cluster.siblings.map(sib => (
+                        <button
+                          key={sib.id}
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation()
+                            // Task 3.3 adds the flag-gated branch to openForYou(sib.id).
+                            // For now use the legacy peek-sheet path:
+                            setPeekArticle(sib as never)
+                          }}
+                          style={{
+                            width: '100%', textAlign: 'left',
+                            background: 'transparent', border: 0, padding: '6px 0',
+                            cursor: 'pointer', color: '#fff',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                          }}
+                        >
+                          {sib.favicon_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={sib.favicon_url} alt="" width={14} height={14} style={{ borderRadius: 2, flexShrink: 0 }} />
+                          )}
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED321', flexShrink: 0 }}>
+                            {sib.source_name?.toUpperCase() ?? 'OTHER'}
+                          </span>
+                          <span style={{
+                            fontSize: 11, color: '#ccc',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            flex: 1,
+                          }}>
+                            {sib.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </a>
             )
