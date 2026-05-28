@@ -183,6 +183,7 @@ export function ForYouOverlay() {
               exitHref="/feed"
               onClose={dismissOverlay}
               embedded
+              scrollContainerRef={scrollRef}
             />
           ) : (
             <div

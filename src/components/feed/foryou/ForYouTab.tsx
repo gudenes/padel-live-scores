@@ -26,6 +26,13 @@ export interface ForYouTabProps {
    * to the viewport. Default: false (standalone fullscreen mode).
    */
   embedded?: boolean
+  /**
+   * Forwarded ref to the inner scroll container. ForYouOverlay attaches
+   * this so its swipe-down-to-close hook can read the real scrollTop —
+   * without it, every downward drag would dismiss the overlay even when
+   * the user is mid-feed trying to swipe back to the previous card.
+   */
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>
 }
 
 const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
@@ -38,11 +45,15 @@ const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
  * Industry pattern: TikTok / YouTube Shorts / LiveScore web — all use
  * native scroll + snap-align rather than JS-driven gesture handlers.
  */
-export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst, onClose, embedded = false }: ForYouTabProps) {
+export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst, onClose, embedded = false, scrollContainerRef }: ForYouTabProps) {
   const t = useTranslations('foryou')
   const tSuggest = useTranslations('foryou.suggest')
   const router = useRouter()
-  const scrollRef = useRef<HTMLDivElement>(null)
+  // Local ref keeps internal logic (IntersectionObserver, scroll reset) working
+  // even when no external ref is provided. When the parent does pass one, we
+  // assign the same DOM node to both refs via a callback so they stay in sync.
+  const internalScrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef = scrollContainerRef ?? internalScrollRef
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [hintDismissed, setHintDismissed] = useState(false)
