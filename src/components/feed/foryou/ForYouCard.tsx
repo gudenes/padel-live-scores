@@ -153,17 +153,22 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
         }} />
       </div>
 
-      {/* Back chip */}
-      <div style={{ position: 'absolute', top: 42, left: 14, zIndex: 25 }}>
+      {/* Back chip — `top` uses safe-area inset so notches / dynamic islands
+       *  don't crowd the chip on modern phones. The +20px gives breathing
+       *  room beyond the inset itself (looked too tight at 12 in testing).
+       *  Falls back to a flat 62px when no inset is reported (older devices
+       *  / web). */}
+      <div style={{ position: 'absolute', top: 'calc(env(safe-area-inset-top, 42px) + 20px)', left: 14, zIndex: 25 }}>
         <ChunkyPressButton ariaLabel="Back" onClick={onBack} style={{ width: 32 }}>
           <span style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>‹</span>
         </ChunkyPressButton>
       </div>
 
-      {/* Topic chip — only when tournament_level is known */}
+      {/* Topic chip — only when tournament_level is known. Same safe-area
+       *  alignment as the back chip so they sit on the same horizontal axis. */}
       {article.tournament_level && (
         <div style={{
-          position: 'absolute', top: 42, left: 54, zIndex: 25,
+          position: 'absolute', top: 'calc(env(safe-area-inset-top, 42px) + 20px)', left: 54, zIndex: 25,
           padding: '7px 10px',
           background: '#F5A623', color: '#0a0a0a',
           fontSize: 9, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
