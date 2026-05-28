@@ -203,6 +203,51 @@ function tokenSimilarity(a: string[], b: string[]): number {
   return union > 0 ? intersection / union : 0
 }
 
+export interface ArticleCluster<T extends { id: string; title: string }> {
+  primary: T
+  siblings: T[]
+}
+
+/**
+ * Cluster articles by title-token overlap (≥ 0.5 Jaccard).
+ * First article in input order becomes the primary of each cluster.
+ * Returns clusters in the order their primaries appeared.
+ *
+ * Extracted from buildScoredFeed so non-feed-scoring callers
+ * (home rail, For You server fetch) can reuse the same dedup logic.
+ */
+export function clusterArticles<T extends { id: string; title: string }>(
+  articles: T[],
+): ArticleCluster<T>[] {
+  if (articles.length === 0) return []
+
+  const tokenized = articles.map(a => ({
+    article: a,
+    tokens: extractSignatureTokens(a.title),
+  }))
+
+  const clusters: ArticleCluster<T>[] = []
+  const clusterTokens: string[][] = [] // tokens of each cluster's primary
+
+  for (const { article, tokens } of tokenized) {
+    let matchedIdx = -1
+    for (let i = 0; i < clusters.length; i++) {
+      if (tokenSimilarity(tokens, clusterTokens[i]) >= 0.5) {
+        matchedIdx = i
+        break
+      }
+    }
+    if (matchedIdx >= 0) {
+      clusters[matchedIdx].siblings.push(article)
+    } else {
+      clusters.push({ primary: article, siblings: [] })
+      clusterTokens.push(tokens)
+    }
+  }
+
+  return clusters
+}
+
 export interface FeedCluster<T> {
   primary: T
   score: number
