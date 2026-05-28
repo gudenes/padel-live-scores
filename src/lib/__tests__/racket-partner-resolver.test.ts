@@ -74,4 +74,16 @@ describe('resolveRacketDestination', () => {
     expect(result.url).toBe('https://head.com/x')
     expect(result.resolvedKind).toBe('original')
   })
+
+  it('falls through to original when country does not match partner country (defensive)', () => {
+    const result = resolveRacketDestination({
+      country: 'AR',
+      partner, // BR
+      perRacketUrl: 'https://www.torodoro.com.br/produto/x',
+      originalProductUrl: 'https://head.com/x',
+    })
+    expect(result.resolvedKind).toBe('original')
+    expect(result.url).toBe('https://head.com/x')
+    expect(result.partnerId).toBeNull()
+  })
 })
