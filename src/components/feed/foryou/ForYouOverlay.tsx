@@ -6,7 +6,7 @@
 // Dismiss paths: swipe-down gesture, browser back (popstate), backdrop click, ESC.
 // Body scroll is locked while open. Deep-links via pushState on open.
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useForYouOverlay } from '@/hooks/useForYouOverlay'
 import { fetchClusteredNews, type ClusteredArticle, type ArticleRow } from '@/lib/news-feed-queries'
@@ -30,9 +30,27 @@ export function ForYouOverlay() {
   const [articles, setArticles] = useState<ForYouArticle[]>([])
   const [loading, setLoading] = useState(false)
 
+  // Wrapped dismiss that also reverts the history entry pushed on open. We
+  // pushed `/feed?tab=foryou&article=X` so the layout's hideNav logic and
+  // the OS back gesture both think the user is on the foryou tab. Without
+  // popping that entry on user-initiated close (back chip / backdrop / ESC),
+  // pathname stays at /feed and isForYouTab stays true — which keeps the
+  // bottom nav hidden after the overlay slides away.
+  //
+  // `history.back()` triggers our popstate listener, which calls the raw
+  // `closeForYou` from the context. We guard the back() call behind a state
+  // check so popstate-driven closes (browser/OS back gesture) don't recurse.
+  const dismissOverlay = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.state?.foryouOverlay) {
+      window.history.back()
+    } else {
+      closeForYou()
+    }
+  }, [closeForYou])
+
   // Swipe-down dismiss — spreads `bind` + `style` onto the panel element.
   const swipe = useSwipeDownToClose({
-    onClose: closeForYou,
+    onClose: dismissOverlay,
     scrollRef,
     disabled: !isOpen,
   })
@@ -75,15 +93,15 @@ export function ForYouOverlay() {
     }
   }, [isOpen])
 
-  // ESC dismiss.
+  // ESC dismiss — goes through dismissOverlay so the URL reverts too.
   useEffect(() => {
     if (!isOpen) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeForYou()
+      if (e.key === 'Escape') dismissOverlay()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isOpen, closeForYou])
+  }, [isOpen, dismissOverlay])
 
   // Stay unmounted on first render until the overlay is triggered.
   if (!isOpen && !articleId) return null
@@ -106,7 +124,7 @@ export function ForYouOverlay() {
        *  of the mobile-frame column also dismiss. z-index above
        *  GlobalHeader (100). */}
       <div
-        onClick={closeForYou}
+        onClick={dismissOverlay}
         aria-hidden
         style={{
           position: 'fixed',
@@ -163,7 +181,7 @@ export function ForYouOverlay() {
               articles={articles}
               pinnedFirst={articleId}
               exitHref="/feed"
-              onClose={closeForYou}
+              onClose={dismissOverlay}
               embedded
             />
           ) : (
