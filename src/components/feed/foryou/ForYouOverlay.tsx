@@ -163,6 +163,8 @@ export function ForYouOverlay() {
               articles={articles}
               pinnedFirst={articleId}
               exitHref="/feed"
+              onClose={closeForYou}
+              embedded
             />
           ) : (
             <div
