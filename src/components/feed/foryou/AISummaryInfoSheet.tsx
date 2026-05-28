@@ -64,7 +64,7 @@ export function AISummaryInfoSheet({ open, onClose }: Props) {
             card. The check icon signals confirmation ("got it / understood")
             which matches the explainer-acknowledgement semantics. */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
-          <ChunkyPressButton variant="green" onClick={onClose} ariaLabel={t('aiSummaryExplainClose')}>
+          <ChunkyPressButton variant="green" filled onClick={onClose} ariaLabel={t('aiSummaryExplainClose')}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 22px', fontSize: 14, fontWeight: 800 }}>
               <svg aria-hidden width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
