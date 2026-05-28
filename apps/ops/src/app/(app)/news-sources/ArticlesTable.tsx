@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { TranslationChips } from './TranslationChips'
+import { ClusterChip } from './ClusterChip'
 
 interface ArticleRow {
   id: string
@@ -13,6 +15,9 @@ interface ArticleRow {
   click_count: number
   enrichment_status: string
   summary_md: string | null
+  title_translations: Record<string, string> | null
+  summary_translations: Record<string, string> | null
+  cluster: { role: 'unique' | 'primary' | 'sibling'; siblingCount: number; primaryId: string | null }
 }
 
 interface Facets {
@@ -74,6 +79,8 @@ export function ArticlesTable() {
   const [sourceKey, setSourceKey] = useState('')
   const [language, setLanguage] = useState('')
   const [enrichmentStatus, setEnrichmentStatus] = useState('')
+  const [translationsFilter, setTranslationsFilter] = useState<'all' | 'complete' | 'has-gaps'>('all')
+  const [clusterFilter, setClusterFilter] = useState<'all' | 'primary' | 'sibling' | 'unique'>('all')
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -120,7 +127,7 @@ export function ArticlesTable() {
   const rangeStart = page * pageSize + 1
   const rangeEnd = Math.min((page + 1) * pageSize, total)
 
-  const hasFilters = debouncedSearch || sourceKey || language || enrichmentStatus
+  const hasFilters = debouncedSearch || sourceKey || language || enrichmentStatus || translationsFilter !== 'all' || clusterFilter !== 'all'
 
   function reset() {
     setSearch('')
@@ -128,8 +135,22 @@ export function ArticlesTable() {
     setSourceKey('')
     setLanguage('')
     setEnrichmentStatus('')
+    setTranslationsFilter('all')
+    setClusterFilter('all')
     setPage(0)
   }
+
+  const filteredRows = rows.filter(r => {
+    if (clusterFilter !== 'all' && r.cluster?.role !== clusterFilter) return false
+    if (translationsFilter === 'complete' || translationsFilter === 'has-gaps') {
+      const allFilled = (['es', 'pt', 'it', 'fr'] as const).every(l =>
+        r.title_translations?.[l] && r.summary_translations?.[l]
+      )
+      if (translationsFilter === 'complete' && !allFilled) return false
+      if (translationsFilter === 'has-gaps' && allFilled) return false
+    }
+    return true
+  })
 
   return (
     <div>
@@ -180,6 +201,19 @@ export function ArticlesTable() {
           ))}
         </select>
 
+        <select value={translationsFilter} onChange={e => setTranslationsFilter(e.target.value as never)} style={selectStyle}>
+          <option value="all">Translations: All</option>
+          <option value="complete">Complete</option>
+          <option value="has-gaps">Has gaps</option>
+        </select>
+
+        <select value={clusterFilter} onChange={e => setClusterFilter(e.target.value as never)} style={selectStyle}>
+          <option value="all">Cluster: All</option>
+          <option value="primary">Primary</option>
+          <option value="sibling">Sibling</option>
+          <option value="unique">Unique</option>
+        </select>
+
         {hasFilters && (
           <button onClick={reset} style={resetBtnStyle}>
             Reset
@@ -213,20 +247,20 @@ export function ArticlesTable() {
       {/* Table */}
       {loading ? (
         <div style={{ color: 'var(--status-neutral)', padding: 16 }}>Loading...</div>
-      ) : rows.length === 0 ? (
+      ) : filteredRows.length === 0 ? (
         <div style={{ color: 'var(--status-neutral)', padding: 16 }}>No articles match these filters.</div>
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: 'var(--brand-primary-fg)' }}>
           <thead>
             <tr style={{ background: 'var(--bg-canvas)', textAlign: 'left' }}>
-              {['Title', 'Source', 'Enriched', 'Published'].map(h => (
+              {['Title', 'Source', 'Enriched', 'Translations', 'Cluster', 'Published'].map(h => (
                 <th key={h} style={{ padding: 8, fontWeight: 700, color: 'var(--status-neutral)', whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map(r => (
-              <tr key={r.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+            {filteredRows.map(r => (
+              <tr key={r.id} data-article-id={r.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                 <td style={{ padding: 8, maxWidth: 480 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <a
@@ -261,6 +295,23 @@ export function ArticlesTable() {
                 </td>
                 <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
                   <EnrichmentPill status={r.enrichment_status} />
+                </td>
+                <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
+                  <TranslationChips
+                    title_translations={r.title_translations}
+                    summary_translations={r.summary_translations}
+                  />
+                </td>
+                <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
+                  <ClusterChip
+                    role={r.cluster?.role ?? 'unique'}
+                    siblingCount={r.cluster?.siblingCount}
+                    primaryId={r.cluster?.primaryId}
+                    onSiblingClick={pid => {
+                      const el = document.querySelector(`[data-article-id="${pid}"]`)
+                      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }}
+                  />
                 </td>
                 <td style={{ padding: 8, whiteSpace: 'nowrap', color: 'var(--status-neutral)' }}>
                   {relativeTime(r.published_at)}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ForYouCard, type ForYouArticle } from './ForYouCard'
@@ -12,6 +12,7 @@ import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 export interface ForYouTabProps {
   articles: ForYouArticle[]
   exitHref?: string
+  pinnedFirst?: string
 }
 
 const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
@@ -24,7 +25,7 @@ const PEEK_PX = 60  // height of next-article peek showing above viewport bottom
  * Industry pattern: TikTok / YouTube Shorts / LiveScore web — all use
  * native scroll + snap-align rather than JS-driven gesture handlers.
  */
-export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
+export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst }: ForYouTabProps) {
   const t = useTranslations('foryou')
   const tSuggest = useTranslations('foryou.suggest')
   const router = useRouter()
@@ -34,6 +35,31 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
   const [hintDismissed, setHintDismissed] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [suggestEnabled, setSuggestEnabled] = useState(false)
+
+  // Log direct-url entry once on mount. Overlay-mode entries are already
+  // logged by useForYouOverlay.openForYou; check history.state to skip those.
+  useEffect(() => {
+    if (!pinnedFirst) return
+    const inOverlay = typeof window !== 'undefined' && window.history.state?.foryouOverlay
+    if (inOverlay) return
+    fetch('/api/internal/log-deep-link', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        origin: 'direct_url',
+        article_id: pinnedFirst,
+        cluster_size: 1,
+      }),
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // mount only — one log per page load
+
+  const orderedArticles = useMemo(() => {
+    if (!pinnedFirst || articles.length === 0) return articles
+    const idx = articles.findIndex(a => a.id === pinnedFirst)
+    if (idx <= 0) return articles
+    return [articles[idx], ...articles.slice(0, idx), ...articles.slice(idx + 1)]
+  }, [articles, pinnedFirst])
 
   useEffect(() => {
     if (typeof localStorage === 'undefined') return
@@ -76,11 +102,11 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
     )
     cardRefs.current.forEach(el => el && observer.observe(el))
     return () => observer.disconnect()
-  }, [articles.length, hintDismissed])
+  }, [orderedArticles.length, hintDismissed])
 
   const onBack = useCallback(() => router.push(exitHref), [router, exitHref])
 
-  if (articles.length === 0) {
+  if (orderedArticles.length === 0) {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -92,7 +118,7 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
     )
   }
 
-  const isLast = currentIndex >= articles.length - 1
+  const isLast = currentIndex >= orderedArticles.length - 1
   const showHint = currentIndex === 0 && !hintDismissed
 
   return (
@@ -117,7 +143,7 @@ export function ForYouTab({ articles, exitHref = '/feed' }: ForYouTabProps) {
           div::-webkit-scrollbar { display: none; }
         `}</style>
 
-        {articles.map((article, i) => (
+        {orderedArticles.map((article, i) => (
           <div
             key={article.id}
             data-card-idx={i}

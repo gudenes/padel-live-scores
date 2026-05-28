@@ -7,14 +7,39 @@ import {
   Highlight, NewsItem, formatViews, timeAgo, localizedTitle, localizedSnippet,
 } from './shared'
 import NewsPeekSheet from './NewsPeekSheet'
+import type { ClusteredArticle } from '@/lib/news-feed-queries'
+import { supabase } from '@/lib/supabase'
+import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
+import { useForYouOverlay } from '@/hooks/useForYouOverlay'
 
 const BOOKMARKED_ARTICLES_KEY = 'padel-bookmarked-articles'
 
-function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[]; news: NewsItem[] }) {
+function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[]; news: ClusteredArticle[] }) {
   const userLocale = useLocale()
   const [bookmarked, setBookmarked] = useState<Set<string>>(new Set())
   // Selected article for the peek sheet. Null = sheet closed.
   const [peekArticle, setPeekArticle] = useState<NewsItem | null>(null)
+  // Which cluster (by primary article id) has its sibling list expanded.
+  const [expandedClusterId, setExpandedClusterId] = useState<string | null>(null)
+  // Feature flag: when ON, card taps open the For You overlay instead of the peek sheet.
+  const [immersiveEnabled, setImmersiveEnabled] = useState(false)
+  const isExpanded = (clusterId: string) => expandedClusterId === clusterId
+  const toggleExpand = (e: React.MouseEvent, clusterId: string) => {
+    e.stopPropagation()
+    setExpandedClusterId(prev => prev === clusterId ? null : clusterId)
+  }
+  const { openForYou } = useForYouOverlay()
+
+  useEffect(() => {
+    supabase
+      .from('feature_flags')
+      .select('enabled, enabled_local')
+      .eq('key', FLAG_KEYS.HOME_NEWS_IMMERSIVE_LINK)
+      .maybeSingle()
+      .then(({ data }) => {
+        setImmersiveEnabled(resolveFlag(data ?? null))
+      })
+  }, [])
 
   useEffect(() => {
     try {
@@ -37,9 +62,9 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
   // visible card (+ next on prefetch) actually fetches its image, so
   // raising the cap from 6 → 20 has no measurable cost. "See all →"
   // still goes to /feed for the full archive.
-  const articles = news.slice(0, 20)
+  const clusters = news.slice(0, 20)
 
-  if (videos.length === 0 && articles.length === 0) return null
+  if (videos.length === 0 && clusters.length === 0) return null
 
   // Shared CSS for both horizontal scroll regions. Hides scrollbar across
   // browsers and turns on iOS momentum scrolling. scroll-snap is per-row
@@ -58,7 +83,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
     <div>
       {/* ── Videos row — current compact carousel, 252px cards ── */}
       {videos.length > 0 && (
-        <div style={{ ...rowBase, gap: 12, padding: '0 16px', marginBottom: articles.length > 0 ? 14 : 0 }}>
+        <div style={{ ...rowBase, gap: 12, padding: '0 16px', marginBottom: clusters.length > 0 ? 14 : 0 }}>
           {videos.map(v => (
             <a
               key={v.id}
@@ -105,7 +130,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
           on the start edge so a one-thumb swipe advances exactly one card.
           The snippet line gives the reader enough context to decide whether
           to tap into the peek sheet. */}
-      {articles.length > 0 && (
+      {clusters.length > 0 && (
         <div
           style={{
             ...rowBase,
@@ -115,20 +140,33 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
             scrollBehavior: 'smooth',
           }}
         >
-          {articles.map(n => {
+          {clusters.map(cluster => {
+            const article = cluster.primary
+            const siblingCount = cluster.siblings.length
+            // Cast to NewsItem for the shared localizedTitle/localizedSnippet helpers.
+            // ArticleRow uses source_url; access the URL directly via article.source_url.
+            const n = article as unknown as NewsItem
+            const articleUrl = article.source_url
             const title = localizedTitle(n, userLocale)
             const snippet = localizedSnippet(n, userLocale)
-            const isBookmarked = bookmarked.has(n.id)
+            const isBookmarked = bookmarked.has(article.id)
             return (
               <a
-                key={n.id}
-                href={n.url}
+                key={article.id}
+                href={articleUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => {
                   if (e.metaKey || e.ctrlKey || e.shiftKey || (e as React.MouseEvent).button === 1) return
                   e.preventDefault()
-                  setPeekArticle(n)
+                  if (immersiveEnabled) {
+                    openForYou(cluster.primary.id, {
+                      origin: 'home_rail',
+                      clusterSize: cluster.siblings.length + 1,
+                    })
+                  } else {
+                    setPeekArticle(cluster.primary as never)
+                  }
                 }}
                 style={{
                   textDecoration: 'none', color: 'inherit',
@@ -155,11 +193,11 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                   clipPath: CHUNKY.card,
                   overflow: 'hidden',
                 }}>
-                  {n.image_url && (
+                  {article.image_url && (
                     <div style={{ position: 'relative', aspectRatio: '16/9', overflow: 'hidden' }}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={n.image_url}
+                        src={article.image_url}
                         alt=""
                         loading="lazy"
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -179,12 +217,32 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                       }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={n.source_icon || `https://www.google.com/s2/favicons?domain=${new URL(n.url).hostname}&sz=64`}
-                          alt={n.source_name}
+                          src={article.source_icon || article.favicon_url || `https://www.google.com/s2/favicons?domain=${new URL(articleUrl).hostname}&sz=64`}
+                          alt={article.source_name ?? undefined}
                           loading="lazy"
                           style={{ width: 22, height: 22, borderRadius: 4 }}
                         />
                       </div>
+                      {/* +N sources chip — interactive, expands sibling list */}
+                      {siblingCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={e => toggleExpand(e, cluster.primary.id)}
+                          aria-label={`${siblingCount} other sources — ${isExpanded(cluster.primary.id) ? 'collapse' : 'expand'}`}
+                          aria-expanded={isExpanded(cluster.primary.id)}
+                          style={{
+                            position: 'absolute', top: 6, right: 6,
+                            padding: '3px 7px',
+                            background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
+                            borderRadius: 10,
+                            color: '#fff', fontSize: 9, fontWeight: 700,
+                            border: 0, cursor: 'pointer',
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                          }}
+                        >
+                          +{siblingCount} sources {isExpanded(cluster.primary.id) ? '▴' : '▾'}
+                        </button>
+                      )}
                     </div>
                   )}
                   <div style={{ padding: '14px 16px 14px' }}>
@@ -199,7 +257,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                       <span style={{
                         width: 5, height: 5, borderRadius: '50%', background: GREEN,
                       }} />
-                      {n.source_name} &middot; {timeAgo(n.published_at)}
+                      {article.source_name} &middot; {timeAgo(article.published_at)}
                     </div>
 
                     <div style={{
@@ -225,7 +283,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                         focal point of the card. */}
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
                       <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBookmark(n.id) }}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleBookmark(article.id) }}
                         aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark article'}
                         style={{
                           background: 'none', border: 'none', cursor: 'pointer',
@@ -242,8 +300,8 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                           e.preventDefault()
                           e.stopPropagation()
                           const nav = typeof navigator !== 'undefined' ? navigator : null
-                          if (nav?.share) void nav.share({ title: n.title, url: n.url }).catch(() => {})
-                          else if (nav?.clipboard) void nav.clipboard.writeText(n.url)
+                          if (nav?.share) void nav.share({ title: article.title, url: articleUrl }).catch(() => {})
+                          else if (nav?.clipboard) void nav.clipboard.writeText(articleUrl)
                         }}
                         aria-label="Share article"
                         style={{
@@ -260,6 +318,53 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                       </button>
                     </div>
                   </div>
+                  {/* Expanded siblings list — shown when +N chip is tapped */}
+                  {isExpanded(cluster.primary.id) && cluster.siblings.length > 0 && (
+                    <div style={{
+                      padding: '8px 12px 10px',
+                      borderTop: '1px solid rgba(255,255,255,0.06)',
+                      background: 'rgba(0,0,0,0.25)',
+                    }}>
+                      {cluster.siblings.map(sib => (
+                        <button
+                          key={sib.id}
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation()
+                            if (immersiveEnabled) {
+                              openForYou(sib.id, {
+                                origin: 'foryou_sibling',
+                                clusterSize: cluster.siblings.length + 1,
+                              })
+                            } else {
+                              setPeekArticle(sib as never)
+                            }
+                          }}
+                          style={{
+                            width: '100%', textAlign: 'left',
+                            background: 'transparent', border: 0, padding: '6px 0',
+                            cursor: 'pointer', color: '#fff',
+                            display: 'flex', alignItems: 'center', gap: 8,
+                          }}
+                        >
+                          {sib.favicon_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={sib.favicon_url} alt="" width={14} height={14} style={{ borderRadius: 2, flexShrink: 0 }} />
+                          )}
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#7ED321', flexShrink: 0 }}>
+                            {sib.source_name?.toUpperCase() ?? 'OTHER'}
+                          </span>
+                          <span style={{
+                            fontSize: 11, color: '#ccc',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                            flex: 1,
+                          }}>
+                            {sib.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </a>
             )

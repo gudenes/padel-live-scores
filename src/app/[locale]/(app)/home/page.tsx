@@ -38,6 +38,7 @@ import {
   hasStarted,
 } from '@/lib/live-tournaments-carousel'
 import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
+import { fetchClusteredNews, type ClusteredArticle } from '@/lib/news-feed-queries'
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
 import { LoginCtaSheet } from '@/components/LoginCtaSheet'
 import { useScrollMemory } from '@/hooks/useScrollMemory'
@@ -139,7 +140,7 @@ function V3HomePageInner() {
   const [topWomen, setTopWomen] = useState<RankedPlayer[]>([])
   const [recentMatches, setRecentMatches] = useState<Match[]>([])
   const [highlights, setHighlights] = useState<Highlight[]>([])
-  const [latestNews, setLatestNews] = useState<NewsItem[]>([])
+  const [latestNews, setLatestNews] = useState<ClusteredArticle[]>([])
   const [carouselLiveToday, setCarouselLiveToday] = useState<TournamentWithMatchInfo[]>([])
   const [carouselEnabled, setCarouselEnabled] = useState<boolean>(false)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -306,7 +307,7 @@ function V3HomePageInner() {
         wrap(supabase.from('players').select('id, name, display_name, country, ranking, points, avatar_url, category, ranking_move').eq('category', 'women').not('ranking', 'is', null).order('ranking', { ascending: true }).limit(10) as any, 'home:topWomen'),
         wrap(supabase.from('matches').select(MATCH_SELECT_LEAN).in('status', ['finished', 'retired', 'walkover']).not('finished_at', 'is', null).order('finished_at', { ascending: false }).limit(20) as any, 'home:recent'),
         wrap(supabase.from('highlights').select('id, youtube_id, title, channel_name, thumbnail_url, duration, view_count, published_at, category, allowed_countries, blocked_countries').eq('status', 'active').gte('view_count', 500).order('published_at', { ascending: false }).limit(10) as any, 'home:highlights'),
-        wrap(supabase.from('articles').select('id, title, title_translations, snippet, snippet_translations, source_icon, source_name, url, published_at, language, image_url').eq('status', 'active').not('image_url', 'is', null).order('published_at', { ascending: false }).limit(20) as any, 'home:articles'),
+        wrap(fetchClusteredNews(supabase, { limit: 20 }), 'home:articles'),
         // Tournaments carousel — 3 queries: window of tournaments, per-
         // tournament match count for today, and finals matches finished
         // in the last 48h so we can attach champion treatment to crowned
@@ -392,7 +393,9 @@ function V3HomePageInner() {
       setTopWomen(dataOf(4))
       setRecentMatches(dataOf(5))
       setHighlights(dataOf(6))
-      setLatestNews(dataOf(7))
+      // fetchClusteredNews returns ClusteredArticle[] directly (not { data: [] })
+      const newsResult = results[7]
+      setLatestNews(newsResult.status === 'fulfilled' ? (newsResult.value as ClusteredArticle[]) ?? [] : [])
 
       // ── Carousel transform ─────────────────────────────────────
       const carouselLiveRows: any[] = dataOf(8)

@@ -27,6 +27,28 @@ export function DiscoveryHealth() {
   const [disables, setDisables] = useState<Array<{ meta: Record<string, unknown>; created_at: string }>>([])
   const [discoveries, setDiscoveries] = useState<Array<{ meta: Record<string, unknown>; created_at: string }>>([])
   const [trends, setTrends] = useState<Array<{ key: string; name: string; daily: number[] }>>([])
+  const [backfillRunning, setBackfillRunning] = useState(false)
+  const [backfillResult, setBackfillResult] = useState<string | null>(null)
+
+  const runBackfill = async () => {
+    setBackfillRunning(true)
+    setBackfillResult(null)
+    try {
+      const r = await fetch('/api/internal/trigger-translation-backfill', { method: 'POST' })
+      const data = await r.json().catch(() => ({}))
+      if (r.ok) {
+        const count = data.updated_count ?? data.updated ?? data.count ?? 0
+        const cost = data.cost_usd ?? 0
+        setBackfillResult(`OK — translated ${count} articles${cost ? ` (cost: $${(cost as number).toFixed(2)})` : ''}`)
+      } else {
+        setBackfillResult(`Failed: ${(data as { error?: string }).error ?? r.status}`)
+      }
+    } catch (e) {
+      setBackfillResult(`Error: ${(e as Error).message}`)
+    } finally {
+      setBackfillRunning(false)
+    }
+  }
 
   useEffect(() => {
     fetch('/api/news-sources/volume-trends')
@@ -135,6 +157,31 @@ export function DiscoveryHealth() {
               ))}
             </tbody>
           </table>
+        )}
+      </section>
+
+      <section style={{ padding: 16 }}>
+        <h4 style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--status-neutral)', textTransform: 'uppercase' }}>Title translation backfill</h4>
+        <p style={{ fontSize: 12, color: 'var(--status-neutral)', margin: '0 0 12px', lineHeight: 1.5 }}>
+          Runs the backfill for older enriched articles whose title was never translated.
+          Currently ~141 ES gaps + ~76 PT gaps. Approx $0.30 / 200 articles.
+        </p>
+        <button
+          onClick={runBackfill}
+          disabled={backfillRunning}
+          style={{
+            background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)',
+            border: 0, padding: '8px 16px', fontWeight: 700, cursor: backfillRunning ? 'wait' : 'pointer',
+            clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
+            opacity: backfillRunning ? 0.7 : 1,
+          }}
+        >
+          {backfillRunning ? 'Running...' : 'Run title-translation backfill'}
+        </button>
+        {backfillResult && (
+          <div style={{ marginTop: 10, fontSize: 12, color: 'var(--status-neutral)' }}>
+            {backfillResult}
+          </div>
         )}
       </section>
 

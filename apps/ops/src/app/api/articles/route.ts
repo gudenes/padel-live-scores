@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { pgPool } from '@/lib/db'
+import { clusterArticles } from '@/lib/feed-scoring'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,6 +18,14 @@ interface ArticleRow {
   click_count: number
   enrichment_status: string
   summary_md: string | null
+  title_translations: Record<string, string> | null
+  summary_translations: Record<string, string> | null
+}
+
+type ClusterInfo = {
+  role: 'unique' | 'primary' | 'sibling'
+  siblingCount: number
+  primaryId: string | null
 }
 
 export async function GET(req: NextRequest) {
@@ -43,7 +52,8 @@ export async function GET(req: NextRequest) {
 
   const { rows } = await pgPool().query<ArticleRow>(`
     SELECT id, title, source_name, source_key, url, language,
-           published_at, click_count, enrichment_status, summary_md
+           published_at, click_count, enrichment_status, summary_md,
+           title_translations, summary_translations
     FROM articles
     ${whereSql}
     ORDER BY published_at DESC
@@ -69,8 +79,37 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Cluster the latest 200 enriched articles for cluster-role lookup
+  const { rows: enrichedWindow } = await pgPool().query<{ id: string; title: string }>(`
+    SELECT id, title
+    FROM articles
+    WHERE enrichment_status = 'enriched'
+      AND status = 'active'
+    ORDER BY published_at DESC
+    LIMIT 200
+  `)
+
+  const clusters = clusterArticles(enrichedWindow)
+
+  const clusterInfo = new Map<string, ClusterInfo>()
+  for (const c of clusters) {
+    if (c.siblings.length === 0) {
+      clusterInfo.set(c.primary.id, { role: 'unique', siblingCount: 0, primaryId: null })
+    } else {
+      clusterInfo.set(c.primary.id, { role: 'primary', siblingCount: c.siblings.length, primaryId: null })
+      for (const sib of c.siblings) {
+        clusterInfo.set(sib.id, { role: 'sibling', siblingCount: 0, primaryId: c.primary.id })
+      }
+    }
+  }
+
+  const articlesWithCluster = (rows ?? []).map(r => ({
+    ...r,
+    cluster: clusterInfo.get(r.id) ?? { role: 'unique' as const, siblingCount: 0, primaryId: null },
+  }))
+
   return NextResponse.json({
-    articles: rows,
+    articles: articlesWithCluster,
     total: countRows[0]?.n ?? 0,
     page,
     page_size: PAGE_SIZE,

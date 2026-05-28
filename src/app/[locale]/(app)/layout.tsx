@@ -7,6 +7,8 @@ import { usePathname } from '@/i18n/navigation'
 import BottomNavV3 from '@/components/nav/BottomNavV3'
 import { BadgeToastProvider } from '@/components/BadgeToast'
 import DesktopDownloadRail from '@/components/DesktopDownloadRail'
+import { ForYouOverlayProvider } from '@/hooks/useForYouOverlay'
+import { ForYouOverlay } from '@/components/feed/foryou/ForYouOverlay'
 
 // Routes that render their own focused chrome and should NOT show the
 // app's bottom nav. The picker uses its own sticky Continue/Skip CTA at
@@ -22,15 +24,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const hideNav = FULLSCREEN_ROUTES.has(pathname) || isForYouTab
   return (
     <BadgeToastProvider>
-      {/* NotificationNudgeProvider moved UP to [locale]/layout.tsx so it
-          also covers /match/[id] and /player/[id] (those routes live
-          outside this (app) group but still need the nudge context). */}
-      <div style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
-      {!hideNav && <BottomNavV3 />}
-      {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
-          shells. Self-gated for mobile/tablet via CSS media query. Skipped
-          on full-screen routes for the same reason BottomNavV3 is. */}
-      {!hideNav && <DesktopDownloadRail />}
+      <ForYouOverlayProvider>
+        {/* NotificationNudgeProvider moved UP to [locale]/layout.tsx so it
+            also covers /match/[id] and /player/[id] (those routes live
+            outside this (app) group but still need the nudge context). */}
+        <div style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
+        {!hideNav && <BottomNavV3 />}
+        {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
+            shells. Self-gated for mobile/tablet via CSS media query. Skipped
+            on full-screen routes for the same reason BottomNavV3 is. */}
+        {!hideNav && <DesktopDownloadRail />}
+        {/* For You immersive overlay — sits on top of any (app) route. Reads
+            from useForYouOverlay context; dormant when isOpen=false. */}
+        <ForYouOverlay />
+      </ForYouOverlayProvider>
     </BadgeToastProvider>
   )
 }
