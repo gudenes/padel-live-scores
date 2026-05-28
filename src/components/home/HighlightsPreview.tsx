@@ -160,7 +160,10 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                   if (e.metaKey || e.ctrlKey || e.shiftKey || (e as React.MouseEvent).button === 1) return
                   e.preventDefault()
                   if (immersiveEnabled) {
-                    openForYou(cluster.primary.id)
+                    openForYou(cluster.primary.id, {
+                      origin: 'home_rail',
+                      clusterSize: cluster.siblings.length + 1,
+                    })
                   } else {
                     setPeekArticle(cluster.primary as never)
                   }
@@ -329,7 +332,10 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                           onClick={e => {
                             e.stopPropagation()
                             if (immersiveEnabled) {
-                              openForYou(sib.id)
+                              openForYou(sib.id, {
+                                origin: 'foryou_sibling',
+                                clusterSize: cluster.siblings.length + 1,
+                              })
                             } else {
                               setPeekArticle(sib as never)
                             }

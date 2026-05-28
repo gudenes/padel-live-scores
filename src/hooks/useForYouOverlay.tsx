@@ -12,10 +12,15 @@ import {
   type ReactNode,
 } from 'react'
 
+interface OpenForYouMeta {
+  origin: 'home_rail' | 'foryou_sibling'
+  clusterSize?: number
+}
+
 interface ForYouOverlayState {
   isOpen: boolean
   articleId: string | null
-  openForYou: (articleId: string) => void
+  openForYou: (articleId: string, meta?: OpenForYouMeta) => void
   closeForYou: () => void
 }
 
@@ -25,9 +30,22 @@ export function ForYouOverlayProvider({ children }: { children: ReactNode }) {
   const [articleId, setArticleId] = useState<string | null>(null)
   const [isOpen, setIsOpen] = useState(false)
 
-  const openForYou = useCallback((id: string) => {
+  const openForYou = useCallback((id: string, meta?: OpenForYouMeta) => {
     setArticleId(id)
     setIsOpen(true)
+    if (meta) {
+      fetch('/api/internal/log-deep-link', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          origin: meta.origin,
+          article_id: id,
+          cluster_size: meta.clusterSize ?? 1,
+        }),
+      }).catch(() => {
+        // Fire-and-forget; observability gap is non-fatal.
+      })
+    }
   }, [])
 
   const closeForYou = useCallback(() => {

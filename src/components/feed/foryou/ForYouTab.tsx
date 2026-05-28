@@ -36,6 +36,24 @@ export function ForYouTab({ articles, exitHref = '/feed', pinnedFirst }: ForYouT
   const [sheetOpen, setSheetOpen] = useState(false)
   const [suggestEnabled, setSuggestEnabled] = useState(false)
 
+  // Log direct-url entry once on mount. Overlay-mode entries are already
+  // logged by useForYouOverlay.openForYou; check history.state to skip those.
+  useEffect(() => {
+    if (!pinnedFirst) return
+    const inOverlay = typeof window !== 'undefined' && window.history.state?.foryouOverlay
+    if (inOverlay) return
+    fetch('/api/internal/log-deep-link', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        origin: 'direct_url',
+        article_id: pinnedFirst,
+        cluster_size: 1,
+      }),
+    }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // mount only — one log per page load
+
   const orderedArticles = useMemo(() => {
     if (!pinnedFirst || articles.length === 0) return articles
     const idx = articles.findIndex(a => a.id === pinnedFirst)
