@@ -4,6 +4,7 @@ import { useState, type SyntheticEvent } from 'react'
 import Image from 'next/image'
 import { useTranslations, useLocale } from 'next-intl'
 import { ChunkyPressButton } from './ChunkyPressButton'
+import { AISummaryInfoSheet } from './AISummaryInfoSheet'
 
 /**
  * Photo treatment: pick between cover (immersive crop) and contain (letterbox
@@ -78,6 +79,8 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
   // loads we measure the natural aspect ratio and swap to 'contain' for wide
   // landscape photos (see LANDSCAPE_AR_THRESHOLD note above).
   const [fitMode, setFitMode] = useState<FitMode>('cover')
+  // Bottom-sheet that explains what "AI Summary" means. Opens on chip tap.
+  const [aiInfoOpen, setAiInfoOpen] = useState(false)
   const handleImageLoad = (e: SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget
     if (img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -188,9 +191,29 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
               <span>{relativeTime(article.published_at)}</span>
             </>
           )}
-          <span aria-label={t('aiSummary')} title={t('aiSummary')} style={{ display: 'inline-flex' }}>
-            <AISparkleIcon />
-          </span>
+          {/* Tappable chip — sparkle icon + "AI Summary" label. Opens a
+              bottom sheet that explains the paraphrase nature of the
+              summary so users know to tap through to the source for the
+              journalist's actual words. */}
+          <button
+            type="button"
+            onClick={() => setAiInfoOpen(true)}
+            aria-label={t('aiSummaryExplainTitle')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '2px 8px',
+              background: 'rgba(184,143,255,0.12)',
+              border: '1px solid rgba(184,143,255,0.25)',
+              borderRadius: 999,
+              color: 'rgba(184,143,255,0.95)',
+              fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+              cursor: 'pointer',
+              lineHeight: 1.4,
+            }}
+          >
+            <AISparkleIcon size={11} />
+            <span>{t('aiSummary')}</span>
+          </button>
         </div>
 
         <h1 style={{
@@ -236,6 +259,10 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
           </span>
         </ChunkyPressButton>
       </div>
+
+      {/* Explainer sheet — rendered last so it stacks above the card content
+          and (when embedded) the surrounding overlay panel. */}
+      <AISummaryInfoSheet open={aiInfoOpen} onClose={() => setAiInfoOpen(false)} />
     </div>
   )
 }

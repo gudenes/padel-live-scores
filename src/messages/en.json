@@ -1357,6 +1357,9 @@
   "foryou": {
     "swipeHint": "Swipe up for next",
     "aiSummary": "AI Summary",
+    "aiSummaryExplainTitle": "What's an AI Summary?",
+    "aiSummaryExplainBody": "We use AI to read the full article and write a short, neutral summary in your language. It's not the journalist's words — it's a paraphrase, so tap the source above to read the original story.",
+    "aiSummaryExplainClose": "Got it",
     "save": "Save",
     "unsave": "Unsave",
     "share": "Share",
