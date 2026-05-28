@@ -26,7 +26,7 @@ interface RacketOption {
 }
 
 const card: React.CSSProperties = {
-  background: 'var(--bg-canvas)',
+  background: 'var(--bg-card)',
   border: '1px solid var(--border-subtle)',
   borderRadius: 8,
   padding: 16,
@@ -38,7 +38,7 @@ const input: React.CSSProperties = {
   border: '1px solid var(--border-subtle)',
   borderRadius: 6,
   width: '100%',
-  background: 'var(--bg-canvas)',
+  background: 'var(--bg-card)',
   color: 'var(--brand-primary-fg)',
 }
 const btn: React.CSSProperties = {
@@ -46,7 +46,7 @@ const btn: React.CSSProperties = {
   padding: '7px 12px',
   border: '1px solid var(--border-subtle)',
   borderRadius: 6,
-  background: 'var(--bg-canvas)',
+  background: 'var(--bg-card)',
   color: 'var(--brand-primary-fg)',
   cursor: 'pointer',
 }
