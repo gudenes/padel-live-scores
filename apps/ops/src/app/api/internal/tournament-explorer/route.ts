@@ -31,6 +31,7 @@ interface TournamentWithSources {
   // Identity
   id: string
   name: string
+  name_source: string | null   // 'manual' = operator-locked (see source-priority.ts)
   source: string | null
   padelapi_id: string | null
   fip_id: string | null
@@ -181,7 +182,7 @@ export async function GET(request: Request) {
       // fip_slug was deprecated in favor of fip_id (per migration
       // 20260407_canonical_source_ids — both columns held the same slug,
       // fip_slug got dropped). Use fip_id alone for URL construction.
-      'id, name, source, padelapi_id, fip_id, slug, matchscorer_url, ' +
+      'id, name, name_source, source, padelapi_id, fip_id, slug, matchscorer_url, ' +
       'starts_at, ends_at, timezone, ' +
       'country, location, venue, venue_address, venue_type, n_courts, surface, ' +
       'level, prize_money, prize_money_fip, prize_money_eur, prize_money_eur_source, prize_breakdown, signup_fee_eur, ' +

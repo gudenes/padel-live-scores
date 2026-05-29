@@ -27,6 +27,7 @@ interface TournamentWithSources {
   // Identity
   id: string
   name: string
+  name_source: string | null   // 'manual' = operator-locked
   source: string | null
   padelapi_id: string | null
   fip_id: string | null
@@ -675,8 +676,13 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           />
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>
-            {t.name}
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <EditableName
+              tournamentId={t.id}
+              currentValue={t.name}
+              locked={t.name_source === 'manual'}
+              onSaved={onRefetch}
+            />
           </h2>
           <div style={{ fontSize: 12, color: '#666', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             {[
@@ -1243,6 +1249,118 @@ interface RefreshStepResult {
   durationMs: number
   error?: string
   summary?: unknown
+}
+
+function EditableName({
+  tournamentId,
+  currentValue,
+  locked,
+  onSaved,
+}: {
+  tournamentId: string
+  currentValue: string
+  locked: boolean
+  onSaved: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState<string>(currentValue)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const patch = async (body: { name: string | null }) => {
+    setSaving(true)
+    setError(null)
+    const res = await fetch('/api/internal/tournament-name', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tournamentId, ...body }),
+      credentials: 'same-origin',
+    })
+    if (!res.ok) {
+      const b = await res.json().catch(() => ({}))
+      setError(b.error ?? `HTTP ${res.status}`)
+      setSaving(false)
+      return
+    }
+    setSaving(false)
+    setEditing(false)
+    onSaved()
+  }
+
+  const handleSave = () => {
+    const trimmed = value.trim()
+    if (trimmed.length === 0) {
+      setError('Name must not be empty')
+      return
+    }
+    void patch({ name: trimmed })
+  }
+
+  const cancel = () => { setEditing(false); setValue(currentValue); setError(null) }
+
+  if (!editing) {
+    return (
+      <>
+        <span>{currentValue}</span>
+        {locked && (
+          <span style={{
+            fontSize: 9, padding: '1px 5px', background: '#eef', color: '#557',
+            borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 700,
+          }}>manual</span>
+        )}
+        <button
+          onClick={() => { setEditing(true); setValue(currentValue); setError(null) }}
+          style={{
+            fontSize: 10, padding: '2px 6px',
+            color: '#444', background: '#f4f4f4', border: '1px solid #ddd',
+            borderRadius: 3, cursor: 'pointer', fontWeight: 400,
+          }}
+        >
+          Edit
+        </button>
+      </>
+    )
+  }
+
+  return (
+    <>
+      <input
+        type="text"
+        autoFocus
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); handleSave() }
+          else if (e.key === 'Escape') { e.preventDefault(); cancel() }
+        }}
+        disabled={saving}
+        style={{
+          fontSize: 20, fontWeight: 700, color: '#111',
+          flex: 1, minWidth: 240, padding: '2px 6px',
+          border: '1px solid #2563eb', borderRadius: 4, outline: 'none',
+        }}
+      />
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', fontWeight: 400 }}
+      >Save</button>
+      {locked && (
+        <button
+          onClick={() => void patch({ name: null })}
+          disabled={saving}
+          title="Remove the manual override and let automated sources own the name again"
+          style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', color: '#a00', fontWeight: 400 }}
+        >Reset to auto</button>
+      )}
+      <button
+        onClick={cancel}
+        disabled={saving}
+        style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', fontWeight: 400 }}
+      >Cancel</button>
+      {error && <span style={{ color: '#c00', fontSize: 10, fontWeight: 400 }}>{error}</span>}
+    </>
+  )
 }
 
 function EditPrizeButton({
