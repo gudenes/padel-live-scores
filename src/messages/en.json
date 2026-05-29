@@ -574,6 +574,8 @@
     "viewAllMatches": "View All Matches",
     "noSeasonsAvailable": "No seasons available",
     "noMatchesForSeason": "No matches found for {year} season.",
+    "nextEnrollmentSeed": "Seed {n}",
+    "nextEnrollmentWith": "with {partner}",
     "seasonLabel": "{year} Season",
     "monthlyPerformance": "Monthly Performance",
     "born": "Born",

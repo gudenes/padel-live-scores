@@ -543,6 +543,8 @@
     "viewAllMatches": "Vedi Tutte le Partite",
     "noSeasonsAvailable": "Nessuna stagione disponibile",
     "noMatchesForSeason": "Nessuna partita trovata per la stagione {year}.",
+    "nextEnrollmentSeed": "Testa di serie {n}",
+    "nextEnrollmentWith": "con {partner}",
     "seasonLabel": "Stagione {year}",
     "monthlyPerformance": "Rendimento Mensile",
     "born": "Nato",

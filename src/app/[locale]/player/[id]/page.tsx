@@ -346,6 +346,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     } | null
   } | null>(null)
   const [earnings, setEarnings] = useState<{ ytdEur: number; allTimeEur: number } | null>(null)
+  const [enrollment, setEnrollment] = useState<{
+    tournamentId: string
+    name: string | null
+    level: string | null
+    startsAt: string | null
+    seed: number | null
+    partnerName: string | null
+  } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -555,6 +563,18 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       setSelectedYear(derived.availableYears[0])
     }
   }, [derived.availableYears, selectedYear])
+
+  useEffect(() => {
+    // Tier 3: only when there's no scheduled match and no matches-derived
+    // upcoming tournament. Fires the network call exactly in the case we fix.
+    if (derived.nextScheduled || derived.nextTournament) { setEnrollment(null); return }
+    let cancelled = false
+    fetch(`/api/player/${id}/next-enrollment`)
+      .then((r) => (r.ok ? r.json() : { enrollment: null }))
+      .then((d) => { if (!cancelled) setEnrollment(d.enrollment ?? null) })
+      .catch(() => { if (!cancelled) setEnrollment(null) })
+    return () => { cancelled = true }
+  }, [id, derived.nextScheduled, derived.nextTournament])
 
   // Sync active tab + selected year back into the URL (without polluting history).
   useEffect(() => {
@@ -842,6 +862,42 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 {tourn.level && (
                   <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
                     {levelLabel(tourn.level)}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+          {!derived.nextScheduled && !derived.nextTournament && enrollment && (() => {
+            const dateStr = enrollment.startsAt
+              ? format.dateTime(new Date(enrollment.startsAt), DATE_WITH_WEEKDAY)
+              : null
+            const meta = [
+              dateStr,
+              enrollment.seed != null ? tPlayer('nextEnrollmentSeed', { n: enrollment.seed }) : null,
+              enrollment.partnerName ? tPlayer('nextEnrollmentWith', { partner: enrollment.partnerName }) : null,
+            ].filter(Boolean).join(' · ')
+            return (
+              <div
+                onClick={() => router.push(`/tournaments/${enrollment.tournamentId}` as Parameters<typeof router.push>[0])}
+                style={{
+                  marginTop: 8, background: 'rgba(245,166,35,0.07)',
+                  border: '1px solid rgba(245,166,35,0.18)', borderRadius: 6,
+                  padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
+                  {tPlayer('nextTournament')}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {titleCase(enrollment.name ?? '')}
+                  </div>
+                  {meta && <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta}</div>}
+                </div>
+                {enrollment.level && (
+                  <div style={{ fontSize: 7, fontWeight: 800, color: '#000', background: ORANGE, padding: '2px 6px', clipPath: CHUNKY.badge, flexShrink: 0 }}>
+                    {levelLabel(enrollment.level)}
                   </div>
                 )}
               </div>
