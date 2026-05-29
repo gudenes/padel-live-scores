@@ -2,15 +2,32 @@
 <!--
   Cold-start launch splash drawable.
 
-  Wraps splash_bitmap.png in a centered <bitmap> on a black background. Without
-  this XML wrapper, Android's windowBackground stretches a raw PNG to fill the
-  activity bounds — which on modern tall phones (1080×2400, aspect 0.45) blows
-  up our 0.667-aspect PNGs vertically, making the wordmark look bloated.
+  Centers `splash_icon.png` (the full PADEL NACHOS brand logo — paddle +
+  wordmark + "LIVE SCORE & RESULTS" tagline + green-outlined circle —
+  pre-composed to fit within Android 12+'s 192dp circular splash mask).
+  Sourced from public/padelNachos - Branding/padel-splash-updated.png,
+  resized so the logo occupies the central 66% of the 288dp canvas (the
+  full safe area within the 192dp visible circle).
 
-  android:gravity="center" keeps the bitmap at its intrinsic size, centered on
-  the black backdrop. The black layer underneath ensures any uncovered area
-  (top/bottom letterbox) renders solid black, matching @color/splash_bg used
-  by the running-activity theme below.
+  Same drawable used at both stages of cold-start, so there's ZERO
+  visual transition between:
+    1. OS system splash (Android 12+, ~300ms): configured via
+       windowSplashScreenAnimatedIcon = @drawable/splash_icon in styles.xml.
+       Android applies its hardcoded 192dp circular mask — but our logo is
+       already authored to fit inside that circle, so nothing gets clipped.
+    2. Capacitor runtime splash (~2.5s): uses @drawable/splash, i.e. this
+       layer-list, which references @drawable/splash_icon and centers it
+       on a black backdrop. No circular mask here, but the image's
+       transparent padding around the logo means it visually matches the
+       OS splash exactly.
+    3. WebView paints app content.
+
+  Sizing rationale (288dp canvas / 192dp logo):
+  Android's SplashScreen API uses a 288dp drawable canvas, of which only
+  the inner 192dp is visible (clipped to a circle). Authoring the logo at
+  192dp inside a 288dp canvas means the logo fills the entire visible area
+  without touching the circle edge — readable wordmark + tagline at the
+  largest possible size that won't be cut off.
 
   Referenced from values/styles.xml as @drawable/splash for
   AppTheme.NoActionBarLaunch's windowBackground.
@@ -19,7 +36,7 @@
   <item android:drawable="@color/splash_bg" />
   <item>
     <bitmap
-      android:src="@drawable/splash_bitmap"
+      android:src="@drawable/splash_icon"
       android:gravity="center" />
   </item>
 </layer-list>

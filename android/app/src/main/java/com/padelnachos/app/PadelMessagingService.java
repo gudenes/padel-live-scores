@@ -78,13 +78,26 @@ public class PadelMessagingService extends MessagingService {
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
 
-        // Small icon = pre-baked white paddle silhouette at
-        // res/drawable/ic_stat_padelnachos.png. setColor applies the lime
-        // brand accent (Android masks the silhouette to white, then tints
-        // with this color). Mirrors the FCM auto-display defaults in
-        // AndroidManifest meta-data — without it, we'd be setting the
-        // launcher icon as small-icon, which Android masks to a
-        // featureless solid square because the launcher art is full-bleed.
+        // Small icon = dedicated white paddle silhouette at
+        // res/drawable-*/ic_stat_padelnachos.png. The PNG is authored as a
+        // transparent-bg outline silhouette (extracted from
+        // public/padelNachos - Branding/.../logo notification.png) so the
+        // alpha channel correctly defines the paddle shape — including the
+        // dot cutouts in the face. Android (and all device skins) tint the
+        // silhouette with setColor (brand lime) → renders as a lime paddle
+        // outline on the green-tint notification circle. This is the
+        // WhatsApp/Spotify approach and it works consistently across
+        // Pixel, Samsung, Xiaomi HyperOS, OnePlus, OPPO.
+        //
+        // Previously tried pointing setSmallIcon at R.mipmap.ic_launcher
+        // (the full-color launcher icon). Failed on Xiaomi HyperOS: the
+        // legacy raster ic_launcher.png is a fully-opaque green tile, and
+        // Xiaomi silhouettes the WHOLE tile to a solid lime square. The
+        // adaptive icon (mipmap-anydpi-v26/ic_launcher.xml) does have a
+        // proper transparent-bg paddle foreground, but Xiaomi notifications
+        // don't follow the adaptive-icon spec — they always use the legacy
+        // raster mipmap PNG for notification silhouetting. So we keep a
+        // dedicated ic_stat_* drawable for notifications.
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_padelnachos)
             .setColor(getResources().getColor(R.color.brand_lime, getTheme()))

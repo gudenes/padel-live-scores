@@ -16,7 +16,7 @@ android {
         applicationId "com.padelnachos.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
+        versionCode 13
         versionName "1.0.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -42,6 +42,22 @@ android {
             // Only attach the signing config if keystore.properties exists —
             // otherwise `assembleRelease` would error on missing storeFile
             // for anyone who hasn't set up signing yet.
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+        debug {
+            // Sign debug builds with the production upload keystore (when
+            // available locally) so the APK fingerprint matches what's
+            // listed in public/.well-known/assetlinks.json. Without this,
+            // debug builds use Android's default debug.keystore, whose
+            // fingerprint isn't in assetlinks.json — Android App Link
+            // verification then fails, and OAuth callbacks (Google sign-in
+            // redirect, magic-link tap, etc.) open in Chrome instead of
+            // bouncing back into the app's WebView. CI / fresh clones
+            // without keystore.properties fall back to debug.keystore
+            // automatically; OAuth-in-app just won't work for them, but
+            // every other dev iteration does.
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }

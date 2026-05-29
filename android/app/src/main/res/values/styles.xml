@@ -19,18 +19,45 @@
     <!-- Launch theme. Shown by the OS from "tap icon" until the Activity's
          WebView paints — i.e., the cold-start window.
 
-         IMPORTANT: we deliberately do NOT extend `Theme.SplashScreen`
-         (Android 12+ system splash). That theme constrains the splash
-         to a small circular icon (the launcher icon, masked) on a flat
-         background — too small to show our wide PADEL NACHOS wordmark.
-         Instead, we use the classic `windowBackground` approach: Android
-         paints the full splash drawable into the activity window from
-         the very first frame on every Android version (8+). The
-         Capacitor SplashScreen plugin then takes over once the Activity
-         is created, keeping the same image visible until first paint. -->
+         Cold-start sequence on a target-SDK-31+ build (we target 36):
+
+           1. Android 12+ system splash (unavoidable on modern devices,
+              ~200-500ms): The OS reads `windowSplashScreenBackground` for
+              the background color, `windowSplashScreenAnimatedIcon` for
+              the center icon, and `windowSplashScreenIconBackgroundColor`
+              for the ring/circle behind the icon. We customize all three
+              below so the splash shows the paddle silhouette on black
+              with NO white circle — instead of the system default
+              (launcher icon clipped into a white circle on theme bg).
+
+              These attributes work WITHOUT extending Theme.SplashScreen.
+              On Android 11 and older, they're ignored (and irrelevant —
+              older Android doesn't force a system splash anyway).
+
+           2. Activity first frame paints, system splash dismisses.
+              The `windowBackground` drawable is now visible — our
+              drawable/splash.xml layer-list, which centers padel-logo-live
+              on black. This bridges the gap between the OS splash and the
+              Capacitor splash so there's no flash.
+
+           3. Capacitor SplashScreen plugin renders @drawable/splash for
+              `launchShowDuration` (2.5s, configured in capacitor.config.json).
+              Same layer-list → same image. The user perceives one continuous
+              padel-logo-live splash.
+
+           4. WebView paints app.
+
+         End result on Android 12+: paddle pops in (~300ms) → full PADEL
+         NACHOS logo expands (~2.5s) → app. All on black background, no
+         seams. Matches what v5/v6 looked like on older Android devices
+         that didn't trigger the system splash. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:windowBackground">@drawable/splash</item>
+        <!-- Android 12+ system splash customization (ignored on Android 11 and older) -->
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
     </style>
 </resources>

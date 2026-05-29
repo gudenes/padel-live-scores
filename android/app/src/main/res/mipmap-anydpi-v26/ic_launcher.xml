@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive launcher icon (Android 8+).
+
+  Two layers:
+    background → solid lime green (@color/ic_launcher_background)
+    foreground → transparent paddle silhouette (@drawable/ic_launcher_foreground)
+
+  Why split: when this icon is used as a NOTIFICATION small icon via
+  setSmallIcon(R.mipmap.ic_launcher), Android extracts only the
+  foreground layer and silhouettes it. Because the foreground is a
+  transparent-bg paddle, the silhouette renders as a clean paddle
+  shape (then tinted by setColor) — instead of the entire opaque
+  green square getting silhouetted as a hollow rectangle (the bug
+  observed on Xiaomi HyperOS with the legacy ic_launcher.png).
+
+  Launchers (home screen) compose both layers, so the user still
+  sees the full color paddle on lime green tile for the app icon.
+
+  Pre-Android-8 devices fall back to the legacy raster
+  mipmap-*/ic_launcher.png (still in place for compatibility).
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

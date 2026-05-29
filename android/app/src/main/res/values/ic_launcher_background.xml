@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Background color for the adaptive launcher icon. Used by
+         mipmap-anydpi-v26/ic_launcher.xml as the bottom layer behind
+         the paddle foreground. Matches the brand lime. -->
+    <color name="ic_launcher_background">#7ED321</color>
+</resources>
