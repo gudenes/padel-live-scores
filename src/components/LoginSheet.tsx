@@ -77,30 +77,41 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
 
   if (!open || !mounted) return null
 
-  // Native iOS = the only platform that has the "external browser" UX
-  // problem Apple Review called out. Android's WKWebView equivalent
-  // already lets web OAuth complete in-app, so we keep the web flow
-  // there to avoid regressing what's currently shipping under Google
-  // Play closed-test review. Web/PWA also stays on the web flow.
+  // Native sign-in: both iOS and Android. iOS was the original problem
+  // (Apple Review called out the external Safari detour); Android was
+  // added once Firebase Console had the Android OAuth clients wired up
+  // (production upload SHA-1 + debug SHA-1, see google-services.json).
+  // Web/PWA keeps the web OAuth flow.
+  //
+  // Per-provider native support split:
+  //   Google → native on both iOS and Android (Google Sign-In SDK is
+  //            available on Android, OAuth client configured in Firebase)
+  //   Apple  → native on iOS only (ASAuthorizationServices is Apple-
+  //            platform-only; Android users fall through to web OAuth
+  //            for Apple, where Capacitor's Browser plugin opens a
+  //            Chrome Custom Tab and returns via App Link)
   //
   // The `FirebaseAuthentication` registration check is the safety net
   // for our `server.url`-based Capacitor setup: this JS bundle is
-  // served from Vercel and shared by ALL iOS builds, including any
-  // older TestFlight build that doesn't ship the
-  // @capacitor-firebase/authentication native plugin yet. Without
-  // this check, an older build that loads the new JS would crash on
-  // FirebaseAuthentication.signInWithGoogle() — "Plugin not
-  // implemented". Falling back to the web OAuth flow keeps that path
-  // working.
+  // served from Vercel and shared by ALL native builds, including any
+  // older build that doesn't ship the @capacitor-firebase/authentication
+  // native plugin yet. Without this check, an older build that loads
+  // the new JS would crash on FirebaseAuthentication.signInWithGoogle()
+  // — "Plugin not implemented". Falling back to web OAuth keeps that
+  // path working.
   const hasNativeFirebaseAuth =
     typeof window !== 'undefined' &&
     !!(window as unknown as { Capacitor?: { isPluginAvailable?: (n: string) => boolean } })
       .Capacitor?.isPluginAvailable?.('FirebaseAuthentication')
-  const isNativeIos =
-    typeof window !== 'undefined' &&
-    Capacitor.isNativePlatform() &&
-    Capacitor.getPlatform() === 'ios' &&
-    hasNativeFirebaseAuth
+  const nativePlatform: 'ios' | 'android' | null =
+    typeof window !== 'undefined' && Capacitor.isNativePlatform() && hasNativeFirebaseAuth
+      ? (Capacitor.getPlatform() as 'ios' | 'android')
+      : null
+  const isNativeIos = nativePlatform === 'ios'
+  const isNativeAndroid = nativePlatform === 'android'
+  // Native Google works on both iOS + Android. Native Apple iOS-only.
+  const useNativeGoogle = isNativeIos || isNativeAndroid
+  const useNativeApple = isNativeIos
 
   // ── Shared bridge: take a Firebase ID token from a native sign-in
   // and exchange it for an Auth.js session cookie. After this returns,
@@ -157,34 +168,47 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
 
   const handleGoogle = async () => {
     setError(null)
-    if (isNativeIos) {
+    if (useNativeGoogle) {
       try {
         await FirebaseAuthentication.signInWithGoogle()
         const firebaseIdToken = await fetchFirebaseIdToken()
         await exchangeFirebaseIdToken(firebaseIdToken)
+        return // success
       } catch (e) {
-        // Surfaces native plugin errors (network failure, misconfigured
-        // OAuth client) so the user sees something actionable instead of
-        // a dead sheet. Cancels are swallowed silently — see isCancelError.
-        if (!isCancelError(e)) setError((e as Error)?.message || 'sign-in failed')
+        if (isCancelError(e)) return // user cancelled, no error UI
+        // Any other failure (DEVELOPER_ERROR from missing OAuth client on
+        // older builds, network glitch, misconfigured Firebase project)
+        // falls through to the web OAuth flow below. This is critical for
+        // older Android builds (v8 and earlier) that don't ship the
+        // Android OAuth client in google-services.json — without the
+        // fallback, those users would get a hard error on every sign-in
+        // attempt the moment this JS deploys. Logged so we can see the
+        // fallback rate in production console.
+        console.warn('native Google sign-in failed, falling back to web OAuth', e)
       }
-      return
     }
     await signIn('google', { callbackUrl: '/home' })
   }
 
   const handleApple = async () => {
     setError(null)
-    if (isNativeIos) {
+    if (useNativeApple) {
       try {
         await FirebaseAuthentication.signInWithApple()
         const firebaseIdToken = await fetchFirebaseIdToken()
         await exchangeFirebaseIdToken(firebaseIdToken)
+        return // success
       } catch (e) {
-        if (!isCancelError(e)) setError((e as Error)?.message || 'sign-in failed')
+        if (isCancelError(e)) return
+        // Same graceful-fallback rationale as handleGoogle: any non-cancel
+        // failure (Firebase misconfig, network) falls through to web OAuth
+        // so users still have a path to sign in.
+        console.warn('native Apple sign-in failed, falling back to web OAuth', e)
       }
-      return
     }
+    // Android + web: fall through to web OAuth. On native Android this
+    // opens a Chrome Custom Tab; the App Link in AndroidManifest catches
+    // the callback URL and returns the session cookie via the WebView.
     await signIn('apple', { callbackUrl: '/home' })
   }
 
