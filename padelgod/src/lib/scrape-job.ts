@@ -143,7 +143,7 @@ async function maybeStoreRawPayload(
   if (!store) return;
 
   const byteSize = Buffer.byteLength(fnResult.body, 'utf8');
-  await supabase
+  const { error: insertErr } = await supabase
     .schema('padelgod')
     .from('raw_payloads')
     .insert({
@@ -154,6 +154,12 @@ async function maybeStoreRawPayload(
     })
     .select()
     .single();
+  if (insertErr) {
+    // Body was NOT stored — do NOT update raw_payload_latest, or the next
+    // scrape would see the hash and skip storing, losing this body for good.
+    console.warn(`[scrape-job] raw_payloads insert failed: ${insertErr.message}`);
+    return;
+  }
 
   const { error: upsertErr } = await supabase
     .schema('padelgod')

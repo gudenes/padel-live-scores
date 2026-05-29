@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import type { ScrapeJobType } from '../lib/db-types.js';
 
-function fakeSupabase(opts: { latestRow?: any } = {}) {
+function fakeSupabase(opts: { latestRow?: any; payloadInsertError?: string } = {}) {
   const inserted: any[] = [];
   const updated: any[] = [];
   const payloads: any[] = [];
@@ -19,6 +19,9 @@ function fakeSupabase(opts: { latestRow?: any } = {}) {
                 return { data: { id: 'job-uuid', ...row }, error: null };
               }
               if (table === 'raw_payloads') {
+                if (opts.payloadInsertError) {
+                  return { data: null, error: { message: opts.payloadInsertError } };
+                }
                 inserted.push({ table, row });
                 payloads.push({ table, row });
                 return { data: { id: 'payload-uuid', ...row }, error: null };
@@ -189,5 +192,11 @@ describe('runScrapeJob', () => {
     });
     await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
     expect(sb.payloads).toHaveLength(1);
+  });
+
+  it('does not upsert latest when raw_payloads insert fails', async () => {
+    const sb = fakeSupabase({ latestRow: null, payloadInsertError: 'insert boom' });
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(sb.upserts).toHaveLength(0);
   });
 });
