@@ -635,7 +635,7 @@ interface RecordedRow {
 
 interface MockOpts {
   /** Existing rows in public.tournaments — keyed by slug. Test sets `level` to either a string or null. */
-  existingRows: Array<{ slug: string; level: string | null; country?: string | null }>;
+  existingRows: Array<{ slug: string; level: string | null; country?: string | null; name?: string | null; name_source?: string | null }>;
   /** WP events the HTTP client returns (will be transformed into rows passed to .upsert). */
   events: Array<{ wpId: number; name: string; slug: string; categoryIds: number[]; countryTermIds?: number[] }>;
   /** Captures the rows the worker upserts. */
@@ -683,6 +683,8 @@ function makeMockSupabase(opts: MockOpts) {
                 slug: r.slug,
                 level: r.level,
                 country: r.country ?? null,
+                name: r.name ?? null,
+                name_source: r.name_source ?? null,
               })),
               error: null,
             }),
@@ -922,6 +924,55 @@ describe('runTournamentDiscovery — country gap-fill', () => {
 
     const row = upserted.find((r) => r.slug === 'mystery-cup-2026');
     expect(row?.country).toBeUndefined();
+  });
+
+  it('preserves an operator-locked name (name_source=manual) instead of overwriting with the FIP name', async () => {
+    // An operator hand-corrected the name via the ops dashboard, which sets
+    // name_source='manual'. The hourly discovery run must not clobber it —
+    // it echoes the existing name back so the merge-duplicates UPDATE keeps it.
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [{
+        slug: 'fip-bronze-castellon-2026',
+        level: 'fip_bronze',
+        country: 'ES',
+        name: 'FIP Bronze Castellón (operator corrected)',
+        name_source: 'manual',
+      }],
+      events: [{ wpId: 1, name: 'FIP Bronze Castellon', slug: 'fip-bronze-castellon-2026', categoryIds: [497] }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp([
+      { wpId: 1, name: 'FIP Bronze Castellon', slug: 'fip-bronze-castellon-2026', categoryIds: [497] },
+    ]);
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const row = upserted.find((r) => r.slug === 'fip-bronze-castellon-2026');
+    expect(row?.name).toBe('FIP Bronze Castellón (operator corrected)');
+  });
+
+  it('overwrites the name when name_source is null (auto-owned, lets entity-decode self-heal)', async () => {
+    const upserted: RecordedRow[] = [];
+    const supabase = makeMockSupabase({
+      existingRows: [{
+        slug: 'fip-bronze-castellon-2026',
+        level: 'fip_bronze',
+        country: 'ES',
+        name: 'FIP Bronze Castellón &#8211;', // stale entity-encoded value
+        name_source: null,
+      }],
+      events: [{ wpId: 1, name: 'FIP Bronze Castellón – Clean', slug: 'fip-bronze-castellon-2026', categoryIds: [497] }],
+      onUpsert: (rows) => upserted.push(...rows),
+    });
+    const httpClient = makeMockHttp([
+      { wpId: 1, name: 'FIP Bronze Castellón – Clean', slug: 'fip-bronze-castellon-2026', categoryIds: [497] },
+    ]);
+
+    await runTournamentDiscovery({ supabase, httpClient });
+
+    const row = upserted.find((r) => r.slug === 'fip-bronze-castellon-2026');
+    expect(row?.name).toBe('FIP Bronze Castellón – Clean');
   });
 
   it('echoes existing country back when the WP feed has no country terms (no clobber)', async () => {

@@ -363,7 +363,7 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
     const externalIds = tournaments.map((t: any) => String(t.id)).filter(Boolean)
     const { data: existing } = await supabase
       .from('tournaments')
-      .select('external_id, logo_url, venue, prize_money, venue_type, venue_address, n_courts, surface')
+      .select('external_id, name, name_source, logo_url, venue, prize_money, venue_type, venue_address, n_courts, surface')
       .in('external_id', externalIds)
     const existingMap = Object.fromEntries(
       (existing ?? []).map((r: any) => [r.external_id, r])
@@ -407,7 +407,8 @@ async function syncTournaments(seasonId: string): Promise<string[]> {
         .upsert(
           {
             external_id: externalId,
-            name: t.name ?? 'Unknown',
+            // Operator-locked names (name_source='manual') are never clobbered.
+            name: prev.name_source === 'manual' && prev.name ? prev.name : (t.name ?? 'Unknown'),
             level: t.level ?? 'unknown',
             location: t.location ?? null,
             starts_at: t.start_date ?? null,
