@@ -38,7 +38,14 @@ export interface RawPayloadsPruneResult {
   candidateCount: number;
   rowsDeleted: number;
   batchesRun: number;
+  /** True when the run stopped because it reached the maxBatches cap.
+   *  More rows may still be older than the cutoff — re-run, or raise
+   *  maxBatches to clear them in one pass. Does not guarantee rows remain. */
   hitMaxBatches: boolean;
+  /** True when the loop stopped because a select/delete batch errored
+   *  (partial run). Distinguishes an error-aborted run from clean
+   *  completion in the logged result. */
+  abortedEarly: boolean;
   dryRun: boolean;
 }
 
@@ -61,6 +68,7 @@ export async function runRawPayloadsPrune(
     rowsDeleted: 0,
     batchesRun: 0,
     hitMaxBatches: false,
+    abortedEarly: false,
     dryRun,
   };
 
@@ -88,6 +96,7 @@ export async function runRawPayloadsPrune(
       .limit(batchSize);
     if (error) {
       logger?.warn({ err: error.message, batch }, 'raw-payloads-prune: select batch failed');
+      result.abortedEarly = true;
       break;
     }
     const ids = (data ?? []).map((r: { id: string }) => r.id);
@@ -100,6 +109,7 @@ export async function runRawPayloadsPrune(
       .in('id', ids);
     if (delErr) {
       logger?.warn({ err: delErr.message, batch }, 'raw-payloads-prune: delete batch failed');
+      result.abortedEarly = true;
       break;
     }
 

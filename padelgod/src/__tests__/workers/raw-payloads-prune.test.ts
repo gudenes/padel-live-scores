@@ -4,7 +4,7 @@ import { runRawPayloadsPrune } from '../../workers/raw-payloads-prune.js';
 // Stub supabase whose `from('raw_payloads')` builder is thenable.
 // `selectBatches` are the successive id arrays returned by select().lt().limit();
 // `countValue` is returned for the head-count select used in dry-run.
-function fakeSupabase(selectBatches: string[][], countValue = 0) {
+function fakeSupabase(selectBatches: string[][], countValue = 0, deleteError?: string) {
   const deletedBatches: string[][] = [];
   let idx = 0;
   return {
@@ -21,7 +21,10 @@ function fakeSupabase(selectBatches: string[][], countValue = 0) {
           then: (resolve: any) => {
             if (state.op === 'select' && state.head) return resolve({ count: countValue, error: null });
             if (state.op === 'select') { const b = selectBatches[idx] ?? []; idx++; return resolve({ data: b.map((id) => ({ id })), error: null }); }
-            if (state.op === 'delete') { deletedBatches.push(state.ids); return resolve({ count: state.ids.length, error: null }); }
+            if (state.op === 'delete') {
+              if (deleteError) return resolve({ count: null, error: { message: deleteError } });
+              deletedBatches.push(state.ids); return resolve({ count: state.ids.length, error: null });
+            }
             return resolve({ data: null, error: null });
           },
         };
@@ -63,5 +66,12 @@ describe('runRawPayloadsPrune', () => {
     expect(res.batchesRun).toBe(2);
     expect(res.rowsDeleted).toBe(4);
     expect(res.hitMaxBatches).toBe(true);
+  });
+
+  it('aborts early and flags it when a delete batch errors', async () => {
+    const sb = fakeSupabase([['a', 'b']], 0, 'delete boom');
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false, batchSize: 2, maxBatches: 10 });
+    expect(res.abortedEarly).toBe(true);
+    expect(res.rowsDeleted).toBe(0);
   });
 });
