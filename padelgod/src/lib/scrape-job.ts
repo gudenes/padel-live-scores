@@ -161,22 +161,29 @@ async function maybeStoreRawPayload(
     return;
   }
 
-  const { error: upsertErr } = await supabase
-    .schema('padelgod')
-    .from('raw_payload_latest')
-    .upsert(
-      {
-        job_type: opts.jobType,
-        target_url: opts.targetUrl,
-        tournament_id: opts.tournamentId,
-        last_content_hash: fnResult.contentHash,
-        last_stored_at: new Date().toISOString(),
-      },
-      { onConflict: 'job_type,target_url' },
-    );
-  if (upsertErr) {
-    // Body is already stored; a missed upsert just means a redundant
-    // store next cycle. Not worth failing the scrape.
-    console.warn(`[scrape-job] raw_payload_latest upsert failed: ${upsertErr.message}`);
+  // Dedup-state write is best-effort: it must NEVER fail a scrape. The
+  // try/catch guards against a thrown call (not just an error return) so
+  // the body — already stored above — is never undone by a state-write
+  // hiccup. Worst case is a redundant store next cycle.
+  try {
+    const { error: upsertErr } = await supabase
+      .schema('padelgod')
+      .from('raw_payload_latest')
+      .upsert(
+        {
+          job_type: opts.jobType,
+          target_url: opts.targetUrl,
+          tournament_id: opts.tournamentId,
+          last_content_hash: fnResult.contentHash,
+          last_stored_at: new Date().toISOString(),
+        },
+        { onConflict: 'job_type,target_url' },
+      );
+    if (upsertErr) {
+      console.warn(`[scrape-job] raw_payload_latest upsert failed: ${upsertErr.message}`);
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[scrape-job] raw_payload_latest upsert threw: ${msg}`);
   }
 }

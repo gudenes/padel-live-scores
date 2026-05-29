@@ -72,6 +72,27 @@ describe('runScrapeJob', () => {
     delete process.env.RAW_PAYLOAD_HEARTBEAT_DAYS;
   });
 
+  it('succeeds even when the raw_payload_latest upsert throws', async () => {
+    // Dedup-state write is best-effort and must never fail a scrape, even
+    // if the call throws (e.g. a minimally-stubbed client lacking upsert).
+    const sb: any = fakeSupabase({ latestRow: null });
+    const origSchema = sb.schema;
+    sb.schema = (s: string) => {
+      const real = origSchema(s);
+      return {
+        from: (t: string) => {
+          const r = real.from(t);
+          return t === 'raw_payload_latest'
+            ? { ...r, upsert: () => { throw new Error('no upsert'); } }
+            : r;
+        },
+      };
+    };
+    const result = await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(result.status).toBe('success');
+    expect(sb.payloads).toHaveLength(1);
+  });
+
   it('records a successful job (with raw payload)', async () => {
     const result = await runScrapeJob(
       supabase as any,
