@@ -99,16 +99,24 @@ export function resolveNextEnrollment(args: {
     byTourn.set(r.tournament_id, arr)
   }
 
-  let best: { t: UpcomingTournament; rows: EntrySnapshotRow[] } | null = null
+  const candidates: { t: UpcomingTournament; rows: EntrySnapshotRow[] }[] = []
   for (const [tid, rows] of byTourn) {
     const t = tournById.get(tid)
-    if (!t) continue
-    if (best === null) { best = { t, rows }; continue }
-    const a = t.starts_at ? new Date(t.starts_at).getTime() : Infinity
-    const b = best.t.starts_at ? new Date(best.t.starts_at).getTime() : Infinity
-    if (a < b) best = { t, rows }
+    if (t) candidates.push({ t, rows })
   }
-  if (best === null) return null
+  if (candidates.length === 0) return null
+
+  const startsMs = (t: UpcomingTournament) =>
+    t.starts_at ? new Date(t.starts_at).getTime() : Infinity
+
+  // Prefer enrollments that haven't STARTED yet — the true "next appointment".
+  // A tier-3 hit on an in-progress event (started, not yet ended) almost always
+  // means the player is already eliminated there but still listed in the entry
+  // list; a genuinely upcoming enrollment is the better answer. Fall back to
+  // in-progress only when there is no future-starting enrollment.
+  const future = candidates.filter((c) => startsMs(c.t) > now.getTime())
+  const pool = future.length > 0 ? future : candidates
+  const best = pool.reduce((acc, c) => (startsMs(c.t) < startsMs(acc.t) ? c : acc))
 
   const chosen = best.rows.find((r) => r.draw_type === 'main_draw') ?? best.rows[0]
 

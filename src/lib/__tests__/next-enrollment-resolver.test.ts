@@ -36,6 +36,32 @@ describe('resolveNextEnrollment', () => {
     expect(res).toBeNull()
   })
 
+  it('prefers a future-starting tournament over an in-progress one', () => {
+    const res = resolveNextEnrollment({
+      player: { fipId: 'P1', normalizedName: 'x' },
+      tournaments: [
+        tourn({ id: 'inprogress', starts_at: '2026-05-24T00:00:00Z', ends_at: '2026-05-30T00:00:00Z' }),
+        tourn({ id: 'future', starts_at: '2026-05-31T00:00:00Z', ends_at: '2026-06-02T00:00:00Z' }),
+      ],
+      snapshots: [
+        row({ tournament_id: 'inprogress', scrape_job_id: 'a', name: 'P', fip_id: 'P1', captured_at: '2026-05-29T10:00:00Z' }),
+        row({ tournament_id: 'future', scrape_job_id: 'b', name: 'P', fip_id: 'P1', captured_at: '2026-05-29T10:00:00Z' }),
+      ],
+      now: NOW,
+    })
+    expect(res?.tournamentId).toBe('future')
+  })
+
+  it('falls back to an in-progress tournament when there is no future enrollment', () => {
+    const res = resolveNextEnrollment({
+      player: { fipId: 'P1', normalizedName: 'x' },
+      tournaments: [tourn({ id: 'inprogress', starts_at: '2026-05-24T00:00:00Z', ends_at: '2026-05-30T00:00:00Z' })],
+      snapshots: [row({ tournament_id: 'inprogress', scrape_job_id: 'a', name: 'P', fip_id: 'P1', captured_at: '2026-05-29T10:00:00Z' })],
+      now: NOW,
+    })
+    expect(res?.tournamentId).toBe('inprogress')
+  })
+
   it('picks the soonest upcoming tournament', () => {
     const res = resolveNextEnrollment({
       player: { fipId: 'P1', normalizedName: 'x' },
