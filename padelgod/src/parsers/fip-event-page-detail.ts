@@ -9,6 +9,7 @@
 // duplicate is a follow-up PR.
 
 import { parseScheduleNotes, type RoundSchedule } from './fip-schedule-notes.js';
+import { decodeHtmlEntities } from '../lib/html-entities.js';
 
 export interface EventDates {
   startsAt: string | null; // ISO date YYYY-MM-DD
@@ -165,18 +166,6 @@ function escapeRegex(str: string): string {
 
 function stripTags(html: string): string {
   return html.replace(/<[^>]*>/g, '').trim();
-}
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&#x([0-9A-Fa-f]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&apos;/g, "'");
 }
 
 export function parseDrawSizes(html: string): DrawSize {

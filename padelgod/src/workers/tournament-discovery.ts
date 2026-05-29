@@ -126,6 +126,8 @@ interface TwinCandidate {
   padelapi_id: string | null;
   level: string | null;
   country: string | null;
+  name?: string | null;
+  name_source?: string | null;
 }
 
 export async function runTournamentDiscovery(
@@ -202,12 +204,14 @@ export async function runTournamentDiscovery(
   const { data: existing } = slugs.length > 0
     ? await deps.supabase
         .from('tournaments')
-        .select('slug, level, country, live_source, cover_image_url')
+        .select('slug, name, name_source, level, country, live_source, cover_image_url')
         .in('slug', slugs)
     : { data: [] };
   const existingBySlug = new Map<
     string,
     {
+      name: string | null;
+      name_source: string | null;
       level: string | null;
       country: string | null;
       live_source: string | null;
@@ -217,6 +221,8 @@ export async function runTournamentDiscovery(
     (
       (existing ?? []) as Array<{
         slug: string;
+        name: string | null;
+        name_source: string | null;
         level: string | null;
         country: string | null;
         live_source: string | null;
@@ -225,6 +231,8 @@ export async function runTournamentDiscovery(
     ).map((r) => [
       r.slug,
       {
+        name: r.name,
+        name_source: r.name_source,
         level: r.level,
         country: r.country,
         live_source: r.live_source,
@@ -264,7 +272,7 @@ export async function runTournamentDiscovery(
     const yearEnd = `${[...parsedYears].sort().pop()}-12-31`;
     const { data: cand } = await deps.supabase
       .from('tournaments')
-      .select('id, slug, fip_id, padelapi_id, level, country, name, starts_at')
+      .select('id, slug, fip_id, padelapi_id, level, country, name, name_source, starts_at')
       .not('padelapi_id', 'is', null)
       .is('fip_id', null)
       .gte('starts_at', yearStart)
@@ -346,6 +354,16 @@ export async function runTournamentDiscovery(
     const existingLevel = twin?.level ?? existingBySlug.get(p.slug)?.level;
     const existingCountry = twin?.country ?? existingBySlug.get(p.slug)?.country;
 
+    // Operator name override: when name_source='manual', the stored name is a
+    // deliberate correction — preserve it instead of overwriting with the
+    // (decoded) FIP name. We always echo a value into the upsert payload so
+    // Supabase's merge-duplicates path can't reset name to default.
+    const existingName = twin?.name ?? existingBySlug.get(p.slug)?.name ?? null;
+    const existingNameSource =
+      twin?.name_source ?? existingBySlug.get(p.slug)?.name_source ?? null;
+    const nameToWrite =
+      existingNameSource === 'manual' && existingName ? existingName : p.name;
+
     // FIP↔FIP physical-twin guard. Skip insertion entirely when an
     // existing FIP-only row in the same (level, country) bucket has a
     // distinctive-token set that subsets/supersets this event's tokens
@@ -394,7 +412,7 @@ export async function runTournamentDiscovery(
 
     const row: Record<string, unknown> = {
       ...(twin ? { id: twin.id } : {}),
-      name: p.name,
+      name: nameToWrite,
       slug: p.slug,
       source: 'fip',
       last_updated_by: 'padelgod',
