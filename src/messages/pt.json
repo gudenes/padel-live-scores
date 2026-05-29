@@ -543,6 +543,8 @@
     "viewAllMatches": "Ver Todas as Partidas",
     "noSeasonsAvailable": "Nenhuma temporada disponível",
     "noMatchesForSeason": "Nenhuma partida encontrada na temporada {year}.",
+    "nextEnrollmentSeed": "Cabeça de série {n}",
+    "nextEnrollmentWith": "com {partner}",
     "seasonLabel": "Temporada {year}",
     "monthlyPerformance": "Desempenho Mensal",
     "born": "Nascimento",
