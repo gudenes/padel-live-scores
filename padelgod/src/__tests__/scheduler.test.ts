@@ -17,10 +17,12 @@ const ALL_ENABLED = {
   enableShadowDiffFinalizer: true,
   enableShadowDiffLive: true,
   enableCloseStaleLiveSweeper: true,
+  enableRawPayloadsPrune: true,
+  rawPayloadsPruneDryRun: false,
 };
 
 describe('buildSchedule', () => {
-  it('includes all 15 workers when fully enabled', () => {
+  it('includes all 16 workers when fully enabled', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const names = sched.map((s) => s.name);
     expect(names).toContain('tournament-discovery');
@@ -38,6 +40,7 @@ describe('buildSchedule', () => {
     expect(names).toContain('shadow-diff-finalizer');
     expect(names).toContain('shadow-diff-live');
     expect(names).toContain('close-stale-live-sweeper');
+    expect(names).toContain('raw-payloads-prune');
   });
 
   it('schedules close-stale-live-sweeper every 5 minutes', () => {

@@ -4,6 +4,7 @@ import type { AxiosInstance } from 'axios';
 import type { Logger } from 'pino';
 import { runTournamentDiscovery } from './workers/tournament-discovery.js';
 import { runFipCmsOrphanPrune } from './workers/fip-cms-orphan-prune.js';
+import { runRawPayloadsPrune } from './workers/raw-payloads-prune.js';
 import { runWidgetCodeLookup } from './workers/widget-code-lookup.js';
 import { runPlayerRankings } from './workers/player-rankings.js';
 import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
@@ -94,6 +95,11 @@ export interface SchedulerFlags {
    *  for safety; flip in Railway once the first run's dry-run output
    *  is reviewed. */
   fipCmsOrphanPruneDryRun: boolean;
+  enableRawPayloadsPrune: boolean;
+  /** Same dry-run semantics as the other prune workers. Defaults to true
+   *  for safety; flip in Railway once the first run's dry-run output
+   *  is reviewed. */
+  rawPayloadsPruneDryRun: boolean;
   enableScheduleHintsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   scheduleHintsWriterDryRun: boolean;
@@ -159,6 +165,7 @@ export type WorkerName =
   | 'shadow-diff-ocr'
   | 'close-stale-live-sweeper'
   | 'fip-cms-orphan-prune'
+  | 'raw-payloads-prune'
   | 'schedule-hints-writer'
   | 'model-prediction-snapshot'
   | 'prediction-scorer';
@@ -192,6 +199,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'shadow-diff-ocr',
   'close-stale-live-sweeper',
   'fip-cms-orphan-prune',
+  'raw-payloads-prune',
   'schedule-hints-writer',
   'model-prediction-snapshot',
   'prediction-scorer',
@@ -304,6 +312,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'fip-cms-orphan-prune':     return (deps) => runFipCmsOrphanPrune({
       supabase: deps.supabase,
       httpClient: deps.httpClient,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure (see buildSchedule below).
+      dryRun: true,
+    });
+    case 'raw-payloads-prune':       return (deps) => runRawPayloadsPrune({
+      supabase: deps.supabase,
       logger: deps.logger,
       // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
       // real env flag via closure (see buildSchedule below).
@@ -686,6 +701,21 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           httpClient: deps.httpClient,
           logger: deps.logger,
           dryRun: flags.fipCmsOrphanPruneDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableRawPayloadsPrune) {
+    entries.push({
+      name: 'raw-payloads-prune',
+      // Daily at 03:00 UTC (off-hours). Batched DELETE of raw_payloads
+      // rows older than the retention window; DB-only, no external calls.
+      cron: '0 3 * * *',
+      run: async (deps) => {
+        return runRawPayloadsPrune({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.rawPayloadsPruneDryRun,
         });
       },
     });

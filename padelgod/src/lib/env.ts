@@ -173,6 +173,15 @@ const EnvSchema = z.object({
   // but makes no DB writes. Flip to false once the first day's log
   // output looks correct.
   FIP_CMS_ORPHAN_PRUNE_DRY_RUN: boolEnv(true),
+  // raw-payloads-prune — deletes `padelgod.raw_payloads` rows older than
+  // the retention window (default 14 days). Runs daily at 03:00 UTC.
+  // Default OFF — operator flips on in Railway once the retention window
+  // and batch size have been reviewed in dry-run mode.
+  ENABLE_RAW_PAYLOADS_PRUNE: boolEnv(false),
+  // Dry-run: when true (default), logs how many rows would be deleted
+  // but makes no DB writes. Flip to false once the first day's dry-run
+  // output looks correct.
+  RAW_PAYLOADS_PRUNE_DRY_RUN: boolEnv(true),
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
   // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.
