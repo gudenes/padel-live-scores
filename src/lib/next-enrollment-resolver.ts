@@ -46,6 +46,11 @@ const stripFip = (s: string | null): string | null =>
  * Pure: caller supplies snapshot rows (already restricted to the upcoming
  * tournaments) and the tournament metadata. Honors withdrawals by keeping
  * only the latest scrape_job per (tournament_id, category).
+ *
+ * Assumption: a withdrawal is signalled by a later, NON-empty scrape that no
+ * longer lists the player. A scrape that found an empty entry list inserts no
+ * rows, so it leaves no trace here and cannot be detected from snapshots alone
+ * — acceptable for this soft, non-authoritative affordance.
  */
 export function resolveNextEnrollment(args: {
   player: PlayerIdentity
@@ -78,9 +83,11 @@ export function resolveNextEnrollment(args: {
   const matches = snapshots.filter((r) => {
     if (!isLatest(r)) return false
     if (wantFip && stripFip(r.fip_id) === wantFip) return true
-    // Name fallback only when the row has no fip_id, to avoid cross-matching
-    // a different person who shares a normalized name but has a known fip_id.
-    if (wantName && r.fip_id == null && normalize(r.name) === wantName) return true
+    // Name fallback ONLY for players who themselves have no fip_id (amateurs /
+    // unresolved). If the player has a known fip_id we require a fip match and
+    // never fall through to name — otherwise a different person sharing a
+    // normalized name (with a null-fip snapshot row) is a false positive.
+    if (!wantFip && wantName && r.fip_id == null && normalize(r.name) === wantName) return true
     return false
   })
   if (matches.length === 0) return null

@@ -72,6 +72,16 @@ describe('resolveNextEnrollment', () => {
     expect(res?.tournamentId).toBe('t1')
   })
 
+  it('does NOT name-match a different person when the player has a known fip_id', () => {
+    const res = resolveNextEnrollment({
+      player: { fipId: 'P_KNOWN', normalizedName: 'john doe' },
+      tournaments: [tourn({ id: 't1' })],
+      snapshots: [row({ tournament_id: 't1', scrape_job_id: 'j1', name: 'John Doe', fip_id: null, captured_at: '2026-05-29T10:00:00Z' })],
+      now: NOW,
+    })
+    expect(res).toBeNull()
+  })
+
   it('prefers the main_draw row for seed/partner when both draws list the player', () => {
     const res = resolveNextEnrollment({
       player: { fipId: 'P1', normalizedName: 'x' },
