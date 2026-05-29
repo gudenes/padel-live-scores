@@ -1,14 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import type { ScrapeJobType } from '../lib/db-types.js';
 
-function fakeSupabase() {
+function fakeSupabase(opts: { latestRow?: any; payloadInsertError?: string } = {}) {
   const inserted: any[] = [];
   const updated: any[] = [];
   const payloads: any[] = [];
+  const upserts: any[] = [];
   return {
-    inserted, updated, payloads,
-    schema: (s: string) => ({
+    inserted, updated, payloads, upserts,
+    schema: (_s: string) => ({
       from: (table: string) => ({
         insert: (row: any) => ({
           select: () => ({
@@ -18,6 +19,9 @@ function fakeSupabase() {
                 return { data: { id: 'job-uuid', ...row }, error: null };
               }
               if (table === 'raw_payloads') {
+                if (opts.payloadInsertError) {
+                  return { data: null, error: { message: opts.payloadInsertError } };
+                }
                 inserted.push({ table, row });
                 payloads.push({ table, row });
                 return { data: { id: 'payload-uuid', ...row }, error: null };
@@ -32,6 +36,17 @@ function fakeSupabase() {
             return { data: null, error: null };
           },
         }),
+        upsert: (row: any, _o?: any) => {
+          upserts.push({ table, row });
+          return { error: null };
+        },
+        select: (_cols?: string) => {
+          const chain: any = {
+            eq: () => chain,
+            maybeSingle: async () => ({ data: opts.latestRow ?? null, error: null }),
+          };
+          return chain;
+        },
       }),
     }),
   };
@@ -42,6 +57,40 @@ describe('runScrapeJob', () => {
 
   beforeEach(() => {
     supabase = fakeSupabase();
+  });
+
+  const baseOpts = {
+    jobType: 'oop' as ScrapeJobType,
+    tournamentId: 'tour-uuid',
+    targetUrl: 'https://example.com/oop',
+    parserVersion: 'test-1.0.0',
+    captureBody: true,
+  };
+
+  afterEach(() => {
+    delete process.env.RAW_PAYLOAD_DEDUP_ENABLED;
+    delete process.env.RAW_PAYLOAD_HEARTBEAT_DAYS;
+  });
+
+  it('succeeds even when the raw_payload_latest upsert throws', async () => {
+    // Dedup-state write is best-effort and must never fail a scrape, even
+    // if the call throws (e.g. a minimally-stubbed client lacking upsert).
+    const sb: any = fakeSupabase({ latestRow: null });
+    const origSchema = sb.schema;
+    sb.schema = (s: string) => {
+      const real = origSchema(s);
+      return {
+        from: (t: string) => {
+          const r = real.from(t);
+          return t === 'raw_payload_latest'
+            ? { ...r, upsert: () => { throw new Error('no upsert'); } }
+            : r;
+        },
+      };
+    };
+    const result = await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(result.status).toBe('success');
+    expect(sb.payloads).toHaveLength(1);
   });
 
   it('records a successful job (with raw payload)', async () => {
@@ -100,5 +149,75 @@ describe('runScrapeJob', () => {
     );
 
     expect(supabase.payloads).toHaveLength(0);
+  });
+
+  it('first capture (no prior row) stores body and upserts latest', async () => {
+    const sb = fakeSupabase({ latestRow: null });
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(sb.payloads).toHaveLength(1);
+    expect(sb.upserts).toHaveLength(1);
+    expect(sb.upserts[0].row.last_content_hash).toBe('h1');
+  });
+
+  it('skips storing when hash unchanged within heartbeat', async () => {
+    const sb = fakeSupabase({
+      latestRow: { last_content_hash: 'h1', last_stored_at: new Date().toISOString() },
+    });
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(sb.payloads).toHaveLength(0);
+    expect(sb.upserts).toHaveLength(0);
+  });
+
+  it('stores when hash unchanged but heartbeat elapsed', async () => {
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString();
+    const sb = fakeSupabase({
+      latestRow: { last_content_hash: 'h1', last_stored_at: eightDaysAgo },
+    });
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(sb.payloads).toHaveLength(1);
+    expect(sb.upserts).toHaveLength(1);
+  });
+
+  it('stores when hash changed', async () => {
+    const sb = fakeSupabase({
+      latestRow: { last_content_hash: 'OLD', last_stored_at: new Date().toISOString() },
+    });
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'NEW' }));
+    expect(sb.payloads).toHaveLength(1);
+    expect(sb.upserts[0].row.last_content_hash).toBe('NEW');
+  });
+
+  it('fail-open: stores when latest lookup errors', async () => {
+    const sb: any = fakeSupabase({ latestRow: null });
+    const origSchema = sb.schema;
+    sb.schema = (s: string) => {
+      const real = origSchema(s);
+      return {
+        from: (t: string) => {
+          const r = real.from(t);
+          return {
+            ...r,
+            select: () => ({ eq: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { message: 'boom' } }) }) }) }),
+          };
+        },
+      };
+    };
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(sb.payloads).toHaveLength(1);
+  });
+
+  it('dedup disabled: always stores even when hash unchanged', async () => {
+    process.env.RAW_PAYLOAD_DEDUP_ENABLED = 'false';
+    const sb = fakeSupabase({
+      latestRow: { last_content_hash: 'h1', last_stored_at: new Date().toISOString() },
+    });
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(sb.payloads).toHaveLength(1);
+  });
+
+  it('does not upsert latest when raw_payloads insert fails', async () => {
+    const sb = fakeSupabase({ latestRow: null, payloadInsertError: 'insert boom' });
+    await runScrapeJob(sb as any, baseOpts, async () => ({ body: 'X', contentHash: 'h1' }));
+    expect(sb.upserts).toHaveLength(0);
   });
 });
