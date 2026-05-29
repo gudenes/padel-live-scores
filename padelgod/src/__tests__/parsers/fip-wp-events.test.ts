@@ -101,4 +101,17 @@ describe('parseFipWpEvents', () => {
   it('returns empty array for empty input', () => {
     expect(parseFipWpEvents([])).toEqual([]);
   });
+
+  it('decodes HTML entities in the event title', () => {
+    const apiResponse = [
+      {
+        id: 7,
+        slug: 'fip-bronze-castellon-2026',
+        title: { rendered: 'FIP Bronze Castellón &#8211; Trofeo Ciudad &amp; Provincia' },
+        modified_gmt: '2026-05-27T00:00:00',
+      },
+    ];
+    const result = parseFipWpEvents(apiResponse as any);
+    expect(result[0].name).toBe('FIP Bronze Castellón – Trofeo Ciudad & Provincia');
+  });
 });

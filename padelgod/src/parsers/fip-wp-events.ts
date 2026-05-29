@@ -6,6 +6,8 @@
 // carries `_embedded['wp:featuredmedia'][0].source_url` — that's the
 // tournament poster/cover image we use as the public-facing cover.
 
+import { decodeHtmlEntities } from '../lib/html-entities.js';
+
 export interface ParsedTournament {
   wpId: number;
   slug: string;
@@ -52,7 +54,7 @@ export function parseFipWpEvents(events: RawEvent[]): ParsedTournament[] {
   const out: ParsedTournament[] = [];
   for (const e of events) {
     const slug = (e.slug ?? '').trim();
-    const name = (e.title?.rendered ?? '').trim();
+    const name = decodeHtmlEntities((e.title?.rendered ?? '').trim());
     if (!slug || !name) continue;
     const embeddedMedia = e._embedded?.['wp:featuredmedia']?.[0]?.source_url;
     out.push({

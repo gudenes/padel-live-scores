@@ -155,8 +155,13 @@ export const SOURCE_PRIORITY: Record<FieldKey, PriorityList> = {
   'player.finals':         ['padelapi'],
 
   // ── Tournaments ──────────────────────────────────────────────
-  // padelapi is the operational source (schedule + matches).
-  'tournament.name':       ['padelapi', 'fip', 'manual'],
+  // padelapi is the operational source (schedule + matches). 'manual'
+  // outranks both upstreams for the name: an operator override (tracked
+  // by tournaments.name_source = 'manual') is a deliberate correction and
+  // must survive the hourly padelgod-discovery / padelapi-sync re-writes.
+  // Enforced by an explicit name_source check in both writers, not via
+  // filterUpdateByPriority (neither tournament writer routes through it).
+  'tournament.name':       ['manual', 'padelapi', 'fip'],
   'tournament.country':    ['padelapi', 'fip'],
   'tournament.level':      ['padelapi', 'fip'],
   'tournament.starts_at':  ['padelapi', 'fip'],
