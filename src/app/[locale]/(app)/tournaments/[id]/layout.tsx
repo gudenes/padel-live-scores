@@ -24,7 +24,7 @@ type Props = {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
+  const { id, locale } = await params
 
   let supabase
   try { supabase = createServerClient() } catch { return { title: 'Tournament | Padel Nachos' } }
@@ -47,8 +47,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
-  const title = `${tournament.name} — Results & Live Scores`
-  const description = `Follow ${tournament.name} live. Scores, rankings and highlights.`
+  const t = await getTranslations({ locale, namespace: 'seo.tournament' })
+  const title = t('title', { name: tournament.name })
+  const description = t('description', { name: tournament.name })
 
   return {
     title,
@@ -62,7 +63,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title,
     },
-    ...buildAlternates(`/tournaments/${id}`),
+    ...buildAlternates(`/tournaments/${id}`, locale),
   }
 }
 

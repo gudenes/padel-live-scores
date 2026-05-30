@@ -20,7 +20,6 @@ export async function GET() {
     priority: number
   }> = [
     { path: '/', changefreq: 'always', priority: 1.0 },
-    { path: '/home', changefreq: 'always', priority: 1.0 },
     { path: '/matches', changefreq: 'always', priority: 0.9 },
     { path: '/rankings', changefreq: 'daily', priority: 0.8 },
     { path: '/feed', changefreq: 'hourly', priority: 0.7 },
