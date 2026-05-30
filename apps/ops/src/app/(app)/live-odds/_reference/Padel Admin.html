@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-brand="nachos" data-conn="loading">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Padel Admin — Live Odds</title>
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div class="app" id="app">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></symbol>
+    <symbol id="i-today" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-odds" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l3-8 4 16 3-8h5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 6a3 3 0 010 6M21 20c0-2.5-1.5-4-3-4.5"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v5l9 9 7-7-9-9H5a2 2 0 00-2 2z"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></symbol>
+    <symbol id="i-yt" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h3l2-4 3 8 2-5 1.5 3H21"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.5 2 3.5-.3.7 3.4 2.8 2.1-1.4 3.2 1.4 3.2-2.8 2.1-.7 3.4-3.5-.3L12 22l-2.5-2-3.5.3-.7-3.4L2.5 14.8 3.9 11.6 2.5 8.4 5.3 6.3 6 2.9 9.5 3.2z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-matrix" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></symbol>
+    <symbol id="i-toggle" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="8" cy="12" r="3" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-arch" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6 8.5v3a2 2 0 002 2h8a2 2 0 002-2v-3M12 13.5v2"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 7 3 3v2H7v-2l3-3z"/><path d="M12 16v4"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></symbol>
+  </defs></svg>
+
+  <!-- ===== GLOBAL HEADER ===== -->
+  <header class="gheader">
+    <div class="brand">
+      <button class="brandbtn" id="brandBtn">
+        <span class="mark" id="brandMark"><img src="padel-nachos-paddle.png" alt=""></span>
+        <span class="wmwrap">
+          <span class="wm" id="brandWm">PADEL<span class="n">NACHOS</span></span>
+          <span class="wmsub"><span class="tag">ADMIN</span><span id="brandHost">padelnachos.com</span></span>
+        </span>
+        <svg class="bchev" width="10" height="10" viewBox="0 0 24 24" style="transform:rotate(-90deg)"><use href="#i-chev"/></svg>
+      </button>
+      <div class="brandmenu" id="brandMenu">
+        <div class="bm-h">Switch workspace</div>
+        <div class="bm-i on" data-brand="nachos">
+          <span class="bm-mk"><img src="padel-nachos-paddle.png" alt=""></span>
+          <span class="bm-tx"><b>Padel Nachos</b><span>padelnachos.com · live scores</span></span>
+          <span class="bm-ck">✓</span>
+        </div>
+        <div class="bm-i labs" data-brand="labs">
+          <span class="bm-mk">L</span>
+          <span class="bm-tx"><b>Padel Labs</b><span>padellabs.tech · data &amp; models</span></span>
+          <span class="bm-ck">✓</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="gsearch">
+      <svg><use href="#i-search"/></svg>
+      <input placeholder="Search matches, players, tournaments, pages…">
+      <kbd>⌘K</kbd>
+    </div>
+
+    <div class="gright">
+      <span class="envpill"><span class="d"></span>Prod</span>
+      <div class="iconbtn" id="themeBtn" title="Toggle theme"><svg id="themeIcon"><use href="#i-moon"/></svg></div>
+      <div class="iconbtn" title="Notifications"><svg><use href="#i-bell"/></svg><span class="nd"></span></div>
+      <div class="avatar" title="ops@padelnachos.com">PN</div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- ===== RAIL ===== -->
+    <nav class="rail">
+      <div class="railtop"><span class="rt-lbl">Console</span><button class="collapse" id="collapseBtn" title="Collapse"><svg><use href="#i-chev"/></svg></button></div>
+      <div class="railscroll">
+        <div class="navgroup">
+          <div class="nav active" data-tip="Live Odds"><svg><use href="#i-odds"/></svg><span class="lbl">Live Odds</span><span class="pill"><span class="d"></span>LIVE</span><span class="railpill"></span></div>
+          <div class="nav" data-tip="Today"><svg><use href="#i-today"/></svg><span class="lbl">Today</span></div>
+        </div>
+        <div class="navgroup">
+          <div class="gl"><span class="glabel">Tournament Ops</span><span class="gcount">4</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="Tournament Explorer"><svg><use href="#i-grid"/></svg><span class="lbl">Tournament Explorer</span></div>
+            <div class="nav" data-tip="Entry Lists"><svg><use href="#i-list"/></svg><span class="lbl">Entry Lists</span></div>
+            <div class="nav" data-tip="Needs Review"><svg><use href="#i-flag"/></svg><span class="lbl">Needs Review</span><span class="cnt">3</span><span class="railpill"></span></div>
+            <div class="nav" data-tip="Simulator"><svg><use href="#i-play"/></svg><span class="lbl">Simulator</span></div>
+          </div>
+        </div>
+        <div class="navgroup">
+          <div class="gl"><span class="glabel">Catalogs</span><span class="gcount">4</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="Players"><svg><use href="#i-users"/></svg><span class="lbl">Players</span></div>
+            <div class="nav" data-tip="Brands &amp; Equipment"><svg><use href="#i-tag"/></svg><span class="lbl">Brands &amp; Equipment</span></div>
+            <div class="nav" data-tip="Streams"><svg><use href="#i-video"/></svg><span class="lbl">Streams</span></div>
+            <div class="nav" data-tip="YT Channels"><svg><use href="#i-yt"/></svg><span class="lbl">YT Channels</span></div>
+          </div>
+        </div>
+        <div class="navgroup">
+          <div class="gl"><span class="glabel">Content</span><span class="gcount">2</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="News"><svg><use href="#i-doc"/></svg><span class="lbl">News</span></div>
+            <div class="nav" data-tip="Highlights"><svg><use href="#i-film"/></svg><span class="lbl">Highlights</span></div>
+          </div>
+        </div>
+        <div class="navgroup closed">
+          <div class="gl"><span class="glabel">System</span><span class="gcount">7</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="Integration Health"><svg><use href="#i-heart"/></svg><span class="lbl">Integration Health</span></div>
+            <div class="nav" data-tip="Data Quality"><svg><use href="#i-check"/></svg><span class="lbl">Data Quality</span></div>
+            <div class="nav" data-tip="Padelgod Health"><svg><use href="#i-server"/></svg><span class="lbl">Padelgod Health</span></div>
+            <div class="nav" data-tip="Shadow Mode"><svg><use href="#i-eye"/></svg><span class="lbl">Shadow Mode</span></div>
+            <div class="nav" data-tip="Coverage Matrix"><svg><use href="#i-matrix"/></svg><span class="lbl">Coverage Matrix</span></div>
+            <div class="nav" data-tip="Feature Flags"><svg><use href="#i-toggle"/></svg><span class="lbl">Feature Flags</span></div>
+            <div class="nav" data-tip="Architecture"><svg><use href="#i-arch"/></svg><span class="lbl">Architecture</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="railfoot" id="railFoot" title="Demo: click to simulate feed states">
+        <span class="sdot"></span>
+        <span class="stx"><b>Padelgod</b> online<small>WebSocket · 42ms</small></span>
+      </div>
+    </nav>
+
+    <!-- ===== MAIN ===== -->
+    <div class="main">
+      <div class="pagehead">
+        <div class="crumb">Live Odds<span class="modelpill"><span class="dot"></span><span id="mpTx">Model live</span></span></div>
+        <div class="spacer"></div>
+        <span class="toggle on" id="autoToggle">Auto-refresh<span class="sw"></span></span>
+        <span class="clock"><span id="clock" class="mono">09:42:18</span> <span class="upd" id="lastUpd">· upd 2s</span></span>
+      </div>
+
+      <div class="pagebody">
+        <div class="kpis">
+          <div class="kpi">
+            <div class="l"><svg><use href="#i-odds"/></svg>Live matches<span class="trend up" id="kTrend">▲ +5</span></div>
+            <div class="v"><span class="disp" id="kpiLive">28</span></div>
+            <div class="s">across <b>6</b> tournaments · <b>+5</b> in last 15m</div>
+            <svg class="spark" viewBox="0 0 74 30" preserveAspectRatio="none"><polyline fill="none" style="stroke:var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="0,24 12,20 24,22 36,14 48,16 60,8 74,5"/></svg>
+          </div>
+          <div class="kpi">
+            <div class="l"><svg><use href="#i-grid"/></svg>Pre-match modeled</div>
+            <div class="v"><span class="disp">156</span></div>
+            <div class="s">queued for next <b>48h</b></div>
+            <svg class="spark" viewBox="0 0 74 30" preserveAspectRatio="none"><polyline fill="none" style="stroke:var(--lime)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="0,18 12,16 24,17 36,13 48,15 60,11 74,9"/></svg>
+          </div>
+          <div class="kpi orange">
+            <div class="l"><svg><use href="#i-odds"/></svg>Biggest swing · 15m</div>
+            <div class="v"><span class="disp">+34%</span></div>
+            <div class="s">Orsi/Zielinski vs Mornia/Salvado</div>
+            <svg class="spark" viewBox="0 0 74 30" preserveAspectRatio="none"><polyline fill="none" style="stroke:var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="0,20 12,21 24,17 36,18 48,10 60,12 74,4"/></svg>
+          </div>
+          <div class="kpi muted">
+            <div class="l"><svg><use href="#i-eye"/></svg>Low coverage</div>
+            <div class="v"><span class="disp">2</span></div>
+            <div class="s">live, <b class="dn">no point-by-point</b> yet</div>
+          </div>
+        </div>
+
+        <div class="content2">
+          <!-- LEFT: live table -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Live Matches</h3><span class="mut">Premier Padel Italy Major · QF</span>
+              <span class="livecount"><span class="d"></span><span id="liveBadge">28</span> live</span>
+            </div>
+            <div class="filters">
+              <span class="fsel on"><span class="k">Tournament</span> Italy Major <span class="caret">▾</span></span>
+              <span class="fsel"><span class="k">Gender</span> All <span class="caret">▾</span></span>
+              <span class="fsel"><span class="k">Tier</span> All <span class="caret">▾</span></span>
+              <span class="fsel"><span class="k">Round</span> All <span class="caret">▾</span></span>
+              <div class="seg"><span class="on">All</span><span>Live</span><span>Break</span><span>Sched</span></div>
+              <div class="right"><span class="chiptog" id="swingTog"><span class="sw2"></span>Swinging</span><span class="clearbtn">Clear</span></div>
+            </div>
+            <div class="fsummary"><span class="fcount">Showing <b>8</b> of <b>28</b></span><span class="ftag">Premier Padel Italy Major <span class="x">✕</span></span></div>
+            <div class="connbanner" id="connBanner"><span class="cb-ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 11-2.64-6.36"/><path d="M21 3v5h-5"/></svg></span><span class="cb-tx" id="cbTx">Reconnecting…</span><span class="cb-meta" id="cbMeta"></span><button class="cb-retry" id="cbRetry">Retry now</button></div>
+            <div class="skel" id="skel">
+                <div class="skrow"><div class="skb" style="width:170px"></div><div class="skb" style="width:96px"></div><div class="skb" style="width:78px"></div><div class="skb skb-bar" style="width:128px"></div></div>
+                <div class="skrow"><div class="skb" style="width:150px"></div><div class="skb" style="width:110px"></div><div class="skb" style="width:64px"></div><div class="skb skb-bar" style="width:140px"></div></div>
+                <div class="skrow"><div class="skb" style="width:180px"></div><div class="skb" style="width:88px"></div><div class="skb" style="width:82px"></div><div class="skb skb-bar" style="width:120px"></div></div>
+                <div class="skrow"><div class="skb" style="width:158px"></div><div class="skb" style="width:104px"></div><div class="skb" style="width:70px"></div><div class="skb skb-bar" style="width:134px"></div></div>
+                <div class="skrow"><div class="skb" style="width:172px"></div><div class="skb" style="width:92px"></div><div class="skb" style="width:76px"></div><div class="skb skb-bar" style="width:126px"></div></div>
+                <div class="skrow"><div class="skb" style="width:148px"></div><div class="skb" style="width:116px"></div><div class="skb" style="width:66px"></div><div class="skb skb-bar" style="width:142px"></div></div>
+            </div>
+            <div class="tablescroll"><table><thead><tr>
+              <th>Match</th><th>Tournament</th><th class="c">Sets · Pts</th><th>Win probability</th><th class="r c-mv">15m</th><th class="c-conf">Conf.</th><th class="r c-upd">Upd</th>
+            </tr></thead>
+            <tbody id="tbody">
+              <tr class="sel" data-p1="Martínez / Rodríguez" data-p2="Bidahorria / Maldonado" data-pa="82" data-pb="18" data-oa="1.22" data-ob="5.55" data-tour="Premier Padel Italy Major" data-meta="Court 3 · QF" data-status="Live" data-serve="a" data-conf="full">
+                <td class="match"><div class="pp lead serving"><span class="srv"></span>Martínez / Rodríguez<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Bidahorria / Maldonado</div></td>
+                <td class="tour">Italy Major<small>Court 3 · QF</small></td>
+                <td><div class="score scoreflash"><div class="scols mono"><div class="col"><span class="a">6</span><span class="b">3</span></div><div class="col cur"><span class="a">4</span><span class="b">2</span></div></div><div class="gpcol serveA mono"><span class="a">15</span><span class="b">30</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:82%">82%</div><div class="b">18%</div></div><div class="osub mono"><span class="fo">1.22</span><span class="fo">5.55</span></div></td>
+                <td class="r c-mv"><span class="mv up mono"><span class="ar">▲</span>+6</span></td>
+                <td class="c-conf"><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono c-upd">5s</td>
+              </tr>
+              <tr data-p1="Orsi / Zielinski" data-p2="Mornia / Salvado" data-pa="46" data-pb="54" data-oa="2.17" data-ob="1.85" data-tour="Premier Padel Italy Major" data-meta="Court 1 · QF" data-status="Live" data-serve="b" data-conf="full">
+                <td class="match"><div class="pp trail"><span class="srv"></span>Orsi / Zielinski<span class="gtag g-men">M</span></div><div class="pp lead serving"><span class="srv"></span>Mornia / Salvado</div></td>
+                <td class="tour">Italy Major<small>Court 1 · QF</small></td>
+                <td><div class="score scoreflash"><div class="scols mono"><div class="col"><span class="a">2</span><span class="b">6</span></div><div class="col cur"><span class="a">6</span><span class="b">5</span></div></div><div class="gpcol serveB mono"><span class="a">40</span><span class="b">AD</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:46%">46%</div><div class="b">54%</div></div><div class="osub mono"><span class="fo">2.17</span><span class="fo">1.85</span></div></td>
+                <td class="r c-mv"><span class="mv dn mono"><span class="ar">▼</span>-34</span></td>
+                <td class="c-conf"><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono c-upd">8s</td>
+              </tr>
+              <tr data-p1="Bengoechea / Villa" data-p2="Goyeneche / Ryzhova" data-pa="37" data-pb="63" data-oa="2.70" data-ob="1.59" data-tour="Premier Padel Italy Major" data-meta="Court 2 · QF" data-status="Break" data-serve="b" data-conf="full">
+                <td class="match"><div class="pp trail"><span class="srv"></span>Bengoechea / Villa<span class="gtag g-women">W</span></div><div class="pp lead serving"><span class="srv"></span>Goyeneche / Ryzhova</div></td>
+                <td class="tour">Italy Major<small>Court 2 · QF</small></td>
+                <td><div class="score scoreflash"><div class="scols mono"><div class="col"><span class="a">4</span><span class="b">6</span></div><div class="col cur"><span class="a">1</span><span class="b">2</span></div></div><div class="gpcol mono"><span class="a">—</span><span class="b">—</span></div><span class="badge b-break">Break</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:37%">37%</div><div class="b">63%</div></div><div class="osub mono"><span class="fo">2.70</span><span class="fo">1.59</span></div></td>
+                <td class="r c-mv"><span class="mv dn mono"><span class="ar">▼</span>-11</span></td>
+                <td class="c-conf"><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono c-upd">6s</td>
+              </tr>
+              <tr data-p1="Granados / Esbri" data-p2="Sager / Serjani" data-pa="71" data-pb="29" data-oa="1.41" data-ob="3.45" data-tour="FIP Platinum Sardegna" data-meta="Court 1 · R16" data-status="Live" data-serve="a" data-conf="full">
+                <td class="match"><div class="pp lead serving"><span class="srv"></span>Granados / Esbri<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Sager / Serjani</div></td>
+                <td class="tour">FIP Sardegna<small>Court 1 · R16</small></td>
+                <td><div class="score scoreflash"><div class="scols mono"><div class="col"><span class="a">7</span><span class="b">6</span></div><div class="col cur"><span class="a">2</span><span class="b">1</span></div></div><div class="gpcol serveA mono"><span class="a">30</span><span class="b">15</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:71%">71%</div><div class="b">29%</div></div><div class="osub mono"><span class="fo">1.41</span><span class="fo">3.45</span></div></td>
+                <td class="r c-mv"><span class="mv up mono"><span class="ar">▲</span>+4</span></td>
+                <td class="c-conf"><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono c-upd">11s</td>
+              </tr>
+              <tr data-p1="Herrera / Pons" data-p2="Lacabe / Alonso" data-pa="64" data-pb="36" data-oa="1.56" data-ob="2.78" data-tour="FIP Platinum Sardegna" data-meta="Court 2 · R16" data-status="Live" data-serve="none" data-conf="med">
+                <td class="match"><div class="pp lead"><span class="srv"></span>Herrera / Pons<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Lacabe / Alonso</div></td>
+                <td class="tour">FIP Sardegna<small>Court 2 · R16</small></td>
+                <td><div class="score scoreflash"><div class="scols mono"><div class="col cur"><span class="a">5</span><span class="b">3</span></div></div><div class="gpcol mono"><span class="a">15</span><span class="b">15</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:64%">64%</div><div class="b">36%</div></div><div class="osub mono"><span class="fo">1.56</span><span class="fo">2.78</span></div></td>
+                <td class="r c-mv"><span class="mv flat mono">— 0</span></td>
+                <td class="c-conf"><span class="conf med"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Settling</span></span></td>
+                <td class="r upd mono c-upd">14s</td>
+              </tr>
+              <tr data-p1="Gala / Sirvent" data-p2="Ruiz / Sanz" data-pa="91" data-pb="9" data-oa="1.10" data-ob="9.20" data-tour="Premier Padel Italy Major" data-meta="Court 4 · QF" data-status="Live" data-serve="a" data-conf="full">
+                <td class="match"><div class="pp lead serving"><span class="srv"></span>Gala / Sirvent<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Ruiz / Sanz</div></td>
+                <td class="tour">Italy Major<small>Court 4 · QF</small></td>
+                <td><div class="score scoreflash"><div class="scols mono"><div class="col"><span class="a">6</span><span class="b">3</span></div><div class="col cur"><span class="a">6</span><span class="b">4</span></div></div><div class="gpcol serveA mono"><span class="a">40</span><span class="b">30</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:91%">91%</div><div class="b">9%</div></div><div class="osub mono"><span class="fo">1.10</span><span class="fo">9.20</span></div></td>
+                <td class="r c-mv"><span class="mv up mono"><span class="ar">▲</span>+12</span></td>
+                <td class="c-conf"><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono c-upd">5s</td>
+              </tr>
+              <tr data-p1="Nieto / Bautista" data-p2="Martín / Vicente" data-pa="58" data-pb="42" data-oa="1.72" data-ob="2.38" data-tour="Premier Padel Italy Major" data-meta="Court 3 · QF" data-status="Scheduled" data-serve="none" data-conf="med">
+                <td class="match"><div class="pp"><span class="srv"></span>Nieto / Bautista<span class="gtag g-men">M</span></div><div class="pp"><span class="srv"></span>Martín / Vicente</div></td>
+                <td class="tour">Italy Major<small>Court 3 · QF</small></td>
+                <td><div class="score"><span class="schedtime mono">11:00</span><span class="badge b-sched">Sched</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:58%">58%</div><div class="b">42%</div></div><div class="osub mono"><span class="fo">1.72</span><span class="fo">2.38</span></div></td>
+                <td class="r c-mv"><span class="mv flat mono">—</span></td>
+                <td class="c-conf"><span class="conf med"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Pre</span></span></td>
+                <td class="r upd mono c-upd">—</td>
+              </tr>
+              <tr data-p1="Sánchez / García" data-p2="Diestro / González" data-pa="52" data-pb="48" data-oa="1.92" data-ob="2.08" data-tour="FIP Platinum Sardegna" data-meta="Court 1 · R16" data-status="Scheduled" data-serve="none" data-conf="low">
+                <td class="match"><div class="pp"><span class="srv"></span>Sánchez / García<span class="gtag g-women">W</span></div><div class="pp"><span class="srv"></span>Diestro / González</div></td>
+                <td class="tour">FIP Sardegna<small>Court 1 · R16</small></td>
+                <td><div class="score"><span class="schedtime mono">11:30</span><span class="badge b-sched">Sched</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:52%">52%</div><div class="b">48%</div></div><div class="osub mono"><span class="fo">1.92</span><span class="fo">2.08</span></div></td>
+                <td class="r c-mv"><span class="mv flat mono">—</span></td>
+                <td class="c-conf"><span class="conf low"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Thin</span></span></td>
+                <td class="r upd mono c-upd">—</td>
+              </tr>
+            </tbody></table></div>
+            <div class="tfoot">View all 28 live matches →</div>
+          </div>
+
+          <!-- RIGHT: detail panel -->
+          <div class="panel detail">
+            <div class="dhead">
+              <div class="lab"><span class="d"></span>Selected match</div>
+              <div class="ttl" id="dTtl">Martínez / Rodríguez vs Bidahorria / Maldonado</div>
+              <small id="dMeta">Premier Padel Italy Major · Court 3 · QF · Live</small>
+            </div>
+            <div class="dbody">
+              <div class="prow"><div class="pname serving" id="dN1"><span class="sv"></span><span class="nm">Martínez / Rodríguez</span></div><div class="pright"><span class="big lead disp" id="dA">82%</span><span class="fair" id="dOA">1.22</span></div></div>
+              <div class="prow"><div class="pname" id="dN2"><span class="sv"></span><span class="nm">Bidahorria / Maldonado</span></div><div class="pright"><span class="big trail disp" id="dB">18%</span><span class="fair" id="dOB">5.55</span></div></div>
+
+              <div class="dh"><span class="lab">Win probability trace</span><span class="seg2"><span>Set</span><span class="on">Match</span></span></div>
+              <div class="chart">
+                <svg width="100%" height="120" viewBox="0 0 348 120" preserveAspectRatio="none" id="dChart">
+                  <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--lime);stop-opacity:.26"/><stop offset="1" style="stop-color:var(--lime);stop-opacity:0"/></linearGradient></defs>
+                  <line x1="0" y1="60" x2="348" y2="60" style="stroke:var(--border-strong)" stroke-dasharray="3 4"/>
+                  <text x="3" y="12" font-size="9" style="fill:var(--text-3)" font-weight="700" class="mono">100%</text>
+                  <text x="3" y="58" font-size="9" style="fill:var(--text-3)" font-weight="700" class="mono">50%</text>
+                  <path id="dArea" d="" fill="url(#g)"/>
+                  <path id="dLine" d="" fill="none" style="stroke:var(--lime)" stroke-width="2.2" stroke-linejoin="round"/>
+                  <circle id="dDot" cx="348" cy="22" r="3.6" style="fill:var(--lime);stroke:var(--bg-card)" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="legend"><span><i style="background:var(--lime);width:11px;height:4px"></i><span id="dL1">Martínez / Rodríguez</span></span><span><i style="background:var(--border-strong);width:11px;height:4px"></i><span id="dL2">Bidahorria / Maldonado</span></span></div>
+
+              <div class="dh"><span class="lab">Live drivers</span></div>
+              <div class="stat"><div class="name">1st serve win %</div></div>
+              <div class="stat mono"><div class="l">72%</div><div class="stbar"><div class="a" style="width:54%"></div><div class="b" style="width:46%"></div></div><div class="r">61%</div></div>
+              <div class="stat"><div class="name">Break points won</div></div>
+              <div class="stat mono"><div class="l">3/5</div><div class="stbar"><div class="a" style="width:60%"></div><div class="b" style="width:40%"></div></div><div class="r">2/4</div></div>
+              <div class="stat"><div class="name">Total points won</div></div>
+              <div class="stat mono"><div class="l">58</div><div class="stbar"><div class="a" style="width:55%"></div><div class="b" style="width:45%"></div></div><div class="r">47</div></div>
+
+              <div class="dcta">
+                <button class="dbtn primary"><svg><use href="#i-pin"/></svg>Pin to wall</button>
+                <button class="dbtn"><svg><use href="#i-share"/></svg>Share</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">Model odds are <b>PadelNachos-computed</b> from live match state — no external bookmaker data. Internal tool · operators only.</div>
+    </div>
+  </div>
+</div>
+<script src="admin.js"></script>
+</body>
+</html>

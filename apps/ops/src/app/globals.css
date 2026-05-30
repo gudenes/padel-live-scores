@@ -4,6 +4,7 @@
    "Design tokens (v1)". */
 
 @import 'tailwindcss';
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 
 :root {
   /* Brand */
@@ -76,4 +77,144 @@ button {
   .live-pulse {
     animation: none;
   }
+}
+
+/* ============================================================
+   Live Odds — "Stadium Scoreboard" design tokens
+   Sourced verbatim from apps/ops/src/app/(app)/live-odds/_reference/admin.css
+   Dark-first. Neon lime hero accent. Red strictly for LIVE.
+   ============================================================ */
+
+/* ---------- DARK (default) ---------- */
+:root{
+  --font:"Inter Tight",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --display:"Bricolage Grotesque",var(--font);
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+
+  --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:12px; --r-xl:16px; --r-2xl:20px; --r-full:9999px;
+
+  /* surfaces */
+  --bg-app:#101010;
+  --bg-surface:#181818;
+  --bg-card:#1E1E1E;
+  --bg-card-2:#1A1A1A;
+  --bg-sunken:#151515;
+  --bg-hover:#242424;
+  --bg-sel:#23260f;
+  --bg-input:#161616;
+
+  /* borders */
+  --border:#282828;
+  --border-card:#2E2E2E;
+  --border-strong:#3a3a3a;
+  --border-inner:#222;
+
+  /* text — warm parchment ramp */
+  --text-1:#EEE4CE;
+  --text-2:#B4AC9C;
+  --text-3:#857F72;
+  --text-4:#5C574E;
+
+  /* lime — hero accent */
+  --lime:#B4E829;
+  --lime-2:#C9F24E;
+  --lime-deep:#8FBE00;
+  --lime-ink:#0D1500;
+  --lime-text:#BFE94A;           /* lime as text on dark */
+  --lime-bg:rgba(180,232,41,.12);
+  --lime-bg-2:rgba(180,232,41,.20);
+  --lime-border:rgba(180,232,41,.36);
+  --lime-glow:0 0 0 1px rgba(180,232,41,.40),0 6px 22px rgba(180,232,41,.20);
+  --track:#2C2C2C;               /* neutral half of odds bar */
+  --track-ink:#9A9384;
+
+  /* live red — LIVE only */
+  --live:#FF4655;
+  --live-text:#FF6B77;
+  --live-bg:rgba(255,70,85,.13);
+  --live-border:rgba(255,70,85,.36);
+  --live-glow:0 0 0 1px rgba(255,70,85,.35),0 4px 18px rgba(255,70,85,.22);
+
+  /* orange — hot swing / break */
+  --orange:#F29321;
+  --orange-hot:#E85D1A;
+  --orange-text:#F4A93F;
+  --orange-bg:rgba(242,147,33,.13);
+  --orange-border:rgba(242,147,33,.34);
+
+  /* categories */
+  --men:#5BA8FF; --men-bg:rgba(91,168,255,.13); --men-border:rgba(91,168,255,.32);
+  --women:#F472B6; --women-bg:rgba(244,114,182,.13); --women-border:rgba(244,114,182,.32);
+
+  /* rail — ALWAYS dark (the court tunnel) */
+  --rail-bg:#121212;
+  --rail-bg-grad:linear-gradient(180deg,#161616,#0E0E0E);
+  --rail-border:#242424;
+  --rail-hover:#1D1D1D;
+  --rail-text:#D6D0C2;
+  --rail-dim:#7C766A;
+  --rail-divider:#222;
+
+  --header-bg:#161616;
+  --header-border:#272727;
+
+  --shadow-sm:0 1px 2px rgba(0,0,0,.45);
+  --shadow-md:0 6px 18px rgba(0,0,0,.5);
+  --shadow-lg:0 16px 40px rgba(0,0,0,.6);
+
+  --gh:58px; --ph:56px;
+  --t-fast:.12s ease; --t:.2s cubic-bezier(.25,.1,.25,1);
+}
+
+/* ---------- LIGHT (toggle) ---------- */
+:root[data-theme="light"]{
+  --bg-app:#EEF0E8;
+  --bg-surface:#FFFFFF;
+  --bg-card:#FFFFFF;
+  --bg-card-2:#F7F8F2;
+  --bg-sunken:#E9ECE1;
+  --bg-hover:#EDF2E2;
+  --bg-sel:#E4F3C5;
+  --bg-input:#F1F3EA;
+
+  --border:#DCE0D2;
+  --border-card:#D8DCCD;
+  --border-strong:#C2C8B4;
+  --border-inner:#E6E9DD;
+
+  --text-1:#1A2012;
+  --text-2:#4C5544;
+  --text-3:#7B8470;
+  --text-4:#A6AE99;
+
+  --lime:#A8DC1E;
+  --lime-2:#BCE94A;
+  --lime-deep:#6FA200;
+  --lime-ink:#16210A;
+  --lime-text:#5C8800;
+  --lime-bg:rgba(120,176,0,.13);
+  --lime-bg-2:rgba(120,176,0,.20);
+  --lime-border:rgba(120,176,0,.38);
+  --lime-glow:0 0 0 1px rgba(120,176,0,.30),0 6px 20px rgba(120,176,0,.18);
+  --track:#DDE2D2;
+  --track-ink:#6E7563;
+
+  --live:#E11D32;
+  --live-text:#C81026;
+  --live-bg:rgba(225,29,50,.10);
+  --live-border:rgba(225,29,50,.30);
+  --live-glow:0 0 0 1px rgba(225,29,50,.25),0 4px 16px rgba(225,29,50,.14);
+
+  --orange:#E07d10; --orange-hot:#D5500F; --orange-text:#C26A06;
+  --orange-bg:rgba(224,125,16,.12); --orange-border:rgba(224,125,16,.32);
+
+  --men:#2E7DDB; --men-bg:rgba(46,125,219,.10); --men-border:rgba(46,125,219,.30);
+  --women:#D6418F; --women-bg:rgba(214,65,143,.10); --women-border:rgba(214,65,143,.30);
+
+  --header-bg:#FFFFFF;
+  --header-border:#E1E5D8;
+
+  --shadow-sm:0 1px 2px rgba(40,50,30,.07);
+  --shadow-md:0 6px 18px rgba(40,50,30,.10);
+  --shadow-lg:0 16px 40px rgba(40,50,30,.14);
 }
