@@ -62,6 +62,8 @@ Why these files specifically: the live-HTML audit identified the exact source fi
 
 **Severity:** 🔴 Highest-impact fix in this plan. Unblocks Spanish/Portuguese/Italian/French search traffic capture, which is roughly 60% of global padel search volume.
 
+> ⚠️ **Production caveat — this fix governs `/es`, `/pt`, `/it`, `/fr`, but NOT bare `/`.** There is a Vercel-dashboard `/ → /v3` redirect (the one noted in the findings table, not in `vercel.json`) that fires at the edge *before* any app code. So in production, bare `/` will continue to follow the Vercel redirect, not this `redirect('/home')`. That's fine — Google already chose `/` as the canonical home and we're deferring the Vercel-redirect removal. The real win here is the four locale roots. **Don't treat a non-`/home` response on bare `/` in prod as a regression** — verify the locale roots (`/es` etc.) instead. The Step 5 local-dev curl below WILL show `/` → `/home` because local dev has no edge redirect.
+
 **Files:**
 - Modify: `src/app/[locale]/page.tsx` (entire 7-line file is being changed)
 
@@ -184,7 +186,11 @@ content and breaking hreflang reciprocity from Google's perspective."
 - Modify: `src/app/[locale]/player/[id]/layout.tsx` (line ~48)
 - Modify: `src/app/[locale]/match/[id]/layout.tsx` (line ~139)
 
-Each has the same pattern: a `generateMetadata({ params })` function that destructures `{ id, locale }` from params but only passes `id` to `buildAlternates`. The `locale` is sitting right there, just not being used.
+Each has the same pattern: a `generateMetadata({ params })` function that passes `id` to `buildAlternates` without the `locale` arg.
+
+> ⚠️ **Verified against current code (2026-05-30):** in all three files, `generateMetadata` destructures **only `{ id }`** — NOT `{ id, locale }`. (The `{ id, locale }` destructure you may spot lower in each file belongs to the *default layout component export*, a different function.) So **widening the `generateMetadata` destructure to `{ id, locale }` is the main path for all three files, not an edge case** — do Step 6 for every file, not just "if needed." Current anchor lines: tournaments `const { id } = await params` at :27, match at :36, player at :16.
+>
+> A correct reference already exists in the tree — [`src/app/[locale]/(app)/search/page.tsx:50`](src/app/[locale]/(app)/search/page.tsx) calls `buildAlternates('/search', locale)`. Mirror its shape.
 
 - [ ] **Step 1: Confirm the bug exists on all three files**
 
@@ -201,7 +207,7 @@ src/app/[locale]/player/[id]/layout.tsx:48:    ...buildAlternates(`/player/${id}
 src/app/[locale]/match/[id]/layout.tsx:139:    ...buildAlternates(`/match/${id}`),
 ```
 
-- [ ] **Step 2: Verify each `generateMetadata` already destructures `locale`**
+- [ ] **Step 2: Confirm `generateMetadata` does NOT yet destructure `locale` (it doesn't — you'll add it in Step 6)**
 
 ```bash
 /usr/bin/grep -nB 1 "buildAlternates" \
@@ -209,7 +215,7 @@ src/app/[locale]/match/[id]/layout.tsx:139:    ...buildAlternates(`/match/${id}`
   src/app/\[locale\]/player/\[id\]/layout.tsx \
   src/app/\[locale\]/match/\[id\]/layout.tsx | /usr/bin/grep -E "const.*locale|await params"
 ```
-Expected: each file destructures `locale` from `await params` somewhere above the `buildAlternates` call. If a file destructures `id` but not `locale`, that destructure needs to be widened first.
+Expected (current state): each `generateMetadata` has `const { id } = await params` only. **None of them destructure `locale` yet** — so Step 6 (widen the destructure) is required for all three before the `locale` argument added in Steps 3-5 will compile.
 
 - [ ] **Step 3: Apply the fix to the tournament layout**
 
@@ -223,7 +229,7 @@ Change to:
     ...buildAlternates(`/tournaments/${id}`, locale),
 ```
 
-(`locale` is already in scope from the `await params` destructure earlier in the function.)
+(`locale` is NOT yet in scope — Step 6 widens the `const { id } = await params` destructure to `const { id, locale }`. Do Step 6 first or this won't compile.)
 
 - [ ] **Step 4: Apply the same fix to the player layout**
 
@@ -249,9 +255,9 @@ Change to:
     ...buildAlternates(`/match/${id}`, locale),
 ```
 
-- [ ] **Step 6: If any of the three files didn't already destructure `locale` from params, add it**
+- [ ] **Step 6: Widen the `generateMetadata` destructure in ALL THREE files (required — none have it today)**
 
-The destructure pattern in `generateMetadata` should look like:
+In each of the three layouts, the `generateMetadata` function currently has `const { id } = await params`. Change it to:
 ```typescript
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id, locale } = await params
@@ -259,7 +265,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 ```
 
-If a file has `const { id } = await params` (no locale), change it to `const { id, locale } = await params`.
+This is not conditional — verified anchors: tournaments :27, match :36, player :16 all destructure `{ id }` only. (Do this step *before* Steps 3-5 if you prefer; ordering doesn't matter as long as both land before lint.)
 
 - [ ] **Step 7: Run typecheck**
 
@@ -496,24 +502,41 @@ const description = t('description', { name: player.name })
 
 (Adjust the variable name `player.name` to whatever the actual local variable is in that file.)
 
-- [ ] **Step 9: Update match layout the same way**
+- [ ] **Step 9: Update match layout — NOT a single-key swap (verified against current code)**
 
-In `src/app/[locale]/match/[id]/layout.tsx`:
+> ⚠️ The match layout (`src/app/[locale]/match/[id]/layout.tsx`, ~lines 100-125) does **not** match the simple `pair1 vs pair2` shape assumed by the earlier draft. There is **no `pairLabel` helper**; the locals are `p1`, `p2`, `tournamentName`, `roundSuffix`, `scoreStr`, `winnerLabel`. The title is built across **four status branches**:
+>
+> | Branch | Current English template |
+> |---|---|
+> | finished, has score | `${winnerLabel} won ${scoreStr} — ${tournamentName}${roundSuffix}` |
+> | finished, no score | `${p1} vs ${p2} — ${tournamentName}${roundSuffix}` |
+> | live | `LIVE: ${p1} vs ${p2} — ${tournamentName}` |
+> | scheduled | `${p1} vs ${p2} — ${tournamentName}${roundSuffix}` |
+>
+> And the description is a single hardcoded string: `const description = 'Follow live padel scores on PadelNachos'` (line ~125).
+
+This means the `seo.match` block added in Step 2 needs **four title keys plus one description key**, not one each. Revise the `seo.match` JSON in all five message files (Steps 2-6) to:
+```json
+"match": {
+  "titleWon": "{winner} won {score} — {tournament}{round}",
+  "titleVs": "{p1} vs {p2} — {tournament}{round}",
+  "titleLive": "LIVE: {p1} vs {p2} — {tournament}",
+  "description": "Follow live padel scores on PadelNachos"
+}
+```
+(`{round}` receives the already-composed `roundSuffix` string verbatim — do not try to localize the round inside this key; if `roundSuffix` itself needs translating, that's a separate, out-of-scope change.)
+
+Then in the layout, get the translator once and swap each branch to the matching key:
 ```typescript
 const t = await getTranslations({ locale, namespace: 'seo.match' })
-const title = t('title', {
-  pair1: pairLabel(match.pair1_player1, match.pair1_player2),
-  pair2: pairLabel(match.pair2_player1, match.pair2_player2),
-  tournament: tournament?.name ?? '',
-})
-const description = t('description', {
-  pair1: pairLabel(match.pair1_player1, match.pair1_player2),
-  pair2: pairLabel(match.pair2_player1, match.pair2_player2),
-  tournament: tournament?.name ?? '',
-})
+// ...inside the status branches:
+//   finished+score:  t('titleWon', { winner: winnerLabel, score: scoreStr, tournament: tournamentName, round: roundSuffix })
+//   finished/scheduled (no score): t('titleVs', { p1, p2, tournament: tournamentName, round: roundSuffix })
+//   live:            t('titleLive', { p1, p2, tournament: tournamentName })
+const description = t('description')
 ```
 
-(Use whatever helper or property names actually compose the pair labels in the existing match layout — read the surrounding code to match its conventions.)
+Read the surrounding code (lines 100-141) and preserve the exact branch structure — only the string production changes.
 
 - [ ] **Step 10: Run typecheck**
 
