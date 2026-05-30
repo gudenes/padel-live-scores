@@ -3,6 +3,7 @@
 // The page itself is 'use client', so generateMetadata must live here.
 
 import { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { buildPlayerSummary, RecentMatchInput } from '@/lib/seo/player-summary'
@@ -28,10 +29,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: 'Player | Padel Nachos' }
   }
 
-  const title = `${player.name} — Padel Player Profile & Stats`
+  const t = await getTranslations({ locale, namespace: 'seo.player' })
+  const title = t('title', { name: player.name })
   const description = player.ranking
-    ? `#${player.ranking} ${player.name} from ${player.country}. Match history, stats, and equipment.`
-    : `${player.name} from ${player.country}. Match history, stats, and equipment.`
+    ? t('descriptionRanked', { ranking: player.ranking, name: player.name, country: player.country ?? '' })
+    : t('description', { name: player.name, country: player.country ?? '' })
 
   return {
     title,

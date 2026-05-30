@@ -47,8 +47,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
-  const title = `${tournament.name} — Results & Live Scores`
-  const description = `Follow ${tournament.name} live. Scores, rankings and highlights.`
+  const t = await getTranslations({ locale, namespace: 'seo.tournament' })
+  const title = t('title', { name: tournament.name })
+  const description = t('description', { name: tournament.name })
 
   return {
     title,

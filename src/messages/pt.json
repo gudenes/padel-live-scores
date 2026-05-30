@@ -1037,6 +1037,21 @@
     "daily": {
       "title": "Jogos de padel {date} — Resultados, horários e placar",
       "description": "Todos os jogos de padel de {date}. Placar ao vivo, horários e resultados da Premier Padel e FIP, atualizados em tempo real."
+    },
+    "tournament": {
+      "title": "{name} — Resultados e placar ao vivo",
+      "description": "Acompanhe {name} ao vivo. Placar, ranking e melhores momentos."
+    },
+    "player": {
+      "title": "{name} — Perfil e estatísticas do jogador",
+      "descriptionRanked": "#{ranking} {name} de {country}. Histórico de partidas, estatísticas e material.",
+      "description": "{name} de {country}. Histórico de partidas, estatísticas e material."
+    },
+    "match": {
+      "titleWon": "{winner} venceu {score} — {tournament}{round}",
+      "titleVs": "{p1} vs {p2} — {tournament}{round}",
+      "titleLive": "AO VIVO: {p1} vs {p2} — {tournament}",
+      "description": "Acompanhe os placares de padel ao vivo no PadelNachos"
     }
   },
   "search": {

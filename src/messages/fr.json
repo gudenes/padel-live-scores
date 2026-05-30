@@ -1037,6 +1037,21 @@
     "daily": {
       "title": "Matchs de padel {date} — Résultats, horaires et scores",
       "description": "Tous les matchs de padel du {date}. Scores en direct, horaires et résultats Premier Padel et FIP, mis à jour en temps réel."
+    },
+    "tournament": {
+      "title": "{name} — Résultats et scores en direct",
+      "description": "Suivez {name} en direct. Scores, classement et temps forts."
+    },
+    "player": {
+      "title": "{name} — Profil et statistiques du joueur",
+      "descriptionRanked": "#{ranking} {name}, {country}. Historique des matchs, statistiques et équipement.",
+      "description": "{name}, {country}. Historique des matchs, statistiques et équipement."
+    },
+    "match": {
+      "titleWon": "{winner} a gagné {score} — {tournament}{round}",
+      "titleVs": "{p1} vs {p2} — {tournament}{round}",
+      "titleLive": "EN DIRECT : {p1} vs {p2} — {tournament}",
+      "description": "Suivez les scores de padel en direct sur PadelNachos"
     }
   },
   "search": {

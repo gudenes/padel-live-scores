@@ -94,6 +94,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     (a, b) => a.set_number - b.set_number
   )
 
+  const t = await getTranslations({ locale, namespace: 'seo.match' })
+
   let title: string
 
   if (match.status === 'finished' || match.status === 'ended') {
@@ -109,18 +111,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
           : p1 || p2
 
     if (scoreStr) {
-      title = `${winnerLabel} won ${scoreStr} — ${tournamentName}${roundSuffix}`
+      title = t('titleWon', { winner: winnerLabel, score: scoreStr, tournament: tournamentName, round: roundSuffix })
     } else {
-      title = `${p1} vs ${p2} — ${tournamentName}${roundSuffix}`
+      title = t('titleVs', { p1, p2, tournament: tournamentName, round: roundSuffix })
     }
   } else if (match.status === 'live') {
-    title = `LIVE: ${p1} vs ${p2} — ${tournamentName}`
+    title = t('titleLive', { p1, p2, tournament: tournamentName })
   } else {
     // scheduled / upcoming
-    title = `${p1} vs ${p2} — ${tournamentName}${roundSuffix}`
+    title = t('titleVs', { p1, p2, tournament: tournamentName, round: roundSuffix })
   }
 
-  const description = 'Follow live padel scores on PadelNachos'
+  const description = t('description')
 
   return {
     title,
