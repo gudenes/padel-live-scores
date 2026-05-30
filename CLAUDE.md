@@ -414,6 +414,16 @@ Tabs: Ongoing Events, Integration Health, Data Quality, Readiness, Entry Lists, 
 - **Schedule:** OOP-based review with human-in-the-loop approval
 - **Architecture:** live SVG system diagram of all data integrations
 
+### Live Odds console (`apps/ops` → `/live-odds`)
+
+Scoreboard-style operations view of **model-computed win probabilities + fair odds** for live matches (internal, operators only — **no external bookmaker data**). Built from the Claude Design handoff (kept in-repo at `apps/ops/src/app/(app)/live-odds/_reference/`; spec: `docs/superpowers/specs/2026-05-30-live-odds-admin-design.md`).
+
+- **Status:** UI renders against a **stub provider** (`_lib/stub-provider.ts`) behind a typed contract (`_lib/types.ts`). The real **win-probability model + Padelgod WebSocket feed do not exist yet** — separate workstream; `types.ts` is the integration seam (swap the source in `useLiveOdds`/`createStubFeed`, keep the shape).
+- **App shell:** `apps/ops/src/components/shell/` (`AppShell`, `GlobalHeader`, `Rail`, `ThemeProvider`, `BrandProvider`) is the new chrome wrapping all `(app)` pages — global header + always-dark collapsible rail + per-page header. Other admin pages migrate onto it incrementally (legacy `Sidebar.tsx` left in place, unused).
+- **Theme/brand:** light/dark via `data-theme` on `<html>` (default light, persisted `localStorage["padel.theme"]`); Nachos/Labs workspace via `data-brand` (persisted `padel.brand`). **Never** put a CSS `transition` on `<body>` color/background (Chromium freezes the value on theme flip).
+- **Connection states:** `data-conn` (`loading|live|reconnecting|offline`) drives skeleton/banner/model-pill/frozen-odds; stub-cycled via the rail footer today, wire to the real feed lifecycle later.
+- **Tokens/fonts:** design tokens live in `apps/ops/src/app/globals.css` (`:root` + `:root[data-theme="light"]`). Fonts (Bricolage Grotesque / JetBrains Mono) are design-system substitutions loaded via Google Fonts — flag before shipping.
+
 ## Environment Variables
 
 ```
