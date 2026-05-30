@@ -24,7 +24,7 @@ type Props = {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
+  const { id, locale } = await params
 
   let supabase
   try { supabase = createServerClient() } catch { return { title: 'Tournament | Padel Nachos' } }
@@ -62,7 +62,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title,
     },
-    ...buildAlternates(`/tournaments/${id}`),
+    ...buildAlternates(`/tournaments/${id}`, locale),
   }
 }
 

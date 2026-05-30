@@ -8,12 +8,12 @@ import { buildAlternates } from '@/lib/seo-helpers'
 import { buildPlayerSummary, RecentMatchInput } from '@/lib/seo/player-summary'
 
 type Props = {
-  params: Promise<{ id: string }>
+  params: Promise<{ locale: string; id: string }>
   children: React.ReactNode
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
+  const { id, locale } = await params
 
   let supabase
   try { supabase = createServerClient() } catch { return { title: 'Player | Padel Nachos' } }
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title,
     },
-    ...buildAlternates(`/player/${id}`),
+    ...buildAlternates(`/player/${id}`, locale),
   }
 }
 

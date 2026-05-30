@@ -33,9 +33,7 @@ function lastName(fullName: string | null | undefined): string {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params
-  // locale is available in params but not used in metadata — destructured
-  // via Props to satisfy the updated type; id is all that's needed here.
+  const { id, locale } = await params
 
   let supabase
   try { supabase = createServerClient() } catch { return { title: 'Match | Padel Nachos' } }
@@ -136,7 +134,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: 'summary_large_image',
       title,
     },
-    ...buildAlternates(`/match/${id}`),
+    ...buildAlternates(`/match/${id}`, locale),
   }
 }
 
