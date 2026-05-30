@@ -1659,6 +1659,19 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const now = new Date()
   const daysUntilStart = startsAt ? Math.ceil((startsAt.getTime() - now.getTime()) / 86400000) : null
   const isUpcoming = daysUntilStart != null && daysUntilStart > 0
+  // `starts_at` is the full-window start — for events with a qualifying phase
+  // that's qualifying day 1, not the main draw. The "Main Draw Starts" banner
+  // must count down to the real main draw, so derive it from round_schedule
+  // (earliest non-qualifying round date); fall back to starts_at when absent.
+  const mainDrawStart = (() => {
+    const sched = ((tournament as any)?.round_schedule ?? {}) as Record<string, string>
+    const mainDrawDates = Object.entries(sched)
+      .filter(([k, v]) => !['q1', 'q2', 'q3'].includes(k) && v)
+      .map(([, v]) => v)
+      .sort()
+    return mainDrawDates.length ? new Date(mainDrawDates[0]) : startsAt
+  })()
+  const daysUntilMainDraw = mainDrawStart ? Math.ceil((mainDrawStart.getTime() - now.getTime()) / 86400000) : null
   // Has any Final match (men or women) been played out? Same signal the
   // ops Tournament Explorer uses for the "Live now" tile — events often
   // finish on the penultimate day of their calendar window, and `ends_at`
@@ -1696,15 +1709,15 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
               {isLive ? tTournament('tournamentInProgress') : isOngoing ? tTournament('tournamentInProgress') : isUpcoming ? tTournament('mainDrawStarts') : tTournament('tournamentEnded')}
             </div>
             <div style={{ fontSize: 11, color: MUTED, marginTop: 2 }}>
-              {formatDate(startsAt)}{endsAt ? ` — ${formatDate(endsAt)}` : ''}
+              {formatDate(isUpcoming && mainDrawStart ? mainDrawStart : startsAt)}{endsAt ? ` — ${formatDate(endsAt)}` : ''}
             </div>
           </div>
-          {isUpcoming && daysUntilStart != null && (
+          {isUpcoming && daysUntilMainDraw != null && (
             <div style={{
               fontSize: 13, fontWeight: 800,
-              color: daysUntilStart <= 2 ? '#FF4655' : daysUntilStart <= 7 ? '#F5A623' : GREEN,
+              color: daysUntilMainDraw <= 2 ? '#FF4655' : daysUntilMainDraw <= 7 ? '#F5A623' : GREEN,
             }}>
-              {daysUntilStart === 1 ? tTournament('tomorrow') : tTournament('daysAway', { count: daysUntilStart })}
+              {daysUntilMainDraw === 1 ? tTournament('tomorrow') : tTournament('daysAway', { count: daysUntilMainDraw })}
             </div>
           )}
           {isLive && (
