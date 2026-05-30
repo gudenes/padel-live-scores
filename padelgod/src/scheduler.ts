@@ -25,6 +25,7 @@ import { runShadowDiffLive } from './workers/shadow-diff-live.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
+import { runOddsComputer } from './workers/odds-computer.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -81,6 +82,7 @@ export interface SchedulerFlags {
   scheduleHintsWriterDryRun: boolean;
   /** Default 90. Override via env to tune the "running over" threshold. */
   scheduleHintsExpectedDurationMin: number;
+  enableOddsComputer: boolean;
 }
 
 export interface SchedulerDeps {
@@ -130,7 +132,8 @@ export type WorkerName =
   | 'shadow-diff-finalizer'
   | 'shadow-diff-live'
   | 'close-stale-live-sweeper'
-  | 'schedule-hints-writer';
+  | 'schedule-hints-writer'
+  | 'odds-computer';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -158,6 +161,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'shadow-diff-live',
   'close-stale-live-sweeper',
   'schedule-hints-writer',
+  'odds-computer',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -257,6 +261,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       dryRun: true,
       expectedDurationMinutes: 90, // matches env default
     });
+    case 'odds-computer':        return (deps) => runOddsComputer(deps);
     default: return null;
   }
 }
@@ -567,6 +572,17 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           expectedDurationMinutes: flags.scheduleHintsExpectedDurationMin,
         });
       },
+    });
+  }
+  if (flags.enableOddsComputer) {
+    entries.push({
+      name: 'odds-computer',
+      // Every 15 seconds — keeps live win-probability current at sub-minute
+      // granularity during active matches. Pre-match rows with a fresh
+      // computed_at (within 5 min) are skipped inside the worker, so the
+      // actual DB write rate is much lower during quiet periods.
+      cron: '*/15 * * * * *',
+      run: getWorkerRunner('odds-computer')!,
     });
   }
   return entries;

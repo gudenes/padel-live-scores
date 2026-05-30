@@ -143,6 +143,9 @@ const EnvSchema = z.object({
   ENABLE_SHADOW_DIFF_FINALIZER: boolEnv(true),
   ENABLE_SHADOW_DIFF_LIVE: boolEnv(true),
   ENABLE_CLOSE_STALE_LIVE_SWEEPER: boolEnv(true),
+  // odds-computer — computes live + pre-match win probabilities every 15s.
+  // Default ON; disable via ENABLE_ODDS_COMPUTER=false.
+  ENABLE_ODDS_COMPUTER: boolEnv(true),
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
   // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.

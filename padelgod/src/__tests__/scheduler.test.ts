@@ -17,6 +17,7 @@ const ALL_ENABLED = {
   enableShadowDiffFinalizer: true,
   enableShadowDiffLive: true,
   enableCloseStaleLiveSweeper: true,
+  enableOddsComputer: true,
 };
 
 describe('buildSchedule', () => {
@@ -141,6 +142,18 @@ describe('buildSchedule', () => {
       enableFipEventPageEnricher: false,
     });
     expect(sched.map((s) => s.name)).not.toContain('fip-event-page-enricher');
+  });
+
+  it('schedules odds-computer every 15 seconds', () => {
+    const sched = buildSchedule(ALL_ENABLED as any);
+    const entry = sched.find((s) => s.name === 'odds-computer');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('*/15 * * * * *');
+  });
+
+  it('respects enableOddsComputer=false', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableOddsComputer: false } as any);
+    expect(sched.map((s) => s.name)).not.toContain('odds-computer');
   });
 
   it('registers player-rankings TWICE when enabled (Mon poll + weekday daily)', () => {
