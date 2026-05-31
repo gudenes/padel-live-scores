@@ -2,6 +2,7 @@
 // /odds landing page — today's matches with odds + tournament outlook cards.
 // Server component, reads through odds-data lib at request time.
 
+import { LiveNowSection } from '@/components/Odds/LiveNowSection'
 import { LiveOddsTable, type LiveMatchRow } from '@/components/Odds/LiveOddsTable'
 import { TournamentOutlookCard } from '@/components/Odds/TournamentOutlookCard'
 import {
@@ -90,6 +91,8 @@ export default async function LiveOddsPage({ searchParams }: { searchParams: Pro
   return (
     <div style={{ padding: 32, maxWidth: 1280 }}>
       <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Live Odds</h1>
+
+      <LiveNowSection />
 
       <h2 style={{ fontSize: 14, fontWeight: 700, margin: '24px 0 8px' }}>
         Matches on {targetDate}

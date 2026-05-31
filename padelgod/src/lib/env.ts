@@ -205,6 +205,13 @@ const EnvSchema = z.object({
   // enable-flag is sufficient. Defaults OFF; flip to true in Railway after
   // model-prediction-snapshot has been writing rows for a few cycles.
   ENABLE_PREDICTION_SCORER: boolEnv(false),
+  // live-odds-updater — ~20s worker that computes in-play win probabilities
+  // for live matches with recent PBP (match_points updated in the last 2 min).
+  // Anchors to the latest Elo model_predictions row or cold-starts from FIP
+  // ranking if no pre-match snapshot exists (qualifying / out-of-scope matches).
+  // Writes match_live_odds (upsert) + match_live_odds_snapshots (append).
+  // Default OFF; flip to true in Railway after match_live_odds migration lands.
+  ENABLE_LIVE_ODDS_UPDATER: boolEnv(false),
   // Web push notification hook — set to the padelnachos.com origin to fire
   // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
   // Both vars optional: if either is unset, notify is skipped silently (so

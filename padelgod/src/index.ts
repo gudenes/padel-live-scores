@@ -175,6 +175,7 @@ async function main() {
       enableModelPredictionSnapshot: env.ENABLE_MODEL_PREDICTION_SNAPSHOT,
       modelPredictionSnapshotDryRun: env.MODEL_PREDICTION_SNAPSHOT_DRY_RUN,
       enablePredictionScorer: env.ENABLE_PREDICTION_SCORER,
+      enableLiveOddsUpdater: env.ENABLE_LIVE_ODDS_UPDATER,
     });
     // Build the notify config for live-poller-manager. Both env vars must be
     // present — otherwise we pass `undefined` and the hook inside

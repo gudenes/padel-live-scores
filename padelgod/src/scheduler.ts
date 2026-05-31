@@ -32,6 +32,7 @@ import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
 import { runModelPredictionSnapshot } from './workers/model-prediction-snapshot.js';
 import { runPredictionScorer } from './workers/prediction-scorer.js';
+import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -112,6 +113,9 @@ export interface SchedulerFlags {
   /** prediction-scorer is append-only with `ON CONFLICT DO NOTHING`, so a
    *  single enable-flag is sufficient — no dry-run needed. */
   enablePredictionScorer: boolean;
+  /** live-odds-updater — ~20s in-play odds worker. Append-only snapshot +
+   *  upsert on match_live_odds; no dry-run needed. Default OFF. */
+  enableLiveOddsUpdater: boolean;
 }
 
 export interface SchedulerDeps {
@@ -168,7 +172,8 @@ export type WorkerName =
   | 'raw-payloads-prune'
   | 'schedule-hints-writer'
   | 'model-prediction-snapshot'
-  | 'prediction-scorer';
+  | 'prediction-scorer'
+  | 'live-odds-updater';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -203,6 +208,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'schedule-hints-writer',
   'model-prediction-snapshot',
   'prediction-scorer',
+  'live-odds-updater',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -345,6 +351,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
           supabase: d.supabase,
           logger: d.logger,
         });
+    case 'live-odds-updater':
+      return (deps) => runLiveOddsUpdater(deps);
     default: return null;
   }
 }
@@ -760,6 +768,17 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: d.supabase,
           logger: d.logger,
         }),
+    });
+  }
+  if (flags.enableLiveOddsUpdater) {
+    entries.push({
+      name: 'live-odds-updater',
+      // Every 20 seconds — tight enough to keep displayed odds ~1 point behind
+      // reality without hammering Supabase. node-cron uses 6-field syntax when
+      // a seconds field is present; the leading `*/20` fires at 0, 20, 40 s
+      // of every minute.
+      cron: '*/20 * * * * *',
+      run: getWorkerRunner('live-odds-updater')!,
     });
   }
   return entries;
