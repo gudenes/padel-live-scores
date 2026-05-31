@@ -109,3 +109,25 @@ export function anchorPerPoint(target: number, goldenPoint: boolean): number {
   }
   return (lo + hi) / 2
 }
+
+function orientToFavorite(s: ScoreState, favorite: 1 | 2): ScoreState {
+  if (favorite === 1) return s
+  const swap = ([a, b]: [number, number]): [number, number] => [b, a]
+  return {
+    setsWon: swap(s.setsWon),
+    gamesInSet: swap(s.gamesInSet),
+    currentGamePoints: swap(s.currentGamePoints),
+    inTiebreak: s.inTiebreak,
+    tiebreakPoints: swap(s.tiebreakPoints),
+    goldenPoint: s.goldenPoint,
+  }
+}
+
+/** Move a pre-match pair1 win probability (`anchorPair1Prob`, 0..1) with the live score. */
+export function computeLiveProb(anchorPair1Prob: number, score: ScoreState): number {
+  const favorite: 1 | 2 = anchorPair1Prob >= 0.5 ? 1 : 2
+  const target = Math.max(anchorPair1Prob, 1 - anchorPair1Prob)
+  const p = anchorPerPoint(target, score.goldenPoint)
+  const favProb = pWinMatchFav(p, orientToFavorite(score, favorite))
+  return favorite === 1 ? favProb : 1 - favProb
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pWinGame, pWinTiebreak, pWinMatchFav, anchorPerPoint, type ScoreState } from '../inplay-odds.js'
+import { pWinGame, pWinTiebreak, pWinMatchFav, anchorPerPoint, computeLiveProb, type ScoreState } from '../inplay-odds.js'
 
 const zero: ScoreState = {
   setsWon: [0, 0], gamesInSet: [0, 0], currentGamePoints: [0, 0],
@@ -45,5 +45,24 @@ describe('anchorPerPoint', () => {
       const p = anchorPerPoint(t, true)
       expect(pWinMatchFav(p, zero)).toBeCloseTo(t, 4)
     }
+  })
+})
+
+describe('computeLiveProb', () => {
+  const z: ScoreState = {
+    setsWon: [0, 0], gamesInSet: [0, 0], currentGamePoints: [0, 0],
+    inTiebreak: false, tiebreakPoints: [0, 0], goldenPoint: true,
+  }
+  it('at 0-0 returns the anchor (anchor identity)', () => {
+    expect(computeLiveProb(0.82, z)).toBeCloseTo(0.82, 3)
+    expect(computeLiveProb(0.5, z)).toBeCloseTo(0.5, 3)
+  })
+  it('orients to whichever side the anchor favors', () => {
+    const s: ScoreState = { ...z, setsWon: [0, 1], gamesInSet: [0, 4] }
+    expect(computeLiveProb(0.30, s)).toBeLessThan(0.30) // pair2 favored + leading → pair1 drops
+  })
+  it('a leading favorite climbs toward 1', () => {
+    const s: ScoreState = { ...z, setsWon: [1, 0], gamesInSet: [5, 0], currentGamePoints: [3, 0] }
+    expect(computeLiveProb(0.70, s)).toBeGreaterThan(0.70)
   })
 })
