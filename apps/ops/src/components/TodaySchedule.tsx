@@ -3,6 +3,7 @@
 // round labels. Hour displayed in the user's local time (deriving from
 // the UTC HH:MM the aggregator returns).
 
+import { Panel, DataTable, EmptyState } from '@/components/ui'
 import type { TodayPayload } from '@/lib/today-aggregator'
 
 function formatLocalHour(utcHHMM: string): string {
@@ -14,57 +15,28 @@ function formatLocalHour(utcHHMM: string): string {
 
 export function TodaySchedule({ buckets }: { buckets: TodayPayload['schedule'] }) {
   return (
-    <div
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 12,
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          padding: '14px 20px',
-          borderBottom: '1px solid var(--border-subtle)',
-          fontSize: 11,
-          fontWeight: 700,
-          color: 'var(--status-neutral)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.06em',
-        }}
-      >
-        Today's Schedule
-      </div>
+    <Panel title="Today's Schedule" padded={false}>
       {buckets.length === 0 ? (
-        <div
-          style={{
-            padding: '32px 20px',
-            textAlign: 'center',
-            fontSize: 13,
-            color: 'var(--status-neutral)',
-          }}
-        >
-          Nothing scheduled in the next 24 hours.
-        </div>
+        <EmptyState title="Nothing scheduled in the next 24 hours." />
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <DataTable>
           <tbody>
             {buckets.map((b) => (
-              <tr key={b.hour} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <td className="tabular" style={{ padding: '12px 20px', width: 100, fontWeight: 600 }}>
+              <tr key={b.hour}>
+                <td className="tabular" style={{ width: 100, fontWeight: 600 }}>
                   {formatLocalHour(b.hour)}
                 </td>
-                <td style={{ padding: '12px 20px', color: 'var(--status-neutral)' }}>
+                <td style={{ color: 'var(--text-3)' }}>
                   {b.roundLabels.length > 0 ? b.roundLabels.join(', ') : '—'}
                 </td>
-                <td className="tabular" style={{ padding: '12px 20px', textAlign: 'right' }}>
+                <td className="tabular" style={{ textAlign: 'right' }}>
                   {b.matchCount} {b.matchCount === 1 ? 'match' : 'matches'}
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
-    </div>
+    </Panel>
   )
 }
