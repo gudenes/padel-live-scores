@@ -64,6 +64,9 @@ export interface FipResultsWriterResult {
   matchesUpdated: number;
   setsWritten: number;
   finishedAtBackfilled: number;
+  /** Matches resolved through the entity_external_ids sidecar because the
+   *  widget_id_composite hot column was NULL (prefix lookup missed them). */
+  resolvedViaSidecar: number;
   skippedNoMatch: number;
   skippedTerminalStatus: number;
   skippedNoWidgetId: number;
@@ -117,6 +120,7 @@ export async function runFipResultsWriter(
     matchesUpdated: 0,
     setsWritten: 0,
     finishedAtBackfilled: 0,
+    resolvedViaSidecar: 0,
     skippedNoMatch: 0,
     skippedTerminalStatus: 0,
     skippedNoWidgetId: 0,
@@ -175,7 +179,24 @@ export async function runFipResultsWriter(
       }
 
       const composite = `${tournamentWidgetId}:${r.match_widget_id}`;
-      const existing = matchByComposite.get(composite);
+      let existing = matchByComposite.get(composite);
+
+      // Sidecar fallback. The prefix lookup only sees rows whose
+      // widget_id_composite hot column is set. A match can carry the
+      // crionet_widget mapping in entity_external_ids while the column is
+      // still NULL (created/linked via match-identifier's live/twin/pairs
+      // path). Resolve through the sidecar and backfill the column so the
+      // next run hits the fast path. See 2026-05-31 ITALY MAJOR Q1 incident.
+      if (!existing) {
+        const viaSidecar = await resolveMatchViaSidecar(supabase, composite);
+        if (viaSidecar) {
+          existing = viaSidecar;
+          result.resolvedViaSidecar += 1;
+          if (!dryRun) {
+            await backfillCompositeColumn(supabase, viaSidecar.id, composite);
+          }
+        }
+      }
 
       if (!existing) {
         result.skippedNoMatch += 1;
@@ -404,6 +425,69 @@ async function loadTournamentStartsAt(
     map.set(row.id, row.starts_at ?? null);
   }
   return map;
+}
+
+/**
+ * Resolve a match via the `entity_external_ids` sidecar when the
+ * widget_id_composite prefix lookup missed it. Returns the same shape as
+ * the prefix path so the caller can treat both uniformly. Null when no
+ * sidecar mapping exists or the referenced match row is gone.
+ */
+async function resolveMatchViaSidecar(
+  supabase: SupabaseClient,
+  composite: string
+): Promise<ExistingMatch | null> {
+  const { data: eid, error: eidErr } = await supabase
+    .from('entity_external_ids')
+    .select('entity_id')
+    .eq('entity_type', 'match')
+    .eq('source', 'crionet_widget')
+    .eq('external_id', composite)
+    .maybeSingle();
+  if (eidErr) {
+    throw new Error(
+      `entity_external_ids lookup failed (composite=${composite}): ${eidErr.message}`
+    );
+  }
+  const matchId = (eid as { entity_id?: string } | null)?.entity_id;
+  if (!matchId) return null;
+
+  const { data: row, error: mErr } = await supabase
+    .from('matches')
+    .select(
+      'id, widget_id_composite, status, winner_pair, duration, finished_at, started_at'
+    )
+    .eq('id', matchId)
+    .maybeSingle();
+  if (mErr) {
+    throw new Error(
+      `matches lookup by sidecar id failed (id=${matchId}): ${mErr.message}`
+    );
+  }
+  return (row as ExistingMatch | null) ?? null;
+}
+
+/**
+ * Backfill `matches.widget_id_composite` for a row resolved via the
+ * sidecar. Guarded `IS NULL` so we never clobber a populator-owned value,
+ * and the partial unique index's 23505 is tolerated (another writer raced
+ * us to the same composite — harmless).
+ */
+async function backfillCompositeColumn(
+  supabase: SupabaseClient,
+  matchId: string,
+  composite: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('matches')
+    .update({ widget_id_composite: composite })
+    .eq('id', matchId)
+    .is('widget_id_composite', null);
+  if (error && (error as { code?: string }).code !== '23505') {
+    throw new Error(
+      `widget_id_composite backfill failed (id=${matchId}, composite=${composite}): ${error.message}`
+    );
+  }
 }
 
 async function loadExistingMatchesByPrefix(

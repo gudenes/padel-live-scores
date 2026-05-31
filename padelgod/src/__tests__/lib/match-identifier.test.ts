@@ -254,6 +254,28 @@ function matchesBuilder(state: State) {
       };
       return self;
     },
+    update(patch: any) {
+      return {
+        eq(col: string, id: string) {
+          if (col !== 'id') throw new Error(`unexpected matches update eq: ${col}`);
+          return {
+            // Composite backfill: .update({widget_id_composite}).eq('id').is('widget_id_composite', null)
+            is(col2: string, value: unknown) {
+              if (col2 !== 'widget_id_composite' || value !== null) {
+                throw new Error(
+                  `unsupported matches update .is mock: ${col2} ${String(value)}`,
+                );
+              }
+              const row = state.matches.get(id);
+              if (row && (row.widget_id_composite == null)) {
+                row.widget_id_composite = patch.widget_id_composite ?? null;
+              }
+              return Promise.resolve({ data: null, error: null });
+            },
+          };
+        },
+      };
+    },
     insert(row: any) {
       const id = state.nextMatchId();
       const full = {
@@ -262,6 +284,7 @@ function matchesBuilder(state: State) {
         category: row.category,
         round: row.round,
         court: row.court ?? null,
+        widget_id_composite: row.widget_id_composite ?? null,
         pair1_player1_id: row.pair1_player1_id ?? null,
         pair1_player2_id: row.pair1_player2_id ?? null,
         pair2_player1_id: row.pair2_player1_id ?? null,
@@ -414,6 +437,88 @@ describe('findOrCreateMatch', () => {
     const m = state.matches.get('new-match-1')!;
     expect(m.pair1_player1_id).toBe('p-A');
     expect(m.pair2_player2_id).toBe('p-D');
+  });
+
+  it('sets widget_id_composite on freshly-created rows (origin-gap fix)', async () => {
+    // Root cause of the 2026-05-31 ITALY MAJOR Q1 stuck-match incident: a
+    // match created through the live/insert path carried the crionet_widget
+    // sidecar mapping but had widget_id_composite=NULL, so fip-results-writer's
+    // prefix lookup (and fip-oop-writer's) couldn't see it. The hot column is
+    // the canonical pipeline identity and must be set at creation, matching
+    // what fip-draw-populator does.
+    const state = makeState();
+    const supabase = fakeSupabase(state);
+
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      pair1PlayerIds: ['p-A', 'p-B'],
+      pair2PlayerIds: ['p-C', 'p-D'],
+    });
+
+    expect(result.created).toBe(true);
+    const m = state.matches.get(result.matchId)!;
+    expect(m.widget_id_composite).toBe(COMPOSITE);
+    // Sidecar and hot column now agree — the invariant whose violation
+    // caused the incident.
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe(result.matchId);
+  });
+
+  it('backfills widget_id_composite when pair-based fallback links a draw-only row', async () => {
+    const state = makeState();
+    state.matches.set('draw-match-uuid', {
+      id: 'draw-match-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: null,
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+      // No widget_id_composite — draw-only row created before widget known.
+    });
+
+    const supabase = fakeSupabase(state);
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      pair1PlayerIds: ['p-A', 'p-B'],
+      pair2PlayerIds: ['p-C', 'p-D'],
+    });
+
+    expect(result.matchId).toBe('draw-match-uuid');
+    expect(result.linkedExisting).toBe(true);
+    // Both identifiers now point at the row.
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe('draw-match-uuid');
+    expect(state.matches.get('draw-match-uuid')!.widget_id_composite).toBe(COMPOSITE);
+  });
+
+  it('backfills widget_id_composite when padelapi-twin fallback links a row', async () => {
+    const state = makeState();
+    state.matches.set('padelapi-twin-uuid', {
+      id: 'padelapi-twin-uuid',
+      tournament_id: 'tour-1',
+      category: 'men',
+      round: 'Quarter-Finals',
+      court: 'Court 1',
+      padelapi_id: '8376',
+      scheduled_at: new Date().toISOString(),
+      pair1_player1_id: 'p-A',
+      pair1_player2_id: 'p-B',
+      pair2_player1_id: 'p-C',
+      pair2_player2_id: 'p-D',
+      // No widget_id_composite — padelapi-sync'd rows don't carry the FIP composite.
+    });
+
+    const supabase = fakeSupabase(state);
+    const result = await findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT,
+      court: 'COURT 1',
+    });
+
+    expect(result.matchId).toBe('padelapi-twin-uuid');
+    expect(result.linkedExisting).toBe(true);
+    expect(state.eids.get(COMPOSITE)?.entity_id).toBe('padelapi-twin-uuid');
+    expect(state.matches.get('padelapi-twin-uuid')!.widget_id_composite).toBe(COMPOSITE);
   });
 
   it('writes pair*_player*_name and country snapshot columns when caller supplies names without FKs', async () => {

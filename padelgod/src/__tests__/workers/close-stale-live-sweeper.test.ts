@@ -37,7 +37,7 @@ function fakeSupabase(inputs: FakeInputs) {
 
   function matchesSelect() {
     // Two query shapes, sharing `.in('status', [...])`:
-    //   Path A (stale): .in(status).lt('updated_at').lt('scheduled_at').order().limit()
+    //   Path A (stale): .in(status).lt('updated_at').or('started_at.not.is.null,scheduled_at.lt.<now>').order().limit()
     //   Path B (regression repair, added 2026-04-23):
     //     .in(status).not('finished_at', 'is', null).order('finished_at').limit()
     const toRow = (m: any) => ({
@@ -58,9 +58,23 @@ function fakeSupabase(inputs: FakeInputs) {
           lt: (col2: string, updatedCutoff: string) => {
             if (col2 !== 'updated_at') throw new Error(`unexpected .lt: ${col2}`);
             return {
-              lt: (col3: string, scheduledCutoff: string) => {
-                if (col3 !== 'scheduled_at')
-                  throw new Error(`unexpected .lt2: ${col3}`);
+              // `.or('started_at.not.is.null,scheduled_at.lt.<nowIso>')` —
+              // the "started" predicate. Parse the two terms generically so
+              // the fake mirrors the production query rather than hard-coding.
+              or: (expr: string) => {
+                const terms = expr.split(',');
+                const startedPredicate = (m: MatchSeed): boolean =>
+                  terms.some((term) => {
+                    if (term === 'started_at.not.is.null') {
+                      return m.started_at !== null && m.started_at !== undefined;
+                    }
+                    const lt = term.match(/^scheduled_at\.lt\.(.+)$/);
+                    if (lt) {
+                      const cutoff = lt[1]!;
+                      return m.scheduled_at !== null && m.scheduled_at < cutoff;
+                    }
+                    throw new Error(`unexpected .or term: ${term}`);
+                  });
                 return {
                   order: (_c: string, _opts: any) => ({
                     limit: (n: number) => {
@@ -69,11 +83,7 @@ function fakeSupabase(inputs: FakeInputs) {
                         .filter(
                           (m) => m.updated_at !== null && m.updated_at < updatedCutoff,
                         )
-                        .filter(
-                          (m) =>
-                            m.scheduled_at !== null &&
-                            m.scheduled_at < scheduledCutoff,
-                        )
+                        .filter(startedPredicate)
                         .sort((a, b) =>
                           (a.updated_at ?? '').localeCompare(b.updated_at ?? ''),
                         )
@@ -357,6 +367,73 @@ describe('runCloseStaleLiveSweeper', () => {
     expect(result.matchesIndecisive).toBe(1);
     expect(supabase.matchUpdates).toHaveLength(0);
     expect(supabase.setUpserts).toHaveLength(0);
+  });
+
+  it('PATH A: stale started match with NULL scheduled_at is still swept (started_at present)', async () => {
+    // Incident 2026-05-31: a Q1 match (ITALY MAJOR) sat stuck at status=live
+    // with scheduled_at=NULL. Path A's `scheduled_at < now` filter evaluates
+    // to NULL/false for NULL scheduled_at, so the safety-net sweeper couldn't
+    // see it. A match with started_at set HAS started and must be sweepable
+    // even without a scheduled time. Two completed sets → decisive (no
+    // reliance on in-progress leads).
+    const supabase = fakeSupabase({
+      matches: [
+        {
+          id: 'm-null-sched',
+          status: 'live',
+          scheduled_at: null,
+          updated_at: STALE_IS0,
+          started_at: new Date(NOW - 80 * 60_000).toISOString(),
+          duration: '01:20',
+        },
+      ],
+      sets: [
+        { match_id: 'm-null-sched', set_number: 1, pair1_games: 6, pair2_games: 3, set_score: '6-3', is_current: false },
+        { match_id: 'm-null-sched', set_number: 2, pair1_games: 6, pair2_games: 2, set_score: '6-2', is_current: false },
+      ],
+      now: NOW,
+    });
+
+    const result = await runCloseStaleLiveSweeper({
+      supabase: supabase as any,
+      nowMs: () => NOW,
+    });
+
+    expect(result.candidatesConsidered).toBe(1);
+    expect(result.matchesClosed).toBe(1);
+    expect(supabase.matchUpdates[0]!.patch.status).toBe('finished');
+    expect(supabase.matchUpdates[0]!.patch.winner_pair).toBe(1);
+  });
+
+  it('PATH A: match with NULL scheduled_at AND NULL started_at (never started) is NOT swept', async () => {
+    // Safety: broadening Path A to started-but-unscheduled must NOT also
+    // pull in matches that never started. started_at NULL + scheduled_at
+    // NULL means we have no evidence the match began — leave it alone.
+    const supabase = fakeSupabase({
+      matches: [
+        {
+          id: 'm-never-started',
+          status: 'live',
+          scheduled_at: null,
+          updated_at: STALE_IS0,
+          // started_at intentionally omitted (null)
+        },
+      ],
+      sets: [
+        { match_id: 'm-never-started', set_number: 1, pair1_games: 6, pair2_games: 3, set_score: '6-3', is_current: false },
+        { match_id: 'm-never-started', set_number: 2, pair1_games: 6, pair2_games: 2, set_score: '6-2', is_current: false },
+      ],
+      now: NOW,
+    });
+
+    const result = await runCloseStaleLiveSweeper({
+      supabase: supabase as any,
+      nowMs: () => NOW,
+    });
+
+    expect(result.candidatesConsidered).toBe(0);
+    expect(result.matchesClosed).toBe(0);
+    expect(supabase.matchUpdates).toHaveLength(0);
   });
 
   it('indecisive sets (1-all in set 1, mid-set 2) → skipped, logged, not closed', async () => {

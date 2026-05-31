@@ -38,7 +38,7 @@ interface ResultsSeed {
 
 interface ExistingMatchSeed {
   id: string;
-  widget_id_composite: string;
+  widget_id_composite: string | null;
   status: string | null;
   winner_pair: number | null;
   duration: string | null;
@@ -56,6 +56,13 @@ interface Options {
   resultsRows?: ResultsSeed[];
   existingMatches?: ExistingMatchSeed[];
   tournamentStartsAtById?: Record<string, string | null>;
+  /**
+   * crionet_widget sidecar mappings (entity_external_ids). Maps a full
+   * composite ("FIP-2026-1706:MD017") → an existing match id. Used to
+   * exercise the writer's sidecar-fallback path when a match row carries
+   * the mapping but has a NULL widget_id_composite hot column.
+   */
+  sidecarMappings?: Array<{ composite: string; matchId: string }>;
 }
 
 function fakeSupabase(opts: Options) {
@@ -64,18 +71,33 @@ function fakeSupabase(opts: Options) {
   const resultsRows = opts.resultsRows ?? [];
   const existing: ExistingMatchSeed[] = [...(opts.existingMatches ?? [])];
   const startsAtById = opts.tournamentStartsAtById ?? {};
+  const sidecar = opts.sidecarMappings ?? [];
 
   const updated: Array<{ id: string; patch: Record<string, unknown>; terminalGuard: string[] }> = [];
   const setsUpserted: any[] = [];
+  const compositeBackfills: Array<{ id: string; composite: string }> = [];
 
   const matchesTable = () => ({
     select: (_cols: string) => ({
+      // Prefix lookup (loadExistingMatchesByPrefix). NULL composites never
+      // match a LIKE — mirror that so sidecar-only rows are excluded here.
       like: (_col: string, pattern: string) => {
         const prefix = pattern.slice(0, -1);
-        const data = existing.filter((m) =>
-          m.widget_id_composite.startsWith(prefix)
+        const data = existing.filter(
+          (m) => m.widget_id_composite != null && m.widget_id_composite.startsWith(prefix)
         );
         return Promise.resolve({ data, error: null });
+      },
+      // Single-row fetch by id — used by the sidecar fallback after it
+      // resolves an entity_id from entity_external_ids.
+      eq: (col: string, val: string) => {
+        if (col !== 'id') throw new Error(`unexpected matches select eq: ${col}`);
+        return {
+          maybeSingle: () => {
+            const row = existing.find((m) => m.id === val) ?? null;
+            return Promise.resolve({ data: row, error: null });
+          },
+        };
       },
     }),
     update: (patch: Record<string, unknown>) => ({
@@ -90,6 +112,21 @@ function fakeSupabase(opts: Options) {
             updated.push({ id: val, patch, terminalGuard: values });
             return Promise.resolve({ data: null, error: null });
           },
+          // Composite backfill: .update({widget_id_composite}).eq('id').is('widget_id_composite', null)
+          is: (col2: string, value: unknown) => {
+            if (col2 !== 'widget_id_composite' || value !== null) {
+              throw new Error(`unexpected UPDATE .is: ${col2} ${String(value)}`);
+            }
+            const row = existing.find((m) => m.id === val);
+            if (row && row.widget_id_composite == null) {
+              row.widget_id_composite = patch.widget_id_composite as string;
+              compositeBackfills.push({
+                id: val,
+                composite: patch.widget_id_composite as string,
+              });
+            }
+            return Promise.resolve({ data: null, error: null });
+          },
           then: (resolve: (v: any) => void) => {
             // Shouldn't be used by this worker; log a loud failure if so.
             updated.push({ id: val, patch, terminalGuard: [] });
@@ -99,6 +136,32 @@ function fakeSupabase(opts: Options) {
         return chain;
       },
     }),
+  });
+
+  const entityExternalIdsTable = () => ({
+    select: (_cols: string) => {
+      const filters: Record<string, unknown> = {};
+      const self: any = {
+        eq: (col: string, value: unknown) => {
+          filters[col] = value;
+          return self;
+        },
+        maybeSingle: () => {
+          if (
+            filters.entity_type !== 'match' ||
+            filters.source !== 'crionet_widget'
+          ) {
+            return Promise.resolve({ data: null, error: null });
+          }
+          const hit = sidecar.find((s) => s.composite === filters.external_id);
+          return Promise.resolve({
+            data: hit ? { entity_id: hit.matchId } : null,
+            error: null,
+          });
+        },
+      };
+      return self;
+    },
   });
 
   const setsTable = () => ({
@@ -170,6 +233,7 @@ function fakeSupabase(opts: Options) {
     updated,
     setsUpserted,
     resultsSnapshotPages,
+    compositeBackfills,
     schema: (_name: string) => ({
       from: (t: string) => {
         if (t === 'results_snapshots') return resultsSnapshotsTable();
@@ -180,6 +244,7 @@ function fakeSupabase(opts: Options) {
     from: (t: string) => {
       if (t === 'matches') return matchesTable();
       if (t === 'sets') return setsTable();
+      if (t === 'entity_external_ids') return entityExternalIdsTable();
       if (t === 'tournaments') {
         return {
           select: (_cols: string) => ({
@@ -551,6 +616,100 @@ describe('runFipResultsWriter', () => {
     expect(supabase.updated[0].id).toBe('m-md017');
     expect(supabase.updated[0].patch.status).toBe('finished');
     expect(supabase.updated[0].patch.winner_pair).toBe(2);
+  });
+
+  it('resolves via crionet_widget sidecar when widget_id_composite is NULL, and backfills the column', async () => {
+    // Incident 2026-05-31: a Q1 match (ITALY MAJOR) had a crionet_widget
+    // sidecar mapping but widget_id_composite=NULL, so the prefix lookup
+    // missed it and the captured retirement sat unapplied for ~5h. The
+    // writer must fall back to the sidecar, apply the result, AND backfill
+    // the hot column so future runs hit the fast path.
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [md017Finished],
+      existingMatches: [
+        { ...md017Existing, id: 'm-null-composite', widget_id_composite: null },
+      ],
+      sidecarMappings: [
+        { composite: `${TOURNAMENT_WIDGET}:MD017`, matchId: 'm-null-composite' },
+      ],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedNoMatch).toBe(0);
+    expect(result.resolvedViaSidecar).toBe(1);
+    expect(result.matchesUpdated).toBe(1);
+    expect(result.setsWritten).toBe(2);
+
+    // Status flip happened on the sidecar-resolved row.
+    expect(supabase.updated).toHaveLength(1);
+    expect(supabase.updated[0].id).toBe('m-null-composite');
+    expect(supabase.updated[0].patch.status).toBe('finished');
+
+    // Hot column backfilled for the next run's fast path.
+    expect(supabase.compositeBackfills).toContainEqual({
+      id: 'm-null-composite',
+      composite: `${TOURNAMENT_WIDGET}:MD017`,
+    });
+  });
+
+  it('does NOT flip a terminal sidecar-resolved match (regression guard preserved)', async () => {
+    // Sidecar resolution must not become a back door around the
+    // terminal-status regression guard.
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [md017Finished],
+      existingMatches: [
+        {
+          ...md017Existing,
+          id: 'm-null-composite',
+          widget_id_composite: null,
+          status: 'finished',
+        },
+      ],
+      sidecarMappings: [
+        { composite: `${TOURNAMENT_WIDGET}:MD017`, matchId: 'm-null-composite' },
+      ],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.resolvedViaSidecar).toBe(1);
+    expect(result.skippedTerminalStatus).toBe(1);
+    expect(result.matchesUpdated).toBe(0);
+    expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('does not write the column backfill in dry-run', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [md017Finished],
+      existingMatches: [
+        { ...md017Existing, id: 'm-null-composite', widget_id_composite: null },
+      ],
+      sidecarMappings: [
+        { composite: `${TOURNAMENT_WIDGET}:MD017`, matchId: 'm-null-composite' },
+      ],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: true,
+    });
+
+    expect(result.resolvedViaSidecar).toBe(1);
+    expect(supabase.compositeBackfills).toHaveLength(0);
+    expect(supabase.updated).toHaveLength(0);
   });
 
   it('deduplicates to latest captured_at per match_widget_id', async () => {
