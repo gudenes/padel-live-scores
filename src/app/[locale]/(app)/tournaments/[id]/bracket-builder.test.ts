@@ -185,6 +185,52 @@ describe('buildBracket', () => {
     expect(placedR64[0].positionInRound).not.toBe(0)
   })
 
+  it('positions first-round matches by widget heap index when the next-round winner sides are TBD', () => {
+    // Regression for Italy Major 2026: before any first-round match is
+    // played, every R32 cell carries a seed on one side and a TBD (null)
+    // winner on the other. findFeedingMatch can't link the R64 matches
+    // (null players), so they used to be packed sequentially into the
+    // first available non-bye slots — landing against the wrong seeds.
+    //
+    // The widget_id_composite is a binary-heap node number (MD001=Final,
+    // R32 cells = MD016..MD031, R64 cells = MD032..MD063). The first-round
+    // slot is therefore `heapNum - ROUND_SLOTS[R64]` (= heapNum - 32).
+    // MD034 feeds MD017's top side → R64 slot 2, NOT slot 1.
+    const matches: Match[] = [
+      // R32 pos 0 (MD016): seed 1 on top, TBD opponent (bye into R32).
+      fakeMatch({
+        id: 'r32-md016', round: 'R32',
+        widget_id_composite: 'FIP-TEST:MD016',
+        pair1_player1: { id: 'tapia', name: 'Agustin Tapia' } as any,
+        pair1_player2: { id: 'coello', name: 'Arturo Coello' } as any,
+        pair1_seed: 1,
+      }),
+      // R32 pos 1 (MD017): TBD on top, seed 13 on bottom (bye into R32).
+      fakeMatch({
+        id: 'r32-md017', round: 'R32',
+        widget_id_composite: 'FIP-TEST:MD017',
+        pair2_player1: { id: 'garcia', name: 'Javier Garcia' } as any,
+        pair2_player2: { id: 'casas', name: 'Jose Jimenez Casas' } as any,
+        pair2_seed: 13,
+      }),
+      // R64 match feeding MD017's top side (MD034 → slot 2).
+      fakeMatch({
+        id: 'r64-md034', round: 'R64',
+        widget_id_composite: 'FIP-TEST:MD034',
+        pair1_player1: { id: 'rubini', name: 'Juan Ignacio Rubini' } as any,
+        pair1_player2: { id: 'aguero', name: 'Maximiliano Sanchez Aguero' } as any,
+        pair2_player1: { id: 'gala', name: 'David Gala' } as any,
+        pair2_player2: { id: 'sirvent', name: 'Enzo Jensen Sirvent' } as any,
+      }),
+    ]
+    const bracket = buildBracket(matches, 64)
+    const md034 = bracket.find(n => n.round === 'R64' && n.match?.id === 'r64-md034')!
+    expect(md034.positionInRound).toBe(2)
+    // Seed 1 holds the bye at slot 0, seed 13 at slot 3.
+    expect(bracket.find(n => n.round === 'R64' && n.positionInRound === 0)?.byePair?.player1.id).toBe('tapia')
+    expect(bracket.find(n => n.round === 'R64' && n.positionInRound === 3)?.byePair?.player1.id).toBe('garcia')
+  })
+
   it('still finds a Pass-1 (UUID) feeder for a seeded pair carrying forward to the next round', () => {
     // When a seeded pair WON their first-round match (rather than getting a
     // bye), the next-round cell carries the seed but the previous-round match
