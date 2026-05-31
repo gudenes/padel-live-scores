@@ -414,6 +414,14 @@ Tabs: Ongoing Events, Integration Health, Data Quality, Readiness, Entry Lists, 
 - **Schedule:** OOP-based review with human-in-the-loop approval
 - **Architecture:** live SVG system diagram of all data integrations
 
+### Odds — real-time live layer
+
+The Elo `/odds` admin (per `docs/superpowers/specs/2026-05-27-odds-admin-visibility-design.md`) shows **hourly pre-match** odds from `model_predictions`. A real-time layer makes a live match's probability **move with the score**:
+
+- **Worker** `live-odds-updater` (padelgod, `*/20 * * * * *`, flag `enableLiveOddsUpdater`, default OFF): for **every live match with point-by-point** (recent `match_points` — the gate; **any tier/draw**, including qualifying), it anchors to the latest Elo `model_predictions.pair1_prob`, or a **cold-start Elo** anchor from FIP rank (`fipPriorElo` → `pairWinProbability`) when no snapshot exists, then applies the analytic **in-play engine** (`padelgod/src/lib/inplay-odds.ts` → `computeLiveProb`; serve-neutral, deuce/golden-point/tiebreak) and upserts `public.match_live_odds` (+ append-only `match_live_odds_snapshots`). The heavy hourly `model-prediction-snapshot` is unchanged.
+- **UI**: `apps/ops/src/components/Odds/LiveNowSection.tsx` — a client island on `/odds` that subscribes to `match_live_odds` via **Supabase Realtime** (anon key) and renders a "Live now" section (incl. out-of-scope matches; each row shows an `anchor_source` chip: Elo vs cold-start).
+- v1 is **serve-neutral**; the live numbers aren't calibrated (the existing `prediction_scores` scores the pre-match Elo only). Spec: `docs/superpowers/specs/2026-05-31-realtime-live-odds-design.md`.
+
 ## Environment Variables
 
 ```
