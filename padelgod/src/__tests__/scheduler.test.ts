@@ -19,6 +19,7 @@ const ALL_ENABLED = {
   enableCloseStaleLiveSweeper: true,
   enableRawPayloadsPrune: true,
   rawPayloadsPruneDryRun: false,
+  enableLiveOddsUpdater: true,
 };
 
 describe('buildSchedule', () => {
@@ -41,6 +42,7 @@ describe('buildSchedule', () => {
     expect(names).toContain('shadow-diff-live');
     expect(names).toContain('close-stale-live-sweeper');
     expect(names).toContain('raw-payloads-prune');
+    expect(names).toContain('live-odds-updater');
   });
 
   it('schedules close-stale-live-sweeper every 5 minutes', () => {
@@ -170,5 +172,17 @@ describe('buildSchedule', () => {
   it('omits fip-draw-reconciler when flag is off', () => {
     const sched = buildSchedule({ ...ALL_ENABLED, enableFipDrawReconciler: false } as any);
     expect(sched.map((s) => s.name)).not.toContain('fip-draw-reconciler');
+  });
+
+  it('schedules live-odds-updater every 20 seconds when enabled', () => {
+    const sched = buildSchedule(ALL_ENABLED as any);
+    const entry = sched.find((s) => s.name === 'live-odds-updater');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('*/20 * * * * *');
+  });
+
+  it('omits live-odds-updater when flag is off', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableLiveOddsUpdater: false } as any);
+    expect(sched.map((s) => s.name)).not.toContain('live-odds-updater');
   });
 });
