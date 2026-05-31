@@ -93,8 +93,28 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   // which assigns Crionet's team1 → pair1 and team2 → pair2.
   const firstRound = rounds[0]
   const nextRound = rounds[1]
+  const firstSlotCount = ROUND_SLOTS[firstRound]
   const firstRoundByPos = new Map<number, Match>()
   const firstRoundUnplaced = new Set<Match>(matchesByRound.get(firstRound) ?? [])
+
+  // Pass 0: widget heap index — authoritative when present. FIP/Crionet
+  // widget codes (e.g. "FIP-2026-2801:MD034", "…:WD034") embed the bracket
+  // node's heap number: MD001 is the final, R32 cells are MD016..MD031,
+  // R64 cells MD032..MD063. A round with `slotCount` cells occupies heap
+  // nodes [slotCount, 2*slotCount-1], so the first-round slot is
+  // `heapNum - slotCount`. This places matches at their true bracket
+  // position directly, without depending on next-round player-linking —
+  // which can't fire before the round is played (every next-round winner
+  // side is still TBD/null). The player-link + fallback passes below then
+  // handle only widget-less (OOP-sourced) matches.
+  for (const m of [...firstRoundUnplaced]) {
+    const num = widgetHeapNumber(m)
+    if (num == null) continue
+    const slot = num - firstSlotCount
+    if (slot < 0 || slot >= firstSlotCount || firstRoundByPos.has(slot)) continue
+    firstRoundByPos.set(slot, m)
+    firstRoundUnplaced.delete(m)
+  }
 
   if (nextRound) {
     const nextMatches = matchesByRound.get(nextRound) ?? []
@@ -115,7 +135,7 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
         firstRoundUnplaced, m.pair1_player1, m.pair1_player2,
         { skipNameFallback: topIsSeedBye },
       )
-      if (topFeed) {
+      if (topFeed && !firstRoundByPos.has(2 * j)) {
         firstRoundByPos.set(2 * j, topFeed)
         firstRoundUnplaced.delete(topFeed)
       }
@@ -123,7 +143,7 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
         firstRoundUnplaced, m.pair2_player1, m.pair2_player2,
         { skipNameFallback: botIsSeedBye },
       )
-      if (botFeed) {
+      if (botFeed && !firstRoundByPos.has(2 * j + 1)) {
         firstRoundByPos.set(2 * j + 1, botFeed)
         firstRoundUnplaced.delete(botFeed)
       }
@@ -141,7 +161,6 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   //
   // When the next round isn't drawn at all, every empty slot is fair
   // game — that's the original "no bracket yet" path.
-  const firstSlotCount = ROUND_SLOTS[firstRound]
   const isLikelyBye = (pos: number): boolean => {
     if (!nextRound) return false
     const nextMatches = matchesByRound.get(nextRound) ?? []
@@ -302,6 +321,18 @@ function findFeedingMatch(
     }
   }
   return undefined
+}
+
+/** Parse the binary-heap node number out of a FIP/Crionet widget code,
+ *  e.g. "FIP-2026-2801:MD034" → 34, "…:WD007" → 7. Returns null when the
+ *  match has no widget code or it doesn't end in an MD/WD-prefixed number. */
+function widgetHeapNumber(m: Match): number | null {
+  const w = (m as { widget_id_composite?: string | null }).widget_id_composite
+  if (!w) return null
+  const hit = /[MW]D(\d+)$/.exec(w)
+  if (!hit) return null
+  const n = parseInt(hit[1], 10)
+  return Number.isFinite(n) ? n : null
 }
 
 function nameTokens(name: string | null | undefined): Set<string> {
