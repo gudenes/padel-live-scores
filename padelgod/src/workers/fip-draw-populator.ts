@@ -209,7 +209,11 @@ interface DrawRow {
 
 interface ExistingMatch {
   id: string;
-  widget_id_composite: string;
+  // NULL when the row was created by the live-poller / OOP path
+  // (findOrCreateMatch), which stores the widget identity in the
+  // entity_external_ids sidecar and leaves this column unset. Such rows
+  // are surfaced by loadSidecarMatchesByPrefix, not the column query.
+  widget_id_composite: string | null;
   round: string | null;
   pair1_player1_id: string | null;
   pair1_player2_id: string | null;
@@ -713,12 +717,31 @@ export async function runFipDrawPopulator(
     }
     const fipIdToPlayerId = await loadPlayersByFipId(supabase, wantedFipIds);
 
-    // 6. Pre-load existing matches by composite for this tournament
+    // 6. Pre-load existing matches by composite for this tournament.
+    // Two sources, because the same widget identity can be stored in
+    // two places:
+    //   (a) matches.widget_id_composite — populator-owned rows
+    //   (b) entity_external_ids (source='crionet_widget') — rows created
+    //       by the live-poller / OOP path (findOrCreateMatch), whose
+    //       widget_id_composite column is NULL.
+    // Without (b) the populator is blind to live-poller-created rows and
+    // inserts a duplicate (see the Italy Major MQ025 dup, 2026-05). We
+    // merge (b) in for any composite the column query didn't already
+    // surface, then backfill the column on UPDATE so future runs hit (a).
     const compositePrefix = `${tournamentWidgetId}:`;
     const existingByComposite = await loadExistingMatchesByPrefix(
       supabase,
       compositePrefix
     );
+    const sidecarByComposite = await loadSidecarMatchesByPrefix(
+      supabase,
+      compositePrefix
+    );
+    for (const [composite, match] of sidecarByComposite) {
+      if (!existingByComposite.has(composite)) {
+        existingByComposite.set(composite, match);
+      }
+    }
 
     // 6b. Determine the FIRST round of the main draw per category from
     // this tournament's draw rows. We use it below to scope the
@@ -935,6 +958,16 @@ export async function runFipDrawPopulator(
       // A 3-of-4 resolution this run can therefore upgrade 3 slots from
       // thin → linked while leaving the 4th slot's name in place.
       const patch: Record<string, string | number> = {};
+
+      // Backfill widget_id_composite when the matched row is sidecar-only
+      // (live-poller / OOP created it with the column NULL). Writing the
+      // column makes future column-prefix lookups and downstream
+      // composite-keyed writers (oop-writer, results-writer,
+      // winner-propagator) target this row directly — and prevents the
+      // populator from ever re-inserting a duplicate for this widget.
+      if (existing.widget_id_composite == null) {
+        patch.widget_id_composite = composite;
+      }
 
       // Short-form refresh: when the existing row carries OOP-style
       // short-form names ("S. Rodriguez") and THIS draw row is from the
@@ -1877,19 +1910,20 @@ export async function buildBracketOverlay(
 // Body lives in ../lib/draw-resolver.ts now (shared with the reconciler).
 const loadPlayersByFipId = sharedLoadPlayersByFipId;
 
+const EXISTING_MATCH_COLUMNS =
+  'id, widget_id_composite, round, ' +
+  'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
+  'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name, ' +
+  'pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country, ' +
+  'pair1_seed, pair2_seed';
+
 async function loadExistingMatchesByPrefix(
   supabase: SupabaseClient,
   compositePrefix: string
 ): Promise<Map<string, ExistingMatch>> {
   const { data, error } = await supabase
     .from('matches')
-    .select(
-      'id, widget_id_composite, round, ' +
-        'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
-        'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name, ' +
-        'pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country, ' +
-        'pair1_seed, pair2_seed',
-    )
+    .select(EXISTING_MATCH_COLUMNS)
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
     throw new Error(
@@ -1899,6 +1933,56 @@ async function loadExistingMatchesByPrefix(
   const map = new Map<string, ExistingMatch>();
   for (const row of ((data ?? []) as unknown) as ExistingMatch[]) {
     if (row.widget_id_composite) map.set(row.widget_id_composite, row);
+  }
+  return map;
+}
+
+/**
+ * Load existing matches whose `crionet_widget` sidecar mapping falls
+ * under `compositePrefix`. These are rows the live-poller / OOP path
+ * (findOrCreateMatch) created with `widget_id_composite` NULL — the
+ * column-based loadExistingMatchesByPrefix can't see them, so without
+ * this the populator inserts a duplicate for the same widget. Keyed by
+ * the sidecar `external_id` (the real composite) so the caller merges
+ * them into the same dedup map. Empty map when nothing matches.
+ */
+async function loadSidecarMatchesByPrefix(
+  supabase: SupabaseClient,
+  compositePrefix: string
+): Promise<Map<string, ExistingMatch>> {
+  const { data: mappings, error: mapErr } = await supabase
+    .from('entity_external_ids')
+    .select('entity_id, external_id')
+    .eq('entity_type', 'match')
+    .eq('source', 'crionet_widget')
+    .like('external_id', `${compositePrefix}%`);
+  if (mapErr) {
+    throw new Error(
+      `entity_external_ids read failed (prefix=${compositePrefix}): ${mapErr.message}`
+    );
+  }
+  const rows = (mappings ?? []) as { entity_id: string; external_id: string }[];
+  const map = new Map<string, ExistingMatch>();
+  if (rows.length === 0) return map;
+
+  const compositeByMatchId = new Map<string, string>();
+  for (const r of rows) {
+    if (r.entity_id && r.external_id) compositeByMatchId.set(r.entity_id, r.external_id);
+  }
+
+  const { data: matchRows, error: matchErr } = await supabase
+    .from('matches')
+    .select(EXISTING_MATCH_COLUMNS)
+    .in('id', Array.from(compositeByMatchId.keys()));
+  if (matchErr) {
+    throw new Error(
+      `matches read by sidecar id failed (prefix=${compositePrefix}): ${matchErr.message}`
+    );
+  }
+  for (const row of ((matchRows ?? []) as unknown) as ExistingMatch[]) {
+    // Key by the sidecar composite — the column is NULL on these rows.
+    const composite = compositeByMatchId.get(row.id);
+    if (composite) map.set(composite, row);
   }
   return map;
 }

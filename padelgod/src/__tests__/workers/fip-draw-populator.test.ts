@@ -94,7 +94,10 @@ interface PlayerSeed {
 
 interface ExistingMatchSeed {
   id: string;
-  widget_id_composite: string;
+  // Nullable: live-poller / OOP rows created via findOrCreateMatch carry
+  // their widget identity in the entity_external_ids sidecar and leave
+  // this column NULL. Seed null to model that shape.
+  widget_id_composite: string | null;
   pair1_player1_id: string | null;
   pair1_player2_id: string | null;
   pair2_player1_id: string | null;
@@ -132,6 +135,10 @@ interface Options {
   entryList?: EntryListSeed[];
   players?: PlayerSeed[];
   existingMatches?: ExistingMatchSeed[];
+  /** entity_external_ids rows (source='crionet_widget', entity_type='match').
+   *  Models live-poller / OOP matches whose widget identity lives only in
+   *  the sidecar — the populator must consult these before inserting. */
+  sidecarMappings?: Array<{ entity_id: string; external_id: string }>;
   /** Map of tournament_id → level. Consulted by the populator's
    *  level-exclude branch (see runFipDrawPopulator's `excludeLevels`).
    *  Tournaments not in this map are returned with level=null when
@@ -162,6 +169,7 @@ function fakeSupabase(opts: Options) {
     }),
   );
   const tournamentLevels = opts.tournamentLevels ?? {};
+  const sidecarMappings = opts.sidecarMappings ?? [];
 
   const inserted: any[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
@@ -173,9 +181,17 @@ function fakeSupabase(opts: Options) {
       like: (_col: string, pattern: string) => {
         // e.g. "FIP-2026-1706:%"
         const prefix = pattern.slice(0, -1);
-        const data = existingState.filter((m) =>
-          m.widget_id_composite.startsWith(prefix)
+        // NULL column never matches a LIKE (mirrors Postgres) — sidecar-only
+        // rows have widget_id_composite=NULL and are found via the sidecar.
+        const data = existingState.filter(
+          (m) => m.widget_id_composite != null && m.widget_id_composite.startsWith(prefix)
         );
+        return Promise.resolve({ data, error: null });
+      },
+      in: (col: string, values: string[]) => {
+        if (col !== 'id')
+          throw new Error(`unexpected matches IN filter: ${col}`);
+        const data = existingState.filter((m) => values.includes(m.id));
         return Promise.resolve({ data, error: null });
       },
     }),
@@ -255,6 +271,30 @@ function fakeSupabase(opts: Options) {
       tournamentDrawsConflictKeys.push(opts.onConflict ?? null);
       return Promise.resolve({ data: null, error: null });
     },
+  });
+
+  // entity_external_ids — the populator's sidecar dedup query:
+  //   .select('entity_id, external_id')
+  //   .eq('entity_type','match').eq('source','crionet_widget')
+  //   .like('external_id', '<prefix>%')
+  const entityExternalIdsTable = () => ({
+    select: (_cols: string) => ({
+      eq: (c1: string, _v1: string) => ({
+        eq: (c2: string, _v2: string) => ({
+          like: (c3: string, pattern: string) => {
+            if (c1 !== 'entity_type' || c2 !== 'source' || c3 !== 'external_id')
+              throw new Error(
+                `unexpected entity_external_ids filter: ${c1}/${c2}/${c3}`,
+              );
+            const prefix = pattern.slice(0, -1);
+            const data = sidecarMappings
+              .filter((m) => m.external_id.startsWith(prefix))
+              .map((m) => ({ entity_id: m.entity_id, external_id: m.external_id }));
+            return Promise.resolve({ data, error: null });
+          },
+        }),
+      }),
+    }),
   });
 
   // Returns a builder that resolves to the given `data` either when
@@ -349,6 +389,7 @@ function fakeSupabase(opts: Options) {
       if (t === 'players') return playersTable();
       if (t === 'tournaments') return tournamentsTable();
       if (t === 'tournament_draws') return tournamentDrawsTable();
+      if (t === 'entity_external_ids') return entityExternalIdsTable();
       throw new Error(`unexpected public table: ${t}`);
     },
     rpc: vi.fn(async (name: string) => {
@@ -914,6 +955,53 @@ describe('runFipDrawPopulator', () => {
     // The legacy row (if any existed in prod) is untouched.
     expect(result.inserted).toBe(1);
     expect(supabase.inserted[0].widget_id_composite).toBe('FIP-2026-1706:MD017');
+  });
+
+  it('does NOT insert a duplicate when a crionet_widget sidecar row already exists with NULL widget_id_composite', async () => {
+    // The live-poller / OOP path (findOrCreateMatch) creates a match
+    // with widget_id_composite=NULL and the real composite stored ONLY
+    // in entity_external_ids (source='crionet_widget'). The populator's
+    // column-based prefix lookup can't see it. Without consulting the
+    // sidecar, the populator inserts a second row for the same widget —
+    // the user-visible duplicate. It must instead find the sidecar row,
+    // UPDATE it, and backfill the widget_id_composite column.
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw], // composite FIP-2026-1706:MD017
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'live-poller-row',
+          widget_id_composite: null, // sidecar-only — column never set
+          pair1_player1_id: 'uuid-P1',
+          pair1_player2_id: 'uuid-P2',
+          pair2_player1_id: 'uuid-P3',
+          pair2_player2_id: 'uuid-P4',
+        },
+      ],
+      sidecarMappings: [
+        { entity_id: 'live-poller-row', external_id: 'FIP-2026-1706:MD017' },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    // No duplicate inserted — found via the sidecar.
+    expect(result.inserted).toBe(0);
+    expect(supabase.inserted).toHaveLength(0);
+    // Found the live row and backfilled its widget_id_composite column so
+    // future column-based lookups (and downstream composite-keyed writers)
+    // hit it directly.
+    expect(result.updated).toBe(1);
+    expect(supabase.updated[0].id).toBe('live-poller-row');
+    expect(supabase.updated[0].patch.widget_id_composite).toBe('FIP-2026-1706:MD017');
   });
 
   // ── Allowlist ────────────────────────────────────────────────────────
