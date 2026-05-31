@@ -409,7 +409,8 @@ async function findPadelapiTwin(
  */
 async function insertMatch(
   supabase: SupabaseClient,
-  input: MatchIdentifierInput
+  input: MatchIdentifierInput,
+  composite: string
 ): Promise<string> {
   const fkValues = [
     input.pair1PlayerIds?.[0],
@@ -432,6 +433,12 @@ async function insertMatch(
   }
 
   const row: Record<string, unknown> = {
+    // The composite is the canonical pipeline identity. Set it at creation
+    // so fip-results-writer / fip-oop-writer prefix lookups can see the row
+    // and the populator's later INSERT loses to the partial unique index
+    // (23505, treated as pre-existing). Leaving this NULL is the root cause
+    // of the 2026-05-31 ITALY MAJOR Q1 stuck-match incident.
+    widget_id_composite: composite,
     tournament_id: input.tournamentId,
     category: input.category,
     round: input.roundLabel,
@@ -500,6 +507,32 @@ async function linkWidgetId(
   }
   // ignoreDuplicates=true returns [] when a conflict occurred.
   return Array.isArray(data) && data.length > 0;
+}
+
+/**
+ * Backfill `matches.widget_id_composite` on a row we linked via the twin
+ * or pair fallback. Those rows (padelapi-sync'd or draw-only) carry no
+ * composite, so without this the canonical pipeline identity stays NULL
+ * and the results/oop writers' prefix lookups can't see the row — the
+ * 2026-05-31 stuck-match gap. Guarded `IS NULL` so we never clobber a
+ * populator-owned value; the partial unique index's 23505 is tolerated
+ * (a concurrent writer set the same composite — harmless).
+ */
+async function backfillCompositeColumn(
+  supabase: SupabaseClient,
+  matchId: string,
+  composite: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('matches')
+    .update({ widget_id_composite: composite })
+    .eq('id', matchId)
+    .is('widget_id_composite', null);
+  if (error && (error as { code?: string }).code !== '23505') {
+    throw new Error(
+      `widget_id_composite backfill failed (id=${matchId}, composite=${composite}): ${error.message}`
+    );
+  }
 }
 
 /**
@@ -603,6 +636,7 @@ export async function findOrCreateMatch(
         'match-identifier: widget-id upsert reported conflict but re-select returned null'
       );
     }
+    await backfillCompositeColumn(supabase, twinId, composite);
     return { matchId: twinId, created: false, linkedExisting: true };
   }
 
@@ -622,11 +656,12 @@ export async function findOrCreateMatch(
         'match-identifier: widget-id upsert reported conflict but re-select returned null'
       );
     }
+    await backfillCompositeColumn(supabase, paired.id, composite);
     return { matchId: paired.id, created: false, linkedExisting: true };
   }
 
   // Step 4: create fresh match + link
-  const newMatchId = await insertMatch(supabase, input);
+  const newMatchId = await insertMatch(supabase, input, composite);
   const won = await linkWidgetId(supabase, newMatchId, composite);
   if (!won) {
     // Concurrent create: another worker inserted a matches row AND linked it

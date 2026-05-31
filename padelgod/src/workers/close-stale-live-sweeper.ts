@@ -92,11 +92,21 @@ export async function runCloseStaleLiveSweeper(
   //
   //   Path A — "stale live/ended" (the original):
   //     status IN ('live','ended') AND updated_at < now - staleMinutes
-  //     AND scheduled_at < now
+  //     AND (started_at IS NOT NULL OR scheduled_at < now)
   //   Catches matches dropped from the live feed without padelgod
   //   having a chance to close them (poller wasn't running, missed the
   //   terminal tick, etc.). Conservative 15-min threshold avoids
   //   false-closing matches with legitimate long breaks.
+  //
+  //   The "started" guard is `started_at IS NOT NULL OR scheduled_at < now`,
+  //   not a bare `scheduled_at < now`. A bare comparison silently drops
+  //   rows where scheduled_at IS NULL (Postgres: NULL < now is NULL, not
+  //   true), which is exactly how the 2026-05-31 ITALY MAJOR Q1 match
+  //   evaded the sweeper while stuck on 'live'. started_at being set is
+  //   unambiguous proof the match began, so it qualifies regardless of
+  //   whether a scheduled time was ever recorded. A row with neither
+  //   started_at nor a past scheduled_at has no evidence of starting and
+  //   is left alone (preserves the don't-close-not-yet-started safety).
   //
   //   Path B — "regression repair" (added 2026-04-23):
   //     status IN ('live','ended') AND finished_at IS NOT NULL
@@ -118,7 +128,7 @@ export async function runCloseStaleLiveSweeper(
     .select('id, status, scheduled_at, updated_at, started_at, duration, finished_at')
     .in('status', ['live', 'ended'])
     .lt('updated_at', staleCutoffIso)
-    .lt('scheduled_at', nowIso)
+    .or(`started_at.not.is.null,scheduled_at.lt.${nowIso}`)
     .order('updated_at', { ascending: true })
     .limit(maxMatchesPerRun);
 
