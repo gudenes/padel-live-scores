@@ -7,7 +7,7 @@ import { Rail } from './Rail'
 import { IconSprite } from '../IconSprite'
 import './shell.css'
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, userEmail = null }: { children: React.ReactNode; userEmail?: string | null }) {
   const [collapsed, setCollapsed] = useState(false)
   useEffect(() => { try { if (localStorage.getItem('ops.rail.collapsed') === '1') setCollapsed(true) } catch {} }, [])
   useEffect(() => { try { localStorage.setItem('ops.rail.collapsed', collapsed ? '1' : '0') } catch {} }, [collapsed])
@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <BrandProvider>
         <IconSprite />
         <div className={`app ${collapsed ? 'collapsed' : ''}`}>
-          <GlobalHeader />
+          <GlobalHeader userEmail={userEmail} />
           <div className="shell">
             <Rail collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} />
             <main className="main">{children}</main>
