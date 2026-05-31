@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
+import { DataTable, Pill, Button } from '@/components/ui'
 import { PlayerSummary, computeCompleteness } from './types'
 
 interface PlayersTableProps {
@@ -30,8 +31,8 @@ function CompletenessDotsCell({ player }: { player: PlayerSummary }) {
             display: 'inline-block',
             width: 8,
             height: 8,
-            borderRadius: '50%',
-            background: ok ? '#22c55e' : '#ef4444',
+            borderRadius: 'var(--r-full)',
+            background: ok ? 'var(--lime)' : 'var(--live)',
             flexShrink: 0,
             cursor: 'default',
           }}
@@ -56,21 +57,21 @@ function AvatarCell({ player }: { player: PlayerSummary }) {
         <img
           src={player.avatar_url}
           alt={player.name}
-          style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+          style={{ width: 28, height: 28, borderRadius: 'var(--r-full)', objectFit: 'cover' }}
         />
       ) : (
         <div
           style={{
             width: 28,
             height: 28,
-            borderRadius: '50%',
-            background: '#e5e7eb',
+            borderRadius: 'var(--r-full)',
+            background: 'var(--bg-hover)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 10,
             fontWeight: 600,
-            color: '#6B7280',
+            color: 'var(--text-3)',
           }}
         >
           {initials}
@@ -98,50 +99,25 @@ function AvatarCell({ player }: { player: PlayerSummary }) {
 }
 
 function CategoryBadge({ category }: { category: string | null }) {
-  if (!category) return <span style={{ color: '#9ca3af' }}>—</span>
+  if (!category) return <span style={{ color: 'var(--text-3)' }}>—</span>
   const isMen = category === 'men'
-  return (
-    <span
-      style={{
-        display: 'inline-block',
-        padding: '2px 6px',
-        borderRadius: 4,
-        fontSize: 10,
-        fontWeight: 600,
-        background: isMen ? '#DBEAFE' : '#FCE7F3',
-        color: isMen ? '#1E40AF' : '#9D174D',
-      }}
-    >
-      {isMen ? 'M' : 'W'}
-    </span>
-  )
+  return <Pill tone={isMen ? 'men' : 'women'}>{isMen ? 'M' : 'W'}</Pill>
 }
 
 function EquipmentCell({ equipment }: { equipment: PlayerSummary['equipment'] }) {
   if (!equipment) {
-    return <span style={{ color: '#9ca3af' }}>—</span>
+    return <span style={{ color: 'var(--text-3)' }}>—</span>
   }
   return (
     <span style={{ fontSize: 12 }}>
-      <span style={{ fontWeight: 600, color: '#111' }}>{equipment.brand}</span>
+      <span style={{ fontWeight: 600, color: 'var(--text-1)' }}>{equipment.brand}</span>
       {' '}
-      <span style={{ color: '#6B7280' }}>{equipment.model}</span>
+      <span style={{ color: 'var(--text-2)' }}>{equipment.model}</span>
       {equipment.year != null && (
-        <span style={{ color: '#9ca3af', marginLeft: 4 }}>{equipment.year}</span>
+        <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>{equipment.year}</span>
       )}
     </span>
   )
-}
-
-const thStyle: React.CSSProperties = {
-  padding: '8px 10px',
-  textAlign: 'left',
-  fontSize: 11,
-  fontWeight: 600,
-  color: '#6B7280',
-  borderBottom: '1px solid #e5e7eb',
-  whiteSpace: 'nowrap',
-  background: '#fafafa',
 }
 
 export default function PlayersTable({
@@ -162,16 +138,8 @@ export default function PlayersTable({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
       {/* Table */}
-      <div
-        style={{
-          overflowX: 'auto',
-          border: '1px solid #e5e7eb',
-          borderRadius: 8,
-          opacity: loading ? 0.6 : 1,
-          transition: 'opacity 0.15s',
-        }}
-      >
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <div style={{ opacity: loading ? 0.6 : 1, transition: 'opacity 0.15s' }}>
+        <DataTable>
           <colgroup>
             <col style={{ width: 32 }} />
             <col style={{ width: 48 }} />
@@ -184,7 +152,7 @@ export default function PlayersTable({
           <thead>
             <tr>
               {/* Checkbox */}
-              <th style={{ ...thStyle, padding: '8px 8px 8px 12px' }}>
+              <th>
                 <input
                   type="checkbox"
                   checked={allSelected}
@@ -192,16 +160,16 @@ export default function PlayersTable({
                     if (el) el.indeterminate = someSelected
                   }}
                   onChange={onToggleSelectAll}
-                  style={{ cursor: 'pointer', accentColor: '#111' }}
+                  style={{ cursor: 'pointer', accentColor: 'var(--lime)' }}
                 />
               </th>
               {/* Avatar (no header text) */}
-              <th style={thStyle} />
-              <th style={thStyle}>Name</th>
-              <th style={thStyle}>Rank</th>
-              <th style={thStyle}>Cat</th>
-              <th style={thStyle}>Equipment</th>
-              <th style={thStyle}>Data</th>
+              <th />
+              <th>Name</th>
+              <th>Rank</th>
+              <th>Cat</th>
+              <th>Equipment</th>
+              <th>Data</th>
             </tr>
           </thead>
           <tbody>
@@ -212,7 +180,7 @@ export default function PlayersTable({
                   style={{
                     textAlign: 'center',
                     padding: '40px 16px',
-                    color: '#9ca3af',
+                    color: 'var(--text-3)',
                     fontSize: 13,
                   }}
                 >
@@ -224,10 +192,10 @@ export default function PlayersTable({
                 const isActive = player.id === activePlayerId
                 const isSelected = selectedIds.has(player.id)
                 const rowBg = isActive
-                  ? '#F0F7FF'
+                  ? 'var(--bg-sel)'
                   : isSelected
-                    ? '#f9fafb'
-                    : '#fff'
+                    ? 'var(--bg-hover)'
+                    : undefined
 
                 return (
                   <tr
@@ -236,47 +204,33 @@ export default function PlayersTable({
                     style={{
                       background: rowBg,
                       cursor: 'pointer',
-                      transition: 'background 0.1s',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive && !isSelected) {
-                        ;(e.currentTarget as HTMLTableRowElement).style.background = '#f9fafb'
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      ;(e.currentTarget as HTMLTableRowElement).style.background = rowBg
                     }}
                   >
                     {/* Checkbox */}
-                    <td
-                      style={{ padding: '8px 8px 8px 12px', verticalAlign: 'middle' }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <td onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => onToggleSelect(player.id)}
-                        style={{ cursor: 'pointer', accentColor: '#111' }}
+                        style={{ cursor: 'pointer', accentColor: 'var(--lime)' }}
                       />
                     </td>
 
                     {/* Avatar + Flag */}
-                    <td style={{ padding: '6px 8px', verticalAlign: 'middle' }}>
+                    <td>
                       <AvatarCell player={player} />
                     </td>
 
                     {/* Name */}
                     <td
                       style={{
-                        padding: '8px 10px',
-                        verticalAlign: 'middle',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: '#111' }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
                           {player.display_name || player.name}
                         </span>
                         <Link
@@ -285,17 +239,11 @@ export default function PlayersTable({
                           onClick={(e) => e.stopPropagation()}
                           style={{
                             fontSize: 12,
-                            color: '#9ca3af',
+                            color: 'var(--text-3)',
                             textDecoration: 'none',
                             cursor: 'pointer',
                             lineHeight: 1,
                             padding: '0 2px',
-                          }}
-                          onMouseEnter={(e) => {
-                            ;(e.currentTarget as HTMLAnchorElement).style.color = '#111'
-                          }}
-                          onMouseLeave={(e) => {
-                            ;(e.currentTarget as HTMLAnchorElement).style.color = '#9ca3af'
                           }}
                         >
                           ↗
@@ -304,26 +252,24 @@ export default function PlayersTable({
                     </td>
 
                     {/* Rank */}
-                    <td style={{ padding: '8px 10px', verticalAlign: 'middle' }}>
+                    <td>
                       {player.ranking != null ? (
-                        <span style={{ fontSize: 12, color: '#111', fontVariantNumeric: 'tabular-nums' }}>
+                        <span style={{ fontSize: 12, color: 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>
                           #{player.ranking}
                         </span>
                       ) : (
-                        <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
+                        <span style={{ color: 'var(--text-3)', fontSize: 12 }}>—</span>
                       )}
                     </td>
 
                     {/* Category */}
-                    <td style={{ padding: '8px 10px', verticalAlign: 'middle' }}>
+                    <td>
                       <CategoryBadge category={player.category} />
                     </td>
 
                     {/* Equipment */}
                     <td
                       style={{
-                        padding: '8px 10px',
-                        verticalAlign: 'middle',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -333,7 +279,7 @@ export default function PlayersTable({
                     </td>
 
                     {/* Data (completeness dots) */}
-                    <td style={{ padding: '8px 10px', verticalAlign: 'middle' }}>
+                    <td>
                       <CompletenessDotsCell player={player} />
                     </td>
                   </tr>
@@ -341,7 +287,7 @@ export default function PlayersTable({
               })
             )}
           </tbody>
-        </table>
+        </DataTable>
       </div>
 
       {/* Pagination */}
@@ -354,44 +300,18 @@ export default function PlayersTable({
             gap: 12,
             marginTop: 12,
             fontSize: 13,
-            color: '#6B7280',
+            color: 'var(--text-2)',
           }}
         >
-          <button
-            onClick={() => onPageChange(page - 1)}
-            disabled={page <= 1}
-            style={{
-              padding: '5px 12px',
-              borderRadius: 6,
-              border: '1px solid #e5e7eb',
-              background: page <= 1 ? '#f9fafb' : '#fff',
-              color: page <= 1 ? '#9ca3af' : '#111',
-              cursor: page <= 1 ? 'not-allowed' : 'pointer',
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
+          <Button size="sm" onClick={() => onPageChange(page - 1)} disabled={page <= 1}>
             ← Previous
-          </button>
-          <span style={{ fontSize: 13, color: '#6B7280' }}>
+          </Button>
+          <span style={{ fontSize: 13, color: 'var(--text-2)' }}>
             Page {page} of {totalPages}
           </span>
-          <button
-            onClick={() => onPageChange(page + 1)}
-            disabled={page >= totalPages}
-            style={{
-              padding: '5px 12px',
-              borderRadius: 6,
-              border: '1px solid #e5e7eb',
-              background: page >= totalPages ? '#f9fafb' : '#fff',
-              color: page >= totalPages ? '#9ca3af' : '#111',
-              cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
+          <Button size="sm" onClick={() => onPageChange(page + 1)} disabled={page >= totalPages}>
             Next →
-          </button>
+          </Button>
         </div>
       )}
     </div>

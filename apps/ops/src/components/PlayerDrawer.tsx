@@ -6,6 +6,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import Link from 'next/link'
+import { Button } from '@/components/ui'
 import { PlayerDetail } from '@/app/(app)/players/_components/types'
 import EquipmentTab from '@/app/(app)/players/_components/EquipmentTab'
 
@@ -13,20 +14,14 @@ import EquipmentTab from '@/app/(app)/players/_components/EquipmentTab'
 
 const labelStyle: React.CSSProperties = {
   fontSize: 10,
-  color: '#6B7280',
+  color: 'var(--text-2)',
   fontWeight: 600,
   display: 'block',
   marginBottom: 2,
 }
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '6px 8px',
-  fontSize: 12,
-  border: '1px solid #e5e7eb',
-  borderRadius: 4,
-  color: '#111',
   boxSizing: 'border-box',
-  background: '#fff',
 }
 const selectStyle: React.CSSProperties = {
   ...inputStyle,
@@ -80,17 +75,17 @@ function StatBox({ label, value }: { label: string; value: string | number | nul
     <div
       style={{
         flex: 1,
-        background: '#f9fafb',
-        borderRadius: 6,
+        background: 'var(--bg-card-2)',
+        borderRadius: 'var(--r-xs)',
         padding: '8px 10px',
         textAlign: 'center',
-        border: '1px solid #e5e7eb',
+        border: '1px solid var(--border-card)',
       }}
     >
-      <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)' }}>
         {value ?? '—'}
       </div>
-      <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2, fontWeight: 500 }}>{label}</div>
     </div>
   )
 }
@@ -114,10 +109,10 @@ function TabButton({
         padding: '8px 4px',
         fontSize: 12,
         fontWeight: active ? 600 : 500,
-        color: active ? '#111' : '#6B7280',
+        color: active ? 'var(--text-1)' : 'var(--text-3)',
         background: 'none',
         border: 'none',
-        borderBottom: active ? '2px solid #111' : '2px solid transparent',
+        borderBottom: active ? '2px solid var(--lime)' : '2px solid transparent',
         cursor: 'pointer',
         transition: 'color 0.12s, border-color 0.12s',
       }}
@@ -281,7 +276,7 @@ export default function PlayerDrawer({
         style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0,0,0,0.25)',
+          background: 'rgba(0,0,0,0.5)',
           zIndex: 100,
         }}
       />
@@ -295,11 +290,11 @@ export default function PlayerDrawer({
           right: 0,
           bottom: 0,
           width: 420,
-          background: '#fff',
+          background: 'var(--bg-surface)',
           zIndex: 101,
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
+          boxShadow: 'var(--shadow-lg)',
           animation: 'slideInRight 0.2s ease-out',
         }}
       >
@@ -314,12 +309,12 @@ export default function PlayerDrawer({
         <div
           style={{
             padding: '16px 16px 12px',
-            borderBottom: '1px solid #e5e7eb',
+            borderBottom: '1px solid var(--border-card)',
             flexShrink: 0,
           }}
         >
           {loading ? (
-            <div style={{ height: 64, display: 'flex', alignItems: 'center', color: '#9ca3af', fontSize: 13 }}>
+            <div style={{ height: 64, display: 'flex', alignItems: 'center', color: 'var(--text-3)', fontSize: 13 }}>
               Loading…
             </div>
           ) : player ? (
@@ -331,7 +326,7 @@ export default function PlayerDrawer({
                   <img
                     src={player.avatar_url}
                     alt={player.name}
-                    style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid #e5e7eb' }}
+                    style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border-card)' }}
                   />
                 ) : (
                   <div
@@ -339,13 +334,13 @@ export default function PlayerDrawer({
                       width: 64,
                       height: 64,
                       borderRadius: '50%',
-                      background: '#e5e7eb',
+                      background: 'var(--bg-hover)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: 20,
                       fontWeight: 700,
-                      color: '#6B7280',
+                      color: 'var(--text-2)',
                     }}
                   >
                     {getInitials(player.display_name || player.name)}
@@ -372,7 +367,7 @@ export default function PlayerDrawer({
 
               {/* Name + meta */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#111', lineHeight: 1.2 }}>
+                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-1)', lineHeight: 1.2 }}>
                   {player.display_name || player.name}
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 4, flexWrap: 'wrap' }}>
@@ -382,8 +377,8 @@ export default function PlayerDrawer({
                         display: 'inline-block',
                         padding: '2px 7px',
                         borderRadius: 10,
-                        background: '#111',
-                        color: '#fff',
+                        background: 'var(--text-1)',
+                        color: 'var(--bg-surface)',
                         fontSize: 11,
                         fontWeight: 600,
                       }}
@@ -392,7 +387,7 @@ export default function PlayerDrawer({
                     </span>
                   )}
                   {player.country && (
-                    <span style={{ fontSize: 12, color: '#6B7280' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-2)' }}>
                       {countryName(player.country)}
                     </span>
                   )}
@@ -404,8 +399,8 @@ export default function PlayerDrawer({
                         borderRadius: 4,
                         fontSize: 10,
                         fontWeight: 600,
-                        background: player.category === 'men' ? '#DBEAFE' : '#FCE7F3',
-                        color: player.category === 'men' ? '#1E40AF' : '#9D174D',
+                        background: player.category === 'men' ? 'var(--men-bg)' : 'var(--women-bg)',
+                        color: player.category === 'men' ? 'var(--men)' : 'var(--women)',
                       }}
                     >
                       {player.category === 'men' ? 'Men' : 'Women'}
@@ -421,7 +416,7 @@ export default function PlayerDrawer({
                   title="Open full profile"
                   style={{
                     fontSize: 11,
-                    color: '#2563EB',
+                    color: 'var(--lime-text)',
                     textDecoration: 'underline',
                     cursor: 'pointer',
                     padding: '2px 4px',
@@ -439,7 +434,7 @@ export default function PlayerDrawer({
                     border: 'none',
                     cursor: 'pointer',
                     fontSize: 18,
-                    color: '#6B7280',
+                    color: 'var(--text-2)',
                     lineHeight: 1,
                     padding: '4px 6px',
                     borderRadius: 4,
@@ -452,10 +447,10 @@ export default function PlayerDrawer({
                   title="Previous player (↑)"
                   style={{
                     background: 'none',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid var(--border-card)',
                     cursor: 'pointer',
                     fontSize: 12,
-                    color: '#6B7280',
+                    color: 'var(--text-2)',
                     lineHeight: 1,
                     padding: '3px 6px',
                     borderRadius: 4,
@@ -468,10 +463,10 @@ export default function PlayerDrawer({
                   title="Next player (↓)"
                   style={{
                     background: 'none',
-                    border: '1px solid #e5e7eb',
+                    border: '1px solid var(--border-card)',
                     cursor: 'pointer',
                     fontSize: 12,
-                    color: '#6B7280',
+                    color: 'var(--text-2)',
                     lineHeight: 1,
                     padding: '3px 6px',
                     borderRadius: 4,
@@ -491,7 +486,7 @@ export default function PlayerDrawer({
               display: 'flex',
               gap: 8,
               padding: '10px 16px',
-              borderBottom: '1px solid #e5e7eb',
+              borderBottom: '1px solid var(--border-card)',
               flexShrink: 0,
             }}
           >
@@ -509,7 +504,7 @@ export default function PlayerDrawer({
           <div
             style={{
               display: 'flex',
-              borderBottom: '1px solid #e5e7eb',
+              borderBottom: '1px solid var(--border-card)',
               flexShrink: 0,
             }}
           >
@@ -522,7 +517,7 @@ export default function PlayerDrawer({
         {/* ── Tab content (scrollable) ─────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
           {loading && (
-            <div style={{ color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: 32 }}>
+            <div style={{ color: 'var(--text-3)', fontSize: 13, textAlign: 'center', padding: 32 }}>
               Loading…
             </div>
           )}
@@ -537,6 +532,7 @@ export default function PlayerDrawer({
             >
               <Field label="Full Name">
                 <input
+                  className="ui-input"
                   style={inputStyle}
                   value={form.name ?? ''}
                   onChange={(e) => setField('name', e.target.value)}
@@ -545,6 +541,7 @@ export default function PlayerDrawer({
 
               <Field label="Display Name">
                 <input
+                  className="ui-input"
                   style={inputStyle}
                   value={form.display_name ?? ''}
                   placeholder="Optional"
@@ -554,6 +551,7 @@ export default function PlayerDrawer({
 
               <Field label="Country (ISO code)">
                 <input
+                  className="ui-input"
                   style={inputStyle}
                   value={form.country ?? ''}
                   placeholder="e.g. ES"
@@ -564,6 +562,7 @@ export default function PlayerDrawer({
 
               <Field label="Category">
                 <select
+                  className="ui-select"
                   style={selectStyle}
                   value={form.category ?? ''}
                   onChange={(e) => setField('category', e.target.value)}
@@ -576,6 +575,7 @@ export default function PlayerDrawer({
 
               <Field label="Side">
                 <select
+                  className="ui-select"
                   style={selectStyle}
                   value={form.side ?? ''}
                   onChange={(e) => setField('side', e.target.value)}
@@ -588,6 +588,7 @@ export default function PlayerDrawer({
 
               <Field label="Hand">
                 <select
+                  className="ui-select"
                   style={selectStyle}
                   value={form.hand ?? ''}
                   onChange={(e) => setField('hand', e.target.value)}
@@ -600,6 +601,7 @@ export default function PlayerDrawer({
 
               <Field label="Height">
                 <input
+                  className="ui-input"
                   style={inputStyle}
                   value={form.height ?? ''}
                   placeholder="e.g. 185cm"
@@ -610,6 +612,7 @@ export default function PlayerDrawer({
               <Field label="Birthdate">
                 <input
                   type="date"
+                  className="ui-input"
                   style={inputStyle}
                   value={form.birthdate ?? ''}
                   onChange={(e) => setField('birthdate', e.target.value)}
@@ -619,7 +622,8 @@ export default function PlayerDrawer({
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Birthplace">
                   <input
-                    style={inputStyle}
+                    className="ui-input"
+                  style={inputStyle}
                     value={form.birthplace ?? ''}
                     placeholder="City, Country"
                     onChange={(e) => setField('birthplace', e.target.value)}
@@ -633,6 +637,7 @@ export default function PlayerDrawer({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <Field label="External ID (padelapi.org)">
                 <input
+                  className="ui-input"
                   style={inputStyle}
                   value={form.external_id ?? ''}
                   onChange={(e) => setField('external_id', e.target.value)}
@@ -640,15 +645,16 @@ export default function PlayerDrawer({
               </Field>
               <Field label="FIP ID">
                 <input
+                  className="ui-input"
                   style={inputStyle}
                   value={form.fip_id ?? ''}
                   placeholder="e.g. fip-P200038"
                   onChange={(e) => setField('fip_id', e.target.value)}
                 />
               </Field>
-              <div style={{ marginTop: 8, padding: '10px 12px', background: '#f9fafb', borderRadius: 6, border: '1px solid #e5e7eb' }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: '#6B7280', marginBottom: 4 }}>Internal UUID</div>
-                <div style={{ fontSize: 11, color: '#111', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+              <div style={{ marginTop: 8, padding: '10px 12px', background: 'var(--bg-card-2)', borderRadius: 'var(--r-xs)', border: '1px solid var(--border-card)' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-2)', marginBottom: 4 }}>Internal UUID</div>
+                <div style={{ fontSize: 11, color: 'var(--text-1)', fontFamily: 'monospace', wordBreak: 'break-all' }}>
                   {player.id}
                 </div>
               </div>
@@ -678,40 +684,30 @@ export default function PlayerDrawer({
           <div
             style={{
               padding: '12px 16px',
-              borderTop: '1px solid #e5e7eb',
+              borderTop: '1px solid var(--border-card)',
               flexShrink: 0,
-              background: '#fff',
+              background: 'var(--bg-surface)',
               display: 'flex',
               gap: 10,
               alignItems: 'center',
             }}
           >
-            <button
+            <Button
+              variant="primary"
               onClick={handleSave}
               disabled={!isDirty || saving}
-              style={{
-                flex: 1,
-                padding: '8px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                background: isDirty && !saving ? '#111' : '#e5e7eb',
-                color: isDirty && !saving ? '#fff' : '#9ca3af',
-                border: 'none',
-                borderRadius: 6,
-                cursor: isDirty && !saving ? 'pointer' : 'not-allowed',
-                transition: 'background 0.15s',
-              }}
+              style={{ flex: 1 }}
             >
               {saving ? 'Saving…' : 'Save changes'}
-            </button>
+            </Button>
 
             {saveMsg === 'ok' && (
-              <span style={{ fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: 'var(--lime-text)', fontWeight: 600 }}>
                 ✓ Saved
               </span>
             )}
             {saveMsg === 'err' && (
-              <span style={{ fontSize: 12, color: '#dc2626', fontWeight: 600 }}>
+              <span style={{ fontSize: 12, color: 'var(--live-text)', fontWeight: 600 }}>
                 Save failed
               </span>
             )}
