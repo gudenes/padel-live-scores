@@ -13,7 +13,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!,
 )
 
-const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product']
+const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product', 'insights']
 
 // GET: list all EN rows (drafts + published) with translation status counts
 export async function GET() {

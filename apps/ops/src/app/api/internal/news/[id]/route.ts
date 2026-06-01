@@ -9,7 +9,7 @@ import { serviceClient } from '@/lib/supabase'
 import { translateAndStore } from '@/lib/news-translate-job'
 import type { NewsCategory, NewsPost } from '@/types/news'
 
-const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product']
+const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product', 'insights']
 
 interface Ctx {
   params: Promise<{ id: string }>

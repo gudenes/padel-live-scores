@@ -1,11 +1,11 @@
 // src/types/news.ts
 // Shared types for the first-party news section.
 
-export type NewsCategory = 'announcements' | 'product'
+export type NewsCategory = 'announcements' | 'product' | 'insights'
 export type NewsLocale = 'en' | 'es' | 'pt' | 'it' | 'fr'
 export type NewsStatus = 'draft' | 'published'
 
-export const NEWS_CATEGORIES: NewsCategory[] = ['announcements', 'product']
+export const NEWS_CATEGORIES: NewsCategory[] = ['announcements', 'product', 'insights']
 export const NEWS_LOCALES: NewsLocale[] = ['en', 'es', 'pt', 'it', 'fr']
 export const NON_EN_LOCALES: NewsLocale[] = ['es', 'pt', 'it', 'fr']
 

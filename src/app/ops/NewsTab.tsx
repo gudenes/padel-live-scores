@@ -13,7 +13,7 @@ const NON_EN: ('es' | 'pt' | 'it' | 'fr')[] = ['es', 'pt', 'it', 'fr']
 
 interface PostRow {
   id: string
-  category: 'announcements' | 'product'
+  category: 'announcements' | 'product' | 'insights'
   slug: string
   title: string
   status: 'draft' | 'published'
@@ -136,7 +136,7 @@ interface EditorProps {
 function Editor({ postId, onClose }: EditorProps) {
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
-  const [category, setCategory] = useState<'announcements' | 'product'>('announcements')
+  const [category, setCategory] = useState<'announcements' | 'product' | 'insights'>('announcements')
   const [body, setBody] = useState('')
   const [coverUrl, setCoverUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
@@ -250,10 +250,11 @@ function Editor({ postId, onClose }: EditorProps) {
         <select
           className="w-full bg-black/40 border border-white/10 p-2 mt-1"
           value={category}
-          onChange={(e) => setCategory(e.target.value as 'announcements' | 'product')}
+          onChange={(e) => setCategory(e.target.value as 'announcements' | 'product' | 'insights')}
         >
           <option value="announcements">Announcements</option>
           <option value="product">Product</option>
+          <option value="insights">Insights</option>
         </select>
       </label>
 
