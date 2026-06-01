@@ -20,6 +20,16 @@ export interface ParsedPlayerProfile {
    * description (regex) first, HTML overview block as fallback.
    */
   side: string | null;
+  /**
+   * High-res player photo URL from the FIP page. Source priority:
+   *   1. Yoast JSON-LD ImageObject whose @id ends with '#primaryimage'
+   *      (full-res headshot — present on every player page).
+   *   2. <meta property="og:image"> as a fallback.
+   * null when neither is present. Note: FIP's per-player filenames are
+   * inconsistent (Coello-c.png, TAPIA.png, …) so we do NOT pattern-match
+   * filenames — the JSON-LD/og source is the stable signal.
+   */
+  photoUrl: string | null;
 }
 
 const FIP_ID_REGEX = /\bP\d{4,7}\b/;
@@ -107,6 +117,36 @@ function findPersonNode(ld: unknown): Record<string, any> | null {
   return null;
 }
 
+/**
+ * Resolve the high-res player photo. Yoast emits an ImageObject in its @graph
+ * whose @id ends with '#primaryimage'; prefer its contentUrl (falling back to
+ * url). When the JSON-LD path misses, fall back to the og:image meta tag.
+ */
+function findPrimaryImageUrl(ld: unknown, html: string): string | null {
+  if (ld && typeof ld === 'object') {
+    const graph = (ld as Record<string, any>)['@graph'];
+    if (Array.isArray(graph)) {
+      for (const node of graph) {
+        if (
+          node &&
+          typeof node === 'object' &&
+          node['@type'] === 'ImageObject' &&
+          typeof node['@id'] === 'string' &&
+          node['@id'].endsWith('#primaryimage')
+        ) {
+          const url = node.contentUrl ?? node.url;
+          if (typeof url === 'string' && url.trim()) return url.trim();
+        }
+      }
+    }
+  }
+  const og = html.match(
+    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
+  );
+  if (og && og[1] && og[1].trim()) return og[1].trim();
+  return null;
+}
+
 export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
   const $ = cheerio.load(html);
 
@@ -164,5 +204,7 @@ export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
     if (name) coaches.push(name);
   });
 
-  return { fipId, birthDate, birthPlace, heightCm, affiliation, racketBrand, racketModel, coaches, side };
+  const photoUrl = findPrimaryImageUrl(ld, html);
+
+  return { fipId, birthDate, birthPlace, heightCm, affiliation, racketBrand, racketModel, coaches, side, photoUrl };
 }

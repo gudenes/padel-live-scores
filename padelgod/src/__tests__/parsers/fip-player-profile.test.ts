@@ -187,4 +187,28 @@ describe('parseFipPlayerProfile', () => {
       `<script type="application/ld+json">{"@type":"Person","height":"50"}</script>`
     ).heightCm).toBeNull();
   });
+
+  it('extracts photoUrl from the Yoast #primaryimage ImageObject', () => {
+    const html = `<script type="application/ld+json">{
+      "@context":"https://schema.org",
+      "@graph":[
+        {"@type":["WebPage","ProfilePage"],"mainEntity":{"@type":"Person","name":"Arturo Coello"}},
+        {"@type":"ImageObject","@id":"https://www.padelfip.com/player/arturo-coello/#primaryimage","url":"https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png","contentUrl":"https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png","width":500,"height":500}
+      ]
+    }</script>`;
+    expect(parseFipPlayerProfile(html).photoUrl).toBe(
+      'https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png',
+    );
+  });
+
+  it('falls back to og:image when no JSON-LD primary image is present', () => {
+    const html = `<html><head><meta property="og:image" content="https://www.padelfip.com/wp-content/uploads/2023/02/TAPIA.png" /></head><body></body></html>`;
+    expect(parseFipPlayerProfile(html).photoUrl).toBe(
+      'https://www.padelfip.com/wp-content/uploads/2023/02/TAPIA.png',
+    );
+  });
+
+  it('returns null photoUrl when no image source is present', () => {
+    expect(parseFipPlayerProfile('<html><body></body></html>').photoUrl).toBeNull();
+  });
 });
