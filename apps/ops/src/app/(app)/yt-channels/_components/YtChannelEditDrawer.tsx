@@ -7,6 +7,7 @@
 
 import { useState } from 'react'
 import type { OpsChannel } from './types'
+import { Field, Button } from '@/components/ui'
 
 export default function YtChannelEditDrawer({
   channel,
@@ -63,7 +64,7 @@ export default function YtChannelEditDrawer({
   return (
     <div
       onClick={onClose}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000 }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000 }}
     >
       <form
         onClick={e => e.stopPropagation()}
@@ -71,67 +72,65 @@ export default function YtChannelEditDrawer({
         style={{
           position: 'absolute', top: 0, right: 0, height: '100%',
           width: 'min(420px, 92vw)',
-          background: '#1A1A1A', padding: 20,
-          borderLeft: '1px solid rgba(255,255,255,0.08)',
-          color: '#fff', fontSize: 13,
+          background: 'var(--bg-surface)', padding: 20,
+          borderLeft: '1px solid var(--border-card)',
+          color: 'var(--text-1)', fontSize: 13,
           overflowY: 'auto',
         }}
       >
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Edit Channel</h3>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>Edit Channel</h3>
 
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Channel ID (immutable)</span>
-          <input type="text" value={channel.channel_id} readOnly
-            style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.05)', color: '#6B7280', fontSize: 12, fontFamily: 'monospace' }}
-          />
-        </label>
-
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Display name</span>
-          <input type="text" value={name} onChange={e => setName(e.target.value)} required
-            style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13 }}
-          />
-        </label>
-
-        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-          <label style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Abbreviation</span>
-            <input type="text" value={abbreviation} onChange={e => setAbbreviation(e.target.value.toUpperCase().slice(0, 3))} required maxLength={3}
-              style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13 }}
+        <div style={{ marginBottom: 10 }}>
+          <Field label="Channel ID (immutable)">
+            <input type="text" value={channel.channel_id} readOnly
+              className="ui-input"
+              style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: 12 }}
             />
-          </label>
-          <label>
-            <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Color</span>
-            <input type="color" value={colorHex} onChange={e => setColorHex(e.target.value.toUpperCase())}
-              style={{ width: 40, height: 36, background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
-            />
-          </label>
-          <label style={{ width: 80 }}>
-            <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Order</span>
-            <input type="number" value={displayOrder} onChange={e => setDisplayOrder(parseInt(e.target.value, 10) || 100)}
-              style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13 }}
-            />
-          </label>
+          </Field>
         </div>
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-          <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+        <div style={{ marginBottom: 10 }}>
+          <Field label="Display name">
+            <input type="text" value={name} onChange={e => setName(e.target.value)} required
+              className="ui-input"
+            />
+          </Field>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+          <div style={{ flex: 1 }}>
+            <Field label="Abbreviation">
+              <input type="text" value={abbreviation} onChange={e => setAbbreviation(e.target.value.toUpperCase().slice(0, 3))} required maxLength={3}
+                className="ui-input"
+              />
+            </Field>
+          </div>
+          <Field label="Color">
+            <input type="color" value={colorHex} onChange={e => setColorHex(e.target.value.toUpperCase())}
+              style={{ width: 40, height: 36, background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}
+            />
+          </Field>
+          <div style={{ width: 80 }}>
+            <Field label="Order">
+              <input type="number" value={displayOrder} onChange={e => setDisplayOrder(parseInt(e.target.value, 10) || 100)}
+                className="ui-input"
+              />
+            </Field>
+          </div>
+        </div>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, color: 'var(--text-2)' }}>
+          <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} style={{ accentColor: 'var(--lime)' }} />
           <span>Active (cron polls this channel)</span>
         </label>
 
-        {error && <div style={{ color: '#FF4655', fontSize: 12, marginBottom: 10 }}>{error}</div>}
+        {error && <div style={{ color: 'var(--live-text)', fontSize: 12, marginBottom: 10 }}>{error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <button type="button" onClick={onDelete} disabled={submitting}
-            style={{ padding: '8px 14px', background: 'transparent', border: '1px solid rgba(255,70,85,0.5)', color: '#FF4655', cursor: 'pointer' }}
-          >Delete</button>
+          <Button type="button" variant="danger" onClick={onDelete} disabled={submitting}>Delete</Button>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" onClick={onClose} disabled={submitting}
-              style={{ padding: '8px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}
-            >Cancel</button>
-            <button type="submit" disabled={submitting}
-              style={{ padding: '8px 14px', background: '#7ED321', color: '#0A0A0A', border: 0, fontWeight: 800, cursor: 'pointer' }}
-            >{submitting ? 'Saving...' : 'Save'}</button>
+            <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>Cancel</Button>
+            <Button type="submit" variant="primary" disabled={submitting}>{submitting ? 'Saving...' : 'Save'}</Button>
           </div>
         </div>
       </form>

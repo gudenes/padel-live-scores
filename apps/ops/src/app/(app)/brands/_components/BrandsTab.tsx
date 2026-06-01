@@ -3,6 +3,7 @@
 // Brands & Equipment management UI for the ops dashboard
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { Panel, Section, DataTable, Field, Button } from '@/components/ui'
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -60,83 +61,16 @@ const emptyRacketForm = (): RacketFormData => ({
 
 // ── Shared styles ────────────────────────────────────────────────
 
-const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
-  padding: 16,
+const formCard: React.CSSProperties = {
+  background: 'var(--bg-card-2)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-sm)',
+  padding: 12,
+  marginBottom: 12,
 }
 
-const sectionLabel: React.CSSProperties = {
-  fontSize: 10,
-  color: '#9ca3af',
-  textTransform: 'uppercase' as const,
-  fontWeight: 700,
-  letterSpacing: 1,
-  marginBottom: 8,
-}
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 10,
-  color: '#6B7280',
-  fontWeight: 600,
-  marginBottom: 2,
-  display: 'block',
-}
-
-const inputStyle: React.CSSProperties = {
-  padding: '5px 7px',
-  fontSize: 11,
-  border: '1px solid #e5e7eb',
-  borderRadius: 4,
-  width: '100%',
-  boxSizing: 'border-box',
-}
-
-const selectStyle: React.CSSProperties = {
-  ...inputStyle,
-  background: 'white',
-}
-
-const btnPrimary: React.CSSProperties = {
-  background: '#111',
-  color: 'white',
-  border: 'none',
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 600,
-  padding: '6px 14px',
-  cursor: 'pointer',
-}
-
-const btnSecondary: React.CSSProperties = {
-  background: '#f3f4f6',
-  color: '#111',
-  border: '1px solid #e5e7eb',
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 500,
-  padding: '6px 14px',
-  cursor: 'pointer',
-}
-
-const thStyle: React.CSSProperties = {
-  fontSize: 10,
-  color: '#6B7280',
-  fontWeight: 700,
-  textTransform: 'uppercase' as const,
-  padding: '6px 8px',
-  textAlign: 'left',
-  borderBottom: '1px solid #e5e7eb',
-}
-
-const tdStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: '#111',
-  padding: '6px 8px',
-  borderBottom: '1px solid #f3f4f6',
-  verticalAlign: 'middle',
-}
+const msgColor = (m: string | null) =>
+  m?.startsWith('Error') ? 'var(--live-text)' : 'var(--lime-text)'
 
 // ── Component ────────────────────────────────────────────────────
 
@@ -367,40 +301,39 @@ export default function BrandsTab() {
   // ── Render ────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
 
       {/* ═══ Brands Section ═══ */}
-      <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={sectionLabel}>Brands</div>
-          {!showBrandForm && (
-            <button style={btnPrimary} onClick={() => { setShowBrandForm(true); setEditingBrandId(null); setBrandForm(emptyBrandForm()) }}>
+      <Panel
+        title="Brands"
+        actions={
+          !showBrandForm && (
+            <Button variant="primary" onClick={() => { setShowBrandForm(true); setEditingBrandId(null); setBrandForm(emptyBrandForm()) }}>
               + Add Brand
-            </button>
-          )}
-        </div>
-
+            </Button>
+          )
+        }
+      >
         {/* Brand form */}
         {showBrandForm && (
-          <div style={{ background: '#fafafa', border: '1px solid #e5e7eb', borderRadius: 6, padding: 12, marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#111', marginBottom: 8 }}>
+          <div style={formCard}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 }}>
               {editingBrandId ? 'Edit Brand' : 'New Brand'}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={labelStyle}>Name *</label>
+              <Field label="Name *">
                 <input
-                  style={inputStyle}
+                  className="ui-input"
                   value={brandForm.name}
                   onChange={e => setBrandForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="e.g. Bullpadel"
                 />
-              </div>
-              <div>
-                <label style={labelStyle}>Logo URL</label>
+              </Field>
+              <Field label="Logo URL">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
-                    style={{ ...inputStyle, flex: 1 }}
+                    className="ui-input"
+                    style={{ flex: 1, minWidth: 0 }}
                     value={brandForm.logo_url}
                     onChange={e => setBrandForm(f => ({ ...f, logo_url: e.target.value }))}
                     placeholder="https://..."
@@ -435,34 +368,33 @@ export default function BrandsTab() {
                       }
                     }}
                   />
-                  <button
+                  <Button
                     type="button"
-                    style={{ ...btnSecondary, opacity: editingBrandId ? 1 : 0.4, cursor: editingBrandId ? 'pointer' : 'not-allowed' }}
+                    size="sm"
                     disabled={!editingBrandId || uploadingBrand}
                     onClick={() => brandFileInputRef.current?.click()}
                     title={editingBrandId ? 'Upload a logo file (max 2 MB)' : 'Save the brand first, then upload'}
                   >
                     {uploadingBrand ? 'Uploading...' : 'Upload file'}
-                  </button>
+                  </Button>
                 </div>
-              </div>
-              <div>
-                <label style={labelStyle}>Website URL</label>
+              </Field>
+              <Field label="Website URL">
                 <input
-                  style={inputStyle}
+                  className="ui-input"
                   value={brandForm.website_url}
                   onChange={e => setBrandForm(f => ({ ...f, website_url: e.target.value }))}
                   placeholder="https://..."
                 />
-              </div>
+              </Field>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button style={btnPrimary} onClick={saveBrand} disabled={savingBrand}>
+              <Button variant="primary" onClick={saveBrand} disabled={savingBrand}>
                 {savingBrand ? 'Saving...' : 'Save'}
-              </button>
-              <button style={btnSecondary} onClick={cancelBrandForm}>Cancel</button>
+              </Button>
+              <Button onClick={cancelBrandForm}>Cancel</Button>
               {brandMessage && (
-                <span style={{ fontSize: 11, color: brandMessage.startsWith('Error') ? '#dc2626' : '#16a34a', marginLeft: 8 }}>
+                <span style={{ fontSize: 11, color: msgColor(brandMessage), marginLeft: 8 }}>
                   {brandMessage}
                 </span>
               )}
@@ -472,32 +404,32 @@ export default function BrandsTab() {
 
         {/* Brand message (when form is closed) */}
         {!showBrandForm && brandMessage && (
-          <div style={{ fontSize: 11, color: brandMessage.startsWith('Error') ? '#dc2626' : '#16a34a', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: msgColor(brandMessage), marginBottom: 8 }}>
             {brandMessage}
           </div>
         )}
 
         {/* Brands table */}
         {loadingBrands ? (
-          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>Loading brands...</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', padding: 12 }}>Loading brands...</div>
         ) : brands.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>No brands found. Add one to get started.</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', padding: 12 }}>No brands found. Add one to get started.</div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <DataTable>
             <thead>
               <tr>
-                <th style={thStyle}>Name</th>
-                <th style={thStyle}>Logo</th>
-                <th style={thStyle}>Website</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Rackets</th>
-                <th style={{ ...thStyle, width: 60 }} />
+                <th>Name</th>
+                <th>Logo</th>
+                <th>Website</th>
+                <th style={{ textAlign: 'right' }}>Rackets</th>
+                <th style={{ width: 60 }} />
               </tr>
             </thead>
             <tbody>
               {brands.map(b => (
                 <tr key={b.id}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>{b.name}</td>
-                  <td style={tdStyle}>
+                  <td style={{ fontWeight: 600 }}>{b.name}</td>
+                  <td>
                     {b.logo_url ? (
                       <img
                         src={b.logo_url}
@@ -506,68 +438,64 @@ export default function BrandsTab() {
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
+                      <span style={{ color: 'var(--text-4)', fontSize: 10 }}>--</span>
                     )}
                   </td>
-                  <td style={tdStyle}>
+                  <td>
                     {b.website_url ? (
                       <a
                         href={b.website_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: '#2563eb', fontSize: 11, textDecoration: 'none' }}
+                        style={{ color: 'var(--lime-text)', fontSize: 11, textDecoration: 'none' }}
                       >
                         {b.website_url.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}
                       </a>
                     ) : (
-                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
+                      <span style={{ color: 'var(--text-4)', fontSize: 10 }}>--</span>
                     )}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{b.racket_count ?? 0}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>
-                    <button
-                      style={{ ...btnSecondary, padding: '3px 10px', fontSize: 10 }}
-                      onClick={() => startEditBrand(b)}
-                    >
-                      Edit
-                    </button>
+                  <td style={{ textAlign: 'right' }}>{b.racket_count ?? 0}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <Button size="sm" onClick={() => startEditBrand(b)}>Edit</Button>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
-      </div>
+      </Panel>
 
       {/* ═══ Rackets Section ═══ */}
-      <div style={card}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      <Panel
+        title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={sectionLabel}>Rackets</div>
-            <div>
-              <select
-                style={{ ...selectStyle, width: 180 }}
-                value={brandFilter}
-                onChange={e => setBrandFilter(e.target.value)}
-              >
-                <option value="">All brands</option>
-                {brands.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-            </div>
+            <span>Rackets</span>
+            <select
+              className="ui-select"
+              style={{ width: 180 }}
+              value={brandFilter}
+              onChange={e => setBrandFilter(e.target.value)}
+            >
+              <option value="">All brands</option>
+              {brands.map(b => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
           </div>
-          {!showRacketForm && (
-            <button style={btnPrimary} onClick={() => { setShowRacketForm(true); setEditingRacketId(null); setRacketForm(emptyRacketForm()) }}>
+        }
+        actions={
+          !showRacketForm && (
+            <Button variant="primary" onClick={() => { setShowRacketForm(true); setEditingRacketId(null); setRacketForm(emptyRacketForm()) }}>
               + Add Racket
-            </button>
-          )}
-        </div>
-
+            </Button>
+          )
+        }
+      >
         {/* Racket form */}
         {showRacketForm && (
-          <div style={{ background: '#fafafa', border: '1px solid #e5e7eb', borderRadius: 6, padding: 12, marginBottom: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: '#111', marginBottom: 8 }}>
+          <div style={formCard}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-1)', marginBottom: 8 }}>
               {editingRacketId ? 'Edit Racket' : 'New Racket'}
             </div>
 
@@ -592,10 +520,9 @@ export default function BrandsTab() {
             />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={labelStyle}>Brand *</label>
+              <Field label="Brand *">
                 <select
-                  style={selectStyle}
+                  className="ui-select"
                   value={racketForm.brand_id}
                   onChange={e => setRacketForm(f => ({ ...f, brand_id: e.target.value }))}
                 >
@@ -604,30 +531,27 @@ export default function BrandsTab() {
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Model *</label>
+              </Field>
+              <Field label="Model *">
                 <input
-                  style={inputStyle}
+                  className="ui-input"
                   value={racketForm.model}
                   onChange={e => setRacketForm(f => ({ ...f, model: e.target.value }))}
                   placeholder="e.g. Vertex 04"
                 />
-              </div>
-              <div>
-                <label style={labelStyle}>Year</label>
+              </Field>
+              <Field label="Year">
                 <input
-                  style={inputStyle}
+                  className="ui-input"
                   type="number"
                   value={racketForm.year}
                   onChange={e => setRacketForm(f => ({ ...f, year: e.target.value }))}
                   placeholder="2026"
                 />
-              </div>
-              <div>
-                <label style={labelStyle}>Shape</label>
+              </Field>
+              <Field label="Shape">
                 <select
-                  style={selectStyle}
+                  className="ui-select"
                   value={racketForm.shape}
                   onChange={e => setRacketForm(f => ({ ...f, shape: e.target.value }))}
                 >
@@ -636,23 +560,21 @@ export default function BrandsTab() {
                     <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
                   ))}
                 </select>
-              </div>
+              </Field>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-              <div>
-                <label style={labelStyle}>Weight (g)</label>
+              <Field label="Weight (g)">
                 <input
-                  style={inputStyle}
+                  className="ui-input"
                   type="number"
                   value={racketForm.weight_grams}
                   onChange={e => setRacketForm(f => ({ ...f, weight_grams: e.target.value }))}
                   placeholder="360"
                 />
-              </div>
-              <div>
-                <label style={labelStyle}>Balance</label>
+              </Field>
+              <Field label="Balance">
                 <select
-                  style={selectStyle}
+                  className="ui-select"
                   value={racketForm.balance}
                   onChange={e => setRacketForm(f => ({ ...f, balance: e.target.value }))}
                 >
@@ -661,21 +583,20 @@ export default function BrandsTab() {
                     <option key={b} value={b}>{b.charAt(0).toUpperCase() + b.slice(1)}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Surface Material</label>
+              </Field>
+              <Field label="Surface Material">
                 <input
-                  style={inputStyle}
+                  className="ui-input"
                   value={racketForm.surface_material}
                   onChange={e => setRacketForm(f => ({ ...f, surface_material: e.target.value }))}
                   placeholder="Carbon fiber"
                 />
-              </div>
-              <div>
-                <label style={labelStyle}>Image URL</label>
+              </Field>
+              <Field label="Image URL">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
-                    style={{ ...inputStyle, flex: 1 }}
+                    className="ui-input"
+                    style={{ flex: 1, minWidth: 0 }}
                     value={racketForm.image_url}
                     onChange={e => setRacketForm(f => ({ ...f, image_url: e.target.value }))}
                     placeholder="https://..."
@@ -710,34 +631,35 @@ export default function BrandsTab() {
                       }
                     }}
                   />
-                  <button
+                  <Button
                     type="button"
-                    style={{ ...btnSecondary, opacity: editingRacketId ? 1 : 0.4, cursor: editingRacketId ? 'pointer' : 'not-allowed' }}
+                    size="sm"
                     disabled={!editingRacketId || uploadingRacket}
                     onClick={() => racketFileInputRef.current?.click()}
                     title={editingRacketId ? 'Upload an image file (max 2 MB)' : 'Save the racket first, then upload'}
                   >
                     {uploadingRacket ? 'Uploading...' : 'Upload file'}
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </Field>
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={labelStyle}>Product URL / Affiliate Link</label>
-              <input
-                style={inputStyle}
-                value={racketForm.product_url}
-                onChange={e => setRacketForm(f => ({ ...f, product_url: e.target.value }))}
-                placeholder="https://..."
-              />
+              <Field label="Product URL / Affiliate Link">
+                <input
+                  className="ui-input"
+                  value={racketForm.product_url}
+                  onChange={e => setRacketForm(f => ({ ...f, product_url: e.target.value }))}
+                  placeholder="https://..."
+                />
+              </Field>
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button style={btnPrimary} onClick={saveRacket} disabled={savingRacket}>
+              <Button variant="primary" onClick={saveRacket} disabled={savingRacket}>
                 {savingRacket ? 'Saving...' : 'Save'}
-              </button>
-              <button style={btnSecondary} onClick={cancelRacketForm}>Cancel</button>
+              </Button>
+              <Button onClick={cancelRacketForm}>Cancel</Button>
               {racketMessage && (
-                <span style={{ fontSize: 11, color: racketMessage.startsWith('Error') ? '#dc2626' : '#16a34a', marginLeft: 8 }}>
+                <span style={{ fontSize: 11, color: msgColor(racketMessage), marginLeft: 8 }}>
                   {racketMessage}
                 </span>
               )}
@@ -747,45 +669,45 @@ export default function BrandsTab() {
 
         {/* Racket message (when form is closed) */}
         {!showRacketForm && racketMessage && (
-          <div style={{ fontSize: 11, color: racketMessage.startsWith('Error') ? '#dc2626' : '#16a34a', marginBottom: 8 }}>
+          <div style={{ fontSize: 11, color: msgColor(racketMessage), marginBottom: 8 }}>
             {racketMessage}
           </div>
         )}
 
         {/* Rackets table */}
         {loadingRackets ? (
-          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>Loading rackets...</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', padding: 12 }}>Loading rackets...</div>
         ) : rackets.length === 0 ? (
-          <div style={{ fontSize: 11, color: '#9ca3af', padding: 12 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', padding: 12 }}>
             {brandFilter ? 'No rackets for this brand.' : 'No rackets found. Add one to get started.'}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <DataTable>
             <thead>
               <tr>
-                <th style={thStyle}>Brand</th>
-                <th style={thStyle}>Model</th>
-                <th style={thStyle}>Year</th>
-                <th style={thStyle}>Shape</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Weight</th>
-                <th style={thStyle}>Image</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Clicks</th>
-                <th style={{ ...thStyle, width: 60 }} />
+                <th>Brand</th>
+                <th>Model</th>
+                <th>Year</th>
+                <th>Shape</th>
+                <th style={{ textAlign: 'right' }}>Weight</th>
+                <th>Image</th>
+                <th style={{ textAlign: 'right' }}>Clicks</th>
+                <th style={{ width: 60 }} />
               </tr>
             </thead>
             <tbody>
               {rackets.map(r => (
                 <tr key={r.id}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>{r.brand_name ?? '--'}</td>
-                  <td style={tdStyle}>{r.model}</td>
-                  <td style={tdStyle}>{r.year ?? '--'}</td>
-                  <td style={tdStyle}>
+                  <td style={{ fontWeight: 600 }}>{r.brand_name ?? '--'}</td>
+                  <td>{r.model}</td>
+                  <td>{r.year ?? '--'}</td>
+                  <td>
                     {r.shape ? r.shape.charAt(0).toUpperCase() + r.shape.slice(1) : '--'}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>
+                  <td style={{ textAlign: 'right' }}>
                     {r.weight_grams ? `${r.weight_grams}g` : '--'}
                   </td>
-                  <td style={tdStyle}>
+                  <td>
                     {r.image_url ? (
                       <img
                         src={r.image_url}
@@ -794,24 +716,19 @@ export default function BrandsTab() {
                         onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <span style={{ color: '#d1d5db', fontSize: 10 }}>--</span>
+                      <span style={{ color: 'var(--text-4)', fontSize: 10 }}>--</span>
                     )}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{r.click_count ?? 0}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>
-                    <button
-                      style={{ ...btnSecondary, padding: '3px 10px', fontSize: 10 }}
-                      onClick={() => startEditRacket(r)}
-                    >
-                      Edit
-                    </button>
+                  <td style={{ textAlign: 'right' }}>{r.click_count ?? 0}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <Button size="sm" onClick={() => startEditRacket(r)}>Edit</Button>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
-      </div>
+      </Panel>
     </div>
   )
 }
@@ -858,40 +775,34 @@ function ImportFromUrl({
 
   return (
     <div style={{
-      marginBottom: 12, padding: 10, borderRadius: 6,
-      background: '#f0f7ff', border: '1px solid #bfdbfe',
+      marginBottom: 12, padding: 10, borderRadius: 'var(--r-sm)',
+      background: 'var(--lime-bg)', border: '1px solid var(--lime-border)',
     }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--lime-text)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
         Import from URL
       </div>
       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
         <input
-          style={{
-            flex: 1, padding: '6px 8px', fontSize: 12, border: '1px solid #bfdbfe',
-            borderRadius: 4, color: '#111', background: '#fff',
-          }}
+          className="ui-input"
+          style={{ flex: 1, minWidth: 0 }}
           value={url}
           onChange={e => setUrl(e.target.value)}
           placeholder="Paste product page URL (e.g. https://www.bullpadel.com/...)"
           onKeyDown={e => { if (e.key === 'Enter') handleExtract() }}
         />
-        <button
+        <Button
+          variant="primary"
           onClick={handleExtract}
           disabled={extracting || !url.trim()}
-          style={{
-            padding: '6px 14px', fontSize: 11, fontWeight: 600, borderRadius: 4, border: 'none',
-            background: extracting || !url.trim() ? '#d1d5db' : '#1e40af', color: '#fff',
-            cursor: extracting || !url.trim() ? 'default' : 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          style={{ whiteSpace: 'nowrap' }}
         >
           {extracting ? 'Extracting...' : 'Extract Specs'}
-        </button>
+        </Button>
       </div>
       {message && (
         <div style={{
           fontSize: 10, marginTop: 6,
-          color: message.startsWith('Error') ? '#dc2626' : '#16a34a',
+          color: message.startsWith('Error') ? 'var(--live-text)' : 'var(--lime-text)',
         }}>
           {message}
         </div>

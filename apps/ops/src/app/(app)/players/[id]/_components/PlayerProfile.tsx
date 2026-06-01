@@ -3,7 +3,7 @@
 // Client orchestrator for the full-profile page. Fetches the aggregator
 // (/api/internal/player/[id]) on mount and renders the page chrome +
 // ProfileHeader. Sections (Identity / Profile / Equipment / Match history /
-// Earnings / Coaches / Activity) land in C2–C4 and consume `data` here.
+// Earnings / Coaches / Activity) consume `data` here.
 //
 // Client-side fetch sidesteps the auth-cookie forwarding gymnastics that
 // server-side fetch in Next 16 would otherwise require, and mirrors the
@@ -18,12 +18,12 @@ import MatchHistorySection, { type MatchHistoryRow } from './MatchHistorySection
 import EarningsSection, { type Earning } from './EarningsSection'
 import CoachesSection from './CoachesSection'
 import EquipmentTab from '../../_components/EquipmentTab'
+import { PageHeader, Panel, Skeleton } from '@/components/ui'
 
 // Shape of the aggregator response. The interface is the union of fields read
-// by the sections rendered so far — ProfileHeader (C1), Identity + Profile
-// (C2), Match history (C3). C4 will extend this with whatever extra columns
-// it consumes. Equipment renders via EquipmentTab which fetches its own data,
-// so the aggregator's `equipment` slot stays `unknown[]` here.
+// by the sections rendered so far — ProfileHeader, Identity + Profile, Match
+// history. Equipment renders via EquipmentTab which fetches its own data, so the
+// aggregator's `equipment` slot stays `unknown[]` here.
 interface AggregatorPlayer
   extends ProfileHeaderPlayer,
     IdentitySectionPlayer,
@@ -76,71 +76,98 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
   }, [playerId])
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <Link href="/players" className="text-xs text-gray-500 hover:text-gray-900">
+    <div className="ui-page">
+      <Link
+        href="/players"
+        style={{ fontSize: 12, color: 'var(--text-3)', textDecoration: 'none' }}
+      >
         ← Back to Players
       </Link>
+
       {state.status === 'loading' && (
-        <div className="mt-6 text-sm text-gray-400">Loading…</div>
+        <div style={{ marginTop: 24 }}>
+          <Skeleton rows={6} />
+        </div>
       )}
       {state.status === 'not_found' && (
-        <div className="mt-6 text-sm text-gray-500">Player not found.</div>
+        <div style={{ marginTop: 24, fontSize: 13, color: 'var(--text-3)' }}>Player not found.</div>
       )}
       {state.status === 'error' && (
-        <div className="mt-6 text-sm text-red-600">
+        <div style={{ marginTop: 24, fontSize: 13, color: 'var(--live-text)' }}>
           Failed to load player: {state.message}
         </div>
       )}
       {state.status === 'ready' && (
         <>
-          <div className="mt-4">
+          <div style={{ marginTop: 16, marginBottom: 22 }}>
+            <PageHeader
+              title={state.data.player.display_name ?? state.data.player.name}
+            />
             <ProfileHeader player={state.data.player} />
           </div>
-          {/* Identity + Profile (C2). Equipment + Match history (C3) land
-              full-width below. Earnings + Coaches + Activity (C4) follow. */}
-          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+          {/* Identity + Profile side-by-side on lg, stacked on mobile. */}
+          <div
+            style={{
+              marginBottom: 16,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: 16,
+            }}
+          >
             <IdentitySection player={state.data.player} />
             <ProfileSection player={state.data.player} />
           </div>
+
           {/* Equipment full-width. EquipmentTab is the same component the
               drawer uses; we pass the player object so its "+ Add new racket"
               entry point can pre-fill the player in AddRacketModal step 2. */}
-          <section className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
-            <h2 className="text-sm font-semibold text-gray-900 mb-3">Equipment</h2>
-            <EquipmentTab
-              playerId={state.data.player.id}
-              player={{
-                id: state.data.player.id,
-                name: state.data.player.name,
-                display_name: state.data.player.display_name,
-                country: state.data.player.country,
-                ranking: state.data.player.ranking,
-                category:
-                  state.data.player.category === 'men' ||
-                  state.data.player.category === 'women'
-                    ? state.data.player.category
-                    : null,
-                avatar_url: state.data.player.avatar_url,
-              }}
-            />
-          </section>
+          <div style={{ marginBottom: 16 }}>
+            <Panel title="Equipment">
+              <EquipmentTab
+                playerId={state.data.player.id}
+                player={{
+                  id: state.data.player.id,
+                  name: state.data.player.name,
+                  display_name: state.data.player.display_name,
+                  country: state.data.player.country,
+                  ranking: state.data.player.ranking,
+                  category:
+                    state.data.player.category === 'men' ||
+                    state.data.player.category === 'women'
+                      ? state.data.player.category
+                      : null,
+                  avatar_url: state.data.player.avatar_url,
+                }}
+              />
+            </Panel>
+          </div>
+
           {/* Match history full-width. */}
-          <div className="mt-4">
+          <div style={{ marginBottom: 16 }}>
             <MatchHistorySection
               playerId={state.data.player.id}
               matches={state.data.recentMatches}
             />
           </div>
+
           {/* Earnings + Coaches side-by-side on lg, stacked on mobile. */}
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div
+            style={{
+              marginBottom: 16,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: 16,
+            }}
+          >
             <EarningsSection earnings={state.data.earnings} />
             <CoachesSection coaches={state.data.player.coaches} />
           </div>
+
           {/* Activity placeholder — audit log not wired yet. */}
-          <section className="mt-4 bg-white border border-gray-200 rounded-lg p-4">
-            <h2 className="text-sm font-semibold text-gray-900 mb-1">Activity</h2>
-            <div className="text-xs text-gray-400">Audit log coming soon.</div>
-          </section>
+          <Panel title="Activity">
+            <div style={{ fontSize: 12, color: 'var(--text-4)' }}>Audit log coming soon.</div>
+          </Panel>
         </>
       )}
     </div>

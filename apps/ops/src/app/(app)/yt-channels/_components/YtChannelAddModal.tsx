@@ -6,6 +6,7 @@
 // channel ID and inserts the row.
 
 import { useState } from 'react'
+import { Field, Button } from '@/components/ui'
 
 export default function YtChannelAddModal({
   onClose,
@@ -45,7 +46,7 @@ export default function YtChannelAddModal({
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         zIndex: 1000,
       }}
@@ -54,70 +55,67 @@ export default function YtChannelAddModal({
         onClick={e => e.stopPropagation()}
         onSubmit={onSubmit}
         style={{
-          background: '#1A1A1A', padding: 20,
+          background: 'var(--bg-surface)', padding: 20,
           width: 'min(440px, 92vw)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          color: '#fff', fontSize: 13,
+          border: '1px solid var(--border-card)', borderRadius: 'var(--r-lg)',
+          color: 'var(--text-1)', fontSize: 13,
         }}
       >
-        <h3 style={{ margin: '0 0 12px', fontSize: 16 }}>Add YouTube Channel</h3>
+        <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 700, color: 'var(--text-1)' }}>Add YouTube Channel</h3>
 
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>
-            Handle, URL, or channel ID
-          </span>
-          <input
-            type="text" value={input} onChange={e => setInput(e.target.value)}
-            placeholder="@PremierPadelOfficial"
-            required
-            style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13 }}
-          />
-        </label>
-
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Display name</span>
-          <input
-            type="text" value={name} onChange={e => setName(e.target.value)}
-            placeholder="Premier Padel"
-            required
-            style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13 }}
-          />
-        </label>
-
-        <div style={{ display: 'flex', gap: 10 }}>
-          <label style={{ flex: 1 }}>
-            <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Abbreviation (2-3 chars)</span>
+        <div style={{ marginBottom: 10 }}>
+          <Field label="Handle, URL, or channel ID">
             <input
-              type="text" value={abbreviation} onChange={e => setAbbreviation(e.target.value.toUpperCase().slice(0, 3))}
-              placeholder="PP" required maxLength={3}
-              style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13 }}
+              type="text" value={input} onChange={e => setInput(e.target.value)}
+              placeholder="@PremierPadelOfficial"
+              required
+              className="ui-input"
             />
-          </label>
-          <label>
-            <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Color</span>
-            <input
-              type="color" value={colorHex} onChange={e => setColorHex(e.target.value.toUpperCase())}
-              style={{ width: 40, height: 36, background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', cursor: 'pointer' }}
-            />
-          </label>
-          <label style={{ width: 80 }}>
-            <span style={{ display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4 }}>Order</span>
-            <input
-              type="number" value={displayOrder} onChange={e => setDisplayOrder(parseInt(e.target.value, 10) || 100)}
-              style={{ width: '100%', padding: '8px 10px', background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: 13 }}
-            />
-          </label>
+          </Field>
         </div>
 
-        {error && <div style={{ color: '#FF4655', fontSize: 12, marginTop: 10 }}>{error}</div>}
+        <div style={{ marginBottom: 10 }}>
+          <Field label="Display name">
+            <input
+              type="text" value={name} onChange={e => setName(e.target.value)}
+              placeholder="Premier Padel"
+              required
+              className="ui-input"
+            />
+          </Field>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            <Field label="Abbreviation (2-3 chars)">
+              <input
+                type="text" value={abbreviation} onChange={e => setAbbreviation(e.target.value.toUpperCase().slice(0, 3))}
+                placeholder="PP" required maxLength={3}
+                className="ui-input"
+              />
+            </Field>
+          </div>
+          <Field label="Color">
+            <input
+              type="color" value={colorHex} onChange={e => setColorHex(e.target.value.toUpperCase())}
+              style={{ width: 40, height: 36, background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}
+            />
+          </Field>
+          <div style={{ width: 80 }}>
+            <Field label="Order">
+              <input
+                type="number" value={displayOrder} onChange={e => setDisplayOrder(parseInt(e.target.value, 10) || 100)}
+                className="ui-input"
+              />
+            </Field>
+          </div>
+        </div>
+
+        {error && <div style={{ color: 'var(--live-text)', fontSize: 12, marginTop: 10 }}>{error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-          <button type="button" onClick={onClose} disabled={submitting}
-            style={{ padding: '8px 14px', background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', cursor: 'pointer' }}
-          >Cancel</button>
-          <button type="submit" disabled={submitting}
-            style={{ padding: '8px 14px', background: '#7ED321', color: '#0A0A0A', border: 0, fontWeight: 800, cursor: 'pointer' }}
-          >{submitting ? 'Adding...' : 'Add'}</button>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button type="submit" variant="primary" disabled={submitting}>{submitting ? 'Adding...' : 'Add'}</Button>
         </div>
       </form>
     </div>

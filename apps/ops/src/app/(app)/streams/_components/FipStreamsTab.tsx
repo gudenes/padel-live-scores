@@ -12,6 +12,7 @@
 //   /api/ops/seed-entry-list       → /api/internal/seed-entry-list
 
 import { useEffect, useState } from 'react'
+import { PageHeader, Panel, Section, DataTable, Field, Button, EmptyState, Skeleton, Pill } from '@/components/ui'
 
 interface UnresolvedItem {
   id: string
@@ -77,50 +78,66 @@ export default function FipStreamsTab() {
     await refresh()
   }
 
-  if (loading) return <div style={{ padding: 16 }}>Loading...</div>
-
   return (
-    <div style={{ padding: 16 }}>
-      <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>
-        Unresolved queue ({unresolved.length})
-      </h2>
-      {unresolved.length === 0 ? (
-        <p style={{ color: '#6B7280', fontSize: 13 }}>Empty — all videos auto-matched.</p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {unresolved.map((item) => (
-            <UnresolvedRow key={item.id} item={item} tournaments={tournaments} onResolve={resolve} />
-          ))}
-        </div>
-      )}
+    <div className="ui-page">
+      <PageHeader title="Streams" subtitle="FIP YouTube livestream resolution queue and active streams." />
 
-      <h2 style={{ fontSize: 16, fontWeight: 800, margin: '24px 0 8px' }}>
-        Active streams (last 14 days, {active.length})
-      </h2>
-      <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', color: '#6B7280' }}>
-            <th>Title</th><th>Tournament</th><th>Court</th><th>Day</th><th>State</th><th>Method</th><th>Views</th>
-          </tr>
-        </thead>
-        <tbody>
-          {active.map((s) => (
-            <tr key={s.youtube_video_id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-              <td style={{ padding: '6px 8px' }}>
-                <a href={`https://www.youtube.com/watch?v=${s.youtube_video_id}`} target="_blank" rel="noopener noreferrer">
-                  {s.title ?? s.youtube_video_id}
-                </a>
-              </td>
-              <td>{s.tournaments?.name ?? '—'}</td>
-              <td>{s.court}</td>
-              <td>{s.day_date}</td>
-              <td>{s.state}</td>
-              <td>{s.link_method}</td>
-              <td>{s.view_count ?? '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {loading ? (
+        <Skeleton rows={5} />
+      ) : (
+        <>
+          <Section label={`Unresolved queue (${unresolved.length})`}>
+            {unresolved.length === 0 ? (
+              <EmptyState title="Empty" hint="All videos auto-matched." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {unresolved.map((item) => (
+                  <UnresolvedRow key={item.id} item={item} tournaments={tournaments} onResolve={resolve} />
+                ))}
+              </div>
+            )}
+          </Section>
+
+          <Section label={`Active streams (last 14 days, ${active.length})`}>
+            <DataTable>
+              <thead>
+                <tr>
+                  <th>Title</th><th>Tournament</th><th>Court</th><th>Day</th><th>State</th><th>Method</th><th>Views</th>
+                </tr>
+              </thead>
+              <tbody>
+                {active.map((s) => (
+                  <tr key={s.youtube_video_id}>
+                    <td>
+                      <a
+                        href={`https://www.youtube.com/watch?v=${s.youtube_video_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: 'var(--lime-text)', textDecoration: 'none' }}
+                      >
+                        {s.title ?? s.youtube_video_id}
+                      </a>
+                    </td>
+                    <td>{s.tournaments?.name ?? '—'}</td>
+                    <td>{s.court}</td>
+                    <td>{s.day_date}</td>
+                    <td>
+                      {s.state === 'live'
+                        ? <Pill tone="live" dot pulse>live</Pill>
+                        : <Pill tone="lime">{s.state}</Pill>}
+                    </td>
+                    <td>{s.link_method}</td>
+                    <td>{s.view_count ?? '—'}</td>
+                  </tr>
+                ))}
+                {active.length === 0 && (
+                  <tr><td colSpan={7} style={{ color: 'var(--text-3)', textAlign: 'center' }}>No active streams.</td></tr>
+                )}
+              </tbody>
+            </DataTable>
+          </Section>
+        </>
+      )}
     </div>
   )
 }
@@ -137,36 +154,42 @@ function UnresolvedRow({
   const [day, setDay] = useState(item.first_seen_at.slice(0, 10))
 
   return (
-    <div style={{ background: '#141414', padding: 12, borderRadius: 6, border: '1px solid rgba(255,255,255,0.06)' }}>
+    <Panel>
       <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
         {item.thumbnail_url && (
-          <img src={item.thumbnail_url} alt="" style={{ width: 88, height: 50, borderRadius: 4 }} />
+          <img src={item.thumbnail_url} alt="" style={{ width: 88, height: 50, borderRadius: 'var(--r-xs)' }} />
         )}
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>{item.title}</div>
-          <div style={{ fontSize: 11, color: '#6B7280' }}>
-            Reason: <span style={{ color: '#F5A623' }}>{item.reason}</span>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>{item.title}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+            Reason: <span style={{ color: 'var(--orange-text)' }}>{item.reason}</span>
             {' · '}Parsed: {item.parsed_tournament_name ?? '—'} / day {item.parsed_day ?? '—'} / {item.parsed_court ?? '—'}
           </div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <select value={tid} onChange={(e) => setTid(e.target.value)} style={{ flex: 1, minWidth: 200 }}>
-          <option value="">Pick a tournament...</option>
-          {tournaments.map((t) => (
-            <option key={t.id} value={t.id}>{t.name} ({t.level})</option>
-          ))}
-        </select>
-        <input value={court} onChange={(e) => setCourt(e.target.value)} placeholder="court (lowercase)" style={{ width: 140 }} />
-        <input value={day} onChange={(e) => setDay(e.target.value)} type="date" />
-        <button
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <Field label="Tournament">
+          <select className="ui-select" value={tid} onChange={(e) => setTid(e.target.value)} style={{ minWidth: 220 }}>
+            <option value="">Pick a tournament...</option>
+            {tournaments.map((t) => (
+              <option key={t.id} value={t.id}>{t.name} ({t.level})</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Court">
+          <input className="ui-input" value={court} onChange={(e) => setCourt(e.target.value)} placeholder="court (lowercase)" style={{ width: 140 }} />
+        </Field>
+        <Field label="Day">
+          <input className="ui-input" value={day} onChange={(e) => setDay(e.target.value)} type="date" />
+        </Field>
+        <Button
+          variant="primary"
           disabled={!tid || !court || !day}
           onClick={() => onResolve(item, tid, court, day)}
-          style={{ padding: '6px 12px', background: '#7ED321', color: '#000', fontWeight: 700, border: 0, borderRadius: 4 }}
         >
           Resolve
-        </button>
+        </Button>
       </div>
-    </div>
+    </Panel>
   )
 }
