@@ -18,6 +18,7 @@ import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import { MatchStatsView } from '@/components/MatchStatsView'
+import { AdSlot } from '@/components/ads/AdSlot'
 import { computeBreaks } from './break-stats'
 import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
@@ -1141,8 +1142,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           >
             {tabList.map(t => (
               <div key={t.key} style={{ background: BG_CARD, minHeight: 300 }}>
-                {t.key === 'recap' && isFinished && (
-                  <MatchStatsView matchId={match.id} breaks={breaks} />
+                {t.key === 'recap' && (
+                  <>
+                    {isFinished && <MatchStatsView matchId={match.id} breaks={breaks} />}
+                    <AdSlot
+                      slot="match-detail-stats"
+                      variant="detail"
+                      context={{ matchId: match.id }}
+                    />
+                  </>
                 )}
                 {t.key === 'live' && (
                   <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />
