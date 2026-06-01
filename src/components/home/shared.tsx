@@ -329,3 +329,10 @@ export const PAGE_STYLES = `
 export const PREMIER_LEVELS = ['finals', 'major', 'p1', 'p2']
 // Premier Padel + Platinum have live scoring
 export const LIVE_SCORE_LEVELS = [...PREMIER_LEVELS, 'fip_platinum']
+
+// Levels temporarily hidden from user-facing tournament/event surfaces.
+// Empty this array to re-enable them everywhere. Display-only — ingestion
+// (padelgod) is unaffected.
+export const HIDDEN_TOURNAMENT_LEVELS = ['fip_promises', 'fip_beyond']
+export const isHiddenLevel = (level?: string | null) =>
+  !!level && HIDDEN_TOURNAMENT_LEVELS.includes(level)
