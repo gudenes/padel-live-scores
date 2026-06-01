@@ -11,7 +11,7 @@ import {
   GREEN, GREEN_DIM, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, CHUNKY,
   MEN_BLUE, WOMEN_PURPLE,
   Tournament, FlagImg, titleCase, countryName, daysUntil, formatDateRange, levelLabel,
-  SectionTitle,
+  SectionTitle, isHiddenLevel,
 } from './shared'
 import TournamentsFilterSheet, {
   DEFAULT_FILTERS, activeFilterCount,
@@ -194,7 +194,9 @@ export default function TournamentsView({
       const levels =
         tab === 'premier'
           ? PREMIER_LEVELS
-          : fipSubTier === 'all' ? FIP_LEVELS : [fipSubTier]
+          : fipSubTier === 'all'
+            ? FIP_LEVELS.filter((l) => !isHiddenLevel(l))
+            : [fipSubTier]
 
       // Fetch all tournaments for this circuit
       const { data: tournamentsData } = await supabase
@@ -557,7 +559,9 @@ export default function TournamentsView({
             { value: 'fip_bronze', label: tTier('bronze') },
             { value: 'fip_beyond', label: tTier('beyond') },
             { value: 'fip_promises', label: tTier('promises') },
-          ] as Array<{ value: 'all' | string; label: string }>).map(({ value, label }) => {
+          ] as Array<{ value: 'all' | string; label: string }>)
+            .filter(({ value }) => !isHiddenLevel(value))
+            .map(({ value, label }) => {
             const active = fipSubTier === value
             return (
               <button
