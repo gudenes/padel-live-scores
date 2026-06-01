@@ -385,7 +385,7 @@ function V3HomePageInner() {
         return []
       }
 
-      setLiveMatches(dataOf(0).filter(m => !isHiddenLevel(m?.tournament?.level)))
+      setLiveMatches(dataOf(0).filter((m: any) => !isHiddenLevel(m?.tournament?.level)))
       setScheduledMatches(dataOf(1))
       const tournaments: Tournament[] = dataOf(2)
       setUpcomingTournaments(tournaments)
