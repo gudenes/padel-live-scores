@@ -81,7 +81,7 @@ export default function PlaysWithPreview({ brand, racket, playerName }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">{title}</div>
+      <div className="text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--text-3)' }}>{title}</div>
 
       <div
         style={{
@@ -218,7 +218,7 @@ export default function PlaysWithPreview({ brand, racket, playerName }: Props) {
         </div>
       </div>
 
-      <div className="text-[10px] text-gray-400">
+      <div className="text-[10px]" style={{ color: 'var(--text-3)' }}>
         Live preview — updates as you edit the fields.
       </div>
     </div>

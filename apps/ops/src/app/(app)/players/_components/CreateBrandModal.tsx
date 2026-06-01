@@ -5,6 +5,7 @@
 // The upload route requires a brand UUID, so the create-then-upload order is mandatory.
 
 import { useState } from 'react'
+import { Button } from '@/components/ui'
 
 interface Props {
   initialName: string
@@ -89,47 +90,52 @@ export default function CreateBrandModal({ initialName, onClose, onCreated }: Pr
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]"
+      className="fixed inset-0 flex items-center justify-center z-[60]"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
-      <div className="bg-white rounded-lg p-6 w-96" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="rounded-lg p-6 w-96"
+        style={{ background: 'var(--bg-surface)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
-          <div className="text-base font-semibold">Create brand</div>
-          <button onClick={onClose} className="text-gray-400 cursor-pointer" aria-label="Close">
+          <div className="text-base font-semibold" style={{ color: 'var(--text-1)' }}>Create brand</div>
+          <button onClick={onClose} className="cursor-pointer" style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 18 }} aria-label="Close">
             ×
           </button>
         </div>
         {partialSuccess ? (
           <div className="flex flex-col gap-3">
-            <div className="text-sm text-green-700">
+            <div className="text-sm" style={{ color: 'var(--lime-text)' }}>
               Brand &quot;<strong>{partialSuccess.brand.name}</strong>&quot; created successfully.
             </div>
-            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            <div
+              className="text-sm border rounded px-3 py-2"
+              style={{ color: 'var(--orange-text)', background: 'var(--orange-bg)', borderColor: 'var(--orange-border)' }}
+            >
               {partialSuccess.warning}
             </div>
             <div className="flex justify-end pt-2">
-              <button
-                onClick={() => onCreated(partialSuccess.brand)}
-                className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer"
-              >
+              <Button variant="primary" onClick={() => onCreated(partialSuccess.brand)}>
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">NAME</div>
+              <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>NAME</div>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
+                className="ui-input w-full px-3 py-2 text-sm"
                 autoFocus
               />
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1">LOGO (optional)</div>
+              <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>LOGO (optional)</div>
               <input
                 type="file"
                 accept="image/*"
@@ -137,21 +143,14 @@ export default function CreateBrandModal({ initialName, onClose, onCreated }: Pr
                 className="text-xs"
               />
             </div>
-            {error && <div className="text-xs text-red-600">{error}</div>}
+            {error && <div className="text-xs" style={{ color: 'var(--live-text)' }}>{error}</div>}
             <div className="flex gap-2 justify-end pt-2">
-              <button
-                onClick={onClose}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer"
-              >
+              <Button onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer disabled:opacity-50"
-              >
+              </Button>
+              <Button variant="primary" onClick={handleSave} disabled={saving}>
                 {saving ? 'Creating…' : 'Create'}
-              </button>
+              </Button>
             </div>
           </div>
         )}

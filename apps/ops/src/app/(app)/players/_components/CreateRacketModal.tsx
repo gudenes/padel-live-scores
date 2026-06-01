@@ -16,6 +16,7 @@ import RacketFieldsForm, {
   racketFieldsToCreatePayload,
   type RacketFieldsValue,
 } from './RacketFieldsForm'
+import { Button } from '@/components/ui'
 
 interface Props {
   initialModel: string
@@ -115,51 +116,49 @@ export default function CreateRacketModal({ initialModel, brandId, onClose, onCr
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]"
+      className="fixed inset-0 flex items-center justify-center z-[60]"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
-      <div className="bg-white rounded-lg p-6 w-[460px] max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="rounded-lg p-6 w-[460px] max-h-[90vh] overflow-auto"
+        style={{ background: 'var(--bg-surface)' }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between mb-4">
-          <div className="text-base font-semibold">Create racket</div>
-          <button onClick={onClose} className="text-gray-400 cursor-pointer" aria-label="Close">
+          <div className="text-base font-semibold" style={{ color: 'var(--text-1)' }}>Create racket</div>
+          <button onClick={onClose} className="cursor-pointer" style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 18 }} aria-label="Close">
             ×
           </button>
         </div>
         {partialSuccess ? (
           <div className="flex flex-col gap-3">
-            <div className="text-sm text-green-700">
+            <div className="text-sm" style={{ color: 'var(--lime-text)' }}>
               Racket &quot;<strong>{partialSuccess.racket.model}</strong>&quot; created successfully.
             </div>
-            <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            <div
+              className="text-sm border rounded px-3 py-2"
+              style={{ color: 'var(--orange-text)', background: 'var(--orange-bg)', borderColor: 'var(--orange-border)' }}
+            >
               {partialSuccess.warning}
             </div>
             <div className="flex justify-end pt-2">
-              <button
-                onClick={() => onCreated(partialSuccess.racket)}
-                className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer"
-              >
+              <Button variant="primary" onClick={() => onCreated(partialSuccess.racket)}>
                 Close
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             <RacketFieldsForm value={fields} onChange={setFields} disabled={saving} />
-            {error && <div className="text-xs text-red-600">{error}</div>}
+            {error && <div className="text-xs" style={{ color: 'var(--live-text)' }}>{error}</div>}
             <div className="flex gap-2 justify-end pt-2">
-              <button
-                onClick={onClose}
-                className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer"
-              >
+              <Button onClick={onClose}>
                 Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer disabled:opacity-50"
-              >
+              </Button>
+              <Button variant="primary" onClick={handleSave} disabled={saving}>
                 {saving ? 'Creating…' : 'Create'}
-              </button>
+              </Button>
             </div>
           </div>
         )}

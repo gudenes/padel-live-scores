@@ -198,8 +198,11 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
   return (
     <div className="flex flex-col gap-3">
       {/* AI extract row */}
-      <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2.5">
-        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-blue-700">
+      <div
+        className="rounded border px-3 py-2.5"
+        style={{ background: 'var(--lime-bg)', borderColor: 'var(--lime-border)' }}
+      >
+        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: 'var(--lime-text)' }}>
           Paste product URL to auto-fill
         </div>
         <div className="flex gap-2">
@@ -208,23 +211,23 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
             value={extractUrl}
             onChange={(e) => setExtractUrl(e.target.value)}
             placeholder="https://bullpadel.com/..."
-            className="flex-1 rounded border border-blue-200 bg-white px-2 py-1.5 text-xs"
+            className="ui-input flex-1 px-2 py-1.5 text-xs"
             disabled={disabled || extracting}
           />
           <button
             type="button"
             onClick={handleExtract}
             disabled={disabled || extracting || !extractUrl.trim()}
-            className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50 cursor-pointer"
+            className="rounded px-3 py-1.5 text-xs font-medium disabled:opacity-50 cursor-pointer"
+            style={{ background: 'var(--lime)', color: 'var(--lime-ink)' }}
           >
             {extracting ? 'Extracting…' : 'Extract'}
           </button>
         </div>
         {extractMessage && (
           <div
-            className={`mt-1.5 text-[11px] ${
-              extractMessage.kind === 'error' ? 'text-red-600' : 'text-green-700'
-            }`}
+            className="mt-1.5 text-[11px]"
+            style={{ color: extractMessage.kind === 'error' ? 'var(--live-text)' : 'var(--lime-text)' }}
           >
             {extractMessage.text}
           </div>
@@ -234,18 +237,18 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
       {/* Row: Model (2/3) + Year (1/3) */}
       <div className="grid grid-cols-3 gap-3">
         <div className="col-span-2">
-          <div className="mb-1 text-[11px] font-semibold text-gray-500">MODEL *</div>
+          <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>MODEL *</div>
           <input
             type="text"
             value={value.model}
             onChange={(e) => patch({ model: e.target.value })}
             placeholder="e.g. Vertex 04"
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            className="ui-input w-full px-3 py-2 text-sm"
             disabled={disabled}
           />
         </div>
         <div>
-          <div className="mb-1 text-[11px] font-semibold text-gray-500">YEAR</div>
+          <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>YEAR</div>
           <input
             type="number"
             inputMode="numeric"
@@ -254,7 +257,7 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
             value={value.year}
             onChange={(e) => patch({ year: e.target.value })}
             placeholder="2026"
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            className="ui-input w-full px-3 py-2 text-sm"
             disabled={disabled}
           />
         </div>
@@ -263,11 +266,11 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
       {/* Row: Shape + Weight */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className="mb-1 text-[11px] font-semibold text-gray-500">SHAPE</div>
+          <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>SHAPE</div>
           <select
             value={value.shape}
             onChange={(e) => patch({ shape: e.target.value as RacketShape })}
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            className="ui-select w-full px-3 py-2 text-sm"
             disabled={disabled}
           >
             <option value="">--</option>
@@ -279,7 +282,7 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
           </select>
         </div>
         <div>
-          <div className="mb-1 text-[11px] font-semibold text-gray-500">WEIGHT (g)</div>
+          <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>WEIGHT (g)</div>
           <input
             type="number"
             inputMode="numeric"
@@ -288,7 +291,7 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
             value={value.weightGrams}
             onChange={(e) => patch({ weightGrams: e.target.value })}
             placeholder="360"
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            className="ui-input w-full px-3 py-2 text-sm"
             disabled={disabled}
           />
         </div>
@@ -297,11 +300,11 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
       {/* Row: Balance + Surface material */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <div className="mb-1 text-[11px] font-semibold text-gray-500">BALANCE</div>
+          <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>BALANCE</div>
           <select
             value={value.balance}
             onChange={(e) => patch({ balance: e.target.value as RacketBalance })}
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            className="ui-select w-full px-3 py-2 text-sm"
             disabled={disabled}
           >
             <option value="">--</option>
@@ -313,13 +316,13 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
           </select>
         </div>
         <div>
-          <div className="mb-1 text-[11px] font-semibold text-gray-500">SURFACE MATERIAL</div>
+          <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>SURFACE MATERIAL</div>
           <input
             type="text"
             value={value.surfaceMaterial}
             onChange={(e) => patch({ surfaceMaterial: e.target.value })}
             placeholder="Carbon fiber"
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+            className="ui-input w-full px-3 py-2 text-sm"
             disabled={disabled}
           />
         </div>
@@ -327,7 +330,7 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
 
       {/* Image + preview + background-removal toggle */}
       <div>
-        <div className="mb-1 text-[11px] font-semibold text-gray-500">IMAGE (optional)</div>
+        <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>IMAGE (optional)</div>
         <div className="flex items-start gap-3">
           <div className="flex-1 flex flex-col gap-2">
             <input
@@ -349,7 +352,10 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
                   type="button"
                   disabled={processingTransparency || disabled}
                   onClick={handleRemoveBackground}
-                  className="self-start text-[11px] font-semibold border border-gray-200 rounded px-2 py-1 bg-white hover:bg-gray-50 disabled:opacity-50 cursor-pointer"
+                  className="self-start text-[11px] font-semibold border rounded px-2 py-1 disabled:opacity-50 cursor-pointer"
+                  style={{ background: 'var(--bg-card)', color: 'var(--text-1)', borderColor: 'var(--border-card)' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-card)')}
                 >
                   {processingTransparency
                     ? 'Processing…'
@@ -358,23 +364,24 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
                       : 'Remove background'}
                 </button>
                 {transparencyError && (
-                  <div className="text-[11px] text-red-600">{transparencyError}</div>
+                  <div className="text-[11px]" style={{ color: 'var(--live-text)' }}>{transparencyError}</div>
                 )}
               </div>
             )}
           </div>
           {previewSrc && (
             <div
-              className="w-24 h-24 rounded border border-gray-200 flex items-center justify-center overflow-hidden shrink-0"
+              className="w-24 h-24 rounded border flex items-center justify-center overflow-hidden shrink-0"
               style={
                 value.transparentDataUrl
                   ? {
+                      borderColor: 'var(--border-card)',
                       backgroundImage:
                         'linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)',
                       backgroundSize: '16px 16px',
                       backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
                     }
-                  : { backgroundColor: '#ffffff' }
+                  : { borderColor: 'var(--border-card)', backgroundColor: 'var(--bg-card)' }
               }
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -390,13 +397,13 @@ export default function RacketFieldsForm({ value, onChange, onBrandSuggest, disa
 
       {/* Product URL */}
       <div>
-        <div className="mb-1 text-[11px] font-semibold text-gray-500">PRODUCT URL / AFFILIATE LINK (optional)</div>
+        <div className="mb-1 text-[11px] font-semibold" style={{ color: 'var(--text-3)' }}>PRODUCT URL / AFFILIATE LINK (optional)</div>
         <input
           type="url"
           value={value.productUrl}
           onChange={(e) => patch({ productUrl: e.target.value })}
           placeholder="https://..."
-          className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+          className="ui-input w-full px-3 py-2 text-sm"
           disabled={disabled}
         />
       </div>

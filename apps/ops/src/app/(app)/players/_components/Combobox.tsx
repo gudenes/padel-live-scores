@@ -61,19 +61,28 @@ export default function Combobox({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((v) => !v)}
-        className="w-full px-3 py-2 text-left text-sm border border-gray-200 rounded bg-white text-gray-900 cursor-pointer disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+        className="w-full px-3 py-2 text-left text-sm border rounded cursor-pointer disabled:cursor-not-allowed"
+        style={{
+          background: disabled ? 'var(--bg-card-2)' : 'var(--bg-input)',
+          color: disabled ? 'var(--text-3)' : 'var(--text-1)',
+          borderColor: 'var(--border)',
+        }}
       >
-        {selected ? selected.label : <span className="text-gray-400">{placeholder}</span>}
+        {selected ? selected.label : <span style={{ color: 'var(--text-3)' }}>{placeholder}</span>}
       </button>
       {open && !disabled && (
-        <div className="absolute left-0 right-0 mt-1 max-h-60 overflow-auto bg-white border border-gray-200 rounded shadow-lg z-10">
+        <div
+          className="absolute left-0 right-0 mt-1 max-h-60 overflow-auto border rounded shadow-lg z-10"
+          style={{ background: 'var(--bg-surface)', borderColor: 'var(--border-card)' }}
+        >
           <input
             type="text"
             value={query}
             autoFocus
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type to search…"
-            className="w-full px-3 py-2 text-sm border-b border-gray-100 outline-none"
+            className="w-full px-3 py-2 text-sm border-b outline-none"
+            style={{ background: 'transparent', color: 'var(--text-1)', borderColor: 'var(--border-inner)' }}
           />
           {filtered.map((o) => (
             <button
@@ -84,14 +93,16 @@ export default function Combobox({
                 setOpen(false)
                 setQuery('')
               }}
-              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 cursor-pointer"
+              className="w-full px-3 py-2 text-left text-sm cursor-pointer"
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
-              <div className="text-gray-900">{o.label}</div>
-              {o.sublabel && <div className="text-xs text-gray-500">{o.sublabel}</div>}
+              <div style={{ color: 'var(--text-1)' }}>{o.label}</div>
+              {o.sublabel && <div className="text-xs" style={{ color: 'var(--text-3)' }}>{o.sublabel}</div>}
             </button>
           ))}
           {filtered.length === 0 && !showCreate && (
-            <div className="px-3 py-2 text-xs text-gray-400">No matches</div>
+            <div className="px-3 py-2 text-xs" style={{ color: 'var(--text-3)' }}>No matches</div>
           )}
           {showCreate && (
             <button
@@ -101,7 +112,10 @@ export default function Combobox({
                 setOpen(false)
                 setQuery('')
               }}
-              className="w-full px-3 py-2 text-left text-sm text-blue-600 border-t border-gray-100 hover:bg-blue-50 cursor-pointer"
+              className="w-full px-3 py-2 text-left text-sm border-t cursor-pointer"
+              style={{ color: 'var(--lime-text)', borderColor: 'var(--border-inner)' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             >
               {createLabel ? createLabel(query) : `+ Create "${query}"`}
             </button>
