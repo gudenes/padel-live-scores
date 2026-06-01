@@ -1,6 +1,7 @@
 // apps/ops/src/components/Odds/LiveOddsTable.tsx
 // Table of today's matches with per-match odds.
 
+import { EmptyState } from '@/components/ui'
 import { PairOddsRow } from './PairOddsRow'
 
 export interface LiveMatchRow {
@@ -34,15 +35,11 @@ export interface LiveMatchRow {
 
 export function LiveOddsTable({ rows }: { rows: LiveMatchRow[] }) {
   if (rows.length === 0) {
-    return (
-      <div style={{ padding: 16, background: 'var(--bg-canvas)', borderRadius: 4 }}>
-        No in-scope matches scheduled for this day.
-      </div>
-    )
+    return <EmptyState title="No in-scope matches scheduled for this day." />
   }
 
   return (
-    <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+    <div style={{ border: '1px solid var(--border-card)', borderRadius: 'var(--r-md)', overflow: 'hidden', background: 'var(--bg-card)' }}>
       {rows.map(({ match, prediction, pair1Name, pair2Name }) => (
         <a
           key={match.id}
@@ -50,13 +47,13 @@ export function LiveOddsTable({ rows }: { rows: LiveMatchRow[] }) {
           style={{
             display: 'block',
             padding: 12,
-            borderBottom: '1px solid var(--border-subtle)',
+            borderBottom: '1px solid var(--border-inner)',
             textDecoration: 'none',
             color: 'inherit',
-            background: match.status === 'live' ? 'var(--status-warn-bg)' : undefined,
+            background: match.status === 'live' ? 'var(--orange-bg)' : undefined,
           }}
         >
-          <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--status-neutral)', marginBottom: 4 }}>
+          <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>
             <span>{match.scheduled_at?.slice(11, 16)}</span>
             <span>{match.court ?? '?'}</span>
             <span>{match.category}</span>

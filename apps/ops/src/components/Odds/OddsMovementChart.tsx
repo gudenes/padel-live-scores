@@ -19,7 +19,7 @@ export function OddsMovementChart({
 }) {
   if (series.length === 0 || series.every((s) => s.points.length < 2)) {
     return (
-      <div style={{ padding: 24, color: 'var(--status-neutral)', textAlign: 'center', fontSize: 13 }}>
+      <div style={{ padding: 24, color: 'var(--text-3)', textAlign: 'center', fontSize: 13 }}>
         Insufficient snapshot history. Check back after a few hourly snapshots accumulate.
       </div>
     )
@@ -40,13 +40,14 @@ export function OddsMovementChart({
   return (
     <ResponsiveContainer width='100%' height={320}>
       <LineChart data={data}>
-        <CartesianGrid strokeDasharray='3 3' stroke='var(--border-subtle)' />
-        <XAxis dataKey='t' fontSize={11} />
+        <CartesianGrid strokeDasharray='3 3' stroke='var(--border-inner)' />
+        <XAxis dataKey='t' fontSize={11} stroke='var(--text-3)' />
         <YAxis
           domain={yDomain}
           fontSize={11}
+          stroke='var(--text-3)'
           tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-          label={{ value: yLabel, angle: -90, position: 'insideLeft' }}
+          label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: 'var(--text-3)' }}
         />
         <Tooltip formatter={(v) => (typeof v === 'number' ? `${(v * 100).toFixed(1)}%` : String(v))} />
         <Legend />

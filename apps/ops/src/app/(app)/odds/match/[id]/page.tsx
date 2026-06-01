@@ -6,6 +6,7 @@
 
 import { notFound } from 'next/navigation'
 import { OddsMovementChart } from '@/components/Odds/OddsMovementChart'
+import { PageHeader, Section, Panel } from '@/components/ui'
 import { createServiceClient } from '@/lib/supabase'
 
 export const metadata = { title: 'Match Odds · PadelNachos Admin' }
@@ -110,16 +111,14 @@ export default async function MatchOddsPage({ params }: PageProps) {
     .order('created_at', { ascending: true })
 
   return (
-    <div style={{ padding: 32, maxWidth: 900 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-        {match.tournaments?.name ?? 'Match'} · {match.round_canonical ?? match.round}
-      </h1>
-      <div style={{ fontSize: 12, color: 'var(--status-neutral)', marginBottom: 24 }}>
-        {match.scheduled_at?.slice(0, 16)} · {match.court ?? '?'} · {match.category} · {match.status}
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title={`${match.tournaments?.name ?? 'Match'} · ${match.round_canonical ?? match.round}`}
+        subtitle={`${match.scheduled_at?.slice(0, 16)} · ${match.court ?? '?'} · ${match.category} · ${match.status}`}
+      />
 
       {!latestPred ? (
-        <div style={{ color: 'var(--status-neutral)' }}>
+        <div style={{ color: 'var(--text-3)' }}>
           No prediction available. Either the snapshot worker hasn&apos;t covered this match yet,
           or it&apos;s below v1 scope.
         </div>
@@ -146,42 +145,37 @@ export default async function MatchOddsPage({ params }: PageProps) {
         </div>
       )}
 
-      <h2 style={{ fontSize: 14, fontWeight: 700, margin: '32px 0 8px' }}>Probability movement</h2>
-      <OddsMovementChart
-        series={[
-          {
-            name: pair1,
-            color: '#ff6b2b',
-            points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.pair1_prob) })),
-          },
-          {
-            name: pair2,
-            color: '#ffd166',
-            points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.pair2_prob) })),
-          },
-        ]}
-      />
+      <Section label="Probability movement">
+        <OddsMovementChart
+          series={[
+            {
+              name: pair1,
+              color: 'var(--lime)',
+              points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.pair1_prob) })),
+            },
+            {
+              name: pair2,
+              color: 'var(--orange)',
+              points: (history ?? []).map((h) => ({ t: h.created_at, value: Number(h.pair2_prob) })),
+            },
+          ]}
+        />
+      </Section>
 
       {score && (
-        <div
-          style={{
-            marginTop: 32,
-            padding: 16,
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 4,
-          }}
-        >
-          <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Result + calibration</h2>
-          <div style={{ fontSize: 13 }}>
-            Winner: pair {score.actual_winner_pair} ({score.actual_winner_pair === 1 ? pair1 : pair2})
-          </div>
-          <div style={{ display: 'flex', gap: 24, marginTop: 8, fontSize: 13 }}>
-            <span>
-              Predicted prob for winner: {(Number(score.predicted_prob_winner) * 100).toFixed(1)}%
-            </span>
-            <span>Brier: {Number(score.brier_score).toFixed(4)}</span>
-            <span>Log-loss: {Number(score.log_loss).toFixed(4)}</span>
-          </div>
+        <div style={{ marginTop: 32 }}>
+          <Panel title="Result + calibration">
+            <div style={{ fontSize: 13 }}>
+              Winner: pair {score.actual_winner_pair} ({score.actual_winner_pair === 1 ? pair1 : pair2})
+            </div>
+            <div style={{ display: 'flex', gap: 24, marginTop: 8, fontSize: 13 }}>
+              <span>
+                Predicted prob for winner: {(Number(score.predicted_prob_winner) * 100).toFixed(1)}%
+              </span>
+              <span>Brier: {Number(score.brier_score).toFixed(4)}</span>
+              <span>Log-loss: {Number(score.log_loss).toFixed(4)}</span>
+            </div>
+          </Panel>
         </div>
       )}
     </div>
@@ -209,19 +203,20 @@ function PairCard({
     <div
       style={{
         padding: 16,
-        border: `2px solid ${favorite ? 'var(--brand-primary-fg)' : 'var(--border-subtle)'}`,
-        borderRadius: 4,
+        border: `2px solid ${favorite ? 'var(--lime-border)' : 'var(--border-card)'}`,
+        borderRadius: 'var(--r-md)',
+        background: favorite ? 'var(--lime-bg)' : 'var(--bg-card)',
       }}
     >
       <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
-        {seed ? <span style={{ color: 'var(--status-neutral)' }}>[{seed}] </span> : null}
+        {seed ? <span style={{ color: 'var(--text-3)' }}>[{seed}] </span> : null}
         {name}
       </div>
       <div
         style={{
           fontSize: 28,
           fontWeight: 700,
-          color: favorite ? 'var(--brand-primary-fg)' : 'inherit',
+          color: favorite ? 'var(--lime-text)' : 'inherit',
         }}
       >
         {(prob * 100).toFixed(1)}%
@@ -232,7 +227,7 @@ function PairCard({
           gap: 16,
           marginTop: 8,
           fontSize: 12,
-          color: 'var(--status-neutral)',
+          color: 'var(--text-3)',
         }}
       >
         <span>Decimal {decimal.toFixed(2)}</span>

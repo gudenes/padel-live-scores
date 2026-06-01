@@ -5,6 +5,7 @@
 import { LiveNowSection } from '@/components/Odds/LiveNowSection'
 import { LiveOddsTable, type LiveMatchRow } from '@/components/Odds/LiveOddsTable'
 import { TournamentOutlookCard } from '@/components/Odds/TournamentOutlookCard'
+import { PageHeader, Section, EmptyState } from '@/components/ui'
 import {
   getMatchOddsForDay,
   getOngoingTournamentOutlooks,
@@ -89,27 +90,26 @@ export default async function LiveOddsPage({ searchParams }: { searchParams: Pro
   })
 
   return (
-    <div style={{ padding: 32, maxWidth: 1280 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Live Odds</h1>
+    <div className="ui-page">
+      <PageHeader title="Live Odds" />
 
       <LiveNowSection />
 
-      <h2 style={{ fontSize: 14, fontWeight: 700, margin: '24px 0 8px' }}>
-        Matches on {targetDate}
-      </h2>
-      <LiveOddsTable rows={liveRows} />
+      <Section label={`Matches on ${targetDate}`}>
+        <LiveOddsTable rows={liveRows} />
+      </Section>
 
-      <h2 style={{ fontSize: 14, fontWeight: 700, margin: '32px 0 8px' }}>Tournament outlooks</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
-        {cards.length === 0 && (
-          <div style={{ padding: 16, color: 'var(--status-neutral)' }}>
-            No in-scope tournaments currently active.
+      <Section label="Tournament outlooks">
+        {cards.length === 0 ? (
+          <EmptyState title="No in-scope tournaments currently active." />
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+            {cards.map((c) => (
+              <TournamentOutlookCard key={`${c.tournamentId}::${c.category}`} {...c} />
+            ))}
           </div>
         )}
-        {cards.map((c) => (
-          <TournamentOutlookCard key={`${c.tournamentId}::${c.category}`} {...c} />
-        ))}
-      </div>
+      </Section>
     </div>
   )
 }
