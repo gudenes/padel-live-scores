@@ -3,7 +3,7 @@
 // Variation 2 signature move — REQUIRES ATTENTION inverts so urgent
 // items pull the eye. Each row links to /needs-review with a filter.
 // Kept hand-rolled (not <Panel>) because it is an intentionally inverted
-// surface; uses the theme-aware --bg-attention/--fg-on-attention tokens.
+// surface; uses the theme-aware --bg-sunken/--text-1 tokens.
 
 import Link from 'next/link'
 import type { TodayPayload } from '@/lib/today-aggregator'
@@ -16,8 +16,8 @@ export function TodayRequiresAttention({
   return (
     <div
       style={{
-        background: 'var(--bg-attention)',
-        color: 'var(--fg-on-attention)',
+        background: 'var(--bg-sunken)',
+        color: 'var(--text-1)',
         borderRadius: 'var(--r-lg)',
         overflow: 'hidden',
       }}
@@ -45,7 +45,7 @@ export function TodayRequiresAttention({
               justifyContent: 'space-between',
               padding: '14px 20px',
               borderTop: '1px solid rgba(255,255,255,0.04)',
-              color: 'var(--fg-on-attention)',
+              color: 'var(--text-1)',
               textDecoration: 'none',
             }}
           >

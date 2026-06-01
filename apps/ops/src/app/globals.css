@@ -6,22 +6,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;600;700&display=swap');
 @import 'tailwindcss';
 
-/* Legacy → new compat shim. Keeps un-migrated pages theming in light AND dark
-   during the page-by-page migration. DELETE later in the cleanup task. */
-:root {
-  --brand-primary: var(--lime);
-  --brand-primary-fg: var(--text-1);
-  --bg-canvas: var(--bg-app);
-  --bg-attention: var(--bg-sunken);
-  --fg-on-attention: var(--text-1);
-  --status-live: var(--lime);
-  --status-warn: var(--orange);
-  --status-urgent: var(--live);
-  --status-neutral: var(--text-3);
-  --border-subtle: var(--border-card);
-  --font-body: var(--font);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -30,9 +14,9 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: var(--bg-canvas);
-  color: var(--brand-primary-fg);
-  font-family: var(--font-body);
+  background: var(--bg-app);
+  color: var(--text-1);
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
 }
 
