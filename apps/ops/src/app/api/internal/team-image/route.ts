@@ -38,7 +38,10 @@ export async function POST(request: Request) {
   let bufA: Buffer
   let bufB: Buffer
   try {
-    const [ra, rb] = await Promise.all([fetch(a.photo_url as string), fetch(b.photo_url as string)])
+    const [ra, rb] = await Promise.all([
+      fetch(a.photo_url as string, { signal: AbortSignal.timeout(15000) }),
+      fetch(b.photo_url as string, { signal: AbortSignal.timeout(15000) }),
+    ])
     if (!ra.ok || !rb.ok) throw new Error('download failed')
     bufA = Buffer.from(await ra.arrayBuffer())
     bufB = Buffer.from(await rb.arrayBuffer())

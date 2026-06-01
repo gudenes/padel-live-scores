@@ -113,6 +113,9 @@ export default function TeamImagePage() {
 
   const canGenerate = !!a?.photo_url && !!b?.photo_url && a.id !== b.id && !loading
 
+  // Revoke the preview blob URL when it changes or the page unmounts.
+  useEffect(() => () => { if (imgUrl) URL.revokeObjectURL(imgUrl) }, [imgUrl])
+
   async function generate() {
     if (!a || !b) return
     setLoading(true)
