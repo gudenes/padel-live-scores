@@ -19,14 +19,21 @@ don't parse or store it.
 
 ### Observed FIP image variants
 
-On a player page (e.g. Arturo Coello), two variants exist:
+On a player page (e.g. Arturo Coello), several variants exist:
 
 - Thumbnail (what we store today): `…/Coello-c-150x150.png`
-- Full-size: `…/Coello-p.png`
+- Square headshot: `…/Coello-c.png` (Yoast `#primaryimage` / `og:image`)
+- **Portrait (what we capture): `…/Coello-p.png`** — the `-p` full-figure image
+  in the `<img alt="generic">` slot.
 
-The exact `<img>` selector for the full-size variant is **not yet pinned** — it
-will be confirmed against a captured real-HTML fixture during implementation
-(see Risks).
+**Decision (confirmed during implementation against live padelfip.com):** we
+capture the **portrait** from the `<img alt="generic">` element, and ONLY when
+its `src` is a real upload under `/wp-content/uploads/`. Players without a photo
+get a generic `placeholder.png` under `/themes/` in that same slot, which we
+skip → `photo_url` stays null. **Portrait-only by product decision** — we do NOT
+fall back to the square Yoast headshot. (Per-player filenames vary —
+`Coello-p.png`, `TAPIA-1.png`, `Delfi-p.png` — so we rely on the slot + the
+`/uploads/` check, never on filename patterns.)
 
 ## Goals
 
@@ -63,13 +70,16 @@ Semantics:
 
 ### 2. Parser — `padelgod/src/parsers/fip-player-profile.ts`
 
-Add `photoUrl: string | null` to `ParsedPlayerProfile`. Extract the full-size
-`<img>` from the player-header block of the profile HTML the worker already
+Add `photoUrl: string | null` to `ParsedPlayerProfile`. Extract the portrait
+from the `<img alt="generic">` slot of the profile HTML the worker already
 fetches.
 
-- Selector confirmed against a captured real-HTML fixture (committed as a test
-  fixture). A selector miss → `null` (graceful; no write).
-- Fully unit-tested alongside the existing parser tests.
+- `findPortraitPhotoUrl($)`: read `img[alt="generic"]` `src`; accept it only if
+  it contains `/wp-content/uploads/` (a real upload); absolutize root- or
+  protocol-relative URLs to `https://www.padelfip.com`. Placeholder / missing →
+  `null` (graceful; no write). No square-headshot fallback.
+- Fully unit-tested (portrait upload, root-relative absolutization, placeholder
+  → null, no-img → null).
 
 ### 3. Rehost helper — `padelgod/src/lib/avatar-rehost.ts` + `src/lib/avatar-rehost.ts`
 
@@ -197,10 +207,11 @@ Backfill: same flow, driven over players WHERE profile_url IS NOT NULL
 
 ## Risks
 
-- **Selector accuracy.** The full-size `<img>` selector was inferred from a
-  summarizer, not raw HTML. Pin it against a captured fixture during
-  implementation; treat a miss as `null` so a wrong selector degrades to "no
-  photo" rather than a bad URL.
+- **Selector accuracy.** Resolved during implementation against live HTML: the
+  portrait lives in `<img alt="generic">`, and the `/wp-content/uploads/` check
+  distinguishes a real photo from the `/themes/` placeholder. A miss → `null`
+  (no photo) rather than a bad URL. Validated end-to-end in prod (Coello's
+  stored object is byte-exact to `Coello-p.png`).
 - **Byte-mirror drift.** The rehost helper exists in two files that must stay
   identical. Generalizing it touches both — review them together.
 - **Storage growth.** ~2–4× the thumbnail bytes per player; bounded by the
