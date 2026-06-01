@@ -52,6 +52,25 @@ function isHeaderLine(line: string): boolean {
   );
 }
 
+// FIP marks protected-ranking / special entries with a short uppercase token
+// placed between "<points> points" and the partner's ranking, e.g.
+// "687 points PR \t75 Aris Patiniotis ITA". The partner extractor is anchored
+// on the ranking digits, so a leading "PR " makes it fail and desync the whole
+// block. Strip any leading short-uppercase markers (PR, WC, LL, SR, …) that sit
+// before the ranking number. Normal lines (remainder already starts with the
+// ranking digit) are left untouched because the marker group requires >=1
+// uppercase token before a digit.
+function stripEntryMarkers(s: string): string {
+  return s.replace(/^\s*(?:[A-Z]{1,3}\s+)+(?=\d)/, '').trim();
+}
+
+// Safety net: if a name still looks like leaked column data (the word "points",
+// an embedded tab, or a leading digit where a name should be), the block did
+// not parse cleanly and must be skipped rather than stored as a garbage player.
+function isContaminatedName(name: string): boolean {
+  return /\bpoints\b/i.test(name) || /\t/.test(name) || /^\d/.test(name);
+}
+
 export function parseEntryListText(text: string): ParseResult {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   const teams: ParsedTeam[] = [];
@@ -131,7 +150,9 @@ export function parseEntryListText(text: string): ParseResult {
       continue;
     }
     const player1Points = parseInt(p1PointsMatch[1]!, 10);
-    const afterPoints1 = line2.slice(p1PointsMatch.index + p1PointsMatch[0].length).trim();
+    const afterPoints1 = stripEntryMarkers(
+      line2.slice(p1PointsMatch.index + p1PointsMatch[0].length),
+    );
 
     let player2Ranking = 0;
     let player2Name = '';
@@ -180,6 +201,17 @@ export function parseEntryListText(text: string): ParseResult {
     const teamPointsLine = lines[i + linesConsumed - 1]!;
     const teamPointsMatch = /(\d+)\s*$/.exec(teamPointsLine);
     const teamPoints = teamPointsMatch ? parseInt(teamPointsMatch[1]!, 10) : 0;
+
+    if (isContaminatedName(player1Name) || isContaminatedName(player2Name)) {
+      // Block did not parse cleanly even after marker stripping — skip the
+      // whole block (advance by the lines we believe it spanned) so we neither
+      // store garbage nor desync the teams that follow.
+      console.warn(
+        `[fip-entry-list-pdf] skipping contaminated block: player1=${JSON.stringify(player1Name)} player2=${JSON.stringify(player2Name)}`,
+      );
+      i += linesConsumed;
+      continue;
+    }
 
     teams.push({
       position,
