@@ -57,22 +57,22 @@ export function SponsorCard({
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 12,
+        gap: isFeed ? 10 : 12,
         textDecoration: 'none',
         color: 'inherit',
         background: 'linear-gradient(135deg, #1e293b, #0b1220)',
         border: '1px solid rgba(59,130,246,0.35)',
-        borderRadius: 12,
-        padding: isFeed ? '12px 14px' : '10px 12px',
-        margin: isFeed ? '6px 8px' : '12px',
+        borderRadius: isFeed ? 10 : 12,
+        padding: isFeed ? '7px 10px' : '10px 12px',
+        margin: isFeed ? '5px 8px' : '12px',
       }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={sponsor.creativeImage}
         alt={sponsor.name}
-        width={isFeed ? 44 : 36}
-        height={isFeed ? 44 : 36}
+        width={isFeed ? 30 : 36}
+        height={isFeed ? 30 : 36}
         style={{ borderRadius: 8, flexShrink: 0, objectFit: 'cover' }}
       />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -87,10 +87,10 @@ export function SponsorCard({
         >
           Sponsored
         </div>
-        <div style={{ fontSize: isFeed ? 14 : 13, fontWeight: 800, color: '#f8fafc', marginTop: 2 }}>
+        <div style={{ fontSize: isFeed ? 12 : 13, fontWeight: 800, color: '#f8fafc', marginTop: isFeed ? 0 : 2 }}>
           {sponsor.name}
         </div>
-        <div style={{ fontSize: 11, color: '#cbd5e1', marginTop: 1 }}>{sponsor.headline}</div>
+        <div style={{ fontSize: isFeed ? 10 : 11, color: '#cbd5e1', marginTop: 1 }}>{sponsor.headline}</div>
       </div>
       <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, flexShrink: 0 }}>
         {sponsor.ctaText} {'→'}
