@@ -126,6 +126,7 @@ interface PlayerRow {
   avatar_url: string | null;
   profile_url: string | null;
   last_updated_by: string | null;
+  ranking_date: string | null;
 }
 
 interface SnapshotRow {
@@ -179,6 +180,7 @@ function seedPlayer(p: Partial<PlayerRow> & { id: string; fip_id: string; catego
     avatar_url: p.avatar_url ?? null,
     profile_url: p.profile_url ?? null,
     last_updated_by: p.last_updated_by ?? null,
+    ranking_date: p.ranking_date ?? null,
   });
 }
 
@@ -232,6 +234,7 @@ function makeSupabase() {
             avatar_url: null,
             profile_url: row.profile_url ?? null,
             last_updated_by: row.last_updated_by ?? null,
+            ranking_date: row.ranking_date ?? null,
           };
           state.players.push(inserted);
           return {
@@ -424,6 +427,37 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     expect(result.race.men.fetched).toBe(1);
     expect(result.race.women.fetched).toBe(1);
     expect(result.snapshotsWritten).toBe(5);
+  });
+
+  it('stamps players.ranking_date with the FIP ranking date, not the sync timestamp', async () => {
+    // Existing player with a stale ranking_date that must be overwritten.
+    seedPlayer({
+      id: 'aaaa1111-0000-0000-0000-000000000001', fip_id: 'P000001', category: 'men',
+      name: 'Old Name', ranking: 99, points: 100, ranking_date: '2026-01-01',
+    });
+
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 21000 }),
+      officialRow({ player_id: 'P000003', rank: 2, points: 20000 }),
+    ]);
+    setHttpResponse('gender=female&limit', [officialRow({ player_id: 'P000002', rank: 1 })]);
+    setHttpResponse('search_type=race&gender=male', [raceRow({ player_id: 'P000001', race_rank: 1 })]);
+    setHttpResponse('search_type=race&gender=female', [raceRow({ player_id: 'P000002', race_rank: 1 })]);
+
+    await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    // The official snapshot already carries FIP's true ranking date — the
+    // players row must match it exactly (same source of truth).
+    const officialSnap = state.snapshots.find(s => s.type === 'official' && s.gender === 'men')!;
+    expect(officialSnap.ranking_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+    // Existing player: stale date overwritten with FIP date.
+    const p1 = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(p1.ranking_date).toBe(officialSnap.ranking_date);
+
+    // New player: inserted with FIP date.
+    const p3 = state.players.find(p => p.fip_id === 'P000003')!;
+    expect(p3.ranking_date).toBe(officialSnap.ranking_date);
   });
 
   it('official current week empty, falls back to a prior week with data', async () => {

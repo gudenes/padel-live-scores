@@ -205,6 +205,7 @@ async function upsertOfficialPlayers(
   supabase: SupabaseClient,
   rows: FipOfficialPlayer[],
   category: 'men' | 'women',
+  rankingDate: string,
 ): Promise<ResolvedPlayer[]> {
   const byFipId = new Map<string, FipOfficialPlayer>();
   for (const r of rows) byFipId.set(r.player_id.replace(/^fip-/, ''), r);
@@ -218,6 +219,10 @@ async function upsertOfficialPlayers(
   for (const row of existing ?? []) existingByFipId.set(row.fip_id, row);
 
   const now = new Date().toISOString();
+  // The displayed "ranking updated" date is sourced from players.ranking_date —
+  // it must be FIP's publish date (Monday of the served week), never the sync
+  // timestamp. Mirror exactly what writeOfficialSnapshots persists.
+  const rankingMondayIso = isoYearWeek(new Date(rankingDate)).mondayIso;
   const resolved: ResolvedPlayer[] = [];
 
   for (const [fipId, fipRow] of byFipId.entries()) {
@@ -230,6 +235,7 @@ async function upsertOfficialPlayers(
         ranking: fipRow.rank,
         points: fipRow.points,
         ranking_move: fipRow.move,
+        ranking_date: rankingMondayIso,
         last_updated_by: 'padelgod',
         updated_at: now,
       };
@@ -249,6 +255,7 @@ async function upsertOfficialPlayers(
         ranking: fipRow.rank,
         points: fipRow.points,
         ranking_move: fipRow.move,
+        ranking_date: rankingMondayIso,
         profile_url: fipRow.url || null,
         last_updated_by: 'padelgod',
         updated_at: now,
@@ -457,7 +464,7 @@ async function runOfficialPhase(
         const rowsByFipId = new Map<string, FipOfficialPlayer>();
         for (const r of players) rowsByFipId.set(r.player_id.replace(/^fip-/, ''), r);
 
-        const resolved = await upsertOfficialPlayers(deps.supabase, players, category);
+        const resolved = await upsertOfficialPlayers(deps.supabase, players, category, rd!);
         updated = resolved.filter(r => r.outcome === 'updated').length;
         created = resolved.filter(r => r.outcome === 'created').length;
 
