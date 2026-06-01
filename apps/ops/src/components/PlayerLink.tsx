@@ -28,8 +28,8 @@ interface Props {
 
 const STATUS_DOT_COLOR: Record<PlayerLinkStatus, string> = {
   enriched: 'var(--lime, #84cc16)',
-  thin: 'var(--status-warn, #f59e0b)',
-  unresolved: 'var(--status-neutral, #71717a)',
+  thin: 'var(--orange)',
+  unresolved: 'var(--text-3)',
 }
 
 const STATUS_TOOLTIP: Record<PlayerLinkStatus, string> = {
@@ -109,7 +109,7 @@ export function PlayerLink({ player, badges, hideDot, tooltip }: Props) {
       <span
         title={tip}
         style={{
-          color: 'var(--status-neutral, #71717a)',
+          color: 'var(--text-3)',
           fontStyle: 'italic',
         }}
       >
