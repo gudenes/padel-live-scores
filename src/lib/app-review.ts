@@ -109,6 +109,9 @@ export async function requestReviewForReason(reason: ReviewReason): Promise<void
 function storeUrl(): string {
   const platform = Capacitor.getPlatform()
   const ios = `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`
+  // Play Store has no stable deep-link to force the review dialog from a URL,
+  // so Android lands on the listing page (where the rating stars live) rather
+  // than a write-review prompt like iOS's ?action=write-review.
   const android = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`
   if (platform === 'ios') return ios
   if (platform === 'android') return android
