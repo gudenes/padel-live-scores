@@ -68,3 +68,13 @@
 .ui-skel { background:linear-gradient(90deg,var(--bg-hover),var(--bg-card-2),var(--bg-hover)); background-size:200% 100%; border-radius:var(--r-sm); height:14px; animation:ui-shimmer 1.3s ease-in-out infinite; }
 @keyframes ui-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 @media (prefers-reduced-motion: reduce){ .ui-skel{ animation:none } }
+
+/* ---- Command palette ---- */
+.ui-cmd-scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:flex-start; justify-content:center; padding-top:12vh; z-index:80; }
+.ui-cmd { width:min(620px,92vw); background:var(--bg-surface); border:1px solid var(--border-strong); border-radius:var(--r-xl); box-shadow:var(--shadow-lg); overflow:hidden; }
+.ui-cmd-input { width:100%; font-family:var(--font); font-size:15px; color:var(--text-1); background:transparent; border:none; border-bottom:1px solid var(--border-inner); padding:15px 18px; outline:none; }
+.ui-cmd-list { max-height:48vh; overflow:auto; padding:6px; }
+.ui-cmd-group { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-4); padding:10px 12px 4px; }
+.ui-cmd-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--r-sm); cursor:pointer; color:var(--text-1); font-size:13px; }
+.ui-cmd-item[data-active="true"], .ui-cmd-item:hover { background:var(--bg-hover); }
+.ui-cmd-item-sub { color:var(--text-3); font-size:12px; margin-left:auto; }

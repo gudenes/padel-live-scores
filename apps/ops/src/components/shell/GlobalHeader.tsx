@@ -4,6 +4,7 @@ import { useTheme } from './ThemeProvider'
 import { useBrand, BRANDS, type Brand } from './BrandProvider'
 import { Icon } from '../IconSprite'
 import { signOutAction } from '@/lib/actions/sign-out'
+import { CommandPalette } from './CommandPalette'
 
 export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }) {
   const { theme, toggle } = useTheme()
@@ -42,7 +43,12 @@ export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }
 
       <label className="gsearch">
         <Icon id="search" />
-        <input placeholder="Search matches, players, tournaments, pages…" />
+        <input
+          placeholder="Search matches, players, tournaments, pages…"
+          readOnly
+          onFocus={(e) => { e.currentTarget.blur(); window.dispatchEvent(new Event('ops:open-palette')) }}
+          onClick={() => window.dispatchEvent(new Event('ops:open-palette'))}
+        />
         <kbd>⌘K</kbd>
       </label>
 
@@ -79,6 +85,8 @@ export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }
           )}
         </div>
       </div>
+
+      <CommandPalette />
     </header>
   )
 }
