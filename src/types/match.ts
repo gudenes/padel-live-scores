@@ -276,13 +276,38 @@ export function parseSetFromGames(
   return { p1: d1.games, p2: d2.games, tb: loserTb }
 }
 
+// Romance-language surname particles that attach to the following word
+// (e.g. "Di Nenno", "de la Fuente"). Matched case-insensitively.
+const SURNAME_PARTICLES = new Set([
+  'de', 'del', 'della', 'di', 'da', 'dos', 'das', 'du',
+  'la', 'le', 'los', 'las', 'van', 'von', 'der', 'den', 'mac', 'mc',
+])
+
+// Compact display: first-name initial + paternal (first) surname.
+//   "Agustin Dominguez Gracia" → "A. Dominguez"  (maternal surname dropped)
+//   "Martin Di Nenno"          → "M. Di Nenno"   (particle absorbed)
+//   "Martin de la Fuente"      → "M. de la Fuente"
+// Known limitation: compound given names can't be detected, so
+// "Ana Cristina Sanchez Perez" → "A. Cristina". Set the player's
+// display_name to override those cases (see pairName).
 export function toShortName(name: string): string {
-  const parts = name.trim().split(' ')
-  if (parts.length <= 1) return name
-  return parts[0][0] + '. ' + parts.slice(1).join(' ')
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return parts[0] ?? name.trim()
+  const initial = parts[0][0]
+  // Paternal surname starts at token 1. If it opens with particles,
+  // absorb them plus the one real surname word that follows.
+  let i = 1
+  const surname: string[] = []
+  while (i < parts.length - 1 && SURNAME_PARTICLES.has(parts[i].toLowerCase())) {
+    surname.push(parts[i])
+    i++
+  }
+  surname.push(parts[i])
+  return `${initial}. ${surname.join(' ')}`
 }
 
-// Last name only for compact pair display — prefers display_name when set
+// Compact pair display — prefers display_name when set, falls back to the
+// paternal-surname heuristic in toShortName.
 export function pairName(p1: Player | null, p2: Player | null): string {
   if (!p1 && !p2) return 'TBD'
   const n1 = p1 ? (p1.display_name?.trim() || p1.name) : 'TBD'
