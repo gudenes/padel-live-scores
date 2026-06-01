@@ -15,9 +15,11 @@ import type { AdSlotId } from '@/lib/sponsors'
  * Keep this component's external contract (props) stable so AdSlot does not
  * need to change when networks are added.
  */
-export function NetworkAdSlot(_props: {
+export function NetworkAdSlot(props: {
   slot: AdSlotId
   variant: 'feed' | 'detail'
 }) {
+  // Props are intentionally unused until a network is wired (see TODOs above).
+  void props
   return null
 }
