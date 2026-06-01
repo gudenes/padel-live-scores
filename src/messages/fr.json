@@ -685,7 +685,8 @@
     },
     "support": {
       "contact": "Contacter l'assistance",
-      "about": "À propos de PadelNachos"
+      "about": "À propos de PadelNachos",
+      "rate": "Notez PadelNachos"
     },
     "signOut": "Se déconnecter",
     "deleteModal": {
