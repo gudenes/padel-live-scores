@@ -15,10 +15,16 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServerClient()
-  void supabase.rpc('increment_ad_impression', {
-    p_slot: slot,
-    p_sponsor_id: sponsorId,
-  })
+  // Await so the counter increments before a serverless function can freeze
+  // after responding. Best-effort: never fail the response on a tracking error.
+  try {
+    await supabase.rpc('increment_ad_impression', {
+      p_slot: slot,
+      p_sponsor_id: sponsorId,
+    })
+  } catch {
+    // swallow — tracking is non-critical
+  }
 
   return NextResponse.json({ ok: true })
 }

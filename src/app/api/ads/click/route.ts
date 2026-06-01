@@ -24,13 +24,20 @@ export async function POST(req: NextRequest) {
   const locale = cookieStore.get('NEXT_LOCALE')?.value ?? null
 
   const supabase = createServerClient()
-  void supabase.from('ad_clicks').insert({
-    slot,
-    sponsor_id: sponsorId,
-    match_id: matchId ?? null,
-    user_id: userId,
-    locale,
-  })
+  // Await the write so the row lands before a serverless function can freeze
+  // after responding — accurate click counts are the point of this route.
+  // Best-effort: never fail the response on a tracking error.
+  try {
+    await supabase.from('ad_clicks').insert({
+      slot,
+      sponsor_id: sponsorId,
+      match_id: matchId ?? null,
+      user_id: userId,
+      locale,
+    })
+  } catch {
+    // swallow — tracking is non-critical
+  }
 
   return NextResponse.json({ ok: true })
 }

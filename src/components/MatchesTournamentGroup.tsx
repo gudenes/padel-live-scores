@@ -405,7 +405,7 @@ export default function MatchesTournamentGroup({
           // finished-section divider (when present) + 100px slack.
           // Doesn't need to be exact since overflow:hidden clips the rest
           // when collapsed.
-          maxHeight: expanded ? total * 130 + (finished.length > 0 ? 50 : 0) + 100 : 0,
+          maxHeight: expanded ? total * 130 + (finished.length > 0 ? 50 : 0) + Math.floor(total / 6) * 70 + 100 : 0,
           transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           background: BG_CARD,
         }}
