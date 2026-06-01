@@ -46,6 +46,17 @@ function isSupabaseHosted(url: string | null | undefined): boolean {
   return !!url && url.includes(SUPABASE_STORAGE_MARKER)
 }
 
+export function storageKeyFor(playerId: string, keySuffix: string, ext: string): string {
+  return `${playerId}${keySuffix}.${ext}`
+}
+
+export interface RehostOptions {
+  /** Which players column to read/write. Default 'avatar_url'. */
+  column?: 'avatar_url' | 'photo_url'
+  /** Suffix appended to the storage key, e.g. '-full'. Default ''. */
+  keySuffix?: string
+}
+
 /**
  * Rehost a single avatar. Idempotent + safe to call from the daily ranking
  * sync — when the player's current avatar is already on Supabase Storage we
@@ -58,7 +69,11 @@ export async function rehostAvatarToSupabase(
   supabase: SupabaseClient,
   playerId: string,
   sourceUrl: string | null | undefined,
+  opts: RehostOptions = {},
 ): Promise<RehostResult> {
+  const column = opts.column ?? 'avatar_url'
+  const keySuffix = opts.keySuffix ?? ''
+
   if (!sourceUrl) {
     return { playerId, status: 'skipped-no-source' }
   }
@@ -66,19 +81,17 @@ export async function rehostAvatarToSupabase(
     return { playerId, status: 'skipped-already-hosted', newUrl: sourceUrl }
   }
 
-  // Skip if the player already has a Supabase-hosted avatar — those rows are
-  // considered authoritative and we don't want a daily ranking sync to
-  // re-download every player's image.
   const { data: current, error: readError } = await supabase
     .from('players')
-    .select('avatar_url')
+    .select(column)
     .eq('id', playerId)
     .maybeSingle()
   if (readError) {
     return { playerId, status: 'error', detail: `read failed: ${readError.message}` }
   }
-  if (isSupabaseHosted(current?.avatar_url)) {
-    return { playerId, status: 'skipped-already-hosted', newUrl: current!.avatar_url! }
+  const currentUrl = (current as Record<string, string | null> | null)?.[column] ?? null
+  if (isSupabaseHosted(currentUrl)) {
+    return { playerId, status: 'skipped-already-hosted', newUrl: currentUrl! }
   }
 
   try {
@@ -89,7 +102,7 @@ export async function rehostAvatarToSupabase(
     const contentType = res.headers.get('Content-Type') ?? 'image/jpeg'
     const ext = pickExtension(contentType)
     const buffer = await res.arrayBuffer()
-    const filePath = `${playerId}.${ext}`
+    const filePath = storageKeyFor(playerId, keySuffix, ext)
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
@@ -102,7 +115,7 @@ export async function rehostAvatarToSupabase(
 
     const { error: updateError } = await supabase
       .from('players')
-      .update({ avatar_url: newUrl })
+      .update({ [column]: newUrl })
       .eq('id', playerId)
     if (updateError) {
       return { playerId, status: 'db-update-failed', detail: updateError.message }
