@@ -133,6 +133,16 @@
   background:#0a0a0a;color:#eaf0e0;font-size:12px;font-weight:500;padding:7px 11px;border-radius:var(--r-sm);white-space:nowrap;
   z-index:60;box-shadow:var(--shadow-lg);border:1px solid #2a2a2a}
 
+/* nested sub-nav (Supabase-style) — e.g. Live Odds → Overview / Calibration / Methodology */
+.nav.section.section-active{background:var(--rail-hover);color:var(--lime-text);font-weight:600}
+.nav.section.section-active svg{opacity:1}
+.subnav{display:flex;flex-direction:column;gap:1px;margin:1px 0 6px;padding-left:30px;position:relative}
+.subnav::before{content:"";position:absolute;left:19px;top:1px;bottom:7px;width:1px;background:var(--rail-divider)}
+.subnav a{font-size:12px;color:var(--rail-dim);padding:6px 10px;border-radius:var(--r-sm);white-space:nowrap;font-weight:500}
+.subnav a:hover{background:var(--rail-hover);color:var(--rail-text)}
+.subnav a.active{color:var(--lime-text);background:var(--rail-hover);font-weight:700}
+.collapsed .subnav{display:none}
+
 /* rail footer status */
 .railfoot{border-top:1px solid var(--rail-divider);padding:10px 14px;display:flex;align-items:center;gap:9px}
 .railfoot .sdot{width:8px;height:8px;border-radius:50%;background:var(--lime);box-shadow:0 0 8px var(--lime);flex:0 0 auto}

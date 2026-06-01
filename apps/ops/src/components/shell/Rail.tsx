@@ -4,13 +4,18 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Icon } from '../IconSprite'
 
-type Item = { href: string; label: string; icon: string; pill?: 'live'; cnt?: number }
+type SubItem = { href: string; label: string }
+type Item = { href: string; label: string; icon: string; pill?: 'live'; cnt?: number; children?: SubItem[] }
 type Group = { label?: string; items: Item[] }
 
 const GROUPS: Group[] = [
   { items: [
     { href: '/today', label: 'Today', icon: 'today' },
-    { href: '/odds', label: 'Live Odds', icon: 'odds', pill: 'live' },
+    { href: '/odds', label: 'Live Odds', icon: 'odds', pill: 'live', children: [
+      { href: '/odds', label: 'Overview' },
+      { href: '/odds/calibration', label: 'Calibration' },
+      { href: '/odds/methodology', label: 'Methodology' },
+    ] },
   ]},
   { label: 'Tournament Ops', items: [
     { href: '/tournament-explorer', label: 'Tournament Explorer', icon: 'grid' },
@@ -66,14 +71,32 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
             <div className="items">
               {g.items.map(it => {
                 const active = pathname === it.href || pathname.startsWith(it.href + '/')
+                const activeChild = it.children
+                  ?.filter(c => pathname === c.href || pathname.startsWith(c.href + '/'))
+                  .sort((a, b) => b.href.length - a.href.length)[0]?.href
                 return (
-                  <Link key={it.href} href={it.href} className={`nav ${active ? 'active' : ''}`} data-tip={it.label}>
-                    <Icon id={it.icon} />
-                    <span className="lbl">{it.label}</span>
-                    {it.pill === 'live' && <span className="pill"><span className="d" />LIVE</span>}
-                    {it.cnt != null && <span className="cnt">{it.cnt}</span>}
-                    {(it.pill || it.cnt != null) && <span className="railpill" />}
-                  </Link>
+                  <div key={it.href}>
+                    <Link
+                      href={it.href}
+                      className={`nav ${it.children ? 'section' : ''} ${active ? (it.children ? 'section-active' : 'active') : ''}`}
+                      data-tip={it.label}
+                    >
+                      <Icon id={it.icon} />
+                      <span className="lbl">{it.label}</span>
+                      {it.pill === 'live' && <span className="pill"><span className="d" />LIVE</span>}
+                      {it.cnt != null && <span className="cnt">{it.cnt}</span>}
+                      {(it.pill || it.cnt != null) && <span className="railpill" />}
+                    </Link>
+                    {it.children && active && !collapsed && (
+                      <div className="subnav">
+                        {it.children.map(c => (
+                          <Link key={c.href} href={c.href} className={activeChild === c.href ? 'active' : ''}>
+                            {c.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>
