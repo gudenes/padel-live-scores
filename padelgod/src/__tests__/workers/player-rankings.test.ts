@@ -558,6 +558,54 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
 
     expect(result.race.men.dropoutsCleared).toBe(1);
   });
+  it('official dropouts: previously-ranked players absent from a healthy run get official fields NULLed', async () => {
+    // A man who fell out of FIP's current ranking but still carries a stale
+    // official ranking + old ranking_date. He is NOT in this run's fetch and
+    // must be cleared so the /rankings list doesn't show him at a stale slot.
+    seedPlayer({
+      id: 'eeee1111-0000-0000-0000-000000000001', fip_id: 'P009999', category: 'men',
+      ranking: 57, points: 1234, ranking_move: 0, ranking_date: '2026-03-30T00:00:00Z',
+    });
+
+    // Healthy men's official run: 100 rows (>= the dropout-clear floor), none P009999.
+    const menRows = Array.from({ length: 100 }, (_, i) =>
+      officialRow({ player_id: `P10${(i + 1).toString().padStart(4, '0')}`, rank: i + 1 }));
+    setHttpResponse('gender=male&limit', menRows);
+    setHttpResponse('gender=female&limit', [officialRow({ player_id: 'P000002', rank: 1 })]);
+    setHttpResponse('search_type=race&gender=male', [raceRow({ player_id: 'P100001', race_rank: 1 })]);
+    setHttpResponse('search_type=race&gender=female', [raceRow({ player_id: 'P000002', race_rank: 1 })]);
+
+    const result = await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    const dropped = state.players.find(p => p.fip_id === 'P009999')!;
+    expect(dropped.ranking).toBeNull();
+    expect(dropped.points).toBeNull();
+    expect(dropped.ranking_move).toBeNull();
+    expect(dropped.ranking_date).toBeNull();
+    expect(result.official.men.dropoutsCleared).toBe(1);
+  });
+  it('official dropouts: skips clearing when the run is suspiciously small (partial FIP response)', async () => {
+    // Guard: a short fetch (e.g. FIP outage serving a handful of rows) must NOT
+    // wipe everyone else — same spirit as the PARSED_ZERO_ROWS floor.
+    seedPlayer({
+      id: 'eeee2222-0000-0000-0000-000000000002', fip_id: 'P008888', category: 'men',
+      ranking: 57, points: 1234, ranking_move: 0, ranking_date: '2026-03-30T00:00:00Z',
+    });
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P100001', rank: 1 }),
+      officialRow({ player_id: 'P100002', rank: 2 }),
+    ]);
+    setHttpResponse('gender=female&limit', [officialRow({ player_id: 'P000002', rank: 1 })]);
+    setHttpResponse('search_type=race&gender=male', [raceRow({ player_id: 'P100001', race_rank: 1 })]);
+    setHttpResponse('search_type=race&gender=female', [raceRow({ player_id: 'P000002', race_rank: 1 })]);
+
+    const result = await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    const stale = state.players.find(p => p.fip_id === 'P008888')!;
+    expect(stale.ranking).toBe(57); // retained — not wiped by a partial run
+    expect(stale.ranking_date).toBe('2026-03-30T00:00:00Z');
+    expect(result.official.men.dropoutsCleared).toBe(0);
+  });
   it('race endpoint empty: throws PARSED_ZERO_ROWS + Sentry capture tagged race-male', async () => {
     const sentrySpy = vi.spyOn(await import('@sentry/node'), 'captureException').mockImplementation(() => 'event-id');
 

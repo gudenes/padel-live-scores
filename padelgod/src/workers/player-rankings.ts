@@ -22,8 +22,8 @@ interface PhaseResult {
 
 export interface PlayerRankingsResult {
   official: {
-    men: PhaseResult & { rankingDate: string | null };
-    women: PhaseResult & { rankingDate: string | null };
+    men: PhaseResult & { rankingDate: string | null; dropoutsCleared: number };
+    women: PhaseResult & { rankingDate: string | null; dropoutsCleared: number };
   };
   race: {
     men: PhaseResult & { dropoutsCleared: number };
@@ -68,6 +68,11 @@ const PAGE_SIZE = 500;
 const OFFICIAL_WEEK_FALLBACK = 3;
 const AVATAR_BATCH = 20;
 const RACE_CLEAR_CHUNK = 200;
+// Don't clear official-ranking dropouts unless the run looks complete. FIP's
+// load-more returns ~500/page per gender on a healthy run, so a fetch below
+// this floor signals a partial/failed response — same spirit as the
+// PARSED_ZERO_ROWS guard, scaled up so we never wipe the list on a short read.
+const OFFICIAL_DROPOUT_MIN_ROWS = 100;
 const PROFILE_ATTEMPT_SENTINEL = '1970-01-01T00:00:00Z';
 
 const COUNTRY_3_TO_2: Record<string, string> = {
@@ -455,6 +460,41 @@ async function clearRaceDropouts(
   return dropouts.length;
 }
 
+/**
+ * Official-ranking analogue of clearRaceDropouts: NULLs the official ranking
+ * fields for players in `category` who carry a ranking but were absent from
+ * this run's fetch (i.e. they fell out of FIP's current ranking). Without this
+ * the /rankings list shows stale players frozen at old positions/dates.
+ *
+ * Caller must gate on OFFICIAL_DROPOUT_MIN_ROWS so a partial FIP response can't
+ * wipe the whole list.
+ */
+async function clearOfficialDropouts(
+  supabase: SupabaseClient,
+  category: 'men' | 'women',
+  writtenPlayerIds: Set<string>,
+): Promise<number> {
+  const { data: previouslyRanked } = await supabase
+    .from('players')
+    .select('id')
+    .eq('category', category)
+    .not('ranking', 'is', null);
+
+  const dropouts = (previouslyRanked ?? [])
+    .map((r: any) => r.id as string)
+    .filter(id => !writtenPlayerIds.has(id));
+
+  for (let i = 0; i < dropouts.length; i += RACE_CLEAR_CHUNK) {
+    const chunk = dropouts.slice(i, i + RACE_CLEAR_CHUNK);
+    await supabase
+      .from('players')
+      .update({ ranking: null, points: null, ranking_move: null, ranking_date: null })
+      .in('id', chunk);
+  }
+
+  return dropouts.length;
+}
+
 // ── Phase runners ────────────────────────────────────────────────────────
 
 async function runOfficialPhase(
@@ -463,12 +503,13 @@ async function runOfficialPhase(
   category: 'men' | 'women',
   avatarMap: Map<string, string>,
   fipDate: string | null,
-): Promise<PhaseResult & { rankingDate: string | null; snapshotsWritten: number }> {
+): Promise<PhaseResult & { rankingDate: string | null; snapshotsWritten: number; dropoutsCleared: number }> {
   let fetched = 0;
   let updated = 0;
   let created = 0;
   let rankingDate: string | null = null;
   let snapshotsWritten = 0;
+  let dropoutsCleared = 0;
   const phaseName = `official-${gender}`;
 
   try {
@@ -507,9 +548,21 @@ async function runOfficialPhase(
           deps.supabase, resolved, rowsByFipId, category, rd!,
         );
 
+        // Clear players who fell out of FIP's current ranking — but only when
+        // the run looks complete, so a partial FIP response can't wipe the list.
+        if (resolved.length >= OFFICIAL_DROPOUT_MIN_ROWS) {
+          const writtenIds = new Set(resolved.map(r => r.playerId));
+          dropoutsCleared = await clearOfficialDropouts(deps.supabase, category, writtenIds);
+        } else {
+          deps.logger?.warn(
+            { phase: phaseName, resolved: resolved.length, floor: OFFICIAL_DROPOUT_MIN_ROWS },
+            `${phaseName}: skipping official dropout clear — only ${resolved.length} rows (< ${OFFICIAL_DROPOUT_MIN_ROWS}), likely a partial FIP response`,
+          );
+        }
+
         const yw = isoYearWeek(new Date(rd!));
         deps.logger?.info(
-          { phase: phaseName, fetched, rankingDate: rd, year: yw.year, week: yw.week },
+          { phase: phaseName, fetched, rankingDate: rd, year: yw.year, week: yw.week, dropoutsCleared },
           `${phaseName} fetched ${fetched} rows`,
         );
 
@@ -521,7 +574,7 @@ async function runOfficialPhase(
     throw err;
   }
 
-  return { fetched, updated, created, rankingDate, snapshotsWritten };
+  return { fetched, updated, created, rankingDate, snapshotsWritten, dropoutsCleared };
 }
 
 async function runRacePhase(
@@ -647,8 +700,8 @@ export async function runPlayerRankings(
 
   return {
     official: {
-      men: { fetched: officialMen.fetched, updated: officialMen.updated, created: officialMen.created, rankingDate: officialMen.rankingDate },
-      women: { fetched: officialWomen.fetched, updated: officialWomen.updated, created: officialWomen.created, rankingDate: officialWomen.rankingDate },
+      men: { fetched: officialMen.fetched, updated: officialMen.updated, created: officialMen.created, rankingDate: officialMen.rankingDate, dropoutsCleared: officialMen.dropoutsCleared },
+      women: { fetched: officialWomen.fetched, updated: officialWomen.updated, created: officialWomen.created, rankingDate: officialWomen.rankingDate, dropoutsCleared: officialWomen.dropoutsCleared },
     },
     race: {
       men: { fetched: raceMen.fetched, updated: raceMen.updated, created: raceMen.created, dropoutsCleared: raceMen.dropoutsCleared },
