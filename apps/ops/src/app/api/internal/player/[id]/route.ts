@@ -21,7 +21,7 @@ import { serviceClient } from '@/lib/supabase'
 // 20260420000004 + 20260420000021).
 const PLAYER_COLUMNS =
   'id, name, display_name, country, category, ranking, points, ranking_move, ' +
-  'race_ranking, race_points, race_move, external_id, fip_id, avatar_url, ' +
+  'race_ranking, race_points, race_move, external_id, fip_id, avatar_url, photo_url, ' +
   'profile_url, side, height, birthdate, birthplace, hand, titles, finals, ' +
   // `equipment` (legacy jsonb) intentionally excluded — source of truth is
   // the `player_equipment` junction surfaced in the top-level `equipment` array.

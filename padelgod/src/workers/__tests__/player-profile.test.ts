@@ -66,4 +66,24 @@ describe('buildPlayerProfileUpdate', () => {
     const u = buildPlayerProfileUpdate(parsed, 'ok');
     expect(u.equipment).toEqual({ brand: 'Babolat', model: null });
   });
+
+  it('writes photo_url when the parsed profile has a photoUrl', () => {
+    const parsed = {
+      fipId: 'P1', birthDate: null, birthPlace: null, heightCm: null,
+      affiliation: null, racketBrand: null, racketModel: null, coaches: [],
+      side: null,
+      photoUrl: 'https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png',
+    };
+    const u = buildPlayerProfileUpdate(parsed, 'ok');
+    expect(u.photo_url).toBe('https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png');
+  });
+
+  it('omits photo_url when photoUrl is null', () => {
+    const parsed = {
+      fipId: 'P1', birthDate: null, birthPlace: null, heightCm: null,
+      affiliation: null, racketBrand: null, racketModel: null, coaches: [],
+      side: null, photoUrl: null,
+    };
+    expect(buildPlayerProfileUpdate(parsed, 'ok').photo_url).toBeUndefined();
+  });
 });

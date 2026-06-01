@@ -4,15 +4,17 @@
 
 **Goal:** Capture FIP's high-res player photo (currently discarded by the profile worker), rehost it to Supabase Storage in a new `players.photo_url` column, backfill existing players, and display it as a side photo card on the admin full-profile page.
 
-**Architecture:** The padelgod profile worker already downloads each player's full FIP page HTML. We parse the Yoast JSON-LD `#primaryimage` (full-res headshot, with `og:image` fallback), write it to a new `photo_url` column, and rehost it via a generalized version of the existing (byte-mirrored) avatar-rehost helper. A one-off padelgod script backfills already-profiled players. The admin app (`apps/ops`, admin.padelnachos.com) adds `photo_url` to the profile aggregator query and renders it as a portrait card on the right of the profile header (Option B), shown only when present.
+**Architecture:** The padelgod profile worker already downloads each player's full FIP page HTML. We parse the **portrait** from the `<img alt="generic">` slot (the `-p` image, e.g. `Coello-p.png`), write it to a new `photo_url` column, and rehost it via a generalized version of the existing (byte-mirrored) avatar-rehost helper. A one-off padelgod script backfills already-profiled players. The admin app (`apps/ops`, admin.padelnachos.com) adds `photo_url` to the profile aggregator query and renders it as a portrait card on the right of the profile header (Option B), shown only when present.
+
+> **AMENDMENT (during implementation):** the photo source changed from the Yoast JSON-LD `#primaryimage` (square headshot) to the **portrait** `<img alt="generic">` (the `-p` image), captured only when its `src` is a real `/wp-content/uploads/` image — **portrait-only, no square fallback** (product decision). Skips the FIP `/themes/.../placeholder.png` → `null`. Task 2's code/tests below show the original JSON-LD approach; the shipped parser uses `findPortraitPhotoUrl($)` — see the spec and `padelgod/src/parsers/fip-player-profile.ts` for the authoritative version.
 
 **Tech Stack:** TypeScript, Supabase (Postgres + Storage), cheerio (HTML parsing), Vitest, Next.js 16 (apps/ops admin), padelgod Railway workers, axios.
 
 **Spec:** `docs/superpowers/specs/2026-06-01-fip-player-photo-capture-design.md`
 
 **Key real-world facts (verified against live padelfip.com on 2026-06-01):**
-- Photo filenames are inconsistent across players (`Coello-c.png`, `Coello-p.png`, `TAPIA.png`) — the `-p` portrait variant is NOT universal.
-- The ONE reliable source on every player page is the Yoast JSON-LD `ImageObject` whose `@id` ends with `#primaryimage` (e.g. Coello → `Coello-c.png`, 500×500; Tapia → `TAPIA.png`). `og:image` carries the same URL as a fallback.
+- Photo filenames are inconsistent across players (`Coello-p.png`, `TAPIA-1.png`, `Delfi-p.png`) — so we rely on the DOM slot + an `/uploads/` check, never filename patterns.
+- The portrait lives in `<img alt="generic">`. When a player has no photo, that slot serves `/wp-content/themes/padelfiptheme/assets/img/placeholder.png` — we capture the portrait ONLY when `src` contains `/wp-content/uploads/`, else `null`.
 - The `avatars` Supabase Storage bucket already exists (2 MB limit; webp/jpeg/png/gif). We store the photo there under key `{playerId}-full.{ext}`, keeping the existing thumbnail at `{playerId}.{ext}`.
 
 ---
