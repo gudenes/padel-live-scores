@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import ShadowMatchCard from '@/components/ShadowMatchCard'
 import PointLog from '@/components/PointLog'
+import { PageHeader, Section, DataTable, EmptyState, Button } from '@/components/ui'
 import { LIVE_CARDS_POLL_MS, type LiveCardsResponse } from '@/lib/padelgod-live-cards'
 
 interface HealthData {
@@ -135,65 +136,63 @@ export default function PadelgodShadowTab() {
   }
 
   return (
-    <div>
+    <div className="ui-page">
+      <PageHeader title="Shadow Mode" />
+
       {/* Section 1: Health cards */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        Health (7d / 24h)
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10, marginBottom: 32 }}>
-        <HealthCard label="Enrolled" value={health?.enrolledCount ?? '—'} />
-        <HealthCard
-          label="Live-poll success (24h)"
-          value={fmtPct(health?.livePollSuccessPct)}
-          danger={health?.livePollSuccessPct != null && health.livePollSuccessPct < 99}
-        />
-        <HealthCard
-          label="Unresolved names"
-          value={health?.unresolvedCount ?? '—'}
-          danger={(health?.unresolvedCount ?? 0) > 5}
-        />
-        <HealthCard
-          label="Final score match (7d)"
-          value={fmtPct(health?.finalStateMatchPct)}
-          danger={health?.finalStateMatchPct != null && health.finalStateMatchPct < 100}
-        />
-        <HealthCard
-          label="Per-point match (7d)"
-          value={fmtPct(health?.perPointMatchPct)}
-          danger={health?.perPointMatchPct != null && health.perPointMatchPct < 95}
-        />
-        <HealthCard
-          label="Latency median (24h)"
-          value={fmtMs(health?.latencyMedianMs)}
-          danger={(health?.latencyMedianMs ?? 0) > 0}
-        />
-        <HealthCard
-          label="Latency p95 (24h)"
-          value={fmtMs(health?.latencyP95Ms)}
-          danger={(health?.latencyP95Ms ?? 0) > 3000}
-        />
-      </div>
+      <Section label="Health (7d / 24h)">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+          <HealthCard label="Enrolled" value={health?.enrolledCount ?? '—'} />
+          <HealthCard
+            label="Live-poll success (24h)"
+            value={fmtPct(health?.livePollSuccessPct)}
+            danger={health?.livePollSuccessPct != null && health.livePollSuccessPct < 99}
+          />
+          <HealthCard
+            label="Unresolved names"
+            value={health?.unresolvedCount ?? '—'}
+            danger={(health?.unresolvedCount ?? 0) > 5}
+          />
+          <HealthCard
+            label="Final score match (7d)"
+            value={fmtPct(health?.finalStateMatchPct)}
+            danger={health?.finalStateMatchPct != null && health.finalStateMatchPct < 100}
+          />
+          <HealthCard
+            label="Per-point match (7d)"
+            value={fmtPct(health?.perPointMatchPct)}
+            danger={health?.perPointMatchPct != null && health.perPointMatchPct < 95}
+          />
+          <HealthCard
+            label="Latency median (24h)"
+            value={fmtMs(health?.latencyMedianMs)}
+            danger={(health?.latencyMedianMs ?? 0) > 0}
+          />
+          <HealthCard
+            label="Latency p95 (24h)"
+            value={fmtMs(health?.latencyP95Ms)}
+            danger={(health?.latencyP95Ms ?? 0) > 3000}
+          />
+        </div>
+      </Section>
 
       {/* Section 2: Enrollment table */}
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        Enrollment
-      </div>
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 32 }}>
+      <Section label="Enrollment">
         {enrollments === null ? (
-          <div style={{ padding: 16, color: '#666', fontSize: 13 }}>Loading...</div>
+          <EmptyState title="Loading..." />
         ) : enrollments.length === 0 ? (
-          <div style={{ padding: 16, color: '#666', fontSize: 13 }}>No tournaments in the ±1d window with a cached widget code.</div>
+          <EmptyState title="No tournaments in the ±1d window with a cached widget code." />
         ) : (
-          <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <DataTable>
             <thead>
-              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                <Th>Name</Th>
-                <Th>Starts</Th>
-                <Th>Category</Th>
-                <Th>Level</Th>
-                <Th>live_source</Th>
-                <Th>shadow</Th>
-                <Th>Actions</Th>
+              <tr>
+                <th>Name</th>
+                <th>Starts</th>
+                <th>Category</th>
+                <th>Level</th>
+                <th>live_source</th>
+                <th>shadow</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -201,73 +200,69 @@ export default function PadelgodShadowTab() {
                 <tr
                   key={t.tournament_id}
                   style={{
-                    borderBottom: '1px solid #f0f0f0',
                     cursor: 'pointer',
-                    background: selectedTournamentId === t.tournament_id ? '#f0f7ff' : 'transparent',
+                    background: selectedTournamentId === t.tournament_id ? 'var(--bg-sel)' : undefined,
                   }}
                   onClick={() => setSelectedTournamentId(t.tournament_id === selectedTournamentId ? null : t.tournament_id)}
                 >
-                  <Td>{t.name}</Td>
-                  <Td>{t.starts_at ? new Date(t.starts_at).toLocaleDateString() : '—'}</Td>
-                  <Td>{t.category ?? '—'}</Td>
-                  <Td>{t.level ?? '—'}</Td>
-                  <Td><code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>{t.live_source}</code></Td>
-                  <Td>{t.shadow_enabled ? 'yes' : ''}</Td>
-                  <td style={{ padding: '8px 12px' }} onClick={(e) => e.stopPropagation()}>
+                  <td>{t.name}</td>
+                  <td>{t.starts_at ? new Date(t.starts_at).toLocaleDateString() : '—'}</td>
+                  <td>{t.category ?? '—'}</td>
+                  <td>{t.level ?? '—'}</td>
+                  <td><code style={{ background: 'var(--bg-card-2)', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>{t.live_source}</code></td>
+                  <td>{t.shadow_enabled ? 'yes' : ''}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', gap: 6 }}>
                       {!t.shadow_enabled && t.live_source === 'padelapi' && (
-                        <ActionButton onClick={() => handleAction(t.tournament_id, 'enroll')} color="#2563eb">Enroll</ActionButton>
+                        <Button size="sm" variant="primary" onClick={() => handleAction(t.tournament_id, 'enroll')}>Enroll</Button>
                       )}
                       {t.shadow_enabled && (
-                        <ActionButton onClick={() => handleAction(t.tournament_id, 'unenroll')} color="#666">Unenroll</ActionButton>
+                        <Button size="sm" onClick={() => handleAction(t.tournament_id, 'unenroll')}>Unenroll</Button>
                       )}
                       {t.shadow_enabled && (
-                        <ActionButton
+                        <Button
+                          size="sm"
+                          variant="primary"
                           onClick={() => handleAction(t.tournament_id, 'cutover')}
-                          color={t.cutover_ready ? '#22c55e' : '#ccc'}
                           disabled={!t.cutover_ready}
                           title={t.cutover_ready ? 'All criteria met' : 'Criteria not yet met (>=5 matches + 100% final + 95% per-point + low latency + no recent errors)'}
                         >
                           Cutover
-                        </ActionButton>
+                        </Button>
                       )}
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
-      </div>
+      </Section>
 
       {/* Live cards (padelgod-only, replicated MatchCard look) */}
-      <div style={{ marginTop: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <h3 style={{ margin: 0, fontSize: 14, color: '#111', fontWeight: 700 }}>
-            Live cards
-          </h3>
+      <Section
+        label="Live cards"
+        actions={
           <a
             href="/x/live-preview"
             target="_blank"
             rel="noopener noreferrer"
             style={{
               fontSize: 11,
-              color: '#3b82f6',
+              color: 'var(--men)',
               textDecoration: 'none',
               padding: '4px 10px',
-              border: '1px solid #3b82f6',
+              border: '1px solid var(--men-border)',
               borderRadius: 4,
               fontWeight: 600,
             }}
           >
             Preview live UI
           </a>
-        </div>
-
+        }
+      >
         {liveCards && liveCards.matches.length === 0 && (
-          <div style={{ color: '#666', fontSize: 12, padding: 16, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8 }}>
-            No matches in the live / next-up / recent buckets for shadow-enabled tournaments.
-          </div>
+          <EmptyState title="No matches in the live / next-up / recent buckets for shadow-enabled tournaments." />
         )}
 
         {liveCards?.matches.map(card => (
@@ -277,7 +272,7 @@ export default function PadelgodShadowTab() {
             </ShadowMatchCard>
           </div>
         ))}
-      </div>
+      </Section>
 
       {/* Section 3: Per-tournament drilldown */}
       {selectedTournamentId && <DrilldownSection tournamentId={selectedTournamentId} />}
@@ -317,65 +312,61 @@ function DrilldownSection({ tournamentId }: { tournamentId: string }) {
   const perPointByMatchId = new Map((perPoints ?? []).map((p) => [p.match_id, p]))
 
   return (
-    <div>
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-        Tournament detail
-      </div>
-
+    <Section label="Tournament detail">
       {/* Live matches */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
-        <div style={{ padding: 12, background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: 13, fontWeight: 600 }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
           Live matches (30s refresh)
         </div>
         {live === null ? (
-          <div style={{ padding: 16, color: '#666', fontSize: 13 }}>Loading...</div>
+          <EmptyState title="Loading..." />
         ) : live.length === 0 ? (
-          <div style={{ padding: 16, color: '#666', fontSize: 13 }}>No live matches right now.</div>
+          <EmptyState title="No live matches right now." />
         ) : (
-          <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <DataTable>
             <thead>
-              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                <Th>Match</Th>
-                <Th>padelapi</Th>
-                <Th>padelgod</Th>
-                <Th>delta-ms</Th>
-                <Th>Agree</Th>
+              <tr>
+                <th>Match</th>
+                <th>padelapi</th>
+                <th>padelgod</th>
+                <th>delta-ms</th>
+                <th>Agree</th>
               </tr>
             </thead>
             <tbody>
               {live.map((r) => (
-                <tr key={r.match_id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <Td>{r.players.filter(Boolean).join(', ') || r.match_id.slice(0, 8)}</Td>
-                  <Td><code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{r.publicSetScore ?? '—'}</code></Td>
-                  <Td><code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{r.shadowSetScore ?? '—'}</code></Td>
-                  <Td>{r.latencyMs ?? '—'}</Td>
-                  <Td style={{ color: r.agreement ? '#22c55e' : '#ef4444' }}>{r.agreement ? 'yes' : 'no'}</Td>
+                <tr key={r.match_id}>
+                  <td>{r.players.filter(Boolean).join(', ') || r.match_id.slice(0, 8)}</td>
+                  <td><code style={{ background: 'var(--bg-card-2)', padding: '2px 6px', borderRadius: 4 }}>{r.publicSetScore ?? '—'}</code></td>
+                  <td><code style={{ background: 'var(--bg-card-2)', padding: '2px 6px', borderRadius: 4 }}>{r.shadowSetScore ?? '—'}</code></td>
+                  <td>{r.latencyMs ?? '—'}</td>
+                  <td style={{ color: r.agreement ? 'var(--lime-text)' : 'var(--live-text)' }}>{r.agreement ? 'yes' : 'no'}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </div>
 
       {/* Final-state history */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
-        <div style={{ padding: 12, background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: 13, fontWeight: 600 }}>
+      <div>
+        <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>
           Final-state history (last 50)
         </div>
         {finals === null ? (
-          <div style={{ padding: 16, color: '#666', fontSize: 13 }}>Loading...</div>
+          <EmptyState title="Loading..." />
         ) : finals.length === 0 ? (
-          <div style={{ padding: 16, color: '#666', fontSize: 13 }}>No finished matches with diff rows yet.</div>
+          <EmptyState title="No finished matches with diff rows yet." />
         ) : (
-          <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <DataTable>
             <thead>
-              <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                <Th>Match</Th>
-                <Th>Winner</Th>
-                <Th>padelapi</Th>
-                <Th>padelgod</Th>
-                <Th>Per-point</Th>
-                <Th>Divergence</Th>
+              <tr>
+                <th>Match</th>
+                <th>Winner</th>
+                <th>padelapi</th>
+                <th>padelgod</th>
+                <th>Per-point</th>
+                <th>Divergence</th>
               </tr>
             </thead>
             <tbody>
@@ -387,21 +378,21 @@ function DrilldownSection({ tournamentId }: { tournamentId: string }) {
                     ? 'ok'
                     : `no @${perPoint.first_divergence_index ?? '?'}`
                 return (
-                  <tr key={d.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                    <Td>{d.match_id.slice(0, 8)}</Td>
-                    <Td style={{ color: d.winner_match ? '#22c55e' : '#ef4444' }}>{d.winner_match ? 'ok' : 'no'}</Td>
-                    <Td><code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{d.padelapi_final_score ?? '—'}</code></Td>
-                    <Td><code style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: 4 }}>{d.padelgod_final_score ?? '—'}</code></Td>
-                    <Td style={{ color: perPoint?.point_sequence_match ? '#22c55e' : perPoint ? '#ef4444' : '#666' }}>{perPointCell}</Td>
-                    <Td style={{ color: '#666', fontSize: 11 }}>{d.divergence_reason ?? ''}</Td>
+                  <tr key={d.id}>
+                    <td>{d.match_id.slice(0, 8)}</td>
+                    <td style={{ color: d.winner_match ? 'var(--lime-text)' : 'var(--live-text)' }}>{d.winner_match ? 'ok' : 'no'}</td>
+                    <td><code style={{ background: 'var(--bg-card-2)', padding: '2px 6px', borderRadius: 4 }}>{d.padelapi_final_score ?? '—'}</code></td>
+                    <td><code style={{ background: 'var(--bg-card-2)', padding: '2px 6px', borderRadius: 4 }}>{d.padelgod_final_score ?? '—'}</code></td>
+                    <td style={{ color: perPoint?.point_sequence_match ? 'var(--lime-text)' : perPoint ? 'var(--live-text)' : 'var(--text-2)' }}>{perPointCell}</td>
+                    <td style={{ color: 'var(--text-2)', fontSize: 11 }}>{d.divergence_reason ?? ''}</td>
                   </tr>
                 )
               })}
             </tbody>
-          </table>
+          </DataTable>
         )}
       </div>
-    </div>
+    </Section>
   )
 }
 
@@ -410,58 +401,14 @@ function DrilldownSection({ tournamentId }: { tournamentId: string }) {
 function HealthCard({ label, value, danger = false }: { label: string; value: string | number; danger?: boolean }) {
   return (
     <div style={{
-      background: '#fff',
-      border: danger ? '1px solid #fca5a5' : '1px solid #e5e7eb',
-      borderRadius: 8,
+      background: 'var(--bg-card)',
+      border: danger ? '1px solid var(--live-border)' : '1px solid var(--border-card)',
+      borderRadius: 'var(--r-md)',
       padding: 12,
     }}>
-      <div style={{ fontSize: 10, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: danger ? '#dc2626' : '#111' }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-2)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: danger ? 'var(--live-text)' : 'var(--text-1)' }}>{value}</div>
     </div>
-  )
-}
-
-function ActionButton({ onClick, color, children, disabled = false, title }: {
-  onClick: () => void
-  color: string
-  children: React.ReactNode
-  disabled?: boolean
-  title?: string
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      style={{
-        padding: '4px 10px',
-        fontSize: 12,
-        fontWeight: 600,
-        color: disabled ? '#999' : '#fff',
-        background: disabled ? '#f3f4f6' : color,
-        border: 'none',
-        borderRadius: 4,
-        cursor: disabled ? 'not-allowed' : 'pointer',
-      }}
-    >
-      {children}
-    </button>
-  )
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-  return (
-    <th style={{ textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase' }}>
-      {children}
-    </th>
-  )
-}
-
-function Td({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <td style={{ padding: '8px 12px', fontSize: 13, color: '#111', ...style }}>
-      {children}
-    </td>
   )
 }
 

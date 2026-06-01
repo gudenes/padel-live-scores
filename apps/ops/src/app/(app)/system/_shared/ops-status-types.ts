@@ -115,10 +115,10 @@ export function formatDuration(ms: number | null): string {
 
 export function statusColor(status: string): string {
   switch (status) {
-    case 'ok': return '#22c55e'
-    case 'partial': return '#f59e0b'
-    case 'error': case 'timeout': return '#ef4444'
-    default: return '#9ca3af'
+    case 'ok': return 'var(--lime)'
+    case 'partial': return 'var(--orange)'
+    case 'error': case 'timeout': return 'var(--live)'
+    default: return 'var(--text-3)'
   }
 }
 
@@ -134,10 +134,10 @@ export function statusLabel(status: string): string {
 
 export function statusBorder(status: string): string {
   switch (status) {
-    case 'ok': return '1px solid #e5e7eb'
-    case 'partial': return '1px solid #fde68a'
-    case 'error': case 'timeout': return '1px solid #fecaca'
-    default: return '1px solid #e5e7eb'
+    case 'ok': return '1px solid var(--border-card)'
+    case 'partial': return '1px solid var(--orange-border)'
+    case 'error': case 'timeout': return '1px solid var(--live-border)'
+    default: return '1px solid var(--border-card)'
   }
 }
 
@@ -157,29 +157,29 @@ export function metaSummary(source: string, meta: Record<string, unknown> | null
 }
 
 export const SOURCE_COLORS: Record<string, { bg: string; text: string }> = {
-  'cron:scores': { bg: '#dbeafe', text: '#1e40af' },
-  'cron:sync': { bg: '#d1fae5', text: '#065f46' },
-  'cron:sync-matches': { bg: '#d1fae5', text: '#065f46' },
-  'cron:rankings': { bg: '#fef3c7', text: '#92400e' },
-  'cron:articles': { bg: '#fce7f3', text: '#9d174d' },
-  'cron:highlights': { bg: '#ede9fe', text: '#5b21b6' },
-  'cron:fip-tournaments': { bg: '#ccfbf1', text: '#115e59' },
-  'cron:fip-scores': { bg: '#ccfbf1', text: '#115e59' },
-  'relay': { bg: '#fee2e2', text: '#991b1b' },
+  'cron:scores': { bg: 'var(--men-bg)', text: 'var(--men)' },
+  'cron:sync': { bg: 'var(--lime-bg)', text: 'var(--lime-text)' },
+  'cron:sync-matches': { bg: 'var(--lime-bg)', text: 'var(--lime-text)' },
+  'cron:rankings': { bg: 'var(--orange-bg)', text: 'var(--orange-text)' },
+  'cron:articles': { bg: 'var(--women-bg)', text: 'var(--women)' },
+  'cron:highlights': { bg: 'var(--women-bg)', text: 'var(--women)' },
+  'cron:fip-tournaments': { bg: 'var(--lime-bg)', text: 'var(--lime-text)' },
+  'cron:fip-scores': { bg: 'var(--lime-bg)', text: 'var(--lime-text)' },
+  'relay': { bg: 'var(--live-bg)', text: 'var(--live-text)' },
 }
 
 // ── Shared style objects ───────────────────────────────────────────
 
 export const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-md)',
   padding: 12,
 }
 
 export const sectionLabel: React.CSSProperties = {
   fontSize: 10,
-  color: '#999',
+  color: 'var(--text-3)',
   textTransform: 'uppercase' as const,
   fontWeight: 700,
   letterSpacing: 1,
@@ -190,17 +190,18 @@ export const bigNumber: React.CSSProperties = {
   fontSize: 22,
   fontWeight: 700,
   marginTop: 4,
+  color: 'var(--text-1)',
 }
 
 export const dimText: React.CSSProperties = {
   fontSize: 10,
-  color: '#666',
+  color: 'var(--text-2)',
   marginTop: 2,
 }
 
 export const tileLabel: React.CSSProperties = {
   fontSize: 9,
-  color: '#888',
+  color: 'var(--text-3)',
   textTransform: 'uppercase' as const,
   fontWeight: 600,
 }

@@ -93,7 +93,7 @@ export default function ShadowMatchCard({
             }}
           />
           {isLive && (
-            <span style={{ color: '#fff', background: '#dc2626', padding: '2px 6px', borderRadius: 3, fontWeight: 700, fontSize: 10 }}>
+            <span style={{ color: '#fff', background: 'var(--live)', padding: '2px 6px', borderRadius: 3, fontWeight: 700, fontSize: 10 }}>
               LIVE
             </span>
           )}
@@ -101,7 +101,7 @@ export default function ShadowMatchCard({
             <span style={{ color: '#bbb', fontSize: 10 }}>FINISHED</span>
           )}
           {card.status === 'scheduled' && (
-            <span style={{ color: '#7ED321', fontSize: 10 }}>NEXT UP</span>
+            <span style={{ color: 'var(--lime)', fontSize: 10 }}>NEXT UP</span>
           )}
         </span>
       </div>

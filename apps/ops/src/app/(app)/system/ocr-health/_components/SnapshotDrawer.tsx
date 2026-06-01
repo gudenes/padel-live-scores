@@ -125,7 +125,7 @@ export default function SnapshotDrawer({ snapshotId, onClose }: Props) {
           right: 0,
           bottom: 0,
           width: 'min(720px, 90vw)',
-          background: 'var(--bg-canvas, #fff)',
+          background: 'var(--bg-card)',
           boxShadow: '-4px 0 16px rgba(0,0,0,0.12)',
           zIndex: 51,
           overflowY: 'auto',
@@ -139,10 +139,10 @@ export default function SnapshotDrawer({ snapshotId, onClose }: Props) {
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: '16px 20px',
-            borderBottom: '1px solid var(--border-subtle, #eee)',
+            borderBottom: '1px solid var(--border-card)',
           }}
         >
-          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+          <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--text-1)' }}>
             Snapshot #{snapshotId}
           </h3>
           <button
@@ -153,7 +153,7 @@ export default function SnapshotDrawer({ snapshotId, onClose }: Props) {
               border: 'none',
               cursor: 'pointer',
               fontSize: 20,
-              color: 'var(--text-muted, #777)',
+              color: 'var(--text-3)',
               lineHeight: 1,
               padding: 4,
             }}
@@ -163,8 +163,8 @@ export default function SnapshotDrawer({ snapshotId, onClose }: Props) {
         </header>
 
         <div style={{ padding: 20, flex: 1 }}>
-          {loading && <div style={{ color: 'var(--text-muted, #777)' }}>Loading…</div>}
-          {error && <div style={{ color: 'crimson' }}>Error: {error}</div>}
+          {loading && <div style={{ color: 'var(--text-3)' }}>Loading…</div>}
+          {error && <div style={{ color: 'var(--live-text)' }}>Error: {error}</div>}
           {data && <DrawerBody data={data} />}
         </div>
       </div>
@@ -217,7 +217,7 @@ function DrawerBody({ data }: { data: DetailResponse }) {
                 alt="OCR captured frame"
                 style={{ width: '100%', borderRadius: 6 }}
               />
-              <div style={{ fontSize: 12, color: 'crimson' }}>
+              <div style={{ fontSize: 12, color: 'var(--live-text)' }}>
                 Calibration JSON missing for <code>{snapshot.stream_label}</code>
                 {calibrationError ? `: ${calibrationError}` : ''}. Overlay
                 disabled.
@@ -238,7 +238,8 @@ function DrawerBody({ data }: { data: DetailResponse }) {
       <Section title="Parsed score">
         <pre
           style={{
-            background: 'var(--bg-subtle, #f6f8fa)',
+            background: 'var(--bg-card-2)',
+            color: 'var(--text-2)',
             padding: 12,
             borderRadius: 6,
             fontSize: 12,
@@ -254,7 +255,8 @@ function DrawerBody({ data }: { data: DetailResponse }) {
         <Section title="Raw OCR text (V1 pipeline only)">
           <pre
             style={{
-              background: 'var(--bg-subtle, #f6f8fa)',
+              background: 'var(--bg-card-2)',
+              color: 'var(--text-2)',
               padding: 12,
               borderRadius: 6,
               fontSize: 12,
@@ -452,7 +454,7 @@ function Section({
           fontSize: 13,
           fontWeight: 500,
           margin: '0 0 8px 0',
-          color: 'var(--text-muted, #555)',
+          color: 'var(--text-3)',
           textTransform: 'uppercase',
           letterSpacing: 0.5,
         }}
@@ -469,8 +471,8 @@ function EmptyHint({ children }: { children: React.ReactNode }) {
     <div
       style={{
         fontSize: 13,
-        color: 'var(--text-muted, #777)',
-        border: '1px dashed var(--border-subtle, #ddd)',
+        color: 'var(--text-3)',
+        border: '1px dashed var(--border-card)',
         borderRadius: 6,
         padding: 12,
         lineHeight: 1.5,
@@ -494,14 +496,14 @@ function Chip({
 }) {
   const color =
     tone === 'error'
-      ? 'crimson'
+      ? 'var(--live-text)'
       : tone === 'ok'
-        ? 'var(--accent-green, #1a7f37)'
-        : 'inherit'
+        ? 'var(--lime-text)'
+        : 'var(--text-1)'
   return (
     <div
       style={{
-        border: '1px solid var(--border-subtle, #eee)',
+        border: '1px solid var(--border-card)',
         borderRadius: 4,
         padding: '4px 8px',
         fontSize: 11,
@@ -512,7 +514,7 @@ function Chip({
     >
       <span
         style={{
-          color: 'var(--text-muted, #777)',
+          color: 'var(--text-3)',
           textTransform: 'uppercase',
           letterSpacing: 0.5,
         }}

@@ -9,6 +9,7 @@
 // Lifted from src/app/ops/FeatureFlagsTab.tsx (Plan 3b-extra Task 1).
 
 import { useEffect, useState } from 'react'
+import { PageHeader, Panel, Button, EmptyState } from '@/components/ui'
 
 interface FeatureFlag {
   key: string
@@ -68,74 +69,74 @@ export default function FeatureFlagsTab() {
     }
   }
 
-  if (loading) return <div style={{ padding: 16, color: '#666' }}>Loading feature flags...</div>
-  if (error) return (
-    <div style={{ padding: 16, color: '#b91c1c' }}>
-      Failed to load: {error}
-      <button onClick={refresh} style={{ marginLeft: 12, fontSize: 12, padding: '4px 10px', cursor: 'pointer' }}>
-        Retry
-      </button>
-    </div>
-  )
+  if (loading) {
+    return (
+      <div className="ui-page">
+        <PageHeader title="Feature Flags" />
+        <div style={{ color: 'var(--text-2)' }}>Loading feature flags...</div>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="ui-page">
+        <PageHeader title="Feature Flags" />
+        <EmptyState title={`Failed to load: ${error}`} hint={<Button size="sm" onClick={refresh}>Retry</Button>} />
+      </div>
+    )
+  }
 
   return (
-    <div style={{ padding: 16, maxWidth: 880 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Feature Flags</h2>
-      <p style={{ fontSize: 12, color: '#666', marginBottom: 20, lineHeight: 1.5 }}>
-        Each flag has separate switches for production (live site) and local (localhost dev).
-        The app picks based on <code>window.location.hostname</code>. Lets you polish a feature
-        locally while it stays dark in prod — no env vars, no deploys.
-      </p>
+    <div className="ui-page" style={{ maxWidth: 880 }}>
+      <PageHeader
+        title="Feature Flags"
+        subtitle={
+          <>
+            Each flag has separate switches for production (live site) and local (localhost dev).
+            The app picks based on <code>window.location.hostname</code>. Lets you polish a feature
+            locally while it stays dark in prod — no env vars, no deploys.
+          </>
+        }
+      />
 
       {flags.length === 0 ? (
-        <div style={{ padding: 16, color: '#666', fontSize: 13 }}>
-          No feature flags defined yet. Add a row to the <code>feature_flags</code> table.
-        </div>
+        <EmptyState title="No feature flags defined yet." hint={<>Add a row to the <code>feature_flags</code> table.</>} />
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {flags.map(flag => (
-            <div
-              key={flag.key}
-              style={{
-                background: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: 6,
-                padding: '14px 16px',
-                display: 'flex',
-                gap: 24,
-                alignItems: 'flex-start',
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: '#111', marginBottom: 4 }}>
-                  {flag.label}
-                </div>
-                {flag.description && (
-                  <div style={{ fontSize: 12, color: '#666', marginBottom: 6, lineHeight: 1.5 }}>
-                    {flag.description}
+            <Panel key={flag.key}>
+              <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)', marginBottom: 4 }}>
+                    {flag.label}
                   </div>
-                )}
-                <div style={{ fontSize: 10, color: '#9ca3af', fontFamily: 'ui-monospace, monospace' }}>
-                  {flag.key} · updated {new Date(flag.updated_at).toLocaleString()}
-                  {flag.updated_by ? ` by ${flag.updated_by}` : ''}
+                  {flag.description && (
+                    <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6, lineHeight: 1.5 }}>
+                      {flag.description}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', fontFamily: 'ui-monospace, monospace' }}>
+                    {flag.key} · updated {new Date(flag.updated_at).toLocaleString()}
+                    {flag.updated_by ? ` by ${flag.updated_by}` : ''}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexShrink: 0 }}>
+                  <ToggleColumn
+                    label="Production"
+                    value={flag.enabled}
+                    busy={pending === `${flag.key}:enabled`}
+                    onToggle={next => toggle(flag.key, 'enabled', next)}
+                  />
+                  <ToggleColumn
+                    label="Local"
+                    value={flag.enabled_local}
+                    busy={pending === `${flag.key}:enabled_local`}
+                    onToggle={next => toggle(flag.key, 'enabled_local', next)}
+                  />
                 </div>
               </div>
-
-              <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexShrink: 0 }}>
-                <ToggleColumn
-                  label="Production"
-                  value={flag.enabled}
-                  busy={pending === `${flag.key}:enabled`}
-                  onToggle={next => toggle(flag.key, 'enabled', next)}
-                />
-                <ToggleColumn
-                  label="Local"
-                  value={flag.enabled_local}
-                  busy={pending === `${flag.key}:enabled_local`}
-                  onToggle={next => toggle(flag.key, 'enabled_local', next)}
-                />
-              </div>
-            </div>
+            </Panel>
           ))}
         </div>
       )}
@@ -156,7 +157,7 @@ function ToggleColumn({
 }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         {label}
       </div>
       <button
@@ -166,10 +167,10 @@ function ToggleColumn({
           position: 'relative',
           width: 44,
           height: 24,
-          borderRadius: 12,
+          borderRadius: 'var(--r-lg)',
           border: 'none',
           cursor: busy ? 'wait' : 'pointer',
-          background: value ? '#22c55e' : '#d1d5db',
+          background: value ? 'var(--lime)' : 'var(--border-strong)',
           transition: 'background 120ms',
           opacity: busy ? 0.6 : 1,
         }}
@@ -184,7 +185,7 @@ function ToggleColumn({
             width: 18,
             height: 18,
             borderRadius: '50%',
-            background: '#fff',
+            background: 'var(--bg-card)',
             transition: 'left 140ms',
             boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
           }}
@@ -196,8 +197,8 @@ function ToggleColumn({
           fontWeight: 700,
           padding: '1px 6px',
           borderRadius: 3,
-          background: value ? '#dcfce7' : '#fee2e2',
-          color: value ? '#166534' : '#991b1b',
+          background: value ? 'var(--lime-bg)' : 'var(--live-bg)',
+          color: value ? 'var(--lime-text)' : 'var(--live-text)',
           textTransform: 'uppercase',
           letterSpacing: '0.5px',
         }}
