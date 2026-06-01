@@ -5,6 +5,8 @@
 // the value to the clipboard. Rows for null IDs are skipped — we don't want to
 // surface empty source-of-truth columns to operators.
 
+import { Panel } from '@/components/ui'
+
 export interface IdentitySectionPlayer {
   id: string
   external_id: string | null
@@ -17,16 +19,23 @@ function Row({ label, value }: { label: string; value: string | null }) {
   if (!value) return null
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <div className="w-28 text-[11px] uppercase tracking-wide text-gray-500">
+      <div
+        className="w-28 text-[11px] uppercase tracking-wide"
+        style={{ color: 'var(--text-3)' }}
+      >
         {label}
       </div>
-      <div className="font-mono text-xs text-gray-900 break-all flex-1">
+      <div
+        className="font-mono text-xs break-all flex-1"
+        style={{ color: 'var(--text-1)' }}
+      >
         {value}
       </div>
       <button
         type="button"
         onClick={() => navigator.clipboard.writeText(value)}
-        className="text-[10px] text-gray-400 hover:text-gray-900 cursor-pointer"
+        className="text-[10px] cursor-pointer"
+        style={{ color: 'var(--text-3)' }}
         title="Copy"
       >
         copy
@@ -41,13 +50,12 @@ export default function IdentitySection({
   player: IdentitySectionPlayer
 }) {
   return (
-    <section className="bg-white border border-gray-200 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-900 mb-2">Identity</h2>
+    <Panel title="Identity">
       <Row label="UUID" value={player.id} />
       <Row label="padelapi_id" value={player.external_id} />
       <Row label="fip_id" value={player.fip_id} />
       <Row label="public_id" value={player.public_id} />
       <Row label="slug" value={player.slug} />
-    </section>
+    </Panel>
   )
 }
