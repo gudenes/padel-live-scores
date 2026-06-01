@@ -24,22 +24,22 @@ export function TournamentOutlookCard(props: TournamentOutlookCardProps) {
       style={{
         display: 'block',
         padding: 16,
-        border: '1px solid var(--border-subtle)',
-        borderRadius: 4,
+        border: '1px solid var(--border-card)',
+        borderRadius: 'var(--r-md)',
         textDecoration: 'none',
         color: 'inherit',
-        background: 'var(--bg-canvas)',
+        background: 'var(--bg-card)',
       }}
     >
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 700 }}>{tournamentName}</div>
-        <div style={{ fontSize: 11, color: 'var(--status-neutral)' }}>
+        <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
           {category} · entry {entryRound} · snapshot {snapshotAt.slice(11, 16)}
         </div>
       </div>
       {top.slice(0, 4).map((p, i) => (
         <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, padding: '2px 0' }}>
-          {p.seed && <span style={{ color: 'var(--status-neutral)' }}>[{p.seed}]</span>}
+          {p.seed && <span style={{ color: 'var(--text-3)' }}>[{p.seed}]</span>}
           <span style={{ flex: 1 }}>{p.pairName}</span>
           <span style={{ minWidth: 48, textAlign: 'right', fontWeight: 600 }}>
             {(p.champ_prob * 100).toFixed(1)}%

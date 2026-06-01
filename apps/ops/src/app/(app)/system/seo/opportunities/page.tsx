@@ -6,6 +6,7 @@ import {
   getInSitemapZeroImpressions,
   getRankCandidates,
 } from '@/lib/seo/seo-queries'
+import { PageHeader } from '@/components/ui'
 import { LocaleGapsPanel } from '../_components/LocaleGapsPanel'
 import { ReconciliationPanel } from '../_components/ReconciliationPanel'
 import { RankCandidatesPanel } from '../_components/RankCandidatesPanel'
@@ -22,14 +23,16 @@ export default async function Page() {
   ])
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1080 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ margin: 0, fontSize: '1.5rem' }}>SEO Opportunities</h1>
-        <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <Link href="/system/seo" style={{ color: '#6b7280', textDecoration: 'none' }}>← Overview</Link>
-          <span style={{ borderBottom: '2px solid var(--brand-primary)', paddingBottom: '0.25rem', fontWeight: 500 }}>Opportunities</span>
-        </nav>
-      </header>
+    <div className="ui-page" style={{ maxWidth: 1080 }}>
+      <PageHeader
+        title="SEO Opportunities"
+        actions={
+          <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <Link href="/system/seo" style={{ color: 'var(--text-3)', textDecoration: 'none' }}>← Overview</Link>
+            <span style={{ borderBottom: '2px solid var(--lime)', paddingBottom: '0.25rem', fontWeight: 500, color: 'var(--text-1)' }}>Opportunities</span>
+          </nav>
+        }
+      />
 
       <LocaleGapsPanel rows={gaps} />
       <ReconciliationPanel inGscNotInSitemap={inGscNotInSitemap} inSitemapZero={inSitemapZero} />

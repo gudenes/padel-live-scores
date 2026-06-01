@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react'
 import { playerShortName } from '@/lib/player-short-name'
 import { roundLabel } from '@/lib/match-quality'
+import { PageHeader, Field, Pill, DataTable } from '@/components/ui'
 
 interface PlayerRef { name: string | null; ranking: number | null }
 interface Item {
@@ -113,65 +114,58 @@ export default function HighlightPickerTab() {
       .join(' / ')
   }
 
-  const tierBadgeColor = (level: string | null): { bg: string; fg: string } => {
+  const tierTone = (level: string | null): 'lime' | 'warn' | 'live' | 'neutral' => {
     const l = (level || '').toLowerCase()
-    if (l === 'p1') return { bg: '#fef3c7', fg: '#92400e' }
-    if (l === 'major') return { bg: '#fde68a', fg: '#92400e' }
-    if (l === 'p2' || l.startsWith('premier')) return { bg: '#dbeafe', fg: '#1e40af' }
-    if (l === 'fip_gold') return { bg: '#fef9c3', fg: '#854d0e' }
-    if (l === 'fip_silver') return { bg: '#e5e7eb', fg: '#374151' }
-    if (l === 'fip_bronze') return { bg: '#fee2e2', fg: '#991b1b' }
-    return { bg: '#f3f4f6', fg: '#374151' }
+    if (l === 'p1' || l === 'major' || l === 'fip_gold') return 'warn'
+    if (l === 'p2' || l.startsWith('premier')) return 'lime'
+    if (l === 'fip_bronze') return 'live'
+    return 'neutral'
   }
 
   return (
-    <div style={{ padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Highlight Picker</h2>
-        <span style={{ fontSize: 12, color: '#666' }}>{loading ? 'loading…' : `${items.length} matches`}</span>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="Highlights"
+        subtitle={loading ? 'loading…' : `${items.length} matches`}
+      />
 
       {/* Filters row */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-        <label style={{ fontSize: 13 }}>
-          Window:{' '}
-          <select value={windowHours} onChange={e => setWindowHours(Number(e.target.value) as 24 | 48 | 72)} style={{ padding: '4px 8px' }}>
+      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <Field label="Window">
+          <select className="ui-select" value={windowHours} onChange={e => setWindowHours(Number(e.target.value) as 24 | 48 | 72)}>
             <option value={24}>24h</option>
             <option value={48}>48h</option>
             <option value={72}>72h</option>
           </select>
-        </label>
+        </Field>
 
-        <label style={{ fontSize: 13 }}>
-          Category:{' '}
-          <select value={category} onChange={e => setCategory(e.target.value as 'all' | 'men' | 'women')} style={{ padding: '4px 8px' }}>
+        <Field label="Category">
+          <select className="ui-select" value={category} onChange={e => setCategory(e.target.value as 'all' | 'men' | 'women')}>
             <option value="all">All</option>
             <option value="men">Men</option>
             <option value="women">Women</option>
           </select>
-        </label>
+        </Field>
 
-        <label style={{ fontSize: 13 }}>
-          Min score:{' '}
-          <input
-            type="range" min={0} max={100} value={minScore}
-            onChange={e => setMinScore(Number(e.target.value))}
-            style={{ verticalAlign: 'middle' }}
-          />
-          <span style={{ marginLeft: 6, fontVariantNumeric: 'tabular-nums' }}>{minScore}</span>
-        </label>
+        <Field label="Min score">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 33 }}>
+            <input
+              type="range" min={0} max={100} value={minScore}
+              onChange={e => setMinScore(Number(e.target.value))}
+              style={{ verticalAlign: 'middle' }}
+            />
+            <span style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-2)' }}>{minScore}</span>
+          </div>
+        </Field>
 
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {TIER_OPTIONS.map(t => (
             <button
               key={t.key}
               onClick={() => toggleTier(t.key)}
-              style={{
-                padding: '4px 10px', borderRadius: 12, border: '1px solid #ccc',
-                background: tiers.has(t.key) ? '#111' : '#fff',
-                color: tiers.has(t.key) ? '#fff' : '#666',
-                cursor: 'pointer', fontSize: 11, fontWeight: 600,
-              }}
+              className="ui-btn"
+              data-variant={tiers.has(t.key) ? 'primary' : 'ghost'}
+              data-size="sm"
             >
               {t.label}
             </button>
@@ -180,69 +174,64 @@ export default function HighlightPickerTab() {
       </div>
 
       {error && (
-        <div style={{ color: '#991b1b', background: '#fee2e2', padding: 10, borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
+        <div style={{ color: 'var(--live-text)', background: 'var(--live-bg)', border: '1px solid var(--live-border)', padding: 10, borderRadius: 'var(--r-sm)', marginBottom: 12, fontSize: 13 }}>
           {error}
         </div>
       )}
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-              <th style={{ padding: 8, textAlign: 'right', width: 60 }}>Score</th>
-              <th style={{ padding: 8, textAlign: 'left' }}>Match</th>
-              <th style={{ padding: 8, textAlign: 'left', width: 110 }}>Round</th>
-              <th style={{ padding: 8, textAlign: 'left' }}>Tournament</th>
-              <th style={{ padding: 8, textAlign: 'left', width: 60 }}>Cat</th>
-              <th style={{ padding: 8, textAlign: 'left', width: 160 }}>Scheduled</th>
-              <th style={{ padding: 8, textAlign: 'left', width: 60 }}>Court</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map(item => {
-              const t = item.tournament
-              const tb = tierBadgeColor(t.level)
-              return (
-                <tr key={item.matchId} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td
-                    style={{ padding: 8, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}
-                    title={
-                      `parity ${item.breakdown.parity.toFixed(2)}\n` +
-                      `damper ${item.breakdown.starDamper.toFixed(2)}\n` +
-                      `bonus ${item.breakdown.starBonus.toFixed(2)}\n` +
-                      `tier ${item.breakdown.tierW.toFixed(2)}\n` +
-                      `round ${item.breakdown.roundW.toFixed(2)}\n` +
-                      `unranked penalty ${item.breakdown.unrankedPenalty}`
-                    }
-                  >
-                    {item.score}
-                  </td>
-                  <td style={{ padding: 8 }}>
-                    <a href={`/match/${item.matchId}`} target="_blank" rel="noopener noreferrer" style={{ color: '#111', textDecoration: 'underline' }}>
-                      {renderPair(item.pair1)}  vs  {renderPair(item.pair2)}
-                    </a>
-                  </td>
-                  <td style={{ padding: 8 }} title={item.round ?? undefined}>{roundLabel(item.round)}</td>
-                  <td style={{ padding: 8 }}>
-                    <span style={{
-                      display: 'inline-block', padding: '2px 6px', borderRadius: 4,
-                      background: tb.bg, color: tb.fg, fontSize: 10, fontWeight: 700,
-                      marginRight: 6,
-                    }}>{t.level ?? '—'}</span>
-                    {t.name}
-                  </td>
-                  <td style={{ padding: 8 }}>{item.category ?? '—'}</td>
-                  <td style={{ padding: 8 }}>{formatScheduled(item.scheduledAt)}</td>
-                  <td style={{ padding: 8 }}>{item.court ?? '—'}</td>
-                </tr>
-              )
-            })}
-            {!loading && items.length === 0 && (
-              <tr><td colSpan={7} style={{ padding: 16, textAlign: 'center', color: '#999' }}>No upcoming matches matched your filters.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'right', width: 60 }}>Score</th>
+            <th>Match</th>
+            <th style={{ width: 110 }}>Round</th>
+            <th>Tournament</th>
+            <th style={{ width: 60 }}>Cat</th>
+            <th style={{ width: 160 }}>Scheduled</th>
+            <th style={{ width: 60 }}>Court</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(item => {
+            const t = item.tournament
+            return (
+              <tr key={item.matchId}>
+                <td
+                  style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}
+                  title={
+                    `parity ${item.breakdown.parity.toFixed(2)}\n` +
+                    `damper ${item.breakdown.starDamper.toFixed(2)}\n` +
+                    `bonus ${item.breakdown.starBonus.toFixed(2)}\n` +
+                    `tier ${item.breakdown.tierW.toFixed(2)}\n` +
+                    `round ${item.breakdown.roundW.toFixed(2)}\n` +
+                    `unranked penalty ${item.breakdown.unrankedPenalty}`
+                  }
+                >
+                  {item.score}
+                </td>
+                <td>
+                  <a href={`/match/${item.matchId}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-1)', textDecoration: 'underline' }}>
+                    {renderPair(item.pair1)}  vs  {renderPair(item.pair2)}
+                  </a>
+                </td>
+                <td title={item.round ?? undefined}>{roundLabel(item.round)}</td>
+                <td>
+                  <span style={{ display: 'inline-flex', verticalAlign: 'middle', marginRight: 6 }}>
+                    <Pill tone={tierTone(t.level)}>{t.level ?? '—'}</Pill>
+                  </span>
+                  {t.name}
+                </td>
+                <td>{item.category ?? '—'}</td>
+                <td>{formatScheduled(item.scheduledAt)}</td>
+                <td>{item.court ?? '—'}</td>
+              </tr>
+            )
+          })}
+          {!loading && items.length === 0 && (
+            <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-3)' }}>No upcoming matches matched your filters.</td></tr>
+          )}
+        </tbody>
+      </DataTable>
     </div>
   )
 }

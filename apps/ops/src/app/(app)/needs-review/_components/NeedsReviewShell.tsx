@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { PageHeader, Button, Pill } from '@/components/ui'
 import TournamentDedupTab from './TournamentDedupTab'
 import DuplicatePlayersTab from './DuplicatePlayersTab'
 
@@ -46,33 +47,15 @@ export default function NeedsReviewShell() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '16px',
-          borderBottom: '1px solid #E5E7EB',
-        }}
-      >
-        <h1 style={{ fontSize: 16, fontWeight: 600, color: '#111', margin: 0 }}>Needs Review</h1>
-        <button
-          onClick={fetchCounts}
-          style={{
-            fontSize: 12,
-            color: '#6B7280',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px 8px',
-          }}
-          title="Refresh counts"
-        >
-          Refresh
-        </button>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="Needs Review"
+        actions={
+          <Button variant="ghost" size="sm" onClick={fetchCounts} title="Refresh counts">
+            Refresh
+          </Button>
+        }
+      />
 
       {/* Filter chips */}
       <div
@@ -80,8 +63,7 @@ export default function NeedsReviewShell() {
           display: 'flex',
           alignItems: 'center',
           gap: 8,
-          padding: '12px 16px',
-          borderBottom: '1px solid #E5E7EB',
+          marginBottom: 16,
           flexWrap: 'wrap',
         }}
       >
@@ -127,19 +109,20 @@ function Chip({
         padding: '6px 12px',
         fontSize: 12,
         fontWeight: 600,
-        borderRadius: 999,
+        borderRadius: 'var(--r-full)',
         border: '1px solid',
         cursor: 'pointer',
-        background: active ? '#111' : '#fff',
-        color: active ? '#fff' : '#374151',
-        borderColor: active ? '#111' : '#E5E7EB',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        background: active ? 'var(--text-1)' : 'var(--bg-card)',
+        color: active ? 'var(--bg-card)' : 'var(--text-2)',
+        borderColor: active ? 'var(--text-1)' : 'var(--border-card)',
       }}
     >
       {label}
       {count != null && (
-        <span style={{ marginLeft: 6, color: active ? '#9CA3AF' : '#6B7280' }}>
-          ({count})
-        </span>
+        <Pill tone={active ? 'lime' : 'neutral'}>{count}</Pill>
       )}
     </button>
   )

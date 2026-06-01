@@ -32,10 +32,10 @@ export function TranslationChips({ title_translations, summary_translations }: P
               padding: '2px 6px',
               fontSize: 9, fontWeight: 800,
               letterSpacing: '0.05em',
-              borderRadius: 3,
-              background: complete ? 'var(--brand-primary)' : 'transparent',
-              color: complete ? 'var(--brand-primary-fg)' : 'var(--status-neutral)',
-              border: complete ? 'none' : '1px solid var(--border-subtle)',
+              borderRadius: 'var(--r-xs)',
+              background: complete ? 'var(--lime)' : 'transparent',
+              color: complete ? 'var(--lime-ink)' : 'var(--text-3)',
+              border: complete ? 'none' : '1px solid var(--border-card)',
             }}
           >
             {loc.toUpperCase()}

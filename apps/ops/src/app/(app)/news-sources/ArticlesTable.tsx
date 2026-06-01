@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
+import { DataTable, Pill, Button, EmptyState } from '@/components/ui'
 import { TranslationChips } from './TranslationChips'
 import { ClusterChip } from './ClusterChip'
 
@@ -49,22 +50,15 @@ function relativeTime(iso: string): string {
 }
 
 function EnrichmentPill({ status, retryCount }: { status: string; retryCount?: number }) {
-  let bg = 'var(--status-neutral)'
-  if (status === 'enriched') bg = 'var(--status-live)'
-  else if (status === 'failed') bg = 'var(--status-urgent)'
+  const tone = status === 'enriched' ? 'lime' : status === 'failed' ? 'urgent' : 'neutral'
 
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
-      padding: '2px 7px', borderRadius: 3,
-      background: bg, color: '#fff',
-      fontSize: 10, fontWeight: 700, letterSpacing: 0.4,
-    }}>
+    <Pill tone={tone}>
       {status}
       {status === 'failed' && retryCount != null && retryCount > 0 && (
-        <span style={{ opacity: 0.85 }}>x{retryCount}</span>
+        <span style={{ opacity: 0.85, marginLeft: 4 }}>x{retryCount}</span>
       )}
-    </span>
+    </Pill>
   )
 }
 
@@ -161,17 +155,14 @@ export function ArticlesTable() {
           placeholder="Search titles..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{
-            padding: '6px 10px', fontSize: 12, border: '1px solid var(--border-subtle)',
-            background: 'var(--bg-card)', color: 'var(--brand-primary-fg)',
-            minWidth: 200, outline: 'none',
-          }}
+          className="ui-input"
+          style={{ minWidth: 200 }}
         />
 
         <select
           value={sourceKey}
           onChange={e => setSourceKey(e.target.value)}
-          style={selectStyle}
+          className="ui-select"
         >
           <option value="">All sources</option>
           {facets?.source_keys.map(s => (
@@ -182,7 +173,7 @@ export function ArticlesTable() {
         <select
           value={language}
           onChange={e => setLanguage(e.target.value)}
-          style={selectStyle}
+          className="ui-select"
         >
           <option value="">All languages</option>
           {facets?.languages.map(l => (
@@ -193,7 +184,7 @@ export function ArticlesTable() {
         <select
           value={enrichmentStatus}
           onChange={e => setEnrichmentStatus(e.target.value)}
-          style={selectStyle}
+          className="ui-select"
         >
           <option value="">All enrichment</option>
           {facets?.enrichment_statuses.map(s => (
@@ -201,13 +192,13 @@ export function ArticlesTable() {
           ))}
         </select>
 
-        <select value={translationsFilter} onChange={e => setTranslationsFilter(e.target.value as never)} style={selectStyle}>
+        <select value={translationsFilter} onChange={e => setTranslationsFilter(e.target.value as never)} className="ui-select">
           <option value="all">Translations: All</option>
           <option value="complete">Complete</option>
           <option value="has-gaps">Has gaps</option>
         </select>
 
-        <select value={clusterFilter} onChange={e => setClusterFilter(e.target.value as never)} style={selectStyle}>
+        <select value={clusterFilter} onChange={e => setClusterFilter(e.target.value as never)} className="ui-select">
           <option value="all">Cluster: All</option>
           <option value="primary">Primary</option>
           <option value="sibling">Sibling</option>
@@ -215,59 +206,59 @@ export function ArticlesTable() {
         </select>
 
         {hasFilters && (
-          <button onClick={reset} style={resetBtnStyle}>
+          <Button variant="ghost" size="sm" onClick={reset}>
             Reset
-          </button>
+          </Button>
         )}
       </div>
 
       {/* Pagination summary + controls */}
       {total > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--status-neutral)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, fontSize: 12, color: 'var(--text-3)' }}>
           <span>
             Showing {rangeStart}–{rangeEnd} of {total.toLocaleString()}
           </span>
-          <button
+          <Button
+            size="sm"
             onClick={() => setPage(p => Math.max(0, p - 1))}
             disabled={page === 0}
-            style={paginationBtn(page === 0)}
           >
             Prev
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
             disabled={page >= totalPages - 1}
-            style={paginationBtn(page >= totalPages - 1)}
           >
             Next
-          </button>
+          </Button>
         </div>
       )}
 
       {/* Table */}
       {loading ? (
-        <div style={{ color: 'var(--status-neutral)', padding: 16 }}>Loading...</div>
+        <div style={{ color: 'var(--text-3)', padding: 16 }}>Loading...</div>
       ) : filteredRows.length === 0 ? (
-        <div style={{ color: 'var(--status-neutral)', padding: 16 }}>No articles match these filters.</div>
+        <EmptyState title="No articles match these filters." />
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, color: 'var(--brand-primary-fg)' }}>
+        <DataTable>
           <thead>
-            <tr style={{ background: 'var(--bg-canvas)', textAlign: 'left' }}>
+            <tr>
               {['Title', 'Source', 'Enriched', 'Translations', 'Cluster', 'Published'].map(h => (
-                <th key={h} style={{ padding: 8, fontWeight: 700, color: 'var(--status-neutral)', whiteSpace: 'nowrap' }}>{h}</th>
+                <th key={h} style={{ whiteSpace: 'nowrap' }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {filteredRows.map(r => (
-              <tr key={r.id} data-article-id={r.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                <td style={{ padding: 8, maxWidth: 480 }}>
+              <tr key={r.id} data-article-id={r.id}>
+                <td style={{ maxWidth: 480 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <a
                       href={r.url}
                       target="_blank"
                       rel="noopener"
-                      style={{ color: 'var(--brand-primary-fg)', textDecoration: 'none', fontWeight: 600 }}
+                      style={{ color: 'var(--text-1)', textDecoration: 'none', fontWeight: 600 }}
                       onMouseOver={e => (e.currentTarget.style.textDecoration = 'underline')}
                       onMouseOut={e => (e.currentTarget.style.textDecoration = 'none')}
                     >
@@ -276,33 +267,33 @@ export function ArticlesTable() {
                     {r.language && (
                       <span style={{
                         fontSize: 10, padding: '1px 5px',
-                        background: 'var(--bg-canvas)', color: 'var(--status-neutral)',
-                        border: '1px solid var(--border-subtle)', borderRadius: 3,
+                        background: 'var(--bg-card-2)', color: 'var(--text-3)',
+                        border: '1px solid var(--border-card)', borderRadius: 'var(--r-xs)',
                         flexShrink: 0,
                       }}>
                         {r.language}
                       </span>
                     )}
                     {r.click_count > 0 && (
-                      <span style={{ fontSize: 10, color: 'var(--status-neutral)', flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, color: 'var(--text-3)', flexShrink: 0 }}>
                         {r.click_count} click{r.click_count !== 1 ? 's' : ''}
                       </span>
                     )}
                   </div>
                 </td>
-                <td style={{ padding: 8, whiteSpace: 'nowrap', color: 'var(--status-neutral)' }}>
+                <td style={{ whiteSpace: 'nowrap', color: 'var(--text-3)' }}>
                   {r.source_name || r.source_key}
                 </td>
-                <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   <EnrichmentPill status={r.enrichment_status} />
                 </td>
-                <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   <TranslationChips
                     title_translations={r.title_translations}
                     summary_translations={r.summary_translations}
                   />
                 </td>
-                <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   <ClusterChip
                     role={r.cluster?.role ?? 'unique'}
                     siblingCount={r.cluster?.siblingCount}
@@ -313,39 +304,14 @@ export function ArticlesTable() {
                     }}
                   />
                 </td>
-                <td style={{ padding: 8, whiteSpace: 'nowrap', color: 'var(--status-neutral)' }}>
+                <td style={{ whiteSpace: 'nowrap', color: 'var(--text-3)' }}>
                   {relativeTime(r.published_at)}
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
     </div>
   )
-}
-
-const selectStyle: React.CSSProperties = {
-  padding: '6px 8px', fontSize: 12,
-  border: '1px solid var(--border-subtle)',
-  background: 'var(--bg-card)', color: 'var(--brand-primary-fg)',
-  outline: 'none', cursor: 'pointer',
-}
-
-const resetBtnStyle: React.CSSProperties = {
-  background: 'none', border: 'none',
-  color: 'var(--status-neutral)', fontSize: 12,
-  cursor: 'pointer', textDecoration: 'underline', padding: '6px 4px',
-}
-
-function paginationBtn(disabled: boolean): React.CSSProperties {
-  return {
-    background: disabled ? 'var(--bg-canvas)' : 'var(--brand-primary)',
-    color: disabled ? 'var(--status-neutral)' : 'var(--brand-primary-fg)',
-    border: disabled ? '1px solid var(--border-subtle)' : 0,
-    padding: '6px 14px', fontSize: 12, fontWeight: 700,
-    cursor: disabled ? 'default' : 'pointer',
-    clipPath: disabled ? undefined : 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-    opacity: disabled ? 0.5 : 1,
-  }
 }

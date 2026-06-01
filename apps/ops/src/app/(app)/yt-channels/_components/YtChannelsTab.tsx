@@ -9,6 +9,7 @@ import type { OpsChannel } from './types'
 import YtChannelsTable from './YtChannelsTable'
 import YtChannelAddModal from './YtChannelAddModal'
 import YtChannelEditDrawer from './YtChannelEditDrawer'
+import { PageHeader, Button, Skeleton } from '@/components/ui'
 
 export default function YtChannelsTab() {
   const [channels, setChannels] = useState<OpsChannel[]>([])
@@ -34,21 +35,16 @@ export default function YtChannelsTab() {
   useEffect(() => { refresh() }, [refresh])
 
   return (
-    <div style={{ padding: '16px 4px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>YouTube Channels</h2>
-        <button
-          type="button"
-          onClick={() => setAddOpen(true)}
-          style={{
-            padding: '8px 14px', background: '#7ED321', color: '#0A0A0A',
-            border: 0, fontWeight: 800, cursor: 'pointer',
-          }}
-        >+ ADD CHANNEL</button>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="YouTube Channels"
+        actions={
+          <Button variant="primary" onClick={() => setAddOpen(true)}>+ Add channel</Button>
+        }
+      />
 
-      {loading && <div style={{ color: '#9CA3AF', fontSize: 13 }}>Loading...</div>}
-      {error && <div style={{ color: '#FF4655', fontSize: 13 }}>Error: {error}</div>}
+      {loading && <Skeleton rows={4} />}
+      {error && <div style={{ color: 'var(--live-text)', fontSize: 13 }}>Error: {error}</div>}
       {!loading && !error && (
         <YtChannelsTable channels={channels} onEdit={setEditing} onRefresh={refresh} />
       )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Button, Pill, EmptyState } from '@/components/ui'
 
 interface Suggestion {
   id: string
@@ -55,59 +56,44 @@ export function SuggestionsTable() {
     setRows(rs => rs?.filter(r => r.id !== id) ?? null)
   }
 
-  if (!rows) return <div style={{ color: 'var(--status-neutral)' }}>Loading...</div>
-  if (rows.length === 0) return <div style={{ color: 'var(--status-neutral)', padding: 16 }}>No pending suggestions.</div>
+  if (!rows) return <div style={{ color: 'var(--text-3)' }}>Loading...</div>
+  if (rows.length === 0) return <EmptyState title="No pending suggestions." />
 
   return (
     <div>
       {rows.map(r => (
-        <div key={r.id} style={{ padding: 16, borderBottom: '1px solid var(--border-subtle)' }}>
+        <div key={r.id} style={{ padding: 16, borderBottom: '1px solid var(--border-card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={kindChip(r.submitted_by_kind)}>{r.submitted_by_kind === 'ai_discovery' ? 'AI' : 'USER'}</span>
-            <a href={r.url} target="_blank" rel="noopener" style={{ fontWeight: 700, color: 'var(--brand-primary-fg)' }}>{r.url}</a>
+            <Pill tone={r.submitted_by_kind === 'ai_discovery' ? 'lime' : 'neutral'}>
+              {r.submitted_by_kind === 'ai_discovery' ? 'AI' : 'USER'}
+            </Pill>
+            <a href={r.url} target="_blank" rel="noopener" style={{ fontWeight: 700, color: 'var(--text-1)' }}>{r.url}</a>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--status-neutral)', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
             {r.suggested_by_email ? `${r.suggested_by_email} · ` : ''}
             {new Date(r.created_at).toLocaleString()}
           </div>
-          {r.note && <div style={{ fontSize: 12, marginTop: 6, color: 'var(--brand-primary-fg)' }}>{r.note}</div>}
+          {r.note && <div style={{ fontSize: 12, marginTop: 6, color: 'var(--text-1)' }}>{r.note}</div>}
           {r.detected_type && r.detected_type !== 'unknown' && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--status-live)' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--lime-text)' }}>
               Detected as {r.detected_type} — {r.detected_payload?.sample?.length ?? 0} recent articles
               {r.detected_payload?.sample?.length ? (
-                <ul style={{ paddingLeft: 16, marginTop: 4, color: 'var(--status-neutral)', fontSize: 11 }}>
+                <ul style={{ paddingLeft: 16, marginTop: 4, color: 'var(--text-3)', fontSize: 11 }}>
                   {r.detected_payload.sample.slice(0, 3).map((s, i) => <li key={i}>{s.title}</li>)}
                 </ul>
               ) : null}
             </div>
           )}
           {r.detected_type === 'unknown' && (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--status-warn)' }}>Detection failed — manual review needed</div>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--orange-text)' }}>Detection failed — manual review needed</div>
           )}
 
           <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <button onClick={() => approveAndAdd(r)} style={btnPrimary}>Approve &amp; Add</button>
-            <button onClick={() => reject(r.id)} style={btnSecondary}>Reject</button>
+            <Button variant="primary" size="sm" onClick={() => approveAndAdd(r)}>Approve &amp; Add</Button>
+            <Button size="sm" onClick={() => reject(r.id)}>Reject</Button>
           </div>
         </div>
       ))}
     </div>
   )
 }
-
-function kindChip(kind: 'user' | 'ai_discovery'): React.CSSProperties {
-  const isAi = kind === 'ai_discovery'
-  return {
-    display: 'inline-block',
-    padding: '2px 8px',
-    fontSize: 10,
-    fontWeight: 700,
-    color: isAi ? 'var(--brand-primary-fg)' : 'var(--brand-primary-fg)',
-    background: isAi ? 'var(--brand-primary)' : 'var(--border-subtle)',
-    borderRadius: 3,
-    letterSpacing: 0.5,
-  }
-}
-
-const btnPrimary: React.CSSProperties = { background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)', border: 0, padding: '6px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
-const btnSecondary: React.CSSProperties = { background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: '6px 12px', fontSize: 12, cursor: 'pointer' }

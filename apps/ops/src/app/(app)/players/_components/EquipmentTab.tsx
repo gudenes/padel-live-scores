@@ -88,12 +88,12 @@ export default function EquipmentTab({ playerId, player = null }: Props) {
     if (res.ok) refetch()
   }
 
-  if (loading) return <div className="text-xs text-gray-500">Loading equipment…</div>
+  if (loading) return <div className="text-xs" style={{ color: 'var(--text-3)' }}>Loading equipment…</div>
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="text-[11px] font-semibold text-gray-500 mb-2">CURRENT RACKET</div>
+        <div className="text-[11px] font-semibold mb-2" style={{ color: 'var(--text-3)' }}>CURRENT RACKET</div>
         {current ? (
           <CurrentCard
             entry={current}
@@ -111,7 +111,7 @@ export default function EquipmentTab({ playerId, player = null }: Props) {
 
       {history.length > 0 && (
         <div>
-          <div className="text-[11px] font-semibold text-gray-500 mb-2">
+          <div className="text-[11px] font-semibold mb-2" style={{ color: 'var(--text-3)' }}>
             HISTORY ({history.length})
           </div>
           <div className="flex flex-col gap-1">
@@ -169,7 +169,10 @@ function CurrentCard({
   onEnd: () => void
 }) {
   return (
-    <div className="flex gap-3 items-center p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+    <div
+      className="flex gap-3 items-center p-2.5 rounded-lg border"
+      style={{ background: 'var(--bg-card-2)', borderColor: 'var(--border-card)' }}
+    >
       {entry.racket.image_url && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -179,33 +182,36 @@ function CurrentCard({
         />
       )}
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-bold text-gray-900">{entry.racket.brand.name}</div>
-        <div className="text-xs text-gray-500">
+        <div className="text-xs font-bold" style={{ color: 'var(--text-1)' }}>{entry.racket.brand.name}</div>
+        <div className="text-xs" style={{ color: 'var(--text-3)' }}>
           {entry.racket.model}
           {entry.racket.year && (
-            <span className="text-gray-400 ml-1">{entry.racket.year}</span>
+            <span className="ml-1" style={{ color: 'var(--text-4)' }}>{entry.racket.year}</span>
           )}
         </div>
         {entry.started_at && (
-          <div className="text-[10px] text-gray-400 mt-0.5">Since {entry.started_at}</div>
+          <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-4)' }}>Since {entry.started_at}</div>
         )}
       </div>
       <div className="flex flex-col gap-1">
         <button
           onClick={onChange}
-          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer"
+          className="px-2.5 py-1 text-[11px] font-semibold border rounded cursor-pointer"
+          style={{ background: 'var(--bg-card)', color: 'var(--text-1)', borderColor: 'var(--border-card)' }}
         >
           Change
         </button>
         <button
           onClick={onAddNew}
-          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer"
+          className="px-2.5 py-1 text-[11px] font-semibold border rounded cursor-pointer"
+          style={{ background: 'var(--bg-card)', color: 'var(--text-1)', borderColor: 'var(--border-card)' }}
         >
           + Add new
         </button>
         <button
           onClick={onEnd}
-          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-red-600 cursor-pointer"
+          className="px-2.5 py-1 text-[11px] font-semibold border rounded cursor-pointer"
+          style={{ background: 'var(--bg-card)', color: 'var(--live-text)', borderColor: 'var(--border-card)' }}
         >
           End
         </button>
@@ -222,18 +228,27 @@ function EmptyCard({
   onAddNew: () => void
 }) {
   return (
-    <div className="px-3.5 py-3 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-xs flex items-center justify-between gap-2">
+    <div
+      className="px-3.5 py-3 rounded-lg border border-dashed text-xs flex items-center justify-between gap-2"
+      style={{ background: 'var(--bg-card-2)', borderColor: 'var(--border-card)', color: 'var(--text-3)' }}
+    >
       <span>No racket currently assigned</span>
       <div className="flex gap-2 flex-shrink-0">
         <button
           onClick={onAssign}
-          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer hover:bg-gray-50"
+          className="px-2.5 py-1 text-[11px] font-semibold border rounded cursor-pointer"
+          style={{ background: 'var(--bg-card)', color: 'var(--text-1)', borderColor: 'var(--border-card)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-card)')}
         >
           + Assign existing
         </button>
         <button
           onClick={onAddNew}
-          className="px-2.5 py-1 text-[11px] font-semibold border border-gray-200 rounded bg-white text-gray-900 cursor-pointer hover:bg-gray-50"
+          className="px-2.5 py-1 text-[11px] font-semibold border rounded cursor-pointer"
+          style={{ background: 'var(--bg-card)', color: 'var(--text-1)', borderColor: 'var(--border-card)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-card)')}
         >
           + Add new
         </button>
@@ -244,14 +259,14 @@ function EmptyCard({
 
 function HistoryRow({ entry }: { entry: EquipmentEntry }) {
   return (
-    <div className="text-xs text-gray-600 px-2 py-1">
-      <span className="font-medium text-gray-900">
+    <div className="text-xs px-2 py-1" style={{ color: 'var(--text-2)' }}>
+      <span className="font-medium" style={{ color: 'var(--text-1)' }}>
         {entry.racket.brand.name} {entry.racket.model}
       </span>
       {entry.racket.year && (
-        <span className="text-gray-400"> {entry.racket.year}</span>
+        <span style={{ color: 'var(--text-4)' }}> {entry.racket.year}</span>
       )}
-      <span className="text-gray-400 ml-2">
+      <span className="ml-2" style={{ color: 'var(--text-4)' }}>
         {entry.started_at ?? '?'} → {entry.ended_at}
       </span>
     </div>

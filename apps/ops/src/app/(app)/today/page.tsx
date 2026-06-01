@@ -6,7 +6,7 @@
 
 import { auth } from '@/lib/auth'
 import { getTodayPayload } from '@/lib/today-aggregator'
-import { TodayKpiStrip } from '@/components/TodayKpiStrip'
+import { PageHeader, KpiStrip, Kpi } from '@/components/ui'
 import { TodayLiveNow } from '@/components/TodayLiveNow'
 import { TodayRequiresAttention } from '@/components/TodayRequiresAttention'
 import { TodaySchedule } from '@/components/TodaySchedule'
@@ -18,22 +18,26 @@ export const dynamic = 'force-dynamic'
 
 export default async function TodayPage() {
   const [session, payload] = await Promise.all([auth(), getTodayPayload()])
+  const { kpis } = payload
   return (
-    <div style={{ padding: 32, maxWidth: 1280 }}>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 4px' }}>Today</h1>
-          <p style={{ fontSize: 13, color: 'var(--status-neutral)', margin: 0 }}>
-            Welcome back, {session?.user?.name?.split(' ')[0] ?? session?.user?.email}.
-          </p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <TodayRefreshButton />
-          <TodayStatusPill status={payload.systemStatus} />
-        </div>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="Today"
+        subtitle={`Welcome back, ${session?.user?.name?.split(' ')[0] ?? session?.user?.email}.`}
+        actions={
+          <>
+            <TodayRefreshButton />
+            <TodayStatusPill status={payload.systemStatus} />
+          </>
+        }
+      />
 
-      <TodayKpiStrip kpis={payload.kpis} />
+      <KpiStrip cols={4}>
+        <Kpi label="Live Matches" value={kpis.liveMatches} tone="live" pulse={kpis.liveMatches > 0} />
+        <Kpi label="Needs Review" value={kpis.needsReview} tone="warn" />
+        <Kpi label="OOP Pending" value={kpis.oopPending} tone="urgent" />
+        <Kpi label="Streams Live" value={kpis.streamsLive} tone="lime" />
+      </KpiStrip>
 
       <div
         style={{
@@ -49,7 +53,7 @@ export default async function TodayPage() {
 
       <TodaySchedule buckets={payload.schedule} />
 
-      <div style={{ marginTop: 24, fontSize: 11, color: 'var(--status-neutral)' }}>
+      <div style={{ marginTop: 24, fontSize: 11, color: 'var(--text-3)' }}>
         Updated {new Date(payload.fetchedAt).toLocaleTimeString()}
       </div>
     </div>

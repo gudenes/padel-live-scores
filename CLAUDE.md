@@ -414,6 +414,16 @@ Tabs: Ongoing Events, Integration Health, Data Quality, Readiness, Entry Lists, 
 - **Schedule:** OOP-based review with human-in-the-loop approval
 - **Architecture:** live SVG system diagram of all data integrations
 
+### Design system (`apps/ops` shell)
+
+All `(app)` routes render inside a shared **AppShell** (`apps/ops/src/components/shell/`): a global header + an always-dark **collapsible accordion rail** (`Rail.tsx`, persisted `ops.rail.collapsed`; Live Odds nests Overview/Calibration/Methodology sub-items) + **light/dark theme** (`ThemeProvider`, `data-theme` on `<html>`, persisted `padel.theme`) + `BrandProvider` (Nachos/Labs). PlayerDrawer is retained (`player-drawer-context` + `PlayerDrawerHost`); the legacy two-tier `Sidebar*` + `ActivityRail` were removed.
+
+- **Primitives:** `apps/ops/src/components/ui/` (+ `src/app/ui.css`) — `PageHeader`, `Panel`/`Section`, `KpiStrip`/`Kpi`, `Pill`/`Button`, `DataTable`/`Field`/`EmptyState`/`Skeleton`. All token-driven (no hardcoded hex, no Tailwind color utilities in components) so both themes work. Page bodies wrap in `<div className="ui-page">`.
+- **Tokens:** design tokens in `src/app/globals.css` (`:root` dark default + `:root[data-theme="light"]`). Accent is `--lime` = **#6abf3a** (dark) / #5AA72F (light). Never put a CSS `transition` on `<body>` color/background.
+- **Global search:** ⌘K / Ctrl-K **command palette** (`shell/CommandPalette.tsx` + `lib/command-palette.ts`) — jumps to any page and searches players/tournaments via `/api/internal/search`. The header search box opens it.
+- Design: `docs/superpowers/specs/2026-05-31-admin-design-system-rollout-design.md` · plan: `docs/superpowers/plans/2026-05-31-admin-design-system-rollout.md`.
+- **Known follow-ups:** the `/system/architecture` SVG sits on a pinned light plate (SVG has light styling baked in); `/odds` first paint is ~7s while it walks in-scope tournaments (`getOngoingTournamentOutlooks` is concurrency-capped at 8 to avoid a Next dev async-tracer stack overflow) — a single-query/pre-filter optimization is the perf cleanup.
+
 ### Odds — real-time live layer
 
 The Elo `/odds` admin (per `docs/superpowers/specs/2026-05-27-odds-admin-visibility-design.md`) shows **hourly pre-match** odds from `model_predictions`. A real-time layer makes a live match's probability **move with the score**:

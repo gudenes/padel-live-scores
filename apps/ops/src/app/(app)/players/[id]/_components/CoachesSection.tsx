@@ -3,26 +3,29 @@
 // Read-only list of coach names. Editing happens in ProfileSection above —
 // this section just surfaces the saved value for at-a-glance scanning.
 
+import { Panel } from '@/components/ui'
+
 export default function CoachesSection({ coaches }: { coaches: string[] | null }) {
   if (!coaches || coaches.length === 0) {
     return (
-      <section className="bg-white border border-gray-200 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-gray-900 mb-2">Coaches</h2>
-        <div className="text-xs text-gray-400">
+      <Panel title="Coaches">
+        <div className="text-xs" style={{ color: 'var(--text-3)' }}>
           No coaches recorded. Edit in the Profile section above.
         </div>
-      </section>
+      </Panel>
     )
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-900 mb-3">Coaches</h2>
-      <ul className="list-disc list-inside text-xs text-gray-700 space-y-0.5">
+    <Panel title="Coaches">
+      <ul
+        className="list-disc list-inside text-xs space-y-0.5"
+        style={{ color: 'var(--text-2)' }}
+      >
         {coaches.map((name) => (
           <li key={name}>{name}</li>
         ))}
       </ul>
-    </section>
+    </Panel>
   )
 }

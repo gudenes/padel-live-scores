@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getRecentSnapshots, getLatestIngestDay, getTopQueries } from '@/lib/seo/seo-queries'
 import { sumWindow, windowDelta, weightedAvgPosition } from '@/lib/seo/seo-compute'
 import type { SnapshotRow } from '@/lib/seo/seo-compute'
+import { PageHeader } from '@/components/ui'
 import { HeadlineTile } from './_components/HeadlineTile'
 import { LocaleTable, type LocaleRow } from './_components/LocaleTable'
 import { TopQueriesTable } from './_components/TopQueriesTable'
@@ -69,21 +70,21 @@ export default async function Page() {
   })
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1080 }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '1.5rem' }}>SEO Health</h1>
-          <p style={{ margin: '0.25rem 0 0', color: '#6b7280', fontSize: '0.875rem' }}>
-            {latestIngest
-              ? `Last ingest: ${latestIngest.day} (data) · fetched ${new Date(latestIngest.fetched_at).toLocaleString('en-GB', { timeZone: 'UTC' })} UTC`
-              : 'No data yet'}
-          </p>
-        </div>
-        <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <span style={{ borderBottom: '2px solid var(--brand-primary)', paddingBottom: '0.25rem', fontWeight: 500 }}>Overview</span>
-          <Link href="/system/seo/opportunities" style={{ color: '#6b7280', textDecoration: 'none' }}>Opportunities →</Link>
-        </nav>
-      </header>
+    <div className="ui-page" style={{ maxWidth: 1080 }}>
+      <PageHeader
+        title="SEO Health"
+        subtitle={
+          latestIngest
+            ? `Last ingest: ${latestIngest.day} (data) · fetched ${new Date(latestIngest.fetched_at).toLocaleString('en-GB', { timeZone: 'UTC' })} UTC`
+            : 'No data yet'
+        }
+        actions={
+          <nav style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            <span style={{ borderBottom: '2px solid var(--lime)', paddingBottom: '0.25rem', fontWeight: 500, color: 'var(--text-1)' }}>Overview</span>
+            <Link href="/system/seo/opportunities" style={{ color: 'var(--text-3)', textDecoration: 'none' }}>Opportunities →</Link>
+          </nav>
+        }
+      />
 
       <StaleBanner hoursSinceIngest={hoursSinceIngest} />
 

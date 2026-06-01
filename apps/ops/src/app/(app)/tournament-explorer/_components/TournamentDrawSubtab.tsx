@@ -11,6 +11,7 @@
 
 import { useEffect, useState } from 'react'
 import { PlayerLink } from '@/components/PlayerLink'
+import { EmptyState, Pill } from '@/components/ui'
 
 // ── Types (mirror /api/ops/tournament-draw response) ────────────────────
 
@@ -69,9 +70,9 @@ interface DrawResponse {
 // ── Styles ──────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-lg)',
   padding: 12,
 }
 
@@ -144,7 +145,7 @@ function TeamCell({
           }
         />
       )}
-      {hasP1 && hasP2 && <span style={{ color: '#9ca3af' }}>/</span>}
+      {hasP1 && hasP2 && <span style={{ color: 'var(--text-3)' }}>/</span>}
       {hasP2 && (
         <PlayerLink
           player={
@@ -202,10 +203,10 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
       .finally(() => setLoading(false))
   }, [tournamentId])
 
-  if (loading) return <div style={{ ...card, color: '#666', fontSize: 12 }}>Loading draw…</div>
+  if (loading) return <div style={{ ...card, color: 'var(--text-3)', fontSize: 12 }}>Loading draw…</div>
   if (error) {
     return (
-      <div style={{ ...card, background: '#fee2e2', borderColor: '#fecaca', color: '#991b1b', fontSize: 12 }}>
+      <div style={{ ...card, background: 'var(--live-bg)', borderColor: 'var(--live-border)', color: 'var(--live-text)', fontSize: 12 }}>
         ❌ {error}
       </div>
     )
@@ -213,11 +214,10 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
   if (!data) return null
   if (data.blocks.length === 0) {
     return (
-      <div style={{ ...card, color: '#666', fontSize: 12 }}>
-        No draw snapshots captured for this tournament yet. The
-        draw-fetcher runs hourly against active tournaments; if a draw
-        was just published it may take up to an hour to appear.
-      </div>
+      <EmptyState
+        title="No draw snapshots captured for this tournament yet."
+        hint="The draw-fetcher runs hourly against active tournaments; if a draw was just published it may take up to an hour to appear."
+      />
     )
   }
 
@@ -238,10 +238,10 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
                 fontSize: 12,
                 fontWeight: 600,
                 border: '1px solid',
-                borderColor: isActive ? '#3b82f6' : '#d1d5db',
-                background: isActive ? '#eff6ff' : '#fff',
-                color: isActive ? '#1e40af' : '#555',
-                borderRadius: 4,
+                borderColor: isActive ? 'var(--lime-border)' : 'var(--border-card)',
+                background: isActive ? 'var(--lime-bg)' : 'var(--bg-card)',
+                color: isActive ? 'var(--lime-text)' : 'var(--text-2)',
+                borderRadius: 'var(--r-sm)',
                 cursor: 'pointer',
               }}
             >
@@ -252,8 +252,8 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
       </div>
 
       {/* Overall freshness */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 12, fontSize: 11, color: '#666' }}>
-        <span>Snapshot: <b style={{ color: '#333' }}>{formatAgo(data.capturedAt)}</b></span>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12, fontSize: 11, color: 'var(--text-3)' }}>
+        <span>Snapshot: <b style={{ color: 'var(--text-2)' }}>{formatAgo(data.capturedAt)}</b></span>
         <span>Total matches across all blocks: {data.blocks.reduce((s, b) => s + b.total, 0)}</span>
       </div>
 
@@ -262,15 +262,15 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
         {activeBlock.rounds.map((round) => (
           <div key={round.roundLabel} style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
                 {round.roundLabel || 'Unlabeled round'}
               </div>
-              <div style={{ fontSize: 11, color: '#999' }}>{round.matches.length} matches</div>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{round.matches.length} matches</div>
             </div>
             <div style={{ overflow: 'auto' }}>
               <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border-card)' }}>
                     <th style={thSmall}>Pos</th>
                     <th style={thSmall}>Seed 1</th>
                     <th style={thSmall}>Team 1</th>
@@ -282,19 +282,19 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
                 </thead>
                 <tbody>
                   {round.matches.map((m, i) => {
-                    const w1: React.CSSProperties = m.winnerTeam === 1 ? { fontWeight: 700, color: '#111' } : {}
-                    const w2: React.CSSProperties = m.winnerTeam === 2 ? { fontWeight: 700, color: '#111' } : {}
+                    const w1: React.CSSProperties = m.winnerTeam === 1 ? { fontWeight: 700, color: 'var(--text-1)' } : {}
+                    const w2: React.CSSProperties = m.winnerTeam === 2 ? { fontWeight: 700, color: 'var(--text-1)' } : {}
                     return (
                       <tr
                         key={(m.drawPosition ?? i) + ':' + i}
                         style={{
-                          borderBottom: '1px solid #f3f4f6',
+                          borderBottom: '1px solid var(--border-inner)',
                         }}
                       >
-                        <td style={{ ...tdSmall, fontFamily: 'monospace', color: '#666' }}>
+                        <td style={{ ...tdSmall, fontFamily: 'monospace', color: 'var(--text-3)' }}>
                           {m.drawPosition ?? '—'}
                         </td>
-                        <td style={{ ...tdSmall, textAlign: 'center', color: '#666', fontSize: 10 }}>
+                        <td style={{ ...tdSmall, textAlign: 'center', color: 'var(--text-3)', fontSize: 10 }}>
                           {m.team1Seed ?? '—'}
                         </td>
                         <td style={{ ...tdSmall, ...w1 }}>
@@ -306,10 +306,10 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
                             teamCountry={m.team1Country}
                           />
                           {m.team1Country && (
-                            <span style={{ fontSize: 10, color: '#888', marginLeft: 6 }}>({m.team1Country})</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 6 }}>({m.team1Country})</span>
                           )}
                         </td>
-                        <td style={{ ...tdSmall, textAlign: 'center', color: '#666', fontSize: 10 }}>
+                        <td style={{ ...tdSmall, textAlign: 'center', color: 'var(--text-3)', fontSize: 10 }}>
                           {m.team2Seed ?? '—'}
                         </td>
                         <td style={{ ...tdSmall, ...w2 }}>
@@ -321,7 +321,7 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
                             teamCountry={m.team2Country}
                           />
                           {m.team2Country && (
-                            <span style={{ fontSize: 10, color: '#888', marginLeft: 6 }}>({m.team2Country})</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-3)', marginLeft: 6 }}>({m.team2Country})</span>
                           )}
                         </td>
                         <td style={{ ...tdSmall, fontFamily: 'monospace', fontSize: 11 }}>
@@ -346,37 +346,18 @@ export default function TournamentDrawSubtab({ tournamentId }: { tournamentId: s
 // ── Small atoms ─────────────────────────────────────────────────────────
 
 function StatusPill({ status }: { status: string | null }) {
-  if (!status) return <span style={{ fontSize: 10, color: '#999' }}>—</span>
-  const map: Record<string, { bg: string; color: string }> = {
-    finished: { bg: '#f3f4f6', color: '#4b5563' },
-    retired: { bg: '#fef3c7', color: '#92400e' },
-    walkover: { bg: '#fef3c7', color: '#92400e' },
-    live: { bg: '#dcfce7', color: '#166534' },
-    scheduled: { bg: '#f3f4f6', color: '#6b7280' },
-  }
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#333' }
-  return (
-    <span
-      style={{
-        fontSize: 9,
-        fontWeight: 700,
-        padding: '2px 6px',
-        borderRadius: 3,
-        background: s.bg,
-        color: s.color,
-        textTransform: 'uppercase',
-        letterSpacing: '0.04em',
-      }}
-    >
-      {status}
-    </span>
-  )
+  if (!status) return <span style={{ fontSize: 10, color: 'var(--text-3)' }}>—</span>
+  const tone: 'lime' | 'warn' | 'neutral' =
+    status === 'live' ? 'lime'
+    : status === 'retired' || status === 'walkover' ? 'warn'
+    : 'neutral'
+  return <Pill tone={tone}>{status}</Pill>
 }
 
 const thSmall: React.CSSProperties = {
   padding: '5px 8px',
   textAlign: 'left',
-  color: '#666',
+  color: 'var(--text-3)',
   fontWeight: 600,
   fontSize: 10,
   textTransform: 'uppercase',
@@ -385,6 +366,6 @@ const thSmall: React.CSSProperties = {
 
 const tdSmall: React.CSSProperties = {
   padding: '5px 8px',
-  color: '#333',
+  color: 'var(--text-1)',
   verticalAlign: 'top',
 }
