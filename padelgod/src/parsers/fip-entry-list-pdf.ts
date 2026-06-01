@@ -206,6 +206,9 @@ export function parseEntryListText(text: string): ParseResult {
       // Block did not parse cleanly even after marker stripping — skip the
       // whole block (advance by the lines we believe it spanned) so we neither
       // store garbage nor desync the teams that follow.
+      console.warn(
+        `[fip-entry-list-pdf] skipping contaminated block: player1=${JSON.stringify(player1Name)} player2=${JSON.stringify(player2Name)}`,
+      );
       i += linesConsumed;
       continue;
     }

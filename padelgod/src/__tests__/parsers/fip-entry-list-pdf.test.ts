@@ -27,6 +27,16 @@ const MAIN_TEAM = [
   '21109 points \t42218',
 ].join('\n');
 
+// A deliberately malformed block: the "position" line's remainder has no
+// ranking digit, so player1 parses as the contaminated string "points XYZ".
+// This survives to teams.push and must be caught by the isContaminatedName
+// guard (the marker-strip can't clean it), then skipped without desyncing.
+const CONTAMINATED_BLOCK = [
+  '500 points XYZ ABC',
+  '300 points \t99 Filler Name ESP',
+  '400 points \t799',
+].join('\n');
+
 describe('parseEntryListText — PR marker handling', () => {
   it('parses both players when the points line carries a PR marker', () => {
     const text = [QUALIFYING_HEADER, QUALIFYING_HEADER, PR_TEAM].join('\n');
@@ -87,5 +97,23 @@ describe('parseEntryListText — PR marker handling', () => {
     const names = [team!.player1.name, team!.player2.name];
     expect(names).toContain('Agustin Tapia');
     expect(names).toContain('Arturo Coello');
+  });
+
+  it('skips a contaminated block (guard branch) without emitting garbage or desyncing', () => {
+    const text = [QUALIFYING_HEADER, QUALIFYING_HEADER, CONTAMINATED_BLOCK, NORMAL_TEAM_AFTER].join('\n');
+    const { teams } = parseEntryListText(text);
+
+    // No emitted team carries the leaked column data.
+    for (const t of teams) {
+      for (const p of [t.player1, t.player2]) {
+        expect(p.name).not.toMatch(/points/i);
+        expect(p.name).not.toMatch(/XYZ/);
+      }
+    }
+    // The good team after the contaminated block still parses (no desync).
+    const next = teams.find(
+      (t) => t.player1.name === 'Salva Oria' || t.player2.name === 'Salva Oria',
+    );
+    expect(next, 'the team after a contaminated block should still parse').toBeDefined();
   });
 });
