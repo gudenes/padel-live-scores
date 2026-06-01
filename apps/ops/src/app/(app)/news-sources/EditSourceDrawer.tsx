@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Field, Button } from '@/components/ui'
 import { Drawer } from './AddSourceDrawer'
 
 interface Source {
@@ -88,7 +89,7 @@ export function EditSourceDrawer({ source, onClose, onSaved, onDeleted }: Props)
     <Drawer onClose={onClose} title={`Edit - ${source.name}`}>
       <div style={{ padding: 20 }}>
         {/* Health banner */}
-        <div style={{ padding: 12, background: 'var(--bg-canvas)', marginBottom: 16, fontSize: 12, color: 'var(--brand-primary-fg)' }}>
+        <div style={{ padding: 12, background: 'var(--bg-card-2)', borderRadius: 'var(--r-sm)', marginBottom: 16, fontSize: 12, color: 'var(--text-1)' }}>
           <div>
             Quality: {source.extraction_quality_pct == null ? 'no data yet' : `${source.extraction_quality_pct.toFixed(0)}% over last 30 days`}
           </div>
@@ -99,68 +100,55 @@ export function EditSourceDrawer({ source, onClose, onSaved, onDeleted }: Props)
 
         {/* Auto-disabled banner */}
         {source.auto_disabled_at && (
-          <div style={{ padding: 12, background: '#F5A62320', borderLeft: '3px solid var(--status-warn)', marginBottom: 16, fontSize: 12 }}>
+          <div style={{ padding: 12, background: 'var(--orange-bg)', borderLeft: '3px solid var(--orange)', marginBottom: 16, fontSize: 12 }}>
             Auto-disabled on {new Date(source.auto_disabled_at).toLocaleString()}.
             <div style={{ marginTop: 8 }}>
-              <button onClick={reEnable} style={btnPrimary}>Re-enable</button>
+              <Button variant="primary" size="sm" onClick={reEnable}>Re-enable</Button>
             </div>
           </div>
         )}
 
-        <Field label="Name"><input value={name} onChange={e => setName(e.target.value)} style={inputStyle} /></Field>
-        <Field label="URL"><input value={url} onChange={e => setUrl(e.target.value)} style={inputStyle} /></Field>
+        <Field label="Name"><input value={name} onChange={e => setName(e.target.value)} className="ui-input" style={{ width: '100%' }} /></Field>
+        <Field label="URL"><input value={url} onChange={e => setUrl(e.target.value)} className="ui-input" style={{ width: '100%' }} /></Field>
         <Field label="Language">
-          <select value={language} onChange={e => setLanguage(e.target.value)} style={inputStyle}>
+          <select value={language} onChange={e => setLanguage(e.target.value)} className="ui-select" style={{ width: '100%' }}>
             {['en','es','pt','it','fr'].map(l => <option key={l} value={l}>{l.toUpperCase()}</option>)}
           </select>
         </Field>
-        <Field label="Weight"><input type="number" step="0.1" value={weight} onChange={e => setWeight(Number(e.target.value))} style={inputStyle} /></Field>
+        <Field label="Weight"><input type="number" step="0.1" value={weight} onChange={e => setWeight(Number(e.target.value))} className="ui-input" style={{ width: '100%' }} /></Field>
         <Field label="Cadence">
-          <select value={cadence} onChange={e => setCadence(e.target.value)} style={inputStyle}>
+          <select value={cadence} onChange={e => setCadence(e.target.value)} className="ui-select" style={{ width: '100%' }}>
             <option value="hourly">hourly</option><option value="weekly">weekly</option>
           </select>
         </Field>
-        <Field label="Lookback days"><input type="number" value={lookbackDays} onChange={e => setLookbackDays(Number(e.target.value))} style={inputStyle} /></Field>
+        <Field label="Lookback days"><input type="number" value={lookbackDays} onChange={e => setLookbackDays(Number(e.target.value))} className="ui-input" style={{ width: '100%' }} /></Field>
         <Field label="Enabled">
-          <label style={{ color: 'var(--brand-primary-fg)' }}><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} /> Active</label>
+          <label style={{ color: 'var(--text-1)' }}><input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} /> Active</label>
         </Field>
-        <Field label="Notes"><textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} rows={3} style={{ ...inputStyle, fontFamily: 'inherit' }} /></Field>
+        <Field label="Notes"><textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={500} rows={3} className="ui-input" style={{ width: '100%', fontFamily: 'inherit' }} /></Field>
 
         {recentArticles.length > 0 && (
           <Field label="Last 10 articles from this source">
-            <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: 'var(--status-neutral)' }}>
+            <ul style={{ paddingLeft: 16, margin: 0, fontSize: 12, color: 'var(--text-3)' }}>
               {recentArticles.slice(0, 10).map((a, i) => <li key={i}>{a.title} - {new Date(a.published_at).toLocaleDateString()}</li>)}
             </ul>
           </Field>
         )}
 
-        {retestResult && <div style={{ fontSize: 12, color: 'var(--status-live)', marginTop: 8 }}>{retestResult}</div>}
-        {error && <div style={{ marginTop: 12, color: 'var(--status-urgent)', fontSize: 12 }}>{error}</div>}
+        {retestResult && <div style={{ fontSize: 12, color: 'var(--lime-text)', marginTop: 8 }}>{retestResult}</div>}
+        {error && <div style={{ marginTop: 12, color: 'var(--live-text)', fontSize: 12 }}>{error}</div>}
 
         <div style={{ marginTop: 20, display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-          <button onClick={del} disabled={deleting} style={{ ...btnSecondary, color: 'var(--status-urgent)' }}>
+          <Button variant="danger" onClick={del} disabled={deleting}>
             {deleting ? 'Deleting...' : 'Delete'}
-          </button>
+          </Button>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={retest} style={btnSecondary}>Re-test</button>
-            <button onClick={onClose} style={btnSecondary}>Cancel</button>
-            <button onClick={save} disabled={saving} style={btnPrimary}>{saving ? 'Saving...' : 'Save'}</button>
+            <Button onClick={retest}>Re-test</Button>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button variant="primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</Button>
           </div>
         </div>
       </div>
     </Drawer>
   )
 }
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ fontSize: 11, color: 'var(--status-neutral)', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{label}</div>
-      {children}
-    </div>
-  )
-}
-
-const inputStyle: React.CSSProperties = { width: '100%', background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: 8, fontSize: 13 }
-const btnPrimary: React.CSSProperties = { background: 'var(--brand-primary)', color: 'var(--brand-primary-fg)', border: 0, padding: '8px 16px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
-const btnSecondary: React.CSSProperties = { background: 'var(--bg-canvas)', color: 'var(--brand-primary-fg)', border: '1px solid var(--border-subtle)', padding: '8px 16px', cursor: 'pointer' }
