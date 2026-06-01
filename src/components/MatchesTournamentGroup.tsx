@@ -21,7 +21,7 @@
 // carries `data-match` + `data-category` + `data-qualifier` + `data-status`
 // for per-match filtering.
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { MatchCard } from '@/components/MatchCard'
@@ -34,6 +34,8 @@ import { useTranslations } from 'next-intl'
 import type { Match } from '@/types/match'
 import { bucketDayMatches, bucketStatus } from '@/lib/match-day-bucket'
 import { isPremierTier } from '@/lib/tournament-tier'
+import { AdSlot } from '@/components/ads/AdSlot'
+import { shouldInjectAdAfter } from '@/lib/ad-injection'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -181,7 +183,15 @@ function tournamentStatusBadge(
 
 // ── Component ───────────────────────────────────────────────────────────
 
-export default function MatchesTournamentGroup({ group }: { group: TournamentGroupData }) {
+export default function MatchesTournamentGroup({
+  group,
+  adStartIndex = 0,
+}: {
+  group: TournamentGroupData
+  /** Cumulative match count rendered in all prior groups — drives the global
+   *  every-6 feed-ad cadence. */
+  adStartIndex?: number
+}) {
   const tStage = useTranslations('match.stageChip')
   const tDaily = useTranslations('daily')
 
@@ -401,19 +411,24 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
         }}
       >
         {/* Active: live + upcoming, sorted chronologically */}
-        {active.map(m => {
+        {active.map((m, i) => {
           const s = bucketStatus(m.status)
           const status: 'live' | 'upcoming' | 'finished' = s ?? 'upcoming'
+          const globalPos = adStartIndex + i + 1
           return (
-            <MatchEntry
-              key={m.id}
-              match={m}
-              status={status}
-              locale={group.locale}
-              userTz={group.userTz}
-              tournamentLevel={group.tournamentLevel}
-              dayBucketIso={group.dayBucketIso}
-            />
+            <Fragment key={m.id}>
+              <MatchEntry
+                match={m}
+                status={status}
+                locale={group.locale}
+                userTz={group.userTz}
+                tournamentLevel={group.tournamentLevel}
+                dayBucketIso={group.dayBucketIso}
+              />
+              {shouldInjectAdAfter(globalPos) && (
+                <AdSlot slot="feed-inline" variant="feed" />
+              )}
+            </Fragment>
           )
         })}
 
@@ -468,17 +483,24 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
         )}
 
         {/* Finished: most-recent finish first */}
-        {finished.map(m => (
-          <MatchEntry
-            key={m.id}
-            match={m}
-            status="finished"
-            locale={group.locale}
-            userTz={group.userTz}
-            tournamentLevel={group.tournamentLevel}
-            dayBucketIso={group.dayBucketIso}
-          />
-        ))}
+        {finished.map((m, j) => {
+          const globalPos = adStartIndex + active.length + j + 1
+          return (
+            <Fragment key={m.id}>
+              <MatchEntry
+                match={m}
+                status="finished"
+                locale={group.locale}
+                userTz={group.userTz}
+                tournamentLevel={group.tournamentLevel}
+                dayBucketIso={group.dayBucketIso}
+              />
+              {shouldInjectAdAfter(globalPos) && (
+                <AdSlot slot="feed-inline" variant="feed" />
+              )}
+            </Fragment>
+          )
+        })}
       </div>
     </div>
   )
