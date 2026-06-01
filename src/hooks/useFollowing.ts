@@ -11,6 +11,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { BOOKMARK_EVENT, type BookmarkEventDetail } from '@/components/BookmarkToast'
 import { useAnonPush } from '@/hooks/useAnonPush'
 import { tryEnablePushOrShowInstallNudge } from '@/lib/pwa-install'
+import { requestReviewForReason } from '@/lib/app-review'
 
 export type FollowType = 'match' | 'player' | 'tournament' | 'news_source' | 'article'
 
@@ -321,6 +322,14 @@ export function useFollowing() {
             ...(cta ? { cta } : {}),
           } satisfies BookmarkEventDetail,
         }))
+      }
+
+      // In-app review nudge: a net-new player/tournament follow is a
+      // high-intent "I care about this app" moment. Gated in app-review.ts,
+      // so most follows won't actually surface the prompt. Fire-and-forget;
+      // never blocks the toggle. Excludes match + news_source by design.
+      if (!isCurrently && (type === 'player' || type === 'tournament')) {
+        void requestReviewForReason('favorite')
       }
 
       // Persist to Supabase for authenticated users (non-news_source, non-article types only)
