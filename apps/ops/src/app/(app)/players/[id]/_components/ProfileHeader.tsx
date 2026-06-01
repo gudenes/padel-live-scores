@@ -14,6 +14,7 @@ export interface ProfileHeaderPlayer {
   ranking: number | null
   birthdate: string | null
   avatar_url: string | null
+  photo_url: string | null
   public_id: string | null
   slug: string | null
 }
@@ -132,6 +133,23 @@ export default function ProfileHeader({ player }: { player: ProfileHeaderPlayer 
           </Link>
         </div>
       </div>
+      {player.photo_url && (
+        <div className="flex-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={player.photo_url}
+            alt={`${player.name} photo`}
+            style={{
+              width: 150,
+              height: 188,
+              borderRadius: 12,
+              objectFit: 'cover',
+              border: '1px solid var(--border-card)',
+              background: 'var(--bg-hover)',
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
