@@ -134,17 +134,17 @@ export default function UnresolvedPartnerModal({ ctx, onClose, onResolved }: Unr
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 1000,
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{ background: '#fff', borderRadius: 8, padding: 20, width: 520, maxHeight: '80vh', overflow: 'auto' }}
+        style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-card)', borderRadius: 'var(--r-lg)', padding: 20, width: 520, maxHeight: '80vh', overflow: 'auto' }}
       >
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Resolve unresolved partner</div>
-        <div style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-          <code style={{ background: '#f3f4f6', padding: '1px 5px', borderRadius: 3 }}>{ctx.parsedName}</code>{' '}
+        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4, color: 'var(--text-1)' }}>Resolve unresolved partner</div>
+        <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 12 }}>
+          <code style={{ background: 'var(--bg-card-2)', padding: '1px 5px', borderRadius: 'var(--r-xs)' }}>{ctx.parsedName}</code>{' '}
           ({ctx.category}{ctx.countryHint ? `, ${ctx.countryHint}` : ''})
         </div>
 
@@ -156,10 +156,10 @@ export default function UnresolvedPartnerModal({ ctx, onClose, onResolved }: Unr
               onClick={() => setTab(t)}
               style={{
                 padding: '6px 12px', fontSize: 12, fontWeight: 600,
-                border: '1px solid', borderColor: tab === t ? '#3b82f6' : '#d1d5db',
-                background: tab === t ? '#eff6ff' : '#fff',
-                color: tab === t ? '#1e40af' : '#555',
-                borderRadius: 4, cursor: 'pointer', textTransform: 'capitalize',
+                border: '1px solid', borderColor: tab === t ? 'var(--lime-border)' : 'var(--border-card)',
+                background: tab === t ? 'var(--lime-bg)' : 'var(--bg-card)',
+                color: tab === t ? 'var(--lime-text)' : 'var(--text-2)',
+                borderRadius: 'var(--r-sm)', cursor: 'pointer', textTransform: 'capitalize',
               }}
             >
               {t === 'link' ? 'Link to existing' : 'Create new player'}
@@ -174,16 +174,17 @@ export default function UnresolvedPartnerModal({ ctx, onClose, onResolved }: Unr
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search players by name…"
-              style={{ width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, marginBottom: 8 }}
+              className="ui-input"
+              style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
             />
-            <div style={{ maxHeight: 260, overflow: 'auto', border: '1px solid #f3f4f6', borderRadius: 4 }}>
-              {searching && <div style={{ padding: 8, fontSize: 12, color: '#999' }}>Searching…</div>}
-              {!searching && hits.length === 0 && <div style={{ padding: 8, fontSize: 12, color: '#999' }}>No matches.</div>}
+            <div style={{ maxHeight: 260, overflow: 'auto', border: '1px solid var(--border-inner)', borderRadius: 'var(--r-sm)' }}>
+              {searching && <div style={{ padding: 8, fontSize: 12, color: 'var(--text-3)' }}>Searching…</div>}
+              {!searching && hits.length === 0 && <div style={{ padding: 8, fontSize: 12, color: 'var(--text-3)' }}>No matches.</div>}
               {hits.map((h) => (
-                <div key={h.id} style={{ display: 'flex', alignItems: 'center', padding: 8, borderBottom: '1px solid #f3f4f6', gap: 8 }}>
+                <div key={h.id} style={{ display: 'flex', alignItems: 'center', padding: 8, borderBottom: '1px solid var(--border-inner)', gap: 8 }}>
                   <div style={{ flex: 1, fontSize: 12 }}>
-                    <div style={{ fontWeight: 500 }}>{h.name}</div>
-                    <div style={{ color: '#666', fontSize: 10, fontFamily: 'monospace' }}>
+                    <div style={{ fontWeight: 500, color: 'var(--text-1)' }}>{h.name}</div>
+                    <div style={{ color: 'var(--text-3)', fontSize: 10, fontFamily: 'monospace' }}>
                       {h.country ?? '—'} · rank {h.ranking ?? '—'} · {h.fip_id ?? 'no fip_id'}
                     </div>
                   </div>
@@ -193,8 +194,8 @@ export default function UnresolvedPartnerModal({ ctx, onClose, onResolved }: Unr
                     disabled={busy !== null}
                     style={{
                       padding: '4px 10px', fontSize: 11, fontWeight: 700,
-                      background: busy === h.id ? '#d1d5db' : '#111',
-                      color: '#fff', border: 'none', borderRadius: 4,
+                      background: busy === h.id ? 'var(--border-strong)' : 'var(--text-1)',
+                      color: 'var(--bg-card)', border: 'none', borderRadius: 'var(--r-sm)',
                       cursor: busy === h.id ? 'wait' : 'pointer',
                     }}
                   >
@@ -208,15 +209,17 @@ export default function UnresolvedPartnerModal({ ctx, onClose, onResolved }: Unr
 
         {tab === 'create' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#666' }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>
               Name
               <input value={createName} onChange={(e) => setCreateName(e.target.value)}
-                style={{ display: 'block', width: '100%', padding: '6px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, marginTop: 2 }} />
+                className="ui-input"
+                style={{ display: 'block', width: '100%', marginTop: 2, boxSizing: 'border-box' }} />
             </label>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#666' }}>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-3)' }}>
               Country (ISO-2, e.g. AL)
               <input value={createCountry} onChange={(e) => setCreateCountry(e.target.value)} maxLength={3}
-                style={{ display: 'block', width: 100, padding: '6px 10px', fontSize: 13, border: '1px solid #d1d5db', borderRadius: 4, marginTop: 2 }} />
+                className="ui-input"
+                style={{ display: 'block', width: 100, marginTop: 2 }} />
             </label>
             <button
               type="button"
@@ -224,8 +227,8 @@ export default function UnresolvedPartnerModal({ ctx, onClose, onResolved }: Unr
               disabled={busy !== null || !createName.trim()}
               style={{
                 padding: '6px 12px', fontSize: 12, fontWeight: 700,
-                background: busy ? '#d1d5db' : '#111',
-                color: '#fff', border: 'none', borderRadius: 4,
+                background: busy ? 'var(--border-strong)' : 'var(--text-1)',
+                color: 'var(--bg-card)', border: 'none', borderRadius: 'var(--r-sm)',
                 cursor: busy ? 'wait' : 'pointer', alignSelf: 'flex-start',
               }}
             >
@@ -235,13 +238,13 @@ export default function UnresolvedPartnerModal({ ctx, onClose, onResolved }: Unr
         )}
 
         {error && (
-          <div style={{ marginTop: 10, padding: 8, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 4, fontSize: 11, color: '#991b1b' }}>
+          <div style={{ marginTop: 10, padding: 8, background: 'var(--live-bg)', border: '1px solid var(--live-border)', borderRadius: 'var(--r-sm)', fontSize: 11, color: 'var(--live-text)' }}>
             {error}
           </div>
         )}
 
         <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" onClick={onClose} style={{ padding: '6px 12px', fontSize: 12, background: '#f3f4f6', border: '1px solid #e5e7eb', borderRadius: 4, cursor: 'pointer' }}>
+          <button type="button" onClick={onClose} style={{ padding: '6px 12px', fontSize: 12, background: 'var(--bg-card-2)', color: 'var(--text-2)', border: '1px solid var(--border-card)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
             Cancel
           </button>
         </div>

@@ -3,6 +3,7 @@
 // Simulator tab: tournament management and referee scoring panel.
 
 import { useState, useEffect, useCallback } from 'react'
+import { PageHeader, Section, Button, Field } from '@/components/ui'
 import {
   createInitialState,
   addPoint,
@@ -36,24 +37,15 @@ interface SimMatch {
 // ── Shared styles ─────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-lg)',
   padding: 12,
-}
-
-const sectionLabel: React.CSSProperties = {
-  fontSize: 10,
-  color: '#999',
-  textTransform: 'uppercase' as const,
-  fontWeight: 700,
-  letterSpacing: '1px',
-  marginBottom: 8,
 }
 
 const btnBase: React.CSSProperties = {
   padding: '6px 14px',
-  borderRadius: 6,
+  borderRadius: 'var(--r-sm)',
   fontSize: 12,
   fontWeight: 600,
   cursor: 'pointer',
@@ -63,14 +55,19 @@ const btnBase: React.CSSProperties = {
   gap: 4,
 }
 
-const btnGreen: React.CSSProperties = { ...btnBase, background: '#22c55e', color: 'white' }
-const btnRed: React.CSSProperties = { ...btnBase, background: '#ef4444', color: 'white' }
-const btnGray: React.CSSProperties = { ...btnBase, background: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb' }
+const btnGreen: React.CSSProperties = { ...btnBase, background: 'var(--lime)', color: 'var(--lime-ink)' }
+const btnRed: React.CSSProperties = { ...btnBase, background: 'var(--live)', color: '#fff' }
+const btnGray: React.CSSProperties = { ...btnBase, background: 'var(--bg-card-2)', color: 'var(--text-2)', border: '1px solid var(--border-card)' }
+
+// Pair accent tokens — pair 1 = orange, pair 2 = blue (men) so the two
+// sides stay distinguishable in both light + dark themes.
+const PAIR1 = 'var(--orange-text)'
+const PAIR2 = 'var(--men)'
 
 // ── Sub-components ────────────────────────────────────────────────
 
 function StatusDot({ status }: { status: string }) {
-  const color = status === 'live' ? '#22c55e' : status === 'finished' ? '#9ca3af' : '#9ca3af'
+  const color = status === 'live' ? 'var(--lime)' : 'var(--text-3)'
   return <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
 }
 
@@ -297,21 +294,21 @@ export default function SimulatorTab() {
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div className="ui-page">
+      <PageHeader title="Simulator" subtitle="Tournament management and referee scoring panel." />
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       {/* ── Section 1: Tournament Setup ── */}
-      <div>
-        <div style={sectionLabel}>Tournament Setup</div>
+      <Section label="Tournament Setup">
         <div style={card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             {/* Dropdown */}
             <select
               value={selectedTournamentId}
               onChange={e => setSelectedTournamentId(e.target.value)}
-              style={{
-                padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb',
-                fontSize: 13, flex: 1, minWidth: 200, background: 'white',
-              }}
+              className="ui-select"
+              style={{ flex: 1, minWidth: 200 }}
               disabled={loadingTournaments}
             >
               <option value="">— Select simulated tournament —</option>
@@ -323,20 +320,18 @@ export default function SimulatorTab() {
             </select>
 
             {/* New button */}
-            <button
-              style={btnGreen}
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => { setShowNewForm(v => !v); setPurgeText('') }}
             >
               + New
-            </button>
+            </Button>
 
             {/* Purge button */}
-            <button
-              style={btnRed}
-              onClick={() => setShowPurgeModal(true)}
-            >
+            <Button variant="danger" size="sm" onClick={() => setShowPurgeModal(true)}>
               Purge All
-            </button>
+            </Button>
           </div>
 
           {/* New tournament inline form */}
@@ -344,122 +339,119 @@ export default function SimulatorTab() {
             <div style={{
               marginTop: 14,
               padding: 14,
-              background: '#f9fafb',
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
+              background: 'var(--bg-card-2)',
+              border: '1px solid var(--border-card)',
+              borderRadius: 'var(--r-lg)',
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#555', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-2)', marginBottom: 10 }}>
                 New Simulated Tournament
               </div>
-              <div style={{ fontSize: 10, color: '#999', marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-3)', marginBottom: 12 }}>
                 Players are auto-picked from top-ranked players and randomly paired into matches.
               </div>
 
               {/* Row 1: name + date */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px', gap: 10, marginBottom: 10 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Name</label>
+                <Field label="Name">
                   <input
                     type="text"
                     value={newName}
                     onChange={e => setNewName(e.target.value)}
                     placeholder="Sim Tournament 1"
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, boxSizing: 'border-box' }}
+                    className="ui-input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
                   />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Date</label>
+                </Field>
+                <Field label="Date">
                   <input
                     type="date"
                     value={newDate}
                     onChange={e => setNewDate(e.target.value)}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, boxSizing: 'border-box' }}
+                    className="ui-input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
                   />
-                </div>
+                </Field>
               </div>
 
               {/* Row 2: category + round + match count */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 100px 100px', gap: 10, marginBottom: 12 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Category</label>
+                <Field label="Category">
                   <select
                     value={newCategory}
                     onChange={e => setNewCategory(e.target.value as 'men' | 'women')}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, background: 'white' }}
+                    className="ui-select"
+                    style={{ width: '100%' }}
                   >
                     <option value="men">Men</option>
                     <option value="women">Women</option>
                   </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Round</label>
+                </Field>
+                <Field label="Round">
                   <select
                     value={newRound}
                     onChange={e => setNewRound(e.target.value)}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, background: 'white' }}
+                    className="ui-select"
+                    style={{ width: '100%' }}
                   >
                     {['R32', 'R16', 'QF', 'SF', 'F'].map(r => (
                       <option key={r} value={r}>{r}</option>
                     ))}
                   </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: '#666', display: 'block', marginBottom: 3 }}>Matches</label>
+                </Field>
+                <Field label="Matches">
                   <input
                     type="number"
                     min={1}
                     max={16}
                     value={newMatchCount}
                     onChange={e => setNewMatchCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                    style={{ width: '100%', padding: '6px 8px', borderRadius: 5, border: '1px solid #d1d5db', fontSize: 12, boxSizing: 'border-box' }}
+                    className="ui-input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
                   />
-                </div>
+                </Field>
               </div>
 
               {/* Form actions */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                <button
-                  style={btnGray}
-                  onClick={() => { setShowNewForm(false); setNewName('') }}
-                >
+                <Button size="sm" onClick={() => { setShowNewForm(false); setNewName('') }}>
                   Cancel
-                </button>
-                <button
-                  style={{ ...btnGreen, opacity: !newName.trim() || creating ? 0.6 : 1 }}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
                   disabled={!newName.trim() || creating}
                   onClick={handleCreateTournament}
                 >
                   {creating ? 'Creating...' : `Create (${newMatchCount * 4} players auto-picked)`}
-                </button>
+                </Button>
               </div>
             </div>
           )}
         </div>
-      </div>
+      </Section>
 
       {/* ── Section 2: Match List ── */}
       {selectedTournamentId && (
-        <div>
-          <div style={sectionLabel}>Matches</div>
+        <Section label="Matches">
           <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
             {loadingMatches ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#aaa', textAlign: 'center' }}>
+              <div style={{ padding: 16, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
                 Loading matches...
               </div>
             ) : matches.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: '#aaa', textAlign: 'center' }}>
+              <div style={{ padding: 16, fontSize: 12, color: 'var(--text-3)', textAlign: 'center' }}>
                 No matches in this tournament
               </div>
             ) : (
               <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666', width: 20 }}></th>
-                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Pair 1</th>
-                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Pair 2</th>
-                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Time</th>
-                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: '#666' }}>Score</th>
-                    <th style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, color: '#666' }}>Action</th>
+                  <tr style={{ background: 'var(--bg-card-2)', borderBottom: '1px solid var(--border-card)' }}>
+                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-3)', width: 20 }}></th>
+                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-3)' }}>Pair 1</th>
+                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-3)' }}>Pair 2</th>
+                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-3)' }}>Time</th>
+                    <th style={{ padding: '7px 12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-3)' }}>Score</th>
+                    <th style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 600, color: 'var(--text-3)' }}>Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -471,22 +463,22 @@ export default function SimulatorTab() {
                       <tr
                         key={m.id}
                         style={{
-                          borderBottom: '1px solid #f3f4f6',
-                          background: isScoring ? 'rgba(34,197,94,0.04)' : 'transparent',
-                          outline: isScoring ? '1px solid rgba(34,197,94,0.3)' : 'none',
+                          borderBottom: '1px solid var(--border-inner)',
+                          background: isScoring ? 'var(--lime-bg)' : 'transparent',
+                          outline: isScoring ? '1px solid var(--lime-border)' : 'none',
                           opacity: m.status === 'finished' && !isScoring ? 0.55 : 1,
                         }}
                       >
                         <td style={{ padding: '8px 12px' }}>
                           <StatusDot status={m.status} />
                         </td>
-                        <td style={{ padding: '8px 12px', color: '#111', lineHeight: 1.4 }}>
+                        <td style={{ padding: '8px 12px', color: 'var(--text-1)', lineHeight: 1.4 }}>
                           <div>{p1a}</div>
-                          {p1b && <div style={{ color: '#666' }}>{p1b}</div>}
+                          {p1b && <div style={{ color: 'var(--text-3)' }}>{p1b}</div>}
                         </td>
-                        <td style={{ padding: '8px 12px', color: '#111', lineHeight: 1.4 }}>
+                        <td style={{ padding: '8px 12px', color: 'var(--text-1)', lineHeight: 1.4 }}>
                           <div>{p2a}</div>
-                          {p2b && <div style={{ color: '#666' }}>{p2b}</div>}
+                          {p2b && <div style={{ color: 'var(--text-3)' }}>{p2b}</div>}
                         </td>
                         <td style={{ padding: '8px 12px' }}>
                           <input
@@ -504,20 +496,18 @@ export default function SimulatorTab() {
                                 body: JSON.stringify({ matchId: m.id, scheduled_at: iso }),
                               })
                             }}
-                            style={{
-                              padding: '3px 5px', borderRadius: 4, border: '1px solid #d1d5db',
-                              fontSize: 11, width: 155, background: 'white', color: '#555',
-                            }}
+                            className="ui-input"
+                            style={{ fontSize: 11, width: 155, padding: '3px 5px' }}
                           />
                         </td>
-                        <td style={{ padding: '8px 12px', color: '#555', fontFamily: 'monospace', fontSize: 11 }}>
+                        <td style={{ padding: '8px 12px', color: 'var(--text-2)', fontFamily: 'monospace', fontSize: 11 }}>
                           {m.score ?? '—'}
                         </td>
                         <td style={{ padding: '8px 12px', textAlign: 'right' }}>
                           {isScoring ? (
                             <span style={{
-                              fontSize: 10, fontWeight: 700, color: '#22c55e',
-                              background: 'rgba(34,197,94,0.1)', padding: '2px 7px', borderRadius: 4,
+                              fontSize: 10, fontWeight: 700, color: 'var(--lime-text)',
+                              background: 'var(--lime-bg)', padding: '2px 7px', borderRadius: 'var(--r-sm)',
                               textTransform: 'uppercase' as const,
                             }}>
                               SCORING
@@ -543,8 +533,8 @@ export default function SimulatorTab() {
                             </button>
                           ) : (
                             <span style={{
-                              fontSize: 10, color: '#9ca3af', background: '#f3f4f6',
-                              padding: '2px 7px', borderRadius: 4, fontWeight: 500,
+                              fontSize: 10, color: 'var(--text-3)', background: 'var(--bg-card-2)',
+                              padding: '2px 7px', borderRadius: 'var(--r-sm)', fontWeight: 500,
                             }}>
                               Finished
                             </span>
@@ -557,31 +547,30 @@ export default function SimulatorTab() {
               </table>
             )}
           </div>
-        </div>
+        </Section>
       )}
 
       {/* ── Section 3: Referee Panel ── */}
       {scoringMatchId && scoringMatch && (
-        <div>
-          <div style={sectionLabel}>
-            Referee Panel
-            {sending && (
-              <span style={{ marginLeft: 8, fontSize: 9, color: '#f59e0b', fontWeight: 500 }}>
-                Sending to relay...
-              </span>
-            )}
-          </div>
-          <div style={{ ...card, background: '#fafafa' }}>
+        <Section
+          label="Referee Panel"
+          actions={sending ? (
+            <span style={{ fontSize: 9, color: 'var(--orange-text)', fontWeight: 500 }}>
+              Sending to relay...
+            </span>
+          ) : undefined}
+        >
+          <div style={{ ...card, background: 'var(--bg-card-2)' }}>
 
             {/* Match header */}
             <div style={{ textAlign: 'center', marginBottom: 14 }}>
-              <div style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 4 }}>
                 {scoringMatch.round && <span style={{ marginRight: 6 }}>{scoringMatch.round}</span>}
                 {matchState.status === 'live'
-                  ? <span style={{ color: '#22c55e', fontWeight: 600 }}>● LIVE</span>
+                  ? <span style={{ color: 'var(--lime)', fontWeight: 600 }}>● LIVE</span>
                   : matchState.status === 'finished'
-                    ? <span style={{ color: '#9ca3af' }}>Finished</span>
-                    : <span style={{ color: '#9ca3af' }}>Scheduled</span>
+                    ? <span style={{ color: 'var(--text-3)' }}>Finished</span>
+                    : <span style={{ color: 'var(--text-3)' }}>Scheduled</span>
                 }
               </div>
             </div>
@@ -589,29 +578,29 @@ export default function SimulatorTab() {
             {/* Pair labels row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', marginBottom: 10 }}>
               <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#b45309' }}>Pair 1</div>
-                <div style={{ fontSize: 11, color: '#666', marginTop: 1 }}>{scoringMatch.pair1}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: PAIR1 }}>Pair 1</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>{scoringMatch.pair1}</div>
               </div>
-              <div style={{ textAlign: 'center', fontSize: 14, color: '#aaa', fontWeight: 300 }}>vs</div>
+              <div style={{ textAlign: 'center', fontSize: 14, color: 'var(--text-4)', fontWeight: 300 }}>vs</div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#0d9488' }}>Pair 2</div>
-                <div style={{ fontSize: 11, color: '#666', marginTop: 1 }}>{scoringMatch.pair2}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: PAIR2 }}>Pair 2</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 1 }}>{scoringMatch.pair2}</div>
               </div>
             </div>
 
             {/* Scoreboard */}
             <div style={{
-              background: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-card)',
+              borderRadius: 'var(--r-lg)',
               padding: '10px 14px',
               marginBottom: 14,
             }}>
               {/* Sets header */}
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${matchState.sets.length + 1}, 1fr)`, gap: 4, textAlign: 'center', marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: '#aaa', fontWeight: 600 }}></div>
+                <div style={{ fontSize: 10, color: 'var(--text-4)', fontWeight: 600 }}></div>
                 {matchState.sets.map((s, i) => (
-                  <div key={i} style={{ fontSize: 10, color: s.winner ? '#9ca3af' : '#22c55e', fontWeight: 600 }}>
+                  <div key={i} style={{ fontSize: 10, color: s.winner ? 'var(--text-3)' : 'var(--lime)', fontWeight: 600 }}>
                     Set {s.setNumber}{s.isTiebreak ? ' TB' : ''}
                   </div>
                 ))}
@@ -619,16 +608,16 @@ export default function SimulatorTab() {
 
               {/* Pair 1 scores */}
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${matchState.sets.length + 1}, 1fr)`, gap: 4, textAlign: 'center', marginBottom: 4 }}>
-                <div style={{ fontSize: 11, color: '#b45309', fontWeight: 700, textAlign: 'left' }}>{scoringMatch.pair1}</div>
+                <div style={{ fontSize: 11, color: PAIR1, fontWeight: 700, textAlign: 'left' }}>{scoringMatch.pair1}</div>
                 {matchState.sets.map((s, i) => (
                   <div key={i} style={{
                     fontSize: 20,
                     fontWeight: 700,
-                    color: s.winner === 1 ? '#22c55e' : s.winner === 2 ? '#9ca3af' : '#111',
+                    color: s.winner === 1 ? 'var(--lime)' : s.winner === 2 ? 'var(--text-3)' : 'var(--text-1)',
                   }}>
                     {s.winner !== null ? s.pair1Games : (
                       i === matchState.currentSet - 1
-                        ? <span>{s.pair1Games}<span style={{ fontSize: 13, color: '#9ca3af' }}>{currentGameState ? ` (${currentGameState.pair1Points})` : ''}</span></span>
+                        ? <span>{s.pair1Games}<span style={{ fontSize: 13, color: 'var(--text-3)' }}>{currentGameState ? ` (${currentGameState.pair1Points})` : ''}</span></span>
                         : s.pair1Games
                     )}
                   </div>
@@ -637,16 +626,16 @@ export default function SimulatorTab() {
 
               {/* Pair 2 scores */}
               <div style={{ display: 'grid', gridTemplateColumns: `repeat(${matchState.sets.length + 1}, 1fr)`, gap: 4, textAlign: 'center' }}>
-                <div style={{ fontSize: 11, color: '#0d9488', fontWeight: 700, textAlign: 'left' }}>{scoringMatch.pair2}</div>
+                <div style={{ fontSize: 11, color: PAIR2, fontWeight: 700, textAlign: 'left' }}>{scoringMatch.pair2}</div>
                 {matchState.sets.map((s, i) => (
                   <div key={i} style={{
                     fontSize: 20,
                     fontWeight: 700,
-                    color: s.winner === 2 ? '#22c55e' : s.winner === 1 ? '#9ca3af' : '#111',
+                    color: s.winner === 2 ? 'var(--lime)' : s.winner === 1 ? 'var(--text-3)' : 'var(--text-1)',
                   }}>
                     {s.winner !== null ? s.pair2Games : (
                       i === matchState.currentSet - 1
-                        ? <span>{s.pair2Games}<span style={{ fontSize: 13, color: '#9ca3af' }}>{currentGameState ? ` (${currentGameState.pair2Points})` : ''}</span></span>
+                        ? <span>{s.pair2Games}<span style={{ fontSize: 13, color: 'var(--text-3)' }}>{currentGameState ? ` (${currentGameState.pair2Points})` : ''}</span></span>
                         : s.pair2Games
                     )}
                   </div>
@@ -654,15 +643,15 @@ export default function SimulatorTab() {
               </div>
 
               {/* Sets won indicator */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f3f4f6' }}>
-                <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>{setsWonP1} set{setsWonP1 !== 1 ? 's' : ''} won</span>
-                <span style={{ fontSize: 11, color: '#0d9488', fontWeight: 600 }}>{setsWonP2} set{setsWonP2 !== 1 ? 's' : ''} won</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border-inner)' }}>
+                <span style={{ fontSize: 11, color: PAIR1, fontWeight: 600 }}>{setsWonP1} set{setsWonP1 !== 1 ? 's' : ''} won</span>
+                <span style={{ fontSize: 11, color: PAIR2, fontWeight: 600 }}>{setsWonP2} set{setsWonP2 !== 1 ? 's' : ''} won</span>
               </div>
             </div>
 
             {/* Serving indicator */}
-            <div style={{ textAlign: 'center', fontSize: 11, color: '#888', marginBottom: 12 }}>
-              Serving: <strong style={{ color: matchState.servingPair === 1 ? '#b45309' : '#0d9488' }}>
+            <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-3)', marginBottom: 12 }}>
+              Serving: <strong style={{ color: matchState.servingPair === 1 ? PAIR1 : PAIR2 }}>
                 Pair {matchState.servingPair}
               </strong>
             </div>
@@ -672,9 +661,9 @@ export default function SimulatorTab() {
               <button
                 style={{
                   padding: '20px 12px',
-                  borderRadius: 10,
-                  border: `2px solid rgba(245,158,11,0.3)`,
-                  background: `rgba(245,158,11,0.1)`,
+                  borderRadius: 'var(--r-md)',
+                  border: `2px solid var(--orange-border)`,
+                  background: `var(--orange-bg)`,
                   cursor: matchState.status === 'finished' ? 'not-allowed' : 'pointer',
                   opacity: matchState.status === 'finished' ? 0.4 : 1,
                   textAlign: 'center' as const,
@@ -683,18 +672,18 @@ export default function SimulatorTab() {
                 disabled={matchState.status === 'finished' || sending}
                 onClick={() => handlePoint(1)}
               >
-                <div style={{ fontSize: 11, color: '#b45309', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                <div style={{ fontSize: 11, color: PAIR1, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
                   POINT
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#f59e0b' }}>Pair 1</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--orange)' }}>Pair 1</div>
               </button>
 
               <button
                 style={{
                   padding: '20px 12px',
-                  borderRadius: 10,
-                  border: `2px solid rgba(20,184,166,0.3)`,
-                  background: `rgba(20,184,166,0.1)`,
+                  borderRadius: 'var(--r-md)',
+                  border: `2px solid var(--men-border)`,
+                  background: `var(--men-bg)`,
                   cursor: matchState.status === 'finished' ? 'not-allowed' : 'pointer',
                   opacity: matchState.status === 'finished' ? 0.4 : 1,
                   textAlign: 'center' as const,
@@ -703,31 +692,31 @@ export default function SimulatorTab() {
                 disabled={matchState.status === 'finished' || sending}
                 onClick={() => handlePoint(2)}
               >
-                <div style={{ fontSize: 11, color: '#0d9488', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                <div style={{ fontSize: 11, color: PAIR2, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
                   POINT
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: '#14b8a6' }}>Pair 2</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--men)' }}>Pair 2</div>
               </button>
             </div>
 
             {/* Quick actions row */}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
               <button
-                style={{ ...btnBase, background: 'rgba(245,158,11,0.1)', color: '#b45309', border: '1px solid rgba(245,158,11,0.3)', fontSize: 11 }}
+                style={{ ...btnBase, background: 'var(--orange-bg)', color: PAIR1, border: '1px solid var(--orange-border)', fontSize: 11 }}
                 disabled={matchState.status === 'finished' || sending}
                 onClick={() => handleQuickGame(1)}
               >
                 Quick Game P1
               </button>
               <button
-                style={{ ...btnBase, background: 'rgba(20,184,166,0.1)', color: '#0d9488', border: '1px solid rgba(20,184,166,0.3)', fontSize: 11 }}
+                style={{ ...btnBase, background: 'var(--men-bg)', color: PAIR2, border: '1px solid var(--men-border)', fontSize: 11 }}
                 disabled={matchState.status === 'finished' || sending}
                 onClick={() => handleQuickGame(2)}
               >
                 Quick Game P2
               </button>
               <button
-                style={{ ...btnBase, background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)', fontSize: 11 }}
+                style={{ ...btnBase, background: 'var(--live-bg)', color: 'var(--live-text)', border: '1px solid var(--live-border)', fontSize: 11 }}
                 disabled={history.length === 0 || sending}
                 onClick={handleUndo}
               >
@@ -739,12 +728,12 @@ export default function SimulatorTab() {
             {recentPoints.length > 0 && (
               <div style={{
                 padding: '6px 10px',
-                background: '#f9fafb',
-                border: '1px solid #e5e7eb',
-                borderRadius: 6,
+                background: 'var(--bg-card-2)',
+                border: '1px solid var(--border-card)',
+                borderRadius: 'var(--r-sm)',
                 marginBottom: 10,
               }}>
-                <div style={{ fontSize: 9, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                <div style={{ fontSize: 9, color: 'var(--text-4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
                   Point history (last {recentPoints.length})
                 </div>
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -752,11 +741,11 @@ export default function SimulatorTab() {
                     <span key={i} style={{
                       fontFamily: 'monospace',
                       fontSize: 11,
-                      background: 'white',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: 4,
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-card)',
+                      borderRadius: 'var(--r-sm)',
                       padding: '2px 6px',
-                      color: '#555',
+                      color: 'var(--text-2)',
                     }}>
                       {pt}
                     </span>
@@ -778,21 +767,21 @@ export default function SimulatorTab() {
               </div>
             )}
           </div>
-        </div>
+        </Section>
       )}
 
       {/* ── Purge modal ── */}
       {showPurgeModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 10000,
-          background: 'rgba(0,0,0,0.4)',
+          background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 24, width: 340, boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#111', marginBottom: 8 }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-card)', borderRadius: 'var(--r-lg)', padding: 24, width: 340, boxShadow: 'var(--shadow-lg)' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-1)', marginBottom: 8 }}>
               Purge All Simulated Data
             </div>
-            <div style={{ fontSize: 12, color: '#666', lineHeight: 1.5, marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', lineHeight: 1.5, marginBottom: 16 }}>
               This will permanently delete all simulated tournaments, matches, sets, and game data.
               Type <strong>PURGE</strong> to confirm.
             </div>
@@ -801,19 +790,16 @@ export default function SimulatorTab() {
               value={purgeText}
               onChange={e => setPurgeText(e.target.value)}
               placeholder="Type PURGE to confirm"
+              className="ui-input"
               style={{
-                width: '100%', padding: '8px 10px', borderRadius: 6,
-                border: `1px solid ${purgeText === 'PURGE' ? '#ef4444' : '#d1d5db'}`,
-                fontSize: 13, marginBottom: 14, boxSizing: 'border-box',
+                width: '100%', marginBottom: 14, boxSizing: 'border-box',
+                borderColor: purgeText === 'PURGE' ? 'var(--live)' : undefined,
               }}
             />
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                style={btnGray}
-                onClick={() => { setShowPurgeModal(false); setPurgeText('') }}
-              >
+              <Button size="sm" onClick={() => { setShowPurgeModal(false); setPurgeText('') }}>
                 Cancel
-              </button>
+              </Button>
               <button
                 style={{ ...btnRed, opacity: purgeText !== 'PURGE' || purging ? 0.5 : 1 }}
                 disabled={purgeText !== 'PURGE' || purging}
@@ -825,6 +811,7 @@ export default function SimulatorTab() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }

@@ -98,17 +98,17 @@ interface FetchResult {
 // ── Styles (match the rest of the ops dashboard) ────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-lg)',
   padding: 12,
 }
 
 const confidenceColor: Record<string, { bg: string; text: string; label: string }> = {
-  high: { bg: '#dcfce7', text: '#166534', label: 'HIGH' },
-  medium: { bg: '#fef3c7', text: '#92400e', label: 'MEDIUM' },
-  low: { bg: '#fee2e2', text: '#991b1b', label: 'LOW' },
-  none: { bg: '#f3f4f6', text: '#666', label: 'NO MATCH' },
+  high: { bg: 'var(--lime-bg)', text: 'var(--lime-text)', label: 'HIGH' },
+  medium: { bg: 'var(--orange-bg)', text: 'var(--orange-text)', label: 'MEDIUM' },
+  low: { bg: 'var(--live-bg)', text: 'var(--live-text)', label: 'LOW' },
+  none: { bg: 'var(--bg-card-2)', text: 'var(--text-3)', label: 'NO MATCH' },
 }
 
 // ── Props ────────────────────────────────────────────────────────────────
@@ -315,7 +315,7 @@ export default function ScheduleReviewPanel({
           marginBottom: 8,
           fontSize: 11,
           fontWeight: 600,
-          color: '#666',
+          color: 'var(--text-3)',
           textTransform: 'uppercase',
           letterSpacing: 0.4,
         }}
@@ -325,7 +325,7 @@ export default function ScheduleReviewPanel({
       </div>
 
       {loading && (
-        <div style={{ ...card, color: '#666', fontSize: 12 }}>
+        <div style={{ ...card, color: 'var(--text-3)', fontSize: 12 }}>
           Loading schedule review…
         </div>
       )}
@@ -334,9 +334,9 @@ export default function ScheduleReviewPanel({
         <div
           style={{
             ...card,
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            color: '#dc2626',
+            background: 'var(--live-bg)',
+            border: '1px solid var(--live-border)',
+            color: 'var(--live-text)',
             fontSize: 12,
           }}
         >
@@ -360,22 +360,22 @@ export default function ScheduleReviewPanel({
             <SummaryTile
               label="OOP"
               value={result.totalOopMatches}
-              color="#111"
+              color="var(--text-1)"
             />
-            <SummaryTile label="Matched" value={result.matched} color="#22c55e" />
+            <SummaryTile label="Matched" value={result.matched} color="var(--lime-text)" />
             <SummaryTile
               label="Unmatched"
               value={result.unmatched}
-              color={result.unmatched > 0 ? '#f59e0b' : '#999'}
+              color={result.unmatched > 0 ? 'var(--orange-text)' : 'var(--text-3)'}
             />
             {typeof result.needsUpdateCount === 'number' && (
               <SummaryTile
                 label="Needs Update"
                 value={result.needsUpdateCount}
-                color={result.needsUpdateCount > 0 ? '#1e40af' : '#999'}
+                color={result.needsUpdateCount > 0 ? 'var(--men)' : 'var(--text-3)'}
               />
             )}
-            <SummaryTile label="TZ" value={result.timezone} color="#333" monospace />
+            <SummaryTile label="TZ" value={result.timezone} color="var(--text-2)" monospace />
 
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               <button
@@ -384,11 +384,11 @@ export default function ScheduleReviewPanel({
                   padding: '4px 12px',
                   fontSize: 11,
                   fontWeight: 600,
-                  borderRadius: 4,
-                  border: '1px solid #d1d5db',
+                  borderRadius: 'var(--r-sm)',
+                  border: '1px solid var(--border-card)',
                   cursor: 'pointer',
-                  background: '#fff',
-                  color: '#333',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-2)',
                 }}
               >
                 {selected.size > 0 ? 'Deselect All' : 'Select All With Changes'}
@@ -400,11 +400,11 @@ export default function ScheduleReviewPanel({
                   padding: '4px 16px',
                   fontSize: 11,
                   fontWeight: 600,
-                  borderRadius: 4,
+                  borderRadius: 'var(--r-sm)',
                   border: 'none',
                   cursor: selected.size === 0 || applying ? 'default' : 'pointer',
-                  background: '#22c55e',
-                  color: '#fff',
+                  background: 'var(--lime)',
+                  color: 'var(--lime-ink)',
                   opacity: selected.size === 0 || applying ? 0.5 : 1,
                 }}
               >
@@ -419,9 +419,9 @@ export default function ScheduleReviewPanel({
               style={{
                 ...card,
                 marginBottom: 8,
-                background: applyResult.errors.length > 0 ? '#fef2f2' : '#f0fdf4',
+                background: applyResult.errors.length > 0 ? 'var(--live-bg)' : 'var(--lime-bg)',
                 border: `1px solid ${
-                  applyResult.errors.length > 0 ? '#fecaca' : '#86efac'
+                  applyResult.errors.length > 0 ? 'var(--live-border)' : 'var(--lime-border)'
                 }`,
               }}
             >
@@ -429,14 +429,14 @@ export default function ScheduleReviewPanel({
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: applyResult.errors.length > 0 ? '#dc2626' : '#166534',
+                  color: applyResult.errors.length > 0 ? 'var(--live-text)' : 'var(--lime-text)',
                 }}
               >
                 ✓ Updated: {applyResult.updated} | Skipped: {applyResult.skipped} |
                 Errors: {applyResult.errors.length}
               </div>
               {applyResult.errors.map((e, i) => (
-                <div key={i} style={{ fontSize: 11, color: '#dc2626' }}>
+                <div key={i} style={{ fontSize: 11, color: 'var(--live-text)' }}>
                   • {e}
                 </div>
               ))}
@@ -447,7 +447,7 @@ export default function ScheduleReviewPanel({
           <div style={{ ...card, padding: 0, overflow: 'auto' }}>
             <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ borderBottom: '2px solid #e5e7eb', background: '#f9fafb' }}>
+                <tr style={{ borderBottom: '2px solid var(--border-card)', background: 'var(--bg-card-2)' }}>
                   <th style={{ padding: '6px 8px', width: 30 }}>✓</th>
                   <th style={{ ...th }}>Court</th>
                   <th style={{ ...th }}>Time</th>
@@ -481,12 +481,12 @@ export default function ScheduleReviewPanel({
                     <tr
                       key={i}
                       style={{
-                        borderBottom: '1px solid #f3f4f6',
+                        borderBottom: '1px solid var(--border-inner)',
                         background: isSelected
-                          ? '#f0fdf4'
+                          ? 'var(--lime-bg)'
                           : i % 2 === 0
-                            ? '#fff'
-                            : '#f9fafb',
+                            ? 'var(--bg-card)'
+                            : 'var(--bg-card-2)',
                       }}
                     >
                       <td style={{ padding: '5px 8px', textAlign: 'center' }}>
@@ -502,7 +502,7 @@ export default function ScheduleReviewPanel({
                             }}
                           />
                         ) : m.dbHasTime ? (
-                          <span title="Already has time" style={{ color: '#999' }}>
+                          <span title="Already has time" style={{ color: 'var(--text-3)' }}>
                             —
                           </span>
                         ) : null}
@@ -511,7 +511,7 @@ export default function ScheduleReviewPanel({
                         style={{
                           padding: '5px 8px',
                           fontWeight: 500,
-                          color: '#333',
+                          color: 'var(--text-2)',
                           whiteSpace: 'nowrap',
                         }}
                       >
@@ -520,7 +520,7 @@ export default function ScheduleReviewPanel({
                       <td
                         style={{
                           padding: '5px 8px',
-                          color: '#3b82f6',
+                          color: 'var(--men)',
                           fontWeight: 600,
                           whiteSpace: 'nowrap',
                         }}
@@ -533,19 +533,19 @@ export default function ScheduleReviewPanel({
                             fontSize: 9,
                             fontWeight: 600,
                             padding: '1px 5px',
-                            borderRadius: 3,
+                            borderRadius: 'var(--r-xs)',
                             background:
                               m.category === 'men'
-                                ? '#dbeafe'
+                                ? 'var(--men-bg)'
                                 : m.category === 'women'
-                                  ? '#fce7f3'
-                                  : '#f3f4f6',
+                                  ? 'var(--women-bg)'
+                                  : 'var(--bg-card-2)',
                             color:
                               m.category === 'men'
-                                ? '#1e40af'
+                                ? 'var(--men)'
                                 : m.category === 'women'
-                                  ? '#9d174d'
-                                  : '#666',
+                                  ? 'var(--women)'
+                                  : 'var(--text-3)',
                           }}
                         >
                           {m.category === 'men'
@@ -559,7 +559,7 @@ export default function ScheduleReviewPanel({
                       <td
                         style={{
                           padding: '5px 8px',
-                          color: '#111',
+                          color: 'var(--text-1)',
                           maxWidth: 260,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -575,7 +575,7 @@ export default function ScheduleReviewPanel({
                       <td
                         style={{
                           padding: '5px 8px',
-                          color: '#111',
+                          color: 'var(--text-1)',
                           maxWidth: 260,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -606,14 +606,12 @@ export default function ScheduleReviewPanel({
                                     })(),
                               )
                             }}
+                            className="ui-input"
                             style={{
                               width: 110,
                               padding: '2px 4px',
                               fontSize: 9,
                               fontFamily: 'monospace',
-                              border: '1px solid #d1d5db',
-                              borderRadius: 3,
-                              color: '#333',
                             }}
                           />
                         ) : (
@@ -622,7 +620,7 @@ export default function ScheduleReviewPanel({
                               fontSize: 8,
                               fontWeight: 700,
                               padding: '2px 5px',
-                              borderRadius: 3,
+                              borderRadius: 'var(--r-xs)',
                               background: conf.bg,
                               color: conf.text,
                             }}
@@ -680,7 +678,7 @@ export default function ScheduleReviewPanel({
                                 fontSize: 9,
                                 fontWeight: 500,
                                 padding: '1px 5px',
-                                color: '#9ca3af',
+                                color: 'var(--text-3)',
                                 letterSpacing: '0.03em',
                               }}
                             >
@@ -689,7 +687,7 @@ export default function ScheduleReviewPanel({
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '5px 8px', color: '#666', fontSize: 10 }}>
+                      <td style={{ padding: '5px 8px', color: 'var(--text-3)', fontSize: 10 }}>
                         {m.dbMatchRound || '—'}
                       </td>
                       <td
@@ -697,7 +695,7 @@ export default function ScheduleReviewPanel({
                           padding: '5px 8px',
                           fontFamily: 'monospace',
                           fontSize: 10,
-                          color: '#555',
+                          color: 'var(--text-2)',
                         }}
                       >
                         {m.proposedScheduledAt
@@ -724,7 +722,7 @@ export default function ScheduleReviewPanel({
 const th: React.CSSProperties = {
   padding: '6px 8px',
   textAlign: 'left',
-  color: '#666',
+  color: 'var(--text-3)',
   fontWeight: 600,
 }
 
@@ -732,9 +730,9 @@ const chipBlue: React.CSSProperties = {
   fontSize: 9,
   fontWeight: 700,
   padding: '1px 5px',
-  borderRadius: 3,
-  background: '#dbeafe',
-  color: '#1e40af',
+  borderRadius: 'var(--r-xs)',
+  background: 'var(--men-bg)',
+  color: 'var(--men)',
   letterSpacing: '0.03em',
 }
 
@@ -742,9 +740,9 @@ const chipAmber: React.CSSProperties = {
   fontSize: 9,
   fontWeight: 700,
   padding: '1px 5px',
-  borderRadius: 3,
-  background: '#fef3c7',
-  color: '#92400e',
+  borderRadius: 'var(--r-xs)',
+  background: 'var(--orange-bg)',
+  color: 'var(--orange-text)',
   letterSpacing: '0.03em',
 }
 
@@ -752,9 +750,9 @@ const chipGreen: React.CSSProperties = {
   fontSize: 9,
   fontWeight: 700,
   padding: '1px 5px',
-  borderRadius: 3,
-  background: '#dcfce7',
-  color: '#166534',
+  borderRadius: 'var(--r-xs)',
+  background: 'var(--lime-bg)',
+  color: 'var(--lime-text)',
   letterSpacing: '0.03em',
 }
 
@@ -786,16 +784,16 @@ function TeamCell({
         <>
           <PlayerLink player={slot1} />
           {p1?.country && (
-            <span style={{ fontSize: 10, color: '#888' }}>({p1.country})</span>
+            <span style={{ fontSize: 10, color: 'var(--text-3)' }}>({p1.country})</span>
           )}
         </>
       )}
-      {slot1 && slot2 && <span style={{ color: '#9ca3af' }}>/</span>}
+      {slot1 && slot2 && <span style={{ color: 'var(--text-3)' }}>/</span>}
       {slot2 && (
         <>
           <PlayerLink player={slot2} />
           {p2?.country && (
-            <span style={{ fontSize: 10, color: '#888' }}>({p2.country})</span>
+            <span style={{ fontSize: 10, color: 'var(--text-3)' }}>({p2.country})</span>
           )}
         </>
       )}
@@ -819,7 +817,7 @@ function SummaryTile({
       <div
         style={{
           fontSize: 10,
-          color: '#999',
+          color: 'var(--text-3)',
           fontWeight: 600,
           textTransform: 'uppercase',
         }}

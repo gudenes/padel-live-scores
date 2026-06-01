@@ -63,7 +63,7 @@ const LEVEL_COLOR: Record<string, { bg: string; border: string; text: string }> 
   fip_bronze:  { bg: '#CD7F32', border: '#9F6325', text: '#fff' },   // bronze
   fip_other:   { bg: '#94A3B8', border: '#64748B', text: '#fff' },   // slate
 }
-const DEFAULT_COLOR = { bg: '#E5E7EB', border: '#9CA3AF', text: '#444' }
+const DEFAULT_COLOR = { bg: 'var(--bg-hover)', border: 'var(--border-strong)', text: 'var(--text-2)' }
 
 // ── Date helpers ─────────────────────────────────────────────────────────
 
@@ -202,8 +202,8 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
   if (assignments.length === 0) {
     return (
       <div style={{
-        background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8,
-        padding: 32, color: '#888', fontSize: 12, textAlign: 'center',
+        background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 'var(--r-lg)',
+        padding: 32, color: 'var(--text-3)', fontSize: 12, textAlign: 'center',
       }}>
         No tournaments in this window. Try widening the date range.
       </div>
@@ -212,9 +212,9 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
 
   return (
     <div style={{
-      background: '#fff',
-      border: '1px solid #e5e7eb',
-      borderRadius: 8,
+      background: 'var(--bg-card)',
+      border: '1px solid var(--border-card)',
+      borderRadius: 'var(--r-lg)',
       overflow: 'auto',
       // Bound height so a many-laned month doesn't push the page
       maxHeight: 600,
@@ -223,8 +223,8 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
         {/* Month header band */}
         <div style={{
           position: 'sticky', top: 0, zIndex: 2,
-          height: HEADER_HEIGHT, background: '#fafafa',
-          borderBottom: '1px solid #e5e7eb',
+          height: HEADER_HEIGHT, background: 'var(--bg-card-2)',
+          borderBottom: '1px solid var(--border-card)',
         }}>
           {monthBands.map((band, i) => (
             <div
@@ -235,14 +235,14 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 width: band.width,
                 top: 0,
                 height: HEADER_HEIGHT,
-                borderRight: '1px solid #e5e7eb',
+                borderRight: '1px solid var(--border-card)',
                 padding: '6px 8px',
                 fontSize: 11,
                 fontWeight: 700,
-                color: '#444',
+                color: 'var(--text-2)',
                 letterSpacing: '0.4px',
                 textTransform: 'uppercase',
-                background: i % 2 === 0 ? '#fafafa' : '#f5f6f8',
+                background: i % 2 === 0 ? 'var(--bg-card-2)' : 'var(--bg-hover)',
               }}
             >
               {band.label}
@@ -260,7 +260,7 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
               top: HEADER_HEIGHT,
               bottom: 0,
               width: 1,
-              background: '#f3f4f6',
+              background: 'var(--border-inner)',
               pointerEvents: 'none',
             }}
           />
@@ -276,7 +276,7 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 top: 0,
                 bottom: 0,
                 width: 2,
-                background: '#FF4655',
+                background: 'var(--live)',
                 pointerEvents: 'none',
                 zIndex: 1,
               }}
@@ -288,10 +288,10 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 top: HEADER_HEIGHT - 16,
                 fontSize: 9,
                 fontWeight: 800,
-                color: '#FF4655',
-                background: '#fff',
+                color: 'var(--live)',
+                background: 'var(--bg-card)',
                 padding: '1px 4px',
-                borderRadius: 2,
+                borderRadius: 'var(--r-xs)',
                 letterSpacing: '0.4px',
                 zIndex: 3,
               }}
@@ -343,7 +343,7 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 width,
                 height: LANE_HEIGHT,
                 background: color.bg,
-                border: needsAttention ? '2px solid #DC2626' : `1px solid ${color.border}`,
+                border: needsAttention ? '2px solid var(--live)' : `1px solid ${color.border}`,
                 borderRadius: 5,
                 color: color.text,
                 fontSize: 11,
@@ -360,8 +360,8 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
                 overflow: 'hidden',
                 opacity: isPast ? 0.45 : 1,
                 boxShadow: isHovered
-                  ? '0 4px 14px rgba(0,0,0,0.18)'
-                  : (needsAttention ? '0 0 0 2px rgba(220,38,38,0.18)' : 'none'),
+                  ? 'var(--shadow-md)'
+                  : (needsAttention ? '0 0 0 2px var(--live-border)' : 'none'),
                 transform: isHovered ? 'translateY(-1px)' : 'none',
                 transition: 'transform 100ms ease-out, box-shadow 100ms ease-out',
               }}
@@ -419,20 +419,20 @@ export function TournamentHoverCard({ t, x, y }: { t: TournamentLite; x: number;
         left,
         top,
         width: CARD_W,
-        background: '#fff',
-        border: '1px solid #e5e7eb',
-        borderRadius: 8,
-        boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-card)',
+        borderRadius: 'var(--r-lg)',
+        boxShadow: 'var(--shadow-lg)',
         padding: '12px 14px',
         fontSize: 11,
-        color: '#333',
+        color: 'var(--text-2)',
         zIndex: 1000,
         pointerEvents: 'none',
       }}
     >
       <div style={{
         display: 'flex', alignItems: 'center', gap: 6,
-        marginBottom: 8, fontSize: 13, fontWeight: 700, color: '#111',
+        marginBottom: 8, fontSize: 13, fontWeight: 700, color: 'var(--text-1)',
         lineHeight: 1.2,
       }}>
         <span style={{
@@ -444,15 +444,15 @@ export function TournamentHoverCard({ t, x, y }: { t: TournamentLite; x: number;
 
       <Row label="Dates" value={startEnd || '—'} />
       <Row label="Country" value={t.country ?? '—'} />
-      <Row label="Matches" value={t.matchCount > 0 ? String(t.matchCount) : 'none yet'} accent={t.matchCount > 0 ? '#16a34a' : '#dc2626'} />
+      <Row label="Matches" value={t.matchCount > 0 ? String(t.matchCount) : 'none yet'} accent={t.matchCount > 0 ? 'var(--lime-text)' : 'var(--live-text)'} />
       {prize && <Row label="Prize" value={prize} />}
       {drawSize && <Row label="Draw size" value={drawSize} />}
 
       {/* Capture-status mini-row */}
       <div style={{
         display: 'flex', gap: 10, marginTop: 8, paddingTop: 8,
-        borderTop: '1px solid #f3f4f6',
-        fontSize: 9, color: '#666',
+        borderTop: '1px solid var(--border-inner)',
+        fontSize: 9, color: 'var(--text-3)',
       }}>
         <CaptureBadge label="EL" present={Boolean(t.entryListCapturedAt)} />
         <CaptureBadge label="OOP" present={Boolean(t.oopCapturedAt)} />
@@ -460,7 +460,7 @@ export function TournamentHoverCard({ t, x, y }: { t: TournamentLite; x: number;
         <CaptureBadge label="RS" present={Boolean(t.resultsCapturedAt)} />
       </div>
 
-      <div style={{ marginTop: 8, fontSize: 9, color: '#999', textAlign: 'right', fontStyle: 'italic' }}>
+      <div style={{ marginTop: 8, fontSize: 9, color: 'var(--text-3)', textAlign: 'right', fontStyle: 'italic' }}>
         Click to open
       </div>
     </div>
@@ -470,8 +470,8 @@ export function TournamentHoverCard({ t, x, y }: { t: TournamentLite; x: number;
 function Row({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 3 }}>
-      <span style={{ color: '#999', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</span>
-      <span style={{ color: accent ?? '#222', fontWeight: 600 }}>{value}</span>
+      <span style={{ color: 'var(--text-3)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</span>
+      <span style={{ color: accent ?? 'var(--text-1)', fontWeight: 600 }}>{value}</span>
     </div>
   )
 }
@@ -480,13 +480,13 @@ function CaptureBadge({ label, present }: { label: string; present: boolean }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 3,
-      color: present ? '#16a34a' : '#dc2626', fontWeight: 700,
+      color: present ? 'var(--lime-text)' : 'var(--live-text)', fontWeight: 700,
       fontFamily: 'ui-monospace, SFMono-Regular, monospace',
     }}>
       <span style={{
         width: 6, height: 6, borderRadius: '50%',
-        background: present ? '#16a34a' : 'transparent',
-        border: present ? 'none' : '1.2px solid #dc2626',
+        background: present ? 'var(--lime)' : 'transparent',
+        border: present ? 'none' : '1.2px solid var(--live)',
       }} />
       {label}
     </span>

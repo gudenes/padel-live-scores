@@ -16,6 +16,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { PlayerLink } from '@/components/PlayerLink'
+import { Button } from '@/components/ui'
 import UnresolvedPartnerModal, { type UnresolvedPartnerContext } from './UnresolvedPartnerModal'
 
 // ── Types mirror the GET response from /api/ops/padelgod-entry-list ─────
@@ -104,20 +105,20 @@ function formatAgo(iso: string | null | undefined): string {
 function resolutionBadge(method: ResolutionMethod) {
   switch (method) {
     case 'fip_id':
-      return { label: 'FIP', bg: '#dcfce7', color: '#166534' }
+      return { label: 'FIP', bg: 'var(--lime-bg)', color: 'var(--lime-text)' }
     case 'name_exact':
-      return { label: 'NAME', bg: '#dbeafe', color: '#1e40af' }
+      return { label: 'NAME', bg: 'var(--men-bg)', color: 'var(--men)' }
     case 'none':
-      return { label: 'MISSING', bg: '#fee2e2', color: '#991b1b' }
+      return { label: 'MISSING', bg: 'var(--live-bg)', color: 'var(--live-text)' }
   }
 }
 
 // ── Component ────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-lg)',
   padding: 12,
 }
 
@@ -394,14 +395,14 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
     <div>
       {!embedded && (
         <div style={{ marginBottom: 20 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--text-1)' }}>
             Padelgod Entry Lists
           </h2>
-          <p style={{ fontSize: 12, color: '#666', marginTop: 4, maxWidth: 680 }}>
-            Read-only view of <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>padelgod.entry_list_snapshots</code>.
+          <p style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, maxWidth: 680 }}>
+            Read-only view of <code style={{ background: 'var(--bg-card-2)', padding: '1px 4px', borderRadius: 'var(--r-xs)' }}>padelgod.entry_list_snapshots</code>.
             Shows what the hourly padelgod entry-list-fetcher captured from
             matchscorerlive.com, with each player resolved against{' '}
-            <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>public.players</code>.
+            <code style={{ background: 'var(--bg-card-2)', padding: '1px 4px', borderRadius: 'var(--r-xs)' }}>public.players</code>.
             Use this to judge whether padelgod's view is complete enough to
             drive autonomous match creation.
           </p>
@@ -418,7 +419,7 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
                   display: 'block',
                   fontSize: 10,
                   fontWeight: 600,
-                  color: '#999',
+                  color: 'var(--text-3)',
                   textTransform: 'uppercase',
                   marginBottom: 4,
                 }}
@@ -429,15 +430,8 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
                 value={selectedTournamentId}
                 onChange={(e) => setSelectedTournamentId(e.target.value)}
                 disabled={loadingList || tournaments.length === 0}
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  fontSize: 13,
-                  border: '1px solid #d1d5db',
-                  borderRadius: 4,
-                  background: '#fff',
-                  color: '#333',
-                }}
+                className="ui-select"
+                style={{ width: '100%' }}
               >
                 {tournaments.length === 0 && <option value="">No snapshots found</option>}
                 {tournaments.map((t) => (
@@ -451,10 +445,10 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
             </div>
             {detail?.capturedAt && (
               <div>
-                <div style={{ fontSize: 10, fontWeight: 600, color: '#999', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-3)', textTransform: 'uppercase' }}>
                   Snapshot
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#333' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>
                   {formatAgo(detail.capturedAt)}
                 </div>
               </div>
@@ -466,19 +460,19 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
       {/* Embedded-mode freshness badge — since the parent picker doesn't know
           about per-subtab snapshot freshness, we show it inline. */}
       {embedded && detail?.capturedAt && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12, fontSize: 11, color: '#666' }}>
-          <span>Entry-list snapshot: <b style={{ color: '#333' }}>{formatAgo(detail.capturedAt)}</b></span>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12, fontSize: 11, color: 'var(--text-3)' }}>
+          <span>Entry-list snapshot: <b style={{ color: 'var(--text-2)' }}>{formatAgo(detail.capturedAt)}</b></span>
         </div>
       )}
 
       {error && (
-        <div style={{ ...card, background: '#fee2e2', borderColor: '#fecaca', color: '#991b1b', fontSize: 12, marginBottom: 16 }}>
+        <div style={{ ...card, background: 'var(--live-bg)', borderColor: 'var(--live-border)', color: 'var(--live-text)', fontSize: 12, marginBottom: 16 }}>
           ❌ {error}
         </div>
       )}
 
       {loadingDetail && (
-        <div style={{ ...card, color: '#666', fontSize: 12 }}>Loading snapshot…</div>
+        <div style={{ ...card, color: 'var(--text-3)', fontSize: 12 }}>Loading snapshot…</div>
       )}
 
       {/* ── FIP twin linker banner ──
@@ -518,8 +512,8 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
           the refresh completes. */}
       {resolveBanner && (
         <div style={{
-          margin: '12px 0', padding: 12, background: '#ecfdf5', border: '1px solid #a7f3d0',
-          borderRadius: 8, fontSize: 12, color: '#065f46',
+          margin: '12px 0', padding: 12, background: 'var(--lime-bg)', border: '1px solid var(--lime-border)',
+          borderRadius: 'var(--r-lg)', fontSize: 12, color: 'var(--lime-text)',
         }}>
           {resolveBanner}
         </div>
@@ -542,10 +536,10 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
                     fontSize: 12,
                     fontWeight: 600,
                     border: '1px solid',
-                    borderColor: isActive ? '#3b82f6' : '#d1d5db',
-                    background: isActive ? '#eff6ff' : '#fff',
-                    color: isActive ? '#1e40af' : '#555',
-                    borderRadius: 4,
+                    borderColor: isActive ? 'var(--lime-border)' : 'var(--border-card)',
+                    background: isActive ? 'var(--lime-bg)' : 'var(--bg-card)',
+                    color: isActive ? 'var(--lime-text)' : 'var(--text-2)',
+                    borderRadius: 'var(--r-sm)',
                     cursor: 'pointer',
                     textTransform: 'capitalize',
                   }}
@@ -561,7 +555,7 @@ export default function PadelgodEntryListTab({ tournamentId }: PadelgodEntryList
       )}
 
       {resolveBanner && (
-        <div style={{ marginTop: 12, padding: 10, background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 12, color: '#065f46' }}>
+        <div style={{ marginTop: 12, padding: 10, background: 'var(--lime-bg)', border: '1px solid var(--lime-border)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--lime-text)' }}>
           {resolveBanner}
         </div>
       )}
@@ -582,7 +576,7 @@ function CategoryTable({ block, onResolveClick }: { block: CategoryBlock; onReso
 
   if (teams.length === 0) {
     return (
-      <div style={{ ...card, color: '#666', fontSize: 13 }}>
+      <div style={{ ...card, color: 'var(--text-3)', fontSize: 13 }}>
         No {category} entries in this snapshot.
       </div>
     )
@@ -600,34 +594,34 @@ function CategoryTable({ block, onResolveClick }: { block: CategoryBlock; onReso
     <div>
       {/* Stats bar */}
       <div style={{ ...card, display: 'flex', gap: 24, alignItems: 'center', marginBottom: 12 }}>
-        <StatTile label="Teams" value={`${stats.teamsTotal}`} color="#111" />
+        <StatTile label="Teams" value={`${stats.teamsTotal}`} color="var(--text-1)" />
         {qualifyingTeams.length > 0 && (
           <StatTile
             label="MD / Q"
             value={`${mainDrawTeams.length} / ${qualifyingTeams.length}`}
-            color="#111"
+            color="var(--text-1)"
           />
         )}
         <StatTile
           label="Fully Resolved"
           value={`${stats.teamsFullyResolved} / ${stats.teamsTotal}`}
-          color={stats.teamsFullyResolved === stats.teamsTotal ? '#166534' : '#92400e'}
+          color={stats.teamsFullyResolved === stats.teamsTotal ? 'var(--lime-text)' : 'var(--orange-text)'}
         />
-        <StatTile label="Players" value={`${stats.playersTotal}`} color="#111" />
+        <StatTile label="Players" value={`${stats.playersTotal}`} color="var(--text-1)" />
         <StatTile
           label="Resolved"
           value={`${stats.playersResolved} (${resolvedPct}%)`}
-          color={resolvedPct === 100 ? '#166534' : resolvedPct > 80 ? '#1e40af' : '#92400e'}
+          color={resolvedPct === 100 ? 'var(--lime-text)' : resolvedPct > 80 ? 'var(--men)' : 'var(--orange-text)'}
         />
         <StatTile
           label="Have FIP ID"
           value={`${stats.playersWithFipId} (${fipIdPct}%)`}
-          color={fipIdPct === 100 ? '#166534' : '#92400e'}
+          color={fipIdPct === 100 ? 'var(--lime-text)' : 'var(--orange-text)'}
         />
         <StatTile
           label="Missing From DB"
           value={`${stats.playersMissingFromDb}`}
-          color={stats.playersMissingFromDb === 0 ? '#999' : '#991b1b'}
+          color={stats.playersMissingFromDb === 0 ? 'var(--text-3)' : 'var(--live-text)'}
         />
       </div>
 
@@ -653,16 +647,16 @@ function DrawSection({ label, teams, onResolveClick }: { label: string; teams: E
         fontWeight: 700,
         textTransform: 'uppercase',
         letterSpacing: 0.4,
-        background: isMain ? '#d1fae5' : '#fef3c7',
-        color: isMain ? '#065f46' : '#92400e',
-        borderRadius: 4,
+        background: isMain ? 'var(--lime-bg)' : 'var(--orange-bg)',
+        color: isMain ? 'var(--lime-text)' : 'var(--orange-text)',
+        borderRadius: 'var(--r-sm)',
       }}>
         {label} · {teams.length} {teams.length === 1 ? 'team' : 'teams'}
       </div>
       <div style={{ ...card, padding: 0, overflow: 'auto' }}>
         <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #e5e7eb', background: '#f9fafb' }}>
+            <tr style={{ borderBottom: '2px solid var(--border-card)', background: 'var(--bg-card-2)' }}>
               <th style={thStyle}>Seed</th>
               <th style={thStyle}>Player 1</th>
               <th style={thStyle}>Player 2</th>
@@ -676,8 +670,8 @@ function DrawSection({ label, teams, onResolveClick }: { label: string; teams: E
               <tr
                 key={i}
                 style={{
-                  borderBottom: '1px solid #f3f4f6',
-                  background: i % 2 === 0 ? '#fff' : '#f9fafb',
+                  borderBottom: '1px solid var(--border-inner)',
+                  background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-2)',
                 }}
               >
                 <td style={tdStyle}>
@@ -685,7 +679,7 @@ function DrawSection({ label, teams, onResolveClick }: { label: string; teams: E
                     style={{
                       fontFamily: 'monospace',
                       fontWeight: 600,
-                      color: t.seed ? '#111' : '#999',
+                      color: t.seed ? 'var(--text-1)' : 'var(--text-3)',
                     }}
                   >
                     {t.seed ?? '—'}
@@ -695,13 +689,13 @@ function DrawSection({ label, teams, onResolveClick }: { label: string; teams: E
                   <PlayerCell p={t.player1} />
                 </td>
                 <td style={tdStyle}>
-                  {t.player2 ? <PlayerCell p={t.player2} onResolveClick={onResolveClick} /> : <span style={{ color: '#ccc' }}>—</span>}
+                  {t.player2 ? <PlayerCell p={t.player2} onResolveClick={onResolveClick} /> : <span style={{ color: 'var(--text-4)' }}>—</span>}
                 </td>
-                <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: '#555' }}>
+                <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 11, color: 'var(--text-2)' }}>
                   {t.player1.country ?? '—'}
                   {t.player2 ? ` / ${t.player2.country ?? '—'}` : ''}
                 </td>
-                <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 10, color: '#777' }}>
+                <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 10, color: 'var(--text-3)' }}>
                   {t.player1.fipId ? t.player1.fipId.replace(/^fip-/, '') : '—'}
                   {t.player2 ? ` / ${t.player2.fipId ? t.player2.fipId.replace(/^fip-/, '') : '—'}` : ''}
                 </td>
@@ -724,28 +718,28 @@ function PlayerCell({ p, onResolveClick }: { p: EntryPlayer; onResolveClick?: (p
   if (p.isGhostPartner) {
     return (
       <div>
-        <div style={{ fontWeight: 500, color: '#991b1b', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontWeight: 500, color: 'var(--live-text)', display: 'flex', alignItems: 'center', gap: 6 }}>
           {p.name}
           <button
             type="button"
             onClick={() => onResolveClick?.(p)}
             title="Click to link to existing player or create new"
             style={{
-              fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3,
-              background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca',
+              fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 'var(--r-xs)',
+              background: 'var(--live-bg)', color: 'var(--live-text)', border: '1px solid var(--live-border)',
               cursor: 'pointer', letterSpacing: '0.03em',
             }}
           >
             RESOLVE
           </button>
         </div>
-        <div style={{ fontSize: 10, color: '#666' }}>not in DB / FIP search</div>
+        <div style={{ fontSize: 10, color: 'var(--text-3)' }}>not in DB / FIP search</div>
       </div>
     )
   }
   return (
     <div>
-      <div style={{ fontWeight: 500, color: '#111' }}>
+      <div style={{ fontWeight: 500, color: 'var(--text-1)' }}>
         <PlayerLink
           player={{
             id: p.resolvedPlayerId,
@@ -759,7 +753,7 @@ function PlayerCell({ p, onResolveClick }: { p: EntryPlayer; onResolveClick?: (p
         />
       </div>
       {p.resolvedPlayerId && p.resolvedPlayerName && p.resolvedPlayerName !== p.name && (
-        <div style={{ fontSize: 10, color: '#666' }}>(scraped as: {p.name})</div>
+        <div style={{ fontSize: 10, color: 'var(--text-3)' }}>(scraped as: {p.name})</div>
       )}
     </div>
   )
@@ -794,7 +788,7 @@ function ResolutionChip({ p }: { p: EntryPlayer }) {
 function StatTile({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div>
-      <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>
+      <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase' }}>
         {label}
       </div>
       <div style={{ fontSize: 16, fontWeight: 700, color }}>{value}</div>
@@ -805,7 +799,7 @@ function StatTile({ label, value, color }: { label: string; value: string; color
 const thStyle: React.CSSProperties = {
   padding: '6px 10px',
   textAlign: 'left',
-  color: '#666',
+  color: 'var(--text-3)',
   fontWeight: 600,
   fontSize: 11,
   textTransform: 'uppercase',
@@ -814,7 +808,7 @@ const thStyle: React.CSSProperties = {
 
 const tdStyle: React.CSSProperties = {
   padding: '6px 10px',
-  color: '#333',
+  color: 'var(--text-1)',
   verticalAlign: 'top',
 }
 
@@ -837,17 +831,17 @@ function FipTwinBanner({
 }) {
   const confidenceColor =
     twin.confidence === 'high'
-      ? { bg: '#ecfdf5', border: '#a7f3d0', pill: '#065f46', pillBg: '#d1fae5' }
+      ? { bg: 'var(--lime-bg)', border: 'var(--lime-border)', pill: 'var(--lime-text)', pillBg: 'var(--lime-bg-2)' }
       : twin.confidence === 'medium'
-        ? { bg: '#eff6ff', border: '#bfdbfe', pill: '#1e40af', pillBg: '#dbeafe' }
-        : { bg: '#fffbeb', border: '#fde68a', pill: '#92400e', pillBg: '#fef3c7' }
+        ? { bg: 'var(--men-bg)', border: 'var(--men-border)', pill: 'var(--men)', pillBg: 'var(--men-bg)' }
+        : { bg: 'var(--orange-bg)', border: 'var(--orange-border)', pill: 'var(--orange-text)', pillBg: 'var(--orange-bg)' }
 
   return (
     <div
       style={{
         background: confidenceColor.bg,
         border: `1px solid ${confidenceColor.border}`,
-        borderRadius: 8,
+        borderRadius: 'var(--r-lg)',
         padding: 14,
         marginBottom: 12,
       }}
@@ -855,7 +849,7 @@ function FipTwinBanner({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-1)' }}>
               🔗 FIP ID available from padelgod discovery
             </span>
             <span
@@ -865,7 +859,7 @@ function FipTwinBanner({
                 color: confidenceColor.pill,
                 background: confidenceColor.pillBg,
                 padding: '2px 6px',
-                borderRadius: 3,
+                borderRadius: 'var(--r-xs)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
               }}
@@ -873,10 +867,10 @@ function FipTwinBanner({
               {twin.confidence} confidence
             </span>
           </div>
-          <div style={{ fontSize: 11, color: '#444', lineHeight: 1.5 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.5 }}>
             Padelgod&apos;s tournament-discovery worker captured this event on
             padelfip.com as{' '}
-            <code style={{ background: '#fff', padding: '1px 5px', borderRadius: 3, border: '1px solid #eee' }}>
+            <code style={{ background: 'var(--bg-card)', padding: '1px 5px', borderRadius: 'var(--r-xs)', border: '1px solid var(--border-card)' }}>
               {twin.candidate.fip_id}
             </code>
             {' '}(
@@ -884,41 +878,28 @@ function FipTwinBanner({
               href={`https://www.padelfip.com/events/${twin.candidate.slug ?? twin.candidate.fip_id}/`}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: '#3b82f6', textDecoration: 'underline' }}
+              style={{ color: 'var(--lime-text)', textDecoration: 'underline' }}
             >
               padelfip.com ↗
             </a>
             ) but the FIP id isn&apos;t linked to this tournament row yet. Linking enables the FIP PDF entry-list seeding below.
           </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 6, fontFamily: 'monospace' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 6, fontFamily: 'monospace' }}>
             Matched on: {twin.reasons.join(' · ')}
           </div>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 4, fontStyle: 'italic' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4, fontStyle: 'italic' }}>
             Linking will clear the orphan row&apos;s fip_id + slug (releases UNIQUE
             constraint) then copy them here. Non-atomic but safe to retry.
           </div>
         </div>
         <div style={{ flexShrink: 0 }}>
-          <button
-            onClick={onLink}
-            disabled={linking}
-            style={{
-              padding: '6px 14px',
-              fontSize: 12,
-              fontWeight: 700,
-              background: linking ? '#d1d5db' : '#111',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 4,
-              cursor: linking ? 'wait' : 'pointer',
-            }}
-          >
+          <Button variant="primary" size="sm" onClick={onLink} disabled={linking}>
             {linking ? 'Linking…' : 'Link fip_id'}
-          </button>
+          </Button>
         </div>
       </div>
       {error && (
-        <div style={{ marginTop: 10, padding: 8, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 4, fontSize: 11, color: '#991b1b' }}>
+        <div style={{ marginTop: 10, padding: 8, background: 'var(--live-bg)', border: '1px solid var(--live-border)', borderRadius: 'var(--r-sm)', fontSize: 11, color: 'var(--live-text)' }}>
           ❌ {error}
         </div>
       )}
@@ -959,8 +940,8 @@ function FipSeedPanel({
   // the common path quiet.
   if (!expanded) {
     return (
-      <div style={{ marginBottom: 12, fontSize: 11, color: '#666' }}>
-        FIP id detected (<code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: 3 }}>{tournament.fip_id}</code>){' '}
+      <div style={{ marginBottom: 12, fontSize: 11, color: 'var(--text-3)' }}>
+        FIP id detected (<code style={{ background: 'var(--bg-card-2)', padding: '1px 4px', borderRadius: 'var(--r-xs)' }}>{tournament.fip_id}</code>){' '}
         —{' '}
         <button
           onClick={() => setExpanded(true)}
@@ -968,7 +949,7 @@ function FipSeedPanel({
             background: 'none',
             border: 'none',
             padding: 0,
-            color: '#3b82f6',
+            color: 'var(--lime-text)',
             fontSize: 11,
             cursor: 'pointer',
             textDecoration: 'underline',
@@ -983,22 +964,22 @@ function FipSeedPanel({
   return (
     <div
       style={{
-        background: '#fffbeb',
-        border: '1px solid #fde68a',
-        borderRadius: 8,
+        background: 'var(--orange-bg)',
+        border: '1px solid var(--orange-border)',
+        borderRadius: 'var(--r-lg)',
         padding: 14,
         marginBottom: 12,
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange-text)', marginBottom: 4 }}>
             {hasExistingSnapshot ? 'Re-seed entry list from FIP PDF' : 'No entry list yet — seed from FIP PDF?'}
           </div>
-          <div style={{ fontSize: 11, color: '#78350f', lineHeight: 1.5 }}>
-            This tournament has a FIP id (<code style={{ background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>{tournament.fip_id}</code>),
+          <div style={{ fontSize: 11, color: 'var(--text-2)', lineHeight: 1.5 }}>
+            This tournament has a FIP id (<code style={{ background: 'var(--orange-bg)', padding: '1px 4px', borderRadius: 'var(--r-xs)' }}>{tournament.fip_id}</code>),
             so we can scrape the entry-list PDF from padelfip.com and write
-            it into <code style={{ background: '#fef3c7', padding: '1px 4px', borderRadius: 3 }}>padelgod.entry_list_snapshots</code> directly.
+            it into <code style={{ background: 'var(--orange-bg)', padding: '1px 4px', borderRadius: 'var(--r-xs)' }}>padelgod.entry_list_snapshots</code> directly.
             Useful when Crionet&apos;s widget returns &quot;Entry list coming soon&quot; but padelfip.com already has the PDF published.
           </div>
         </div>
@@ -1010,10 +991,10 @@ function FipSeedPanel({
               padding: '6px 14px',
               fontSize: 12,
               fontWeight: 700,
-              background: seeding ? '#fde68a' : '#f59e0b',
-              color: seeding ? '#92400e' : '#fff',
+              background: seeding ? 'var(--orange-bg)' : 'var(--orange)',
+              color: seeding ? 'var(--orange-text)' : '#fff',
               border: 'none',
-              borderRadius: 4,
+              borderRadius: 'var(--r-sm)',
               cursor: seeding ? 'wait' : 'pointer',
             }}
           >
@@ -1026,9 +1007,9 @@ function FipSeedPanel({
                 padding: '6px 10px',
                 fontSize: 12,
                 background: 'transparent',
-                color: '#92400e',
-                border: '1px solid #fde68a',
-                borderRadius: 4,
+                color: 'var(--orange-text)',
+                border: '1px solid var(--orange-border)',
+                borderRadius: 'var(--r-sm)',
                 cursor: 'pointer',
               }}
             >
@@ -1044,11 +1025,11 @@ function FipSeedPanel({
           style={{
             marginTop: 12,
             padding: 10,
-            borderRadius: 6,
+            borderRadius: 'var(--r-sm)',
             fontSize: 11,
-            background: result.ok ? '#ecfdf5' : '#fee2e2',
-            border: `1px solid ${result.ok ? '#a7f3d0' : '#fecaca'}`,
-            color: result.ok ? '#065f46' : '#991b1b',
+            background: result.ok ? 'var(--lime-bg)' : 'var(--live-bg)',
+            border: `1px solid ${result.ok ? 'var(--lime-border)' : 'var(--live-border)'}`,
+            color: result.ok ? 'var(--lime-text)' : 'var(--live-text)',
           }}
         >
           {result.ok ? (
@@ -1058,7 +1039,7 @@ function FipSeedPanel({
                 {result.playersInserted ? ` · ${result.playersInserted} new players created` : ''}
               </div>
               {result.stats && (
-                <div style={{ color: '#065f46', fontSize: 10 }}>
+                <div style={{ color: 'var(--lime-text)', fontSize: 10 }}>
                   Teams parsed: {result.stats.teamsParsed ?? 0}
                   {' · '}DB matches: {result.stats.dbMatches ?? 0}
                   {' · '}FIP-search matches: {result.stats.fipSearchMatches ?? 0}
@@ -1075,7 +1056,7 @@ function FipSeedPanel({
                     {result.unresolved.map((u, i) => (
                       <li key={i}>
                         <span style={{ textTransform: 'capitalize' }}>{u.category}</span>:{' '}
-                        <b>{u.name}</b> <span style={{ color: '#666' }}>({u.reason})</span>
+                        <b>{u.name}</b> <span style={{ color: 'var(--text-3)' }}>({u.reason})</span>
                       </li>
                     ))}
                   </ul>
