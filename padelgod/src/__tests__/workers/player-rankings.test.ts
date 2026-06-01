@@ -661,4 +661,39 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     const existing = state.players.find(p => p.fip_id === 'P000001')!;
     expect(existing.ranking_date).not.toBe('2026-04-01T00:00:00Z');
   });
+
+  it("dates rankings from FIP's published page date, not the queried calendar week", async () => {
+    // FIP's rankings page advertises a published date that is NOT the current
+    // week — this is the Monday-publish race: FIP's load-more API transiently
+    // serves the not-yet-official current week, but the page still shows the
+    // last finalised ranking. We must trust the page date.
+    setHttpResponse('fip-rankings', '<div class="ranking__date"><svg></svg>18/05/2026</span></div>');
+
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 1 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 21000 }),
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000 }),
+    ]);
+
+    await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    // players.ranking_date reflects FIP's published date (2026-05-18), even
+    // though the worker runs on a later calendar week. Race runs last and must
+    // not clobber it back to the current week.
+    const p1 = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(p1.ranking_date?.slice(0, 10)).toBe('2026-05-18');
+
+    // Snapshots key off the same FIP date (Monday 2026-05-18).
+    const officialSnap = state.snapshots.find(s => s.type === 'official' && s.gender === 'men')!;
+    expect(officialSnap.ranking_date).toBe('2026-05-18');
+    const raceSnap = state.snapshots.find(s => s.type === 'race' && s.gender === 'men')!;
+    expect(raceSnap.ranking_date).toBe('2026-05-18');
+  });
 });
