@@ -361,10 +361,14 @@ export default function V3RankingPage() {
       setPlayers(data ?? [])
 
       if (data && data.length > 0) {
-        const latest = data.reduce((a, b) =>
-          ((a as any).ranking_date ?? a.updated_at ?? '') > ((b as any).ranking_date ?? b.updated_at ?? '') ? a : b
-        )
-        setUpdatedAt((latest as any).ranking_date ?? latest.updated_at)
+        // The displayed date must be FIP's ranking publish date (players.ranking_date),
+        // never updated_at (the sync timestamp) — otherwise the label drifts to "today"
+        // on every worker run even though the standings are last week's.
+        const latestRankingDate = data.reduce<string | null>((max, p) => {
+          const d = (p as any).ranking_date as string | null
+          return d && (!max || d > max) ? d : max
+        }, null)
+        setUpdatedAt(latestRankingDate)
       }
     } catch (e) {
       console.error('[V3 Ranking] load error:', e)
