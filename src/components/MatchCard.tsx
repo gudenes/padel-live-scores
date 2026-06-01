@@ -648,7 +648,7 @@ export function MatchCard({
                       </div>
                     </div>
                     <span style={{
-                      fontSize: 13, fontWeight: isWinner ? 700 : 600,
+                      fontSize: 11, fontWeight: isWinner ? 700 : 600,
                       color: isLoser ? '#B0B5BE' : '#fff',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{pair}</span>
