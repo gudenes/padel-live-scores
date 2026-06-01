@@ -3,6 +3,7 @@ import {
   shouldAutoAsk,
   MIN_OPENS,
   APP_OPENS_THRESHOLD,
+  COOLDOWN_DAYS,
   MAX_ASKS,
   type ReviewGateState,
 } from '@/lib/app-review'
@@ -47,14 +48,23 @@ describe('shouldAutoAsk', () => {
   })
 
   it('does not ask within the cooldown window', () => {
-    const tenDaysAgo = new Date('2026-05-22T12:00:00Z').toISOString()
-    const state = { ...base, appOpens: APP_OPENS_THRESHOLD, lastAskedAt: tenDaysAgo }
+    const withinWindow = new Date(
+      NOW.getTime() - (COOLDOWN_DAYS - 1) * 24 * 60 * 60 * 1000,
+    ).toISOString()
+    const state = { ...base, appOpens: APP_OPENS_THRESHOLD, lastAskedAt: withinWindow }
     expect(shouldAutoAsk(state, NOW, 'favorite', true)).toBe(false)
   })
 
   it('asks again after the cooldown window elapses', () => {
-    const seventyDaysAgo = new Date('2026-03-23T12:00:00Z').toISOString()
-    const state = { ...base, appOpens: APP_OPENS_THRESHOLD, lastAskedAt: seventyDaysAgo }
+    const outsideWindow = new Date(
+      NOW.getTime() - (COOLDOWN_DAYS + 10) * 24 * 60 * 60 * 1000,
+    ).toISOString()
+    const state = { ...base, appOpens: APP_OPENS_THRESHOLD, lastAskedAt: outsideWindow }
+    expect(shouldAutoAsk(state, NOW, 'favorite', true)).toBe(true)
+  })
+
+  it('asks when lastAskedAt is a corrupt string', () => {
+    const state = { ...base, appOpens: APP_OPENS_THRESHOLD, lastAskedAt: 'not-a-date' }
     expect(shouldAutoAsk(state, NOW, 'favorite', true)).toBe(true)
   })
 })
