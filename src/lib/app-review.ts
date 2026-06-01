@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core'
+
 // src/lib/app-review.ts
 // In-app "rate the app" logic. The native review overlay is rate-limited
 // by the OS (Apple ~3/user/year, Google has its own quota) and silently
@@ -39,4 +41,84 @@ export function shouldAutoAsk(
     if (!Number.isNaN(last) && now.getTime() - last < cooldownMs) return false
   }
   return true
+}
+
+const GATE_KEY = 'pn_review_gate'
+const DEFAULT_STATE: ReviewGateState = { appOpens: 0, askCount: 0, lastAskedAt: null }
+
+// Store identifiers.
+const APP_STORE_ID = '6770290540'
+const ANDROID_PACKAGE = 'com.padelnachos.app'
+
+function readGate(): ReviewGateState {
+  if (typeof window === 'undefined') return { ...DEFAULT_STATE }
+  try {
+    const raw = window.localStorage.getItem(GATE_KEY)
+    if (!raw) return { ...DEFAULT_STATE }
+    const parsed = JSON.parse(raw) as Partial<ReviewGateState>
+    return {
+      appOpens: typeof parsed.appOpens === 'number' ? parsed.appOpens : 0,
+      askCount: typeof parsed.askCount === 'number' ? parsed.askCount : 0,
+      lastAskedAt: typeof parsed.lastAskedAt === 'string' ? parsed.lastAskedAt : null,
+    }
+  } catch {
+    return { ...DEFAULT_STATE }
+  }
+}
+
+function writeGate(state: ReviewGateState): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(GATE_KEY, JSON.stringify(state))
+  } catch {
+    /* private mode / quota — non-fatal */
+  }
+}
+
+/** Count one native app open. Call once per boot. */
+export function recordAppOpen(): void {
+  const state = readGate()
+  writeGate({ ...state, appOpens: state.appOpens + 1 })
+}
+
+// Dynamic import keeps the native-only plugin out of the web bundle and
+// out of Vitest's resolution graph — mirrors native-init.ts's Firebase
+// lazy-import pattern.
+async function fireNativeReview(): Promise<void> {
+  const { InAppReview } = await import('@capacitor-community/in-app-review')
+  await InAppReview.requestReview()
+}
+
+/** Gated automatic path. No-ops unless shouldAutoAsk allows it. */
+export async function requestReviewForReason(reason: ReviewReason): Promise<void> {
+  const isNative = Capacitor.isNativePlatform()
+  const state = readGate()
+  if (!shouldAutoAsk(state, new Date(), reason, isNative)) return
+  try {
+    await fireNativeReview()
+    writeGate({
+      ...state,
+      askCount: state.askCount + 1,
+      lastAskedAt: new Date().toISOString(),
+    })
+  } catch (err) {
+    console.warn('[app-review] requestReview failed', err)
+  }
+}
+
+function storeUrl(): string {
+  const platform = Capacitor.getPlatform()
+  const ios = `https://apps.apple.com/app/id${APP_STORE_ID}?action=write-review`
+  const android = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`
+  if (platform === 'ios') return ios
+  if (platform === 'android') return android
+  // Web: best-effort UA sniff so desktop/mobile web land on a sane store.
+  if (typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent)) return android
+  return ios
+}
+
+/** Manual path (Settings button). Always opens the store listing. */
+export function openRateFlow(): void {
+  if (typeof window === 'undefined') return
+  window.open(storeUrl(), '_blank', 'noopener,noreferrer')
 }
