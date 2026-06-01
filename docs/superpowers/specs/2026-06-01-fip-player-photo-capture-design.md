@@ -144,9 +144,16 @@ Two files change:
    - Add `photo_url: string | null` to the `ProfileHeaderPlayer` interface
      (props flow through `PlayerProfile.tsx`, where
      `PlayerProfileData extends ProfileHeaderPlayer`).
-   - Render the high-res photo at a larger size than the current 96×96 avatar,
-     themed with CSS tokens.
-   - Fallback chain: `photo_url → avatar_url → initials`.
+   - **Layout: Option B (side photo card).** Keep the existing 96×96 circular
+     avatar (with its `avatar_url → initials` fallback) exactly where it is on
+     the left of the header. When `photo_url` is present, add a separate
+     portrait card (~150×188, rounded, 1px `var(--border-card)`,
+     `var(--bg-hover)` placeholder) on the **right** of the header row, after
+     the identity column.
+   - The header row becomes: `[avatar 96] [identity column, flex-1] [photo card]`.
+   - When `photo_url` is null, the photo card is **omitted entirely** (no
+     duplicate of the avatar) — the header renders exactly as it does today.
+   - Themed with CSS tokens; no new Tailwind color classes.
 
 ## Data flow
 
@@ -158,7 +165,9 @@ FIP profile page (HTML, already fetched by profile worker)
        downloads → uploads to avatars/{playerId}-full.{ext}
        → updates players.photo_url to Supabase public URL
   → admin aggregator SELECT includes photo_url
-  → ProfileHeader renders photo_url (fallback avatar_url → initials)
+  → ProfileHeader: 96px avatar (avatar_url → initials) unchanged on the left;
+    a separate portrait card renders photo_url on the right when present
+    (omitted when null)
 
 Backfill: same flow, driven over players WHERE profile_url IS NOT NULL
           AND photo_url IS NULL.
@@ -208,4 +217,4 @@ Backfill: same flow, driven over players WHERE profile_url IS NOT NULL
 | `padelgod/src/workers/player-profile.ts` | Write + rehost photo |
 | Backfill trigger (padelgod or thin admin route) | Batched backfill |
 | `apps/ops/src/app/api/internal/player/[id]/route.ts` | Add `photo_url` to `PLAYER_COLUMNS` |
-| `apps/ops/src/app/(app)/players/[id]/_components/ProfileHeader.tsx` | Render high-res photo (token-themed) + interface field |
+| `apps/ops/src/app/(app)/players/[id]/_components/ProfileHeader.tsx` | Option B side photo card (token-themed) + interface field |
