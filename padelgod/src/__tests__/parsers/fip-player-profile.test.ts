@@ -188,27 +188,26 @@ describe('parseFipPlayerProfile', () => {
     ).heightCm).toBeNull();
   });
 
-  it('extracts photoUrl from the Yoast #primaryimage ImageObject', () => {
-    const html = `<script type="application/ld+json">{
-      "@context":"https://schema.org",
-      "@graph":[
-        {"@type":["WebPage","ProfilePage"],"mainEntity":{"@type":"Person","name":"Arturo Coello"}},
-        {"@type":"ImageObject","@id":"https://www.padelfip.com/player/arturo-coello/#primaryimage","url":"https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png","contentUrl":"https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png","width":500,"height":500}
-      ]
-    }</script>`;
+  it('extracts the portrait photo from the alt="generic" img (real upload)', () => {
+    const html = `<img width="258" height="400" src="https://www.padelfip.com/wp-content/uploads/2023/02/Coello-p.png" alt="generic">`;
     expect(parseFipPlayerProfile(html).photoUrl).toBe(
-      'https://www.padelfip.com/wp-content/uploads/2023/02/Coello-c.png',
+      'https://www.padelfip.com/wp-content/uploads/2023/02/Coello-p.png',
     );
   });
 
-  it('falls back to og:image when no JSON-LD primary image is present', () => {
-    const html = `<html><head><meta property="og:image" content="https://www.padelfip.com/wp-content/uploads/2023/02/TAPIA.png" /></head><body></body></html>`;
+  it('absolutizes a root-relative portrait upload URL', () => {
+    const html = `<img width="258" height="400" src="/wp-content/uploads/2023/02/TAPIA-1.png" alt="generic">`;
     expect(parseFipPlayerProfile(html).photoUrl).toBe(
-      'https://www.padelfip.com/wp-content/uploads/2023/02/TAPIA.png',
+      'https://www.padelfip.com/wp-content/uploads/2023/02/TAPIA-1.png',
     );
   });
 
-  it('returns null photoUrl when no image source is present', () => {
+  it('returns null when the portrait is the FIP placeholder (no real photo)', () => {
+    const html = `<img width="258" height="400" src="/wp-content/themes/padelfiptheme/assets/img/placeholder.png" alt="generic">`;
+    expect(parseFipPlayerProfile(html).photoUrl).toBeNull();
+  });
+
+  it('returns null photoUrl when there is no portrait img at all', () => {
     expect(parseFipPlayerProfile('<html><body></body></html>').photoUrl).toBeNull();
   });
 });

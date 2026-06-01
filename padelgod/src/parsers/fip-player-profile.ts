@@ -21,13 +21,12 @@ export interface ParsedPlayerProfile {
    */
   side: string | null;
   /**
-   * High-res player photo URL from the FIP page. Source priority:
-   *   1. Yoast JSON-LD ImageObject whose @id ends with '#primaryimage'
-   *      (full-res headshot — present on every player page).
-   *   2. <meta property="og:image"> as a fallback.
-   * null when neither is present. Note: FIP's per-player filenames are
-   * inconsistent (Coello-c.png, TAPIA.png, …) so we do NOT pattern-match
-   * filenames — the JSON-LD/og source is the stable signal.
+   * Player PORTRAIT photo URL from the FIP page — the `-p` style full-figure
+   * image in the `<img alt="generic">` slot (e.g. Coello-p.png, TAPIA-1.png).
+   * Captured ONLY when it's a real upload under /wp-content/uploads/. Players
+   * without a photo get FIP's generic placeholder under /themes/, which we
+   * skip → null. Product decision: portrait-only — we deliberately do NOT fall
+   * back to the square Yoast #primaryimage headshot.
    */
   photoUrl: string | null;
 }
@@ -118,33 +117,19 @@ function findPersonNode(ld: unknown): Record<string, any> | null {
 }
 
 /**
- * Resolve the high-res player photo. Yoast emits an ImageObject in its @graph
- * whose @id ends with '#primaryimage'; prefer its contentUrl (falling back to
- * url). When the JSON-LD path misses, fall back to the og:image meta tag.
+ * Resolve the player's PORTRAIT photo from the `<img alt="generic">` slot.
+ * Capture only a real upload (under /wp-content/uploads/); FIP serves a generic
+ * placeholder under /themes/ for players with no photo, which we skip → null.
+ * Root- or protocol-relative URLs are absolutized to padelfip.com. There is no
+ * fallback to the square Yoast headshot (portrait-only by product decision).
  */
-function findPrimaryImageUrl(ld: unknown, html: string): string | null {
-  if (ld && typeof ld === 'object') {
-    const graph = (ld as Record<string, any>)['@graph'];
-    if (Array.isArray(graph)) {
-      for (const node of graph) {
-        if (
-          node &&
-          typeof node === 'object' &&
-          node['@type'] === 'ImageObject' &&
-          typeof node['@id'] === 'string' &&
-          node['@id'].endsWith('#primaryimage')
-        ) {
-          const url = node.contentUrl ?? node.url;
-          if (typeof url === 'string' && url.trim()) return url.trim();
-        }
-      }
-    }
-  }
-  const og = html.match(
-    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i,
-  );
-  if (og && og[1] && og[1].trim()) return og[1].trim();
-  return null;
+function findPortraitPhotoUrl($: ReturnType<typeof cheerio.load>): string | null {
+  const src = $('img[alt="generic"]').first().attr('src')?.trim();
+  if (!src) return null;
+  if (!src.includes('/wp-content/uploads/')) return null; // placeholder / non-upload
+  if (src.startsWith('//')) return `https:${src}`;
+  if (src.startsWith('/')) return `https://www.padelfip.com${src}`;
+  return src;
 }
 
 export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
@@ -204,7 +189,7 @@ export function parseFipPlayerProfile(html: string): ParsedPlayerProfile {
     if (name) coaches.push(name);
   });
 
-  const photoUrl = findPrimaryImageUrl(ld, html);
+  const photoUrl = findPortraitPhotoUrl($);
 
   return { fipId, birthDate, birthPlace, heightCm, affiliation, racketBrand, racketModel, coaches, side, photoUrl };
 }
