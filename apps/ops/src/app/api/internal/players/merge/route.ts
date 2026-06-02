@@ -143,7 +143,7 @@ export async function POST(request: Request) {
            )`,
         [keepId, deleteId],
       )
-      await client.query(`DELETE FROM entity_external_ids WHERE entity_type = 'player' AND entity_id = $2`, [deleteId])
+      await client.query(`DELETE FROM entity_external_ids WHERE entity_type = 'player' AND entity_id = $1`, [deleteId])
     }
 
     // 7. Derived analytics (Monte-Carlo tournament odds) — pair-keyed, regenerated
