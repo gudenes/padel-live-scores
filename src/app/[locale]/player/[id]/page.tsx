@@ -805,12 +805,22 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 .filter(Boolean)
                 .map(p => toShortName(p!.display_name?.trim() || p!.name))
                 .join(' / ')
-              const dateStr = derived.nextScheduled.scheduled_at
-                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY)
+              const tournName = derived.nextScheduled.tournament?.name
+                ? titleCase(derived.nextScheduled.tournament.name)
                 : null
-              const timeStr = derived.nextScheduled.scheduled_at
-                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H)
-                : null
+              const roundStr = derived.nextScheduled.round
+              // Title: "vs <opponents> · <round>"; when the opponent slot is
+              // still TBD, fall back to the round label, then the tournament name.
+              const matchTitle = oppNames
+                ? `vs ${oppNames}${roundStr ? ` · ${roundStr}` : ''}`
+                : (roundStr || tournName || '')
+              // When the match has no time yet, show the TBC label instead.
+              const whenStr = derived.nextScheduled.scheduled_at
+                ? [
+                    format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY),
+                    format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H),
+                  ].filter(Boolean).join(' · ')
+                : tPlayer('nextMatchTimeTBC')
               return (
                 <div
                   onClick={() => router.push(`/match/${derived.nextScheduled!.id}` as Parameters<typeof router.push>[0])}
@@ -826,10 +836,10 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      vs {oppNames}{derived.nextScheduled.round ? ` · ${derived.nextScheduled.round}` : ''}
+                      {matchTitle}
                     </div>
                     <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {[derived.nextScheduled.tournament?.name ? titleCase(derived.nextScheduled.tournament.name) : null, dateStr, timeStr].filter(Boolean).join(' · ')}
+                      {[tournName, whenStr].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   {derived.nextScheduled.tournament?.level && (
