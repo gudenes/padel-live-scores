@@ -13,6 +13,7 @@ import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { FLAG_BY_LOCALE } from '@/components/icons/FlagIcons'
 import { routing } from '@/i18n/routing'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
+import { openRateFlow } from '@/lib/app-review'
 
 const CHUNKY = {
   card: 'polygon(0% 3%, 97% 0%, 100% 97%, 3% 100%)',
@@ -271,6 +272,13 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
             onClick={() => { void shareNow(); onClose() }}
             icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>}
             label={t('inviteFriends')}
+            rightSlot={<Chevron/>}
+          />
+          <Item
+            onClick={() => { openRateFlow(); onClose() }}
+            tone="orange"
+            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>}
+            label={t('rate')}
             rightSlot={<Chevron/>}
           />
           <Item

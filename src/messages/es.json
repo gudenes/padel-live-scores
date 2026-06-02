@@ -297,6 +297,7 @@
     "padelGenius": "Padel Genius",
     "comingSoon": "Próximamente",
     "inviteFriends": "Invitar amigos",
+    "rate": "Valora PadelNachos",
     "settings": "Ajustes",
     "about": "Acerca de",
     "language": "Idioma"
@@ -685,8 +686,7 @@
     },
     "support": {
       "contact": "Contactar con soporte",
-      "about": "Sobre PadelNachos",
-      "rate": "Valora PadelNachos"
+      "about": "Sobre PadelNachos"
     },
     "signOut": "Cerrar sesión",
     "deleteModal": {

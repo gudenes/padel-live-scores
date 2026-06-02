@@ -16,7 +16,6 @@ import LocaleSwitcher from '@/components/LocaleSwitcher'
 import { SkeletonText } from '@/components/SkeletonText'
 import { EditNameSheet } from './EditNameSheet'
 import { DeleteAccountModal } from './DeleteAccountModal'
-import { openRateFlow } from '@/lib/app-review'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -443,7 +442,6 @@ export default function SettingsPage() {
       <Link href="/about" style={{ textDecoration: 'none' }}>
         <Row label={t('support.about')} control={<Chevron />} />
       </Link>
-      <Row label={t('support.rate')} control={<Chevron />} onClick={() => openRateFlow()} />
 
       {/* SIGN OUT */}
       <div style={{ padding: '24px 16px 14px', borderTop: `1px solid ${V3.BORDER}`, marginTop: 18 }}>
