@@ -20,63 +20,6 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleVersion</key>
-	<string>12</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>armv7</string>
-	</array>
-	<!-- Phone-first mobile app: lock to portrait. iPad orientation array
-	     stays unconstrained because the app supports iPad in resizable
-	     mode (web content max-width:500 centers regardless). -->
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<true/>
-	<!-- Background modes required for push-notification delivery when the
-	     app isn't foregrounded. `remote-notification` lets iOS wake the
-	     app briefly to display the push (or hand it to our JS layer for
-	     "silent" updates if we ever add them). -->
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>remote-notification</string>
-	</array>
-	<!-- Required by Apple's privacy nutrition labels for any networking
-	     that contacts the user's local network (LAN). We don't do this
-	     ourselves, but some WebKit affordances may trigger the check.
-	     Leaving the description avoids App Review nagging. -->
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Padel Nachos uses your local network to detect display devices when sharing scores.</string>
-	<!-- Capacitor Share plugin uses the system share sheet which itself
-	     may invoke ActivityViewController and trigger Photos access on
-	     some pickers. Strings are required to AVOID rejection even
-	     when our flow doesn't take photos. -->
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Padel Nachos may request access if you share a screenshot of a match.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Padel Nachos may save a screenshot of a match to your Photos when you tap Share.</string>
-	<!-- Export Compliance: declare that this app uses only "exempt"
-	     encryption (HTTPS to our servers + iOS-provided system frameworks).
-	     Setting this key to false skips the encryption questionnaire that
-	     App Store Connect otherwise prompts on every build submission.
-	     If we ever bundle proprietary/non-standard crypto, flip this to
-	     true and file the annual self-classification report with the US
-	     Bureau of Industry and Security. -->
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<!-- Google Sign-In URL scheme — required by GoogleSignIn / Firebase
-	     Auth so the system can deliver the OAuth callback back to our
-	     app via the REVERSED_CLIENT_ID URL scheme (from
-	     GoogleService-Info.plist). Without this, native Google Sign-In
-	     errors with "No URL types found in Info.plist". -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -88,5 +31,35 @@
 			</array>
 		</dict>
 	</array>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Padel Nachos uses your local network to detect display devices when sharing scores.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Padel Nachos may save a screenshot of a match to your Photos when you tap Share.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Padel Nachos may request access if you share a screenshot of a match.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
 </dict>
 </plist>

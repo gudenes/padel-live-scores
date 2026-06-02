@@ -9,6 +9,7 @@ import { Capacitor } from '@capacitor/core'
 import { SplashScreen } from '@capacitor/splash-screen'
 import { StatusBar, Style } from '@capacitor/status-bar'
 import { cacheFcmToken, postFcmToken } from '@/lib/persist-fcm-token'
+import { recordAppOpen, requestReviewForReason } from '@/lib/app-review'
 
 // @capacitor-firebase/messaging has a web-side implementation that
 // imports `firebase/messaging` from the Firebase web SDK. We don't
@@ -24,6 +25,12 @@ let initialized = false
 export async function initNative(): Promise<void> {
   if (initialized || !Capacitor.isNativePlatform()) return
   initialized = true
+
+  // In-app review: count this native boot, then (gated) maybe ask for a
+  // rating. requestReviewForReason no-ops unless the gate allows it, so
+  // this is safe to call on every launch. Fire-and-forget.
+  recordAppOpen()
+  void requestReviewForReason('app_opens')
 
   // Match the page header's background so there's no visible band
   // between the OS status bar and the app's sticky header.
