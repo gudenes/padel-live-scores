@@ -94,6 +94,25 @@ describe('needsEnrichment', () => {
       }),
     ).toBe(true);
   });
+
+  it('returns true for a PAST event whose stored breakdown is ×100-inflated (self-heal)', () => {
+    // Yogyakarta-style corruption: ended long ago, every other field filled,
+    // but the breakdown is the legacy comma-strip ×100 values. Must re-fetch
+    // so the fixed parser overwrites it.
+    expect(
+      needsEnrichment({
+        ...baseRow,
+        level: 'fip_bronze',
+        matchscorer_url: 'FIP-2026-1234',
+        starts_at: '2026-05-20',
+        ends_at: '2026-05-24',
+        venue: 'Some Club',
+        registration_status: 'closed',
+        prize_money_fip: 8500,
+        prize_breakdown: { winner: 80750, finalist: 44625, sf: 21250, qf: 11156 },
+      }),
+    ).toBe(true);
+  });
 });
 
 const klHtml = readFileSync(
