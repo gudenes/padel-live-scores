@@ -335,6 +335,26 @@ export default function PlayersTab() {
     setLoadingDetail(false)
   }, [])
 
+  // ── Swap which player is kept vs deleted ───────────────────────
+  // With the "select 2" entry point neither player is implicitly the
+  // survivor, so let the operator flip A↔B. Values flip too, so invert
+  // the per-field picks to preserve what was chosen.
+  const handleSwapMergeSides = useCallback(() => {
+    if (!selectedPlayer || !mergeTarget) return
+    const a = selectedPlayer
+    const aCount = selectedMatchCount
+    setSelectedPlayer(mergeTarget)
+    setSelectedMatchCount(mergeTargetMatchCount)
+    setMergeTarget(a)
+    setMergeTargetMatchCount(aCount)
+    setMergeSelections(prev => {
+      const next: Record<string, 'a' | 'b'> = {}
+      for (const [field, side] of Object.entries(prev)) next[field] = side === 'a' ? 'b' : 'a'
+      return next
+    })
+    setMergePreview(false)
+  }, [selectedPlayer, mergeTarget, selectedMatchCount, mergeTargetMatchCount])
+
   // ── Render ─────────────────────────────────────────────────────
 
   return (
@@ -381,6 +401,7 @@ export default function PlayersTab() {
         selectedIds={Array.from(selectedIds)}
         onClearSelection={() => setSelectedIds(new Set())}
         onBulkComplete={() => { fetchData(); fetchCounts() }}
+        onMergeSelected={(ids) => { startMergeFromDup(ids[0], ids[1]); setSelectedIds(new Set()) }}
       />
 
       {/* Players table */}
@@ -409,13 +430,20 @@ export default function PlayersTab() {
         <Panel
           title="Merge Players"
           actions={
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setMergeMode(false); setMergeTarget(null); setMergePreview(false); setMergeMessage(null); setSelectedPlayer(null) }}
-            >
-              &times;
-            </Button>
+            <>
+              {mergeTarget && (
+                <Button variant="ghost" size="sm" onClick={handleSwapMergeSides}>
+                  &#8646; Swap A/B
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setMergeMode(false); setMergeTarget(null); setMergePreview(false); setMergeMessage(null); setSelectedPlayer(null) }}
+              >
+                &times;
+              </Button>
+            </>
           }
         >
           {mergeMessage && (
