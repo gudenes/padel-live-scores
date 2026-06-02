@@ -19,6 +19,7 @@ import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { titleCase } from '@/lib/title-case'
+import { pickCurrentTournamentMatch } from '@/lib/current-tournament-match'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
@@ -526,11 +527,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     }
     const availableYears = [...yearSet].sort((a, b) => b - a)
 
-    // Earliest scheduled match with a known future time
+    // Tier-0: a pending/live match in the tournament the player is competing in
+    // right now (even with no scheduled time yet). Falls back to Tier-1: the
+    // earliest future scheduled match with a known time.
     const now = new Date()
-    const nextScheduled = matches
+    const futureScheduled = matches
       .filter(m => m.status === 'scheduled' && m.scheduled_at && new Date(m.scheduled_at) > now)
       .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())[0] ?? null
+    const nextScheduled = pickCurrentTournamentMatch(matches, now) ?? futureScheduled
 
     // Earliest upcoming tournament derived from scheduled matches (only when no specific match is found)
     const nextTournament: DerivedData['nextTournament'] = nextScheduled
@@ -801,12 +805,22 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 .filter(Boolean)
                 .map(p => toShortName(p!.display_name?.trim() || p!.name))
                 .join(' / ')
-              const dateStr = derived.nextScheduled.scheduled_at
-                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY)
+              const tournName = derived.nextScheduled.tournament?.name
+                ? titleCase(derived.nextScheduled.tournament.name)
                 : null
-              const timeStr = derived.nextScheduled.scheduled_at
-                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H)
-                : null
+              const roundStr = derived.nextScheduled.round
+              // Title: "vs <opponents> · <round>"; when the opponent slot is
+              // still TBD, fall back to the round label, then the tournament name.
+              const matchTitle = oppNames
+                ? `vs ${oppNames}${roundStr ? ` · ${roundStr}` : ''}`
+                : (roundStr || tournName || '')
+              // When the match has no time yet, show the TBC label instead.
+              const whenStr = derived.nextScheduled.scheduled_at
+                ? [
+                    format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY),
+                    format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H),
+                  ].filter(Boolean).join(' · ')
+                : tPlayer('nextMatchTimeTBC')
               return (
                 <div
                   onClick={() => router.push(`/match/${derived.nextScheduled!.id}` as Parameters<typeof router.push>[0])}
@@ -822,10 +836,10 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      vs {oppNames}{derived.nextScheduled.round ? ` · ${derived.nextScheduled.round}` : ''}
+                      {matchTitle}
                     </div>
                     <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {[derived.nextScheduled.tournament?.name ? titleCase(derived.nextScheduled.tournament.name) : null, dateStr, timeStr].filter(Boolean).join(' · ')}
+                      {[tournName, whenStr].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   {derived.nextScheduled.tournament?.level && (
