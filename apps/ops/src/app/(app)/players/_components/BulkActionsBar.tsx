@@ -8,6 +8,7 @@ interface BulkActionsBarProps {
   selectedIds: string[]
   onClearSelection: () => void
   onBulkComplete: () => void
+  onMergeSelected: (ids: string[]) => void
 }
 
 interface Brand {
@@ -28,6 +29,7 @@ export default function BulkActionsBar({
   selectedIds,
   onClearSelection,
   onBulkComplete,
+  onMergeSelected,
 }: BulkActionsBarProps) {
   const [showModal, setShowModal] = useState(false)
   const [brands, setBrands] = useState<Brand[]>([])
@@ -127,6 +129,11 @@ export default function BulkActionsBar({
           {selectedCount} selected
         </span>
         <div style={{ flex: 1 }} />
+        {selectedCount === 2 && (
+          <Button variant="primary" size="sm" onClick={() => onMergeSelected(selectedIds)}>
+            Merge selected
+          </Button>
+        )}
         <Button variant="primary" size="sm" onClick={openModal}>
           Assign Equipment
         </Button>
