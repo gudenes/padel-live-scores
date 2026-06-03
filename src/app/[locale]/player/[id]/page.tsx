@@ -18,6 +18,8 @@ import { DATE_SHORT, DATE_WITH_YEAR, DATE_WITH_WEEKDAY, TIME_24H } from '@/lib/f
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
+import { SuggestChangesSheet } from '@/components/SuggestChangesSheet'
 import { titleCase } from '@/lib/title-case'
 import { pickCurrentTournamentMatch } from '@/lib/current-tournament-match'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
@@ -1043,6 +1045,7 @@ function OverviewTab({
   const age = computeAge(player.birthdate)
   const [brandLogoFailed, setBrandLogoFailed] = useState(false)
   const [racketImageFailed, setRacketImageFailed] = useState(false)
+  const [suggestOpen, setSuggestOpen] = useState(false)
 
   useEffect(() => {
     setBrandLogoFailed(false)
@@ -1385,6 +1388,36 @@ function OverviewTab({
           </div>
         </Widget>
       )}
+
+      {/* Suggest changes — full width helper + trigger */}
+      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4px 8px 8px' }}>
+        <p style={{ fontSize: 11, color: MUTED, lineHeight: 1.5, margin: '0 0 10px' }}>
+          {t('suggest.hint')}
+        </p>
+        <PressButton
+          {...PRESS_PRESETS.chunkyInline}
+          onClick={() => setSuggestOpen(true)}
+          style={{ fontSize: 12, fontWeight: 700, padding: '10px 18px' }}
+        >
+          {t('suggest.trigger')}
+        </PressButton>
+      </div>
+
+      <SuggestChangesSheet
+        open={suggestOpen}
+        onClose={() => setSuggestOpen(false)}
+        player={{
+          id: player.id,
+          name: player.name,
+          displayName: player.display_name?.trim() || player.name,
+          country: player.country,
+          birthplace: player.birthplace,
+          birthdate: player.birthdate,
+          height: player.height,
+          hand: player.hand,
+          side: player.side,
+        }}
+      />
 
       {/* Recent Matches — wide, uses the same match-row UI as the Matches tab */}
       {recentForShow.length > 0 && (
