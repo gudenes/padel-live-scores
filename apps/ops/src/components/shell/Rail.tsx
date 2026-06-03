@@ -25,6 +25,7 @@ const GROUPS: Group[] = [
   ]},
   { label: 'Catalogs', items: [
     { href: '/players', label: 'Players', icon: 'users' },
+    { href: '/player-suggestions', label: 'Suggestions', icon: 'flag' },
     { href: '/brands', label: 'Brands', icon: 'tag' },
     { href: '/streams', label: 'Streams', icon: 'video' },
     { href: '/yt-channels', label: 'YouTube Channels', icon: 'yt' },
