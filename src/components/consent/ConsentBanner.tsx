@@ -95,7 +95,9 @@ export function ConsentBanner() {
           zIndex: 10000,
           background: 'linear-gradient(180deg, rgba(26,26,26,0.95), #1A1A1A)',
           borderTop: `2px solid ${GREEN}`,
-          padding: '18px 16px 20px',
+          // Pad the bottom past the device safe-area (iOS home indicator /
+          // browser bottom bar) so the action buttons stay tappable.
+          padding: '18px 16px max(env(safe-area-inset-bottom, 20px), 20px)',
           clipPath: CHUNKY.card,
           color: '#fff',
           fontFamily: 'system-ui, -apple-system, sans-serif',

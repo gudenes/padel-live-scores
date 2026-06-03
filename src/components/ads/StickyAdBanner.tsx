@@ -28,10 +28,17 @@ export function StickyAdBanner() {
   const pathname = usePathname()
   const { hasDecided } = useConsent()
   const sponsor = country ? getActiveSponsor('sticky-bottom', country) : null
-  // Hold the banner until the visitor has dealt with the cookie-consent
-  // prompt: it keeps the consent UI unobstructed and avoids showing an ad
-  // (with impression tracking) before consent — important for EU visitors.
-  const visible = !!sponsor && isAdRoute(pathname) && hasDecided
+  // ?geo=XX is a manual testing override; in that mode we also skip the
+  // consent gate so the banner can be previewed on a device without going
+  // through the cookie flow.
+  const testingGeo =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('geo')
+  // Otherwise hold the banner until the visitor has dealt with the cookie
+  // consent prompt: keeps the consent UI unobstructed and avoids firing an
+  // ad impression before consent (matters for EU/Spain visitors).
+  const visible =
+    !!sponsor && isAdRoute(pathname) && (hasDecided || testingGeo)
 
   const ref = useRef<HTMLDivElement>(null)
   const [navHeight, setNavHeight] = useState(0)
