@@ -73,7 +73,14 @@ export function SponsorCard({
       <img
         src={sponsor.bannerImage}
         alt={sponsor.name}
-        style={{ display: 'block', width: '100%', height: 'auto' }}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: 'auto',
+          // Sticky: cap to the native 320x50 and center, so it renders at the
+          // standard ~50px banner height instead of stretching to the column.
+          ...(variant === 'sticky' ? { maxWidth: 320, margin: '0 auto' } : null),
+        }}
       />
       {/* Ad-disclosure tag (transparency best practice) */}
       <span
