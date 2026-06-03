@@ -39,6 +39,7 @@ const GROUPS: Group[] = [
   { label: 'System', items: [
     { href: '/system/integration-health', label: 'Integration Health', icon: 'heart' },
     { href: '/system/data-quality', label: 'Data Quality', icon: 'check' },
+    { href: '/system/data-readiness', label: 'Data Readiness', icon: 'check' },
     { href: '/system/padelgod-health', label: 'Padelgod Health', icon: 'server' },
     { href: '/system/shadow-mode', label: 'Shadow Mode', icon: 'eye' },
     { href: '/system/coverage-matrix', label: 'Coverage Matrix', icon: 'matrix' },
