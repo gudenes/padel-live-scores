@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname } from '@/i18n/navigation'
 import { getActiveSponsor } from '@/lib/sponsors'
 import { useGeoCountry } from '@/hooks/useGeoCountry'
+import { useConsent } from '@/hooks/useConsent'
 import { AdSlot } from './AdSlot'
 
 /**
@@ -25,8 +26,12 @@ function isAdRoute(pathname: string): boolean {
 export function StickyAdBanner() {
   const country = useGeoCountry()
   const pathname = usePathname()
+  const { hasDecided } = useConsent()
   const sponsor = country ? getActiveSponsor('sticky-bottom', country) : null
-  const visible = !!sponsor && isAdRoute(pathname)
+  // Hold the banner until the visitor has dealt with the cookie-consent
+  // prompt: it keeps the consent UI unobstructed and avoids showing an ad
+  // (with impression tracking) before consent — important for EU visitors.
+  const visible = !!sponsor && isAdRoute(pathname) && hasDecided
 
   const ref = useRef<HTMLDivElement>(null)
   const [navHeight, setNavHeight] = useState(0)
