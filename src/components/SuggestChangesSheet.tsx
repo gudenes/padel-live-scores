@@ -91,9 +91,12 @@ export function SuggestChangesSheet({ open, onClose, player }: Props) {
 
   return (
     <>
-      <div onClick={reset} style={{ position: 'fixed', inset: 0, background: '#0009', zIndex: 90 }} />
+      {/* z-index sits ABOVE the bottom nav (z 200) + any ad banner stacked with
+          it, so the sheet — and its submit button — overlay them instead of
+          being hidden behind. Bottom padding clears the iOS home indicator. */}
+      <div onClick={reset} style={{ position: 'fixed', inset: 0, background: '#0009', zIndex: 290 }} />
       <div role="dialog" aria-modal="true"
-        style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: '#0f0f0f', color: '#fff', borderTop: '1px solid #2a2a2a', borderRadius: '16px 16px 0 0', padding: 24, zIndex: 91, maxHeight: '88vh', overflowY: 'auto' }}>
+        style={{ position: 'fixed', left: 0, right: 0, bottom: 0, background: '#0f0f0f', color: '#fff', borderTop: '1px solid #2a2a2a', borderRadius: '16px 16px 0 0', padding: '24px 24px calc(24px + env(safe-area-inset-bottom, 0px))', zIndex: 300, maxHeight: '88vh', overflowY: 'auto' }}>
         <div style={{ width: 40, height: 4, background: '#444', borderRadius: 2, margin: '0 auto 16px' }} />
 
         {(stage === 'form' || stage === 'submitting' || stage === 'error') && (
