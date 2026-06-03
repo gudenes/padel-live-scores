@@ -15,9 +15,6 @@ import {
 
 export const dynamic = 'force-dynamic'
 
-const FROM = '2026-01-01'
-const TO = '2026-12-31'
-
 export interface ReadinessRow extends ReadinessResult {
   id: string
   name: string
@@ -42,12 +39,29 @@ export async function GET(request: Request) {
   const supabase = serviceClient()
   const today = new Date().toISOString().slice(0, 10)
 
+  const url = new URL(request.url)
   // Optional ?id=<uuid> scopes the result to one tournament (used by the
   // per-row refresh button to re-check a single tournament after an
   // on-demand padelgod fetch — far cheaper than recomputing all ~287).
-  const idParam = new URL(request.url).searchParams.get('id')?.trim() || null
+  const idParam = url.searchParams.get('id')?.trim() || null
 
-  // 1) In-scope tournaments: 2026 window × main tiers (or one by id).
+  // Year window (default current year). Validated to a plausible 4-digit year.
+  const yParam = Number(url.searchParams.get('year'))
+  const year = Number.isInteger(yParam) && yParam >= 2000 && yParam <= 2100
+    ? yParam
+    : new Date().getUTCFullYear()
+  const FROM = `${year}-01-01`
+  const TO = `${year}-12-31`
+
+  // Distinct in-scope years for the dropdown (skip on the single-id re-check path).
+  let years: number[] = []
+  if (!idParam) {
+    const { data: yData, error: yErr } = await supabase.rpc('readiness_years')
+    if (yErr) return NextResponse.json({ error: `years: ${yErr.message}` }, { status: 500 })
+    years = (yData ?? []) as number[]
+  }
+
+  // 1) In-scope tournaments: year window × main tiers (or one by id).
   let tQuery = supabase
     .from('tournaments')
     .select('id, name, level, starts_at, ends_at, registration_status')
@@ -66,7 +80,7 @@ export async function GET(request: Request) {
     registration_status: string | null
   }>
   const ids = tournaments.map(t => t.id)
-  if (ids.length === 0) return NextResponse.json({ rows: [] as ReadinessRow[] })
+  if (ids.length === 0) return NextResponse.json(idParam ? { rows: [] as ReadinessRow[] } : { rows: [] as ReadinessRow[], years })
 
   // 2) Matches rollup (paginated — can approach the 10k cap).
   type MatchRow = {
@@ -157,5 +171,5 @@ export async function GET(request: Request) {
     return { id: t.id, name: t.name ?? '(unnamed)', level: t.level, startsAt: t.starts_at, endsAt: t.ends_at, matchCount: a.matchCount, ...result }
   })
 
-  return NextResponse.json({ rows })
+  return NextResponse.json(idParam ? { rows } : { rows, years })
 }
