@@ -69,17 +69,41 @@ CREATE POLICY site_announcements_anon_read ON site_announcements
   USING (active = true);
 ```
 
-- [ ] **Step 2: Apply the migration to the dev database**
+- [ ] **Step 2: Apply the migration to the database**
 
-Apply via the repo's normal migration path. If Supabase CLI is linked:
+**Do NOT use `supabase db push`** — this repo has known migration drift, so migrations are applied per-file with the `pg` driver against `DATABASE_URL` (see `scripts/apply-news-pipeline-migrations.mjs` for the established pattern). `DATABASE_URL` lives in `.env.local`. The migration uses `IF NOT EXISTS` / `DROP POLICY IF EXISTS` so it is idempotent.
 
-Run: `npx supabase db push`
-Expected: the new migration is applied; no error. (If the project applies SQL via the Supabase dashboard instead, paste the file contents into the SQL editor and run it.)
+Run this one-shot (loads `.env.local`, executes only the new file):
 
-- [ ] **Step 3: Verify the table exists**
+```bash
+node -e "
+const fs=require('fs');require('dotenv').config({path:'.env.local'});
+const {Client}=require('pg');
+(async()=>{
+  const sql=fs.readFileSync('supabase/migrations/20260603120000_site_announcements.sql','utf8');
+  const c=new Client({connectionString:process.env.DATABASE_URL});
+  await c.connect(); await c.query(sql);
+  const r=await c.query(\"select column_name from information_schema.columns where table_name='site_announcements' order by ordinal_position\");
+  console.log('columns:', r.rows.map(x=>x.column_name).join(', '));
+  await c.end();
+})().catch(e=>{console.error(e);process.exit(1)});
+"
+```
+Expected: `columns: id, message, type, active, starts_at, expires_at, updated_at, created_at` and no error. (`dotenv` and `pg` are already project deps — if `dotenv` is missing, export `DATABASE_URL` from `.env.local` manually instead.)
 
-Run: `npx supabase db execute "select column_name, data_type from information_schema.columns where table_name = 'site_announcements' order by ordinal_position"` (or run the equivalent query in the dashboard).
-Expected: 8 columns — `id, message, type, active, starts_at, expires_at, updated_at, created_at`.
+- [ ] **Step 3: Verify RLS policy exists**
+
+Run:
+```bash
+node -e "
+require('dotenv').config({path:'.env.local'});
+const {Client}=require('pg');
+(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();
+const r=await c.query(\"select policyname from pg_policies where tablename='site_announcements'\");
+console.log('policies:', r.rows.map(x=>x.policyname).join(', ')||'(none)');await c.end();})()
+"
+```
+Expected: `policies: site_announcements_anon_read`.
 
 - [ ] **Step 4: Commit**
 
