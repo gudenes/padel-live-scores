@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { checkOpsAuth } from '@/lib/ops-auth'
 import { isSuggestableField, columnForField } from '@/lib/player-suggestion-fields'
+import { normalizeCountry } from '@/lib/country'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,10 +50,27 @@ export async function POST(
     const rawValue = typeof body.value === 'string' ? body.value.trim() : ''
     if (!rawValue) return NextResponse.json({ error: 'empty_value' }, { status: 400 })
 
-    // Coerce height to a number; everything else writes as text.
-    const value: string | number = column === 'height' ? Number(rawValue) : rawValue
-    if (column === 'height' && !Number.isFinite(value)) {
-      return NextResponse.json({ error: 'invalid_height' }, { status: 400 })
+    // A human override is the source of truth, but the value must still match
+    // the column's canonical format — don't let free-text input corrupt a
+    // normalized column (alpha-2 country, numeric height, date birthdate).
+    let value: string | number = rawValue
+    if (column === 'height') {
+      value = Number(rawValue)
+      if (!Number.isFinite(value)) {
+        return NextResponse.json({ error: 'invalid_height' }, { status: 400 })
+      }
+    } else if (column === 'country') {
+      // players.country is a canonical alpha-2 code rendered as a flag.
+      const code = normalizeCountry(rawValue)
+      if (!code) return NextResponse.json({ error: 'invalid_country' }, { status: 400 })
+      value = code
+    } else if (column === 'birthdate') {
+      // players.birthdate is a date column — reject unparseable input rather
+      // than leaking a raw Postgres error to the operator's alert().
+      if (Number.isNaN(Date.parse(rawValue))) {
+        return NextResponse.json({ error: 'invalid_date' }, { status: 400 })
+      }
+      value = rawValue
     }
 
     const { error: updateErr } = await supabase
