@@ -1,7 +1,7 @@
 // src/components/announcements/AlertBanner.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useActiveAnnouncement } from '@/hooks/useActiveAnnouncement'
 import { dismissalKey, isDismissed, type AnnouncementType } from '@/lib/announcement'
 
@@ -22,20 +22,20 @@ const STYLES: Record<AnnouncementType, { bg: string; fg: string; border: string;
  */
 export function AlertBanner() {
   const announcement = useActiveAnnouncement()
-  // null until we've read localStorage on the client (avoids SSR/client mismatch).
-  const [dismissedValue, setDismissedValue] = useState<string | null>(null)
-  const [hydrated, setHydrated] = useState(false)
-
-  useEffect(() => {
+  // Read the dismissed key once, lazily. On the server window is undefined so
+  // this is null; the hook's announcement also starts null, so the component
+  // renders nothing on both server and first client paint — no hydration
+  // mismatch, and no setState-in-effect (which this repo's lint forbids).
+  const [dismissedValue, setDismissedValue] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
     try {
-      setDismissedValue(localStorage.getItem(STORAGE_KEY))
+      return localStorage.getItem(STORAGE_KEY)
     } catch {
-      setDismissedValue(null)
+      return null
     }
-    setHydrated(true)
-  }, [])
+  })
 
-  if (!hydrated || !announcement) return null
+  if (!announcement) return null
   if (isDismissed(announcement, dismissedValue)) return null
 
   const s = STYLES[announcement.type] ?? STYLES.info
