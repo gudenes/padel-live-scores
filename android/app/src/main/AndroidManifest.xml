@@ -60,6 +60,12 @@
             </intent-filter>
         </service>
         <service android:name="com.capacitorjs.plugins.pushnotifications.MessagingService" tools:node="remove" />
+
+        <!-- Google Mobile Ads (AdMob) app ID. Required by the SDK at boot;
+             missing/incorrect value crashes the app on launch. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-8997476366246416~7727014604"/>
     </application>
 
     <!-- Permissions -->

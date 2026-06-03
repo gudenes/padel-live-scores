@@ -79,6 +79,13 @@ const config: CapacitorConfig = {
       style: 'DARK',
       backgroundColor: '#0A0A0A',
     },
+    // @capacitor-community/admob — App IDs are also set natively
+    // (AndroidManifest APPLICATION_ID / iOS Info.plist GADApplicationIdentifier).
+    // initializeForTesting stays false in production; flip to true with a
+    // test-device id during on-device testing so no live ads are clicked.
+    AdMob: {
+      initializeForTesting: false,
+    },
   },
 }
 

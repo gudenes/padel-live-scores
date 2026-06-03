@@ -21,7 +21,8 @@ export interface AdNetworkConfig {
   native_enabled: boolean
   admob_ios_app_id: string | null
   admob_android_app_id: string | null
-  admob_banner_unit_id: string | null
+  admob_banner_unit_id: string | null      // Android banner unit
+  admob_ios_banner_unit_id: string | null  // iOS banner unit
 }
 
 /**

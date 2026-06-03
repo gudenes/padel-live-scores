@@ -99,6 +99,12 @@ export async function initNative(): Promise<void> {
     console.warn('[native-init] App.appUrlOpen listener failed', err)
   }
 
+  // AdMob: initialize the SDK + run the consent / ATT flow. Placed before
+  // the push block because that block can `return` early (when push
+  // permission is denied) — kicking AdMob off here guarantees it runs
+  // regardless. Fire-and-forget; never blocks boot.
+  void initAdMob()
+
   // Push notifications: route through loadPushPlugin() so the boot path
   // also works on AABs older than 2026-05-17 (before
   // @capacitor-firebase/messaging was wired into android/). Those users
@@ -166,4 +172,34 @@ export async function initNative(): Promise<void> {
 async function persistDeviceToken(token: string): Promise<void> {
   cacheFcmToken(token)
   await postFcmToken(token)
+}
+
+// AdMob: initialize the SDK, run the UMP consent flow (required for EEA),
+// then the iOS ATT prompt. Lazy-imported so the plugin never enters the web
+// bundle (mirrors the Firebase messaging pattern documented at the top of
+// this file). All steps best-effort — never block app boot.
+async function initAdMob(): Promise<void> {
+  try {
+    const { AdMob, AdmobConsentStatus } = await import('@capacitor-community/admob')
+    await AdMob.initialize({ initializeForTesting: false })
+
+    // UMP (GDPR / EEA). Show the consent form when one is required + available.
+    try {
+      const info = await AdMob.requestConsentInfo()
+      if (info.isConsentFormAvailable && info.status === AdmobConsentStatus.REQUIRED) {
+        await AdMob.showConsentForm()
+      }
+    } catch (err) {
+      console.log('[AdMob] consent flow skipped:', err)
+    }
+
+    // iOS App Tracking Transparency — sequenced after UMP. No-op on Android.
+    try {
+      await AdMob.requestTrackingAuthorization()
+    } catch (err) {
+      console.log('[AdMob] ATT skipped:', err)
+    }
+  } catch (err) {
+    console.log('[AdMob] init failed:', err)
+  }
 }
