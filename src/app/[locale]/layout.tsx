@@ -9,6 +9,7 @@ import { NotificationNudgeProvider } from '@/components/NotificationNudgeProvide
 import { buildLocaleRootMetadata } from '@/lib/seo-metadata'
 import { ConsentBanner } from '@/components/consent/ConsentBanner'
 import { PWAInstallNudge } from '@/components/PWAInstallNudge'
+import { StickyAdBanner } from '@/components/ads/StickyAdBanner'
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
@@ -53,6 +54,7 @@ export default async function LocaleLayout({
             {children}
             <ConsentBanner />
             <PWAInstallNudge />
+            <StickyAdBanner />
           </NotificationNudgeProvider>
         </BookmarkToastProvider>
       </LoginSheetProvider>

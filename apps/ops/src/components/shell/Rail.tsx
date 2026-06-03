@@ -30,6 +30,7 @@ const GROUPS: Group[] = [
     { href: '/streams', label: 'Streams', icon: 'video' },
     { href: '/yt-channels', label: 'YouTube Channels', icon: 'yt' },
     { href: '/partners', label: 'Partners', icon: 'share' },
+    { href: '/ads', label: 'Ad Banners', icon: 'tag' },
   ]},
   { label: 'Content', items: [
     { href: '/news', label: 'News', icon: 'doc' },

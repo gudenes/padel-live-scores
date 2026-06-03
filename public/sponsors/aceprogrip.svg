@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="88" height="88" viewBox="0 0 88 88">
+  <rect width="88" height="88" rx="12" fill="#0b1220"/>
+  <rect x="1" y="1" width="86" height="86" rx="11" fill="none" stroke="#3b82f6" stroke-width="2"/>
+  <text x="44" y="50" font-family="Arial, sans-serif" font-size="22" font-weight="800"
+        fill="#f8fafc" text-anchor="middle">APG</text>
+</svg>
