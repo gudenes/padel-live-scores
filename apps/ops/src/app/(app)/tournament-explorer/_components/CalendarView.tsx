@@ -19,6 +19,7 @@
 // positioning gives precise control without a dependency on a calendar lib.
 
 import { useMemo, useState } from 'react'
+import { TIER_COLOR, DEFAULT_TIER_COLOR } from '@/lib/tier-colors'
 
 interface TournamentLite {
   id: string
@@ -48,22 +49,7 @@ interface CalendarViewProps {
 }
 
 // ── Level colors ─────────────────────────────────────────────────────────
-// Premier Padel uses warm/saturated colors so the headline events
-// (Major / P1 / P2 / Finals) pop against the FIP tour palette which is
-// medal-themed (platinum/gold/silver/bronze). Anything else gets a neutral.
-
-const LEVEL_COLOR: Record<string, { bg: string; border: string; text: string }> = {
-  major:       { bg: '#FF4655', border: '#C8313D', text: '#fff' },   // red
-  p1:          { bg: '#FF6B2B', border: '#CC5A23', text: '#fff' },   // orange
-  p2:          { bg: '#F5A623', border: '#C2841C', text: '#000' },   // amber
-  finals:      { bg: '#7C2D8E', border: '#5C2169', text: '#fff' },   // purple
-  fip_platinum:{ bg: '#9CA3AF', border: '#6B7280', text: '#000' },   // platinum gray
-  fip_gold:    { bg: '#D4AF37', border: '#A88A2B', text: '#000' },   // gold
-  fip_silver:  { bg: '#C0C0C0', border: '#919191', text: '#000' },   // silver
-  fip_bronze:  { bg: '#CD7F32', border: '#9F6325', text: '#fff' },   // bronze
-  fip_other:   { bg: '#94A3B8', border: '#64748B', text: '#fff' },   // slate
-}
-const DEFAULT_COLOR = { bg: 'var(--bg-hover)', border: 'var(--border-strong)', text: 'var(--text-2)' }
+// Imported from shared lib — see apps/ops/src/lib/tier-colors.ts
 
 // ── Date helpers ─────────────────────────────────────────────────────────
 
@@ -303,7 +289,7 @@ export default function CalendarView({ tournaments, fromDate, toDate, onSelect }
 
         {/* Tournament bars */}
         {assignments.map(a => {
-          const color = LEVEL_COLOR[a.tournament.level ?? ''] ?? DEFAULT_COLOR
+          const color = TIER_COLOR[a.tournament.level ?? ''] ?? DEFAULT_TIER_COLOR
           const top = HEADER_HEIGHT + 6 + a.laneIndex * (LANE_HEIGHT + LANE_GAP)
           const left = a.startDay * PIXELS_PER_DAY
           const width = Math.max(PIXELS_PER_DAY, (a.endDay - a.startDay + 1) * PIXELS_PER_DAY - 1)
@@ -405,7 +391,7 @@ export function TournamentHoverCard({ t, x, y }: { t: TournamentLite; x: number;
     t.draw_size_md ? `MD ${t.draw_size_md}` : null,
     t.draw_size_qd ? `QD ${t.draw_size_qd}` : null,
   ].filter(Boolean).join(' · ')
-  const color = LEVEL_COLOR[t.level ?? ''] ?? DEFAULT_COLOR
+  const color = TIER_COLOR[t.level ?? ''] ?? DEFAULT_TIER_COLOR
 
   // Card width is fixed; clamp position so it never spills off-screen.
   const CARD_W = 280
