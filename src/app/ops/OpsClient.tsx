@@ -28,7 +28,6 @@ import HighlightPickerTab from './HighlightPickerTab'
 import TournamentCoversTab from './TournamentCoversTab'
 import CoverageMatrixTab from './CoverageMatrixTab'
 import FeatureFlagsTab from './FeatureFlagsTab'
-import PlayerSuggestionsTab from './PlayerSuggestionsTab'
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -326,7 +325,7 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
   const [data, setData] = useState<DashboardData | null>(initialData)
   const [lastFetched, setLastFetched] = useState<Date | null>(initialData ? new Date() : null)
   const [fetchAgo, setFetchAgo] = useState('just now')
-  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker' | 'tournament-covers' | 'coverage-matrix' | 'feature-flags' | 'player-suggestions'>('ongoing')
+  const [tab, setTab] = useState<'ongoing' | 'health' | 'data' | 'simulator' | 'players' | 'brands' | 'architecture' | 'padelgod-shadow' | 'padelgod-entries' | 'tournament-explorer' | 'tournament-dedup' | 'padelgod-health' | 'yt-channels' | 'news' | 'highlight-picker' | 'tournament-covers' | 'coverage-matrix' | 'feature-flags'>('ongoing')
   // Sidebar collapse — persisted across sessions because operators
   // who like the wider workspace want to keep it that way.
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
@@ -451,7 +450,6 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
       label: 'Data Management',
       items: [
         { key: 'players' as const, label: 'Players', badge: null },
-        { key: 'player-suggestions' as const, label: 'Suggestions', badge: null },
         { key: 'brands' as const, label: 'Brands & Equipment', badge: null },
         { key: 'tournament-covers' as const, label: 'Tournament covers', badge: null },
         { key: 'yt-channels' as const, label: 'YT Channels', badge: null },
@@ -989,7 +987,6 @@ export default function OpsClient({ initialData }: { initialData: DashboardData 
 
       {tab === 'tournament-covers' && <TournamentCoversTab />}
       {tab === 'feature-flags' && <FeatureFlagsTab />}
-      {tab === 'player-suggestions' && <PlayerSuggestionsTab />}
 
       {tab === 'yt-channels' && <>
         <div style={{ fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 16 }}>YouTube Channels</div>
