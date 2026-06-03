@@ -22,9 +22,11 @@ function trackClick(slot: AdSlotId, sponsorId: string, matchId?: string) {
   }).catch(() => {})
 }
 
-const BLUE = '#3b82f6'
-const MUTED = '#6B7280'
-
+/**
+ * Full-width brand banner. Renders the sponsor's complete creative image
+ * (320x50, 6.4:1) edge-to-edge, like the banner ads in other live-score apps.
+ * A small "Ad" disclosure tag sits in the corner. Click + impression tracked.
+ */
 export function SponsorCard({
   sponsor,
   slot,
@@ -54,46 +56,43 @@ export function SponsorCard({
       rel="sponsored noopener noreferrer"
       onClick={() => trackClick(slot, sponsor.id, matchId)}
       data-ad-slot={slot}
+      aria-label={`${sponsor.name} (sponsored)`}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: isFeed ? 10 : 12,
-        textDecoration: 'none',
-        color: 'inherit',
-        background: 'linear-gradient(135deg, #1e293b, #0b1220)',
-        border: '1px solid rgba(59,130,246,0.35)',
-        borderRadius: isFeed ? 10 : 12,
-        padding: isFeed ? '7px 10px' : '10px 12px',
-        margin: isFeed ? '5px 8px' : '12px',
+        position: 'relative',
+        display: 'block',
+        margin: isFeed ? '6px 8px' : '12px',
+        borderRadius: 8,
+        overflow: 'hidden',
+        background: '#0b1220',
+        lineHeight: 0,
       }}
     >
+      {/* Full creative — the image carries the whole brand. width:100% keeps it
+          edge-to-edge; height:auto preserves the supplied 320x50 ratio. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={sponsor.creativeImage}
+        src={sponsor.bannerImage}
         alt={sponsor.name}
-        width={isFeed ? 30 : 36}
-        height={isFeed ? 30 : 36}
-        style={{ borderRadius: 8, flexShrink: 0, objectFit: 'cover' }}
+        style={{ display: 'block', width: '100%', height: 'auto' }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 8,
-            letterSpacing: 1,
-            textTransform: 'uppercase',
-            color: MUTED,
-            fontWeight: 700,
-          }}
-        >
-          Sponsored
-        </div>
-        <div style={{ fontSize: isFeed ? 12 : 13, fontWeight: 800, color: '#f8fafc', marginTop: isFeed ? 0 : 2 }}>
-          {sponsor.name}
-        </div>
-        <div style={{ fontSize: isFeed ? 10 : 11, color: '#cbd5e1', marginTop: 1 }}>{sponsor.headline}</div>
-      </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, flexShrink: 0 }}>
-        {sponsor.ctaText} {'→'}
+      {/* Ad-disclosure tag (transparency best practice) */}
+      <span
+        style={{
+          position: 'absolute',
+          top: 3,
+          right: 3,
+          fontSize: 7,
+          letterSpacing: 0.5,
+          textTransform: 'uppercase',
+          color: '#e5e7eb',
+          background: 'rgba(0,0,0,0.5)',
+          padding: '1px 4px',
+          borderRadius: 3,
+          fontWeight: 700,
+          lineHeight: 1.4,
+        }}
+      >
+        Ad
       </span>
     </a>
   )

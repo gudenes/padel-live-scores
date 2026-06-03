@@ -8,8 +8,11 @@ export type AdSlotId = 'feed-inline' | 'match-detail-stats'
 export interface Sponsor {
   id: string
   name: string
-  /** Path under /public, e.g. '/sponsors/aceprogrip.svg'. */
+  /** Square logo (1:1), path under /public. Used by the legacy logo+text card. */
   creativeImage: string
+  /** Full-width brand banner (320x50, 6.4:1), path under /public. This is the
+   *  complete creative the sponsor supplies and is what renders today. */
+  bannerImage: string
   headline: string
   ctaText: string
   url: string
@@ -24,6 +27,7 @@ export const SPONSORS: Sponsor[] = [
     id: 'aceprogrip',
     name: 'AceProGrip',
     creativeImage: '/sponsors/aceprogrip.svg',
+    bannerImage: '/sponsors/aceprogrip-banner.svg',
     headline: 'Grip like the pros',
     ctaText: 'Shop grips',
     url: 'https://www.aceprogrip.es/',
