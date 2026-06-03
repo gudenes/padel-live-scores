@@ -68,6 +68,11 @@ describe('computeReadiness', () => {
     expect(res.divergent).toBe(false)
     expect(cell(res, 'stats')).toBe('na')   // FIP → N/A
     expect(cell(res, 'matches')).toBe('ok')
+    expect(cell(res, 'oop')).toBe('ok')
+    expect(cell(res, 'results')).toBe('ok')
+    expect(cell(res, 'players')).toBe('ok')
+    expect(cell(res, 'entry')).toBe('ok')
+    expect(cell(res, 'streams')).toBe('na')   // FIP → streams N/A on completed
   })
 
   it('Ijuí case: snapshots present but 0 matches → Broken + divergent', () => {
@@ -135,5 +140,34 @@ describe('computeReadiness', () => {
     const res = computeReadiness(r, TODAY)
     expect(cell(res, 'players')).toBe('partial')
     expect(res.verdict).toBe('gaps')
+  })
+
+  it('upcoming with registration still open → entry optional, not penalised', () => {
+    const r: TournamentRollup = {
+      ...healthyCompletedFip(), id: 't-regopen', finalPlayed: false,
+      startsAt: '2026-08-01', endsAt: '2026-08-07', registrationStatus: 'open',
+      matchCount: 0, liveOrScheduledCount: 0, finishedCount: 0, finishedWithWinner: 0,
+      playerSlotsTotal: 0, playerSlotsResolved: 0, oopPopulated: 0,
+      drawSnapshotAt: null, oopSnapshotAt: null, resultsSnapshotAt: null,
+      entryListResolved: false,
+    }
+    const res = computeReadiness(r, TODAY)
+    expect(res.stage).toBe('upcoming')
+    expect(cell(res, 'entry')).toBe('missing')
+    expect(res.verdict).toBe('ok')   // entry optional while reg open
+  })
+
+  it('upcoming with registration closed but no entry list → broken', () => {
+    const r: TournamentRollup = {
+      ...healthyCompletedFip(), id: 't-regclosed', finalPlayed: false,
+      startsAt: '2026-08-01', endsAt: '2026-08-07', registrationStatus: 'closed',
+      matchCount: 0, liveOrScheduledCount: 0, finishedCount: 0, finishedWithWinner: 0,
+      playerSlotsTotal: 0, playerSlotsResolved: 0, oopPopulated: 0,
+      drawSnapshotAt: null, oopSnapshotAt: null, resultsSnapshotAt: null,
+      entryListResolved: false,
+    }
+    const res = computeReadiness(r, TODAY)
+    expect(cell(res, 'entry')).toBe('missing')
+    expect(res.verdict).toBe('broken')
   })
 })

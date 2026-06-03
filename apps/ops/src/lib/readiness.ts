@@ -72,10 +72,11 @@ const EXPECT: Record<Stage, Record<DimensionKey, Expect>> = {
   completed: { matches: 'required', players: 'required', oop: 'optional', results: 'required', entry: 'optional', stats: 'partial', streams: 'na'       },
 }
 
-function expectFor(stage: Stage, key: DimensionKey, premier: boolean): Expect {
+function expectFor(stage: Stage, key: DimensionKey, premier: boolean, registrationStatus: string | null): Expect {
   const base = EXPECT[stage][key]
   if (key === 'stats' && !premier) return 'na'
   if (key === 'streams' && premier) return 'na'
+  if (key === 'entry' && stage === 'upcoming' && registrationStatus !== 'closed') return 'optional'
   return base
 }
 
@@ -145,13 +146,13 @@ export function computeReadiness(r: TournamentRollup, today: string): ReadinessR
   const premier = isPremierTier(r.level)
 
   const dimensions: DimensionResult[] = ALL_DIMS.map(key => {
-    const expect = expectFor(stage, key, premier)
+    const expect = expectFor(stage, key, premier, r.registrationStatus)
     const state: CellState = expect === 'na' ? 'na' : actualState(key, r, premier)
     return { key, state, detail: state === 'na' ? 'N/A' : DETAIL[key](r) }
   })
 
   const verdict = dimensions
-    .map(d => severity(expectFor(stage, d.key, premier), d.state))
+    .map(d => severity(expectFor(stage, d.key, premier, r.registrationStatus), d.state))
     .reduce<Verdict>((worst, v) => (RANK[v] > RANK[worst] ? v : worst), 'ok')
 
   const divergent = dimensions.some(d => d.state === 'divergent')
