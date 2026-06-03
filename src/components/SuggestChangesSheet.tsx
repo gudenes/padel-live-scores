@@ -9,6 +9,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
+import PressButton, { PRESS_PRESETS } from './PressButton'
 import { SUGGESTABLE_FIELDS, type SuggestableField } from '@/lib/player-suggestion-fields'
 
 export interface PlayerForSuggest {
@@ -163,11 +164,26 @@ export function SuggestChangesSheet({ open, onClose, player }: Props) {
 
             {stage === 'error' && <div style={{ marginTop: 12, color: '#E53935', fontSize: 13 }}>{errorMsg}</div>}
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-              <button onClick={reset} style={btnSecondary}>Cancel</button>
-              <button onClick={submit} disabled={stage === 'submitting' || !canSubmit} style={btnPrimary}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 }}>
+              <PressButton
+                {...PRESS_PRESETS.chunkyInline}
+                accent="#2A2A2A"
+                skirt="#0A0A0A"
+                textColor="#fff"
+                onClick={reset}
+                disabled={stage === 'submitting'}
+                style={{ fontSize: 12, fontWeight: 700, padding: '9px 18px' }}
+              >
+                Cancel
+              </PressButton>
+              <PressButton
+                {...PRESS_PRESETS.chunkyInline}
+                onClick={submit}
+                disabled={stage === 'submitting' || !canSubmit}
+                style={{ fontSize: 12, fontWeight: 700, padding: '9px 18px' }}
+              >
                 {stage === 'submitting' ? t('submitting') : t('submit')}
-              </button>
+              </PressButton>
             </div>
           </>
         )}
@@ -177,7 +193,13 @@ export function SuggestChangesSheet({ open, onClose, player }: Props) {
             <div style={{ fontSize: 32, marginBottom: 12 }}>✓</div>
             <h3 style={{ margin: 0, fontSize: 18 }}>{t('successTitle')}</h3>
             <p style={{ color: '#ccc', fontSize: 14, lineHeight: 1.4, marginTop: 8 }}>{t('successBody')}</p>
-            <button onClick={reset} style={{ ...btnPrimary, marginTop: 16 }}>OK</button>
+            <PressButton
+              {...PRESS_PRESETS.chunkyInline}
+              onClick={reset}
+              style={{ fontSize: 12, fontWeight: 700, padding: '9px 18px', marginTop: 16 }}
+            >
+              OK
+            </PressButton>
           </div>
         )}
       </div>
@@ -188,5 +210,3 @@ export function SuggestChangesSheet({ open, onClose, player }: Props) {
 const labelStyle: React.CSSProperties = { display: 'block', marginTop: 12 }
 const labelText: React.CSSProperties = { display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 }
 const inputStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 10, fontSize: 14, borderRadius: 6, boxSizing: 'border-box' }
-const btnPrimary: React.CSSProperties = { background: '#7ED321', color: '#0a0a0a', border: 0, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
-const btnSecondary: React.CSSProperties = { background: '#1a1a1a', color: '#ccc', border: 0, padding: '10px 20px', cursor: 'pointer' }
