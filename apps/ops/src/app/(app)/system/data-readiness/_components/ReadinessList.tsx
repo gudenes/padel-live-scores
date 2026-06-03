@@ -5,6 +5,7 @@ import { tierTag } from '@/lib/tier-colors'
 import type { ReadinessRow, GroupBy, Verdict } from './types'
 import { DimensionDots, DimensionBreakdown, DIM_LABELS, DIM_ORDER } from './DimensionMatrix'
 import RefreshRowButton from './RefreshRowButton'
+import type { RowRunStatus } from './refresh-tournament-client'
 
 const TIER_GROUP_LABEL: Record<string, string> = {
   major:        'Premier · Major',
@@ -51,7 +52,14 @@ function fmtDate(iso: string | null): string {
   return `${Number(m[3])} ${months[Number(m[2]) - 1]}`
 }
 
-export default function ReadinessList({ rows, groupBy, onRowUpdate }: { rows: ReadinessRow[]; groupBy: GroupBy; onRowUpdate: (row: ReadinessRow) => void }) {
+export default function ReadinessList({ rows, groupBy, onRowUpdate, selectedIds, onToggleSelect, statusById }: {
+  rows: ReadinessRow[]
+  groupBy: GroupBy
+  onRowUpdate: (row: ReadinessRow) => void
+  selectedIds: Set<string>
+  onToggleSelect: (id: string) => void
+  statusById: Record<string, RowRunStatus>
+}) {
   const [open, setOpen] = useState<Set<string>>(new Set())
   const toggle = (id: string) =>
     setOpen(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n })
@@ -81,6 +89,7 @@ export default function ReadinessList({ rows, groupBy, onRowUpdate }: { rows: Re
             <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 10, overflow: 'hidden' }}>
               <thead>
                 <tr>
+                  <th scope="col" style={{ ...th, width: 28 }}></th>
                   <th scope="col" style={thL}>Tournament</th>
                   <th scope="col" style={th}>Stage</th>
                   <th scope="col" style={th}>Verdict</th>
@@ -91,6 +100,14 @@ export default function ReadinessList({ rows, groupBy, onRowUpdate }: { rows: Re
                 {list.map(r => (
                   <Fragment key={r.id}>
                     <tr onClick={() => toggle(r.id)} style={{ cursor: 'pointer', borderTop: '1px solid var(--border)' }}>
+                      <td style={{ ...td, width: 28 }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(r.id)}
+                          onChange={() => onToggleSelect(r.id)}
+                          aria-label={`Select ${r.name}`}
+                        />
+                      </td>
                       <td style={tdL}>
                         <span style={{ fontWeight: 600 }}>{tierTag(r.level)} · {r.name}</span>
                         <span style={{ color: 'var(--text-3)', fontSize: 11, marginLeft: 6 }}>
@@ -107,14 +124,14 @@ export default function ReadinessList({ rows, groupBy, onRowUpdate }: { rows: Re
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <DimensionDots dimensions={r.dimensions} />
                           <span style={{ marginLeft: 'auto' }}>
-                            <RefreshRowButton tournamentId={r.id} onRefreshed={onRowUpdate} />
+                            <RefreshRowButton tournamentId={r.id} onRefreshed={onRowUpdate} externalStatus={statusById[r.id]} />
                           </span>
                         </div>
                       </td>
                     </tr>
                     {open.has(r.id) && (
                       <tr style={{ background: 'var(--bg-sunken)' }}>
-                        <td colSpan={3 + DIM_ORDER.length} style={{ padding: 0 }}>
+                        <td colSpan={4 + DIM_ORDER.length} style={{ padding: 0 }}>
                           <DimensionBreakdown dimensions={r.dimensions} />
                         </td>
                       </tr>
