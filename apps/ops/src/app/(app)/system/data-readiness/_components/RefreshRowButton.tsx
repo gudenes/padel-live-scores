@@ -11,6 +11,31 @@ import type { ReadinessRow } from './types'
 
 type State = 'idle' | 'running' | 'done' | 'error'
 
+interface StepResult { name?: string; summary?: Record<string, unknown> }
+
+// Sum the rows padelgod actually wrote, from the refresh stepResults. padelgod
+// returns ok=true even when every worker was a no-op (out-of-scope tournament,
+// not in the populate allowlist, nothing on Crionet), so a bare "✓ Refreshed"
+// is misleading. We count additive fields (…Inserted / …Written / …Resolved /
+// the draw-populator's `inserted`) and split out matches as the headline.
+function summarizeRefresh(steps: StepResult[] | undefined): { total: number; matches: number } {
+  let total = 0
+  let matches = 0
+  for (const s of steps ?? []) {
+    const sum = s?.summary ?? {}
+    for (const [k, v] of Object.entries(sum)) {
+      if (typeof v !== 'number') continue
+      if (/inserted$|written$|resolved$/i.test(k) || k === 'inserted') {
+        total += v
+        if (/match/i.test(k)) matches += v
+      }
+    }
+    // fip-draw-populator's `inserted` counter is matches inserted from the draw.
+    if (s?.name === 'fip-draw-populator' && typeof sum.inserted === 'number') matches += sum.inserted
+  }
+  return { total, matches }
+}
+
 export default function RefreshRowButton({
   tournamentId,
   onRefreshed,
@@ -20,6 +45,8 @@ export default function RefreshRowButton({
 }) {
   const [state, setState] = useState<State>('idle')
   const [msg, setMsg] = useState<string | null>(null)
+  const [doneLabel, setDoneLabel] = useState('✓ Done')
+  const [doneAdded, setDoneAdded] = useState(false)
 
   async function onClick(e: MouseEvent) {
     e.stopPropagation() // don't toggle the row's expand
@@ -40,6 +67,15 @@ export default function RefreshRowButton({
         setMsg(typeof reason === 'string' ? reason : JSON.stringify(reason))
         return
       }
+      // Honest outcome from what padelgod actually wrote.
+      const { total, matches } = summarizeRefresh(json?.data?.stepResults as StepResult[] | undefined)
+      const label = matches > 0
+        ? `✓ +${matches} ${matches === 1 ? 'match' : 'matches'}`
+        : total > 0
+          ? `✓ ${total} updated`
+          : '✓ no new data'
+      setDoneLabel(label)
+      setDoneAdded(matches > 0 || total > 0)
       // Re-check this one tournament's readiness and update the row.
       const rc = await fetch(`/api/internal/tournament-readiness?id=${encodeURIComponent(tournamentId)}`, {
         credentials: 'same-origin',
@@ -72,7 +108,11 @@ export default function RefreshRowButton({
           fontWeight: 700,
           letterSpacing: '.4px',
           textTransform: 'uppercase',
-          color: state === 'running' ? 'var(--text-3)' : state === 'done' ? 'var(--rd-ok)' : 'var(--text-1)',
+          color: state === 'running'
+            ? 'var(--text-3)'
+            : state === 'done'
+              ? (doneAdded ? 'var(--rd-ok)' : 'var(--rd-gap)')
+              : 'var(--text-1)',
           background: 'var(--bg-hover)',
           border: '1px solid var(--border-strong)',
           borderRadius: 'var(--r-sm)',
@@ -80,7 +120,7 @@ export default function RefreshRowButton({
           whiteSpace: 'nowrap',
         }}
       >
-        {state === 'running' ? 'Refreshing…' : state === 'done' ? '✓ Refreshed' : 'Refresh'}
+        {state === 'running' ? 'Refreshing…' : state === 'done' ? doneLabel : 'Refresh'}
       </button>
       {state === 'error' && msg && (
         <span style={{ fontSize: 10, color: 'var(--rd-bad)', maxWidth: 240, textAlign: 'right' }}>{msg}</span>
