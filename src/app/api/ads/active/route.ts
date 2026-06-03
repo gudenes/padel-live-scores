@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const [{ data: banners }, { data: network }] = await Promise.all([
       supabase
         .from('ad_banners')
-        .select('id, name, country_code, slot, image_url, click_url, active, weight')
+        .select('id, name, country_codes, slot, image_url, click_url, active, weight')
         .eq('slot', slot)
         .eq('active', true),
       supabase

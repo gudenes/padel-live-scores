@@ -10,7 +10,7 @@ async function requireOperator() {
   return session?.user?.isOperator ? null : NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 }
 
-const COLS = 'id, name, country_code, slot, image_url, click_url, active, weight, created_at, updated_at'
+const COLS = 'id, name, country_codes, slot, image_url, click_url, active, weight, created_at, updated_at'
 
 export async function GET() {
   const deny = await requireOperator()
@@ -23,7 +23,7 @@ export async function GET() {
 
 interface BannerInput {
   name?: string
-  country_code?: string | null
+  country_codes?: string[]
   slot?: string
   image_url?: string
   click_url?: string
@@ -31,24 +31,32 @@ interface BannerInput {
   weight?: number
 }
 
+function validCountries(v: unknown): string | null {
+  if (v == null) return null
+  if (!Array.isArray(v)) return 'country_codes must be an array'
+  if (!v.every((c) => typeof c === 'string' && /^[A-Z]{2}$/.test(c))) return 'each country must be 2 uppercase letters (e.g. ES)'
+  return null
+}
+
 function validate(b: BannerInput): string | null {
   if (!b.name || !b.name.trim()) return 'name is required'
   if (!b.image_url || !b.image_url.trim()) return 'image_url is required'
   if (!b.click_url || !b.click_url.trim()) return 'click_url is required'
-  if (b.country_code != null && !/^[A-Z]{2}$/.test(b.country_code)) return 'country_code must be 2 uppercase letters or null'
+  const cc = validCountries(b.country_codes)
+  if (cc) return cc
   if (b.weight != null && (!Number.isInteger(b.weight) || b.weight < 1)) return 'weight must be an integer >= 1'
   return null
 }
 
 // Columns an operator may change via PATCH (allowlist — avoids forwarding
 // unknown/typo'd keys to PostgREST and leaking raw column errors).
-const PATCHABLE = ['name', 'country_code', 'slot', 'image_url', 'click_url', 'active', 'weight'] as const
+const PATCHABLE = ['name', 'country_codes', 'slot', 'image_url', 'click_url', 'active', 'weight'] as const
 
 function validatePartial(u: Record<string, unknown>): string | null {
   if ('name' in u && (!u.name || !String(u.name).trim())) return 'name cannot be empty'
   if ('image_url' in u && (!u.image_url || !String(u.image_url).trim())) return 'image_url cannot be empty'
   if ('click_url' in u && (!u.click_url || !String(u.click_url).trim())) return 'click_url cannot be empty'
-  if ('country_code' in u && u.country_code != null && !/^[A-Z]{2}$/.test(String(u.country_code))) return 'country_code must be 2 uppercase letters or null'
+  if ('country_codes' in u) { const cc = validCountries(u.country_codes); if (cc) return cc }
   if ('weight' in u && (!Number.isInteger(u.weight) || (u.weight as number) < 1)) return 'weight must be an integer >= 1'
   return null
 }
@@ -64,7 +72,7 @@ export async function POST(request: Request) {
     .from('ad_banners')
     .insert({
       name: body.name!.trim(),
-      country_code: body.country_code ?? null,
+      country_codes: body.country_codes ?? [],
       slot: body.slot ?? 'sticky-bottom',
       image_url: body.image_url!.trim(),
       click_url: body.click_url!.trim(),
