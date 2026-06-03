@@ -40,6 +40,19 @@ function validate(b: BannerInput): string | null {
   return null
 }
 
+// Columns an operator may change via PATCH (allowlist — avoids forwarding
+// unknown/typo'd keys to PostgREST and leaking raw column errors).
+const PATCHABLE = ['name', 'country_code', 'slot', 'image_url', 'click_url', 'active', 'weight'] as const
+
+function validatePartial(u: Record<string, unknown>): string | null {
+  if ('name' in u && (!u.name || !String(u.name).trim())) return 'name cannot be empty'
+  if ('image_url' in u && (!u.image_url || !String(u.image_url).trim())) return 'image_url cannot be empty'
+  if ('click_url' in u && (!u.click_url || !String(u.click_url).trim())) return 'click_url cannot be empty'
+  if ('country_code' in u && u.country_code != null && !/^[A-Z]{2}$/.test(String(u.country_code))) return 'country_code must be 2 uppercase letters or null'
+  if ('weight' in u && (!Number.isInteger(u.weight) || (u.weight as number) < 1)) return 'weight must be an integer >= 1'
+  return null
+}
+
 export async function POST(request: Request) {
   const deny = await requireOperator()
   if (deny) return deny
@@ -69,8 +82,11 @@ export async function PATCH(request: Request) {
   if (deny) return deny
   const body = (await request.json().catch(() => ({}))) as { id?: string; updates?: BannerInput }
   if (!body.id) return Response.json({ error: 'id is required' }, { status: 400 })
-  const updates = { ...(body.updates ?? {}) } as Record<string, unknown>
-  delete updates.id
+  const raw = (body.updates ?? {}) as Record<string, unknown>
+  const updates: Record<string, unknown> = {}
+  for (const k of PATCHABLE) if (k in raw) updates[k] = raw[k]
+  const err = validatePartial(updates)
+  if (err) return Response.json({ error: err }, { status: 400 })
   updates.updated_at = new Date().toISOString()
   const supabase = serviceClient()
   const { data, error } = await supabase.from('ad_banners').update(updates).eq('id', body.id).select(COLS).single()
