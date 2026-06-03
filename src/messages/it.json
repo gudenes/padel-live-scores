@@ -601,6 +601,32 @@
       "Q1": "Q1",
       "Q2": "Q2",
       "Q3": "Q3"
+    },
+    "suggest": {
+      "hint": "PadelNachos sta crescendo 🌱 — se qualche dato sembra obsoleto o errato, il tuo aiuto a correggerlo mantiene le informazioni accurate per tutti.",
+      "trigger": "Suggerisci modifiche",
+      "sheetTitle": "Suggerisci modifiche",
+      "sheetSubtitle": "Hai notato qualcosa di sbagliato? Suggerisci una correzione qui sotto.",
+      "playerLabel": "Giocatore",
+      "field_full_name": "Nome completo",
+      "field_country": "Paese",
+      "field_birthplace": "Luogo di nascita",
+      "field_birthdate": "Data di nascita",
+      "field_height": "Altezza (cm)",
+      "field_hand": "Mano",
+      "field_side": "Lato",
+      "hand_left": "Mancino",
+      "hand_right": "Destro",
+      "side_drive": "Dritto",
+      "side_backhand": "Rovescio",
+      "commentLabel": "Altro?",
+      "commentPlaceholder": "Altre correzioni, montepremi, residenza…",
+      "submit": "Invia",
+      "submitting": "Invio…",
+      "successTitle": "Grazie!",
+      "successBody": "Grazie — esamineremo il tuo suggerimento.",
+      "error_rate_limited": "Hai già inviato diversi suggerimenti. Riprova più tardi.",
+      "error_generic": "Qualcosa è andato storto. Riprova."
     }
   },
   "followButton": {

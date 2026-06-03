@@ -1,7 +1,7 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from '../IconSprite'
 
 type SubItem = { href: string; label: string }
@@ -25,6 +25,7 @@ const GROUPS: Group[] = [
   ]},
   { label: 'Catalogs', items: [
     { href: '/players', label: 'Players', icon: 'users' },
+    { href: '/player-suggestions', label: 'Suggestions', icon: 'flag' },
     { href: '/brands', label: 'Brands', icon: 'tag' },
     { href: '/streams', label: 'Streams', icon: 'video' },
     { href: '/yt-channels', label: 'YouTube Channels', icon: 'yt' },
@@ -53,6 +54,21 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
   const pathname = usePathname()
   const [closed, setClosed] = useState<Set<string>>(new Set(['System']))
   const toggleGroup = (g: string) => setClosed(s => { const n = new Set(s); n.has(g) ? n.delete(g) : n.add(g); return n })
+
+  // Live nudge: count of pending player suggestions, polled lightly so the
+  // badge reflects new submissions and clears as the operator resolves them.
+  const [pendingSuggestions, setPendingSuggestions] = useState(0)
+  useEffect(() => {
+    let alive = true
+    const load = () =>
+      fetch('/api/internal/player-suggestions/count')
+        .then(r => r.json())
+        .then(d => { if (alive && typeof d.count === 'number') setPendingSuggestions(d.count) })
+        .catch(() => {})
+    load()
+    const id = setInterval(load, 60_000)
+    return () => { alive = false; clearInterval(id) }
+  }, [])
   return (
     <nav className="rail">
       <div className="railtop">
@@ -75,6 +91,10 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
                 const activeChild = it.children
                   ?.filter(c => pathname === c.href || pathname.startsWith(c.href + '/'))
                   .sort((a, b) => b.href.length - a.href.length)[0]?.href
+                // Inject the live pending-suggestions nudge onto its nav item.
+                const cnt = it.href === '/player-suggestions' && pendingSuggestions > 0
+                  ? pendingSuggestions
+                  : it.cnt
                 return (
                   <div key={it.href}>
                     <Link
@@ -85,8 +105,8 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
                       <Icon id={it.icon} />
                       <span className="lbl">{it.label}</span>
                       {it.pill === 'live' && <span className="pill"><span className="d" />LIVE</span>}
-                      {it.cnt != null && <span className="cnt">{it.cnt}</span>}
-                      {(it.pill || it.cnt != null) && <span className="railpill" />}
+                      {cnt != null && <span className="cnt">{cnt}</span>}
+                      {(it.pill || cnt != null) && <span className="railpill" />}
                     </Link>
                     {it.children && active && !collapsed && (
                       <div className="subnav">
