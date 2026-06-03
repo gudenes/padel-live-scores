@@ -1,20 +1,25 @@
 import { describe, it, expect } from 'vitest'
-import { getActiveSponsor, SPONSORS, type AdSlotId } from '@/lib/sponsors'
+import { getActiveSponsor, SPONSORS } from '@/lib/sponsors'
 
 describe('getActiveSponsor', () => {
-  it('returns AceProGrip for the feed-inline slot', () => {
-    const s = getActiveSponsor('feed-inline')
+  it('returns AceProGrip for ES visitors on the sticky slot', () => {
+    const s = getActiveSponsor('sticky-bottom', 'ES')
     expect(s?.id).toBe('aceprogrip')
     expect(s?.url).toBe('https://www.aceprogrip.es/')
-    expect(s?.creativeImage).toBe('/sponsors/aceprogrip.svg')
+    expect(s?.bannerImage).toBe('/sponsors/aceprogrip-banner.svg')
   })
 
-  it('returns AceProGrip for the match-detail-stats slot', () => {
-    expect(getActiveSponsor('match-detail-stats')?.id).toBe('aceprogrip')
+  it('matches the country case-insensitively', () => {
+    expect(getActiveSponsor('sticky-bottom', 'es')?.id).toBe('aceprogrip')
   })
 
-  it('returns null when no sponsor is assigned to the slot', () => {
-    expect(getActiveSponsor('no-such-slot' as AdSlotId)).toBeNull()
+  it('hides a region-locked sponsor for other countries', () => {
+    expect(getActiveSponsor('sticky-bottom', 'PT')).toBeNull()
+  })
+
+  it('hides a region-locked sponsor when the country is unknown', () => {
+    expect(getActiveSponsor('sticky-bottom', null)).toBeNull()
+    expect(getActiveSponsor('sticky-bottom')).toBeNull()
   })
 
   it('every sponsor declares at least one slot', () => {

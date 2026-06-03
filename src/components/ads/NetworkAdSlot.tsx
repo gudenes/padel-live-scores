@@ -17,7 +17,7 @@ import type { AdSlotId } from '@/lib/sponsors'
  */
 export function NetworkAdSlot(props: {
   slot: AdSlotId
-  variant: 'feed' | 'detail'
+  variant: 'feed' | 'detail' | 'sticky'
 }) {
   // Props are intentionally unused until a network is wired (see TODOs above).
   void props

@@ -35,7 +35,7 @@ export function SponsorCard({
 }: {
   sponsor: Sponsor
   slot: AdSlotId
-  variant: 'feed' | 'detail'
+  variant: 'feed' | 'detail' | 'sticky'
   matchId?: string
 }) {
   // Fire one impression per mount. Guard against React 18/19 StrictMode
@@ -60,8 +60,8 @@ export function SponsorCard({
       style={{
         position: 'relative',
         display: 'block',
-        margin: isFeed ? '6px 8px' : '12px',
-        borderRadius: 8,
+        margin: variant === 'sticky' ? 0 : isFeed ? '6px 8px' : '12px',
+        borderRadius: variant === 'sticky' ? 0 : 8,
         overflow: 'hidden',
         background: '#0b1220',
         lineHeight: 0,

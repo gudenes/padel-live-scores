@@ -21,7 +21,7 @@
 // carries `data-match` + `data-category` + `data-qualifier` + `data-status`
 // for per-match filtering.
 
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { MatchCard } from '@/components/MatchCard'
@@ -34,8 +34,6 @@ import { useTranslations } from 'next-intl'
 import type { Match } from '@/types/match'
 import { bucketDayMatches, bucketStatus } from '@/lib/match-day-bucket'
 import { isPremierTier } from '@/lib/tournament-tier'
-import { AdSlot } from '@/components/ads/AdSlot'
-import { shouldInjectAdAfter } from '@/lib/ad-injection'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -183,15 +181,7 @@ function tournamentStatusBadge(
 
 // ── Component ───────────────────────────────────────────────────────────
 
-export default function MatchesTournamentGroup({
-  group,
-  adStartIndex = 0,
-}: {
-  group: TournamentGroupData
-  /** Cumulative match count rendered in all prior groups — drives the global
-   *  every-6 feed-ad cadence. */
-  adStartIndex?: number
-}) {
+export default function MatchesTournamentGroup({ group }: { group: TournamentGroupData }) {
   const tStage = useTranslations('match.stageChip')
   const tDaily = useTranslations('daily')
 
@@ -405,30 +395,25 @@ export default function MatchesTournamentGroup({
           // finished-section divider (when present) + 100px slack.
           // Doesn't need to be exact since overflow:hidden clips the rest
           // when collapsed.
-          maxHeight: expanded ? total * 130 + (finished.length > 0 ? 50 : 0) + Math.floor(total / 6) * 70 + 100 : 0,
+          maxHeight: expanded ? total * 130 + (finished.length > 0 ? 50 : 0) + 100 : 0,
           transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
           background: BG_CARD,
         }}
       >
         {/* Active: live + upcoming, sorted chronologically */}
-        {active.map((m, i) => {
+        {active.map(m => {
           const s = bucketStatus(m.status)
           const status: 'live' | 'upcoming' | 'finished' = s ?? 'upcoming'
-          const globalPos = adStartIndex + i + 1
           return (
-            <Fragment key={m.id}>
-              <MatchEntry
-                match={m}
-                status={status}
-                locale={group.locale}
-                userTz={group.userTz}
-                tournamentLevel={group.tournamentLevel}
-                dayBucketIso={group.dayBucketIso}
-              />
-              {shouldInjectAdAfter(globalPos) && (
-                <AdSlot slot="feed-inline" variant="feed" />
-              )}
-            </Fragment>
+            <MatchEntry
+              key={m.id}
+              match={m}
+              status={status}
+              locale={group.locale}
+              userTz={group.userTz}
+              tournamentLevel={group.tournamentLevel}
+              dayBucketIso={group.dayBucketIso}
+            />
           )
         })}
 
@@ -483,24 +468,17 @@ export default function MatchesTournamentGroup({
         )}
 
         {/* Finished: most-recent finish first */}
-        {finished.map((m, j) => {
-          const globalPos = adStartIndex + active.length + j + 1
-          return (
-            <Fragment key={m.id}>
-              <MatchEntry
-                match={m}
-                status="finished"
-                locale={group.locale}
-                userTz={group.userTz}
-                tournamentLevel={group.tournamentLevel}
-                dayBucketIso={group.dayBucketIso}
-              />
-              {shouldInjectAdAfter(globalPos) && (
-                <AdSlot slot="feed-inline" variant="feed" />
-              )}
-            </Fragment>
-          )
-        })}
+        {finished.map(m => (
+          <MatchEntry
+            key={m.id}
+            match={m}
+            status="finished"
+            locale={group.locale}
+            userTz={group.userTz}
+            tournamentLevel={group.tournamentLevel}
+            dayBucketIso={group.dayBucketIso}
+          />
+        ))}
       </div>
     </div>
   )

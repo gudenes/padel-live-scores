@@ -16,10 +16,10 @@ export function AdSlot({
   context,
 }: {
   slot: AdSlotId
-  variant: 'feed' | 'detail'
-  context?: { matchId?: string }
+  variant: 'feed' | 'detail' | 'sticky'
+  context?: { matchId?: string; country?: string | null }
 }) {
-  const sponsor = getActiveSponsor(slot)
+  const sponsor = getActiveSponsor(slot, context?.country)
   if (sponsor) {
     return (
       <SponsorCard

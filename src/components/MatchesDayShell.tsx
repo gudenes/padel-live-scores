@@ -542,33 +542,25 @@ export default function MatchesDayShell({
             </div>
           ) : (
             <div id="matches-filter-root" style={{ padding: '0 8px' }}>
-              {(() => {
-                let running = 0
-                return groups.map((g) => {
-                  const adStartIndex = running
-                  running += g.matches.length
-                  return (
-                    <MatchesTournamentGroup
-                      key={g.tournamentId}
-                      adStartIndex={adStartIndex}
-                      group={{
-                        tournamentId: g.tournamentId,
-                        tournamentName: g.tournamentName,
-                        tournamentLevel: g.tournamentLevel,
-                        tournamentCountry: g.tournamentCountry,
-                        tournamentStartsAt: g.tournamentStartsAt,
-                        tournamentEndsAt: g.tournamentEndsAt,
-                        tournamentStatus: g.tournamentStatus,
-                        matches: g.matches as never,
-                        isPremier: g.isPremier,
-                        locale,
-                        userTz,
-                        dayBucketIso: activeIso,
-                      }}
-                    />
-                  )
-                })
-              })()}
+              {groups.map((g) => (
+                <MatchesTournamentGroup
+                  key={g.tournamentId}
+                  group={{
+                    tournamentId: g.tournamentId,
+                    tournamentName: g.tournamentName,
+                    tournamentLevel: g.tournamentLevel,
+                    tournamentCountry: g.tournamentCountry,
+                    tournamentStartsAt: g.tournamentStartsAt,
+                    tournamentEndsAt: g.tournamentEndsAt,
+                    tournamentStatus: g.tournamentStatus,
+                    matches: g.matches as never,
+                    isPremier: g.isPremier,
+                    locale,
+                    userTz,
+                    dayBucketIso: activeIso,
+                  }}
+                />
+              ))}
             </div>
           )}
         </div>
