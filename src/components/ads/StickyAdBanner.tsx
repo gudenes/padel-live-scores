@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { usePathname } from '@/i18n/navigation'
 import { pickBanner } from '@/lib/ad-banner-resolver'
 import { useActiveBanner } from '@/hooks/useActiveBanner'
@@ -36,11 +37,16 @@ export function StickyAdBanner() {
   const testingGeo =
     typeof window !== 'undefined' &&
     new URLSearchParams(window.location.search).has('geo')
-  // Otherwise hold the banner until the visitor has dealt with the cookie
-  // consent prompt: keeps the consent UI unobstructed and avoids firing an
-  // ad impression before consent (matters for EU/Spain visitors).
+  // Native apps (iOS/Android) deliberately never render the cookie-consent
+  // prompt (App Store 5.1.2), so `hasDecided` is never set there. Treat native
+  // as eligible: this is a first-party, direct-sold image ad (not third-party
+  // cookie tracking), and the apps run analytics in memory-mode already.
+  const isNative = Capacitor.isNativePlatform()
+  // On the web, otherwise hold the banner until the visitor has dealt with the
+  // cookie-consent prompt — keeps the consent UI unobstructed and avoids firing
+  // an ad impression before consent (matters for EU/Spain visitors).
   const visible =
-    !!banner && isAdRoute(pathname) && (hasDecided || testingGeo)
+    !!banner && isAdRoute(pathname) && (hasDecided || testingGeo || isNative)
 
   const ref = useRef<HTMLDivElement>(null)
   const [navHeight, setNavHeight] = useState(0)
