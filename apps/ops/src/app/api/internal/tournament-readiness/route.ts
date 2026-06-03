@@ -101,21 +101,25 @@ export async function GET() {
     agg.set(m.tournament_id, a)
   }
 
-  // 3) match_stats presence per tournament (Premier only — bounded set).
+  // 3) match_stats presence per tournament (Premier only). Query in chunks
+  //    of match_ids — a single .in() over every Premier match overflows the
+  //    PostgREST request URL (→ 400 Bad Request).
   const premierMatchIds = tournaments
     .filter(t => isPremierTier(t.level))
     .flatMap(t => agg.get(t.id)?.matchIds ?? [])
   const statsTournamentIds = new Set<string>()
   if (premierMatchIds.length > 0) {
-    const statsRows = await paginatedSelect<{ match_id: string }>(
-      (start, end) => supabase.from('match_stats').select('match_id').in('match_id', premierMatchIds).range(start, end),
-      { what: 'readiness match_stats' },
-    )
     const matchToTournament = new Map<string, string>()
     for (const t of tournaments) for (const mid of agg.get(t.id)?.matchIds ?? []) matchToTournament.set(mid, t.id)
-    for (const s of statsRows) {
-      const tid = matchToTournament.get(s.match_id)
-      if (tid) statsTournamentIds.add(tid)
+    const CHUNK = 200
+    for (let i = 0; i < premierMatchIds.length; i += CHUNK) {
+      const batch = premierMatchIds.slice(i, i + CHUNK)
+      const { data, error } = await supabase.from('match_stats').select('match_id').in('match_id', batch)
+      if (error) return NextResponse.json({ error: `match_stats: ${error.message}` }, { status: 500 })
+      for (const s of (data ?? []) as Array<{ match_id: string }>) {
+        const tid = matchToTournament.get(s.match_id)
+        if (tid) statsTournamentIds.add(tid)
+      }
     }
   }
 
