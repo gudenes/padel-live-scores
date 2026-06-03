@@ -2,19 +2,31 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { usePathname } from '@/i18n/navigation'
 import { getActiveSponsor } from '@/lib/sponsors'
 import { useGeoCountry } from '@/hooks/useGeoCountry'
 import { AdSlot } from './AdSlot'
 
 /**
- * App-wide sticky anchor banner (Sofascore-style). Pinned just above the bottom
- * nav, full-width within the app's 500px column. Region-targeted: only renders
- * when a sponsor matches the visitor's country (else the NetworkAdSlot seam
- * would fill it later — nothing today).
+ * Routes where the sticky banner is allowed (locale-stripped paths):
+ *   /matches, /matches/<date>, /match/<id>, /player/<id>.
+ * Scoped for now; widen this matcher to show on more pages later.
+ */
+function isAdRoute(pathname: string): boolean {
+  return /^\/(matches(\/|$)|match\/|player\/)/.test(pathname)
+}
+
+/**
+ * Sticky anchor banner (Sofascore-style). Pinned just above the bottom nav,
+ * within the app's 500px column. Shown only on matches / match-detail / player
+ * pages (see isAdRoute), and only when a sponsor matches the visitor's country
+ * (else the NetworkAdSlot seam would fill it later — nothing today).
  */
 export function StickyAdBanner() {
   const country = useGeoCountry()
+  const pathname = usePathname()
   const sponsor = country ? getActiveSponsor('sticky-bottom', country) : null
+  const visible = !!sponsor && isAdRoute(pathname)
 
   const ref = useRef<HTMLDivElement>(null)
   const [navHeight, setNavHeight] = useState(0)
@@ -28,7 +40,7 @@ export function StickyAdBanner() {
   // current element. setNavHeight with an unchanged value is a no-op, so this
   // stays cheap despite the broad observer.
   useEffect(() => {
-    if (!sponsor) return
+    if (!visible) return
     let observed: HTMLElement | null = null
     let ro: ResizeObserver | null = null
     const sync = () => {
@@ -53,12 +65,12 @@ export function StickyAdBanner() {
       mo.disconnect()
       window.removeEventListener('resize', sync)
     }
-  }, [sponsor])
+  }, [visible])
 
   // Reserve bottom space so page content can scroll clear of the banner.
   useEffect(() => {
     const el = ref.current
-    if (!sponsor || !el) return
+    if (!visible || !el) return
     const apply = () => {
       document.body.style.paddingBottom = `${el.offsetHeight}px`
     }
@@ -69,9 +81,9 @@ export function StickyAdBanner() {
       ro.disconnect()
       document.body.style.paddingBottom = ''
     }
-  }, [sponsor])
+  }, [visible])
 
-  if (!sponsor) return null
+  if (!visible) return null
 
   return (
     <div
