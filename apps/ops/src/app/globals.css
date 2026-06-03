@@ -121,6 +121,12 @@ button {
   --men:#5BA8FF; --men-bg:rgba(91,168,255,.13); --men-border:rgba(91,168,255,.32);
   --women:#F472B6; --women-bg:rgba(244,114,182,.13); --women-border:rgba(244,114,182,.32);
 
+  /* readiness — verdict + cell states (data-readiness view) */
+  --rd-ok:#5FB83A;   --rd-ok-bg:rgba(95,184,58,.14);   --rd-ok-border:rgba(95,184,58,.40);
+  --rd-gap:#D9A441;  --rd-gap-bg:rgba(217,164,65,.14);  --rd-gap-border:rgba(217,164,65,.40);
+  --rd-bad:#E0533D;  --rd-bad-bg:rgba(224,83,61,.16);   --rd-bad-border:rgba(224,83,61,.45);
+  --rd-na:#3A3A3A;   --rd-na-border:#4A4A4A;
+
   /* rail — ALWAYS dark (the court tunnel) */
   --rail-bg:#121212;
   --rail-bg-grad:linear-gradient(180deg,#161616,#0E0E0E);
@@ -185,6 +191,11 @@ button {
 
   --men:#2E7DDB; --men-bg:rgba(46,125,219,.10); --men-border:rgba(46,125,219,.30);
   --women:#D6418F; --women-bg:rgba(214,65,143,.10); --women-border:rgba(214,65,143,.30);
+
+  --rd-ok:#3F8B22;   --rd-ok-bg:rgba(63,139,34,.12);   --rd-ok-border:rgba(63,139,34,.34);
+  --rd-gap:#B07D14;  --rd-gap-bg:rgba(176,125,20,.12);  --rd-gap-border:rgba(176,125,20,.34);
+  --rd-bad:#C8341F;  --rd-bad-bg:rgba(200,52,31,.10);   --rd-bad-border:rgba(200,52,31,.32);
+  --rd-na:#CDD2C2;   --rd-na-border:#B9BFA9;
 
   --header-bg:#FFFFFF;
   --header-border:#E1E5D8;
