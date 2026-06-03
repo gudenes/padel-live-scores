@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
         .eq('active', true),
       supabase
         .from('ad_network_config')
-        .select('web_enabled, adsense_publisher_id, adsense_slot_id, native_enabled, admob_ios_app_id, admob_android_app_id, admob_banner_unit_id')
+        .select('web_enabled, adsense_publisher_id, adsense_slot_id, native_enabled, admob_ios_app_id, admob_android_app_id, admob_banner_unit_id, admob_ios_banner_unit_id')
         .eq('key', 'default')
         .maybeSingle(),
     ])

@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
 
-const COLS = 'key, web_enabled, adsense_publisher_id, adsense_slot_id, native_enabled, admob_ios_app_id, admob_android_app_id, admob_banner_unit_id, updated_at'
+const COLS = 'key, web_enabled, adsense_publisher_id, adsense_slot_id, native_enabled, admob_ios_app_id, admob_android_app_id, admob_banner_unit_id, admob_ios_banner_unit_id, updated_at'
 
 async function requireOperator() {
   const session = await auth()
@@ -23,7 +23,7 @@ export async function GET() {
 
 const ALLOWED = [
   'web_enabled', 'adsense_publisher_id', 'adsense_slot_id',
-  'native_enabled', 'admob_ios_app_id', 'admob_android_app_id', 'admob_banner_unit_id',
+  'native_enabled', 'admob_ios_app_id', 'admob_android_app_id', 'admob_banner_unit_id', 'admob_ios_banner_unit_id',
 ] as const
 
 export async function PATCH(request: Request) {

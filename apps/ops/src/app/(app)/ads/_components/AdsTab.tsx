@@ -22,6 +22,7 @@ interface NetworkConfig {
   admob_ios_app_id: string | null
   admob_android_app_id: string | null
   admob_banner_unit_id: string | null
+  admob_ios_banner_unit_id: string | null
 }
 
 type Draft = Omit<Banner, 'id'> & { id?: string }
@@ -278,8 +279,11 @@ export default function AdsTab() {
                 <Field label="Android app ID">
                   <input className="ui-input" value={config.admob_android_app_id ?? ''} onChange={(e) => setConfig({ ...config, admob_android_app_id: e.target.value || null })} />
                 </Field>
-                <Field label="Banner ad-unit ID">
+                <Field label="Android banner ad-unit ID">
                   <input className="ui-input" value={config.admob_banner_unit_id ?? ''} onChange={(e) => setConfig({ ...config, admob_banner_unit_id: e.target.value || null })} />
+                </Field>
+                <Field label="iOS banner ad-unit ID">
+                  <input className="ui-input" value={config.admob_ios_banner_unit_id ?? ''} onChange={(e) => setConfig({ ...config, admob_ios_banner_unit_id: e.target.value || null })} />
                 </Field>
               </div>
 
