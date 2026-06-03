@@ -13,10 +13,10 @@ const TIER_ORDER = ['major','p1','p2','finals','fip_platinum','fip_gold','fip_si
 function daysInMonth(year: number, month0: number): number { return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate() }
 function dayOfMonth(iso: string | null): number | null { const m = iso && /^\d{4}-(\d{2})-(\d{2})/.exec(iso); return m ? Number(m[2]) : null }
 
-export default function ReadinessCalendar({ rows }: { rows: ReadinessRow[] }) {
+export default function ReadinessCalendar({ rows, initialYear }: { rows: ReadinessRow[]; initialYear: number }) {
   const now = new Date()
-  const [year, setYear] = useState(2026)
-  const [month0, setMonth0] = useState(now.getUTCFullYear() === 2026 ? now.getUTCMonth() : 0)
+  const [year, setYear] = useState(initialYear)
+  const [month0, setMonth0] = useState(now.getUTCFullYear() === initialYear ? now.getUTCMonth() : 0)
   const [sortBy, setSortBy] = useState<SortBy>('start')
 
   const ndays = daysInMonth(year, month0)
