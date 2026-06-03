@@ -148,6 +148,24 @@ English authored first, then es/pt/it/fr. Ops tab strings stay inline English (c
 - Unit test for the apply field→column whitelist validation (rejects non-whitelisted fields).
 - Manual local verification: open a player, submit a change, confirm the row in `player_suggestions`, apply from the ops tab, confirm `players` updates.
 
+## Implementation note (correction)
+
+The operator dashboard lives in the **separate `apps/ops` app** (admin.padelnachos.com),
+not the legacy `src/app/ops` tab-switcher. The review surface was therefore built in
+`apps/ops`:
+- Page: `apps/ops/src/app/(app)/player-suggestions/` (server `page.tsx` → client `_components/SuggestionsTab.tsx`, design-system primitives).
+- API: `apps/ops/src/app/api/internal/player-suggestions/` (`route.ts` GET list, `[id]/route.ts` POST apply/reject/resolve), auth via `session.user.isOperator`, service-role Supabase.
+- Whitelist: `apps/ops/src/lib/player-suggestion-fields.ts` (mirrored copy — apps/ops doesn't cross-import the main app's `src/`).
+- Nav: entry under **Catalogs** in `apps/ops/src/components/shell/Rail.tsx`.
+
+The **main app** keeps only the user-facing side: the submit endpoint
+`src/app/api/player/[id]/suggest/route.ts`, `SuggestChangesSheet`, the Overview-tab
+trigger, i18n, the migration, and `src/lib/player-suggestion-fields.ts`.
+
+Apply-route hardening (from code review): operator-applied values are normalized/validated
+before writing to canonical `players` columns — `country` via `normalizeCountry` (400 on
+unknown), `birthdate` via `Date.parse` (400 on unparseable), `height` via `Number.isFinite`.
+
 ## Out of scope (v1)
 
 - Per-field applied-state persistence beyond `status` + `review_note` (kept simple in v1).
