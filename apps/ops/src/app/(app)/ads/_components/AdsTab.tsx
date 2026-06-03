@@ -189,6 +189,8 @@ export default function AdsTab() {
       {editing && (
         <Section label={editing.id ? `Edit “${editing.name || 'banner'}”` : 'New banner'}>
           <Panel>
+           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div style={{ flex: '1 1 320px', minWidth: 280 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <Field label="Name (sponsor / label)">
                 <input className="ui-input" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="AceProGrip" />
@@ -231,6 +233,12 @@ export default function AdsTab() {
               <Button variant="primary" onClick={saveBanner}>Save</Button>
               <Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
             </div>
+            </div>
+            <div style={{ flex: '0 0 auto' }}>
+              <div className="ui-field-label" style={{ marginBottom: 8 }}>Live preview — how it shows on mobile</div>
+              <MobilePreview imageUrl={editing.image_url} name={editing.name} />
+            </div>
+           </div>
           </Panel>
         </Section>
       )}
@@ -280,6 +288,67 @@ export default function AdsTab() {
           )}
         </Panel>
       </Section>
+    </div>
+  )
+}
+
+/**
+ * Phone mock showing the banner exactly as the public sticky SponsorCard
+ * renders it: full-width dark bar, the 320×50 creative centered, an "Ad" tag,
+ * pinned just above the bottom nav — so an operator sees the real result.
+ */
+function MobilePreview({ imageUrl, name }: { imageUrl: string; name: string }) {
+  const rowBlock = (w: string, c: string) => (
+    <div style={{ width: w, height: 9, borderRadius: 5, background: c }} />
+  )
+  return (
+    <div
+      style={{
+        width: 320,
+        background: '#0a0a0a',
+        borderRadius: 22,
+        border: '1px solid var(--border)',
+        overflow: 'hidden',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.45)',
+      }}
+    >
+      {/* faux header */}
+      <div style={{ height: 36, background: '#141414', display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px' }}>
+        <div style={{ width: 18, height: 18, borderRadius: 4, background: '#2a2f3a' }} />
+        {rowBlock('60%', '#1e1e1e')}
+      </div>
+      {/* faux match rows */}
+      <div style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ background: '#171a21', borderRadius: 10, padding: 10, display: 'flex', flexDirection: 'column', gap: 7 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>{rowBlock('55%', '#2a2f3a')}{rowBlock('22px', '#2a2f3a')}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>{rowBlock('45%', '#23262e')}{rowBlock('22px', '#23262e')}</div>
+          </div>
+        ))}
+      </div>
+      {/* the banner — mirrors SponsorCard variant="sticky" */}
+      <div style={{ position: 'relative', background: '#0b1220', lineHeight: 0 }}>
+        {imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={imageUrl} alt={name} style={{ display: 'block', width: '100%', height: 'auto', maxWidth: 320, margin: '0 auto' }} />
+        ) : (
+          <div style={{ height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-3)', fontSize: 11, lineHeight: 1.4 }}>
+            Upload a 320×50 image to preview
+          </div>
+        )}
+        <span style={{ position: 'absolute', top: 3, right: 3, fontSize: 7, letterSpacing: 0.5, textTransform: 'uppercase', color: '#e5e7eb', background: 'rgba(0,0,0,0.5)', padding: '1px 4px', borderRadius: 3, fontWeight: 700, lineHeight: 1.4 }}>
+          Ad
+        </span>
+      </div>
+      {/* faux bottom nav */}
+      <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center', height: 48, background: 'rgba(10,10,10,0.95)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: i === 1 ? 'var(--lime)' : '#3a3f48' }} />
+            <div style={{ width: 18, height: 5, borderRadius: 3, background: i === 1 ? 'var(--lime)' : '#2a2f3a' }} />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
