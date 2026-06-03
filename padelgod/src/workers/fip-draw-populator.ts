@@ -15,6 +15,7 @@ import {
   loadPlayersByFipId as sharedLoadPlayersByFipId,
   loadEntryListNameMap as sharedLoadEntryListNameMap,
 } from '../lib/draw-resolver.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 /**
  * fip-draw-populator — simplified-pipeline writer #1.
@@ -516,7 +517,8 @@ export async function runFipDrawPopulator(
 
   // 1. Active tournaments with FIP slug
   const { data: tours, error: toursErr } = await supabase.rpc(
-    'padelgod_active_tournaments_with_slug'
+    'padelgod_active_tournaments_with_slug',
+    activeTournamentArgs(onlyTournamentIds),
   );
   if (toursErr) {
     throw new Error(

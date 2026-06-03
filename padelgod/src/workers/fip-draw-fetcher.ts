@@ -12,6 +12,7 @@ import { parseFipEventPageConfig } from '../parsers/fip-event-page-config.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_EVENT_DRAW_VERSION } from '../lib/parser-versions.js';
 import { fipCountryNameToAlpha2 } from '../lib/country.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 /**
  * FIP event-page draw fetcher.
@@ -303,7 +304,10 @@ function safeJsonParse(body: string): { error?: number; html?: string; drawType?
 export async function runFipDrawFetcher(
   deps: FipDrawFetcherDeps
 ): Promise<FipDrawFetcherResult> {
-  const { data, error } = await deps.supabase.rpc('padelgod_active_tournaments_with_slug');
+  const { data, error } = await deps.supabase.rpc(
+    'padelgod_active_tournaments_with_slug',
+    activeTournamentArgs(deps.onlyTournamentIds),
+  );
   if (error) {
     throw new Error(`padelgod_active_tournaments_with_slug RPC failed: ${error.message}`);
   }

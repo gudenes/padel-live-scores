@@ -3,6 +3,7 @@ import type { Logger } from 'pino';
 import { parseSetScores } from './static-reconciler.js';
 import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
 import { paginatedSelect } from '../lib/db-paginate.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 /**
  * fip-results-writer — simplified-pipeline writer #3.
@@ -128,7 +129,8 @@ export async function runFipResultsWriter(
   };
 
   const { data: tours, error: toursErr } = await supabase.rpc(
-    'padelgod_active_tournaments_with_slug'
+    'padelgod_active_tournaments_with_slug',
+    activeTournamentArgs(deps.onlyTournamentIds),
   );
   if (toursErr) {
     throw new Error(

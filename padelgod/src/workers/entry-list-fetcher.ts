@@ -61,6 +61,7 @@ import {
 } from '../lib/fip-event-page.js';
 import { searchFipPlayer } from '../lib/fip-player-search.js';
 import { normalizeCountry } from '../lib/country.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { pdfToText } from '../lib/pdf-text.js';
 import {
@@ -392,7 +393,8 @@ export async function runEntryListFetcher(
   // RPC returns active tournaments with their FIP slug — the FIP-PDF flow
   // doesn't need a Crionet widget code (the legacy worker wanted that).
   const { data: tournaments, error } = await deps.supabase.rpc(
-    'padelgod_active_tournaments_with_slug'
+    'padelgod_active_tournaments_with_slug',
+    activeTournamentArgs(deps.onlyTournamentIds),
   );
   if (error) {
     throw new Error(`Active tournaments RPC failed: ${error.message}`);

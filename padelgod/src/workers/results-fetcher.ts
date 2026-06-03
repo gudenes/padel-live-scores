@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { parseCrionetResults } from '../parsers/crionet-results.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { CRIONET_RESULTS_VERSION } from '../lib/parser-versions.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 export interface ResultsFetcherDeps {
   supabase: SupabaseClient;
@@ -103,7 +104,8 @@ async function fetchOneDay(
 
 export async function runResultsFetcher(deps: ResultsFetcherDeps): Promise<ResultsFetcherResult> {
   const { data: tournaments, error } = await deps.supabase.rpc(
-    'padelgod_active_tournaments_for_static_workers'
+    'padelgod_active_tournaments_for_static_workers',
+    activeTournamentArgs(deps.onlyTournamentIds),
   );
   if (error) throw new Error(`Active tournaments RPC failed: ${error.message}`);
   const allList = (tournaments ?? []) as ActiveTournament[];

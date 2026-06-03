@@ -79,4 +79,28 @@ describe('runDrawFetcher', () => {
     expect(result.tournamentsProcessed).toBe(1);
     expect(result.totalMatchesInserted).toBe(0);
   });
+
+  it('passes p_only_ids to the RPC when onlyTournamentIds is set (targeted refresh)', async () => {
+    const supabase = fakeSupabase([]);
+    const httpClient = { get: vi.fn() };
+    await runDrawFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+      onlyTournamentIds: new Set(['7fc86d61-34d5-4771-96da-7bfbf9aaeab7']),
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'padelgod_active_tournaments_for_static_workers',
+      { p_only_ids: ['7fc86d61-34d5-4771-96da-7bfbf9aaeab7'] },
+    );
+  });
+
+  it('omits p_only_ids when no onlyTournamentIds (scheduled run stays windowed)', async () => {
+    const supabase = fakeSupabase([]);
+    const httpClient = { get: vi.fn() };
+    await runDrawFetcher({ supabase: supabase as any, httpClient: httpClient as any });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'padelgod_active_tournaments_for_static_workers',
+      {},
+    );
+  });
 });

@@ -6,6 +6,7 @@ import {
   parseOopScheduledAtBatch,
   type OopScheduleRow,
 } from '../lib/oop-schedule-parser.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 /**
  * fip-oop-writer — simplified-pipeline writer #2.
@@ -194,7 +195,8 @@ export async function runFipOopWriter(
 
   // 1. Active tournaments
   const { data: tours, error: toursErr } = await supabase.rpc(
-    'padelgod_active_tournaments_with_slug'
+    'padelgod_active_tournaments_with_slug',
+    activeTournamentArgs(deps.onlyTournamentIds),
   );
   if (toursErr) {
     throw new Error(
