@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { parseCrionetDraw, type Category, type DrawType } from '../parsers/crionet-draw.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { CRIONET_DRAW_VERSION } from '../lib/parser-versions.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 export interface DrawFetcherDeps {
   supabase: SupabaseClient;
@@ -117,7 +118,8 @@ async function fetchOneDrawTypeRound(
 
 export async function runDrawFetcher(deps: DrawFetcherDeps): Promise<DrawFetcherResult> {
   const { data: tournaments, error } = await deps.supabase.rpc(
-    'padelgod_active_tournaments_for_static_workers'
+    'padelgod_active_tournaments_for_static_workers',
+    activeTournamentArgs(deps.onlyTournamentIds),
   );
   if (error) throw new Error(`Active tournaments RPC failed: ${error.message}`);
   const allList = (tournaments ?? []) as ActiveTournament[];

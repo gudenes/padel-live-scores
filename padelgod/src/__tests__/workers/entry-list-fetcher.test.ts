@@ -466,6 +466,33 @@ describe('runEntryListFetcher (FIP PDF mode)', () => {
     expect(fipSearchCalls).toHaveLength(0);
   });
 
+  it('passes p_only_ids to the RPC when onlyTournamentIds is set (targeted refresh)', async () => {
+    const supabase = fakeSupabase({ activeTournaments: [], dbPlayers: [] });
+    const httpClient = { get: vi.fn(), post: vi.fn() };
+    await runEntryListFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+      onlyTournamentIds: new Set(['7fc86d61-34d5-4771-96da-7bfbf9aaeab7']),
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'padelgod_active_tournaments_with_slug',
+      { p_only_ids: ['7fc86d61-34d5-4771-96da-7bfbf9aaeab7'] },
+    );
+  });
+
+  it('omits p_only_ids when no onlyTournamentIds (scheduled run stays windowed)', async () => {
+    const supabase = fakeSupabase({ activeTournaments: [], dbPlayers: [] });
+    const httpClient = { get: vi.fn(), post: vi.fn() };
+    await runEntryListFetcher({
+      supabase: supabase as any,
+      httpClient: httpClient as any,
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      'padelgod_active_tournaments_with_slug',
+      {},
+    );
+  });
+
   it('soft-skips a failing tournament without taking the rest of the run down', async () => {
     const supabase = fakeSupabase({
       activeTournaments: [

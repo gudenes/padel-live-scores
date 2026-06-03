@@ -8,6 +8,7 @@ import {
   linkOopSnapshotsToPublicMatches,
   type PublicMatchCandidate,
 } from '../lib/oop-linker.js';
+import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 export interface OopFetcherDeps {
   supabase: SupabaseClient;
@@ -309,7 +310,8 @@ async function upsertTournamentCourts(
 
 export async function runOopFetcher(deps: OopFetcherDeps): Promise<OopFetcherResult> {
   const { data: tournaments, error } = await deps.supabase.rpc(
-    'padelgod_active_tournaments_for_static_workers'
+    'padelgod_active_tournaments_for_static_workers',
+    activeTournamentArgs(deps.onlyTournamentIds),
   );
   if (error) throw new Error(`Active tournaments RPC failed: ${error.message}`);
   const allList = (tournaments ?? []) as ActiveTournament[];
