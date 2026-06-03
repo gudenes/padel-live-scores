@@ -45,7 +45,7 @@ export async function GET() {
   // 1) In-scope tournaments: 2026 window × main tiers.
   const { data: tData, error: tErr } = await supabase
     .from('tournaments')
-    .select('id, name, level, source, status, starts_at, ends_at, registration_status, entry_list_status')
+    .select('id, name, level, starts_at, ends_at, registration_status')
     .in('level', IN_SCOPE_TIERS as unknown as string[])
     .or(`and(starts_at.gte.${FROM},starts_at.lte.${TO}),and(ends_at.gte.${FROM},ends_at.lte.${TO})`)
     .order('starts_at', { ascending: true, nullsFirst: false })
@@ -53,27 +53,33 @@ export async function GET() {
   if (tErr) return NextResponse.json({ error: `tournaments: ${tErr.message}` }, { status: 500 })
 
   const tournaments = (tData ?? []) as Array<{
-    id: string; name: string | null; level: string | null; source: string | null
-    status: string | null; starts_at: string | null; ends_at: string | null
-    registration_status: string | null; entry_list_status: string | null
+    id: string; name: string | null; level: string | null
+    starts_at: string | null; ends_at: string | null
+    registration_status: string | null
   }>
   const ids = tournaments.map(t => t.id)
   if (ids.length === 0) return NextResponse.json({ rows: [] as ReadinessRow[] })
 
   // 2) Matches rollup (paginated — can approach the 10k cap).
-  const matchRows = await paginatedSelect<{
-    id: string; tournament_id: string | null; status: string | null; round: string | null
+  type MatchRow = {
+    tournament_id: string | null; status: string | null; round: string | null
     winner_pair: number | null; court: string | null; scheduled_at: string | null
     pair1_player1_id: string | null; pair1_player2_id: string | null
     pair2_player1_id: string | null; pair2_player2_id: string | null
-  }>(
-    (start, end) => supabase
-      .from('matches')
-      .select('id, tournament_id, status, round, winner_pair, court, scheduled_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
-      .in('tournament_id', ids)
-      .range(start, end),
-    { what: 'readiness matches rollup' },
-  )
+  }
+  let matchRows: MatchRow[]
+  try {
+    matchRows = await paginatedSelect<MatchRow>(
+      (start, end) => supabase
+        .from('matches')
+        .select('tournament_id, status, round, winner_pair, court, scheduled_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
+        .in('tournament_id', ids)
+        .range(start, end),
+      { what: 'readiness matches rollup' },
+    )
+  } catch (e) {
+    return NextResponse.json({ error: `matches: ${e instanceof Error ? e.message : 'read failed'}` }, { status: 500 })
+  }
 
   interface Agg {
     matchCount: number; liveOrScheduledCount: number; finishedCount: number; finishedWithWinner: number
@@ -115,7 +121,7 @@ export async function GET() {
   const presence = new Map<string, Presence>()
   for (const p of (presData ?? []) as Presence[]) presence.set(p.tournament_id, p)
 
-  // 5) Build rollups and run the engine.
+  // 4) Build rollups and run the engine.
   const rows: ReadinessRow[] = tournaments.map(t => {
     const a = agg.get(t.id) ?? blank()
     const rollup: TournamentRollup = {
