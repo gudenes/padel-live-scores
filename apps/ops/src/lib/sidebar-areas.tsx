@@ -110,6 +110,7 @@ export const AREAS: ReadonlyArray<Area> = [
       { href: '/players', label: 'Players' },
       { href: '/brands', label: 'Brands & Equipment' },
       { href: '/partners', label: 'Partners' },
+      { href: '/ads', label: 'Ad Banners' },
       { href: '/streams', label: 'Streams' },
       { href: '/yt-channels', label: 'YT Channels' },
     ],
