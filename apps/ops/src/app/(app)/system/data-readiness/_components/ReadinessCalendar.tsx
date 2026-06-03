@@ -96,8 +96,9 @@ export default function ReadinessCalendar({ rows }: { rows: ReadinessRow[] }) {
                   position: 'absolute', top: lane * 34, height: 28,
                   left: `${pct(startDay)}%`, width: `calc(${widthPct(startDay, endDay)}% - 4px)`,
                   display: 'flex', alignItems: 'center', gap: 7, padding: '0 9px',
-                  background: VERDICT_BG[r.verdict], borderLeft: `4px solid ${VERDICT_BORDER[r.verdict]}`,
-                  border: '1px solid var(--border-card)', borderRadius: 6, cursor: 'pointer', overflow: 'hidden',
+                  background: VERDICT_BG[r.verdict],
+                  border: '1px solid var(--border-card)', borderLeft: `4px solid ${VERDICT_BORDER[r.verdict]}`,
+                  borderRadius: 6, cursor: 'pointer', overflow: 'hidden',
                   color: 'var(--text-1)', font: 'inherit',
                 }}
               >
