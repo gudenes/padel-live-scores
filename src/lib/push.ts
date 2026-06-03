@@ -24,6 +24,10 @@ export interface PushPayload {
    *  render alongside the title/body. Falls back to the brand logo when
    *  unset (see public/sw.js). */
   icon?: string
+  /** Analytics correlation id (notification_sends.id). When present it is
+   *  serialized into the pushed JSON so public/sw.js can echo it into the
+   *  notification's data block and beacon it back on click. */
+  sendId?: string
 }
 
 interface PushSubscription {
