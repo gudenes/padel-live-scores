@@ -88,34 +88,22 @@ export function StickyAdBanner() {
     }
   }, [visible])
 
-  // Reserve bottom space so page content can scroll clear of the banner.
-  useEffect(() => {
-    const el = ref.current
-    if (!visible || !el) return
-    const apply = () => {
-      document.body.style.paddingBottom = `${el.offsetHeight}px`
-    }
-    apply()
-    const ro = new ResizeObserver(apply)
-    ro.observe(el)
-    return () => {
-      ro.disconnect()
-      document.body.style.paddingBottom = ''
-    }
-  }, [visible])
-
   if (!visible) return null
 
   return (
+    // position: sticky (not fixed) so it pins correctly inside the desktop
+    // phone-frame scroll container — that container uses `contain: paint`,
+    // which would make a fixed element scroll away with content. Sticky also
+    // takes flow space, so no manual body padding is needed. Mirrors the nav
+    // and consent banner. `bottom: navHeight` parks it just above the nav.
     <div
       ref={ref}
       style={{
-        position: 'fixed',
+        position: 'sticky',
         bottom: navHeight,
-        left: '50%',
-        transform: 'translateX(-50%)',
         width: '100%',
         maxWidth: 500,
+        margin: '0 auto',
         zIndex: 199,
       }}
     >
