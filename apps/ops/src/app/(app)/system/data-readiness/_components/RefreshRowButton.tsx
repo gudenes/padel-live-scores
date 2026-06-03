@@ -36,11 +36,13 @@ export default function RefreshRowButton({
   const showStatus = externalStatus ?? (touched ? localStatus : null)
   const labelText =
     showStatus?.phase === 'running' ? 'Refreshing…'
+    : showStatus?.phase === 'queued' ? 'Queued'
     : showStatus?.phase === 'done' ? (showStatus.label ?? '✓ Done')
     : showStatus?.phase === 'error' ? 'error'
     : 'Refresh'
   const color =
     showStatus?.phase === 'running' ? 'var(--text-3)'
+    : showStatus?.phase === 'queued' ? 'var(--text-3)'
     : showStatus?.phase === 'done' ? (showStatus.added ? 'var(--rd-ok)' : 'var(--rd-gap)')
     : showStatus?.phase === 'error' ? 'var(--rd-bad)'
     : 'var(--text-1)'

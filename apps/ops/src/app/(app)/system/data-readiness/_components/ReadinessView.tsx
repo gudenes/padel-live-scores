@@ -68,14 +68,7 @@ export default function ReadinessView() {
     if (ids.length > 50 && !window.confirm(`Refresh ${ids.length} tournaments? This hits padelgod/Crionet for each.`)) return
     bulk.start(ids)
   }
-  const clearSel = () => setSelectedIds(new Set())
-
-  useEffect(() => {
-    if (!bulk.running && bulk.tally.total > 0 && bulk.tally.done >= bulk.tally.total) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedIds(new Set())
-    }
-  }, [bulk.running, bulk.tally])
+  const clearSel = () => { setSelectedIds(new Set()); bulk.reset() }
 
   return (
     <div className="ui-page">
