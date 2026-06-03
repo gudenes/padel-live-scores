@@ -9,6 +9,7 @@ import { useActiveBanner } from '@/hooks/useActiveBanner'
 import { useGeoCountry } from '@/hooks/useGeoCountry'
 import { useConsent } from '@/hooks/useConsent'
 import { AdSlot } from './AdSlot'
+import { useAdMobBanner } from './useAdMobBanner'
 
 /**
  * Routes where the sticky banner is allowed (locale-stripped paths):
@@ -95,6 +96,16 @@ export function StickyAdBanner() {
       window.removeEventListener('resize', sync)
     }
   }, [visible])
+
+  // Native AdMob fill: show the native banner when there's no matching direct
+  // banner on an ad route (the hook no-ops on web and when ineligible). Runs
+  // unconditionally every render — placed before the early return below.
+  useAdMobBanner({
+    pathname,
+    hasDirectBanner: !!banner,
+    network: active?.network ?? null,
+    navHeight,
+  })
 
   if (!visible) return null
 
