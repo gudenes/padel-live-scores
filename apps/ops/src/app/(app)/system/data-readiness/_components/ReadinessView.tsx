@@ -21,19 +21,26 @@ export default function ReadinessView() {
   const [tierFilter, setTierFilter] = useState<Set<string>>(new Set())
   const [stageFilter, setStageFilter] = useState<Stage | null>(null)
   const [verdictFilter, setVerdictFilter] = useState<Verdict | null>(null)
+  const [year, setYear] = useState<number>(new Date().getUTCFullYear())
+  const [years, setYears] = useState<number[]>([])
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/internal/tournament-readiness')
+    setRows(null)
+    fetch(`/api/internal/tournament-readiness?year=${year}`)
       .then(r => r.json())
-      .then((d: { rows?: ReadinessRow[]; error?: string }) => {
+      .then((d: { rows?: ReadinessRow[]; years?: number[]; error?: string }) => {
         if (cancelled) return
         if (d.error) { setError(d.error); return }
+        const yrs = d.years ?? []
+        setYears(yrs)
+        // Fallback: selected year has no in-scope data → jump to the most recent year that does.
+        if (yrs.length > 0 && !yrs.includes(year)) { setYear(yrs[0]); return }
         setRows(d.rows ?? [])
       })
       .catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : 'failed') })
     return () => { cancelled = true }
-  }, [])
+  }, [year])
 
   const filtered = useMemo(() => (rows ?? []).filter(r =>
     (tierFilter.size === 0 || (r.level !== null && tierFilter.has(r.level))) &&
@@ -69,12 +76,14 @@ export default function ReadinessView() {
     bulk.start(ids)
   }
   const clearSel = () => { setSelectedIds(new Set()); bulk.reset() }
+  // Switching year invalidates any current selection / in-flight bulk state.
+  const onYearChange = (y: number) => { setYear(y); setSelectedIds(new Set()); bulk.reset() }
 
   return (
     <div className="ui-page">
       <PageHeader
         title="Tournament Data Readiness"
-        subtitle="2026 · main tiers. Each tournament is scored against status- & tier-aware expectations, measured against the public tables. Red = data the app needs is missing or was scraped-but-not-populated."
+        subtitle="Main tiers, by year. Each tournament is scored against status- & tier-aware expectations, measured against the public tables. Red = data the app needs is missing or was scraped-but-not-populated."
         actions={
           <div style={{ display: 'flex', gap: 4 }}>
             <Button variant={view === 'list' ? 'primary' : 'ghost'} size="sm" onClick={() => setView('list')}>List</Button>
@@ -92,6 +101,18 @@ export default function ReadinessView() {
       </KpiStrip>
 
       <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center', margin: '14px 0' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.07em', color: 'var(--text-3)' }}>Year</span>
+          <select
+            value={year}
+            onChange={(e) => onYearChange(Number(e.target.value))}
+            className="ui-chip"
+            style={{ paddingRight: 8 }}
+            aria-label="Year"
+          >
+            {(years.length > 0 ? years : [year]).map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+        </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.07em', color: 'var(--text-3)' }}>Tier</span>
           {TIER_FILTERS.map(t => (
@@ -144,7 +165,7 @@ export default function ReadinessView() {
                 onToggleSelect={toggleSelect}
                 statusById={bulk.statusById}
               />
-            : <ReadinessCalendar rows={filtered} />
+            : <ReadinessCalendar key={year} rows={filtered} initialYear={year} />
           }
         </>
       )}
