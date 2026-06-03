@@ -10,6 +10,10 @@ import { serviceClient } from '@/lib/supabase'
 const ALLOWED_TYPES = ['info', 'warning', 'critical'] as const
 type AnnouncementType = (typeof ALLOWED_TYPES)[number]
 
+// Keep banner copy to one short line — long text produces a tall bar that
+// shoves all page content down. Operator-facing guard, not a security boundary.
+const MAX_MESSAGE_LEN = 280
+
 // GET: list all announcements, newest first.
 export async function GET() {
   const session = await auth()
@@ -49,6 +53,9 @@ export async function POST(req: Request) {
 
   if (!body.message || typeof body.message !== 'string' || !body.message.trim()) {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
+  }
+  if (body.message.trim().length > MAX_MESSAGE_LEN) {
+    return NextResponse.json({ error: `message must be ${MAX_MESSAGE_LEN} characters or fewer` }, { status: 400 })
   }
   if (!ALLOWED_TYPES.includes(body.type as AnnouncementType)) {
     return NextResponse.json(

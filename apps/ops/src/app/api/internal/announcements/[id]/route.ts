@@ -9,6 +9,9 @@ import { serviceClient } from '@/lib/supabase'
 const ALLOWED_TYPES = ['info', 'warning', 'critical'] as const
 type AnnouncementType = (typeof ALLOWED_TYPES)[number]
 
+// Mirror of the cap in ../route.ts — keep banner copy to one short line.
+const MAX_MESSAGE_LEN = 280
+
 interface Ctx {
   params: Promise<{ id: string }>
 }
@@ -53,6 +56,9 @@ export async function PUT(req: Request, { params }: Ctx) {
 
   if (!body.message || typeof body.message !== 'string' || !body.message.trim()) {
     return NextResponse.json({ error: 'message is required' }, { status: 400 })
+  }
+  if (body.message.trim().length > MAX_MESSAGE_LEN) {
+    return NextResponse.json({ error: `message must be ${MAX_MESSAGE_LEN} characters or fewer` }, { status: 400 })
   }
   if (!ALLOWED_TYPES.includes(body.type as AnnouncementType)) {
     return NextResponse.json(

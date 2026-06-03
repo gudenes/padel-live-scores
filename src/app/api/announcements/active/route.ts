@@ -11,6 +11,10 @@ import { selectActiveAnnouncement, type Announcement } from '@/lib/announcement'
 export async function GET() {
   const supabase = createServerClient()
   try {
+    // NOTE: createServerClient uses the service key and BYPASSES RLS. The
+    // `.eq('active', true)` filter below — not the anon-read RLS policy — is
+    // what keeps inactive/scheduled/expired drafts out of this public response.
+    // Don't remove it. (The RLS policy only guards direct anon-key reads.)
     const { data } = await supabase
       .from('site_announcements')
       .select('id, message, type, active, starts_at, expires_at, updated_at')
