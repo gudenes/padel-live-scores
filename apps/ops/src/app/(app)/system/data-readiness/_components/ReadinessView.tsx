@@ -5,6 +5,8 @@ import { PageHeader, KpiStrip, Kpi, Button, EmptyState, Skeleton } from '@/compo
 import type { ReadinessRow, ViewMode, GroupBy, Verdict, Stage } from './types'
 import ReadinessList from './ReadinessList'
 import ReadinessCalendar from './ReadinessCalendar'
+import BulkRefreshBar from './BulkRefreshBar'
+import { useBulkRefresh } from './useBulkRefresh'
 
 const TIER_FILTERS: Array<{ code: string; label: string }> = [
   { code: 'major', label: 'Major' }, { code: 'p1', label: 'P1' }, { code: 'p2', label: 'P2' }, { code: 'finals', label: 'Finals' },
@@ -54,6 +56,26 @@ export default function ReadinessView() {
   // Replace a single row in place after a per-row refresh + re-check.
   const onRowUpdate = (updated: ReadinessRow) =>
     setRows(prev => (prev ? prev.map(r => (r.id === updated.id ? updated : r)) : prev))
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const toggleSelect = (id: string) => setSelectedIds(prev => {
+    const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n
+  })
+  const bulk = useBulkRefresh(onRowUpdate)
+
+  const startBulk = () => {
+    const ids = [...selectedIds]
+    if (ids.length > 50 && !window.confirm(`Refresh ${ids.length} tournaments? This hits padelgod/Crionet for each.`)) return
+    bulk.start(ids)
+  }
+  const clearSel = () => setSelectedIds(new Set())
+
+  useEffect(() => {
+    if (!bulk.running && bulk.tally.total > 0 && bulk.tally.done >= bulk.tally.total) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedIds(new Set())
+    }
+  }, [bulk.running, bulk.tally])
 
   return (
     <div className="ui-page">
@@ -109,9 +131,29 @@ export default function ReadinessView() {
       {!error && rows === null && <Skeleton rows={8} />}
       {!error && rows !== null && filtered.length === 0 && <EmptyState title="No tournaments match" hint="Adjust the filters." />}
       {!error && rows !== null && filtered.length > 0 && (
-        view === 'list'
-          ? <ReadinessList rows={filtered} groupBy={groupBy} onRowUpdate={onRowUpdate} />
-          : <ReadinessCalendar rows={filtered} />
+        <>
+          {view === 'list' && (
+            <BulkRefreshBar
+              selectedCount={selectedIds.size}
+              running={bulk.running}
+              tally={bulk.tally}
+              onRefresh={startBulk}
+              onStop={bulk.stop}
+              onClear={clearSel}
+            />
+          )}
+          {view === 'list'
+            ? <ReadinessList
+                rows={filtered}
+                groupBy={groupBy}
+                onRowUpdate={onRowUpdate}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                statusById={bulk.statusById}
+              />
+            : <ReadinessCalendar rows={filtered} />
+          }
+        </>
       )}
     </div>
   )
