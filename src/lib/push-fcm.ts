@@ -30,7 +30,11 @@ export interface FcmPayload {
    *  avatar on the right of the row). When unset, the system falls back
    *  to the default app icon. */
   icon?: string
-  /** Analytics correlation id — see PushPayload.sendId. */
+  /** Analytics correlation id — see PushPayload.sendId. Carried in the FCM
+   *  data block for future use, but Android click-through is NOT yet wired:
+   *  PadelMessagingService.java does not beacon /api/push/click on tap, so
+   *  notification_sends.clicks counts WEB taps only. Add the beacon in the
+   *  native service to close this gap. */
   sendId?: string
 }
 

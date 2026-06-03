@@ -50,8 +50,13 @@ ALTER TABLE public.notification_sends  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_clicks ENABLE ROW LEVEL SECURITY;
 -- No policies: service role bypasses RLS; anon/auth roles get no access.
 
--- Atomic click increment used by POST /api/push/click.
+-- Atomic click increment used by POST /api/push/click (called with the
+-- service role). Lock it down so the anon/auth roles can't call it via
+-- PostgREST to inflate click counts.
 CREATE OR REPLACE FUNCTION public.increment_notification_clicks(p_send_id UUID)
 RETURNS void LANGUAGE sql AS $$
   UPDATE public.notification_sends SET clicks = clicks + 1 WHERE id = p_send_id;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.increment_notification_clicks(UUID) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION public.increment_notification_clicks(UUID) TO service_role;

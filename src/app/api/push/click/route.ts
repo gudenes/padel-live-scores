@@ -23,6 +23,11 @@ export async function POST(request: Request) {
     // Unknown send_id (FK violation) or transient — swallow, it's a beacon.
     return Response.json({ ok: false }, { status: 202 })
   }
-  await supabase.rpc('increment_notification_clicks', { p_send_id: send_id })
+  const { error: rpcErr } = await supabase.rpc('increment_notification_clicks', { p_send_id: send_id })
+  if (rpcErr) {
+    // The click row is recorded; only the denormalized counter missed. Log so
+    // notification_clicks vs notification_sends.clicks drift is diagnosable.
+    console.error('[Push] increment_notification_clicks failed:', rpcErr.message)
+  }
   return Response.json({ ok: true })
 }

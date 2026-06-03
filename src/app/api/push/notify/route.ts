@@ -730,7 +730,10 @@ export async function POST(request: Request) {
         by_reason: { bookmark: bookmarkSent, follow: followSent },
         inapp_written: inappWritten,
       },
-      web_fired: recipientReason.size,
+      // Use SUBSCRIPTION/token counts (not user counts) so match rows share
+      // the same semantics as broadcast rows: fired = attempts, and
+      // accepted ≤ fired always holds within a channel.
+      web_fired: pushJobs.length,
       web_accepted: pushSent,
       web_stale: staleIds.length,
       fcm_fired: fcmSent + fcmFailed,
@@ -740,7 +743,7 @@ export async function POST(request: Request) {
       anon_fired: anonSubs.length,
       anon_accepted: anonSent,
       anon_stale: anonStaleIds.length,
-      recipients_total: recipientReason.size + anonSubs.length,
+      recipients_total: pushJobs.length + (fcmSent + fcmFailed) + anonSubs.length,
       accepted_total: pushSent + fcmSent + anonSent,
     })
   } catch (e) {
