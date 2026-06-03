@@ -78,3 +78,7 @@
 .ui-cmd-item { display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--r-sm); cursor:pointer; color:var(--text-1); font-size:13px; }
 .ui-cmd-item[data-active="true"], .ui-cmd-item:hover { background:var(--bg-hover); }
 .ui-cmd-item-sub { color:var(--text-3); font-size:12px; margin-left:auto; }
+
+/* ---- Chip (filter pill toggle) ---- */
+.ui-chip { padding:4px 11px; border-radius:999px; border:1px solid var(--border-strong); background:transparent; color:var(--text-2); font-size:12px; cursor:pointer; font-family:var(--font); }
+.ui-chip[data-on="true"] { background:var(--lime-bg); border-color:var(--lime-border); color:var(--lime-text); }
