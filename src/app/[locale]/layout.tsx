@@ -10,6 +10,7 @@ import { buildLocaleRootMetadata } from '@/lib/seo-metadata'
 import { ConsentBanner } from '@/components/consent/ConsentBanner'
 import { PWAInstallNudge } from '@/components/PWAInstallNudge'
 import { StickyAdBanner } from '@/components/ads/StickyAdBanner'
+import { AlertBanner } from '@/components/announcements/AlertBanner'
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
@@ -51,6 +52,7 @@ export default async function LocaleLayout({
               pages — those live outside the (app) route group but still
               expose follow/bookmark surfaces that need to trigger the nudge. */}
           <NotificationNudgeProvider>
+            <AlertBanner />
             {children}
             <ConsentBanner />
             <PWAInstallNudge />
