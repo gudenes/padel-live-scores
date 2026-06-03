@@ -13,6 +13,8 @@ type AnnouncementType = (typeof ALLOWED_TYPES)[number]
 // Keep banner copy to one short line — long text produces a tall bar that
 // shoves all page content down. Operator-facing guard, not a security boundary.
 const MAX_MESSAGE_LEN = 280
+// Optional bold lead-in (e.g. "Italy Major"). Short by design.
+const MAX_TITLE_LEN = 60
 
 // GET: list all announcements, newest first.
 export async function GET() {
@@ -24,7 +26,7 @@ export async function GET() {
   const supabase = serviceClient()
   const { data, error } = await supabase
     .from('site_announcements')
-    .select('id, message, type, active, starts_at, expires_at, updated_at, created_at')
+    .select('id, title, message, type, active, starts_at, expires_at, updated_at, created_at')
     .order('updated_at', { ascending: false })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
   }
 
   let body: {
+    title?: string | null
     message?: string
     type?: string
     active?: boolean
@@ -57,6 +60,10 @@ export async function POST(req: Request) {
   if (body.message.trim().length > MAX_MESSAGE_LEN) {
     return NextResponse.json({ error: `message must be ${MAX_MESSAGE_LEN} characters or fewer` }, { status: 400 })
   }
+  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  if (title.length > MAX_TITLE_LEN) {
+    return NextResponse.json({ error: `title must be ${MAX_TITLE_LEN} characters or fewer` }, { status: 400 })
+  }
   if (!ALLOWED_TYPES.includes(body.type as AnnouncementType)) {
     return NextResponse.json(
       { error: `type must be one of ${ALLOWED_TYPES.join(', ')}` },
@@ -68,6 +75,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabase
     .from('site_announcements')
     .insert({
+      title: title || null,
       message: body.message.trim(),
       type: body.type,
       active: body.active === true,

@@ -8,6 +8,7 @@ export type AnnouncementType = 'info' | 'warning' | 'critical'
 
 export interface Announcement {
   id: string
+  title: string | null
   message: string
   type: AnnouncementType
   active: boolean

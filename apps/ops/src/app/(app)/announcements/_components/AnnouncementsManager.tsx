@@ -7,6 +7,7 @@ type AnnouncementType = 'info' | 'warning' | 'critical'
 
 interface Announcement {
   id: string
+  title: string | null
   message: string
   type: AnnouncementType
   active: boolean
@@ -17,7 +18,7 @@ interface Announcement {
 }
 
 const TYPES: AnnouncementType[] = ['info', 'warning', 'critical']
-const EMPTY = { message: '', type: 'info' as AnnouncementType, active: false, starts_at: '', expires_at: '' }
+const EMPTY = { title: '', message: '', type: 'info' as AnnouncementType, active: false, starts_at: '', expires_at: '' }
 
 function toLocalInput(iso: string | null): string {
   if (!iso) return ''
@@ -61,6 +62,7 @@ export function AnnouncementsManager() {
   const edit = (a: Announcement) => {
     setEditingId(a.id)
     setForm({
+      title: a.title ?? '',
       message: a.message,
       type: a.type,
       active: a.active,
@@ -73,6 +75,7 @@ export function AnnouncementsManager() {
   const save = async (publish: boolean) => {
     setSaving(true); setError(null)
     const payload = {
+      title: form.title,
       message: form.message,
       type: form.type,
       active: publish,
@@ -104,6 +107,17 @@ export function AnnouncementsManager() {
   return (
     <>
       <Panel title={editingId ? 'Edit announcement' : 'New announcement'}>
+        <Field label="Title (optional)">
+          <input
+            className="ui-input"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+            maxLength={60}
+            placeholder="Italy Major"
+            style={{ width: '100%' }}
+          />
+        </Field>
+
         <Field label="Message">
           <textarea
             className="ui-input"
