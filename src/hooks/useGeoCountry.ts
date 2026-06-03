@@ -14,6 +14,10 @@ import { useSyncExternalStore } from 'react'
  */
 function readCountry(): string | null {
   if (typeof document === 'undefined') return null
+  // Testing override: ?geo=ES forces a country (handy for phone/preview where
+  // there's no real IP geo). Falls back to the geo-country cookie.
+  const override = new URLSearchParams(window.location.search).get('geo')
+  if (override) return override.toUpperCase()
   const m = document.cookie.match(/(?:^|;\s*)geo-country=([^;]+)/)
   return m ? decodeURIComponent(m[1]).toUpperCase() : null
 }

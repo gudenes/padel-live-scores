@@ -31,6 +31,15 @@ export function StickyAdBanner() {
   const ref = useRef<HTMLDivElement>(null)
   const [navHeight, setNavHeight] = useState(0)
 
+  // Testing convenience: persist a ?geo=XX override into the cookie so it
+  // survives in-app navigation (which drops the query string).
+  useEffect(() => {
+    const override = new URLSearchParams(window.location.search).get('geo')
+    if (override) {
+      document.cookie = `geo-country=${override.toUpperCase()};path=/;max-age=86400`
+    }
+  }, [])
+
   // Sit directly above the bottom nav. Measure it so we adapt to the
   // safe-area inset (notch / home indicator) without hardcoding heights.
   //
