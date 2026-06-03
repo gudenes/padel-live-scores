@@ -13,7 +13,7 @@ self.addEventListener('push', (event) => {
     body: data.body ?? '',
     icon: data.icon || '/padelnachos-logo-v2.png',
     badge: '/padelnachos-logo-v2.png',
-    data: { url: data.url ?? '/v3' },
+    data: { url: data.url ?? '/v3', sendId: data.sendId },
     vibrate: [100, 50, 100],
     tag: data.tag ?? 'match-live',
     renotify: true,
@@ -28,6 +28,18 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
   const url = event.notification.data?.url ?? '/v3'
+
+  const sendId = event.notification.data?.sendId
+  if (sendId) {
+    event.waitUntil(
+      fetch('/api/push/click', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ send_id: sendId, platform: 'web' }),
+        keepalive: true,
+      }).catch(() => {}),
+    )
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
