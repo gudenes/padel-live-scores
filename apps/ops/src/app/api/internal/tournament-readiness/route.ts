@@ -9,7 +9,7 @@ import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
 import { paginatedSelect } from '@/lib/db-paginate'
 import {
-  computeReadiness, isPremierTier, IN_SCOPE_TIERS,
+  computeReadiness, IN_SCOPE_TIERS,
   type TournamentRollup, type ReadinessResult,
 } from '@/lib/readiness'
 
@@ -78,16 +78,14 @@ export async function GET() {
   interface Agg {
     matchCount: number; liveOrScheduledCount: number; finishedCount: number; finishedWithWinner: number
     playerSlotsTotal: number; playerSlotsResolved: number; oopPopulated: number; finalPlayed: boolean
-    matchIds: string[]
   }
   const agg = new Map<string, Agg>()
-  const blank = (): Agg => ({ matchCount: 0, liveOrScheduledCount: 0, finishedCount: 0, finishedWithWinner: 0, playerSlotsTotal: 0, playerSlotsResolved: 0, oopPopulated: 0, finalPlayed: false, matchIds: [] })
+  const blank = (): Agg => ({ matchCount: 0, liveOrScheduledCount: 0, finishedCount: 0, finishedWithWinner: 0, playerSlotsTotal: 0, playerSlotsResolved: 0, oopPopulated: 0, finalPlayed: false })
   const ACTIVE = new Set(['live', 'scheduled', 'ended', 'finished'])
   for (const m of matchRows) {
     if (!m.tournament_id) continue
     const a = agg.get(m.tournament_id) ?? blank()
     a.matchCount += 1
-    a.matchIds.push(m.id)
     if (m.status && ACTIVE.has(m.status)) a.liveOrScheduledCount += 1
     if (m.status === 'finished' || m.status === 'retired' || m.status === 'walkover') {
       a.finishedCount += 1
@@ -101,67 +99,21 @@ export async function GET() {
     agg.set(m.tournament_id, a)
   }
 
-  // 3) match_stats presence per tournament (Premier only). Query in chunks
-  //    of match_ids — a single .in() over every Premier match overflows the
-  //    PostgREST request URL (→ 400 Bad Request).
-  const premierMatchIds = tournaments
-    .filter(t => isPremierTier(t.level))
-    .flatMap(t => agg.get(t.id)?.matchIds ?? [])
-  const statsTournamentIds = new Set<string>()
-  if (premierMatchIds.length > 0) {
-    const matchToTournament = new Map<string, string>()
-    for (const t of tournaments) for (const mid of agg.get(t.id)?.matchIds ?? []) matchToTournament.set(mid, t.id)
-    const CHUNK = 200
-    for (let i = 0; i < premierMatchIds.length; i += CHUNK) {
-      const batch = premierMatchIds.slice(i, i + CHUNK)
-      const { data, error } = await supabase.from('match_stats').select('match_id').in('match_id', batch)
-      if (error) return NextResponse.json({ error: `match_stats: ${error.message}` }, { status: 500 })
-      for (const s of (data ?? []) as Array<{ match_id: string }>) {
-        const tid = matchToTournament.get(s.match_id)
-        if (tid) statsTournamentIds.add(tid)
-      }
-    }
+  // 3) Presence flags per tournament via the readiness_presence RPC —
+  //    indexed EXISTS over the snapshot / draw / stream / match_stats tables.
+  //    One query, one row per tournament, immune to PostgREST's 10k-row cap.
+  //    (Fetching rows app-side to de-dupe dropped snapshot-heavy tournaments
+  //    like FIP Bronze Ijuí — ~10k snapshot rows — defeating divergence
+  //    detection, which is the whole point of this view.)
+  interface Presence {
+    tournament_id: string
+    has_draw_snap: boolean; has_oop_snap: boolean; has_results_snap: boolean; has_entry_snap: boolean
+    has_draws: boolean; has_streams: boolean; has_stats: boolean
   }
-
-  // 4) Presence flags. The engine treats every snapshot field as a presence
-  //    boolean (it never compares timestamps), and the response exposes no
-  //    snapshot times — so we select only tournament_id with NO ORDER BY.
-  //    An ORDER BY captured_at over the append-only snapshot tables times
-  //    out. We still chunk by small tournament-id batches so a single
-  //    response can't hit the 10k row cap and silently drop tournaments.
-  const CHUNK_T = 10
-  const idBatches: string[][] = []
-  for (let i = 0; i < ids.length; i += CHUNK_T) idBatches.push(ids.slice(i, i + CHUNK_T))
-
-  type IdRow = { tournament_id: string }
-
-  async function collectIds(
-    run: (batch: string[]) => PromiseLike<{ data: IdRow[] | null; error: { message: string } | null }>,
-    what: string,
-  ): Promise<Set<string>> {
-    const set = new Set<string>()
-    for (const b of idBatches) {
-      const { data, error } = await run(b)
-      if (error) throw new Error(`${what}: ${error.message}`)
-      for (const r of data ?? []) set.add(r.tournament_id)
-    }
-    return set
-  }
-
-  let hasDraws: Set<string>, hasStreams: Set<string>
-  let entrySnapSet: Set<string>, drawSnapSet: Set<string>, oopSnapSet: Set<string>, resultsSnapSet: Set<string>
-  try {
-    [hasDraws, hasStreams, entrySnapSet, drawSnapSet, oopSnapSet, resultsSnapSet] = await Promise.all([
-      collectIds(b => supabase.from('tournament_draws').select('tournament_id').in('tournament_id', b), 'tournament_draws'),
-      collectIds(b => supabase.from('fip_court_streams').select('tournament_id').in('tournament_id', b), 'fip_court_streams'),
-      collectIds(b => supabase.schema('padelgod').from('entry_list_snapshots').select('tournament_id').in('tournament_id', b), 'entry_list_snapshots'),
-      collectIds(b => supabase.schema('padelgod').from('draw_snapshots').select('tournament_id').in('tournament_id', b), 'draw_snapshots'),
-      collectIds(b => supabase.schema('padelgod').from('oop_snapshots').select('tournament_id').in('tournament_id', b), 'oop_snapshots'),
-      collectIds(b => supabase.schema('padelgod').from('results_snapshots').select('tournament_id').in('tournament_id', b), 'results_snapshots'),
-    ])
-  } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : 'snapshot read failed' }, { status: 500 })
-  }
+  const { data: presData, error: presErr } = await supabase.rpc('readiness_presence', { ids })
+  if (presErr) return NextResponse.json({ error: `presence: ${presErr.message}` }, { status: 500 })
+  const presence = new Map<string, Presence>()
+  for (const p of (presData ?? []) as Presence[]) presence.set(p.tournament_id, p)
 
   // 5) Build rollups and run the engine.
   const rows: ReadinessRow[] = tournaments.map(t => {
@@ -180,12 +132,12 @@ export async function GET() {
       playerSlotsTotal: a.playerSlotsTotal,
       playerSlotsResolved: a.playerSlotsResolved,
       oopPopulated: a.oopPopulated,
-      hasMatchStats: statsTournamentIds.has(t.id),
-      entryListResolved: hasDraws.has(t.id) || entrySnapSet.has(t.id),
-      hasStreams: hasStreams.has(t.id),
-      drawSnapshotAt: drawSnapSet.has(t.id) ? 'present' : null,
-      oopSnapshotAt: oopSnapSet.has(t.id) ? 'present' : null,
-      resultsSnapshotAt: resultsSnapSet.has(t.id) ? 'present' : null,
+      hasMatchStats: presence.get(t.id)?.has_stats ?? false,
+      entryListResolved: !!(presence.get(t.id)?.has_draws || presence.get(t.id)?.has_entry_snap),
+      hasStreams: presence.get(t.id)?.has_streams ?? false,
+      drawSnapshotAt: presence.get(t.id)?.has_draw_snap ? 'present' : null,
+      oopSnapshotAt: presence.get(t.id)?.has_oop_snap ? 'present' : null,
+      resultsSnapshotAt: presence.get(t.id)?.has_results_snap ? 'present' : null,
     }
     const result = computeReadiness(rollup, today)
     return { id: t.id, name: t.name ?? '(unnamed)', level: t.level, startsAt: t.starts_at, endsAt: t.ends_at, matchCount: a.matchCount, ...result }
