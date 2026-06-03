@@ -54,10 +54,11 @@ export function DimensionDots({ dimensions }: { dimensions: DimensionResult[] })
 }
 
 export function DimensionBreakdown({ dimensions }: { dimensions: DimensionResult[] }) {
+  const byKey = new Map(dimensions.map(d => [d.key, d]))
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '5px 16px', padding: '12px 16px', fontSize: 12 }}>
       {DIM_ORDER.map(k => {
-        const d = dimensions.find(x => x.key === k)
+        const d = byKey.get(k)
         if (!d) return null
         return <FragmentRow key={k} label={DIM_LABELS[k]} state={d.state} detail={d.detail} />
       })}

@@ -80,10 +80,10 @@ export default function ReadinessList({ rows, groupBy }: { rows: ReadinessRow[];
             <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 10, overflow: 'hidden' }}>
               <thead>
                 <tr>
-                  <th style={thL}>Tournament</th>
-                  <th style={th}>Stage</th>
-                  <th style={th}>Verdict</th>
-                  {DIM_ORDER.map(k => <th key={k} style={th}>{DIM_LABELS[k]}</th>)}
+                  <th scope="col" style={thL}>Tournament</th>
+                  <th scope="col" style={th}>Stage</th>
+                  <th scope="col" style={th}>Verdict</th>
+                  {DIM_ORDER.map(k => <th scope="col" key={k} style={th}>{DIM_LABELS[k]}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -93,7 +93,7 @@ export default function ReadinessList({ rows, groupBy }: { rows: ReadinessRow[];
                       <td style={tdL}>
                         <span style={{ fontWeight: 600 }}>{tierTag(r.level)} · {r.name}</span>
                         <span style={{ color: 'var(--text-3)', fontSize: 11, marginLeft: 6 }}>
-                          {fmtDate(r.startsAt)}–{fmtDate(r.endsAt)}
+                          {fmtDate(r.startsAt)}–{fmtDate(r.endsAt)} · {r.matchCount} {r.matchCount === 1 ? 'match' : 'matches'}
                         </span>
                       </td>
                       <td style={td}>
