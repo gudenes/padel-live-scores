@@ -8,6 +8,8 @@
 // ('finished' / 'walkover' / 'retired') AND `winner_pair` is set. Otherwise
 // we render an em-dash to avoid implying a result for live or scheduled rows.
 
+import { Panel } from '@/components/ui'
+
 export interface MatchHistoryRow {
   id: string
   scheduled_at: string | null
@@ -50,20 +52,21 @@ export default function MatchHistorySection({
 }) {
   if (matches.length === 0) {
     return (
-      <section className="bg-white border border-gray-200 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-gray-900 mb-2">Match history</h2>
-        <div className="text-xs text-gray-400">No matches found.</div>
-      </section>
+      <Panel title="Match history">
+        <div className="text-xs" style={{ color: 'var(--text-3)' }}>
+          No matches found.
+        </div>
+      </Panel>
     )
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-900 mb-3">
-        Match history ({matches.length})
-      </h2>
+    <Panel title={`Match history (${matches.length})`}>
       <table className="w-full text-xs">
-        <thead className="text-gray-500 border-b border-gray-100">
+        <thead
+          className="border-b"
+          style={{ color: 'var(--text-3)', borderColor: 'var(--border-inner)' }}
+        >
           <tr>
             <th className="text-left font-medium py-1.5">Date</th>
             <th className="text-left font-medium">Tournament</th>
@@ -76,27 +79,32 @@ export default function MatchHistorySection({
           {matches.map((m) => {
             const result = outcomeLabel(m, playerId)
             return (
-              <tr key={m.id} className="border-b border-gray-50">
-                <td className="py-1.5 text-gray-600">
+              <tr
+                key={m.id}
+                className="border-b"
+                style={{ borderColor: 'var(--border-inner)' }}
+              >
+                <td className="py-1.5" style={{ color: 'var(--text-2)' }}>
                   {m.scheduled_at?.slice(0, 10) ?? '—'}
                 </td>
-                <td className="text-gray-900">{m.tournament?.name ?? '—'}</td>
-                <td className="text-gray-500">{m.round ?? '—'}</td>
+                <td style={{ color: 'var(--text-1)' }}>
+                  {m.tournament?.name ?? '—'}
+                </td>
+                <td style={{ color: 'var(--text-3)' }}>{m.round ?? '—'}</td>
                 <td
-                  className={
-                    result === 'W'
-                      ? 'text-green-600 font-semibold'
-                      : 'text-gray-500'
-                  }
+                  className={result === 'W' ? 'font-semibold' : undefined}
+                  style={{
+                    color: result === 'W' ? 'var(--lime-text)' : 'var(--text-3)',
+                  }}
                 >
                   {result}
                 </td>
-                <td className="text-gray-400">{m.status}</td>
+                <td style={{ color: 'var(--text-3)' }}>{m.status}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
-    </section>
+    </Panel>
   )
 }

@@ -12,6 +12,7 @@ const CHUNKY = {
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
+const BLUE = '#4A90E2'
 const BG_CARD = '#141414'
 const MUTED = '#9CA3AF'
 const BORDER = 'rgba(255,255,255,0.08)'
@@ -19,6 +20,7 @@ const BORDER = 'rgba(255,255,255,0.08)'
 const CATEGORY_COLOR: Record<NewsPost['category'], string> = {
   announcements: ORANGE,
   product: GREEN,
+  insights: BLUE,
 }
 
 interface Props {
@@ -69,7 +71,7 @@ export default function NewsCard({ post, variant = 'standard' }: Props) {
               clipPath: CHUNKY.badge,
             }}
           >
-            {t(`category_${post.category}` as 'category_announcements' | 'category_product')}
+            {t(`category_${post.category}` as 'category_announcements' | 'category_product' | 'category_insights')}
           </div>
         </div>
       ) : (
@@ -82,7 +84,7 @@ export default function NewsCard({ post, variant = 'standard' }: Props) {
               clipPath: CHUNKY.badge,
             }}
           >
-            {t(`category_${post.category}` as 'category_announcements' | 'category_product')}
+            {t(`category_${post.category}` as 'category_announcements' | 'category_product' | 'category_insights')}
           </div>
         </div>
       )}

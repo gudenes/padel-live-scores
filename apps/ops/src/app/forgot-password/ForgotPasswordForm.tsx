@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { Button } from '@/components/ui'
 import { requestPasswordReset } from './actions'
 
 type State = { sent: boolean } | null
@@ -17,9 +18,9 @@ export default function ForgotPasswordForm() {
       <div
         style={{
           fontSize: 13,
-          color: 'var(--status-neutral)',
-          background: 'var(--bg-canvas)',
-          border: '1px solid var(--border-subtle)',
+          color: 'var(--text-2)',
+          background: 'var(--bg-card-2)',
+          border: '1px solid var(--border-card)',
           borderRadius: 8,
           padding: 12,
           textAlign: 'center',
@@ -32,35 +33,10 @@ export default function ForgotPasswordForm() {
 
   return (
     <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <input
-        name="email"
-        type="email"
-        required
-        placeholder="Email"
-        style={{
-          padding: '10px 12px',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
-          fontSize: 14,
-        }}
-      />
-      <button
-        type="submit"
-        disabled={pending}
-        style={{
-          background: 'var(--brand-primary)',
-          color: 'var(--brand-primary-fg)',
-          border: 'none',
-          borderRadius: 8,
-          padding: '10px 12px',
-          fontSize: 14,
-          fontWeight: 700,
-          cursor: pending ? 'wait' : 'pointer',
-          opacity: pending ? 0.7 : 1,
-        }}
-      >
+      <input name="email" type="email" required placeholder="Email" className="ui-input" />
+      <Button type="submit" variant="primary" disabled={pending}>
         {pending ? 'Sending…' : 'Send reset link'}
-      </button>
+      </Button>
     </form>
   )
 }

@@ -114,32 +114,47 @@ export async function getOngoingTournamentOutlooks(): Promise<TournamentOutlookR
 
   if (!tournaments || tournaments.length === 0) return []
 
-  // Step 2: per tournament + category, pull the latest snapshot batch in parallel.
+  // Step 2: per tournament + category, pull the latest snapshot batch.
   // 64 rows is enough for a 32-pair draw at single-snapshot granularity.
-  const fetches = tournaments.flatMap((t) =>
-    (['men', 'women'] as const).map(async (category) => {
-      const { data: rows } = await supabase
-        .from('model_tournament_predictions')
-        .select('*')
-        .eq('tournament_id', t.id)
-        .eq('category', category)
-        .order('created_at', { ascending: false })
-        .limit(64)
-      if (!rows || rows.length === 0) return []
-      // Dedup to latest per pair (within this tournament + category).
-      const seen = new Set<string>()
-      const result: TournamentOutlookRow[] = []
-      for (const r of rows) {
-        const k = `${r.pair_player1_id}::${r.pair_player2_id}`
-        if (seen.has(k)) continue
-        seen.add(k)
-        result.push({ ...(r as TournamentPredictionRow), tournaments: t })
-      }
-      return result
-    }),
+  //
+  // BOUNDED CONCURRENCY: there can be hundreds of in-scope tournaments (every
+  // event whose ends_at is still in the future), so an unbounded
+  // `Promise.all(tournaments.length × 2)` fan-out fires hundreds of simultaneous
+  // queries. Besides hammering the DB, that overflows Next's dev-mode async-task
+  // tracer (`visitAsyncNode` → "RangeError: Maximum call stack size exceeded"),
+  // which hangs the /odds server render. Cap the number of in-flight queries.
+  const tasks = tournaments.flatMap((t) =>
+    (['men', 'women'] as const).map((category) => ({ t, category })),
   )
-  const results = (await Promise.all(fetches)).flat()
-  return results
+  const CONCURRENCY = 8
+  const groups: TournamentOutlookRow[][] = []
+  for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+    const chunk = tasks.slice(i, i + CONCURRENCY)
+    const chunkResults = await Promise.all(
+      chunk.map(async ({ t, category }) => {
+        const { data: rows } = await supabase
+          .from('model_tournament_predictions')
+          .select('*')
+          .eq('tournament_id', t.id)
+          .eq('category', category)
+          .order('created_at', { ascending: false })
+          .limit(64)
+        if (!rows || rows.length === 0) return []
+        // Dedup to latest per pair (within this tournament + category).
+        const seen = new Set<string>()
+        const result: TournamentOutlookRow[] = []
+        for (const r of rows) {
+          const k = `${r.pair_player1_id}::${r.pair_player2_id}`
+          if (seen.has(k)) continue
+          seen.add(k)
+          result.push({ ...(r as TournamentPredictionRow), tournaments: t })
+        }
+        return result
+      }),
+    )
+    groups.push(...chunkResults)
+  }
+  return groups.flat()
 }
 
 // Calibration page data — raw scored rows within the rolling window.

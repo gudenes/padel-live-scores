@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('players')
-    .select('id, name, display_name, country, ranking, points, category, avatar_url, fip_id', { count: 'exact' })
+    .select('id, name, display_name, country, ranking, points, category, avatar_url, photo_url, fip_id', { count: 'exact' })
 
   if (q) {
     query = query.ilike('name', `%${q}%`)

@@ -13,7 +13,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!,
 )
 
-const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product']
+const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product', 'insights']
 
 interface Ctx {
   params: Promise<{ id: string }>

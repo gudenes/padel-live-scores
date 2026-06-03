@@ -16,6 +16,8 @@
 // operator-only tool.
 
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { PageHeader, KpiStrip, Kpi, Button } from '@/components/ui'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentMatchesSubtab from './TournamentMatchesSubtab'
 import TournamentDrawSubtab from './TournamentDrawSubtab'
@@ -126,9 +128,9 @@ const ALL_LEVEL_CODES = LEVEL_GROUPS.flatMap(g => g.values.map(v => v.code))
 // ── Styles ──────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-lg)',
   padding: 12,
 }
 
@@ -201,6 +203,29 @@ export default function TournamentExplorerTab() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [subTab, setSubTab] = useState<SubTab>('entryList')
 
+  // Deep-link: the ⌘K command palette links tournaments to
+  // /tournament-explorer?tournament=<id>. React to that param so a search
+  // result opens the drill-down — both on fresh mount and when re-selecting
+  // a different tournament while already on this page (same-route push, so
+  // no remount; a one-shot read would miss it). We stash the id in
+  // `deepLinkId` so the fetch below can pass it as ?id=<id> (loading the row
+  // even if it's outside the date window), then clear the param from the URL
+  // so it doesn't re-fire on unrelated re-renders.
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [deepLinkId, setDeepLinkId] = useState<string | null>(null)
+  useEffect(() => {
+    const id = searchParams.get('tournament')
+    if (!id) return
+    // Consuming the URL param is a legitimate external→React sync, which is
+    // what effects are for; the set-state-in-effect rule can't tell.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setDeepLinkId(id)
+    setSelectedId(id)
+    /* eslint-enable react-hooks/set-state-in-effect */
+    router.replace('/tournament-explorer')
+  }, [searchParams, router])
+
   // ── View mode (List / Calendar) ──
   // Default to list — operators reach for the table first when auditing
   // data quality. Calendar is the "what's coming up?" lens.
@@ -228,6 +253,9 @@ export default function TournamentExplorerTab() {
     if (selectedLevels.size > 0) {
       params.set('level', Array.from(selectedLevels).join(','))
     }
+    // Keep the deep-linked tournament loadable even when filters would
+    // otherwise exclude it (outside the date window, different level).
+    if (deepLinkId) params.set('id', deepLinkId)
 
     fetch(`/api/internal/tournament-explorer?${params.toString()}`)
       .then(r => r.json())
@@ -248,7 +276,7 @@ export default function TournamentExplorerTab() {
       })
 
     return () => { cancelled = true }
-  }, [fromDate, toDate, selectedLevels, reloadKey])
+  }, [fromDate, toDate, selectedLevels, reloadKey, deepLinkId])
 
   const selected = useMemo(
     () => tournaments.find(t => t.id === selectedId) ?? null,
@@ -340,12 +368,12 @@ export default function TournamentExplorerTab() {
   // ── Drill-down view ──
   if (selected) {
     return (
-      <div>
+      <div className="ui-page">
         <button
           onClick={() => setSelectedId('')}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: '#666', fontSize: 12, fontWeight: 600, padding: 0,
+            color: 'var(--text-3)', fontSize: 12, fontWeight: 600, padding: 0,
             marginBottom: 12,
           }}
         >
@@ -354,7 +382,7 @@ export default function TournamentExplorerTab() {
 
         <TournamentDetailsHeader t={selected} onRefetch={refetch} />
 
-        <div style={{ display: 'flex', gap: 2, marginBottom: 12, borderBottom: '1px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', gap: 2, marginBottom: 12, borderBottom: '1px solid var(--border-card)' }}>
           <SubTabButton
             label="Entry List"
             active={subTab === 'entryList'}
@@ -384,37 +412,30 @@ export default function TournamentExplorerTab() {
 
   // ── List view ──
   return (
-    <div>
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>
-          Tournament Explorer
-        </h2>
-        <p style={{ fontSize: 12, color: '#666', marginTop: 4, maxWidth: 720 }}>
-          Every tournament whose dates overlap your selected window. Filter by
-          level + date range to focus on what matters. Each row shows the
-          match count plus four data-quality dots — Entry List, Order of Play,
-          Draw, Results — so you can spot capture gaps at a glance. Click a
-          row to drill into the per-tournament audit view.
-        </p>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="Tournament Explorer"
+        subtitle="Every tournament whose dates overlap your selected window. Filter by level + date range to focus on what matters. Each row shows the match count plus four data-quality dots — Entry List, Order of Play, Draw, Results — so you can spot capture gaps at a glance. Click a row to drill into the per-tournament audit view."
+      />
 
       {/* Operator stats strip — pre-computed counts above the filter bar.
           Anchored above the filter so the operator sees "what matters
           today" before deciding which slice of the calendar to view. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10, marginBottom: 14 }}>
-        <StatTile label="Live now" value={stats.liveNow} accent="#16a34a" />
-        <StatTile label="Next 7 days" value={stats.next7} accent="#0ea5e9" />
-        <StatTile label="Next 30 days" value={stats.next30} accent="#6366f1" />
-        <StatTile label="Needs attention" value={stats.needsAttention} accent={stats.needsAttention > 0 ? '#dc2626' : '#9ca3af'} subtitle="Imminent without entry list" />
-        <StatTile
-          label="Needs widget"
-          value={stats.needsWidget}
-          accent={stats.needsWidget > 0 ? '#f59e0b' : '#9ca3af'}
-          subtitle="No Crionet widget_id"
+      <KpiStrip cols={5}>
+        <Kpi label="Live now" value={stats.liveNow} tone="lime" pulse={stats.liveNow > 0} />
+        <Kpi label="Next 7 days" value={stats.next7} tone="live" />
+        <Kpi label="Next 30 days" value={stats.next30} tone="neutral" />
+        <Kpi label="Needs attention" value={stats.needsAttention} tone={stats.needsAttention > 0 ? 'urgent' : 'neutral'} />
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() => setNeedsWidgetFilter(v => !v)}
-          active={needsWidgetFilter}
-        />
-      </div>
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setNeedsWidgetFilter(v => !v) } }}
+          style={{ cursor: 'pointer', outline: needsWidgetFilter ? '2px solid var(--orange-border)' : undefined, borderRadius: 'var(--r-lg)' }}
+        >
+          <Kpi label="Needs widget" value={stats.needsWidget} tone={stats.needsWidget > 0 ? 'warn' : 'neutral'} />
+        </div>
+      </KpiStrip>
 
       {/* Filter bar */}
       <div style={{ ...card, marginBottom: 16 }}>
@@ -426,7 +447,8 @@ export default function TournamentExplorerTab() {
               type="date"
               value={fromDate}
               onChange={e => setFromDate(e.target.value)}
-              style={dateInputStyle}
+              className="ui-input"
+              style={{ fontSize: 12, padding: '5px 8px' }}
             />
           </div>
           <div>
@@ -435,7 +457,8 @@ export default function TournamentExplorerTab() {
               type="date"
               value={toDate}
               onChange={e => setToDate(e.target.value)}
-              style={dateInputStyle}
+              className="ui-input"
+              style={{ fontSize: 12, padding: '5px 8px' }}
             />
           </div>
 
@@ -445,7 +468,7 @@ export default function TournamentExplorerTab() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {LEVEL_GROUPS.map(group => (
                 <div key={group.label} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  <span style={{ fontSize: 9, color: '#999', fontWeight: 700, marginRight: 2, marginLeft: 4 }}>
+                  <span style={{ fontSize: 9, color: 'var(--text-3)', fontWeight: 700, marginRight: 2, marginLeft: 4 }}>
                     {group.label.toUpperCase()}
                   </span>
                   {group.values.map(v => (
@@ -463,25 +486,11 @@ export default function TournamentExplorerTab() {
 
           {/* Clear */}
           <div style={{ alignSelf: 'flex-end' }}>
-            <button
-              onClick={clearFilters}
-              style={{
-                padding: '6px 12px',
-                background: '#fff',
-                border: '1px solid #d1d5db',
-                borderRadius: 4,
-                color: '#666',
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Reset
-            </button>
+            <Button size="sm" onClick={clearFilters}>Reset</Button>
           </div>
         </div>
 
-        <div style={{ marginTop: 10, fontSize: 11, color: '#999' }}>
+        <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-3)' }}>
           {loadingList
             ? 'Loading…'
             : needsWidgetFilter
@@ -501,14 +510,14 @@ export default function TournamentExplorerTab() {
       </div>
 
       {listError && (
-        <div style={{ ...card, color: '#991b1b', marginBottom: 12 }}>
+        <div style={{ ...card, color: 'var(--live-text)', marginBottom: 12 }}>
           ❌ {listError}
         </div>
       )}
 
       {/* Tournament table */}
       {!loadingList && tournaments.length === 0 && !listError && (
-        <div style={{ ...card, color: '#666', fontSize: 12 }}>
+        <div style={{ ...card, color: 'var(--text-3)', fontSize: 12 }}>
           No tournaments match the current filters. Try widening the date
           range or clearing level filters.
         </div>
@@ -527,7 +536,7 @@ export default function TournamentExplorerTab() {
         <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
-              <tr style={{ background: '#f9fafb', textAlign: 'left' }}>
+              <tr style={{ background: 'var(--bg-card-2)', textAlign: 'left' }}>
                 <th style={thStyle}>Starts</th>
                 <th style={thStyle}>Tournament</th>
                 <th style={thStyle}>Level</th>
@@ -560,12 +569,12 @@ export default function TournamentExplorerTab() {
                     key={t.id}
                     onClick={() => { setSelectedId(t.id); setSubTab('entryList') }}
                     style={{
-                      borderBottom: '1px solid #f3f4f6',
+                      borderBottom: '1px solid var(--border-inner)',
                       cursor: 'pointer',
-                      background: '#fff',
+                      background: 'var(--bg-card)',
                     }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.background = '#f9fafb'
+                      e.currentTarget.style.background = 'var(--bg-hover)'
                       const rect = e.currentTarget.getBoundingClientRect()
                       // Anchor tooltip to right edge of row, vertically
                       // centered on the row, so it doesn't overlap the
@@ -573,14 +582,14 @@ export default function TournamentExplorerTab() {
                       setHoveredRow({ t, x: rect.right + 8, y: rect.top + rect.height / 2 - 100 })
                     }}
                     onMouseLeave={e => {
-                      e.currentTarget.style.background = '#fff'
+                      e.currentTarget.style.background = 'var(--bg-card)'
                       setHoveredRow(prev => (prev?.t.id === t.id ? null : prev))
                     }}
                   >
-                    <td style={{ ...tdStyle, color: '#666', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
+                    <td style={{ ...tdStyle, color: 'var(--text-3)', fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
                       {formatDateShort(t.starts_at)}
                     </td>
-                    <td style={{ ...tdStyle, fontWeight: 600, color: '#111' }}>
+                    <td style={{ ...tdStyle, fontWeight: 600, color: 'var(--text-1)' }}>
                       {t.name}
                     </td>
                     <td style={tdStyle}>
@@ -589,7 +598,7 @@ export default function TournamentExplorerTab() {
                     <td style={tdStyle}>
                       {t.country ?? '—'}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'right', color: t.matchCount === 0 ? '#dc2626' : '#111', fontWeight: 600 }}>
+                    <td style={{ ...tdStyle, textAlign: 'right', color: t.matchCount === 0 ? 'var(--live-text)' : 'var(--text-1)', fontWeight: 600 }}>
                       {t.matchCount}
                     </td>
                     <td style={tdStyleCenter}>
@@ -606,15 +615,15 @@ export default function TournamentExplorerTab() {
                     </td>
                     {needsWidgetFilter && (
                       <>
-                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'ui-monospace, SFMono-Regular, monospace', color: t.widgetLookupAttempts7d >= 12 ? '#dc2626' : '#666' }}>
+                        <td style={{ ...tdStyle, textAlign: 'right', fontFamily: 'ui-monospace, SFMono-Regular, monospace', color: t.widgetLookupAttempts7d >= 12 ? 'var(--live-text)' : 'var(--text-3)' }}>
                           {t.widgetLookupAttempts7d}
                         </td>
-                        <td style={{ ...tdStyle, color: '#666' }}>
+                        <td style={{ ...tdStyle, color: 'var(--text-3)' }}>
                           {formatAgo(t.widgetLookupLastAttemptAt)}
                         </td>
                       </>
                     )}
-                    <td style={{ ...tdStyle, color: '#bbb', fontSize: 11 }}>
+                    <td style={{ ...tdStyle, color: 'var(--text-4)', fontSize: 11 }}>
                       {Math.round(completenessPct * 100)}%
                     </td>
                   </tr>
@@ -669,14 +678,14 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
             alt=""
             style={{
               width: 56, height: 56, objectFit: 'contain',
-              borderRadius: 4, background: '#fff',
-              border: '1px solid #e5e7eb', flexShrink: 0,
+              borderRadius: 'var(--r-sm)', background: 'var(--bg-card)',
+              border: '1px solid var(--border-card)', flexShrink: 0,
               padding: 4,
             }}
           />
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: 'var(--text-1)', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <EditableName
               tournamentId={t.id}
               currentValue={t.name}
@@ -684,7 +693,7 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
               onSaved={onRefetch}
             />
           </h2>
-          <div style={{ fontSize: 12, color: '#666', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
             {[
               levelFriendly(t.level),
               t.country,
@@ -693,7 +702,7 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
               t.timezone,
             ].filter(Boolean).map((v, i) => (
               <span key={i}>
-                {i > 0 && <span style={{ color: '#ccc', marginRight: 8 }}>·</span>}
+                {i > 0 && <span style={{ color: 'var(--text-4)', marginRight: 8 }}>·</span>}
                 {v}
               </span>
             ))}
@@ -709,9 +718,9 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
               padding: '6px 14px',
               fontSize: 11,
               fontWeight: 700,
-              color: '#fff',
-              background: '#111',
-              borderRadius: 4,
+              color: 'var(--bg-card)',
+              background: 'var(--text-1)',
+              borderRadius: 'var(--r-sm)',
               textDecoration: 'none',
               flexShrink: 0,
               letterSpacing: '0.4px',
@@ -733,7 +742,7 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
             gap: 12,
             fontSize: 11,
-            color: '#555',
+            color: 'var(--text-2)',
           }}
         >
           <Field label="Source" value={t.source} />
@@ -749,7 +758,7 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
                 {t.prize_money_eur_source && (
                   <span style={{
                     fontSize: 9, marginLeft: 6, padding: '1px 5px',
-                    background: '#eef', color: '#557', borderRadius: 3,
+                    background: 'var(--men-bg)', color: 'var(--men)', borderRadius: 'var(--r-xs)',
                     textTransform: 'uppercase', letterSpacing: '0.4px',
                   }}>{t.prize_money_eur_source}</span>
                 )}
@@ -799,33 +808,33 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           const source = String(byCat.men?.source ?? byCat.women?.source ?? 'rulebook')
           const cell = (val: unknown, highlight: boolean) =>
             typeof val === 'number' ? (
-              <span style={{ fontWeight: 700, color: highlight ? '#16a34a' : '#111', fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ fontWeight: 700, color: highlight ? 'var(--lime-text)' : 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>
                 €{val.toLocaleString()}
               </span>
             ) : (
-              <span style={{ color: '#ccc', fontVariantNumeric: 'tabular-nums' }}>—</span>
+              <span style={{ color: 'var(--text-4)', fontVariantNumeric: 'tabular-nums' }}>—</span>
             )
           return (
             <div style={{ ...card, marginBottom: 12 }}>
-              <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 9, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
                 <span>Prize breakdown</span>
-                <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0 }}>
+                <span style={{ color: 'var(--text-4)', fontWeight: 500, letterSpacing: 0 }}>
                   €/player · source: {source}
                 </span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 10, color: '#999', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>
                 <div style={{ paddingLeft: 10 }}>Men</div>
                 <div style={{ paddingLeft: 10 }}>Women</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
                 {rows.map(([k, label]) => (
                   <React.Fragment key={k}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
-                      <span style={{ color: '#666' }}>{label}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--bg-card-2)', border: '1px solid var(--border-inner)', borderRadius: 'var(--r-sm)' }}>
+                      <span style={{ color: 'var(--text-3)' }}>{label}</span>
                       {cell(byCat.men?.[k], k === 'winner')}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
-                      <span style={{ color: '#666' }}>{label}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--bg-card-2)', border: '1px solid var(--border-inner)', borderRadius: 'var(--r-sm)' }}>
+                      <span style={{ color: 'var(--text-3)' }}>{label}</span>
                       {cell(byCat.women?.[k], k === 'winner')}
                     </div>
                   </React.Fragment>
@@ -843,17 +852,17 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
         if (rows.length === 0) return null
         return (
           <div style={{ ...card, marginBottom: 12 }}>
-            <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 9, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
               <span>Prize breakdown</span>
-              <span style={{ color: '#bbb', fontWeight: 500, letterSpacing: 0 }}>
+              <span style={{ color: 'var(--text-4)', fontWeight: 500, letterSpacing: 0 }}>
                 €/player · source: {String(bd.source ?? 'scraped')}
               </span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8, fontSize: 12 }}>
               {rows.map(([k, label]) => (
-                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
-                  <span style={{ color: '#666' }}>{label}</span>
-                  <span style={{ fontWeight: 700, color: k === 'winner' ? '#16a34a' : '#111', fontVariantNumeric: 'tabular-nums' }}>€{(bd[k] as number).toLocaleString()}</span>
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', background: 'var(--bg-card-2)', border: '1px solid var(--border-inner)', borderRadius: 'var(--r-sm)' }}>
+                  <span style={{ color: 'var(--text-3)' }}>{label}</span>
+                  <span style={{ fontWeight: 700, color: k === 'winner' ? 'var(--lime-text)' : 'var(--text-1)', fontVariantNumeric: 'tabular-nums' }}>€{(bd[k] as number).toLocaleString()}</span>
                 </div>
               ))}
             </div>
@@ -864,13 +873,13 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
       {/* Schedule notes — multi-line "Play Order" text from FIP. */}
       {t.schedule_notes && (
         <div style={{ ...card, marginBottom: 12 }}>
-          <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8 }}>
+          <div style={{ fontSize: 9, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8 }}>
             Schedule notes
           </div>
           <pre style={{
             margin: 0,
             fontSize: 11,
-            color: '#444',
+            color: 'var(--text-2)',
             fontFamily: 'inherit',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
@@ -894,9 +903,9 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
         const status = !t.factsheet_url ? 'no-pdf'
           : !t.factsheet_processed_at ? 'pending'
           : 'ok'
-        const statusColor = status === 'ok' ? '#16a34a'
-          : status === 'pending' ? '#f59e0b'
-          : '#9ca3af'
+        const statusColor = status === 'ok' ? 'var(--lime)'
+          : status === 'pending' ? 'var(--orange)'
+          : 'var(--text-3)'
         const statusLabel = status === 'ok' ? `processed ${processedAt} UTC`
           : status === 'pending' ? 'awaiting next /api/cron/process-factsheets run'
           : 'no factsheet URL on this tournament'
@@ -907,17 +916,17 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
                 width: 7, height: 7, borderRadius: '50%',
                 background: statusColor, display: 'inline-block',
               }} />
-              <span style={{ color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+              <span style={{ color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
                 Factsheet PDF
               </span>
-              <span style={{ color: '#666' }}>{statusLabel}</span>
+              <span style={{ color: 'var(--text-3)' }}>{statusLabel}</span>
             </span>
             {t.factsheet_url && (
               <a
                 href={t.factsheet_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 700, fontSize: 11 }}
+                style={{ color: 'var(--lime-text)', textDecoration: 'none', fontWeight: 700, fontSize: 11 }}
               >
                 Open PDF →
               </a>
@@ -932,7 +941,7 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
           tournament has no scheduled matches yet. */}
       {t.phases && t.phases.length > 0 && (
         <div style={{ ...card, marginBottom: 12 }}>
-          <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8 }}>
+          <div style={{ fontSize: 9, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', marginBottom: 8 }}>
             Phases
           </div>
           <div style={{
@@ -942,12 +951,12 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
             fontSize: 11,
           }}>
             {t.phases.map(p => {
-              // Color-tag the category — orange-ish for men, pink for
-              // women, gray fallback when null. Same accent the rest of
+              // Color-tag the category — blue for men, pink for
+              // women, neutral fallback when null. Same accent the rest of
               // the app uses on player chips/avatars.
-              const catColor = p.category === 'men' ? '#5BA8FF'
-                : p.category === 'women' ? '#F472B6'
-                : '#9CA3AF'
+              const catColor = p.category === 'men' ? 'var(--men)'
+                : p.category === 'women' ? 'var(--women)'
+                : 'var(--text-3)'
               const catLabel = p.category === 'men' ? 'Men'
                 : p.category === 'women' ? 'Women'
                 : null
@@ -955,15 +964,15 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
                 <div
                   key={`${p.round}|${p.category ?? '_'}`}
                   style={{
-                    background: '#f9fafb',
-                    border: '1px solid #f3f4f6',
+                    background: 'var(--bg-card-2)',
+                    border: '1px solid var(--border-inner)',
                     borderLeft: `3px solid ${catColor}`,
-                    borderRadius: 4,
+                    borderRadius: 'var(--r-sm)',
                     padding: '8px 10px',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#111' }}>{p.round}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-1)' }}>{p.round}</div>
                     {catLabel && (
                       <span style={{
                         fontSize: 9, fontWeight: 800,
@@ -973,10 +982,10 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
                       }}>{catLabel}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: 10, color: '#666', marginTop: 2, fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
-                    {p.firstStartsAt.slice(0, 10)} <span style={{ color: '#bbb' }}>·</span> {p.firstStartsAt.slice(11, 16)} UTC
+                  <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2, fontFamily: 'ui-monospace, SFMono-Regular, monospace' }}>
+                    {p.firstStartsAt.slice(0, 10)} <span style={{ color: 'var(--text-4)' }}>·</span> {p.firstStartsAt.slice(11, 16)} UTC
                   </div>
-                  <div style={{ fontSize: 9, color: '#9ca3af', marginTop: 2 }}>
+                  <div style={{ fontSize: 9, color: 'var(--text-3)', marginTop: 2 }}>
                     {p.matchCount} match{p.matchCount === 1 ? '' : 'es'}
                   </div>
                 </div>
@@ -996,7 +1005,7 @@ function TournamentDetailsHeader({ t, onRefetch }: { t: TournamentWithSources; o
             gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 12,
             fontSize: 11,
-            color: '#555',
+            color: 'var(--text-2)',
           }}
         >
           <FreshnessTile label="Entry List" at={t.entryListCapturedAt} />
@@ -1013,14 +1022,14 @@ function Field({ label, value, mono }: { label: string; value: React.ReactNode; 
   const isEmpty = value === null || value === undefined || value === ''
   return (
     <div>
-      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+      <div style={{ fontSize: 9, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
         {label}
       </div>
       <div
         style={{
           fontSize: 12,
           fontWeight: 600,
-          color: isEmpty ? '#bbb' : '#222',
+          color: isEmpty ? 'var(--text-4)' : 'var(--text-1)',
           fontFamily: mono ? 'ui-monospace, SFMono-Regular, monospace' : 'inherit',
           marginTop: 2,
           wordBreak: 'break-word',
@@ -1038,89 +1047,30 @@ const filterLabelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 9,
   fontWeight: 700,
-  color: '#999',
+  color: 'var(--text-3)',
   textTransform: 'uppercase',
   letterSpacing: '0.6px',
   marginBottom: 4,
-}
-
-const dateInputStyle: React.CSSProperties = {
-  padding: '5px 8px',
-  fontSize: 12,
-  border: '1px solid #d1d5db',
-  borderRadius: 4,
-  background: '#fff',
-  color: '#333',
 }
 
 const thStyle: React.CSSProperties = {
   padding: '8px 10px',
   fontSize: 10,
   fontWeight: 700,
-  color: '#666',
+  color: 'var(--text-3)',
   textTransform: 'uppercase',
   letterSpacing: '0.5px',
-  borderBottom: '1px solid #e5e7eb',
+  borderBottom: '1px solid var(--border-card)',
 }
 
 const tdStyle: React.CSSProperties = {
   padding: '8px 10px',
-  color: '#444',
+  color: 'var(--text-2)',
 }
 
 const tdStyleCenter: React.CSSProperties = {
   ...tdStyle,
   textAlign: 'center',
-}
-
-function StatTile({
-  label, value, accent, subtitle, onClick, active,
-}: {
-  label: string
-  value: number
-  accent: string
-  subtitle?: string
-  onClick?: () => void
-  active?: boolean
-}) {
-  const clickable = typeof onClick === 'function'
-  return (
-    <div
-      onClick={onClick}
-      role={clickable ? 'button' : undefined}
-      tabIndex={clickable ? 0 : undefined}
-      onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick!() } } : undefined}
-      style={{
-        background: active ? '#fffbeb' : '#fff',
-        borderTopWidth: 1,
-        borderRightWidth: 1,
-        borderBottomWidth: 1,
-        borderLeftWidth: 4,
-        borderStyle: 'solid',
-        borderTopColor: active ? accent : '#e5e7eb',
-        borderRightColor: active ? accent : '#e5e7eb',
-        borderBottomColor: active ? accent : '#e5e7eb',
-        borderLeftColor: accent,
-        borderRadius: 8,
-        padding: '12px 14px',
-        cursor: clickable ? 'pointer' : 'default',
-        boxShadow: active ? `0 0 0 2px ${accent}33` : 'none',
-        transition: 'box-shadow 120ms ease, background 120ms ease',
-      }}
-    >
-      <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: accent, lineHeight: 1.05, marginTop: 4 }}>
-        {value}
-      </div>
-      {subtitle && (
-        <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 3 }}>
-          {subtitle}
-        </div>
-      )}
-    </div>
-  )
 }
 
 function ViewModeBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -1131,10 +1081,10 @@ function ViewModeBtn({ label, active, onClick }: { label: string; active: boolea
         padding: '6px 14px',
         fontSize: 11,
         fontWeight: 700,
-        background: active ? '#111' : '#fff',
-        color: active ? '#fff' : '#666',
-        border: '1px solid ' + (active ? '#111' : '#d1d5db'),
-        borderRadius: 4,
+        background: active ? 'var(--text-1)' : 'var(--bg-card)',
+        color: active ? 'var(--bg-card)' : 'var(--text-3)',
+        border: '1px solid ' + (active ? 'var(--text-1)' : 'var(--border-card)'),
+        borderRadius: 'var(--r-sm)',
         cursor: 'pointer',
         letterSpacing: '0.5px',
         textTransform: 'uppercase',
@@ -1153,10 +1103,10 @@ function LevelChip({ label, active, onClick }: { label: string; active: boolean;
         padding: '4px 10px',
         fontSize: 11,
         fontWeight: 600,
-        background: active ? '#111' : '#fff',
-        color: active ? '#fff' : '#444',
-        border: `1px solid ${active ? '#111' : '#d1d5db'}`,
-        borderRadius: 999,
+        background: active ? 'var(--text-1)' : 'var(--bg-card)',
+        color: active ? 'var(--bg-card)' : 'var(--text-2)',
+        border: `1px solid ${active ? 'var(--text-1)' : 'var(--border-card)'}`,
+        borderRadius: 'var(--r-full)',
         cursor: 'pointer',
       }}
     >
@@ -1168,16 +1118,16 @@ function LevelChip({ label, active, onClick }: { label: string; active: boolean;
 function DataDot({ present, freshAgo }: { present: boolean; freshAgo: string | null }) {
   // Two-tier color: green when present + fresh (< 24h), amber when present
   // but stale (> 24h), red filled-circle outline when missing entirely.
-  let color = '#dc2626' // missing — red
+  let color = 'var(--live)' // missing — red
   let title = 'No data'
   if (present && freshAgo) {
     const ageMs = Date.now() - new Date(freshAgo).getTime()
     const ageH = ageMs / (60 * 60 * 1000)
     if (ageH < 24) {
-      color = '#16a34a' // green
+      color = 'var(--lime)' // green
       title = `Fresh: ${formatAgo(freshAgo)} ago`
     } else {
-      color = '#d97706' // amber
+      color = 'var(--orange)' // amber
       title = `Stale: ${formatAgo(freshAgo)} ago`
     }
   }
@@ -1197,10 +1147,10 @@ function DataDot({ present, freshAgo }: { present: boolean; freshAgo: string | n
 function FreshnessTile({ label, at }: { label: string; at: string | null }) {
   return (
     <div>
-      <div style={{ fontSize: 9, color: '#999', textTransform: 'uppercase', fontWeight: 600 }}>
+      <div style={{ fontSize: 9, color: 'var(--text-3)', textTransform: 'uppercase', fontWeight: 600 }}>
         {label}
       </div>
-      <div style={{ fontSize: 12, fontWeight: 600, color: at ? '#333' : '#bbb' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: at ? 'var(--text-2)' : 'var(--text-4)' }}>
         {at ? formatAgo(at) : '—'}{at ? ' ago' : ''}
       </div>
     </div>
@@ -1225,17 +1175,17 @@ function SubTabButton({
         padding: '8px 16px',
         fontSize: 13,
         fontWeight: active ? 700 : 500,
-        color: active ? '#111' : hasData ? '#555' : '#bbb',
+        color: active ? 'var(--text-1)' : hasData ? 'var(--text-2)' : 'var(--text-4)',
         background: 'transparent',
         border: 'none',
-        borderBottom: active ? '2px solid #111' : '2px solid transparent',
+        borderBottom: active ? '2px solid var(--lime)' : '2px solid transparent',
         cursor: 'pointer',
         marginBottom: -1,
       }}
     >
       {label}
       {!hasData && (
-        <span style={{ fontSize: 9, color: '#bbb', marginLeft: 6, fontWeight: 500 }}>
+        <span style={{ fontSize: 9, color: 'var(--text-4)', marginLeft: 6, fontWeight: 500 }}>
           (no data)
         </span>
       )}
@@ -1304,16 +1254,16 @@ function EditableName({
         <span>{currentValue}</span>
         {locked && (
           <span style={{
-            fontSize: 9, padding: '1px 5px', background: '#eef', color: '#557',
-            borderRadius: 3, textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 700,
+            fontSize: 9, padding: '1px 5px', background: 'var(--men-bg)', color: 'var(--men)',
+            borderRadius: 'var(--r-xs)', textTransform: 'uppercase', letterSpacing: '0.4px', fontWeight: 700,
           }}>manual</span>
         )}
         <button
           onClick={() => { setEditing(true); setValue(currentValue); setError(null) }}
           style={{
             fontSize: 10, padding: '2px 6px',
-            color: '#444', background: '#f4f4f4', border: '1px solid #ddd',
-            borderRadius: 3, cursor: 'pointer', fontWeight: 400,
+            color: 'var(--text-2)', background: 'var(--bg-card-2)', border: '1px solid var(--border-card)',
+            borderRadius: 'var(--r-xs)', cursor: 'pointer', fontWeight: 400,
           }}
         >
           Edit
@@ -1335,9 +1285,10 @@ function EditableName({
         }}
         disabled={saving}
         style={{
-          fontSize: 20, fontWeight: 700, color: '#111',
+          fontSize: 20, fontWeight: 700, color: 'var(--text-1)',
           flex: 1, minWidth: 240, padding: '2px 6px',
-          border: '1px solid #2563eb', borderRadius: 4, outline: 'none',
+          border: '1px solid var(--lime)', borderRadius: 'var(--r-sm)', outline: 'none',
+          background: 'var(--bg-input)',
         }}
       />
       <button
@@ -1350,7 +1301,7 @@ function EditableName({
           onClick={() => void patch({ name: null })}
           disabled={saving}
           title="Remove the manual override and let automated sources own the name again"
-          style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', color: '#a00', fontWeight: 400 }}
+          style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', color: 'var(--live-text)', fontWeight: 400 }}
         >Reset to auto</button>
       )}
       <button
@@ -1358,7 +1309,7 @@ function EditableName({
         disabled={saving}
         style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', fontWeight: 400 }}
       >Cancel</button>
-      {error && <span style={{ color: '#c00', fontSize: 10, fontWeight: 400 }}>{error}</span>}
+      {error && <span style={{ color: 'var(--live-text)', fontSize: 10, fontWeight: 400 }}>{error}</span>}
     </>
   )
 }
@@ -1383,8 +1334,8 @@ function EditPrizeButton({
         onClick={() => { setEditing(true); setValue(currentValue?.toString() ?? '') }}
         style={{
           fontSize: 10, padding: '2px 6px', marginLeft: 6,
-          color: '#444', background: '#f4f4f4', border: '1px solid #ddd',
-          borderRadius: 3, cursor: 'pointer',
+          color: 'var(--text-2)', background: 'var(--bg-card-2)', border: '1px solid var(--border-card)',
+          borderRadius: 'var(--r-xs)', cursor: 'pointer',
         }}
       >
         Edit
@@ -1424,10 +1375,8 @@ function EditPrizeButton({
         value={value}
         onChange={e => setValue(e.target.value)}
         disabled={saving}
-        style={{
-          fontSize: 11, padding: '2px 4px', width: 90,
-          border: '1px solid #aaa', borderRadius: 3,
-        }}
+        className="ui-input"
+        style={{ fontSize: 11, padding: '2px 4px', width: 90 }}
       />
       <button
         onClick={() => handleSave(false)}
@@ -1437,14 +1386,14 @@ function EditPrizeButton({
       <button
         onClick={() => handleSave(true)}
         disabled={saving}
-        style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', color: '#a00' }}
+        style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer', color: 'var(--live-text)' }}
       >Clear</button>
       <button
         onClick={() => { setEditing(false); setError(null) }}
         disabled={saving}
         style={{ fontSize: 10, padding: '2px 6px', cursor: 'pointer' }}
       >Cancel</button>
-      {error && <span style={{ color: '#c00', fontSize: 10 }}>{error}</span>}
+      {error && <span style={{ color: 'var(--live-text)', fontSize: 10 }}>{error}</span>}
     </span>
   )
 }
@@ -1501,10 +1450,10 @@ function RefreshTournamentButton({ tournamentId }: { tournamentId: string }) {
           padding: '6px 14px',
           fontSize: 11,
           fontWeight: 700,
-          color: running ? '#666' : '#fff',
-          background: running ? '#e5e7eb' : '#0ea5e9',
+          color: running ? 'var(--text-3)' : '#fff',
+          background: running ? 'var(--bg-hover)' : 'var(--men)',
           border: 'none',
-          borderRadius: 4,
+          borderRadius: 'var(--r-sm)',
           cursor: running ? 'wait' : 'pointer',
           letterSpacing: '0.4px',
           textTransform: 'uppercase',
@@ -1514,40 +1463,40 @@ function RefreshTournamentButton({ tournamentId }: { tournamentId: string }) {
         {running ? 'Refreshing…' : 'Refresh'}
       </button>
       {error && (
-        <div style={{ fontSize: 11, color: '#dc2626', maxWidth: 320, textAlign: 'right' }}>
+        <div style={{ fontSize: 11, color: 'var(--live-text)', maxWidth: 320, textAlign: 'right' }}>
           {error}
         </div>
       )}
       {results && (
         <div
           style={{
-            background: '#fff',
-            border: '1px solid #e5e7eb',
-            borderRadius: 4,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-card)',
+            borderRadius: 'var(--r-sm)',
             padding: 8,
             fontSize: 11,
-            color: '#333',
+            color: 'var(--text-2)',
             minWidth: 320,
           }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 6, color: overallOk ? '#16a34a' : '#dc2626' }}>
+          <div style={{ fontWeight: 700, marginBottom: 6, color: overallOk ? 'var(--lime-text)' : 'var(--live-text)' }}>
             {overallOk ? 'Refresh OK' : 'Refresh completed with errors'}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '2px 10px' }}>
             {results.map((r) => (
               <Fragment key={r.name}>
-                <span style={{ color: r.ok ? '#16a34a' : '#dc2626', fontWeight: 700 }}>
+                <span style={{ color: r.ok ? 'var(--lime-text)' : 'var(--live-text)', fontWeight: 700 }}>
                   {r.ok ? '✓' : '✗'}
                 </span>
                 <span title={r.error ?? undefined}>
                   {r.name}
                   {r.error && (
-                    <span style={{ color: '#dc2626', marginLeft: 6, fontWeight: 500 }}>
+                    <span style={{ color: 'var(--live-text)', marginLeft: 6, fontWeight: 500 }}>
                       {r.error.slice(0, 80)}
                     </span>
                   )}
                 </span>
-                <span style={{ color: '#888', fontVariantNumeric: 'tabular-nums' }}>
+                <span style={{ color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
                   {r.durationMs}ms
                 </span>
               </Fragment>

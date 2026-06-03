@@ -398,6 +398,54 @@ export function parsePrizeBreakdown(html: string): PrizeBreakdown | null {
 }
 
 /**
+ * Tier-aware ceiling on a single per-player payout. An older parser stripped
+ * the decimal separator ("807,50" → 80750), writing breakdown values 100×
+ * over reality; those corrupted rows persist in the DB. Any per-player amount
+ * above the tier's plausible maximum winner share is a corruption signal, not
+ * a real payout.
+ *
+ * Ceilings are ~1.5–2× the rulebook max winner-per-player so above-range
+ * special events (e.g. a €12k Bronze paying ~€1,140) never false-positive,
+ * while a 100×-inflated value (≥ €34,965 for Bronze) always trips.
+ *
+ * Keyed on TIER, not the stored total prize money — some corrupted rows ALSO
+ * have a broken total, so a pool-relative check would miss them.
+ *
+ * Mirror of src/lib/prize-breakdown-parser.ts::isBreakdownInflated — keep in sync.
+ */
+const TIER_PER_PLAYER_CEILING_EUR: Record<string, number> = {
+  fip_bronze: 1500,
+  fip_silver: 4000,
+  fip_gold: 12000,
+  fip_platinum: 25000,
+};
+const DEFAULT_PER_PLAYER_CEILING_EUR = 25000;
+
+export function isBreakdownInflated(
+  breakdown:
+    | Partial<Record<'winner' | 'finalist' | 'sf' | 'qf' | 'r16' | 'r32', number>>
+    | null
+    | undefined,
+  level: string | null | undefined,
+): boolean {
+  if (!breakdown) return false;
+  const ceiling =
+    TIER_PER_PLAYER_CEILING_EUR[level ?? ''] ?? DEFAULT_PER_PLAYER_CEILING_EUR;
+  const vals = [
+    breakdown.winner,
+    breakdown.finalist,
+    breakdown.sf,
+    breakdown.qf,
+    breakdown.r16,
+    breakdown.r32,
+  ];
+  return vals.some((raw) => {
+    const v = typeof raw === 'string' ? Number(raw) : raw;
+    return typeof v === 'number' && Number.isFinite(v) && v > ceiling;
+  });
+}
+
+/**
  * Extract the factsheet PDF URL from an event page. FIP links a downloadable
  * factsheet on most Platinum/Major/Premier events — a 2-4 page PDF with
  * prize money breakdown, daily schedule, points table, sponsor list, venue

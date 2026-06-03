@@ -7,6 +7,7 @@
 // rows with FK refs) are listed separately so they don't silently skip.
 
 import { useEffect, useState } from 'react'
+import { PageHeader, KpiStrip, Kpi, DataTable, Button, EmptyState, Section } from '@/components/ui'
 
 interface TournamentRow {
   id: string
@@ -48,9 +49,9 @@ interface ExecuteResponse {
 }
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-lg)',
   padding: 14,
 }
 
@@ -96,57 +97,38 @@ export default function TournamentDedupTab() {
 
   return (
     <div>
-      <div style={{ marginBottom: 16 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#111' }}>Tournament Dedup</h2>
-        <p style={{ fontSize: 12, color: '#666', marginTop: 4, maxWidth: 720 }}>
-          Detects same-event tournaments split across sources (padelapi vs FIP)
-          using normalized name + year + level family. The row with FK refs
-          (matches, draws, etc.) survives; the other gets its fields merged in
-          and is deleted. Groups where multiple rows have FK refs are flagged
-          for manual review — those need direct SQL.
-        </p>
-      </div>
+      <PageHeader
+        title="Tournament Dedup"
+        subtitle="Detects same-event tournaments split across sources (padelapi vs FIP) using normalized name + year + level family. The row with FK refs (matches, draws, etc.) survives; the other gets its fields merged in and is deleted. Groups where multiple rows have FK refs are flagged for manual review — those need direct SQL."
+      />
 
       {/* Summary tiles */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
-        <Tile label="Duplicate groups" value={plan?.groupCount ?? '—'} accent="#6366f1" />
-        <Tile label="Auto-mergeable" value={plan?.autoMergeable ?? '—'} accent="#16a34a" />
-        <Tile label="Manual review" value={plan?.manualReview ?? '—'} accent="#dc2626" />
-      </div>
+      <KpiStrip cols={3}>
+        <Kpi label="Duplicate groups" value={plan?.groupCount ?? '—'} tone="neutral" />
+        <Kpi label="Auto-mergeable" value={plan?.autoMergeable ?? '—'} tone="lime" />
+        <Kpi label="Manual review" value={plan?.manualReview ?? '—'} tone="urgent" />
+      </KpiStrip>
 
       {/* Action bar */}
-      <div style={{ ...card, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <button
-          onClick={loadPlan}
-          disabled={loadingPlan}
-          style={{
-            padding: '7px 14px', fontSize: 12, fontWeight: 700,
-            background: '#fff', color: '#333',
-            border: '1px solid #d1d5db', borderRadius: 4,
-            cursor: loadingPlan ? 'wait' : 'pointer',
-          }}
-        >
+      <div style={{ ...card, margin: '16px 0', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Button size="sm" onClick={loadPlan} disabled={loadingPlan}>
           {loadingPlan ? 'Loading...' : 'Refresh plan'}
-        </button>
-        <button
+        </Button>
+        <Button
+          size="sm"
+          variant="danger"
           onClick={execute}
           disabled={executing || !plan?.autoMergeable}
-          style={{
-            padding: '7px 14px', fontSize: 12, fontWeight: 700,
-            background: plan?.autoMergeable ? '#dc2626' : '#9ca3af',
-            color: '#fff', border: 'none', borderRadius: 4,
-            cursor: executing ? 'wait' : (plan?.autoMergeable ? 'pointer' : 'not-allowed'),
-          }}
         >
           {executing ? 'Merging...' : `Execute merge (${plan?.autoMergeable ?? 0})`}
-        </button>
-        <span style={{ fontSize: 11, color: '#666', marginLeft: 'auto' }}>
+        </Button>
+        <span style={{ fontSize: 11, color: 'var(--text-3)', marginLeft: 'auto' }}>
           Manual-review groups stay untouched
         </span>
       </div>
 
       {error && (
-        <div style={{ ...card, color: '#991b1b', marginBottom: 16 }}>Error: {error}</div>
+        <div style={{ ...card, color: 'var(--live-text)', marginBottom: 16 }}>Error: {error}</div>
       )}
 
       {executeResult && (
@@ -154,15 +136,15 @@ export default function TournamentDedupTab() {
           style={{
             ...card,
             marginBottom: 16,
-            background: executeResult.ok ? '#f0fdf4' : '#fef2f2',
-            borderColor: executeResult.ok ? '#bbf7d0' : '#fecaca',
+            background: executeResult.ok ? 'var(--lime-bg)' : 'var(--live-bg)',
+            borderColor: executeResult.ok ? 'var(--lime-border)' : 'var(--live-border)',
           }}
         >
           {executeResult.ok ? (
-            <div style={{ fontSize: 12, color: '#166534', fontWeight: 600 }}>
+            <div style={{ fontSize: 12, color: 'var(--lime-text)', fontWeight: 600 }}>
               Merged {executeResult.merged ?? 0} · Skipped {executeResult.skipped ?? 0} · Failed {executeResult.failed ?? 0}
               {executeResult.errors && executeResult.errors.length > 0 && (
-                <ul style={{ marginTop: 6, color: '#991b1b', fontSize: 11 }}>
+                <ul style={{ marginTop: 6, color: 'var(--live-text)', fontSize: 11 }}>
                   {executeResult.errors.map((e, i) => (
                     <li key={i}><strong>{e.groupKey}:</strong> {e.error}</li>
                   ))}
@@ -170,142 +152,114 @@ export default function TournamentDedupTab() {
               )}
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: '#991b1b' }}>Error: {executeResult.error}</div>
+            <div style={{ fontSize: 12, color: 'var(--live-text)' }}>Error: {executeResult.error}</div>
           )}
         </div>
       )}
 
       {/* Auto-mergeable groups */}
       {okGroups.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 8 }}>
-            Auto-mergeable ({okGroups.length})
-          </h3>
-          <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#f9fafb', textAlign: 'left' }}>
-                  <th style={th}>Survivor</th>
-                  <th style={th}>Dying</th>
-                  <th style={th}>Year</th>
-                  <th style={th}>Updates</th>
-                </tr>
-              </thead>
-              <tbody>
-                {okGroups.map((g, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={td}>
-                      <div style={{ fontWeight: 600, color: '#111' }}>{g.survivor?.name ?? '—'}</div>
-                      <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>
-                        {g.survivor?.source ?? '—'} · {g.survivor?.fip_id ? `fip_id ok` : 'no fip_id'}
+        <Section label={`Auto-mergeable (${okGroups.length})`}>
+          <DataTable>
+            <thead>
+              <tr>
+                <th>Survivor</th>
+                <th>Dying</th>
+                <th>Year</th>
+                <th>Updates</th>
+              </tr>
+            </thead>
+            <tbody>
+              {okGroups.map((g, i) => (
+                <tr key={i}>
+                  <td style={td}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>{g.survivor?.name ?? '—'}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>
+                      {g.survivor?.source ?? '—'} · {g.survivor?.fip_id ? `fip_id ok` : 'no fip_id'}
+                    </div>
+                  </td>
+                  <td style={td}>
+                    {g.dying.map((d, j) => (
+                      <div key={j}>
+                        <div style={{ color: 'var(--text-2)' }}>{d.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 1 }}>{d.source ?? '—'}</div>
                       </div>
-                    </td>
-                    <td style={td}>
-                      {g.dying.map((d, j) => (
-                        <div key={j}>
-                          <div style={{ color: '#444' }}>{d.name}</div>
-                          <div style={{ fontSize: 10, color: '#999', marginTop: 1 }}>{d.source ?? '—'}</div>
+                    ))}
+                  </td>
+                  <td style={{ ...td, fontFamily: 'ui-monospace, monospace' }}>
+                    {g.groupKey.split('|')[1]}
+                  </td>
+                  <td style={td}>
+                    {Object.keys(g.updates).length === 0
+                      ? <span style={{ color: 'var(--text-4)' }}>—</span>
+                      : (
+                        <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: 'var(--text-2)' }}>
+                          {Object.entries(g.updates).map(([k, v]) => (
+                            <div key={k}>{k}: {String(v).slice(0, 40)}</div>
+                          ))}
                         </div>
-                      ))}
-                    </td>
-                    <td style={{ ...td, fontFamily: 'ui-monospace, monospace' }}>
-                      {g.groupKey.split('|')[1]}
-                    </td>
-                    <td style={td}>
-                      {Object.keys(g.updates).length === 0
-                        ? <span style={{ color: '#bbb' }}>—</span>
-                        : (
-                          <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: 10, color: '#444' }}>
-                            {Object.entries(g.updates).map(([k, v]) => (
-                              <div key={k}>{k}: {String(v).slice(0, 40)}</div>
-                            ))}
-                          </div>
-                        )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                      )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </Section>
       )}
 
       {/* Manual-review groups */}
       {manualGroups.length > 0 && (
-        <div>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 8 }}>
-            Needs manual review ({manualGroups.length})
-          </h3>
-          <p style={{ fontSize: 11, color: '#666', marginBottom: 8, maxWidth: 720 }}>
+        <Section label={`Needs manual review (${manualGroups.length})`}>
+          <p style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 8, maxWidth: 720 }}>
             Multiple rows in these groups have FK references (matches /
             articles / etc.) — picking a survivor automatically would orphan
             data. Resolve via direct SQL after deciding which row to keep.
           </p>
-          <div style={{ ...card, padding: 0, overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#fef2f2', textAlign: 'left' }}>
-                  <th style={th}>Group</th>
-                  <th style={th}>Rows + FK refs</th>
-                </tr>
-              </thead>
-              <tbody>
-                {manualGroups.map((g, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                    <td style={{ ...td, fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>
-                      {g.groupKey}
-                    </td>
-                    <td style={td}>
-                      {[g.survivor, ...g.dying].filter(Boolean).map((r, j) => {
-                        const counts = g.fkCounts[(r as TournamentRow).id] ?? {}
-                        const fkSummary = Object.entries(counts)
-                          .filter(([, n]) => n > 0)
-                          .map(([k, n]) => `${k}:${n}`)
-                          .join(' · ') || 'no FKs'
-                        return (
-                          <div key={j} style={{ marginBottom: 4 }}>
-                            <div style={{ fontWeight: 600, color: '#111' }}>{(r as TournamentRow).name}</div>
-                            <div style={{ fontSize: 10, color: '#999' }}>
-                              {(r as TournamentRow).source ?? '—'} · {fkSummary}
-                            </div>
+          <DataTable>
+            <thead>
+              <tr>
+                <th>Group</th>
+                <th>Rows + FK refs</th>
+              </tr>
+            </thead>
+            <tbody>
+              {manualGroups.map((g, i) => (
+                <tr key={i}>
+                  <td style={{ ...td, fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>
+                    {g.groupKey}
+                  </td>
+                  <td style={td}>
+                    {[g.survivor, ...g.dying].filter(Boolean).map((r, j) => {
+                      const counts = g.fkCounts[(r as TournamentRow).id] ?? {}
+                      const fkSummary = Object.entries(counts)
+                        .filter(([, n]) => n > 0)
+                        .map(([k, n]) => `${k}:${n}`)
+                        .join(' · ') || 'no FKs'
+                      return (
+                        <div key={j} style={{ marginBottom: 4 }}>
+                          <div style={{ fontWeight: 600, color: 'var(--text-1)' }}>{(r as TournamentRow).name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-3)' }}>
+                            {(r as TournamentRow).source ?? '—'} · {fkSummary}
                           </div>
-                        )
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                        </div>
+                      )
+                    })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </DataTable>
+        </Section>
       )}
 
       {plan && plan.groupCount === 0 && (
-        <div style={{ ...card, color: '#666', fontSize: 12 }}>
-          No duplicates detected. The DB is clean (or matching rules need
-          tightening — try widening the year window or relaxing tokens).
-        </div>
+        <EmptyState
+          title="No duplicates detected."
+          hint="The DB is clean (or matching rules need tightening — try widening the year window or relaxing tokens)."
+        />
       )}
     </div>
   )
 }
 
-const th: React.CSSProperties = {
-  padding: '8px 12px', fontSize: 10, fontWeight: 700, color: '#666',
-  textTransform: 'uppercase', letterSpacing: '0.5px',
-  borderBottom: '1px solid #e5e7eb',
-}
-const td: React.CSSProperties = { padding: '8px 12px', color: '#444', verticalAlign: 'top' }
-
-function Tile({ label, value, accent }: { label: string; value: number | string; accent: string }) {
-  return (
-    <div style={{ ...card, borderLeft: `4px solid ${accent}` }}>
-      <div style={{ fontSize: 9, color: '#6b7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: accent, lineHeight: 1.05, marginTop: 4 }}>
-        {value}
-      </div>
-    </div>
-  )
-}
+const td: React.CSSProperties = { verticalAlign: 'top' }

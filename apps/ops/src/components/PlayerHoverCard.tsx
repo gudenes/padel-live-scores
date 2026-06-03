@@ -118,7 +118,7 @@ export function PlayerHoverCard({ anchor, player, onClose, onMouseEnter }: Props
         left: pos.left,
         width: CARD_WIDTH,
         background: 'var(--bg-card, #ffffff)',
-        border: '1px solid var(--border-subtle, #e5e7eb)',
+        border: '1px solid var(--border-card)',
         borderRadius: 12,
         padding: 14,
         boxShadow: '0 10px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06)',
@@ -134,7 +134,7 @@ export function PlayerHoverCard({ anchor, player, onClose, onMouseEnter }: Props
             style={{
               fontSize: 14,
               fontWeight: 700,
-              color: 'var(--brand-primary-fg, #0a0a0a)',
+              color: 'var(--text-1)',
               lineHeight: 1.2,
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -147,7 +147,7 @@ export function PlayerHoverCard({ anchor, player, onClose, onMouseEnter }: Props
             <div
               style={{
                 fontSize: 11,
-                color: 'var(--status-neutral, #71717a)',
+                color: 'var(--text-3)',
                 marginTop: 3,
                 lineHeight: 1.3,
               }}
@@ -163,19 +163,19 @@ export function PlayerHoverCard({ anchor, player, onClose, onMouseEnter }: Props
         <>
           <div
             style={{
-              borderTop: '1px solid var(--border-subtle, #e5e7eb)',
+              borderTop: '1px solid var(--border-card)',
               margin: '10px 0',
             }}
           />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {externalIds.map(([label, value]) => (
               <div key={label} style={{ display: 'flex', gap: 10, fontSize: 11 }}>
-                <span style={{ width: 60, color: 'var(--status-neutral, #71717a)' }}>{label}</span>
+                <span style={{ width: 60, color: 'var(--text-3)' }}>{label}</span>
                 <span
                   style={{
                     fontFamily:
                       'JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                    color: 'var(--brand-primary-fg, #0a0a0a)',
+                    color: 'var(--text-1)',
                   }}
                 >
                   {value}
@@ -191,7 +191,7 @@ export function PlayerHoverCard({ anchor, player, onClose, onMouseEnter }: Props
         <>
           <div
             style={{
-              borderTop: '1px solid var(--border-subtle, #e5e7eb)',
+              borderTop: '1px solid var(--border-card)',
               margin: '10px 0',
             }}
           />
@@ -237,7 +237,7 @@ function Avatar({ player }: { player: PlayerLinkInput }) {
           height: 48,
           borderRadius: 24,
           objectFit: 'cover',
-          background: 'var(--bg-canvas, #fafafa)',
+          background: 'var(--bg-surface)',
           flexShrink: 0,
         }}
       />

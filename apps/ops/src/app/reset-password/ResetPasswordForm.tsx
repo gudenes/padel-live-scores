@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { Button } from '@/components/ui'
 import { applyPasswordReset } from './actions'
 
 type State = { error: string } | null
@@ -22,12 +23,7 @@ export default function ResetPasswordForm({ token }: { token: string }) {
         required
         placeholder="New password"
         minLength={8}
-        style={{
-          padding: '10px 12px',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
-          fontSize: 14,
-        }}
+        className="ui-input"
       />
       <input
         name="confirm"
@@ -35,35 +31,16 @@ export default function ResetPasswordForm({ token }: { token: string }) {
         required
         placeholder="Confirm new password"
         minLength={8}
-        style={{
-          padding: '10px 12px',
-          border: '1px solid var(--border-subtle)',
-          borderRadius: 8,
-          fontSize: 14,
-        }}
+        className="ui-input"
       />
       {state?.error && (
-        <div style={{ fontSize: 12, color: 'var(--status-urgent)', textAlign: 'center' }}>
+        <div style={{ fontSize: 12, color: 'var(--live-text)', textAlign: 'center' }}>
           {state.error}
         </div>
       )}
-      <button
-        type="submit"
-        disabled={pending}
-        style={{
-          background: 'var(--brand-primary)',
-          color: 'var(--brand-primary-fg)',
-          border: 'none',
-          borderRadius: 8,
-          padding: '10px 12px',
-          fontSize: 14,
-          fontWeight: 700,
-          cursor: pending ? 'wait' : 'pointer',
-          opacity: pending ? 0.7 : 1,
-        }}
-      >
+      <Button type="submit" variant="primary" disabled={pending}>
         {pending ? 'Setting…' : 'Set password'}
-      </button>
+      </Button>
     </form>
   )
 }

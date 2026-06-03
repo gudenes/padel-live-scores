@@ -9,6 +9,8 @@
 // Null amounts are treated as 0 in both totals and per-row rendering so a
 // missing payout never NaN's the heading.
 
+import { Panel } from '@/components/ui'
+
 export interface Earning {
   id: string
   tournament_id: string
@@ -31,10 +33,11 @@ export default function EarningsSection({ earnings }: { earnings: Earning[] }) {
 
   if (earnings.length === 0) {
     return (
-      <section className="bg-white border border-gray-200 rounded-lg p-4">
-        <h2 className="text-sm font-semibold text-gray-900 mb-2">Earnings</h2>
-        <div className="text-xs text-gray-400">No earnings recorded.</div>
-      </section>
+      <Panel title="Earnings">
+        <div className="text-xs" style={{ color: 'var(--text-3)' }}>
+          No earnings recorded.
+        </div>
+      </Panel>
     )
   }
 
@@ -53,10 +56,7 @@ export default function EarningsSection({ earnings }: { earnings: Earning[] }) {
   const years = [...byYear.keys()].sort((a, b) => b - a)
 
   return (
-    <section className="bg-white border border-gray-200 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-900 mb-3">
-        Earnings — {eurFormat.format(allTime)} all-time
-      </h2>
+    <Panel title={`Earnings — ${eurFormat.format(allTime)} all-time`}>
       <div className="space-y-4">
         {years.map((year) => {
           const rows = byYear.get(year) ?? []
@@ -66,19 +66,26 @@ export default function EarningsSection({ earnings }: { earnings: Earning[] }) {
           )
           return (
             <div key={year}>
-              <h3 className="text-xs font-semibold text-gray-700 mb-1.5">
+              <h3
+                className="text-xs font-semibold mb-1.5"
+                style={{ color: 'var(--text-2)' }}
+              >
                 {year} — {eurFormat.format(subtotal)}
               </h3>
               <ul className="text-xs">
                 {rows.map((e) => (
                   <li
                     key={e.id}
-                    className="flex justify-between py-1 border-b border-gray-50 last:border-b-0"
+                    className="flex justify-between py-1 border-b last:border-b-0"
+                    style={{ borderColor: 'var(--border-inner)' }}
                   >
-                    <span className="text-gray-900">
+                    <span style={{ color: 'var(--text-1)' }}>
                       {e.tournament?.name ?? e.tournament_id}
                     </span>
-                    <span className="text-gray-700 tabular-nums">
+                    <span
+                      className="tabular-nums"
+                      style={{ color: 'var(--text-2)' }}
+                    >
                       {eurFormat.format(e.per_player_eur ?? 0)}
                     </span>
                   </li>
@@ -88,6 +95,6 @@ export default function EarningsSection({ earnings }: { earnings: Earning[] }) {
           )
         })}
       </div>
-    </section>
+    </Panel>
   )
 }

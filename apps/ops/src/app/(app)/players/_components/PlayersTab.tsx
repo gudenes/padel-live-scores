@@ -12,6 +12,7 @@ import BulkActionsBar from './BulkActionsBar'
 import AddRacketModal from './AddRacketModal'
 import DuplicatePlayersPanel from '@/components/DuplicatePlayersPanel'
 import { useOpenPlayerDrawer, useRegisterDrawerCallbacks } from '@/components/player-drawer-context'
+import { PageHeader, Panel, Button } from '@/components/ui'
 
 // ── Fields to compare during merge ──────────────────────────────
 const MERGE_FIELDS: (keyof PlayerDetail)[] = [
@@ -23,15 +24,15 @@ const MERGE_FIELDS: (keyof PlayerDetail)[] = [
 // ── Shared styles ────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-sm)',
   padding: 12,
 }
 
 const sectionLabel: React.CSSProperties = {
   fontSize: 10,
-  color: '#9ca3af',
+  color: 'var(--text-3)',
   textTransform: 'uppercase' as const,
   fontWeight: 700,
   letterSpacing: 1,
@@ -334,34 +335,47 @@ export default function PlayersTab() {
     setLoadingDetail(false)
   }, [])
 
+  // ── Swap which player is kept vs deleted ───────────────────────
+  // With the "select 2" entry point neither player is implicitly the
+  // survivor, so let the operator flip A↔B. Values flip too, so invert
+  // the per-field picks to preserve what was chosen.
+  const handleSwapMergeSides = useCallback(() => {
+    if (!selectedPlayer || !mergeTarget) return
+    const a = selectedPlayer
+    const aCount = selectedMatchCount
+    setSelectedPlayer(mergeTarget)
+    setSelectedMatchCount(mergeTargetMatchCount)
+    setMergeTarget(a)
+    setMergeTargetMatchCount(aCount)
+    setMergeSelections(prev => {
+      const next: Record<string, 'a' | 'b'> = {}
+      for (const [field, side] of Object.entries(prev)) next[field] = side === 'a' ? 'b' : 'a'
+      return next
+    })
+    setMergePreview(false)
+  }, [selectedPlayer, mergeTarget, selectedMatchCount, mergeTargetMatchCount])
+
   // ── Render ─────────────────────────────────────────────────────
 
   return (
-    <div className="players-tab">
-      <style>{`
-        .players-tab input, .players-tab select, .players-tab textarea { color: #111 !important; }
-      `}</style>
-
-      {/* Search bar + add racket */}
-      <div style={{ ...card, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          placeholder="Search players by name..."
-          style={{
-            flex: 1, padding: '7px 10px', fontSize: 12,
-            border: '1px solid #d1d5db', borderRadius: 6,
-          }}
-        />
-        {searching && <span style={{ fontSize: 10, color: '#9ca3af' }}>Searching...</span>}
-        <button
-          onClick={() => setShowAddRacket(true)}
-          className="px-3 py-1.5 text-xs font-semibold border border-gray-200 rounded bg-white hover:bg-gray-50 cursor-pointer whitespace-nowrap"
-        >
-          + Add racket
-        </button>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="Players"
+        actions={
+          <>
+            <input
+              type="text"
+              className="ui-input"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search players by name..."
+              style={{ width: 260 }}
+            />
+            {searching && <span style={{ fontSize: 11, color: 'var(--text-3)' }}>Searching...</span>}
+            <Button onClick={() => setShowAddRacket(true)}>+ Add racket</Button>
+          </>
+        }
+      />
 
       {/* Filter chips */}
       <FilterChips
@@ -387,6 +401,7 @@ export default function PlayersTab() {
         selectedIds={Array.from(selectedIds)}
         onClearSelection={() => setSelectedIds(new Set())}
         onBulkComplete={() => { fetchData(); fetchCounts() }}
+        onMergeSelected={(ids) => { startMergeFromDup(ids[0], ids[1]); setSelectedIds(new Set()) }}
       />
 
       {/* Players table */}
@@ -405,29 +420,38 @@ export default function PlayersTab() {
 
       {/* Merge mode — detailed field comparison panel */}
       {loadingDetail && (
-        <div style={{ ...card, textAlign: 'center', color: '#9ca3af', fontSize: 12, marginBottom: 12 }}>
+        <div style={{ ...card, textAlign: 'center', color: 'var(--text-3)', fontSize: 12, marginBottom: 12 }}>
           Loading player details...
         </div>
       )}
 
       {selectedPlayer && !loadingDetail && mergeMode && (
-        <div style={{ ...card, marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>Merge Players</span>
-            <button
-              onClick={() => { setMergeMode(false); setMergeTarget(null); setMergePreview(false); setMergeMessage(null); setSelectedPlayer(null) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9ca3af', padding: '2px 6px' }}
-            >
-              &times;
-            </button>
-          </div>
-
+        <div style={{ marginBottom: 12 }}>
+        <Panel
+          title="Merge Players"
+          actions={
+            <>
+              {mergeTarget && (
+                <Button variant="ghost" size="sm" onClick={handleSwapMergeSides}>
+                  &#8646; Swap A/B
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setMergeMode(false); setMergeTarget(null); setMergePreview(false); setMergeMessage(null); setSelectedPlayer(null) }}
+              >
+                &times;
+              </Button>
+            </>
+          }
+        >
           {mergeMessage && (
             <div style={{
-              marginBottom: 10, padding: '6px 10px', borderRadius: 4, fontSize: 11,
-              background: mergeMessage.startsWith('Error') ? '#FEF2F2' : '#F0FDF4',
-              color: mergeMessage.startsWith('Error') ? '#991B1B' : '#166534',
-              border: mergeMessage.startsWith('Error') ? '1px solid #FECACA' : '1px solid #BBF7D0',
+              marginBottom: 10, padding: '6px 10px', borderRadius: 'var(--r-sm)', fontSize: 11,
+              background: mergeMessage.startsWith('Error') ? 'var(--live-bg)' : 'var(--lime-bg)',
+              color: mergeMessage.startsWith('Error') ? 'var(--live-text)' : 'var(--lime-text)',
+              border: mergeMessage.startsWith('Error') ? '1px solid var(--live-border)' : '1px solid var(--lime-border)',
             }}>
               {mergeMessage}
             </div>
@@ -437,9 +461,9 @@ export default function PlayersTab() {
             {/* Player A */}
             <div style={{ flex: 1 }}>
               <div style={sectionLabel}>Player A (Keep)</div>
-              <div style={{ padding: 10, border: '1px solid #BBF7D0', borderRadius: 6, background: '#F0FDF4' }}>
-                <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{selectedPlayer.name}</div>
-                <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
+              <div style={{ padding: 10, border: '1px solid var(--lime-border)', borderRadius: 'var(--r-sm)', background: 'var(--lime-bg)' }}>
+                <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-1)' }}>{selectedPlayer.name}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2 }}>
                   {selectedPlayer.country ?? 'No country'} &middot; Rank #{selectedPlayer.ranking ?? '—'} &middot; {selectedMatchCount} matches
                 </div>
               </div>
@@ -452,42 +476,42 @@ export default function PlayersTab() {
                 <div>
                   <input
                     type="text"
+                    className="ui-input"
                     value={mergeSearchQuery}
                     onChange={e => { setMergeSearchQuery(e.target.value); doMergeSearch(e.target.value) }}
                     placeholder="Search for player to merge..."
-                    style={{ width: '100%', padding: '7px 10px', fontSize: 11, border: '1px solid #d1d5db', borderRadius: 4, boxSizing: 'border-box' }}
+                    style={{ width: '100%', fontSize: 11, boxSizing: 'border-box' }}
                   />
-                  {mergeSearching && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 4 }}>Searching...</div>}
+                  {mergeSearching && <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 4 }}>Searching...</div>}
                   {mergeSearchResults.length > 0 && (
-                    <div style={{ border: '1px solid #e5e7eb', borderRadius: 4, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
+                    <div style={{ border: '1px solid var(--border-card)', borderRadius: 'var(--r-sm)', marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
                       {mergeSearchResults.map(r => (
                         <div
                           key={r.id}
                           onClick={() => selectMergeTarget(r.id)}
-                          style={{ padding: '6px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid #f3f4f6' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#f3f4f6')}
+                          style={{ padding: '6px 8px', cursor: 'pointer', fontSize: 11, borderBottom: '1px solid var(--border-inner)' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                         >
-                          <span style={{ fontWeight: 500, color: '#111' }}>{r.name}</span>
-                          {r.country && <span style={{ color: '#9ca3af', marginLeft: 4 }}>({r.country})</span>}
-                          {r.ranking && <span style={{ color: '#6B7280', fontSize: 10, marginLeft: 4 }}>#{r.ranking}</span>}
+                          <span style={{ fontWeight: 500, color: 'var(--text-1)' }}>{r.name}</span>
+                          {r.country && <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>({r.country})</span>}
+                          {r.ranking && <span style={{ color: 'var(--text-2)', fontSize: 10, marginLeft: 4 }}>#{r.ranking}</span>}
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
               ) : (
-                <div style={{ padding: 10, border: '1px solid #FECACA', borderRadius: 6, background: '#FEF2F2' }}>
-                  <div style={{ fontWeight: 600, fontSize: 12, color: '#111' }}>{mergeTarget.name}</div>
-                  <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
+                <div style={{ padding: 10, border: '1px solid var(--live-border)', borderRadius: 'var(--r-sm)', background: 'var(--live-bg)' }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-1)' }}>{mergeTarget.name}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-2)', marginTop: 2 }}>
                     {mergeTarget.country ?? 'No country'} &middot; Rank #{mergeTarget.ranking ?? '—'} &middot; {mergeTargetMatchCount} matches
                   </div>
-                  <button
-                    onClick={() => { setMergeTarget(null); setMergePreview(false) }}
-                    style={{ marginTop: 6, padding: '2px 8px', fontSize: 10, fontWeight: 600, background: 'white', border: '1px solid #d1d5db', borderRadius: 3, cursor: 'pointer', color: '#6B7280' }}
-                  >
-                    Change
-                  </button>
+                  <div style={{ marginTop: 6 }}>
+                    <Button size="sm" onClick={() => { setMergeTarget(null); setMergePreview(false) }}>
+                      Change
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -496,10 +520,10 @@ export default function PlayersTab() {
           {/* Field comparison table */}
           {mergeTarget && (
             <>
-              <div style={{ ...card, padding: 0, overflow: 'auto', marginBottom: 12, border: '1px solid #e5e7eb' }}>
+              <div style={{ ...card, padding: 0, overflow: 'auto', marginBottom: 12 }}>
                 <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border-card)', background: 'var(--bg-card-2)' }}>
                       <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0, width: 100 }}>Field</th>
                       <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'left', marginBottom: 0 }}>Player A (Keep)</th>
                       <th style={{ ...sectionLabel, padding: '6px 8px', textAlign: 'center', marginBottom: 0, width: 50 }}>Pick</th>
@@ -513,27 +537,27 @@ export default function PlayersTab() {
                       const bothNonNull = aVal != null && aVal !== '' && bVal != null && bVal !== ''
                       const isConflict = bothNonNull && String(aVal) !== String(bVal)
                       return (
-                        <tr key={field} style={{ borderBottom: '1px solid #f3f4f6', background: isConflict ? '#FFF7ED' : undefined }}>
-                          <td style={{ padding: '5px 8px', fontWeight: 600, color: '#6B7280', fontSize: 10 }}>{field}</td>
-                          <td style={{ padding: '5px 8px', color: '#111', fontWeight: mergeSelections[field] === 'a' ? 600 : 400, opacity: mergeSelections[field] === 'b' ? 0.5 : 1 }}>
-                            {aVal != null ? String(aVal) : <span style={{ color: '#d1d5db' }}>null</span>}
+                        <tr key={field} style={{ borderBottom: '1px solid var(--border-inner)', background: isConflict ? 'var(--orange-bg)' : undefined }}>
+                          <td style={{ padding: '5px 8px', fontWeight: 600, color: 'var(--text-2)', fontSize: 10 }}>{field}</td>
+                          <td style={{ padding: '5px 8px', color: 'var(--text-1)', fontWeight: mergeSelections[field] === 'a' ? 600 : 400, opacity: mergeSelections[field] === 'b' ? 0.5 : 1 }}>
+                            {aVal != null ? String(aVal) : <span style={{ color: 'var(--text-4)' }}>null</span>}
                           </td>
                           <td style={{ padding: '5px 8px', textAlign: 'center' }}>
                             {(aVal != null || bVal != null) && (
                               <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
-                                <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-                                  <input type="radio" name={`merge-${field}`} checked={mergeSelections[field] === 'a'} onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'a' }))} style={{ margin: 0 }} />
+                                <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', color: 'var(--text-2)' }}>
+                                  <input type="radio" name={`merge-${field}`} checked={mergeSelections[field] === 'a'} onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'a' }))} style={{ margin: 0, accentColor: 'var(--lime)' }} />
                                   A
                                 </label>
-                                <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
-                                  <input type="radio" name={`merge-${field}`} checked={mergeSelections[field] === 'b'} onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'b' }))} style={{ margin: 0 }} />
+                                <label style={{ fontSize: 10, display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', color: 'var(--text-2)' }}>
+                                  <input type="radio" name={`merge-${field}`} checked={mergeSelections[field] === 'b'} onChange={() => setMergeSelections(prev => ({ ...prev, [field]: 'b' }))} style={{ margin: 0, accentColor: 'var(--lime)' }} />
                                   B
                                 </label>
                               </div>
                             )}
                           </td>
-                          <td style={{ padding: '5px 8px', color: '#111', fontWeight: mergeSelections[field] === 'b' ? 600 : 400, opacity: mergeSelections[field] === 'a' ? 0.5 : 1 }}>
-                            {bVal != null ? String(bVal) : <span style={{ color: '#d1d5db' }}>null</span>}
+                          <td style={{ padding: '5px 8px', color: 'var(--text-1)', fontWeight: mergeSelections[field] === 'b' ? 600 : 400, opacity: mergeSelections[field] === 'a' ? 0.5 : 1 }}>
+                            {bVal != null ? String(bVal) : <span style={{ color: 'var(--text-4)' }}>null</span>}
                           </td>
                         </tr>
                       )
@@ -545,29 +569,23 @@ export default function PlayersTab() {
               {/* Merge actions */}
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {!mergePreview ? (
-                  <button
-                    onClick={() => setMergePreview(true)}
-                    style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: '#F5A623', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}
-                  >
+                  <Button variant="primary" size="sm" onClick={() => setMergePreview(true)}>
                     Preview Merge
-                  </button>
+                  </Button>
                 ) : (
                   <>
-                    <div style={{ flex: 1, padding: '8px 10px', borderRadius: 6, fontSize: 11, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B' }}>
+                    <div style={{ flex: 1, padding: '8px 10px', borderRadius: 'var(--r-sm)', fontSize: 11, background: 'var(--live-bg)', border: '1px solid var(--live-border)', color: 'var(--live-text)' }}>
                       Will reassign {mergeTargetMatchCount} matches and draw entries from <strong>{mergeTarget.name}</strong> to <strong>{selectedPlayer.name}</strong>. Player B will be deleted.
                     </div>
-                    <button
-                      onClick={handleMerge}
-                      disabled={merging}
-                      style={{ padding: '6px 14px', fontSize: 11, fontWeight: 600, background: '#FF4655', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', opacity: merging ? 0.6 : 1, whiteSpace: 'nowrap' }}
-                    >
+                    <Button variant="danger" size="sm" onClick={handleMerge} disabled={merging}>
                       {merging ? 'Merging...' : 'Confirm Merge'}
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
             </>
           )}
+        </Panel>
         </div>
       )}
 

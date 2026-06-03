@@ -45,7 +45,7 @@ export default async function NewsIndexPage({ params, searchParams }: Props) {
 
   const t = await getTranslations({ locale, namespace: 'news' })
   const activeCategory: NewsCategory | undefined =
-    category === 'announcements' || category === 'product' ? category : undefined
+    NEWS_CATEGORIES.includes(category as NewsCategory) ? (category as NewsCategory) : undefined
 
   const posts = await listPublished(locale, { category: activeCategory })
   const [hero, ...rest] = posts
@@ -64,7 +64,7 @@ export default async function NewsIndexPage({ params, searchParams }: Props) {
             <CategoryChip
               key={c}
               active={activeCategory === c}
-              label={t(`category_${c}` as 'category_announcements' | 'category_product')}
+              label={t(`category_${c}` as 'category_announcements' | 'category_product' | 'category_insights')}
               href={`/news?category=${c}`}
             />
           ))}

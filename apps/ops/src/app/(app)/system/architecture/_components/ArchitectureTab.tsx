@@ -3,6 +3,7 @@
 // System architecture diagram — visual flow diagram showing all data integrations.
 
 import React, { useState } from 'react'
+import { PageHeader, Panel } from '@/components/ui'
 
 // ── Node + connection definitions ───────────────────────────────
 
@@ -281,11 +282,13 @@ export default function ArchitectureTab() {
   const hoveredIds = new Set(hoveredConnections.flatMap(c => [c.from, c.to]))
 
   return (
-    <div>
+    <div className="ui-page">
+      <PageHeader title="Architecture" subtitle="System data-flow diagram — all integrations, processing layers, and writers." />
+
       {/* Legend */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 12, padding: '8px 12px',
-        background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 11,
+        background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 8, fontSize: 11,
       }}>
         {[
           { color: '#dcfce7', border: '#22c55e', label: 'Live Data Sources' },
@@ -298,7 +301,7 @@ export default function ArchitectureTab() {
         ].map(l => (
           <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{ width: 12, height: 12, borderRadius: 2, background: l.color, border: `1.5px solid ${l.border}` }} />
-            <span style={{ color: '#555' }}>{l.label}</span>
+            <span style={{ color: 'var(--text-2)' }}>{l.label}</span>
           </div>
         ))}
       </div>
@@ -306,8 +309,16 @@ export default function ArchitectureTab() {
       {/* SVG Diagram. Canvas is taller than the original 780 to
           accommodate the Padelgod swim-lane at the bottom (added
           2026-04-29). If you add new rows below it, bump this height
-          and the column-label y-coordinates accordingly. */}
-      <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'auto' }}>
+          and the column-label y-coordinates accordingly.
+
+          The diagram is light-designed (pastel node fills, dark text,
+          white label/pill rects baked into the SVG). To keep it legible
+          in dark mode we pin the SVG onto an always-light canvas
+          (#F7F8F2 — same value as the light-theme --bg-card-2 token)
+          inside a Panel surface, rather than letting the dark page show
+          through behind the white SVG internals. */}
+      <Panel padded={false}>
+        <div style={{ background: '#F7F8F2', borderRadius: 'var(--r-lg)', overflow: 'auto' }}>
         <svg viewBox="0 0 1160 1080" style={{ width: '100%', minWidth: 900, display: 'block' }}>
           <defs>
             <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
@@ -524,48 +535,49 @@ export default function ArchitectureTab() {
             )
           })}
         </svg>
-      </div>
+        </div>
+      </Panel>
 
       {/* Source Priority + Migration notes footer. Reflects the
           mid-2026-04 strategy shift: padelapi is moving to Premier-only,
           FIP-tier data is canonically owned by padelgod. */}
       <div style={{
-        marginTop: 12, padding: '10px 14px', background: 'white', border: '1px solid #e5e7eb',
-        borderRadius: 8, fontSize: 11, color: '#555', lineHeight: 1.8,
+        marginTop: 12, padding: '10px 14px', background: 'var(--bg-card)', border: '1px solid var(--border-card)',
+        borderRadius: 8, fontSize: 11, color: 'var(--text-2)', lineHeight: 1.8,
       }}>
-        <div style={{ fontSize: 10, color: '#999', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
           Source Priority (who wins on data conflicts)
         </div>
         <strong>Rankings:</strong> FIP Official → FIP → PadelAPI
-        <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', margin: '0 8px' }}>|</span>
         <strong>FIP match scores:</strong> Padelgod (results-writer) → Inferred → Live (poller)
-        <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', margin: '0 8px' }}>|</span>
         <strong>Premier match scores:</strong> PadelAPI → Inferred → Live relay
-        <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', margin: '0 8px' }}>|</span>
         <strong>Player names:</strong> PadelAPI → FIP → Manual
-        <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', margin: '0 8px' }}>|</span>
         <strong>Match stats:</strong> Premier Padel (exclusive)
-        <span style={{ color: '#ddd', margin: '0 8px' }}>|</span>
+        <span style={{ color: 'var(--border-strong)', margin: '0 8px' }}>|</span>
         <strong>News:</strong> FIP (1.5×) → Padel RSS (1.2×) → Google News (1.0×)
       </div>
 
       {/* Migration notes — documents recent moves so operators don't
           have to dig through CLAUDE.md to understand the current shape. */}
       <div style={{
-        marginTop: 8, padding: '10px 14px', background: '#fff7ed', border: '1px solid #fed7aa',
-        borderRadius: 8, fontSize: 11, color: '#7c2d12', lineHeight: 1.7,
+        marginTop: 8, padding: '10px 14px', background: 'var(--orange-bg)', border: '1px solid var(--orange-border)',
+        borderRadius: 8, fontSize: 11, color: 'var(--orange-text)', lineHeight: 1.7,
       }}>
-        <div style={{ fontSize: 10, color: '#9a3412', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+        <div style={{ fontSize: 10, color: 'var(--orange-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
           Recent migrations (padelapi departure)
         </div>
         <strong>FIP scraper consolidation (2026-04-28):</strong>{' '}
-        <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>/api/cron/fip-tournaments</code>{' '}
-        retired (410 Gone) → <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>tournament-discovery</code> + <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>fip-event-page-enricher</code> (padelgod).
+        <code style={{ background: 'var(--bg-card)', padding: '0 4px', borderRadius: 3 }}>/api/cron/fip-tournaments</code>{' '}
+        retired (410 Gone) → <code style={{ background: 'var(--bg-card)', padding: '0 4px', borderRadius: 3 }}>tournament-discovery</code> + <code style={{ background: 'var(--bg-card)', padding: '0 4px', borderRadius: 3 }}>fip-event-page-enricher</code> (padelgod).
         <br />
         <strong>Thin matches (2026-04-28):</strong> amateur-tier rows now write{' '}
-        <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>pair*_player*_name</code>/<code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>_country</code> when player resolution fails (Beyond/Promises/Other).
+        <code style={{ background: 'var(--bg-card)', padding: '0 4px', borderRadius: 3 }}>pair*_player*_name</code>/<code style={{ background: 'var(--bg-card)', padding: '0 4px', borderRadius: 3 }}>_country</code> when player resolution fails (Beyond/Promises/Other).
         <br />
-        <strong>Kill-switch:</strong> <code style={{ background: 'white', padding: '0 4px', borderRadius: 3 }}>PADELAPI_PAUSED=true</code> on Vercel halts Score Agent / Sync Cron / Premier Stats / Premier Discovery without affecting padelgod.
+        <strong>Kill-switch:</strong> <code style={{ background: 'var(--bg-card)', padding: '0 4px', borderRadius: 3 }}>PADELAPI_PAUSED=true</code> on Vercel halts Score Agent / Sync Cron / Premier Stats / Premier Discovery without affecting padelgod.
       </div>
     </div>
   )

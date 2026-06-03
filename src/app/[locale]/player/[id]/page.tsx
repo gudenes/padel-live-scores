@@ -18,7 +18,10 @@ import { DATE_SHORT, DATE_WITH_YEAR, DATE_WITH_WEEKDAY, TIME_24H } from '@/lib/f
 import { resolveMatchRoles } from '@/lib/match-roles'
 import { levelLabel, mostAdvancedRound } from '@/lib/tournament-labels'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
+import { SuggestChangesSheet } from '@/components/SuggestChangesSheet'
 import { titleCase } from '@/lib/title-case'
+import { pickCurrentTournamentMatch } from '@/lib/current-tournament-match'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
@@ -526,11 +529,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     }
     const availableYears = [...yearSet].sort((a, b) => b - a)
 
-    // Earliest scheduled match with a known future time
+    // Tier-0: a pending/live match in the tournament the player is competing in
+    // right now (even with no scheduled time yet). Falls back to Tier-1: the
+    // earliest future scheduled match with a known time.
     const now = new Date()
-    const nextScheduled = matches
+    const futureScheduled = matches
       .filter(m => m.status === 'scheduled' && m.scheduled_at && new Date(m.scheduled_at) > now)
       .sort((a, b) => new Date(a.scheduled_at!).getTime() - new Date(b.scheduled_at!).getTime())[0] ?? null
+    const nextScheduled = pickCurrentTournamentMatch(matches, now) ?? futureScheduled
 
     // Earliest upcoming tournament derived from scheduled matches (only when no specific match is found)
     const nextTournament: DerivedData['nextTournament'] = nextScheduled
@@ -801,12 +807,22 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                 .filter(Boolean)
                 .map(p => toShortName(p!.display_name?.trim() || p!.name))
                 .join(' / ')
-              const dateStr = derived.nextScheduled.scheduled_at
-                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY)
+              const tournName = derived.nextScheduled.tournament?.name
+                ? titleCase(derived.nextScheduled.tournament.name)
                 : null
-              const timeStr = derived.nextScheduled.scheduled_at
-                ? format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H)
-                : null
+              const roundStr = derived.nextScheduled.round
+              // Title: "vs <opponents> · <round>"; when the opponent slot is
+              // still TBD, fall back to the round label, then the tournament name.
+              const matchTitle = oppNames
+                ? `vs ${oppNames}${roundStr ? ` · ${roundStr}` : ''}`
+                : (roundStr || tournName || '')
+              // When the match has no time yet, show the TBC label instead.
+              const whenStr = derived.nextScheduled.scheduled_at
+                ? [
+                    format.dateTime(new Date(derived.nextScheduled.scheduled_at), DATE_WITH_WEEKDAY),
+                    format.dateTime(new Date(derived.nextScheduled.scheduled_at), TIME_24H),
+                  ].filter(Boolean).join(' · ')
+                : tPlayer('nextMatchTimeTBC')
               return (
                 <div
                   onClick={() => router.push(`/match/${derived.nextScheduled!.id}` as Parameters<typeof router.push>[0])}
@@ -822,10 +838,10 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      vs {oppNames}{derived.nextScheduled.round ? ` · ${derived.nextScheduled.round}` : ''}
+                      {matchTitle}
                     </div>
                     <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {[derived.nextScheduled.tournament?.name ? titleCase(derived.nextScheduled.tournament.name) : null, dateStr, timeStr].filter(Boolean).join(' · ')}
+                      {[tournName, whenStr].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   {derived.nextScheduled.tournament?.level && (
@@ -1029,6 +1045,7 @@ function OverviewTab({
   const age = computeAge(player.birthdate)
   const [brandLogoFailed, setBrandLogoFailed] = useState(false)
   const [racketImageFailed, setRacketImageFailed] = useState(false)
+  const [suggestOpen, setSuggestOpen] = useState(false)
 
   useEffect(() => {
     setBrandLogoFailed(false)
@@ -1371,6 +1388,36 @@ function OverviewTab({
           </div>
         </Widget>
       )}
+
+      {/* Suggest changes — full width helper + trigger */}
+      <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '4px 8px 8px' }}>
+        <p style={{ fontSize: 11, color: MUTED, lineHeight: 1.5, margin: '0 0 10px' }}>
+          {t('suggest.hint')}
+        </p>
+        <PressButton
+          {...PRESS_PRESETS.chunkyInline}
+          onClick={() => setSuggestOpen(true)}
+          style={{ fontSize: 12, fontWeight: 700, padding: '10px 18px' }}
+        >
+          {t('suggest.trigger')}
+        </PressButton>
+      </div>
+
+      <SuggestChangesSheet
+        open={suggestOpen}
+        onClose={() => setSuggestOpen(false)}
+        player={{
+          id: player.id,
+          name: player.name,
+          displayName: player.display_name?.trim() || player.name,
+          country: player.country,
+          birthplace: player.birthplace,
+          birthdate: player.birthdate,
+          height: player.height,
+          hand: player.hand,
+          side: player.side,
+        }}
+      />
 
       {/* Recent Matches — wide, uses the same match-row UI as the Matches tab */}
       {recentForShow.length > 0 && (

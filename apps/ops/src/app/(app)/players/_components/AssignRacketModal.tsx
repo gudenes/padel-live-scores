@@ -10,6 +10,7 @@ import Combobox from './Combobox'
 import CreateBrandModal from './CreateBrandModal'
 import CreateRacketModal from './CreateRacketModal'
 import type { EquipmentEntry } from './EquipmentTab'
+import { Button } from '@/components/ui'
 
 interface Brand {
   id: string
@@ -105,25 +106,27 @@ export default function AssignRacketModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+      className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg p-6 w-[440px] max-h-[90vh] overflow-auto"
+        className="rounded-lg p-6 w-[440px] max-h-[90vh] overflow-auto"
+        style={{ background: 'var(--bg-surface)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <div className="text-base font-semibold">
+          <div className="text-base font-semibold" style={{ color: 'var(--text-1)' }}>
             {currentEntry ? 'Change racket' : 'Assign racket'}
           </div>
-          <button onClick={onClose} className="text-gray-400 cursor-pointer">
+          <button onClick={onClose} className="cursor-pointer" style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 18 }}>
             ×
           </button>
         </div>
 
         <div className="flex flex-col gap-4">
           <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">BRAND</div>
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>BRAND</div>
             <Combobox
               options={brands.map((b) => ({ id: b.id, label: b.name }))}
               value={brandId}
@@ -139,7 +142,7 @@ export default function AssignRacketModal({
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">RACKET</div>
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>RACKET</div>
             <Combobox
               options={rackets.map((r) => ({
                 id: r.id,
@@ -156,15 +159,15 @@ export default function AssignRacketModal({
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">START DATE</div>
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>START DATE</div>
             <input
               type="date"
               value={startedAt}
               onChange={(e) => setStartedAt(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
+              className="ui-input w-full px-3 py-2 text-sm"
             />
             {currentEntry && (
-              <div className="text-[11px] text-gray-500 mt-1">
+              <div className="text-[11px] mt-1" style={{ color: 'var(--text-3)' }}>
                 Current &quot;{currentEntry.racket.brand.name}{' '}
                 {currentEntry.racket.model}&quot; will be auto-ended on {startedAt}.
               </div>
@@ -172,7 +175,7 @@ export default function AssignRacketModal({
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>
               NOTES (optional)
             </div>
             <input
@@ -180,26 +183,19 @@ export default function AssignRacketModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="e.g. switched after preseason injury"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded"
+              className="ui-input w-full px-3 py-2 text-sm"
             />
           </div>
 
-          {error && <div className="text-xs text-red-600">{error}</div>}
+          {error && <div className="text-xs" style={{ color: 'var(--live-text)' }}>{error}</div>}
 
           <div className="flex gap-2 justify-end pt-2">
-            <button
-              onClick={onClose}
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer"
-            >
+            <Button onClick={onClose}>
               Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !racketId}
-              className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="primary" onClick={handleSave} disabled={saving || !racketId}>
               {saving ? 'Saving…' : 'Save'}
-            </button>
+            </Button>
           </div>
         </div>
 

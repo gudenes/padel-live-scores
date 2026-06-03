@@ -5,15 +5,16 @@
 //   - 'list' — table of EN posts with translation chips
 //   - 'editor' — create/edit form
 
-import { useEffect, useState, useCallback, type ChangeEvent } from 'react'
+import { useEffect, useState, useCallback, type ChangeEvent, type CSSProperties } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { PageHeader, Panel, DataTable, Field, Pill, Button, Skeleton, EmptyState } from '@/components/ui'
 
 const NON_EN: ('es' | 'pt' | 'it' | 'fr')[] = ['es', 'pt', 'it', 'fr']
 
 interface PostRow {
   id: string
-  category: 'announcements' | 'product'
+  category: 'announcements' | 'product' | 'insights'
   slug: string
   title: string
   status: 'draft' | 'published'
@@ -56,73 +57,89 @@ export default function NewsTab() {
   }
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between mb-4">
-        <h2 className="text-lg font-bold">News</h2>
-        <button
-          className="px-3 py-2 bg-green-500 text-black font-bold text-sm"
-          onClick={() => { setEditingId(null); setView('editor') }}
-        >
-          + New post
-        </button>
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title="News"
+        actions={
+          <Button variant="primary" onClick={() => { setEditingId(null); setView('editor') }}>
+            + New post
+          </Button>
+        }
+      />
 
-      {loading ? <div>Loading…</div> : (
-        <table className="w-full text-sm">
+      {loading ? (
+        <Skeleton rows={4} />
+      ) : posts.length === 0 ? (
+        <Panel>
+          <EmptyState title="No posts yet" hint="Create your first news post to get started." />
+        </Panel>
+      ) : (
+        <DataTable>
           <thead>
-            <tr className="text-left text-xs uppercase opacity-70">
-              <th className="p-2">Title</th>
-              <th className="p-2">Slug</th>
-              <th className="p-2">Cat.</th>
-              <th className="p-2">Status</th>
-              <th className="p-2">Translations</th>
-              <th className="p-2">Updated</th>
-              <th className="p-2"></th>
+            <tr>
+              <th>Title</th>
+              <th>Slug</th>
+              <th>Cat.</th>
+              <th>Status</th>
+              <th>Translations</th>
+              <th>Updated</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {posts.map(p => (
-              <tr key={p.id} className="border-t border-white/10">
-                <td className="p-2">{p.title}</td>
-                <td className="p-2 font-mono text-xs opacity-70">{p.slug}</td>
-                <td className="p-2 capitalize">{p.category}</td>
-                <td className="p-2">
-                  <span className={`px-2 py-0.5 text-xs ${p.status === 'published' ? 'bg-green-500 text-black' : 'bg-white/10'}`}>
-                    {p.status}
-                  </span>
+              <tr key={p.id}>
+                <td>{p.title}</td>
+                <td className="font-mono text-xs" style={{ color: 'var(--text-3)' }}>{p.slug}</td>
+                <td className="capitalize">{p.category}</td>
+                <td>
+                  <Pill tone={p.status === 'published' ? 'lime' : 'neutral'}>{p.status}</Pill>
                 </td>
-                <td className="p-2">
+                <td>
                   <div className="flex gap-1">
                     {NON_EN.map(loc => (
                       <span
                         key={loc}
                         title={p.translations[loc] ? 'translated' : 'pending'}
-                        className={`text-[10px] px-1.5 py-0.5 ${p.translations[loc] ? 'bg-green-500 text-black' : 'bg-white/10 opacity-50'}`}
+                        style={{
+                          fontSize: 10,
+                          padding: '2px 6px',
+                          borderRadius: 'var(--r-full)',
+                          fontWeight: 600,
+                          ...(p.translations[loc]
+                            ? { color: 'var(--lime-text)', background: 'var(--lime-bg)' }
+                            : { color: 'var(--text-4)', background: 'var(--bg-hover)' }),
+                        }}
                       >
                         {loc.toUpperCase()}
                       </span>
                     ))}
                   </div>
                 </td>
-                <td className="p-2 text-xs opacity-70">{new Date(p.updated_at).toLocaleString()}</td>
-                <td className="p-2">
-                  <button
-                    className="text-xs underline"
-                    onClick={() => { setEditingId(p.id); setView('editor') }}
-                  >Edit</button>
-                  {p.status === 'published' && (
-                    <a
-                      href={`/news/${p.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs underline ml-2"
-                    >View</a>
-                  )}
+                <td className="text-xs" style={{ color: 'var(--text-3)' }}>{new Date(p.updated_at).toLocaleString()}</td>
+                <td>
+                  <div className="ui-ph-actions">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => { setEditingId(p.id); setView('editor') }}
+                    >Edit</Button>
+                    {p.status === 'published' && (
+                      <a
+                        href={`/news/${p.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ui-btn"
+                        data-variant="ghost"
+                        data-size="sm"
+                      >View</a>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </DataTable>
       )}
     </div>
   )
@@ -136,7 +153,7 @@ interface EditorProps {
 function Editor({ postId, onClose }: EditorProps) {
   const [title, setTitle] = useState('')
   const [slug, setSlug] = useState('')
-  const [category, setCategory] = useState<'announcements' | 'product'>('announcements')
+  const [category, setCategory] = useState<'announcements' | 'product' | 'insights'>('announcements')
   const [body, setBody] = useState('')
   const [coverUrl, setCoverUrl] = useState<string | null>(null)
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
@@ -218,93 +235,105 @@ function Editor({ postId, onClose }: EditorProps) {
   }
 
   return (
-    <div className="p-4 max-w-3xl">
-      <div className="flex justify-between mb-4">
-        <h2 className="text-lg font-bold">{postId ? 'Edit post' : 'New post'}</h2>
-        <button onClick={onClose} className="text-xs underline">← Back</button>
-      </div>
+    <div className="ui-page" style={{ maxWidth: 768 }}>
+      <PageHeader
+        title={postId ? 'Edit post' : 'New post'}
+        actions={<Button variant="ghost" size="sm" onClick={onClose}>← Back</Button>}
+      />
 
-      {error && <div className="bg-red-500/20 border border-red-500 p-2 mb-4 text-sm">{error}</div>}
+      {error && (
+        <div
+          style={{
+            color: 'var(--live-text)',
+            background: 'var(--live-bg)',
+            border: '1px solid var(--live-border)',
+            borderRadius: 'var(--r-sm)',
+            padding: 8,
+            marginBottom: 16,
+            fontSize: 13,
+          }}
+        >{error}</div>
+      )}
 
-      <label className="block mb-3">
-        <span className="text-xs uppercase opacity-70">Title</span>
-        <input
-          className="w-full bg-black/40 border border-white/10 p-2 mt-1"
-          value={title}
-          onChange={onTitleChange}
-        />
-      </label>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <Field label="Title">
+          <input className="ui-input" value={title} onChange={onTitleChange} />
+        </Field>
 
-      <label className="block mb-3">
-        <span className="text-xs uppercase opacity-70">Slug {slugLocked && '(locked after publish)'}</span>
-        <input
-          className="w-full bg-black/40 border border-white/10 p-2 mt-1 font-mono text-xs"
-          value={slug}
-          disabled={slugLocked || !!postId}
-          onChange={(e) => setSlug(e.target.value)}
-        />
-      </label>
+        <Field label={`Slug${slugLocked ? ' (locked after publish)' : ''}`}>
+          <input
+            className="ui-input font-mono text-xs"
+            value={slug}
+            disabled={slugLocked || !!postId}
+            onChange={(e) => setSlug(e.target.value)}
+          />
+        </Field>
 
-      <label className="block mb-3">
-        <span className="text-xs uppercase opacity-70">Category</span>
-        <select
-          className="w-full bg-black/40 border border-white/10 p-2 mt-1"
-          value={category}
-          onChange={(e) => setCategory(e.target.value as 'announcements' | 'product')}
-        >
-          <option value="announcements">Announcements</option>
-          <option value="product">Product</option>
-        </select>
-      </label>
-
-      <label className="block mb-3">
-        <span className="text-xs uppercase opacity-70">Cover image (optional, 16:9 recommended)</span>
-        <input type="file" accept="image/*" onChange={onUpload} className="block mt-1 text-sm" />
-        {coverUrl && (
-          <div className="mt-2">
-            <img src={coverUrl} alt="cover preview" className="max-w-md" />
-            <button className="text-xs underline mt-1" onClick={() => setCoverUrl(null)}>Remove</button>
-          </div>
-        )}
-      </label>
-
-      <label className="block mb-3">
-        <span className="text-xs uppercase opacity-70">Body (Markdown)</span>
-        <div className="flex gap-2 mt-1 mb-2">
-          <button
-            className={`px-2 py-1 text-xs ${!showPreview ? 'bg-white/10' : ''}`}
-            onClick={() => setShowPreview(false)}
-          >Edit</button>
-          <button
-            className={`px-2 py-1 text-xs ${showPreview ? 'bg-white/10' : ''}`}
-            onClick={() => setShowPreview(true)}
-          >Preview</button>
-        </div>
-        {showPreview ? (
-          <div
-            className="bg-[#1A1A1A] border border-white/10 p-6 min-h-[300px]
-              prose prose-invert max-w-none
-              prose-headings:text-white prose-headings:font-bold
-              prose-p:text-white prose-p:leading-relaxed
-              prose-a:text-[#7ED321] prose-a:no-underline hover:prose-a:underline
-              prose-strong:text-white
-              prose-img:my-6
-              prose-li:text-white
-              prose-blockquote:text-white/80 prose-blockquote:border-l-[#7ED321]"
+        <Field label="Category">
+          <select
+            className="ui-select"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as 'announcements' | 'product' | 'insights')}
           >
-            {body.trim() ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
-            ) : (
-              <p className="text-white/40 italic">Nothing to preview yet — switch back to Edit and add some content.</p>
-            )}
+            <option value="announcements">Announcements</option>
+            <option value="product">Product</option>
+            <option value="insights">Insights</option>
+          </select>
+        </Field>
+
+        <Field label="Cover image (optional, 16:9 recommended)">
+          <input type="file" accept="image/*" onChange={onUpload} className="text-sm" />
+          {coverUrl && (
+            <div style={{ marginTop: 8 }}>
+              <img src={coverUrl} alt="cover preview" style={{ maxWidth: 448 }} />
+              <div style={{ marginTop: 4 }}>
+                <Button variant="ghost" size="sm" onClick={() => setCoverUrl(null)}>Remove</Button>
+              </div>
+            </div>
+          )}
+        </Field>
+
+        <Field label="Body (Markdown)">
+          <div className="flex gap-2" style={{ marginBottom: 8 }}>
+            <Button variant={!showPreview ? 'default' : 'ghost'} size="sm" onClick={() => setShowPreview(false)}>Edit</Button>
+            <Button variant={showPreview ? 'default' : 'ghost'} size="sm" onClick={() => setShowPreview(true)}>Preview</Button>
           </div>
-        ) : (
-          <textarea
-            className="w-full bg-black/40 border border-white/10 p-2 font-mono text-xs"
-            rows={20}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Write your post in Markdown.
+          {showPreview ? (
+            <div
+              className="prose max-w-none
+                prose-headings:font-bold
+                prose-p:leading-relaxed
+                prose-a:no-underline hover:prose-a:underline
+                prose-img:my-6"
+              style={{
+                background: 'var(--bg-card-2)',
+                border: '1px solid var(--border-card)',
+                borderRadius: 'var(--r-lg)',
+                padding: 24,
+                minHeight: 300,
+                color: 'var(--text-1)',
+                ['--tw-prose-headings' as string]: 'var(--text-1)',
+                ['--tw-prose-body' as string]: 'var(--text-1)',
+                ['--tw-prose-bold' as string]: 'var(--text-1)',
+                ['--tw-prose-links' as string]: 'var(--lime-text)',
+                ['--tw-prose-bullets' as string]: 'var(--text-3)',
+                ['--tw-prose-quotes' as string]: 'var(--text-2)',
+                ['--tw-prose-quote-borders' as string]: 'var(--lime)',
+              } as CSSProperties}
+            >
+              {body.trim() ? (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{body}</ReactMarkdown>
+              ) : (
+                <p style={{ color: 'var(--text-4)', fontStyle: 'italic' }}>Nothing to preview yet — switch back to Edit and add some content.</p>
+              )}
+            </div>
+          ) : (
+            <textarea
+              className="ui-input font-mono text-xs"
+              rows={20}
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="Write your post in Markdown.
 
 # Heading 1
 ## Heading 2
@@ -317,25 +346,18 @@ function Editor({ postId, onClose }: EditorProps) {
 [Link text](https://example.com)
 
 > Blockquote"
-          />
-        )}
-      </label>
+            />
+          )}
+        </Field>
+      </div>
 
-      <div className="flex gap-3 mt-4">
-        <button
-          disabled={saving}
-          onClick={() => onSave(false)}
-          className="px-4 py-2 bg-white/10 text-sm font-bold disabled:opacity-50"
-        >
+      <div className="flex gap-3" style={{ marginTop: 18 }}>
+        <Button disabled={saving} onClick={() => onSave(false)}>
           {saving ? 'Saving…' : 'Save draft'}
-        </button>
-        <button
-          disabled={saving}
-          onClick={() => onSave(true)}
-          className="px-4 py-2 bg-green-500 text-black text-sm font-bold disabled:opacity-50"
-        >
+        </Button>
+        <Button variant="primary" disabled={saving} onClick={() => onSave(true)}>
           {saving ? 'Publishing & translating…' : 'Publish'}
-        </button>
+        </Button>
       </div>
     </div>
   )

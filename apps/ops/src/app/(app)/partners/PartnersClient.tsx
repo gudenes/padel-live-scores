@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Panel, DataTable, Field, Button } from '@/components/ui'
 
 interface Partner {
   id: string
@@ -23,39 +24,6 @@ interface LinkRow {
 interface RacketOption {
   id: string
   label: string
-}
-
-const card: React.CSSProperties = {
-  background: 'var(--bg-card)',
-  border: '1px solid var(--border-subtle)',
-  borderRadius: 8,
-  padding: 16,
-  marginBottom: 16,
-}
-const input: React.CSSProperties = {
-  fontSize: 13,
-  padding: '7px 10px',
-  border: '1px solid var(--border-subtle)',
-  borderRadius: 6,
-  width: '100%',
-  background: 'var(--bg-card)',
-  color: 'var(--brand-primary-fg)',
-}
-const btn: React.CSSProperties = {
-  fontSize: 13,
-  padding: '7px 12px',
-  border: '1px solid var(--border-subtle)',
-  borderRadius: 6,
-  background: 'var(--bg-card)',
-  color: 'var(--brand-primary-fg)',
-  cursor: 'pointer',
-}
-const btnPrimary: React.CSSProperties = {
-  ...btn,
-  background: 'var(--brand-primary-fg)',
-  color: 'var(--bg-canvas)',
-  borderColor: 'var(--brand-primary-fg)',
-  fontWeight: 600,
 }
 
 export function PartnersClient() {
@@ -153,104 +121,116 @@ export function PartnersClient() {
   return (
     <>
       {message && (
-        <div style={{ fontSize: 13, color: 'var(--status-urgent)', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '8px 12px', marginBottom: 16 }}>
+        <div style={{
+          fontSize: 13, color: 'var(--live-text)', background: 'var(--live-bg)',
+          border: '1px solid var(--live-border)', borderRadius: 'var(--r-sm)',
+          padding: '8px 12px', marginBottom: 16,
+        }}>
           {message}
         </div>
       )}
 
       {/* Partner list */}
-      <section style={card}>
-        <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 12px' }}>Active partners</h3>
-        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', color: 'var(--status-neutral)', fontWeight: 600 }}>
-              <th style={{ padding: '6px 8px' }}>Name</th>
-              <th style={{ padding: '6px 8px' }}>Country</th>
-              <th style={{ padding: '6px 8px' }}>Fallback URL</th>
-              <th style={{ padding: '6px 8px' }}>Active</th>
-              <th style={{ padding: '6px 8px' }} />
-            </tr>
-          </thead>
-          <tbody>
-            {partners.map((p) => (
-              <tr key={p.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                <td style={{ padding: '8px' }}>{p.name}</td>
-                <td style={{ padding: '8px' }}>{p.country_code}</td>
-                <td style={{ padding: '8px', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.fallback_url}</td>
-                <td style={{ padding: '8px' }}>
-                  <button type="button" style={btn} onClick={() => togglePartnerActive(p)}>{p.active ? 'on' : 'off'}</button>
-                </td>
-                <td style={{ padding: '8px' }}>
-                  <button type="button" style={btn} onClick={() => setSelectedId(p.id)}>
-                    {selectedId === p.id ? 'selected' : 'manage'}
-                  </button>
-                </td>
+      <div style={{ marginBottom: 16 }}>
+        <Panel title="Active partners">
+          <DataTable>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Country</th>
+                <th>Fallback URL</th>
+                <th>Active</th>
+                <th />
               </tr>
-            ))}
-            {partners.length === 0 && (
-              <tr><td colSpan={5} style={{ padding: '16px 8px', color: 'var(--status-neutral)' }}>No partners yet.</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {partners.map((p) => (
+                <tr key={p.id}>
+                  <td>{p.name}</td>
+                  <td>{p.country_code}</td>
+                  <td style={{ maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.fallback_url}</td>
+                  <td>
+                    <Button size="sm" onClick={() => togglePartnerActive(p)}>{p.active ? 'on' : 'off'}</Button>
+                  </td>
+                  <td>
+                    <Button size="sm" variant={selectedId === p.id ? 'primary' : 'default'} onClick={() => setSelectedId(p.id)}>
+                      {selectedId === p.id ? 'selected' : 'manage'}
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {partners.length === 0 && (
+                <tr><td colSpan={5} style={{ color: 'var(--text-3)' }}>No partners yet.</td></tr>
+              )}
+            </tbody>
+          </DataTable>
 
-        {/* Create-partner form */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 2fr auto', gap: 8, marginTop: 16 }}>
-          <input style={input} placeholder="Name" value={newPartner.name}
-            onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })} />
-          <input style={input} placeholder="BR" maxLength={2}
-            value={newPartner.country_code}
-            onChange={(e) => setNewPartner({ ...newPartner, country_code: e.target.value.toUpperCase().slice(0, 2) })} />
-          <input style={input} placeholder="https://partner.example/"
-            value={newPartner.fallback_url}
-            onChange={(e) => setNewPartner({ ...newPartner, fallback_url: e.target.value })} />
-          <button type="button" style={btnPrimary} onClick={createPartner}>Add partner</button>
-        </div>
-      </section>
+          {/* Create-partner form */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px 2fr auto', gap: 8, marginTop: 16, alignItems: 'flex-end' }}>
+            <Field label="Name">
+              <input className="ui-input" placeholder="Name" value={newPartner.name}
+                onChange={(e) => setNewPartner({ ...newPartner, name: e.target.value })} />
+            </Field>
+            <Field label="Country">
+              <input className="ui-input" placeholder="BR" maxLength={2}
+                value={newPartner.country_code}
+                onChange={(e) => setNewPartner({ ...newPartner, country_code: e.target.value.toUpperCase().slice(0, 2) })} />
+            </Field>
+            <Field label="Fallback URL">
+              <input className="ui-input" placeholder="https://partner.example/"
+                value={newPartner.fallback_url}
+                onChange={(e) => setNewPartner({ ...newPartner, fallback_url: e.target.value })} />
+            </Field>
+            <Button variant="primary" onClick={createPartner}>Add partner</Button>
+          </div>
+        </Panel>
+      </div>
 
       {/* Per-racket links for selected partner */}
       {selectedPartner && (
-        <section style={card}>
-          <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 12px' }}>
-            Per-racket URLs for {selectedPartner.name} ({selectedPartner.country_code})
-          </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, marginBottom: 16 }}>
-            <select style={input} value={newLink.racket_id}
-              onChange={(e) => setNewLink({ ...newLink, racket_id: e.target.value })}>
-              <option value="">— pick a racket —</option>
-              {rackets.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-            </select>
-            <input style={input} placeholder="https://www.torodoro.com.br/produto/..."
-              value={newLink.url}
-              onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
-            <button type="button" style={btnPrimary} onClick={addLink}>Save URL</button>
+        <Panel title={`Per-racket URLs for ${selectedPartner.name} (${selectedPartner.country_code})`}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr auto', gap: 8, marginBottom: 16, alignItems: 'flex-end' }}>
+            <Field label="Racket">
+              <select className="ui-select" value={newLink.racket_id}
+                onChange={(e) => setNewLink({ ...newLink, racket_id: e.target.value })}>
+                <option value="">— pick a racket —</option>
+                {rackets.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+              </select>
+            </Field>
+            <Field label="URL">
+              <input className="ui-input" placeholder="https://www.torodoro.com.br/produto/..."
+                value={newLink.url}
+                onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
+            </Field>
+            <Button variant="primary" onClick={addLink}>Save URL</Button>
           </div>
 
-          <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <DataTable>
             <thead>
-              <tr style={{ textAlign: 'left', color: 'var(--status-neutral)', fontWeight: 600 }}>
-                <th style={{ padding: '6px 8px' }}>Racket</th>
-                <th style={{ padding: '6px 8px' }}>URL</th>
-                <th style={{ padding: '6px 8px' }} />
+              <tr>
+                <th>Racket</th>
+                <th>URL</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {links.map((l) => (
-                <tr key={l.id} style={{ borderTop: '1px solid var(--border-subtle)' }}>
-                  <td style={{ padding: '8px' }}>
+                <tr key={l.id}>
+                  <td>
                     {l.brand_name ?? '?'} — {l.racket_model}{l.racket_year ? ` (${l.racket_year})` : ''}
                   </td>
-                  <td style={{ padding: '8px', maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.url}</td>
-                  <td style={{ padding: '8px' }}>
-                    <button type="button" style={btn} onClick={() => removeLink(l.id)}>remove</button>
+                  <td style={{ maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.url}</td>
+                  <td>
+                    <Button size="sm" variant="danger" onClick={() => removeLink(l.id)}>remove</Button>
                   </td>
                 </tr>
               ))}
               {links.length === 0 && (
-                <tr><td colSpan={3} style={{ padding: '16px 8px', color: 'var(--status-neutral)' }}>No per-racket overrides — clicks fall through to the partner homepage.</td></tr>
+                <tr><td colSpan={3} style={{ color: 'var(--text-3)' }}>No per-racket overrides — clicks fall through to the partner homepage.</td></tr>
               )}
             </tbody>
-          </table>
-        </section>
+          </DataTable>
+        </Panel>
       )}
     </>
   )

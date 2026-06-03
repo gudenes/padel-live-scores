@@ -5,6 +5,7 @@ import { parseFipPlayerProfile, type ParsedPlayerProfile } from '../parsers/fip-
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_PLAYER_PROFILE_VERSION } from '../lib/parser-versions.js';
 import { fetchProfileQueueBatch, type QueueMode } from '../db/player-profile-queue.js';
+import { rehostAvatarToSupabase } from '../lib/avatar-rehost.js';
 
 export interface PlayerProfileDeps {
   supabase: SupabaseClient;
@@ -75,6 +76,7 @@ export function buildPlayerProfileUpdate(
         model: parsed.racketModel ?? null,
       };
     }
+    if (parsed.photoUrl) updates.photo_url = parsed.photoUrl;
   }
 
   return updates;
@@ -129,6 +131,19 @@ export async function runPlayerProfile(
   if (error) throw new Error(`Player profile update failed: ${error.message}`);
 
   const parsedResult = parsed as ParsedPlayerProfile | null;
+
+  // Rehost the high-res photo to Supabase Storage (best-effort — a failed
+  // image must never fail the profile run). We just wrote the raw FIP URL to
+  // players.photo_url above; the rehost downloads it, stores it under
+  // `{id}-full.{ext}`, and rewrites photo_url to the Supabase public URL.
+  // Idempotent: already-Supabase-hosted photo_url short-circuits.
+  if (parsedResult?.photoUrl) {
+    await rehostAvatarToSupabase(deps.supabase, task.playerId, parsedResult.photoUrl, {
+      column: 'photo_url',
+      keySuffix: '-full',
+    });
+  }
+
   return { updated: status === 'ok', fipId: parsedResult?.fipId ?? null, status };
 }
 

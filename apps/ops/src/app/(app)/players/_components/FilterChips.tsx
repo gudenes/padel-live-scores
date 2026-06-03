@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import { Pill } from '@/components/ui'
 
 export type DataFilter = 'all' | 'missing_equipment' | 'missing_avatar' | 'missing_ranking'
 export type CategoryFilter = 'all' | 'men' | 'women'
@@ -19,18 +20,20 @@ interface FilterChipsProps {
   onCategoryChange: (category: CategoryFilter) => void
 }
 
+// Transparent button wrapper so <Pill> stays purely visual but the chip is
+// clickable + keyboard-focusable. Active chips use the lime tone, inactive use
+// neutral.
+const chipBtn: React.CSSProperties = {
+  background: 'none',
+  border: 'none',
+  padding: 0,
+  cursor: 'pointer',
+  borderRadius: 'var(--r-full)',
+}
+
 export default function FilterChips({
   counts, activeFilter, activeCategory, onFilterChange, onCategoryChange,
 }: FilterChipsProps) {
-  const chipBase: React.CSSProperties = {
-    fontSize: 11, fontWeight: 500, padding: '4px 10px', borderRadius: 6,
-    border: '1px solid #e5e7eb', cursor: 'pointer', background: '#fff', color: '#111',
-    transition: 'all 0.15s',
-  }
-  const chipActive: React.CSSProperties = {
-    ...chipBase, background: '#111', color: '#fff', borderColor: '#111',
-  }
-
   const dataFilters: { key: DataFilter; label: string; count: number | null }[] = [
     { key: 'all', label: 'All', count: counts?.total ?? null },
     { key: 'missing_equipment', label: 'Missing Equipment', count: counts?.missing_equipment ?? null },
@@ -49,23 +52,31 @@ export default function FilterChips({
       {dataFilters.map(f => (
         <button
           key={f.key}
+          type="button"
           onClick={() => onFilterChange(f.key)}
-          style={activeFilter === f.key ? chipActive : chipBase}
+          style={chipBtn}
+          aria-pressed={activeFilter === f.key}
         >
-          {f.label}
-          {f.count != null && (
-            <span style={{ marginLeft: 4, opacity: 0.7, fontSize: 10 }}>({f.count.toLocaleString()})</span>
-          )}
+          <Pill tone={activeFilter === f.key ? 'lime' : 'neutral'}>
+            {f.label}
+            {f.count != null && (
+              <span style={{ marginLeft: 4, opacity: 0.7, fontSize: 10 }}>({f.count.toLocaleString()})</span>
+            )}
+          </Pill>
         </button>
       ))}
-      <span style={{ width: 1, height: 20, background: '#e5e7eb', margin: '0 4px' }} />
+      <span style={{ width: 1, height: 20, background: 'var(--border-card)', margin: '0 4px' }} />
       {categoryFilters.map(f => (
         <button
           key={f.key}
+          type="button"
           onClick={() => onCategoryChange(f.key)}
-          style={activeCategory === f.key ? chipActive : chipBase}
+          style={chipBtn}
+          aria-pressed={activeCategory === f.key}
         >
-          {f.label}
+          <Pill tone={activeCategory === f.key ? (f.key === 'men' ? 'men' : f.key === 'women' ? 'women' : 'lime') : 'neutral'}>
+            {f.label}
+          </Pill>
         </button>
       ))}
     </div>

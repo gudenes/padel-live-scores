@@ -21,20 +21,20 @@ export function ModelFreshnessPanel(props: ModelFreshnessPanelProps) {
   } = props
 
   const snapshotColor =
-    snapshotAgeMin == null ? 'var(--status-neutral)' :
-    snapshotAgeMin <= 90 ? 'var(--status-positive)' :
-    snapshotAgeMin <= 180 ? 'var(--status-warn)' :
-    'var(--status-negative)'
+    snapshotAgeMin == null ? 'var(--text-3)' :
+    snapshotAgeMin <= 90 ? 'var(--lime-text)' :
+    snapshotAgeMin <= 180 ? 'var(--orange-text)' :
+    'var(--live-text)'
 
-  const unscoredColor = unscoredFinishedLast7d > 5 ? 'var(--status-negative)' : 'var(--status-positive)'
+  const unscoredColor = unscoredFinishedLast7d > 5 ? 'var(--live-text)' : 'var(--lime-text)'
   const brierColor =
-    meanBrier30d == null ? 'var(--status-neutral)' :
-    meanBrier30d > 0.25 ? 'var(--status-negative)' :
-    'var(--status-positive)'
+    meanBrier30d == null ? 'var(--text-3)' :
+    meanBrier30d > 0.25 ? 'var(--live-text)' :
+    'var(--lime-text)'
   const hitRateColor =
-    favoriteHitRate30d == null ? 'var(--status-neutral)' :
-    favoriteHitRate30d < 0.5 ? 'var(--status-negative)' :
-    'var(--status-positive)'
+    favoriteHitRate30d == null ? 'var(--text-3)' :
+    favoriteHitRate30d < 0.5 ? 'var(--live-text)' :
+    'var(--lime-text)'
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: 12 }}>
@@ -75,11 +75,12 @@ function Chip({ label, value, color }: { label: string; value: string; color?: s
     <div
       style={{
         padding: 10,
-        border: `1px solid ${color ?? 'var(--border-subtle)'}`,
-        borderRadius: 4,
+        border: `1px solid ${color ?? 'var(--border-card)'}`,
+        borderRadius: 'var(--r-sm)',
+        background: 'var(--bg-card)',
       }}
     >
-      <div style={{ fontSize: 10, color: 'var(--status-neutral)', textTransform: 'uppercase' }}>{label}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-3)', textTransform: 'uppercase' }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 600, marginTop: 4, color: color ?? 'inherit' }}>{value}</div>
     </div>
   )

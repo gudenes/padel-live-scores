@@ -8,9 +8,9 @@ export function StaleBanner({ hoursSinceIngest }: Props) {
     return (
       <div style={{
         padding: '0.875rem 1rem',
-        background: '#eff6ff',          // blue-50
-        border: '1px solid #bfdbfe',    // blue-200
-        color: '#1e3a8a',                // blue-900
+        background: 'var(--men-bg)',
+        border: '1px solid var(--men-border)',
+        color: 'var(--text-1)',
         borderRadius: 8,
         marginBottom: '1rem',
         fontSize: '0.875rem',
@@ -20,8 +20,9 @@ export function StaleBanner({ hoursSinceIngest }: Props) {
           marginTop: '0.5rem',
           marginBottom: 0,
           fontSize: '0.75rem',
-          background: 'white',
-          border: '1px solid #bfdbfe',
+          background: 'var(--bg-card)',
+          color: 'var(--text-2)',
+          border: '1px solid var(--men-border)',
           padding: '0.5rem 0.75rem',
           borderRadius: 6,
           overflowX: 'auto',
@@ -36,9 +37,9 @@ export function StaleBanner({ hoursSinceIngest }: Props) {
     return (
       <div style={{
         padding: '0.875rem 1rem',
-        background: '#fef2f2',           // red-50
-        border: '1px solid #fecaca',     // red-200
-        color: '#991b1b',                // red-800
+        background: 'var(--live-bg)',
+        border: '1px solid var(--live-border)',
+        color: 'var(--live-text)',
         borderRadius: 8,
         marginBottom: '1rem',
         fontSize: '0.875rem',

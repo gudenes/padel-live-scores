@@ -172,6 +172,11 @@ export async function GET(request: Request) {
   const DAY = 24 * 60 * 60 * 1000
   const fromDate = parseDateParam(url.searchParams.get('from'), new Date(NOW - 90 * DAY))
   const toDate = parseDateParam(url.searchParams.get('to'), new Date(NOW + 90 * DAY))
+  // Deep-link escape hatch: when the ⌘K palette (or any caller) wants a
+  // specific tournament that may fall outside the date window, it passes
+  // ?id=<uuid>. We union that row into the base query so the drill-down
+  // always resolves, regardless of the from/to filter.
+  const idParam = url.searchParams.get('id')?.trim() || null
 
   // ── Tournament base query ─────────────────────────────────────────────
   // Match the window if EITHER starts_at falls inside it OR ends_at does.
@@ -192,7 +197,8 @@ export async function GET(request: Request) {
     )
     .or(
       `and(starts_at.gte.${fromDate},starts_at.lte.${toDate}),` +
-      `and(ends_at.gte.${fromDate},ends_at.lte.${toDate})`,
+      `and(ends_at.gte.${fromDate},ends_at.lte.${toDate})` +
+      (idParam ? `,id.eq.${idParam}` : ''),
     )
     .order('starts_at', { ascending: false, nullsFirst: false })
     .limit(500)

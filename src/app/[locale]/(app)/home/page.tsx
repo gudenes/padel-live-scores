@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl'
 // ── Extracted section components ──────────────────────────────
 import {
   BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PREMIER_LEVELS, PAGE_STYLES, SectionTitle,
-  Tournament, Highlight, RankedPlayer, NewsItem,
+  Tournament, Highlight, RankedPlayer, NewsItem, isHiddenLevel,
 } from '@/components/home/shared'
 import LiveMatchCard from '@/components/home/LiveMatchCard'
 import UpcomingMatchCard from '@/components/home/UpcomingMatchCard'
@@ -385,7 +385,7 @@ function V3HomePageInner() {
         return []
       }
 
-      setLiveMatches(dataOf(0))
+      setLiveMatches(dataOf(0).filter((m: any) => !isHiddenLevel(m?.tournament?.level)))
       setScheduledMatches(dataOf(1))
       const tournaments: Tournament[] = dataOf(2)
       setUpcomingTournaments(tournaments)
@@ -398,7 +398,7 @@ function V3HomePageInner() {
       setLatestNews(newsResult.status === 'fulfilled' ? (newsResult.value as ClusteredArticle[]) ?? [] : [])
 
       // ── Carousel transform ─────────────────────────────────────
-      const carouselLiveRows: any[] = dataOf(8)
+      const carouselLiveRows: any[] = dataOf(8).filter((r: Tournament) => !isHiddenLevel(r?.level))
       const carouselMatchRows: any[] = dataOf(9)
       const recentFinalsRows: any[] = dataOf(11)
       const matchInfo = buildMatchInfoMap(carouselMatchRows)

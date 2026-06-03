@@ -1,6 +1,8 @@
 // apps/ops/src/app/(app)/news-sources/ClusterChip.tsx
 // Small chip showing whether an article is unique / primary +N / sibling.
 
+import { Pill } from '@/components/ui'
+
 interface Props {
   role: 'unique' | 'primary' | 'sibling'
   siblingCount?: number
@@ -10,24 +12,12 @@ interface Props {
 
 export function ClusterChip({ role, siblingCount, primaryId, onSiblingClick }: Props) {
   if (role === 'unique') {
-    return (
-      <span style={{
-        fontSize: 10, color: 'var(--status-neutral)',
-        padding: '2px 6px', border: '1px solid var(--border-subtle)',
-        borderRadius: 3,
-      }}>unique</span>
-    )
+    return <Pill tone="neutral">unique</Pill>
   }
   if (role === 'primary') {
-    return (
-      <span style={{
-        fontSize: 10, fontWeight: 700,
-        color: 'var(--brand-primary-fg)', background: 'var(--brand-primary)',
-        padding: '2px 6px', borderRadius: 3,
-      }}>primary +{siblingCount ?? 0}</span>
-    )
+    return <Pill tone="lime">primary +{siblingCount ?? 0}</Pill>
   }
-  // sibling
+  // sibling — interactive, jumps to the primary article
   return (
     <button
       type="button"
@@ -35,9 +25,9 @@ export function ClusterChip({ role, siblingCount, primaryId, onSiblingClick }: P
       title={primaryId ? `Jump to primary (${primaryId})` : 'Sibling'}
       style={{
         fontSize: 10, fontWeight: 700,
-        color: 'var(--status-warn)', background: 'transparent',
-        padding: '2px 6px', border: '1px solid var(--status-warn)',
-        borderRadius: 3, cursor: primaryId ? 'pointer' : 'default',
+        color: 'var(--orange-text)', background: 'transparent',
+        padding: '2px 6px', border: '1px solid var(--orange-border)',
+        borderRadius: 'var(--r-xs)', cursor: primaryId ? 'pointer' : 'default',
       }}
     >sibling</button>
   )

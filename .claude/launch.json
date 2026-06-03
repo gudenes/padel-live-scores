@@ -9,6 +9,13 @@
       "autoPort": true
     },
     {
+      "name": "Ops (admin)",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "cd apps/ops && npm run dev"],
+      "port": 3004,
+      "autoPort": true
+    },
+    {
       "name": "Relay (Pusher bridge)",
       "runtimeExecutable": "/usr/local/bin/node",
       "runtimeArgs": ["--watch", "relay/index.js"],

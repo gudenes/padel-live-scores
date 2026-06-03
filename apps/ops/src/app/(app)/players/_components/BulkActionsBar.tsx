@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Field, Button } from '@/components/ui'
 
 interface BulkActionsBarProps {
   selectedCount: number
   selectedIds: string[]
   onClearSelection: () => void
   onBulkComplete: () => void
+  onMergeSelected: (ids: string[]) => void
 }
 
 interface Brand {
@@ -27,6 +29,7 @@ export default function BulkActionsBar({
   selectedIds,
   onClearSelection,
   onBulkComplete,
+  onMergeSelected,
 }: BulkActionsBarProps) {
   const [showModal, setShowModal] = useState(false)
   const [brands, setBrands] = useState<Brand[]>([])
@@ -112,9 +115,9 @@ export default function BulkActionsBar({
       {/* Info bar */}
       <div
         style={{
-          background: '#f0f7ff',
-          border: '1px solid #bfdbfe',
-          borderRadius: 8,
+          background: 'var(--bg-sel)',
+          border: '1px solid var(--lime-border)',
+          borderRadius: 'var(--r-sm)',
           padding: '10px 16px',
           display: 'flex',
           alignItems: 'center',
@@ -122,39 +125,21 @@ export default function BulkActionsBar({
           marginBottom: 12,
         }}
       >
-        <span style={{ color: '#1d4ed8', fontWeight: 600, fontSize: 14 }}>
+        <span style={{ color: 'var(--lime-text)', fontWeight: 600, fontSize: 14 }}>
           {selectedCount} selected
         </span>
         <div style={{ flex: 1 }} />
-        <button
-          onClick={openModal}
-          style={{
-            background: '#1d4ed8',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            padding: '6px 14px',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
-        >
+        {selectedCount === 2 && (
+          <Button variant="primary" size="sm" onClick={() => onMergeSelected(selectedIds)}>
+            Merge selected
+          </Button>
+        )}
+        <Button variant="primary" size="sm" onClick={openModal}>
           Assign Equipment
-        </button>
-        <button
-          onClick={onClearSelection}
-          style={{
-            background: 'transparent',
-            color: '#6b7280',
-            border: '1px solid #d1d5db',
-            borderRadius: 6,
-            padding: '6px 12px',
-            fontSize: 13,
-            cursor: 'pointer',
-          }}
-        >
+        </Button>
+        <Button size="sm" onClick={onClearSelection}>
           Clear
-        </button>
+        </Button>
       </div>
 
       {/* Modal overlay */}
@@ -163,7 +148,7 @@ export default function BulkActionsBar({
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.45)',
+            background: 'rgba(0,0,0,0.5)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -175,120 +160,80 @@ export default function BulkActionsBar({
         >
           <div
             style={{
-              background: '#fff',
-              borderRadius: 12,
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-card)',
+              borderRadius: 'var(--r-lg)',
               padding: 28,
               width: 400,
               maxWidth: '90vw',
-              boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+              boxShadow: 'var(--shadow-lg)',
             }}
           >
-            <h3 style={{ margin: '0 0 6px', color: '#111', fontSize: 18, fontWeight: 700 }}>
+            <h3 style={{ margin: '0 0 6px', color: 'var(--text-1)', fontSize: 18, fontWeight: 700 }}>
               Assign Equipment
             </h3>
-            <p style={{ margin: '0 0 20px', color: '#6b7280', fontSize: 13 }}>
+            <p style={{ margin: '0 0 20px', color: 'var(--text-2)', fontSize: 13 }}>
               Assigning to {selectedCount} player{selectedCount !== 1 ? 's' : ''}. This will end any current assignment.
             </p>
 
             {loading ? (
-              <p style={{ color: '#6b7280', fontSize: 13 }}>Loading brands...</p>
+              <p style={{ color: 'var(--text-2)', fontSize: 13 }}>Loading brands...</p>
             ) : (
               <>
                 {/* Brand dropdown */}
-                <label style={{ display: 'block', marginBottom: 12 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
-                    Brand
-                  </span>
-                  <select
-                    value={selectedBrandId}
-                    onChange={(e) => setSelectedBrandId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: 6,
-                      fontSize: 14,
-                      color: '#111',
-                      background: '#fff',
-                    }}
-                  >
-                    <option value="">Select a brand...</option>
-                    {brands.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div style={{ marginBottom: 12 }}>
+                  <Field label="Brand">
+                    <select
+                      className="ui-select"
+                      value={selectedBrandId}
+                      onChange={(e) => setSelectedBrandId(e.target.value)}
+                    >
+                      <option value="">Select a brand...</option>
+                      {brands.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
 
                 {/* Racket dropdown */}
-                <label style={{ display: 'block', marginBottom: 20 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 4 }}>
-                    Racket
-                  </span>
-                  <select
-                    value={selectedRacketId}
-                    onChange={(e) => setSelectedRacketId(e.target.value)}
-                    disabled={!selectedBrandId}
-                    style={{
-                      width: '100%',
-                      padding: '8px 10px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: 6,
-                      fontSize: 14,
-                      color: selectedBrandId ? '#111' : '#9ca3af',
-                      background: selectedBrandId ? '#fff' : '#f9fafb',
-                      cursor: selectedBrandId ? 'auto' : 'not-allowed',
-                    }}
-                  >
-                    <option value="">
-                      {selectedBrandId ? 'Select a racket...' : 'Select brand first'}
-                    </option>
-                    {rackets.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.model}{r.year ? ` (${r.year})` : ''}
+                <div style={{ marginBottom: 20 }}>
+                  <Field label="Racket">
+                    <select
+                      className="ui-select"
+                      value={selectedRacketId}
+                      onChange={(e) => setSelectedRacketId(e.target.value)}
+                      disabled={!selectedBrandId}
+                    >
+                      <option value="">
+                        {selectedBrandId ? 'Select a racket...' : 'Select brand first'}
                       </option>
-                    ))}
-                  </select>
-                </label>
+                      {rackets.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.model}{r.year ? ` (${r.year})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               </>
             )}
 
             {error && (
-              <p style={{ color: '#dc2626', fontSize: 13, marginBottom: 12 }}>{error}</p>
+              <p style={{ color: 'var(--live-text)', fontSize: 13, marginBottom: 12 }}>{error}</p>
             )}
 
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button
-                onClick={closeModal}
-                style={{
-                  background: 'transparent',
-                  color: '#374151',
-                  border: '1px solid #d1d5db',
-                  borderRadius: 6,
-                  padding: '8px 16px',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                }}
-              >
-                Cancel
-              </button>
-              <button
+              <Button onClick={closeModal}>Cancel</Button>
+              <Button
+                variant="primary"
                 onClick={handleAssign}
                 disabled={!selectedRacketId || assigning}
-                style={{
-                  background: selectedRacketId && !assigning ? '#1d4ed8' : '#93c5fd',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 6,
-                  padding: '8px 18px',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: selectedRacketId && !assigning ? 'pointer' : 'not-allowed',
-                }}
               >
                 {assigning ? 'Assigning...' : 'Assign'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

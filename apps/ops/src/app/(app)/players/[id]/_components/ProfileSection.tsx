@@ -9,6 +9,7 @@
 // save failure we alert() the response text. v1 keeps this dead-simple.
 
 import { useRef, useState } from 'react'
+import { Panel } from '@/components/ui'
 
 // Birthdate may arrive as either 'YYYY-MM-DD' or a full ISO timestamp depending on
 // Supabase column type. <input type="date"> only accepts YYYY-MM-DD as defaultValue.
@@ -84,15 +85,22 @@ export default function ProfileSection({
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-lg p-4">
-      <h2 className="text-sm font-semibold text-gray-900 mb-3">Profile</h2>
+    <Panel title="Profile">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-3">
         {FIELDS.map((f) => (
           <div key={f.key}>
-            <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">
+            <div
+              className="text-[11px] uppercase tracking-wide mb-1"
+              style={{ color: 'var(--text-3)' }}
+            >
               {f.label}
               {saving === f.key && (
-                <span className="text-blue-500 normal-case ml-2">saving…</span>
+                <span
+                  className="normal-case ml-2"
+                  style={{ color: 'var(--lime-text)' }}
+                >
+                  saving…
+                </span>
               )}
             </div>
             <input
@@ -111,16 +119,29 @@ export default function ProfileSection({
                 setPlayer((p) => ({ ...p, [f.key]: v }))
                 save(f.key, v)
               }}
-              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-white"
+              className="w-full px-2 py-1.5 text-sm border rounded"
+              style={{
+                borderColor: 'var(--border-card)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-1)',
+              }}
             />
           </div>
         ))}
       </div>
       <div className="mt-4">
-        <div className="text-[11px] uppercase tracking-wide text-gray-500 mb-1">
+        <div
+          className="text-[11px] uppercase tracking-wide mb-1"
+          style={{ color: 'var(--text-3)' }}
+        >
           Coaches
           {saving === 'coaches' && (
-            <span className="text-blue-500 normal-case ml-2">saving…</span>
+            <span
+              className="normal-case ml-2"
+              style={{ color: 'var(--lime-text)' }}
+            >
+              saving…
+            </span>
           )}
         </div>
         <input
@@ -139,9 +160,14 @@ export default function ProfileSection({
             save('coaches', arr)
           }}
           placeholder="comma-separated"
-          className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded bg-white"
+          className="w-full px-2 py-1.5 text-sm border rounded"
+          style={{
+            borderColor: 'var(--border-card)',
+            background: 'var(--bg-card)',
+            color: 'var(--text-1)',
+          }}
         />
       </div>
-    </section>
+    </Panel>
   )
 }

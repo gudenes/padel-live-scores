@@ -6,6 +6,7 @@
 import { notFound } from 'next/navigation'
 import { OddsMovementChart } from '@/components/Odds/OddsMovementChart'
 import { PairOddsRow } from '@/components/Odds/PairOddsRow'
+import { PageHeader } from '@/components/ui'
 import type { TournamentPredictionRow } from '@/lib/odds-data'
 import { createServiceClient } from '@/lib/supabase'
 
@@ -56,9 +57,9 @@ export default async function TournamentOddsPage({ params }: PageProps) {
 
   if (latestByPair.length === 0) {
     return (
-      <div style={{ padding: 32, maxWidth: 1024 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700 }}>{tournament.name}</h1>
-        <p style={{ color: 'var(--status-neutral)', marginTop: 16 }}>
+      <div className="ui-page">
+        <PageHeader title={tournament.name} />
+        <p style={{ color: 'var(--text-3)', marginTop: 16 }}>
           No predictions yet for this tournament. Either it&apos;s below v1 scope (Premier + FIP Platinum + FIP Gold only)
           or the snapshot worker hasn&apos;t covered it yet.
         </p>
@@ -79,7 +80,7 @@ export default async function TournamentOddsPage({ params }: PageProps) {
   // Build top-5 series per category for the chart.
   // Parallelize the per-pair history queries — they're independent and we want
   // the page to fan out, not serialize.
-  const colors = ['#ff6b2b', '#ffd166', '#06d6a0', '#118ab2', '#9b5de5']
+  const colors = ['var(--lime)', 'var(--orange)', 'var(--men)', 'var(--women)', 'var(--live)']
 
   async function buildSeriesForCategory(cat: 'men' | 'women') {
     const top5 = byCategory[cat].slice(0, 5)
@@ -112,24 +113,24 @@ export default async function TournamentOddsPage({ params }: PageProps) {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1024 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{tournament.name}</h1>
-      <div style={{ fontSize: 12, color: 'var(--status-neutral)', marginBottom: 24 }}>
-        {tournament.level} · {tournament.status} · snapshot {snapshotAt.slice(0, 16)}
-      </div>
+    <div className="ui-page">
+      <PageHeader
+        title={tournament.name}
+        subtitle={`${tournament.level} · ${tournament.status} · snapshot ${snapshotAt.slice(0, 16)}`}
+      />
 
       {(['men', 'women'] as const).map((cat) => (
         <section key={cat} style={{ marginBottom: 32 }}>
           <h2 style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, textTransform: 'uppercase' }}>{cat}</h2>
           {byCategory[cat].length === 0 ? (
-            <div style={{ color: 'var(--status-neutral)' }}>No {cat} predictions yet.</div>
+            <div style={{ color: 'var(--text-3)' }}>No {cat} predictions yet.</div>
           ) : (
             <>
-              <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 4 }}>
+              <div style={{ border: '1px solid var(--border-card)', borderRadius: 'var(--r-md)', overflow: 'hidden', background: 'var(--bg-card)' }}>
                 {byCategory[cat].map((r) => (
                   <div
                     key={`${r.pair_player1_id}::${r.pair_player2_id}`}
-                    style={{ padding: 10, borderBottom: '1px solid var(--border-subtle)', display: 'flex', gap: 16 }}
+                    style={{ padding: 10, borderBottom: '1px solid var(--border-inner)', display: 'flex', gap: 16 }}
                   >
                     <PairOddsRow
                       name={pairName(r.pair_player1_id, r.pair_player2_id)}
@@ -143,7 +144,7 @@ export default async function TournamentOddsPage({ params }: PageProps) {
                     <span style={{ minWidth: 56, textAlign: 'right' }}>
                       SF: {(Number(r.semi_prob) * 100).toFixed(1)}%
                     </span>
-                    <span style={{ minWidth: 56, textAlign: 'right', color: 'var(--status-neutral)' }}>
+                    <span style={{ minWidth: 56, textAlign: 'right', color: 'var(--text-3)' }}>
                       Elo {Math.round(Number(r.team_elo))}
                     </span>
                   </div>

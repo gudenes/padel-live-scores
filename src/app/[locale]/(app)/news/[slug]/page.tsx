@@ -13,12 +13,14 @@ import AppHeader from '@/components/AppHeader'
 const BG_BASE = '#1A1A1A'
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
+const BLUE = '#4A90E2'
 const BORDER = 'rgba(255,255,255,0.08)'
 const CHUNKY_BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 
-const CATEGORY_COLOR: Record<'announcements' | 'product', string> = {
+const CATEGORY_COLOR: Record<'announcements' | 'product' | 'insights', string> = {
   announcements: ORANGE,
   product: GREEN,
+  insights: BLUE,
 }
 
 export const dynamic = 'force-dynamic'
@@ -141,7 +143,7 @@ export default async function NewsDetailPage({ params }: Props) {
             </Pill>
           )}
           <Pill bg={CATEGORY_COLOR[post.category]} fg="#0A0A0A">
-            {t(`category_${post.category}` as 'category_announcements' | 'category_product')}
+            {t(`category_${post.category}` as 'category_announcements' | 'category_product' | 'category_insights')}
           </Pill>
         </div>
 

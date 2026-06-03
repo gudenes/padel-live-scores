@@ -29,6 +29,7 @@
 // itself and now optionally writes a player_equipment row in the same flow.
 
 import { useState, useEffect, useMemo } from 'react'
+import { Button } from '@/components/ui'
 import Combobox from './Combobox'
 import CreateBrandModal from './CreateBrandModal'
 import RacketFieldsForm, {
@@ -288,23 +289,36 @@ export default function AddRacketModal({ onClose, onCreated, initialPlayer = nul
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+      className="fixed inset-0 flex items-center justify-center z-50"
+      style={{ background: 'rgba(0,0,0,0.5)' }}
       onClick={onClose}
     >
       <div
-        className={`bg-white rounded-lg p-6 ${modalWidth} max-w-[95vw] max-h-[90vh] overflow-auto`}
+        className={`${modalWidth} max-w-[95vw] max-h-[90vh] overflow-auto`}
+        style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-card)',
+          borderRadius: 'var(--r-lg)',
+          padding: 24,
+          boxShadow: 'var(--shadow-lg)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <div className="text-base font-semibold">
+          <div className="text-base font-semibold" style={{ color: 'var(--text-1)' }}>
             {success
               ? 'Done'
               : step === 1
                 ? 'Add racket'
                 : 'Add racket · Assign player (optional)'}
           </div>
-          <button onClick={onClose} className="text-gray-400 cursor-pointer" aria-label="Close">
+          <button
+            onClick={onClose}
+            className="cursor-pointer"
+            style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 18 }}
+            aria-label="Close"
+          >
             ×
           </button>
         </div>
@@ -413,7 +427,7 @@ function Step1View(props: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="text-[11px] font-semibold text-gray-500 mb-1">BRAND *</div>
+        <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>BRAND *</div>
         <Combobox
           options={props.brands.map((b) => ({ id: b.id, label: b.name }))}
           value={props.brandId}
@@ -423,7 +437,7 @@ function Step1View(props: {
           placeholder="Pick a brand…"
         />
         {props.brandHint && !props.brandId && (
-          <div className="mt-1.5 text-[11px] text-amber-700">
+          <div className="mt-1.5 text-[11px]" style={{ color: 'var(--orange-text)' }}>
             Brand &quot;{props.brandHint}&quot; not in catalog — create it via the picker above.
           </div>
         )}
@@ -436,30 +450,18 @@ function Step1View(props: {
         disabled={props.saving}
       />
 
-      {props.error && <div className="text-xs text-red-600">{props.error}</div>}
+      {props.error && <div className="text-xs" style={{ color: 'var(--live-text)' }}>{props.error}</div>}
 
       <div className="flex gap-2 justify-end pt-2 flex-wrap">
-        <button
-          onClick={props.onCancel}
-          disabled={props.saving}
-          className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer disabled:opacity-50"
-        >
+        <Button onClick={props.onCancel} disabled={props.saving}>
           Cancel
-        </button>
-        <button
-          onClick={props.onSaveCatalogOnly}
-          disabled={props.saving || !props.canAdvance}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded bg-white text-gray-900 cursor-pointer disabled:opacity-50"
-        >
+        </Button>
+        <Button onClick={props.onSaveCatalogOnly} disabled={props.saving || !props.canAdvance}>
           {props.saving ? 'Saving…' : 'Save to catalog only'}
-        </button>
-        <button
-          onClick={props.onAdvance}
-          disabled={props.saving || !props.canAdvance}
-          className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer disabled:opacity-50"
-        >
+        </Button>
+        <Button variant="primary" onClick={props.onAdvance} disabled={props.saving || !props.canAdvance}>
           Continue to assign player →
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -496,8 +498,8 @@ function Step2View(props: {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="text-sm font-semibold text-gray-900">Assign to a player</div>
-        <div className="text-xs text-gray-500">
+        <div className="text-sm font-semibold" style={{ color: 'var(--text-1)' }}>Assign to a player</div>
+        <div className="text-xs" style={{ color: 'var(--text-3)' }}>
           Optional — leave blank to save catalog-only.
         </div>
       </div>
@@ -506,7 +508,7 @@ function Step2View(props: {
         {/* Left column: picker + assignment details */}
         <div className="flex flex-col gap-3">
           <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">PLAYER</div>
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>PLAYER</div>
             <PlayerPicker
               value={props.selectedPlayer}
               onChange={props.onSelectedPlayerChange}
@@ -515,29 +517,29 @@ function Step2View(props: {
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">STARTED AT</div>
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>STARTED AT</div>
             <input
               type="date"
               value={props.startedAt}
               onChange={(e) => props.onStartedAtChange(e.target.value)}
-              className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
+              className="ui-input w-full"
               disabled={props.saving || !props.selectedPlayer}
             />
             {!props.selectedPlayer && (
-              <div className="mt-1 text-[10px] text-gray-400">
+              <div className="mt-1 text-[10px]" style={{ color: 'var(--text-4)' }}>
                 Pick a player to enable assignment fields.
               </div>
             )}
           </div>
 
           <div>
-            <div className="text-[11px] font-semibold text-gray-500 mb-1">NOTES (optional)</div>
+            <div className="text-[11px] font-semibold mb-1" style={{ color: 'var(--text-3)' }}>NOTES (optional)</div>
             <textarea
               value={props.notes}
               onChange={(e) => props.onNotesChange(e.target.value)}
               rows={3}
               placeholder="Confirmed via Instagram, etc."
-              className="w-full rounded border border-gray-200 px-3 py-2 text-sm resize-y"
+              className="ui-input w-full resize-y"
               disabled={props.saving || !props.selectedPlayer}
             />
           </div>
@@ -553,35 +555,23 @@ function Step2View(props: {
         </div>
       </div>
 
-      {props.error && <div className="text-xs text-red-600">{props.error}</div>}
+      {props.error && <div className="text-xs" style={{ color: 'var(--live-text)' }}>{props.error}</div>}
 
       <div className="flex gap-2 justify-between pt-2 flex-wrap">
-        <button
-          onClick={props.onBack}
-          disabled={props.saving}
-          className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer disabled:opacity-50"
-        >
+        <Button onClick={props.onBack} disabled={props.saving}>
           ← Back
-        </button>
+        </Button>
         <div className="flex gap-2">
-          <button
-            onClick={props.onCancel}
-            disabled={props.saving}
-            className="px-3 py-1.5 text-sm border border-gray-200 rounded bg-white cursor-pointer disabled:opacity-50"
-          >
+          <Button onClick={props.onCancel} disabled={props.saving}>
             Cancel
-          </button>
-          <button
-            onClick={props.onSave}
-            disabled={props.saving}
-            className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="primary" onClick={props.onSave} disabled={props.saving}>
             {props.saving
               ? 'Saving…'
               : props.selectedPlayer
                 ? `Save & assign to ${playerName}`
                 : 'Save to catalog only'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -602,7 +592,7 @@ function SuccessView({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="text-sm text-green-700">
+      <div className="text-sm" style={{ color: 'var(--lime-text)' }}>
         {assignedName ? (
           <>
             Racket &quot;<strong>{success.racket.model}</strong>&quot; created and assigned to{' '}
@@ -615,22 +605,25 @@ function SuccessView({
         )}
       </div>
       {success.imageWarning && (
-        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+        <div
+          className="text-sm rounded px-3 py-2"
+          style={{ color: 'var(--orange-text)', background: 'var(--orange-bg)', border: '1px solid var(--orange-border)' }}
+        >
           {success.imageWarning}
         </div>
       )}
       {success.assignmentWarning && (
-        <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+        <div
+          className="text-sm rounded px-3 py-2"
+          style={{ color: 'var(--orange-text)', background: 'var(--orange-bg)', border: '1px solid var(--orange-border)' }}
+        >
           {success.assignmentWarning}
         </div>
       )}
       <div className="flex justify-end pt-2">
-        <button
-          onClick={onClose}
-          className="px-3 py-1.5 text-sm rounded bg-gray-900 text-white cursor-pointer"
-        >
+        <Button variant="primary" onClick={onClose}>
           Close
-        </button>
+        </Button>
       </div>
     </div>
   )

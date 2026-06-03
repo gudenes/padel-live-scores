@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { MethodologyMarkdown } from '@/components/Odds/MethodologyMarkdown'
+import { PageHeader, Panel } from '@/components/ui'
 
 export const metadata = { title: 'Methodology · PadelNachos Admin' }
 export const dynamic = 'force-dynamic'
@@ -17,8 +18,11 @@ export default async function MethodologyPage() {
   }
 
   return (
-    <div style={{ padding: 32 }}>
-      <MethodologyMarkdown source={source} />
+    <div className="ui-page">
+      <PageHeader title="Methodology" />
+      <Panel>
+        <MethodologyMarkdown source={source} />
+      </Panel>
     </div>
   )
 }

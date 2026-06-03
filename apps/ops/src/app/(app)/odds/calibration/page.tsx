@@ -8,6 +8,7 @@ import {
   type CalibrationBreakdownRow,
 } from '@/components/Odds/CalibrationBreakdownTable'
 import { ModelFreshnessPanel } from '@/components/Odds/ModelFreshnessPanel'
+import { PageHeader, Section } from '@/components/ui'
 import {
   computeCalibrationKpis,
   getCalibrationData,
@@ -109,8 +110,8 @@ export default async function CalibrationPage() {
     .slice(0, 10)
 
   return (
-    <div style={{ padding: 32, maxWidth: 1024 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16 }}>Calibration</h1>
+    <div className="ui-page">
+      <PageHeader title="Calibration" />
 
       <CalibrationKpiStrip
         windowLabel='30d'
@@ -123,17 +124,18 @@ export default async function CalibrationPage() {
       <CalibrationBreakdownTable title='By tier' rows={tierRows} />
       <CalibrationBreakdownTable title='By tournament (last 10)' rows={tournRows} />
 
-      <h2 style={{ fontSize: 14, fontWeight: 700, margin: '32px 0 12px' }}>Model freshness</h2>
-      <ModelFreshnessPanel
-        snapshotAgeMin={freshness.snapshotAgeMin}
-        trainingMatchCount={freshness.trainingMatchCount}
-        modelVersion={freshness.modelVersion}
-        unscoredFinishedLast7d={freshness.unscoredFinishedLast7d}
-        meanBrier30d={last30d.meanBrier}
-        favoriteHitRate30d={last30d.favoriteHitRate}
-      />
+      <Section label="Model freshness">
+        <ModelFreshnessPanel
+          snapshotAgeMin={freshness.snapshotAgeMin}
+          trainingMatchCount={freshness.trainingMatchCount}
+          modelVersion={freshness.modelVersion}
+          unscoredFinishedLast7d={freshness.unscoredFinishedLast7d}
+          meanBrier30d={last30d.meanBrier}
+          favoriteHitRate30d={last30d.favoriteHitRate}
+        />
+      </Section>
 
-      <div style={{ marginTop: 24, fontSize: 11, color: 'var(--status-neutral)' }}>
+      <div style={{ marginTop: 24, fontSize: 11, color: 'var(--text-3)' }}>
         Showing {allTime.totalScored.toLocaleString()} scored predictions all-time.
       </div>
     </div>

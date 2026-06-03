@@ -187,4 +187,27 @@ describe('parseFipPlayerProfile', () => {
       `<script type="application/ld+json">{"@type":"Person","height":"50"}</script>`
     ).heightCm).toBeNull();
   });
+
+  it('extracts the portrait photo from the alt="generic" img (real upload)', () => {
+    const html = `<img width="258" height="400" src="https://www.padelfip.com/wp-content/uploads/2023/02/Coello-p.png" alt="generic">`;
+    expect(parseFipPlayerProfile(html).photoUrl).toBe(
+      'https://www.padelfip.com/wp-content/uploads/2023/02/Coello-p.png',
+    );
+  });
+
+  it('absolutizes a root-relative portrait upload URL', () => {
+    const html = `<img width="258" height="400" src="/wp-content/uploads/2023/02/TAPIA-1.png" alt="generic">`;
+    expect(parseFipPlayerProfile(html).photoUrl).toBe(
+      'https://www.padelfip.com/wp-content/uploads/2023/02/TAPIA-1.png',
+    );
+  });
+
+  it('returns null when the portrait is the FIP placeholder (no real photo)', () => {
+    const html = `<img width="258" height="400" src="/wp-content/themes/padelfiptheme/assets/img/placeholder.png" alt="generic">`;
+    expect(parseFipPlayerProfile(html).photoUrl).toBeNull();
+  });
+
+  it('returns null photoUrl when there is no portrait img at all', () => {
+    expect(parseFipPlayerProfile('<html><body></body></html>').photoUrl).toBeNull();
+  });
 });

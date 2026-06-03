@@ -12,6 +12,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { PageHeader, Panel, Button, EmptyState } from '@/components/ui'
 import { timeAgo } from '../../_shared/ops-status-types'
 
 const SLUG = 'coverage-matrix'
@@ -102,66 +103,56 @@ export default function CoverageMatrixTab() {
   }
 
   if (loading) {
-    return <div style={{ padding: 16, color: '#666' }}>Loading...</div>
+    return (
+      <div className="ui-page">
+        <PageHeader title="Coverage Matrix" />
+        <div style={{ color: 'var(--text-2)' }}>Loading...</div>
+      </div>
+    )
   }
   if (error) {
     return (
-      <div style={{ padding: 16 }}>
-        <div style={{ color: '#b91c1c', marginBottom: 8 }}>{error}</div>
-        <button onClick={load} style={{ padding: '6px 12px', cursor: 'pointer' }}>Retry</button>
+      <div className="ui-page">
+        <PageHeader title="Coverage Matrix" />
+        <EmptyState title={error} hint={<Button size="sm" onClick={load}>Retry</Button>} />
       </div>
     )
   }
   if (!doc) return null
 
   return (
-    <div style={{ padding: 16, maxWidth: 1600 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Coverage Matrix</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {!editing && (
-            <button onClick={onEdit} style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13 }}>
-              Edit
-            </button>
-          )}
-          {editing && (
+    <div className="ui-page" style={{ maxWidth: 1600 }}>
+      <PageHeader
+        title="Coverage Matrix"
+        actions={
+          !editing ? (
+            <Button size="sm" onClick={onEdit}>Edit</Button>
+          ) : (
             <>
-              <button
-                onClick={onSave}
-                disabled={saving}
-                style={{
-                  padding: '6px 12px', cursor: saving ? 'wait' : 'pointer',
-                  fontSize: 13, fontWeight: 600,
-                  background: '#111', color: '#fff', border: 'none', borderRadius: 4,
-                }}
-              >
+              <Button size="sm" variant="primary" onClick={onSave} disabled={saving}>
                 {saving ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                onClick={onCancel}
-                disabled={saving}
-                style={{ padding: '6px 12px', cursor: 'pointer', fontSize: 13 }}
-              >
-                Cancel
-              </button>
+              </Button>
+              <Button size="sm" onClick={onCancel} disabled={saving}>Cancel</Button>
             </>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {saveError && (
         <div style={{
           marginBottom: 10, padding: 8, fontSize: 12,
-          color: '#b91c1c', background: '#fee2e2', borderRadius: 4,
+          color: 'var(--live-text)', background: 'var(--live-bg)', border: '1px solid var(--live-border)', borderRadius: 'var(--r-sm)',
         }}>
           {saveError}
         </div>
       )}
 
       {!editing && (
-        <div className="prose prose-neutral max-w-none" style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 20 }}>
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
-        </div>
+        <Panel>
+          <div className="prose prose-neutral max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{doc.content}</ReactMarkdown>
+          </div>
+        </Panel>
       )}
 
       {editing && (
@@ -170,18 +161,18 @@ export default function CoverageMatrixTab() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             spellCheck={false}
+            className="ui-input"
             style={{
               width: '100%', height: '100%', resize: 'none',
               fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
               fontSize: 13, lineHeight: 1.5,
-              padding: 12, border: '1px solid #e5e7eb', borderRadius: 6,
             }}
           />
           <div
             className="prose prose-neutral max-w-none"
             style={{
               height: '100%', overflow: 'auto',
-              background: '#fff', border: '1px solid #e5e7eb', borderRadius: 6, padding: 20,
+              background: 'var(--bg-card)', border: '1px solid var(--border-card)', borderRadius: 'var(--r-md)', padding: 20,
             }}
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{draft}</ReactMarkdown>
@@ -189,7 +180,7 @@ export default function CoverageMatrixTab() {
         </div>
       )}
 
-      <div style={{ marginTop: 8, fontSize: 11, color: '#888' }}>
+      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-3)' }}>
         Last edited {timeAgo(doc.updated_at)}
         {doc.updated_by && ` by ${doc.updated_by}`}
       </div>

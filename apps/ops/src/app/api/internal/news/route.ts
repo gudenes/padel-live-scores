@@ -9,7 +9,7 @@ import { generateSlug } from '@/lib/news-slug'
 import type { NewsCategory, NewsPost } from '@/types/news'
 import { translateAndStore } from '@/lib/news-translate-job'
 
-const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product']
+const ALLOWED_CATEGORIES: NewsCategory[] = ['announcements', 'product', 'insights']
 
 // GET: list all EN rows (drafts + published) with translation status counts
 export async function GET() {

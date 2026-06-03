@@ -62,6 +62,7 @@ interface FipRacePlayer {
 // ── Constants ────────────────────────────────────────────────────────────
 
 const FIP_BASE = 'https://www.padelfip.com/es/wp-json/fip/v1';
+const FIP_RANKINGS_PAGE = 'https://www.padelfip.com/es/fip-rankings/';
 const TOP_DEFAULT = 1000;
 const PAGE_SIZE = 500;
 const OFFICIAL_WEEK_FALLBACK = 3;
@@ -125,13 +126,39 @@ function weekToDate(year: number, week: number): string {
 
 // ── Fetch helpers ────────────────────────────────────────────────────────
 
+/**
+ * FIP's load-more JSON carries no publish date, and the worker must NOT infer
+ * the date from the queried week: on Mondays (FIP's publish day) the API
+ * transiently serves the not-yet-final current week while the site still shows
+ * the last finalised ranking, so a week-based date overshoots by a week.
+ *
+ * The authoritative date is rendered only in the rankings page HTML, beside the
+ * refresh icon (`</svg>DD/MM/YYYY</span>`). Returns ISO `YYYY-MM-DD`, or null
+ * when the page is unreachable / unparseable (callers degrade to the week).
+ */
+async function fetchFipRankingDate(httpClient: AxiosInstance): Promise<string | null> {
+  try {
+    const res = await httpClient.get(FIP_RANKINGS_PAGE);
+    const html: string = typeof res.data === 'string' ? res.data : '';
+    const m = html.match(/<\/svg>\s*(\d{2})\/(\d{2})\/(\d{4})\s*<\/span>/);
+    if (!m) return null;
+    const [, dd, mm, yyyy] = m;
+    return `${yyyy}-${mm}-${dd}`;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchOfficial(
   httpClient: AxiosInstance,
   gender: 'male' | 'female',
   top: number,
+  fipDate: string | null,
 ): Promise<{ players: FipOfficialPlayer[]; rankingDate: string | null }> {
-  const { year, week } = currentYearWeek();
-  for (let w = week; w >= week - OFFICIAL_WEEK_FALLBACK && w >= 1; w--) {
+  // Anchor the query to FIP's published date when known, else the calendar week.
+  const anchor = fipDate ? isoYearWeek(new Date(fipDate)) : currentYearWeek();
+  const year = anchor.year;
+  for (let w = anchor.week; w >= anchor.week - OFFICIAL_WEEK_FALLBACK && w >= 1; w--) {
     const all: FipOfficialPlayer[] = [];
     let offset = 0;
     while (all.length < top) {
@@ -146,7 +173,10 @@ async function fetchOfficial(
       offset += data.length;
     }
     if (all.length > 0) {
-      return { players: all, rankingDate: weekToDate(year, w) };
+      // On the published week, stamp FIP's exact date; on a fallback week, use
+      // that week's Monday (the published date no longer applies).
+      const rankingDate = fipDate && w === anchor.week ? `${fipDate}T00:00:00Z` : weekToDate(year, w);
+      return { players: all, rankingDate };
     }
   }
   return { players: [], rankingDate: null };
@@ -368,8 +398,9 @@ async function writeRaceSnapshots(
   resolved: ResolvedPlayer[],
   rowsByFipId: Map<string, FipRacePlayer>,
   category: 'men' | 'women',
+  rankingDate: string,
 ): Promise<number> {
-  const yw = isoYearWeek(new Date());
+  const yw = isoYearWeek(new Date(rankingDate));
   const snapshotRows = resolved.map(r => {
     const row = rowsByFipId.get(r.fipId)!;
     return {
@@ -431,6 +462,7 @@ async function runOfficialPhase(
   gender: 'male' | 'female',
   category: 'men' | 'women',
   avatarMap: Map<string, string>,
+  fipDate: string | null,
 ): Promise<PhaseResult & { rankingDate: string | null; snapshotsWritten: number }> {
   let fetched = 0;
   let updated = 0;
@@ -450,7 +482,7 @@ async function runOfficialPhase(
         captureBody: false,
       },
       async () => {
-        const { players, rankingDate: rd } = await fetchOfficial(deps.httpClient, gender, TOP_DEFAULT);
+        const { players, rankingDate: rd } = await fetchOfficial(deps.httpClient, gender, TOP_DEFAULT, fipDate);
         fetched = players.length;
         rankingDate = rd;
 
@@ -497,6 +529,7 @@ async function runRacePhase(
   gender: 'male' | 'female',
   category: 'men' | 'women',
   avatarMap: Map<string, string>,
+  fipDate: string | null,
 ): Promise<PhaseResult & { dropoutsCleared: number; snapshotsWritten: number }> {
   let fetched = 0;
   let updated = 0;
@@ -526,8 +559,11 @@ async function runRacePhase(
         const rowsByFipId = new Map<string, FipRacePlayer>();
         for (const r of players) rowsByFipId.set(r.player_id.replace(/^fip-/, ''), r);
 
-        const raceMondayIso = isoYearWeek(new Date()).mondayIso;
-        const resolved = await upsertRacePlayers(deps.supabase, players, category, raceMondayIso);
+        // Race shares FIP's weekly publish cadence — date it from the same
+        // page date as official so the two tabs stay consistent and the race
+        // phase (runs last) doesn't clobber official's date back to "today".
+        const raceDate = fipDate ? `${fipDate}T00:00:00Z` : isoYearWeek(new Date()).mondayIso;
+        const resolved = await upsertRacePlayers(deps.supabase, players, category, raceDate);
         updated = resolved.filter(r => r.outcome === 'updated').length;
         created = resolved.filter(r => r.outcome === 'created').length;
 
@@ -536,7 +572,7 @@ async function runRacePhase(
         }
 
         snapshotsWritten = await writeRaceSnapshots(
-          deps.supabase, resolved, rowsByFipId, category,
+          deps.supabase, resolved, rowsByFipId, category, raceDate,
         );
 
         const writtenIds = new Set(resolved.map(r => r.playerId));
@@ -567,10 +603,18 @@ export async function runPlayerRankings(
 
   const avatarMap = new Map<string, string>();
 
-  const officialMen = await runOfficialPhase(deps, 'male', 'men', avatarMap);
-  const officialWomen = await runOfficialPhase(deps, 'female', 'women', avatarMap);
-  const raceMen = await runRacePhase(deps, 'male', 'men', avatarMap);
-  const raceWomen = await runRacePhase(deps, 'female', 'women', avatarMap);
+  // FIP's authoritative publish date (one date for all four phases). Fetched
+  // once; null falls each phase back to the calendar-week heuristic.
+  const fipDate = await fetchFipRankingDate(deps.httpClient);
+  deps.logger?.info(
+    { fipDate },
+    fipDate ? `FIP published ranking date: ${fipDate}` : 'FIP ranking date unavailable — falling back to calendar week',
+  );
+
+  const officialMen = await runOfficialPhase(deps, 'male', 'men', avatarMap, fipDate);
+  const officialWomen = await runOfficialPhase(deps, 'female', 'women', avatarMap, fipDate);
+  const raceMen = await runRacePhase(deps, 'male', 'men', avatarMap, fipDate);
+  const raceWomen = await runRacePhase(deps, 'female', 'women', avatarMap, fipDate);
 
   const snapshotsWritten =
     officialMen.snapshotsWritten +

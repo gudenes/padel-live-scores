@@ -6,6 +6,7 @@
 
 import { useState } from 'react'
 import type { OpsChannel } from './types'
+import { DataTable, Button, Pill } from '@/components/ui'
 
 export default function YtChannelsTable({
   channels,
@@ -45,68 +46,68 @@ export default function YtChannelsTable({
   }
 
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+    <DataTable>
       <thead>
-        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', textAlign: 'left' }}>
-          <th style={{ padding: '8px 6px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: '#9CA3AF' }}></th>
-          <th style={{ padding: '8px 6px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: '#9CA3AF' }}>Name</th>
-          <th style={{ padding: '8px 6px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: '#9CA3AF' }}>Channel ID</th>
-          <th style={{ padding: '8px 6px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: '#9CA3AF' }}>Order</th>
-          <th style={{ padding: '8px 6px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: '#9CA3AF' }}>Active</th>
-          <th style={{ padding: '8px 6px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: '#9CA3AF' }}>Live now</th>
-          <th style={{ padding: '8px 6px', fontWeight: 700, fontSize: 11, textTransform: 'uppercase', color: '#9CA3AF' }}>Actions</th>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>Channel ID</th>
+          <th>Order</th>
+          <th>Active</th>
+          <th>Live now</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {channels.map(c => (
-          <tr key={c.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <td style={{ padding: '10px 6px' }}>
+          <tr key={c.id}>
+            <td>
               <div style={{
-                width: 32, height: 32, borderRadius: '50%',
+                width: 32, height: 32, borderRadius: 'var(--r-full)',
                 background: c.color_hex, display: 'inline-flex',
                 alignItems: 'center', justifyContent: 'center',
                 color: '#fff', fontSize: 11, fontWeight: 800,
               }}>{c.abbreviation}</div>
             </td>
-            <td style={{ padding: '10px 6px' }}>{c.name}</td>
-            <td style={{ padding: '10px 6px', fontFamily: 'monospace', fontSize: 11, color: '#9CA3AF' }}>
+            <td>{c.name}</td>
+            <td style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-3)' }}>
               {c.channel_id.slice(0, 6)}...{c.channel_id.slice(-4)}
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="ghost"
                 onClick={() => navigator.clipboard.writeText(c.channel_id)}
-                style={{ marginLeft: 6, background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#9CA3AF', fontSize: 9, padding: '1px 4px', cursor: 'pointer' }}
-              >COPY</button>
+                style={{ marginLeft: 6, fontSize: 9, padding: '1px 4px' }}
+              >COPY</Button>
             </td>
-            <td style={{ padding: '10px 6px', fontFamily: 'monospace' }}>{c.display_order}</td>
-            <td style={{ padding: '10px 6px' }}>
+            <td style={{ fontFamily: 'var(--mono)' }}>{c.display_order}</td>
+            <td>
               {c.is_active
-                ? <span style={{ color: '#7ED321', fontWeight: 700 }}>YES</span>
-                : <span style={{ color: '#6B7280' }}>NO</span>}
+                ? <Pill tone="lime">YES</Pill>
+                : <Pill tone="neutral">NO</Pill>}
             </td>
-            <td style={{ padding: '10px 6px' }}>
+            <td>
               {c.live.length > 0
-                ? <span style={{ color: '#FF4655', fontWeight: 800 }}>&#9679; {c.live.length}</span>
-                : <span style={{ color: '#6B7280' }}>&#8212;</span>}
+                ? <Pill tone="live" dot pulse>{c.live.length}</Pill>
+                : <span style={{ color: 'var(--text-3)' }}>&#8212;</span>}
               {testResult[c.id] && (
-                <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 2 }}>{testResult[c.id]}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-3)', marginTop: 2 }}>{testResult[c.id]}</div>
               )}
             </td>
-            <td style={{ padding: '10px 6px' }}>
-              <button onClick={() => onEdit(c)} disabled={busy === c.id}
-                style={{ marginRight: 6, padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}>EDIT</button>
-              <button onClick={() => onTest(c)} disabled={busy === c.id}
-                style={{ marginRight: 6, padding: '4px 8px', fontSize: 11, cursor: 'pointer' }}>TEST</button>
-              <button onClick={() => onDelete(c)} disabled={busy === c.id}
-                style={{ padding: '4px 8px', fontSize: 11, color: '#FF4655', cursor: 'pointer' }}>DELETE</button>
+            <td>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <Button size="sm" onClick={() => onEdit(c)} disabled={busy === c.id}>EDIT</Button>
+                <Button size="sm" onClick={() => onTest(c)} disabled={busy === c.id}>TEST</Button>
+                <Button size="sm" variant="danger" onClick={() => onDelete(c)} disabled={busy === c.id}>DELETE</Button>
+              </div>
             </td>
           </tr>
         ))}
         {channels.length === 0 && (
-          <tr><td colSpan={7} style={{ padding: 16, color: '#6B7280', textAlign: 'center' }}>
+          <tr><td colSpan={7} style={{ color: 'var(--text-3)', textAlign: 'center' }}>
             No channels yet. Add one above.
           </td></tr>
         )}
       </tbody>
-    </table>
+    </DataTable>
   )
 }

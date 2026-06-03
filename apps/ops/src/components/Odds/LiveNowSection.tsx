@@ -87,85 +87,96 @@ export function LiveNowSection() {
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '0.06em',
-          color: 'var(--status-live)',
+          color: 'var(--live-text)',
           margin: '0 0 8px',
         }}
       >
         ● Live now ({rows.length})
       </h2>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', fontSize: 11, color: 'var(--text-3, #71717a)' }}>
-            <th style={{ padding: '6px 8px' }}>Match</th>
-            <th style={{ padding: '6px 8px' }}>Tournament</th>
-            <th style={{ padding: '6px 8px', textAlign: 'right' }}>Pair 1</th>
-            <th style={{ padding: '6px 8px', textAlign: 'right' }}>Pair 2</th>
-            <th style={{ padding: '6px 8px' }}>Anchor</th>
-            <th style={{ padding: '6px 8px', textAlign: 'right' }}>Upd</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            const m = r.matches
-            const ageS = Math.max(0, Math.round((Date.now() - +new Date(r.computed_at)) / 1000))
-            return (
-              <tr
-                key={r.match_id}
-                style={{ borderTop: '1px solid var(--border-subtle, #e5e7eb)', fontSize: 13 }}
-              >
-                <td style={{ padding: '8px' }}>
-                  {pair(m?.p1a, m?.p1b)} vs {pair(m?.p2a, m?.p2b)}
-                  <div style={{ fontSize: 11, color: '#71717a' }}>
-                    {m?.court} · {m?.round}
-                  </div>
-                </td>
-                <td style={{ padding: '8px' }}>{m?.tournament?.name ?? ''}</td>
-                <td
-                  style={{
-                    padding: '8px',
-                    textAlign: 'right',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
+      <div
+        style={{
+          border: '1px solid var(--border-card)',
+          borderRadius: 'var(--r-md)',
+          overflow: 'hidden',
+          background: 'var(--bg-card)',
+        }}
+      >
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ textAlign: 'left', fontSize: 11, color: 'var(--text-3)' }}>
+              <th style={{ padding: '6px 8px' }}>Match</th>
+              <th style={{ padding: '6px 8px' }}>Tournament</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right' }}>Pair 1</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right' }}>Pair 2</th>
+              <th style={{ padding: '6px 8px' }}>Anchor</th>
+              <th style={{ padding: '6px 8px', textAlign: 'right' }}>Upd</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const m = r.matches
+              const ageS = Math.max(0, Math.round((Date.now() - +new Date(r.computed_at)) / 1000))
+              return (
+                <tr
+                  key={r.match_id}
+                  style={{ borderTop: '1px solid var(--border-inner)', fontSize: 13 }}
                 >
-                  {Math.round(r.pair1_prob * 100)}% · {Number(r.pair1_decimal_odds).toFixed(2)}
-                </td>
-                <td
-                  style={{
-                    padding: '8px',
-                    textAlign: 'right',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {Math.round(r.pair2_prob * 100)}% · {Number(r.pair2_decimal_odds).toFixed(2)}
-                </td>
-                <td style={{ padding: '8px' }}>
-                  <span
+                  <td style={{ padding: '8px' }}>
+                    {pair(m?.p1a, m?.p1b)} vs {pair(m?.p2a, m?.p2b)}
+                    <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
+                      {m?.court} · {m?.round}
+                    </div>
+                  </td>
+                  <td style={{ padding: '8px' }}>{m?.tournament?.name ?? ''}</td>
+                  <td
                     style={{
-                      fontSize: 10,
-                      padding: '1px 6px',
-                      borderRadius: 4,
-                      background:
-                        r.anchor_source === 'model-prediction' ? '#dcfce7' : '#fef3c7',
+                      padding: '8px',
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums',
                     }}
                   >
-                    {r.anchor_source === 'model-prediction' ? 'Elo' : 'cold-start'}
-                  </span>
-                </td>
-                <td
-                  style={{
-                    padding: '8px',
-                    textAlign: 'right',
-                    fontVariantNumeric: 'tabular-nums',
-                    color: '#71717a',
-                  }}
-                >
-                  {ageS}s
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+                    {Math.round(r.pair1_prob * 100)}% · {Number(r.pair1_decimal_odds).toFixed(2)}
+                  </td>
+                  <td
+                    style={{
+                      padding: '8px',
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {Math.round(r.pair2_prob * 100)}% · {Number(r.pair2_decimal_odds).toFixed(2)}
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        padding: '1px 6px',
+                        borderRadius: 'var(--r-xs)',
+                        color:
+                          r.anchor_source === 'model-prediction' ? 'var(--lime-text)' : 'var(--orange-text)',
+                        background:
+                          r.anchor_source === 'model-prediction' ? 'var(--lime-bg)' : 'var(--orange-bg)',
+                      }}
+                    >
+                      {r.anchor_source === 'model-prediction' ? 'Elo' : 'cold-start'}
+                    </span>
+                  </td>
+                  <td
+                    style={{
+                      padding: '8px',
+                      textAlign: 'right',
+                      fontVariantNumeric: 'tabular-nums',
+                      color: 'var(--text-3)',
+                    }}
+                  >
+                    {ageS}s
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   )
 }

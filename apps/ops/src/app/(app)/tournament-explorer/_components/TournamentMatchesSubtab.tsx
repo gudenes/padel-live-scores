@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ScheduleReviewPanel from './ScheduleReviewPanel'
 import { PlayerLink } from '@/components/PlayerLink'
+import { Pill } from '@/components/ui'
 
 // ── Types (mirror /api/internal/tournament-matches response) ─────────────────
 
@@ -146,7 +147,7 @@ function TeamCell({
           }
         />
       )}
-      {hasP1 && hasP2 && <span style={{ color: '#9ca3af' }}>/</span>}
+      {hasP1 && hasP2 && <span style={{ color: 'var(--text-3)' }}>/</span>}
       {hasP2 && (
         <PlayerLink
           player={
@@ -224,16 +225,16 @@ function renderSetScores(raw: unknown): string {
 // ── Styles ──────────────────────────────────────────────────────────────
 
 const card: React.CSSProperties = {
-  background: 'white',
-  border: '1px solid #e5e7eb',
-  borderRadius: 8,
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-card)',
+  borderRadius: 'var(--r-lg)',
   padding: 12,
 }
 
 const th: React.CSSProperties = {
   padding: '6px 10px',
   textAlign: 'left',
-  color: '#666',
+  color: 'var(--text-3)',
   fontWeight: 600,
   fontSize: 11,
   textTransform: 'uppercase',
@@ -242,7 +243,7 @@ const th: React.CSSProperties = {
 
 const td: React.CSSProperties = {
   padding: '6px 10px',
-  color: '#333',
+  color: 'var(--text-1)',
   verticalAlign: 'top',
 }
 
@@ -333,11 +334,11 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
   }, [data])
 
   if (loading) {
-    return <div style={{ ...card, color: '#666', fontSize: 12 }}>Loading matches…</div>
+    return <div style={{ ...card, color: 'var(--text-3)', fontSize: 12 }}>Loading matches…</div>
   }
   if (error) {
     return (
-      <div style={{ ...card, background: '#fee2e2', borderColor: '#fecaca', color: '#991b1b', fontSize: 12 }}>
+      <div style={{ ...card, background: 'var(--live-bg)', borderColor: 'var(--live-border)', color: 'var(--live-text)', fontSize: 12 }}>
         ❌ {error}
       </div>
     )
@@ -345,7 +346,7 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
   if (!data) return null
   if (data.matches.length === 0) {
     return (
-      <div style={{ ...card, color: '#666', fontSize: 12 }}>
+      <div style={{ ...card, color: 'var(--text-3)', fontSize: 12 }}>
         No padelgod matches captured for this tournament yet. Check the
         Schedule tab or wait for the next OOP/results fetcher tick.
       </div>
@@ -399,7 +400,7 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
   return (
     <div>
       {/* Tab header — OOP / Results */}
-      <div style={{ display: 'flex', gap: 2, borderBottom: '2px solid #e5e7eb', marginBottom: 12 }}>
+      <div style={{ display: 'flex', gap: 2, borderBottom: '2px solid var(--border-card)', marginBottom: 12 }}>
         <TabButton label="OOP" active={tab === 'oop'} onClick={() => setTab('oop')} />
         <TabButton label="Results" active={tab === 'results'} onClick={() => setTab('results')} />
       </div>
@@ -409,7 +410,7 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
           a cross-day view. Live-day pills show a 🟢 dot. */}
       {days.length > 1 && (
         <div style={{ display: 'flex', gap: 4, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#666', fontWeight: 600, marginRight: 4 }}>Day:</span>
+          <span style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 600, marginRight: 4 }}>Day:</span>
           <DayChip label="All" active={day === null} onClick={() => setDay(null)} />
           {days.map((d) => {
             // Pill label carries both the ordinal (Day N) and the calendar
@@ -434,25 +435,25 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
 
       {/* Stats + freshness */}
       <div style={{ ...card, display: 'flex', gap: 24, alignItems: 'center', marginBottom: 12 }}>
-        <StatTile label={tab === 'oop' ? 'In OOP' : 'In Results'} value={tabStats.total} color="#111" />
+        <StatTile label={tab === 'oop' ? 'In OOP' : 'In Results'} value={tabStats.total} color="var(--text-1)" />
         {tab === 'oop' ? (
           <>
-            <StatTile label="On court" value={tabStats.onCourt} color="#166534" />
-            <StatTile label="Scheduled" value={tabStats.scheduled} color="#92400e" />
-            <StatTile label="Played" value={tabStats.played} color="#1e40af" />
+            <StatTile label="On court" value={tabStats.onCourt} color="var(--lime-text)" />
+            <StatTile label="Scheduled" value={tabStats.scheduled} color="var(--orange-text)" />
+            <StatTile label="Played" value={tabStats.played} color="var(--men)" />
           </>
         ) : (
-          <StatTile label="Played" value={tabStats.played} color="#1e40af" />
+          <StatTile label="Played" value={tabStats.played} color="var(--men)" />
         )}
         <StatTile
           label="Linked"
           value={`${tabStats.linked} (${linkedPct}%)`}
-          color={linkedPct === 100 ? '#166534' : linkedPct > 50 ? '#1e40af' : '#991b1b'}
+          color={linkedPct === 100 ? 'var(--lime-text)' : linkedPct > 50 ? 'var(--men)' : 'var(--live-text)'}
         />
         <StatTile
           label="Unlinked"
           value={tabStats.unlinked}
-          color={tabStats.unlinked === 0 ? '#999' : '#991b1b'}
+          color={tabStats.unlinked === 0 ? 'var(--text-3)' : 'var(--live-text)'}
         />
         {/* Pipeline source breakdown — visible during the simplified-
             pipeline soak. % is computed against `linked` (not `total`)
@@ -468,15 +469,15 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
           }
           color={
             tabStats.linked === 0
-              ? '#999'
+              ? 'var(--text-3)'
               : newPipelinePct === 100
-              ? '#166534'
+              ? 'var(--lime-text)'
               : newPipelinePct > 0
-              ? '#1e40af'
-              : '#999'
+              ? 'var(--men)'
+              : 'var(--text-3)'
           }
         />
-        <div style={{ marginLeft: 'auto', fontSize: 11, color: '#666', textAlign: 'right' }}>
+        <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-3)', textAlign: 'right' }}>
           <div>OOP: {formatAgo(data.capturedAt.oop)}</div>
           <div>Results: {formatAgo(data.capturedAt.results)}</div>
         </div>
@@ -522,7 +523,7 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
       <div style={{ ...card, padding: 0, overflow: 'auto' }}>
         <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '2px solid #e5e7eb', background: '#f9fafb' }}>
+            <tr style={{ borderBottom: '2px solid var(--border-card)', background: 'var(--bg-card-2)' }}>
               <th style={th}>Day</th>
               <th style={th}>Court</th>
               <th style={th}>Cat</th>
@@ -538,28 +539,28 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
           <tbody>
             {filtered.map((m, i) => {
               const winnerStyle = (team: 1 | 2): React.CSSProperties =>
-                m.winnerTeam === team ? { fontWeight: 700, color: '#111' } : {}
+                m.winnerTeam === team ? { fontWeight: 700, color: 'var(--text-1)' } : {}
               return (
                 <tr
                   key={(m.matchWidgetId ?? '') + ':' + i}
                   style={{
-                    borderBottom: '1px solid #f3f4f6',
-                    background: i % 2 === 0 ? '#fff' : '#f9fafb',
+                    borderBottom: '1px solid var(--border-inner)',
+                    background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-2)',
                   }}
                 >
-                  <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: '#666' }}>
+                  <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: 'var(--text-3)' }}>
                     {m.dayNumber ?? '—'}
                   </td>
                   <td style={{ ...td, fontSize: 11 }}>
                     <div>{m.court ?? '—'}</div>
                     {m.scheduledLabel && (
-                      <div style={{ fontSize: 10, color: '#888' }}>{m.scheduledLabel}</div>
+                      <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{m.scheduledLabel}</div>
                     )}
                   </td>
-                  <td style={{ ...td, fontSize: 11, textTransform: 'capitalize', color: '#555' }}>
+                  <td style={{ ...td, fontSize: 11, textTransform: 'capitalize', color: 'var(--text-2)' }}>
                     {m.category}
                   </td>
-                  <td style={{ ...td, fontSize: 11, color: '#555' }}>{m.roundLabel ?? '—'}</td>
+                  <td style={{ ...td, fontSize: 11, color: 'var(--text-2)' }}>{m.roundLabel ?? '—'}</td>
                   <td style={{ ...td, ...winnerStyle(1) }}>
                     <TeamCell
                       p1={m.team1Player1}
@@ -606,7 +607,7 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
 function StatTile({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
     <div>
-      <div style={{ fontSize: 10, color: '#999', fontWeight: 600, textTransform: 'uppercase' }}>
+      <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase' }}>
         {label}
       </div>
       <div style={{ fontSize: 16, fontWeight: 700, color }}>{value}</div>
@@ -616,7 +617,7 @@ function StatTile({ label, value, color }: { label: string; value: string | numb
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   // Tab underline indicator — same visual language as the main ops tabs
-  // (see OpsClient.tsx). Active tab gets a blue underline + emphasized
+  // (see OpsClient.tsx). Active tab gets a lime underline + emphasized
   // text; inactive tabs stay neutral.
   return (
     <button
@@ -627,10 +628,10 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
         fontWeight: 700,
         border: 'none',
         background: 'transparent',
-        color: active ? '#1e40af' : '#555',
+        color: active ? 'var(--lime-text)' : 'var(--text-2)',
         cursor: 'pointer',
         borderBottom: '2px solid',
-        borderColor: active ? '#3b82f6' : 'transparent',
+        borderColor: active ? 'var(--lime)' : 'transparent',
         marginBottom: -2, // align underline with the parent's border-bottom
       }}
     >
@@ -663,10 +664,10 @@ function DayChip({
         fontSize: 11,
         fontWeight: 600,
         border: '1px solid',
-        borderColor: active ? '#3b82f6' : '#d1d5db',
-        background: active ? '#eff6ff' : '#fff',
-        color: active ? '#1e40af' : '#555',
-        borderRadius: 999,
+        borderColor: active ? 'var(--lime-border)' : 'var(--border-card)',
+        background: active ? 'var(--lime-bg)' : 'var(--bg-card)',
+        color: active ? 'var(--lime-text)' : 'var(--text-2)',
+        borderRadius: 'var(--r-full)',
         cursor: 'pointer',
         display: 'inline-flex',
         alignItems: 'center',
@@ -681,8 +682,8 @@ function DayChip({
             width: 6,
             height: 6,
             borderRadius: '50%',
-            background: '#16a34a',
-            boxShadow: '0 0 0 2px rgba(22,163,74,0.2)',
+            background: 'var(--lime)',
+            boxShadow: '0 0 0 2px var(--lime-bg-2)',
           }}
         />
       )}
@@ -693,10 +694,8 @@ function DayChip({
             fontSize: 10,
             fontWeight: 500,
             // Same hue family as the label but a touch dimmer so the
-            // ordinal still leads visually. On the active pill we pull
-            // the color slightly lighter (same opacity step) to maintain
-            // contrast without competing with the label.
-            color: active ? '#3b82f6' : '#9ca3af',
+            // ordinal still leads visually.
+            color: active ? 'var(--lime)' : 'var(--text-3)',
           }}
         >
           · {subLabel}
@@ -715,10 +714,10 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
         fontSize: 11,
         fontWeight: 600,
         border: '1px solid',
-        borderColor: active ? '#3b82f6' : '#d1d5db',
-        background: active ? '#eff6ff' : '#fff',
-        color: active ? '#1e40af' : '#555',
-        borderRadius: 4,
+        borderColor: active ? 'var(--lime-border)' : 'var(--border-card)',
+        background: active ? 'var(--lime-bg)' : 'var(--bg-card)',
+        color: active ? 'var(--lime-text)' : 'var(--text-2)',
+        borderRadius: 'var(--r-sm)',
         cursor: 'pointer',
         textTransform: 'capitalize',
       }}
@@ -729,32 +728,13 @@ function FilterChip({ label, active, onClick }: { label: string; active: boolean
 }
 
 function StatusPill({ status }: { status: string | null }) {
-  if (!status) return <span style={{ fontSize: 10, color: '#999' }}>—</span>
-  const map: Record<string, { bg: string; color: string }> = {
-    finished: { bg: '#f3f4f6', color: '#4b5563' },
-    retired: { bg: '#fef3c7', color: '#92400e' },
-    walkover: { bg: '#fef3c7', color: '#92400e' },
-    live: { bg: '#dcfce7', color: '#166534' },
-    on_court: { bg: '#dbeafe', color: '#1e40af' },
-    scheduled: { bg: '#f3f4f6', color: '#6b7280' },
-  }
-  const s = map[status] ?? { bg: '#f3f4f6', color: '#333' }
-  return (
-    <span
-      style={{
-        fontSize: 9,
-        fontWeight: 700,
-        padding: '2px 6px',
-        borderRadius: 3,
-        background: s.bg,
-        color: s.color,
-        textTransform: 'uppercase',
-        letterSpacing: '0.04em',
-      }}
-    >
-      {status.replace('_', ' ')}
-    </span>
-  )
+  if (!status) return <span style={{ fontSize: 10, color: 'var(--text-3)' }}>—</span>
+  const tone: 'lime' | 'warn' | 'men' | 'neutral' =
+    status === 'live' ? 'lime'
+    : status === 'on_court' ? 'men'
+    : status === 'retired' || status === 'walkover' ? 'warn'
+    : 'neutral'
+  return <Pill tone={tone}>{status.replace('_', ' ')}</Pill>
 }
 
 /**
@@ -788,32 +768,13 @@ function PipelineBadge({
   // Unlinked — neither pipeline has wired this up.
   if (!linkedMatchId) {
     return (
-      <span
-        title="No public.matches row exists for this padelgod snapshot yet"
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          padding: '2px 6px',
-          borderRadius: 3,
-          background: '#fef3c7',
-          color: '#92400e',
-        }}
-      >
-        UNLINKED
+      <span title="No public.matches row exists for this padelgod snapshot yet">
+        <Pill tone="warn">UNLINKED</Pill>
       </span>
     )
   }
 
   const isNew = linkedComposite !== null
-  const style: React.CSSProperties = {
-    fontSize: 10,
-    fontWeight: 700,
-    padding: '2px 6px',
-    borderRadius: 3,
-    background: isNew ? '#dcfce7' : '#ffedd5',
-    color: isNew ? '#166534' : '#9a3412',
-    textDecoration: 'none',
-  }
 
   return (
     <a
@@ -825,18 +786,18 @@ function PipelineBadge({
           ? `Simplified pipeline (composite: ${linkedComposite})`
           : 'Legacy reconciler row — no widget_id_composite'
       }
-      style={style}
+      style={{ textDecoration: 'none' }}
     >
-      {isNew ? 'NEW →' : 'LEGACY →'}
+      <Pill tone={isNew ? 'lime' : 'warn'}>{isNew ? 'NEW →' : 'LEGACY →'}</Pill>
     </a>
   )
 }
 
 function SourcePill({ source }: { source: 'results' | 'oop' | 'both' }) {
-  const map: Record<'results' | 'oop' | 'both', { bg: string; color: string; label: string }> = {
-    results: { bg: '#dbeafe', color: '#1e40af', label: 'R' },
-    oop: { bg: '#fef3c7', color: '#92400e', label: 'O' },
-    both: { bg: '#dcfce7', color: '#166534', label: 'R+O' },
+  const map: Record<'results' | 'oop' | 'both', { tone: 'lime' | 'warn' | 'men'; label: string }> = {
+    results: { tone: 'men', label: 'R' },
+    oop: { tone: 'warn', label: 'O' },
+    both: { tone: 'lime', label: 'R+O' },
   }
   const s = map[source]
   return (
@@ -848,16 +809,8 @@ function SourcePill({ source }: { source: 'results' | 'oop' | 'both' }) {
             ? 'OOP (scheduled) snapshot only'
             : 'Seen in both results and OOP'
       }
-      style={{
-        fontSize: 9,
-        fontWeight: 700,
-        padding: '2px 6px',
-        borderRadius: 3,
-        background: s.bg,
-        color: s.color,
-      }}
     >
-      {s.label}
+      <Pill tone={s.tone}>{s.label}</Pill>
     </span>
   )
 }

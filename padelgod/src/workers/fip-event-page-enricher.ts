@@ -16,6 +16,7 @@ import {
   parseOverviewFields,
   parsePrizeBreakdown,
   parseFactsheetUrl,
+  isBreakdownInflated,
 } from '../parsers/fip-event-page-detail.js';
 
 export interface FipEventPageEnricherDeps {
@@ -95,6 +96,15 @@ export function needsEnrichment(row: TournamentRow): boolean {
   if (row.registration_status == null) return true;
   if (row.prize_money_fip == null) return true;
   if (row.prize_breakdown == null) return true;  // PR 3 — also retry when breakdown is missing
+
+  // Self-heal: a stored breakdown left ×100-inflated by the legacy
+  // comma-strip parser must be re-fetched even for past events, so the
+  // fixed parser overwrites it. The write path force-overwrites an
+  // inflated breakdown (see below) so this can't loop.
+  if (isBreakdownInflated(
+    row.prize_breakdown as Parameters<typeof isBreakdownInflated>[0],
+    row.level,
+  )) return true;
 
   const endsAtMs = row.ends_at ? Date.parse(row.ends_at) : null;
   const isCurrentOrFuture =
@@ -313,6 +323,18 @@ export async function runFipEventPageEnricher(
       writeFromFip('draw_size_qd', t.draw_size_qd, drawSize.qualifyingDraw)
       writeFromFip('prize_money_fip', t.prize_money_fip, drawSize.prizeMoney)
       writeFromFip('prize_breakdown', t.prize_breakdown, prizeBreakdown)
+      // Force-overwrite a legacy ×100-inflated breakdown even on
+      // padelapi-survivor rows (writeFromFip only gap-fills those). The
+      // freshly-parsed value is correct, so replacing the corruption is safe.
+      if (
+        prizeBreakdown &&
+        isBreakdownInflated(
+          t.prize_breakdown as Parameters<typeof isBreakdownInflated>[0],
+          t.level,
+        )
+      ) {
+        patch.prize_breakdown = prizeBreakdown
+      }
       writeFromFip('registration_status', t.registration_status, overview.registrationStatus)
 
       // Factsheet PDF: detect link from event page. When the URL CHANGES,

@@ -14,6 +14,7 @@ export interface ProfileHeaderPlayer {
   ranking: number | null
   birthdate: string | null
   avatar_url: string | null
+  photo_url: string | null
   public_id: string | null
   slug: string | null
 }
@@ -64,16 +65,29 @@ export default function ProfileHeader({ player }: { player: ProfileHeaderPlayer 
         <img
           src={player.avatar_url}
           alt={player.name}
-          className="w-24 h-24 rounded-full object-cover bg-gray-100 border border-gray-200"
+          className="w-24 h-24 rounded-full object-cover border"
+          style={{
+            background: 'var(--bg-hover)',
+            borderColor: 'var(--border-card)',
+          }}
         />
       ) : (
-        <div className="w-24 h-24 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-2xl font-bold text-gray-400">
+        <div
+          className="w-24 h-24 rounded-full border flex items-center justify-center text-2xl font-bold"
+          style={{
+            background: 'var(--bg-hover)',
+            borderColor: 'var(--border-card)',
+            color: 'var(--text-3)',
+          }}
+        >
           {initials(displayName)}
         </div>
       )}
       <div className="flex-1 min-w-0">
-        <div className="text-2xl font-bold text-gray-900">{displayName}</div>
-        <div className="text-sm text-gray-500 mt-1">
+        <div className="text-2xl font-bold" style={{ color: 'var(--text-1)' }}>
+          {displayName}
+        </div>
+        <div className="text-sm mt-1" style={{ color: 'var(--text-3)' }}>
           {player.country && <>{countryName(player.country)}</>}
           {player.category && (
             <> · {player.category === 'men' ? 'Men' : 'Women'}</>
@@ -81,12 +95,12 @@ export default function ProfileHeader({ player }: { player: ProfileHeaderPlayer 
           {player.ranking != null && <> · #{player.ranking}</>}
         </div>
         {player.birthdate && (
-          <div className="text-xs text-gray-400 mt-1">
+          <div className="text-xs mt-1" style={{ color: 'var(--text-3)' }}>
             Born {player.birthdate} {ageLabel(player.birthdate)}
           </div>
         )}
         {player.public_id && (
-          <div className="text-xs text-gray-400 mt-2">
+          <div className="text-xs mt-2" style={{ color: 'var(--text-3)' }}>
             public_id: <span className="font-mono">{player.public_id}</span>
           </div>
         )}
@@ -96,19 +110,46 @@ export default function ProfileHeader({ player }: { player: ProfileHeaderPlayer 
               href={publicHref}
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 text-xs border border-gray-200 rounded bg-white text-gray-900 hover:bg-gray-50 cursor-pointer"
+              className="px-3 py-1.5 text-xs border rounded cursor-pointer"
+              style={{
+                borderColor: 'var(--border-card)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-1)',
+              }}
             >
               Open public page ↗
             </a>
           )}
           <Link
             href={`/players?drawer=${player.id}`}
-            className="px-3 py-1.5 text-xs border border-gray-200 rounded bg-white text-gray-900 hover:bg-gray-50 cursor-pointer"
+            className="px-3 py-1.5 text-xs border rounded cursor-pointer"
+            style={{
+              borderColor: 'var(--border-card)',
+              background: 'var(--bg-card)',
+              color: 'var(--text-1)',
+            }}
           >
             Open in drawer
           </Link>
         </div>
       </div>
+      {player.photo_url && (
+        <div className="flex-none">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={player.photo_url}
+            alt={`${player.name} photo`}
+            style={{
+              width: 150,
+              height: 188,
+              borderRadius: 12,
+              objectFit: 'cover',
+              border: '1px solid var(--border-card)',
+              background: 'var(--bg-hover)',
+            }}
+          />
+        </div>
+      )}
     </div>
   )
 }
