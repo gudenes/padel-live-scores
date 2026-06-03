@@ -33,6 +33,7 @@ const GROUPS: Group[] = [
     { href: '/ads', label: 'Ad Banners', icon: 'tag' },
   ]},
   { label: 'Content', items: [
+    { href: '/announcements', label: 'Announcements', icon: 'bell' },
     { href: '/news', label: 'News', icon: 'doc' },
     { href: '/news-sources', label: 'News Sources', icon: 'list' },
     { href: '/highlights', label: 'Highlights', icon: 'film' },
