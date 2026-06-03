@@ -285,8 +285,13 @@ export default function PlayerDrawer({
       <div
         ref={drawerRef}
         style={{
+          // Start below the global header (z-index 120). The header is the
+          // app's top-most chrome — the ⌘K palette sits under it too — so the
+          // drawer would otherwise slide its top (avatar + nav arrows) behind
+          // the search bar. Offsetting by --gh keeps the header usable and the
+          // drawer fully visible.
           position: 'fixed',
-          top: 0,
+          top: 'var(--gh)',
           right: 0,
           bottom: 0,
           width: 420,

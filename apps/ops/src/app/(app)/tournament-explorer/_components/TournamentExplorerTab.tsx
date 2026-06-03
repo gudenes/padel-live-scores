@@ -16,6 +16,7 @@
 // operator-only tool.
 
 import React, { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { PageHeader, KpiStrip, Kpi, Button } from '@/components/ui'
 import PadelgodEntryListTab from './PadelgodEntryListTab'
 import TournamentMatchesSubtab from './TournamentMatchesSubtab'
@@ -202,6 +203,29 @@ export default function TournamentExplorerTab() {
   const [selectedId, setSelectedId] = useState<string>('')
   const [subTab, setSubTab] = useState<SubTab>('entryList')
 
+  // Deep-link: the ⌘K command palette links tournaments to
+  // /tournament-explorer?tournament=<id>. React to that param so a search
+  // result opens the drill-down — both on fresh mount and when re-selecting
+  // a different tournament while already on this page (same-route push, so
+  // no remount; a one-shot read would miss it). We stash the id in
+  // `deepLinkId` so the fetch below can pass it as ?id=<id> (loading the row
+  // even if it's outside the date window), then clear the param from the URL
+  // so it doesn't re-fire on unrelated re-renders.
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [deepLinkId, setDeepLinkId] = useState<string | null>(null)
+  useEffect(() => {
+    const id = searchParams.get('tournament')
+    if (!id) return
+    // Consuming the URL param is a legitimate external→React sync, which is
+    // what effects are for; the set-state-in-effect rule can't tell.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setDeepLinkId(id)
+    setSelectedId(id)
+    /* eslint-enable react-hooks/set-state-in-effect */
+    router.replace('/tournament-explorer')
+  }, [searchParams, router])
+
   // ── View mode (List / Calendar) ──
   // Default to list — operators reach for the table first when auditing
   // data quality. Calendar is the "what's coming up?" lens.
@@ -229,6 +253,9 @@ export default function TournamentExplorerTab() {
     if (selectedLevels.size > 0) {
       params.set('level', Array.from(selectedLevels).join(','))
     }
+    // Keep the deep-linked tournament loadable even when filters would
+    // otherwise exclude it (outside the date window, different level).
+    if (deepLinkId) params.set('id', deepLinkId)
 
     fetch(`/api/internal/tournament-explorer?${params.toString()}`)
       .then(r => r.json())
@@ -249,7 +276,7 @@ export default function TournamentExplorerTab() {
       })
 
     return () => { cancelled = true }
-  }, [fromDate, toDate, selectedLevels, reloadKey])
+  }, [fromDate, toDate, selectedLevels, reloadKey, deepLinkId])
 
   const selected = useMemo(
     () => tournaments.find(t => t.id === selectedId) ?? null,
