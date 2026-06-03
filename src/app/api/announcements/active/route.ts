@@ -17,7 +17,7 @@ export async function GET() {
     // Don't remove it. (The RLS policy only guards direct anon-key reads.)
     const { data } = await supabase
       .from('site_announcements')
-      .select('id, message, type, active, starts_at, expires_at, updated_at')
+      .select('id, title, message, type, active, starts_at, expires_at, updated_at')
       .eq('active', true)
 
     const announcement = selectActiveAnnouncement(

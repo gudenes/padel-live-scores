@@ -9,8 +9,9 @@ import { serviceClient } from '@/lib/supabase'
 const ALLOWED_TYPES = ['info', 'warning', 'critical'] as const
 type AnnouncementType = (typeof ALLOWED_TYPES)[number]
 
-// Mirror of the cap in ../route.ts — keep banner copy to one short line.
+// Mirror of the caps in ../route.ts.
 const MAX_MESSAGE_LEN = 280
+const MAX_TITLE_LEN = 60
 
 interface Ctx {
   params: Promise<{ id: string }>
@@ -42,6 +43,7 @@ export async function PUT(req: Request, { params }: Ctx) {
   const { id } = await params
 
   let body: {
+    title?: string | null
     message?: string
     type?: string
     active?: boolean
@@ -60,6 +62,10 @@ export async function PUT(req: Request, { params }: Ctx) {
   if (body.message.trim().length > MAX_MESSAGE_LEN) {
     return NextResponse.json({ error: `message must be ${MAX_MESSAGE_LEN} characters or fewer` }, { status: 400 })
   }
+  const title = typeof body.title === 'string' ? body.title.trim() : ''
+  if (title.length > MAX_TITLE_LEN) {
+    return NextResponse.json({ error: `title must be ${MAX_TITLE_LEN} characters or fewer` }, { status: 400 })
+  }
   if (!ALLOWED_TYPES.includes(body.type as AnnouncementType)) {
     return NextResponse.json(
       { error: `type must be one of ${ALLOWED_TYPES.join(', ')}` },
@@ -71,6 +77,7 @@ export async function PUT(req: Request, { params }: Ctx) {
   const { data, error } = await supabase
     .from('site_announcements')
     .update({
+      title: title || null,
       message: body.message.trim(),
       type: body.type,
       active: body.active === true,

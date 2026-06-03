@@ -9,6 +9,7 @@ import {
 
 const base: Announcement = {
   id: 'a1',
+  title: null,
   message: 'Matches suspended',
   type: 'warning',
   active: true,

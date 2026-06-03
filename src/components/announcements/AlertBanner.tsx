@@ -7,11 +7,20 @@ import { dismissalKey, isDismissed, type AnnouncementType } from '@/lib/announce
 
 const STORAGE_KEY = 'dismissed_announcement'
 
-// Severity → colors. Matches the approved mockup (blue / amber / red).
-const STYLES: Record<AnnouncementType, { bg: string; fg: string; border: string; icon: string }> = {
-  info: { bg: '#10202e', fg: '#bfe2ff', border: '#1d3a52', icon: 'ⓘ' },
-  warning: { bg: '#2a2210', fg: '#ffe7b0', border: '#4a3a14', icon: '⚠' },
-  critical: { bg: '#2c1213', fg: '#ffd2d2', border: '#5a1f22', icon: '⛔' },
+// Per-severity palette for the "refined" treatment: a left accent bar + an
+// icon chip + tinted background, keyed to blue / amber / red.
+interface Style {
+  accent: string // left bar, icon, title color
+  bg: string // tinted surface
+  text: string // message color
+  title: string // title lead-in color
+  chip: string // icon chip background
+  icon: string
+}
+const STYLES: Record<AnnouncementType, Style> = {
+  info: { accent: '#5cb3ff', bg: '#15212e', text: '#d6ecff', title: '#8fd0ff', chip: 'rgba(92,179,255,0.16)', icon: 'ⓘ' },
+  warning: { accent: '#f5b133', bg: '#241d0d', text: '#f3e6c8', title: '#f5b133', chip: 'rgba(245,177,51,0.16)', icon: '⚠' },
+  critical: { accent: '#ff5c5c', bg: '#2a1314', text: '#ffd9d9', title: '#ff8585', chip: 'rgba(255,92,92,0.18)', icon: '⛔' },
 }
 
 /**
@@ -19,6 +28,10 @@ const STYLES: Record<AnnouncementType, { bg: string; fg: string; border: string;
  * the app (above the page's sticky header), so it pushes content down and
  * scrolls away on scroll rather than fighting the header for top:0. Dismissal
  * is keyed on id:updated_at — editing the copy re-shows it.
+ *
+ * No safe-area top padding: on this app's devices the OS status bar is opaque
+ * and sits above the webview, so an env(safe-area-inset-top) pad just rendered
+ * as an empty colored band. The pinned page header below handles its own inset.
  */
 export function AlertBanner() {
   const announcement = useActiveAnnouncement()
@@ -39,6 +52,7 @@ export function AlertBanner() {
   if (isDismissed(announcement, dismissedValue)) return null
 
   const s = STYLES[announcement.type] ?? STYLES.info
+  const title = announcement.title?.trim()
 
   const dismiss = () => {
     const key = dismissalKey(announcement)
@@ -57,39 +71,69 @@ export function AlertBanner() {
         width: '100%',
         maxWidth: 500,
         margin: '0 auto',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
         background: s.bg,
-        color: s.fg,
-        borderBottom: `1px solid ${s.border}`,
+        borderLeft: `3px solid ${s.accent}`,
+        borderBottom: `1px solid ${s.accent}33`,
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '10px 12px',
-          fontSize: 13,
-          lineHeight: 1.35,
-          fontWeight: 500,
-        }}
-      >
-        <span aria-hidden style={{ flex: '0 0 auto' }}>{s.icon}</span>
-        <span style={{ flex: 1 }}>{announcement.message}</span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 11, padding: '12px 13px' }}>
+        <span
+          aria-hidden
+          style={{
+            flex: '0 0 auto',
+            width: 24,
+            height: 24,
+            marginTop: 1,
+            borderRadius: '50%',
+            background: s.chip,
+            color: s.accent,
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: 13,
+          }}
+        >
+          {s.icon}
+        </span>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {title && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                color: s.title,
+                marginBottom: 2,
+              }}
+            >
+              {title}
+            </div>
+          )}
+          <div style={{ fontSize: 13, lineHeight: 1.4, fontWeight: 500, color: s.text }}>
+            {announcement.message}
+          </div>
+        </div>
+
         <button
           type="button"
           onClick={dismiss}
           aria-label="Dismiss announcement"
           style={{
             flex: '0 0 auto',
-            background: 'none',
+            width: 24,
+            height: 24,
+            marginTop: 1,
+            borderRadius: 7,
+            display: 'grid',
+            placeItems: 'center',
+            background: 'rgba(255,255,255,0.05)',
             border: 'none',
-            color: 'inherit',
-            opacity: 0.7,
+            color: s.text,
+            opacity: 0.75,
             cursor: 'pointer',
-            fontSize: 15,
+            fontSize: 13,
             lineHeight: 1,
-            padding: '2px 4px',
           }}
         >
           ✕
