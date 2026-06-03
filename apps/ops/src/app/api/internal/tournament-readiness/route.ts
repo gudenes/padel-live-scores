@@ -123,28 +123,63 @@ export async function GET() {
     }
   }
 
-  // 4) entry/draw presence + snapshot freshness + streams presence.
-  const [drawsRes, streamsRes, entrySnapRes, drawSnapRes, oopSnapRes, resultsSnapRes] = await Promise.all([
-    supabase.from('tournament_draws').select('tournament_id').in('tournament_id', ids),
-    supabase.from('fip_court_streams').select('tournament_id').in('tournament_id', ids),
-    supabase.schema('padelgod').from('entry_list_snapshots').select('tournament_id, captured_at').in('tournament_id', ids).order('captured_at', { ascending: false }),
-    supabase.schema('padelgod').from('draw_snapshots').select('tournament_id, captured_at').in('tournament_id', ids).order('captured_at', { ascending: false }),
-    supabase.schema('padelgod').from('oop_snapshots').select('tournament_id, captured_at').in('tournament_id', ids).order('captured_at', { ascending: false }),
-    supabase.schema('padelgod').from('results_snapshots').select('tournament_id, captured_at').in('tournament_id', ids).order('captured_at', { ascending: false }),
-  ])
+  // 4) Presence + snapshot freshness. MUST chunk by tournament-id batches:
+  //    a single .in() over all in-scope ids, ordered by captured_at across
+  //    months of append-only snapshots, overflows PostgREST's 10k-row cap
+  //    and silently drops older tournaments (their latest snapshot never
+  //    appears → divergence never fires). Small batches keep each response
+  //    well under the cap; newest-first ordering then yields each
+  //    tournament's latest snapshot within its batch.
+  const CHUNK_T = 10
+  const idBatches: string[][] = []
+  for (let i = 0; i < ids.length; i += CHUNK_T) idBatches.push(ids.slice(i, i + CHUNK_T))
 
-  const setOf = (rows: Array<{ tournament_id: string }> | null) => new Set((rows ?? []).map(r => r.tournament_id))
-  const latest = (rows: Array<{ tournament_id: string; captured_at: string }> | null) => {
+  type SnapRow = { tournament_id: string; captured_at: string }
+  type IdRow = { tournament_id: string }
+
+  async function collect<T>(
+    run: (batch: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+    what: string,
+  ): Promise<T[]> {
+    const out: T[] = []
+    for (const b of idBatches) {
+      const { data, error } = await run(b)
+      if (error) throw new Error(`${what}: ${error.message}`)
+      if (data) out.push(...(data as T[]))
+    }
+    return out
+  }
+
+  let drawsRows: IdRow[], streamsRows: IdRow[]
+  let entrySnapRows: SnapRow[], drawSnapRows: SnapRow[], oopSnapRows: SnapRow[], resultsSnapRows: SnapRow[]
+  try {
+    [drawsRows, streamsRows, entrySnapRows, drawSnapRows, oopSnapRows, resultsSnapRows] = await Promise.all([
+      collect<IdRow>(b => supabase.from('tournament_draws').select('tournament_id').in('tournament_id', b), 'tournament_draws'),
+      collect<IdRow>(b => supabase.from('fip_court_streams').select('tournament_id').in('tournament_id', b), 'fip_court_streams'),
+      collect<SnapRow>(b => supabase.schema('padelgod').from('entry_list_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'entry_list_snapshots'),
+      collect<SnapRow>(b => supabase.schema('padelgod').from('draw_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'draw_snapshots'),
+      collect<SnapRow>(b => supabase.schema('padelgod').from('oop_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'oop_snapshots'),
+      collect<SnapRow>(b => supabase.schema('padelgod').from('results_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'results_snapshots'),
+    ])
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'snapshot read failed' }, { status: 500 })
+  }
+
+  const setOf = (rows: IdRow[]) => new Set(rows.map(r => r.tournament_id))
+  const latest = (rows: SnapRow[]) => {
     const m = new Map<string, string>()
-    for (const r of rows ?? []) if (!m.has(r.tournament_id)) m.set(r.tournament_id, r.captured_at)
+    for (const r of rows) {
+      const prev = m.get(r.tournament_id)
+      if (!prev || r.captured_at > prev) m.set(r.tournament_id, r.captured_at)
+    }
     return m
   }
-  const hasDraws = setOf(drawsRes.data as Array<{ tournament_id: string }> | null)
-  const hasStreams = setOf(streamsRes.data as Array<{ tournament_id: string }> | null)
-  const entrySnap = latest(entrySnapRes.data as Array<{ tournament_id: string; captured_at: string }> | null)
-  const drawSnap = latest(drawSnapRes.data as Array<{ tournament_id: string; captured_at: string }> | null)
-  const oopSnap = latest(oopSnapRes.data as Array<{ tournament_id: string; captured_at: string }> | null)
-  const resultsSnap = latest(resultsSnapRes.data as Array<{ tournament_id: string; captured_at: string }> | null)
+  const hasDraws = setOf(drawsRows)
+  const hasStreams = setOf(streamsRows)
+  const entrySnap = latest(entrySnapRows)
+  const drawSnap = latest(drawSnapRows)
+  const oopSnap = latest(oopSnapRows)
+  const resultsSnap = latest(resultsSnapRows)
 
   // 5) Build rollups and run the engine.
   const rows: ReadinessRow[] = tournaments.map(t => {
