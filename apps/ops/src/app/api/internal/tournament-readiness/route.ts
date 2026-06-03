@@ -33,7 +33,7 @@ function isFinalRound(round: string | null): boolean {
   return r === 'f' || r === 'final' || r === 'finals'
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth()
   if (!session?.user?.isOperator) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
@@ -42,12 +42,20 @@ export async function GET() {
   const supabase = serviceClient()
   const today = new Date().toISOString().slice(0, 10)
 
-  // 1) In-scope tournaments: 2026 window × main tiers.
-  const { data: tData, error: tErr } = await supabase
+  // Optional ?id=<uuid> scopes the result to one tournament (used by the
+  // per-row refresh button to re-check a single tournament after an
+  // on-demand padelgod fetch — far cheaper than recomputing all ~287).
+  const idParam = new URL(request.url).searchParams.get('id')?.trim() || null
+
+  // 1) In-scope tournaments: 2026 window × main tiers (or one by id).
+  let tQuery = supabase
     .from('tournaments')
     .select('id, name, level, starts_at, ends_at, registration_status')
     .in('level', IN_SCOPE_TIERS as unknown as string[])
-    .or(`and(starts_at.gte.${FROM},starts_at.lte.${TO}),and(ends_at.gte.${FROM},ends_at.lte.${TO})`)
+  tQuery = idParam
+    ? tQuery.eq('id', idParam)
+    : tQuery.or(`and(starts_at.gte.${FROM},starts_at.lte.${TO}),and(ends_at.gte.${FROM},ends_at.lte.${TO})`)
+  const { data: tData, error: tErr } = await tQuery
     .order('starts_at', { ascending: true, nullsFirst: false })
     .limit(1000)
   if (tErr) return NextResponse.json({ error: `tournaments: ${tErr.message}` }, { status: 500 })

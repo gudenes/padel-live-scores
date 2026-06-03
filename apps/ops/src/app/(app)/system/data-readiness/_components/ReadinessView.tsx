@@ -51,6 +51,10 @@ export default function ReadinessView() {
     return next
   })
 
+  // Replace a single row in place after a per-row refresh + re-check.
+  const onRowUpdate = (updated: ReadinessRow) =>
+    setRows(prev => (prev ? prev.map(r => (r.id === updated.id ? updated : r)) : prev))
+
   return (
     <div className="ui-page">
       <PageHeader
@@ -106,7 +110,7 @@ export default function ReadinessView() {
       {!error && rows !== null && filtered.length === 0 && <EmptyState title="No tournaments match" hint="Adjust the filters." />}
       {!error && rows !== null && filtered.length > 0 && (
         view === 'list'
-          ? <ReadinessList rows={filtered} groupBy={groupBy} />
+          ? <ReadinessList rows={filtered} groupBy={groupBy} onRowUpdate={onRowUpdate} />
           : <ReadinessCalendar rows={filtered} />
       )}
     </div>

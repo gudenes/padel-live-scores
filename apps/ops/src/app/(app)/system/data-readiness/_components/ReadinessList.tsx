@@ -4,6 +4,7 @@ import { Pill } from '@/components/ui'
 import { tierTag } from '@/lib/tier-colors'
 import type { ReadinessRow, GroupBy, Verdict } from './types'
 import { DimensionDots, DimensionBreakdown, DIM_LABELS, DIM_ORDER } from './DimensionMatrix'
+import RefreshRowButton from './RefreshRowButton'
 
 const TIER_GROUP_LABEL: Record<string, string> = {
   major:        'Premier · Major',
@@ -50,7 +51,7 @@ function fmtDate(iso: string | null): string {
   return `${Number(m[3])} ${months[Number(m[2]) - 1]}`
 }
 
-export default function ReadinessList({ rows, groupBy }: { rows: ReadinessRow[]; groupBy: GroupBy }) {
+export default function ReadinessList({ rows, groupBy, onRowUpdate }: { rows: ReadinessRow[]; groupBy: GroupBy; onRowUpdate: (row: ReadinessRow) => void }) {
   const [open, setOpen] = useState<Set<string>>(new Set())
   const toggle = (id: string) =>
     setOpen(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n })
@@ -103,7 +104,12 @@ export default function ReadinessList({ rows, groupBy }: { rows: ReadinessRow[];
                         <Pill tone={VERDICT_PILL[r.verdict].tone}>{VERDICT_PILL[r.verdict].label}</Pill>
                       </td>
                       <td colSpan={DIM_ORDER.length} style={{ ...td, textAlign: 'left' }}>
-                        <DimensionDots dimensions={r.dimensions} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <DimensionDots dimensions={r.dimensions} />
+                          <span style={{ marginLeft: 'auto' }}>
+                            <RefreshRowButton tournamentId={r.id} onRefreshed={onRowUpdate} />
+                          </span>
+                        </div>
                       </td>
                     </tr>
                     {open.has(r.id) && (
