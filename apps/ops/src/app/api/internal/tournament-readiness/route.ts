@@ -123,63 +123,45 @@ export async function GET() {
     }
   }
 
-  // 4) Presence + snapshot freshness. MUST chunk by tournament-id batches:
-  //    a single .in() over all in-scope ids, ordered by captured_at across
-  //    months of append-only snapshots, overflows PostgREST's 10k-row cap
-  //    and silently drops older tournaments (their latest snapshot never
-  //    appears → divergence never fires). Small batches keep each response
-  //    well under the cap; newest-first ordering then yields each
-  //    tournament's latest snapshot within its batch.
+  // 4) Presence flags. The engine treats every snapshot field as a presence
+  //    boolean (it never compares timestamps), and the response exposes no
+  //    snapshot times — so we select only tournament_id with NO ORDER BY.
+  //    An ORDER BY captured_at over the append-only snapshot tables times
+  //    out. We still chunk by small tournament-id batches so a single
+  //    response can't hit the 10k row cap and silently drop tournaments.
   const CHUNK_T = 10
   const idBatches: string[][] = []
   for (let i = 0; i < ids.length; i += CHUNK_T) idBatches.push(ids.slice(i, i + CHUNK_T))
 
-  type SnapRow = { tournament_id: string; captured_at: string }
   type IdRow = { tournament_id: string }
 
-  async function collect<T>(
-    run: (batch: string[]) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  async function collectIds(
+    run: (batch: string[]) => PromiseLike<{ data: IdRow[] | null; error: { message: string } | null }>,
     what: string,
-  ): Promise<T[]> {
-    const out: T[] = []
+  ): Promise<Set<string>> {
+    const set = new Set<string>()
     for (const b of idBatches) {
       const { data, error } = await run(b)
       if (error) throw new Error(`${what}: ${error.message}`)
-      if (data) out.push(...(data as T[]))
+      for (const r of data ?? []) set.add(r.tournament_id)
     }
-    return out
+    return set
   }
 
-  let drawsRows: IdRow[], streamsRows: IdRow[]
-  let entrySnapRows: SnapRow[], drawSnapRows: SnapRow[], oopSnapRows: SnapRow[], resultsSnapRows: SnapRow[]
+  let hasDraws: Set<string>, hasStreams: Set<string>
+  let entrySnapSet: Set<string>, drawSnapSet: Set<string>, oopSnapSet: Set<string>, resultsSnapSet: Set<string>
   try {
-    [drawsRows, streamsRows, entrySnapRows, drawSnapRows, oopSnapRows, resultsSnapRows] = await Promise.all([
-      collect<IdRow>(b => supabase.from('tournament_draws').select('tournament_id').in('tournament_id', b), 'tournament_draws'),
-      collect<IdRow>(b => supabase.from('fip_court_streams').select('tournament_id').in('tournament_id', b), 'fip_court_streams'),
-      collect<SnapRow>(b => supabase.schema('padelgod').from('entry_list_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'entry_list_snapshots'),
-      collect<SnapRow>(b => supabase.schema('padelgod').from('draw_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'draw_snapshots'),
-      collect<SnapRow>(b => supabase.schema('padelgod').from('oop_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'oop_snapshots'),
-      collect<SnapRow>(b => supabase.schema('padelgod').from('results_snapshots').select('tournament_id, captured_at').in('tournament_id', b).order('captured_at', { ascending: false }), 'results_snapshots'),
+    [hasDraws, hasStreams, entrySnapSet, drawSnapSet, oopSnapSet, resultsSnapSet] = await Promise.all([
+      collectIds(b => supabase.from('tournament_draws').select('tournament_id').in('tournament_id', b), 'tournament_draws'),
+      collectIds(b => supabase.from('fip_court_streams').select('tournament_id').in('tournament_id', b), 'fip_court_streams'),
+      collectIds(b => supabase.schema('padelgod').from('entry_list_snapshots').select('tournament_id').in('tournament_id', b), 'entry_list_snapshots'),
+      collectIds(b => supabase.schema('padelgod').from('draw_snapshots').select('tournament_id').in('tournament_id', b), 'draw_snapshots'),
+      collectIds(b => supabase.schema('padelgod').from('oop_snapshots').select('tournament_id').in('tournament_id', b), 'oop_snapshots'),
+      collectIds(b => supabase.schema('padelgod').from('results_snapshots').select('tournament_id').in('tournament_id', b), 'results_snapshots'),
     ])
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'snapshot read failed' }, { status: 500 })
   }
-
-  const setOf = (rows: IdRow[]) => new Set(rows.map(r => r.tournament_id))
-  const latest = (rows: SnapRow[]) => {
-    const m = new Map<string, string>()
-    for (const r of rows) {
-      const prev = m.get(r.tournament_id)
-      if (!prev || r.captured_at > prev) m.set(r.tournament_id, r.captured_at)
-    }
-    return m
-  }
-  const hasDraws = setOf(drawsRows)
-  const hasStreams = setOf(streamsRows)
-  const entrySnap = latest(entrySnapRows)
-  const drawSnap = latest(drawSnapRows)
-  const oopSnap = latest(oopSnapRows)
-  const resultsSnap = latest(resultsSnapRows)
 
   // 5) Build rollups and run the engine.
   const rows: ReadinessRow[] = tournaments.map(t => {
@@ -199,11 +181,11 @@ export async function GET() {
       playerSlotsResolved: a.playerSlotsResolved,
       oopPopulated: a.oopPopulated,
       hasMatchStats: statsTournamentIds.has(t.id),
-      entryListResolved: hasDraws.has(t.id) || entrySnap.has(t.id),
+      entryListResolved: hasDraws.has(t.id) || entrySnapSet.has(t.id),
       hasStreams: hasStreams.has(t.id),
-      drawSnapshotAt: drawSnap.get(t.id) ?? null,
-      oopSnapshotAt: oopSnap.get(t.id) ?? null,
-      resultsSnapshotAt: resultsSnap.get(t.id) ?? null,
+      drawSnapshotAt: drawSnapSet.has(t.id) ? 'present' : null,
+      oopSnapshotAt: oopSnapSet.has(t.id) ? 'present' : null,
+      resultsSnapshotAt: resultsSnapSet.has(t.id) ? 'present' : null,
     }
     const result = computeReadiness(rollup, today)
     return { id: t.id, name: t.name ?? '(unnamed)', level: t.level, startsAt: t.starts_at, endsAt: t.ends_at, matchCount: a.matchCount, ...result }
