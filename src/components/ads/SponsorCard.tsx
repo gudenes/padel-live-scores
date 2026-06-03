@@ -2,38 +2,38 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import type { AdSlotId, Sponsor } from '@/lib/sponsors'
+import type { AdBanner, AdSlotId } from '@/lib/ad-banner-resolver'
 
-function trackImpression(slot: AdSlotId, sponsorId: string) {
+function trackImpression(slot: AdSlotId, bannerId: string) {
   void fetch('/api/ads/impression', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slot, sponsorId }),
+    body: JSON.stringify({ slot, sponsorId: bannerId }),
     keepalive: true,
   }).catch(() => {})
 }
 
-function trackClick(slot: AdSlotId, sponsorId: string, matchId?: string) {
+function trackClick(slot: AdSlotId, bannerId: string, matchId?: string) {
   void fetch('/api/ads/click', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ slot, sponsorId, matchId: matchId ?? null }),
+    body: JSON.stringify({ slot, sponsorId: bannerId, matchId: matchId ?? null }),
     keepalive: true,
   }).catch(() => {})
 }
 
 /**
- * Full-width brand banner. Renders the sponsor's complete creative image
- * (320x50, 6.4:1) edge-to-edge, like the banner ads in other live-score apps.
- * A small "Ad" disclosure tag sits in the corner. Click + impression tracked.
+ * Full-width brand banner. Renders the banner's complete creative image
+ * (320x50, 6.4:1) edge-to-edge, with a small "Ad" disclosure tag. Click +
+ * impression tracked, keyed by the banner id.
  */
 export function SponsorCard({
-  sponsor,
+  banner,
   slot,
   variant,
   matchId,
 }: {
-  sponsor: Sponsor
+  banner: AdBanner
   slot: AdSlotId
   variant: 'feed' | 'detail' | 'sticky'
   matchId?: string
@@ -44,19 +44,19 @@ export function SponsorCard({
   useEffect(() => {
     if (impressionFired.current) return
     impressionFired.current = true
-    trackImpression(slot, sponsor.id)
-  }, [slot, sponsor.id])
+    trackImpression(slot, banner.id)
+  }, [slot, banner.id])
 
   const isFeed = variant === 'feed'
 
   return (
     <a
-      href={sponsor.url}
+      href={banner.click_url}
       target="_blank"
       rel="sponsored noopener noreferrer"
-      onClick={() => trackClick(slot, sponsor.id, matchId)}
+      onClick={() => trackClick(slot, banner.id, matchId)}
       data-ad-slot={slot}
-      aria-label={`${sponsor.name} (sponsored)`}
+      aria-label={`${banner.name} (sponsored)`}
       style={{
         position: 'relative',
         display: 'block',
@@ -67,12 +67,10 @@ export function SponsorCard({
         lineHeight: 0,
       }}
     >
-      {/* Full creative — the image carries the whole brand. width:100% keeps it
-          edge-to-edge; height:auto preserves the supplied 320x50 ratio. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={sponsor.bannerImage}
-        alt={sponsor.name}
+        src={banner.image_url}
+        alt={banner.name}
         style={{
           display: 'block',
           width: '100%',

@@ -1,34 +1,28 @@
 // src/components/ads/AdSlot.tsx
 'use client'
 
-import { getActiveSponsor, type AdSlotId } from '@/lib/sponsors'
+import type { AdBanner, AdSlotId } from '@/lib/ad-banner-resolver'
 import { SponsorCard } from './SponsorCard'
 import { NetworkAdSlot } from './NetworkAdSlot'
 
 /**
- * Placeholder ad slot. Resolves the active direct sponsor for `slot`; if one
- * exists it renders the SponsorCard creative, otherwise it falls through to
- * the (currently stubbed) NetworkAdSlot seam for AdSense/AdMob.
+ * Renders a resolved banner (direct sponsor) or falls through to the stubbed
+ * NetworkAdSlot seam. Resolution (country + weighted rotation) happens upstream
+ * in the caller via pickBanner().
  */
 export function AdSlot({
   slot,
   variant,
+  banner,
   context,
 }: {
   slot: AdSlotId
   variant: 'feed' | 'detail' | 'sticky'
-  context?: { matchId?: string; country?: string | null }
+  banner: AdBanner | null
+  context?: { matchId?: string }
 }) {
-  const sponsor = getActiveSponsor(slot, context?.country)
-  if (sponsor) {
-    return (
-      <SponsorCard
-        sponsor={sponsor}
-        slot={slot}
-        variant={variant}
-        matchId={context?.matchId}
-      />
-    )
+  if (banner) {
+    return <SponsorCard banner={banner} slot={slot} variant={variant} matchId={context?.matchId} />
   }
   return <NetworkAdSlot slot={slot} variant={variant} />
 }

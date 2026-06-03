@@ -1,7 +1,7 @@
 // src/components/ads/NetworkAdSlot.tsx
 'use client'
 
-import type { AdSlotId } from '@/lib/sponsors'
+import type { AdSlotId } from '@/lib/ad-banner-resolver'
 
 /**
  * Programmatic-network fill seam. Rendered by AdSlot when no direct sponsor is

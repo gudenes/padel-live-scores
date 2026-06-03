@@ -3,7 +3,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from '@/i18n/navigation'
-import { getActiveSponsor } from '@/lib/sponsors'
+import { pickBanner } from '@/lib/ad-banner-resolver'
+import { useActiveBanner } from '@/hooks/useActiveBanner'
 import { useGeoCountry } from '@/hooks/useGeoCountry'
 import { useConsent } from '@/hooks/useConsent'
 import { AdSlot } from './AdSlot'
@@ -27,7 +28,8 @@ export function StickyAdBanner() {
   const country = useGeoCountry()
   const pathname = usePathname()
   const { hasDecided } = useConsent()
-  const sponsor = country ? getActiveSponsor('sticky-bottom', country) : null
+  const active = useActiveBanner('sticky-bottom')
+  const banner = active ? pickBanner(active.banners, country) : null
   // ?geo=XX is a manual testing override; in that mode we also skip the
   // consent gate so the banner can be previewed on a device without going
   // through the cookie flow.
@@ -38,7 +40,7 @@ export function StickyAdBanner() {
   // consent prompt: keeps the consent UI unobstructed and avoids firing an
   // ad impression before consent (matters for EU/Spain visitors).
   const visible =
-    !!sponsor && isAdRoute(pathname) && (hasDecided || testingGeo)
+    !!banner && isAdRoute(pathname) && (hasDecided || testingGeo)
 
   const ref = useRef<HTMLDivElement>(null)
   const [navHeight, setNavHeight] = useState(0)
@@ -107,7 +109,7 @@ export function StickyAdBanner() {
         zIndex: 199,
       }}
     >
-      <AdSlot slot="sticky-bottom" variant="sticky" context={{ country }} />
+      <AdSlot slot="sticky-bottom" variant="sticky" banner={banner} />
     </div>
   )
 }
