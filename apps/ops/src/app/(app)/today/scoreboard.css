@@ -615,3 +615,17 @@
   0% { background: var(--lime-bg-2); }
   100% { background: transparent; }
 }
+
+/* ===== TOURNAMENT OUTLOOKS ===== */
+/* The outlooks <Section> streams in below the scoreboard. Give it breathing room
+   from the 2-col grid above; the Section primitive supplies its own chrome so we
+   only add spacing here. */
+.sb-page > .ui-section { margin-top: 20px; }
+
+/* Suspense fallback shown while getOngoingTournamentOutlooks() resolves. */
+.sb-outlooks-loading {
+  margin-top: 20px;
+  padding: 16px 0;
+  font-size: 13px;
+  color: var(--text-3);
+}
