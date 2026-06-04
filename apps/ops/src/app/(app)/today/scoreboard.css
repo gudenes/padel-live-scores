@@ -147,16 +147,26 @@
 }
 
 /* ===== MATCH cell (two stacked pairs) ===== */
+.sb-match { max-width: 240px; }
 .sb-match .sb-pp {
   display: flex;
   align-items: center;
   gap: 8px;
   font-weight: 500;
-  height: 21px;
+  min-height: 21px;
+  line-height: 21px;
   color: var(--text-2);
 }
+.sb-match .sb-pp + .sb-pp { margin-top: 2px; }
 .sb-match .sb-pp.sb-lead { color: var(--text-1); font-weight: 600; }
 .sb-match .sb-pp.sb-trail { color: var(--text-3); }
+.sb-pp-name {
+  min-width: 0;
+  flex: 0 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .sb-srv {
   width: 6px;
   height: 6px;

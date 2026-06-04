@@ -144,12 +144,12 @@ export function MatchRow({ match, selected, onSelect }: { match: Match; selected
       <td className="sb-match">
         <div className={ppClass(fav1, match.pair1.serving)}>
           <span className="sb-srv" />
-          {match.pair1.name}
+          <span className="sb-pp-name">{match.pair1.name}</span>
           {genderTag(match.pair1.gender)}
         </div>
         <div className={ppClass(!fav1, match.pair2.serving)}>
           <span className="sb-srv" />
-          {match.pair2.name}
+          <span className="sb-pp-name">{match.pair2.name}</span>
         </div>
       </td>
       <td className="sb-tour">

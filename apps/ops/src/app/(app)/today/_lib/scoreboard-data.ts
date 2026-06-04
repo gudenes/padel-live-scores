@@ -39,6 +39,14 @@ export function displayName(name: string | null | undefined): string {
 const pairName = (a: string | null, b: string | null) =>
   [displayName(a), displayName(b)].filter((x) => x !== '—').join(' / ') || 'TBD'
 
+// Raw `matches.status` values that mean a match is NOT genuinely upcoming —
+// either already in play or in a terminal state. Everything else (notably
+// 'scheduled', plus any null/unknown pre-start value) counts as upcoming.
+const NON_UPCOMING = new Set(['live', 'on_court', 'break', 'ended', 'finished', 'retired', 'walkover'])
+export function isUpcomingStatus(status: string | null | undefined): boolean {
+  return !NON_UPCOMING.has((status ?? '').toLowerCase())
+}
+
 const statusOf = (s: string): MatchStatus =>
   s === 'break' ? 'break' : s === 'live' || s === 'on_court' ? 'live' : 'scheduled'
 
@@ -175,6 +183,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
     const mm = r.match as unknown as Record<string, string | null> & { id: string; status: string; category: string; court: string | null; round_canonical: string | null; round: string | null; scheduled_at: string; tournament?: { name: string | null } | { name: string | null }[] | null }
     if (liveSet.has(mm.id)) continue
     const nm = (id: string | null) => (id ? displayName(nameById.get(id) ?? null) : 'TBD')
+    if (!isUpcomingStatus(mm.status)) continue
     const tourney = Array.isArray(mm.tournament) ? mm.tournament[0] : mm.tournament
     const pr = r.prediction as { pair1_prob: number; pair2_prob: number; pair1_decimal_odds: number; pair2_decimal_odds: number } | null
     scheduled.push({

@@ -1,6 +1,6 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.test.ts
 import { describe, it, expect } from 'vitest'
-import { shortName, displayName, mapLiveRowToMatch } from './scoreboard-data'
+import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus } from './scoreboard-data'
 
 describe('shortName', () => {
   it('returns the last token', () => {
@@ -68,5 +68,18 @@ describe('displayName', () => {
     expect(displayName('Navarro')).toBe('Navarro')
     expect(displayName(null)).toBe('—')
     expect(displayName('')).toBe('—')
+  })
+})
+
+describe('isUpcomingStatus', () => {
+  it('true for scheduled / null / unknown pre-start', () => {
+    expect(isUpcomingStatus('scheduled')).toBe(true)
+    expect(isUpcomingStatus(null)).toBe(true)
+    expect(isUpcomingStatus('')).toBe(true)
+  })
+  it('false for live and terminal statuses', () => {
+    for (const s of ['live','on_court','break','ended','finished','retired','walkover']) {
+      expect(isUpcomingStatus(s)).toBe(false)
+    }
   })
 })
