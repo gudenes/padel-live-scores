@@ -520,3 +520,87 @@
   font-size: 13px;
   font-weight: 500;
 }
+
+/* ===== CONNECTION BANNER ===== */
+.sb-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid;
+  font-size: 13px;
+  font-weight: 600;
+}
+.sb-banner--warn {
+  color: var(--orange-text);
+  background: var(--orange-bg);
+  border-color: var(--orange-border);
+}
+.sb-banner--err {
+  color: var(--live-text);
+  background: var(--live-bg);
+  border-color: var(--live-border);
+}
+.sb-banner-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--live-text);
+  flex: 0 0 auto;
+}
+.sb-banner-retry {
+  margin-left: auto;
+  border: 1px solid var(--live-border);
+  background: transparent;
+  color: var(--live-text);
+  font: inherit;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 4px 12px;
+  border-radius: var(--r-xs);
+  cursor: pointer;
+}
+.sb-banner-retry:hover { background: var(--live-bg); }
+.sb-banner-retry:focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+
+.sb-spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--orange-border);
+  border-top-color: var(--orange-text);
+  flex: 0 0 auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sb-spinner { animation: sb-spin 0.7s linear infinite; }
+}
+@keyframes sb-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== OFFLINE FROZEN TREATMENT ===== */
+/* When the realtime channel is down we can't trust the numbers to be current, so we
+   desaturate/dim the odds bars and gray the live affordances to signal "frozen". */
+[data-conn="offline"] .sb-oddsbar { filter: saturate(0.25); opacity: 0.7; }
+[data-conn="offline"] .sb-badge.sb-b-live,
+[data-conn="offline"] .sb-livepill {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+[data-conn="offline"] .sb-livepill .sb-livedot { animation: none; }
+[data-conn="offline"] .sb-srv,
+[data-conn="offline"] .sb-pname .sb-sv { box-shadow: none; }
+
+/* ===== SCORE-FLASH MOTION ===== */
+/* Brief background sweep applied when a live score cell changes value. Gated entirely
+   behind prefers-reduced-motion: no-preference — no animation otherwise. */
+.sb-flash { border-radius: var(--r-xs); }
+@media (prefers-reduced-motion: no-preference) {
+  .sb-flash { animation: sb-flash 0.6s ease-out; }
+}
+@keyframes sb-flash {
+  0% { background: var(--lime-bg-2); }
+  100% { background: transparent; }
+}

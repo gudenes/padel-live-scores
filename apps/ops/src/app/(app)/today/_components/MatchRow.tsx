@@ -1,6 +1,7 @@
 // apps/ops/src/app/(app)/today/_components/MatchRow.tsx
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { Match, Pair } from '../_lib/types'
 import { OddsBar } from './OddsBar'
@@ -28,7 +29,30 @@ function StatusBadge({ match }: { match: Match }) {
   return <span className="sb-schedtime">{formatTime(match.scheduledAt)}</span>
 }
 
+// Serialized live-score signature; when it changes we briefly flash the cell.
+function scoreSignature(match: Match): string {
+  const sets = match.setScores.map((s) => `${s.a}-${s.b}${s.current ? '*' : ''}`).join(',')
+  const gp = match.gamePoints ? `${match.gamePoints.a}:${match.gamePoints.b}` : ''
+  return `${sets}|${gp}`
+}
+
+// Toggles `.sb-flash` for one animation cycle whenever `sig` changes (after mount).
+// CSS gates the actual animation behind prefers-reduced-motion: no-preference.
+function useScoreFlash(sig: string): boolean {
+  const prev = useRef(sig)
+  const [flash, setFlash] = useState(false)
+  useEffect(() => {
+    if (prev.current === sig) return
+    prev.current = sig
+    setFlash(true)
+    const t = setTimeout(() => setFlash(false), 600)
+    return () => clearTimeout(t)
+  }, [sig])
+  return flash
+}
+
 function ScoreCell({ match }: { match: Match }) {
+  const flash = useScoreFlash(scoreSignature(match))
   // Scheduled rows: just the time badge.
   if (match.status === 'scheduled') {
     return (
@@ -42,7 +66,7 @@ function ScoreCell({ match }: { match: Match }) {
   const serveA = gp != null && match.pair1.serving
   const serveB = gp != null && match.pair2.serving
   return (
-    <div className="sb-score">
+    <div className={`sb-score${flash ? ' sb-flash' : ''}`}>
       <div className="sb-scols">
         {match.setScores.map((s, i) => (
           <div key={i} className={`sb-col${s.current ? ' sb-cur' : ''}`}>

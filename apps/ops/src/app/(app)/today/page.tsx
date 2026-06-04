@@ -13,7 +13,7 @@ export default async function TodayPage() {
   return (
     <div className="ui-page sb-page">
       <PageHeader title="Today" />
-      <ScoreboardView initial={snapshot} />
+      <ScoreboardView initial={snapshot} dateIso={today} />
     </div>
   )
 }
