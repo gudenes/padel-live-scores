@@ -2,8 +2,7 @@
 import './scoreboard.css'
 import { PageHeader } from '@/components/ui'
 import { getScoreboardSnapshot } from './_lib/scoreboard-data'
-import { KpiRow } from './_components/KpiRow'
-import { ScoreboardClient } from './_components/ScoreboardClient'
+import { ScoreboardView } from './_components/ScoreboardView'
 
 export const metadata = { title: 'Today · PadelNachos Admin' }
 export const dynamic = 'force-dynamic'
@@ -14,8 +13,7 @@ export default async function TodayPage() {
   return (
     <div className="ui-page sb-page">
       <PageHeader title="Today" />
-      <KpiRow kpis={snapshot.kpis} />
-      <ScoreboardClient matches={snapshot.matches} />
+      <ScoreboardView initial={snapshot} />
     </div>
   )
 }
