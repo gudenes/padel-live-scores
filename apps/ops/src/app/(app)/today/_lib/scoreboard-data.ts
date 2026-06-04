@@ -2,7 +2,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { getMatchOddsForDay } from '@/lib/odds-data'
 import type { Match, MatchStatus, AnchorSource, LiveOddsSnapshot } from './types'
-import { movement15m, capHistory, coverageToConfidence, biggestSwing, type ProbPoint } from './movement'
+import { movement15m, coverageToConfidence, biggestSwing, type ProbPoint } from './movement'
 import { splitGameScore } from './score'
 
 export function shortName(name: string | null | undefined): string {
@@ -123,7 +123,7 @@ export function mapLiveRowToMatch(row: LiveOddsRow, extra: LiveExtras, nowMs: nu
     confidence: coverageToConfidence(row.coverage),
     anchorSource: row.anchor_source,
     lastUpdatedSeconds: Math.max(0, Math.round((nowMs - +new Date(row.computed_at)) / 1000)),
-    winProbHistory: capHistory(extra.history.map((h) => h.prob), 30),
+    winProbSeries: extra.history.map((h) => ({ atMs: h.atMs, pair1Prob: h.prob })),
     currentSetStartedAt: extra.currentSetStartedAt,
     winnerPair: null,
     prematch: extra.prematchPair1Prob != null ? { pair1Prob: extra.prematchPair1Prob, correct: null } : null,
@@ -147,7 +147,7 @@ export interface FinishedRow {
 export interface FinishedExtras {
   sets: Array<{ pair1_games: number; pair2_games: number }>
   closing: { pair1_prob: number; pair1_decimal_odds: number; pair2_decimal_odds: number; coverage: string | null } | null
-  history: number[]              // pair1 win-prob series for the chart (oldest→newest, already capped)
+  history: Array<{ atMs: number; pair1Prob: number }>  // pair1 win-prob series for the chart (oldest→newest)
   prematchPair1Prob: number | null   // latest model_predictions.pair1_prob (pre-match)
 }
 
@@ -173,7 +173,7 @@ export function mapFinishedRowToMatch(row: FinishedRow, extra: FinishedExtras): 
     confidence: closing?.coverage === 'live-coarse' ? 'low' : closing ? 'full' : 'med',
     anchorSource: null,
     lastUpdatedSeconds: 0,
-    winProbHistory: extra.history,
+    winProbSeries: extra.history,
     currentSetStartedAt: null,
     winnerPair,
     prematch: extra.prematchPair1Prob != null
@@ -320,7 +320,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
       winProb1: pr ? Number(pr.pair1_prob) : 0.5,
       fairOdds1: pr ? Number(pr.pair1_decimal_odds) : 0, fairOdds2: pr ? Number(pr.pair2_decimal_odds) : 0,
       movement15m: 0, confidence: 'med', anchorSource: null, lastUpdatedSeconds: 0,
-      winProbHistory: [], currentSetStartedAt: null, winnerPair: null,
+      winProbSeries: [], currentSetStartedAt: null, winnerPair: null,
       // The scheduled row's model_predictions IS the pre-match prediction.
       prematch: pr ? { pair1Prob: Number(pr.pair1_prob), correct: null } : null,
     })
@@ -336,11 +336,11 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
     ])
     // Snapshot history is per-match (bounded concurrency) so later finished matches
     // can't be truncated out of a shared `.limit()` budget on a busy day.
-    const histById = new Map<string, number[]>()
+    const histById = new Map<string, Array<{ atMs: number; pair1Prob: number }>>()
     await mapLimit(finIds, FETCH_CONCURRENCY, async (id) => {
       const { data: snaps } = await supabase.from('match_live_odds_snapshots')
         .select('pair1_prob,computed_at').eq('match_id', id).order('computed_at', { ascending: true }).limit(200)
-      histById.set(id, (snaps ?? []).map((s) => Number(s.pair1_prob)))
+      histById.set(id, (snaps ?? []).map((s) => ({ atMs: +new Date(s.computed_at), pair1Prob: Number(s.pair1_prob) })))
     })
     for (const id of finIds) {
       const mSets = (finSets ?? []).filter((s) => s.match_id === id)
@@ -351,7 +351,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
         closing: odds
           ? { pair1_prob: Number(odds.pair1_prob), pair1_decimal_odds: Number(odds.pair1_decimal_odds), pair2_decimal_odds: Number(odds.pair2_decimal_odds), coverage: odds.coverage ?? null }
           : null,
-        history: capHistory(hist, 30),
+        history: hist,
         prematchPair1Prob: preMap.get(id) ?? null,
       })
     }

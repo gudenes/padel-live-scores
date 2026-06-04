@@ -51,6 +51,7 @@ describe('mapLiveRowToMatch', () => {
     expect(m.setScores).toHaveLength(2)
     expect(m.setScores[1].current).toBe(true)
     expect(m.movement15m).toBeCloseTo(0.12)
+    expect(m.winProbSeries).toEqual([{ atMs: nowMs - 16 * 60_000, pair1Prob: 0.7 }, { atMs: nowMs - 30_000, pair1Prob: 0.82 }])
     expect(m.lastUpdatedSeconds).toBe(30)
     expect(m.prematch).toEqual({ pair1Prob: 0.6, correct: null })  // live → correct null
   })
@@ -81,14 +82,14 @@ describe('mapFinishedRowToMatch', () => {
     p2a: { id: 'c', name: 'Alejandro Galan Romo' }, p2b: { id: 'd', name: 'Juan Lebron' },
   }
   it('maps finished status, winner, scores, names', () => {
-    const m = mapFinishedRowToMatch(row, { sets: [{ pair1_games: 4, pair2_games: 6 }, { pair1_games: 3, pair2_games: 6 }], closing: { pair1_prob: 0.18, pair1_decimal_odds: 5.5, pair2_decimal_odds: 1.2, coverage: 'live-pbp' }, history: [0.5, 0.18], prematchPair1Prob: 0.34 })
+    const m = mapFinishedRowToMatch(row, { sets: [{ pair1_games: 4, pair2_games: 6 }, { pair1_games: 3, pair2_games: 6 }], closing: { pair1_prob: 0.18, pair1_decimal_odds: 5.5, pair2_decimal_odds: 1.2, coverage: 'live-pbp' }, history: [{ atMs: 1000, pair1Prob: 0.5 }, { atMs: 2000, pair1Prob: 0.18 }], prematchPair1Prob: 0.34 })
     expect(m.status).toBe('finished')
     expect(m.winnerPair).toBe(2)
     expect(m.pair1.name).toBe('M. Di Nenno / F. Navarro')
     expect(m.pair2.name).toBe('A. Galan / J. Lebron')
     expect(m.setScores).toEqual([{ a: 4, b: 6, current: false }, { a: 3, b: 6, current: false }])
     expect(m.winProb1).toBeCloseTo(0.18)
-    expect(m.winProbHistory).toEqual([0.5, 0.18])
+    expect(m.winProbSeries).toEqual([{ atMs: 1000, pair1Prob: 0.5 }, { atMs: 2000, pair1Prob: 0.18 }])
     // pre-match favored pair2 (0.34 < 0.5) and pair2 won → correct
     expect(m.prematch).toEqual({ pair1Prob: 0.34, correct: true })
   })

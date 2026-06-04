@@ -35,7 +35,7 @@ export interface Match {
   confidence: Confidence
   anchorSource: AnchorSource | null
   lastUpdatedSeconds: number     // now - computed_at (0 for scheduled)
-  winProbHistory: number[]       // pair1 prob series, oldest→newest, cap 30 (live only)
+  winProbSeries: Array<{ atMs: number; pair1Prob: number }>  // pair1 win prob 0-1, oldest→newest (live/finished only)
   currentSetStartedAt: string | null  // ISO, for the chart's Set view (live only)
   winnerPair: 1 | 2 | null       // winning pair for finished matches; null otherwise
   // Pre-match Elo prediction (latest model_predictions row). `pair1Prob` is the

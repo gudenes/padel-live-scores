@@ -562,6 +562,33 @@
   font-size: 13px;
   font-weight: 500;
 }
+/* compact legend caption under the win-prob chart */
+.sb-chart-cap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.sb-chart-cap-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sb-chart-cap-swatch {
+  width: 10px;
+  height: 3px;
+  border-radius: 2px;
+}
+.sb-chart-cap-p1 {
+  background: var(--lime);
+}
+.sb-chart-cap-p2 {
+  background: var(--text-3);
+}
 
 /* ===== CONNECTION BANNER ===== */
 .sb-banner {
