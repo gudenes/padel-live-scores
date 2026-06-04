@@ -1,6 +1,6 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.test.ts
 import { describe, it, expect } from 'vitest'
-import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus } from './scoreboard-data'
+import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch } from './scoreboard-data'
 
 describe('shortName', () => {
   it('returns the last token', () => {
@@ -68,6 +68,31 @@ describe('displayName', () => {
     expect(displayName('Navarro')).toBe('Navarro')
     expect(displayName(null)).toBe('—')
     expect(displayName('')).toBe('—')
+  })
+})
+
+describe('mapFinishedRowToMatch', () => {
+  const row = {
+    id: 'f1', status: 'finished', winner_pair: 2, court: 'Campo 6', round_canonical: 'R16', category: 'men', scheduled_at: '2026-06-04T10:00:00Z',
+    tournament: { name: 'Italy Major', level: 'major' },
+    p1a: { id: 'a', name: 'Martin Di Nenno' }, p1b: { id: 'b', name: 'Francisco Navarro' },
+    p2a: { id: 'c', name: 'Alejandro Galan Romo' }, p2b: { id: 'd', name: 'Juan Lebron' },
+  }
+  it('maps finished status, winner, scores, names', () => {
+    const m = mapFinishedRowToMatch(row, { sets: [{ pair1_games: 4, pair2_games: 6 }, { pair1_games: 3, pair2_games: 6 }], closing: { pair1_prob: 0.18, pair1_decimal_odds: 5.5, pair2_decimal_odds: 1.2, coverage: 'live-pbp' }, history: [0.5, 0.18] })
+    expect(m.status).toBe('finished')
+    expect(m.winnerPair).toBe(2)
+    expect(m.pair1.name).toBe('M. Di Nenno / F. Navarro')
+    expect(m.pair2.name).toBe('A. Galan / J. Lebron')
+    expect(m.setScores).toEqual([{ a: 4, b: 6, current: false }, { a: 3, b: 6, current: false }])
+    expect(m.winProb1).toBeCloseTo(0.18)
+    expect(m.winProbHistory).toEqual([0.5, 0.18])
+  })
+  it('defaults prob to 0.5 and winnerPair null when no closing/winner', () => {
+    const m = mapFinishedRowToMatch({ ...row, winner_pair: null }, { sets: [], closing: null, history: [] })
+    expect(m.winProb1).toBeCloseTo(0.5)
+    expect(m.winnerPair).toBeNull()
+    expect(m.confidence).toBe('med')
   })
 })
 

@@ -26,6 +26,7 @@ function formatTime(iso: string | null): string {
 function StatusBadge({ match }: { match: Match }) {
   if (match.status === 'live') return <span className="sb-badge sb-b-live">Live</span>
   if (match.status === 'break') return <span className="sb-badge sb-b-break">Break</span>
+  if (match.status === 'finished') return <span className="sb-badge sb-b-final">Final</span>
   return <span className="sb-schedtime">{formatTime(match.scheduledAt)}</span>
 }
 
@@ -125,7 +126,9 @@ function ConfidenceMeter({ confidence }: { confidence: Match['confidence'] }) {
 }
 
 export function MatchRow({ match, selected, onSelect }: { match: Match; selected: boolean; onSelect: (id: string) => void }) {
-  const fav1 = match.winProb1 >= 0.5
+  // Finished rows bold the winner; otherwise bold the favorite (higher win prob).
+  const emph1 = match.status === 'finished' ? match.winnerPair === 1 : match.winProb1 >= 0.5
+  const emph2 = match.status === 'finished' ? match.winnerPair === 2 : match.winProb1 < 0.5
   function handleKey(e: KeyboardEvent<HTMLTableRowElement>) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
@@ -142,12 +145,12 @@ export function MatchRow({ match, selected, onSelect }: { match: Match; selected
       onKeyDown={handleKey}
     >
       <td className="sb-match">
-        <div className={ppClass(fav1, match.pair1.serving)}>
+        <div className={ppClass(emph1, match.pair1.serving)}>
           <span className="sb-srv" />
           <span className="sb-pp-name">{match.pair1.name}</span>
           {genderTag(match.pair1.gender)}
         </div>
-        <div className={ppClass(!fav1, match.pair2.serving)}>
+        <div className={ppClass(emph2, match.pair2.serving)}>
           <span className="sb-srv" />
           <span className="sb-pp-name">{match.pair2.name}</span>
         </div>

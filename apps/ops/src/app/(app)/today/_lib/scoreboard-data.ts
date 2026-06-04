@@ -114,6 +114,55 @@ export function mapLiveRowToMatch(row: LiveOddsRow, extra: LiveExtras, nowMs: nu
     lastUpdatedSeconds: Math.max(0, Math.round((nowMs - +new Date(row.computed_at)) / 1000)),
     winProbHistory: capHistory(extra.history.map((h) => h.prob), 30),
     currentSetStartedAt: extra.currentSetStartedAt,
+    winnerPair: null,
+  }
+}
+
+export interface FinishedRow {
+  id: string
+  status: string                 // 'finished' | 'retired' | 'walkover'
+  winner_pair: number | null
+  court: string | null
+  round_canonical: string | null
+  category: string
+  scheduled_at: string | null
+  tournament: { name: string | null; level: string | null } | { name: string | null; level: string | null }[] | null
+  p1a: { id: string; name: string | null } | null
+  p1b: { id: string; name: string | null } | null
+  p2a: { id: string; name: string | null } | null
+  p2b: { id: string; name: string | null } | null
+}
+export interface FinishedExtras {
+  sets: Array<{ pair1_games: number; pair2_games: number }>
+  closing: { pair1_prob: number; pair1_decimal_odds: number; pair2_decimal_odds: number; coverage: string | null } | null
+  history: number[]              // pair1 win-prob series for the chart (oldest→newest, already capped)
+}
+
+export function mapFinishedRowToMatch(row: FinishedRow, extra: FinishedExtras): Match {
+  const t = Array.isArray(row.tournament) ? row.tournament[0] : row.tournament
+  const pn = (a: { name: string | null } | null, b: { name: string | null } | null) =>
+    [displayName(a?.name ?? null), displayName(b?.name ?? null)].filter((x) => x !== '—').join(' / ') || 'TBD'
+  const winnerPair = row.winner_pair === 1 ? 1 : row.winner_pair === 2 ? 2 : null
+  const closing = extra.closing
+  return {
+    id: row.id,
+    pair1: { name: pn(row.p1a, row.p1b), player1Name: row.p1a?.name ?? 'TBD', player2Name: row.p1b?.name ?? 'TBD', gender: row.category === 'women' ? 'women' : 'men', serving: false },
+    pair2: { name: pn(row.p2a, row.p2b), player1Name: row.p2a?.name ?? 'TBD', player2Name: row.p2b?.name ?? 'TBD', gender: row.category === 'women' ? 'women' : 'men', serving: false },
+    tournament: t?.name ?? 'Unknown',
+    court: row.court, round: row.round_canonical, tier: t?.level ?? null,
+    status: 'finished', scheduledAt: row.scheduled_at,
+    setScores: extra.sets.map((s) => ({ a: s.pair1_games, b: s.pair2_games, current: false })),
+    gamePoints: null,
+    winProb1: closing ? Number(closing.pair1_prob) : 0.5,
+    fairOdds1: closing ? Number(closing.pair1_decimal_odds) : 0,
+    fairOdds2: closing ? Number(closing.pair2_decimal_odds) : 0,
+    movement15m: 0,
+    confidence: closing?.coverage === 'live-coarse' ? 'low' : closing ? 'full' : 'med',
+    anchorSource: null,
+    lastUpdatedSeconds: 0,
+    winProbHistory: extra.history,
+    currentSetStartedAt: null,
+    winnerPair,
   }
 }
 
@@ -122,6 +171,11 @@ const LIVE_SELECT =
   'matches!inner(status,court,round_canonical,category,tournament:tournaments(name,level),' +
   'p1a:players!matches_pair1_player1_id_fkey(id,name),p1b:players!matches_pair1_player2_id_fkey(id,name),' +
   'p2a:players!matches_pair2_player1_id_fkey(id,name),p2b:players!matches_pair2_player2_id_fkey(id,name))'
+
+const FINISHED_SELECT =
+  'id,status,winner_pair,court,round_canonical,category,scheduled_at,tournament:tournaments(name,level),' +
+  'p1a:players!matches_pair1_player1_id_fkey(id,name),p1b:players!matches_pair1_player2_id_fkey(id,name),' +
+  'p2a:players!matches_pair2_player1_id_fkey(id,name),p2b:players!matches_pair2_player2_id_fkey(id,name)'
 
 export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSnapshot> {
   const supabase = createServiceClient()
@@ -196,11 +250,43 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
       winProb1: pr ? Number(pr.pair1_prob) : 0.5,
       fairOdds1: pr ? Number(pr.pair1_decimal_odds) : 0, fairOdds2: pr ? Number(pr.pair2_decimal_odds) : 0,
       movement15m: 0, confidence: 'med', anchorSource: null, lastUpdatedSeconds: 0,
-      winProbHistory: [], currentSetStartedAt: null,
+      winProbHistory: [], currentSetStartedAt: null, winnerPair: null,
     })
   }
 
-  const matches = [...liveMatches, ...scheduled]
+  // 4) FINISHED rows (today's terminal matches) — opt-in via the "Final" filter
+  const dayStart = `${dateIso}T00:00:00`, dayEnd = `${dateIso}T23:59:59`
+  const { data: finRows } = await supabase.from('matches').select(FINISHED_SELECT)
+    .gte('scheduled_at', dayStart).lte('scheduled_at', dayEnd)
+    .in('status', ['finished', 'retired', 'walkover'])
+    .returns<FinishedRow[]>()
+  const finished = finRows ?? []
+  const finIds = finished.map((r) => r.id)
+
+  const finExtrasById = new Map<string, FinishedExtras>()
+  if (finIds.length) {
+    const [{ data: finSets }, { data: finOdds }, { data: finSnaps }] = await Promise.all([
+      supabase.from('sets').select('match_id,pair1_games,pair2_games,set_number').in('match_id', finIds).order('set_number'),
+      supabase.from('match_live_odds').select('match_id,pair1_prob,pair1_decimal_odds,pair2_decimal_odds,coverage').in('match_id', finIds),
+      supabase.from('match_live_odds_snapshots').select('match_id,pair1_prob,computed_at').in('match_id', finIds).order('computed_at', { ascending: true }).limit(finIds.length * 40),
+    ])
+    for (const id of finIds) {
+      const mSets = (finSets ?? []).filter((s) => s.match_id === id)
+      const odds = (finOdds ?? []).find((o) => o.match_id === id)
+      const hist = (finSnaps ?? []).filter((s) => s.match_id === id).map((s) => Number(s.pair1_prob))
+      finExtrasById.set(id, {
+        sets: mSets.map((s) => ({ pair1_games: s.pair1_games, pair2_games: s.pair2_games })),
+        closing: odds
+          ? { pair1_prob: Number(odds.pair1_prob), pair1_decimal_odds: Number(odds.pair1_decimal_odds), pair2_decimal_odds: Number(odds.pair2_decimal_odds), coverage: odds.coverage ?? null }
+          : null,
+        history: capHistory(hist, 30),
+      })
+    }
+  }
+  const finishedMatches: Match[] = finished.map((r) =>
+    mapFinishedRowToMatch(r, finExtrasById.get(r.id) ?? { sets: [], closing: null, history: [] }))
+
+  const matches = [...liveMatches, ...scheduled, ...finishedMatches]
   const kpis = {
     liveMatches: liveMatches.length,
     preMatchModeled: scheduled.length,

@@ -3,7 +3,7 @@
 
 export type ConnectionState = 'loading' | 'live' | 'reconnecting' | 'offline'
 export type Confidence = 'full' | 'med' | 'low'
-export type MatchStatus = 'live' | 'break' | 'scheduled'
+export type MatchStatus = 'live' | 'break' | 'scheduled' | 'finished'
 export type AnchorSource = 'model-prediction' | 'cold-start-elo'
 
 export interface Pair {
@@ -37,6 +37,7 @@ export interface Match {
   lastUpdatedSeconds: number     // now - computed_at (0 for scheduled)
   winProbHistory: number[]       // pair1 prob series, oldest→newest, cap 30 (live only)
   currentSetStartedAt: string | null  // ISO, for the chart's Set view (live only)
+  winnerPair: 1 | 2 | null       // winning pair for finished matches; null otherwise
 }
 
 export interface KpiData {

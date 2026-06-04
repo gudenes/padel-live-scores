@@ -9,7 +9,7 @@ import { DetailPanel } from './DetailPanel'
 import { ConnectionBanner } from './ConnectionBanner'
 
 export interface Filters {
-  status: 'all' | 'live' | 'break' | 'sched'
+  status: 'all' | 'live' | 'break' | 'sched' | 'final'
   tournament: string | null
   gender: 'all' | 'men' | 'women'
 }
@@ -20,7 +20,13 @@ export function ScoreboardView({ initial, dateIso }: { initial: LiveOddsSnapshot
   const [filters, setFilters] = useState<Filters>({ status: 'all', tournament: null, gender: 'all' })
 
   const visible = useMemo(() => snapshot.matches.filter((m) => {
-    if (filters.status === 'sched' ? m.status !== 'scheduled' : filters.status !== 'all' && m.status !== filters.status) return false
+    const statusOk =
+      filters.status === 'all' ? m.status !== 'finished'
+        : filters.status === 'live' ? m.status === 'live'
+        : filters.status === 'break' ? m.status === 'break'
+        : filters.status === 'sched' ? m.status === 'scheduled'
+        : /* 'final' */ m.status === 'finished'
+    if (!statusOk) return false
     if (filters.tournament && m.tournament !== filters.tournament) return false
     if (filters.gender !== 'all' && m.pair1.gender !== filters.gender) return false
     return true

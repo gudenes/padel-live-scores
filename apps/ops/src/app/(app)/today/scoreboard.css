@@ -241,6 +241,7 @@
 .sb-b-live { background: var(--live-bg); color: var(--live-text); border-color: var(--live-border); }
 .sb-b-break { background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border); }
 .sb-b-sched { background: var(--bg-sunken); color: var(--text-3); border-color: var(--border-card); }
+.sb-b-final { background: var(--bg-sunken); color: var(--text-2); border-color: var(--border-card); }
 .sb-schedtime { font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
 
 /* ===== ODDS bar ===== */

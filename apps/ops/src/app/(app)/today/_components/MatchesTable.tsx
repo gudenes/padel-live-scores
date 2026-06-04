@@ -11,6 +11,7 @@ const STATUS_SEGMENTS: { key: Filters['status']; label: string }[] = [
   { key: 'live', label: 'Live' },
   { key: 'break', label: 'Break' },
   { key: 'sched', label: 'Sched' },
+  { key: 'final', label: 'Final' },
 ]
 
 const GENDER_SEGMENTS: { key: Filters['gender']; label: string }[] = [
