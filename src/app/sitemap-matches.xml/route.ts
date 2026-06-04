@@ -6,17 +6,25 @@
 // Each match expands to 5 <url> entries (one per locale) with hreflang
 // alternates so Google indexes /es/match/X, /pt/match/X, etc.
 //
-// Hard-capped at 45,000 total URLs = 9,000 matches × 5 locales.
-// Most recent matches are kept; older ones inside the 90-day window
-// drop off first if the cap is hit.
+// Hard-capped at 18,000 total URLs = 3,600 matches × 5 locales.
+// Most recent matches are kept (ordered by scheduled_at DESC); older
+// ones inside the 90-day window drop off first if the cap is hit.
+//
+// Why 18k: each <url> carries 5 hreflang <xhtml:link> alternates, so the
+// rendered XML measures ~964 bytes/URL in production. The old 45k budget
+// let the document reach 20.88 MB and trip Vercel's 19.07 MB ISR-fallback
+// limit (FALLBACK_BODY_TOO_LARGE), failing every prod deploy whenever the
+// 90-day match volume spiked. 18k URLs renders ~16.5 MB — a ~2.5 MB margin
+// under the cap that holds even on the busiest tournament weeks. Matches
+// dropped from the sitemap are still crawlable via internal links.
 
 import { createServerClient } from '@/lib/supabase'
 import { buildUrlSet, expandPathForLocales, xmlResponse, type SitemapUrl } from '@/lib/sitemap-xml'
 
 const BASE_URL = 'https://padelnachos.com'
 const LOCALES_COUNT = 5
-const URL_BUDGET = 45_000
-const MATCH_LIMIT = Math.floor(URL_BUDGET / LOCALES_COUNT) // 9,000
+const URL_BUDGET = 18_000
+const MATCH_LIMIT = Math.floor(URL_BUDGET / LOCALES_COUNT) // 3,600
 
 export const revalidate = 3600
 
