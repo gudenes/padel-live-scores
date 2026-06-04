@@ -9,7 +9,6 @@ import { supabase } from '@/lib/supabase'
 import { Match, getCurrentScore, pairName, isStarPoint, parseSetScore, parseSetFromGames, parseAndHealSet, toShortName } from '@/types/match'
 import { fetchMatchById } from '@/lib/match-fetch'
 import MomentumChart from './MomentumChart'
-import BottomNav from '@/components/nav/BottomNavV3'
 import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
 import { DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
 import { countryToTimezone } from '@/lib/country-timezone'
@@ -417,23 +416,17 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   }, [tournamentChannelAbbr])
 
   if (loading) return (
-    <>
     <main style={{ background: BG_BASE, minHeight: '100vh' }}>
       <DetailPageSkeleton variant="match" />
     </main>
-    <BottomNav />
-    </>
   )
   if (!match) return (
-    <>
     <main style={{ background: BG_BASE, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ color: MUTED, fontSize: 14, marginBottom: 16 }}>Match not found</div>
         <button onClick={handleBack} style={{ color: GREEN, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 14 }}>← Go back</button>
       </div>
     </main>
-    <BottomNav />
-    </>
   )
 
   const { pair1Sets, pair2Sets, currentSet, currentGame } = getCurrentScore(match)
@@ -1169,7 +1162,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         )
       })()}
     </main>
-    <BottomNav />
     {shareToast && (
       <div style={{
         position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',

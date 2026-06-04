@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shouldShowAdMob, pickBannerUnit, isAdRoute } from '@/lib/admob-eligibility'
+import { shouldShowAdMob, pickBannerUnit, isAdRoute, isMatchDetailRoute } from '@/lib/admob-eligibility'
 
 describe('isAdRoute', () => {
   it('matches matches/match/player (locale-stripped)', () => {
@@ -14,9 +14,21 @@ describe('isAdRoute', () => {
   })
 })
 
+describe('isMatchDetailRoute', () => {
+  it('matches only /match/<id>', () => {
+    expect(isMatchDetailRoute('/match/abc')).toBe(true)
+  })
+  it('rejects matches list, player, and others', () => {
+    expect(isMatchDetailRoute('/matches')).toBe(false)
+    expect(isMatchDetailRoute('/matches/2026-06-03')).toBe(false)
+    expect(isMatchDetailRoute('/player/abc')).toBe(false)
+    expect(isMatchDetailRoute('/')).toBe(false)
+  })
+})
+
 describe('shouldShowAdMob', () => {
-  const base = { isNative: true, pathname: '/matches', hasDirectBanner: false, networkNativeEnabled: true }
-  it('shows when native, on an ad route, no direct banner, flag on', () => {
+  const base = { isNative: true, pathname: '/match/abc', hasDirectBanner: false, networkNativeEnabled: true }
+  it('shows when native, on the match-detail route, no direct banner, flag on', () => {
     expect(shouldShowAdMob(base)).toBe(true)
   })
   it('hides on web', () => {
@@ -27,6 +39,12 @@ describe('shouldShowAdMob', () => {
   })
   it('hides when the network flag is off', () => {
     expect(shouldShowAdMob({ ...base, networkNativeEnabled: false })).toBe(false)
+  })
+  it('hides on the matches list (match-detail only)', () => {
+    expect(shouldShowAdMob({ ...base, pathname: '/matches' })).toBe(false)
+  })
+  it('hides on a player page (match-detail only)', () => {
+    expect(shouldShowAdMob({ ...base, pathname: '/player/abc' })).toBe(false)
   })
   it('hides off-route', () => {
     expect(shouldShowAdMob({ ...base, pathname: '/rankings' })).toBe(false)
