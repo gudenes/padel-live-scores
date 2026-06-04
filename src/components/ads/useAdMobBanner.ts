@@ -61,6 +61,40 @@ export function useAdMobBanner(args: {
     }
   }, [pathname, hasDirectBanner, network, navHeight])
 
+  // Reserve layout space for the native banner so it never overlaps the
+  // bottom nav. On Android 15+ the plugin pins the banner to the system inset
+  // and IGNORES our `margin`, so we can't lift the banner — instead we lift
+  // the web nav + content by the banner's real height. The plugin reports that
+  // height (in dp ≈ CSS px) via the bannerAdSizeChanged event: non-zero when a
+  // banner is visible, 0 when hidden/removed. We publish it to the
+  // `--admob-banner-h` CSS var that BottomNavV3 + body padding consume.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    let handle: { remove: () => void } | null = null
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { AdMob, BannerAdPluginEvents } = await import('@capacitor-community/admob')
+        const h = await AdMob.addListener(
+          BannerAdPluginEvents.SizeChanged,
+          (info: { height: number }) => {
+            const px = info && info.height > 0 ? `${info.height}px` : '0px'
+            document.documentElement.style.setProperty('--admob-banner-h', px)
+          },
+        )
+        if (cancelled) h.remove()
+        else handle = h
+      } catch {
+        // plugin unavailable — leave the var at its 0px default
+      }
+    })()
+    return () => {
+      cancelled = true
+      handle?.remove()
+      document.documentElement.style.setProperty('--admob-banner-h', '0px')
+    }
+  }, [])
+
   // Hide the banner when the component using this hook unmounts.
   useEffect(() => {
     return () => {

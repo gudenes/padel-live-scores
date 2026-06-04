@@ -329,7 +329,10 @@ export default function BottomNavV3() {
         className="v3-nav"
         style={{
           position: 'fixed',
-          bottom: 0,
+          // Lift above the native AdMob banner when one is showing. The
+          // useAdMobBanner hook publishes the banner's real height to this
+          // CSS var (0px when none / on web), so the nav clears the overlay.
+          bottom: 'var(--admob-banner-h, 0px)',
           left: '50%',
           transform: 'translateX(-50%)',
           width: '100%',
