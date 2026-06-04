@@ -69,7 +69,7 @@ export async function getMatchOddsForDay(dateIso: string) {
   const { data: matches } = await supabase
     .from('matches')
     .select(
-      'id, tournament_id, category, round, round_canonical, status, scheduled_at, court, court_order, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, pair1_seed, pair2_seed',
+      'id, tournament_id, category, round, round_canonical, status, scheduled_at, court, court_order, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, pair1_seed, pair2_seed, tournament:tournaments(name)',
     )
     .gte('scheduled_at', dayStart)
     .lte('scheduled_at', dayEnd)

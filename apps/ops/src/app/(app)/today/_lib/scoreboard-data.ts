@@ -1,6 +1,8 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.ts
-import type { Match, MatchStatus, AnchorSource } from './types'
-import { movement15m, capHistory, coverageToConfidence, type ProbPoint } from './movement'
+import { createServiceClient } from '@/lib/supabase'
+import { getMatchOddsForDay } from '@/lib/odds-data'
+import type { Match, MatchStatus, AnchorSource, LiveOddsSnapshot } from './types'
+import { movement15m, capHistory, coverageToConfidence, biggestSwing, type ProbPoint } from './movement'
 import { splitGameScore } from './score'
 
 export function shortName(name: string | null | undefined): string {
@@ -80,4 +82,96 @@ export function mapLiveRowToMatch(row: LiveOddsRow, extra: LiveExtras, nowMs: nu
     winProbHistory: capHistory(extra.history.map((h) => h.prob), 30),
     currentSetStartedAt: extra.currentSetStartedAt,
   }
+}
+
+const LIVE_SELECT =
+  'match_id,pair1_prob,pair2_prob,pair1_decimal_odds,pair2_decimal_odds,anchor_source,coverage,computed_at,' +
+  'matches!inner(status,court,round_canonical,category,tournament:tournaments(name,level),' +
+  'p1a:players!matches_pair1_player1_id_fkey(id,name),p1b:players!matches_pair1_player2_id_fkey(id,name),' +
+  'p2a:players!matches_pair2_player1_id_fkey(id,name),p2b:players!matches_pair2_player2_id_fkey(id,name))'
+
+export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSnapshot> {
+  const supabase = createServiceClient()
+  const nowMs = Date.now()
+
+  // 1) LIVE rows from match_live_odds (only currently-live matches)
+  const { data: liveRows } = await supabase
+    .from('match_live_odds')
+    .select(LIVE_SELECT)
+    .in('matches.status', ['live', 'on_court', 'break'])
+    .returns<LiveOddsRow[]>()
+  const live = liveRows ?? []
+  const liveIds = live.map((r) => r.match_id)
+
+  // 2) Per-match extras: sets, current game, serving, snapshot history
+  const extrasById = new Map<string, LiveExtras>()
+  if (liveIds.length) {
+    const [{ data: sets }, { data: games }, { data: points }, { data: snaps }] = await Promise.all([
+      supabase.from('sets').select('match_id,pair1_games,pair2_games,is_current,set_number').in('match_id', liveIds).order('set_number'),
+      supabase.from('games').select('match_id,game_score,is_current').eq('is_current', true).in('match_id', liveIds),
+      supabase.from('match_points').select('match_id,server_player_id,created_at').in('match_id', liveIds).order('created_at', { ascending: false }).limit(liveIds.length * 4),
+      supabase.from('match_live_odds_snapshots').select('match_id,pair1_prob,computed_at').in('match_id', liveIds).order('computed_at', { ascending: true }).limit(liveIds.length * 40),
+    ])
+    for (const id of liveIds) {
+      const mSets = (sets ?? []).filter((s) => s.match_id === id)
+      const curGame = (games ?? []).find((g) => g.match_id === id)
+      const latestPoint = (points ?? []).find((p) => p.match_id === id) // already desc-ordered
+      const hist = (snaps ?? []).filter((s) => s.match_id === id)
+        .map((s) => ({ prob: Number(s.pair1_prob), atMs: +new Date(s.computed_at) }))
+      extrasById.set(id, {
+        sets: mSets.map((s) => ({ pair1_games: s.pair1_games, pair2_games: s.pair2_games, is_current: s.is_current })),
+        gameScore: curGame?.game_score ?? null,
+        servingPlayerId: latestPoint?.server_player_id ?? null,
+        history: hist,
+        currentSetStartedAt: null,
+      })
+    }
+  }
+  const liveMatches: Match[] = live.map((r) =>
+    mapLiveRowToMatch(r, extrasById.get(r.match_id) ?? { sets: [], gameScore: null, servingPlayerId: null, history: [], currentSetStartedAt: null }, nowMs))
+
+  // 3) SCHEDULED rows (today, not already live) from model_predictions
+  const liveSet = new Set(liveIds)
+  const dayRows = await getMatchOddsForDay(dateIso)
+  const scheduled: Match[] = []
+  const ids = new Set<string>()
+  for (const r of dayRows) {
+    if (liveSet.has(r.match.id)) continue
+    for (const k of ['pair1_player1_id','pair1_player2_id','pair2_player1_id','pair2_player2_id'] as const) {
+      const v = (r.match as unknown as Record<string, string | null>)[k]; if (v) ids.add(v)
+    }
+  }
+  const nameById = new Map<string, string>()
+  if (ids.size) {
+    const { data: pl } = await supabase.from('players').select('id,name').in('id', [...ids])
+    for (const p of pl ?? []) nameById.set(p.id, p.name)
+  }
+  for (const r of dayRows) {
+    const mm = r.match as unknown as Record<string, string | null> & { id: string; status: string; category: string; court: string | null; round_canonical: string | null; round: string | null; scheduled_at: string; tournament?: { name: string | null } | { name: string | null }[] | null }
+    if (liveSet.has(mm.id)) continue
+    const nm = (id: string | null) => (id ? shortName(nameById.get(id) ?? '—') : 'TBD')
+    const tourney = Array.isArray(mm.tournament) ? mm.tournament[0] : mm.tournament
+    const pr = r.prediction as { pair1_prob: number; pair2_prob: number; pair1_decimal_odds: number; pair2_decimal_odds: number } | null
+    scheduled.push({
+      id: mm.id,
+      pair1: { name: [nm(mm.pair1_player1_id), nm(mm.pair1_player2_id)].join(' / '), player1Name: nameById.get(mm.pair1_player1_id ?? '') ?? 'TBD', player2Name: nameById.get(mm.pair1_player2_id ?? '') ?? 'TBD', gender: mm.category === 'women' ? 'women' : 'men', serving: false },
+      pair2: { name: [nm(mm.pair2_player1_id), nm(mm.pair2_player2_id)].join(' / '), player1Name: nameById.get(mm.pair2_player1_id ?? '') ?? 'TBD', player2Name: nameById.get(mm.pair2_player2_id ?? '') ?? 'TBD', gender: mm.category === 'women' ? 'women' : 'men', serving: false },
+      tournament: tourney?.name ?? 'Unknown', court: mm.court, round: mm.round_canonical ?? mm.round, tier: null,
+      status: 'scheduled', scheduledAt: mm.scheduled_at,
+      setScores: [], gamePoints: null,
+      winProb1: pr ? Number(pr.pair1_prob) : 0.5,
+      fairOdds1: pr ? Number(pr.pair1_decimal_odds) : 0, fairOdds2: pr ? Number(pr.pair2_decimal_odds) : 0,
+      movement15m: 0, confidence: 'med', anchorSource: null, lastUpdatedSeconds: 0,
+      winProbHistory: [], currentSetStartedAt: null,
+    })
+  }
+
+  const matches = [...liveMatches, ...scheduled]
+  const kpis = {
+    liveMatches: liveMatches.length,
+    preMatchModeled: scheduled.length,
+    biggestSwing: biggestSwing(liveMatches.map((m) => ({ movement15m: m.movement15m, label: `${m.pair1.name} vs ${m.pair2.name}` }))),
+    lowCoverage: liveMatches.filter((m) => m.confidence === 'low').length,
+  }
+  return { matches, kpis, fetchedAt: new Date(nowMs).toISOString() }
 }
