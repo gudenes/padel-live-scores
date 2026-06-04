@@ -1,6 +1,6 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.test.ts
 import { describe, it, expect } from 'vitest'
-import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch } from './scoreboard-data'
+import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch, predictionCorrect } from './scoreboard-data'
 
 describe('shortName', () => {
   it('returns the last token', () => {
@@ -40,6 +40,7 @@ describe('mapLiveRowToMatch', () => {
       servingPlayerId: 'a',
       history: [{ prob: 0.7, atMs: nowMs - 16 * 60_000 }, { prob: 0.82, atMs: nowMs - 30_000 }],
       currentSetStartedAt: null,
+      prematchPair1Prob: 0.6,
     }, nowMs)
     expect(m.winProb1).toBeCloseTo(0.82)
     expect(m.pair1.name).toBe('M. Di Nenno / F. Navarro')
@@ -51,6 +52,7 @@ describe('mapLiveRowToMatch', () => {
     expect(m.setScores[1].current).toBe(true)
     expect(m.movement15m).toBeCloseTo(0.12)
     expect(m.lastUpdatedSeconds).toBe(30)
+    expect(m.prematch).toEqual({ pair1Prob: 0.6, correct: null })  // live → correct null
   })
 })
 
@@ -79,7 +81,7 @@ describe('mapFinishedRowToMatch', () => {
     p2a: { id: 'c', name: 'Alejandro Galan Romo' }, p2b: { id: 'd', name: 'Juan Lebron' },
   }
   it('maps finished status, winner, scores, names', () => {
-    const m = mapFinishedRowToMatch(row, { sets: [{ pair1_games: 4, pair2_games: 6 }, { pair1_games: 3, pair2_games: 6 }], closing: { pair1_prob: 0.18, pair1_decimal_odds: 5.5, pair2_decimal_odds: 1.2, coverage: 'live-pbp' }, history: [0.5, 0.18] })
+    const m = mapFinishedRowToMatch(row, { sets: [{ pair1_games: 4, pair2_games: 6 }, { pair1_games: 3, pair2_games: 6 }], closing: { pair1_prob: 0.18, pair1_decimal_odds: 5.5, pair2_decimal_odds: 1.2, coverage: 'live-pbp' }, history: [0.5, 0.18], prematchPair1Prob: 0.34 })
     expect(m.status).toBe('finished')
     expect(m.winnerPair).toBe(2)
     expect(m.pair1.name).toBe('M. Di Nenno / F. Navarro')
@@ -87,12 +89,31 @@ describe('mapFinishedRowToMatch', () => {
     expect(m.setScores).toEqual([{ a: 4, b: 6, current: false }, { a: 3, b: 6, current: false }])
     expect(m.winProb1).toBeCloseTo(0.18)
     expect(m.winProbHistory).toEqual([0.5, 0.18])
+    // pre-match favored pair2 (0.34 < 0.5) and pair2 won → correct
+    expect(m.prematch).toEqual({ pair1Prob: 0.34, correct: true })
   })
   it('defaults prob to 0.5 and winnerPair null when no closing/winner', () => {
-    const m = mapFinishedRowToMatch({ ...row, winner_pair: null }, { sets: [], closing: null, history: [] })
+    const m = mapFinishedRowToMatch({ ...row, winner_pair: null }, { sets: [], closing: null, history: [], prematchPair1Prob: null })
     expect(m.winProb1).toBeCloseTo(0.5)
     expect(m.winnerPair).toBeNull()
     expect(m.confidence).toBe('med')
+    expect(m.prematch).toBeNull()  // no model_predictions row
+  })
+})
+
+describe('predictionCorrect', () => {
+  it('true when favored pair won', () => {
+    expect(predictionCorrect(0.72, 1)).toBe(true)
+    expect(predictionCorrect(0.30, 2)).toBe(true)   // favored pair2
+  })
+  it('false when favored pair lost', () => {
+    expect(predictionCorrect(0.72, 2)).toBe(false)
+    expect(predictionCorrect(0.30, 1)).toBe(false)
+  })
+  it('null when unknown', () => {
+    expect(predictionCorrect(null, 1)).toBeNull()
+    expect(predictionCorrect(0.7, null)).toBeNull()
+    expect(predictionCorrect(0.5, 1)).toBeNull()    // tie, no favorite
   })
 })
 

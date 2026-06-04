@@ -38,6 +38,11 @@ export interface Match {
   winProbHistory: number[]       // pair1 prob series, oldest→newest, cap 30 (live only)
   currentSetStartedAt: string | null  // ISO, for the chart's Set view (live only)
   winnerPair: 1 | 2 | null       // winning pair for finished matches; null otherwise
+  // Pre-match Elo prediction (latest model_predictions row). `pair1Prob` is the
+  // pre-match pair1 probability. `correct` is true/false for finished matches with a
+  // clear favorite + known winner, null otherwise (live, scheduled, tie-prob, unknown
+  // winner). Whole object is null when the match has no model_predictions row.
+  prematch: { pair1Prob: number; correct: boolean | null } | null
 }
 
 export interface KpiData {

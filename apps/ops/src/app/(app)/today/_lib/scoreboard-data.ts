@@ -47,6 +47,16 @@ export function isUpcomingStatus(status: string | null | undefined): boolean {
   return !NON_UPCOMING.has((status ?? '').toLowerCase())
 }
 
+// Was the pre-match Elo favorite the actual winner? The favorite is pair1 when
+// `pair1Prob >= 0.5`, else pair2. Returns null when we can't decide: missing prob,
+// unknown winner, or an exact 0.5 tie (no favorite).
+export function predictionCorrect(pair1Prob: number | null | undefined, winnerPair: 1 | 2 | null): boolean | null {
+  if (pair1Prob == null || winnerPair == null) return null
+  if (pair1Prob === 0.5) return null              // no favorite
+  const favored = pair1Prob >= 0.5 ? 1 : 2
+  return favored === winnerPair
+}
+
 const statusOf = (s: string): MatchStatus =>
   s === 'break' ? 'break' : s === 'live' || s === 'on_court' ? 'live' : 'scheduled'
 
@@ -74,6 +84,7 @@ export interface LiveExtras {
   servingPlayerId: string | null
   history: ProbPoint[]
   currentSetStartedAt: string | null
+  prematchPair1Prob: number | null   // latest model_predictions.pair1_prob (pre-match)
 }
 
 export function mapLiveRowToMatch(row: LiveOddsRow, extra: LiveExtras, nowMs: number): Match {
@@ -115,6 +126,7 @@ export function mapLiveRowToMatch(row: LiveOddsRow, extra: LiveExtras, nowMs: nu
     winProbHistory: capHistory(extra.history.map((h) => h.prob), 30),
     currentSetStartedAt: extra.currentSetStartedAt,
     winnerPair: null,
+    prematch: extra.prematchPair1Prob != null ? { pair1Prob: extra.prematchPair1Prob, correct: null } : null,
   }
 }
 
@@ -136,6 +148,7 @@ export interface FinishedExtras {
   sets: Array<{ pair1_games: number; pair2_games: number }>
   closing: { pair1_prob: number; pair1_decimal_odds: number; pair2_decimal_odds: number; coverage: string | null } | null
   history: number[]              // pair1 win-prob series for the chart (oldest→newest, already capped)
+  prematchPair1Prob: number | null   // latest model_predictions.pair1_prob (pre-match)
 }
 
 export function mapFinishedRowToMatch(row: FinishedRow, extra: FinishedExtras): Match {
@@ -163,6 +176,9 @@ export function mapFinishedRowToMatch(row: FinishedRow, extra: FinishedExtras): 
     winProbHistory: extra.history,
     currentSetStartedAt: null,
     winnerPair,
+    prematch: extra.prematchPair1Prob != null
+      ? { pair1Prob: extra.prematchPair1Prob, correct: predictionCorrect(extra.prematchPair1Prob, winnerPair) }
+      : null,
   }
 }
 
@@ -209,6 +225,32 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
   const live = liveRows ?? []
   const liveIds = live.map((r) => r.match_id)
 
+  // FINISHED rows (today's terminal matches). Fetched up-front (only ids needed here)
+  // so the pre-match prediction lookup can cover both live + finished in one query.
+  const dayStart = `${dateIso}T00:00:00`, dayEnd = `${dateIso}T23:59:59`
+  const { data: finRows } = await supabase.from('matches').select(FINISHED_SELECT)
+    .gte('scheduled_at', dayStart).lte('scheduled_at', dayEnd)
+    .in('status', ['finished', 'retired', 'walkover'])
+    .returns<FinishedRow[]>()
+  const finished = finRows ?? []
+  const finIds = finished.map((r) => r.id)
+
+  // Latest PRE-MATCH model_predictions.pair1_prob per match, for live + finished ids.
+  // The model doesn't update during play, so the most recent row IS the pre-match value.
+  // One combined query (ordered desc → first occurrence per id is the latest).
+  const preMap = new Map<string, number>()
+  const preIds = [...liveIds, ...finIds]
+  if (preIds.length) {
+    const { data: preRows } = await supabase
+      .from('model_predictions')
+      .select('match_id,pair1_prob,created_at')
+      .in('match_id', preIds)
+      .order('created_at', { ascending: false })
+    for (const p of preRows ?? []) {
+      if (!preMap.has(p.match_id)) preMap.set(p.match_id, Number(p.pair1_prob))
+    }
+  }
+
   // 2) Per-match extras: sets, current game, serving, snapshot history
   const extrasById = new Map<string, LiveExtras>()
   if (liveIds.length) {
@@ -238,11 +280,12 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
         servingPlayerId: servingById.get(id) ?? null,
         history: histById.get(id) ?? [],
         currentSetStartedAt: null,
+        prematchPair1Prob: preMap.get(id) ?? null,
       })
     }
   }
   const liveMatches: Match[] = live.map((r) =>
-    mapLiveRowToMatch(r, extrasById.get(r.match_id) ?? { sets: [], gameScore: null, servingPlayerId: null, history: [], currentSetStartedAt: null }, nowMs))
+    mapLiveRowToMatch(r, extrasById.get(r.match_id) ?? { sets: [], gameScore: null, servingPlayerId: null, history: [], currentSetStartedAt: null, prematchPair1Prob: preMap.get(r.match_id) ?? null }, nowMs))
 
   // 3) SCHEDULED rows (today, not already live) from model_predictions
   const liveSet = new Set(liveIds)
@@ -278,18 +321,12 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
       fairOdds1: pr ? Number(pr.pair1_decimal_odds) : 0, fairOdds2: pr ? Number(pr.pair2_decimal_odds) : 0,
       movement15m: 0, confidence: 'med', anchorSource: null, lastUpdatedSeconds: 0,
       winProbHistory: [], currentSetStartedAt: null, winnerPair: null,
+      // The scheduled row's model_predictions IS the pre-match prediction.
+      prematch: pr ? { pair1Prob: Number(pr.pair1_prob), correct: null } : null,
     })
   }
 
-  // 4) FINISHED rows (today's terminal matches) — opt-in via the "Final" filter
-  const dayStart = `${dateIso}T00:00:00`, dayEnd = `${dateIso}T23:59:59`
-  const { data: finRows } = await supabase.from('matches').select(FINISHED_SELECT)
-    .gte('scheduled_at', dayStart).lte('scheduled_at', dayEnd)
-    .in('status', ['finished', 'retired', 'walkover'])
-    .returns<FinishedRow[]>()
-  const finished = finRows ?? []
-  const finIds = finished.map((r) => r.id)
-
+  // 4) FINISHED rows — fetched up-front above; build per-match extras here.
   const finExtrasById = new Map<string, FinishedExtras>()
   if (finIds.length) {
     // sets + closing odds are bounded per match — batch with `.in()`.
@@ -315,11 +352,12 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
           ? { pair1_prob: Number(odds.pair1_prob), pair1_decimal_odds: Number(odds.pair1_decimal_odds), pair2_decimal_odds: Number(odds.pair2_decimal_odds), coverage: odds.coverage ?? null }
           : null,
         history: capHistory(hist, 30),
+        prematchPair1Prob: preMap.get(id) ?? null,
       })
     }
   }
   const finishedMatches: Match[] = finished.map((r) =>
-    mapFinishedRowToMatch(r, finExtrasById.get(r.id) ?? { sets: [], closing: null, history: [] }))
+    mapFinishedRowToMatch(r, finExtrasById.get(r.id) ?? { sets: [], closing: null, history: [], prematchPair1Prob: preMap.get(r.id) ?? null }))
 
   const matches = [...liveMatches, ...scheduled, ...finishedMatches]
   const kpis = {

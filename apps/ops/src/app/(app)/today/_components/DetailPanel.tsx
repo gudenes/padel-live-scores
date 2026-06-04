@@ -23,6 +23,13 @@ export function DetailPanel({ match }: { match: Match | null }) {
     .filter(Boolean)
     .join(' · ')
 
+  // Pre-match Elo prediction: favored pair name + its pre-match probability,
+  // plus a right/wrong verdict for finished, scored matches.
+  const pm = match.prematch
+  const pmFavIs1 = pm != null && pm.pair1Prob >= 0.5
+  const pmFavName = pmFavIs1 ? match.pair1.name : match.pair2.name
+  const pmFavPct = pm != null ? Math.round((pmFavIs1 ? pm.pair1Prob : 1 - pm.pair1Prob) * 100) : 0
+
   return (
     <aside className="sb-detail">
       <div className="sb-dhead">
@@ -54,6 +61,23 @@ export function DetailPanel({ match }: { match: Match | null }) {
             <span className="sb-fair sb-num">{match.fairOdds2 ? match.fairOdds2.toFixed(2) : '—'}</span>
           </div>
         </div>
+
+        {pm != null ? (
+          <div className="sb-prematch">
+            <span className="sb-prematch-lab">Pre-match</span>
+            <span className="sb-prematch-val">
+              {pmFavName} <span className="sb-num">{pmFavPct}%</span>
+            </span>
+            {pm.correct !== null ? (
+              <span
+                className={`sb-verdict ${pm.correct ? 'sb-verdict--ok' : 'sb-verdict--miss'}`}
+                title={pm.correct ? 'Model predicted the winner' : 'Model missed'}
+              >
+                {pm.correct ? '✓ correct' : '✗ wrong'}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="sb-dh">
           <span className="sb-dh-lab">Win probability · this match</span>

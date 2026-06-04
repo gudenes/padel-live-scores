@@ -322,6 +322,37 @@
 /* ===== updated cell ===== */
 .sb-upd { font-size: 11px; color: var(--text-3); font-weight: 500; font-variant-numeric: tabular-nums; }
 
+/* ===== pre-match prediction + model verdict ===== */
+.sb-prematch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  font-size: 12px;
+}
+.sb-prematch-lab {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.sb-prematch-val { color: var(--text-2); font-weight: 500; }
+.sb-prematch-val .sb-num { color: var(--text-1); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.sb-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sb-verdict--ok { color: var(--lime-text); }
+.sb-verdict--miss { color: var(--live-text); }
+
 /* ===== 2-COLUMN LAYOUT ===== */
 .sb-grid {
   display: grid;

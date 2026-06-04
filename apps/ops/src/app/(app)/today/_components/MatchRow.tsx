@@ -172,7 +172,14 @@ export function MatchRow({ match, selected, onSelect }: { match: Match; selected
         <ConfidenceMeter confidence={match.confidence} />
       </td>
       <td className="sb-r sb-upd">
-        {match.lastUpdatedSeconds > 0 ? `${match.lastUpdatedSeconds}s` : ''}
+        {match.status === 'finished' && match.prematch?.correct != null ? (
+          <span
+            className={`sb-verdict ${match.prematch.correct ? 'sb-verdict--ok' : 'sb-verdict--miss'}`}
+            title={match.prematch.correct ? 'Model predicted the winner' : 'Model missed'}
+          >
+            {match.prematch.correct ? '✓' : '✗'}
+          </span>
+        ) : match.lastUpdatedSeconds > 0 ? `${match.lastUpdatedSeconds}s` : ''}
       </td>
     </tr>
   )
