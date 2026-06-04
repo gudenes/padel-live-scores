@@ -49,6 +49,12 @@ export function StickyAdBanner() {
   const visible =
     !!banner && isAdRoute(pathname) && (hasDecided || testingGeo || isNative)
 
+  // We also need navHeight when the NATIVE AdMob banner is in play (no direct
+  // banner, so `visible` is false, but the overlay still needs to sit above
+  // the bottom nav). Without this the measurement effect early-returns and
+  // navHeight stays 0 → the native banner covers the nav.
+  const needNavHeight = visible || (isNative && isAdRoute(pathname))
+
   const ref = useRef<HTMLDivElement>(null)
   const [navHeight, setNavHeight] = useState(0)
 
@@ -70,7 +76,7 @@ export function StickyAdBanner() {
   // current element. setNavHeight with an unchanged value is a no-op, so this
   // stays cheap despite the broad observer.
   useEffect(() => {
-    if (!visible) return
+    if (!needNavHeight) return
     let observed: HTMLElement | null = null
     let ro: ResizeObserver | null = null
     const sync = () => {
@@ -95,7 +101,7 @@ export function StickyAdBanner() {
       mo.disconnect()
       window.removeEventListener('resize', sync)
     }
-  }, [visible])
+  }, [needNavHeight])
 
   // Native AdMob fill: show the native banner when there's no matching direct
   // banner on an ad route (the hook no-ops on web and when ineligible). Runs
