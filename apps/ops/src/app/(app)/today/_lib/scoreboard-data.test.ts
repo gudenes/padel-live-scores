@@ -1,6 +1,6 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.test.ts
 import { describe, it, expect } from 'vitest'
-import { shortName, mapLiveRowToMatch } from './scoreboard-data'
+import { shortName, displayName, mapLiveRowToMatch } from './scoreboard-data'
 
 describe('shortName', () => {
   it('returns the last token', () => {
@@ -42,7 +42,7 @@ describe('mapLiveRowToMatch', () => {
       currentSetStartedAt: null,
     }, nowMs)
     expect(m.winProb1).toBeCloseTo(0.82)
-    expect(m.pair1.name).toBe('Nenno / Navarro')
+    expect(m.pair1.name).toBe('M. Di Nenno / F. Navarro')
     expect(m.confidence).toBe('full')
     expect(m.status).toBe('live')
     expect(m.pair1.serving).toBe(true)
@@ -51,5 +51,22 @@ describe('mapLiveRowToMatch', () => {
     expect(m.setScores[1].current).toBe(true)
     expect(m.movement15m).toBeCloseTo(0.12)
     expect(m.lastUpdatedSeconds).toBe(30)
+  })
+})
+
+describe('displayName', () => {
+  it('formats as "Initial. FirstSurname"', () => {
+    expect(displayName('Alejandro Galan Romo')).toBe('A. Galan')
+    expect(displayName('Alonso Rodriguez Martinez')).toBe('A. Rodriguez')
+    expect(displayName('Francisco Navarro')).toBe('F. Navarro')
+  })
+  it('keeps surname particles', () => {
+    expect(displayName('Martin Di Nenno')).toBe('M. Di Nenno')
+    expect(displayName('Maria De La Fuente')).toBe('M. De La Fuente')
+  })
+  it('passes through single token; handles null/empty', () => {
+    expect(displayName('Navarro')).toBe('Navarro')
+    expect(displayName(null)).toBe('—')
+    expect(displayName('')).toBe('—')
   })
 })

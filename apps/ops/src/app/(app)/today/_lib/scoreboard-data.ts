@@ -11,8 +11,33 @@ export function shortName(name: string | null | undefined): string {
   return parts[parts.length - 1] || '—'
 }
 
+const SURNAME_PARTICLES = new Set([
+  'di','de','del','della','da','dos','das','van','von','la','le','lo','du','den','der','ten','ter','bin','el',
+])
+
+// Broadcast-style short name: first initial + paternal (first) surname,
+// keeping leading surname particles ("Di Nenno", "De La Fuente").
+// Trade-off (rare): compound GIVEN names ("Juan Ignacio De Pascual") take the
+// second token as the surname start ("J. Ignacio") — acceptable, matches the
+// existing playerShortName trade-off.
+export function displayName(name: string | null | undefined): string {
+  if (!name) return '—'
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return '—'
+  if (parts.length === 1) return parts[0]
+  const initial = parts[0][0]!.toUpperCase()
+  let i = 1
+  const surname: string[] = []
+  while (i < parts.length && SURNAME_PARTICLES.has(parts[i].toLowerCase())) {
+    surname.push(parts[i]); i++
+  }
+  if (i < parts.length) surname.push(parts[i])
+  const tail = surname.join(' ') || parts[parts.length - 1]
+  return `${initial}. ${tail}`
+}
+
 const pairName = (a: string | null, b: string | null) =>
-  [shortName(a), shortName(b)].filter((x) => x !== '—').join(' / ') || 'TBD'
+  [displayName(a), displayName(b)].filter((x) => x !== '—').join(' / ') || 'TBD'
 
 const statusOf = (s: string): MatchStatus =>
   s === 'break' ? 'break' : s === 'live' || s === 'on_court' ? 'live' : 'scheduled'
@@ -149,7 +174,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
   for (const r of dayRows) {
     const mm = r.match as unknown as Record<string, string | null> & { id: string; status: string; category: string; court: string | null; round_canonical: string | null; round: string | null; scheduled_at: string; tournament?: { name: string | null } | { name: string | null }[] | null }
     if (liveSet.has(mm.id)) continue
-    const nm = (id: string | null) => (id ? shortName(nameById.get(id) ?? '—') : 'TBD')
+    const nm = (id: string | null) => (id ? displayName(nameById.get(id) ?? null) : 'TBD')
     const tourney = Array.isArray(mm.tournament) ? mm.tournament[0] : mm.tournament
     const pr = r.prediction as { pair1_prob: number; pair2_prob: number; pair1_decimal_odds: number; pair2_decimal_odds: number } | null
     scheduled.push({
