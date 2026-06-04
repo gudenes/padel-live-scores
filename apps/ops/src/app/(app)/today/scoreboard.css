@@ -1,0 +1,309 @@
+/* Today live-odds scoreboard — co-located styles.
+   All classes prefixed `sb-`. Token-driven (works in both themes).
+   Ported from docs/superpowers/mockups/live-odds-admin.html. */
+
+.sb-page {
+  --sb-num: tabular-nums;
+}
+
+/* ===== KPI ROW ===== */
+.sb-kpirow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+@media (max-width: 720px) {
+  .sb-kpirow { grid-template-columns: repeat(2, 1fr); }
+}
+.sb-kpi {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+}
+.sb-kpi-label {
+  font-size: 11px;
+  color: var(--text-3);
+  font-weight: 500;
+}
+.sb-kpi-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  margin-top: 5px;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+.sb-kpi-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+.sb-kpi--lime .sb-kpi-value { color: var(--lime-text); }
+.sb-kpi--orange { border-color: var(--orange-border); }
+.sb-kpi--orange .sb-kpi-value { color: var(--orange-text); }
+.sb-kpi--orange::after {
+  content: "";
+  position: absolute;
+  top: -30px;
+  right: -30px;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--orange-bg), transparent 70%);
+}
+.sb-kpi--muted .sb-kpi-value { color: var(--text-2); }
+
+/* ===== TABLE PANEL ===== */
+.sb-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.sb-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border-inner);
+}
+.sb-panel-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.sb-livepill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--live-text);
+  background: var(--live-bg);
+  border: 1px solid var(--live-border);
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+}
+.sb-livepill .sb-livedot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--live-text);
+  animation: sb-pulse 1.6s infinite;
+}
+@keyframes sb-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 70, 85, 0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(255, 70, 85, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 70, 85, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sb-livepill .sb-livedot { animation: none; }
+}
+
+.sb-tablescroll { overflow-x: auto; }
+.sb-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.sb-table thead th {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-card);
+  text-align: left;
+  background: var(--bg-card);
+  white-space: nowrap;
+}
+.sb-table thead th.sb-r { text-align: right; }
+.sb-table thead th.sb-c { text-align: center; }
+.sb-table tbody td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border-inner);
+  vertical-align: middle;
+  font-size: 14px;
+  color: var(--text-1);
+}
+.sb-row { cursor: pointer; transition: background 0.1s ease; }
+.sb-row:hover { background: var(--bg-hover); }
+.sb-row:focus-visible { outline: 2px solid var(--lime); outline-offset: -2px; }
+.sb-row--sel {
+  background: var(--bg-sel);
+  box-shadow: inset 3px 0 0 var(--lime);
+}
+
+/* ===== MATCH cell (two stacked pairs) ===== */
+.sb-match .sb-pp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  height: 21px;
+  color: var(--text-2);
+}
+.sb-match .sb-pp.sb-lead { color: var(--text-1); font-weight: 600; }
+.sb-match .sb-pp.sb-trail { color: var(--text-3); }
+.sb-srv {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lime);
+  box-shadow: 0 0 6px var(--lime);
+  display: inline-block;
+  flex: 0 0 auto;
+  visibility: hidden;
+}
+.sb-pp.sb-serving .sb-srv { visibility: visible; }
+.sb-gtag {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 1px 6px;
+  border-radius: var(--r-xs);
+  margin-left: 5px;
+  border: 1px solid;
+}
+.sb-g-men { background: var(--men-bg); color: var(--men); border-color: var(--men-border); }
+.sb-g-women { background: var(--women-bg); color: var(--women); border-color: var(--women-border); }
+
+/* ===== TOURNAMENT cell ===== */
+.sb-tour { font-size: 13px; color: var(--text-2); }
+.sb-tour small { display: block; color: var(--text-3); font-size: 11px; }
+
+/* ===== SCORE cell ===== */
+.sb-score { display: flex; align-items: center; gap: 8px; }
+.sb-scols { display: flex; gap: 7px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.sb-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+}
+.sb-col .sb-a { color: var(--text-1); height: 21px; line-height: 21px; }
+.sb-col .sb-b { color: var(--text-3); height: 21px; line-height: 21px; }
+.sb-col.sb-cur .sb-a, .sb-col.sb-cur .sb-b { color: var(--lime-text); }
+.sb-gpcol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  background: var(--orange-bg);
+  border: 1px solid var(--orange-border);
+  border-radius: var(--r-xs);
+  padding: 0 5px;
+  font-variant-numeric: tabular-nums;
+}
+.sb-gpcol .sb-a, .sb-gpcol .sb-b { height: 21px; line-height: 21px; color: var(--orange-text); font-weight: 600; }
+.sb-gpcol .sb-b { opacity: 0.7; }
+.sb-gpcol.sb-serveA .sb-a::after,
+.sb-gpcol.sb-serveB .sb-b::after {
+  content: "•";
+  color: var(--lime);
+  margin-left: 3px;
+}
+.sb-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--r-xs);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border: 1px solid;
+}
+.sb-b-live { background: var(--live-bg); color: var(--live-text); border-color: var(--live-border); }
+.sb-b-break { background: var(--orange-bg); color: var(--orange-text); border-color: var(--orange-border); }
+.sb-b-sched { background: var(--bg-sunken); color: var(--text-3); border-color: var(--border-card); }
+.sb-schedtime { font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* ===== ODDS bar ===== */
+.sb-oddsbar { min-width: 188px; }
+.sb-oddsbar-track {
+  height: 26px;
+  border-radius: var(--r-xs);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--track);
+  font-weight: 600;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sb-oddsbar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, var(--lime-2), var(--lime));
+}
+.sb-oddsbar-pct { position: relative; z-index: 1; }
+.sb-oddsbar-pct--fav { color: var(--lime-ink); padding-left: 10px; }
+.sb-oddsbar-pct--dog { color: var(--text-2); margin-left: auto; padding-right: 10px; }
+.sb-oddsbar-fair {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-3);
+  font-weight: 500;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== 15m movement chip ===== */
+.sb-mv {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sb-mv--up { color: var(--lime-text); }
+.sb-mv--dn { color: var(--live-text); }
+.sb-mv--flat { color: var(--text-3); }
+
+/* ===== confidence meter ===== */
+.sb-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.sb-conf-bars {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 13px;
+}
+.sb-conf-bars i {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--track-ink);
+  display: inline-block;
+}
+.sb-conf--full .sb-conf-bars i { background: var(--lime); }
+.sb-conf--med .sb-conf-bars i:nth-child(-n+2) { background: var(--orange); }
+.sb-conf--low .sb-conf-bars i:nth-child(1) { background: var(--live); }
+.sb-conf-t { color: var(--text-3); }
+.sb-conf--full .sb-conf-t { color: var(--lime-text); }
+.sb-conf--med .sb-conf-t { color: var(--orange-text); }
+.sb-conf--low .sb-conf-t { color: var(--live-text); }
+
+/* ===== updated cell ===== */
+.sb-upd { font-size: 11px; color: var(--text-3); font-weight: 500; font-variant-numeric: tabular-nums; }
