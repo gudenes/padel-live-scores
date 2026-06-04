@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Odds — global header + 2-col content</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+:root{
+  --font:Rubik,"Avenir Next","Helvetica Neue",sans-serif;
+  --mono:"Roboto Mono",Menlo,Monaco,Consolas,monospace;
+  --radius-sm:3px; --radius-md:4px; --radius-lg:6px; --radius-xl:8px;
+  --bg-app:#f5fbf0; --bg-surface:#ffffff; --bg-sunken:#eef7e8; --bg-hover:#e8f5e0; --bg-selected:#d4edca;
+  --text:#1c2b1c; --text-2:#4a6741; --text-3:#7a9474; --text-4:#aac3a4;
+  --accent:#6abf3a; --accent-hover:#59a82e; --accent-active:#4a8f26; --accent-light:#d6f0be; --accent-muted:#a3d87a;
+  --error:#e03e2f; --error-bg:#fdf6f5; --error-bd:#e7c0bc;
+  --warning:#d4991a; --warning-bg:#fffdf0; --warning-bd:#e8d87a;
+  --info:#3b8fd4; --info-bg:#f0f7fd; --info-bd:#9ec8e8;
+  --border:#cce0c0; --border-strong:#9abf8e; --border-muted:#e2eed9;
+  --sh-sm:0 1px 2px rgba(0,0,0,.06); --sh-md:0 4px 8px rgba(0,0,0,.08); --sh-lg:0 8px 24px rgba(0,0,0,.10);
+  --side-bg:#1a2e1a; --side-text:#c8e6c0; --side-muted:#7aab72; --side-border:#0d1f0d; --side-hover:#243d24;
+  --gheader-h:54px; --pagehead-h:50px; --t-fast:.1s ease; --t-base:.15s ease-in-out;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font);font-size:14px;line-height:1.4;color:var(--text);background:var(--bg-app);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+.mono{font-family:var(--mono)}
+.app{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+
+/* ===== GLOBAL STICKY HEADER (full width, all pages) ===== */
+.gheader{height:var(--gheader-h);flex-shrink:0;display:flex;align-items:center;gap:14px;padding:0 16px;background:var(--bg-surface);border-bottom:1px solid var(--border);z-index:120}
+.gbrand{display:flex;align-items:center;gap:10px;width:206px;flex-shrink:0}
+.gbrand .mark{width:32px;height:32px;border-radius:var(--radius-lg);background:linear-gradient(145deg,#7ed040,#57a32c);display:flex;align-items:center;justify-content:center;font-weight:700;color:#0c1f0c;font-size:17px}
+.gbrand .wm{font-size:15px;font-weight:600}
+.gsearch{flex:1;max-width:560px;margin:0 auto;background:var(--bg-app);border:1px solid var(--border-strong);border-radius:var(--radius-lg);padding:8px 13px;display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text-3)}
+.gsearch:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(106,191,58,.15);background:#fff}
+.gsearch input{border:0;outline:0;background:transparent;flex:1;font:inherit;color:var(--text)}
+.gsearch kbd{font-family:var(--mono);font-size:10px;color:var(--text-3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:1px 5px;background:#fff}
+.gright{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.iconbtn{width:34px;height:34px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;color:var(--text-2);cursor:pointer;position:relative}
+.iconbtn:hover{background:var(--bg-hover)}
+.iconbtn .ic{width:18px;height:18px}
+.iconbtn .nd{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--error)}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(145deg,#7ed040,#57a32c);color:#0c1f0c;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
+
+.shell{flex:1;display:flex;overflow:hidden}
+
+/* ===== Labeled sidebar (dark green, accordion, collapsible) ===== */
+.rail{width:232px;background:var(--side-bg);border-right:1px solid var(--side-border);display:flex;flex-direction:column;flex-shrink:0;transition:width .18s ease;overflow:hidden}
+.app.collapsed .rail{width:66px}
+.railtop{display:flex;align-items:center;padding:8px 10px 4px}
+.railtop .collapse{margin-left:auto;width:26px;height:26px;border-radius:var(--radius-md);border:1px solid var(--side-border);background:transparent;color:var(--side-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;flex:0 0 auto}
+.railtop .collapse:hover{background:var(--side-hover);color:var(--side-text)}
+.collapsed .railtop{justify-content:center;padding:8px 0 4px}
+.railscroll{flex:1;display:flex;flex-direction:column;overflow-y:auto;padding:2px 8px 8px}
+.railscroll::-webkit-scrollbar{width:8px}.railscroll::-webkit-scrollbar-thumb{background:#2c4a2c;border-radius:8px}
+.navgroup{margin-bottom:2px}
+.navgroup .gl{display:flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--side-muted);font-weight:700;padding:12px 10px 5px;cursor:pointer;user-select:none}
+.navgroup .gl .chev{margin-left:auto;font-size:9px;transition:transform .18s ease}
+.navgroup.closed .gl .chev{transform:rotate(-90deg)}
+.navgroup .gl .gcount{font-size:9px;color:var(--side-muted);background:#0f230f;border-radius:999px;padding:1px 7px;font-weight:700}
+.navgroup .items{overflow:hidden;transition:max-height .22s ease;max-height:600px}
+.navgroup.closed .items{max-height:0}
+.nav{display:flex;align-items:center;gap:11px;padding:9px 10px;font-size:13px;font-weight:500;color:var(--side-text);cursor:pointer;border-radius:var(--radius-lg);text-decoration:none;position:relative;transition:background var(--t-fast),color var(--t-fast)}
+.nav:hover{background:var(--side-hover)}
+.nav.active{background:var(--accent);color:#fff;font-weight:600}
+.nav .ic{width:18px;height:18px;flex:0 0 auto;opacity:.85}
+.nav.active .ic{opacity:1}
+.nav .lbl{white-space:nowrap}
+.nav .pill{margin-left:auto;font-size:8.5px;font-weight:700;letter-spacing:.4px;display:inline-flex;align-items:center;gap:4px;color:#ffd9dc}
+.nav.active .pill{color:#fff}
+.nav .pill .d{width:6px;height:6px;border-radius:50%;background:#ff5a67;box-shadow:0 0 7px #ff5a67;animation:pulse 1.6s infinite}
+.nav.active .pill .d{background:#fff;box-shadow:0 0 7px rgba(255,255,255,.8)}
+.nav .cnt{margin-left:auto;font-size:10px;font-weight:700;background:var(--warning);color:#241a00;min-width:18px;text-align:center;padding:1px 6px;border-radius:999px}
+.collapsed .navgroup .gl{justify-content:center;padding:9px 0 5px;cursor:default}
+.collapsed .navgroup .gl .glabel,.collapsed .navgroup .gl .chev,.collapsed .navgroup .gl .gcount{display:none}
+.collapsed .navgroup .gl::before{content:"";width:18px;height:1px;background:#2c4a2c;display:block}
+.collapsed .navgroup.closed .items{max-height:600px}
+.collapsed .nav{justify-content:center;padding:10px 0;gap:0}
+.collapsed .nav .lbl,.collapsed .nav .pill,.collapsed .nav .cnt{display:none}
+.collapsed .nav .railpill{display:block;position:absolute;top:6px;right:13px;width:7px;height:7px;border-radius:50%;background:#ff5a67;box-shadow:0 0 7px #ff5a67}
+.nav .railpill{display:none}
+.collapsed .nav:hover::after{content:attr(data-tip);position:absolute;left:58px;top:50%;transform:translateY(-50%);background:#0c1f0c;color:#eaf6e4;font-size:12px;font-weight:500;padding:6px 11px;border-radius:var(--radius-md);white-space:nowrap;z-index:60;box-shadow:var(--sh-lg);border:1px solid var(--side-border)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,90,103,.5)}70%{box-shadow:0 0 0 6px rgba(255,90,103,0)}100%{box-shadow:0 0 0 0 rgba(255,90,103,0)}}
+@media (prefers-reduced-motion:reduce){.live-dot,.dot{animation:none}}
+
+/* ===== Main ===== */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+.pagehead{height:var(--pagehead-h);flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--border-muted);background:var(--bg-app)}
+.crumb{font-weight:600;font-size:16px}
+.crumb .live{margin-left:9px;display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:var(--error);background:var(--error-bg);border:1px solid var(--error-bd);padding:2px 8px;border-radius:var(--radius-sm);text-transform:uppercase;letter-spacing:.4px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--error);animation:pulse 1.6s infinite}
+.pagehead .spacer{flex:1}
+.toggle{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);font-weight:500}
+.sw{width:34px;height:19px;border-radius:999px;background:var(--accent);position:relative}
+.sw::after{content:"";position:absolute;top:2px;right:2px;width:15px;height:15px;border-radius:50%;background:#fff}
+.clock{font-size:12px;color:var(--text-2);font-weight:500}
+.pagebody{flex:1;overflow-y:auto;padding:18px 24px 40px}
+
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.panel{background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--sh-sm)}
+.kpi{padding:14px 16px;position:relative;overflow:hidden;transition:box-shadow var(--t-base),transform var(--t-base)}
+.kpi:hover{transform:translateY(-1px);box-shadow:var(--sh-md)}
+.kpi .l{font-size:11px;color:var(--text-3);font-weight:500;display:flex;align-items:center;gap:7px}
+.kpi .v{font-size:26px;font-weight:600;letter-spacing:-.4px;margin-top:5px}
+.kpi .s{font-size:11px;color:var(--text-3);margin-top:2px}.kpi .s b{color:var(--accent-hover)}
+.kpi.glow{border-color:var(--warning-bd)}.kpi.glow .v{color:var(--warning)}
+.kpi.glow::after{content:"";position:absolute;top:-30px;right:-30px;width:84px;height:84px;border-radius:50%;background:radial-gradient(circle,rgba(212,153,26,.14),transparent 70%)}
+
+/* 2-COLUMN CONTENT GRID (matches Today page 2fr/1fr) */
+.content2{display:grid;grid-template-columns:minmax(0,1fr) 372px;gap:16px;align-items:start}
+.content2>*{min-width:0}
+.tablescroll{overflow-x:auto}
+@media (max-width:1180px){.content2{grid-template-columns:1fr}.detail{position:static}}
+
+.panel-header{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--border-muted)}
+.panel-header h3{margin:0;font-size:15px;font-weight:600}.panel-header .mut{color:var(--text-3);font-size:12px}
+.filters{display:flex;align-items:center;gap:9px;padding:11px 18px;border-bottom:1px solid var(--border-muted);background:var(--bg-sunken);flex-wrap:wrap}
+.fsel{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:var(--radius-md);padding:6px 11px;font-size:12px;font-weight:500;color:var(--text-2);background:var(--bg-surface);cursor:pointer;white-space:nowrap}
+.fsel:hover{border-color:var(--accent-muted)}
+.fsel .k{color:var(--text-3);font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.4px}
+.fsel.on{border-color:var(--accent);background:var(--accent-light);color:var(--accent-active)}.fsel.on .k{color:var(--accent-active)}
+.fsel .caret{color:var(--text-3);font-size:10px}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--radius-md);overflow:hidden;font-size:11px;font-weight:600;background:var(--bg-surface)}
+.seg span{padding:6px 11px;color:var(--text-2);cursor:pointer;border-right:1px solid var(--border)}.seg span:last-child{border-right:0}
+.seg span.on{background:var(--accent);color:#fff}
+.filters .right{margin-left:auto;display:flex;align-items:center;gap:13px}
+.chiptog{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2);font-weight:500;cursor:pointer}
+.chiptog .sw2{width:30px;height:17px;border-radius:999px;background:var(--border-strong);position:relative}
+.chiptog .sw2::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:#fff}
+.clearbtn{color:var(--accent-active);font-weight:600;font-size:12px;cursor:pointer}
+.fsummary{display:flex;align-items:center;gap:8px;padding:8px 18px;border-bottom:1px solid var(--border-muted);background:var(--bg-surface);flex-wrap:wrap}
+.fcount{font-size:12px;color:var(--text-3)}
+.ftag{display:inline-flex;align-items:center;gap:7px;background:var(--accent-light);color:var(--accent-active);border:1px solid var(--accent-muted);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:600}.ftag .x{cursor:pointer;opacity:.8}
+
+table{width:100%;border-collapse:collapse}
+thead th{font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;padding:9px 14px;border-bottom:1px solid var(--border);text-align:left;background:var(--bg-surface)}
+thead th.r{text-align:right}thead th.c{text-align:center}
+tbody td{padding:11px 14px;border-bottom:1px solid var(--border-muted);vertical-align:middle;font-size:14px}
+tbody tr{cursor:pointer;transition:background var(--t-fast)}
+tbody tr:hover{background:var(--bg-hover)}
+tbody tr.sel{background:var(--bg-selected);box-shadow:inset 3px 0 0 var(--accent)}
+.match .pp{display:flex;align-items:center;gap:8px;font-weight:500;height:21px}
+.match .pp.lead{color:var(--text);font-weight:600}.match .pp.trail{color:var(--text-3)}
+.srv{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);display:inline-block;flex:0 0 auto;visibility:hidden}
+.pp.serving .srv{visibility:visible}
+.gtag{font-size:9px;font-weight:700;letter-spacing:.3px;padding:1px 6px;border-radius:var(--radius-sm);margin-left:5px;border:1px solid}
+.g-men{background:var(--info-bg);color:var(--info);border-color:var(--info-bd)}
+.g-women{background:#fdf2f8;color:#db2777;border-color:#f3c6dd}
+.tour{font-size:13px;color:var(--text-2)}.tour small{display:block;color:var(--text-3);font-size:11px}
+.score{display:flex;align-items:center;gap:8px}
+.scols{display:flex;gap:7px;font-weight:600}
+.col{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:14px}
+.col .a{color:var(--text);height:21px;line-height:21px}.col .b{color:var(--text-3);height:21px;line-height:21px}
+.col.cur .a,.col.cur .b{color:var(--accent-active)}
+.gpcol{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:32px;background:var(--warning-bg);border:1px solid var(--warning-bd);border-radius:var(--radius-md);padding:0 5px}
+.gpcol .a,.gpcol .b{height:21px;line-height:21px;color:#b07d12;font-weight:600}.gpcol .b{color:#caa24a}
+.gpcol.serveA .a::after,.gpcol.serveB .b::after{content:"•";color:var(--accent);margin-left:3px}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid}
+.b-live{background:var(--error-bg);color:var(--error);border-color:var(--error-bd)}
+.b-break{background:var(--warning-bg);color:var(--warning);border-color:var(--warning-bd)}
+.b-sched{background:var(--bg-sunken);color:var(--text-3);border-color:var(--border)}
+.schedtime{font-weight:600;color:var(--text-2)}
+.odds{min-width:188px}
+.obar{height:26px;border-radius:var(--radius-md);overflow:hidden;display:flex;font-weight:600;font-size:12px}
+.obar .a{background:linear-gradient(90deg,#7ed040,var(--accent));color:#10260a;display:flex;align-items:center;padding-left:10px}
+.obar .b{background:#e3eedb;color:var(--text-2);display:flex;align-items:center;justify-content:flex-end;padding-right:10px}
+.osub{display:flex;justify-content:space-between;font-size:10.5px;color:var(--text-3);font-weight:500;margin-top:4px}
+.mv{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:12px}
+.mv.up{color:var(--accent-active)}.mv.dn{color:var(--error)}.mv.flat{color:var(--text-3)}
+.conf{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600}
+.conf .bars{display:flex;gap:2px;align-items:flex-end;height:13px}
+.conf .bars i{width:3px;border-radius:1px;background:var(--border-strong);display:inline-block}
+.conf.full .bars i{background:var(--accent)}.conf.med .bars i:nth-child(-n+2){background:var(--warning)}.conf.low .bars i:nth-child(1){background:var(--error)}
+.conf .t{color:var(--text-3)}.conf.full .t{color:var(--accent-active)}.conf.med .t{color:var(--warning)}.conf.low .t{color:var(--error)}
+.upd{font-size:11px;color:var(--text-3);font-weight:500}
+.tfoot{padding:13px;text-align:center;color:var(--accent-active);font-weight:600;font-size:12px;cursor:pointer}.tfoot:hover{background:var(--bg-hover)}
+.foot{padding:12px 24px;color:var(--text-3);font-size:11px}
+
+/* RIGHT COLUMN — selected match panel (persistent, sticky) */
+.detail{position:sticky;top:0}
+.dhead{display:flex;align-items:flex-start;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border-muted)}
+.dhead .lab{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);font-weight:700}
+.dhead .ttl{font-size:14px;font-weight:600;margin-top:3px;line-height:1.3}
+.dhead small{color:var(--text-3);font-size:11px}
+.dbody{padding:12px 16px 16px}
+.prow{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border-muted)}
+.prow:last-of-type{border-bottom:0}
+.pname{font-weight:600;display:flex;align-items:center;gap:8px;font-size:13px}
+.pname .sv{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);visibility:hidden}
+.pname.serving .sv{visibility:visible}
+.big{font-size:22px;font-weight:700}.big.lead{color:var(--accent-active)}.big.trail{color:var(--text-3)}
+.fair{font-size:11px;color:var(--text-3);font-weight:500;margin-left:8px}
+.dh{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}
+.dh .lab{font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--text-3);font-weight:700}
+.seg2{display:inline-flex;gap:2px;background:var(--bg-sunken);border:1px solid var(--border);border-radius:var(--radius-md);padding:2px}
+.seg2 span{font-size:10px;font-weight:600;color:var(--text-3);padding:2px 9px;border-radius:3px;cursor:pointer}.seg2 span.on{background:var(--accent);color:#fff}
+.legend{display:flex;gap:14px;font-size:11px;color:var(--text-2);font-weight:500;margin-top:8px}
+.legend span{display:inline-flex;align-items:center;gap:7px}.legend i{width:10px;height:10px;border-radius:3px}
+.stat{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;gap:9px;margin-bottom:10px;font-size:11px;font-weight:600}
+.stat .name{grid-column:1/4;text-align:center;color:var(--text-3);font-weight:500;font-size:10px;text-transform:uppercase;letter-spacing:.3px;margin-bottom:-5px}
+.stat .l{color:var(--accent-active);text-align:right}.stat .r{color:var(--text-2);text-align:left}
+.stbar{height:6px;border-radius:999px;background:#dfeed6;display:flex;overflow:hidden}.stbar .a{background:var(--accent)}.stbar .b{background:var(--border-strong)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <symbol id="i-today" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-odds" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h3l3-8 4 16 3-8h5"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8l6 4-6 4z" fill="currentColor"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M16 6a3 3 0 010 6M21 20c0-2.5-1.5-4-3-4.5"/></symbol>
+    <symbol id="i-tag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v5l9 9 7-7-9-9H5a2 2 0 00-2 2z"/><circle cx="7.5" cy="7.5" r="1.3" fill="currentColor"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></symbol>
+    <symbol id="i-yt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h6"/></symbol>
+    <symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h3l2-4 3 8 2-5 1.5 3H21"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.5 2 3.5-.3.7 3.4 2.8 2.1-1.4 3.2 1.4 3.2-2.8 2.1-.7 3.4-3.5-.3L12 22l-2.5-2-3.5.3-.7-3.4L2.5 14.8 3.9 11.6 2.5 8.4 5.3 6.3 6 2.9 9.5 3.2z"/><path d="M9 12l2 2 4-4"/></symbol>
+    <symbol id="i-server" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-matrix" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></symbol>
+    <symbol id="i-toggle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="8" cy="12" r="3" fill="currentColor"/></symbol>
+    <symbol id="i-arch" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6 8.5v3a2 2 0 002 2h8a2 2 0 002-2v-3M12 13.5v2"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/></symbol>
+  </defs></svg>
+
+  <!-- GLOBAL STICKY HEADER -->
+  <header class="gheader">
+    <div class="gbrand"><div class="mark">P</div><div class="wm">Padel Nachos Admin</div></div>
+    <div class="gsearch"><span style="color:var(--text-4)">⌕</span><input placeholder="Search matches, players, tournaments, pages…"><kbd>⌘K</kbd></div>
+    <div class="gright">
+      <div class="iconbtn"><svg class="ic"><use href="#i-bell"/></svg><span class="nd"></span></div>
+      <div class="avatar" title="ops@padelnachos.com">PN</div>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- LABELED SIDEBAR (collapsible) -->
+    <nav class="rail">
+      <div class="railtop"><button class="collapse" id="collapseBtn" title="Collapse">‹</button></div>
+      <div class="railscroll">
+        <div class="navgroup">
+          <div class="nav active" data-tip="Live Odds"><svg class="ic"><use href="#i-odds"/></svg><span class="lbl">Live Odds</span><span class="pill"><span class="d"></span>LIVE</span><span class="railpill"></span></div>
+          <div class="nav" data-tip="Today"><svg class="ic"><use href="#i-today"/></svg><span class="lbl">Today</span></div>
+        </div>
+        <div class="navgroup">
+          <div class="gl"><span class="glabel">Tournament Ops</span><span class="gcount">4</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="Tournament Explorer"><svg class="ic"><use href="#i-grid"/></svg><span class="lbl">Tournament Explorer</span></div>
+            <div class="nav" data-tip="Entry Lists"><svg class="ic"><use href="#i-list"/></svg><span class="lbl">Entry Lists</span></div>
+            <div class="nav" data-tip="Needs Review"><svg class="ic"><use href="#i-flag"/></svg><span class="lbl">Needs Review</span><span class="cnt">3</span></div>
+            <div class="nav" data-tip="Simulator"><svg class="ic"><use href="#i-play"/></svg><span class="lbl">Simulator</span></div>
+          </div>
+        </div>
+        <div class="navgroup">
+          <div class="gl"><span class="glabel">Catalogs</span><span class="gcount">4</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="Players"><svg class="ic"><use href="#i-users"/></svg><span class="lbl">Players</span></div>
+            <div class="nav" data-tip="Brands & Equipment"><svg class="ic"><use href="#i-tag"/></svg><span class="lbl">Brands &amp; Equipment</span></div>
+            <div class="nav" data-tip="Streams"><svg class="ic"><use href="#i-video"/></svg><span class="lbl">Streams</span></div>
+            <div class="nav" data-tip="YT Channels"><svg class="ic"><use href="#i-yt"/></svg><span class="lbl">YT Channels</span></div>
+          </div>
+        </div>
+        <div class="navgroup">
+          <div class="gl"><span class="glabel">Content</span><span class="gcount">2</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="News"><svg class="ic"><use href="#i-doc"/></svg><span class="lbl">News</span></div>
+            <div class="nav" data-tip="Highlights"><svg class="ic"><use href="#i-film"/></svg><span class="lbl">Highlights</span></div>
+          </div>
+        </div>
+        <div class="navgroup closed">
+          <div class="gl"><span class="glabel">System</span><span class="gcount">7</span><span class="chev">▾</span></div>
+          <div class="items">
+            <div class="nav" data-tip="Integration Health"><svg class="ic"><use href="#i-heart"/></svg><span class="lbl">Integration Health</span></div>
+            <div class="nav" data-tip="Data Quality"><svg class="ic"><use href="#i-check"/></svg><span class="lbl">Data Quality</span></div>
+            <div class="nav" data-tip="Padelgod Health"><svg class="ic"><use href="#i-server"/></svg><span class="lbl">Padelgod Health</span></div>
+            <div class="nav" data-tip="Shadow Mode"><svg class="ic"><use href="#i-eye"/></svg><span class="lbl">Shadow Mode</span></div>
+            <div class="nav" data-tip="Coverage Matrix"><svg class="ic"><use href="#i-matrix"/></svg><span class="lbl">Coverage Matrix</span></div>
+            <div class="nav" data-tip="Feature Flags"><svg class="ic"><use href="#i-toggle"/></svg><span class="lbl">Feature Flags</span></div>
+            <div class="nav" data-tip="Architecture"><svg class="ic"><use href="#i-arch"/></svg><span class="lbl">Architecture</span></div>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="main">
+      <div class="pagehead">
+        <div class="crumb">Live Odds<span class="live"><span class="dot"></span>Model live</span></div>
+        <div class="spacer"></div>
+        <span class="toggle">Auto-refresh <span class="sw"></span></span>
+        <span class="clock mono">09:42:18</span>
+      </div>
+
+      <div class="pagebody">
+        <div class="kpis">
+          <div class="panel kpi"><div class="l">◷ Live matches</div><div class="v mono">28</div><div class="s"><b>+5</b> in last 15m</div></div>
+          <div class="panel kpi"><div class="l">⟲ Pre-match modeled</div><div class="v mono">156</div><div class="s">across 6 tournaments</div></div>
+          <div class="panel kpi glow"><div class="l">▲ Biggest swing (15m)</div><div class="v mono">+34%</div><div class="s">Orsi/Zielinski vs Mornia/Salvado</div></div>
+          <div class="panel kpi"><div class="l">◆ Low coverage</div><div class="v mono">2</div><div class="s">live, no point-by-point yet</div></div>
+        </div>
+
+        <div class="content2">
+          <!-- LEFT: live table -->
+          <div class="panel">
+            <div class="panel-header"><h3>Live matches</h3><span class="mut">28 live · 6 filters</span></div>
+            <div class="filters">
+              <span class="fsel on"><span class="k">Tournament</span> Premier Padel Italy Major <span class="caret">▾</span></span>
+              <span class="fsel"><span class="k">Gender</span> All <span class="caret">▾</span></span>
+              <span class="fsel"><span class="k">Tier</span> All <span class="caret">▾</span></span>
+              <span class="fsel"><span class="k">Round</span> All <span class="caret">▾</span></span>
+              <div class="seg"><span class="on">All</span><span>Live</span><span>Break</span><span>Sched</span></div>
+              <div class="right"><span class="chiptog"><span class="sw2"></span>Swinging</span><span class="clearbtn">Clear</span></div>
+            </div>
+            <div class="fsummary"><span class="fcount">Showing 8 of 28 —</span><span class="ftag">Premier Padel Italy Major <span class="x">✕</span></span></div>
+
+            <div class="tablescroll"><table><thead><tr><th>Match</th><th>Tournament</th><th class="c">Sets · Pts</th><th>Win probability</th><th class="r">15m</th><th>Conf.</th><th class="r">Upd</th></tr></thead>
+            <tbody>
+              <tr class="sel" data-p1="Martínez / Rodríguez" data-p2="Bidahorria / Maldonado" data-pa="82" data-pb="18" data-oa="1.22" data-ob="5.55" data-tour="Premier Padel Italy Major" data-meta="Court 3 · QF" data-status="Live" data-serve="a">
+                <td class="match"><div class="pp lead serving"><span class="srv"></span>Martínez / Rodríguez<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Bidahorria / Maldonado</div></td>
+                <td class="tour">Premier Padel Italy Major<small>Court 3 · QF</small></td>
+                <td><div class="score"><div class="scols mono"><div class="col"><span class="a">6</span><span class="b">3</span></div><div class="col cur"><span class="a">4</span><span class="b">2</span></div></div><div class="gpcol serveA mono"><span class="a">15</span><span class="b">30</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:82%">82%</div><div class="b" style="width:18%">18%</div></div><div class="osub mono"><span>1.22</span><span>5.55</span></div></td>
+                <td class="r"><span class="mv up mono">▲ +6</span></td>
+                <td><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono">5s</td>
+              </tr>
+              <tr data-p1="Orsi / Zielinski" data-p2="Mornia / Salvado" data-pa="46" data-pb="54" data-oa="2.17" data-ob="1.85" data-tour="Premier Padel Italy Major" data-meta="Court 1 · QF" data-status="Live" data-serve="b">
+                <td class="match"><div class="pp trail"><span class="srv"></span>Orsi / Zielinski<span class="gtag g-men">M</span></div><div class="pp lead serving"><span class="srv"></span>Mornia / Salvado</div></td>
+                <td class="tour">Premier Padel Italy Major<small>Court 1 · QF</small></td>
+                <td><div class="score"><div class="scols mono"><div class="col"><span class="a">2</span><span class="b">6</span></div><div class="col cur"><span class="a">6</span><span class="b">5</span></div></div><div class="gpcol serveB mono"><span class="a">40</span><span class="b">AD</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:46%">46%</div><div class="b" style="width:54%">54%</div></div><div class="osub mono"><span>2.17</span><span>1.85</span></div></td>
+                <td class="r"><span class="mv dn mono">▼ -34</span></td>
+                <td><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono">8s</td>
+              </tr>
+              <tr data-p1="Bengoechea / Villa" data-p2="Goyeneche / Ryzhova" data-pa="37" data-pb="63" data-oa="2.70" data-ob="1.59" data-tour="Premier Padel Italy Major" data-meta="Court 2 · QF" data-status="Break" data-serve="b">
+                <td class="match"><div class="pp trail"><span class="srv"></span>Bengoechea / Villa<span class="gtag g-women">W</span></div><div class="pp lead serving"><span class="srv"></span>Goyeneche / Ryzhova</div></td>
+                <td class="tour">Premier Padel Italy Major<small>Court 2 · QF</small></td>
+                <td><div class="score"><div class="scols mono"><div class="col"><span class="a">4</span><span class="b">6</span></div><div class="col cur"><span class="a">1</span><span class="b">2</span></div></div><div class="gpcol mono"><span class="a">—</span><span class="b">—</span></div><span class="badge b-break">Break</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:37%">37%</div><div class="b" style="width:63%">63%</div></div><div class="osub mono"><span>2.70</span><span>1.59</span></div></td>
+                <td class="r"><span class="mv dn mono">▼ -11</span></td>
+                <td><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono">6s</td>
+              </tr>
+              <tr data-p1="Granados / Esbri" data-p2="Sager / Serjani" data-pa="71" data-pb="29" data-oa="1.41" data-ob="3.45" data-tour="FIP Platinum Sardegna" data-meta="Court 1 · R16" data-status="Live" data-serve="a">
+                <td class="match"><div class="pp lead serving"><span class="srv"></span>Granados / Esbri<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Sager / Serjani</div></td>
+                <td class="tour">FIP Platinum Sardegna<small>Court 1 · R16</small></td>
+                <td><div class="score"><div class="scols mono"><div class="col"><span class="a">7</span><span class="b">6</span></div><div class="col cur"><span class="a">2</span><span class="b">1</span></div></div><div class="gpcol serveA mono"><span class="a">30</span><span class="b">15</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:71%">71%</div><div class="b" style="width:29%">29%</div></div><div class="osub mono"><span>1.41</span><span>3.45</span></div></td>
+                <td class="r"><span class="mv up mono">▲ +4</span></td>
+                <td><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono">11s</td>
+              </tr>
+              <tr data-p1="Herrera / Pons" data-p2="Lacabe / Alonso" data-pa="64" data-pb="36" data-oa="1.56" data-ob="2.78" data-tour="FIP Platinum Sardegna" data-meta="Court 2 · R16" data-status="Live" data-serve="none">
+                <td class="match"><div class="pp lead"><span class="srv"></span>Herrera / Pons<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Lacabe / Alonso</div></td>
+                <td class="tour">FIP Platinum Sardegna<small>Court 2 · R16</small></td>
+                <td><div class="score"><div class="scols mono"><div class="col cur"><span class="a">5</span><span class="b">3</span></div></div><div class="gpcol mono"><span class="a">15</span><span class="b">15</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:64%">64%</div><div class="b" style="width:36%">36%</div></div><div class="osub mono"><span>1.56</span><span>2.78</span></div></td>
+                <td class="r"><span class="mv flat mono">— 0</span></td>
+                <td><span class="conf med"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Settling</span></span></td>
+                <td class="r upd mono">14s</td>
+              </tr>
+              <tr data-p1="Gala / Sirvent" data-p2="Ruiz / Sanz" data-pa="91" data-pb="9" data-oa="1.10" data-ob="9.20" data-tour="Premier Padel Italy Major" data-meta="Court 4 · QF" data-status="Live" data-serve="a">
+                <td class="match"><div class="pp lead serving"><span class="srv"></span>Gala / Sirvent<span class="gtag g-men">M</span></div><div class="pp trail"><span class="srv"></span>Ruiz / Sanz</div></td>
+                <td class="tour">Premier Padel Italy Major<small>Court 4 · QF</small></td>
+                <td><div class="score"><div class="scols mono"><div class="col"><span class="a">6</span><span class="b">3</span></div><div class="col cur"><span class="a">6</span><span class="b">4</span></div></div><div class="gpcol serveA mono"><span class="a">40</span><span class="b">30</span></div><span class="badge b-live">Live</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:91%">91%</div><div class="b" style="width:9%">9%</div></div><div class="osub mono"><span>1.10</span><span>9.20</span></div></td>
+                <td class="r"><span class="mv up mono">▲ +12</span></td>
+                <td><span class="conf full"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Full</span></span></td>
+                <td class="r upd mono">5s</td>
+              </tr>
+              <tr data-p1="Nieto / Bautista" data-p2="Martín / Vicente" data-pa="58" data-pb="42" data-oa="1.72" data-ob="2.38" data-tour="Premier Padel Italy Major" data-meta="Court 3 · QF" data-status="Scheduled" data-serve="none">
+                <td class="match"><div class="pp"><span class="srv"></span>Nieto / Bautista<span class="gtag g-men">M</span></div><div class="pp"><span class="srv"></span>Martín / Vicente</div></td>
+                <td class="tour">Premier Padel Italy Major<small>Court 3 · QF</small></td>
+                <td><div class="score"><span class="schedtime mono">11:00</span><span class="badge b-sched">Scheduled</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:58%">58%</div><div class="b" style="width:42%">42%</div></div><div class="osub mono"><span>1.72</span><span>2.38</span></div></td>
+                <td class="r"><span class="mv flat mono">—</span></td>
+                <td><span class="conf med"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Pre</span></span></td>
+                <td class="r upd mono">—</td>
+              </tr>
+              <tr data-p1="Sánchez / García" data-p2="Diestro / González" data-pa="52" data-pb="48" data-oa="1.92" data-ob="2.08" data-tour="FIP Platinum Sardegna" data-meta="Court 1 · R16" data-status="Scheduled" data-serve="none">
+                <td class="match"><div class="pp"><span class="srv"></span>Sánchez / García<span class="gtag g-women">W</span></div><div class="pp"><span class="srv"></span>Diestro / González</div></td>
+                <td class="tour">FIP Platinum Sardegna<small>Court 1 · R16</small></td>
+                <td><div class="score"><span class="schedtime mono">11:30</span><span class="badge b-sched">Scheduled</span></div></td>
+                <td class="odds"><div class="obar mono"><div class="a" style="width:52%">52%</div><div class="b" style="width:48%">48%</div></div><div class="osub mono"><span>1.92</span><span>2.08</span></div></td>
+                <td class="r"><span class="mv flat mono">—</span></td>
+                <td><span class="conf low"><span class="bars"><i style="height:6px"></i><i style="height:9px"></i><i style="height:13px"></i></span><span class="t">Thin</span></span></td>
+                <td class="r upd mono">—</td>
+              </tr>
+            </tbody></table></div>
+            <div class="tfoot">View all 28 live matches →</div>
+          </div>
+
+          <!-- RIGHT: selected match panel -->
+          <div class="panel detail">
+            <div class="dhead"><div><div class="lab">Selected match</div><div class="ttl" id="dTtl">Martínez / Rodríguez vs Bidahorria / Maldonado</div><small id="dMeta">Premier Padel Italy Major · Court 3 · QF · Live</small></div></div>
+            <div class="dbody">
+              <div class="prow"><div class="pname serving" id="dN1"><span class="sv"></span>Martínez / Rodríguez</div><div><span class="big lead mono" id="dA">82%</span><span class="fair mono" id="dOA">1.22</span></div></div>
+              <div class="prow"><div class="pname" id="dN2">Bidahorria / Maldonado</div><div><span class="big trail mono" id="dB">18%</span><span class="fair mono" id="dOB">5.55</span></div></div>
+              <div class="dh"><span class="lab">Win probability · this match</span><span class="seg2"><span>Set</span><span class="on">Match</span></span></div>
+              <svg width="100%" height="116" viewBox="0 0 340 116" preserveAspectRatio="none">
+                <defs><linearGradient id="g" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#6abf3a" stop-opacity=".26"/><stop offset="1" stop-color="#6abf3a" stop-opacity="0"/></linearGradient></defs>
+                <line x1="0" y1="58" x2="340" y2="58" stroke="#cce0c0" stroke-dasharray="3 4"/>
+                <text x="2" y="12" font-size="9" fill="#7a9474" font-weight="700">100%</text>
+                <text x="2" y="56" font-size="9" fill="#7a9474" font-weight="700">50%</text>
+                <path d="M0,70 L42,66 L85,73 L128,53 L170,56 L212,44 L255,37 L297,27 L340,21 L340,116 L0,116 Z" fill="url(#g)"/>
+                <path d="M0,70 L42,66 L85,73 L128,53 L170,56 L212,44 L255,37 L297,27 L340,21" fill="none" stroke="#6abf3a" stroke-width="2"/>
+                <circle cx="340" cy="21" r="3.5" fill="#6abf3a" stroke="#fff" stroke-width="1.5"/>
+              </svg>
+              <div class="legend"><span><i style="background:#6abf3a"></i><span id="dL1">Martínez / Rodríguez</span></span><span><i style="background:#9abf8e"></i><span id="dL2">Bidahorria / Maldonado</span></span></div>
+              <div class="dh"><span class="lab">Live drivers</span></div>
+              <div class="stat"><div class="name">1st serve win %</div></div>
+              <div class="stat mono"><div class="l">72%</div><div class="stbar"><div class="a" style="width:54%"></div><div class="b" style="width:46%"></div></div><div class="r">61%</div></div>
+              <div class="stat"><div class="name">Break points won</div></div>
+              <div class="stat mono"><div class="l">3/5</div><div class="stbar"><div class="a" style="width:60%"></div><div class="b" style="width:40%"></div></div><div class="r">2/4</div></div>
+              <div class="stat"><div class="name">Total points won</div></div>
+              <div class="stat mono"><div class="l">58</div><div class="stbar"><div class="a" style="width:55%"></div><div class="b" style="width:45%"></div></div><div class="r">47</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">Model odds are PadelNachos-computed from live match state. No external bookmaker data. Internal tool — operators only.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var rows=document.querySelectorAll('tbody tr');
+  function sel(tr){
+    rows.forEach(function(x){x.classList.remove('sel')}); tr.classList.add('sel');
+    var d=tr.dataset, lead=(+d.pa>=+d.pb)?'a':'b';
+    document.getElementById('dTtl').textContent=d.p1+' vs '+d.p2;
+    document.getElementById('dMeta').textContent=d.tour+' · '+d.meta+(d.status?(' · '+d.status):'');
+    document.getElementById('dN1').lastChild.textContent=d.p1;
+    document.getElementById('dN2').textContent=d.p2;
+    document.getElementById('dL1').textContent=d.p1; document.getElementById('dL2').textContent=d.p2;
+    var A=document.getElementById('dA'),B=document.getElementById('dB');
+    A.textContent=d.pa+'%'; B.textContent=d.pb+'%';
+    A.className='big mono '+(lead==='a'?'lead':'trail'); B.className='big mono '+(lead==='b'?'lead':'trail');
+    document.getElementById('dOA').textContent=d.oa; document.getElementById('dOB').textContent=d.ob;
+    document.getElementById('dN1').classList.toggle('serving', d.serve==='a');
+  }
+  rows.forEach(function(tr){tr.addEventListener('click',function(){sel(tr)})});
+  // sidebar: collapse + accordion + active
+  var app=document.getElementById('app');
+  document.getElementById('collapseBtn').addEventListener('click',function(){app.classList.toggle('collapsed')});
+  document.querySelectorAll('.navgroup .gl').forEach(function(gl){gl.addEventListener('click',function(){if(app.classList.contains('collapsed'))return;gl.parentElement.classList.toggle('closed')})});
+  document.querySelectorAll('.rail .nav').forEach(function(n){n.addEventListener('click',function(){document.querySelectorAll('.rail .nav').forEach(function(x){x.classList.remove('active')});n.classList.add('active')})});
+</script>
+</body>
+</html>
