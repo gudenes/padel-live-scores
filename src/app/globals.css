@@ -95,7 +95,10 @@ html, body {
 body {
   background: #0A0A0A;
   padding-top: env(safe-area-inset-top, 0px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* Extra bottom space for the native AdMob banner overlay (var set by
+     useAdMobBanner; 0px on web / when no banner) so the bottom nav lift
+     doesn't hide the last of the page content behind it. */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--admob-banner-h, 0px));
   /* Disable iOS rubber-band bounce-scroll at the document level. Without
      this, pulling past the bottom of a page (or the top during fast
      scrolls) drags the entire viewport — including the sticky header —
