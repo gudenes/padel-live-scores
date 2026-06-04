@@ -166,6 +166,25 @@ export function mapFinishedRowToMatch(row: FinishedRow, extra: FinishedExtras): 
   }
 }
 
+// Bounded-concurrency map: runs `fn` over `items` with at most `limit` in flight,
+// preserving input order in the result. Used so each match fetches its OWN data
+// instead of sharing one global `.limit()` budget (which lets a busy subset
+// starve other matches of their serving dot / win-prob history).
+async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length)
+  let i = 0
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++
+      out[idx] = await fn(items[idx])
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+  return out
+}
+
+const FETCH_CONCURRENCY = 8
+
 const LIVE_SELECT =
   'match_id,pair1_prob,pair2_prob,pair1_decimal_odds,pair2_decimal_odds,anchor_source,coverage,computed_at,' +
   'matches!inner(status,court,round_canonical,category,tournament:tournaments(name,level),' +
@@ -193,23 +212,31 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
   // 2) Per-match extras: sets, current game, serving, snapshot history
   const extrasById = new Map<string, LiveExtras>()
   if (liveIds.length) {
-    const [{ data: sets }, { data: games }, { data: points }, { data: snaps }] = await Promise.all([
+    // sets/games are tiny and bounded per match — batch them with `.in()`.
+    const [{ data: sets }, { data: games }] = await Promise.all([
       supabase.from('sets').select('match_id,pair1_games,pair2_games,is_current,set_number').in('match_id', liveIds).order('set_number'),
       supabase.from('games').select('match_id,game_score,is_current').eq('is_current', true).in('match_id', liveIds),
-      supabase.from('match_points').select('match_id,server_player_id,created_at').in('match_id', liveIds).order('created_at', { ascending: false }).limit(liveIds.length * 4),
-      supabase.from('match_live_odds_snapshots').select('match_id,pair1_prob,computed_at').in('match_id', liveIds).order('computed_at', { ascending: true }).limit(liveIds.length * 40),
     ])
+    // serving + snapshot history are per-match fetches (bounded concurrency) so a
+    // busy/early subset can't consume a shared `.limit()` budget and starve others.
+    const servingById = new Map<string, string | null>()
+    const histById = new Map<string, ProbPoint[]>()
+    await mapLimit(liveIds, FETCH_CONCURRENCY, async (id) => {
+      const [{ data: pts }, { data: snaps }] = await Promise.all([
+        supabase.from('match_points').select('server_player_id').eq('match_id', id).order('created_at', { ascending: false }).limit(1),
+        supabase.from('match_live_odds_snapshots').select('pair1_prob,computed_at').eq('match_id', id).order('computed_at', { ascending: true }).limit(200),
+      ])
+      servingById.set(id, pts?.[0]?.server_player_id ?? null)
+      histById.set(id, (snaps ?? []).map((s) => ({ prob: Number(s.pair1_prob), atMs: +new Date(s.computed_at) })))
+    })
     for (const id of liveIds) {
       const mSets = (sets ?? []).filter((s) => s.match_id === id)
       const curGame = (games ?? []).find((g) => g.match_id === id)
-      const latestPoint = (points ?? []).find((p) => p.match_id === id) // already desc-ordered
-      const hist = (snaps ?? []).filter((s) => s.match_id === id)
-        .map((s) => ({ prob: Number(s.pair1_prob), atMs: +new Date(s.computed_at) }))
       extrasById.set(id, {
         sets: mSets.map((s) => ({ pair1_games: s.pair1_games, pair2_games: s.pair2_games, is_current: s.is_current })),
         gameScore: curGame?.game_score ?? null,
-        servingPlayerId: latestPoint?.server_player_id ?? null,
-        history: hist,
+        servingPlayerId: servingById.get(id) ?? null,
+        history: histById.get(id) ?? [],
         currentSetStartedAt: null,
       })
     }
@@ -265,15 +292,23 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
 
   const finExtrasById = new Map<string, FinishedExtras>()
   if (finIds.length) {
-    const [{ data: finSets }, { data: finOdds }, { data: finSnaps }] = await Promise.all([
+    // sets + closing odds are bounded per match — batch with `.in()`.
+    const [{ data: finSets }, { data: finOdds }] = await Promise.all([
       supabase.from('sets').select('match_id,pair1_games,pair2_games,set_number').in('match_id', finIds).order('set_number'),
       supabase.from('match_live_odds').select('match_id,pair1_prob,pair1_decimal_odds,pair2_decimal_odds,coverage').in('match_id', finIds),
-      supabase.from('match_live_odds_snapshots').select('match_id,pair1_prob,computed_at').in('match_id', finIds).order('computed_at', { ascending: true }).limit(finIds.length * 40),
     ])
+    // Snapshot history is per-match (bounded concurrency) so later finished matches
+    // can't be truncated out of a shared `.limit()` budget on a busy day.
+    const histById = new Map<string, number[]>()
+    await mapLimit(finIds, FETCH_CONCURRENCY, async (id) => {
+      const { data: snaps } = await supabase.from('match_live_odds_snapshots')
+        .select('pair1_prob,computed_at').eq('match_id', id).order('computed_at', { ascending: true }).limit(200)
+      histById.set(id, (snaps ?? []).map((s) => Number(s.pair1_prob)))
+    })
     for (const id of finIds) {
       const mSets = (finSets ?? []).filter((s) => s.match_id === id)
       const odds = (finOdds ?? []).find((o) => o.match_id === id)
-      const hist = (finSnaps ?? []).filter((s) => s.match_id === id).map((s) => Number(s.pair1_prob))
+      const hist = histById.get(id) ?? []
       finExtrasById.set(id, {
         sets: mSets.map((s) => ({ pair1_games: s.pair1_games, pair2_games: s.pair2_games })),
         closing: odds

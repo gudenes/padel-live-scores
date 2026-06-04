@@ -32,9 +32,10 @@ export function ScoreboardView({ initial, dateIso }: { initial: LiveOddsSnapshot
     return true
   }), [snapshot.matches, filters])
 
-  // After a refresh the selected match may have dropped out (e.g. it just finished).
-  // Fall back to the first match so the detail panel never points at a vanished row.
-  const selected = snapshot.matches.find((m) => m.id === selectedId) ?? snapshot.matches[0] ?? null
+  // Track the visible set: if the selected match isn't currently shown (e.g. a
+  // filter hid it, or it just finished), fall back to the first visible match so
+  // the detail panel and the row highlight stay in sync with what's on screen.
+  const selected = visible.find((m) => m.id === selectedId) ?? visible[0] ?? null
   const tournaments = useMemo(() => [...new Set(snapshot.matches.map((m) => m.tournament))].sort(), [snapshot.matches])
 
   return (

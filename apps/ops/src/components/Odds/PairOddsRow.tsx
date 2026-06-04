@@ -1,6 +1,6 @@
 // apps/ops/src/components/Odds/PairOddsRow.tsx
 // Renders one pair's display info (names, seed, prob, decimal, form).
-// Used by LiveOddsTable and TournamentOutlookCard.
+// Used by TournamentOutlookCard and the /odds/tournament page.
 
 import type { ReactNode } from 'react'
 
