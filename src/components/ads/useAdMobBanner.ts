@@ -35,30 +35,31 @@ export function useAdMobBanner(args: {
     })
     const unit = network ? pickBannerUnit(platform, network) : null
 
-    let cancelled = false
     ;(async () => {
       try {
         const { AdMob, BannerAdSize, BannerAdPosition } = await import('@capacitor-community/admob')
         if (eligible && unit) {
+          shownRef.current = true
           await AdMob.showBanner({
             adId: unit,
             adSize: BannerAdSize.ADAPTIVE_BANNER,
             position: BannerAdPosition.BOTTOM_CENTER,
             margin: Math.max(0, Math.round(navHeight)),
           })
-          if (!cancelled) shownRef.current = true
-        } else if (shownRef.current) {
-          await AdMob.removeBanner()
-          if (!cancelled) shownRef.current = false
+        } else {
+          // Not eligible (e.g. navigated OFF the match-detail page). Always tear
+          // the banner down — never gate this on a "was it shown?" flag. A show
+          // interrupted by fast navigation could leave that flag unset while the
+          // native overlay is actually up, stranding the banner at the bottom of
+          // every other screen. removeBanner rejects when nothing is shown; that
+          // rejection is a harmless no-op we swallow.
+          shownRef.current = false
+          await AdMob.removeBanner().catch(() => {})
         }
       } catch (err) {
         console.log('[AdMob] banner toggle failed:', err)
       }
     })()
-
-    return () => {
-      cancelled = true
-    }
   }, [pathname, hasDirectBanner, network, navHeight])
 
   // Reserve layout space for the native banner so it never overlaps the
