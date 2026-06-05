@@ -123,6 +123,13 @@ export default function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // 6b. /app smart app-store redirect — a Route Handler outside [locale]
+  // (src/app/app/route.ts). Without this skip, next-intl rewrites it to
+  // /es/app etc. and the handler 404s. Single, exact path.
+  if (pathname === '/app') {
+    return NextResponse.next()
+  }
+
   // 7. PadelGod API docs — English-only developer docs, skip i18n routing
   if (pathname === '/padelgodapi' || pathname.startsWith('/padelgodapi/')) {
     return NextResponse.next()
