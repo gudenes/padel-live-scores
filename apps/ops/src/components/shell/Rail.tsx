@@ -12,7 +12,7 @@ const GROUPS: Group[] = [
   { items: [
     { href: '/today', label: 'Today', icon: 'today' },
     { href: '/odds', label: 'Live Odds', icon: 'odds', pill: 'live', children: [
-      { href: '/odds', label: 'Overview' },
+      { href: '/today', label: 'Overview' },
       { href: '/odds/calibration', label: 'Calibration' },
       { href: '/odds/methodology', label: 'Methodology' },
     ] },
