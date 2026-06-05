@@ -99,6 +99,17 @@ body {
      useAdMobBanner; 0px on web / when no banner) so the bottom nav lift
      doesn't hide the last of the page content behind it. */
   padding-bottom: calc(env(safe-area-inset-bottom, 0px) + var(--admob-banner-h, 0px));
+  /* Native-app feel inside the iOS/Android WebView:
+     - touch-action: manipulation removes the iOS double-tap-to-zoom gesture
+       (which let users accidentally zoom the header and clip the layout).
+       Pinch-to-zoom is intentionally preserved for accessibility.
+     - user-select / touch-callout: none stops text selection + the long-press
+       magnifier/callout on app chrome, which reads as broken in an app. Form
+       fields re-enable selection below. */
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   /* Disable iOS rubber-band bounce-scroll at the document level. Without
      this, pulling past the bottom of a page (or the top during fast
      scrolls) drags the entire viewport — including the sticky header —
@@ -107,6 +118,15 @@ body {
      body without propagating to the WebView's outer bounce, eliminating
      the overshoot without disabling normal scrolling. */
   overscroll-behavior-y: contain;
+}
+
+/* Editable fields must stay selectable despite the body-level user-select:none
+   (text entry, caret placement, copy/paste in the search box, etc.). */
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* ── Splash overlay ─────────────────────────────────────────────────────

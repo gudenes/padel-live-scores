@@ -2,7 +2,7 @@
 // src/app/[locale]/(app)/feed/FeedClient.tsx
 // V3 Feed — videos + news with chunky brand styling, no border-radius.
 
-import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef, type CSSProperties } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import type { NewsPost } from '@/types/news'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
@@ -569,6 +569,21 @@ function VideoPlayerModal({ video, onClose, onUnavailable }: {
     return () => { cancelled = true }
   }, [video.youtube_id, video.id, onUnavailable])
 
+  // Rotate-to-enlarge: in landscape, size the player by viewport height so it
+  // fills the screen instead of staying capped at the 500px portrait width.
+  const [landscape, setLandscape] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(orientation: landscape)')
+    const update = () => setLandscape(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
+  const playerBox: CSSProperties = landscape
+    ? { height: '82dvh', maxWidth: '100%', aspectRatio: '16 / 9' }
+    : { width: '100%', maxWidth: 500, aspectRatio: '16 / 9' }
+
   return (
     <div
       onClick={onClose}
@@ -579,23 +594,31 @@ function VideoPlayerModal({ video, onClose, onUnavailable }: {
         padding: 16,
       }}
     >
-      {/* Close button */}
+      {/* Close button — top offset clears the status bar / Dynamic Island.
+          Without env(safe-area-inset-top) it rendered UNDER the notch on
+          iPhones, so users couldn't see a way out of the player. Larger tap
+          target + clearer × glyph make the exit obvious. */}
       <button
         onClick={onClose}
+        aria-label="Close video"
         style={{
-          position: 'absolute', top: 16, right: 16,
-          width: 36, height: 36, clipPath: CHUNKY.badge,
-          background: 'rgba(255,255,255,0.15)', border: 'none',
-          color: '#fff', fontSize: 20, cursor: 'pointer',
+          position: 'absolute',
+          top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+          right: 12,
+          width: 44, height: 44, clipPath: CHUNKY.badge,
+          background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.2)',
+          color: '#fff', cursor: 'pointer', zIndex: 2,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}
       >
-        X
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
       </button>
 
       {unavailable ? (
         <div style={{
-          width: '100%', maxWidth: 500, aspectRatio: '16/9',
+          ...playerBox,
           clipPath: CHUNKY.card, background: 'rgba(255,255,255,0.05)',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -609,7 +632,7 @@ function VideoPlayerModal({ video, onClose, onUnavailable }: {
       ) : (
         <div
           onClick={e => e.stopPropagation()}
-          style={{ width: '100%', maxWidth: 500, aspectRatio: '16/9', clipPath: CHUNKY.card, overflow: 'hidden' }}
+          style={{ ...playerBox, clipPath: CHUNKY.card, overflow: 'hidden' }}
         >
           {checking ? (
             <div style={{ width: '100%', height: '100%', background: '#0a1929', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

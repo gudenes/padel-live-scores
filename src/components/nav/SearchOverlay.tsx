@@ -12,6 +12,8 @@ import { Link } from '@/i18n/navigation'
 import { DATE_SHORT } from '@/lib/format-patterns'
 import { FlagImage } from '@/components/FlagImage'
 import { levelLabel } from '@/lib/tournament-labels'
+import { normalizeSearchQuery, tournamentNameMatches } from '@/lib/search-normalize'
+import { searchPlayers } from '@/lib/player-search'
 
 // ── Brand constants ───────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -97,6 +99,41 @@ const TYPE_LABEL_KEYS: Record<string, 'typePlayers' | 'typeTournaments' | 'typeM
   match: 'typeMatches',
 }
 
+// ── Tournament search index ───────────────────────────────────
+// Tournaments have no `normalized_name` column, and PostgREST can't apply
+// unaccent() to a column inside a filter — so accent-insensitive matching
+// ("Malaga" → "Málaga") is done in JS. The table is small (~650 rows), so we
+// fetch it once per session and fold accents client-side. Cached at module
+// scope (deduped by a shared in-flight promise) so reopening search is free.
+
+interface TournamentIndexRow {
+  id: string
+  name: string
+  country: string | null
+  level: string | null
+  starts_at: string | null
+  ends_at: string | null
+}
+
+let tournamentIndexCache: TournamentIndexRow[] | null = null
+let tournamentIndexPromise: Promise<TournamentIndexRow[]> | null = null
+
+function loadTournamentIndex(): Promise<TournamentIndexRow[]> {
+  if (tournamentIndexCache) return Promise.resolve(tournamentIndexCache)
+  if (!tournamentIndexPromise) {
+    tournamentIndexPromise = (async () => {
+      const { data } = await supabase
+        .from('tournaments')
+        .select('id, name, country, level, starts_at, ends_at')
+        .order('starts_at', { ascending: false, nullsFirst: false })
+        .limit(2000)
+      tournamentIndexCache = (data ?? []) as TournamentIndexRow[]
+      return tournamentIndexCache
+    })()
+  }
+  return tournamentIndexPromise
+}
+
 // ── Component ─────────────────────────────────────────────────
 
 export default function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -127,7 +164,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
       const [playersRes, tournamentsRes, moversRes] = await Promise.all([
         supabase
           .from('players')
-          .select('id, name, country, ranking, category, avatar_url')
+          .select('id, name, display_name, country, ranking, category, avatar_url')
           .not('ranking', 'is', null)
           .order('ranking', { ascending: true })
           .limit(6),
@@ -139,7 +176,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
           .limit(3),
         supabase
           .from('players')
-          .select('id, name, country, ranking, category, avatar_url, ranking_move')
+          .select('id, name, display_name, country, ranking, category, avatar_url, ranking_move')
           .not('ranking_move', 'is', null)
           .gt('ranking_move', 0)
           .lte('ranking', 50)
@@ -151,7 +188,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
       for (const p of (playersRes.data ?? []) as any[]) {
         items.push({
           type: 'player', id: p.id,
-          title: p.name,
+          title: p.display_name || p.name,
           subtitle: `#${p.ranking} ${p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen')}`,
           country: p.country ?? null,
           imageUrl: p.avatar_url ?? null,
@@ -174,7 +211,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         if (topIds.has(p.id)) continue
         items.push({
           type: 'player', id: p.id,
-          title: p.name,
+          title: p.display_name || p.name,
           subtitle: `#${p.ranking} ${p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen')}`,
           country: p.country ?? null,
           imageUrl: p.avatar_url ?? null,
@@ -192,24 +229,22 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       setSearching(true)
-      const q = `%${query.trim()}%`
-      const [playersRes, tournamentsRes] = await Promise.all([
-        supabase
-          .from('players')
-          .select('id, name, country, ranking, category, avatar_url')
-          .ilike('name', q)
-          .order('ranking', { ascending: true, nullsFirst: false })
-          .limit(5),
-        supabase
-          .from('tournaments')
-          .select('id, name, country, level, starts_at, ends_at')
-          .ilike('name', q)
-          .order('starts_at', { ascending: false })
-          .limit(3),
+      // Normalize once: strips accents + folds punctuation so it matches
+      // players.normalized_name and is safe to splice into the .or() filter.
+      const norm = normalizeSearchQuery(query.trim())
+      if (!norm) { setResults([]); setSearching(false); return }
+      const [playersData, tournamentIndex] = await Promise.all([
+        searchPlayers(supabase, query, 5),
+        loadTournamentIndex(),
       ])
+      const tournamentsRes = {
+        data: tournamentIndex
+          .filter(t => tournamentNameMatches(t.name, norm))
+          .slice(0, 3),
+      }
 
       // Find matches by player IDs from the player search results
-      const playerIds = (playersRes.data ?? []).map((p: any) => p.id)
+      const playerIds = playersData.map((p) => p.id)
       let matchesRes: { data: any[] | null } = { data: [] }
       if (playerIds.length > 0) {
         matchesRes = await supabase
@@ -230,10 +265,10 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
       }
 
       const items: SearchResult[] = []
-      for (const p of (playersRes.data ?? []) as any[]) {
+      for (const p of playersData) {
         items.push({
           type: 'player', id: p.id,
-          title: p.name,
+          title: p.display_name || p.name,
           subtitle: p.ranking ? `#${p.ranking} ${p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen')}` : p.category === 'men' ? tSearch('categoryMen') : tSearch('categoryWomen'),
           country: p.country ?? null,
           imageUrl: p.avatar_url ?? null,
@@ -258,8 +293,8 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         return 0
       })
       for (const m of matchData as any[]) {
-        const p1 = [m.pair1_player1?.name, m.pair1_player2?.name].filter(Boolean).join(' / ')
-        const p2 = [m.pair2_player1?.name, m.pair2_player2?.name].filter(Boolean).join(' / ')
+        const p1 = [m.pair1_player1, m.pair1_player2].map(pl => pl?.display_name || pl?.name).filter(Boolean).join(' / ')
+        const p2 = [m.pair2_player1, m.pair2_player2].map(pl => pl?.display_name || pl?.name).filter(Boolean).join(' / ')
         const matchDate = m.started_at ?? m.scheduled_at
         const date = matchDate ? format.dateTime(new Date(matchDate), DATE_SHORT) : ''
 
@@ -329,6 +364,13 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
         backdropFilter: 'blur(8px)',
         WebkitBackdropFilter: 'blur(8px)',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
+        // A `position: fixed; inset: 0` element escapes the body's
+        // safe-area padding, so without this the panel header (search input
+        // + × close) renders UNDER the status bar / Dynamic Island and the
+        // close button lands in untappable dead space. Push the panel below
+        // the system UI — same convention as AppHeader. 0px on notchless
+        // platforms (desktop, mobile browser chrome).
+        paddingTop: 'env(safe-area-inset-top, 0px)',
       }}
     >
       <div

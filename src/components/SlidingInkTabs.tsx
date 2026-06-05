@@ -95,7 +95,13 @@ export default function SlidingInkTabs<K extends string = string>({
     if (!container || !activeLabel) return null
     const containerRect = container.getBoundingClientRect()
     const labelRect = activeLabel.getBoundingClientRect()
-    const x = labelRect.left - containerRect.left
+    // The ink-bar is absolutely positioned INSIDE the (horizontally
+    // scrollable) container, so its left:0 origin is the *scrolled* content
+    // origin. Add scrollLeft so x is in content coordinates — without it the
+    // bar drifts left by scrollLeft once the strip scrolls, e.g. when the
+    // browser focus-scrolls a partially-offscreen last tab (STATS/EARNINGS)
+    // into view on click.
+    const x = labelRect.left - containerRect.left + container.scrollLeft
     const w = labelRect.width
     container.style.setProperty('--sit-x', `${x}px`)
     container.style.setProperty('--sit-x-from', `${x}px`)
@@ -113,7 +119,8 @@ export default function SlidingInkTabs<K extends string = string>({
 
     const containerRect = container.getBoundingClientRect()
     const labelRect = activeLabel.getBoundingClientRect()
-    const x = labelRect.left - containerRect.left
+    // + scrollLeft → content coordinates (see snapToActive).
+    const x = labelRect.left - containerRect.left + container.scrollLeft
     const w = labelRect.width
     const previousX =
       parseFloat(container.style.getPropertyValue('--sit-x') || '0') || 0

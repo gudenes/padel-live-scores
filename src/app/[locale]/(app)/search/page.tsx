@@ -17,6 +17,8 @@ import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { levelLabel } from '@/lib/tournament-labels'
+import { normalizeSearchQuery, tournamentNameMatches } from '@/lib/search-normalize'
+import { searchPlayers } from '@/lib/player-search'
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
@@ -54,6 +56,7 @@ export async function generateMetadata(
 interface PlayerRow {
   id: string
   name: string
+  display_name: string | null
   country: string | null
   ranking: number | null
   category: 'men' | 'women' | null
@@ -70,24 +73,25 @@ interface TournamentRow {
 }
 
 async function runSearch(q: string): Promise<{ players: PlayerRow[]; tournaments: TournamentRow[] }> {
-  const pattern = `%${q}%`
-  const [playersRes, tournamentsRes] = await Promise.all([
-    supabase
-      .from('players')
-      .select('id, name, country, ranking, category, avatar_url')
-      .ilike('name', pattern)
-      .order('ranking', { ascending: true, nullsFirst: false })
-      .limit(20),
+  // Accent-insensitive + display-name-aware. `norm` mirrors players.normalized_name
+  // and is safe to splice into the .or() filter. Tournaments have no normalized
+  // column, so we pull the (small) set and fold accents in JS.
+  const norm = normalizeSearchQuery(q)
+  if (!norm) return { players: [], tournaments: [] }
+  const [players, tournamentsRes] = await Promise.all([
+    searchPlayers(supabase, q, 20),
     supabase
       .from('tournaments')
       .select('id, name, country, level, starts_at, ends_at')
-      .ilike('name', pattern)
-      .order('starts_at', { ascending: false })
-      .limit(10),
+      .order('starts_at', { ascending: false, nullsFirst: false })
+      .limit(2000),
   ])
+  const tournaments = ((tournamentsRes.data ?? []) as TournamentRow[])
+    .filter(t => tournamentNameMatches(t.name, norm))
+    .slice(0, 10)
   return {
-    players: (playersRes.data ?? []) as PlayerRow[],
-    tournaments: (tournamentsRes.data ?? []) as TournamentRow[],
+    players: players as PlayerRow[],
+    tournaments,
   }
 }
 
@@ -158,7 +162,7 @@ export default async function SearchPage({ searchParams }: Props) {
                     textDecoration: 'none',
                   }}
                 >
-                  <span style={{ fontWeight: 600 }}>{p.name}</span>
+                  <span style={{ fontWeight: 600 }}>{p.display_name || p.name}</span>
                   <span style={{ color: MUTED, fontSize: 12 }}>
                     {p.ranking ? `#${p.ranking}` : ''}
                     {p.category ? ` · ${p.category === 'men' ? tCat('categoryMen') : tCat('categoryWomen')}` : ''}

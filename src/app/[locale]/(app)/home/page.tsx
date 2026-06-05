@@ -10,7 +10,6 @@ import { Match, isWarmingUp, toShortName } from '@/types/match'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
 import { withTimeout } from '@/lib/with-timeout'
 import GlobalHeader from '@/components/nav/GlobalHeader'
-import PadelGeniusTeaser from '@/components/PadelGeniusTeaser'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
 import { ReferralToast } from '@/components/ReferralToast'
 import { useAuth } from '@/components/AuthProvider'
@@ -672,11 +671,6 @@ function V3HomePageInner() {
       {/* ── LATEST RESULTS ──────────────────────────────────── */}
       <SectionTitle action={tHome('allResults')} href="/matches">{tHome('latestResults')}</SectionTitle>
       <ResultsSection matches={filteredRecent} />
-
-      {/* ── PADELGENIUS TEASER ────���─────────────────────────── */}
-      <div style={{ paddingTop: 20 }}>
-        <PadelGeniusTeaser />
-      </div>
 
       {/* Footer links */}
       <div style={{ padding: '20px 16px 8px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10, rowGap: 6 }}>

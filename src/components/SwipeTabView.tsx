@@ -1,7 +1,12 @@
 'use client'
 
-import { ReactNode, useEffect, useRef } from 'react'
+import { ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
+
+// useLayoutEffect runs on the client only; alias to useEffect during SSR to
+// avoid React's "useLayoutEffect does nothing on the server" warning. Used so
+// the active-panel height is measured before paint (no flash of the tall state).
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 interface Tab {
   key: string
@@ -75,6 +80,24 @@ export function SwipeTabView({
       prevTab.current = arriving
     }
   }, [currentTab, preserveScroll])
+
+  // ── Auto-height ───────────────────────────────────────────────
+  // The track lays all panels side-by-side in a flex ROW, so by default every
+  // panel is stretched to the tallest one. Once the Live Feed fills up, the
+  // short tabs (summary / players / h2h) inherit its height and render a long
+  // empty scroll area. Fix: top-align panels (each keeps its own intrinsic
+  // height) and pin the viewport to the ACTIVE panel's height. A ResizeObserver
+  // tracks the live feed growing in real time; re-subscribes on tab change.
+  const [activeHeight, setActiveHeight] = useState<number | null>(null)
+  useIsomorphicLayoutEffect(() => {
+    const el = panelRefs.current[currentTab]
+    if (!el) return
+    const measure = () => setActiveHeight(el.offsetHeight)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [currentTab])
 
   // Indicator transition matches track
   const reducedMotion = typeof window !== 'undefined' ? prefersReducedMotion() : false
@@ -161,20 +184,26 @@ export function SwipeTabView({
         />
       </div>
 
-      {/* Swipe viewport */}
+      {/* Swipe viewport — height follows the active panel (see Auto-height) */}
       <div
         style={{
           overflow: 'hidden',
           touchAction: 'pan-y',
           width: '100%',
-          flex: 1,
+          // Once measured, the explicit height is authoritative — drop flex-grow
+          // so it can't stretch the viewport back to the (tallest) track height.
+          flex: activeHeight != null ? 'none' : 1,
+          height: activeHeight ?? undefined,
+          transition: !isDragging && !reducedMotion ? 'height 350ms cubic-bezier(0.25, 0.1, 0.25, 1)' : 'none',
         }}
         {...handlers}
       >
-        {/* Track */}
+        {/* Track — flex-start so panels keep their own height instead of all
+            stretching to the tallest one */}
         <div
           style={{
             display: 'flex',
+            alignItems: 'flex-start',
             width: `${count * 100}%`,
             ...trackStyle,
           }}

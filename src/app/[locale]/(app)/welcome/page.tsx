@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider'
 import { useFollowing } from '@/hooks/useFollowing'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { supabase } from '@/lib/supabase'
+import { searchPlayers } from '@/lib/player-search'
 import { PickerCard, type PickerPlayer } from './PickerCard'
 import { NotificationPromptSheet } from './NotificationPromptSheet'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
@@ -99,17 +100,13 @@ export default function WelcomePickerPage() {
     setSearching(true)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
-      const pattern = `%${trimmed}%`
-      const { data, error: dbErr } = await supabase
-        .from('players')
-        .select('id, name, display_name, country, ranking, category, avatar_url')
-        .ilike('name', pattern)
-        .order('ranking', { ascending: true, nullsFirst: false })
-        .limit(SEARCH_LIMIT)
-      if (dbErr) {
+      // Accent / nickname / abbreviation / typo tolerant via search_players RPC
+      // (falls back to the legacy ilike query on error).
+      try {
+        const rows = await searchPlayers(supabase, trimmed, SEARCH_LIMIT)
+        setSearchResults(rows as PickerPlayer[])
+      } catch {
         setSearchResults([])
-      } else {
-        setSearchResults((data ?? []) as PickerPlayer[])
       }
       setSearching(false)
     }, SEARCH_DEBOUNCE_MS)

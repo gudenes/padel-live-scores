@@ -262,13 +262,6 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
           />
           <Divider/>
           <Item
-            tone="flame"
-            disabled
-            icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h7l-1 8 10-12h-7l1-8z"/></svg>}
-            label={t('padelGenius')}
-            rightSlot={<SoonBadge>{t('comingSoon')}</SoonBadge>}
-          />
-          <Item
             onClick={() => { void shareNow(); onClose() }}
             icon={<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>}
             label={t('inviteFriends')}
@@ -535,22 +528,6 @@ function CountBadge({ tone, children }: { tone: 'red' | 'green'; children: React
       padding: '2px 5px',
       borderRadius: 3,
       clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-    }}>{children}</span>
-  )
-}
-
-function SoonBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span style={{
-      background: 'rgba(255,255,255,0.06)',
-      color: '#6B7280',
-      fontSize: 8,
-      fontWeight: 800,
-      letterSpacing: 0.5,
-      padding: '2px 6px',
-      textTransform: 'uppercase',
-      clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
-      border: '1px solid rgba(255,255,255,0.08)',
     }}>{children}</span>
   )
 }

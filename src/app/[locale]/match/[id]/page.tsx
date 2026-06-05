@@ -657,6 +657,21 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               }
             }
 
+            // Copy the URL + flash the "link copied" toast. Used both as the
+            // no-share-API path and as the catch-all fallback so the button
+            // ALWAYS gives visible feedback (the previous silent `catch {}`
+            // left users unsure whether the tap did anything).
+            const copyFallback = async () => {
+              try {
+                await navigator.clipboard.writeText(shareUrl)
+              } catch {
+                // Clipboard blocked (insecure context / no gesture) — still
+                // flash the toast so the tap isn't a dead no-op.
+              }
+              setShareToast(true)
+              setTimeout(() => setShareToast(false), 2200)
+            }
+
             try {
               if (canShare) {
                 const canShareFiles =
@@ -674,12 +689,14 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
                   await Share.share({ title, text, url: shareUrl, dialogTitle: title })
                 }
               } else {
-                await navigator.clipboard.writeText(shareUrl)
-                setShareToast(true)
-                setTimeout(() => setShareToast(false), 2200)
+                await copyFallback()
               }
-            } catch {
-              // user cancelled or share failed
+            } catch (err) {
+              // User dismissed the native/Web share sheet — intentional, stay quiet.
+              if (err instanceof DOMException && err.name === 'AbortError') return
+              // Share genuinely failed or is unavailable in this WebView — copy
+              // the link instead so the tap always produces visible feedback.
+              await copyFallback()
             }
           }}
           style={{
