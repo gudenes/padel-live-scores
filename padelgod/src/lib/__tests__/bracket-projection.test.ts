@@ -41,3 +41,28 @@ describe('projectPairs', () => {
     expect(oppB.reachProb).toBeGreaterThan(0.99);
   });
 });
+
+describe('projectPairs — byes and invariants', () => {
+  it('a pair with a bye reaches the next round with prob 1', () => {
+    // 4 slots, slot 1 is null => A (slot 0) gets a bye into the F.
+    const entrants = [pair('A', 1800), null, pair('C', 1800), pair('D', 1800)];
+    const res = projectPairs({ entrants, runs: 4000, rng: mulberry32(99) });
+    const aF = res.get('A')!.rounds.find(r => r.round === 'F')!;
+    expect(aF.reachProb).toBeCloseTo(1, 5); // A always reaches the final
+    // A has no SF opponent (bye), so its SF opponents list is empty.
+    const aSF = res.get('A')!.rounds.find(r => r.round === 'SF')!;
+    expect(aSF.opponents.length).toBe(0);
+  });
+
+  it('champion probabilities across all pairs sum to ~1', () => {
+    const entrants = [pair('A', 1900), pair('B', 1700), pair('C', 1850), pair('D', 1750)];
+    const res = projectPairs({ entrants, runs: 20000, rng: mulberry32(5) });
+    const total = [...res.values()].reduce((s, p) => s + p.championProb, 0);
+    expect(total).toBeCloseTo(1, 2);
+  });
+
+  it('throws on non-power-of-2 entrant counts', () => {
+    expect(() => projectPairs({ entrants: [pair('A', 1800), pair('B', 1800), pair('C', 1800)], runs: 10 }))
+      .toThrow(/power of 2/);
+  });
+});
