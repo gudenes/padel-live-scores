@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { isPremierTier } from '@/lib/tournament-tier'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { FLAG_KEYS } from '@/lib/feature-flags'
 import type { ProjectionRow } from '@/lib/projection-types'
 import { Widget } from './Widget'
 
@@ -27,10 +29,11 @@ export default function RoadToTrophyCard({
 }) {
   const t = useTranslations('projectionTab')
   const router = useRouter()
+  const projectionFlag = useFeatureFlag(FLAG_KEYS.PROJECTION_ENABLED)
   const [row, setRow] = useState<ProjectionRow | null>(null)
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_PROJECTION_ENABLED !== 'true') return
+    if (!projectionFlag) return
     if (!isPremierTier(tournamentLevel ?? '')) return
     let cancelled = false
     supabase
@@ -44,7 +47,7 @@ export default function RoadToTrophyCard({
         if (!cancelled) setRow(((data ?? [])[0] as ProjectionRow) ?? null)
       })
     return () => { cancelled = true }
-  }, [playerId, tournamentId, tournamentLevel, category])
+  }, [playerId, tournamentId, tournamentLevel, category, projectionFlag])
 
   if (!row) return null
 
