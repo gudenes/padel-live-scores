@@ -13,7 +13,7 @@ import {
   trainElo, MODEL_VERSION,
   type TrainingMatch, type PlayerSnapshot,
 } from '../lib/elo-model.js';
-import { projectPairs, PROJ_ROUND_ORDER, matchupKey } from '../lib/bracket-projection.js';
+import { projectPairs, PROJ_ROUND_ORDER, type PairProjection, type PairRound } from '../lib/bracket-projection.js';
 import { paginatedSelect } from '../lib/db-paginate.js';
 
 export interface FrontierMatchRow {
@@ -56,18 +56,12 @@ function teamElo(
   return (ea + eb) / 2;
 }
 
-/** Builds the entry-round field keeping BOTH competitors of every match (the
- *  losers stay in, NOT collapsed to a bye) so projectPairs can report every
- *  pair, including eliminated ones. Pairs are read from the entry round only.
- *
- *  Known v1 limitation: in non-power-of-2 draws (FIP 24/48/56) a top seed that
- *  byes the entire first round has no entry-round row (fip-draw-populator skips
- *  pure bye-through rows), so it won't get a projection row. Premier main draws
- *  (the public tier) are clean 32-pair brackets with no such byes, so the
- *  public path is unaffected; only non-Premier admin-QA draws can miss a seed.
- *  A union-with-later-rounds fix is a documented follow-up. */
-export function buildFullFieldEntrants(
+/** Bracket-ordered competitors entering the frontier round. Finished matches
+ *  collapse to [winner, null] so the winner bye-advances (results respected
+ *  without re-simulation). Pads to a power of two. */
+export function buildFrontierEntrants(
   rows: FrontierMatchRow[],
+  _frontierRound: ProjRound,
   elo: Map<string, number>,
   players: Map<string, PlayerLite>,
 ): (FrontierEntrant | null)[] {
@@ -84,7 +78,7 @@ export function buildFullFieldEntrants(
     return a.id.localeCompare(b.id)
   })
   const slots: (FrontierEntrant | null)[] = []
-  const mk = (p1: string, p2: string): FrontierEntrant => ({
+  const mkEntrant = (p1: string, p2: string): FrontierEntrant => ({
     pairKey: pairKeyFor(p1, p2),
     playerIds: (p1 < p2 ? [p1, p2] : [p2, p1]) as [string, string],
     teamElo: teamElo(p1, p2, elo, players),
@@ -92,10 +86,18 @@ export function buildFullFieldEntrants(
   for (const m of ordered) {
     const hasP1 = m.pair1_player1_id && m.pair1_player2_id
     const hasP2 = m.pair2_player1_id && m.pair2_player2_id
-    slots.push(
-      hasP1 ? mk(m.pair1_player1_id!, m.pair1_player2_id!) : null,
-      hasP2 ? mk(m.pair2_player1_id!, m.pair2_player2_id!) : null,
-    )
+    const finished = m.winner_pair === 1 || m.winner_pair === 2
+    if (finished) {
+      const win = m.winner_pair === 1
+        ? (hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null)
+        : (hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null)
+      slots.push(win, null)
+    } else {
+      slots.push(
+        hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null,
+        hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null,
+      )
+    }
   }
   let size = 1
   while (size < slots.length) size *= 2
@@ -125,50 +127,84 @@ function roundHasAssigned(m: FrontierMatchRow): boolean {
   );
 }
 
-/** Shallowest (first) main-draw round present with an assigned match. */
-export function pickEntryRound(byRound: Map<ProjRound, FrontierMatchRow[]>): ProjRound | null {
+/** Earliest (shallowest) main-draw round that still has an unfinished,
+ *  player-assigned match. Null when the draw is fully decided / empty. */
+export function pickFrontierRound(byRound: Map<ProjRound, FrontierMatchRow[]>): ProjRound | null {
   for (const r of PROJ_ROUND_ORDER) {
-    if ((byRound.get(r) ?? []).some(roundHasAssigned)) return r
+    const ms = (byRound.get(r) ?? []).filter(roundHasAssigned)
+    if (ms.length === 0) continue
+    const anyUnfinished = ms.some((m) => !(m.winner_pair === 1 || m.winner_pair === 2))
+    if (anyUnfinished) return r
   }
   return null
 }
 
-export interface PairStatus { status: 'active' | 'eliminated' | 'champion'; eliminatedRound: string | null }
-
-/** From all decided matches: each loser → eliminated@round; final winner → champion. */
-export function deriveStatuses(
-  rows: Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>,
-): Map<string, PairStatus> {
-  const out = new Map<string, PairStatus>()
-  for (const m of rows) {
-    const decided = m.winner_pair === 1 || m.winner_pair === 2
-    if (!decided) continue
-    const round = canonRound(m.round_canonical ?? m.round)
-    if (!round) continue
-    const p1 = m.pair1_player1_id && m.pair1_player2_id ? pairKeyFor(m.pair1_player1_id, m.pair1_player2_id) : null
-    const p2 = m.pair2_player1_id && m.pair2_player2_id ? pairKeyFor(m.pair2_player1_id, m.pair2_player2_id) : null
-    const winner = m.winner_pair === 1 ? p1 : p2
-    const loser = m.winner_pair === 1 ? p2 : p1
-    if (loser) out.set(loser, { status: 'eliminated', eliminatedRound: round })
-    if (round === 'F' && winner) out.set(winner, { status: 'champion', eliminatedRound: null })
-  }
-  return out
+export interface DoneProjection extends PairProjection {
+  status: 'eliminated' | 'champion'
+  eliminatedRound: string | null
 }
 
-/** Decided-matchups map for the engine: matchupKey(a,b) → winner pairKey. */
-export function buildDecidedMap(
-  rows: Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>,
-): Map<string, string> {
-  const out = new Map<string, string>()
+type DrawMatchRow = FrontierMatchRow & { round: string | null; round_canonical: string | null }
+
+/** Reconstruct factual journeys for pairs whose tournament is over — lost a
+ *  decided main-draw match (eliminated) or won the final (champion). No
+ *  simulation: champion 0%/100%; rounds = the matches they actually played,
+ *  winProb = 1 if they won that match else 0. */
+export function buildDoneProjections(
+  rows: DrawMatchRow[],
+  players: Map<string, PlayerLite>,
+): DoneProjection[] {
+  type Played = { round: ProjRound; oppKey: string; oppIds: [string, string]; won: boolean }
+  type Rec = { ids: [string, string]; played: Played[]; lostRound: string | null; wonFinal: boolean }
+  const byPair = new Map<string, Rec>()
+  const sortIds = (a: string, b: string): [string, string] => (a < b ? [a, b] : [b, a])
+
   for (const m of rows) {
     if (!(m.winner_pair === 1 || m.winner_pair === 2)) continue
-    // Main-draw only — skip qualifying (Q1/Q2/Q3) so the map matches the
-    // main-draw sim and deriveStatuses (symmetric, no dead qualifier entries).
-    if (!canonRound(m.round_canonical ?? m.round)) continue
-    const p1 = m.pair1_player1_id && m.pair1_player2_id ? pairKeyFor(m.pair1_player1_id, m.pair1_player2_id) : null
-    const p2 = m.pair2_player1_id && m.pair2_player2_id ? pairKeyFor(m.pair2_player1_id, m.pair2_player2_id) : null
-    if (!p1 || !p2) continue
-    out.set(matchupKey(p1, p2), m.winner_pair === 1 ? p1 : p2)
+    const round = canonRound(m.round_canonical ?? m.round)
+    if (!round) continue
+    if (!(m.pair1_player1_id && m.pair1_player2_id && m.pair2_player1_id && m.pair2_player2_id)) continue
+    const ids1 = sortIds(m.pair1_player1_id, m.pair1_player2_id)
+    const ids2 = sortIds(m.pair2_player1_id, m.pair2_player2_id)
+    const k1 = `${ids1[0]}::${ids1[1]}`
+    const k2 = `${ids2[0]}::${ids2[1]}`
+    const p1Won = m.winner_pair === 1
+    const rec1 = byPair.get(k1) ?? { ids: ids1, played: [], lostRound: null, wonFinal: false }
+    const rec2 = byPair.get(k2) ?? { ids: ids2, played: [], lostRound: null, wonFinal: false }
+    rec1.played.push({ round, oppKey: k2, oppIds: ids2, won: p1Won })
+    rec2.played.push({ round, oppKey: k1, oppIds: ids1, won: !p1Won })
+    if (!p1Won) rec1.lostRound = round
+    else if (round === 'F') rec1.wonFinal = true
+    if (p1Won) rec2.lostRound = round
+    else if (round === 'F') rec2.wonFinal = true
+    byPair.set(k1, rec1)
+    byPair.set(k2, rec2)
+  }
+
+  const out: DoneProjection[] = []
+  for (const [key, rec] of byPair) {
+    const isChampion = rec.wonFinal
+    const isEliminated = rec.lostRound != null
+    if (!isChampion && !isEliminated) continue
+    const played = [...rec.played].sort(
+      (a, b) => PROJ_ROUND_ORDER.indexOf(a.round) - PROJ_ROUND_ORDER.indexOf(b.round),
+    )
+    const reached = new Set(played.map((p) => p.round))
+    const rounds: PairRound[] = played.map((p) => ({
+      round: p.round,
+      reachProb: 1,
+      opponents: [{ pairKey: p.oppKey, playerIds: p.oppIds, reachProb: 1, winProb: p.won ? 1 : 0 }],
+    }))
+    out.push({
+      pairKey: key,
+      playerIds: rec.ids,
+      championProb: isChampion ? 1 : 0,
+      finalistProb: reached.has('F') ? 1 : 0,
+      semifinalProb: reached.has('SF') ? 1 : 0,
+      rounds,
+      status: isChampion ? 'champion' : 'eliminated',
+      eliminatedRound: isChampion ? null : rec.lostRound,
+    })
   }
   return out
 }
@@ -255,46 +291,58 @@ export async function runTournamentProjectionSnapshot(
           if (!r) continue;
           (byRound.get(r) ?? byRound.set(r, []).get(r)!).push(m);
         }
-        const entryRound = pickEntryRound(byRound)
-        if (!entryRound) continue
-        const entrants = buildFullFieldEntrants(byRound.get(entryRound)!, train.elo, players)
-        if (entrants.filter(Boolean).length < 2) continue
+        // Path 1 — active pairs via the frontier forward-sim (correct on
+        // irregular/bye draws; sizes the bracket to the current frontier).
+        const frontier = pickFrontierRound(byRound)
+        let activeProjections = new Map<string, PairProjection>()
+        if (frontier) {
+          const entrants = buildFrontierEntrants(byRound.get(frontier)!, frontier, train.elo, players)
+          if (entrants.filter(Boolean).length >= 2) {
+            activeProjections = projectPairs({ entrants, runs: MC_RUNS })
+          }
+        }
 
-        const decided = buildDecidedMap(rows)
-        const statuses = deriveStatuses(rows)
-        const projections = projectPairs({ entrants, runs: MC_RUNS, decided })
+        // Path 2 — done pairs (eliminated + champion) reconstructed from results.
+        const doneProjections = buildDoneProjections(rows, players)
+        const doneKeys = new Set(doneProjections.map((d) => d.pairKey))
+
+        // Combine: done pairs + active pairs not already done (disjoint sets).
+        const combined: Array<{ proj: PairProjection; status: 'active' | 'eliminated' | 'champion'; eliminatedRound: string | null }> = [
+          ...doneProjections.map((d) => ({ proj: d as PairProjection, status: d.status, eliminatedRound: d.eliminatedRound })),
+          ...[...activeProjections.values()]
+            .filter((p) => !doneKeys.has(p.pairKey))
+            .map((p) => ({ proj: p, status: 'active' as const, eliminatedRound: null })),
+        ]
+        if (combined.length === 0) continue
 
         const nameOf = (id: string) => players.get(id)?.name ?? ''
-        const upsertRows = [...projections.values()].map((p) => {
-          const st = statuses.get(p.pairKey) ?? { status: 'active' as const, eliminatedRound: null }
-          return {
-            tournament_id: t.id,
-            category,
-            pair_key: p.pairKey,
-            pair_player_ids: p.playerIds,
-            tournament_level: t.level,
-            status: st.status,
-            eliminated_round: st.eliminatedRound,
-            champion_prob: p.championProb.toFixed(4),
-            finalist_prob: p.finalistProb.toFixed(4),
-            semifinal_prob: p.semifinalProb.toFixed(4),
-            rounds: p.rounds.map((r) => ({
-              round: r.round,
-              reach_prob: Number(r.reachProb.toFixed(4)),
-              expected_opponent_pair_key: r.opponents[0]?.pairKey ?? null,
-              opponents: r.opponents.map((o) => ({
-                pair_key: o.pairKey,
-                player_ids: o.playerIds,
-                names: o.playerIds.map(nameOf),
-                reach_prob: Number(o.reachProb.toFixed(4)),
-                win_prob: Number(o.winProb.toFixed(4)),
-              })),
+        const upsertRows = combined.map(({ proj: p, status, eliminatedRound }) => ({
+          tournament_id: t.id,
+          category,
+          pair_key: p.pairKey,
+          pair_player_ids: p.playerIds,
+          tournament_level: t.level,
+          status,
+          eliminated_round: eliminatedRound,
+          champion_prob: p.championProb.toFixed(4),
+          finalist_prob: p.finalistProb.toFixed(4),
+          semifinal_prob: p.semifinalProb.toFixed(4),
+          rounds: p.rounds.map((r) => ({
+            round: r.round,
+            reach_prob: Number(r.reachProb.toFixed(4)),
+            expected_opponent_pair_key: r.opponents[0]?.pairKey ?? null,
+            opponents: r.opponents.map((o) => ({
+              pair_key: o.pairKey,
+              player_ids: o.playerIds,
+              names: o.playerIds.map(nameOf),
+              reach_prob: Number(o.reachProb.toFixed(4)),
+              win_prob: Number(o.winProb.toFixed(4)),
             })),
-            model_version: MODEL_VERSION,
-            mc_runs: MC_RUNS,
-            computed_at: nowIso,
-          }
-        })
+          })),
+          model_version: MODEL_VERSION,
+          mc_runs: MC_RUNS,
+          computed_at: nowIso,
+        }))
 
         if (!dryRun && upsertRows.length > 0) {
           // Replace this tournament+category's rows (prunes pairs no longer in
