@@ -141,9 +141,8 @@ export const APP_MESSAGES: Record<Locale, AppCopy> = {
   en: {
     htmlLang: 'en',
     ogLocale: 'en_US',
-    title: 'Pro padel results. In real time.',
-    description:
-      '🔴 LIVE · rankings · draws. ✈️ No plane ticket, no excuses. 👇 Download free — iPhone & Android.',
+    title: 'Padel. Live. Right now.',
+    description: '🎾 Scores · rankings · news. ✈️ No flight, no excuses.',
     ios: 'Download on the App Store',
     android: 'Get it on Google Play',
     web: 'Continue to padelnachos.com',
@@ -151,9 +150,9 @@ export const APP_MESSAGES: Record<Locale, AppCopy> = {
   es: {
     htmlLang: 'es',
     ogLocale: 'es_ES',
-    title: 'Resultados de pádel Pro. En tiempo real.',
+    title: 'Pádel. En directo. Ahora mismo.',
     description:
-      '🔴 LIVE · rankings · cuadros. ✈️ Sin billete de avión, sin excusas. 👇 Descárgala gratis — iPhone y Android.',
+      '🎾 Resultados · rankings · noticias. ✈️ Sin vuelo, sin excusas.',
     ios: 'Descargar en la App Store',
     android: 'Disponible en Google Play',
     web: 'Ir a padelnachos.com',
@@ -161,9 +160,9 @@ export const APP_MESSAGES: Record<Locale, AppCopy> = {
   pt: {
     htmlLang: 'pt-BR',
     ogLocale: 'pt_BR',
-    title: 'Resultados de padel Pro. Em tempo real.',
+    title: 'Padel. Ao vivo. Agora mesmo.',
     description:
-      '🔴 AO VIVO · rankings · chaves. ✈️ Sem passagem de avião, sem desculpas. 👇 Baixe grátis — iPhone e Android.',
+      '🎾 Resultados · rankings · notícias. ✈️ Sem voo, sem desculpas.',
     ios: 'Baixar na App Store',
     android: 'Disponível no Google Play',
     web: 'Ir para padelnachos.com',
@@ -171,9 +170,9 @@ export const APP_MESSAGES: Record<Locale, AppCopy> = {
   it: {
     htmlLang: 'it',
     ogLocale: 'it_IT',
-    title: 'Risultati di padel Pro. In tempo reale.',
+    title: 'Padel. Live. Adesso.',
     description:
-      '🔴 LIVE · ranking · tabelloni. ✈️ Niente biglietto aereo, niente scuse. 👇 Scaricala gratis — iPhone e Android.',
+      '🎾 Risultati · ranking · notizie. ✈️ Niente voli, niente scuse.',
     ios: 'Scarica su App Store',
     android: 'Disponibile su Google Play',
     web: 'Vai su padelnachos.com',
@@ -181,9 +180,9 @@ export const APP_MESSAGES: Record<Locale, AppCopy> = {
   fr: {
     htmlLang: 'fr',
     ogLocale: 'fr_FR',
-    title: 'Résultats de padel Pro. En temps réel.',
+    title: 'Padel. En direct. Maintenant.',
     description:
-      '🔴 LIVE · classements · tableaux. ✈️ Pas de billet d’avion, pas d’excuses. 👇 Téléchargez gratuitement — iPhone et Android.',
+      '🎾 Résultats · classements · actualités. ✈️ Sans avion, sans excuses.',
     ios: 'Télécharger sur l’App Store',
     android: 'Disponible sur Google Play',
     web: 'Aller sur padelnachos.com',

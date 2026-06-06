@@ -123,10 +123,11 @@ describe('APP_MESSAGES', () => {
   it('uses Brazilian Portuguese for pt (not European)', () => {
     expect(APP_MESSAGES.pt.htmlLang).toBe('pt-BR')
     expect(APP_MESSAGES.pt.ogLocale).toBe('pt_BR')
-    // Brazilian markers: "Baixe" (vs PT-PT "Transferir"), "AO VIVO", "chaves".
-    expect(APP_MESSAGES.pt.android).toMatch(/Google Play/)
+    // Brazilian markers: "Baixar" (vs PT-PT "Transferir") in the button,
+    // "Ao vivo" in the title, "notícias" in the description.
     expect(APP_MESSAGES.pt.ios).toMatch(/Baixar/i)
-    expect(APP_MESSAGES.pt.description).toMatch(/AO VIVO/)
+    expect(APP_MESSAGES.pt.title).toMatch(/Ao vivo/i)
+    expect(APP_MESSAGES.pt.description).toMatch(/notícias/)
   })
 })
 
