@@ -1455,6 +1455,8 @@
     "eliminatedIn": "Eliminated in {round}",
     "champions": "Champions! 🏆",
     "out": "Out",
+    "reachedRound": "Reached the {round}",
+    "wonTitle": "Won the title",
     "roundR64": "Round of 64",
     "roundR32": "Round of 32",
     "roundR16": "Round of 16",

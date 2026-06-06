@@ -1423,6 +1423,8 @@
     "eliminatedIn": "Eliminado em {round}",
     "champions": "Campeões! 🏆",
     "out": "Fora",
+    "reachedRound": "Chegou a {round}",
+    "wonTitle": "Ganhou o título",
     "roundR64": "Trigésimos",
     "roundR32": "Ronda de 32",
     "roundR16": "Oitavos",

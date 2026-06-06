@@ -106,7 +106,13 @@ export default function ProjectionTab({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 15px', marginBottom: 18, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
             <div>
               <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('roadToTrophy')}</div>
-              <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600 }}>{t('winsToLift', { count: vm.rounds.length })} 🏆</div>
+              <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                {vm.status === 'champion'
+                  ? `${t('wonTitle')} 🏆`
+                  : vm.status === 'eliminated' && vm.eliminatedRound
+                  ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
+                  : `${t('winsToLift', { count: vm.rounds.length })} 🏆`}
+              </div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ color: LIME, fontWeight: 800, fontSize: 25, lineHeight: 1, fontFamily: MONO }}>{pct(vm.championProb)}</div>
