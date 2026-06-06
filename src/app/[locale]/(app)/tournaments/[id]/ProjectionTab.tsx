@@ -1,11 +1,13 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
-import { useFollowing } from '@/hooks/useFollowing'
-import { buildPlayerLookup, buildRoadVM, pickDefaultProjectionPair, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildPlayerLookup, buildRoadVM, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildSeedMap } from '@/lib/projection-picker'
 import { useProjection } from './useProjection'
+import { usePairImages } from './usePairImages'
+import ProjectionPickerList, { type ResolvedPlayer } from './ProjectionPickerList'
 import ChampionSparkline from './ChampionSparkline'
 
 const CARD = 'rgba(255,255,255,0.03)'
@@ -67,18 +69,25 @@ export default function ProjectionTab({
   const t = useTranslations('projectionTab')
   const format = useFormatter()
   const { rows, loading } = useProjection(tournamentId, category)
-  const { getFollowed } = useFollowing()
-  const bookmarked = useMemo(() => getFollowed('player'), [getFollowed])
   const lookup = useMemo(() => buildPlayerLookup(matches), [matches])
+  const seedByPair = useMemo(() => buildSeedMap(matches), [matches])
+  const playerIds = useMemo(() => [...new Set(rows.flatMap((r) => r.pair_player_ids))], [rows])
+  const images = usePairImages(playerIds)
+  const resolvePlayer = useCallback((id: string): ResolvedPlayer => {
+    const img = images.get(id)
+    const p = lookup.get(id)
+    return {
+      name: img?.name ?? p?.display_name ?? p?.name ?? '',
+      country: img?.country ?? p?.country ?? null,
+      avatarUrl: img?.avatarUrl ?? p?.avatar_url ?? null,
+      photoUrl: img?.photoUrl ?? null,
+    }
+  }, [images, lookup])
 
-  const defaultPair = useMemo(() => pickDefaultProjectionPair(rows, bookmarked), [rows, bookmarked])
+  const [view, setView] = useState<'list' | 'road'>(initialPairKey ? 'road' : 'list')
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  // Fall back to the default when the selected/deep-linked pair isn't in the
-  // current rows (stale ?pair= link, or a pair pruned after elimination).
-  const activePair =
-    selectedPair && rows.some((r) => r.pair_key === selectedPair) ? selectedPair : defaultPair
-  const row = useMemo(() => rows.find((r) => r.pair_key === activePair) ?? null, [rows, activePair])
+  const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
 
   if (loading) {
@@ -95,25 +104,28 @@ export default function ProjectionTab({
     )
   }
 
+  // List view (default, or whenever there's no valid selected pair).
+  if (view === 'list' || !vm) {
+    return (
+      <div style={{ padding: '14px 13px 24px' }}>
+        <ProjectionPickerList
+          rows={rows}
+          seedByPair={seedByPair}
+          resolvePlayer={resolvePlayer}
+          onPick={(key) => { setSelectedPair(key); setExpanded(new Set()); setView('road') }}
+        />
+      </div>
+    )
+  }
+
+  // Road view for the selected pair, with a back-to-list control.
   return (
     <div style={{ padding: '14px 13px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('tracking')}</span>
-        <select
-          value={activePair ?? ''}
-          onChange={(e) => { setSelectedPair(e.target.value); setExpanded(new Set()) }}
-          style={{ background: CARD, color: TEXT, border: '1px solid #2E2E2E', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderRadius: 0 }}
-        >
-          {rows.map((r) => {
-            const v = buildRoadVM(r, lookup, roundSchedule)
-            const suffix = v.status === 'eliminated' ? ` · ${t('out')}` : v.status === 'champion' ? ' · 🏆' : ''
-            return <option key={r.pair_key} value={r.pair_key}>{pairName(v.players)}{suffix}</option>
-          })}
-        </select>
-      </div>
-
-      {vm && (
-        <>
+      <button onClick={() => setView('list')}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 12px 2px' }}>
+        ‹ {t('back')}
+      </button>
+      <>
           <div style={{ padding: '13px 15px', marginBottom: 16, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
@@ -154,7 +166,7 @@ export default function ProjectionTab({
               </div>
             )}
             <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
-              <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={activePair} />
+              <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={selectedPair} />
             </div>
           </div>
 
@@ -232,7 +244,6 @@ export default function ProjectionTab({
 
           <div style={{ marginTop: 16, textAlign: 'center', color: MUTED, fontSize: 9, fontWeight: 600 }}>{t('modelEstimate')}</div>
         </>
-      )}
     </div>
   )
 }
