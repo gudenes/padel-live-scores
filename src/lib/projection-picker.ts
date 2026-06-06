@@ -6,10 +6,20 @@ export function pairKeyFromIds(a: string, b: string): string {
   return a < b ? `${a}::${b}` : `${b}::${a}`
 }
 
-/** pair_key → seed, derived from matches (only top 8/16 are seeded). */
+/** Qualifying-draw rounds (Q1/Q2/Q3, "Qualifying") carry their OWN 1..N
+ *  seeding, separate from the main draw. A qualifier seeded #1 in qualifying is
+ *  NOT the #1 main-draw seed, so their Q-seed must never feed the picker badge.
+ *  NB: must NOT match "Quarterfinals" — the `\d`/`ualif` lookahead keeps it out. */
+export function isQualifyingRound(round: string | null | undefined): boolean {
+  return !!round && /^q(?:ualif|\d)/i.test(round)
+}
+
+/** pair_key → seed, derived from MAIN-DRAW matches (only top 8/16 are seeded).
+ *  Qualifying rounds are skipped so a qualifier's separate Q-seed can't leak. */
 export function buildSeedMap(matches: Match[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const m of matches) {
+    if (isQualifyingRound(m.round)) continue
     if (m.pair1_player1?.id && m.pair1_player2?.id && m.pair1_seed != null) {
       map.set(pairKeyFromIds(m.pair1_player1.id, m.pair1_player2.id), m.pair1_seed)
     }
