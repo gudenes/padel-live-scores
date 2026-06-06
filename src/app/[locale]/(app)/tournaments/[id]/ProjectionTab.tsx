@@ -27,12 +27,13 @@ function pairName(players: RoadOpponentVM['players']): string {
 
 function PairAvatars({ players, size = 24 }: { players: RoadOpponentVM['players']; size?: number }) {
   const [p1, p2] = players
+  const off = Math.round(size * 0.62) // horizontal offset for the overlap
   return (
-    <div style={{ position: 'relative', width: size + 14, height: size, flexShrink: 0 }}>
+    <div style={{ position: 'relative', width: size + off, height: size, flexShrink: 0 }}>
       <Avatar src={p1?.avatarUrl} alt={p1?.name ?? ''} size={size} fallback={p1?.name?.[0]} unoptimized
         style={{ position: 'absolute', left: 0, top: 0, border: '2px solid #1A1A1A' }} />
       <Avatar src={p2?.avatarUrl} alt={p2?.name ?? ''} size={size} fallback={p2?.name?.[0]} unoptimized
-        style={{ position: 'absolute', left: 14, top: 0, border: '2px solid #1A1A1A' }} />
+        style={{ position: 'absolute', left: off, top: 0, border: '2px solid #1A1A1A' }} />
     </div>
   )
 }
@@ -140,8 +141,8 @@ export default function ProjectionTab({
 
           <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
 
-          <div style={{ position: 'relative', paddingLeft: 26 }}>
-            <div style={{ position: 'absolute', left: 8, top: 14, bottom: 18, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 55%, ${GOLD} 100%)` }} />
+          <div style={{ position: 'relative', paddingLeft: 36 }}>
+            <div style={{ position: 'absolute', left: 12, top: 16, bottom: 20, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 55%, ${GOLD} 100%)` }} />
             {vm.rounds.map((rd, i) => {
               if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return null
               const isFinal = rd.round === 'F'
@@ -160,12 +161,12 @@ export default function ProjectionTab({
                 : { bg: '#3a3f47', glyph: '', color: '' }
               return (
                 <div key={rd.round} style={{ position: 'relative', marginBottom: i === vm.rounds.length - 1 ? 0 : 8 }}>
-                  <div style={{ position: 'absolute', left: -26, top: 16, width: 18, height: 18, borderRadius: '50%', background: node.bg, border: '3px solid #1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 9 : 11, fontWeight: 900, color: node.color }}>{node.glyph}</div>
+                  <div style={{ position: 'absolute', left: -36, top: 18, width: 26, height: 26, borderRadius: '50%', background: node.bg, border: '3px solid #1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 13 : 15, fontWeight: 900, color: node.color }}>{node.glyph}</div>
                   {shown.map((opp, j) => {
                     const played = !!opp.result
                     return (
                       <div key={opp.pairKey} style={{ display: 'flex', alignItems: 'center', gap: 10, background: isFinal && j === 0 ? 'rgba(245,166,35,0.06)' : CARD, border: `1px solid ${isFinal && j === 0 ? 'rgba(245,166,35,0.22)' : 'rgba(255,255,255,0.07)'}`, padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6, opacity: j === 0 ? 1 : 0.85 }}>
-                        <PairAvatars players={opp.players} size={30} />
+                        <PairAvatars players={opp.players} size={38} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           {j === 0 && (
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
