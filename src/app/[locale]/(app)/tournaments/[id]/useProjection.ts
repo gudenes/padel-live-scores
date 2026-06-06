@@ -18,7 +18,7 @@ export function useProjection(tournamentId: string, category: 'men' | 'women'): 
     setState({ rows: [], loading: true, error: false })
     supabase
       .from('tournament_projections')
-      .select('tournament_id, category, pair_key, pair_player_ids, tournament_level, champion_prob, finalist_prob, semifinal_prob, rounds, computed_at')
+      .select('tournament_id, category, pair_key, pair_player_ids, tournament_level, status, eliminated_round, champion_prob, finalist_prob, semifinal_prob, rounds, computed_at')
       .eq('tournament_id', tournamentId)
       .eq('category', category)
       .order('champion_prob', { ascending: false })

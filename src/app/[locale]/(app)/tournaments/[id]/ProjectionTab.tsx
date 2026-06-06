@@ -93,9 +93,11 @@ export default function ProjectionTab({
           onChange={(e) => { setSelectedPair(e.target.value); setExpanded(new Set()) }}
           style={{ background: CARD, color: TEXT, border: '1px solid #2E2E2E', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderRadius: 0 }}
         >
-          {rows.map((r) => (
-            <option key={r.pair_key} value={r.pair_key}>{pairName(buildRoadVM(r, lookup, roundSchedule).players)}</option>
-          ))}
+          {rows.map((r) => {
+            const v = buildRoadVM(r, lookup, roundSchedule)
+            const suffix = v.status === 'eliminated' ? ` · ${t('out')}` : v.status === 'champion' ? ' · 🏆' : ''
+            return <option key={r.pair_key} value={r.pair_key}>{pairName(v.players)}{suffix}</option>
+          })}
         </select>
       </div>
 
@@ -109,12 +111,22 @@ export default function ProjectionTab({
             <div style={{ textAlign: 'right' }}>
               <div style={{ color: LIME, fontWeight: 800, fontSize: 25, lineHeight: 1, fontFamily: MONO }}>{pct(vm.championProb)}</div>
               <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
+              {vm.status === 'eliminated' && vm.eliminatedRound && (
+                <div style={{ color: LIVE, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 3 }}>
+                  {t('eliminatedIn', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })}
+                </div>
+              )}
+              {vm.status === 'champion' && (
+                <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
+              )}
             </div>
           </div>
 
           <div style={{ position: 'relative', paddingLeft: 24 }}>
             <div style={{ position: 'absolute', left: 7, top: 9, bottom: 14, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 45%, ${GOLD} 100%)` }} />
             {vm.rounds.map((rd, i) => {
+              if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return null
+              const isFinished = vm.status !== 'active'
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
               // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
@@ -130,7 +142,7 @@ export default function ProjectionTab({
                     <span style={{ color: isFinal ? GOLD : SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       {t(ROUND_LABEL_KEY[rd.round])}{dateLabel ? ` · ${dateLabel}` : ''}
                     </span>
-                    {rd.opponents.length > 1 && (
+                    {!isFinished && rd.opponents.length > 1 && (
                       <button onClick={() => setExpanded((s) => { const n = new Set(s); if (n.has(rd.round)) n.delete(rd.round); else n.add(rd.round); return n })}
                         style={{ color: MUTED, fontSize: 9, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
                         {isExpanded ? t('possibleOpponentsHeading') : t('morePossible', { count: rd.opponents.length - 1 })} ›
