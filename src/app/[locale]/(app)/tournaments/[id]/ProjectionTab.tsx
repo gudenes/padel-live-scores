@@ -18,9 +18,6 @@ const LIVE = '#FF4655'
 const CHUNK_CARD = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
 const MONO = 'ui-monospace, "SF Mono", monospace'
 
-function pct(n: number): string {
-  return `${Math.round(n * 100)}%`
-}
 function winColor(p: number): string {
   return p >= 0.65 ? LIME : p >= 0.45 ? GOLD : LIVE
 }
@@ -104,80 +101,105 @@ export default function ProjectionTab({
 
       {vm && (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 15px', marginBottom: 18, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
-            <div>
-              <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('roadToTrophy')}</div>
-              <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600 }}>
-                {vm.status === 'champion'
-                  ? `${t('wonTitle')} 🏆`
-                  : vm.status === 'eliminated' && vm.eliminatedRound
-                  ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
-                  : `${t('winsToLift', { count: vm.rounds.filter((r) => !r.expected?.result).length })} 🏆`}
+          <div style={{ padding: '13px 15px', marginBottom: 16, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('roadToTrophy')}</div>
+                <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600 }}>
+                  {vm.status === 'champion'
+                    ? `${t('wonTitle')} 🏆`
+                    : vm.status === 'eliminated' && vm.eliminatedRound
+                    ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
+                    : `${t('winsToLift', { count: vm.rounds.filter((r) => !r.expected?.result).length })} 🏆`}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+                  <span style={{ color: LIME, fontWeight: 800, fontSize: 28, lineHeight: 1, fontFamily: MONO }}>{Math.round(vm.championProb * 100)}</span>
+                  <span style={{ color: LIME, fontWeight: 800, fontSize: 14, fontFamily: MONO }}>%</span>
+                </div>
+                <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
+                {vm.status === 'eliminated' && vm.eliminatedRound && (
+                  <div style={{ color: LIVE, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 3 }}>
+                    {t('eliminatedIn', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })}
+                  </div>
+                )}
+                {vm.status === 'champion' && (
+                  <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
+                )}
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ color: LIME, fontWeight: 800, fontSize: 25, lineHeight: 1, fontFamily: MONO }}>{pct(vm.championProb)}</div>
-              <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
-              {vm.status === 'eliminated' && vm.eliminatedRound && (
-                <div style={{ color: LIVE, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 3 }}>
-                  {t('eliminatedIn', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })}
-                </div>
-              )}
-              {vm.status === 'champion' && (
-                <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
-              )}
-              <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={activePair} />
-              </div>
+            {/* champion-probability bar */}
+            <div style={{ marginTop: 10, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+              <div style={{ width: `${Math.max(2, Math.round(vm.championProb * 100))}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
+            </div>
+            <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
+              <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={activePair} />
             </div>
           </div>
 
-          <div style={{ position: 'relative', paddingLeft: 24 }}>
-            <div style={{ position: 'absolute', left: 7, top: 9, bottom: 14, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 45%, ${GOLD} 100%)` }} />
+          <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
+
+          <div style={{ position: 'relative', paddingLeft: 26 }}>
+            <div style={{ position: 'absolute', left: 8, top: 14, bottom: 18, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 55%, ${GOLD} 100%)` }} />
             {vm.rounds.map((rd, i) => {
               if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return null
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
+              const result = rd.expected?.result ?? null
               // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
-              // weekday/day label doesn't shift a day for users west of UTC
-              // (a bare date-only string parses as UTC midnight).
+              // weekday/day label doesn't shift a day for users west of UTC.
               const dateObj = rd.dateIso ? new Date(rd.dateIso.length === 10 ? `${rd.dateIso}T12:00:00` : rd.dateIso) : null
               const dateLabel = dateObj ? format.dateTime(dateObj, { weekday: 'short', day: 'numeric', month: 'short' }) : null
+              const code = isFinal ? t('roundF') : rd.round
               const shown = isExpanded ? rd.opponents : rd.expected ? [rd.expected] : []
+              const node =
+                result === 'won' ? { bg: LIME, glyph: '✓', color: '#06210a' }
+                : result === 'lost' ? { bg: LIVE, glyph: '✗', color: '#2a0708' }
+                : isFinal ? { bg: GOLD, glyph: '🏆', color: '' }
+                : { bg: '#3a3f47', glyph: '', color: '' }
               return (
-                <div key={rd.round} style={{ position: 'relative', marginBottom: i === vm.rounds.length - 1 ? 0 : 14 }}>
-                  <div style={{ position: 'absolute', left: -24, top: 7, width: 16, height: 16, borderRadius: '50%', background: isFinal ? GOLD : '#222', border: '3px solid #1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9 }}>{isFinal ? '🏆' : ''}</div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                    <span style={{ color: isFinal ? GOLD : SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                      {t(ROUND_LABEL_KEY[rd.round])}{dateLabel ? ` · ${dateLabel}` : ''}
-                    </span>
-                    {!rd.expected?.result && rd.opponents.length > 1 && (
-                      <button onClick={() => setExpanded((s) => { const n = new Set(s); if (n.has(rd.round)) n.delete(rd.round); else n.add(rd.round); return n })}
-                        style={{ color: MUTED, fontSize: 9, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
-                        {isExpanded ? t('possibleOpponentsHeading') : t('morePossible', { count: rd.opponents.length - 1 })} ›
-                      </button>
-                    )}
-                  </div>
-                  {shown.map((opp, j) => (
-                    <div key={opp.pairKey} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: isFinal && j === 0 ? 'rgba(245,166,35,0.06)' : CARD, border: `1px solid ${isFinal && j === 0 ? 'rgba(245,166,35,0.22)' : 'rgba(255,255,255,0.06)'}`, padding: '8px 10px', clipPath: CHUNK_CARD, marginBottom: 6, opacity: j === 0 ? 1 : 0.8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                        <PairAvatars players={opp.players} />
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>{pairName(opp.players)}</div>
-                          {!opp.result && (
-                            <div style={{ color: MUTED, fontSize: 9, fontWeight: 700 }}>{t('toFace', { pct: Math.round(opp.faceProb * 100) })}</div>
+                <div key={rd.round} style={{ position: 'relative', marginBottom: i === vm.rounds.length - 1 ? 0 : 8 }}>
+                  <div style={{ position: 'absolute', left: -26, top: 16, width: 18, height: 18, borderRadius: '50%', background: node.bg, border: '3px solid #1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 9 : 11, fontWeight: 900, color: node.color }}>{node.glyph}</div>
+                  {shown.map((opp, j) => {
+                    const played = !!opp.result
+                    return (
+                      <div key={opp.pairKey} style={{ display: 'flex', alignItems: 'center', gap: 10, background: isFinal && j === 0 ? 'rgba(245,166,35,0.06)' : CARD, border: `1px solid ${isFinal && j === 0 ? 'rgba(245,166,35,0.22)' : 'rgba(255,255,255,0.07)'}`, padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6, opacity: j === 0 ? 1 : 0.85 }}>
+                        <PairAvatars players={opp.players} size={30} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {j === 0 && (
+                            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                              <span style={{ color: isFinal ? GOLD : TEXT, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 }}>{code}</span>
+                              {dateLabel && <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{dateLabel}</span>}
+                            </div>
+                          )}
+                          <div style={{ color: TEXT, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pairName(opp.players)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          {played ? (
+                            <>
+                              <div style={{ color: opp.result === 'won' ? LIME : LIVE, fontSize: 18, fontWeight: 900, lineHeight: 1 }}>{opp.result === 'won' ? '✓' : '✗'}</div>
+                              <div style={{ color: opp.result === 'won' ? LIME : LIVE, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{opp.result === 'won' ? t('won') : t('lost')}</div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+                                <span style={{ color: winColor(opp.winProb), fontSize: 22, fontWeight: 800, lineHeight: 1, fontFamily: MONO }}>{Math.round(opp.winProb * 100)}</span>
+                                <span style={{ color: winColor(opp.winProb), fontSize: 12, fontWeight: 800, fontFamily: MONO }}>%</span>
+                              </div>
+                              <div style={{ color: MUTED, fontSize: 9, fontWeight: 600, marginTop: 2 }}>{t('probabilityToWin')}</div>
+                            </>
                           )}
                         </div>
                       </div>
-                      {opp.result ? (
-                        <span style={{ color: opp.result === 'won' ? LIME : LIVE, fontWeight: 800, fontSize: 16, lineHeight: 1 }}>
-                          {opp.result === 'won' ? '✓' : '✗'}
-                        </span>
-                      ) : (
-                        <span style={{ color: winColor(opp.winProb), fontWeight: 800, fontSize: 15, fontFamily: MONO }}>{pct(opp.winProb)}</span>
-                      )}
-                    </div>
-                  ))}
+                    )
+                  })}
+                  {!result && rd.opponents.length > 1 && (
+                    <button onClick={() => setExpanded((s) => { const n = new Set(s); if (n.has(rd.round)) n.delete(rd.round); else n.add(rd.round); return n })}
+                      style={{ color: MUTED, fontSize: 9, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 6px 2px' }}>
+                      {isExpanded ? t('possibleOpponentsHeading') : t('morePossible', { count: rd.opponents.length - 1 })} ›
+                    </button>
+                  )}
                   {!rd.expected && (
                     <div style={{ color: MUTED, fontSize: 11, padding: '6px 2px' }}>{t('byeOrUnknown')}</div>
                   )}
