@@ -127,6 +127,26 @@ function roundHasAssigned(m: FrontierMatchRow): boolean {
   );
 }
 
+/** Readiness gate for the forward-sim. A frontier round is "ready" only when
+ *  every one of its matches is either finished OR has BOTH pairs assigned.
+ *
+ *  An unfinished, partially-assigned (or empty-shell) match at the frontier
+ *  means the draw is still being populated — e.g. a P1 whose main draw isn't
+ *  published yet, so only qualifying + a few R64/R32 cells are loaded.
+ *  Simulating then pads the empty slots as byes and massively inflates the
+ *  odds of whichever pairs happen to be loaded (a rank-58 qualifier showing
+ *  "39% champion"). Deeper-round seed byes never trip this, because the caller
+ *  only inspects the shallowest unfinished round (the frontier). */
+export function frontierRoundComplete(rows: FrontierMatchRow[]): boolean {
+  for (const m of rows) {
+    if (m.winner_pair === 1 || m.winner_pair === 2) continue;
+    const hasP1 = Boolean(m.pair1_player1_id && m.pair1_player2_id);
+    const hasP2 = Boolean(m.pair2_player1_id && m.pair2_player2_id);
+    if (!(hasP1 && hasP2)) return false;
+  }
+  return true;
+}
+
 /** Earliest (shallowest) main-draw round that still has an unfinished,
  *  player-assigned match. Null when the draw is fully decided / empty. */
 export function pickFrontierRound(byRound: Map<ProjRound, FrontierMatchRow[]>): ProjRound | null {
@@ -336,7 +356,11 @@ export async function runTournamentProjectionSnapshot(
         // irregular/bye draws; sizes the bracket to the current frontier).
         const frontier = pickFrontierRound(byRound)
         let activeProjections = new Map<string, PairProjection>()
-        if (frontier) {
+        // Only forward-sim once the frontier round is fully drawn — a
+        // half-populated draw (main draw not published yet) would treat empty
+        // slots as byes and inflate the loaded pairs' odds. See
+        // frontierRoundComplete.
+        if (frontier && frontierRoundComplete(byRound.get(frontier)!)) {
           const entrants = buildFrontierEntrants(byRound.get(frontier)!, frontier, train.elo, players)
           if (entrants.filter(Boolean).length >= 2) {
             activeProjections = projectPairs({ entrants, runs: MC_RUNS })

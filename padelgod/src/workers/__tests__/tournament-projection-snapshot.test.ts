@@ -2,11 +2,38 @@ import { describe, it, expect } from 'vitest';
 import {
   buildFrontierEntrants,
   pickFrontierRound,
+  frontierRoundComplete,
   buildDoneProjections,
   buildSnapshotRows,
   type FrontierMatchRow,
 } from '../tournament-projection-snapshot.js';
 import type { ProjRound } from '../../lib/bracket-projection.js';
+
+describe('frontierRoundComplete', () => {
+  const mk = (o: Partial<FrontierMatchRow>): FrontierMatchRow => ({
+    id: 'm', widget_id_composite: null, draw_position: null, status: 'scheduled', winner_pair: null,
+    pair1_player1_id: null, pair1_player2_id: null, pair2_player1_id: null, pair2_player2_id: null,
+    pair1_seed: null, pair2_seed: null, ...o,
+  })
+
+  it('true when every match is finished or fully assigned', () => {
+    expect(frontierRoundComplete([
+      mk({ winner_pair: 1, pair1_player1_id: 'a', pair1_player2_id: 'b' }), // finished
+      mk({ pair1_player1_id: 'c', pair1_player2_id: 'd', pair2_player1_id: 'e', pair2_player2_id: 'f' }), // both pairs
+    ])).toBe(true)
+  })
+
+  it('false when an unfinished match is missing a pair (draw still loading)', () => {
+    expect(frontierRoundComplete([
+      mk({ pair1_player1_id: 'c', pair1_player2_id: 'd', pair2_player1_id: 'e', pair2_player2_id: 'f' }),
+      mk({ pair1_player1_id: 'g', pair1_player2_id: 'h' }), // only one pair, unfinished → not ready
+    ])).toBe(false)
+  })
+
+  it('false for an empty-shell match (both pairs null, unfinished)', () => {
+    expect(frontierRoundComplete([mk({})])).toBe(false)
+  })
+})
 
 describe('buildFrontierEntrants', () => {
   it('collapses a finished frontier match to [winner, null]', () => {
