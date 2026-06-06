@@ -174,6 +174,8 @@ async function main() {
       scheduleHintsExpectedDurationMin: env.SCHEDULE_HINTS_EXPECTED_DURATION_MIN,
       enableModelPredictionSnapshot: env.ENABLE_MODEL_PREDICTION_SNAPSHOT,
       modelPredictionSnapshotDryRun: env.MODEL_PREDICTION_SNAPSHOT_DRY_RUN,
+      enableTournamentProjectionSnapshot: env.ENABLE_TOURNAMENT_PROJECTION_SNAPSHOT,
+      tournamentProjectionSnapshotDryRun: env.TOURNAMENT_PROJECTION_SNAPSHOT_DRY_RUN,
       enablePredictionScorer: env.ENABLE_PREDICTION_SCORER,
       enableLiveOddsUpdater: env.ENABLE_LIVE_ODDS_UPDATER,
     });
