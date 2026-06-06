@@ -18,6 +18,7 @@ const LIME = '#7ED321'
 const GOLD = '#F5A623'
 const LIVE = '#FF4655'
 const CHUNK_CARD = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
+const BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 const MONO = 'ui-monospace, "SF Mono", monospace'
 
 function winColor(p: number): string {
@@ -107,7 +108,7 @@ export default function ProjectionTab({
   // List view (default, or whenever there's no valid selected pair).
   if (view === 'list' || !vm) {
     return (
-      <div style={{ padding: '14px 13px 24px' }}>
+      <div key="proj-list" className="page-mount-anim" style={{ padding: '14px 13px 24px' }}>
         <ProjectionPickerList
           rows={rows}
           seedByPair={seedByPair}
@@ -119,12 +120,26 @@ export default function ProjectionTab({
   }
 
   // Road view for the selected pair, with a back-to-list control.
+  const selectedSeed = selectedPair ? seedByPair.get(selectedPair) ?? null : null
   return (
-    <div style={{ padding: '14px 13px 24px' }}>
+    <div key={`proj-road-${selectedPair}`} className="page-mount-anim" style={{ padding: '14px 13px 24px' }}>
       <button onClick={() => setView('list')}
-        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 12px 2px' }}>
+        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 10px 2px' }}>
         ‹ {t('back')}
       </button>
+      {/* Selected team header — makes the tracked pair explicit on the road. */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <PairAvatars players={vm.players} size={40} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {selectedSeed != null && (
+              <span style={{ background: 'rgba(255,255,255,0.1)', color: TEXT, fontSize: 9, fontWeight: 800, padding: '1px 6px', clipPath: BADGE }}>{selectedSeed}</span>
+            )}
+            <span style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('tracking')}</span>
+          </div>
+          <div style={{ color: TEXT, fontSize: 17, fontWeight: 800, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pairName(vm.players)}</div>
+        </div>
+      </div>
       <>
           <div style={{ padding: '13px 15px', marginBottom: 16, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
