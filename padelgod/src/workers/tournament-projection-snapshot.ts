@@ -150,10 +150,7 @@ type DrawMatchRow = FrontierMatchRow & { round: string | null; round_canonical: 
  *  decided main-draw match (eliminated) or won the final (champion). No
  *  simulation: champion 0%/100%; rounds = the matches they actually played,
  *  winProb = 1 if they won that match else 0. */
-export function buildDoneProjections(
-  rows: DrawMatchRow[],
-  players: Map<string, PlayerLite>,
-): DoneProjection[] {
+export function buildDoneProjections(rows: DrawMatchRow[]): DoneProjection[] {
   type Played = { round: ProjRound; oppKey: string; oppIds: [string, string]; won: boolean }
   type Rec = { ids: [string, string]; played: Played[]; lostRound: string | null; wonFinal: boolean }
   const byPair = new Map<string, Rec>()
@@ -303,7 +300,7 @@ export async function runTournamentProjectionSnapshot(
         }
 
         // Path 2 — done pairs (eliminated + champion) reconstructed from results.
-        const doneProjections = buildDoneProjections(rows, players)
+        const doneProjections = buildDoneProjections(rows)
         const doneKeys = new Set(doneProjections.map((d) => d.pairKey))
 
         // Combine: done pairs + active pairs not already done (disjoint sets).

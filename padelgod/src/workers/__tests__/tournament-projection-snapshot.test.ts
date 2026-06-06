@@ -39,7 +39,7 @@ describe('buildDoneProjections', () => {
       { id: 'r16', round: 'R16', round_canonical: 'R16', widget_id_composite: null, draw_position: null, status: 'finished', winner_pair: 1,
         pair1_player1_id: 'y1', pair1_player2_id: 'y2', pair2_player1_id: 'a1', pair2_player2_id: 'a2', pair1_seed: null, pair2_seed: null },
     ] as Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>
-    const done = buildDoneProjections(rows, new Map())
+    const done = buildDoneProjections(rows)
     const a = done.find((d) => d.pairKey === 'a1::a2')!
     expect(a.status).toBe('eliminated')
     expect(a.eliminatedRound).toBe('R16')   // won R32, lost R16
@@ -58,7 +58,7 @@ describe('buildDoneProjections', () => {
       { id: 'sf-open', round: 'SF', round_canonical: 'SF', widget_id_composite: null, draw_position: null, status: 'scheduled', winner_pair: null,
         pair1_player1_id: 'e1', pair1_player2_id: 'e2', pair2_player1_id: 'g1', pair2_player2_id: 'g2', pair1_seed: null, pair2_seed: null },
     ] as Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>
-    const done = buildDoneProjections(rows, new Map())
+    const done = buildDoneProjections(rows)
     expect(done.find((d) => d.pairKey === 'c1::c2')!.status).toBe('champion')
     expect(done.find((d) => d.pairKey === 'c1::c2')!.championProb).toBe(1)
     expect(done.find((d) => d.pairKey === 'd1::d2')!.eliminatedRound).toBe('F') // lost final
