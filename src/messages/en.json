@@ -481,6 +481,7 @@
     "draw": "Draw",
     "recap": "Recap",
     "story": "Story",
+    "projection": "Projection",
     "men": "Men",
     "women": "Women",
     "noMatchesForStage": "No matches for this stage",
@@ -1439,5 +1440,39 @@
         "unknown": "a news source"
       }
     }
+  },
+  "projectionTab": {
+    "roadToTrophy": "Road to the trophy",
+    "champion": "champion",
+    "winsToLift": "{count} wins to lift it",
+    "tracking": "Tracking",
+    "live": "Live",
+    "toFace": "{pct}% to face",
+    "reach": "reach {pct}%",
+    "morePossible": "+{count} possible opponents · tap",
+    "possibleOpponentsHeading": "Possible opponents",
+    "byeOrUnknown": "Opponent TBD",
+    "eliminatedIn": "Eliminated in {round}",
+    "champions": "Champions! 🏆",
+    "out": "Out",
+    "reachedRound": "Reached the {round}",
+    "wonTitle": "Won the title",
+    "projectedPath": "Projected path",
+    "won": "Won",
+    "lost": "Lost",
+    "probabilityToWin": "Probability to win",
+    "roundR64": "Round of 64",
+    "roundR32": "Round of 32",
+    "roundR16": "Round of 16",
+    "roundQF": "Quarterfinal",
+    "roundSF": "Semifinal",
+    "roundF": "Final",
+    "lockedTitle": "Projection opens once the main draw is set",
+    "lockedBody": "We'll model every pair's road to the trophy as soon as the bracket drops.",
+    "notifyMe": "Notify me when the draw drops",
+    "cardTitle": "Road to trophy",
+    "cardChampion": "{pct}% to win the title",
+    "cardCta": "See the full road",
+    "modelEstimate": "Model estimate · not a guarantee"
   }
 }

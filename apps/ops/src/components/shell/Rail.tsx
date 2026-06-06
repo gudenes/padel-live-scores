@@ -14,6 +14,7 @@ const GROUPS: Group[] = [
     { href: '/odds', label: 'Live Odds', icon: 'odds', pill: 'live', children: [
       { href: '/today', label: 'Overview' },
       { href: '/odds/calibration', label: 'Calibration' },
+      { href: '/odds/projections', label: 'Projections' },
       { href: '/odds/methodology', label: 'Methodology' },
     ] },
   ]},

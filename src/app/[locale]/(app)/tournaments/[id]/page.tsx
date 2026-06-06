@@ -33,6 +33,8 @@ import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
+import ProjectionTab from './ProjectionTab'
+import { isPremierTier } from '@/lib/tournament-tier'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -203,6 +205,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const searchParams = useSearchParams()
   const paramRound = searchParams.get('round')
   const paramTab = searchParams.get('tab')
+  const paramPair = searchParams.get('pair')
   const router = useRouter()
 
   // ── State ─────────────────────────────────────────────────────
@@ -218,20 +221,26 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
-  const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
+  // Honor an explicit ?category= (used by the player-profile Projection
+  // deep-link so a women's-draw pair opens the women's bracket, not men's).
+  const [genderFilter, setGenderFilter] = useState<'men' | 'women'>(
+    searchParams.get('category') === 'women' ? 'women' : 'men',
+  )
   // Animated arrival from home's "VER PARTIDOS" card: when intent=matches is
   // present alongside tab=matches, mount on Overview and slide to Matches
   // after a short beat (see the mount effect below).
   const wantsMatchesAnimation =
     searchParams.get('intent') === 'matches' && paramTab === 'matches'
 
-  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw'>(
+  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw' | 'projection'>(
     // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
     // share links and bookmarks keep working.
     wantsMatchesAnimation
       ? 'overview'
       : paramTab === 'draw'
       ? 'draw'
+      : paramTab === 'projection'
+      ? 'projection'
       : paramTab === 'story' || paramTab === 'recap'
       ? 'story'
       : paramTab === 'matches'
@@ -242,7 +251,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // Tracks whether the user has manually changed tabs, so the scheduled
   // animated-arrival commit doesn't override a tap that happens during the dwell.
   const userChangedTabRef = useRef(false)
-  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw') => {
+  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw' | 'projection') => {
     userChangedTabRef.current = true
     setPageTabState(next)
   }, [])
@@ -792,6 +801,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return DRAW_TIERS.has(activeTournamentObj.level ?? '')
   }, [activeTournamentObj])
 
+  const showProjectionTab = useMemo(() => {
+    if (process.env.NEXT_PUBLIC_PROJECTION_ENABLED !== 'true') return false
+    if (!activeTournamentObj) return false
+    return isPremierTier(activeTournamentObj.level ?? '')
+  }, [activeTournamentObj])
+
   // ══════════════════════════════════════════════════════════════
   // ── RENDER ────────────────────────────────────────────────────
   // ══════════════════════════════════════════════════════════════
@@ -1110,7 +1125,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             flush below the chrome row on devices with a notch / status
             bar. Sliding ink-bar handled by <SlidingInkTabs>. */}
         <SlidingInkTabs
-          tabs={(['overview', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
+          tabs={(['overview', ...(showProjectionTab ? ['projection'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
             key: tab,
             label: tTournament(tab),
           }))}
@@ -1300,6 +1315,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             defendingChamp={null}
             preMainDrawDate={(activeTournamentObj as any).round_schedule?.r32 ?? (activeTournamentObj as any).round_schedule?.r16 ?? null}
             onSwitchToMatchesTab={() => setPageTab('matches')}
+          />
+        )}
+        {pageTab === 'projection' && activeTournamentObj && showProjectionTab && (
+          <ProjectionTab
+            tournamentId={tournamentId}
+            matches={allMatches.filter(m => (m as { category?: string }).category === genderFilter)}
+            category={genderFilter}
+            tournamentLevel={activeTournamentObj.level ?? null}
+            roundSchedule={(activeTournamentObj as { round_schedule?: Record<string, string> | null }).round_schedule ?? null}
+            initialPairKey={paramPair}
           />
         )}
       </main>

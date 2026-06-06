@@ -199,6 +199,13 @@ const EnvSchema = z.object({
   // must explicitly opt-OUT to start writing rows.
   ENABLE_MODEL_PREDICTION_SNAPSHOT: boolEnv(false),
   MODEL_PREDICTION_SNAPSHOT_DRY_RUN: boolEnv(true),
+  // tournament-projection-snapshot — hourly worker that snapshots Road to
+  // Trophy projections per active tournament. Runs at :35 each hour, offset
+  // from model-prediction-snapshot (:25). Defaults OFF + DRY-RUN so enabling
+  // it in Railway is a two-step commit (same pattern as
+  // model-prediction-snapshot).
+  ENABLE_TOURNAMENT_PROJECTION_SNAPSHOT: boolEnv(false),
+  TOURNAMENT_PROJECTION_SNAPSHOT_DRY_RUN: boolEnv(true),
   // prediction-scorer — every 10 min worker that scores finished matches
   // against their pre-match snapshot (Brier / log-loss). Append-only with
   // `ON CONFLICT DO NOTHING`, so no dry-run flag is needed — a single

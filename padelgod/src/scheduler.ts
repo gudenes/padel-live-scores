@@ -31,6 +31,7 @@ import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js'
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
 import { runModelPredictionSnapshot } from './workers/model-prediction-snapshot.js';
+import { runTournamentProjectionSnapshot } from './workers/tournament-projection-snapshot.js';
 import { runPredictionScorer } from './workers/prediction-scorer.js';
 import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 
@@ -110,6 +111,10 @@ export interface SchedulerFlags {
   /** When true, the model-prediction-snapshot worker computes everything
    *  but skips DB writes. Same dry-run pattern as fipDrawPopulator. */
   modelPredictionSnapshotDryRun: boolean;
+  enableTournamentProjectionSnapshot: boolean;
+  /** When true, the tournament-projection-snapshot worker computes everything
+   *  but skips DB writes. Same dry-run pattern as modelPredictionSnapshot. */
+  tournamentProjectionSnapshotDryRun: boolean;
   /** prediction-scorer is append-only with `ON CONFLICT DO NOTHING`, so a
    *  single enable-flag is sufficient — no dry-run needed. */
   enablePredictionScorer: boolean;
@@ -172,6 +177,7 @@ export type WorkerName =
   | 'raw-payloads-prune'
   | 'schedule-hints-writer'
   | 'model-prediction-snapshot'
+  | 'tournament-projection-snapshot'
   | 'prediction-scorer'
   | 'live-odds-updater';
 
@@ -207,6 +213,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'raw-payloads-prune',
   'schedule-hints-writer',
   'model-prediction-snapshot',
+  'tournament-projection-snapshot',
   'prediction-scorer',
   'live-odds-updater',
 ];
@@ -339,6 +346,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       expectedDurationMinutes: 90, // matches env default
     });
     case 'model-prediction-snapshot': return (deps) => runModelPredictionSnapshot({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger always dry-run-safe. Scheduled cron threads the real
+      // env flag via closure (see buildSchedule below).
+      dryRun: true,
+    });
+    case 'tournament-projection-snapshot': return (deps) => runTournamentProjectionSnapshot({
       supabase: deps.supabase,
       logger: deps.logger,
       // Admin-trigger always dry-run-safe. Scheduled cron threads the real
@@ -754,6 +768,18 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: d.supabase,
           logger: d.logger,
           dryRun: flags.modelPredictionSnapshotDryRun,
+        }),
+    });
+  }
+  if (flags.enableTournamentProjectionSnapshot) {
+    entries.push({
+      name: 'tournament-projection-snapshot',
+      cron: '35 * * * *', // hourly at :35, offset from model-prediction-snapshot (:25)
+      run: async (d) =>
+        runTournamentProjectionSnapshot({
+          supabase: d.supabase,
+          logger: d.logger,
+          dryRun: flags.tournamentProjectionSnapshotDryRun,
         }),
     });
   }

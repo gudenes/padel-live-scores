@@ -26,6 +26,7 @@ import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
 import { Widget, WidgetIcon } from './Widget'
+import RoadToTrophyCard from './RoadToTrophyCard'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -1065,6 +1066,15 @@ function OverviewTab({
 
   return (
     <div style={{ padding: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+
+      {derived.nextScheduled?.tournament?.id && (
+        <RoadToTrophyCard
+          playerId={player.id}
+          tournamentId={derived.nextScheduled.tournament.id}
+          tournamentLevel={derived.nextScheduled.tournament.level ?? null}
+          category={derived.nextScheduled.category === 'women' ? 'women' : 'men'}
+        />
+      )}
 
       {/* Career earnings — YTD + All-Time tiles (PR 2C) */}
       {earnings != null && earnings.allTimeEur > 0 && (

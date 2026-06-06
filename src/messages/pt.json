@@ -456,6 +456,7 @@
     "draw": "Chave",
     "recap": "Resumo",
     "story": "História",
+    "projection": "Projeção",
     "men": "Masculino",
     "women": "Feminino",
     "noMatchesForStage": "Nenhuma partida para esta fase",
@@ -1407,5 +1408,39 @@
         "unknown": "uma fonte de notícias"
       }
     }
+  },
+  "projectionTab": {
+    "roadToTrophy": "Caminho ao título",
+    "champion": "campeão",
+    "winsToLift": "{count} vitórias para levantá-lo",
+    "tracking": "A seguir",
+    "live": "Ao vivo",
+    "toFace": "{pct}% de enfrentar",
+    "reach": "chega {pct}%",
+    "morePossible": "+{count} possíveis adversários · toque",
+    "possibleOpponentsHeading": "Possíveis adversários",
+    "byeOrUnknown": "Adversário a definir",
+    "eliminatedIn": "Eliminado em {round}",
+    "champions": "Campeões! 🏆",
+    "out": "Fora",
+    "reachedRound": "Chegou a {round}",
+    "wonTitle": "Ganhou o título",
+    "projectedPath": "Caminho projetado",
+    "won": "Ganhou",
+    "lost": "Perdeu",
+    "probabilityToWin": "Probabilidade de ganhar",
+    "roundR64": "Trigésimos",
+    "roundR32": "Ronda de 32",
+    "roundR16": "Oitavos",
+    "roundQF": "Quartas de final",
+    "roundSF": "Semifinal",
+    "roundF": "Final",
+    "lockedTitle": "A projeção abre quando o quadro estiver definido",
+    "lockedBody": "Vamos modelar o caminho de cada dupla assim que o quadro sair.",
+    "notifyMe": "Avise-me quando o quadro sair",
+    "cardTitle": "Caminho ao título",
+    "cardChampion": "{pct}% de ganhar o título",
+    "cardCta": "Ver o caminho completo",
+    "modelEstimate": "Estimativa do modelo · não é garantia"
   }
 }

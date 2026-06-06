@@ -456,6 +456,7 @@
     "draw": "Tabellone",
     "recap": "Riepilogo",
     "story": "Storia",
+    "projection": "Proiezione",
     "men": "Uomini",
     "women": "Donne",
     "noMatchesForStage": "Nessuna partita per questa fase",
@@ -1407,5 +1408,39 @@
         "unknown": "una fonte di notizie"
       }
     }
+  },
+  "projectionTab": {
+    "roadToTrophy": "Strada verso il titolo",
+    "champion": "campione",
+    "winsToLift": "{count} vittorie per alzarlo",
+    "tracking": "Segui",
+    "live": "Dal vivo",
+    "toFace": "{pct}% di affrontare",
+    "reach": "arriva {pct}%",
+    "morePossible": "+{count} possibili avversari · tocca",
+    "possibleOpponentsHeading": "Possibili avversari",
+    "byeOrUnknown": "Avversario da definire",
+    "eliminatedIn": "Eliminato ai {round}",
+    "champions": "Campioni! 🏆",
+    "out": "Fuori",
+    "reachedRound": "Arrivati ai {round}",
+    "wonTitle": "Ha vinto il titolo",
+    "projectedPath": "Percorso previsto",
+    "won": "Vinto",
+    "lost": "Perso",
+    "probabilityToWin": "Probabilità di vincere",
+    "roundR64": "Trentaduesimi",
+    "roundR32": "Sedicesimi",
+    "roundR16": "Ottavi",
+    "roundQF": "Quarti di finale",
+    "roundSF": "Semifinale",
+    "roundF": "Finale",
+    "lockedTitle": "La proiezione si apre col tabellone",
+    "lockedBody": "Modelleremo la strada di ogni coppia appena esce il tabellone.",
+    "notifyMe": "Avvisami quando esce il tabellone",
+    "cardTitle": "Strada verso il titolo",
+    "cardChampion": "{pct}% di vincere il titolo",
+    "cardCta": "Vedi la strada completa",
+    "modelEstimate": "Stima del modello · non è una garanzia"
   }
 }
