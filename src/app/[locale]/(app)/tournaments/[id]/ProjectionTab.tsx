@@ -3,6 +3,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
+import { FlagImage } from '@/components/FlagImage'
+import { Link } from '@/i18n/navigation'
 import { buildPlayerLookup, buildRoadVM, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
 import { buildSeedMap } from '@/lib/projection-picker'
 import { useProjection } from './useProjection'
@@ -50,6 +52,22 @@ function PairAvatars({ players, size = 24 }: { players: RoadOpponentVM['players'
         <Avatar src={p2?.avatarUrl} alt={p2?.name ?? ''} size={size} fallback={p2?.name?.[0]} unoptimized style={ring} />
       </div>
     </div>
+  )
+}
+
+// Full-body player photo for the hero banner; links to the player profile.
+// Falls back to the headshot, then to an initial. `overlap` slides the 2nd
+// photo over the 1st (broadcast-style).
+function HeroPhoto({ id, name, src, overlap }: { id: string; name: string; src: string | null; overlap?: boolean }) {
+  return (
+    <Link href={`/player/${id}`} aria-label={name} style={{ display: 'block', lineHeight: 0, flexShrink: 0, marginLeft: overlap ? -42 : 0 }}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={name} style={{ height: 130, width: 'auto', objectFit: 'cover', objectPosition: 'top center', display: 'block' }} />
+      ) : (
+        <div style={{ width: 92, height: 130, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 14, color: 'rgba(255,255,255,0.4)', fontWeight: 800, fontSize: 22 }}>{name?.[0] ?? '?'}</div>
+      )}
+    </Link>
   )
 }
 
@@ -122,22 +140,36 @@ export default function ProjectionTab({
   // Road view for the selected pair, with a back-to-list control.
   const selectedSeed = selectedPair ? seedByPair.get(selectedPair) ?? null : null
   return (
-    <div key={`proj-road-${selectedPair}`} className="page-mount-anim" style={{ padding: '14px 13px 24px' }}>
+    <div key={`proj-road-${selectedPair}`} className="projection-cascade" style={{ padding: '14px 13px 24px' }}>
       <button onClick={() => setView('list')}
         style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 10px 2px' }}>
         ‹ {t('back')}
       </button>
-      {/* Selected team header — makes the tracked pair explicit on the road. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <PairAvatars players={vm.players} size={40} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {selectedSeed != null && (
-              <span style={{ background: 'rgba(255,255,255,0.1)', color: TEXT, fontSize: 9, fontWeight: 800, padding: '1px 6px', clipPath: BADGE }}>{selectedSeed}</span>
-            )}
-            <span style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('tracking')}</span>
+      {/* Selected-team hero banner — chunky broadcast-style lower-third.
+          Photos + names link to each player's profile. Seed shown as #N. */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'stretch', minHeight: 130, overflow: 'hidden', marginBottom: 16, background: 'linear-gradient(135deg, #0d0d0d 0%, #1e1e1e 58%, #131313 100%)', border: '1px solid rgba(255,255,255,0.08)', clipPath: 'polygon(0 7%, 99% 0, 100% 93%, 1% 100%)' }}>
+        <div style={{ position: 'absolute', left: 30, top: '50%', width: 175, height: 175, transform: 'translateY(-50%)', background: 'radial-gradient(circle, rgba(126,211,33,0.22), transparent 68%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 1, width: 122, flexShrink: 0, display: 'flex', alignItems: 'flex-end' }}>
+          {vm.players.map((p, i) => {
+            const r = resolvePlayer(p.id)
+            return <HeroPhoto key={p.id} id={p.id} name={p.name} src={r.photoUrl ?? p.avatarUrl} overlap={i > 0} />
+          })}
+        </div>
+        <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, padding: '12px 11px 12px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 7 }}>
+          {selectedSeed != null && (
+            <div style={{ fontFamily: MONO, fontSize: 30, fontWeight: 900, color: TEXT, lineHeight: 0.9 }}>#{selectedSeed}</div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: selectedSeed != null ? 4 : 0 }}>
+            {vm.players.map((p) => {
+              const r = resolvePlayer(p.id)
+              return (
+                <Link key={p.id} href={`/player/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: 9, color: TEXT, textDecoration: 'none', minWidth: 0 }}>
+                  <FlagImage country={r.country ?? p.country} size={21} style={{ clipPath: BADGE, boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }} />
+                  <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{p.name}</span>
+                </Link>
+              )
+            })}
           </div>
-          <div style={{ color: TEXT, fontSize: 17, fontWeight: 800, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pairName(vm.players)}</div>
         </div>
       </div>
       <>
