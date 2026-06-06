@@ -40,7 +40,7 @@ export function pairKeyFor(a: string, b: string): string {
 function widgetHeapNumber(w: string | null): number | null {
   if (!w) return null;
   const hit = /[MW]D(\d+)$/.exec(w);
-  if (!hit) return null;
+  if (!hit?.[1]) return null;
   const n = parseInt(hit[1], 10);
   return Number.isFinite(n) ? n : null;
 }
