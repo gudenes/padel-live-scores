@@ -32,7 +32,8 @@ export interface FrontierMatchRow {
 
 export interface PlayerLite { id: string; name: string | null; ranking: number | null }
 
-/** Order-independent pair key, mirrors bracket-builder.pairKeyFor. */
+/** Order-independent pair key ("smallerId::largerId"). Same convention the
+ *  Next app's bracket-builder uses, kept local so this worker has no app dep. */
 export function pairKeyFor(a: string, b: string): string {
   return a < b ? `${a}::${b}` : `${b}::${a}`;
 }
@@ -76,6 +77,9 @@ export function buildFrontierEntrants(
     if (ha != null && hb != null && ha !== hb) return ha - hb;
     if (ha != null && hb == null) return -1;
     if (ha == null && hb != null) return 1;
+    // draw_position is not selected (no such column on matches), so this branch
+    // is dormant in production — kept as a defensive tiebreaker for callers/tests
+    // that do supply it. Heap number above is the real ordering signal.
     const da = a.draw_position, db = b.draw_position;
     if (typeof da === 'number' && typeof db === 'number' && da !== db) return da - db;
     if (typeof da === 'number') return -1;

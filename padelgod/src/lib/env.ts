@@ -205,7 +205,7 @@ const EnvSchema = z.object({
   // it in Railway is a two-step commit (same pattern as
   // model-prediction-snapshot).
   ENABLE_TOURNAMENT_PROJECTION_SNAPSHOT: boolEnv(false),
-  TOURNAMENT_PROJECTION_SNAPSHOT_DRY_RUN: boolEnv(false),
+  TOURNAMENT_PROJECTION_SNAPSHOT_DRY_RUN: boolEnv(true),
   // prediction-scorer — every 10 min worker that scores finished matches
   // against their pre-match snapshot (Brier / log-loss). Append-only with
   // `ON CONFLICT DO NOTHING`, so no dry-run flag is needed — a single
