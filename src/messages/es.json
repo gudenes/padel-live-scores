@@ -456,6 +456,7 @@
     "draw": "Cuadro",
     "recap": "Recap",
     "story": "Historia",
+    "projection": "Proyección",
     "men": "Hombres",
     "women": "Mujeres",
     "noMatchesForStage": "No hay partidos en esta fase",
@@ -1407,5 +1408,32 @@
         "unknown": "una fuente de noticias"
       }
     }
+  },
+  "projectionTab": {
+    "roadToTrophy": "Camino al título",
+    "champion": "campeón",
+    "winsToLift": "{count} victorias para levantarlo",
+    "tracking": "Siguiendo",
+    "live": "En vivo",
+    "toFace": "{pct}% de enfrentarse",
+    "reach": "llega {pct}%",
+    "morePossible": "+{count} posibles rivales · toca",
+    "possibleOpponentsHeading": "Posibles rivales",
+    "byeOrUnknown": "Rival por definir",
+    "eliminatedIn": "Eliminado en {round}",
+    "champions": "¡Campeones! 🏆",
+    "roundR64": "Dieciseisavos",
+    "roundR32": "Ronda de 32",
+    "roundR16": "Octavos",
+    "roundQF": "Cuartos de final",
+    "roundSF": "Semifinal",
+    "roundF": "Final",
+    "lockedTitle": "La proyección se abre cuando esté el cuadro",
+    "lockedBody": "Modelaremos el camino de cada pareja en cuanto salga el cuadro.",
+    "notifyMe": "Avísame cuando salga el cuadro",
+    "cardTitle": "Camino al título",
+    "cardChampion": "{pct}% de ganar el título",
+    "cardCta": "Ver el camino completo",
+    "modelEstimate": "Estimación del modelo · no es una garantía"
   }
 }
