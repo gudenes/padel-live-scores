@@ -1442,6 +1442,12 @@
     "cardTitle": "Caminho ao título",
     "cardChampion": "{pct}% de ganhar o título",
     "cardCta": "Ver o caminho completo",
-    "modelEstimate": "Estimativa do modelo · não é garantia"
+    "modelEstimate": "Estimativa do modelo · não é garantia",
+    "pickAPair": "Escolhe uma dupla",
+    "pickHint": "Toque numa dupla para ver o caminho ao título",
+    "topSeeds": "Cabeças de série",
+    "allPairs": "Todas as duplas",
+    "back": "Voltar",
+    "seed": "série"
   }
 }

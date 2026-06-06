@@ -1442,6 +1442,12 @@
     "cardTitle": "Strada verso il titolo",
     "cardChampion": "{pct}% di vincere il titolo",
     "cardCta": "Vedi la strada completa",
-    "modelEstimate": "Stima del modello · non è una garanzia"
+    "modelEstimate": "Stima del modello · non è una garanzia",
+    "pickAPair": "Scegli una coppia",
+    "pickHint": "Tocca una coppia per vedere la strada verso il titolo",
+    "topSeeds": "Teste di serie",
+    "allPairs": "Tutte le coppie",
+    "back": "Indietro",
+    "seed": "serie"
   }
 }
