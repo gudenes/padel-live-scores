@@ -114,7 +114,11 @@ export default function ProjectionTab({
             {vm.rounds.map((rd, i) => {
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
-              const dateLabel = rd.dateIso ? format.dateTime(new Date(rd.dateIso), { weekday: 'short', day: 'numeric', month: 'short' }) : null
+              // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
+              // weekday/day label doesn't shift a day for users west of UTC
+              // (a bare date-only string parses as UTC midnight).
+              const dateObj = rd.dateIso ? new Date(rd.dateIso.length === 10 ? `${rd.dateIso}T12:00:00` : rd.dateIso) : null
+              const dateLabel = dateObj ? format.dateTime(dateObj, { weekday: 'short', day: 'numeric', month: 'short' }) : null
               const shown = isExpanded ? rd.opponents : rd.expected ? [rd.expected] : []
               return (
                 <div key={rd.round} style={{ position: 'relative', marginBottom: i === vm.rounds.length - 1 ? 0 : 14 }}>
