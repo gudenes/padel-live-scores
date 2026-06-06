@@ -1,11 +1,11 @@
 /**
- * /app — smart app-store redirect.
+ * /app — smart app-store redirect (localised).
  *
  * One shareable link (https://padelnachos.com/app) that routes each visitor
  * by User-Agent:
  *   • iPhone / iPad / iPod → App Store
  *   • Android              → Google Play
- *   • desktop / unknown    → padelnachos.com (web app)
+ *   • desktop / unknown    → padelnachos.com (locale-prefixed web app)
  *   • social link-preview crawlers (WhatsApp, iMessage, Slack, …) → an
  *     OG-tagged HTML card so shared links unfurl with a clean preview.
  *
@@ -13,6 +13,12 @@
  * real users, and a bare redirect can't emit Open Graph tags. We resolve the
  * tension by branching on the crawler UA — bots get HTML with meta tags,
  * humans get the redirect. Single file, no client flash.
+ *
+ * Language: `?lang=` query param wins, then Accept-Language, then English.
+ * Because WhatsApp/iMessage cache one preview per URL (without the
+ * recipient's locale), the per-language URL is the *reliable* way to force a
+ * card language — share https://padelnachos.com/app?lang=pt into Brazilian
+ * groups, ?lang=es into Spanish groups, etc. `pt` is Brazilian Portuguese.
  *
  * iPad caveat: server-side UA sniffing can't read navigator.maxTouchPoints,
  * so modern iPads (which report a "Macintosh" UA) fall to the web app. The
@@ -27,43 +33,46 @@
 
 import {
   classifyUserAgent,
+  pickLocale,
   redirectTargetFor,
+  APP_MESSAGES,
   IOS_APP_URL,
   ANDROID_APP_URL,
   WEB_APP_URL,
+  type Locale,
 } from '@/lib/app-redirect'
 
-// UA-dependent: must always run at request time, never prerendered/cached.
+// UA- and locale-dependent: must always run at request time, never cached.
 export const dynamic = 'force-dynamic'
 
-const OG_TITLE = 'Get the Padel Nachos app'
-const OG_DESCRIPTION =
-  'Live padel scores, rankings, draws & highlights from Premier Padel and FIP — on iPhone and Android. Tap to install.'
 const OG_IMAGE = `${WEB_APP_URL}/og-image.png`
 
-function crawlerHtml(): string {
+function crawlerHtml(locale: Locale, shareUrl: string): string {
+  const t = APP_MESSAGES[locale]
+  const webHref = redirectTargetFor('desktop', locale)
   return `<!doctype html>
-<html lang="en">
+<html lang="${t.htmlLang}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${OG_TITLE}</title>
-<meta name="description" content="${OG_DESCRIPTION}" />
+<title>${t.title}</title>
+<meta name="description" content="${t.description}" />
 <meta name="theme-color" content="#0A0A0A" />
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Padel Nachos" />
-<meta property="og:url" content="${WEB_APP_URL}/app" />
-<meta property="og:title" content="${OG_TITLE}" />
-<meta property="og:description" content="${OG_DESCRIPTION}" />
+<meta property="og:locale" content="${t.ogLocale}" />
+<meta property="og:url" content="${shareUrl}" />
+<meta property="og:title" content="${t.title}" />
+<meta property="og:description" content="${t.description}" />
 <meta property="og:image" content="${OG_IMAGE}" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
-<meta property="og:image:alt" content="${OG_TITLE}" />
+<meta property="og:image:alt" content="${t.title}" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${OG_TITLE}" />
-<meta name="twitter:description" content="${OG_DESCRIPTION}" />
+<meta name="twitter:title" content="${t.title}" />
+<meta name="twitter:description" content="${t.description}" />
 <meta name="twitter:image" content="${OG_IMAGE}" />
-<link rel="canonical" href="${WEB_APP_URL}/app" />
+<link rel="canonical" href="${shareUrl}" />
 <style>
   :root { color-scheme: dark; }
   body { margin:0; min-height:100vh; display:flex; flex-direction:column;
@@ -79,13 +88,13 @@ function crawlerHtml(): string {
 </style>
 </head>
 <body>
-  <h1>${OG_TITLE}</h1>
-  <p>${OG_DESCRIPTION}</p>
+  <h1>${t.title}</h1>
+  <p>${t.description}</p>
   <div class="stores">
-    <a class="store" href="${IOS_APP_URL}">Download on the App Store</a>
-    <a class="store" href="${ANDROID_APP_URL}">Get it on Google Play</a>
+    <a class="store" href="${IOS_APP_URL}">${t.ios}</a>
+    <a class="store" href="${ANDROID_APP_URL}">${t.android}</a>
   </div>
-  <a class="web" href="${WEB_APP_URL}">Continue to padelnachos.com</a>
+  <a class="web" href="${webHref}">${t.web}</a>
   <script>
     // Client-side fallback for any human who lands here (e.g. JS-capable
     // preview-in-app browsers). Has access to maxTouchPoints, so it can
@@ -104,19 +113,31 @@ function crawlerHtml(): string {
 }
 
 export function GET(request: Request): Response {
+  const url = new URL(request.url)
+  const locale = pickLocale(
+    url.searchParams.get('lang'),
+    request.headers.get('accept-language'),
+  )
   const platform = classifyUserAgent(request.headers.get('user-agent'))
 
   if (platform === 'crawler') {
-    return new Response(crawlerHtml(), {
+    // Reflect the requested language in the canonical/og:url so each
+    // ?lang= variant is its own preview-cacheable resource.
+    const langParam = url.searchParams.get('lang')
+    const shareUrl = langParam
+      ? `${WEB_APP_URL}/app?lang=${encodeURIComponent(langParam)}`
+      : `${WEB_APP_URL}/app`
+    return new Response(crawlerHtml(locale, shareUrl), {
       status: 200,
       headers: {
         'content-type': 'text/html; charset=utf-8',
-        // Previews can be cached by the unfurl service; keep it short so
-        // copy/asset tweaks propagate within the hour.
+        // Vary on Accept-Language so a CDN can't serve a cached card in the
+        // wrong language to a no-?lang request. Short TTL for copy tweaks.
         'cache-control': 'public, max-age=3600',
+        vary: 'User-Agent, Accept-Language',
       },
     })
   }
 
-  return Response.redirect(redirectTargetFor(platform), 302)
+  return Response.redirect(redirectTargetFor(platform, locale), 302)
 }
