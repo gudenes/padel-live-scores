@@ -56,9 +56,16 @@ function teamElo(
   return (ea + eb) / 2;
 }
 
-/** Like buildFrontierEntrants but keeps BOTH competitors of every match (the
- *  losers stay in the field) so projectPairs can report every pair, including
- *  eliminated ones. Used with a `decided` map that forces played results. */
+/** Builds the entry-round field keeping BOTH competitors of every match (the
+ *  losers stay in, NOT collapsed to a bye) so projectPairs can report every
+ *  pair, including eliminated ones. Pairs are read from the entry round only.
+ *
+ *  Known v1 limitation: in non-power-of-2 draws (FIP 24/48/56) a top seed that
+ *  byes the entire first round has no entry-round row (fip-draw-populator skips
+ *  pure bye-through rows), so it won't get a projection row. Premier main draws
+ *  (the public tier) are clean 32-pair brackets with no such byes, so the
+ *  public path is unaffected; only non-Premier admin-QA draws can miss a seed.
+ *  A union-with-later-rounds fix is a documented follow-up. */
 export function buildFullFieldEntrants(
   rows: FrontierMatchRow[],
   elo: Map<string, number>,
@@ -155,6 +162,9 @@ export function buildDecidedMap(
   const out = new Map<string, string>()
   for (const m of rows) {
     if (!(m.winner_pair === 1 || m.winner_pair === 2)) continue
+    // Main-draw only — skip qualifying (Q1/Q2/Q3) so the map matches the
+    // main-draw sim and deriveStatuses (symmetric, no dead qualifier entries).
+    if (!canonRound(m.round_canonical ?? m.round)) continue
     const p1 = m.pair1_player1_id && m.pair1_player2_id ? pairKeyFor(m.pair1_player1_id, m.pair1_player2_id) : null
     const p2 = m.pair2_player1_id && m.pair2_player2_id ? pairKeyFor(m.pair2_player1_id, m.pair2_player2_id) : null
     if (!p1 || !p2) continue
