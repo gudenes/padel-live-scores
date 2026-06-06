@@ -8,6 +8,8 @@ export interface ProjectionOpponentJson {
   names: string[]
   reach_prob: number
   win_prob: number
+  /** Set only for already-played rounds: the actual result. Null for projected. */
+  result?: 'won' | 'lost' | null
 }
 
 export interface ProjectionRoundJson {

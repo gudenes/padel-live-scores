@@ -136,7 +136,6 @@ export default function ProjectionTab({
             <div style={{ position: 'absolute', left: 7, top: 9, bottom: 14, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 45%, ${GOLD} 100%)` }} />
             {vm.rounds.map((rd, i) => {
               if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return null
-              const isFinished = vm.status !== 'active'
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
               // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
@@ -152,7 +151,7 @@ export default function ProjectionTab({
                     <span style={{ color: isFinal ? GOLD : SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                       {t(ROUND_LABEL_KEY[rd.round])}{dateLabel ? ` · ${dateLabel}` : ''}
                     </span>
-                    {!isFinished && rd.opponents.length > 1 && (
+                    {!rd.expected?.result && rd.opponents.length > 1 && (
                       <button onClick={() => setExpanded((s) => { const n = new Set(s); if (n.has(rd.round)) n.delete(rd.round); else n.add(rd.round); return n })}
                         style={{ color: MUTED, fontSize: 9, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
                         {isExpanded ? t('possibleOpponentsHeading') : t('morePossible', { count: rd.opponents.length - 1 })} ›
@@ -165,10 +164,18 @@ export default function ProjectionTab({
                         <PairAvatars players={opp.players} />
                         <div style={{ minWidth: 0 }}>
                           <div style={{ color: TEXT, fontSize: 12, fontWeight: 600 }}>{pairName(opp.players)}</div>
-                          <div style={{ color: MUTED, fontSize: 9, fontWeight: 700 }}>{t('toFace', { pct: Math.round(opp.faceProb * 100) })}</div>
+                          {!opp.result && (
+                            <div style={{ color: MUTED, fontSize: 9, fontWeight: 700 }}>{t('toFace', { pct: Math.round(opp.faceProb * 100) })}</div>
+                          )}
                         </div>
                       </div>
-                      <span style={{ color: winColor(opp.winProb), fontWeight: 800, fontSize: 15, fontFamily: MONO }}>{pct(opp.winProb)}</span>
+                      {opp.result ? (
+                        <span style={{ color: opp.result === 'won' ? LIME : LIVE, fontWeight: 800, fontSize: 16, lineHeight: 1 }}>
+                          {opp.result === 'won' ? '✓' : '✗'}
+                        </span>
+                      ) : (
+                        <span style={{ color: winColor(opp.winProb), fontWeight: 800, fontSize: 15, fontFamily: MONO }}>{pct(opp.winProb)}</span>
+                      )}
                     </div>
                   ))}
                   {!rd.expected && (

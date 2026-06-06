@@ -13,6 +13,8 @@ export interface RoadOpponentVM {
   players: RoadPlayerVM[]
   faceProb: number
   winProb: number
+  /** 'won'|'lost' for an already-played round; null for a projected round. */
+  result: 'won' | 'lost' | null
 }
 
 export interface RoadRoundVM {
@@ -92,6 +94,7 @@ function opponentVM(
     players: resolvePlayers(o.player_ids, o.names, lookup),
     faceProb: o.reach_prob,
     winProb: o.win_prob,
+    result: o.result ?? null,
   }
 }
 
