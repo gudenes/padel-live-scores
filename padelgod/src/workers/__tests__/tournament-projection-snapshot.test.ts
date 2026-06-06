@@ -3,6 +3,7 @@ import {
   buildFrontierEntrants,
   pickFrontierRound,
   buildDoneProjections,
+  buildSnapshotRows,
   type FrontierMatchRow,
 } from '../tournament-projection-snapshot.js';
 import type { ProjRound } from '../../lib/bracket-projection.js';
@@ -64,5 +65,19 @@ describe('buildDoneProjections', () => {
     expect(done.find((d) => d.pairKey === 'd1::d2')!.eliminatedRound).toBe('F') // lost final
     // e/g are in an undecided SF → not "done"
     expect(done.find((d) => d.pairKey === 'e1::e2')).toBeUndefined()
+  })
+})
+
+describe('buildSnapshotRows', () => {
+  it('maps each projection to a snapshot row with the run timestamp', () => {
+    const projections = new Map([
+      ['a::b', { pairKey: 'a::b', playerIds: ['a','b'] as [string,string], championProb: 0.22, finalistProb: 0.4, semifinalProb: 0.7, rounds: [] }],
+    ])
+    const rows = buildSnapshotRows(projections, 't1', 'men', '2026-06-06T10:00:00.000Z')
+    expect(rows).toEqual([{
+      tournament_id: 't1', category: 'men', pair_key: 'a::b',
+      champion_prob: '0.2200', finalist_prob: '0.4000', semifinal_prob: '0.7000',
+      computed_at: '2026-06-06T10:00:00.000Z',
+    }])
   })
 })

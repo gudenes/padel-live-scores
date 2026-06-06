@@ -206,6 +206,23 @@ export function buildDoneProjections(rows: DrawMatchRow[]): DoneProjection[] {
   return out
 }
 
+export function buildSnapshotRows(
+  projections: Map<string, PairProjection>,
+  tournamentId: string,
+  category: 'men' | 'women',
+  computedAtIso: string,
+) {
+  return [...projections.values()].map((p) => ({
+    tournament_id: tournamentId,
+    category,
+    pair_key: p.pairKey,
+    champion_prob: p.championProb.toFixed(4),
+    finalist_prob: p.finalistProb.toFixed(4),
+    semifinal_prob: p.semifinalProb.toFixed(4),
+    computed_at: computedAtIso,
+  }))
+}
+
 export interface TournamentProjectionDeps {
   supabase: SupabaseClient;
   logger?: Logger;
@@ -351,6 +368,12 @@ export async function runTournamentProjectionSnapshot(
           if (delErr) throw delErr;
           const { error } = await supabase.from('tournament_projections').insert(upsertRows);
           if (error) throw error;
+          const snapMap = new Map(combined.map((cb) => [cb.proj.pairKey, cb.proj]))
+          const snapRows = buildSnapshotRows(snapMap, t.id, category, nowIso)
+          if (snapRows.length > 0) {
+            const { error: snapErr } = await supabase.from('tournament_projection_snapshots').insert(snapRows)
+            if (snapErr) throw snapErr
+          }
         }
         rowsWritten += upsertRows.length;
       }
