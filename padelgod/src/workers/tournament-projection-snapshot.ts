@@ -13,7 +13,7 @@ import {
   trainElo, MODEL_VERSION,
   type TrainingMatch, type PlayerSnapshot,
 } from '../lib/elo-model.js';
-import { projectPairs, PROJ_ROUND_ORDER } from '../lib/bracket-projection.js';
+import { projectPairs, PROJ_ROUND_ORDER, matchupKey } from '../lib/bracket-projection.js';
 import { paginatedSelect } from '../lib/db-paginate.js';
 
 export interface FrontierMatchRow {
@@ -56,67 +56,44 @@ function teamElo(
   return (ea + eb) / 2;
 }
 
-/**
- * Build the bracket-ordered frontier entrant array for one round.
- * - Orders matches by widget heap number (Premier/Crionet draws), then
- *   draw_position, then id — same stable signal as bracket-builder.
- * - Each unfinished match expands to its two competitor pairs [pair1, pair2].
- * - Each FINISHED match expands to [winnerPair, null] so the engine advances
- *   the winner unopposed (bye), respecting results without re-simulating them.
- * - Pads to the next power of two with nulls.
- */
-export function buildFrontierEntrants(
+/** Like buildFrontierEntrants but keeps BOTH competitors of every match (the
+ *  losers stay in the field) so projectPairs can report every pair, including
+ *  eliminated ones. Used with a `decided` map that forces played results. */
+export function buildFullFieldEntrants(
   rows: FrontierMatchRow[],
-  _frontierRound: ProjRound,
   elo: Map<string, number>,
   players: Map<string, PlayerLite>,
 ): (FrontierEntrant | null)[] {
   const ordered = [...rows].sort((a, b) => {
-    const ha = widgetHeapNumber(a.widget_id_composite);
-    const hb = widgetHeapNumber(b.widget_id_composite);
-    if (ha != null && hb != null && ha !== hb) return ha - hb;
-    if (ha != null && hb == null) return -1;
-    if (ha == null && hb != null) return 1;
-    // draw_position is not selected (no such column on matches), so this branch
-    // is dormant in production — kept as a defensive tiebreaker for callers/tests
-    // that do supply it. Heap number above is the real ordering signal.
-    const da = a.draw_position, db = b.draw_position;
-    if (typeof da === 'number' && typeof db === 'number' && da !== db) return da - db;
-    if (typeof da === 'number') return -1;
-    if (typeof db === 'number') return 1;
-    return a.id.localeCompare(b.id);
-  });
-
-  const slots: (FrontierEntrant | null)[] = [];
-  const mkEntrant = (p1: string, p2: string): FrontierEntrant => ({
+    const ha = widgetHeapNumber(a.widget_id_composite)
+    const hb = widgetHeapNumber(b.widget_id_composite)
+    if (ha != null && hb != null && ha !== hb) return ha - hb
+    if (ha != null && hb == null) return -1
+    if (ha == null && hb != null) return 1
+    const da = a.draw_position, db = b.draw_position
+    if (typeof da === 'number' && typeof db === 'number' && da !== db) return da - db
+    if (typeof da === 'number') return -1
+    if (typeof db === 'number') return 1
+    return a.id.localeCompare(b.id)
+  })
+  const slots: (FrontierEntrant | null)[] = []
+  const mk = (p1: string, p2: string): FrontierEntrant => ({
     pairKey: pairKeyFor(p1, p2),
     playerIds: (p1 < p2 ? [p1, p2] : [p2, p1]) as [string, string],
     teamElo: teamElo(p1, p2, elo, players),
-  });
-
+  })
   for (const m of ordered) {
-    const hasP1 = m.pair1_player1_id && m.pair1_player2_id;
-    const hasP2 = m.pair2_player1_id && m.pair2_player2_id;
-    // "Decided" = has a winner, regardless of status. Covers finished AND
-    // retired/walkover (which carry a winner_pair but status !== 'finished').
-    const finished = m.winner_pair === 1 || m.winner_pair === 2;
-    if (finished) {
-      const win = m.winner_pair === 1
-        ? (hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null)
-        : (hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null);
-      slots.push(win, null);
-    } else {
-      slots.push(
-        hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null,
-        hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null,
-      );
-    }
+    const hasP1 = m.pair1_player1_id && m.pair1_player2_id
+    const hasP2 = m.pair2_player1_id && m.pair2_player2_id
+    slots.push(
+      hasP1 ? mk(m.pair1_player1_id!, m.pair1_player2_id!) : null,
+      hasP2 ? mk(m.pair2_player1_id!, m.pair2_player2_id!) : null,
+    )
   }
-
-  let size = 1;
-  while (size < slots.length) size *= 2;
-  while (slots.length < size) slots.push(null);
-  return slots;
+  let size = 1
+  while (size < slots.length) size *= 2
+  while (slots.length < size) slots.push(null)
+  return slots
 }
 
 const HALFLIFE_DAYS = 180;
@@ -141,22 +118,49 @@ function roundHasAssigned(m: FrontierMatchRow): boolean {
   );
 }
 
-/** Earliest (shallowest) main-draw round that still has an unfinished,
- *  player-assigned match. Null when the draw is fully decided / empty. */
-export function pickFrontierRound(
-  byRound: Map<ProjRound, FrontierMatchRow[]>,
-): ProjRound | null {
+/** Shallowest (first) main-draw round present with an assigned match. */
+export function pickEntryRound(byRound: Map<ProjRound, FrontierMatchRow[]>): ProjRound | null {
   for (const r of PROJ_ROUND_ORDER) {
-    const ms = (byRound.get(r) ?? []).filter(roundHasAssigned);
-    if (ms.length === 0) continue;
-    // Undecided = no winner yet (scheduled/live). Retired/walkover carry a
-    // winner_pair, so they count as decided and don't anchor the frontier.
-    const anyUnfinished = ms.some(
-      (m) => !(m.winner_pair === 1 || m.winner_pair === 2),
-    );
-    if (anyUnfinished) return r;
+    if ((byRound.get(r) ?? []).some(roundHasAssigned)) return r
   }
-  return null;
+  return null
+}
+
+export interface PairStatus { status: 'active' | 'eliminated' | 'champion'; eliminatedRound: string | null }
+
+/** From all decided matches: each loser → eliminated@round; final winner → champion. */
+export function deriveStatuses(
+  rows: Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>,
+): Map<string, PairStatus> {
+  const out = new Map<string, PairStatus>()
+  for (const m of rows) {
+    const decided = m.winner_pair === 1 || m.winner_pair === 2
+    if (!decided) continue
+    const round = canonRound(m.round_canonical ?? m.round)
+    if (!round) continue
+    const p1 = m.pair1_player1_id && m.pair1_player2_id ? pairKeyFor(m.pair1_player1_id, m.pair1_player2_id) : null
+    const p2 = m.pair2_player1_id && m.pair2_player2_id ? pairKeyFor(m.pair2_player1_id, m.pair2_player2_id) : null
+    const winner = m.winner_pair === 1 ? p1 : p2
+    const loser = m.winner_pair === 1 ? p2 : p1
+    if (loser) out.set(loser, { status: 'eliminated', eliminatedRound: round })
+    if (round === 'F' && winner) out.set(winner, { status: 'champion', eliminatedRound: null })
+  }
+  return out
+}
+
+/** Decided-matchups map for the engine: matchupKey(a,b) → winner pairKey. */
+export function buildDecidedMap(
+  rows: Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>,
+): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const m of rows) {
+    if (!(m.winner_pair === 1 || m.winner_pair === 2)) continue
+    const p1 = m.pair1_player1_id && m.pair1_player2_id ? pairKeyFor(m.pair1_player1_id, m.pair1_player2_id) : null
+    const p2 = m.pair2_player1_id && m.pair2_player2_id ? pairKeyFor(m.pair2_player1_id, m.pair2_player2_id) : null
+    if (!p1 || !p2) continue
+    out.set(matchupKey(p1, p2), m.winner_pair === 1 ? p1 : p2)
+  }
+  return out
 }
 
 export interface TournamentProjectionDeps {
@@ -241,42 +245,46 @@ export async function runTournamentProjectionSnapshot(
           if (!r) continue;
           (byRound.get(r) ?? byRound.set(r, []).get(r)!).push(m);
         }
-        const frontier = pickFrontierRound(byRound);
-        if (!frontier) continue;
+        const entryRound = pickEntryRound(byRound)
+        if (!entryRound) continue
+        const entrants = buildFullFieldEntrants(byRound.get(entryRound)!, train.elo, players)
+        if (entrants.filter(Boolean).length < 2) continue
 
-        const entrants = buildFrontierEntrants(byRound.get(frontier)!, frontier, train.elo, players);
-        const aliveCount = entrants.filter(Boolean).length;
-        if (aliveCount < 2) continue;
+        const decided = buildDecidedMap(rows)
+        const statuses = deriveStatuses(rows)
+        const projections = projectPairs({ entrants, runs: MC_RUNS, decided })
 
-        const projections = projectPairs({ entrants, runs: MC_RUNS });
-
-        const nameOf = (id: string) => players.get(id)?.name ?? '';
-        const upsertRows = [...projections.values()].map((p) => ({
-          tournament_id: t.id,
-          category,
-          pair_key: p.pairKey,
-          pair_player_ids: p.playerIds,
-          tournament_level: t.level,
-          champion_prob: p.championProb.toFixed(4),
-          finalist_prob: p.finalistProb.toFixed(4),
-          semifinal_prob: p.semifinalProb.toFixed(4),
-          rounds: p.rounds.map((r) => ({
-            round: r.round,
-            reach_prob: Number(r.reachProb.toFixed(4)),
-            // Opponents are sorted by reachProb desc, so [0] is the most likely.
-            expected_opponent_pair_key: r.opponents[0]?.pairKey ?? null,
-            opponents: r.opponents.map((o) => ({
-              pair_key: o.pairKey,
-              player_ids: o.playerIds,
-              names: o.playerIds.map(nameOf),
-              reach_prob: Number(o.reachProb.toFixed(4)),
-              win_prob: Number(o.winProb.toFixed(4)),
+        const nameOf = (id: string) => players.get(id)?.name ?? ''
+        const upsertRows = [...projections.values()].map((p) => {
+          const st = statuses.get(p.pairKey) ?? { status: 'active' as const, eliminatedRound: null }
+          return {
+            tournament_id: t.id,
+            category,
+            pair_key: p.pairKey,
+            pair_player_ids: p.playerIds,
+            tournament_level: t.level,
+            status: st.status,
+            eliminated_round: st.eliminatedRound,
+            champion_prob: p.championProb.toFixed(4),
+            finalist_prob: p.finalistProb.toFixed(4),
+            semifinal_prob: p.semifinalProb.toFixed(4),
+            rounds: p.rounds.map((r) => ({
+              round: r.round,
+              reach_prob: Number(r.reachProb.toFixed(4)),
+              expected_opponent_pair_key: r.opponents[0]?.pairKey ?? null,
+              opponents: r.opponents.map((o) => ({
+                pair_key: o.pairKey,
+                player_ids: o.playerIds,
+                names: o.playerIds.map(nameOf),
+                reach_prob: Number(o.reachProb.toFixed(4)),
+                win_prob: Number(o.winProb.toFixed(4)),
+              })),
             })),
-          })),
-          model_version: MODEL_VERSION,
-          mc_runs: MC_RUNS,
-          computed_at: nowIso,
-        }));
+            model_version: MODEL_VERSION,
+            mc_runs: MC_RUNS,
+            computed_at: nowIso,
+          }
+        })
 
         if (!dryRun && upsertRows.length > 0) {
           // Replace this tournament+category's rows (prunes pairs no longer in
