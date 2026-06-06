@@ -150,7 +150,7 @@ export const APP_MESSAGES: Record<Locale, AppCopy> = {
   es: {
     htmlLang: 'es',
     ogLocale: 'es_ES',
-    title: 'Pádel. En directo. Ahora mismo.',
+    title: 'Padel. En directo. Ahora mismo.',
     description:
       '🎾 Resultados · rankings · noticias. ✈️ Sin vuelo, sin excusas.',
     ios: 'Descargar en la App Store',
