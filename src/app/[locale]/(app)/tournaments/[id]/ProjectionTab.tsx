@@ -112,7 +112,7 @@ export default function ProjectionTab({
                   ? `${t('wonTitle')} 🏆`
                   : vm.status === 'eliminated' && vm.eliminatedRound
                   ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
-                  : `${t('winsToLift', { count: vm.rounds.length })} 🏆`}
+                  : `${t('winsToLift', { count: vm.rounds.filter((r) => !r.expected?.result).length })} 🏆`}
               </div>
             </div>
             <div style={{ textAlign: 'right' }}>
