@@ -93,7 +93,9 @@ export function buildFrontierEntrants(
   for (const m of ordered) {
     const hasP1 = m.pair1_player1_id && m.pair1_player2_id;
     const hasP2 = m.pair2_player1_id && m.pair2_player2_id;
-    const finished = m.status === 'finished' && (m.winner_pair === 1 || m.winner_pair === 2);
+    // "Decided" = has a winner, regardless of status. Covers finished AND
+    // retired/walkover (which carry a winner_pair but status !== 'finished').
+    const finished = m.winner_pair === 1 || m.winner_pair === 2;
     if (finished) {
       const win = m.winner_pair === 1
         ? (hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null)
@@ -143,8 +145,10 @@ export function pickFrontierRound(
   for (const r of PROJ_ROUND_ORDER) {
     const ms = (byRound.get(r) ?? []).filter(roundHasAssigned);
     if (ms.length === 0) continue;
+    // Undecided = no winner yet (scheduled/live). Retired/walkover carry a
+    // winner_pair, so they count as decided and don't anchor the frontier.
     const anyUnfinished = ms.some(
-      (m) => !(m.status === 'finished' && (m.winner_pair === 1 || m.winner_pair === 2)),
+      (m) => !(m.winner_pair === 1 || m.winner_pair === 2),
     );
     if (anyUnfinished) return r;
   }
@@ -219,7 +223,10 @@ export async function runTournamentProjectionSnapshot(
       for (const category of ['men', 'women'] as const) {
         const { data: matchData } = await supabase
           .from('matches')
-          .select('id, round, round_canonical, widget_id_composite, draw_position, status, winner_pair, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, pair1_seed, pair2_seed')
+          // NB: matches has no `draw_position` column (only widget_id_composite);
+          // selecting it would 400 the request. Frontier ordering uses the
+          // widget heap number; draw_position stays undefined and is tolerated.
+          .select('id, round, round_canonical, widget_id_composite, status, winner_pair, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, pair1_seed, pair2_seed')
           .eq('tournament_id', t.id).eq('category', category);
         const rows = (matchData ?? []) as Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>;
         if (rows.length === 0) continue;
