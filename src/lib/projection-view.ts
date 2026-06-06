@@ -26,6 +26,8 @@ export interface RoadRoundVM {
 export interface RoadVM {
   pairKey: string
   players: RoadPlayerVM[]
+  status: 'active' | 'eliminated' | 'champion'
+  eliminatedRound: string | null
   championProb: number
   finalistProb: number
   semifinalProb: number
@@ -101,6 +103,8 @@ export function buildRoadVM(
   return {
     pairKey: row.pair_key,
     players: resolvePlayers(row.pair_player_ids, row.pair_player_ids, lookup),
+    status: row.status ?? 'active',
+    eliminatedRound: row.eliminated_round ?? null,
     championProb: row.champion_prob,
     finalistProb: row.finalist_prob,
     semifinalProb: row.semifinal_prob,

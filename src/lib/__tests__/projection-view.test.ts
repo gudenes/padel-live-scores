@@ -71,7 +71,8 @@ describe('pickDefaultProjectionPair', () => {
 describe('buildRoadVM', () => {
   const row: ProjectionRow = {
     tournament_id: 't', category: 'men', pair_key: 'a::b', pair_player_ids: ['a', 'b'],
-    tournament_level: 'p1', champion_prob: 0.22, finalist_prob: 0.4, semifinal_prob: 0.7,
+    tournament_level: 'p1', status: 'active', eliminated_round: null,
+    champion_prob: 0.22, finalist_prob: 0.4, semifinal_prob: 0.7,
     computed_at: 'now',
     rounds: [
       { round: 'SF', reach_prob: 1, expected_opponent_pair_key: 'c::d',
@@ -104,5 +105,19 @@ describe('buildRoadVM', () => {
     const vm2 = buildRoadVM(row2 as ProjectionRow, lookup, sched)
     expect(vm2.rounds[0].expected?.players[0].name).toBe('Zed')
     expect(vm2.rounds[0].expected?.players[0].avatarUrl).toBeNull()
+  })
+})
+
+describe('buildRoadVM — status', () => {
+  it('carries status + eliminatedRound onto the VM', () => {
+    const row = {
+      tournament_id: 't', category: 'men', pair_key: 'a::b', pair_player_ids: ['a', 'b'],
+      tournament_level: 'p1', status: 'eliminated', eliminated_round: 'QF',
+      champion_prob: 0, finalist_prob: 0, semifinal_prob: 1, computed_at: 'now',
+      rounds: [{ round: 'SF', reach_prob: 0, expected_opponent_pair_key: null, opponents: [] }],
+    } as unknown as import('@/lib/projection-types').ProjectionRow
+    const vm = buildRoadVM(row, new Map(), null)
+    expect(vm.status).toBe('eliminated')
+    expect(vm.eliminatedRound).toBe('QF')
   })
 })
