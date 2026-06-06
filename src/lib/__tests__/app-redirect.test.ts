@@ -7,7 +7,14 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { classifyUserAgent } from '../app-redirect'
+import {
+  classifyUserAgent,
+  pickLocale,
+  redirectTargetFor,
+  APP_MESSAGES,
+  SUPPORTED_LOCALES,
+  WEB_APP_URL,
+} from '../app-redirect'
 
 describe('classifyUserAgent', () => {
   it('classifies an iPhone as ios', () => {
@@ -67,5 +74,71 @@ describe('classifyUserAgent', () => {
   it('defaults to desktop for a null or empty user-agent', () => {
     expect(classifyUserAgent(null)).toBe('desktop')
     expect(classifyUserAgent('')).toBe('desktop')
+  })
+})
+
+describe('pickLocale', () => {
+  it('honours an explicit ?lang= param above everything else', () => {
+    // Accept-Language says French, but the shared link forced Spanish.
+    expect(pickLocale('es', 'fr-FR,fr;q=0.9')).toBe('es')
+  })
+
+  it('normalises a regional ?lang= tag to the base locale', () => {
+    expect(pickLocale('pt-BR', null)).toBe('pt')
+    expect(pickLocale('PT', null)).toBe('pt')
+    expect(pickLocale('es-419', null)).toBe('es')
+  })
+
+  it('ignores an unsupported ?lang= and falls back to Accept-Language', () => {
+    expect(pickLocale('de', 'it-IT,it;q=0.9,en;q=0.8')).toBe('it')
+  })
+
+  it('parses the primary tag from Accept-Language when no param is given', () => {
+    expect(pickLocale(null, 'pt-BR,pt;q=0.9,en;q=0.8')).toBe('pt')
+    expect(pickLocale(null, 'fr-CA,fr;q=0.9')).toBe('fr')
+  })
+
+  it('skips unsupported Accept-Language tags to the first supported one', () => {
+    expect(pickLocale(null, 'de-DE,de;q=0.9,es;q=0.8')).toBe('es')
+  })
+
+  it('defaults to en when nothing matches', () => {
+    expect(pickLocale(null, null)).toBe('en')
+    expect(pickLocale('', '')).toBe('en')
+    expect(pickLocale('xx', 'de-DE,ja;q=0.8')).toBe('en')
+  })
+})
+
+describe('APP_MESSAGES', () => {
+  it('has a complete copy bundle for every supported locale', () => {
+    for (const locale of SUPPORTED_LOCALES) {
+      const m = APP_MESSAGES[locale]
+      expect(m, `messages for ${locale}`).toBeDefined()
+      for (const key of ['htmlLang', 'ogLocale', 'title', 'description', 'ios', 'android', 'web'] as const) {
+        expect(m[key], `${locale}.${key}`).toBeTruthy()
+      }
+    }
+  })
+
+  it('uses Brazilian Portuguese for pt (not European)', () => {
+    expect(APP_MESSAGES.pt.htmlLang).toBe('pt-BR')
+    expect(APP_MESSAGES.pt.ogLocale).toBe('pt_BR')
+    // Brazilian markers: "Baixe" (vs PT-PT "Transferir"), "AO VIVO", "chaves".
+    expect(APP_MESSAGES.pt.android).toMatch(/Google Play/)
+    expect(APP_MESSAGES.pt.ios).toMatch(/Baixar/i)
+    expect(APP_MESSAGES.pt.description).toMatch(/AO VIVO/)
+  })
+})
+
+describe('redirectTargetFor', () => {
+  it('sends desktop to the locale-prefixed homepage (en has no prefix)', () => {
+    expect(redirectTargetFor('desktop', 'en')).toBe(WEB_APP_URL)
+    expect(redirectTargetFor('desktop', 'pt')).toBe(`${WEB_APP_URL}/pt`)
+    expect(redirectTargetFor('desktop', 'fr')).toBe(`${WEB_APP_URL}/fr`)
+  })
+
+  it('sends ios/android to the store regardless of locale', () => {
+    expect(redirectTargetFor('ios', 'pt')).toMatch(/apps\.apple\.com/)
+    expect(redirectTargetFor('android', 'es')).toMatch(/play\.google\.com/)
   })
 })
