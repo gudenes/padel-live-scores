@@ -55,17 +55,21 @@ function PairAvatars({ players, size = 24 }: { players: RoadOpponentVM['players'
   )
 }
 
-// Full-body player photo for the hero banner; links to the player profile.
-// Falls back to the headshot, then to an initial. `overlap` slides the 2nd
-// photo over the 1st (broadcast-style).
-function HeroPhoto({ id, name, src, overlap }: { id: string; name: string; src: string | null; overlap?: boolean }) {
+// Player image for the hero banner; links to the player profile.
+// Prefers the full-body `photoUrl`; when a player has no body shot, falls back
+// to the smaller circular headshot (then Avatar's own initial fallback) so the
+// banner degrades gracefully instead of showing a giant letter. `overlap`
+// slides this photo over the previous one (broadcast-style).
+function HeroPhoto({ id, name, photoUrl, avatarUrl, overlap }: { id: string; name: string; photoUrl: string | null; avatarUrl: string | null; overlap?: boolean }) {
   return (
-    <Link href={`/player/${id}`} aria-label={name} style={{ display: 'block', lineHeight: 0, flexShrink: 0, marginLeft: overlap ? -42 : 0 }}>
-      {src ? (
+    <Link href={`/player/${id}`} aria-label={name} style={{ display: 'block', lineHeight: 0, flexShrink: 0, marginLeft: overlap ? -38 : 0 }}>
+      {photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={name} style={{ height: 130, width: 'auto', objectFit: 'cover', objectPosition: 'top center', display: 'block' }} />
+        <img src={photoUrl} alt={name} style={{ height: 130, width: 'auto', objectFit: 'cover', objectPosition: 'top center', display: 'block' }} />
       ) : (
-        <div style={{ width: 92, height: 130, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 14, color: 'rgba(255,255,255,0.4)', fontWeight: 800, fontSize: 22 }}>{name?.[0] ?? '?'}</div>
+        <div style={{ height: 130, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 12 }}>
+          <Avatar src={avatarUrl} alt={name} size={82} fallback={name?.[0]} unoptimized style={{ border: '2px solid rgba(255,255,255,0.12)' }} />
+        </div>
       )}
     </Link>
   )
@@ -152,7 +156,7 @@ export default function ProjectionTab({
         <div style={{ position: 'relative', zIndex: 1, width: 122, flexShrink: 0, display: 'flex', alignItems: 'flex-end' }}>
           {vm.players.map((p, i) => {
             const r = resolvePlayer(p.id)
-            return <HeroPhoto key={p.id} id={p.id} name={p.name} src={r.photoUrl ?? p.avatarUrl} overlap={i > 0} />
+            return <HeroPhoto key={p.id} id={p.id} name={p.name} photoUrl={r.photoUrl} avatarUrl={r.avatarUrl ?? p.avatarUrl} overlap={i > 0} />
           })}
         </div>
         <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, padding: '12px 11px 12px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 7 }}>
