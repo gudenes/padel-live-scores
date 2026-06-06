@@ -221,7 +221,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   const [activeTournament, setActiveTournament] = useState<string | null>(null)
   const [selectedRound, setSelectedRound] = useState<string | null>(null)
-  const [genderFilter, setGenderFilter] = useState<'men' | 'women'>('men')
+  // Honor an explicit ?category= (used by the player-profile Projection
+  // deep-link so a women's-draw pair opens the women's bracket, not men's).
+  const [genderFilter, setGenderFilter] = useState<'men' | 'women'>(
+    searchParams.get('category') === 'women' ? 'women' : 'men',
+  )
   // Animated arrival from home's "VER PARTIDOS" card: when intent=matches is
   // present alongside tab=matches, mount on Overview and slide to Matches
   // after a short beat (see the mount effect below).
