@@ -10,6 +10,11 @@
 
 import { pairWinProbability } from './elo-model.js';
 
+/** Order-independent key for a matchup between two pairKeys. */
+export function matchupKey(a: string, b: string): string {
+  return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
 export type ProjRound = 'R64' | 'R32' | 'R16' | 'QF' | 'SF' | 'F';
 export const PROJ_ROUND_ORDER: ProjRound[] = ['R64', 'R32', 'R16', 'QF', 'SF', 'F'];
 
@@ -26,6 +31,10 @@ export interface ProjectionInput {
   runs: number;
   /** Injectable for deterministic tests. Defaults to Math.random. */
   rng?: () => number;
+  /** Matchup → winner pairKey. When a simulated match is in this map, the
+   *  winner is forced (no rng draw). Key via matchupKey(aKey, bKey). Used to
+   *  pin already-played results so the sim reflects reality + projects forward. */
+  decided?: Map<string, string>;
 }
 
 export interface OpponentChance {
@@ -58,7 +67,7 @@ function isPow2(n: number): boolean {
 }
 
 export function projectPairs(input: ProjectionInput): Map<string, PairProjection> {
-  const { entrants, runs } = input;
+  const { entrants, runs, decided } = input;
   const rng = input.rng ?? Math.random;
   if (!isPow2(entrants.length)) {
     throw new Error(`entrants.length must be a power of 2, got ${entrants.length}`);
@@ -104,8 +113,13 @@ export function projectPairs(input: ProjectionInput): Map<string, PairProjection
         if (a && b) {
           noteOpp(tally.get(a.pairKey)!, r, b.pairKey);
           noteOpp(tally.get(b.pairKey)!, r, a.pairKey);
-          const pA = pairWinProbability(a.teamElo, b.teamElo);
-          next.push(rng() < pA ? a : b);
+          const forced = decided?.get(matchupKey(a.pairKey, b.pairKey));
+          if (forced) {
+            next.push(forced === a.pairKey ? a : b);
+          } else {
+            const pA = pairWinProbability(a.teamElo, b.teamElo);
+            next.push(rng() < pA ? a : b);
+          }
         } else {
           next.push(a ?? b); // bye (or null vs null)
         }

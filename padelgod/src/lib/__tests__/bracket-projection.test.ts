@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { projectPairs, type FrontierEntrant } from '../bracket-projection.js';
+import { projectPairs, matchupKey, type FrontierEntrant } from '../bracket-projection.js';
 
 // Deterministic RNG (mulberry32) so MC results are reproducible.
 function mulberry32(seed: number): () => number {
@@ -66,3 +66,37 @@ describe('projectPairs — byes and invariants', () => {
       .toThrow(/power of 2/);
   });
 });
+
+describe('projectPairs — forced (decided) results', () => {
+  it('forces the known winner and gives the loser champion 0', () => {
+    const entrants = [pair('A', 1800), pair('B', 1800), pair('C', 1800), pair('D', 1800)]
+    const decided = new Map<string, string>([
+      [matchupKey('A', 'B'), 'A'],
+      [matchupKey('C', 'D'), 'C'],
+      [matchupKey('A', 'C'), 'A'],
+    ])
+    const res = projectPairs({ entrants, runs: 2000, rng: mulberry32(1), decided })
+    expect(res.get('A')!.championProb).toBe(1)
+    expect(res.get('B')!.championProb).toBe(0)
+    expect(res.get('C')!.finalistProb).toBe(1)
+    expect(res.get('D')!.championProb).toBe(0)
+    const bSF = res.get('B')!.rounds.find(r => r.round === 'SF')!
+    expect(bSF.reachProb).toBe(1)
+    expect(bSF.opponents.map(o => o.pairKey)).toEqual(['A'])
+    expect(res.get('B')!.rounds.find(r => r.round === 'F')!.reachProb).toBe(0)
+  })
+
+  it('mixes forced past with sampled future (one SF decided, the other open)', () => {
+    const entrants = [pair('A', 2000), pair('B', 1600), pair('C', 1800), pair('D', 1800)]
+    const decided = new Map<string, string>([[matchupKey('A', 'B'), 'A']])
+    const res = projectPairs({ entrants, runs: 8000, rng: mulberry32(3), decided })
+    expect(res.get('A')!.rounds.find(r => r.round === 'F')!.reachProb).toBe(1)
+    expect(res.get('B')!.championProb).toBe(0)
+    expect(res.get('C')!.finalistProb).toBeGreaterThan(0)
+    expect(res.get('D')!.finalistProb).toBeGreaterThan(0)
+  })
+
+  it('matchupKey is order-independent', () => {
+    expect(matchupKey('x', 'y')).toBe(matchupKey('y', 'x'))
+  })
+})
