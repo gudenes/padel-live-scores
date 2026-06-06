@@ -252,6 +252,8 @@ export async function runTournamentProjectionSnapshot(
           rounds: p.rounds.map((r) => ({
             round: r.round,
             reach_prob: Number(r.reachProb.toFixed(4)),
+            // Opponents are sorted by reachProb desc, so [0] is the most likely.
+            expected_opponent_pair_key: r.opponents[0]?.pairKey ?? null,
             opponents: r.opponents.map((o) => ({
               pair_key: o.pairKey,
               player_ids: o.playerIds,
@@ -266,10 +268,13 @@ export async function runTournamentProjectionSnapshot(
         }));
 
         if (!dryRun && upsertRows.length > 0) {
-          // Replace this tournament+category's rows atomically (prunes pairs
-          // that are no longer in the draw).
-          await supabase.from('tournament_projections')
+          // Replace this tournament+category's rows (prunes pairs no longer in
+          // the draw). Two awaits, not a transaction: if the insert fails after
+          // the delete, the next hourly run heals it. The delete error must be
+          // checked, else a failed delete would let the insert produce dupes.
+          const { error: delErr } = await supabase.from('tournament_projections')
             .delete().eq('tournament_id', t.id).eq('category', category);
+          if (delErr) throw delErr;
           const { error } = await supabase.from('tournament_projections').insert(upsertRows);
           if (error) throw error;
         }

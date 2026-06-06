@@ -71,4 +71,18 @@ describe('pickFrontierRound', () => {
     ]);
     expect(pickFrontierRound(byRound)).toBeNull();
   });
+
+  it('skips a present-but-unassigned round in favour of a later assigned one', () => {
+    // QF exists but its only match has TBD pairs (not yet propagated); the
+    // SF has a real assigned, unfinished match -> frontier = SF, not QF.
+    const byRound = new Map<ProjRound, FrontierMatchRow[]>([
+      ['QF', [{ id: 'q', widget_id_composite: null, draw_position: 0, status: 'scheduled', winner_pair: null,
+        pair1_player1_id: null, pair1_player2_id: null, pair2_player1_id: null, pair2_player2_id: null,
+        pair1_seed: null, pair2_seed: null }]],
+      ['SF', [{ id: 's', widget_id_composite: null, draw_position: 0, status: 'scheduled', winner_pair: null,
+        pair1_player1_id: 'p1', pair1_player2_id: 'p2', pair2_player1_id: 'w1', pair2_player2_id: 'w2',
+        pair1_seed: null, pair2_seed: null }]],
+    ]);
+    expect(pickFrontierRound(byRound)).toBe('SF');
+  });
 });
