@@ -25,6 +25,8 @@ export interface ProjectionRow {
   pair_key: string
   pair_player_ids: string[]
   tournament_level: string | null
+  status: 'active' | 'eliminated' | 'champion'
+  eliminated_round: string | null
   champion_prob: number
   finalist_prob: number
   semifinal_prob: number

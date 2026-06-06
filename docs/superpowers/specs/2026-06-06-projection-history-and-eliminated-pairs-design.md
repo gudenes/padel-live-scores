@@ -34,15 +34,36 @@ Today the projection is a *live, hourly-refreshed* snapshot of the **still-alive
 - **Status** — per pair: `active` (still playing), `eliminated` (lost a decided match), `champion` (won the final).
 
 ## Core approach: forced-results, full-draw simulation
+> **⚠️ COURSE CORRECTION (2026-06-06, during C-A execution).** The unified
+> "simulate the full draw from round 1 with forced results" model below was
+> **abandoned** after local verification: on Majors/FIP events whose draws have
+> byes/qualifying (e.g. ITALY MAJOR — top seeds bye R64 straight to R32), the
+> shallowest "entry round" doesn't contain the whole field, so bye'd seeds (the
+> alive contenders, e.g. Coello/Tapia) were **dropped entirely** and round
+> labels shifted. Correctly handling that needs full bracket-tree reconstruction
+> (byes + heap placement), which is overkill. **We use a two-path approach
+> instead** (see below). The forced-results engine capability (`decided` map)
+> was built but is now optional/unused by the worker.
 
-Currently the engine simulates only from the **frontier** (earliest unfinished round), so eliminated pairs never appear in its output. We change the model:
+### Two-path approach (the implemented design)
 
-**Simulate the full draw from the first main-draw round, with decided matches forced to their real winner instead of randomly sampled.** A single Monte-Carlo pass then produces, for *every* first-round pair:
+**Path 1 — active pairs:** keep the proven *frontier* forward-simulation (Plans
+A/B, unchanged): `pickFrontierRound` → `buildFrontierEntrants` (finished matches
+collapse to a bye-advance of the winner) → `projectPairs`. This is correct on
+irregular draws because it starts from the *current* known competitors, and it
+sizes the bracket to the frontier so round labels are right. Status `active`.
 
-- correct champion / finalist / semifinal probabilities (alive pairs project forward; eliminated pairs come out at 0 because every simulated path has them losing their decided match);
-- each pair's **reach** per round and the **opponents** they met/face — for played rounds these are the *real* opponents (outcomes forced), for future rounds they're the projected distribution.
+**Path 2 — done pairs (eliminated + champion):** reconstruct **factually** from
+match results — no simulation. For every pair that lost a decided main-draw
+match (`eliminated`) or won the final (`champion`): champion 0% / 100%
+respectively; `rounds` = the matches they actually played (round, real opponent,
+`winProb` = 1 if they won that match else 0); `eliminated_round` = the round of
+the lost match; `finalist`/`semifinal` = 1 if they actually reached F/SF.
 
-This yields A's "actual journey" with no separate code path. Performance is unaffected (~160ms for a 32-pair × 20k-run sim; we re-sim the whole bracket each run instead of the frontier — still trivial).
+The two row-sets are disjoint by construction (a pair is either still alive or
+done) and combined into the full field. This preserves the exact active-pair
+output users approved, adds eliminated journeys robustly on any draw shape, and
+needs no bracket-tree porting.
 
 ### Engine change (`bracket-projection.ts`)
 

@@ -57,6 +57,7 @@ export default async function ProjectionsQAPage({
           <thead>
             <tr>
               <th style={{ textAlign: 'left' }}>Pair</th>
+              <th style={{ textAlign: 'left' }}>Status</th>
               <th>Champ%</th>
               <th>Final%</th>
               <th>SF%</th>
@@ -67,6 +68,7 @@ export default async function ProjectionsQAPage({
             {rows.map((r) => (
               <tr key={r.pair_key}>
                 <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{r.pair_player_ids.join(' / ')}</td>
+                <td>{r.status === 'eliminated' ? `out · ${r.eliminated_round ?? '?'}` : r.status}</td>
                 <td style={{ textAlign: 'center' }}>{pct(r.champion_prob)}</td>
                 <td style={{ textAlign: 'center' }}>{pct(r.finalist_prob)}</td>
                 <td style={{ textAlign: 'center' }}>{pct(r.semifinal_prob)}</td>
