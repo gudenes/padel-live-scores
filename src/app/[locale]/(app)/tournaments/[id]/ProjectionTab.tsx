@@ -6,6 +6,7 @@ import Avatar from '@/components/Avatar'
 import { useFollowing } from '@/hooks/useFollowing'
 import { buildPlayerLookup, buildRoadVM, pickDefaultProjectionPair, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
 import { useProjection } from './useProjection'
+import ChampionSparkline from './ChampionSparkline'
 
 const CARD = 'rgba(255,255,255,0.03)'
 const TEXT = '#EEE4CE'
@@ -125,6 +126,9 @@ export default function ProjectionTab({
               {vm.status === 'champion' && (
                 <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
               )}
+              <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
+                <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={activePair} />
+              </div>
             </div>
           </div>
 
