@@ -44,6 +44,9 @@ export interface OpponentChance {
   reachProb: number;
   /** Analytic P(tracked beats this opponent | they meet). */
   winProb: number;
+  /** Set only for already-played (factual) rounds: the actual result vs this
+   *  opponent. Undefined for projected/future rounds (use winProb instead). */
+  result?: 'won' | 'lost';
 }
 
 export interface PairRound {

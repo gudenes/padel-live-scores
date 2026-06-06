@@ -146,11 +146,19 @@ export interface DoneProjection extends PairProjection {
 
 type DrawMatchRow = FrontierMatchRow & { round: string | null; round_canonical: string | null }
 
-/** Reconstruct factual journeys for pairs whose tournament is over — lost a
- *  decided main-draw match (eliminated) or won the final (champion). No
- *  simulation: champion 0%/100%; rounds = the matches they actually played,
- *  winProb = 1 if they won that match else 0. */
-export function buildDoneProjections(rows: DrawMatchRow[]): DoneProjection[] {
+export interface PlayedInfo {
+  ids: [string, string]
+  rounds: PairRound[]        // factual played rounds; each opponent carries `result`
+  lostRound: string | null
+  wonFinal: boolean
+  lastPlayedIdx: number      // PROJ_ROUND_ORDER index of the deepest played round (-1 if none)
+}
+
+/** Per-pair factual played main-draw rounds, reconstructed from decided
+ *  matches. Each round's single opponent carries the actual result
+ *  ('won'|'lost'). Shared by done-pair reconstruction and the active-pair
+ *  full-road merge (so alive pairs show the rounds they've already won). */
+export function buildPlayedRounds(rows: DrawMatchRow[]): Map<string, PlayedInfo> {
   type Played = { round: ProjRound; oppKey: string; oppIds: [string, string]; won: boolean }
   type Rec = { ids: [string, string]; played: Played[]; lostRound: string | null; wonFinal: boolean }
   const byPair = new Map<string, Rec>()
@@ -178,29 +186,48 @@ export function buildDoneProjections(rows: DrawMatchRow[]): DoneProjection[] {
     byPair.set(k2, rec2)
   }
 
-  const out: DoneProjection[] = []
+  const out = new Map<string, PlayedInfo>()
   for (const [key, rec] of byPair) {
-    const isChampion = rec.wonFinal
-    const isEliminated = rec.lostRound != null
-    if (!isChampion && !isEliminated) continue
     const played = [...rec.played].sort(
       (a, b) => PROJ_ROUND_ORDER.indexOf(a.round) - PROJ_ROUND_ORDER.indexOf(b.round),
     )
-    const reached = new Set(played.map((p) => p.round))
     const rounds: PairRound[] = played.map((p) => ({
       round: p.round,
       reachProb: 1,
-      opponents: [{ pairKey: p.oppKey, playerIds: p.oppIds, reachProb: 1, winProb: p.won ? 1 : 0 }],
+      opponents: [{
+        pairKey: p.oppKey,
+        playerIds: p.oppIds,
+        reachProb: 1,
+        winProb: p.won ? 1 : 0,
+        result: p.won ? 'won' : 'lost',
+      }],
     }))
+    const lastPlayedIdx = played.length
+      ? PROJ_ROUND_ORDER.indexOf(played[played.length - 1]!.round)
+      : -1
+    out.set(key, { ids: rec.ids, rounds, lostRound: rec.lostRound, wonFinal: rec.wonFinal, lastPlayedIdx })
+  }
+  return out
+}
+
+/** Reconstruct factual journeys for pairs whose tournament is over — lost a
+ *  decided main-draw match (eliminated) or won the final (champion). */
+export function buildDoneProjections(rows: DrawMatchRow[]): DoneProjection[] {
+  const out: DoneProjection[] = []
+  for (const [key, pl] of buildPlayedRounds(rows)) {
+    const isChampion = pl.wonFinal
+    const isEliminated = pl.lostRound != null
+    if (!isChampion && !isEliminated) continue
+    const reached = new Set(pl.rounds.map((r) => r.round))
     out.push({
       pairKey: key,
-      playerIds: rec.ids,
+      playerIds: pl.ids,
       championProb: isChampion ? 1 : 0,
       finalistProb: reached.has('F') ? 1 : 0,
       semifinalProb: reached.has('SF') ? 1 : 0,
-      rounds,
+      rounds: pl.rounds,
       status: isChampion ? 'champion' : 'eliminated',
-      eliminatedRound: isChampion ? null : rec.lostRound,
+      eliminatedRound: isChampion ? null : pl.lostRound,
     })
   }
   return out
@@ -320,12 +347,25 @@ export async function runTournamentProjectionSnapshot(
         const doneProjections = buildDoneProjections(rows)
         const doneKeys = new Set(doneProjections.map((d) => d.pairKey))
 
+        // For active pairs, prepend the rounds they've already WON (factual)
+        // to the projected future rounds, so an alive pair shows its full road.
+        const played = buildPlayedRounds(rows)
+
         // Combine: done pairs + active pairs not already done (disjoint sets).
         const combined: Array<{ proj: PairProjection; status: 'active' | 'eliminated' | 'champion'; eliminatedRound: string | null }> = [
           ...doneProjections.map((d) => ({ proj: d as PairProjection, status: d.status, eliminatedRound: d.eliminatedRound })),
           ...[...activeProjections.values()]
             .filter((p) => !doneKeys.has(p.pairKey))
-            .map((p) => ({ proj: p, status: 'active' as const, eliminatedRound: null })),
+            .map((p) => {
+              const pl = played.get(p.pairKey)
+              // Keep only projected rounds deeper than the last played round
+              // (drops the frontier-round bye for a pair that won the frontier).
+              const future = pl
+                ? p.rounds.filter((r) => PROJ_ROUND_ORDER.indexOf(r.round) > pl.lastPlayedIdx)
+                : p.rounds
+              const rounds = pl ? [...pl.rounds, ...future] : p.rounds
+              return { proj: { ...p, rounds }, status: 'active' as const, eliminatedRound: null }
+            }),
         ]
         if (combined.length === 0) continue
 
@@ -351,6 +391,7 @@ export async function runTournamentProjectionSnapshot(
               names: o.playerIds.map(nameOf),
               reach_prob: Number(o.reachProb.toFixed(4)),
               win_prob: Number(o.winProb.toFixed(4)),
+              result: o.result ?? null,
             })),
           })),
           model_version: MODEL_VERSION,

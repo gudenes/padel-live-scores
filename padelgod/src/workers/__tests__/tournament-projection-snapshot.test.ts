@@ -81,3 +81,23 @@ describe('buildSnapshotRows', () => {
     }])
   })
 })
+
+describe('buildPlayedRounds', () => {
+  it('tags each played round with the actual result and tracks the deepest round', async () => {
+    const { buildPlayedRounds } = await import('../tournament-projection-snapshot.js')
+    const rows = [
+      { id: 'r32', round: 'R32', round_canonical: 'R32', widget_id_composite: null, draw_position: null, status: 'finished', winner_pair: 1,
+        pair1_player1_id: 'a1', pair1_player2_id: 'a2', pair2_player1_id: 'x1', pair2_player2_id: 'x2', pair1_seed: null, pair2_seed: null },
+      { id: 'r16', round: 'R16', round_canonical: 'R16', widget_id_composite: null, draw_position: null, status: 'finished', winner_pair: 1,
+        pair1_player1_id: 'y1', pair1_player2_id: 'y2', pair2_player1_id: 'a1', pair2_player2_id: 'a2', pair1_seed: null, pair2_seed: null },
+    ] as Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>
+    const played = buildPlayedRounds(rows)
+    const a = played.get('a1::a2')!
+    expect(a.rounds.map((r) => r.round)).toEqual(['R32', 'R16'])
+    expect(a.rounds[0].opponents[0].result).toBe('won')
+    expect(a.rounds[1].opponents[0].result).toBe('lost')
+    expect(a.lostRound).toBe('R16')
+    // lastPlayedIdx points at R16 in PROJ_ROUND_ORDER (R64,R32,R16,QF,SF,F → idx 2)
+    expect(a.lastPlayedIdx).toBe(2)
+  })
+})
