@@ -35,6 +35,8 @@ import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
 import ProjectionTab from './ProjectionTab'
 import { isPremierTier } from '@/lib/tournament-tier'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { FLAG_KEYS } from '@/lib/feature-flags'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 
 // ── Brand colors ───────────────────────────────────────────────
@@ -801,11 +803,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return DRAW_TIERS.has(activeTournamentObj.level ?? '')
   }, [activeTournamentObj])
 
+  const projectionFlag = useFeatureFlag(FLAG_KEYS.PROJECTION_ENABLED)
   const showProjectionTab = useMemo(() => {
-    if (process.env.NEXT_PUBLIC_PROJECTION_ENABLED !== 'true') return false
+    if (!projectionFlag) return false
     if (!activeTournamentObj) return false
     return isPremierTier(activeTournamentObj.level ?? '')
-  }, [activeTournamentObj])
+  }, [projectionFlag, activeTournamentObj])
 
   // ══════════════════════════════════════════════════════════════
   // ── RENDER ────────────────────────────────────────────────────
