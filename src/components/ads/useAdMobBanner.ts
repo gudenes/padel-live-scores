@@ -54,6 +54,11 @@ export function useAdMobBanner(args: {
           // every other screen. removeBanner rejects when nothing is shown; that
           // rejection is a harmless no-op we swallow.
           shownRef.current = false
+          // Reset the reserved nav/content space immediately. iOS does NOT emit
+          // a height-0 bannerAdSizeChanged on removeBanner (Android does), so the
+          // --admob-banner-h var — and thus the bottom-nav lift — would otherwise
+          // stay stuck at the old banner height after leaving the match page.
+          document.documentElement.style.setProperty('--admob-banner-h', '0px')
           await AdMob.removeBanner().catch(() => {})
         }
       } catch (err) {
