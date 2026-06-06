@@ -106,12 +106,15 @@ export default function ProjectionTab({
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('roadToTrophy')}</div>
-                <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600 }}>
-                  {vm.status === 'champion'
-                    ? `${t('wonTitle')} 🏆`
-                    : vm.status === 'eliminated' && vm.eliminatedRound
-                    ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
-                    : `${t('winsToLift', { count: vm.rounds.filter((r) => !r.expected?.result).length })} 🏆`}
+                <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>
+                    {vm.status === 'champion'
+                      ? t('wonTitle')
+                      : vm.status === 'eliminated' && vm.eliminatedRound
+                      ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
+                      : t('winsToLift', { count: vm.rounds.filter((r) => !r.expected?.result).length })}
+                  </span>
+                  {vm.status !== 'eliminated' && <span style={{ fontSize: 22, lineHeight: 1 }}>🏆</span>}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
@@ -161,7 +164,7 @@ export default function ProjectionTab({
                 : { bg: '#3a3f47', glyph: '', color: '' }
               return (
                 <div key={rd.round} style={{ position: 'relative', marginBottom: i === vm.rounds.length - 1 ? 0 : 8 }}>
-                  <div style={{ position: 'absolute', left: -36, top: 18, width: 26, height: 26, borderRadius: '50%', background: node.bg, border: '3px solid #1A1A1A', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 13 : 15, fontWeight: 900, color: node.color }}>{node.glyph}</div>
+                  <div style={{ position: 'absolute', left: isFinal ? -41 : -36, top: isFinal ? 13 : 18, width: isFinal ? 36 : 26, height: isFinal ? 36 : 26, borderRadius: '50%', background: node.bg, border: isFinal ? '3px solid #1A1A1A' : '3px solid #1A1A1A', boxShadow: isFinal ? '0 0 0 2px rgba(245,166,35,0.4)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 20 : 15, fontWeight: 900, color: node.color }}>{node.glyph}</div>
                   {shown.map((opp, j) => {
                     const played = !!opp.result
                     return (
