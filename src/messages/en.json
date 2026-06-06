@@ -1455,6 +1455,7 @@
     "eliminatedIn": "Eliminated in {round}",
     "champions": "Champions! 🏆",
     "out": "Out",
+    "eliminated": "Eliminated",
     "reachedRound": "Reached the {round}",
     "wonTitle": "Won the title",
     "projectedPath": "Projected path",

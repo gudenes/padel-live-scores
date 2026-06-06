@@ -35,13 +35,17 @@ function pairName(players: RoadOpponentVM['players']): string {
 
 function PairAvatars({ players, size = 24 }: { players: RoadOpponentVM['players']; size?: number }) {
   const [p1, p2] = players
-  const off = Math.round(size * 0.62) // horizontal offset for the overlap
+  // Smooth overlap like the match momentum chart: a ring matching the card
+  // surface carves a clean gap between the two faces, + a soft shadow.
+  const ring = { border: '2px solid var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }
   return (
-    <div style={{ position: 'relative', width: size + off, height: size, flexShrink: 0 }}>
-      <Avatar src={p1?.avatarUrl} alt={p1?.name ?? ''} size={size} fallback={p1?.name?.[0]} unoptimized
-        style={{ position: 'absolute', left: 0, top: 0, border: '2px solid #1A1A1A' }} />
-      <Avatar src={p2?.avatarUrl} alt={p2?.name ?? ''} size={size} fallback={p2?.name?.[0]} unoptimized
-        style={{ position: 'absolute', left: off, top: 0, border: '2px solid #1A1A1A' }} />
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <Avatar src={p1?.avatarUrl} alt={p1?.name ?? ''} size={size} fallback={p1?.name?.[0]} unoptimized style={ring} />
+      </div>
+      <div style={{ position: 'relative', zIndex: 1, marginLeft: -Math.round(size * 0.3) }}>
+        <Avatar src={p2?.avatarUrl} alt={p2?.name ?? ''} size={size} fallback={p2?.name?.[0]} unoptimized style={ring} />
+      </div>
     </div>
   )
 }
@@ -126,25 +130,29 @@ export default function ProjectionTab({
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
-                  <span style={{ color: LIME, fontWeight: 800, fontSize: 28, lineHeight: 1, fontFamily: MONO }}>{Math.round(vm.championProb * 100)}</span>
-                  <span style={{ color: LIME, fontWeight: 800, fontSize: 14, fontFamily: MONO }}>%</span>
-                </div>
-                <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
-                {vm.status === 'eliminated' && vm.eliminatedRound && (
-                  <div style={{ color: LIVE, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 3 }}>
-                    {t('eliminatedIn', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })}
-                  </div>
-                )}
-                {vm.status === 'champion' && (
-                  <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
+                {vm.status === 'eliminated' ? (
+                  // Eliminated: a 0% champion number is noise — just say it.
+                  <div style={{ color: LIVE, fontSize: 16, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('eliminated')}</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+                      <span style={{ color: LIME, fontWeight: 800, fontSize: 28, lineHeight: 1, fontFamily: MONO }}>{Math.round(vm.championProb * 100)}</span>
+                      <span style={{ color: LIME, fontWeight: 800, fontSize: 14, fontFamily: MONO }}>%</span>
+                    </div>
+                    <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
+                    {vm.status === 'champion' && (
+                      <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
-            {/* champion-probability bar */}
-            <div style={{ marginTop: 10, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
-              <div style={{ width: `${Math.max(2, Math.round(vm.championProb * 100))}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
-            </div>
+            {/* champion-probability bar (not for eliminated pairs — it'd be 0%) */}
+            {vm.status !== 'eliminated' && (
+              <div style={{ marginTop: 10, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+                <div style={{ width: `${Math.max(2, Math.round(vm.championProb * 100))}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
+              </div>
+            )}
             <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
               <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={activePair} />
             </div>

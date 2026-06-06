@@ -1140,7 +1140,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             zIndex: 19,
             background: '#0A0A0A',
             borderBottom: `1px solid ${BORDER}`,
+            // Content-width, scrollable strip so 5 tabs (incl. the longer
+            // "Projection") get breathing room instead of cramped equal splits.
+            overflowX: 'auto',
+            scrollbarWidth: 'none',
           }}
+          tabStyle={{ flex: 'none', padding: '12px 16px', whiteSpace: 'nowrap' }}
         />
 
         {/* Coverage disclaimer */}
