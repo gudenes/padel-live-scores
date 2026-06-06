@@ -7,6 +7,14 @@ import {
   type FrontierEntrant,
   type ProjRound,
 } from '../lib/bracket-projection.js';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Logger } from 'pino';
+import {
+  trainElo, MODEL_VERSION,
+  type TrainingMatch, type PlayerSnapshot,
+} from '../lib/elo-model.js';
+import { projectPairs, PROJ_ROUND_ORDER } from '../lib/bracket-projection.js';
+import { paginatedSelect } from '../lib/db-paginate.js';
 
 export interface FrontierMatchRow {
   id: string;
@@ -103,4 +111,179 @@ export function buildFrontierEntrants(
   while (size < slots.length) size *= 2;
   while (slots.length < size) slots.push(null);
   return slots;
+}
+
+const HALFLIFE_DAYS = 180;
+const MC_RUNS = 20_000;
+
+function canonRound(r: string | null | undefined): ProjRound | null {
+  if (!r) return null;
+  const x = r.toLowerCase();
+  if (x.includes('round of 64') || x === 'r64') return 'R64';
+  if (x.includes('round of 32') || x === 'r32') return 'R32';
+  if (x.includes('round of 16') || x === 'r16') return 'R16';
+  if (x === 'qf' || x.includes('quarter')) return 'QF';
+  if (x === 'sf' || x.includes('semi')) return 'SF';
+  if (x === 'f' || x.includes('final')) return 'F';
+  return null;
+}
+
+function roundHasAssigned(m: FrontierMatchRow): boolean {
+  return Boolean(
+    (m.pair1_player1_id && m.pair1_player2_id) ||
+    (m.pair2_player1_id && m.pair2_player2_id),
+  );
+}
+
+/** Earliest (shallowest) main-draw round that still has an unfinished,
+ *  player-assigned match. Null when the draw is fully decided / empty. */
+export function pickFrontierRound(
+  byRound: Map<ProjRound, FrontierMatchRow[]>,
+): ProjRound | null {
+  for (const r of PROJ_ROUND_ORDER) {
+    const ms = (byRound.get(r) ?? []).filter(roundHasAssigned);
+    if (ms.length === 0) continue;
+    const anyUnfinished = ms.some(
+      (m) => !(m.status === 'finished' && (m.winner_pair === 1 || m.winner_pair === 2)),
+    );
+    if (anyUnfinished) return r;
+  }
+  return null;
+}
+
+export interface TournamentProjectionDeps {
+  supabase: SupabaseClient;
+  logger?: Logger;
+  dryRun?: boolean;
+  now?: () => Date;
+}
+
+export interface TournamentProjectionResult {
+  processed: number;
+  failed: number;
+  rowsWritten: number;
+  trainingSize: number;
+  durationMs: number;
+}
+
+interface ScopeRow { id: string; level: string | null; starts_at: string | null }
+
+export async function runTournamentProjectionSnapshot(
+  deps: TournamentProjectionDeps,
+): Promise<TournamentProjectionResult> {
+  const { supabase, logger, dryRun = false, now = () => new Date() } = deps;
+  const startMs = Date.now();
+  const nowIso = now().toISOString();
+
+  const playerRows = await paginatedSelect<PlayerSnapshot>(
+    (s, e) => supabase.from('players').select('id, name, ranking, category').range(s, e),
+    { what: 'players (tournament-projection-snapshot)' },
+  );
+  const players = new Map(playerRows.map((p) => [p.id, p]));
+
+  const tournamentRows = await paginatedSelect<{ id: string; level: string | null }>(
+    (s, e) => supabase.from('tournaments').select('id, level').range(s, e),
+    { what: 'tournaments levels (tournament-projection-snapshot)' },
+  );
+  const tournamentLevels = new Map(tournamentRows.map((t) => [t.id, t.level ?? '']));
+
+  // In-window tournaments, ALL tiers (admin QA needs lower tiers; the public
+  // app filters to Premier via tournament_level at read time).
+  const { data: scopeData } = await supabase
+    .from('tournaments')
+    .select('id, level, starts_at, ends_at')
+    .gte('ends_at', nowIso)
+    .order('starts_at', { ascending: true });
+  const inScope = ((scopeData ?? []) as ScopeRow[]).filter((t) => t.starts_at);
+
+  const training = await paginatedSelect<TrainingMatch>(
+    (s, e) => supabase.from('matches').select(
+      'id, tournament_id, finished_at, scheduled_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, winner_pair',
+    ).eq('status', 'finished').not('winner_pair', 'is', null)
+      .order('scheduled_at', { ascending: true }).range(s, e),
+    { what: 'training matches (tournament-projection-snapshot)' },
+  );
+
+  const trainCache = new Map<string, ReturnType<typeof trainElo>>();
+  let processed = 0, failed = 0, rowsWritten = 0;
+
+  for (const t of inScope) {
+    try {
+      let train = trainCache.get(t.starts_at!);
+      if (!train) {
+        const before = training.filter((m) => (m.scheduled_at ?? '') < t.starts_at!);
+        train = trainElo(before, players, tournamentLevels, t.starts_at!, HALFLIFE_DAYS);
+        trainCache.set(t.starts_at!, train);
+      }
+
+      for (const category of ['men', 'women'] as const) {
+        const { data: matchData } = await supabase
+          .from('matches')
+          .select('id, round, round_canonical, widget_id_composite, draw_position, status, winner_pair, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, pair1_seed, pair2_seed')
+          .eq('tournament_id', t.id).eq('category', category);
+        const rows = (matchData ?? []) as Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>;
+        if (rows.length === 0) continue;
+
+        const byRound = new Map<ProjRound, FrontierMatchRow[]>();
+        for (const m of rows) {
+          const r = canonRound(m.round_canonical ?? m.round);
+          if (!r) continue;
+          (byRound.get(r) ?? byRound.set(r, []).get(r)!).push(m);
+        }
+        const frontier = pickFrontierRound(byRound);
+        if (!frontier) continue;
+
+        const entrants = buildFrontierEntrants(byRound.get(frontier)!, frontier, train.elo, players);
+        const aliveCount = entrants.filter(Boolean).length;
+        if (aliveCount < 2) continue;
+
+        const projections = projectPairs({ entrants, runs: MC_RUNS });
+
+        const nameOf = (id: string) => players.get(id)?.name ?? '';
+        const upsertRows = [...projections.values()].map((p) => ({
+          tournament_id: t.id,
+          category,
+          pair_key: p.pairKey,
+          pair_player_ids: p.playerIds,
+          tournament_level: t.level,
+          champion_prob: p.championProb.toFixed(4),
+          finalist_prob: p.finalistProb.toFixed(4),
+          semifinal_prob: p.semifinalProb.toFixed(4),
+          rounds: p.rounds.map((r) => ({
+            round: r.round,
+            reach_prob: Number(r.reachProb.toFixed(4)),
+            opponents: r.opponents.map((o) => ({
+              pair_key: o.pairKey,
+              player_ids: o.playerIds,
+              names: o.playerIds.map(nameOf),
+              reach_prob: Number(o.reachProb.toFixed(4)),
+              win_prob: Number(o.winProb.toFixed(4)),
+            })),
+          })),
+          model_version: MODEL_VERSION,
+          mc_runs: MC_RUNS,
+          computed_at: nowIso,
+        }));
+
+        if (!dryRun && upsertRows.length > 0) {
+          // Replace this tournament+category's rows atomically (prunes pairs
+          // that are no longer in the draw).
+          await supabase.from('tournament_projections')
+            .delete().eq('tournament_id', t.id).eq('category', category);
+          const { error } = await supabase.from('tournament_projections').insert(upsertRows);
+          if (error) throw error;
+        }
+        rowsWritten += upsertRows.length;
+      }
+      processed++;
+    } catch (err) {
+      failed++;
+      logger?.error({ err, tournamentId: t.id }, 'tournament projection failed');
+    }
+  }
+
+  const durationMs = Date.now() - startMs;
+  logger?.info({ processed, failed, rowsWritten, trainingSize: training.length, durationMs, dryRun },
+    'tournament-projection-snapshot complete');
+  return { processed, failed, rowsWritten, trainingSize: training.length, durationMs };
 }
