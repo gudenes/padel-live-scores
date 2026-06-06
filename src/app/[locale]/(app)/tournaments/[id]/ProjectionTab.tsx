@@ -161,7 +161,9 @@ export default function ProjectionTab({
           <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
 
           <div style={{ position: 'relative', paddingLeft: 36 }}>
-            <div style={{ position: 'absolute', left: 12, top: 16, bottom: 20, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 55%, ${GOLD} 100%)` }} />
+            {/* connector spine: a chunky gold line on a dark channel so it stays visible */}
+            <div style={{ position: 'absolute', left: 9, top: 16, bottom: 20, width: 8, background: '#0d0d0d', borderRadius: 4 }} />
+            <div style={{ position: 'absolute', left: 11, top: 16, bottom: 20, width: 4, background: GOLD, borderRadius: 2 }} />
             {vm.rounds.map((rd, i) => {
               if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return null
               const isFinal = rd.round === 'F'
