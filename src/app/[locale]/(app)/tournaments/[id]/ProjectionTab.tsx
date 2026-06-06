@@ -63,7 +63,10 @@ export default function ProjectionTab({
   const defaultPair = useMemo(() => pickDefaultProjectionPair(rows, bookmarked), [rows, bookmarked])
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const activePair = selectedPair ?? defaultPair
+  // Fall back to the default when the selected/deep-linked pair isn't in the
+  // current rows (stale ?pair= link, or a pair pruned after elimination).
+  const activePair =
+    selectedPair && rows.some((r) => r.pair_key === selectedPair) ? selectedPair : defaultPair
   const row = useMemo(() => rows.find((r) => r.pair_key === activePair) ?? null, [rows, activePair])
   const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
 

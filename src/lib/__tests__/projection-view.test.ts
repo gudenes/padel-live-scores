@@ -4,7 +4,7 @@ import type { ProjectionRow } from '@/lib/projection-types'
 import {
   buildPlayerLookup,
   pickDefaultProjectionPair,
-  roundDisoFor,
+  roundDateFor,
   buildRoadVM,
   ROUND_LABEL_KEY,
 } from '@/lib/projection-view'
@@ -34,13 +34,13 @@ describe('buildPlayerLookup', () => {
   })
 })
 
-describe('roundDisoFor', () => {
+describe('roundDateFor', () => {
   it('maps a round code to the matching round_schedule key', () => {
     const sched = { r16: '2026-06-06', qf: '2026-06-08', sf: '2026-06-09', f: '2026-06-10' }
-    expect(roundDisoFor('QF', sched)).toBe('2026-06-08')
-    expect(roundDisoFor('F', sched)).toBe('2026-06-10')
-    expect(roundDisoFor('SF', null)).toBeNull()
-    expect(roundDisoFor('QF', { sf: 'x' })).toBeNull()
+    expect(roundDateFor('QF', sched)).toBe('2026-06-08')
+    expect(roundDateFor('F', sched)).toBe('2026-06-10')
+    expect(roundDateFor('SF', null)).toBeNull()
+    expect(roundDateFor('QF', { sf: 'x' })).toBeNull()
   })
 })
 

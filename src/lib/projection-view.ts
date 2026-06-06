@@ -46,7 +46,7 @@ export function buildPlayerLookup(matches: Match[]): Map<string, Player> {
   return map
 }
 
-export function roundDisoFor(
+export function roundDateFor(
   round: ProjRound,
   schedule: Record<string, string> | null | undefined,
 ): string | null {
@@ -109,7 +109,7 @@ export function buildRoadVM(
         .map((o) => opponentVM(o, lookup))
         .sort((a, b) => b.faceProb - a.faceProb)
       const expected = opponents[0] ?? null
-      return { round: r.round, dateIso: roundDisoFor(r.round, schedule), reachProb: r.reach_prob, expected, opponents }
+      return { round: r.round, dateIso: roundDateFor(r.round, schedule), reachProb: r.reach_prob, expected, opponents }
     }),
   }
 }
