@@ -1,15 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildFrontierEntrants,
-  pickFrontierRound,
-  frontierRoundComplete,
   buildResultByMatchup,
   collapseToFrontier,
   buildDoneProjections,
   buildSnapshotRows,
   type FrontierMatchRow,
 } from '../tournament-projection-snapshot.js';
-import { matchupKey, type ProjRound, type FrontierEntrant } from '../../lib/bracket-projection.js';
+import { matchupKey, type FrontierEntrant } from '../../lib/bracket-projection.js';
 
 describe('buildResultByMatchup', () => {
   it('keys decided matches by matchup → winner pairKey, ignoring unfinished', () => {
@@ -42,56 +39,6 @@ describe('collapseToFrontier', () => {
     ])
     const out = collapseToFrontier(leaves, results)
     expect(out.map((e) => e?.pairKey)).toEqual(['a::b', 'g::h'])
-  })
-})
-
-describe('frontierRoundComplete', () => {
-  const mk = (o: Partial<FrontierMatchRow>): FrontierMatchRow => ({
-    id: 'm', widget_id_composite: null, draw_position: null, status: 'scheduled', winner_pair: null,
-    pair1_player1_id: null, pair1_player2_id: null, pair2_player1_id: null, pair2_player2_id: null,
-    pair1_seed: null, pair2_seed: null, ...o,
-  })
-
-  it('true when every match is finished or fully assigned', () => {
-    expect(frontierRoundComplete([
-      mk({ winner_pair: 1, pair1_player1_id: 'a', pair1_player2_id: 'b' }), // finished
-      mk({ pair1_player1_id: 'c', pair1_player2_id: 'd', pair2_player1_id: 'e', pair2_player2_id: 'f' }), // both pairs
-    ])).toBe(true)
-  })
-
-  it('false when an unfinished match is missing a pair (draw still loading)', () => {
-    expect(frontierRoundComplete([
-      mk({ pair1_player1_id: 'c', pair1_player2_id: 'd', pair2_player1_id: 'e', pair2_player2_id: 'f' }),
-      mk({ pair1_player1_id: 'g', pair1_player2_id: 'h' }), // only one pair, unfinished → not ready
-    ])).toBe(false)
-  })
-
-  it('false for an empty-shell match (both pairs null, unfinished)', () => {
-    expect(frontierRoundComplete([mk({})])).toBe(false)
-  })
-})
-
-describe('buildFrontierEntrants', () => {
-  it('collapses a finished frontier match to [winner, null]', () => {
-    const rows: FrontierMatchRow[] = [
-      { widget_id_composite: 'X:MD002', draw_position: null, id: 'm2', winner_pair: 1, status: 'finished',
-        pair1_player1_id: 'p1', pair1_player2_id: 'p2', pair2_player1_id: 'p3', pair2_player2_id: 'p4', pair1_seed: 1, pair2_seed: null },
-    ]
-    const e = buildFrontierEntrants(rows, 'F', new Map([['p1',1900],['p2',1900],['p3',1700],['p4',1700]]), new Map())
-    expect(e[0]?.pairKey).toBe('p1::p2')
-    expect(e[1]).toBeNull()
-  })
-})
-
-describe('pickFrontierRound', () => {
-  it('returns the earliest round with an unfinished assigned match', () => {
-    const byRound = new Map<ProjRound, FrontierMatchRow[]>([
-      ['R16', [{ id: 'a', widget_id_composite: null, draw_position: 0, status: 'finished', winner_pair: 1,
-        pair1_player1_id: 'p1', pair1_player2_id: 'p2', pair2_player1_id: 'p3', pair2_player2_id: 'p4', pair1_seed: null, pair2_seed: null }]],
-      ['QF', [{ id: 'b', widget_id_composite: null, draw_position: 0, status: 'scheduled', winner_pair: null,
-        pair1_player1_id: 'p1', pair1_player2_id: 'p2', pair2_player1_id: 'w1', pair2_player2_id: 'w2', pair1_seed: null, pair2_seed: null }]],
-    ])
-    expect(pickFrontierRound(byRound)).toBe('QF')
   })
 })
 

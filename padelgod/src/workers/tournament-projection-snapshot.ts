@@ -39,14 +39,6 @@ export function pairKeyFor(a: string, b: string): string {
   return a < b ? `${a}::${b}` : `${b}::${a}`;
 }
 
-function widgetHeapNumber(w: string | null): number | null {
-  if (!w) return null;
-  const hit = /[MW]D(\d+)$/.exec(w);
-  if (!hit?.[1]) return null;
-  const n = parseInt(hit[1], 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 function teamElo(
   a: string, b: string,
   elo: Map<string, number>,
@@ -55,55 +47,6 @@ function teamElo(
   const ea = elo.get(a) ?? fipPriorElo(players.get(a)?.ranking ?? null);
   const eb = elo.get(b) ?? fipPriorElo(players.get(b)?.ranking ?? null);
   return (ea + eb) / 2;
-}
-
-/** Bracket-ordered competitors entering the frontier round. Finished matches
- *  collapse to [winner, null] so the winner bye-advances (results respected
- *  without re-simulation). Pads to a power of two. */
-export function buildFrontierEntrants(
-  rows: FrontierMatchRow[],
-  _frontierRound: ProjRound,
-  elo: Map<string, number>,
-  players: Map<string, PlayerLite>,
-): (FrontierEntrant | null)[] {
-  const ordered = [...rows].sort((a, b) => {
-    const ha = widgetHeapNumber(a.widget_id_composite)
-    const hb = widgetHeapNumber(b.widget_id_composite)
-    if (ha != null && hb != null && ha !== hb) return ha - hb
-    if (ha != null && hb == null) return -1
-    if (ha == null && hb != null) return 1
-    const da = a.draw_position, db = b.draw_position
-    if (typeof da === 'number' && typeof db === 'number' && da !== db) return da - db
-    if (typeof da === 'number') return -1
-    if (typeof db === 'number') return 1
-    return a.id.localeCompare(b.id)
-  })
-  const slots: (FrontierEntrant | null)[] = []
-  const mkEntrant = (p1: string, p2: string): FrontierEntrant => ({
-    pairKey: pairKeyFor(p1, p2),
-    playerIds: (p1 < p2 ? [p1, p2] : [p2, p1]) as [string, string],
-    teamElo: teamElo(p1, p2, elo, players),
-  })
-  for (const m of ordered) {
-    const hasP1 = m.pair1_player1_id && m.pair1_player2_id
-    const hasP2 = m.pair2_player1_id && m.pair2_player2_id
-    const finished = m.winner_pair === 1 || m.winner_pair === 2
-    if (finished) {
-      const win = m.winner_pair === 1
-        ? (hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null)
-        : (hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null)
-      slots.push(win, null)
-    } else {
-      slots.push(
-        hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null,
-        hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null,
-      )
-    }
-  }
-  let size = 1
-  while (size < slots.length) size *= 2
-  while (slots.length < size) slots.push(null)
-  return slots
 }
 
 const HALFLIFE_DAYS = 180;
@@ -170,45 +113,6 @@ function canonRound(r: string | null | undefined): ProjRound | null {
   if (x === 'sf' || x.includes('semi')) return 'SF';
   if (x === 'f' || x.includes('final')) return 'F';
   return null;
-}
-
-function roundHasAssigned(m: FrontierMatchRow): boolean {
-  return Boolean(
-    (m.pair1_player1_id && m.pair1_player2_id) ||
-    (m.pair2_player1_id && m.pair2_player2_id),
-  );
-}
-
-/** Readiness gate for the forward-sim. A frontier round is "ready" only when
- *  every one of its matches is either finished OR has BOTH pairs assigned.
- *
- *  An unfinished, partially-assigned (or empty-shell) match at the frontier
- *  means the draw is still being populated — e.g. a P1 whose main draw isn't
- *  published yet, so only qualifying + a few R64/R32 cells are loaded.
- *  Simulating then pads the empty slots as byes and massively inflates the
- *  odds of whichever pairs happen to be loaded (a rank-58 qualifier showing
- *  "39% champion"). Deeper-round seed byes never trip this, because the caller
- *  only inspects the shallowest unfinished round (the frontier). */
-export function frontierRoundComplete(rows: FrontierMatchRow[]): boolean {
-  for (const m of rows) {
-    if (m.winner_pair === 1 || m.winner_pair === 2) continue;
-    const hasP1 = Boolean(m.pair1_player1_id && m.pair1_player2_id);
-    const hasP2 = Boolean(m.pair2_player1_id && m.pair2_player2_id);
-    if (!(hasP1 && hasP2)) return false;
-  }
-  return true;
-}
-
-/** Earliest (shallowest) main-draw round that still has an unfinished,
- *  player-assigned match. Null when the draw is fully decided / empty. */
-export function pickFrontierRound(byRound: Map<ProjRound, FrontierMatchRow[]>): ProjRound | null {
-  for (const r of PROJ_ROUND_ORDER) {
-    const ms = (byRound.get(r) ?? []).filter(roundHasAssigned)
-    if (ms.length === 0) continue
-    const anyUnfinished = ms.some((m) => !(m.winner_pair === 1 || m.winner_pair === 2))
-    if (anyUnfinished) return r
-  }
-  return null
 }
 
 export interface DoneProjection extends PairProjection {
