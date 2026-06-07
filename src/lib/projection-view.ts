@@ -120,3 +120,16 @@ export function buildRoadVM(
     }),
   }
 }
+
+/** The pair's projected finish: the DEEPEST round they're more likely than not
+ *  to reach (reachProb ≥ 0.5). Falls back to the shallowest round present when
+ *  none is favoured; null for an empty list. Used for the road's plain-language
+ *  prediction ("Projected to reach the {round}"). */
+export function projectedFinishRound(rounds: RoadRoundVM[]): ProjRound | null {
+  if (rounds.length === 0) return null
+  let deepest = rounds[0]!.round
+  for (const r of rounds) {
+    if (r.reachProb >= 0.5) deepest = r.round
+  }
+  return deepest
+}
