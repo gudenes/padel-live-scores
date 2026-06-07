@@ -1448,6 +1448,8 @@
     "topSeeds": "Cabezas de serie",
     "allPairs": "Todas las parejas",
     "back": "Atrás",
-    "seed": "serie"
+    "seed": "serie",
+    "bye": "Exento",
+    "byeAdvances": "Avanza sin jugar"
   }
 }

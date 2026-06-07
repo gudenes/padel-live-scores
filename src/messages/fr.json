@@ -1448,6 +1448,8 @@
     "topSeeds": "Têtes de série",
     "allPairs": "Toutes les paires",
     "back": "Retour",
-    "seed": "série"
+    "seed": "série",
+    "bye": "Exempt",
+    "byeAdvances": "Qualifié sans jouer"
   }
 }

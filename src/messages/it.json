@@ -1448,6 +1448,8 @@
     "topSeeds": "Teste di serie",
     "allPairs": "Tutte le coppie",
     "back": "Indietro",
-    "seed": "serie"
+    "seed": "serie",
+    "bye": "Bye",
+    "byeAdvances": "Avanza senza giocare"
   }
 }

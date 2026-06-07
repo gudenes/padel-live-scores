@@ -143,6 +143,10 @@ export default function ProjectionTab({
 
   // Road view for the selected pair, with a back-to-list control.
   const selectedSeed = selectedPair ? seedByPair.get(selectedPair) ?? null : null
+  // A seeded pair with no opponent in its first projected round byes the
+  // opening round (only seeds get first-round byes). Flag it and exclude it
+  // from the "wins to lift" count — a bye isn't a match you win.
+  const firstRoundBye = selectedSeed != null && vm.rounds.length > 0 && !vm.rounds[0].expected && vm.rounds[0].opponents.length === 0
   return (
     <div key={`proj-road-${selectedPair}`} className="projection-cascade" style={{ padding: '14px 13px 24px' }}>
       <button onClick={() => setView('list')}
@@ -187,7 +191,7 @@ export default function ProjectionTab({
                       ? t('wonTitle')
                       : vm.status === 'eliminated' && vm.eliminatedRound
                       ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
-                      : t('winsToLift', { count: vm.rounds.filter((r) => !r.expected?.result).length })}
+                      : t('winsToLift', { count: vm.rounds.filter((r, i) => !r.expected?.result && !(firstRoundBye && i === 0)).length })}
                   </span>
                   {vm.status !== 'eliminated' && <TrophyIcon size={20} color={GOLD} />}
                 </div>
@@ -231,6 +235,7 @@ export default function ProjectionTab({
               if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return null
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
+              const isByeRound = firstRoundBye && i === 0
               const result = rd.expected?.result ?? null
               // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
               // weekday/day label doesn't shift a day for users west of UTC.
@@ -241,6 +246,7 @@ export default function ProjectionTab({
               const node =
                 result === 'won' ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : result === 'lost' ? { bg: LIVE, glyph: '✗', color: '#2a0708' }
+                : isByeRound ? { bg: '#20300f', glyph: '✓', color: LIME }
                 : isFinal ? { bg: '#241a04', glyph: '🏆', color: '' }
                 : { bg: '#3a3f47', glyph: '', color: '' }
               return (
@@ -285,9 +291,17 @@ export default function ProjectionTab({
                       {isExpanded ? t('possibleOpponentsHeading') : t('morePossible', { count: rd.opponents.length - 1 })} ›
                     </button>
                   )}
-                  {!rd.expected && (
+                  {isByeRound ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(126,211,33,0.05)', border: '1px solid rgba(126,211,33,0.18)', padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ color: TEXT, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>{code}</div>
+                        <div style={{ color: SECONDARY, fontSize: 12, fontWeight: 600 }}>{t('byeAdvances')}</div>
+                      </div>
+                      <div style={{ color: LIME, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('bye')}</div>
+                    </div>
+                  ) : (!rd.expected && (
                     <div style={{ color: MUTED, fontSize: 11, padding: '6px 2px' }}>{t('byeOrUnknown')}</div>
-                  )}
+                  ))}
                 </div>
               )
             })}
