@@ -5,6 +5,7 @@ import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
+import PressButton from '@/components/PressButton'
 import { buildPlayerLookup, buildRoadVM, projectedFinishRound, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
@@ -373,15 +374,17 @@ export default function ProjectionTab({
                         const buttons = (
                           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                             {(['agree', 'disagree'] as const).map((choice) => {
-                              const on = projVote.yourVote === choice
+                              const isAgree = choice === 'agree'
                               return (
-                                <button key={choice} onClick={() => projVote.vote(choice)}
-                                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.3, cursor: 'pointer', clipPath: CHUNK_CARD,
-                                    background: on ? (choice === 'agree' ? LIME : LIVE) : 'rgba(255,255,255,0.05)',
-                                    color: on ? (choice === 'agree' ? '#06210a' : '#fff') : SECONDARY,
-                                    border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.1)'}` }}>
-                                  {choice === 'agree' ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
-                                </button>
+                                <PressButton key={choice} onClick={() => projVote.vote(choice)}
+                                  accent={isAgree ? LIME : LIVE}
+                                  skirt={isAgree ? '#558D14' : '#B22A38'}
+                                  textColor={isAgree ? '#06210a' : '#fff'}
+                                  depth={3}
+                                  clipPath={CHUNK_CARD}
+                                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                                  {isAgree ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
+                                </PressButton>
                               )
                             })}
                           </div>
