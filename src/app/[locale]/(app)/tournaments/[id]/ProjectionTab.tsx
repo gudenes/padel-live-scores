@@ -246,7 +246,7 @@ export default function ProjectionTab({
               const node =
                 result === 'won' ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : result === 'lost' ? { bg: LIVE, glyph: '✗', color: '#2a0708' }
-                : isByeRound ? { bg: '#20300f', glyph: '✓', color: LIME }
+                : isByeRound ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : isFinal ? { bg: '#241a04', glyph: '🏆', color: '' }
                 : { bg: '#3a3f47', glyph: '', color: '' }
               return (
@@ -300,7 +300,19 @@ export default function ProjectionTab({
                       <div style={{ color: LIME, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('bye')}</div>
                     </div>
                   ) : (!rd.expected && (
-                    <div style={{ color: MUTED, fontSize: 11, padding: '6px 2px' }}>{t('byeOrUnknown')}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6 }}>
+                      <div style={{ display: 'flex', flexShrink: 0 }}>
+                        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)' }} />
+                        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)', marginLeft: -11 }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                          <span style={{ color: isFinal ? GOLD : TEXT, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 }}>{code}</span>
+                          {dateLabel && <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{dateLabel}</span>}
+                        </div>
+                        <div style={{ color: MUTED, fontSize: 13, fontWeight: 700 }}>{t('byeOrUnknown')}</div>
+                      </div>
+                    </div>
                   ))}
                 </div>
               )
