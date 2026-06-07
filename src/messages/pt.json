@@ -1450,6 +1450,9 @@
     "back": "Voltar",
     "seed": "série",
     "bye": "Isento",
-    "byeAdvances": "Avança sem jogar"
+    "byeAdvances": "Avança sem jogar",
+    "winnerOfRound": "Vencedor de {round}",
+    "qualifier": "Qualificado",
+    "tbdHint": "O adversário ainda não está definido — será quem vencer o jogo anterior."
   }
 }

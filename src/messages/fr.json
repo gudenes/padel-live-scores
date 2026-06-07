@@ -1450,6 +1450,9 @@
     "back": "Retour",
     "seed": "série",
     "bye": "Exempt",
-    "byeAdvances": "Qualifié sans jouer"
+    "byeAdvances": "Qualifié sans jouer",
+    "winnerOfRound": "Vainqueur de {round}",
+    "qualifier": "Qualifié",
+    "tbdHint": "L’adversaire n’est pas encore défini — ce sera le vainqueur du match précédent."
   }
 }

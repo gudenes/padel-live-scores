@@ -110,6 +110,7 @@ export default function ProjectionTab({
   const [view, setView] = useState<'list' | 'road'>(initialPairKey ? 'road' : 'list')
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
 
@@ -236,6 +237,9 @@ export default function ProjectionTab({
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
               const isByeRound = firstRoundBye && i === 0
+              // A TBD opponent is the winner of the feeding (one-shallower)
+              // round; the very first round is fed by qualifying.
+              const tbdFeedRound = i > 0 ? vm.rounds[i - 1].round : null
               const result = rd.expected?.result ?? null
               // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
               // weekday/day label doesn't shift a day for users west of UTC.
@@ -300,19 +304,31 @@ export default function ProjectionTab({
                       <div style={{ color: LIME, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('bye')}</div>
                     </div>
                   ) : (!rd.expected && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6 }}>
-                      <div style={{ display: 'flex', flexShrink: 0 }}>
-                        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)' }} />
-                        <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)', marginLeft: -11 }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
-                          <span style={{ color: isFinal ? GOLD : TEXT, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 }}>{code}</span>
-                          {dateLabel && <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{dateLabel}</span>}
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: tbdHint.has(rd.round) ? 2 : 6 }}>
+                        <div style={{ display: 'flex', flexShrink: 0 }}>
+                          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)' }} />
+                          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)', marginLeft: -11 }} />
                         </div>
-                        <div style={{ color: MUTED, fontSize: 13, fontWeight: 700 }}>{t('byeOrUnknown')}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                            <span style={{ color: isFinal ? GOLD : TEXT, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 }}>{code}</span>
+                            {dateLabel && <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{dateLabel}</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ color: SECONDARY, fontSize: 13, fontWeight: 700 }}>{tbdFeedRound ? t('winnerOfRound', { round: tbdFeedRound }) : t('qualifier')}</span>
+                            <button
+                              onClick={() => setTbdHint((s) => { const n = new Set(s); if (n.has(rd.round)) n.delete(rd.round); else n.add(rd.round); return n })}
+                              aria-label={t('tbdHint')}
+                              style={{ width: 15, height: 15, flexShrink: 0, borderRadius: '50%', border: `1px solid ${MUTED}`, color: MUTED, fontSize: 10, fontStyle: 'italic', fontWeight: 700, lineHeight: 1, background: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                            >i</button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                      {tbdHint.has(rd.round) && (
+                        <div style={{ color: MUTED, fontSize: 10, lineHeight: 1.45, padding: '0 4px 8px 4px' }}>{t('tbdHint')}</div>
+                      )}
+                    </>
                   ))}
                 </div>
               )

@@ -1482,6 +1482,9 @@
     "back": "Back",
     "seed": "seed",
     "bye": "Bye",
-    "byeAdvances": "Advances without playing"
+    "byeAdvances": "Advances without playing",
+    "winnerOfRound": "Winner of {round}",
+    "qualifier": "Qualifier",
+    "tbdHint": "Opponent isn’t set yet — it’ll be whoever wins the feeding match."
   }
 }
