@@ -111,6 +111,7 @@ export default function ProjectionTab({
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
+  const [history, setHistory] = useState<string[]>([])  // drilled-through pairs (for ‹ Back)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
 
@@ -136,7 +137,7 @@ export default function ProjectionTab({
           rows={rows}
           seedByPair={seedByPair}
           resolvePlayer={resolvePlayer}
-          onPick={(key) => { setSelectedPair(key); setExpanded(new Set()); setView('road') }}
+          onPick={(key) => { setHistory([]); setSelectedPair(key); setExpanded(new Set()); setView('road') }}
         />
       </div>
     )
@@ -148,9 +149,27 @@ export default function ProjectionTab({
   // opening round (only seeds get first-round byes). Flag it and exclude it
   // from the "wins to lift" count — a bye isn't a match you win.
   const firstRoundBye = selectedSeed != null && vm.rounds.length > 0 && !vm.rounds[0].expected && vm.rounds[0].opponents.length === 0
+  // Tap a (resolved) opponent card to explore THAT pair's projection. Pushes
+  // the current pair onto a history stack so ‹ Back walks the drill trail.
+  const canDrill = (pk: string) => pk !== selectedPair && rows.some((r) => r.pair_key === pk)
+  const drillTo = (pk: string) => {
+    if (!canDrill(pk)) return
+    setHistory((h) => (selectedPair ? [...h, selectedPair] : h))
+    setSelectedPair(pk)
+    setExpanded(new Set())
+    setTbdHint(new Set())
+  }
   return (
     <div key={`proj-road-${selectedPair}`} className="projection-cascade" style={{ padding: '14px 13px 24px' }}>
-      <button onClick={() => setView('list')}
+      <button onClick={() => {
+          if (history.length > 0) {
+            setSelectedPair(history[history.length - 1]!)
+            setHistory((h) => h.slice(0, -1))
+            setExpanded(new Set()); setTbdHint(new Set())
+          } else {
+            setView('list')
+          }
+        }}
         style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 10px 2px' }}>
         ‹ {t('back')}
       </button>
@@ -258,8 +277,9 @@ export default function ProjectionTab({
                   <div style={{ position: 'absolute', left: isFinal ? -41 : -36, top: isFinal ? 13 : 18, width: isFinal ? 36 : 26, height: isFinal ? 36 : 26, borderRadius: '50%', background: node.bg, border: isFinal ? '3px solid #1A1A1A' : '3px solid #1A1A1A', boxShadow: isFinal ? '0 0 0 2px rgba(245,166,35,0.55)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 20 : 15, fontWeight: 900, color: node.color }}>{isFinal ? <TrophyIcon size={20} color={GOLD} /> : node.glyph}</div>
                   {shown.map((opp, j) => {
                     const played = !!opp.result
+                    const drillable = canDrill(opp.pairKey)
                     return (
-                      <div key={opp.pairKey} style={{ display: 'flex', alignItems: 'center', gap: 10, background: isFinal && j === 0 ? 'rgba(245,166,35,0.06)' : CARD, border: `1px solid ${isFinal && j === 0 ? 'rgba(245,166,35,0.22)' : 'rgba(255,255,255,0.07)'}`, padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6, opacity: j === 0 ? 1 : 0.85 }}>
+                      <div key={opp.pairKey} onClick={drillable ? () => drillTo(opp.pairKey) : undefined} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: drillable ? 'pointer' : 'default', background: isFinal && j === 0 ? 'rgba(245,166,35,0.06)' : CARD, border: `1px solid ${isFinal && j === 0 ? 'rgba(245,166,35,0.22)' : 'rgba(255,255,255,0.07)'}`, padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6, opacity: j === 0 ? 1 : 0.85 }}>
                         <PairAvatars players={opp.players} size={38} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           {j === 0 && (
@@ -286,6 +306,7 @@ export default function ProjectionTab({
                             </>
                           )}
                         </div>
+                        {drillable && <div style={{ color: '#4A6F8E', fontSize: 16, flexShrink: 0, marginLeft: -2 }}>›</div>}
                       </div>
                     )
                   })}
