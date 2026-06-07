@@ -3,11 +3,47 @@ import {
   buildFrontierEntrants,
   pickFrontierRound,
   frontierRoundComplete,
+  buildResultByMatchup,
+  collapseToFrontier,
   buildDoneProjections,
   buildSnapshotRows,
   type FrontierMatchRow,
 } from '../tournament-projection-snapshot.js';
-import type { ProjRound } from '../../lib/bracket-projection.js';
+import { matchupKey, type ProjRound, type FrontierEntrant } from '../../lib/bracket-projection.js';
+
+describe('buildResultByMatchup', () => {
+  it('keys decided matches by matchup → winner pairKey, ignoring unfinished', () => {
+    const rows: FrontierMatchRow[] = [
+      { id: 'm', widget_id_composite: null, draw_position: null, status: 'finished', winner_pair: 2,
+        pair1_player1_id: 'a', pair1_player2_id: 'b', pair2_player1_id: 'c', pair2_player2_id: 'd', pair1_seed: null, pair2_seed: null },
+      { id: 'm2', widget_id_composite: null, draw_position: null, status: 'scheduled', winner_pair: null,
+        pair1_player1_id: 'e', pair1_player2_id: 'f', pair2_player1_id: 'g', pair2_player2_id: 'h', pair1_seed: null, pair2_seed: null },
+    ]
+    const map = buildResultByMatchup(rows)
+    expect(map.get(matchupKey('a::b', 'c::d'))).toBe('c::d')
+    expect(map.size).toBe(1)
+  })
+})
+
+describe('collapseToFrontier', () => {
+  const E = (k: string): FrontierEntrant => { const [a, b] = k.split('::'); return { pairKey: k, playerIds: [a!, b!], teamElo: 1500 } }
+
+  it('pre-tournament (no results) returns the leaves unchanged', () => {
+    const leaves = [E('a::b'), E('c::d'), E('e::f'), E('g::h')]
+    expect(collapseToFrontier(leaves, new Map())).toEqual(leaves)
+  })
+
+  it('advances decided rounds to the frontier', () => {
+    const leaves = [E('a::b'), E('c::d'), E('e::f'), E('g::h')]
+    // Both first-round matches decided → frontier is the 2-team final.
+    const results = new Map<string, string>([
+      [matchupKey('a::b', 'c::d'), 'a::b'],
+      [matchupKey('e::f', 'g::h'), 'g::h'],
+    ])
+    const out = collapseToFrontier(leaves, results)
+    expect(out.map((e) => e?.pairKey)).toEqual(['a::b', 'g::h'])
+  })
+})
 
 describe('frontierRoundComplete', () => {
   const mk = (o: Partial<FrontierMatchRow>): FrontierMatchRow => ({
