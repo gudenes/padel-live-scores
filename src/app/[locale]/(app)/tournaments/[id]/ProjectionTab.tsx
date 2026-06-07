@@ -154,6 +154,10 @@ export default function ProjectionTab({
   // opening round (only seeds get first-round byes). Flag it and exclude it
   // from the "wins to lift" count — a bye isn't a match you win.
   const firstRoundBye = selectedSeed != null && vm.rounds.length > 0 && !vm.rounds[0].expected && vm.rounds[0].opponents.length === 0
+  // The round our model projects this pair to reach (deepest ≥50%). The
+  // prediction + agreement vote render inline on the timeline AT this round
+  // (only while the pair is still active).
+  const projFinish = vm.status === 'active' ? projectedFinishRound(vm.rounds) : null
   // Tap a (resolved) opponent card to explore THAT pair's projection. Pushes
   // the current pair onto a history stack so ‹ Back walks the drill trail.
   const canDrill = (pk: string) => pk !== selectedPair && rows.some((r) => r.pair_key === pk)
@@ -250,49 +254,6 @@ export default function ProjectionTab({
             </div>
           </div>
 
-          {vm.status === 'active' && (() => {
-            const pr = projectedFinishRound(vm.rounds)
-            if (!pr) return null
-            const roundLabel = t(ROUND_LABEL_KEY[pr])
-            const total = (projVote.global?.agree ?? 0) + (projVote.global?.disagree ?? 0)
-            const pct = total > 0 ? Math.round((projVote.global!.agree / total) * 100) : 0
-            return (
-              <div style={{ padding: '12px 15px', marginBottom: 16, background: CARD, border: '1px solid rgba(255,255,255,0.07)', clipPath: CHUNK_CARD }}>
-                <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
-                <div style={{ color: TEXT, fontSize: 14, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: roundLabel })}</div>
-                {voteEnabled && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
-                    <span style={{ flex: '1 1 120px', minWidth: 0, fontSize: 10.5, lineHeight: 1.3 }}>
-                      {projVote.global ? (
-                        <>
-                          <span style={{ color: TEXT, fontWeight: 700 }}>{t('fansAgree', { pct })}</span>
-                          <span style={{ color: MUTED, fontWeight: 600 }}> · {t('voteCount', { count: total.toLocaleString() })}</span>
-                        </>
-                      ) : (
-                        <span style={{ color: MUTED, fontWeight: 600 }}>{t('agreeWithCall')}</span>
-                      )}
-                    </span>
-                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                      {(['agree', 'disagree'] as const).map((choice) => {
-                        const on = projVote.yourVote === choice
-                        const voted = projVote.yourVote != null
-                        return (
-                          <button key={choice} onClick={() => projVote.vote(choice)} aria-label={t(choice)} title={t(choice)}
-                            style={{ padding: '4px 10px', fontSize: 13, lineHeight: 1, cursor: 'pointer', borderRadius: 4,
-                              background: on ? (choice === 'agree' ? LIME : LIVE) : 'rgba(255,255,255,0.05)',
-                              border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
-                              opacity: !voted || on ? 1 : 0.45, transition: 'opacity 120ms' }}>
-                            {choice === 'agree' ? '👍' : '👎'}
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-
           <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
 
           <div style={{ position: 'relative', paddingLeft: 36 }}>
@@ -314,6 +275,9 @@ export default function ProjectionTab({
               const dateLabel = dateObj ? format.dateTime(dateObj, { weekday: 'short', day: 'numeric', month: 'short' }) : null
               const code = isFinal ? t('roundF') : rd.round
               const shown = isExpanded ? rd.opponents : rd.expected ? [rd.expected] : []
+              // The model's projected-finish round shows the prediction + vote
+              // inline here (replacing the opponent card), flagged with a check.
+              const isPredictionRow = projFinish != null && rd.round === projFinish && !result && !isByeRound
               const node =
                 result === 'won' ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : result === 'lost' ? { bg: LIVE, glyph: '✗', color: '#2a0708' }
@@ -399,6 +363,52 @@ export default function ProjectionTab({
                       )}
                     </>
                   ))}
+                  {isPredictionRow && (
+                    <div style={{ background: 'rgba(126,211,33,0.06)', border: '1px solid rgba(126,211,33,0.22)', padding: '12px 14px', clipPath: CHUNK_CARD, marginBottom: 6 }}>
+                      <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
+                      <div style={{ color: TEXT, fontSize: 15, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: t(ROUND_LABEL_KEY[projFinish!]) })}</div>
+                      {voteEnabled && (() => {
+                        const total = (projVote.global?.agree ?? 0) + (projVote.global?.disagree ?? 0)
+                        const pct = total > 0 ? Math.round((projVote.global!.agree / total) * 100) : 0
+                        const buttons = (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            {(['agree', 'disagree'] as const).map((choice) => {
+                              const on = projVote.yourVote === choice
+                              return (
+                                <button key={choice} onClick={() => projVote.vote(choice)}
+                                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.3, cursor: 'pointer', clipPath: CHUNK_CARD,
+                                    background: on ? (choice === 'agree' ? LIME : LIVE) : 'rgba(255,255,255,0.05)',
+                                    color: on ? (choice === 'agree' ? '#06210a' : '#fff') : SECONDARY,
+                                    border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.1)'}` }}>
+                                  {choice === 'agree' ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )
+                        // After voting we collapse the buttons and just show the
+                        // compact tally — the user has already made their call.
+                        return projVote.global ? (
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ height: 7, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+                              <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                              <span style={{ color: TEXT, fontSize: 11, fontWeight: 700 }}>
+                                {projVote.yourVote === 'agree' ? '👍' : '👎'} {t('fansAgree', { pct })}
+                              </span>
+                              <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{t('voteCount', { count: total.toLocaleString() })}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 11 }}>
+                            <div style={{ color: MUTED, fontSize: 11, fontWeight: 600 }}>{t('agreeWithCall')}</div>
+                            {buttons}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
                 </div>
               )
             })}
