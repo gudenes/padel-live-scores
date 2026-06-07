@@ -5,7 +5,10 @@ import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
-import { buildPlayerLookup, buildRoadVM, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildPlayerLookup, buildRoadVM, projectedFinishRound, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { FLAG_KEYS } from '@/lib/feature-flags'
+import { useProjectionVote } from '@/hooks/useProjectionVote'
 import { buildSeedMap } from '@/lib/projection-picker'
 import { useProjection } from './useProjection'
 import { usePairImages } from './usePairImages'
@@ -112,6 +115,8 @@ export default function ProjectionTab({
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
   const [history, setHistory] = useState<string[]>([])  // drilled-through pairs (for ‹ Back)
+  const voteEnabled = useFeatureFlag(FLAG_KEYS.PROJECTION_VOTE_ENABLED)
+  const projVote = useProjectionVote(tournamentId, category, selectedPair)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
 
@@ -244,6 +249,59 @@ export default function ProjectionTab({
               <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={selectedPair} />
             </div>
           </div>
+
+          {vm.status === 'active' && (() => {
+            const pr = projectedFinishRound(vm.rounds)
+            if (!pr) return null
+            const roundLabel = t(ROUND_LABEL_KEY[pr])
+            const total = (projVote.global?.agree ?? 0) + (projVote.global?.disagree ?? 0)
+            const pct = total > 0 ? Math.round((projVote.global!.agree / total) * 100) : 0
+            return (
+              <div style={{ padding: '12px 15px', marginBottom: 16, background: CARD, border: '1px solid rgba(255,255,255,0.07)', clipPath: CHUNK_CARD }}>
+                <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
+                <div style={{ color: TEXT, fontSize: 14, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: roundLabel })}</div>
+                {voteEnabled && (
+                  projVote.global ? (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+                        <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                        <span style={{ color: TEXT, fontSize: 11, fontWeight: 700 }}>{t('fansAgree', { pct })}</span>
+                        <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{t('voteCount', { count: total.toLocaleString() })}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                        {(['agree', 'disagree'] as const).map((choice) => {
+                          const on = projVote.yourVote === choice
+                          return (
+                            <button key={choice} onClick={() => projVote.vote(choice)}
+                              style={{ flex: 1, padding: '7px 0', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, cursor: 'pointer', clipPath: CHUNK_CARD,
+                                background: on ? (choice === 'agree' ? LIME : LIVE) : 'rgba(255,255,255,0.05)',
+                                color: on ? (choice === 'agree' ? '#06210a' : '#2a0708') : SECONDARY,
+                                border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.1)'}` }}>
+                              {choice === 'agree' ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>{t('agreeWithCall')}</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {(['agree', 'disagree'] as const).map((choice) => (
+                          <button key={choice} onClick={() => projVote.vote(choice)}
+                            style={{ flex: 1, padding: '8px 0', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, cursor: 'pointer', clipPath: CHUNK_CARD, background: 'rgba(255,255,255,0.05)', color: TEXT, border: '1px solid rgba(255,255,255,0.1)' }}>
+                            {choice === 'agree' ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            )
+          })()}
 
           <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
 
