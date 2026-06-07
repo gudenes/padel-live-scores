@@ -5,7 +5,11 @@ import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
-import { buildPlayerLookup, buildRoadVM, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import PressButton from '@/components/PressButton'
+import { buildPlayerLookup, buildRoadVM, projectedFinishRound, predictionVerdict, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { FLAG_KEYS } from '@/lib/feature-flags'
+import { useProjectionVote } from '@/hooks/useProjectionVote'
 import { buildSeedMap } from '@/lib/projection-picker'
 import { useProjection } from './useProjection'
 import { usePairImages } from './usePairImages'
@@ -110,6 +114,10 @@ export default function ProjectionTab({
   const [view, setView] = useState<'list' | 'road'>(initialPairKey ? 'road' : 'list')
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
+  const [history, setHistory] = useState<string[]>([])  // drilled-through pairs (for ‹ Back)
+  const voteEnabled = useFeatureFlag(FLAG_KEYS.PROJECTION_VOTE_ENABLED)
+  const projVote = useProjectionVote(tournamentId, category, selectedPair)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
 
@@ -135,7 +143,7 @@ export default function ProjectionTab({
           rows={rows}
           seedByPair={seedByPair}
           resolvePlayer={resolvePlayer}
-          onPick={(key) => { setSelectedPair(key); setExpanded(new Set()); setView('road') }}
+          onPick={(key) => { setHistory([]); setSelectedPair(key); setExpanded(new Set()); setView('road') }}
         />
       </div>
     )
@@ -147,9 +155,31 @@ export default function ProjectionTab({
   // opening round (only seeds get first-round byes). Flag it and exclude it
   // from the "wins to lift" count — a bye isn't a match you win.
   const firstRoundBye = selectedSeed != null && vm.rounds.length > 0 && !vm.rounds[0].expected && vm.rounds[0].opponents.length === 0
+  // The round our model projects this pair to reach (deepest ≥50%). The
+  // prediction + agreement vote render inline on the timeline AT this round
+  // (only while the pair is still active).
+  const projFinish = vm.status === 'active' ? projectedFinishRound(vm.rounds) : null
+  // Tap a (resolved) opponent card to explore THAT pair's projection. Pushes
+  // the current pair onto a history stack so ‹ Back walks the drill trail.
+  const canDrill = (pk: string) => pk !== selectedPair && rows.some((r) => r.pair_key === pk)
+  const drillTo = (pk: string) => {
+    if (!canDrill(pk)) return
+    setHistory((h) => (selectedPair ? [...h, selectedPair] : h))
+    setSelectedPair(pk)
+    setExpanded(new Set())
+    setTbdHint(new Set())
+  }
   return (
     <div key={`proj-road-${selectedPair}`} className="projection-cascade" style={{ padding: '14px 13px 24px' }}>
-      <button onClick={() => setView('list')}
+      <button onClick={() => {
+          if (history.length > 0) {
+            setSelectedPair(history[history.length - 1]!)
+            setHistory((h) => h.slice(0, -1))
+            setExpanded(new Set()); setTbdHint(new Set())
+          } else {
+            setView('list')
+          }
+        }}
         style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 10px 2px' }}>
         ‹ {t('back')}
       </button>
@@ -225,6 +255,32 @@ export default function ProjectionTab({
             </div>
           </div>
 
+          {vm.status !== 'active' && row?.predicted_finish_round && (() => {
+            // Pair is done — grade the model's frozen pre-tournament call.
+            const verdict = predictionVerdict(row.predicted_finish_round, vm)
+            if (!verdict) return null
+            const good = verdict !== 'missed'
+            const chip = verdict === 'called' ? t('predictionCorrect') : verdict === 'better' ? t('predictionBeat') : t('predictionMiss')
+            const showReached = vm.status === 'champion' || verdict !== 'called'
+            const reachedLabel = vm.status === 'champion'
+              ? t('wonTitle')
+              : t('reachedRound', { round: t(ROUND_LABEL_KEY[(vm.eliminatedRound ?? 'F') as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
+            return (
+              <div style={{ padding: '12px 14px', marginBottom: 16, background: good ? 'rgba(126,211,33,0.06)' : 'rgba(255,70,85,0.06)', border: `1px solid ${good ? 'rgba(126,211,33,0.22)' : 'rgba(255,70,85,0.25)'}`, clipPath: CHUNK_CARD }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
+                    <div style={{ color: TEXT, fontSize: 14, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: t(ROUND_LABEL_KEY[row.predicted_finish_round]) })}</div>
+                    {showReached && <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, marginTop: 2 }}>{reachedLabel}</div>}
+                  </div>
+                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px', clipPath: CHUNK_CARD, background: good ? LIME : LIVE, color: good ? '#06210a' : '#fff', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                    <span>{good ? '✓' : '✗'}</span><span>{chip}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
 
           <div style={{ position: 'relative', paddingLeft: 36 }}>
@@ -236,6 +292,9 @@ export default function ProjectionTab({
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
               const isByeRound = firstRoundBye && i === 0
+              // A TBD opponent is the winner of the feeding (one-shallower)
+              // round; the very first round is fed by qualifying.
+              const tbdFeedRound = i > 0 ? vm.rounds[i - 1].round : null
               const result = rd.expected?.result ?? null
               // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
               // weekday/day label doesn't shift a day for users west of UTC.
@@ -243,10 +302,13 @@ export default function ProjectionTab({
               const dateLabel = dateObj ? format.dateTime(dateObj, { weekday: 'short', day: 'numeric', month: 'short' }) : null
               const code = isFinal ? t('roundF') : rd.round
               const shown = isExpanded ? rd.opponents : rd.expected ? [rd.expected] : []
+              // The model's projected-finish round shows the prediction + vote
+              // inline here (replacing the opponent card), flagged with a check.
+              const isPredictionRow = projFinish != null && rd.round === projFinish && !result && !isByeRound
               const node =
                 result === 'won' ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : result === 'lost' ? { bg: LIVE, glyph: '✗', color: '#2a0708' }
-                : isByeRound ? { bg: '#20300f', glyph: '✓', color: LIME }
+                : isByeRound ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : isFinal ? { bg: '#241a04', glyph: '🏆', color: '' }
                 : { bg: '#3a3f47', glyph: '', color: '' }
               return (
@@ -254,8 +316,9 @@ export default function ProjectionTab({
                   <div style={{ position: 'absolute', left: isFinal ? -41 : -36, top: isFinal ? 13 : 18, width: isFinal ? 36 : 26, height: isFinal ? 36 : 26, borderRadius: '50%', background: node.bg, border: isFinal ? '3px solid #1A1A1A' : '3px solid #1A1A1A', boxShadow: isFinal ? '0 0 0 2px rgba(245,166,35,0.55)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 20 : 15, fontWeight: 900, color: node.color }}>{isFinal ? <TrophyIcon size={20} color={GOLD} /> : node.glyph}</div>
                   {shown.map((opp, j) => {
                     const played = !!opp.result
+                    const drillable = canDrill(opp.pairKey)
                     return (
-                      <div key={opp.pairKey} style={{ display: 'flex', alignItems: 'center', gap: 10, background: isFinal && j === 0 ? 'rgba(245,166,35,0.06)' : CARD, border: `1px solid ${isFinal && j === 0 ? 'rgba(245,166,35,0.22)' : 'rgba(255,255,255,0.07)'}`, padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6, opacity: j === 0 ? 1 : 0.85 }}>
+                      <div key={opp.pairKey} onClick={drillable ? () => drillTo(opp.pairKey) : undefined} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: drillable ? 'pointer' : 'default', background: isFinal && j === 0 ? 'rgba(245,166,35,0.06)' : CARD, border: `1px solid ${isFinal && j === 0 ? 'rgba(245,166,35,0.22)' : 'rgba(255,255,255,0.07)'}`, padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6, opacity: j === 0 ? 1 : 0.85 }}>
                         <PairAvatars players={opp.players} size={38} />
                         <div style={{ flex: 1, minWidth: 0 }}>
                           {j === 0 && (
@@ -282,6 +345,7 @@ export default function ProjectionTab({
                             </>
                           )}
                         </div>
+                        {drillable && <div style={{ color: '#4A6F8E', fontSize: 16, flexShrink: 0, marginLeft: -2 }}>›</div>}
                       </div>
                     )
                   })}
@@ -300,8 +364,80 @@ export default function ProjectionTab({
                       <div style={{ color: LIME, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('bye')}</div>
                     </div>
                   ) : (!rd.expected && (
-                    <div style={{ color: MUTED, fontSize: 11, padding: '6px 2px' }}>{t('byeOrUnknown')}</div>
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: tbdHint.has(rd.round) ? 2 : 6 }}>
+                        <div style={{ display: 'flex', flexShrink: 0 }}>
+                          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)' }} />
+                          <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', border: '2px solid var(--bg-card)', marginLeft: -11 }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 2 }}>
+                            <span style={{ color: isFinal ? GOLD : TEXT, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4 }}>{code}</span>
+                            {dateLabel && <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{dateLabel}</span>}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ color: SECONDARY, fontSize: 13, fontWeight: 700 }}>{tbdFeedRound ? t('winnerOfRound', { round: tbdFeedRound }) : t('qualifier')}</span>
+                            <button
+                              onClick={() => setTbdHint((s) => { const n = new Set(s); if (n.has(rd.round)) n.delete(rd.round); else n.add(rd.round); return n })}
+                              aria-label={t('tbdHint')}
+                              style={{ width: 15, height: 15, flexShrink: 0, borderRadius: '50%', border: `1px solid ${MUTED}`, color: MUTED, fontSize: 10, fontStyle: 'italic', fontWeight: 700, lineHeight: 1, background: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+                            >i</button>
+                          </div>
+                        </div>
+                      </div>
+                      {tbdHint.has(rd.round) && (
+                        <div style={{ color: MUTED, fontSize: 10, lineHeight: 1.45, padding: '0 4px 8px 4px' }}>{t('tbdHint')}</div>
+                      )}
+                    </>
                   ))}
+                  {isPredictionRow && (
+                    <div style={{ background: 'rgba(126,211,33,0.06)', border: '1px solid rgba(126,211,33,0.22)', padding: '12px 14px', clipPath: CHUNK_CARD, marginBottom: 6 }}>
+                      <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
+                      <div style={{ color: TEXT, fontSize: 15, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: t(ROUND_LABEL_KEY[projFinish!]) })}</div>
+                      {voteEnabled && (() => {
+                        const total = (projVote.global?.agree ?? 0) + (projVote.global?.disagree ?? 0)
+                        const pct = total > 0 ? Math.round((projVote.global!.agree / total) * 100) : 0
+                        const buttons = (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            {(['agree', 'disagree'] as const).map((choice) => {
+                              const isAgree = choice === 'agree'
+                              return (
+                                <PressButton key={choice} onClick={() => projVote.vote(choice)}
+                                  accent={isAgree ? LIME : LIVE}
+                                  skirt={isAgree ? '#558D14' : '#B22A38'}
+                                  textColor={isAgree ? '#06210a' : '#fff'}
+                                  depth={3}
+                                  clipPath={CHUNK_CARD}
+                                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                                  {isAgree ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
+                                </PressButton>
+                              )
+                            })}
+                          </div>
+                        )
+                        // After voting we collapse the buttons and just show the
+                        // compact tally — the user has already made their call.
+                        return projVote.global ? (
+                          <div style={{ marginTop: 10 }}>
+                            <div style={{ height: 7, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+                              <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
+                              <span style={{ color: TEXT, fontSize: 11, fontWeight: 700 }}>
+                                {projVote.yourVote === 'agree' ? '👍' : '👎'} {t('fansAgree', { pct })}
+                              </span>
+                              <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{t('voteCount', { count: total.toLocaleString() })}</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: 11 }}>
+                            <div style={{ color: MUTED, fontSize: 11, fontWeight: 600 }}>{t('agreeWithCall')}</div>
+                            {buttons}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
                 </div>
               )
             })}

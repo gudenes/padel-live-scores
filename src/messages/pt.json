@@ -512,7 +512,8 @@
     "predicted": "PREVISTO",
     "finalNotPlayed": "A final ainda não foi disputada",
     "checkBackAfterTournament": "Volta a consultar após o torneio terminar",
-    "liveCountChip": "{count} AO VIVO"
+    "liveCountChip": "{count} AO VIVO",
+    "newBadge": "Novo"
   },
   "following": {
     "followPlayersAndTournaments": "Siga jogadores e torneios",
@@ -1450,6 +1451,19 @@
     "back": "Voltar",
     "seed": "série",
     "bye": "Isento",
-    "byeAdvances": "Avança sem jogar"
+    "byeAdvances": "Avança sem jogar",
+    "winnerOfRound": "Vencedor de {round}",
+    "qualifier": "Qualificado",
+    "tbdHint": "O adversário ainda não está definido — será quem vencer o jogo anterior.",
+    "ourPrediction": "A nossa previsão",
+    "projectedToReach": "Vai chegar a {round}",
+    "agreeWithCall": "Concordas?",
+    "agree": "Concordo",
+    "disagree": "Discordo",
+    "fansAgree": "{pct}% concordam com o nosso modelo",
+    "voteCount": "{count} votos",
+    "predictionCorrect": "Acertámos",
+    "predictionBeat": "Ainda melhor",
+    "predictionMiss": "Não acertámos"
   }
 }

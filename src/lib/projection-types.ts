@@ -31,5 +31,9 @@ export interface ProjectionRow {
   finalist_prob: number
   semifinal_prob: number
   rounds: ProjectionRoundJson[]
+  /** Frozen-once projected finish round (the model's pre-tournament call).
+   *  Null until the worker first captures it. Used to grade the call after the
+   *  fact via predictionVerdict(). */
+  predicted_finish_round?: ProjRound | null
   computed_at: string
 }

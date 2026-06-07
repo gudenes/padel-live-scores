@@ -15,10 +15,11 @@ export function useProjection(tournamentId: string, category: 'men' | 'women'): 
 
   useEffect(() => {
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset to loading on tournament/category change before the async fetch
     setState({ rows: [], loading: true, error: false })
     supabase
       .from('tournament_projections')
-      .select('tournament_id, category, pair_key, pair_player_ids, tournament_level, status, eliminated_round, champion_prob, finalist_prob, semifinal_prob, rounds, computed_at')
+      .select('tournament_id, category, pair_key, pair_player_ids, tournament_level, status, eliminated_round, champion_prob, finalist_prob, semifinal_prob, rounds, predicted_finish_round, computed_at')
       .eq('tournament_id', tournamentId)
       .eq('category', category)
       .order('champion_prob', { ascending: false })
