@@ -31,8 +31,11 @@ export function useProjectionVote(
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    // Clear the previous pair's vote/tally up front so a drill-through never
+    // flashes stale data on the new pair's card while its GET is in flight.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!pairKey) { setYourVote(null); setGlobal(null); return }
+    setYourVote(null); setGlobal(null)
+    if (!pairKey) return
     let cancelled = false
     setLoading(true)
     const deviceId = getDeviceId()
