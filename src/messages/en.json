@@ -1486,6 +1486,13 @@
     "byeAdvances": "Advances without playing",
     "winnerOfRound": "Winner of {round}",
     "qualifier": "Qualifier",
-    "tbdHint": "Opponent isn’t set yet — it’ll be whoever wins the feeding match."
+    "tbdHint": "Opponent isn’t set yet — it’ll be whoever wins the feeding match.",
+    "ourPrediction": "Our prediction",
+    "projectedToReach": "Projected to reach the {round}",
+    "agreeWithCall": "Do you agree with our call?",
+    "agree": "Agree",
+    "disagree": "Disagree",
+    "fansAgree": "{pct}% of fans agree with our model",
+    "voteCount": "{count} votes"
   }
 }

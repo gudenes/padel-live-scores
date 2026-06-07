@@ -1454,6 +1454,13 @@
     "byeAdvances": "Avanza senza giocare",
     "winnerOfRound": "Vincente di {round}",
     "qualifier": "Qualificato",
-    "tbdHint": "L’avversario non è ancora deciso — sarà chi vince il match precedente."
+    "tbdHint": "L’avversario non è ancora deciso — sarà chi vince il match precedente.",
+    "ourPrediction": "La nostra previsione",
+    "projectedToReach": "Arriverà a {round}",
+    "agreeWithCall": "Sei d'accordo?",
+    "agree": "D'accordo",
+    "disagree": "Non d'accordo",
+    "fansAgree": "Il {pct}% è d'accordo col nostro modello",
+    "voteCount": "{count} voti"
   }
 }
