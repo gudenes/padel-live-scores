@@ -261,43 +261,33 @@ export default function ProjectionTab({
                 <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
                 <div style={{ color: TEXT, fontSize: 14, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: roundLabel })}</div>
                 {voteEnabled && (
-                  projVote.global ? (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
-                        <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-                        <span style={{ color: TEXT, fontSize: 11, fontWeight: 700 }}>{t('fansAgree', { pct })}</span>
-                        <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{t('voteCount', { count: total.toLocaleString() })}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                        {(['agree', 'disagree'] as const).map((choice) => {
-                          const on = projVote.yourVote === choice
-                          return (
-                            <button key={choice} onClick={() => projVote.vote(choice)}
-                              style={{ flex: 1, padding: '7px 0', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, cursor: 'pointer', clipPath: CHUNK_CARD,
-                                background: on ? (choice === 'agree' ? LIME : LIVE) : 'rgba(255,255,255,0.05)',
-                                color: on ? (choice === 'agree' ? '#06210a' : '#2a0708') : SECONDARY,
-                                border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.1)'}` }}>
-                              {choice === 'agree' ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>{t('agreeWithCall')}</div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {(['agree', 'disagree'] as const).map((choice) => (
-                          <button key={choice} onClick={() => projVote.vote(choice)}
-                            style={{ flex: 1, padding: '8px 0', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, cursor: 'pointer', clipPath: CHUNK_CARD, background: 'rgba(255,255,255,0.05)', color: TEXT, border: '1px solid rgba(255,255,255,0.1)' }}>
-                            {choice === 'agree' ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 9, flexWrap: 'wrap' }}>
+                    <span style={{ flex: '1 1 120px', minWidth: 0, fontSize: 10.5, lineHeight: 1.3 }}>
+                      {projVote.global ? (
+                        <>
+                          <span style={{ color: TEXT, fontWeight: 700 }}>{t('fansAgree', { pct })}</span>
+                          <span style={{ color: MUTED, fontWeight: 600 }}> · {t('voteCount', { count: total.toLocaleString() })}</span>
+                        </>
+                      ) : (
+                        <span style={{ color: MUTED, fontWeight: 600 }}>{t('agreeWithCall')}</span>
+                      )}
+                    </span>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      {(['agree', 'disagree'] as const).map((choice) => {
+                        const on = projVote.yourVote === choice
+                        const voted = projVote.yourVote != null
+                        return (
+                          <button key={choice} onClick={() => projVote.vote(choice)} aria-label={t(choice)} title={t(choice)}
+                            style={{ padding: '4px 10px', fontSize: 13, lineHeight: 1, cursor: 'pointer', borderRadius: 4,
+                              background: on ? (choice === 'agree' ? LIME : LIVE) : 'rgba(255,255,255,0.05)',
+                              border: `1px solid ${on ? 'transparent' : 'rgba(255,255,255,0.12)'}`,
+                              opacity: !voted || on ? 1 : 0.45, transition: 'opacity 120ms' }}>
+                            {choice === 'agree' ? '👍' : '👎'}
                           </button>
-                        ))}
-                      </div>
+                        )
+                      })}
                     </div>
-                  )
+                  </div>
                 )}
               </div>
             )
