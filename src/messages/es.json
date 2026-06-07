@@ -512,7 +512,8 @@
     "predicted": "PREVISTO",
     "finalNotPlayed": "La final aún no se ha jugado",
     "checkBackAfterTournament": "Vuelve cuando termine el torneo",
-    "liveCountChip": "{count} EN VIVO"
+    "liveCountChip": "{count} EN VIVO",
+    "newBadge": "Nuevo"
   },
   "following": {
     "followPlayersAndTournaments": "Sigue a jugadores y torneos",

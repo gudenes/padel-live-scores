@@ -543,7 +543,8 @@
     "finalNotPlayed": "Final not played yet",
     "checkBackAfterTournament": "Check back after the tournament ends",
     "liveCountChip": "{count} LIVE",
-    "_liveCountChip_context": "Small live-match counter chip on the tournament header (e.g. \"3 LIVE\"). Pluralisation is implicit; if a target locale needs different plural forms, use ICU here."
+    "_liveCountChip_context": "Small live-match counter chip on the tournament header (e.g. \"3 LIVE\"). Pluralisation is implicit; if a target locale needs different plural forms, use ICU here.",
+    "newBadge": "New"
   },
   "following": {
     "followPlayersAndTournaments": "Follow players and tournaments",

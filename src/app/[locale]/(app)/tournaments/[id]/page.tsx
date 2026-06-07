@@ -258,6 +258,23 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     setPageTabState(next)
   }, [])
 
+  // "New" badge on the Projection tab — persists (localStorage) until the user
+  // opens Projection once (click or deep-link). `tabsMounted` gates it to the
+  // client so SSR/hydration stay in sync.
+  const [tabsMounted, setTabsMounted] = useState(false)
+  const [projectionSeen, setProjectionSeen] = useState(false)
+  const markProjectionSeen = useCallback(() => {
+    try { localStorage.setItem('projection_tab_seen', '1') } catch {}
+    setProjectionSeen(true)
+  }, [])
+  useEffect(() => {
+    setTabsMounted(true)
+    const seen = (() => { try { return localStorage.getItem('projection_tab_seen') === '1' } catch { return false } })()
+    // Landing directly on the Projection tab (deep link) also counts as seen.
+    if (seen || pageTab === 'projection') markProjectionSeen()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   // prefers-reduced-motion snaps between expanded and collapsed
@@ -1130,10 +1147,15 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         <SlidingInkTabs
           tabs={(['overview', ...(showProjectionTab ? ['projection'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
             key: tab,
-            label: tTournament(tab),
+            label: tab === 'projection' && tabsMounted && !projectionSeen ? (
+              <span style={{ position: 'relative' }}>
+                {tTournament(tab)}
+                <span style={{ marginLeft: 5, fontSize: 8, fontWeight: 800, letterSpacing: 0.3, color: '#06210a', background: '#7ED321', padding: '1px 4px', borderRadius: 3, verticalAlign: 'middle' }}>{tTournament('newBadge')}</span>
+              </span>
+            ) : tTournament(tab),
           }))}
           activeKey={pageTab}
-          onChange={setPageTab}
+          onChange={(key) => { if (key === 'projection') markProjectionSeen(); setPageTab(key) }}
           containerStyle={{
             position: 'sticky',
             top: `calc(env(safe-area-inset-top) + ${HERO_COLLAPSED}px)`,
