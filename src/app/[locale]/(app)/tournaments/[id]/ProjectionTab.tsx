@@ -6,7 +6,7 @@ import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
 import PressButton from '@/components/PressButton'
-import { buildPlayerLookup, buildRoadVM, projectedFinishRound, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildPlayerLookup, buildRoadVM, projectedFinishRound, predictionVerdict, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 import { useProjectionVote } from '@/hooks/useProjectionVote'
@@ -254,6 +254,32 @@ export default function ProjectionTab({
               <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={selectedPair} />
             </div>
           </div>
+
+          {vm.status !== 'active' && row?.predicted_finish_round && (() => {
+            // Pair is done — grade the model's frozen pre-tournament call.
+            const verdict = predictionVerdict(row.predicted_finish_round, vm)
+            if (!verdict) return null
+            const good = verdict !== 'missed'
+            const chip = verdict === 'called' ? t('predictionCorrect') : verdict === 'better' ? t('predictionBeat') : t('predictionMiss')
+            const showReached = vm.status === 'champion' || verdict !== 'called'
+            const reachedLabel = vm.status === 'champion'
+              ? t('wonTitle')
+              : t('reachedRound', { round: t(ROUND_LABEL_KEY[(vm.eliminatedRound ?? 'F') as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
+            return (
+              <div style={{ padding: '12px 14px', marginBottom: 16, background: good ? 'rgba(126,211,33,0.06)' : 'rgba(255,70,85,0.06)', border: `1px solid ${good ? 'rgba(126,211,33,0.22)' : 'rgba(255,70,85,0.25)'}`, clipPath: CHUNK_CARD }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
+                    <div style={{ color: TEXT, fontSize: 14, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: t(ROUND_LABEL_KEY[row.predicted_finish_round]) })}</div>
+                    {showReached && <div style={{ color: MUTED, fontSize: 11, fontWeight: 600, marginTop: 2 }}>{reachedLabel}</div>}
+                  </div>
+                  <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px', clipPath: CHUNK_CARD, background: good ? LIME : LIVE, color: good ? '#06210a' : '#fff', fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                    <span>{good ? '✓' : '✗'}</span><span>{chip}</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
 

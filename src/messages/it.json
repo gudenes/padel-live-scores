@@ -1461,6 +1461,9 @@
     "agree": "D'accordo",
     "disagree": "Non d'accordo",
     "fansAgree": "Il {pct}% è d'accordo col nostro modello",
-    "voteCount": "{count} voti"
+    "voteCount": "{count} voti",
+    "predictionCorrect": "Avevamo ragione",
+    "predictionBeat": "Persino meglio",
+    "predictionMiss": "Sbagliato"
   }
 }

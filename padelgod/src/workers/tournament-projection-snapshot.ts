@@ -103,6 +103,19 @@ export function collapseToFrontier(
   return out;
 }
 
+/** Deepest round the pair is more likely than not to reach (reach_prob ≥ 0.5),
+ *  falling back to the shallowest round present. Mirrors the Next app's
+ *  projectedFinishRound — this is the value we FREEZE pre-tournament so the UI
+ *  can later grade the call. */
+export function computeProjectedFinish(
+  rounds: { round: ProjRound; reachProb: number }[],
+): ProjRound | null {
+  if (rounds.length === 0) return null;
+  let deepest = rounds[0]!.round;
+  for (const r of rounds) if (r.reachProb >= 0.5) deepest = r.round;
+  return deepest;
+}
+
 function canonRound(r: string | null | undefined): ProjRound | null {
   if (!r) return null;
   const x = r.toLowerCase();
@@ -348,6 +361,21 @@ export async function runTournamentProjectionSnapshot(
         ]
         if (combined.length === 0) continue
 
+        // Freeze-once: read the predicted-finish round already stored (the
+        // model's first/pre-tournament call) BEFORE the delete+insert refresh
+        // below wipes it, so we can carry it forward unchanged. A pair seen
+        // here for the first time while active gets its prediction computed now.
+        const frozenFinish = new Map<string, ProjRound>()
+        {
+          const { data: frozenData } = await supabase
+            .from('tournament_projections')
+            .select('pair_key, predicted_finish_round')
+            .eq('tournament_id', t.id).eq('category', category)
+          for (const r of (frozenData ?? []) as { pair_key: string; predicted_finish_round: ProjRound | null }[]) {
+            if (r.predicted_finish_round) frozenFinish.set(r.pair_key, r.predicted_finish_round)
+          }
+        }
+
         const nameOf = (id: string) => players.get(id)?.name ?? ''
         const upsertRows = combined.map(({ proj: p, status, eliminatedRound }) => ({
           tournament_id: t.id,
@@ -357,6 +385,11 @@ export async function runTournamentProjectionSnapshot(
           tournament_level: t.level,
           status,
           eliminated_round: eliminatedRound,
+          // Frozen-once: keep the existing call, else capture the current one
+          // for a still-active pair (a done pair never seen before gets none).
+          predicted_finish_round:
+            frozenFinish.get(p.pairKey)
+            ?? (status === 'active' ? computeProjectedFinish(p.rounds) : null),
           champion_prob: p.championProb.toFixed(4),
           finalist_prob: p.finalistProb.toFixed(4),
           semifinal_prob: p.semifinalProb.toFixed(4),

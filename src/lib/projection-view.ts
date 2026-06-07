@@ -133,3 +133,35 @@ export function projectedFinishRound(rounds: RoadRoundVM[]): ProjRound | null {
   }
   return deepest
 }
+
+/** Shallow→deep round order, for comparing how far a pair got. */
+const ROUND_ORDER: ProjRound[] = ['R64', 'R32', 'R16', 'QF', 'SF', 'F']
+
+export type PredictionVerdict = 'called' | 'better' | 'missed'
+
+/** Grade the frozen pre-tournament prediction ("reach {predicted}") against the
+ *  pair's actual run. Resolves only once the pair is done — eliminated (reached
+ *  their elimination round) or champion (reached the final) — and returns null
+ *  while still active or when there's nothing to grade. Model-only: the user's
+ *  vote isn't considered.
+ *
+ *  - 'called'  — finished exactly at the predicted round
+ *  - 'better'  — went deeper than predicted
+ *  - 'missed'  — knocked out before the predicted round */
+export function predictionVerdict(
+  predicted: ProjRound | null | undefined,
+  vm: Pick<RoadVM, 'status' | 'eliminatedRound'>,
+): PredictionVerdict | null {
+  if (!predicted || vm.status === 'active') return null
+  const predIdx = ROUND_ORDER.indexOf(predicted)
+  if (predIdx < 0) return null
+  const reachedIdx =
+    vm.status === 'champion'
+      ? ROUND_ORDER.indexOf('F')
+      : vm.eliminatedRound
+      ? ROUND_ORDER.indexOf(vm.eliminatedRound as ProjRound)
+      : -1
+  if (reachedIdx < 0) return null
+  if (reachedIdx === predIdx) return 'called'
+  return reachedIdx > predIdx ? 'better' : 'missed'
+}

@@ -1493,6 +1493,9 @@
     "agree": "Agree",
     "disagree": "Disagree",
     "fansAgree": "{pct}% of fans agree with our model",
-    "voteCount": "{count} votes"
+    "voteCount": "{count} votes",
+    "predictionCorrect": "We called it",
+    "predictionBeat": "Even better",
+    "predictionMiss": "We missed this one"
   }
 }
