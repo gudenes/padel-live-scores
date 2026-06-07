@@ -1423,6 +1423,7 @@
     "eliminatedIn": "Eliminato ai {round}",
     "champions": "Campioni! 🏆",
     "out": "Fuori",
+    "eliminated": "Eliminato",
     "reachedRound": "Arrivati ai {round}",
     "wonTitle": "Ha vinto il titolo",
     "projectedPath": "Percorso previsto",
@@ -1441,6 +1442,14 @@
     "cardTitle": "Strada verso il titolo",
     "cardChampion": "{pct}% di vincere il titolo",
     "cardCta": "Vedi la strada completa",
-    "modelEstimate": "Stima del modello · non è una garanzia"
+    "modelEstimate": "Stima del modello · non è una garanzia",
+    "pickAPair": "Scegli una coppia",
+    "pickHint": "Tocca una coppia per vedere la strada verso il titolo",
+    "topSeeds": "Teste di serie",
+    "allPairs": "Tutte le coppie",
+    "back": "Indietro",
+    "seed": "serie",
+    "bye": "Bye",
+    "byeAdvances": "Avanza senza giocare"
   }
 }

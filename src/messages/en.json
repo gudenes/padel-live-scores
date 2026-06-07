@@ -1455,6 +1455,7 @@
     "eliminatedIn": "Eliminated in {round}",
     "champions": "Champions! 🏆",
     "out": "Out",
+    "eliminated": "Eliminated",
     "reachedRound": "Reached the {round}",
     "wonTitle": "Won the title",
     "projectedPath": "Projected path",
@@ -1473,6 +1474,14 @@
     "cardTitle": "Road to trophy",
     "cardChampion": "{pct}% to win the title",
     "cardCta": "See the full road",
-    "modelEstimate": "Model estimate · not a guarantee"
+    "modelEstimate": "Model estimate · not a guarantee",
+    "pickAPair": "Pick a pair",
+    "pickHint": "Tap a pair to see its road to the trophy",
+    "topSeeds": "Top seeds",
+    "allPairs": "All pairs",
+    "back": "Back",
+    "seed": "seed",
+    "bye": "Bye",
+    "byeAdvances": "Advances without playing"
   }
 }

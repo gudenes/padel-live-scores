@@ -1,11 +1,15 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
-import { useFollowing } from '@/hooks/useFollowing'
-import { buildPlayerLookup, buildRoadVM, pickDefaultProjectionPair, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { FlagImage } from '@/components/FlagImage'
+import { Link } from '@/i18n/navigation'
+import { buildPlayerLookup, buildRoadVM, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildSeedMap } from '@/lib/projection-picker'
 import { useProjection } from './useProjection'
+import { usePairImages } from './usePairImages'
+import ProjectionPickerList, { type ResolvedPlayer } from './ProjectionPickerList'
 import ChampionSparkline from './ChampionSparkline'
 
 const CARD = 'rgba(255,255,255,0.03)'
@@ -16,6 +20,7 @@ const LIME = '#7ED321'
 const GOLD = '#F5A623'
 const LIVE = '#FF4655'
 const CHUNK_CARD = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
+const BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 const MONO = 'ui-monospace, "SF Mono", monospace'
 
 function winColor(p: number): string {
@@ -35,14 +40,38 @@ function pairName(players: RoadOpponentVM['players']): string {
 
 function PairAvatars({ players, size = 24 }: { players: RoadOpponentVM['players']; size?: number }) {
   const [p1, p2] = players
-  const off = Math.round(size * 0.62) // horizontal offset for the overlap
+  // Smooth overlap like the match momentum chart: a ring matching the card
+  // surface carves a clean gap between the two faces, + a soft shadow.
+  const ring = { border: '2px solid var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }
   return (
-    <div style={{ position: 'relative', width: size + off, height: size, flexShrink: 0 }}>
-      <Avatar src={p1?.avatarUrl} alt={p1?.name ?? ''} size={size} fallback={p1?.name?.[0]} unoptimized
-        style={{ position: 'absolute', left: 0, top: 0, border: '2px solid #1A1A1A' }} />
-      <Avatar src={p2?.avatarUrl} alt={p2?.name ?? ''} size={size} fallback={p2?.name?.[0]} unoptimized
-        style={{ position: 'absolute', left: off, top: 0, border: '2px solid #1A1A1A' }} />
+    <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+      <div style={{ position: 'relative', zIndex: 2 }}>
+        <Avatar src={p1?.avatarUrl} alt={p1?.name ?? ''} size={size} fallback={p1?.name?.[0]} unoptimized style={ring} />
+      </div>
+      <div style={{ position: 'relative', zIndex: 1, marginLeft: -Math.round(size * 0.3) }}>
+        <Avatar src={p2?.avatarUrl} alt={p2?.name ?? ''} size={size} fallback={p2?.name?.[0]} unoptimized style={ring} />
+      </div>
     </div>
+  )
+}
+
+// Player image for the hero banner; links to the player profile.
+// Prefers the full-body `photoUrl`; when a player has no body shot, falls back
+// to the smaller circular headshot (then Avatar's own initial fallback) so the
+// banner degrades gracefully instead of showing a giant letter. `overlap`
+// slides this photo over the previous one (broadcast-style).
+function HeroPhoto({ id, name, photoUrl, avatarUrl, overlap }: { id: string; name: string; photoUrl: string | null; avatarUrl: string | null; overlap?: boolean }) {
+  return (
+    <Link href={`/player/${id}`} aria-label={name} style={{ display: 'block', lineHeight: 0, flexShrink: 0, marginLeft: overlap ? -38 : 0 }}>
+      {photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={photoUrl} alt={name} style={{ height: 130, width: 'auto', objectFit: 'cover', objectPosition: 'top center', display: 'block' }} />
+      ) : (
+        <div style={{ height: 130, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 12 }}>
+          <Avatar src={avatarUrl} alt={name} size={82} fallback={name?.[0]} unoptimized style={{ border: '2px solid rgba(255,255,255,0.12)' }} />
+        </div>
+      )}
+    </Link>
   )
 }
 
@@ -63,18 +92,25 @@ export default function ProjectionTab({
   const t = useTranslations('projectionTab')
   const format = useFormatter()
   const { rows, loading } = useProjection(tournamentId, category)
-  const { getFollowed } = useFollowing()
-  const bookmarked = useMemo(() => getFollowed('player'), [getFollowed])
   const lookup = useMemo(() => buildPlayerLookup(matches), [matches])
+  const seedByPair = useMemo(() => buildSeedMap(matches), [matches])
+  const playerIds = useMemo(() => [...new Set(rows.flatMap((r) => r.pair_player_ids))], [rows])
+  const images = usePairImages(playerIds)
+  const resolvePlayer = useCallback((id: string): ResolvedPlayer => {
+    const img = images.get(id)
+    const p = lookup.get(id)
+    return {
+      name: img?.name ?? p?.display_name ?? p?.name ?? '',
+      country: img?.country ?? p?.country ?? null,
+      avatarUrl: img?.avatarUrl ?? p?.avatar_url ?? null,
+      photoUrl: img?.photoUrl ?? null,
+    }
+  }, [images, lookup])
 
-  const defaultPair = useMemo(() => pickDefaultProjectionPair(rows, bookmarked), [rows, bookmarked])
+  const [view, setView] = useState<'list' | 'road'>(initialPairKey ? 'road' : 'list')
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  // Fall back to the default when the selected/deep-linked pair isn't in the
-  // current rows (stale ?pair= link, or a pair pruned after elimination).
-  const activePair =
-    selectedPair && rows.some((r) => r.pair_key === selectedPair) ? selectedPair : defaultPair
-  const row = useMemo(() => rows.find((r) => r.pair_key === activePair) ?? null, [rows, activePair])
+  const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
 
   if (loading) {
@@ -91,25 +127,60 @@ export default function ProjectionTab({
     )
   }
 
-  return (
-    <div style={{ padding: '14px 13px 24px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('tracking')}</span>
-        <select
-          value={activePair ?? ''}
-          onChange={(e) => { setSelectedPair(e.target.value); setExpanded(new Set()) }}
-          style={{ background: CARD, color: TEXT, border: '1px solid #2E2E2E', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderRadius: 0 }}
-        >
-          {rows.map((r) => {
-            const v = buildRoadVM(r, lookup, roundSchedule)
-            const suffix = v.status === 'eliminated' ? ` · ${t('out')}` : v.status === 'champion' ? ' · 🏆' : ''
-            return <option key={r.pair_key} value={r.pair_key}>{pairName(v.players)}{suffix}</option>
-          })}
-        </select>
+  // List view (default, or whenever there's no valid selected pair).
+  if (view === 'list' || !vm) {
+    return (
+      <div key="proj-list" className="page-mount-anim" style={{ padding: '14px 13px 24px' }}>
+        <ProjectionPickerList
+          rows={rows}
+          seedByPair={seedByPair}
+          resolvePlayer={resolvePlayer}
+          onPick={(key) => { setSelectedPair(key); setExpanded(new Set()); setView('road') }}
+        />
       </div>
+    )
+  }
 
-      {vm && (
-        <>
+  // Road view for the selected pair, with a back-to-list control.
+  const selectedSeed = selectedPair ? seedByPair.get(selectedPair) ?? null : null
+  // A seeded pair with no opponent in its first projected round byes the
+  // opening round (only seeds get first-round byes). Flag it and exclude it
+  // from the "wins to lift" count — a bye isn't a match you win.
+  const firstRoundBye = selectedSeed != null && vm.rounds.length > 0 && !vm.rounds[0].expected && vm.rounds[0].opponents.length === 0
+  return (
+    <div key={`proj-road-${selectedPair}`} className="projection-cascade" style={{ padding: '14px 13px 24px' }}>
+      <button onClick={() => setView('list')}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 10px 2px' }}>
+        ‹ {t('back')}
+      </button>
+      {/* Selected-team hero banner — chunky broadcast-style lower-third.
+          Photos + names link to each player's profile. Seed shown as #N. */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'stretch', minHeight: 130, overflow: 'hidden', marginBottom: 16, background: 'linear-gradient(135deg, #0d0d0d 0%, #1e1e1e 58%, #131313 100%)', border: '1px solid rgba(255,255,255,0.08)', clipPath: 'polygon(0 7%, 99% 0, 100% 93%, 1% 100%)' }}>
+        <div style={{ position: 'absolute', left: 30, top: '50%', width: 175, height: 175, transform: 'translateY(-50%)', background: 'radial-gradient(circle, rgba(126,211,33,0.22), transparent 68%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'relative', zIndex: 1, width: 122, flexShrink: 0, display: 'flex', alignItems: 'flex-end' }}>
+          {vm.players.map((p, i) => {
+            const r = resolvePlayer(p.id)
+            return <HeroPhoto key={p.id} id={p.id} name={p.name} photoUrl={r.photoUrl} avatarUrl={r.avatarUrl ?? p.avatarUrl} overlap={i > 0} />
+          })}
+        </div>
+        <div style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, padding: '12px 11px 12px 6px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 7 }}>
+          {selectedSeed != null && (
+            <div style={{ fontFamily: MONO, fontSize: 30, fontWeight: 900, color: TEXT, lineHeight: 0.9 }}>#{selectedSeed}</div>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: selectedSeed != null ? 4 : 0 }}>
+            {vm.players.map((p) => {
+              const r = resolvePlayer(p.id)
+              return (
+                <Link key={p.id} href={`/player/${p.id}`} style={{ display: 'flex', alignItems: 'center', gap: 9, color: TEXT, textDecoration: 'none', minWidth: 0 }}>
+                  <FlagImage country={r.country ?? p.country} size={21} style={{ clipPath: BADGE, boxShadow: '0 1px 3px rgba(0,0,0,0.5)' }} />
+                  <span style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{p.name}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+      <>
           <div style={{ padding: '13px 15px', marginBottom: 16, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
@@ -120,44 +191,51 @@ export default function ProjectionTab({
                       ? t('wonTitle')
                       : vm.status === 'eliminated' && vm.eliminatedRound
                       ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
-                      : t('winsToLift', { count: vm.rounds.filter((r) => !r.expected?.result).length })}
+                      : t('winsToLift', { count: vm.rounds.filter((r, i) => !r.expected?.result && !(firstRoundBye && i === 0)).length })}
                   </span>
                   {vm.status !== 'eliminated' && <TrophyIcon size={20} color={GOLD} />}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
-                  <span style={{ color: LIME, fontWeight: 800, fontSize: 28, lineHeight: 1, fontFamily: MONO }}>{Math.round(vm.championProb * 100)}</span>
-                  <span style={{ color: LIME, fontWeight: 800, fontSize: 14, fontFamily: MONO }}>%</span>
-                </div>
-                <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
-                {vm.status === 'eliminated' && vm.eliminatedRound && (
-                  <div style={{ color: LIVE, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 3 }}>
-                    {t('eliminatedIn', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })}
-                  </div>
-                )}
-                {vm.status === 'champion' && (
-                  <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
+                {vm.status === 'eliminated' ? (
+                  // Eliminated: a 0% champion number is noise — just say it.
+                  <div style={{ color: LIVE, fontSize: 16, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('eliminated')}</div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+                      <span style={{ color: LIME, fontWeight: 800, fontSize: 28, lineHeight: 1, fontFamily: MONO }}>{Math.round(vm.championProb * 100)}</span>
+                      <span style={{ color: LIME, fontWeight: 800, fontSize: 14, fontFamily: MONO }}>%</span>
+                    </div>
+                    <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
+                    {vm.status === 'champion' && (
+                      <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
-            {/* champion-probability bar */}
-            <div style={{ marginTop: 10, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
-              <div style={{ width: `${Math.max(2, Math.round(vm.championProb * 100))}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
-            </div>
+            {/* champion-probability bar (not for eliminated pairs — it'd be 0%) */}
+            {vm.status !== 'eliminated' && (
+              <div style={{ marginTop: 10, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+                <div style={{ width: `${Math.max(2, Math.round(vm.championProb * 100))}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
+              </div>
+            )}
             <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
-              <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={activePair} />
+              <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={selectedPair} />
             </div>
           </div>
 
           <div style={{ color: SECONDARY, fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.8, margin: '2px 0 12px 2px' }}>{t('projectedPath')}</div>
 
           <div style={{ position: 'relative', paddingLeft: 36 }}>
-            <div style={{ position: 'absolute', left: 12, top: 16, bottom: 20, width: 2, background: `linear-gradient(${LIME} 0%, ${GOLD} 55%, ${GOLD} 100%)` }} />
+            {/* connector spine: a chunky gold line on a dark channel so it stays visible */}
+            <div style={{ position: 'absolute', left: 9, top: 16, bottom: 20, width: 8, background: '#0d0d0d', borderRadius: 4 }} />
+            <div style={{ position: 'absolute', left: 11, top: 16, bottom: 20, width: 4, background: GOLD, borderRadius: 2 }} />
             {vm.rounds.map((rd, i) => {
               if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return null
               const isFinal = rd.round === 'F'
               const isExpanded = expanded.has(rd.round)
+              const isByeRound = firstRoundBye && i === 0
               const result = rd.expected?.result ?? null
               // Anchor date-only strings ("YYYY-MM-DD") at local noon so the
               // weekday/day label doesn't shift a day for users west of UTC.
@@ -168,11 +246,12 @@ export default function ProjectionTab({
               const node =
                 result === 'won' ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : result === 'lost' ? { bg: LIVE, glyph: '✗', color: '#2a0708' }
-                : isFinal ? { bg: GOLD, glyph: '🏆', color: '' }
+                : isByeRound ? { bg: '#20300f', glyph: '✓', color: LIME }
+                : isFinal ? { bg: '#241a04', glyph: '🏆', color: '' }
                 : { bg: '#3a3f47', glyph: '', color: '' }
               return (
                 <div key={rd.round} style={{ position: 'relative', marginBottom: i === vm.rounds.length - 1 ? 0 : 8 }}>
-                  <div style={{ position: 'absolute', left: isFinal ? -41 : -36, top: isFinal ? 13 : 18, width: isFinal ? 36 : 26, height: isFinal ? 36 : 26, borderRadius: '50%', background: node.bg, border: isFinal ? '3px solid #1A1A1A' : '3px solid #1A1A1A', boxShadow: isFinal ? '0 0 0 2px rgba(245,166,35,0.4)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 20 : 15, fontWeight: 900, color: node.color }}>{isFinal ? <TrophyIcon size={20} color="#3a2800" /> : node.glyph}</div>
+                  <div style={{ position: 'absolute', left: isFinal ? -41 : -36, top: isFinal ? 13 : 18, width: isFinal ? 36 : 26, height: isFinal ? 36 : 26, borderRadius: '50%', background: node.bg, border: isFinal ? '3px solid #1A1A1A' : '3px solid #1A1A1A', boxShadow: isFinal ? '0 0 0 2px rgba(245,166,35,0.55)' : undefined, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: isFinal ? 20 : 15, fontWeight: 900, color: node.color }}>{isFinal ? <TrophyIcon size={20} color={GOLD} /> : node.glyph}</div>
                   {shown.map((opp, j) => {
                     const played = !!opp.result
                     return (
@@ -212,9 +291,17 @@ export default function ProjectionTab({
                       {isExpanded ? t('possibleOpponentsHeading') : t('morePossible', { count: rd.opponents.length - 1 })} ›
                     </button>
                   )}
-                  {!rd.expected && (
+                  {isByeRound ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(126,211,33,0.05)', border: '1px solid rgba(126,211,33,0.18)', padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ color: TEXT, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>{code}</div>
+                        <div style={{ color: SECONDARY, fontSize: 12, fontWeight: 600 }}>{t('byeAdvances')}</div>
+                      </div>
+                      <div style={{ color: LIME, fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('bye')}</div>
+                    </div>
+                  ) : (!rd.expected && (
                     <div style={{ color: MUTED, fontSize: 11, padding: '6px 2px' }}>{t('byeOrUnknown')}</div>
-                  )}
+                  ))}
                 </div>
               )
             })}
@@ -222,7 +309,6 @@ export default function ProjectionTab({
 
           <div style={{ marginTop: 16, textAlign: 'center', color: MUTED, fontSize: 9, fontWeight: 600 }}>{t('modelEstimate')}</div>
         </>
-      )}
     </div>
   )
 }

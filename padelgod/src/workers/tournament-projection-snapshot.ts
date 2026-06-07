@@ -13,7 +13,8 @@ import {
   trainElo, MODEL_VERSION,
   type TrainingMatch, type PlayerSnapshot,
 } from '../lib/elo-model.js';
-import { projectPairs, PROJ_ROUND_ORDER, type PairProjection, type PairRound } from '../lib/bracket-projection.js';
+import { projectPairs, matchupKey, PROJ_ROUND_ORDER, type PairProjection, type PairRound } from '../lib/bracket-projection.js';
+import { buildFirstRoundLeaves } from '../lib/bracket-builder.js';
 import { paginatedSelect } from '../lib/db-paginate.js';
 
 export interface FrontierMatchRow {
@@ -38,14 +39,6 @@ export function pairKeyFor(a: string, b: string): string {
   return a < b ? `${a}::${b}` : `${b}::${a}`;
 }
 
-function widgetHeapNumber(w: string | null): number | null {
-  if (!w) return null;
-  const hit = /[MW]D(\d+)$/.exec(w);
-  if (!hit?.[1]) return null;
-  const n = parseInt(hit[1], 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 function teamElo(
   a: string, b: string,
   elo: Map<string, number>,
@@ -56,57 +49,59 @@ function teamElo(
   return (ea + eb) / 2;
 }
 
-/** Bracket-ordered competitors entering the frontier round. Finished matches
- *  collapse to [winner, null] so the winner bye-advances (results respected
- *  without re-simulation). Pads to a power of two. */
-export function buildFrontierEntrants(
-  rows: FrontierMatchRow[],
-  _frontierRound: ProjRound,
-  elo: Map<string, number>,
-  players: Map<string, PlayerLite>,
-): (FrontierEntrant | null)[] {
-  const ordered = [...rows].sort((a, b) => {
-    const ha = widgetHeapNumber(a.widget_id_composite)
-    const hb = widgetHeapNumber(b.widget_id_composite)
-    if (ha != null && hb != null && ha !== hb) return ha - hb
-    if (ha != null && hb == null) return -1
-    if (ha == null && hb != null) return 1
-    const da = a.draw_position, db = b.draw_position
-    if (typeof da === 'number' && typeof db === 'number' && da !== db) return da - db
-    if (typeof da === 'number') return -1
-    if (typeof db === 'number') return 1
-    return a.id.localeCompare(b.id)
-  })
-  const slots: (FrontierEntrant | null)[] = []
-  const mkEntrant = (p1: string, p2: string): FrontierEntrant => ({
-    pairKey: pairKeyFor(p1, p2),
-    playerIds: (p1 < p2 ? [p1, p2] : [p2, p1]) as [string, string],
-    teamElo: teamElo(p1, p2, elo, players),
-  })
-  for (const m of ordered) {
-    const hasP1 = m.pair1_player1_id && m.pair1_player2_id
-    const hasP2 = m.pair2_player1_id && m.pair2_player2_id
-    const finished = m.winner_pair === 1 || m.winner_pair === 2
-    if (finished) {
-      const win = m.winner_pair === 1
-        ? (hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null)
-        : (hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null)
-      slots.push(win, null)
-    } else {
-      slots.push(
-        hasP1 ? mkEntrant(m.pair1_player1_id!, m.pair1_player2_id!) : null,
-        hasP2 ? mkEntrant(m.pair2_player1_id!, m.pair2_player2_id!) : null,
-      )
-    }
-  }
-  let size = 1
-  while (size < slots.length) size *= 2
-  while (slots.length < size) slots.push(null)
-  return slots
-}
-
 const HALFLIFE_DAYS = 180;
 const MC_RUNS = 20_000;
+
+/** matchupKey(pairKeyA, pairKeyB) → winner pairKey, from decided matches.
+ *  Lets the bracket leaves collapse played matchups deterministically. */
+export function buildResultByMatchup(rows: FrontierMatchRow[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of rows) {
+    if (!(m.winner_pair === 1 || m.winner_pair === 2)) continue;
+    const { pair1_player1_id: a1, pair1_player2_id: a2, pair2_player1_id: b1, pair2_player2_id: b2 } = m;
+    if (!(a1 && a2 && b1 && b2)) continue;
+    const pkA = pairKeyFor(a1, a2), pkB = pairKeyFor(b1, b2);
+    out.set(matchupKey(pkA, pkB), m.winner_pair === 1 ? pkA : pkB);
+  }
+  return out;
+}
+
+/** Collapse the full first-round leaves forward through every already-decided
+ *  round (winner advances, byes carry through) until the shallowest round with
+ *  an undecided real match — the frontier. Decided matches in the frontier
+ *  round collapse to [winner, null]. The returned entrants feed projectPairs,
+ *  which then simulates only what hasn't happened yet (results respected). */
+export function collapseToFrontier(
+  leaves: (FrontierEntrant | null)[],
+  resultByMatchup: Map<string, string>,
+): (FrontierEntrant | null)[] {
+  const decided = (a: FrontierEntrant | null, b: FrontierEntrant | null) =>
+    Boolean(a && b && resultByMatchup.has(matchupKey(a.pairKey, b.pairKey)));
+  const winnerOf = (a: FrontierEntrant, b: FrontierEntrant): FrontierEntrant =>
+    resultByMatchup.get(matchupKey(a.pairKey, b.pairKey)) === a.pairKey ? a : b;
+
+  let level = leaves;
+  while (level.length > 1) {
+    let hasUndecided = false;
+    for (let i = 0; i < level.length; i += 2) {
+      if (level[i] && level[i + 1] && !decided(level[i]!, level[i + 1]!)) { hasUndecided = true; break; }
+    }
+    if (hasUndecided) break;
+    const next: (FrontierEntrant | null)[] = [];
+    for (let i = 0; i < level.length; i += 2) {
+      const a = level[i] ?? null, b = level[i + 1] ?? null;
+      next.push(a && b ? winnerOf(a, b) : (a ?? b));
+    }
+    level = next;
+  }
+  const out: (FrontierEntrant | null)[] = [];
+  for (let i = 0; i < level.length; i += 2) {
+    const a = level[i] ?? null, b = level[i + 1] ?? null;
+    if (a && b && decided(a, b)) out.push(winnerOf(a, b), null);
+    else out.push(a, b);
+  }
+  return out;
+}
 
 function canonRound(r: string | null | undefined): ProjRound | null {
   if (!r) return null;
@@ -118,25 +113,6 @@ function canonRound(r: string | null | undefined): ProjRound | null {
   if (x === 'sf' || x.includes('semi')) return 'SF';
   if (x === 'f' || x.includes('final')) return 'F';
   return null;
-}
-
-function roundHasAssigned(m: FrontierMatchRow): boolean {
-  return Boolean(
-    (m.pair1_player1_id && m.pair1_player2_id) ||
-    (m.pair2_player1_id && m.pair2_player2_id),
-  );
-}
-
-/** Earliest (shallowest) main-draw round that still has an unfinished,
- *  player-assigned match. Null when the draw is fully decided / empty. */
-export function pickFrontierRound(byRound: Map<ProjRound, FrontierMatchRow[]>): ProjRound | null {
-  for (const r of PROJ_ROUND_ORDER) {
-    const ms = (byRound.get(r) ?? []).filter(roundHasAssigned)
-    if (ms.length === 0) continue
-    const anyUnfinished = ms.some((m) => !(m.winner_pair === 1 || m.winner_pair === 2))
-    if (anyUnfinished) return r
-  }
-  return null
 }
 
 export interface DoneProjection extends PairProjection {
@@ -326,18 +302,21 @@ export async function runTournamentProjectionSnapshot(
         const rows = (matchData ?? []) as Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>;
         if (rows.length === 0) continue;
 
-        const byRound = new Map<ProjRound, FrontierMatchRow[]>();
-        for (const m of rows) {
-          const r = canonRound(m.round_canonical ?? m.round);
-          if (!r) continue;
-          (byRound.get(r) ?? byRound.set(r, []).get(r)!).push(m);
-        }
-        // Path 1 — active pairs via the frontier forward-sim (correct on
-        // irregular/bye draws; sizes the bracket to the current frontier).
-        const frontier = pickFrontierRound(byRound)
+        // Path 1 — active pairs. Reconstruct the full bracket from `matches`
+        // via the mirrored bracket-builder (same source as the Draw tab),
+        // INCLUDING seeds that bye the first round, then collapse already-
+        // decided rounds to the frontier and forward-sim the rest. Only project
+        // once the draw is substantially loaded (≥ half the leaf slots filled),
+        // so a half-published draw doesn't inflate the loaded pairs' odds.
+        const mkEntrant = (a: string, b: string): FrontierEntrant => ({
+          pairKey: pairKeyFor(a, b),
+          playerIds: (a < b ? [a, b] : [b, a]) as [string, string],
+          teamElo: teamElo(a, b, train.elo, players),
+        })
+        const leaves = buildFirstRoundLeaves(rows, (a, b) => mkEntrant(a, b))
         let activeProjections = new Map<string, PairProjection>()
-        if (frontier) {
-          const entrants = buildFrontierEntrants(byRound.get(frontier)!, frontier, train.elo, players)
+        if (leaves.filter(Boolean).length >= leaves.length / 2) {
+          const entrants = collapseToFrontier(leaves, buildResultByMatchup(rows))
           if (entrants.filter(Boolean).length >= 2) {
             activeProjections = projectPairs({ entrants, runs: MC_RUNS })
           }
