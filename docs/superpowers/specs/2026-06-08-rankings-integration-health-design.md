@@ -66,28 +66,29 @@ GET /api/internal/ops-status
 
 ### Component 1 — pure verdict function
 
-New module: `apps/ops/src/app/(app)/system/_shared/rankings-health.ts`
+New module: `apps/ops/src/lib/rankings-health.ts` (pure logic lives in
+`src/lib`, where apps/ops keeps its unit-tested helpers + `__tests__/`).
 
 ```ts
 export interface RankingsBuckets {
   official_men: number
   official_women: number
-  official: number   // = men + women, convenience
   race_men: number
   race_women: number
-  race: number
 }
 
 export interface RankingsHealthInput {
-  now: Date                       // UTC
-  latestRankingDate: string | null  // 'YYYY-MM-DD' of the most recent snapshot week
-  maxCapturedAt: string | null      // ISO timestamp of the most recent snapshot row
-  buckets: RankingsBuckets          // counts for the latest snapshot week
+  now: Date                        // UTC
+  latestYear: number | null        // canonical snapshot key (NOT ranking_date)
+  latestWeek: number | null        // canonical snapshot key
+  latestRankingDate: string | null // display only ('YYYY-MM-DD', mixed provenance)
+  maxCapturedAt: string | null     // ISO timestamp of the most recent snapshot row
+  buckets: RankingsBuckets         // counts for the latest snapshot (year, week)
 }
 
 export interface RankingsHealthResult {
   status: 'ok' | 'partial' | 'error' | 'unknown'
-  started_at: string | null       // = maxCapturedAt (so the tile shows "last seen")
+  started_at: string | null        // = maxCapturedAt (so the tile shows "last seen")
   meta: Record<string, unknown>
   error_message: string | null
 }
@@ -95,20 +96,32 @@ export interface RankingsHealthResult {
 export function assessRankingsHealth(input: RankingsHealthInput): RankingsHealthResult
 ```
 
+**Why `(year, week)` and not `ranking_date`:** the worker builds each snapshot's
+`(year, week)` via `isoYearWeek(new Date(rankingDate))` in
+[player-rankings.ts](padelgod/src/workers/player-rankings.ts) — that's the
+canonical key (`onConflict: 'player_id,type,year,week'`). The `ranking_date`
+column has mixed provenance across code generations (some rows hold the FIP
+Sunday date, newer rows hold the ISO Monday), so it is unreliable for math and
+used for display only. To compare apples-to-apples, the health module **mirrors
+two worker functions byte-for-byte** — `isoYearWeek(date)` (to derive the current
+ISO `(year, week)` from `now`) and `weekToDate(year, week)` (to convert any
+`(year, week)` to its ISO-Monday for week-diffing). Copying guarantees the
+"current week" label matches whatever the worker would store today.
+
 **Verdict logic (grace until mid-week):**
 
 Let:
-- `currentMonday` = Monday (UTC) of the ISO week containing `now`
-- `weeksBehind` = `round((currentMonday − mondayOf(latestRankingDate)) / 7d)`,
-  clamped at ≥ 0. Computed from real dates (Mondays) to avoid ISO
-  year-boundary arithmetic.
-- `captureAgeDays` = `(now − maxCapturedAt) / 1d`
+- `current = isoYearWeek(now)` → `{ year, week }` (mirrored worker fn)
+- `weeksBehind = round((weekToDate(current.year, current.week) −
+  weekToDate(latestYear, latestWeek)) / 7d)`, clamped at ≥ 0. `weekToDate`
+  yields real ISO-Mondays, so this is year-boundary-safe.
+- `captureAgeDays = (now − maxCapturedAt) / 1d`
 - `dow` = `now` UTC day-of-week (1 = Mon … 7 = Sun)
 
 Rules, in order:
 
-1. `latestRankingDate == null || maxCapturedAt == null` → **unknown**
-   ("No ranking snapshots found").
+1. `latestYear == null || latestWeek == null || maxCapturedAt == null` →
+   **unknown** ("No ranking snapshots found").
 2. `captureAgeDays > 9` → **error**
    ("No ranking snapshot in {N} days — worker may be down").
 3. `weeksBehind <= 0` (current ISO week captured):
@@ -120,12 +133,12 @@ Rules, in order:
 5. otherwise → **error**
    ("Current ISO week {current} not captured — latest is {latest}, {N} days into the week").
 
-**Meta** (always populated): `latest_week` (`"YYYY-Www"`), `current_week`,
-`weeks_behind`, `ranking_date`, `last_capture`, `official_men`,
+**Meta** (always populated): `latest_week` (`"YYYY-Www"`), `current_week`
+(`"YYYY-Www"`), `weeks_behind`, `ranking_date`, `last_capture`, `official_men`,
 `official_women`, `race_men`, `race_women`.
 
-ISO week label (`"YYYY-Www"`) is derived inline from a date — small local helper
-in this module (apps/ops is an independent package with no shared ISO-week util).
+ISO week label (`"YYYY-Www"`) is `${year}-W${String(week).padStart(2,'0')}`,
+formatted inline in this module.
 
 ### Component 2 — `fetchRankingsHealth(supabase)`
 
@@ -133,13 +146,16 @@ In `apps/ops/src/app/api/internal/ops-status/route.ts`, alongside the existing
 `fetchHealth` / `fetchFreshness` / etc.
 
 Queries against `player_ranking_snapshots`:
-1. Latest week: `select year, week, ranking_date order by year desc, week desc limit 1`.
-2. `max(captured_at)` across the table.
-3. Per-bucket counts **for that latest week**: count rows grouped by
-   `(type, gender)` where `(year, week)` = latest. Four buckets:
-   `official/men`, `official/women`, `race/men`, `race/women`.
+1. Latest `(year, week)`: `select year, week, ranking_date order by year desc,
+   week desc limit 1` → `maybeSingle()`.
+2. `max(captured_at)`: `select captured_at order by captured_at desc limit 1` →
+   `maybeSingle()`.
+3. Per-bucket counts **for that latest `(year, week)`**: four head-count queries
+   filtered by `(year, week, type, gender)` — `official/men`, `official/women`,
+   `race/men`, `race/women`.
 
-Calls `assessRankingsHealth(...)`, returns the `HealthEntry`-shaped object.
+All six reads run in `Promise.all`. Calls `assessRankingsHealth(...)`, returns
+the `HealthEntry`-shaped object.
 Wired into the route's `Promise.all`; result merged as
 `health['cron:rankings']`. `cron:rankings` removed from `fetchHealth`'s
 `sources` array.
@@ -201,9 +217,14 @@ query.
 
 ## Files touched
 
-- `apps/ops/src/app/(app)/system/_shared/rankings-health.ts` (new — pure fn)
-- `apps/ops/src/app/(app)/system/_shared/rankings-health.test.ts` (new — tests)
+- `apps/ops/src/lib/rankings-health.ts` (new — pure fn + mirrored `isoYearWeek`
+  / `weekToDate`)
+- `apps/ops/src/lib/__tests__/rankings-health.test.ts` (new — tests)
 - `apps/ops/src/app/api/internal/ops-status/route.ts` (add `fetchRankingsHealth`,
   drop `cron:rankings` from `fetchHealth` sources, wire into `Promise.all`)
 - `apps/ops/src/app/(app)/system/_shared/ops-status-types.ts` (tile metadata +
   `metaSummary`)
+
+`fetchCronStats`'s historical `cron:rankings` datapoint case (driven by old
+`ops_events` rows from the retired Vercel cron) is left as-is — harmless, and the
+tile reads `health`, not `cron_stats`.
