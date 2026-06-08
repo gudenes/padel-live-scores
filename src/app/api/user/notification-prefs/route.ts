@@ -34,6 +34,10 @@ export async function GET() {
   const plan = ((data?.plan as Plan | undefined) ?? 'free')
   const userIsPro = isPro({ plan, plan_expires_at: (data?.plan_expires_at as string | null) ?? null })
 
+  // Per-category tier/group/locked metadata is part of the API contract for
+  // clients. The settings page currently re-derives `locked` from CATEGORY_META
+  // + `plan` for render simplicity; `meta` is the canonical server-resolved form
+  // (used by future consumers / non-bundled clients). Keep the two in sync.
   const meta = Object.fromEntries(
     KNOWN_CATEGORIES.map((c) => [c, {
       tier: CATEGORY_META[c].tier,

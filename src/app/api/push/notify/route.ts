@@ -36,7 +36,7 @@ import { createClient } from '@supabase/supabase-js'
 import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
 import { resolvePrefs, shouldDeliverToRecipient, type ChannelPrefs, type NotificationCategory } from '@/lib/notification-categories'
-import { isPro } from '@/lib/entitlements'
+import { isPro, type Plan } from '@/lib/entitlements'
 import { resolveNotificationIcon } from '@/lib/notification-icon'
 
 const supabase = createClient(
@@ -370,7 +370,7 @@ export async function POST(request: Request) {
     planByUser.set(
       row.id as string,
       isPro({
-        plan: (row as { plan?: 'free' | 'pro' }).plan ?? 'free',
+        plan: (row as { plan?: Plan }).plan ?? 'free',
         plan_expires_at: (row as { plan_expires_at?: string | null }).plan_expires_at ?? null,
       }),
     )
