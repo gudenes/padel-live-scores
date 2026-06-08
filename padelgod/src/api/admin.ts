@@ -55,6 +55,9 @@ export function registerAdminRoutes(app: FastifyInstance, opts: AdminRouteOption
         supabase: opts.supabase,
         httpClient: opts.httpClient,
         logger: childLogger,
+        // Admin triggers ship event notifications dark — no notify deps are
+        // passed here and the master switch is off, so event senders no-op.
+        eventsEnabled: false,
         fipDrawLinkerDryRun: opts.fipDrawLinkerDryRun,
       });
       const durationMs = Date.now() - startedAt;

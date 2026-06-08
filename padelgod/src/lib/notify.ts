@@ -113,7 +113,7 @@ export function notifyLiveTransition(
 
 export interface NotifyEventPayload {
   category: string;
-  entityType: 'player' | 'tournament';
+  entityType: 'player' | 'tournament' | 'match';
   entityId: string;
   title: string;
   body: string;

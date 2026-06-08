@@ -142,6 +142,16 @@ export interface SchedulerDeps {
    */
   notify?: import('./lib/notify.js').NotifyDeps;
   /**
+   * Free event-notification senders master switch (premium notifications
+   * Plan 2B). When false (default), the event-sender workers
+   * (fip-oop-writer's match_scheduled, plus Tasks 5-7) skip their notify
+   * dispatch entirely — the whole feature ships dark. Populated in
+   * index.ts from `ENABLE_EVENT_NOTIFICATIONS`. Paired with `notify`:
+   * a sender fires only when BOTH `eventsEnabled` is true AND `notify`
+   * is configured (NOTIFY_BASE_URL + CRON_SECRET present).
+   */
+  eventsEnabled: boolean;
+  /**
    * Dry-run flag for the fip-draw-linker worker. When true (default),
    * the worker proposes and logs linkages without writing to
    * entity_external_ids. Threaded via deps (not an option to
@@ -282,6 +292,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // Same admin-trigger dry-run-SAFE default as populator. Scheduled
       // cron entry threads the real env flag via closure.
       dryRun: true,
+      notify: deps.notify,
+      eventsEnabled: deps.eventsEnabled,
     });
     case 'fip-draw-reconciler':  return (deps) => runFipDrawReconciler({
       supabase: deps.supabase,
@@ -565,6 +577,8 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipOopWriterDryRun,
+          notify: deps.notify,
+          eventsEnabled: deps.eventsEnabled,
         });
       },
     });
