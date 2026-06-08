@@ -10,7 +10,13 @@
 
 **Spec:** `docs/superpowers/specs/2026-06-08-premium-notifications-design.md`
 
-**Conventions reminder (from AGENTS.md):** This Next.js has breaking changes vs training data — when touching routing/pages, skim `node_modules/next/dist/docs/` first. Migrations are applied via the `pg` driver / `DATABASE_URL` (NOT `supabase db push` — the repo has migration drift; see user memory `repo-migration-apply-method`).
+**Conventions reminder (from AGENTS.md):** This Next.js has breaking changes vs training data — when touching routing/pages, skim `node_modules/next/dist/docs/` first. Migrations are applied with the repo's pg-driver runner **`node scripts/apply-migration.mjs <sql-file> [profiles-column]`** (NOT `supabase db push`, and `psql` is not installed). That script reads `DATABASE_URL` from `.env.local` in the cwd — the worktree already has `.env.local` copied in and `node_modules` installed. The DB is the shared Supabase project; this migration is additive + idempotent (`IF NOT EXISTS`), so it is safe to apply.
+
+**Reusable ad-hoc DB query** (for verification + manual plan flips below — psql substitute):
+```bash
+node -e "import('pg').then(async ({Pool})=>{const fs=await import('node:fs');for(const l of fs.readFileSync('.env.local','utf8').split(/\r?\n/)){const m=l.match(/^([A-Z0-9_]+)=(.*)$/i);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^[\"']|[\"']$/g,'')}const u=new URL(process.env.DATABASE_URL);const p=new Pool({host:u.hostname,port:+(u.port||5432),database:u.pathname.slice(1),user:decodeURIComponent(u.username),password:decodeURIComponent(u.password),ssl:{rejectUnauthorized:false}});console.log(JSON.stringify((await p.query(process.argv[1])).rows,null,2));await p.end()})" "SELECT 1"
+```
+Swap the final `"SELECT 1"` for the query you need.
 
 ---
 
@@ -75,17 +81,19 @@ ALTER TABLE public.pro_waitlist ENABLE ROW LEVEL SECURITY;
 
 - [ ] **Step 2: Apply the migration**
 
-Run: `psql "$DATABASE_URL" -f supabase/migrations/20260608_premium_notifications_foundation.sql`
-Expected: `ALTER TABLE` then `CREATE TABLE` succeed (no errors). Re-running is safe (`IF NOT EXISTS`).
+Run: `node scripts/apply-migration.mjs supabase/migrations/20260608_premium_notifications_foundation.sql plan`
+Expected: prints `Applied. Verification:` with the `plan` column row (data_type `text`, default `'free'::text`, nullable `NO`). Re-running is safe (`IF NOT EXISTS`).
 
 - [ ] **Step 3: Verify columns + table exist**
 
-Run:
+Run (using the reusable ad-hoc query snippet from the plan header — replace the SELECT):
 ```bash
-psql "$DATABASE_URL" -c "SELECT column_name FROM information_schema.columns WHERE table_name='profiles' AND column_name IN ('plan','plan_expires_at');"
-psql "$DATABASE_URL" -c "\d public.pro_waitlist"
+# columns
+node -e "...snippet..." "SELECT column_name FROM information_schema.columns WHERE table_name='profiles' AND column_name IN ('plan','plan_expires_at')"
+# waitlist table
+node -e "...snippet..." "SELECT column_name FROM information_schema.columns WHERE table_name='pro_waitlist' ORDER BY ordinal_position"
 ```
-Expected: both `plan` and `plan_expires_at` listed; `pro_waitlist` shows columns `id,user_id,email,locale,created_at`.
+Expected: both `plan` and `plan_expires_at` listed; `pro_waitlist` shows `id,user_id,email,locale,created_at`.
 
 - [ ] **Step 4: Commit**
 
@@ -729,7 +737,7 @@ Replace the group-render block (lines 323-369) so each row branches on locked st
 - [ ] **Step 4: Verify in the running app**
 
 Run: `npm run dev` (localhost:3002), sign in, open `/profile/settings/notifications`.
-Expected: 4 group headers; free rows toggle and save; Pro rows show the gold PRO badge + lock; tapping a Pro row navigates to `/pro`. (Flip your own profile to Pro to confirm toggles appear: `psql "$DATABASE_URL" -c "UPDATE profiles SET plan='pro' WHERE id='<your-uuid>';"` then reload — badges remain, toggles return. Set back to `'free'` after.)
+Expected: 4 group headers; free rows toggle and save; Pro rows show the gold PRO badge + lock; tapping a Pro row navigates to `/pro`. (Flip your own profile to Pro to confirm toggles appear: run the ad-hoc query snippet with `"UPDATE profiles SET plan='pro' WHERE id='<your-uuid>'"` then reload — badges remain, toggles return. Set back to `'free'` after.)
 
 - [ ] **Step 5: Commit**
 
@@ -998,9 +1006,9 @@ Expected: clean (or only pre-existing warnings).
 With `npm run dev` + a signed-in user:
 1. `/profile/settings/notifications` shows 4 groups; free toggles save; Pro rows locked with gold badge + lock.
 2. Tapping a Pro row → `/pro`; CTA joins waitlist (row in `pro_waitlist`).
-3. `UPDATE profiles SET plan='pro' WHERE id='<uuid>'` → reload settings → Pro rows now have working toggles; `/api/user/plan` returns `pro`.
+3. Flip to Pro via the ad-hoc query snippet (`UPDATE profiles SET plan='pro' WHERE id='<uuid>'`) → reload settings → Pro rows now have working toggles; `/api/user/plan` returns `pro`.
 4. Trigger a normal live/finished match push (`/api/admin/test-push`) → still delivers (free categories unaffected by the gate).
-5. Revert: `UPDATE profiles SET plan='free' WHERE id='<uuid>'`.
+5. Revert via the snippet: `UPDATE profiles SET plan='free' WHERE id='<uuid>'`.
 
 - [ ] **Step 5: Commit any fixes, then push the branch**
 
