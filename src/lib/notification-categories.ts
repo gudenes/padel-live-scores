@@ -1,42 +1,114 @@
 // src/lib/notification-categories.ts
 //
 // Single source of truth for notification categories. Used by:
-//   - /api/push/notify  (writer — resolves per-user prefs before fanout)
+//   - /api/push/notify  (writer — resolves per-user prefs + tier gate before fanout)
 //   - /api/notifications  (read/filter)
-//   - /api/user/notification-prefs  (validation + GET resolver)
-//   - /profile/settings/notifications  (UI render)
-//   - /notifications  (filter pill → category IN list)
+//   - /api/user/notification-prefs  (validation + GET resolver, tier annotation)
+//   - /profile/settings/notifications  (UI render — grouped, locked Pro rows)
 //
-// 2026-05-27 changes:
-//   - Dropped match_upcoming, badge_earned, streak_milestone (never fired).
-//   - Added ranking_updated (weekly FIP rankings refresh).
-//   - ChannelPrefs simplified from { push, inApp } to { push } only. In-app
-//     delivery is always-on now; the inbox is benign and configurable
-//     channel-by-channel was needless cognitive load. Existing stored
-//     `inApp` keys in profiles.notification_prefs JSONB become orphans
-//     this resolver silently drops — no SQL migration needed.
+// 2026-06-08: added per-category `tier` (free|pro) + `group`, the full premium
+// notification catalog (senders land in later plans), and the delivery gate
+// shouldDeliverToRecipient(). Pro categories are withheld entirely (push AND
+// in-app inbox) from non-Pro recipients — see premium-notifications spec.
+
+import { type Plan } from '@/lib/entitlements'
 
 export type ChannelPrefs = { push: boolean }
 
 export type NotificationCategory =
+  // existing
   | 'match_live_follow'
   | 'match_live_bookmark'
   | 'match_finished'
   | 'ranking_updated'
   | 'marketing'
+  // new — free
+  | 'match_scheduled'
+  | 'player_title_won'
+  | 'player_eliminated'
+  | 'tournament_starting'
+  | 'draw_released'
+  | 'player_entered'
+  | 'weekly_digest'
+  // new — pro
+  | 'match_deciding_set'
+  | 'match_upset_live'
+  | 'next_match_drawn'
+  | 'ranking_threshold'
+  | 'projection_outperform'
+  | 'player_path'
+  | 'prematch_prediction'
+  | 'daily_oop'
+  | 'tournament_wrapup'
 
-export const CATEGORY_DEFAULTS: Record<NotificationCategory, ChannelPrefs> = {
-  match_live_follow:   { push: true },
-  match_live_bookmark: { push: true },
-  match_finished:      { push: true },
-  ranking_updated:     { push: true },  // weekly cadence, low-frequency, fine to default on
-  marketing:           { push: true },  // opt-out model (2026-05-27 decision)
+export type CategoryGroup = 'matches' | 'results' | 'tournaments' | 'predictions'
+export const CATEGORY_GROUPS: CategoryGroup[] = ['matches', 'results', 'tournaments', 'predictions']
+
+export type Tier = 'free' | 'pro'
+
+export type CategoryMeta = {
+  defaults: ChannelPrefs
+  tier: Tier
+  group: CategoryGroup
 }
 
-export const KNOWN_CATEGORIES = Object.keys(CATEGORY_DEFAULTS) as NotificationCategory[]
+// Order within this record = render order within each group.
+export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
+  // ── Matches ──
+  match_live_follow:    { defaults: { push: true }, tier: 'free', group: 'matches' },
+  match_live_bookmark:  { defaults: { push: true }, tier: 'free', group: 'matches' },
+  match_finished:       { defaults: { push: true }, tier: 'free', group: 'matches' },
+  match_scheduled:      { defaults: { push: true }, tier: 'free', group: 'matches' },
+  match_deciding_set:   { defaults: { push: true }, tier: 'pro',  group: 'matches' },
+  match_upset_live:     { defaults: { push: true }, tier: 'pro',  group: 'matches' },
+  next_match_drawn:     { defaults: { push: true }, tier: 'pro',  group: 'matches' },
+  // ── Results & milestones ──
+  player_title_won:     { defaults: { push: true }, tier: 'free', group: 'results' },
+  player_eliminated:    { defaults: { push: true }, tier: 'free', group: 'results' },
+  ranking_updated:      { defaults: { push: true }, tier: 'free', group: 'results' },
+  ranking_threshold:    { defaults: { push: true }, tier: 'pro',  group: 'results' },
+  projection_outperform:{ defaults: { push: true }, tier: 'pro',  group: 'results' },
+  // ── Tournaments & draws ──
+  tournament_starting:  { defaults: { push: true }, tier: 'free', group: 'tournaments' },
+  draw_released:        { defaults: { push: true }, tier: 'free', group: 'tournaments' },
+  player_entered:       { defaults: { push: true }, tier: 'free', group: 'tournaments' },
+  player_path:          { defaults: { push: true }, tier: 'pro',  group: 'tournaments' },
+  // ── Predictions & digests ──
+  prematch_prediction:  { defaults: { push: true }, tier: 'pro',  group: 'predictions' },
+  daily_oop:            { defaults: { push: true }, tier: 'pro',  group: 'predictions' },
+  weekly_digest:        { defaults: { push: true }, tier: 'free', group: 'predictions' },
+  tournament_wrapup:    { defaults: { push: true }, tier: 'pro',  group: 'predictions' },
+  marketing:            { defaults: { push: true }, tier: 'free', group: 'predictions' },
+}
+
+// Derived for backward compat — resolvePrefs() reads this.
+export const CATEGORY_DEFAULTS: Record<NotificationCategory, ChannelPrefs> = Object.fromEntries(
+  (Object.keys(CATEGORY_META) as NotificationCategory[]).map((k) => [k, CATEGORY_META[k].defaults]),
+) as Record<NotificationCategory, ChannelPrefs>
+
+export const KNOWN_CATEGORIES = Object.keys(CATEGORY_META) as NotificationCategory[]
 
 export function isKnownCategory(value: unknown): value is NotificationCategory {
   return typeof value === 'string' && (KNOWN_CATEGORIES as string[]).includes(value)
+}
+
+export function isProCategory(category: NotificationCategory): boolean {
+  return CATEGORY_META[category].tier === 'pro'
+}
+
+/** Categories a plan is allowed to receive. Free excludes pro categories. */
+export function categoriesForTier(plan: Plan): NotificationCategory[] {
+  if (plan === 'pro') return KNOWN_CATEGORIES
+  return KNOWN_CATEGORIES.filter((c) => !isProCategory(c))
+}
+
+/**
+ * The single delivery gate. Pro categories are withheld entirely (push AND
+ * in-app inbox) from non-Pro recipients. Free categories always pass.
+ */
+export function shouldDeliverToRecipient(category: NotificationCategory, recipientIsPro: boolean): boolean {
+  if (!isProCategory(category)) return true
+  return recipientIsPro
 }
 
 /**
@@ -75,9 +147,9 @@ export function categoryFilter(
     case 'all':
       return null
     case 'matches':
-      return ['match_live_follow', 'match_live_bookmark', 'match_finished']
+      return KNOWN_CATEGORIES.filter((c) => CATEGORY_META[c].group === 'matches')
     case 'updates':
-      return ['ranking_updated', 'marketing']
+      return KNOWN_CATEGORIES.filter((c) => CATEGORY_META[c].group !== 'matches')
     default:
       return []
   }
