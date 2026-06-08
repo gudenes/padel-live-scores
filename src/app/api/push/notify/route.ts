@@ -730,6 +730,39 @@ export async function POST(request: Request) {
     `anon=${anonSubs.length} anon_sent=${anonSent} anon_stale=${anonStaleIds.length}`
   )
 
+  // Persist a notification_sends analytics row (kind='match'). Additive —
+  // purely observability; failure must never break delivery.
+  try {
+    await supabase.from('notification_sends').insert({
+      kind: 'match',
+      title: 'Match notification',
+      body: null,
+      url: null,
+      metadata: {
+        match_id: matchId,
+        by_reason: { bookmark: bookmarkSent, follow: followSent },
+        inapp_written: inappWritten,
+      },
+      // Use SUBSCRIPTION/token counts (not user counts) so match rows share
+      // the same semantics as broadcast rows: fired = attempts, and
+      // accepted ≤ fired always holds within a channel.
+      web_fired: pushJobs.length,
+      web_accepted: pushSent,
+      web_stale: staleIds.length,
+      fcm_fired: fcmSent + fcmFailed,
+      fcm_accepted: fcmSent,
+      fcm_failed: fcmFailed,
+      fcm_stale: fcmStaleCleaned,
+      anon_fired: anonSubs.length,
+      anon_accepted: anonSent,
+      anon_stale: anonStaleIds.length,
+      recipients_total: pushJobs.length + (fcmSent + fcmFailed) + anonSubs.length,
+      accepted_total: pushSent + fcmSent + anonSent,
+    })
+  } catch (e) {
+    console.error('[Push] notification_sends insert failed:', (e as Error).message)
+  }
+
   return Response.json({
     ok: true,
     recipients: recipientReason.size,

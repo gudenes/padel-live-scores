@@ -1,0 +1,131 @@
+/* Broadcast tab — scoped styles for the compose+preview layout and the
+   live notification mockup. Token-driven for the admin chrome; the phone
+   preview is intentionally self-contained (it mimics a real lock screen,
+   not the admin theme). */
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 372px;
+  gap: 22px;
+  align-items: start;
+}
+@media (max-width: 1040px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+.composeStack { display: grid; gap: 18px; min-width: 0; }
+
+.form { display: grid; gap: 14px; max-width: 560px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 560px) { .row2 { grid-template-columns: 1fr; } }
+
+.labelRow { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.count { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.textarea { resize: vertical; min-height: 70px; line-height: 1.45; }
+
+/* reach strip after a dry-run */
+.reach {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-card);
+  border-radius: var(--r-md, 12px);
+  background: var(--bg-subtle, var(--bg-hover));
+  animation: rise .28s cubic-bezier(.2,.7,.3,1) both;
+}
+.reachStrip { display: flex; gap: 10px; flex-wrap: wrap; }
+.reachItem {
+  flex: 1 1 0; min-width: 78px;
+  border: 1px solid var(--border-inner);
+  border-radius: var(--r-sm);
+  padding: 9px 11px; background: var(--bg-card);
+}
+.reachNum { font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.reachLabel { margin-top: 5px; font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.reachItemTotal { border-color: var(--lime-border); background: var(--lime-bg); }
+.reachItemTotal .reachNum { color: var(--lime-text); }
+.reachItemTotal .reachLabel { color: var(--lime-text); }
+
+.confirmRow { display: flex; align-items: flex-end; gap: 10px; }
+.confirmRow > :first-child { flex: 1; }
+
+.hint { margin: 0; font-size: 12.5px; }
+.hintOk { color: var(--lime-text, var(--lime)); }
+.hintErr { color: var(--live-text, var(--live)); }
+
+/* ---- preview column ---- */
+.previewCol { position: sticky; top: 18px; display: grid; gap: 12px; }
+.previewHead { display: flex; align-items: center; justify-content: space-between; }
+.previewTitle { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+
+.seg { display: inline-flex; padding: 3px; gap: 3px; border: 1px solid var(--border); border-radius: var(--r-full); background: var(--bg-input); }
+.segBtn { border: 0; background: transparent; color: var(--text-3); font-size: 11.5px; font-weight: 600; padding: 4px 12px; border-radius: var(--r-full); cursor: pointer; transition: all .15s; }
+.segBtn:hover { color: var(--text-1); }
+.segOn { background: var(--lime); color: var(--lime-ink); }
+.segOn:hover { color: var(--lime-ink); }
+
+/* phone / lock screen */
+.phone {
+  position: relative;
+  border-radius: 30px;
+  padding: 22px 16px 26px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(130% 80% at 78% 8%, #244b39 0%, rgba(36,75,57,0) 58%),
+    radial-gradient(120% 90% at 12% 100%, #16241d 0%, rgba(22,36,29,0) 60%),
+    linear-gradient(165deg, #0f1713 0%, #0a0d0b 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 18px 40px -22px rgba(0,0,0,.7);
+  min-height: 380px;
+  display: flex;
+  flex-direction: column;
+}
+.glow { position: absolute; inset: 0; z-index: -1; background: radial-gradient(40% 22% at 72% 14%, rgba(106,191,58,.22), transparent 70%); }
+.clockWrap { text-align: center; color: #f4f7f4; margin: 6px 0 20px; user-select: none; }
+.clock { font-family: var(--display, system-ui); font-size: 52px; font-weight: 300; letter-spacing: -.02em; line-height: 1; text-shadow: 0 1px 14px rgba(0,0,0,.35); }
+.clockDate { margin-top: 6px; font-size: 12.5px; font-weight: 500; color: rgba(244,247,244,.78); }
+
+.cardEnter { animation: pop .32s cubic-bezier(.18,.8,.28,1) both; }
+
+/* Android notification */
+.andro {
+  display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center;
+  padding: 12px 13px;
+  border-radius: 22px;
+  background: rgba(28,30,32,.66);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  border: 1px solid rgba(255,255,255,.08);
+  font-family: "Roboto", "Segoe UI", system-ui, sans-serif;
+}
+.androHead { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+.androAppIcon { width: 17px; height: 17px; border-radius: 5px; object-fit: cover; background: var(--lime); flex-shrink: 0; }
+.androApp { font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,.62); letter-spacing: .01em; white-space: nowrap; }
+.androTitle { color: #fff; font-size: 14px; font-weight: 600; line-height: 1.25; margin: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.androBody { color: rgba(255,255,255,.74); font-size: 13px; line-height: 1.35; margin: 2px 0 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.androLarge { width: 42px; height: 42px; border-radius: 12px; object-fit: cover; background: var(--lime); flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+
+/* iOS notification */
+.ios {
+  display: grid; grid-template-columns: auto 1fr; gap: 11px; align-items: start;
+  padding: 12px 13px;
+  border-radius: 20px;
+  background: rgba(248,248,250,.82);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,.5);
+  box-shadow: 0 8px 24px -10px rgba(0,0,0,.45);
+  font-family: -apple-system, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+}
+.iosAppIcon { width: 38px; height: 38px; border-radius: 9px; object-fit: cover; background: var(--lime); flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.iosHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.iosApp { font-size: 11px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: #6b6b70; }
+.iosWhen { font-size: 11px; color: #8a8a90; white-space: nowrap; }
+.iosTitle { color: #0b0b0f; font-size: 14px; font-weight: 600; line-height: 1.25; margin: 1px 0 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
+.iosBody { color: #2b2b30; font-size: 13px; line-height: 1.35; margin: 1px 0 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+
+.placeholder { opacity: .5; font-style: italic; }
+.note { font-size: 11px; color: var(--text-3); text-align: center; margin: 0; }
+
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pop  { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
