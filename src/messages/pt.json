@@ -1464,6 +1464,18 @@
     "voteCount": "{count} votos",
     "predictionCorrect": "Acertámos",
     "predictionBeat": "Ainda melhor",
-    "predictionMiss": "Não acertámos"
+    "predictionMiss": "Não acertámos",
+    "predictionReach": "Chegará a <r>{round}</r>",
+    "voteWinTitle": "Vão ganhar o título?",
+    "voteAgree": "Concordas?",
+    "explainTitle": "Como funciona a previsão",
+    "explainIntro": "O nosso modelo de IA percorre o torneio completo para estimar até onde chega cada dupla.",
+    "explainStep1": "Cada dupla recebe uma classificação de força com base nos resultados recentes e no ranking oficial.",
+    "explainStep2": "Simula o quadro várias vezes e regista a que ronda chega cada uma.",
+    "explainWinTitle": "ganham o título",
+    "explainReachFinal": "chegam à final",
+    "explainKicker": "Por isso são as nossas favoritas ao título.",
+    "explainUnderdogBody": "Chegam a <r>{round}</r> na maioria das simulações, mas raramente mais longe.",
+    "explainClose": "Entendido"
   }
 }

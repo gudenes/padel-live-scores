@@ -6,7 +6,8 @@ import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
 import PressButton from '@/components/PressButton'
-import { buildPlayerLookup, buildRoadVM, projectedFinishRound, predictionVerdict, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildPlayerLookup, buildRoadVM, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { ProjectionExplainSheet } from './ProjectionExplainSheet'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 import { useProjectionVote } from '@/hooks/useProjectionVote'
@@ -116,6 +117,7 @@ export default function ProjectionTab({
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
   const [history, setHistory] = useState<string[]>([])  // drilled-through pairs (for ‹ Back)
+  const [explainOpen, setExplainOpen] = useState(false)  // ⓘ → "how the prediction works" sheet
   const voteEnabled = useFeatureFlag(FLAG_KEYS.PROJECTION_VOTE_ENABLED)
   const projVote = useProjectionVote(tournamentId, category, selectedPair)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
@@ -159,6 +161,42 @@ export default function ProjectionTab({
   // prediction + agreement vote render inline on the timeline AT this round
   // (only while the pair is still active).
   const projFinish = vm.status === 'active' ? projectedFinishRound(vm.rounds) : null
+  // Adaptive hero: title contenders lead with the champion %; everyone else
+  // leads with the projected round (a 1% champion number is just noise).
+  const contender = isContender(vm.championProb)
+  const projFinishLabel = projFinish ? t(ROUND_LABEL_KEY[projFinish]) : null
+  const projIdx = projFinish ? vm.rounds.findIndex((r) => r.round === projFinish) : -1
+  const depthPct = projIdx >= 0 && vm.rounds.length > 0 ? Math.round(((projIdx + 1) / vm.rounds.length) * 100) : 0
+  const showPredictionHero = vm.status === 'active' && !contender && projFinish != null
+
+  // ⓘ → opens the "how the prediction works" sheet. Shared by both hero variants.
+  const infoIcon = (
+    <button onClick={() => setExplainOpen(true)} aria-label={t('explainTitle')} title={t('explainTitle')}
+      style={{ position: 'absolute', top: 11, right: 12, width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${SECONDARY}`, color: SECONDARY, fontSize: 11, fontStyle: 'italic', fontWeight: 800, lineHeight: 1, background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>i</button>
+  )
+  // Thumbs vote row (no count) — chosen pick stays lit, the other dims. The
+  // question adapts to the hero ("win the title?" vs "do you agree?").
+  const renderVote = (question: string) => (voteEnabled ? (
+    <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ flex: 1, minWidth: 0, color: SECONDARY, fontSize: 11, fontWeight: 600 }}>{question}</div>
+      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+        {(['agree', 'disagree'] as const).map((choice) => {
+          const isAgree = choice === 'agree'
+          const on = projVote.yourVote === choice
+          const voted = projVote.yourVote != null
+          return (
+            <PressButton key={choice} onClick={() => projVote.vote(choice)} aria-label={t(choice)} title={t(choice)}
+              accent={on ? (isAgree ? LIME : LIVE) : 'rgba(255,255,255,0.08)'}
+              skirt={on ? (isAgree ? '#558D14' : '#B22A38') : 'rgba(255,255,255,0.04)'}
+              depth={2} clipPath={CHUNK_CARD}
+              style={{ padding: '5px 12px', fontSize: 15, lineHeight: 1, opacity: !voted || on ? 1 : 0.4 }}>
+              {isAgree ? '👍' : '👎'}
+            </PressButton>
+          )
+        })}
+      </div>
+    </div>
+  ) : null)
   // Tap a (resolved) opponent card to explore THAT pair's projection. Pushes
   // the current pair onto a history stack so ‹ Back walks the drill trail.
   const canDrill = (pk: string) => pk !== selectedPair && rows.some((r) => r.pair_key === pk)
@@ -211,49 +249,67 @@ export default function ProjectionTab({
         </div>
       </div>
       <>
-          <div style={{ padding: '13px 15px', marginBottom: 16, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('roadToTrophy')}</div>
-                <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span>
-                    {vm.status === 'champion'
-                      ? t('wonTitle')
-                      : vm.status === 'eliminated' && vm.eliminatedRound
-                      ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
-                      : t('winsToLift', { count: vm.rounds.filter((r, i) => !r.expected?.result && !(firstRoundBye && i === 0)).length })}
-                  </span>
-                  {vm.status !== 'eliminated' && <TrophyIcon size={20} color={GOLD} />}
+          {showPredictionHero ? (
+            // Non-contender: lead with the projected round (a 1% champion number
+            // is noise) — slate card, "Our prediction", round-accented headline.
+            <div style={{ position: 'relative', padding: '14px 16px', marginBottom: 16, background: 'rgba(154,174,196,0.06)', border: '1px solid rgba(154,174,196,0.2)', clipPath: CHUNK_CARD }}>
+              {infoIcon}
+              <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6, paddingRight: 24 }}>{t('ourPrediction')}</div>
+              <div style={{ color: TEXT, fontSize: 19, fontWeight: 800, marginTop: 4 }}>
+                {t.rich('predictionReach', { round: projFinishLabel ?? '', r: (c) => <span style={{ color: GOLD, fontWeight: 900 }}>{c}</span> })}
+              </div>
+              <div style={{ marginTop: 12, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+                <div style={{ width: `${Math.max(2, depthPct)}%`, height: '100%', background: 'linear-gradient(90deg, #9AAEC4, #6f8197)' }} />
+              </div>
+              {renderVote(t('voteAgree'))}
+            </div>
+          ) : (
+            <div style={{ position: 'relative', padding: '13px 15px', marginBottom: 16, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK_CARD }}>
+              {vm.status === 'active' && infoIcon}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: vm.status === 'active' ? 22 : 0 }}>
+                <div>
+                  <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('roadToTrophy')}</div>
+                  <div style={{ color: TEXT, fontSize: 12, marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>
+                      {vm.status === 'champion'
+                        ? t('wonTitle')
+                        : vm.status === 'eliminated' && vm.eliminatedRound
+                        ? t('reachedRound', { round: t(ROUND_LABEL_KEY[vm.eliminatedRound as keyof typeof ROUND_LABEL_KEY] ?? 'roundF') })
+                        : t('winsToLift', { count: vm.rounds.filter((r, i) => !r.expected?.result && !(firstRoundBye && i === 0)).length })}
+                    </span>
+                    {vm.status !== 'eliminated' && <TrophyIcon size={20} color={GOLD} />}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  {vm.status === 'eliminated' ? (
+                    // Eliminated: a 0% champion number is noise — just say it.
+                    <div style={{ color: LIVE, fontSize: 16, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('eliminated')}</div>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
+                        <span style={{ color: LIME, fontWeight: 800, fontSize: 28, lineHeight: 1, fontFamily: MONO }}>{Math.round(vm.championProb * 100)}</span>
+                        <span style={{ color: LIME, fontWeight: 800, fontSize: 14, fontFamily: MONO }}>%</span>
+                      </div>
+                      <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
+                      {vm.status === 'champion' && (
+                        <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                {vm.status === 'eliminated' ? (
-                  // Eliminated: a 0% champion number is noise — just say it.
-                  <div style={{ color: LIVE, fontSize: 16, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('eliminated')}</div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end' }}>
-                      <span style={{ color: LIME, fontWeight: 800, fontSize: 28, lineHeight: 1, fontFamily: MONO }}>{Math.round(vm.championProb * 100)}</span>
-                      <span style={{ color: LIME, fontWeight: 800, fontSize: 14, fontFamily: MONO }}>%</span>
-                    </div>
-                    <div style={{ color: MUTED, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 1 }}>{t('champion')}</div>
-                    {vm.status === 'champion' && (
-                      <div style={{ color: GOLD, fontSize: 10, fontWeight: 800, marginTop: 3 }}>{t('champions')}</div>
-                    )}
-                  </>
-                )}
+              {/* champion-probability bar (not for eliminated pairs — it'd be 0%) */}
+              {vm.status !== 'eliminated' && (
+                <div style={{ marginTop: 10, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
+                  <div style={{ width: `${Math.max(2, Math.round(vm.championProb * 100))}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
+                </div>
+              )}
+              <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
+                <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={selectedPair} />
               </div>
+              {vm.status === 'active' && renderVote(t('voteWinTitle'))}
             </div>
-            {/* champion-probability bar (not for eliminated pairs — it'd be 0%) */}
-            {vm.status !== 'eliminated' && (
-              <div style={{ marginTop: 10, height: 8, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
-                <div style={{ width: `${Math.max(2, Math.round(vm.championProb * 100))}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
-              </div>
-            )}
-            <div style={{ marginTop: 6, display: 'flex', justifyContent: 'flex-end' }}>
-              <ChampionSparkline tournamentId={tournamentId} category={category} pairKey={selectedPair} />
-            </div>
-          </div>
+          )}
 
           {vm.status !== 'active' && row?.predicted_finish_round && (() => {
             // Pair is done — grade the model's frozen pre-tournament call.
@@ -302,9 +358,6 @@ export default function ProjectionTab({
               const dateLabel = dateObj ? format.dateTime(dateObj, { weekday: 'short', day: 'numeric', month: 'short' }) : null
               const code = isFinal ? t('roundF') : rd.round
               const shown = isExpanded ? rd.opponents : rd.expected ? [rd.expected] : []
-              // The model's projected-finish round shows the prediction + vote
-              // inline here (replacing the opponent card), flagged with a check.
-              const isPredictionRow = projFinish != null && rd.round === projFinish && !result && !isByeRound
               const node =
                 result === 'won' ? { bg: LIME, glyph: '✓', color: '#06210a' }
                 : result === 'lost' ? { bg: LIVE, glyph: '✗', color: '#2a0708' }
@@ -390,54 +443,6 @@ export default function ProjectionTab({
                       )}
                     </>
                   ))}
-                  {isPredictionRow && (
-                    <div style={{ background: 'rgba(126,211,33,0.06)', border: '1px solid rgba(126,211,33,0.22)', padding: '12px 14px', clipPath: CHUNK_CARD, marginBottom: 6 }}>
-                      <div style={{ color: SECONDARY, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.6 }}>{t('ourPrediction')}</div>
-                      <div style={{ color: TEXT, fontSize: 15, fontWeight: 800, marginTop: 3 }}>{t('projectedToReach', { round: t(ROUND_LABEL_KEY[projFinish!]) })}</div>
-                      {voteEnabled && (() => {
-                        const total = (projVote.global?.agree ?? 0) + (projVote.global?.disagree ?? 0)
-                        const pct = total > 0 ? Math.round((projVote.global!.agree / total) * 100) : 0
-                        const buttons = (
-                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                            {(['agree', 'disagree'] as const).map((choice) => {
-                              const isAgree = choice === 'agree'
-                              return (
-                                <PressButton key={choice} onClick={() => projVote.vote(choice)}
-                                  accent={isAgree ? LIME : LIVE}
-                                  skirt={isAgree ? '#558D14' : '#B22A38'}
-                                  textColor={isAgree ? '#06210a' : '#fff'}
-                                  depth={3}
-                                  clipPath={CHUNK_CARD}
-                                  style={{ flex: 1, padding: '9px 0', fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                                  {isAgree ? `👍 ${t('agree')}` : `👎 ${t('disagree')}`}
-                                </PressButton>
-                              )
-                            })}
-                          </div>
-                        )
-                        // After voting we collapse the buttons and just show the
-                        // compact tally — the user has already made their call.
-                        return projVote.global ? (
-                          <div style={{ marginTop: 10 }}>
-                            <div style={{ height: 7, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', clipPath: 'polygon(0.5% 0, 100% 0, 99.5% 100%, 0 100%)' }}>
-                              <div style={{ width: `${Math.max(2, pct)}%`, height: '100%', background: `linear-gradient(90deg, ${LIME}, #5fb314)` }} />
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 }}>
-                              <span style={{ color: TEXT, fontSize: 11, fontWeight: 700 }}>
-                                {projVote.yourVote === 'agree' ? '👍' : '👎'} {t('fansAgree', { pct })}
-                              </span>
-                              <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{t('voteCount', { count: total.toLocaleString() })}</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ marginTop: 11 }}>
-                            <div style={{ color: MUTED, fontSize: 11, fontWeight: 600 }}>{t('agreeWithCall')}</div>
-                            {buttons}
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  )}
                 </div>
               )
             })}
@@ -445,6 +450,15 @@ export default function ProjectionTab({
 
           <div style={{ marginTop: 16, textAlign: 'center', color: MUTED, fontSize: 9, fontWeight: 600 }}>{t('modelEstimate')}</div>
         </>
+        <ProjectionExplainSheet
+          open={explainOpen}
+          onClose={() => setExplainOpen(false)}
+          names={vm.players.map((p) => p.name.split(' ').slice(-1)[0] || p.name).join(' & ')}
+          contender={contender}
+          championPct={Math.round(vm.championProb * 100)}
+          finalPct={Math.round(vm.finalistProb * 100)}
+          roundLabel={projFinishLabel ?? ''}
+        />
     </div>
   )
 }

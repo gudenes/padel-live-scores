@@ -1464,6 +1464,18 @@
     "voteCount": "{count} votes",
     "predictionCorrect": "Bien vu",
     "predictionBeat": "Encore mieux",
-    "predictionMiss": "Raté"
+    "predictionMiss": "Raté",
+    "predictionReach": "Atteindra <r>{round}</r>",
+    "voteWinTitle": "Vont-ils gagner le titre ?",
+    "voteAgree": "D'accord ?",
+    "explainTitle": "Comment fonctionne la prédiction",
+    "explainIntro": "Notre modèle d'IA simule tout le tournoi pour estimer jusqu'où va chaque paire.",
+    "explainStep1": "Chaque paire reçoit une note de force basée sur ses résultats récents et son classement officiel.",
+    "explainStep2": "Il simule le tableau plusieurs fois et suit le tour atteint par chaque paire.",
+    "explainWinTitle": "gagnent le titre",
+    "explainReachFinal": "atteignent la finale",
+    "explainKicker": "C'est pourquoi ce sont nos favoris pour le titre.",
+    "explainUnderdogBody": "Atteignent <r>{round}</r> dans la plupart des simulations, mais vont rarement plus loin.",
+    "explainClose": "Compris"
   }
 }
