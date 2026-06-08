@@ -76,7 +76,14 @@ function fakeSupabase(opts: Options) {
         country: (row.country as string) ?? null,
         category: (row.category as string) ?? null,
       });
-      return Promise.resolve({ data: null, error: null });
+      // The worker chains `.select('id').single()` to capture the new
+      // players.id (used by the player_entered notify path). Mirror that
+      // shape; the bare insert is no longer called.
+      return {
+        select: (_cols: string) => ({
+          single: () => Promise.resolve({ data: { id }, error: null }),
+        }),
+      };
     },
     update: (patch: Record<string, unknown>) => ({
       eq: (col: string, val: string) => {

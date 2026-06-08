@@ -287,6 +287,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // Same admin-trigger dry-run-SAFE default. Scheduled cron entry
       // threads the real env flag via closure (see buildSchedule below).
       dryRun: true,
+      notify: deps.notify,
+      eventsEnabled: deps.eventsEnabled,
     });
     case 'fip-oop-writer':       return (deps) => runFipOopWriter({
       supabase: deps.supabase,
@@ -537,6 +539,8 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipEntryListPopulatorDryRun,
+          notify: deps.notify,
+          eventsEnabled: deps.eventsEnabled,
         });
       },
     });
