@@ -170,10 +170,15 @@ export default async function TournamentLayout({ params, children }: Props) {
     // field 'startDate'" / "Missing field 'location'". Skip emission
     // entirely on those rows instead of emitting nulls.
     const isGhost = !tournament || !tournament.name?.trim() || !tournament.starts_at
+    // Stable @id for the SportsEvent so the editorial Article can reference it
+    // by id instead of inlining a second, name-only SportsEvent (which Search
+    // Console flags as invalid: "Missing field 'startDate' / 'location'").
+    const eventId = `https://padelnachos.com${locale === 'en' ? '' : `/${locale}`}/tournaments/${id}#event`
     jsonLd = !isGhost && tournament
       ? {
           '@context': 'https://schema.org',
           '@type': 'SportsEvent',
+          '@id': eventId,
           name: tournament.name,
           startDate: tournament.starts_at,
           ...(tournament.ends_at ? { endDate: tournament.ends_at } : {}),
@@ -219,7 +224,9 @@ export default async function TournamentLayout({ params, children }: Props) {
         datePublished: editorial.generated_at,
         dateModified: editorial.generated_at,
         inLanguage: locale,
-        about: { '@type': 'SportsEvent', name: tournament.name },
+        // Reference the SportsEvent by @id rather than inlining an incomplete
+        // copy — keeps a single valid event entity on the page.
+        about: { '@id': eventId },
         author: {
           '@type': 'Organization',
           name: 'PadelNachos',
