@@ -308,6 +308,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
       // real env flag via closure (buildSchedule below).
       dryRun: true,
+      notify: deps.notify,
+      eventsEnabled: deps.eventsEnabled,
     });
     case 'fip-draw-results-writer': return (deps) => runFipDrawResultsWriter({
       supabase: deps.supabase,
@@ -614,6 +616,8 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipResultsWriterDryRun,
+          notify: deps.notify,
+          eventsEnabled: deps.eventsEnabled,
         });
       },
     });
