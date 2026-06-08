@@ -86,7 +86,7 @@ export const TILES: readonly CronTile[] = [
   { key: 'cron:scores', label: 'Scores', schedule: 'Every 2 min', description: 'Polls padelapi.org for live match scores, upserts point/game/set data, detects stale matches stuck as live' },
   { key: 'cron:sync-matches', label: 'Sync Matches', schedule: 'Every 1h', description: 'Syncs match metadata (players, courts, rounds) for all active tournaments from padelapi.org' },
   { key: 'cron:sync', label: 'Full Sync', schedule: 'Mon 4am UTC', description: 'Weekly full sync: tournaments, players, seasons, and FIP logos from padelapi.org' },
-  { key: 'cron:rankings', label: 'Rankings', schedule: 'Daily 5am UTC', description: 'Fetches FIP official and race rankings (top 1000, men & women) from the FIP website' },
+  { key: 'cron:rankings', label: 'FIP Rankings', schedule: 'padelgod · Mon 06–12h + Tue–Sat 07h UTC', description: 'padelgod player-rankings worker → player_ranking_snapshots. Health = data freshness: is the current ISO week captured (official + race × men/women)?' },
   { key: 'cron:articles', label: 'Articles', schedule: 'Hourly :40', description: 'Fetches padel news from Google News RSS feeds and FIP WordPress API, deduplicates and upserts' },
   { key: 'cron:highlights', label: 'Highlights', schedule: 'Hourly :20', description: 'Fetches recent match highlight videos from YouTube padel channels, filters duplicates' },
   { key: 'cron:fip-tournaments', label: 'FIP Tournaments', schedule: 'Retired 2026-04-28', description: 'Discovery + event-page enrichment moved to padelgod (Railway) — see tournament-discovery and fip-event-page-enricher workers. The Vercel route returns HTTP 410 Gone.', paused: true, pauseReason: 'Retired 2026-04-28 — moved to padelgod fip-event-page-enricher worker (Railway)' },
@@ -147,7 +147,17 @@ export function metaSummary(source: string, meta: Record<string, unknown> | null
     case 'cron:scores': return `${(meta.synced as number) ?? 0} updated · ${(meta.stale as number) ?? 0} stale`
     case 'cron:sync-matches': return `${(meta.matches_synced as number) ?? 0} matches`
     case 'cron:sync': return `${(meta.tournaments_synced as number) ?? 0} tournaments · ${(meta.players_synced as number) ?? 0} players`
-    case 'cron:rankings': return `Official: ${(meta.official as number) ?? 0} · Race: ${(meta.race as number) ?? 0}`
+    case 'cron:rankings': {
+      const latest = (meta.latest_week as string) ?? '—'
+      const current = (meta.current_week as string) ?? '—'
+      const behind = (meta.weeks_behind as number) ?? 0
+      if (behind > 0) return `⚠ latest ${latest} · current ${current}`
+      const om = (meta.official_men as number) ?? 0
+      const ow = (meta.official_women as number) ?? 0
+      const rm = (meta.race_men as number) ?? 0
+      const rw = (meta.race_women as number) ?? 0
+      return `${latest} · Off ${om}/${ow} · Race ${rm}/${rw}`
+    }
     case 'cron:articles': return `${(meta.new as number) ?? 0} new from ${(meta.sources_checked as number) ?? 0} sources`
     case 'cron:highlights': return `${(meta.new as number) ?? 0} new videos`
     case 'cron:fip-tournaments': return `${(meta.upserted as number) ?? 0} upserted · ${(meta.enriched as number) ?? 0} enriched`
