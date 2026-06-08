@@ -9,6 +9,7 @@
 // fixed scrim (tap to close), bottom sheet with a grab handle, maxHeight + scroll,
 // and a ChunkyPressButton "Got it". Inner elements use the brand chunky clip-path.
 
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { ChunkyPressButton } from '@/components/feed/foryou/ChunkyPressButton'
 
@@ -34,11 +35,15 @@ interface Props {
 
 export function ProjectionExplainSheet({ open, onClose, names, contender, championPct, finalPct, roundLabel }: Props) {
   const t = useTranslations('projectionTab')
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
-  return (
+  // Portal to <body>: the tournament page collapses its hero with a CSS
+  // `transform` on scroll, and a transformed ancestor turns `position: fixed`
+  // into "fixed relative to that ancestor" — which left the sheet stuck
+  // mid-screen. Rendering at the body root keeps it pinned to the viewport.
+  return createPortal(
     <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#0009', zIndex: 90 }} />
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#0009', zIndex: 1000 }} />
       <div
         role="dialog"
         aria-modal="true"
@@ -49,7 +54,7 @@ export function ProjectionExplainSheet({ open, onClose, names, contender, champi
           clipPath: 'polygon(0 13px, 100% 0, 100% 100%, 0 100%)',
           filter: 'drop-shadow(0 -10px 26px rgba(0,0,0,0.55))',
           padding: '16px 18px 26px',
-          zIndex: 91, maxHeight: '85vh', overflowY: 'auto',
+          zIndex: 1001, maxHeight: '85vh', overflowY: 'auto',
         }}
       >
         <div style={{ width: 40, height: 4, borderRadius: 3, background: 'rgba(255,255,255,0.22)', margin: '0 auto 14px' }} />
@@ -88,7 +93,8 @@ export function ProjectionExplainSheet({ open, onClose, names, contender, champi
           </ChunkyPressButton>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   )
 }
 
