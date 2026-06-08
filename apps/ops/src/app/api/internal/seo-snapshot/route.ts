@@ -16,6 +16,12 @@ function unauthorized() {
   return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
 }
 
+// Vercel cron jobs invoke the path with a GET request, so alias GET to the
+// same handler. Without this the daily cron 405s and the ingest never runs
+// (the only writes come from manual POSTs). The CRON_SECRET check inside
+// handles auth for both methods; Vercel injects the bearer header on crons.
+export const GET = POST
+
 export async function POST(req: Request) {
   const auth = req.headers.get('authorization') ?? ''
   const expected = `Bearer ${process.env.CRON_SECRET ?? ''}`
