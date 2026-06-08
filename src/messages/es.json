@@ -1083,7 +1083,8 @@
         "results": "Results & milestones",
         "tournaments": "Tournaments & draws",
         "predictions": "Predictions & digests"
-      }
+      },
+      "comingSoon": "Soon"
     },
     "settingsLinkRow": {
       "label": "Notificaciones",

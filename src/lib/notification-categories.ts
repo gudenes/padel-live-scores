@@ -50,35 +50,40 @@ export type CategoryMeta = {
   defaults: ChannelPrefs
   tier: Tier
   group: CategoryGroup
+  // `comingSoon: true` = no sender emits this category yet (Plans 2–4 wire them).
+  // The settings UI shows a "Soon" pill so users aren't promised an alert that
+  // can't fire. Flip to false (or drop the flag) when a category's sender ships.
+  comingSoon: boolean
 }
 
 // Order within this record = render order within each group.
+// Only match live/finished have real senders today → comingSoon: false.
 export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
   // ── Matches ──
-  match_live_follow:    { defaults: { push: true }, tier: 'free', group: 'matches' },
-  match_live_bookmark:  { defaults: { push: true }, tier: 'free', group: 'matches' },
-  match_finished:       { defaults: { push: true }, tier: 'free', group: 'matches' },
-  match_scheduled:      { defaults: { push: true }, tier: 'free', group: 'matches' },
-  match_deciding_set:   { defaults: { push: true }, tier: 'pro',  group: 'matches' },
-  match_upset_live:     { defaults: { push: true }, tier: 'pro',  group: 'matches' },
-  next_match_drawn:     { defaults: { push: true }, tier: 'pro',  group: 'matches' },
+  match_live_follow:    { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: false },
+  match_live_bookmark:  { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: false },
+  match_finished:       { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: false },
+  match_scheduled:      { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: true },
+  match_deciding_set:   { defaults: { push: true }, tier: 'pro',  group: 'matches',      comingSoon: true },
+  match_upset_live:     { defaults: { push: true }, tier: 'pro',  group: 'matches',      comingSoon: true },
+  next_match_drawn:     { defaults: { push: true }, tier: 'pro',  group: 'matches',      comingSoon: true },
   // ── Results & milestones ──
-  player_title_won:     { defaults: { push: true }, tier: 'free', group: 'results' },
-  player_eliminated:    { defaults: { push: true }, tier: 'free', group: 'results' },
-  ranking_updated:      { defaults: { push: true }, tier: 'free', group: 'results' },
-  ranking_threshold:    { defaults: { push: true }, tier: 'pro',  group: 'results' },
-  projection_outperform:{ defaults: { push: true }, tier: 'pro',  group: 'results' },
+  player_title_won:     { defaults: { push: true }, tier: 'free', group: 'results',      comingSoon: true },
+  player_eliminated:    { defaults: { push: true }, tier: 'free', group: 'results',      comingSoon: true },
+  ranking_updated:      { defaults: { push: true }, tier: 'free', group: 'results',      comingSoon: true },
+  ranking_threshold:    { defaults: { push: true }, tier: 'pro',  group: 'results',      comingSoon: true },
+  projection_outperform:{ defaults: { push: true }, tier: 'pro',  group: 'results',      comingSoon: true },
   // ── Tournaments & draws ──
-  tournament_starting:  { defaults: { push: true }, tier: 'free', group: 'tournaments' },
-  draw_released:        { defaults: { push: true }, tier: 'free', group: 'tournaments' },
-  player_entered:       { defaults: { push: true }, tier: 'free', group: 'tournaments' },
-  player_path:          { defaults: { push: true }, tier: 'pro',  group: 'tournaments' },
+  tournament_starting:  { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: true },
+  draw_released:        { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: true },
+  player_entered:       { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: true },
+  player_path:          { defaults: { push: true }, tier: 'pro',  group: 'tournaments',  comingSoon: true },
   // ── Predictions & digests ──
-  prematch_prediction:  { defaults: { push: true }, tier: 'pro',  group: 'predictions' },
-  daily_oop:            { defaults: { push: true }, tier: 'pro',  group: 'predictions' },
-  weekly_digest:        { defaults: { push: true }, tier: 'free', group: 'predictions' },
-  tournament_wrapup:    { defaults: { push: true }, tier: 'pro',  group: 'predictions' },
-  marketing:            { defaults: { push: true }, tier: 'free', group: 'predictions' },
+  prematch_prediction:  { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
+  daily_oop:            { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
+  weekly_digest:        { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: true },
+  tournament_wrapup:    { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
+  marketing:            { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: false },
 }
 
 // Derived for backward compat — resolvePrefs() reads this.

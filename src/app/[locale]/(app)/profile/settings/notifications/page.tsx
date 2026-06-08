@@ -331,6 +331,7 @@ export default function NotificationPrefsPage() {
             </div>
             {group.categories.map(cat => {
               const isProCat = CATEGORY_META[cat].tier === 'pro'
+              const comingSoon = CATEGORY_META[cat].comingSoon
               const locked = isProCat && !userIsPro
               const disabledByMaster = !pushEnabled || permissionDenied
               const rowStyle = {
@@ -351,6 +352,13 @@ export default function NotificationPrefsPage() {
                         color: '#0a0a0a', background: '#EAB308', padding: '2px 6px',
                         clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
                       }}>{t('proBadge')}</span>
+                    )}
+                    {comingSoon && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
+                        color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.08)', padding: '2px 6px',
+                        clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
+                      }}>{t('comingSoon')}</span>
                     )}
                   </span>
                   <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>

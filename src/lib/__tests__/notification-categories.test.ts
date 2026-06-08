@@ -172,12 +172,17 @@ describe('notification-categories', () => {
 })
 
 describe('category tiers', () => {
-  it('every known category has tier + group metadata', () => {
+  it('every known category has tier + group + comingSoon metadata', () => {
     for (const cat of KNOWN_CATEGORIES_TIER) {
       expect(CATEGORY_META[cat]).toBeDefined()
       expect(['free', 'pro']).toContain(CATEGORY_META[cat].tier)
       expect(CATEGORY_GROUPS).toContain(CATEGORY_META[cat].group)
+      expect(typeof CATEGORY_META[cat].comingSoon).toBe('boolean')
     }
+  })
+  it('only categories with real senders are live (not comingSoon)', () => {
+    const live = KNOWN_CATEGORIES_TIER.filter((c) => !CATEGORY_META[c].comingSoon)
+    expect(live.sort()).toEqual(['marketing', 'match_finished', 'match_live_bookmark', 'match_live_follow'])
   })
   it('existing categories stay free', () => {
     expect(isProCategory('match_live_follow')).toBe(false)
