@@ -74,7 +74,7 @@ export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
   ranking_threshold:    { defaults: { push: true }, tier: 'pro',  group: 'results',      comingSoon: true },
   projection_outperform:{ defaults: { push: true }, tier: 'pro',  group: 'results',      comingSoon: true },
   // ── Tournaments & draws ──
-  tournament_starting:  { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: false },
+  tournament_starting:  { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: true },
   draw_released:        { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: true },
   player_entered:       { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: true },
   player_path:          { defaults: { push: true }, tier: 'pro',  group: 'tournaments',  comingSoon: true },
