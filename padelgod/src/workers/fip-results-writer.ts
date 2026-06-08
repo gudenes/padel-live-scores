@@ -3,6 +3,8 @@ import type { Logger } from 'pino';
 import { parseSetScores } from './static-reconciler.js';
 import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
 import { paginatedSelect } from '../lib/db-paginate.js';
+import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
+import { roundCanonical } from '../lib/round-canonical.js';
 import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 
 /**
@@ -56,6 +58,19 @@ export interface FipResultsWriterDeps {
   /** When set, only tournaments whose UUID is in the allowlist are
    *  processed. Used by the on-demand refresh endpoint. */
   onlyTournamentIds?: Set<string>;
+  /**
+   * Web-push notify config (baseUrl / cronSecret / logger). Forwarded from
+   * the scheduler's `SchedulerDeps.notify` (populated in index.ts from
+   * NOTIFY_BASE_URL + CRON_SECRET). When undefined, the player_title_won /
+   * player_eliminated dispatch silently no-ops.
+   */
+  notify?: NotifyDeps;
+  /**
+   * Free event-notification senders master switch (Plan 2B). Defaults to
+   * false so the title_won / eliminated senders ship dark — they fire only
+   * when BOTH this is true AND `notify` is configured.
+   */
+  eventsEnabled?: boolean;
 }
 
 export interface FipResultsWriterResult {
@@ -105,6 +120,16 @@ interface ExistingMatch {
   duration: string | null;
   finished_at: string | null;
   started_at: string | null;
+  /** Round label — used to gate the player_title_won sender to finals only
+   *  (Plan 2B). roundCanonical(round) === 'F' is the gate. */
+  round: string | null;
+  /** player_title_won / player_eliminated notify marker (Plan 2B). NULL
+   *  until the sender claims it on the terminal-status write. */
+  result_notified_at: string | null;
+  pair1_player1_id: string | null;
+  pair1_player2_id: string | null;
+  pair2_player1_id: string | null;
+  pair2_player2_id: string | null;
 }
 
 // ── Main entry ─────────────────────────────────────────────────────────
@@ -251,6 +276,74 @@ export async function runFipResultsWriter(
           throw new Error(
             `matches update failed (id=${existing.id}, results widget=${r.match_widget_id}): ${updErr.message}`
           );
+        }
+
+        // player_title_won + player_eliminated senders (Plan 2B, ships
+        // dark behind ENABLE_EVENT_NOTIFICATIONS). One atomic claim on
+        // result_notified_at covers both categories so overlapping ticks /
+        // the admin trigger never double-send. Only fires on a real winner
+        // (winner_team in {1,2}); walkover/retired with no winner is
+        // skipped. title_won is gated to finals (roundCanonical === 'F')
+        // and to the winning pair; eliminated fires for the losing pair on
+        // ANY finish. Per-player fire is skipped when a pair ID is null.
+        if (
+          deps.eventsEnabled &&
+          deps.notify &&
+          (r.winner_team === 1 || r.winner_team === 2)
+        ) {
+          const { data: claimedResult, error: claimErr } = await supabase
+            .from('matches')
+            .update({ result_notified_at: nowIso })
+            .eq('id', existing.id)
+            .is('result_notified_at', null)
+            .select('id');
+          if (claimErr) {
+            logger?.warn(
+              { matchId: existing.id, err: claimErr.message },
+              'fip-results-writer: result notify claim failed',
+            );
+          } else if (claimedResult && claimedResult.length > 0) {
+            const w = r.winner_team;
+            const winners =
+              w === 1
+                ? [existing.pair1_player1_id, existing.pair1_player2_id]
+                : [existing.pair2_player1_id, existing.pair2_player2_id];
+            const losers =
+              w === 1
+                ? [existing.pair2_player1_id, existing.pair2_player2_id]
+                : [existing.pair1_player1_id, existing.pair1_player2_id];
+            const isFinal = roundCanonical(existing.round) === 'F';
+            if (isFinal) {
+              for (const pid of winners.filter(Boolean)) {
+                notifyEvent(
+                  {
+                    category: 'player_title_won',
+                    entityType: 'player',
+                    entityId: pid as string,
+                    title: 'Champion! 🏆',
+                    body: 'Your player just won the title.',
+                    url: `/match/${existing.id}`,
+                    dedupeKey: `player_title_won:${existing.id}:${pid}`,
+                  },
+                  deps.notify,
+                );
+              }
+            }
+            for (const pid of losers.filter(Boolean)) {
+              notifyEvent(
+                {
+                  category: 'player_eliminated',
+                  entityType: 'player',
+                  entityId: pid as string,
+                  title: 'Knocked out',
+                  body: 'Your player was eliminated.',
+                  url: `/match/${existing.id}`,
+                  dedupeKey: `player_eliminated:${existing.id}:${pid}`,
+                },
+                deps.notify,
+              );
+            }
+          }
         }
       }
       result.matchesUpdated += 1;
@@ -457,7 +550,8 @@ async function resolveMatchViaSidecar(
   const { data: row, error: mErr } = await supabase
     .from('matches')
     .select(
-      'id, widget_id_composite, status, winner_pair, duration, finished_at, started_at'
+      'id, widget_id_composite, status, winner_pair, duration, finished_at, started_at, ' +
+        'round, result_notified_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id'
     )
     .eq('id', matchId)
     .maybeSingle();
@@ -466,7 +560,7 @@ async function resolveMatchViaSidecar(
       `matches lookup by sidecar id failed (id=${matchId}): ${mErr.message}`
     );
   }
-  return (row as ExistingMatch | null) ?? null;
+  return (row as unknown as ExistingMatch | null) ?? null;
 }
 
 /**
@@ -499,7 +593,8 @@ async function loadExistingMatchesByPrefix(
   const { data, error } = await supabase
     .from('matches')
     .select(
-      'id, widget_id_composite, status, winner_pair, duration, finished_at, started_at'
+      'id, widget_id_composite, status, winner_pair, duration, finished_at, started_at, ' +
+        'round, result_notified_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id'
     )
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
@@ -508,7 +603,7 @@ async function loadExistingMatchesByPrefix(
     );
   }
   const map = new Map<string, ExistingMatch>();
-  for (const row of (data ?? []) as ExistingMatch[]) {
+  for (const row of (data ?? []) as unknown as ExistingMatch[]) {
     if (row.widget_id_composite) map.set(row.widget_id_composite, row);
   }
   return map;

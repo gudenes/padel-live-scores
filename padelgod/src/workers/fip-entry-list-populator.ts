@@ -48,6 +48,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
+import { claimNotificationEvent } from '../lib/notification-events.js';
+import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
 
 const SNAPSHOT_LOOKBACK_DAYS = 14;
 
@@ -62,6 +64,12 @@ export interface FipEntryListPopulatorDeps {
   /** When set, only snapshot rows whose tournament_id is in the
    *  allowlist are processed. Used by the on-demand refresh endpoint. */
   onlyTournamentIds?: Set<string>;
+  /** Web-push notify config. When present AND eventsEnabled is true, the
+   *  worker fires a `player_entered` event per newly-resolved
+   *  (tournament_id, player_id). Undefined in tests / when env unset. */
+  notify?: NotifyDeps;
+  /** Master gate for event sends. Default off — ships dark. */
+  eventsEnabled?: boolean;
 }
 
 export interface FipEntryListPopulatorResult {
@@ -216,6 +224,36 @@ export async function runFipEntryListPopulator(
 
   const now = new Date().toISOString();
 
+  // Fire a `player_entered` event for a resolved (tournament, player).
+  // Gated dark behind eventsEnabled + notify, and claimed via the sent-log
+  // so it fires at most once-ever per (tournament_id, player_id). Never on
+  // dry-run — callers must only invoke this on real writes.
+  const firePlayerEntered = async (
+    tournamentId: string,
+    playerId: string,
+  ): Promise<void> => {
+    if (!deps.eventsEnabled || !deps.notify || !playerId) return;
+    const key = `player_entered:${tournamentId}:${playerId}`;
+    const claimed = await claimNotificationEvent(
+      supabase,
+      key,
+      'player_entered',
+    );
+    if (!claimed) return;
+    notifyEvent(
+      {
+        category: 'player_entered',
+        entityType: 'player',
+        entityId: playerId,
+        title: 'New tournament entry',
+        body: 'A player you follow just entered an event.',
+        url: `/tournaments/${tournamentId}`,
+        dedupeKey: key,
+      },
+      deps.notify,
+    );
+  };
+
   // 5. Per-fip_id insert-or-update loop. Sequential by design — these
   //    runs are small (hundreds of rows max) and serial writes give us
   //    deterministic counters + clean error attribution.
@@ -223,6 +261,15 @@ export async function runFipEntryListPopulator(
     const match = existingByFipId.get(fipId);
 
     if (match) {
+      // The player is resolved to a (tournament, player) the moment we have
+      // an existing row — fire `player_entered` regardless of whether the
+      // NULL-only diff below ends up patching anything. The sent-log makes
+      // it once-ever; firing here covers the no-change path too. Skipped on
+      // dry-run.
+      if (!dryRun) {
+        await firePlayerEntered(snap.tournament_id, match.id);
+      }
+
       // NULL-only update. Only patch fields that differ AND only when
       // the snapshot has a non-null value to write — never overwrite a
       // populated field with null. The category check is whole-row (no
@@ -285,13 +332,19 @@ export async function runFipEntryListPopulator(
       if (snap.country != null) insert.country = snap.country;
 
       if (!dryRun) {
-        const { error: insErr } = await supabase
+        const { data: inserted, error: insErr } = await supabase
           .from('players')
-          .insert(insert);
+          .insert(insert)
+          .select('id')
+          .single();
         if (insErr) {
           throw new Error(
             `players insert failed (fip_id=${fipId}): ${insErr.message}`,
           );
+        }
+        const newPlayerId = (inserted as { id: string } | null)?.id;
+        if (newPlayerId) {
+          await firePlayerEntered(snap.tournament_id, newPlayerId);
         }
       }
       result.playersInserted += 1;

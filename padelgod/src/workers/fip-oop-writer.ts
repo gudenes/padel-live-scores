@@ -7,6 +7,7 @@ import {
   type OopScheduleRow,
 } from '../lib/oop-schedule-parser.js';
 import { activeTournamentArgs } from '../lib/active-tournament-args.js';
+import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
 
 /**
  * fip-oop-writer — simplified-pipeline writer #2.
@@ -68,6 +69,19 @@ export interface FipOopWriterDeps {
   /** When set, only tournaments whose UUID is in the allowlist are
    *  processed. Used by the on-demand refresh endpoint. */
   onlyTournamentIds?: Set<string>;
+  /**
+   * Web-push notify config (baseUrl / cronSecret / logger). Forwarded from
+   * the scheduler's `SchedulerDeps.notify` (populated in index.ts from
+   * NOTIFY_BASE_URL + CRON_SECRET). When undefined, the match_scheduled
+   * dispatch silently no-ops.
+   */
+  notify?: NotifyDeps;
+  /**
+   * Free event-notification senders master switch (Plan 2B). Defaults to
+   * false so the match_scheduled sender ships dark — it fires only when
+   * BOTH this is true AND `notify` is configured.
+   */
+  eventsEnabled?: boolean;
 }
 
 export interface FipOopWriterResult {
@@ -119,6 +133,9 @@ interface ExistingMatch {
    *  (see isScheduledAtWriteEligible). */
   scheduled_at: string | null;
   schedule_label: string | null;
+  /** match_scheduled notify marker (Plan 2B). NULL until the sender claims
+   *  it on the first firm-time fill. Used to gate the one-shot fire. */
+  scheduled_notified_at: string | null;
 }
 
 /**
@@ -408,6 +425,53 @@ export async function runFipOopWriter(
               );
               continue;
             }
+
+            // match_scheduled sender (Plan 2B, ships dark behind
+            // ENABLE_EVENT_NOTIFICATIONS). Fire ONCE the first time a
+            // match gets a firm real time + court. Gates:
+            //   - eventsEnabled && notify configured (master switch);
+            //   - the prior value was NULL or a midnight-UTC placeholder
+            //     (originalValue check) — never re-fire on a "Followed by"
+            //     re-estimate, whose originalValue is a non-null, non-
+            //     placeholder timestamp;
+            //   - firm time only (p.approximate === false) — skip
+            //     "Not before" approximate times.
+            // The fire is then claimed atomically on scheduled_notified_at
+            // so overlapping ticks / the admin trigger never double-send.
+            const firstFirmFill =
+              originalValue == null || isPlaceholderScheduledAt(originalValue);
+            if (
+              deps.eventsEnabled &&
+              deps.notify &&
+              firstFirmFill &&
+              p.approximate === false
+            ) {
+              const { data: claimedSched, error: claimErr } = await supabase
+                .from('matches')
+                .update({ scheduled_notified_at: new Date().toISOString() })
+                .eq('id', matchId)
+                .is('scheduled_notified_at', null)
+                .select('id');
+              if (claimErr) {
+                logger?.warn(
+                  { matchId, err: claimErr.message },
+                  'fip-oop-writer: match_scheduled claim failed',
+                );
+              } else if (claimedSched && claimedSched.length > 0) {
+                notifyEvent(
+                  {
+                    category: 'match_scheduled',
+                    entityType: 'match',
+                    entityId: matchId,
+                    title: `${t.tournament_name}: match scheduled`,
+                    body: 'A match you follow now has a time and court.',
+                    url: `/match/${matchId}`,
+                    dedupeKey: `match_scheduled:${matchId}`,
+                  },
+                  deps.notify,
+                );
+              }
+            }
           }
           result.scheduledAtWritten += 1;
         }
@@ -594,7 +658,7 @@ async function loadExistingMatchesByPrefix(
 ): Promise<Map<string, ExistingMatch>> {
   const { data, error } = await supabase
     .from('matches')
-    .select('id, widget_id_composite, round, court, court_order, scheduled_at, schedule_label')
+    .select('id, widget_id_composite, round, court, court_order, scheduled_at, schedule_label, scheduled_notified_at')
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
     throw new Error(
