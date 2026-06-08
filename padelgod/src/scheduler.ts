@@ -34,6 +34,7 @@ import { runModelPredictionSnapshot } from './workers/model-prediction-snapshot.
 import { runTournamentProjectionSnapshot } from './workers/tournament-projection-snapshot.js';
 import { runPredictionScorer } from './workers/prediction-scorer.js';
 import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
+import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -121,6 +122,10 @@ export interface SchedulerFlags {
   /** live-odds-updater — ~20s in-play odds worker. Append-only snapshot +
    *  upsert on match_live_odds; no dry-run needed. Default OFF. */
   enableLiveOddsUpdater: boolean;
+  /** tournament-start-notifier — fires `tournament_starting` once per
+   *  tournament when its `starts_at` passes. Atomic claim on
+   *  `starting_notified_at`; no dry-run needed. Default OFF. */
+  enableTournamentStartNotifier: boolean;
 }
 
 export interface SchedulerDeps {
@@ -179,7 +184,8 @@ export type WorkerName =
   | 'model-prediction-snapshot'
   | 'tournament-projection-snapshot'
   | 'prediction-scorer'
-  | 'live-odds-updater';
+  | 'live-odds-updater'
+  | 'tournament-start-notifier';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -216,6 +222,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'tournament-projection-snapshot',
   'prediction-scorer',
   'live-odds-updater',
+  'tournament-start-notifier',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -367,6 +374,12 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
         });
     case 'live-odds-updater':
       return (deps) => runLiveOddsUpdater(deps);
+    case 'tournament-start-notifier':
+      return (deps) => runTournamentStartNotifier({
+        supabase: deps.supabase,
+        logger: deps.logger,
+        notify: deps.notify,
+      });
     default: return null;
   }
 }
@@ -805,6 +818,17 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // of every minute.
       cron: '*/20 * * * * *',
       run: getWorkerRunner('live-odds-updater')!,
+    });
+  }
+  if (flags.enableTournamentStartNotifier) {
+    entries.push({
+      name: 'tournament-start-notifier',
+      // Hourly at :20 — avoids tournament-discovery (:00) so freshly
+      // discovered tournaments whose start time has passed get picked up
+      // a few minutes later. DB-only read + atomic claim, fire-and-forget
+      // notify; hourly is plenty given the 24h selection window.
+      cron: '20 * * * *',
+      run: getWorkerRunner('tournament-start-notifier')!,
     });
   }
   return entries;

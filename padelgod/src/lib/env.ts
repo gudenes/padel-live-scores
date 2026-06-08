@@ -219,6 +219,8 @@ const EnvSchema = z.object({
   // Writes match_live_odds (upsert) + match_live_odds_snapshots (append).
   // Default OFF; flip to true in Railway after match_live_odds migration lands.
   ENABLE_LIVE_ODDS_UPDATER: boolEnv(false),
+  // tournament_starting notifier (premium notifications Plan 2A) — default off.
+  ENABLE_TOURNAMENT_START_NOTIFIER: boolEnv(false),
   // Web push notification hook — set to the padelnachos.com origin to fire
   // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
   // Both vars optional: if either is unset, notify is skipped silently (so
