@@ -41,20 +41,28 @@ export function ProjectionExplainSheet({ open, onClose, names, contender, champi
   // `transform` on scroll, and a transformed ancestor turns `position: fixed`
   // into "fixed relative to that ancestor" — which left the sheet stuck
   // mid-screen. Rendering at the body root keeps it pinned to the viewport.
+  //
+  // The backdrop is a full-viewport flex container that bottom-centers the
+  // sheet; the sheet is capped at the app-shell width (500) so it doesn't span
+  // the whole window on desktop. Tap the backdrop to close; taps inside the
+  // sheet stop propagation. Mirrors NotificationPromptSheet.
   return createPortal(
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: '#0009', zIndex: 1000 }} />
+    <div
+      onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#0009', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+    >
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="projection-explain-title"
+        onClick={(e) => e.stopPropagation()}
         style={{
-          position: 'fixed', left: 0, right: 0, bottom: 0,
+          width: '100%', maxWidth: 500,
           background: '#1c1e20', color: TEXT,
           clipPath: 'polygon(0 13px, 100% 0, 100% 100%, 0 100%)',
           filter: 'drop-shadow(0 -10px 26px rgba(0,0,0,0.55))',
           padding: '16px 18px 26px',
-          zIndex: 1001, maxHeight: '85vh', overflowY: 'auto',
+          maxHeight: '85vh', overflowY: 'auto',
         }}
       >
         <div style={{ width: 40, height: 4, borderRadius: 3, background: 'rgba(255,255,255,0.22)', margin: '0 auto 14px' }} />
@@ -93,7 +101,7 @@ export function ProjectionExplainSheet({ open, onClose, names, contender, champi
           </ChunkyPressButton>
         </div>
       </div>
-    </>,
+    </div>,
     document.body,
   )
 }
