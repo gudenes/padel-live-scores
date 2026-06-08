@@ -108,6 +108,9 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
       if (found === 0) {
         setMsgTone('err')
         setMsg(`No push subscription found for ${json.email}. Enable notifications on padelnachos.com (or the app) on this device first.`)
+      } else if (delivered === 0) {
+        setMsgTone('err')
+        setMsg(`Found ${found} subscription${found === 1 ? '' : 's'} for ${json.email} but delivered 0 — the send failed (stale subscription, or the server is missing push credentials). Check server logs.`)
       } else {
         setMsgTone('ok')
         setMsg(`Test sent to ${json.email} — ${delivered} device${delivered === 1 ? '' : 's'}. Check your device.`)
