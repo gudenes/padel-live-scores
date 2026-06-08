@@ -48,7 +48,7 @@ type Body = {
   dedupeKey?: unknown
 }
 
-const ENTITY_TYPES = new Set<EntityType>(['player', 'tournament'])
+const ENTITY_TYPES = new Set<EntityType>(['player', 'tournament', 'match'])
 
 export async function POST(request: Request) {
   if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -91,9 +91,13 @@ export async function POST(request: Request) {
   const supabase = createServiceClient()
 
   // ── 1. Resolve followers ───────────────────────────────────
-  const { userIds } = await resolveEntityFollowers(supabase, entityType, entityId)
-  if (userIds.length === 0) {
-    return Response.json({ ok: true, recipients: 0, inApp: 0, webSent: 0, fcmSent: 0 })
+  // anonSubs are anonymous web-push subscriptions (no account). They get NO
+  // tier gate, NO in-app row, and NO per-category pref — they're free by
+  // definition. Resolved here so an anon-only entity (zero authed followers)
+  // still fans out below. Tournament events resolve anonSubs: [].
+  const { userIds, anonSubs } = await resolveEntityFollowers(supabase, entityType, entityId)
+  if (userIds.length === 0 && anonSubs.length === 0) {
+    return Response.json({ ok: true, recipients: 0, inApp: 0, webSent: 0, fcmSent: 0, anonSent: 0 })
   }
 
   // ── 2. Batch-fetch prefs + plan in parallel with the dedup probe ──
@@ -254,9 +258,53 @@ export async function POST(request: Request) {
     }
   }
 
+  // ── 7. Anon web-push fan-out ────────────────────────────────
+  // Anon recipients are free by definition: no tier gate, no in-app row, no
+  // per-category pref. Mirrors /api/push/notify:660-723 (send → stale cleanup
+  // → last_seen_at bump). Tournament events resolve anonSubs: [] → no-op.
+  let anonSent = 0
+  if (anonSubs.length > 0) {
+    const anonStaleIds: string[] = []
+    const anonResults = await Promise.allSettled(
+      anonSubs.map((s) =>
+        sendPush(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh_key, auth: s.auth_key } },
+          { title, body, url, tag, ...(icon ? { icon } : {}) },
+        ),
+      ),
+    )
+    anonSubs.forEach((s, i) => {
+      const r = anonResults[i]
+      if (r.status === 'fulfilled' && r.value === true) {
+        anonSent++
+      } else if (r.status === 'fulfilled' && r.value === false) {
+        // sendPush returns false on 410/404 → stale subscription.
+        anonStaleIds.push(s.id)
+      }
+    })
+
+    if (anonStaleIds.length > 0) {
+      await supabase.from('anon_push_subscriptions').delete().in('id', anonStaleIds)
+      console.log(`[NotifyEvent] Cleaned ${anonStaleIds.length} stale anon subscriptions`)
+    }
+
+    // Bump last_seen_at for surviving anon subs that received a push — used by
+    // the 90-day cleanup cron.
+    const survivingAnonIds = anonSubs
+      .filter((s) => !anonStaleIds.includes(s.id))
+      .map((s) => s.id)
+    if (survivingAnonIds.length > 0) {
+      await supabase
+        .from('anon_push_subscriptions')
+        .update({ last_seen_at: new Date().toISOString() })
+        .in('id', survivingAnonIds)
+    }
+  }
+
   console.log(
     `[NotifyEvent] category=${category} ${entityType}=${entityId} ` +
-      `recipients=${userIds.length} inapp=${inApp} web=${webSent} fcm=${fcmSent}`,
+      `recipients=${userIds.length} inapp=${inApp} web=${webSent} fcm=${fcmSent} ` +
+      `anon=${anonSubs.length} anon_sent=${anonSent}`,
   )
 
   return Response.json({
@@ -265,5 +313,6 @@ export async function POST(request: Request) {
     inApp,
     webSent,
     fcmSent,
+    anonSent,
   })
 }
