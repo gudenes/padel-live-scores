@@ -1508,6 +1508,7 @@
     "explainReachFinal": "reach the final",
     "explainKicker": "That's why they're our pick to lift the trophy.",
     "explainUnderdogBody": "Reach <r>{round}</r> in most simulations, but rarely further.",
-    "explainClose": "Got it"
+    "explainClose": "Got it",
+    "voteThanks": "Thanks for your feedback!"
   }
 }

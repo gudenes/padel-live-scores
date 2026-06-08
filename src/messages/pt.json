@@ -1476,6 +1476,7 @@
     "explainReachFinal": "chegam à final",
     "explainKicker": "Por isso são as nossas favoritas ao título.",
     "explainUnderdogBody": "Chegam a <r>{round}</r> na maioria das simulações, mas raramente mais longe.",
-    "explainClose": "Entendido"
+    "explainClose": "Entendido",
+    "voteThanks": "Obrigado pela tua opinião!"
   }
 }

@@ -118,6 +118,7 @@ export default function ProjectionTab({
   const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
   const [history, setHistory] = useState<string[]>([])  // drilled-through pairs (for ‹ Back)
   const [explainOpen, setExplainOpen] = useState(false)  // ⓘ → "how the prediction works" sheet
+  const [pulse, setPulse] = useState<'agree' | 'disagree' | null>(null)  // pop the just-clicked thumb
   const voteEnabled = useFeatureFlag(FLAG_KEYS.PROJECTION_VOTE_ENABLED)
   const projVote = useProjectionVote(tournamentId, category, selectedPair)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
@@ -174,29 +175,41 @@ export default function ProjectionTab({
     <button onClick={() => setExplainOpen(true)} aria-label={t('explainTitle')} title={t('explainTitle')}
       style={{ position: 'absolute', top: 11, right: 12, width: 20, height: 20, borderRadius: '50%', border: `1.5px solid ${SECONDARY}`, color: SECONDARY, fontSize: 11, fontStyle: 'italic', fontWeight: 800, lineHeight: 1, background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>i</button>
   )
-  // Thumbs vote row (no count) — chosen pick stays lit, the other dims. The
-  // question adapts to the hero ("win the title?" vs "do you agree?").
-  const renderVote = (question: string) => (voteEnabled ? (
-    <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ flex: 1, minWidth: 0, color: SECONDARY, fontSize: 11, fontWeight: 600 }}>{question}</div>
-      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-        {(['agree', 'disagree'] as const).map((choice) => {
-          const isAgree = choice === 'agree'
-          const on = projVote.yourVote === choice
-          const voted = projVote.yourVote != null
-          return (
-            <PressButton key={choice} onClick={() => projVote.vote(choice)} aria-label={t(choice)} title={t(choice)}
-              accent={on ? (isAgree ? LIME : LIVE) : 'rgba(255,255,255,0.08)'}
-              skirt={on ? (isAgree ? '#558D14' : '#B22A38') : 'rgba(255,255,255,0.04)'}
-              depth={2} clipPath={CHUNK_CARD}
-              style={{ padding: '5px 12px', fontSize: 15, lineHeight: 1, opacity: !voted || on ? 1 : 0.4 }}>
-              {isAgree ? '👍' : '👎'}
-            </PressButton>
-          )
-        })}
+  const onVote = (choice: 'agree' | 'disagree') => { projVote.vote(choice); setPulse(choice) }
+  // Thumbs vote row (no count). Pre-vote: the adaptive question + two solid
+  // press-buttons. On vote: the chosen thumb pops, the other dims, and the
+  // question is replaced by a fade-in "thanks for the feedback" line.
+  const renderVote = (question: string) => {
+    if (!voteEnabled) return null
+    const voted = projVote.yourVote != null
+    return (
+      <div style={{ marginTop: 11, paddingTop: 11, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 600 }}>
+          {voted ? (
+            <span className="pn-vote-thanks" style={{ color: LIME, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}><span>✓</span>{t('voteThanks')}</span>
+          ) : (
+            <span style={{ color: SECONDARY }}>{question}</span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          {(['agree', 'disagree'] as const).map((choice) => {
+            const isAgree = choice === 'agree'
+            const on = projVote.yourVote === choice
+            return (
+              <PressButton key={choice} onClick={() => onVote(choice)} aria-label={t(choice)} title={t(choice)}
+                className={pulse === choice ? 'pn-vote-pop' : undefined}
+                accent={on ? (isAgree ? LIME : LIVE) : '#2f343c'}
+                skirt={on ? (isAgree ? '#558D14' : '#B22A38') : '#191c21'}
+                depth={3} clipPath={CHUNK_CARD}
+                style={{ padding: '5px 12px', fontSize: 15, lineHeight: 1, opacity: !voted || on ? 1 : 0.45 }}>
+                {isAgree ? '👍' : '👎'}
+              </PressButton>
+            )
+          })}
+        </div>
       </div>
-    </div>
-  ) : null)
+    )
+  }
   // Tap a (resolved) opponent card to explore THAT pair's projection. Pushes
   // the current pair onto a history stack so ‹ Back walks the drill trail.
   const canDrill = (pk: string) => pk !== selectedPair && rows.some((r) => r.pair_key === pk)
