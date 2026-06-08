@@ -35,7 +35,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
-import { resolvePrefs, type ChannelPrefs } from '@/lib/notification-categories'
+import { resolvePrefs, shouldDeliverToRecipient, type ChannelPrefs, type NotificationCategory } from '@/lib/notification-categories'
+import { isPro, type Plan } from '@/lib/entitlements'
 import { resolveNotificationIcon } from '@/lib/notification-icon'
 
 const supabase = createClient(
@@ -353,18 +354,26 @@ export async function POST(request: Request) {
 
   // ── Batch-fetch prefs + subscriptions in parallel ──────────
   const [prefsRes, subsRes] = await Promise.all([
-    supabase.from('profiles').select('id, notification_prefs, notification_mute_until').in('id', filteredUserIds),
+    supabase.from('profiles').select('id, notification_prefs, notification_mute_until, plan, plan_expires_at').in('id', filteredUserIds),
     supabase.from('push_subscriptions').select('id, user_id, endpoint, keys').in('user_id', filteredUserIds),
   ])
 
   const prefsByUser = new Map<string, Record<string, Partial<ChannelPrefs>>>()
   const muteUntilByUser = new Map<string, string | null>()
+  const planByUser = new Map<string, boolean>() // userId → isPro
   for (const row of prefsRes.data ?? []) {
     prefsByUser.set(
       row.id as string,
       (row.notification_prefs ?? {}) as Record<string, Partial<ChannelPrefs>>,
     )
     muteUntilByUser.set(row.id as string, (row as { notification_mute_until?: string | null }).notification_mute_until ?? null)
+    planByUser.set(
+      row.id as string,
+      isPro({
+        plan: (row as { plan?: Plan }).plan ?? 'free',
+        plan_expires_at: (row as { plan_expires_at?: string | null }).plan_expires_at ?? null,
+      }),
+    )
   }
 
   const subsByUser = new Map<string, typeof subsRes.data>()
@@ -404,6 +413,10 @@ export async function POST(request: Request) {
     const category = isFinishedEvent
       ? 'match_finished'
       : (reason.kind === 'follow' ? 'match_live_follow' : 'match_live_bookmark')
+    // Tier gate: Pro categories are withheld entirely (push + in-app) from non-Pro users.
+    if (!shouldDeliverToRecipient(category as NotificationCategory, planByUser.get(userId) ?? false)) {
+      continue
+    }
     const resolved = resolvePrefs(prefsByUser.get(userId), category)
     let title: string
     let body: string

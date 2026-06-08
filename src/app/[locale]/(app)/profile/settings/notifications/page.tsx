@@ -9,9 +9,10 @@
 //   2. Mute notifications row (action — opens MuteDurationSheet)
 //   3. Notification sounds row (deep-link to OS channel settings)
 //   4. Master "Push notifications" toggle
-//   5. "Matches" group — 3 categories
-//   6. "Updates" group — 2 categories
-//   7. Auto-save hint footer
+//   5. Category groups (Matches / Results & milestones / Tournaments & draws /
+//      Predictions & digests), derived from CATEGORY_META. Pro categories show a
+//      gold "Pro" badge; for free users they render locked (lock icon, row → /pro).
+//   6. Auto-save hint footer
 //
 // Every per-category toggle uses <IconSlider> + <SaveStateSlot>. PATCH on
 // /api/user/notification-prefs is optimistic with rollback + error toast.
@@ -20,24 +21,25 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { usePushNotifications, type SubscribeError } from '@/hooks/usePushNotifications'
-import { type NotificationCategory, type ChannelPrefs } from '@/lib/notification-categories'
+import { CATEGORY_META, type NotificationCategory, type ChannelPrefs, type CategoryGroup } from '@/lib/notification-categories'
 import { IconSlider } from '@/components/IconSlider'
 import { SaveStateSlot, type SaveState } from '@/components/SaveStateSlot'
 import { MuteDurationSheet } from '@/components/MuteDurationSheet'
 import { openSystemNotificationSettings, isNativeRuntime } from '@/lib/native-settings'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
-type Group = { key: 'groupMatches' | 'groupUpdates'; categories: NotificationCategory[] }
-const GROUPS: Group[] = [
-  { key: 'groupMatches', categories: ['match_live_follow', 'match_live_bookmark', 'match_finished'] },
-  { key: 'groupUpdates', categories: ['ranking_updated', 'marketing'] },
-]
+const GROUP_ORDER: CategoryGroup[] = ['matches', 'results', 'tournaments', 'predictions']
+const GROUPS: { key: CategoryGroup; categories: NotificationCategory[] }[] = GROUP_ORDER.map((g) => ({
+  key: g,
+  categories: (Object.keys(CATEGORY_META) as NotificationCategory[]).filter((c) => CATEGORY_META[c].group === g),
+}))
 
 export default function NotificationPrefsPage() {
   const t = useTranslations('notifications.settings')
   const router = useRouter()
   const { enabled: pushEnabled, toggle: togglePush, permission, supported, lastError, clearError } = usePushNotifications()
   const [prefs, setPrefs] = useState<Record<NotificationCategory, ChannelPrefs> | null>(null)
+  const [userIsPro, setUserIsPro] = useState(false)
   const [saveStates, setSaveStates] = useState<Partial<Record<NotificationCategory | '__master__', SaveState>>>({})
   const [masterSaveState, setMasterSaveState] = useState<SaveState>('idle')
   const [toast, setToast] = useState<string | null>(null)
@@ -60,10 +62,12 @@ export default function NotificationPrefsPage() {
         const body = await res.json() as {
           prefs: Record<NotificationCategory, ChannelPrefs>
           mute_until?: string | null
+          plan?: 'free' | 'pro'
         }
         if (!cancelled) {
           setPrefs(body.prefs)
           setMuteUntil(body.mute_until ?? null)
+          setUserIsPro(body.plan === 'pro')
         }
       } catch { /* silent — error toast covers user-initiated saves only */ }
     })()
@@ -319,37 +323,77 @@ export default function NotificationPrefsPage() {
           </div>
         </div>
 
-        {/* Category groups — populated in Task 7 */}
+        {/* Category groups — 4 groups, locked Pro rows for free users */}
         {prefs && GROUPS.map(group => (
           <section key={group.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.7, padding: '10px 4px 2px' }}>
-              {t(group.key)}
+              {t(`group.${group.key}`)}
             </div>
             {group.categories.map(cat => {
+              const isProCat = CATEGORY_META[cat].tier === 'pro'
+              const comingSoon = CATEGORY_META[cat].comingSoon
+              const locked = isProCat && !userIsPro
+              const disabledByMaster = !pushEnabled || permissionDenied
+              const rowStyle = {
+                padding: '14px',
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: 12,
+              } as const
+              const labelCol = (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0, opacity: locked ? 0.6 : 1 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.25, display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    {t(`category.${cat}.label`)}
+                    {isProCat && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 900, letterSpacing: 0.4, textTransform: 'uppercase',
+                        color: '#0a0a0a', background: '#EAB308', padding: '2px 6px',
+                        clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
+                      }}>{t('proBadge')}</span>
+                    )}
+                    {comingSoon && (
+                      <span style={{
+                        fontSize: 9, fontWeight: 800, letterSpacing: 0.4, textTransform: 'uppercase',
+                        color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.08)', padding: '2px 6px',
+                        clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
+                      }}>{t('comingSoon')}</span>
+                    )}
+                  </span>
+                  <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>
+                    {t(`category.${cat}.sub`)}
+                  </span>
+                </div>
+              )
+
+              // Locked Pro row → upsell. Real <button> (matches the mute/sounds
+              // rows) so it's focusable + keyboard-operable. No nested interactive
+              // control here, so a button wrapper is safe.
+              if (locked) {
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => router.push('/pro')}
+                    aria-label={`${t(`category.${cat}.label`)} — ${t('proBadge')}`}
+                    style={{ ...rowStyle, cursor: 'pointer', textAlign: 'left', color: 'inherit', font: 'inherit' }}
+                  >
+                    {labelCol}
+                    <span style={{ color: '#EAB308', flexShrink: 0, display: 'flex' }} aria-hidden="true">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    </span>
+                  </button>
+                )
+              }
+
               const pref = prefs[cat]
               const state = saveStates[cat] ?? 'idle'
-              const disabledByMaster = !pushEnabled || permissionDenied
               return (
-                <div
-                  key={cat}
-                  style={{
-                    padding: '14px',
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    gap: 12,
-                    opacity: disabledByMaster ? 0.45 : 1,
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', lineHeight: 1.25 }}>
-                      {t(`category.${cat}.label`)}
-                    </span>
-                    <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.35 }}>
-                      {t(`category.${cat}.sub`)}
-                    </span>
-                  </div>
+                <div key={cat} style={{ ...rowStyle, opacity: disabledByMaster ? 0.45 : 1 }}>
+                  {labelCol}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                     <IconSlider
                       checked={pref.push}

@@ -1016,6 +1016,70 @@
         "marketing": {
           "label": "Product updates",
           "sub": "New features, events, occasional news"
+        },
+        "match_scheduled": {
+          "label": "Match scheduled",
+          "sub": "Time & court announced"
+        },
+        "match_deciding_set": {
+          "label": "Going the distance",
+          "sub": "Match heads to a deciding 3rd set"
+        },
+        "match_upset_live": {
+          "label": "Upset in progress",
+          "sub": "An underdog is leading live"
+        },
+        "next_match_drawn": {
+          "label": "Next match drawn",
+          "sub": "Their next opponent is set"
+        },
+        "player_title_won": {
+          "label": "Title won",
+          "sub": "Your player wins the event"
+        },
+        "player_eliminated": {
+          "label": "Eliminated",
+          "sub": "Your player is knocked out"
+        },
+        "ranking_threshold": {
+          "label": "Ranking milestone",
+          "sub": "Crosses #1 / top 10 / top 20"
+        },
+        "projection_outperform": {
+          "label": "Beating the bracket",
+          "sub": "Going further than projected"
+        },
+        "tournament_starting": {
+          "label": "Tournament starting",
+          "sub": "A followed event begins"
+        },
+        "draw_released": {
+          "label": "Draw released",
+          "sub": "Bracket is published"
+        },
+        "player_entered": {
+          "label": "Player entered",
+          "sub": "Your player signs up for an event"
+        },
+        "player_path": {
+          "label": "Player's path",
+          "sub": "Draw position + next opponent"
+        },
+        "prematch_prediction": {
+          "label": "Pre-match prediction",
+          "sub": "Model odds before they play"
+        },
+        "daily_oop": {
+          "label": "Daily order of play",
+          "sub": "Your players' matches today"
+        },
+        "weekly_digest": {
+          "label": "Weekly digest",
+          "sub": "Your week + weekend champions"
+        },
+        "tournament_wrapup": {
+          "label": "Tournament wrap-up",
+          "sub": "Recap when an event ends"
         }
       },
       "nudge": {
@@ -1044,7 +1108,15 @@
         "serverError": "Server error (status {status}). Please try again in a moment.",
         "network": "Network error: {message}. Check your connection and retry.",
         "notSupported": "Push notifications aren't supported in this browser."
-      }
+      },
+      "proBadge": "Pro",
+      "group": {
+        "matches": "Matches",
+        "results": "Results & milestones",
+        "tournaments": "Tournaments & draws",
+        "predictions": "Predictions & digests"
+      },
+      "comingSoon": "Soon"
     },
     "settingsLinkRow": {
       "label": "Notifications",
@@ -1510,5 +1582,36 @@
     "explainUnderdogBody": "Reach <r>{round}</r> in most simulations, but rarely further.",
     "explainClose": "Got it",
     "voteThanks": "Thanks for your feedback!"
+  },
+  "pro": {
+    "hero": {
+      "title": "Never miss a moment",
+      "sub": "Live drama, draw intel, model predictions and your personal padel briefing — for the players you follow."
+    },
+    "features": {
+      "drama": {
+        "title": "Be there for the drama",
+        "body": "Deciding sets and live upsets, the instant they happen."
+      },
+      "road": {
+        "title": "Know the road ahead",
+        "body": "Draw paths, next opponents and \"beating the bracket\" alerts."
+      },
+      "predictions": {
+        "title": "Predictions & milestones",
+        "body": "Pre-match model odds and ranking milestones for your players."
+      },
+      "briefing": {
+        "title": "Your personal briefing",
+        "body": "Daily order of play and tournament wrap-ups."
+      }
+    },
+    "cta": {
+      "join": "Notify me when Pro launches",
+      "saving": "Joining…",
+      "joined": "You're on the list",
+      "error": "Something went wrong — try again",
+      "sub": "Join the waitlist · billing coming soon"
+    }
   }
 }

@@ -7,10 +7,14 @@
 import { getUserOrFail } from '../_auth'
 import {
   isKnownCategory,
+  isProCategory,
   resolveAllPrefs,
+  CATEGORY_META,
+  KNOWN_CATEGORIES,
   type ChannelPrefs,
   type NotificationCategory,
 } from '@/lib/notification-categories'
+import { isPro, type Plan } from '@/lib/entitlements'
 
 export async function GET() {
   const { user, supabase, error } = await getUserOrFail()
@@ -18,7 +22,7 @@ export async function GET() {
 
   const { data, error: dbErr } = await supabase
     .from('profiles')
-    .select('notification_prefs, notification_mute_until')
+    .select('notification_prefs, notification_mute_until, plan, plan_expires_at')
     .eq('id', user.id)
     .maybeSingle()
 
@@ -27,9 +31,26 @@ export async function GET() {
   const stored = (data?.notification_prefs ?? null) as
     | Record<string, Partial<ChannelPrefs>>
     | null
+  const plan = ((data?.plan as Plan | undefined) ?? 'free')
+  const userIsPro = isPro({ plan, plan_expires_at: (data?.plan_expires_at as string | null) ?? null })
+
+  // Per-category tier/group/locked metadata is part of the API contract for
+  // clients. The settings page currently re-derives `locked` from CATEGORY_META
+  // + `plan` for render simplicity; `meta` is the canonical server-resolved form
+  // (used by future consumers / non-bundled clients). Keep the two in sync.
+  const meta = Object.fromEntries(
+    KNOWN_CATEGORIES.map((c) => [c, {
+      tier: CATEGORY_META[c].tier,
+      group: CATEGORY_META[c].group,
+      locked: CATEGORY_META[c].tier === 'pro' && !userIsPro,
+    }]),
+  )
+
   return Response.json({
     prefs: resolveAllPrefs(stored),
     mute_until: (data as { notification_mute_until?: string | null } | null)?.notification_mute_until ?? null,
+    plan: userIsPro ? 'pro' : 'free',
+    meta,
   })
 }
 
@@ -70,6 +91,23 @@ export async function PATCH(request: Request) {
   const hasPush = typeof body.push === 'boolean'
   if (!hasPush) {
     return Response.json({ error: 'Expected push boolean' }, { status: 400 })
+  }
+
+  // Pro categories can only be ENABLED by Pro users. Disabling (push:false) is
+  // always allowed so a downgraded user can still turn an orphaned pref off.
+  if (isProCategory(category) && body.push === true) {
+    const { data: planRow } = await supabase
+      .from('profiles')
+      .select('plan, plan_expires_at')
+      .eq('id', user.id)
+      .maybeSingle()
+    const userIsPro = isPro({
+      plan: ((planRow?.plan as Plan | undefined) ?? 'free'),
+      plan_expires_at: (planRow?.plan_expires_at as string | null) ?? null,
+    })
+    if (!userIsPro) {
+      return Response.json({ error: 'pro_required' }, { status: 403 })
+    }
   }
 
   // Read-modify-write the JSONB. Concurrent writes for the same user are
