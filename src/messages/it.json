@@ -977,6 +977,14 @@
           "label": "Partita terminata",
           "sub": "Risultati di partite che segui"
         },
+        "ranking_updated": {
+          "label": "Ranking aggiornato",
+          "sub": "Aggiornamento settimanale del ranking FIP"
+        },
+        "marketing": {
+          "label": "Novità del prodotto",
+          "sub": "Nuove funzioni, eventi e notizie occasionali"
+        },
         "match_scheduled": {
           "label": "Match scheduled",
           "sub": "Time & court announced"
@@ -1000,10 +1008,6 @@
         "player_eliminated": {
           "label": "Eliminated",
           "sub": "Your player is knocked out"
-        },
-        "ranking_updated": {
-          "label": "Ranking aggiornato",
-          "sub": "Aggiornamento settimanale del ranking FIP"
         },
         "ranking_threshold": {
           "label": "Ranking milestone",
@@ -1044,10 +1048,6 @@
         "tournament_wrapup": {
           "label": "Tournament wrap-up",
           "sub": "Recap when an event ends"
-        },
-        "marketing": {
-          "label": "Novità del prodotto",
-          "sub": "Nuove funzioni, eventi e notizie occasionali"
         }
       },
       "nudge": {
@@ -1535,7 +1535,20 @@
     "voteCount": "{count} voti",
     "predictionCorrect": "Avevamo ragione",
     "predictionBeat": "Persino meglio",
-    "predictionMiss": "Sbagliato"
+    "predictionMiss": "Sbagliato",
+    "predictionReach": "Arriverà a <r>{round}</r>",
+    "voteWinTitle": "Vinceranno il titolo?",
+    "voteAgree": "Sei d'accordo?",
+    "explainTitle": "Come funziona la previsione",
+    "explainIntro": "Il nostro modello di IA simula l'intero torneo per stimare fino a dove arriva ogni coppia.",
+    "explainStep1": "Ogni coppia riceve un punteggio di forza in base ai risultati recenti e alla classifica ufficiale.",
+    "explainStep2": "Simula il tabellone più volte e registra a che turno arriva ogni coppia.",
+    "explainWinTitle": "vincono il titolo",
+    "explainReachFinal": "arrivano in finale",
+    "explainKicker": "Per questo sono le nostre favorite per il titolo.",
+    "explainUnderdogBody": "Arrivano a <r>{round}</r> nella maggior parte delle simulazioni, ma raramente oltre.",
+    "explainClose": "Capito",
+    "voteThanks": "Grazie per il tuo parere!"
   },
   "pro": {
     "hero": {

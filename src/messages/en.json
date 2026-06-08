@@ -1009,6 +1009,14 @@
           "label": "Match finished",
           "sub": "Results for matches you follow"
         },
+        "ranking_updated": {
+          "label": "Rankings updated",
+          "sub": "Weekly FIP rankings refresh"
+        },
+        "marketing": {
+          "label": "Product updates",
+          "sub": "New features, events, occasional news"
+        },
         "match_scheduled": {
           "label": "Match scheduled",
           "sub": "Time & court announced"
@@ -1032,10 +1040,6 @@
         "player_eliminated": {
           "label": "Eliminated",
           "sub": "Your player is knocked out"
-        },
-        "ranking_updated": {
-          "label": "Rankings updated",
-          "sub": "Weekly FIP rankings refresh"
         },
         "ranking_threshold": {
           "label": "Ranking milestone",
@@ -1076,10 +1080,6 @@
         "tournament_wrapup": {
           "label": "Tournament wrap-up",
           "sub": "Recap when an event ends"
-        },
-        "marketing": {
-          "label": "Product updates",
-          "sub": "New features, events, occasional news"
         }
       },
       "nudge": {
@@ -1567,7 +1567,20 @@
     "voteCount": "{count} votes",
     "predictionCorrect": "We called it",
     "predictionBeat": "Even better",
-    "predictionMiss": "We missed this one"
+    "predictionMiss": "We missed this one",
+    "predictionReach": "Will reach <r>{round}</r>",
+    "voteWinTitle": "Will they win the title?",
+    "voteAgree": "Do you agree?",
+    "explainTitle": "How the prediction works",
+    "explainIntro": "Our AI model plays out the full tournament to estimate how far each pair will go.",
+    "explainStep1": "Each pair gets a strength rating from their recent results and official ranking.",
+    "explainStep2": "It simulates the draw multiple times and tracks which round each pair reaches.",
+    "explainWinTitle": "win the title",
+    "explainReachFinal": "reach the final",
+    "explainKicker": "That's why they're our pick to lift the trophy.",
+    "explainUnderdogBody": "Reach <r>{round}</r> in most simulations, but rarely further.",
+    "explainClose": "Got it",
+    "voteThanks": "Thanks for your feedback!"
   },
   "pro": {
     "hero": {

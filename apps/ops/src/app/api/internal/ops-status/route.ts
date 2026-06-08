@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import { assessRankingsHealth } from '@/lib/rankings-health'
 
 const RELAY_URL = process.env.RELAY_URL
 const RELAY_SECRET = process.env.RELAY_SECRET
@@ -18,7 +19,7 @@ export async function GET() {
 
   const supabase = serviceClient()
 
-  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats] = await Promise.all([
+  const [health, freshness, quality, recentEvents, relay, ongoing, cronStats, rankingsHealth] = await Promise.all([
     fetchHealth(supabase),
     fetchFreshness(supabase),
     fetchQuality(supabase),
@@ -26,7 +27,10 @@ export async function GET() {
     fetchRelayStatus(),
     fetchOngoing(supabase),
     fetchCronStats(supabase),
+    fetchRankingsHealth(supabase),
   ])
+
+  ;(health as Record<string, unknown>)['cron:rankings'] = rankingsHealth
 
   return NextResponse.json({
     health,
@@ -46,7 +50,7 @@ export async function GET() {
 async function fetchHealth(supabase: ReturnType<typeof serviceClient>) {
   const sources = [
     'cron:scores', 'cron:sync', 'cron:sync-matches',
-    'cron:rankings', 'cron:articles', 'cron:highlights',
+    'cron:articles', 'cron:highlights',
     'cron:fip-tournaments', 'cron:fip-scores',
   ]
 
@@ -65,6 +69,83 @@ async function fetchHealth(supabase: ReturnType<typeof serviceClient>) {
   }
 
   return health
+}
+
+// ── Rankings: data-freshness derived (padelgod player-rankings worker) ──────
+// The worker runs on Railway and does NOT write ops_events, so we read the data
+// it produces (player_ranking_snapshots) and synthesize a HealthEntry.
+//
+// maxCapturedAt is the newest captured_at across the table, used only for the
+// "worker may be down" age check. This assumes forward-capture-only writes (true
+// today). When the planned ranking-history BACKFILL lands, captured_at = now() on
+// historical-week rows could make a stale current week look fresh to that one
+// check — revisit then (the week-match rule already flags the staleness as error).
+async function fetchRankingsHealth(supabase: ReturnType<typeof serviceClient>) {
+  const empty = { status: 'unknown', started_at: null, duration_ms: null, meta: null, error_message: null }
+  try {
+    const [latestRes, capturedRes] = await Promise.all([
+      supabase
+        .from('player_ranking_snapshots')
+        .select('year, week, ranking_date')
+        .order('year', { ascending: false })
+        .order('week', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('player_ranking_snapshots')
+        .select('captured_at')
+        .order('captured_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    const latest = latestRes.data
+    const maxCapturedAt = capturedRes.data?.captured_at ?? null
+
+    let buckets = { official_men: 0, official_women: 0, race_men: 0, race_women: 0 }
+    if (latest) {
+      const countBucket = (type: string, gender: string) =>
+        supabase
+          .from('player_ranking_snapshots')
+          .select('player_id', { count: 'exact', head: true })
+          .eq('year', latest.year)
+          .eq('week', latest.week)
+          .eq('type', type)
+          .eq('gender', gender)
+
+      const [omc, owc, rmc, rwc] = await Promise.all([
+        countBucket('official', 'men'),
+        countBucket('official', 'women'),
+        countBucket('race', 'men'),
+        countBucket('race', 'women'),
+      ])
+      buckets = {
+        official_men: omc.count ?? 0,
+        official_women: owc.count ?? 0,
+        race_men: rmc.count ?? 0,
+        race_women: rwc.count ?? 0,
+      }
+    }
+
+    const verdict = assessRankingsHealth({
+      now: new Date(),
+      latestYear: latest?.year ?? null,
+      latestWeek: latest?.week ?? null,
+      latestRankingDate: latest?.ranking_date ?? null,
+      maxCapturedAt,
+      buckets,
+    })
+
+    return {
+      status: verdict.status,
+      started_at: verdict.started_at,
+      duration_ms: null,
+      meta: verdict.meta,
+      error_message: verdict.error_message,
+    }
+  } catch (err) {
+    return { ...empty, error_message: err instanceof Error ? err.message : 'rankings health query failed' }
+  }
 }
 
 // ── Relay: live fetch from Railway ─────────────────────────────
@@ -262,9 +343,6 @@ async function fetchCronStats(supabase: ReturnType<typeof serviceClient>) {
           break
         case 'cron:sync':
           s.datapoints += (m.tournaments_synced ?? 0) + (m.players_synced ?? 0)
-          break
-        case 'cron:rankings':
-          s.datapoints += (m.official ?? 0) + (m.race ?? 0)
           break
         case 'cron:articles':
           s.datapoints += (m.new ?? 0)

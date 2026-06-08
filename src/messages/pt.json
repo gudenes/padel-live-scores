@@ -977,6 +977,14 @@
           "label": "Jogo terminado",
           "sub": "Resultados de jogos que segues"
         },
+        "ranking_updated": {
+          "label": "Rankings atualizados",
+          "sub": "Atualização semanal do ranking FIP"
+        },
+        "marketing": {
+          "label": "Novidades do produto",
+          "sub": "Novas funções, eventos e notícias ocasionais"
+        },
         "match_scheduled": {
           "label": "Match scheduled",
           "sub": "Time & court announced"
@@ -1000,10 +1008,6 @@
         "player_eliminated": {
           "label": "Eliminated",
           "sub": "Your player is knocked out"
-        },
-        "ranking_updated": {
-          "label": "Rankings atualizados",
-          "sub": "Atualização semanal do ranking FIP"
         },
         "ranking_threshold": {
           "label": "Ranking milestone",
@@ -1044,10 +1048,6 @@
         "tournament_wrapup": {
           "label": "Tournament wrap-up",
           "sub": "Recap when an event ends"
-        },
-        "marketing": {
-          "label": "Novidades do produto",
-          "sub": "Novas funções, eventos e notícias ocasionais"
         }
       },
       "nudge": {
@@ -1535,7 +1535,20 @@
     "voteCount": "{count} votos",
     "predictionCorrect": "Acertámos",
     "predictionBeat": "Ainda melhor",
-    "predictionMiss": "Não acertámos"
+    "predictionMiss": "Não acertámos",
+    "predictionReach": "Chegará a <r>{round}</r>",
+    "voteWinTitle": "Vão ganhar o título?",
+    "voteAgree": "Concordas?",
+    "explainTitle": "Como funciona a previsão",
+    "explainIntro": "O nosso modelo de IA percorre o torneio completo para estimar até onde chega cada dupla.",
+    "explainStep1": "Cada dupla recebe uma classificação de força com base nos resultados recentes e no ranking oficial.",
+    "explainStep2": "Simula o quadro várias vezes e regista a que ronda chega cada uma.",
+    "explainWinTitle": "ganham o título",
+    "explainReachFinal": "chegam à final",
+    "explainKicker": "Por isso são as nossas favoritas ao título.",
+    "explainUnderdogBody": "Chegam a <r>{round}</r> na maioria das simulações, mas raramente mais longe.",
+    "explainClose": "Entendido",
+    "voteThanks": "Obrigado pela tua opinião!"
   },
   "pro": {
     "hero": {

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prediction — info hint sheet (personalized)</title>
+<style>
+  :root{
+    --text:#EEE4CE; --secondary:#9AAEC4; --muted:#6B7280;
+    --lime:#7ED321; --live:#FF4655; --gold:#F5A623; --card:rgba(255,255,255,0.03);
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --chunk:polygon(0% 4%,99.5% 0%,100% 96%,0.5% 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0d0e;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-wrap:wrap;gap:40px;justify-content:center;padding:34px 20px 60px}
+  .col{width:392px}
+  .caption{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:0 0 12px 4px;color:var(--secondary)}
+  .phone{position:relative;background:#161718;border:1px solid rgba(255,255,255,.08);border-radius:26px;overflow:hidden;min-height:560px}
+  .body{padding:14px 13px 20px}
+  .back{color:var(--secondary);font-size:12px;font-weight:700;margin:2px 2px 12px}
+
+  .champ{clip-path:var(--chunk);padding:14px 16px;margin-bottom:16px;position:relative}
+  .champ.fav{background:rgba(126,211,33,.07);border:1px solid rgba(126,211,33,.22)}
+  .info{position:absolute;top:11px;right:12px;width:19px;height:19px;border-radius:50%;border:1.5px solid var(--secondary);color:var(--secondary);
+    font-size:11px;font-style:italic;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .lbl{color:var(--secondary);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .road{color:var(--text);font-size:12px;font-weight:600;margin-top:4px}
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-right:24px}
+  .pct{font-family:var(--mono);color:var(--lime);font-weight:800;font-size:30px;line-height:1;text-align:right}
+  .pct small{font-size:15px}
+  .pctlbl{color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:right;margin-top:2px}
+  .bar{margin-top:12px;height:8px;background:rgba(255,255,255,.08);overflow:hidden;clip-path:polygon(.5% 0,100% 0,99.5% 100%,0 100%)}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--lime),#5fb314)}
+  .vote{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+  .vote .q{flex:1;color:var(--secondary);font-size:11px;font-weight:600}
+  .thumbs{display:flex;gap:6px}
+  .thumb{padding:5px 12px;font-size:15px;line-height:1;clip-path:var(--chunk);border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08)}
+
+  /* dim + bottom sheet */
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(1px)}
+  /* chunky bottom sheet — tilted top edge to match the brand cards; drop-shadow
+     (not box-shadow) so the glow follows the clip-path */
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#1c1e20;padding:14px 18px 24px;
+    clip-path:polygon(0 13px,100% 0,100% 100%,0 100%);filter:drop-shadow(0 -10px 26px rgba(0,0,0,.55))}
+  .grab{width:40px;height:4px;border-radius:3px;background:rgba(255,255,255,.22);margin:2px auto 14px}
+  .sheet h3{font-size:18px;font-weight:900;letter-spacing:.2px;margin-bottom:4px}
+  .sheet .intro{color:var(--secondary);font-size:13px;line-height:1.5;margin-bottom:16px}
+  .sheet .intro b{color:var(--text)}
+  .step{display:flex;gap:11px;margin-bottom:12px}
+  .step .num{flex-shrink:0;width:23px;height:23px;clip-path:var(--chunk);background:rgba(126,211,33,.16);color:var(--lime);font-family:var(--mono);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .step .tx{font-size:12.5px;line-height:1.45;color:var(--text);padding-top:1px}
+  .step .tx b{color:var(--lime)}
+  .hl{margin-top:8px;background:rgba(126,211,33,.07);border:1px solid rgba(126,211,33,.22);clip-path:var(--chunk);padding:14px 15px}
+  .hl .who{font-size:13px;font-weight:900;margin-bottom:9px}
+  .hl .stat{display:flex;align-items:baseline;gap:10px;margin-bottom:7px}
+  .hl .stat .n{font-family:var(--mono);font-weight:800;color:var(--lime);font-size:16px;min-width:44px}
+  .hl .stat .lab{font-size:12px;color:var(--text)}
+  .hl .kicker{color:var(--secondary);font-size:11.5px;line-height:1.4;margin-top:6px;font-style:italic}
+</style>
+</head>
+<body>
+
+<div class="col">
+  <div class="caption">ⓘ → hoja explicativa (personalizada)</div>
+  <div class="phone">
+    <div class="body">
+      <div class="back">‹ ATRÁS</div>
+      <div class="champ fav">
+        <div class="info">i</div>
+        <div class="top">
+          <div><div class="lbl">CAMINO AL TÍTULO</div><div class="road">5 victorias para levantarlo 🏆</div></div>
+          <div><div class="pct">41<small>%</small></div><div class="pctlbl">CAMPEÓN</div></div>
+        </div>
+        <div class="bar"><i style="width:41%"></i></div>
+        <div class="vote"><div class="q">¿Ganarán el título?</div><div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div></div>
+      </div>
+    </div>
+
+    <!-- opened sheet -->
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3>Cómo funciona la predicción</h3>
+      <div class="intro">Nuestro <b>modelo de IA</b> simula el torneo completo para estimar hasta dónde llega cada pareja.</div>
+
+      <div class="step"><div class="num">1</div><div class="tx">Calcula la fuerza de cada pareja con sus resultados recientes y su ranking FIP.</div></div>
+      <div class="step"><div class="num">2</div><div class="tx">Simula el cuadro completo y cuenta a qué ronda llega cada una.</div></div>
+
+      <div class="hl">
+        <div class="who">Galán y Chingotto</div>
+        <div class="stat"><span class="n">41%</span><span class="lab">campeones</span></div>
+        <div class="stat"><span class="n">65%</span><span class="lab">llegan a la final</span></div>
+        <div class="kicker">Por eso son nuestros favoritos al título.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- note column -->
+<div class="col" style="width:300px">
+  <div class="caption">Notas</div>
+  <div style="color:var(--muted);font-size:13px;line-height:1.6">
+    <p style="margin-bottom:12px"><b style="color:var(--text)">El ⓘ</b> va en la esquina de la tarjeta (igual que Sofascore).</p>
+    <p style="margin-bottom:12px"><b style="color:var(--text)">Personalización:</b> el bloque verde usa los nombres y números reales de la pareja que estás viendo.</p>
+    <p style="margin-bottom:12px"><b style="color:var(--text)">Cabeza baja:</b> el bloque cambiaría a algo como —<br>
+    “<i>Martín y Teres llegan a <b style="color:var(--gold)">Octavos</b> en la mayoría de simulaciones, pero rara vez más lejos.</i>” — usando la ronda, no el % de campeón.</p>
+    <p><b style="color:var(--text)">Patrón:</b> hoja inferior (sheet) como el ejemplo, o expandir el texto bajo la tarjeta (más simple, ya existe ese patrón en el componente). Tu elección.</p>
+  </div>
+</div>
+
+</body>
+</html>

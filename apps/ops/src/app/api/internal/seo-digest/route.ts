@@ -19,6 +19,10 @@ function isoDaysAgo(n: number): string {
   return new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10)
 }
 
+// Vercel cron jobs invoke the path with a GET request, so alias GET to the
+// same handler. Without this the daily cron 405s and never runs.
+export const GET = POST
+
 export async function POST(req: Request) {
   const auth = req.headers.get('authorization') ?? ''
   const expected = `Bearer ${process.env.CRON_SECRET ?? ''}`

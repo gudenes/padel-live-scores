@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dynamic hero — favorito vs underdog</title>
+<style>
+  :root{
+    --text:#EEE4CE; --secondary:#9AAEC4; --muted:#6B7280;
+    --lime:#7ED321; --live:#FF4655; --gold:#F5A623; --card:rgba(255,255,255,0.03);
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --chunk:polygon(0% 4%,99.5% 0%,100% 96%,0.5% 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0d0e;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-wrap:wrap;gap:34px;justify-content:center;padding:34px 20px 60px}
+  .col{width:360px}
+  .caption{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:0 0 4px 2px}
+  .caption.fav{color:var(--lime)} .caption.dog{color:var(--gold)}
+  .sub{color:var(--muted);font-size:11px;margin:0 0 12px 2px}
+
+  .champ{background:rgba(126,211,33,.07);border:1px solid rgba(126,211,33,.22);clip-path:var(--chunk);padding:14px 16px}
+  .champ.dog{background:rgba(154,174,196,.06);border-color:rgba(154,174,196,.2)}
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .lbl{color:var(--secondary);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .road{color:var(--text);font-size:12px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:6px}
+  /* hero metric — contender */
+  .pct{font-family:var(--mono);color:var(--lime);font-weight:800;font-size:30px;line-height:1;text-align:right}
+  .pct small{font-size:15px}
+  .pctlbl{color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:right;margin-top:2px}
+  /* hero metric — underdog (round) */
+  .round{text-align:right;line-height:1}
+  .round b{font-size:23px;font-weight:900;color:var(--text);letter-spacing:.3px}
+  .round .rl{color:var(--gold);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+  /* bars */
+  .bar{margin-top:12px;height:8px;background:rgba(255,255,255,.08);overflow:hidden;clip-path:polygon(.5% 0,100% 0,99.5% 100%,0 100%)}
+  .bar>i{display:block;height:100%}
+  .bar>i.win{background:linear-gradient(90deg,var(--lime),#5fb314)}
+  .bar>i.depth{background:linear-gradient(90deg,#9AAEC4,#6f8197)}
+  .barcap{display:flex;justify-content:space-between;margin-top:5px;color:var(--muted);font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  /* vote row */
+  .vote{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+  .vote .q{flex:1;color:var(--secondary);font-size:11px;font-weight:600}
+  .thumbs{display:flex;gap:6px;flex-shrink:0}
+  .thumb{padding:5px 11px;font-size:15px;line-height:1;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);cursor:pointer;color:#fff}
+  .foot{color:var(--muted);font-size:11px;line-height:1.5;margin-top:12px;padding-left:10px;border-left:2px solid currentColor}
+  .foot.fav{color:var(--lime)} .foot.dog{color:var(--gold)}
+</style>
+</head>
+<body>
+
+<!-- ░ FAVORITE ░ -->
+<div class="col">
+  <div class="caption fav">Contendiente · #2 Galán/Chingotto</div>
+  <div class="sub">champ ≥ ~10% → el héroe es el % de campeón</div>
+  <div class="champ">
+    <div class="top">
+      <div>
+        <div class="lbl">CAMINO AL TÍTULO</div>
+        <div class="road">5 victorias para levantarlo 🏆</div>
+      </div>
+      <div><div class="pct">41<small>%</small></div><div class="pctlbl">CAMPEÓN</div></div>
+    </div>
+    <div class="bar"><i class="win" style="width:41%"></i></div>
+    <div class="barcap"><span>Prob. de campeón</span><span>Llegará a la Final</span></div>
+    <div class="vote">
+      <div class="q">¿Ganarán el título?</div>
+      <div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div>
+    </div>
+  </div>
+  <div class="foot fav">El % de campeón es su historia real — se mantiene como métrica principal.</div>
+</div>
+
+<!-- ░ UNDERDOG ░ -->
+<div class="col">
+  <div class="caption dog">Cabeza baja · Martin/Teres</div>
+  <div class="sub">champ &lt; ~10% → el % de campeón es ruido, mostramos la <b>ronda</b></div>
+  <div class="champ dog">
+    <div class="top">
+      <div>
+        <div class="lbl">CAMINO PROYECTADO</div>
+        <div class="road">2 victorias por delante 🎯</div>
+      </div>
+      <div class="round"><b>Octavos</b><div class="rl">Predicción · llega a</div></div>
+    </div>
+    <div class="bar"><i class="depth" style="width:42%"></i></div>
+    <div class="barcap"><span>Profundidad proyectada</span><span>3.ᵉʳ de 6 rondas</span></div>
+    <div class="vote">
+      <div class="q">¿Llegará a Octavos?</div>
+      <div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div>
+    </div>
+  </div>
+  <div class="foot dog">Sin “1% campeón”. La ronda proyectada es positiva y relevante para este par.</div>
+</div>
+
+<!-- ░ UNDERDOG variant — round + reach% ░ -->
+<div class="col">
+  <div class="caption dog">Variante · ronda + probabilidad</div>
+  <div class="sub">igual, pero con un número (prob. de alcanzar esa ronda)</div>
+  <div class="champ dog">
+    <div class="top">
+      <div>
+        <div class="lbl">CAMINO PROYECTADO</div>
+        <div class="road">2 victorias por delante 🎯</div>
+      </div>
+      <div><div class="pct" style="color:var(--gold)">78<small>%</small></div><div class="pctlbl">LLEGA A OCTAVOS</div></div>
+    </div>
+    <div class="bar"><i class="depth" style="width:78%"></i></div>
+    <div class="barcap"><span>Prob. de llegar a Octavos</span><span></span></div>
+    <div class="vote">
+      <div class="q">¿De acuerdo?</div>
+      <div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div>
+    </div>
+  </div>
+  <div class="foot dog">Da un número “satisfactorio” en vez de una etiqueta sola.</div>
+</div>
+
+</body>
+</html>
