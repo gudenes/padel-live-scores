@@ -19,8 +19,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
   }
   const body = await req.json().catch(() => ({}))
+  // Target the main app. Defaults to prod; override with MAIN_APP_URL for
+  // local testing (e.g. http://localhost:3009 pointing at a local main app).
+  const target = process.env.MAIN_APP_URL ?? 'https://padelnachos.com'
   try {
-    const r = await fetch('https://padelnachos.com/api/admin/broadcast-push', {
+    const r = await fetch(`${target}/api/admin/broadcast-push`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
