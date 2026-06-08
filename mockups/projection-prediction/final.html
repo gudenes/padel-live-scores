@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Projection hero — final adaptive design</title>
+<style>
+  :root{
+    --text:#EEE4CE; --secondary:#9AAEC4; --muted:#6B7280;
+    --lime:#7ED321; --live:#FF4655; --gold:#F5A623; --card:rgba(255,255,255,0.03);
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --chunk:polygon(0% 4%,99.5% 0%,100% 96%,0.5% 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0d0e;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-wrap:wrap;gap:40px;justify-content:center;padding:34px 20px 60px}
+  .col{width:392px}
+  .caption{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:0 0 12px 4px}
+  .caption.fav{color:var(--lime)} .caption.dog{color:var(--gold)}
+  .phone{background:#161718;border:1px solid rgba(255,255,255,.08);border-radius:26px;overflow:hidden}
+  .tabs{display:flex;gap:18px;padding:14px 16px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px;font-weight:800;letter-spacing:.4px;color:var(--muted)}
+  .tabs .on{color:var(--lime);position:relative;padding-bottom:10px}
+  .tabs .on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--lime)}
+  .tabs span:not(.on){padding-bottom:10px}
+  .body{padding:14px 13px 20px}
+  .back{color:var(--secondary);font-size:12px;font-weight:700;margin:2px 2px 12px}
+  .hero{position:relative;height:140px;border-radius:6px;overflow:hidden;margin-bottom:16px}
+  .hero.fav{background:radial-gradient(120% 100% at 0% 0%,#1d3a12 0%,#10210b 45%,#0c0d0e 100%)}
+  .hero.dog{background:radial-gradient(120% 100% at 0% 0%,#26303a 0%,#141a20 45%,#0c0d0e 100%)}
+  .hero .imgs{position:absolute;left:14px;bottom:0;display:flex;align-items:flex-end;height:100%}
+  .hero .ph{width:74px;height:118px;border-radius:8px;margin-right:-14px;background:linear-gradient(180deg,#3a4a2a,#1a2113);display:flex;align-items:flex-end;justify-content:center;font-size:34px;opacity:.85}
+  .hero.dog .ph{background:linear-gradient(180deg,#39434d,#181d23)}
+  .hero .meta{position:absolute;left:150px;top:50%;transform:translateY(-50%)}
+  .hero .seed{font-family:var(--mono);font-size:30px;font-weight:900;line-height:.9;color:var(--text)}
+  .hero .nm{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:16px;font-weight:800}
+  .flag{width:21px;height:15px;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+
+  .champ{clip-path:var(--chunk);padding:14px 16px;margin-bottom:16px}
+  .champ.fav{background:rgba(126,211,33,.07);border:1px solid rgba(126,211,33,.22)}
+  .champ.dog{background:rgba(154,174,196,.06);border:1px solid rgba(154,174,196,.2)}
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .lbl{color:var(--secondary);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .road{color:var(--text);font-size:12px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:6px}
+  .pct{font-family:var(--mono);color:var(--lime);font-weight:800;font-size:30px;line-height:1;text-align:right}
+  .pct small{font-size:15px}
+  .pctlbl{color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:right;margin-top:2px}
+  .round{text-align:right;line-height:1}
+  .round b{font-size:24px;font-weight:900;color:var(--text);letter-spacing:.3px}
+  .round .rl{color:var(--gold);font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;margin-top:3px}
+  .lbl.gold{color:var(--gold)}
+  .bigpred{font-size:21px;font-weight:800;color:var(--text);margin-top:5px;line-height:1.05}
+  .bigpred .acc{color:var(--gold);font-weight:900}
+  .bar{margin-top:12px;height:8px;background:rgba(255,255,255,.08);overflow:hidden;clip-path:polygon(.5% 0,100% 0,99.5% 100%,0 100%)}
+  .bar>i{display:block;height:100%}
+  .bar>i.win{background:linear-gradient(90deg,var(--lime),#5fb314)}
+  .bar>i.depth{background:linear-gradient(90deg,#9AAEC4,#6f8197)}
+  .barcap{display:flex;justify-content:space-between;margin-top:5px;color:var(--muted);font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .spark{margin-top:6px;display:flex;justify-content:flex-end}
+  .vote{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+  .vote .q{flex:1;color:var(--secondary);font-size:11px;font-weight:600}
+  .thumbs{display:flex;gap:6px;flex-shrink:0}
+  .thumb{padding:5px 11px;font-size:15px;line-height:1;border-radius:7px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);cursor:pointer;color:#fff}
+  .pp{color:var(--secondary);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin:2px 0 12px 2px}
+  .prow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid rgba(255,255,255,.07);clip-path:var(--chunk);padding:10px 12px;margin-left:30px;position:relative;margin-bottom:8px}
+  .node{position:absolute;left:-30px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--lime);border:3px solid #161718;display:flex;align-items:center;justify-content:center;font-size:12px;color:#06210a;font-weight:900}
+  .node.grey{background:#3a3f47}
+  .prow .r{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+  .prow .sub{color:var(--secondary);font-size:12px;font-weight:600;margin-top:2px}
+  .prow .ex{margin-left:auto;color:var(--lime);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .prow .wp{margin-left:auto;font-family:var(--mono);font-weight:800;text-align:right}
+  .prow .wp b{font-size:18px;color:var(--lime)} .prow .wp small{display:block;color:var(--muted);font-size:8.5px;font-weight:700;text-transform:uppercase}
+</style>
+</head>
+<body>
+
+<!-- ░ CONTENDER ░ -->
+<div class="col">
+  <div class="caption fav">Contendiente — héroe = % campeón</div>
+  <div class="phone">
+    <div class="tabs"><span>RESUMEN</span><span class="on">PROYECCIÓN</span><span>HISTORIA</span><span>PARTIDOS</span></div>
+    <div class="body">
+      <div class="back">‹ ATRÁS</div>
+      <div class="hero fav">
+        <div class="imgs"><div class="ph">🎾</div><div class="ph">🎾</div></div>
+        <div class="meta">
+          <div class="seed">#2</div>
+          <div class="nm"><span class="flag" style="background:linear-gradient(180deg,#aa151b 33%,#f1bf00 33% 66%,#aa151b 66%)"></span>Alejandro Galán</div>
+          <div class="nm"><span class="flag" style="background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%)"></span>Federico Chingotto</div>
+        </div>
+      </div>
+      <div class="champ fav">
+        <div class="top">
+          <div><div class="lbl">CAMINO AL TÍTULO</div><div class="road">5 victorias para levantarlo 🏆</div></div>
+          <div><div class="pct">41<small>%</small></div><div class="pctlbl">CAMPEÓN</div></div>
+        </div>
+        <div class="bar"><i class="win" style="width:41%"></i></div>
+        <div class="spark"><svg width="120" height="20"><polyline points="0,16 20,15 40,15 60,10 80,11 100,5 120,3" fill="none" stroke="#7ED321" stroke-width="2"/></svg></div>
+        <div class="vote"><div class="q">¿Ganarán el título?</div><div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div></div>
+      </div>
+      <div class="pp">CAMINO PROYECTADO</div>
+      <div class="prow"><div class="node">✓</div><div><div class="r">R64</div><div class="sub">Avanza sin jugar</div></div><div class="ex">EXENTO</div></div>
+      <div class="prow"><div class="node grey"></div><div><div class="r">R32</div><div class="sub">Martin / Teres</div></div><div class="wp"><b>95<small style="display:inline">%</small></b><small>prob. ganar</small></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ░ NON-CONTENDER ░ -->
+<div class="col">
+  <div class="caption dog">Cabeza baja — héroe = ronda proyectada</div>
+  <div class="phone">
+    <div class="tabs"><span>RESUMEN</span><span class="on">PROYECCIÓN</span><span>HISTORIA</span><span>PARTIDOS</span></div>
+    <div class="body">
+      <div class="back">‹ ATRÁS</div>
+      <div class="hero dog">
+        <div class="imgs"><div class="ph">🎾</div><div class="ph">🎾</div></div>
+        <div class="meta">
+          <div class="seed" style="font-size:22px;color:var(--secondary)">Sin cabeza</div>
+          <div class="nm"><span class="flag" style="background:linear-gradient(180deg,#aa151b 33%,#f1bf00 33% 66%,#aa151b 66%)"></span>Javier Martín</div>
+          <div class="nm"><span class="flag" style="background:linear-gradient(180deg,#aa151b 33%,#f1bf00 33% 66%,#aa151b 66%)"></span>Pol Teres</div>
+        </div>
+      </div>
+      <div class="champ dog">
+        <div class="lbl gold">NUESTRA PREDICCIÓN</div>
+        <div class="bigpred">Llegará a <span class="acc">Octavos</span></div>
+        <div class="bar" style="margin-top:13px"><i class="depth" style="width:42%"></i></div>
+        <div class="vote"><div class="q">¿De acuerdo?</div><div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div></div>
+      </div>
+      <div class="pp">CAMINO PROYECTADO</div>
+      <div class="prow"><div class="node grey"></div><div><div class="r">R64</div><div class="sub">Coello / Tapia</div></div><div class="wp"><b style="color:#FF4655">12<small style="display:inline">%</small></b><small>prob. ganar</small></div></div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

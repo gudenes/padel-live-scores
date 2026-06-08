@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prediction — info hint sheet (English)</title>
+<style>
+  :root{
+    --text:#EEE4CE; --secondary:#9AAEC4; --muted:#6B7280;
+    --lime:#7ED321; --live:#FF4655; --gold:#F5A623; --card:rgba(255,255,255,0.03);
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --chunk:polygon(0% 4%,99.5% 0%,100% 96%,0.5% 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0d0e;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-wrap:wrap;gap:40px;justify-content:center;padding:34px 20px 60px}
+  .col{width:392px}
+  .caption{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;margin:0 0 12px 4px;color:var(--secondary)}
+  .phone{position:relative;background:#161718;border:1px solid rgba(255,255,255,.08);border-radius:26px;overflow:hidden;min-height:560px}
+  .body{padding:14px 13px 20px}
+  .back{color:var(--secondary);font-size:12px;font-weight:700;margin:2px 2px 12px}
+
+  .champ{clip-path:var(--chunk);padding:14px 16px;margin-bottom:16px;position:relative}
+  .champ.fav{background:rgba(126,211,33,.07);border:1px solid rgba(126,211,33,.22)}
+  .info{position:absolute;top:11px;right:12px;width:19px;height:19px;border-radius:50%;border:1.5px solid var(--secondary);color:var(--secondary);
+    font-size:11px;font-style:italic;font-weight:800;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .lbl{color:var(--secondary);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .road{color:var(--text);font-size:12px;font-weight:600;margin-top:4px}
+  .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-right:24px}
+  .pct{font-family:var(--mono);color:var(--lime);font-weight:800;font-size:30px;line-height:1;text-align:right}
+  .pct small{font-size:15px}
+  .pctlbl{color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:right;margin-top:2px}
+  .bar{margin-top:12px;height:8px;background:rgba(255,255,255,.08);overflow:hidden;clip-path:polygon(.5% 0,100% 0,99.5% 100%,0 100%)}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--lime),#5fb314)}
+  .vote{margin-top:12px;padding-top:11px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+  .vote .q{flex:1;color:var(--secondary);font-size:11px;font-weight:600}
+  .thumbs{display:flex;gap:6px}
+  .thumb{padding:5px 12px;font-size:15px;line-height:1;clip-path:var(--chunk);border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08)}
+
+  .scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(1px)}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#1c1e20;padding:14px 18px 24px;
+    clip-path:polygon(0 13px,100% 0,100% 100%,0 100%);filter:drop-shadow(0 -10px 26px rgba(0,0,0,.55))}
+  .grab{width:40px;height:4px;border-radius:3px;background:rgba(255,255,255,.22);margin:2px auto 14px}
+  .sheet h3{font-size:18px;font-weight:900;letter-spacing:.2px;margin-bottom:4px}
+  .sheet .intro{color:var(--secondary);font-size:13px;line-height:1.5;margin-bottom:16px}
+  .sheet .intro b{color:var(--text)}
+  .step{display:flex;gap:11px;margin-bottom:12px}
+  .step .num{flex-shrink:0;width:23px;height:23px;clip-path:var(--chunk);background:rgba(126,211,33,.16);color:var(--lime);font-family:var(--mono);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+  .step .tx{font-size:12.5px;line-height:1.45;color:var(--text);padding-top:1px}
+  .step .tx b{color:var(--lime)}
+  .hl{margin-top:8px;background:rgba(126,211,33,.07);border:1px solid rgba(126,211,33,.22);clip-path:var(--chunk);padding:14px 15px}
+  .hl .who{font-size:13px;font-weight:900;margin-bottom:9px}
+  .hl .stat{display:flex;align-items:baseline;gap:10px;margin-bottom:7px}
+  .hl .stat .n{font-family:var(--mono);font-weight:800;color:var(--lime);font-size:16px;min-width:44px}
+  .hl .stat .lab{font-size:12px;color:var(--text)}
+  .hl .kicker{color:var(--secondary);font-size:11.5px;line-height:1.4;margin-top:6px;font-style:italic}
+</style>
+</head>
+<body>
+
+<div class="col">
+  <div class="caption">ⓘ → explanation sheet (English)</div>
+  <div class="phone">
+    <div class="body">
+      <div class="back">‹ BACK</div>
+      <div class="champ fav">
+        <div class="info">i</div>
+        <div class="top">
+          <div><div class="lbl">ROAD TO THE TROPHY</div><div class="road">5 wins to lift it 🏆</div></div>
+          <div><div class="pct">41<small>%</small></div><div class="pctlbl">CHAMPION</div></div>
+        </div>
+        <div class="bar"><i style="width:41%"></i></div>
+        <div class="vote"><div class="q">Will they win the title?</div><div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div></div>
+      </div>
+    </div>
+
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3>How the prediction works</h3>
+      <div class="intro">Our <b>AI model</b> plays out the full tournament to estimate how far each pair will go.</div>
+
+      <div class="step"><div class="num">1</div><div class="tx">Each pair gets a strength rating from their recent results and official ranking.</div></div>
+      <div class="step"><div class="num">2</div><div class="tx">It simulates the draw multiple times and tracks which round each pair reaches.</div></div>
+
+      <div class="hl">
+        <div class="who">Galán &amp; Chingotto</div>
+        <div class="stat"><span class="n">41%</span><span class="lab">win the title</span></div>
+        <div class="stat"><span class="n">65%</span><span class="lab">reach the final</span></div>
+        <div class="kicker">That's why they're our pick to lift the trophy.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="col" style="width:300px">
+  <div class="caption">Notes</div>
+  <div style="color:var(--muted);font-size:13px;line-height:1.6">
+    <p style="margin-bottom:12px"><b style="color:var(--text)">ⓘ</b> sits in the card corner (like Sofascore).</p>
+    <p style="margin-bottom:12px"><b style="color:var(--text)">Personalized:</b> the green block uses the real names + numbers of the pair you're viewing.</p>
+    <p style="margin-bottom:12px"><b style="color:var(--text)">Underdog:</b> the block becomes —<br>
+    “<i>Martín &amp; Teres reach the <b style="color:var(--gold)">Round of 16</b> in most simulations, but rarely further.</i>” — round-framed, not champion %.</p>
+    <p style="margin-bottom:12px"><b style="color:var(--text)">Dismiss:</b> tap outside (scrim) or drag the handle down; content scrolls if it overflows.</p>
+    <p><b style="color:var(--text)">Chunky style:</b> sheet has a tilted top edge; number badges, the highlight block and the thumbs all use the brand clip-path.</p>
+  </div>
+</div>
+
+</body>
+</html>

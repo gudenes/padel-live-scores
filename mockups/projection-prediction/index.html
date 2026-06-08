@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Projection — prediction in the champion card (mockup)</title>
+<style>
+  :root{
+    --text:#EEE4CE; --secondary:#9AAEC4; --muted:#6B7280;
+    --lime:#7ED321; --live:#FF4655; --gold:#F5A623; --card:rgba(255,255,255,0.03);
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+    --chunk:polygon(0% 4%,99.5% 0%,100% 96%,0.5% 100%);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0c0d0e;color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;flex-wrap:wrap;gap:40px;justify-content:center;padding:40px 20px 80px}
+  .col{width:392px}
+  .caption{color:var(--secondary);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin:0 0 12px 4px}
+  .phone{background:#161718;border:1px solid rgba(255,255,255,.08);border-radius:26px;overflow:hidden}
+  /* tab strip */
+  .tabs{display:flex;gap:18px;padding:14px 16px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:12px;font-weight:800;letter-spacing:.4px;color:var(--muted)}
+  .tabs .on{color:var(--lime);position:relative;padding-bottom:10px}
+  .tabs .on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--lime)}
+  .tabs span:not(.on){padding-bottom:10px}
+  .body{padding:14px 13px 22px}
+  .back{color:var(--secondary);font-size:12px;font-weight:700;margin:2px 2px 12px}
+  /* hero photo banner */
+  .hero{position:relative;height:140px;border-radius:6px;overflow:hidden;margin-bottom:16px;
+    background:radial-gradient(120% 100% at 0% 0%,#1d3a12 0%,#10210b 45%,#0c0d0e 100%)}
+  .hero .imgs{position:absolute;left:14px;bottom:0;display:flex;align-items:flex-end;height:100%}
+  .hero .ph{width:74px;height:118px;border-radius:8px;margin-right:-14px;
+    background:linear-gradient(180deg,#3a4a2a,#1a2113);display:flex;align-items:flex-end;justify-content:center;font-size:34px;opacity:.9}
+  .hero .meta{position:absolute;left:150px;top:50%;transform:translateY(-50%)}
+  .hero .seed{font-family:var(--mono);font-size:30px;font-weight:900;line-height:.9;color:var(--text)}
+  .hero .nm{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:16px;font-weight:800}
+  .flag{width:21px;height:15px;border-radius:2px;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+  /* champion card */
+  .champ{background:rgba(126,211,33,.07);border:1px solid rgba(126,211,33,.22);clip-path:var(--chunk);padding:13px 15px;margin-bottom:16px}
+  .champ .top{display:flex;align-items:center;justify-content:space-between}
+  .lbl{color:var(--secondary);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .road{color:var(--text);font-size:12px;font-weight:600;margin-top:4px;display:flex;align-items:center;gap:6px}
+  .pct{font-family:var(--mono);color:var(--lime);font-weight:800;font-size:28px;line-height:1;text-align:right}
+  .pct small{font-size:14px}
+  .pctlbl{color:var(--muted);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;text-align:right;margin-top:1px}
+  .bar{margin-top:10px;height:8px;background:rgba(255,255,255,.08);overflow:hidden;clip-path:polygon(.5% 0,100% 0,99.5% 100%,0 100%)}
+  .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--lime),#5fb314)}
+  .spark{margin-top:6px;display:flex;justify-content:flex-end}
+  .spark svg{display:block}
+  /* NEW prediction + thumbs row */
+  .pred{margin-top:11px;padding-top:11px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px}
+  .pred .info{flex:1;min-width:0}
+  .pred .plbl{color:var(--secondary);font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+  .pred .pval{color:var(--text);font-size:13px;font-weight:800;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .thumbs{display:flex;gap:6px;flex-shrink:0}
+  .thumb{padding:5px 11px;font-size:15px;line-height:1;border-radius:7px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.08);cursor:pointer;color:#fff}
+  .thumb.up-on{background:var(--lime);border-color:transparent}
+  .thumb.down-on{background:var(--live);border-color:transparent}
+  .thumb.dim{opacity:.4}
+  /* projected path peek */
+  .pp{color:var(--secondary);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;margin:2px 0 12px 2px}
+  .row{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid rgba(255,255,255,.07);clip-path:var(--chunk);padding:10px 12px;margin-left:30px;position:relative}
+  .node{position:absolute;left:-30px;top:50%;transform:translateY(-50%);width:22px;height:22px;border-radius:50%;background:var(--lime);border:3px solid #161718;display:flex;align-items:center;justify-content:center;font-size:12px;color:#06210a;font-weight:900}
+  .row .r{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+  .row .sub{color:var(--secondary);font-size:12px;font-weight:600;margin-top:2px}
+  .row .ex{margin-left:auto;color:var(--lime);font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px}
+  .note{color:var(--muted);font-size:12px;line-height:1.5;margin:14px 4px 0;border-left:2px solid var(--lime);padding-left:10px}
+  .statelabel{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#06210a;background:var(--lime);padding:2px 8px;border-radius:4px;margin:0 0 8px 4px}
+  .statelabel.alt{background:#2a2f37;color:var(--secondary)}
+</style>
+</head>
+<body>
+
+<!-- ░░░ COLUMN 1 — full proposed view (before voting) ░░░ -->
+<div class="col">
+  <div class="caption">Propuesta · vista completa</div>
+  <div class="phone">
+    <div class="tabs"><span>RESUMEN</span><span class="on">PROYECCIÓN</span><span>HISTORIA</span><span>PARTIDOS</span></div>
+    <div class="body">
+      <div class="back">‹ ATRÁS</div>
+
+      <!-- hero photo banner (unchanged) -->
+      <div class="hero">
+        <div class="imgs">
+          <div class="ph">🎾</div><div class="ph">🎾</div>
+        </div>
+        <div class="meta">
+          <div class="seed">#2</div>
+          <div class="nm"><span class="flag" style="background:linear-gradient(180deg,#aa151b 33%,#f1bf00 33% 66%,#aa151b 66%)"></span>Alejandro Galán</div>
+          <div class="nm"><span class="flag" style="background:linear-gradient(180deg,#74acdf 33%,#fff 33% 66%,#74acdf 66%)"></span>Federico Chingotto</div>
+        </div>
+      </div>
+
+      <!-- champion card WITH the new prediction + thumbs row -->
+      <div class="champ">
+        <div class="top">
+          <div>
+            <div class="lbl">CAMINO AL TÍTULO</div>
+            <div class="road">5 victorias para levantarlo 🏆</div>
+          </div>
+          <div>
+            <div class="pct">41<small>%</small></div>
+            <div class="pctlbl">CAMPEÓN</div>
+          </div>
+        </div>
+        <div class="bar"><i style="width:41%"></i></div>
+        <div class="spark"><svg width="120" height="22" viewBox="0 0 120 22"><polyline points="0,18 20,16 40,17 60,11 80,12 100,6 120,4" fill="none" stroke="#7ED321" stroke-width="2"/></svg></div>
+
+        <!-- ▼▼▼ NEW ▼▼▼ -->
+        <div class="pred">
+          <div class="info">
+            <div class="plbl">NUESTRA PREDICCIÓN</div>
+            <div class="pval">Llegará a la Final</div>
+          </div>
+          <div class="thumbs">
+            <button class="thumb">👍</button>
+            <button class="thumb">👎</button>
+          </div>
+        </div>
+        <!-- ▲▲▲ NEW ▲▲▲ -->
+      </div>
+
+      <!-- projected path: no more inline prediction card, just the bracket -->
+      <div class="pp">CAMINO PROYECTADO</div>
+      <div class="row"><div class="node">✓</div><div><div class="r">R64</div><div class="sub">Avanza sin jugar</div></div><div class="ex">EXENTO</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ░░░ COLUMN 2 — the prediction row, both states ░░░ -->
+<div class="col">
+  <div class="caption">El row de predicción · estados</div>
+
+  <div class="statelabel alt">Antes de votar</div>
+  <div class="phone" style="margin-bottom:22px"><div class="body" style="padding-bottom:14px">
+    <div class="champ" style="margin-bottom:0">
+      <div class="top"><div><div class="lbl">CAMINO AL TÍTULO</div><div class="road">5 victorias para levantarlo 🏆</div></div><div><div class="pct">41<small>%</small></div><div class="pctlbl">CAMPEÓN</div></div></div>
+      <div class="bar"><i style="width:41%"></i></div>
+      <div class="pred">
+        <div class="info"><div class="plbl">NUESTRA PREDICCIÓN</div><div class="pval">Llegará a la Final</div></div>
+        <div class="thumbs"><button class="thumb">👍</button><button class="thumb">👎</button></div>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="statelabel">Después de votar 👍</div>
+  <div class="phone" style="margin-bottom:22px"><div class="body" style="padding-bottom:14px">
+    <div class="champ" style="margin-bottom:0">
+      <div class="top"><div><div class="lbl">CAMINO AL TÍTULO</div><div class="road">5 victorias para levantarlo 🏆</div></div><div><div class="pct">41<small>%</small></div><div class="pctlbl">CAMPEÓN</div></div></div>
+      <div class="bar"><i style="width:41%"></i></div>
+      <div class="pred">
+        <div class="info"><div class="plbl">NUESTRA PREDICCIÓN</div><div class="pval">Llegará a la Final</div></div>
+        <div class="thumbs"><button class="thumb up-on">👍</button><button class="thumb down-on dim">👎</button></div>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="note">
+    <b>What changed vs. today</b><br>
+    • The prediction (“Llegará a la Final”) now lives <b>inside the champion-% card</b>, with two small thumbs on the right.<br>
+    • <b>No vote count / “% de fans” message</b> — after voting, just the chosen thumb stays lit (the other dims).<br>
+    • The separate prediction card that used to sit on the timeline is <b>removed</b> — the bracket below is just the path.<br>
+    • Active pairs only; for eliminated/champion pairs the ✓/✗ verdict card still shows instead.
+  </div>
+</div>
+
+</body>
+</html>

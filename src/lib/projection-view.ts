@@ -137,6 +137,15 @@ export function projectedFinishRound(rounds: RoadRoundVM[]): ProjRound | null {
 /** Shallow→deep round order, for comparing how far a pair got. */
 const ROUND_ORDER: ProjRound[] = ['R64', 'R32', 'R16', 'QF', 'SF', 'F']
 
+/** A pair is a "contender" when its title odds are high enough that the
+ *  champion % is the meaningful headline. Below this, the champion % is noise
+ *  (e.g. 1%) and the hero leads with the projected round instead. */
+export const CONTENDER_CHAMPION_PROB = 0.1
+
+export function isContender(championProb: number): boolean {
+  return championProb >= CONTENDER_CHAMPION_PROB
+}
+
 export type PredictionVerdict = 'called' | 'better' | 'missed'
 
 /** Grade the frozen pre-tournament prediction ("reach {predicted}") against the
