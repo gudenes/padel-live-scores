@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PageHeader, Panel, Button, DataTable, Field, EmptyState } from '@/components/ui'
+import { PageHeader, Panel, Button, DataTable, EmptyState } from '@/components/ui'
 import type { NotificationSendRow } from '@/lib/broadcast-queries'
+import styles from './broadcast.module.css'
 
 interface DryRunResult {
   recipients_total: number
@@ -11,6 +12,11 @@ interface DryRunResult {
   fcm: { fired: number }
   anon: { fired: number }
 }
+
+const ICON_URL = 'https://padelnachos.com/padelnachos-logo-v2.png'
+const APP_NAME = 'PadelNachos'
+
+type Platform = 'android' | 'ios'
 
 export default function BroadcastView({ initialSends }: { initialSends: NotificationSendRow[] }) {
   const router = useRouter()
@@ -23,6 +29,7 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
   const [msg, setMsg] = useState<string | null>(null)
   const [msgTone, setMsgTone] = useState<'ok' | 'err'>('ok')
   const [confirmText, setConfirmText] = useState('')
+  const [platform, setPlatform] = useState<Platform>('android')
 
   // Any edit to the message content invalidates a prior dry-run: collapse the
   // confirm section and clear the typed confirmation so the operator must
@@ -48,6 +55,10 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
         return null
       }
       return json
+    } catch (e) {
+      setMsgTone('err')
+      setMsg(`Network error: ${(e as Error).message}`)
+      return null
     } finally {
       setBusy(false)
     }
@@ -61,7 +72,7 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
     if (json) {
       setReach(json)
       setMsgTone('ok')
-      setMsg(`Dry run complete. Reach: ${json.recipients_total} devices.`)
+      setMsg(`Dry run complete — no notifications were sent.`)
     }
   }
 
@@ -72,7 +83,6 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
       setMsg(`Sent. Accepted ${json.accepted_total}/${json.recipients_total}.`)
       setReach(null)
       setConfirmText('')
-      // Refresh the RSC so the new send appears in the history table.
       router.refresh()
     }
   }
@@ -87,78 +97,141 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
         subtitle="Send one push notification to every installed device. Always dry-run first to see reach before committing."
       />
 
-      <Panel title="Compose">
-        <div style={{ display: 'grid', gap: 12, maxWidth: 560 }}>
-          <Field label="Title">
-            <input
-              value={title}
-              onChange={(e) => { setTitle(e.target.value); invalidateConfirm() }}
-              maxLength={80}
-              placeholder="e.g. World Padel Tour Final — starts now"
-            />
-          </Field>
-          <Field label="Body">
-            <textarea
-              value={body}
-              onChange={(e) => { setBody(e.target.value); invalidateConfirm() }}
-              maxLength={180}
-              rows={3}
-              placeholder="Short message shown under the title."
-            />
-          </Field>
-          <Field label="Deep link URL">
-            <input
-              value={url}
-              onChange={(e) => { setUrl(e.target.value); invalidateConfirm() }}
-              placeholder="/"
-            />
-          </Field>
-          <Field label="Campaign label (optional)">
-            <input
-              value={label}
-              onChange={(e) => { setLabel(e.target.value); invalidateConfirm() }}
-              placeholder="e.g. wpt-final-june"
-            />
-          </Field>
+      <div className={styles.grid}>
+        {/* ---- left: compose ---- */}
+        <div className={styles.composeStack}>
+          <Panel title="Compose">
+            <div className={styles.form}>
+              <div className="ui-field">
+                <div className={styles.labelRow}>
+                  <label className="ui-field-label">Title</label>
+                  <span className={styles.count}>{title.length}/80</span>
+                </div>
+                <input
+                  className="ui-input"
+                  value={title}
+                  onChange={(e) => { setTitle(e.target.value); invalidateConfirm() }}
+                  maxLength={80}
+                  placeholder="World Padel Tour Final — starts now"
+                />
+              </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button onClick={onDryRun} disabled={!canDryRun}>
-              {busy ? 'Working…' : 'Dry run — count reach'}
-            </Button>
+              <div className="ui-field">
+                <div className={styles.labelRow}>
+                  <label className="ui-field-label">Body</label>
+                  <span className={styles.count}>{body.length}/180</span>
+                </div>
+                <textarea
+                  className={`ui-input ${styles.textarea}`}
+                  value={body}
+                  onChange={(e) => { setBody(e.target.value); invalidateConfirm() }}
+                  maxLength={180}
+                  rows={3}
+                  placeholder="Short message shown under the title."
+                />
+              </div>
+
+              <div className={styles.row2}>
+                <div className="ui-field">
+                  <label className="ui-field-label">Deep link URL</label>
+                  <input
+                    className="ui-input"
+                    value={url}
+                    onChange={(e) => { setUrl(e.target.value); invalidateConfirm() }}
+                    placeholder="/"
+                  />
+                </div>
+                <div className="ui-field">
+                  <label className="ui-field-label">Campaign label <span style={{ textTransform: 'none', opacity: .7 }}>(optional)</span></label>
+                  <input
+                    className="ui-input"
+                    value={label}
+                    onChange={(e) => { setLabel(e.target.value); invalidateConfirm() }}
+                    placeholder="wpt-final-june"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Button onClick={onDryRun} disabled={!canDryRun}>
+                  {busy ? 'Working…' : 'Dry run — count reach'}
+                </Button>
+              </div>
+
+              {reach && (
+                <div className={styles.reach}>
+                  <div className={styles.reachStrip}>
+                    <div className={`${styles.reachItem} ${styles.reachItemTotal}`}>
+                      <div className={styles.reachNum}>{reach.recipients_total}</div>
+                      <div className={styles.reachLabel}>Total reach</div>
+                    </div>
+                    <div className={styles.reachItem}>
+                      <div className={styles.reachNum}>{reach.fcm.fired}</div>
+                      <div className={styles.reachLabel}>Android</div>
+                    </div>
+                    <div className={styles.reachItem}>
+                      <div className={styles.reachNum}>{reach.web.fired}</div>
+                      <div className={styles.reachLabel}>Web</div>
+                    </div>
+                    <div className={styles.reachItem}>
+                      <div className={styles.reachNum}>{reach.anon.fired}</div>
+                      <div className={styles.reachLabel}>Anon</div>
+                    </div>
+                  </div>
+
+                  <div className={styles.confirmRow}>
+                    <div className="ui-field">
+                      <label className="ui-field-label">Type SEND to confirm</label>
+                      <input
+                        className="ui-input"
+                        value={confirmText}
+                        onChange={(e) => setConfirmText(e.target.value)}
+                        placeholder="SEND"
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </div>
+                    <Button variant="primary" onClick={onSend} disabled={!armed}>
+                      {busy ? 'Sending…' : `Send to ${reach.recipients_total}`}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {msg && (
+                <p className={`${styles.hint} ${msgTone === 'err' ? styles.hintErr : styles.hintOk}`}>{msg}</p>
+              )}
+            </div>
+          </Panel>
+        </div>
+
+        {/* ---- right: live preview ---- */}
+        <div className={styles.previewCol}>
+          <div className={styles.previewHead}>
+            <span className={styles.previewTitle}>Preview</span>
+            <div className={styles.seg} role="tablist" aria-label="Preview platform">
+              <button
+                className={`${styles.segBtn} ${platform === 'android' ? styles.segOn : ''}`}
+                onClick={() => setPlatform('android')}
+                role="tab"
+                aria-selected={platform === 'android'}
+              >Android</button>
+              <button
+                className={`${styles.segBtn} ${platform === 'ios' ? styles.segOn : ''}`}
+                onClick={() => setPlatform('ios')}
+                role="tab"
+                aria-selected={platform === 'ios'}
+              >iPhone</button>
+            </div>
           </div>
 
-          {reach && (
-            <div style={{ display: 'grid', gap: 10, paddingTop: 4 }}>
-              <div style={{ fontSize: 13, color: 'var(--text-2)' }}>
-                Reach: <strong style={{ color: 'var(--text-1)' }}>{reach.recipients_total}</strong> devices
-                {' '}(web {reach.web.fired} · android {reach.fcm.fired} · anon {reach.anon.fired})
-              </div>
-              <Field label="Type SEND to confirm">
-                <input
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value)}
-                  placeholder="SEND"
-                  autoComplete="off"
-                />
-              </Field>
-              <Button variant="primary" onClick={onSend} disabled={!armed}>
-                {busy ? 'Sending…' : 'Send to everyone'}
-              </Button>
-            </div>
-          )}
+          <NotificationPreview platform={platform} title={title} body={body} />
 
-          {msg && (
-            <p style={{
-              margin: 0,
-              fontSize: 13,
-              color: msgTone === 'err' ? 'var(--live)' : 'var(--lime)',
-            }}>
-              {msg}
-            </p>
-          )}
+          <p className={styles.note}>Approximate — actual rendering varies by device & OS.</p>
         </div>
-      </Panel>
+      </div>
 
+      {/* ---- history ---- */}
       <Panel title="Recent sends">
         {initialSends.length === 0 ? (
           <EmptyState title="No sends yet" hint="Dry-run and send your first broadcast above." />
@@ -191,6 +264,53 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
           </DataTable>
         )}
       </Panel>
+    </div>
+  )
+}
+
+function NotificationPreview({ platform, title, body }: { platform: Platform; title: string; body: string }) {
+  const t = title.trim()
+  const b = body.trim()
+  const titleText = t || 'Your title appears here'
+  const bodyText = b || 'Your message shows up on the second line, like this.'
+  const empty = !t && !b
+
+  return (
+    <div className={styles.phone}>
+      <div className={styles.glow} />
+      <div className={styles.clockWrap}>
+        <div className={styles.clock}>9:41</div>
+        <div className={styles.clockDate}>Monday, June 8</div>
+      </div>
+
+      {platform === 'android' ? (
+        <div key="a" className={`${styles.andro} ${styles.cardEnter}`}>
+          <div style={{ minWidth: 0 }}>
+            <div className={styles.androHead}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={styles.androAppIcon} src={ICON_URL} alt="" />
+              <span className={styles.androApp}>{APP_NAME} · now</span>
+            </div>
+            <p className={`${styles.androTitle} ${empty ? styles.placeholder : ''}`}>{titleText}</p>
+            <p className={`${styles.androBody} ${empty ? styles.placeholder : ''}`}>{bodyText}</p>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.androLarge} src={ICON_URL} alt="" />
+        </div>
+      ) : (
+        <div key="i" className={`${styles.ios} ${styles.cardEnter}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.iosAppIcon} src={ICON_URL} alt="" />
+          <div style={{ minWidth: 0 }}>
+            <div className={styles.iosHead}>
+              <span className={styles.iosApp}>{APP_NAME}</span>
+              <span className={styles.iosWhen}>now</span>
+            </div>
+            <p className={`${styles.iosTitle} ${empty ? styles.placeholder : ''}`}>{titleText}</p>
+            <p className={`${styles.iosBody} ${empty ? styles.placeholder : ''}`}>{bodyText}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
