@@ -110,3 +110,79 @@ export function notifyLiveTransition(
       logger.warn({ matchId, err: message }, 'notify: push-notify fetch failed');
     });
 }
+
+export interface NotifyEventPayload {
+  category: string;
+  entityType: 'player' | 'tournament';
+  entityId: string;
+  title: string;
+  body: string;
+  url?: string;
+  metadata?: Record<string, unknown>;
+  icon?: string;
+  dedupeKey?: string;
+}
+
+/**
+ * Fire an entity-scoped notification via the Next.js generic endpoint
+ * `/api/push/notify-event` (vs `notifyLiveTransition`'s `/api/push/notify`).
+ *
+ * Same conventions as `notifyLiveTransition`:
+ * - Fire-and-forget: returns immediately, response handling runs detached.
+ * - No-op when `NOTIFY_BASE_URL` / `CRON_SECRET` are missing.
+ * - Never throws — network/server errors logged at `warn`.
+ * - Shares the `notify-stats` counters so event sends are observable next to
+ *   live sends. The stats key is the `dedupeKey` (falling back to a synthetic
+ *   `<entityType>:<entityId>:<category>` so `last_*` entries stay meaningful).
+ */
+export function notifyEvent(payload: NotifyEventPayload, deps: NotifyDeps): void {
+  // Stable identifier for the stats counters' `matchId`-shaped key slot.
+  const statsKey =
+    payload.dedupeKey ??
+    `${payload.entityType}:${payload.entityId}:${payload.category}`;
+
+  recordAttempt();
+
+  const { baseUrl, cronSecret, logger } = deps;
+  if (!baseUrl || !cronSecret) {
+    // Env not configured — silent no-op. Production should always have these.
+    recordSkipEnvMissing(statsKey);
+    return;
+  }
+
+  const url = `${baseUrl.replace(/\/$/, '')}/api/push/notify-event`;
+  const fetchImpl = deps.fetchImpl ?? fetch;
+
+  recordFired();
+
+  // Detached — we don't await, don't return the promise.
+  fetchImpl(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${cronSecret}`,
+    },
+    body: JSON.stringify(payload),
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const body = await res.text().catch(() => '<unreadable>');
+        recordNonOk(statsKey, res.status, body);
+        logger.warn(
+          { statsKey, status: res.status, body: body.slice(0, 500) },
+          'notify: notify-event endpoint returned non-ok',
+        );
+      } else {
+        recordSuccess(statsKey);
+        logger.info(
+          { statsKey, category: payload.category },
+          'notify: fired notify-event',
+        );
+      }
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      recordFetchError(statsKey, message);
+      logger.warn({ statsKey, err: message }, 'notify: notify-event fetch failed');
+    });
+}
