@@ -19,7 +19,9 @@ export async function GET() {
     changefreq: SitemapUrl['changefreq']
     priority: number
   }> = [
-    { path: '/', changefreq: 'always', priority: 1.0 },
+    // /home is the real 200 page (the apex `/` permanently redirects to it),
+    // so advertise /home — not `/` — to point Google at the canonical URL.
+    { path: '/home', changefreq: 'always', priority: 1.0 },
     { path: '/matches', changefreq: 'always', priority: 0.9 },
     { path: '/rankings', changefreq: 'daily', priority: 0.8 },
     { path: '/feed', changefreq: 'hourly', priority: 0.7 },
@@ -27,7 +29,7 @@ export async function GET() {
   ]
 
   const urls: SitemapUrl[] = paths.flatMap(({ path, changefreq, priority }) =>
-    expandPathForLocales(BASE_URL, path === '/' ? '' : path, {
+    expandPathForLocales(BASE_URL, path, {
       lastmod: now,
       changefreq,
       priority,
