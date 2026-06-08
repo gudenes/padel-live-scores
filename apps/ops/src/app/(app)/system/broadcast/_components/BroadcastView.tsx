@@ -30,6 +30,7 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
   const [msgTone, setMsgTone] = useState<'ok' | 'err'>('ok')
   const [confirmText, setConfirmText] = useState('')
   const [platform, setPlatform] = useState<Platform>('android')
+  const [testing, setTesting] = useState(false)
 
   // Any edit to the message content invalidates a prior dry-run: collapse the
   // confirm section and clear the typed confirmation so the operator must
@@ -87,8 +88,43 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
     }
   }
 
-  const canDryRun = title.trim().length > 0 && body.trim().length > 0 && !busy
-  const armed = reach !== null && confirmText === 'SEND' && !busy
+  async function onTestSelf() {
+    setTesting(true)
+    setMsg(null)
+    try {
+      const r = await fetch('/api/internal/broadcast-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, body, url }),
+      })
+      const json = await r.json()
+      if (!r.ok) {
+        setMsgTone('err')
+        setMsg(`Error: ${json.error ?? r.status}`)
+        return
+      }
+      const delivered = (json.sent ?? 0) + (json.fcm_sent ?? 0)
+      const found = (json.subscriptions_found ?? 0) + (json.fcm_subscriptions_found ?? 0)
+      if (found === 0) {
+        setMsgTone('err')
+        setMsg(`No push subscription found for ${json.email}. Enable notifications on padelnachos.com (or the app) on this device first.`)
+      } else {
+        setMsgTone('ok')
+        setMsg(`Test sent to ${json.email} — ${delivered} device${delivered === 1 ? '' : 's'}. Check your device.`)
+      }
+    } catch (e) {
+      setMsgTone('err')
+      setMsg(`Network error: ${(e as Error).message}`)
+    } finally {
+      setTesting(false)
+    }
+  }
+
+  const anyBusy = busy || testing
+  const filledIn = title.trim().length > 0 && body.trim().length > 0
+  const canDryRun = filledIn && !anyBusy
+  const canTest = filledIn && !anyBusy
+  const armed = reach !== null && confirmText === 'SEND' && !anyBusy
 
   return (
     <div className="ui-page">
@@ -152,9 +188,12 @@ export default function BroadcastView({ initialSends }: { initialSends: Notifica
                 </div>
               </div>
 
-              <div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <Button onClick={onDryRun} disabled={!canDryRun}>
                   {busy ? 'Working…' : 'Dry run — count reach'}
+                </Button>
+                <Button variant="ghost" onClick={onTestSelf} disabled={!canTest}>
+                  {testing ? 'Sending…' : 'Send test to me'}
                 </Button>
               </div>
 
