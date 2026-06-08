@@ -16,6 +16,8 @@ import {
   loadEntryListNameMap as sharedLoadEntryListNameMap,
 } from '../lib/draw-resolver.js';
 import { activeTournamentArgs } from '../lib/active-tournament-args.js';
+import { claimNotificationEvent } from '../lib/notification-events.js';
+import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
 
 /**
  * fip-draw-populator — simplified-pipeline writer #1.
@@ -131,6 +133,20 @@ export interface FipDrawPopulatorDeps {
    * net for any cross-listed event we haven't accounted for.
    */
   excludeLevels?: Set<string>;
+  /**
+   * Web-push notify config (baseUrl / cronSecret / logger). Forwarded from
+   * the scheduler's `SchedulerDeps.notify` (populated in index.ts from
+   * NOTIFY_BASE_URL + CRON_SECRET). When undefined, the `draw_released`
+   * dispatch silently no-ops.
+   */
+  notify?: NotifyDeps;
+  /**
+   * Free event-notification senders master switch (Plan 2B). Defaults to
+   * false so the `draw_released` sender ships dark — it fires only when
+   * BOTH this is true AND `notify` is configured. Also gated to non-dry-run
+   * runs so an operator's dry-run review never claims the sent-log key.
+   */
+  eventsEnabled?: boolean;
 }
 
 export interface FipDrawPopulatorResult {
@@ -757,6 +773,16 @@ export async function runFipDrawPopulator(
     // pre-tournament R32+ cell on a 56-draw event with byes.
     const firstRoundByCategory = computeFirstRoundByCategory(latestDraws);
 
+    // draw_released sender (Plan 2B, ships dark behind eventsEnabled).
+    // Collect the distinct categories for which we actually upserted
+    // tournament_draws rows this run, then fire ONCE per (tournament,
+    // category) AFTER the inner loop. The sent-log claim
+    // (`draw_released:<tid>:<category>`) makes it once-per-(tournament,
+    // category)-ever; this Set just dedupes the per-row writes down to a
+    // single claim attempt per category per run. Only populated on real
+    // (non-dry-run) writes so an operator's dry-run review never claims.
+    const categoriesUpserted = new Set<'men' | 'women'>();
+
     // 7. Iterate + write
     for (const d of latestDraws) {
       result.drawRowsConsidered += 1;
@@ -949,6 +975,7 @@ export async function runFipDrawPopulator(
           result,
           logger,
         );
+        if (!dryRun) categoriesUpserted.add(d.category);
         continue;
       }
 
@@ -1108,6 +1135,38 @@ export async function runFipDrawPopulator(
         result,
         logger,
       );
+      if (!dryRun) categoriesUpserted.add(d.category);
+    }
+
+    // draw_released fire — once per (tournament, category) per run, gated
+    // by the sent-log claim so it's once-per-(tournament,category)-ever.
+    // Placed AFTER the inner loop so the draws for this tournament are
+    // already upserted before we claim + notify (claim-then-fail-to-write
+    // can't happen). Ships dark: fires only when eventsEnabled AND notify
+    // are both set (dry-run runs never populate `categoriesUpserted`).
+    if (deps.eventsEnabled && deps.notify) {
+      for (const category of categoriesUpserted) {
+        const key = `draw_released:${t.tournament_id}:${category}`;
+        const claimed = await claimNotificationEvent(
+          supabase,
+          key,
+          'draw_released',
+        );
+        if (claimed) {
+          notifyEvent(
+            {
+              category: 'draw_released',
+              entityType: 'tournament',
+              entityId: t.tournament_id,
+              title: 'Draw is out',
+              body: 'The bracket for an event you follow has been published.',
+              url: `/tournaments/${t.tournament_id}`,
+              dedupeKey: key,
+            },
+            deps.notify,
+          );
+        }
+      }
     }
   }
 

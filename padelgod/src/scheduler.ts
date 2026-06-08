@@ -278,6 +278,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       // actual env-flag value via a closure override. See the
       // 'fip-draw-populator' branch of buildSchedule below.
       dryRun: true,
+      notify: deps.notify,
+      eventsEnabled: deps.eventsEnabled,
     });
     case 'fip-entry-list-populator': return (deps) => runFipEntryListPopulator({
       supabase: deps.supabase,
@@ -563,6 +565,8 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           dryRun: flags.fipDrawPopulatorDryRun,
           onlyTournamentIds: allowlist,
           excludeLevels,
+          notify: deps.notify,
+          eventsEnabled: deps.eventsEnabled,
         });
       },
     });
