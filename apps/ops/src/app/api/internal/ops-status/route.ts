@@ -74,7 +74,12 @@ async function fetchHealth(supabase: ReturnType<typeof serviceClient>) {
 // ── Rankings: data-freshness derived (padelgod player-rankings worker) ──────
 // The worker runs on Railway and does NOT write ops_events, so we read the data
 // it produces (player_ranking_snapshots) and synthesize a HealthEntry.
-
+//
+// maxCapturedAt is the newest captured_at across the table, used only for the
+// "worker may be down" age check. This assumes forward-capture-only writes (true
+// today). When the planned ranking-history BACKFILL lands, captured_at = now() on
+// historical-week rows could make a stale current week look fresh to that one
+// check — revisit then (the week-match rule already flags the staleness as error).
 async function fetchRankingsHealth(supabase: ReturnType<typeof serviceClient>) {
   const empty = { status: 'unknown', started_at: null, duration_ms: null, meta: null, error_message: null }
   try {
