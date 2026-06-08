@@ -225,6 +225,7 @@ query.
 - `apps/ops/src/app/(app)/system/_shared/ops-status-types.ts` (tile metadata +
   `metaSummary`)
 
-`fetchCronStats`'s historical `cron:rankings` datapoint case (driven by old
-`ops_events` rows from the retired Vercel cron) is left as-is — harmless, and the
-tile reads `health`, not `cron_stats`.
+`fetchCronStats`'s `cron:rankings` datapoint case is **removed** — verified that
+`ops_events` holds zero `cron:rankings` rows (the retired Vercel cron left none),
+so the case was dead. The tile reads `health` (injected by `fetchRankingsHealth`),
+not `cron_stats`.
