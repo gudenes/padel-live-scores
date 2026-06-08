@@ -109,9 +109,19 @@ This is the only enforcement point. Senders (crons/workers) don't need tier awar
 
 Rendering rules:
 - Free rows: existing `IconSlider` toggle + per-row `SaveStateSlot` (unchanged).
-- Pro rows for **free users**: toggle replaced by a **"Pro" badge**; tapping the row routes to `/pro` (the upsell). The row still shows its label/description so the value is visible.
-- Pro rows for **Pro users**: normal toggle.
+- Pro rows for **free users**: toggle replaced by a **gold "Pro" badge** + a lock glyph; row content dimmed to ~0.6 opacity; tapping the row routes to `/pro` (the upsell). The row still shows its label/description so the value is visible.
+- Pro rows for **Pro users**: normal toggle (badge remains as a quiet "this is a Pro feature" marker).
 - Existing master push toggle + mute + permission-blocked banner are unchanged and continue to gate everything.
+
+**Visual treatment (locked to the existing "chunky" design system — mockups in `.superpowers/brainstorm/`):**
+- Palette: lime accent `#7ED321` on `#0A0A0A`; cards `rgba(255,255,255,0.04)` / border `rgba(255,255,255,0.08)`.
+- Asymmetric `clip-path` tilts on every surface (rows, badges, icon tiles, toggles, buttons) per the current component conventions.
+- **All icons are lucide-style SVG. No emoji anywhere** (settings, push copy, inbox, `/pro`).
+- **Pro badge color = `#EAB308`** (the existing mute-button gold) — premium without colliding with lime (= "on").
+- **No "Premier" label in the UI.** The ⚡ Premier-tier marker in this spec is an *internal data-availability note only*; users never see "Premier". Premier-only notifications simply don't fire for non-Premier follows (graceful absence).
+- New categories reuse `IconSlider`, `SaveStateSlot`, `PressButton` (face+skirt), group headers, and the inbox `NotificationRow` styles verbatim.
+
+**In-app inbox (`NotificationRow`):** new categories get a 46px tilted icon tile with a category color + lucide SVG, and Pro categories render the gold Pro badge inline next to the title. (Reminder from the gating model: free users never receive an inbox row for a Pro category at all — the badge only appears for Pro users.)
 
 ### 2. First-follow nudge — permission gate
 
