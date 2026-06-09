@@ -1,11 +1,11 @@
 // apps/ops/src/app/(app)/yt-channels/page.tsx
-// YouTube Channels management — list, add, edit, delete, test.
+// YouTube Channels — list/add/edit/delete + per-channel geo availability.
 
-import YtChannelsTab from './_components/YtChannelsTab'
+import YtChannelsShell from './_components/YtChannelsShell'
 
 export const metadata = { title: 'YT Channels · PadelNachos Admin' }
 export const dynamic = 'force-dynamic'
 
 export default function YtChannelsPage() {
-  return <YtChannelsTab />
+  return <YtChannelsShell />
 }
