@@ -41,6 +41,8 @@ import { fetchClusteredNews, type ClusteredArticle } from '@/lib/news-feed-queri
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
 import { LoginCtaSheet } from '@/components/LoginCtaSheet'
 import { useScrollMemory } from '@/hooks/useScrollMemory'
+import { getActiveManagedEvents } from '@/lib/managed-events-server'
+import { managedEventToCarouselCard } from '@/lib/managed-events'
 
 // ── Match select queries ──────────────────────────────────────
 const MATCH_PLAYER_JOINS = `
@@ -475,7 +477,17 @@ function V3HomePageInner() {
           // (back-48h + today + forward-7d); the slice keeps the rail
           // scannable on small screens.
           .slice(0, 10)
-      setCarouselLiveToday(decorate(carouselLiveRows))
+      // Operator-curated managed events — prepended to the carousel so they
+      // lead the rail. Back-window mirrors the tournament window (48h).
+      const managedCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+      let managedCards: TournamentWithMatchInfo[] = []
+      try {
+        const events = await getActiveManagedEvents(managedCutoff)
+        managedCards = events.map(managedEventToCarouselCard) as unknown as TournamentWithMatchInfo[]
+      } catch (e) {
+        console.warn('[V3 Home] managed events fetch failed:', (e as Error).message)
+      }
+      setCarouselLiveToday([...managedCards, ...decorate(carouselLiveRows)].slice(0, 10))
 
       // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
       // dataOf(10) from .maybeSingle(): { enabled, enabled_local } when
