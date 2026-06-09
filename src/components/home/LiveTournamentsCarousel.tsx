@@ -44,6 +44,9 @@ export interface TournamentChampions {
 export interface TournamentWithMatchInfo extends Tournament {
   matchesToday: number
   champions?: TournamentChampions
+  /** Present when this card represents an operator-curated managed event.
+   *  Drives the link target (/events/[slug]) and the badge pill. */
+  managedEvent?: { slug: string; badgeLabel: string }
 }
 
 const GOLD = '#F5C842'
@@ -95,7 +98,7 @@ function TournamentCarouselCard({
 
   return (
     <Link
-      href={`/tournaments/${tournament.id}?tab=matches&intent=matches`}
+      href={tournament.managedEvent ? `/events/${tournament.managedEvent.slug}` : `/tournaments/${tournament.id}?tab=matches&intent=matches`}
       aria-label={ariaLabel}
       style={{ textDecoration: 'none', color: '#fff' }}
     >
@@ -134,9 +137,18 @@ function TournamentCarouselCard({
           }}
         />
 
-        {/* Top-left chip — LIVE (red) for live, CHAMPION (gold) for
-            crowned. Calmer than a pulsing scores ticker. */}
-        {isCrowned ? (
+        {/* Top-left chip */}
+        {tournament.managedEvent ? (
+          <div
+            style={{
+              position: 'absolute', top: 9, left: 9, background: '#F5A623', color: '#0A0A0A',
+              fontSize: 8, fontWeight: 900, padding: '3px 7px', letterSpacing: 0.8, clipPath: CHUNKY.badge, zIndex: 2,
+              textTransform: 'uppercase',
+            }}
+          >
+            {tournament.managedEvent.badgeLabel}
+          </div>
+        ) : isCrowned ? (
           <div
             style={{
               position: 'absolute',
@@ -197,7 +209,7 @@ function TournamentCarouselCard({
         ) : null}
 
         {/* Level pill */}
-        {tierLabel && (
+        {!tournament.managedEvent && tierLabel && (
           <div
             style={{
               position: 'absolute',
