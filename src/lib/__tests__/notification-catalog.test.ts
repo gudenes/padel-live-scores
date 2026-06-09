@@ -1,6 +1,7 @@
 // src/lib/__tests__/notification-catalog.test.ts
 import { describe, it, expect } from 'vitest'
-import { deriveCategoryStatus, buildCatalog, type SendAgg } from '@/lib/notification-catalog'
+import { deriveCategoryStatus, buildCatalog, CATEGORY_RULES, type SendAgg } from '@/lib/notification-catalog'
+import { KNOWN_CATEGORIES } from '@/lib/notification-categories'
 
 const NOW = Date.parse('2026-06-09T12:00:00Z')
 const recent = '2026-06-08T12:00:00Z'   // 1 day ago
@@ -33,5 +34,23 @@ describe('buildCatalog', () => {
     expect(dark.status).toBe('soon')
     expect(dark.count7d).toBe(0)
     expect(rows.length).toBeGreaterThan(20) // all known categories present
+  })
+})
+
+describe('CATEGORY_RULES', () => {
+  it('every known category has a non-empty rule + sample', () => {
+    for (const key of KNOWN_CATEGORIES) {
+      const r = CATEGORY_RULES[key]
+      expect(r, key).toBeDefined()
+      expect(r.rule.length, key).toBeGreaterThan(10)
+      expect(r.sampleTitle.length, key).toBeGreaterThan(0)
+      expect(r.sampleBody.length, key).toBeGreaterThan(0)
+    }
+  })
+  it('buildCatalog carries description + sample', () => {
+    const rows = buildCatalog([], Date.parse('2026-06-09T12:00:00Z'))
+    const row = rows.find(r => r.key === 'tournament_starting')!
+    expect(row.description).toBe(CATEGORY_RULES.tournament_starting.rule)
+    expect(row.sample).toEqual({ title: CATEGORY_RULES.tournament_starting.sampleTitle, body: CATEGORY_RULES.tournament_starting.sampleBody })
   })
 })
