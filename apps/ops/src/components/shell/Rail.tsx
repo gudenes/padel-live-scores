@@ -35,6 +35,7 @@ const GROUPS: Group[] = [
   ]},
   { label: 'Content', items: [
     { href: '/announcements', label: 'Announcements', icon: 'bell' },
+    { href: '/managed-events', label: 'Managed Events', icon: 'tag' },
     { href: '/news', label: 'News', icon: 'doc' },
     { href: '/news-sources', label: 'News Sources', icon: 'list' },
     { href: '/highlights', label: 'Highlights', icon: 'film' },
