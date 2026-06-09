@@ -1,0 +1,70 @@
+{
+  "project_info": {
+    "project_number": "1011492605581",
+    "project_id": "padel-nachos",
+    "storage_bucket": "padel-nachos.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1011492605581:android:91d7c80aef7af8efcd9cc4",
+        "android_client_info": {
+          "package_name": "com.padelnachos.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1011492605581-d5lpc558ftamvbkok1hb9e4561lt2f4a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.padelnachos.app",
+            "certificate_hash": "dea3acc59f11181a165bab775430cd3cc3c364c8"
+          }
+        },
+        {
+          "client_id": "1011492605581-h7hf8tmg7kne6mrovl0n6vs4kqat6vj1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.padelnachos.app",
+            "certificate_hash": "ae4f7859178553ce93e13e7587cdde026582746f"
+          }
+        },
+        {
+          "client_id": "1011492605581-qc8hqabk0146r5vemgmkdhbeatoo0vf9.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.padelnachos.app",
+            "certificate_hash": "d7394369813f1d31779eb54530f819f1576f2289"
+          }
+        },
+        {
+          "client_id": "1011492605581-93geto8rns3gui6h5p0ed7je9vuo1uv8.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVajkvR81Ukmf8QMFtzgmudH60r6W6p2Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1011492605581-93geto8rns3gui6h5p0ed7je9vuo1uv8.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1011492605581-f1bvgnadl1ja4cluoav0f4ftfl33656v.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.padelnachos.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -90,11 +90,20 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-try {
-    def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
-    }
-} catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+// google-services.json is COMMITTED to the repo (see android/.gitignore) so it is
+// always present. The google-services plugin processes it into the Firebase
+// config string resources that FirebaseInitProvider reads to auto-initialize the
+// default FirebaseApp at startup. Without it, FirebaseMessaging.getToken() throws
+// "Default FirebaseApp is not initialized" and push is dead on fresh installs.
+//
+// HARD-FAIL (not a silent skip) if the file is ever missing: a build that drops it
+// compiles cleanly but ships a broken Firebase layer that no Vercel/JS update can
+// fix — only a new store binary. Fail loudly at build time instead.
+def servicesJSON = file('google-services.json')
+if (!servicesJSON.exists() || !servicesJSON.text?.trim()) {
+    throw new GradleException(
+        "android/app/google-services.json is missing or empty. It is committed to the repo " +
+        "and required for Firebase/push to work — do not gitignore it. Restore it from the " +
+        "Firebase console (project padel-nachos) or git before building.")
 }
+apply plugin: 'com.google.gms.google-services'
