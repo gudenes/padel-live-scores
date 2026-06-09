@@ -33,7 +33,7 @@ describe('buildCatalog', () => {
     const dark = rows.find(r => r.key === 'match_deciding_set')!  // comingSoon, no agg
     expect(dark.status).toBe('soon')
     expect(dark.count7d).toBe(0)
-    expect(rows.length).toBeGreaterThan(20) // all known categories present
+    expect(rows.length).toBe(KNOWN_CATEGORIES.length) // all known categories present
   })
 })
 
