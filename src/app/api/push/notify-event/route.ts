@@ -46,6 +46,7 @@ type Body = {
   metadata?: unknown
   icon?: unknown
   dedupeKey?: unknown
+  dryRun?: unknown
 }
 
 const ENTITY_TYPES = new Set<EntityType>(['player', 'tournament', 'match'])
@@ -87,6 +88,9 @@ export async function POST(request: Request) {
       : `${category}:${entityType}:${entityId}`
   // Stable tag so repeat pushes for the same event collapse on-device.
   const tag = `${entityType}-${entityId}-${category}`
+  // dryRun: resolve reach (followers post dedup + tier-gate + pref + mute) and
+  // return it WITHOUT any writes or sends. Powers the console's reach count.
+  const dryRun = b.dryRun === true
 
   const supabase = createServiceClient()
 
@@ -179,6 +183,18 @@ export async function POST(request: Request) {
     if (pref.push && !muted) deliver.push(userId)
   }
 
+  // dryRun: report reach (post dedup + tier-gate + pref + mute) without any
+  // writes or sends. anonWould = anonSubs.length (anon always receives).
+  if (dryRun) {
+    return Response.json({
+      ok: true,
+      dryRun: true,
+      recipients: deliver.length,
+      inAppWould: inAppRows.length,
+      anonWould: anonSubs.length,
+    })
+  }
+
   // ── 5. In-app insert (independent of push outcome) ──────────
   let inApp = 0
   if (inAppRows.length > 0) {
@@ -195,6 +211,12 @@ export async function POST(request: Request) {
   // ── 6. Push fan-out — Web Push + FCM ────────────────────────
   let webSent = 0
   let fcmSent = 0
+  // Channel attempt/stale accumulators lifted to function scope so the
+  // analytics insert below can read them (the values are computed inside the
+  // block-scoped fan-out below). fired = attempts, accepted ≤ fired.
+  let webFired = 0, webStale = 0
+  let fcmFired = 0, fcmFailed = 0, fcmStale = 0
+  let anonFired = 0, anonStale = 0
 
   if (deliver.length > 0) {
     const [subsRes, nativeRes] = await Promise.all([
@@ -207,6 +229,7 @@ export async function POST(request: Request) {
     // Web Push.
     const subs = subsRes.data ?? []
     const staleIds: string[] = []
+    webFired = subs.length
     if (subs.length > 0) {
       const results = await Promise.allSettled(
         subs.map((s) =>
@@ -225,6 +248,7 @@ export async function POST(request: Request) {
           staleIds.push(subs[i].id as string)
         }
       })
+      webStale = staleIds.length
       if (staleIds.length > 0) {
         await supabase.from('push_subscriptions').delete().in('id', staleIds)
         console.log(`[NotifyEvent] Cleaned ${staleIds.length} stale subscriptions`)
@@ -235,6 +259,7 @@ export async function POST(request: Request) {
     const tokens = (nativeRes.data ?? [])
       .map((r) => r.device_token as string)
       .filter(Boolean)
+    fcmFired = tokens.length
     if (tokens.length > 0) {
       try {
         const res = await sendPushToFcmTokens(tokens, {
@@ -245,6 +270,8 @@ export async function POST(request: Request) {
           ...(icon ? { icon } : {}),
         })
         fcmSent = res.success
+        fcmFailed = res.failed
+        fcmStale = res.invalidTokens.length
         if (res.invalidTokens.length > 0) {
           await supabase
             .from('native_push_subscriptions')
@@ -263,6 +290,7 @@ export async function POST(request: Request) {
   // per-category pref. Mirrors /api/push/notify:660-723 (send → stale cleanup
   // → last_seen_at bump). Tournament events resolve anonSubs: [] → no-op.
   let anonSent = 0
+  anonFired = anonSubs.length
   if (anonSubs.length > 0) {
     const anonStaleIds: string[] = []
     const anonResults = await Promise.allSettled(
@@ -283,6 +311,7 @@ export async function POST(request: Request) {
       }
     })
 
+    anonStale = anonStaleIds.length
     if (anonStaleIds.length > 0) {
       await supabase.from('anon_push_subscriptions').delete().in('id', anonStaleIds)
       console.log(`[NotifyEvent] Cleaned ${anonStaleIds.length} stale anon subscriptions`)
@@ -306,6 +335,39 @@ export async function POST(request: Request) {
       `recipients=${userIds.length} inapp=${inApp} web=${webSent} fcm=${fcmSent} ` +
       `anon=${anonSubs.length} anon_sent=${anonSent}`,
   )
+
+  // Persist a notification_sends analytics row (kind='category'). Additive —
+  // purely observability; failure must never break delivery. Only on the real
+  // path (dryRun returns above; zero-recipient returns at the top).
+  try {
+    await supabase.from('notification_sends').insert({
+      kind: 'category',
+      title,
+      body,
+      url,
+      metadata: {
+        category,
+        entity_type: entityType,
+        entity_id: entityId,
+        dedupe_key: dedupeKey,
+        inapp_written: inApp,
+      },
+      web_fired: webFired,
+      web_accepted: webSent,
+      web_stale: webStale,
+      fcm_fired: fcmFired,
+      fcm_accepted: fcmSent,
+      fcm_failed: fcmFailed,
+      fcm_stale: fcmStale,
+      anon_fired: anonFired,
+      anon_accepted: anonSent,
+      anon_stale: anonStale,
+      recipients_total: webFired + fcmFired + anonFired,
+      accepted_total: webSent + fcmSent + anonSent,
+    })
+  } catch (e) {
+    console.error('[notify-event] notification_sends insert failed:', (e as Error).message)
+  }
 
   return Response.json({
     ok: true,
