@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { PageHeader, Button } from '@/components/ui'
 import { REGION_NAMES, countriesForRegion, regionForCountry, type RegionName } from '@/lib/where-to-watch/regions'
+import { countryName, countryLabel } from '@/lib/where-to-watch/iso2-names'
 
 interface ChannelOpt { id: string; name: string; abbreviation: string }
 interface Rule { id: string; country_iso2: string; source: string; note: string | null }
@@ -66,7 +67,10 @@ export default function AvailabilityTab() {
   const filteredRules = useMemo(() => {
     if (!data) return []
     return data.rules.filter(r => {
-      if (search && !r.country_iso2.includes(search.toLowerCase())) return false
+      if (search) {
+        const q = search.toLowerCase()
+        if (!r.country_iso2.includes(q) && !countryName(r.country_iso2).toLowerCase().includes(q)) return false
+      }
       if (regionFilter !== 'all' && regionForCountry(r.country_iso2) !== regionFilter) return false
       return true
     })
@@ -100,9 +104,9 @@ export default function AvailabilityTab() {
             </div>
             {data.suggestions.map(s => (
               <div key={s.country} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderTop: '1px solid var(--border-inner)', fontSize: 13 }}>
-                <span><strong>{s.country.toUpperCase()}</strong> — <span style={{ color: 'var(--text-2)' }}>{reasonText(s)}</span></span>
+                <span><strong>{countryLabel(s.country)}</strong> — <span style={{ color: 'var(--text-2)' }}>{reasonText(s)}</span></span>
                 <Button size="sm" onClick={() => blockCountries([s.country], s.reasons.includes('yt_api') ? 'yt_api' : 'broadcaster')}>
-                  Block {s.country.toUpperCase()}
+                  Block {countryName(s.country)}
                 </Button>
               </div>
             ))}
@@ -124,7 +128,7 @@ export default function AvailabilityTab() {
           <tbody>
             {filteredRules.map(r => (
               <tr key={r.id}>
-                <td>{r.country_iso2.toUpperCase()}</td>
+                <td>{countryLabel(r.country_iso2)}</td>
                 <td><span className="ui-pill" data-tone={r.source === 'yt_api' ? 'men' : 'neutral'}>{SOURCE_LABEL[r.source] ?? r.source}</span></td>
                 <td style={{ color: 'var(--text-2)' }}>{(data?.watchOn[r.country_iso2] ?? []).join(' · ') || '—'}</td>
                 <td style={{ color: 'var(--text-3)' }}>{r.note ?? '—'}</td>
@@ -178,7 +182,7 @@ function BlockDialog(props: {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, maxHeight: 220, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: 8 }}>
           {countries.map(cc => (
             <label key={cc} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, padding: '5px 7px' }}>
-              <input type="checkbox" checked={picked.has(cc)} onChange={() => toggle(cc)} /> {cc.toUpperCase()}
+              <input type="checkbox" checked={picked.has(cc)} onChange={() => toggle(cc)} /> {countryLabel(cc)}
             </label>
           ))}
           {countries.length === 0 && <span style={{ color: 'var(--text-3)', fontSize: 13 }}>All countries in this region are already blocked.</span>}
