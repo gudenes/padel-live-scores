@@ -456,7 +456,11 @@ export async function GET(req: NextRequest) {
 
         recipients += recipientsThisTournament
         sent += webSent + fcmSent + anonSent
-        if (recipientsThisTournament > 0) tournamentsSent++
+        // No fresh recipients (e.g. every hourly run after the first that day —
+        // all keys already claimed). Skip the increment + telemetry so we don't
+        // emit ~24 all-zero notification_sends rows per tournament per day.
+        if (recipientsThisTournament === 0) continue
+        tournamentsSent++
 
         // ── 8. Telemetry — one notification_sends row per tournament. ──
         try {
