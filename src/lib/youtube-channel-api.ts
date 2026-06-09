@@ -34,6 +34,7 @@ export interface VideoDetails {
   actualEndTime: string | null
   concurrentViewers: number | null
   viewCount: number | null
+  regionRestriction: { allowed?: string[]; blocked?: string[] } | null
 }
 
 interface PlaylistItemsResponse {
@@ -58,6 +59,7 @@ interface VideosResponse {
       concurrentViewers?: string
     }
     statistics?: { viewCount?: string }
+    contentDetails?: { regionRestriction?: { allowed?: string[]; blocked?: string[] } }
   }>
 }
 
@@ -104,7 +106,7 @@ export async function listVideoDetails(
   }
   const params = new URLSearchParams({
     id: videoIds.join(','),
-    part: 'snippet,liveStreamingDetails,statistics',
+    part: 'snippet,liveStreamingDetails,statistics,contentDetails',
     key: apiKey,
   })
   const res = await fetch(`${Y_BASE}/videos?${params}`)
@@ -123,6 +125,7 @@ export async function listVideoDetails(
       ? parseInt(it.liveStreamingDetails.concurrentViewers, 10)
       : null,
     viewCount: it.statistics?.viewCount ? parseInt(it.statistics.viewCount, 10) : null,
+    regionRestriction: it.contentDetails?.regionRestriction ?? null,
   }))
 }
 
@@ -136,7 +139,7 @@ export async function fetchVideoDetailsBatch(
   }
   const params = new URLSearchParams({
     id: videoIds.join(','),
-    part: 'snippet,liveStreamingDetails,statistics',
+    part: 'snippet,liveStreamingDetails,statistics,contentDetails',
     key: apiKey,
   })
   const res = await fetch(`${Y_BASE}/videos?${params}`)
@@ -158,5 +161,6 @@ export async function fetchVideoDetailsBatch(
       ? parseInt(v.liveStreamingDetails.concurrentViewers, 10)
       : null,
     viewCount: v.statistics?.viewCount ? parseInt(v.statistics.viewCount, 10) : null,
+    regionRestriction: v.contentDetails?.regionRestriction ?? null,
   }))
 }
