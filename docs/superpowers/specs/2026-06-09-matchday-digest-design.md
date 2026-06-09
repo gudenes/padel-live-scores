@@ -19,6 +19,15 @@ We do **not** persist a per-user timezone (geo-timezone is a request-only cookie
 - **`daily_oop`** → flip tier **`pro → free`**; it becomes the morning matchday digest with a real sender. Keep `comingSoon: true` (Soon pill) until the digest flag is enabled in prod; drop it on go-live (same pattern as the other senders). Update its `CATEGORY_RULES` rule to describe the morning digest.
 - **`match_scheduled`** → **retired**: remove its on-write `notifyEvent` call from `fip-oop-writer`, and remove the `match_scheduled` category from `CATEGORY_META`/`CATEGORY_RULES`/the `NotificationCategory` union + its i18n entries + the catalog test's "live categories" expectation. (The `matches.scheduled_notified_at` column is left in place — harmless; dropping it is unnecessary churn.)
 
+## Surfaces to keep in sync (all category lists)
+
+Because both the **user-facing settings page** and the **ops console catalog** derive from `CATEGORY_META` + the i18n keys, the category changes above must flow through every surface consistently:
+
+- **User settings** (`/profile/settings/notifications`): the 4-group layout is built from `CATEGORY_META`, so removing `match_scheduled` drops its row automatically, and flipping `daily_oop` to free makes it render as a **working toggle** (not Pro-locked). **Update `daily_oop`'s i18n label/sub** to the morning-digest framing (e.g. label *"Matchday digest"*, sub *"A morning summary of your players' matches today"*) — it currently reads "Daily order of play." Keep it in the **Predictions & digests** group. Remove `match_scheduled`'s `category.match_scheduled.{label,sub}` from all 5 locale files.
+- **Ops console catalog**: auto-reflects via `CATEGORY_RULES` — `daily_oop`'s rule + sample updated to the digest behavior; `match_scheduled` row disappears with the category. Its tier badge flips to **free**.
+- **In-app inbox filter** (`categoryFilter`): group-derived, so no change needed (`daily_oop` stays under the non-matches/"updates" set).
+- **Catalog test** + the `CATEGORY_RULES`/i18n coverage tests must be updated to the new category set (no `match_scheduled`).
+
 ## Trigger & timing
 
 - New **Vercel cron** `/api/cron/matchday-digest`, schedule **`0 * * * *`** (hourly), `Authorization: Bearer $CRON_SECRET` (same pattern as `recompute-earnings`). Gated by **`ENABLE_MATCHDAY_DIGEST`** env (default off → returns `{ disabled: true }`), so it ships dark.
