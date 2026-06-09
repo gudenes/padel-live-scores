@@ -114,8 +114,12 @@ export default function AvailabilityTab() {
         </div>
       )}
 
+      <div style={{ fontSize: 12, color: 'var(--text-3)', marginBottom: 10 }}>
+        In these countries the live YouTube stream is hidden — viewers are shown the local broadcaster instead.
+      </div>
+
       <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
-        <input className="ui-input" placeholder="Search blocked countries…" style={{ flex: 1 }} value={search} onChange={e => setSearch(e.target.value)} />
+        <input className="ui-input" placeholder="Search by country name or code…" style={{ flex: 1 }} value={search} onChange={e => setSearch(e.target.value)} />
         <select className="ui-select" style={{ width: 200 }} value={regionFilter} onChange={e => setRegionFilter(e.target.value as 'all' | RegionName)}>
           <option value="all">All regions</option>
           {REGION_NAMES.map(r => <option key={r} value={r}>{r}</option>)}

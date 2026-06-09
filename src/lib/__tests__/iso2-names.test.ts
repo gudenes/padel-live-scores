@@ -7,7 +7,15 @@ describe('countryName', () => {
     expect(countryName('AR')).toBe('Argentina')
     expect(countryName('gb')).toBe('United Kingdom')
   })
-  it('falls back to the uppercased code when unknown', () => {
+  it('resolves codes outside our region groups via Intl', () => {
+    // Not in any region group, but Intl knows it.
+    expect(countryName('is')).toBe('Iceland')
+  })
+  it('falls back to the uppercased code for malformed input', () => {
+    expect(countryName('zzz')).toBe('ZZZ')
+    expect(countryName('1')).toBe('1')
+  })
+  it('does not surface "Unknown Region" placeholders', () => {
     expect(countryName('zz')).toBe('ZZ')
   })
 })

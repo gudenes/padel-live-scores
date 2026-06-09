@@ -1,47 +1,46 @@
 // ISO-3166 alpha-2 → English country name, plus a flag-emoji helper.
-// Covers the country codes used across `regions.ts`. Shared by the ops
-// "Availability by Country" admin and any other surface that needs to show
-// a friendly country label. Mirrored byte-for-byte into
-// apps/ops/src/lib/where-to-watch/iso2-names.ts (apps/ops is a separate
+// Names come from the platform's built-in `Intl.DisplayNames` (full ICU data
+// ships with modern Node + every evergreen browser), so EVERY valid country
+// code resolves — no hand-maintained list to fall out of date.
+// Shared by the ops "Availability by Country" admin. Mirrored byte-for-byte
+// into apps/ops/src/lib/where-to-watch/iso2-names.ts (apps/ops is a separate
 // package with its own path alias).
 
-export const COUNTRY_NAMES: Record<string, string> = {
-  // Latin America
-  ar: 'Argentina', bo: 'Bolivia', br: 'Brazil', cl: 'Chile', co: 'Colombia',
-  cr: 'Costa Rica', cu: 'Cuba', do: 'Dominican Republic', ec: 'Ecuador',
-  gt: 'Guatemala', hn: 'Honduras', mx: 'Mexico', ni: 'Nicaragua', pa: 'Panama',
-  pe: 'Peru', pr: 'Puerto Rico', py: 'Paraguay', sv: 'El Salvador',
-  uy: 'Uruguay', ve: 'Venezuela',
-  // Europe
-  es: 'Spain', it: 'Italy', fr: 'France', de: 'Germany', pt: 'Portugal',
-  nl: 'Netherlands', be: 'Belgium', gb: 'United Kingdom', ie: 'Ireland',
-  se: 'Sweden', no: 'Norway', dk: 'Denmark', fi: 'Finland', pl: 'Poland',
-  cz: 'Czechia', at: 'Austria', ch: 'Switzerland', gr: 'Greece', ro: 'Romania',
-  hu: 'Hungary', ua: 'Ukraine', rs: 'Serbia', hr: 'Croatia', bg: 'Bulgaria',
-  sk: 'Slovakia',
-  // Middle East & North Africa
-  ae: 'United Arab Emirates', sa: 'Saudi Arabia', qa: 'Qatar', kw: 'Kuwait',
-  bh: 'Bahrain', om: 'Oman', jo: 'Jordan', lb: 'Lebanon', il: 'Israel',
-  eg: 'Egypt', ma: 'Morocco', tn: 'Tunisia', dz: 'Algeria',
-  // Asia & Pacific
-  jp: 'Japan', cn: 'China', kr: 'South Korea', in: 'India', id: 'Indonesia',
-  th: 'Thailand', vn: 'Vietnam', ph: 'Philippines', my: 'Malaysia',
-  sg: 'Singapore', au: 'Australia', nz: 'New Zealand', hk: 'Hong Kong',
-  tw: 'Taiwan',
-  // North America
-  us: 'United States', ca: 'Canada',
-  // Africa
-  za: 'South Africa', ng: 'Nigeria', ke: 'Kenya', gh: 'Ghana', sn: 'Senegal',
-  ci: 'Côte d’Ivoire', cm: 'Cameroon', ao: 'Angola', mz: 'Mozambique',
-  tz: 'Tanzania',
-  // Other common markets that may appear in rules / broadcaster data
-  ru: 'Russia',
+// A few short, friendlier labels where the CLDR canonical name is long.
+const NAME_OVERRIDES: Record<string, string> = {
+  us: 'United States',
+  gb: 'United Kingdom',
+  ae: 'United Arab Emirates',
+}
+
+let _display: Intl.DisplayNames | null | undefined
+function regionDisplay(): Intl.DisplayNames | null {
+  if (_display !== undefined) return _display
+  try {
+    _display = new Intl.DisplayNames(['en'], { type: 'region' })
+  } catch {
+    _display = null // environment without ICU region data
+  }
+  return _display
 }
 
 /** Friendly country name for an ISO-3166 alpha-2 code. Falls back to the
- *  uppercased code when unknown so the UI never renders blank. */
+ *  uppercased code when the code is malformed or unknown so the UI never
+ *  renders blank or a misleading "Unknown Region" label. */
 export function countryName(iso2: string): string {
-  return COUNTRY_NAMES[iso2.toLowerCase()] ?? iso2.toUpperCase()
+  const cc = iso2.trim().toLowerCase()
+  if (!/^[a-z]{2}$/.test(cc)) return iso2.trim().toUpperCase()
+  if (NAME_OVERRIDES[cc]) return NAME_OVERRIDES[cc]
+  const upper = cc.toUpperCase()
+  try {
+    const name = regionDisplay()?.of(upper)
+    // Intl returns the input code for unknown regions, and "Unknown Region"
+    // for the reserved placeholders (zz, qo, …) — treat both as "no name".
+    if (name && name !== upper && !/unknown/i.test(name)) return name
+  } catch {
+    // RangeError on a structurally-invalid code — fall through.
+  }
+  return upper
 }
 
 /** Flag emoji for a 2-letter country code, built from Unicode regional
