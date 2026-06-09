@@ -42,6 +42,7 @@ import {
 import { WhereToWatchBanner } from '@/components/where-to-watch/WhereToWatchBanner'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import type { LiveChannel as WtwLiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
+import { fetchChannelRegionBlocks } from '@/lib/where-to-watch/fetch-channel-region-rules'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -78,6 +79,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [wtwLiveChannels, setWtwLiveChannels] = useState<WtwLiveChannel[]>([])
   const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
   const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
+  const [wtwRegionBlocks, setWtwRegionBlocks] = useState<Array<{ channelId: string; countryIso2: string }>>([])
   const { user } = useAuth()
 
   const fetchNextMatch = useCallback(async (m: Match) => {
@@ -381,7 +383,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       .eq('is_active', true)
       .eq('abbreviation', tournamentChannelAbbr)
 
-    Promise.all([broadcastersP, liveChannelsP, channelsMetaP]).then(([bRes, lcRes, cmRes]) => {
+    const regionBlocksP = fetchChannelRegionBlocks(supabase)
+
+    Promise.all([broadcastersP, liveChannelsP, channelsMetaP, regionBlocksP]).then(([bRes, lcRes, cmRes, regionBlocks]) => {
       if (cancelled) return
       setWtwBroadcasters(((bRes.data ?? []) as BroadcasterRow[]))
       const liveRows = (lcRes.data ?? []).map((r: any) => {
@@ -408,6 +412,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         displayOrder: r.display_order as number,
       }))
       setWtwChannelsMeta(channelsMeta)
+      setWtwRegionBlocks(regionBlocks)
     }).catch(err => {
       if (!cancelled) console.warn('[match:wtw] fetch failed:', err)
     })
@@ -1024,6 +1029,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               channelsMeta={wtwChannelsMeta}
               todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
               geoCountry={wtwGeoCountry}
+              channelRegionBlocks={wtwRegionBlocks}
             />
             <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
           </>
@@ -1069,6 +1075,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           channelsMeta={wtwChannelsMeta}
           todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
           geoCountry={wtwGeoCountry}
+          channelRegionBlocks={wtwRegionBlocks}
         />
       )}
 

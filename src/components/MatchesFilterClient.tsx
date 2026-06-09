@@ -53,6 +53,7 @@ export interface MatchesFilterClientProps {
   channelsMeta?: ChannelMeta[]
   todayCircuits?: string[]
   geoCountry?: string | null
+  channelRegionBlocks?: Array<{ channelId: string; countryIso2: string }>
 }
 
 export default function MatchesFilterClient({
@@ -67,6 +68,7 @@ export default function MatchesFilterClient({
   channelsMeta = [],
   todayCircuits = [],
   geoCountry = null,
+  channelRegionBlocks = [],
 }: MatchesFilterClientProps) {
   const { filters, setFilters, reset, hydrated, activeCount } = useMatchesFilters()
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -240,6 +242,7 @@ export default function MatchesFilterClient({
         channelsMeta={channelsMeta}
         todayCircuits={todayCircuits}
         geoCountry={geoCountry}
+        channelRegionBlocks={channelRegionBlocks}
       />
       <LiveHint
         open={toastOpen}

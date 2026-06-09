@@ -47,6 +47,7 @@ export interface MatchesFilterBarProps {
   channelsMeta?: ChannelMeta[]
   todayCircuits?: string[]
   geoCountry?: string | null
+  channelRegionBlocks?: Array<{ channelId: string; countryIso2: string }>
 }
 
 export default function MatchesFilterBar({
@@ -62,6 +63,7 @@ export default function MatchesFilterBar({
   channelsMeta = [],
   todayCircuits = [],
   geoCountry = null,
+  channelRegionBlocks = [],
 }: MatchesFilterBarProps) {
   const tButton = useTranslations('matches.filters')
   const hasActive = activeCount > 0
@@ -90,6 +92,7 @@ export default function MatchesFilterBar({
           channelsMeta={channelsMeta}
           todayCircuits={todayCircuits}
           geoCountry={geoCountry}
+          channelRegionBlocks={channelRegionBlocks}
         />
         <button
           ref={liveButtonRef}

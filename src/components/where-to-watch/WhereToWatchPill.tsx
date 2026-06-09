@@ -14,10 +14,12 @@ export interface WhereToWatchPillProps {
   channelsMeta?: ChannelMeta[]
   todayCircuits: string[]   // serialized Set — array for SSR-safety
   geoCountry: string | null  // server-detected (cookie)
+  channelRegionBlocks?: Array<{ channelId: string; countryIso2: string }>
 }
 
 export function WhereToWatchPill({
   liveChannels, broadcasters, channelsMeta = [], todayCircuits, geoCountry,
+  channelRegionBlocks = [],
 }: WhereToWatchPillProps) {
   const t = useTranslations('whereToWatch')
   const [open, setOpen] = useState(false)
@@ -44,8 +46,9 @@ export function WhereToWatchPill({
       channelsMeta,
       todayCircuits: new Set(todayCircuits),
       country: effectiveCountry,
+      channelRegionBlocks,
     }),
-    [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry],
+    [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry, channelRegionBlocks],
   )
 
   // Hide entirely when nothing to show

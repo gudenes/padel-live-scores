@@ -55,6 +55,7 @@ interface Props {
   channelsMeta?: ChannelMeta[]
   todayCircuits?: string[]
   geoCountry?: string | null
+  channelRegionBlocks?: Array<{ channelId: string; countryIso2: string }>
 }
 
 type CacheEntry =
@@ -74,6 +75,7 @@ export default function MatchesDayShell({
   channelsMeta = [],
   todayCircuits = [],
   geoCountry = null,
+  channelRegionBlocks = [],
 }: Props) {
   const tDaily = useTranslations('daily')
   const tOffline = useTranslations('offline')
@@ -436,6 +438,7 @@ export default function MatchesDayShell({
           channelsMeta={channelsMeta}
           todayCircuits={todayCircuits}
           geoCountry={geoCountry}
+          channelRegionBlocks={channelRegionBlocks}
           leftSlot={
             !isOnToday ? (
               <button

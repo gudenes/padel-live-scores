@@ -25,10 +25,12 @@ export interface WhereToWatchBannerProps {
   channelsMeta: ChannelMeta[]
   todayCircuits: string[]
   geoCountry: string | null
+  channelRegionBlocks?: Array<{ channelId: string; countryIso2: string }>
 }
 
 export function WhereToWatchBanner({
   matchStatus, liveChannels, broadcasters, channelsMeta, todayCircuits, geoCountry,
+  channelRegionBlocks = [],
 }: WhereToWatchBannerProps) {
   const t = useTranslations('whereToWatch')
   const [open, setOpen] = useState(false)
@@ -51,8 +53,9 @@ export function WhereToWatchBanner({
       channelsMeta,
       todayCircuits: new Set(todayCircuits),
       country: effectiveCountry,
+      channelRegionBlocks,
     }),
-    [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry],
+    [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry, channelRegionBlocks],
   )
 
   // Hide on finished/walkover/retired matches OR when there's nothing to show.

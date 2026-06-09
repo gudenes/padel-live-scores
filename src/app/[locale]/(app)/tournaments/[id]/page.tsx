@@ -21,6 +21,7 @@ import { MatchCard } from '@/components/MatchCard'
 import { WhereToWatchInline } from '@/components/where-to-watch/WhereToWatchInline'
 import type { BroadcasterRow, LiveChannel, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
+import { fetchChannelRegionBlocks } from '@/lib/where-to-watch/fetch-channel-region-rules'
 import { filterTournamentStreams } from '@/lib/where-to-watch/filter-tournament-streams'
 import { tokenize } from '@/lib/fip-stream-title-parser'
 import { tournamentSearchUrl } from '@/lib/fip-stream-resolver'
@@ -1583,6 +1584,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
   const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
   const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
   const [wtwFallback, setWtwFallback] = useState<{ url: string; tournamentName: string } | null>(null)
+  const [wtwRegionBlocks, setWtwRegionBlocks] = useState<Array<{ channelId: string; countryIso2: string }>>([])
 
   const tournamentChannelAbbr = useMemo(
     () => levelToChannelAbbr(tournament?.level),
@@ -1680,7 +1682,9 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       .select('youtube_video_id')
       .eq('tournament_id', tournamentId)
 
-    Promise.all([broadcastersP, liveChannelsP, channelsMetaP, attributedP]).then(([bRes, lcRes, cmRes, attRes]) => {
+    const regionBlocksP = fetchChannelRegionBlocks(supabase)
+
+    Promise.all([broadcastersP, liveChannelsP, channelsMetaP, attributedP, regionBlocksP]).then(([bRes, lcRes, cmRes, attRes, regionBlocks]) => {
       if (cancelled) return
       setWtwBroadcasters(((bRes.data ?? []) as BroadcasterRow[]))
 
@@ -1720,6 +1724,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         displayOrder: r.display_order as number,
       }))
       setWtwChannelsMeta(channelsMeta)
+      setWtwRegionBlocks(regionBlocks)
 
       // FIP-TOUR-only fallback: when nothing matched and this is an FIP-tier
       // tournament, surface a single tournament-scoped channel-search row.
@@ -2227,6 +2232,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         channelsMeta={wtwChannelsMeta}
         todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
         geoCountry={wtwGeoCountry}
+        channelRegionBlocks={wtwRegionBlocks}
         fallback={wtwFallback}
       />
 

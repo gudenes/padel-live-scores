@@ -56,6 +56,7 @@ export interface WhereToWatchInlineProps {
   channelsMeta?: ChannelMeta[]
   todayCircuits: string[]
   geoCountry: string | null
+  channelRegionBlocks?: Array<{ channelId: string; countryIso2: string }>
   /** When the upstream filter found zero matches but wants a FIP TOUR
    *  search row to stand in. Set to null/undefined to suppress the panel
    *  when groups are empty (current behaviour for non-FIP tournaments). */
@@ -64,6 +65,7 @@ export interface WhereToWatchInlineProps {
 
 export function WhereToWatchInline({
   liveChannels, broadcasters, channelsMeta = [], todayCircuits, geoCountry,
+  channelRegionBlocks = [],
   fallback = null,
 }: WhereToWatchInlineProps) {
   const t = useTranslations('whereToWatch')
@@ -89,8 +91,9 @@ export function WhereToWatchInline({
       channelsMeta,
       todayCircuits: new Set(todayCircuits),
       country: effectiveCountry,
+      channelRegionBlocks,
     }),
-    [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry],
+    [liveChannels, broadcasters, channelsMeta, todayCircuits, effectiveCountry, channelRegionBlocks],
   )
 
   const hasGroups = groups.length > 0

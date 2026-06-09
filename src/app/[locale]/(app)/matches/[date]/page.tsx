@@ -32,6 +32,7 @@ import MatchesDayShell from '@/components/MatchesDayShell'
 import type { LiveChannel } from '@/lib/where-to-watch/group-builder'
 import { fetchActiveBroadcasters, fetchChannelsMeta } from '@/lib/where-to-watch/fetch-broadcasters'
 import { circuitsForToday } from '@/lib/where-to-watch/circuit-map'
+import { fetchChannelRegionBlocks } from '@/lib/where-to-watch/fetch-channel-region-rules'
 
 export const dynamic = 'force-dynamic'
 
@@ -107,7 +108,7 @@ export default async function DailyMatchesPage({ params }: Props) {
   // No client-side polling for v1.
   const STALE_MS = 30 * 60 * 1000
   const geoCountry = (cookieStore.get('geo-country')?.value || '').toLowerCase() || null
-  const [liveChannelsRes, broadcasters, channelsMeta] = await Promise.all([
+  const [liveChannelsRes, broadcasters, channelsMeta, channelRegionBlocks] = await Promise.all([
     supabase
       .from('youtube_channel_live')
       .select(`
@@ -125,6 +126,7 @@ export default async function DailyMatchesPage({ params }: Props) {
       .eq('channel.is_active', true),
     fetchActiveBroadcasters(supabase),
     fetchChannelsMeta(supabase),
+    fetchChannelRegionBlocks(supabase),
   ])
 
   if (liveChannelsRes.error) {
@@ -216,6 +218,7 @@ export default async function DailyMatchesPage({ params }: Props) {
         channelsMeta={channelsMeta}
         todayCircuits={todayCircuits}
         geoCountry={geoCountry}
+        channelRegionBlocks={channelRegionBlocks}
       />
 
       <div style={{ height: 30 }} />
