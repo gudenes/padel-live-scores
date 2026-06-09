@@ -185,4 +185,44 @@ describe('buildGroups', () => {
     // No country → no broadcaster section (the broadcaster row is filtered out by country mismatch upstream too, but defensive)
     expect(groups).toEqual([])
   })
+
+  it('hides a blocked channel live stream but keeps its broadcasters', () => {
+    const groups = buildGroups({
+      liveChannels: [ppLive],
+      broadcasters: [movistar],
+      todayCircuits: new Set(['PP']),
+      country: 'es',
+      channelsMeta: [ppChannelMeta],
+      channelRegionBlocks: [{ channelId: PP_CHANNEL_ID, countryIso2: 'es' }],
+    })
+    expect(groups).toHaveLength(1)
+    expect(groups[0].hasLive).toBe(false)
+    expect(groups[0].liveStreams).toEqual([])
+    expect(groups[0].broadcasters).toHaveLength(1)
+  })
+
+  it('drops a blocked channel group entirely when it has no broadcaster', () => {
+    const groups = buildGroups({
+      liveChannels: [fipLive],
+      broadcasters: [],
+      todayCircuits: new Set(['FIP']),
+      country: 'ar',
+      channelsMeta: [fipChannelMeta],
+      channelRegionBlocks: [{ channelId: FIP_CHANNEL_ID, countryIso2: 'ar' }],
+    })
+    expect(groups).toEqual([])
+  })
+
+  it('does not block when the rule is for a different country', () => {
+    const groups = buildGroups({
+      liveChannels: [ppLive],
+      broadcasters: [],
+      todayCircuits: new Set(['PP']),
+      country: 'es',
+      channelsMeta: [ppChannelMeta],
+      channelRegionBlocks: [{ channelId: PP_CHANNEL_ID, countryIso2: 'ar' }],
+    })
+    expect(groups).toHaveLength(1)
+    expect(groups[0].hasLive).toBe(true)
+  })
 })

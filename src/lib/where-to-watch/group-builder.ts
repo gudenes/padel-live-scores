@@ -62,10 +62,15 @@ export interface BuildGroupsInput {
    *  channel's name/color/abbreviation. Optional — when omitted the
    *  builder falls back to sourcing metadata only from `liveChannels`. */
   channelsMeta?: ChannelMeta[]
+  /** Block rules: a channel's live YouTube stream is geo-blocked in these
+   *  countries. When the viewer's country matches, the channel's live
+   *  streams are dropped (existing broadcasters still surface). Optional —
+   *  omit for no geo-blocking. */
+  channelRegionBlocks?: Array<{ channelId: string; countryIso2: string }>
 }
 
 export function buildGroups(input: BuildGroupsInput): ChannelGroup[] {
-  const { liveChannels, broadcasters, todayCircuits, country, channelsMeta = [] } = input
+  const { liveChannels, broadcasters, todayCircuits, country, channelsMeta = [], channelRegionBlocks = [] } = input
 
   // Index 1: channel metadata, keyed by channel id. Sourced from
   // `channelsMeta` first (covers dormant channels) then live channels —
@@ -99,8 +104,12 @@ export function buildGroups(input: BuildGroupsInput): ChannelGroup[] {
     }
   }
 
-  // Index 2: attach live streams
+  // Index 2: attach live streams — skipping channels blocked in this country.
+  const blockedChannelIds = new Set(
+    channelRegionBlocks.filter(r => r.countryIso2 === country).map(r => r.channelId),
+  )
   for (const lc of liveChannels) {
+    if (blockedChannelIds.has(lc.channel.id)) continue
     const g = channelMetaById.get(lc.channel.id)!
     g.hasLive = true
     g.liveStreams.push({ videoId: lc.videoId, title: lc.title })
