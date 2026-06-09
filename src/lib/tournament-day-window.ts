@@ -1,6 +1,18 @@
 // src/lib/tournament-day-window.ts
 // Tournament-local-timezone day math for the matchday digest. Uses Intl
 // (no date-fns-tz in this app). All inputs/outputs are UTC except the tz arg.
+import { countryToTimezone } from '@/lib/country-timezone'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+export async function getTournamentTimezone(
+  supabase: Pick<SupabaseClient, 'from'>,
+  tournamentId: string,
+): Promise<string | null> {
+  const { data } = await supabase.from('tournaments').select('timezone, country').eq('id', tournamentId).maybeSingle()
+  const explicit = (data?.timezone as string | null) ?? null
+  if (explicit) return explicit
+  return countryToTimezone((data?.country as string | null) ?? null)
+}
 
 export function localHourIn(tz: string, now: Date): number {
   const h = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: '2-digit', hour12: false }).format(now)
