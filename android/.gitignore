@@ -64,10 +64,14 @@ keystore.properties
 .externalNativeBuild
 .cxx/
 
-# Google Services (e.g. APIs or Firebase) — contains an API key
-# that gets scraped from public repos. Keep out of git.
-google-services.json
-app/google-services.json
+# Google Services (Firebase) — intentionally COMMITTED (app/google-services.json).
+# The Android config holds only client identifiers (app id, project id, a client
+# API key) that already ship in plaintext inside every distributed APK — it is
+# not a secret. Committing it makes release builds deterministic: building from a
+# clean checkout / CI / another machine without it silently shipped an AAB with
+# no Firebase config, leaving FirebaseApp uninitialized and push broken on fresh
+# installs. build.gradle now hard-fails the build if the file is missing.
+# (Real secrets — service keys, the Firebase Admin private key — stay in env vars.)
 
 # Freeline
 freeline.py
