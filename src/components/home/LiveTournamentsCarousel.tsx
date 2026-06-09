@@ -92,7 +92,12 @@ function TournamentCarouselCard({
             if (days === 1) return t('startsTomorrow')
             return t('startsInDays', { count: days })
           })()
-        : t('restDay')
+        : tournament.managedEvent
+          // Managed events have no per-day match feed; an ongoing one would
+          // otherwise fall through to "Rest day", which reads wrong. The
+          // badge pill already conveys it's a curated event.
+          ? ''
+          : t('restDay')
 
   const ariaLabel = [tournament.name, tierLabel, statusLine].filter(Boolean).join(', ')
 
