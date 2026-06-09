@@ -8,7 +8,7 @@ export interface RegionBlockObservation {
 /** Aggregate YouTube `regionRestriction.blocked` over a channel's recent
  *  videos. Only videos that carry a `blocked` list count toward sampleSize. */
 export function aggregateRegionBlocks(
-  videos: Array<{ regionRestriction?: { blocked?: string[]; allowed?: string[] } }>,
+  videos: Array<{ regionRestriction?: { blocked?: string[]; allowed?: string[] } | null }>,
 ): RegionBlockObservation {
   let sampleSize = 0
   const blocked: Record<string, number> = {}

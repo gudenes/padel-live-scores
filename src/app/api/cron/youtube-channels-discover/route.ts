@@ -17,6 +17,7 @@ import {
   listVideoDetails,
   YouTubeQuotaError,
 } from '@/lib/youtube-channel-api'
+import { aggregateRegionBlocks } from '@/lib/where-to-watch/region-blocks'
 
 export const maxDuration = 60
 
@@ -81,6 +82,15 @@ export async function GET(request: NextRequest) {
           const live = videos.filter(v => v.liveBroadcastContent === 'live')
           result.per_channel.push({ name: ch.name, live: live.length })
           result.live_videos_seen += live.length
+
+          // Suggestion signal: record this channel's geo-block footprint.
+          const observed = aggregateRegionBlocks(videos)
+          if (observed.sampleSize > 0) {
+            await supabase
+              .from('youtube_channels')
+              .update({ observed_region_blocks: observed, observed_at: now })
+              .eq('id', ch.id)
+          }
 
           for (const v of live) {
             const { error: upErr } = await supabase

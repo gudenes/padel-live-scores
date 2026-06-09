@@ -9,7 +9,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import { logOpsEvent } from '@/lib/ops-logger'
-import { FIP_UPLOADS_PLAYLIST_ID } from '@/lib/fip-channel'
+import { FIP_UPLOADS_PLAYLIST_ID, FIP_CHANNEL_ID } from '@/lib/fip-channel'
+import { aggregateRegionBlocks } from '@/lib/where-to-watch/region-blocks'
 
 export const maxDuration = 60
 
@@ -216,6 +217,23 @@ export async function GET(request: NextRequest) {
             }
             if (!wasSeenAsStream) stats.newly_matched++
           }
+        }
+      }
+
+      // 6b. Suggestion signal: learn this channel's geo-block footprint from the
+      // regionRestriction on recent VODs (live videos often omit it).
+      const observed = aggregateRegionBlocks(details)
+      if (observed.sampleSize > 0) {
+        const { data: chan } = await supabase
+          .from('youtube_channels')
+          .select('id')
+          .eq('channel_id', FIP_CHANNEL_ID)
+          .maybeSingle()
+        if (chan?.id) {
+          await supabase
+            .from('youtube_channels')
+            .update({ observed_region_blocks: observed, observed_at: new Date().toISOString() })
+            .eq('id', chan.id)
         }
       }
 
