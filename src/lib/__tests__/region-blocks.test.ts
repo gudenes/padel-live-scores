@@ -31,14 +31,24 @@ describe('computeBlockSuggestions', () => {
     expect(out[0].ytSampleSize).toBe(50)
   })
 
-  it('suggests countries that have an exclusive broadcaster', () => {
+  it('does NOT suggest a country just because it has a broadcaster', () => {
+    // A broadcaster existing is not evidence the YouTube stream is blocked.
     const out = computeBlockSuggestions({
       observed: null,
-      broadcasterCountries: ['co'],
+      broadcasterCountries: ['co', 'gb', 'us'],
       alreadyBlocked: [],
     })
-    expect(out.map(s => s.country)).toEqual(['co'])
-    expect(out[0].reasons).toEqual(['broadcaster'])
+    expect(out).toEqual([])
+  })
+
+  it('annotates a YouTube-driven suggestion when a broadcaster also exists', () => {
+    const out = computeBlockSuggestions({
+      observed: { sampleSize: 20, blocked: { cl: 18 } },
+      broadcasterCountries: ['cl'],
+      alreadyBlocked: [],
+    })
+    expect(out.map(s => s.country)).toEqual(['cl'])
+    expect(out[0].reasons).toEqual(['yt_api', 'broadcaster'])
   })
 
   it('excludes already-blocked countries and ignores tiny samples', () => {

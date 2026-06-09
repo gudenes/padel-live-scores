@@ -18,7 +18,7 @@ function reasonText(s: Suggestion): string {
   if (s.reasons.includes('yt_api') && s.ytSampleSize) {
     bits.push(`YouTube blocked this channel in ${s.ytBlockedCount} of the last ${s.ytSampleSize} recorded matches`)
   }
-  if (s.reasons.includes('broadcaster')) bits.push('has a local broadcaster but the stream isn\'t blocked yet')
+  if (s.reasons.includes('broadcaster')) bits.push('a local broadcaster is available to redirect viewers')
   return bits.join(' · ')
 }
 

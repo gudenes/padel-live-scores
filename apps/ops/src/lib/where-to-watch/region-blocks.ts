@@ -39,34 +39,31 @@ export interface ComputeSuggestionsArgs {
   minSample?: number  // minimum sampleSize to trust yt_api, default 5
 }
 
-/** Combine the YouTube-observed blocks and broadcaster signal into a
- *  de-duplicated suggestion list, excluding already-blocked countries. */
+/** Build the block-suggestion list.
+ *
+ *  Suggestions are driven ONLY by YouTube's observed `regionRestriction` — the
+ *  accurate signal for "the live stream won't play here". A local broadcaster
+ *  existing is NOT evidence the stream is blocked (Premier's where-to-watch
+ *  feed lists a broadcaster for ~every country), so it never generates a
+ *  suggestion on its own; it only annotates a YouTube-based suggestion to tell
+ *  the operator a redirect target already exists. Already-blocked countries are
+ *  excluded. */
 export function computeBlockSuggestions(args: ComputeSuggestionsArgs): BlockSuggestion[] {
   const { observed, broadcasterCountries, alreadyBlocked, threshold = 0.6, minSample = 5 } = args
   const already = new Set(alreadyBlocked.map(c => c.toLowerCase()))
-  const byCountry = new Map<string, BlockSuggestion>()
+  const hasBroadcaster = new Set(broadcasterCountries.map(c => c.toLowerCase()))
+  const out: BlockSuggestion[] = []
 
   if (observed && observed.sampleSize >= minSample) {
-    for (const [cc, count] of Object.entries(observed.blocked)) {
+    for (const [ccRaw, count] of Object.entries(observed.blocked)) {
+      const cc = ccRaw.toLowerCase()
       if (count / observed.sampleSize < threshold) continue
-      byCountry.set(cc, {
-        country: cc, reasons: ['yt_api'],
-        ytBlockedCount: count, ytSampleSize: observed.sampleSize,
-      })
+      if (already.has(cc)) continue
+      const reasons: Array<'yt_api' | 'broadcaster'> = ['yt_api']
+      if (hasBroadcaster.has(cc)) reasons.push('broadcaster')
+      out.push({ country: cc, reasons, ytBlockedCount: count, ytSampleSize: observed.sampleSize })
     }
   }
 
-  for (const raw of broadcasterCountries) {
-    const cc = raw.toLowerCase()
-    const existing = byCountry.get(cc)
-    if (existing) {
-      if (!existing.reasons.includes('broadcaster')) existing.reasons.push('broadcaster')
-    } else {
-      byCountry.set(cc, { country: cc, reasons: ['broadcaster'] })
-    }
-  }
-
-  return [...byCountry.values()]
-    .filter(s => !already.has(s.country))
-    .sort((a, b) => a.country.localeCompare(b.country))
+  return out.sort((a, b) => a.country.localeCompare(b.country))
 }
