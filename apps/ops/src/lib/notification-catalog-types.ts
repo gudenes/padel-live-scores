@@ -13,4 +13,6 @@ export type CatalogRow = {
   count7d: number
   recipients7d: number
   failed7d: number
+  description: string
+  sample: { title: string; body: string }
 }

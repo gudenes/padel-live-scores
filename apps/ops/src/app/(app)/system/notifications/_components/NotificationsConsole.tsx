@@ -49,6 +49,24 @@ export default function NotificationsConsole({ initialCategories }: { initialCat
   const [msg, setMsg] = useState<string | null>(null)
   const [msgTone, setMsgTone] = useState<'ok' | 'err'>('ok')
 
+  // ── per-row test state (independent per category) ──
+  const [rowTest, setRowTest] = useState<Record<string, 'idle' | 'testing' | 'ok' | 'err'>>({})
+
+  async function onRowTest(row: CatalogRow) {
+    if (rowTest[row.key] === 'testing') return
+    setRowTest((s) => ({ ...s, [row.key]: 'testing' }))
+    try {
+      const r = await fetch('/api/internal/notify-test', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title: row.sample.title, body: row.sample.body, url: '/' }),
+      })
+      setRowTest((s) => ({ ...s, [row.key]: r.ok ? 'ok' : 'err' }))
+    } catch {
+      setRowTest((s) => ({ ...s, [row.key]: 'err' }))
+    }
+  }
+
   // Any edit to content/entity invalidates a prior dry-run: collapse the
   // confirm section and clear the typed confirmation so the operator must
   // dry-run again and re-type SEND against the new payload.
@@ -194,18 +212,27 @@ export default function NotificationsConsole({ initialCategories }: { initialCat
                     <th>7d fires</th>
                     <th>7d recipients</th>
                     <th>7d failed</th>
+                    <th>Test</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((row) => (
                     <tr key={row.key}>
-                      <td>{row.key}</td>
+                      <td>
+                        <div className={styles.catName}>{row.key}</div>
+                        <div className={styles.catRule}>{row.description}</div>
+                      </td>
                       <td><Pill tone={row.tier === 'pro' ? 'lime' : 'neutral'}>{row.tier}</Pill></td>
                       <td><Pill tone={STATUS_TONE[row.status]}>{row.status}</Pill></td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(row.lastFiredAt)}</td>
                       <td className={styles.num}>{row.count7d}</td>
                       <td className={styles.num}>{row.recipients7d}</td>
                       <td className={styles.num}>{row.failed7d}</td>
+                      <td>
+                        <Button variant="ghost" onClick={() => onRowTest(row)} disabled={rowTest[row.key] === 'testing'}>
+                          {rowTest[row.key] === 'testing' ? 'Testing…' : rowTest[row.key] === 'ok' ? '✓ Sent' : rowTest[row.key] === 'err' ? '✗ Retry' : 'Test'}
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
