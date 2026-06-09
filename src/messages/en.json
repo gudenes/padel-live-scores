@@ -1630,6 +1630,7 @@
     "liveNote": "Live scores during the event. We'll light up results here once play begins.",
     "getTickets": "Get tickets",
     "watchFree": "free",
-    "standings": "Standings"
+    "standings": "Standings",
+    "specialEvents": "Special events"
   }
 }

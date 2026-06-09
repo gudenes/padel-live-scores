@@ -17,6 +17,8 @@ import TournamentsFilterSheet, {
   DEFAULT_FILTERS, activeFilterCount,
   type TournamentFilters,
 } from './TournamentsFilterSheet'
+import { getActiveManagedEvents } from '@/lib/managed-events-server'
+import type { ManagedEvent } from '@/lib/managed-events'
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -156,6 +158,7 @@ export default function TournamentsView({
   const tWhenChip = useTranslations('home.filterSheet.whenChip')
   const tFilterSheet = useTranslations('home.filterSheet')
   const tCommon = useTranslations('common')
+  const tEvents = useTranslations('events')
   const [tab, setTab] = useState<TournamentTab>('premier')
   const [tournaments, setTournaments] = useState<TournamentWithWinners[]>([])
   const [liveIds, setLiveIds] = useState<Set<string>>(new Set())
@@ -185,6 +188,7 @@ export default function TournamentsView({
   const [filters, setFilters] = useState<TournamentFilters>(DEFAULT_FILTERS)
   const [pendingInSheet, setPendingInSheet] = useState<TournamentFilters>(DEFAULT_FILTERS)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [managedEvents, setManagedEvents] = useState<ManagedEvent[]>([])
 
   useEffect(() => {
     (async () => {
@@ -346,6 +350,20 @@ export default function TournamentsView({
       setLoading(false)
     })()
   }, [tab, fipSubTier])
+
+  // Active managed events (operator-curated, tab-independent). Rendered as
+  // a "Special events" section at the top of the listing, linking to
+  // /events/[slug]. Mirrors the home carousel's 48h back-window.
+  useEffect(() => {
+    (async () => {
+      try {
+        const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+        setManagedEvents(await getActiveManagedEvents(cutoff))
+      } catch {
+        // best-effort — listing still renders without managed events
+      }
+    })()
+  }, [])
 
   // ── Available countries (drives the sheet's país picker — only
   //    shows countries with at least one tournament in the loaded set).
@@ -709,6 +727,48 @@ export default function TournamentsView({
         <TournamentsViewSkeleton />
       ) : (
         <>
+          {/* ── Special events (operator-curated managed events) ──
+              Tab-independent; always leads the listing when present.
+              Links to the standalone /events/[slug] page. */}
+          {managedEvents.length > 0 && (
+            <>
+              <SectionTitle>{tEvents('specialEvents')}</SectionTitle>
+              {managedEvents.map(ev => (
+                <Link
+                  key={ev.id}
+                  href={`/events/${ev.slug}`}
+                  style={{ textDecoration: 'none', color: 'inherit', display: 'block', margin: '0 16px 8px' }}
+                >
+                  <div style={{
+                    clipPath: CHUNKY.card, background: BG_CARD, border: `1px solid ${BORDER}`,
+                    padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10,
+                  }}>
+                    {ev.country && <FlagImg country={ev.country} size={22} />}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{
+                        fontSize: 13, fontWeight: 700, color: '#fff',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      }}>
+                        {titleCase(ev.name)}
+                      </div>
+                      <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
+                        {ev.starts_at && ev.ends_at ? formatDateRange(format, ev.starts_at, ev.ends_at) : ''}
+                        {ev.location ? ` · ${ev.location}` : ''}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, padding: '3px 7px', clipPath: CHUNKY.badge,
+                      textTransform: 'uppercase', letterSpacing: 0.3, flexShrink: 0,
+                      background: 'rgba(245,166,35,0.15)', color: ORANGE,
+                    }}>
+                      {ev.badge_label}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </>
+          )}
+
           {/* ── Live / Ongoing / Upcoming sections ────────────
               Each bucket renders independently so concurrently active
               tournaments (e.g. one in finals, another mid-week) both

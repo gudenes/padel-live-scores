@@ -1598,6 +1598,7 @@
     "liveNote": "Resultados en directo durante el evento. Se mostrarán aquí cuando empiece el juego.",
     "getTickets": "Comprar entradas",
     "watchFree": "gratis",
-    "standings": "Clasificación"
+    "standings": "Clasificación",
+    "specialEvents": "Eventos especiales"
   }
 }
