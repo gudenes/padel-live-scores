@@ -24,7 +24,7 @@ describe('formatDigestBody', () => {
 })
 
 describe('groupRecipients', () => {
-  it('maps each user to the matches they follow (player) or bookmarked', () => {
+  it('maps each user to {matchId, viaPlayerId}, preferring the followed player over a bookmark', () => {
     const matches: DigestMatch[] = [
       { matchId: 'm1', players: ['p1', 'p2'] },
       { matchId: 'm2', players: ['p3', 'p4'] },
@@ -32,7 +32,7 @@ describe('groupRecipients', () => {
     const playerFollows = [{ user_id: 'u1', target_id: 'p1' }, { user_id: 'u2', target_id: 'p3' }]
     const matchBookmarks = [{ user_id: 'u1', target_id: 'm2' }]
     const g = groupRecipients(matches, playerFollows, matchBookmarks)
-    expect(g.get('u1')!.sort()).toEqual(['m1', 'm2'])
-    expect(g.get('u2')).toEqual(['m2'])
+    expect(g.get('u1')).toEqual([{ matchId: 'm1', viaPlayerId: 'p1' }, { matchId: 'm2', viaPlayerId: null }])
+    expect(g.get('u2')).toEqual([{ matchId: 'm2', viaPlayerId: 'p3' }])
   })
 })

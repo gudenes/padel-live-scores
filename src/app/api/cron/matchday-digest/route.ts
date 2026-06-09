@@ -33,6 +33,7 @@ import {
   groupRecipients,
   type DigestMatch,
   type DigestItem,
+  type RecipientMatch,
 } from '@/lib/matchday-digest'
 import { claimNotificationEvent } from '@/lib/notification-events'
 import { resolvePrefs, shouldDeliverToRecipient } from '@/lib/notification-categories'
@@ -159,6 +160,15 @@ export async function GET(req: NextRequest) {
             ? supabase.from('players').select('id, name').in('id', allPlayerIds)
             : Promise.resolve({ data: [] as { id: string; name: string | null }[], error: null }),
         ])
+        if (tRes.error) {
+          console.error(`[matchday-digest] tournament name read failed for ${tid}:`, tRes.error.message)
+        }
+        // Names can't resolve if the players read failed — skip this tournament
+        // rather than send nameless "Match" digests + burn idempotency keys.
+        if (pRes.error) {
+          console.error(`[matchday-digest] players read failed for ${tid}:`, pRes.error.message)
+          continue
+        }
         const tournamentName = (tRes.data?.name as string | null) ?? 'Tournament'
         const playerName = new Map<string, string>()
         for (const p of (pRes.data ?? []) as { id: string; name: string | null }[]) {
@@ -198,6 +208,19 @@ export async function GET(req: NextRequest) {
             .in('target_id', matchIds),
         ])
 
+        if (playerFollowsRes.error) {
+          console.error(`[matchday-digest] player follows read failed for ${tid}:`, playerFollowsRes.error.message)
+        }
+        if (matchBookmarksRes.error) {
+          console.error(`[matchday-digest] match bookmarks read failed for ${tid}:`, matchBookmarksRes.error.message)
+        }
+        if (anonPlayerBmRes.error) {
+          console.error(`[matchday-digest] anon player bookmarks read failed for ${tid}:`, anonPlayerBmRes.error.message)
+        }
+        if (anonMatchBmRes.error) {
+          console.error(`[matchday-digest] anon match bookmarks read failed for ${tid}:`, anonMatchBmRes.error.message)
+        }
+
         const digestMatches: DigestMatch[] = todayMatches.map((m) => ({
           matchId: m.id,
           players: [
@@ -231,18 +254,22 @@ export async function GET(req: NextRequest) {
         })
 
         // Build the DigestItem[] (sorted by scheduled_at) for a recipient's
-        // mapped matchIds. `label` is a player from the match (short form).
-        const buildItems = (mids: string[]): DigestItem[] => {
-          const items = mids
-            .map((mid) => matchById.get(mid))
-            .filter((m): m is CandidateMatch => !!m)
-            .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
-            .map((m) => {
-              const pid =
+        // mapped matches. `label` is the FOLLOWED player's short name when the
+        // recipient is on the match via a player-follow; otherwise (bookmark or
+        // unresolved follow) it falls back to the first match player with a
+        // resolved name, else 'Match'.
+        const buildItems = (rms: RecipientMatch[]): DigestItem[] => {
+          const items = rms
+            .map((rm) => ({ rm, m: matchById.get(rm.matchId) }))
+            .filter((x): x is { rm: RecipientMatch; m: CandidateMatch } => !!x.m)
+            .sort((a, b) => a.m.scheduled_at.localeCompare(b.m.scheduled_at))
+            .map(({ rm, m }) => {
+              const viaName = rm.viaPlayerId ? playerName.get(rm.viaPlayerId) : undefined
+              const fallbackPid =
                 [m.pair1_player1_id, m.pair1_player2_id, m.pair2_player1_id, m.pair2_player2_id].find(
                   (id) => id && playerName.get(id),
                 ) ?? null
-              const label = (pid && playerName.get(pid)) || 'Match'
+              const label = viaName || (fallbackPid && playerName.get(fallbackPid)) || 'Match'
               return {
                 label,
                 time: timeFmt.format(new Date(m.scheduled_at)),
