@@ -52,6 +52,7 @@ const GROUPS: Group[] = [
     { href: '/system/seo', label: 'SEO', icon: 'search' },
     { href: '/system/architecture', label: 'Architecture', icon: 'arch' },
     { href: '/system/broadcast', label: 'Broadcast', icon: 'bell' },
+    { href: '/system/notifications', label: 'Notifications', icon: 'bell' },
   ]},
 ]
 
