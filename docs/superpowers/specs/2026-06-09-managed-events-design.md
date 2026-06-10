@@ -207,6 +207,17 @@ After the system is in place, seed the **Reserve Cup Marbella 2026** row (Jun 18
 | Admin API | `apps/ops/src/app/api/internal/managed-events/route.ts` + `[id]/route.ts` |
 | Admin nav | `apps/ops/src/components/shell/Rail.tsx` |
 
+## Revision 2 (2026-06-09) — tournament-detail chrome + clickable players
+
+After reviewing v1 locally, the public page is re-framed to match the **tournament-detail page** look, and lineup players become linkable to real profiles.
+
+- **Page chrome:** `/events/[slug]` now renders a **collapsing cover header** (cover image + status/badge pills + wordmark + name + flag + location·venue·dates) and a **`SlidingInkTabs`** bar. Reuses the generic `SlidingInkTabs` and `TournamentCoverImage` primitives + design tokens; does **not** refactor or reuse the heavy tournament page / `V3Overview` (which is coupled to match/draw data). The header is a new managed-event-specific component that mirrors the tournament hero visually.
+- **Tabs:** **Overview** (where-to-watch · event info · format · live-note · tickets · footnote) and **Lineups** (divisions → teams → players). Structured so Results/Live can become tabs later.
+- **Clickable players + avatars:** each `Division` player gains an optional `player_id` (inside the `divisions` JSONB — no migration). In admin, the operator links a player via the existing `/api/internal/search-players` typeahead. On the public page, the server resolves all `player_id`s in one `players`-by-ids read and passes a `playersById` map; linked players render `<Avatar>` + `<Link href="/player/[id]">` (degrading to flag+name when unlinked). `DivisionPlayer = { name, country, player_id? }`.
+- **Where-to-watch data (confirmed for Marbella 2026):** YouTube `@ReserveCupSeries` (worldwide) · DAZN (worldwide) · Mediaset/Infinity (Spain · free) · ESPN (Argentina & Chile) · Disney+ (Argentina & Chile). Source: the Marbella PR Newswire release + Haute Living. The earlier ESPN doubt is resolved — it is confirmed for South America.
+- **Cover image:** sourced and uploaded to Supabase Storage (only host allowlisted in `next.config.ts` besides googleusercontent/padelfip), then seeded onto `cover_image_url`.
+- New i18n keys: `events.tabOverview`, `events.tabLineups`.
+
 ## Open questions (resolve in plan)
 - Preview of inactive events in admin (preview token vs. require `active`).
 - Exact `/tournaments` listing insertion point + ordering relative to synced tournaments.
