@@ -3,7 +3,7 @@
 // so we keep a local copy rather than importing across app boundaries).
 
 export type WatchLink = { platform: string; label: string; region: string | null; url: string; primary?: boolean }
-export type DivisionPlayer = { name: string; country: string | null }
+export type DivisionPlayer = { name: string; country: string | null; player_id?: string | null }
 export type DivisionTeam = { name: string; captain?: string | null; accent_color?: string | null; players: DivisionPlayer[] }
 export type Division = { id: string; name: string; badge_color?: string | null; note?: string | null; teams: DivisionTeam[] }
 export type FormatDayPoint = { day: string; points: number; label?: string }

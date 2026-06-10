@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { ManagedEvent, WatchLink, Division } from '@/types/managed-events'
+import type { ManagedEvent, WatchLink, Division, DivisionPlayer } from '@/types/managed-events'
 import { isValidSlug } from '@/types/managed-events'
 
 type View = { mode: 'list' } | { mode: 'editor'; id: string | null }
@@ -194,6 +194,66 @@ function RepeatableSection<T>({ title, rows, onChange, empty, render }: {
   )
 }
 
+type PlayerSearchResult = { id: string; name: string; display_name: string | null; country: string | null; avatar_url: string | null }
+
+function PlayerPicker({ player, onChange }: { player: DivisionPlayer; onChange: (p: DivisionPlayer) => void }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState<PlayerSearchResult[]>([])
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const id = setTimeout(async () => {
+      if (!q.trim() || q.trim().length < 2) { if (!cancelled) setResults([]); return }
+      try {
+        const r = await fetch(`/api/internal/search-players?q=${encodeURIComponent(q)}&per_page=8`, { credentials: 'include' })
+        const d = await r.json()
+        if (!cancelled) setResults(d.players ?? [])
+      } catch { if (!cancelled) setResults([]) }
+    }, 250)
+    return () => { cancelled = true; clearTimeout(id) }
+  }, [q])
+
+  if (player.player_id) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#7ED321' }}>
+        🔗 linked
+        <button type="button" className="ui-btn" onClick={() => onChange({ ...player, player_id: null })}>Unlink</button>
+      </span>
+    )
+  }
+  return (
+    <span style={{ position: 'relative', display: 'inline-block' }}>
+      <input
+        placeholder="🔗 link player…"
+        value={q}
+        onChange={e => { setQ(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        style={{ width: 150 }}
+      />
+      {open && results.length > 0 && (
+        <div style={{ position: 'absolute', zIndex: 30, top: '100%', left: 0, minWidth: 220, background: '#1c1c1c', border: '1px solid rgba(255,255,255,0.12)', maxHeight: 240, overflowY: 'auto' }}>
+          {results.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => { onChange({ ...player, player_id: r.id, name: r.display_name ?? r.name, country: r.country ?? player.country }); setOpen(false); setQ('') }}
+              style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8, padding: '6px 8px', background: 'none', border: 'none', color: '#eee', cursor: 'pointer', textAlign: 'left' }}
+            >
+              {r.avatar_url
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={r.avatar_url} alt="" width={20} height={20} style={{ borderRadius: '50%' }} />
+                : <span style={{ width: 20, display: 'inline-block' }} />}
+              <span style={{ fontSize: 12 }}>{r.display_name ?? r.name}</span>
+              {r.country && <span style={{ fontSize: 10, color: '#888' }}>{r.country}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </span>
+  )
+}
+
 function DivisionsEditor({ divisions, onChange }: { divisions: Division[]; onChange: (d: Division[]) => void }) {
   const updDiv = (i: number, d: Division) => { const next = [...divisions]; next[i] = d; onChange(next) }
   return (
@@ -217,9 +277,13 @@ function DivisionsEditor({ divisions, onChange }: { divisions: Division[]; onCha
                 <button className="ui-btn" onClick={() => { const t = div.teams.filter((_, j) => j !== ti); updDiv(di, { ...div, teams: t }) }}>✕ team</button>
               </div>
               {team.players.map((p, pi) => (
-                <div key={pi} style={{ display: 'flex', gap: 8, marginLeft: 16, marginTop: 4 }}>
+                <div key={pi} style={{ display: 'flex', gap: 8, marginLeft: 16, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                   <input placeholder="player" value={p.name} onChange={e => { const pl = [...team.players]; pl[pi] = { ...p, name: e.target.value }; const t = [...div.teams]; t[ti] = { ...team, players: pl }; updDiv(di, { ...div, teams: t }) }} />
                   <input placeholder="country" value={p.country ?? ''} onChange={e => { const pl = [...team.players]; pl[pi] = { ...p, country: e.target.value }; const t = [...div.teams]; t[ti] = { ...team, players: pl }; updDiv(di, { ...div, teams: t }) }} />
+                  <PlayerPicker
+                    player={p}
+                    onChange={(np) => { const pl = [...team.players]; pl[pi] = np; const t = [...div.teams]; t[ti] = { ...team, players: pl }; updDiv(di, { ...div, teams: t }) }}
+                  />
                   <button className="ui-btn" onClick={() => { const pl = team.players.filter((_, j) => j !== pi); const t = [...div.teams]; t[ti] = { ...team, players: pl }; updDiv(di, { ...div, teams: t }) }}>✕</button>
                 </div>
               ))}
