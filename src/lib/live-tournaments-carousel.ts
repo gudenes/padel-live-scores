@@ -23,6 +23,15 @@ export interface TournamentForSort {
   starts_at: string
 }
 
+/**
+ * Sort weight for operator-curated managed events on the rail. Placed
+ * between the lowest Premier tier (p2 = 3) and the first FIP tier
+ * (fip_platinum = 4) so a managed event (e.g. Reserve Cup) sits AFTER
+ * the Premier Padel events but AHEAD of the FIP tiers — date breaks ties
+ * within the same weight.
+ */
+export const MANAGED_EVENT_TIER_WEIGHT = 3.5
+
 export interface MatchForAggregation {
   tournament_id: string
 }
@@ -39,6 +48,76 @@ export function compareTournamentsForCarousel(
   const bRank = levelTierWeight(b.level)
   if (aRank !== bRank) return aRank - bRank
   return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()
+}
+
+/**
+ * Minimal shape needed to bucket + date-position a carousel card. Both
+ * real tournament cards and managed-event cards satisfy this.
+ */
+export interface CarouselBucketable {
+  starts_at: string
+  ends_at?: string | null
+  level?: string | null
+  champions?: { men?: unknown; women?: unknown }
+  /** Present only on operator-curated managed-event cards. */
+  managedEvent?: unknown
+}
+
+/** Tier sort weight: managed events get the Premier-adjacent weight. */
+function tierWeightOf(t: CarouselBucketable): number {
+  return t.managedEvent ? MANAGED_EVENT_TIER_WEIGHT : levelTierWeight(t.level ?? null)
+}
+
+/**
+ * Rail bucket rank: 0 = LIVE (running/today), 1 = UPCOMING, 2 = CROWNED/
+ * finished. Mirrors the home carousel's `bucketOf`. For managed events
+ * (no per-match `champions` feed) a past `ends_at` is what marks them
+ * finished — without this a finished managed event would read as "live".
+ */
+export function carouselBucketRank(t: CarouselBucketable, now: Date = new Date()): 0 | 1 | 2 {
+  const bothCrowned = !!(t.champions?.men && t.champions?.women)
+  if (bothCrowned) return 2
+  if (!hasStarted(t.starts_at, now)) return 1
+  if (t.managedEvent && t.ends_at && new Date(t.ends_at).getTime() < now.getTime()) return 2
+  return 0
+}
+
+/**
+ * Insert managed-event cards into an already-bucketed/sorted carousel
+ * list, positioned by their own bucket then start date — instead of
+ * pinning them to the front. Keeps the existing tournament-vs-tournament
+ * order untouched: a managed event lands after any LIVE card and among
+ * UPCOMING cards by date (e.g. Reserve Cup on Jun 18 sits after a live
+ * Premier event and before an upcoming event starting Jun 22).
+ */
+export function insertManagedCardsByDate<T extends CarouselBucketable>(
+  decorated: T[],
+  managed: T[],
+  now: Date = new Date(),
+): T[] {
+  const out = [...decorated]
+  // Insert in date order so multiple managed events keep chronological
+  // order among themselves at the same tier weight.
+  const ordered = [...managed].sort(
+    (a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime(),
+  )
+  for (const card of ordered) {
+    const cb = carouselBucketRank(card, now)
+    const ct = tierWeightOf(card)
+    const cs = new Date(card.starts_at).getTime()
+    // Find the first existing card that should sort AFTER this one, using
+    // the same (bucket → tier weight → start date) key the rail orders by.
+    let idx = out.findIndex(t => {
+      const tb = carouselBucketRank(t, now)
+      if (tb !== cb) return tb > cb
+      const tt = tierWeightOf(t)
+      if (tt !== ct) return tt > ct
+      return new Date(t.starts_at).getTime() > cs
+    })
+    if (idx === -1) idx = out.length
+    out.splice(idx, 0, card)
+  }
+  return out
 }
 
 export function buildMatchInfoMap(
