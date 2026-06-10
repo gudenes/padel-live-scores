@@ -5,8 +5,11 @@ import {
   getLocalDayBoundaryUTC,
   hasStarted,
   daysUntilStart,
+  insertManagedCardsByDate,
+  carouselBucketRank,
   type TournamentForSort,
   type MatchForAggregation,
+  type CarouselBucketable,
 } from '../live-tournaments-carousel'
 
 const makeT = (overrides: Partial<TournamentForSort>): TournamentForSort => ({
@@ -157,5 +160,60 @@ describe('compareTournamentsForCarousel: mixed live/upcoming window', () => {
     const liveP1 = makeT({ id: 'p1-live', level: 'p1', starts_at: '2026-05-21T00:00:00Z' })
     const sorted = [upcomingP1, liveP1].sort(compareTournamentsForCarousel)
     expect(sorted.map(t => t.id)).toEqual(['p1-live', 'p1-upcoming'])
+  })
+})
+
+describe('insertManagedCardsByDate', () => {
+  const NOW = new Date('2026-06-10T12:00:00Z')
+  type Card = CarouselBucketable & { id: string }
+  // A decorated rail as the carousel produces it: a LIVE Premier event
+  // (bucket 0), then the UPCOMING bucket ordered tier-first: an upcoming
+  // Premier (p2), then a SOONER FIP event.
+  const liveValencia: Card = { id: 'valencia', level: 'p1', starts_at: '2026-06-06T00:00:00Z' }
+  const upcomingPremier: Card = { id: 'valladolid-p2', level: 'p2', starts_at: '2026-06-22T00:00:00Z' }
+  const upcomingFipSoon: Card = { id: 'fip-bronze', level: 'fip_bronze', starts_at: '2026-06-12T00:00:00Z' }
+  const decorated: Card[] = [liveValencia, upcomingPremier, upcomingFipSoon]
+
+  const reserveCup: Card = {
+    id: 'reserve', level: null, starts_at: '2026-06-18T00:00:00Z', ends_at: '2026-06-20T23:59:59Z', managedEvent: { slug: 'rc' },
+  }
+
+  it('sits after the live + upcoming Premier events and ahead of the FIP tier', () => {
+    const out = insertManagedCardsByDate(decorated, [reserveCup], NOW)
+    // live → upcoming Premier → managed (Premier-adjacent) → FIP
+    expect(out.map(t => t.id)).toEqual(['valencia', 'valladolid-p2', 'reserve', 'fip-bronze'])
+  })
+
+  it('beats a SOONER-starting FIP event (tier prominence over raw date)', () => {
+    const out = insertManagedCardsByDate(decorated, [reserveCup], NOW)
+    const ri = out.findIndex(t => t.id === 'reserve')
+    const fi = out.findIndex(t => t.id === 'fip-bronze')
+    expect(ri).toBeLessThan(fi) // even though fip-bronze starts Jun 12 < Jun 18
+  })
+
+  it('never jumps ahead of a live event', () => {
+    const out = insertManagedCardsByDate(decorated, [reserveCup], NOW)
+    expect(out[0].id).toBe('valencia')
+  })
+
+  it('orders two managed events by date among themselves', () => {
+    const earlier: Card = { id: 'rc-early', level: null, starts_at: '2026-06-15T00:00:00Z', ends_at: '2026-06-16T00:00:00Z', managedEvent: {} }
+    const out = insertManagedCardsByDate(decorated, [reserveCup, earlier], NOW)
+    expect(out.findIndex(t => t.id === 'rc-early')).toBeLessThan(out.findIndex(t => t.id === 'reserve'))
+  })
+
+  it('buckets a future managed event as UPCOMING (1)', () => {
+    expect(carouselBucketRank(reserveCup, NOW)).toBe(1)
+  })
+
+  it('buckets a finished managed event (past ends_at) as finished (2), not live', () => {
+    const finished: CarouselBucketable = { starts_at: '2026-06-01T00:00:00Z', ends_at: '2026-06-03T00:00:00Z', managedEvent: {} }
+    expect(carouselBucketRank(finished, NOW)).toBe(2)
+  })
+
+  it('a finished managed event sorts after the upcoming bucket', () => {
+    const finished: Card = { id: 'old-rc', level: null, starts_at: '2026-06-01T00:00:00Z', ends_at: '2026-06-03T00:00:00Z', managedEvent: {} }
+    const out = insertManagedCardsByDate(decorated, [finished], NOW)
+    expect(out[out.length - 1].id).toBe('old-rc')
   })
 })

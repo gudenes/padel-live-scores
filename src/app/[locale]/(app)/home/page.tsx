@@ -35,6 +35,7 @@ import {
   compareTournamentsForCarousel,
   getLocalDayBoundaryUTC,
   hasStarted,
+  insertManagedCardsByDate,
 } from '@/lib/live-tournaments-carousel'
 import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 import { fetchClusteredNews, type ClusteredArticle } from '@/lib/news-feed-queries'
@@ -477,8 +478,10 @@ function V3HomePageInner() {
           // (back-48h + today + forward-7d); the slice keeps the rail
           // scannable on small screens.
           .slice(0, 10)
-      // Operator-curated managed events — prepended to the carousel so they
-      // lead the rail. Back-window mirrors the tournament window (48h).
+      // Operator-curated managed events — merged into the rail by bucket +
+      // start date (NOT pinned first), so a live Premier event still leads
+      // and an upcoming managed event (e.g. Reserve Cup) slots in by date.
+      // Back-window mirrors the tournament window (48h).
       const managedCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
       let managedCards: TournamentWithMatchInfo[] = []
       try {
@@ -487,7 +490,7 @@ function V3HomePageInner() {
       } catch (e) {
         console.warn('[V3 Home] managed events fetch failed:', (e as Error).message)
       }
-      setCarouselLiveToday([...managedCards, ...decorate(carouselLiveRows)].slice(0, 10))
+      setCarouselLiveToday(insertManagedCardsByDate(decorate(carouselLiveRows), managedCards).slice(0, 10))
 
       // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
       // dataOf(10) from .maybeSingle(): { enabled, enabled_local } when
