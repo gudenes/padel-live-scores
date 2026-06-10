@@ -5,6 +5,7 @@ import { useTranslations, useFormatter } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import Avatar from '@/components/Avatar'
+import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 import { CHUNKY, GREEN, ORANGE, MUTED, BORDER, FlagImg } from '@/components/home/shared'
 import { effectiveStatus, type ManagedEvent, type DivisionPlayer } from '@/lib/managed-events'
 import type { ManagedPlayerLite } from '@/lib/managed-events-server'
@@ -383,29 +384,33 @@ export default function EventDetail({
             <span style={{ fontSize: 11, color: '#9AAEC4', lineHeight: 1.45 }}>{t('liveNote')}</span>
           </div>
 
-          {/* TICKETS */}
+          {/* TICKETS — PressButton (chunky-tilted, primary), external-link trailing icon */}
           {event.ticket_url && (
-            <a
-              href={event.ticket_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'block',
-                margin: '16px 16px 6px',
-                padding: 13,
-                textAlign: 'center',
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                color: '#1A1A1A',
-                background: ORANGE,
-                clipPath: CHUNKY.card,
-                textDecoration: 'none',
-              }}
-            >
-              {t('getTickets')}
-            </a>
+            <div style={{ margin: '16px 16px 6px' }}>
+              <PressButton
+                as="a"
+                href={event.ticket_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                {...PRESS_PRESETS.chunkyTilted}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  fontSize: 12,
+                  fontWeight: 900,
+                  letterSpacing: '0.4px',
+                  textTransform: 'uppercase',
+                  padding: '14px 22px',
+                  gap: 8,
+                  textDecoration: 'none',
+                }}
+              >
+                {t('getTickets')}
+                <svg viewBox="0 0 24 24" aria-hidden style={{ width: '1em', height: '1em', fill: 'currentColor', flexShrink: 0 }}>
+                  <path d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+                </svg>
+              </PressButton>
+            </div>
           )}
 
           {event.footnote && (
