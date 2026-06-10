@@ -52,6 +52,19 @@ without breaking the tree.
   panel eases down each round. Early rounds exceeding `MAX_VH` scroll vertically
   (as today).
 
+## Visual style — unchanged (chunky cells stay)
+
+**This is an animation/UX change only — the cell visuals are NOT redesigned.** Keep
+today's chunky `BracketCell` look exactly: `#141414` background, the skewed
+`clip-path` corners (`polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)`), stacked
+country flags, the grey seed slab + orange Q/WC/LL marker, the green clipped **W**
+badge, the 3-column tabular set scores, the muted italic scheduled time, and the
+green tracked-pair spotlight. The Sofascore reference mockups used a rounded/blue
+style only to demonstrate the *mechanic* — we do not adopt that styling. The
+compressed tiers (`mini`/`sliver`) are **reduced-content versions of the same chunky
+cell** (same clip-path, same `#141414`), just hiding sub-elements — not a different
+visual language.
+
 ## Focus + context tiers
 
 Each column's **width** and **content density** is a function of its distance `d`
@@ -107,8 +120,10 @@ tracked pair walked) and the bye-feeds logic.
   Drops `bracketHeight` (first-round) + `space-around` + the `cellCenters` measurement
   effect + the `IntersectionObserver` active-round detection.
 - **`BracketCell.tsx`** — add a `tier: 'full' | 'peek' | 'mini' | 'sliver'` prop. `full`
-  is today's render unchanged. `peek`/`mini`/`sliver` render reduced content. Preserve
-  bye, TBD-placeholder, scheduled-time, and tracked-row spotlight handling in `full`.
+  is today's render **unchanged**. `peek`/`mini`/`sliver` keep the same chunky cell
+  shell (clip-path, `#141414`) and only hide sub-elements to show reduced content — no
+  restyle. Preserve bye, TBD-placeholder, scheduled-time, and tracked-row spotlight
+  handling in `full`.
 - **`bracket-builder.ts`** — unchanged (positions, byes, path tracing are independent
   of layout).
 - **`DrawTab.tsx`** — unchanged (data fetch + bracket build).
@@ -137,8 +152,10 @@ tracked pair walked) and the bye-feeds logic.
   green path, vertical scroll works on tall early rounds, reduced-motion disables
   transitions, tracked-pair centering still works.
 
-## Open decisions (confirm in review)
+## Resolved decisions
 
-1. **Mini column content** — set scores only (proposed), or scores + tiny initials?
-2. **Tap-to-focus on compressed columns** — include (proposed), or chips only?
-3. **`MAX_VH`** — exact cap for early-round scroll vs. letting the page scroll fully.
+1. **Mini column content** — **set scores only** (winner bold), no names/initials.
+2. **Tap-to-focus on compressed columns** — **included**: tapping a mini/peek/sliver
+   column promotes it to the focused round.
+3. **Early-round overflow** — **cap at `MAX_VH` with internal vertical scroll** (exact
+   value tuned during implementation), not full-page scroll.
