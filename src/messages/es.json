@@ -1599,6 +1599,8 @@
     "getTickets": "Comprar entradas",
     "watchFree": "gratis",
     "standings": "Clasificación",
-    "specialEvents": "Eventos especiales"
+    "specialEvents": "Eventos especiales",
+    "tabOverview": "Resumen",
+    "tabLineups": "Alineaciones"
   }
 }

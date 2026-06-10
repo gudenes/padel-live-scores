@@ -33,3 +33,25 @@ export async function getActiveManagedEvents(cutoffIso: string): Promise<Managed
   if (error || !data) return []
   return data as unknown as ManagedEvent[]
 }
+
+export interface ManagedPlayerLite {
+  id: string
+  name: string
+  display_name: string | null
+  country: string | null
+  avatar_url: string | null
+}
+
+/** Resolve a set of player UUIDs → map keyed by id. Public anon read. */
+export async function getPlayersByIds(ids: string[]): Promise<Record<string, ManagedPlayerLite>> {
+  const unique = [...new Set(ids.filter(Boolean))]
+  if (unique.length === 0) return {}
+  const { data, error } = await supabase
+    .from('players')
+    .select('id, name, display_name, country, avatar_url')
+    .in('id', unique)
+  if (error || !data) return {}
+  const map: Record<string, ManagedPlayerLite> = {}
+  for (const p of data as ManagedPlayerLite[]) map[p.id] = p
+  return map
+}

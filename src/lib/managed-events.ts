@@ -10,7 +10,7 @@ export type WatchLink = {
   primary?: boolean
 }
 
-export type DivisionPlayer = { name: string; country: string | null }
+export type DivisionPlayer = { name: string; country: string | null; player_id?: string | null }
 export type DivisionTeam = {
   name: string
   captain?: string | null

@@ -1631,6 +1631,8 @@
     "getTickets": "Get tickets",
     "watchFree": "free",
     "standings": "Standings",
-    "specialEvents": "Special events"
+    "specialEvents": "Special events",
+    "tabOverview": "Overview",
+    "tabLineups": "Lineups"
   }
 }

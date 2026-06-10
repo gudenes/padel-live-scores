@@ -1599,6 +1599,8 @@
     "getTickets": "Comprar bilhetes",
     "watchFree": "grátis",
     "standings": "Classificação",
-    "specialEvents": "Eventos especiais"
+    "specialEvents": "Eventos especiais",
+    "tabOverview": "Visão geral",
+    "tabLineups": "Escalações"
   }
 }

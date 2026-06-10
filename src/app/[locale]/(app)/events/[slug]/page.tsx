@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
-import { getManagedEventBySlug } from '@/lib/managed-events-server'
-import EventPage from './_components/EventPage'
+import { getManagedEventBySlug, getPlayersByIds, type ManagedPlayerLite } from '@/lib/managed-events-server'
+import EventDetail from './_components/EventDetail'
 
 export const revalidate = 300
 
@@ -28,6 +28,17 @@ export default async function Page({ params }: Props) {
   const event = await getManagedEventBySlug(slug)
   if (!event) notFound()
 
+  // Collect linked player ids across all divisions/teams and resolve them.
+  const playerIds: string[] = []
+  for (const div of event.divisions ?? []) {
+    for (const team of div.teams ?? []) {
+      for (const p of team.players ?? []) {
+        if (p.player_id) playerIds.push(p.player_id)
+      }
+    }
+  }
+  const playersById: Record<string, ManagedPlayerLite> = await getPlayersByIds(playerIds)
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
@@ -42,7 +53,7 @@ export default async function Page({ params }: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <EventPage event={event} />
+      <EventDetail event={event} playersById={playersById} />
     </>
   )
 }
