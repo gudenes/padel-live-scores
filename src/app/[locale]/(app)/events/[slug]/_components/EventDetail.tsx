@@ -506,13 +506,15 @@ function PlayerChip({
   const name = rec ? (rec.display_name ?? rec.name) : player.name
   const country = rec?.country ?? player.country
   const inner = (
-    <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+    <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
       {rec ? (
-        <Avatar src={rec.avatar_url} alt={name} size={22} style={{ flexShrink: 0 }} />
+        <Avatar src={rec.avatar_url} alt={name} size={34} style={{ flexShrink: 0 }} />
       ) : (
-        <FlagImg country={country} size={14} />
+        <span style={{ width: 34, display: 'flex', justifyContent: 'center', flexShrink: 0 }}>
+          <FlagImg country={country} size={20} />
+        </span>
       )}
-      <span style={{ fontSize: 11.5, fontWeight: 600 }}>{name}</span>
+      <span style={{ fontSize: 12.5, fontWeight: 600 }}>{name}</span>
     </span>
   )
   if (rec) {
