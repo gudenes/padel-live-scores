@@ -441,6 +441,22 @@ export async function runModelPredictionSnapshot(
         if (matchRows.length > 0 && !dryRun) {
           const { error } = await supabase.from('model_predictions').insert(matchRows);
           if (error) throw error;
+
+          // Denormalize the latest probability onto the matches row so anon
+          // browser code can read it via the existing match fetch. matchRows
+          // ids always already exist, so a plain UPDATE (not upsert) is safe.
+          await Promise.all(
+            matchRows.map((r) =>
+              supabase
+                .from('matches')
+                .update({
+                  pred_pair1_prob: r.pair1_prob,
+                  pred_model_version: r.model_version,
+                  pred_computed_at: nowIso,
+                })
+                .eq('id', r.match_id),
+            ),
+          );
         }
         matchWritten += matchRows.length;
       }
