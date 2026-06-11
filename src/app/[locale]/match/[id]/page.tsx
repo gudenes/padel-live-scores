@@ -29,6 +29,7 @@ import { Share } from '@capacitor/share'
 
 import { WinnerBanner } from './WinnerBanner'
 import { PredictionSection, PredictionResult } from './PredictionSection'
+import { MatchPredictionVote } from '@/components/prediction/MatchPredictionVote'
 import { ScheduledSection } from './ScheduledSection'
 import { MatchRatingCard } from './MatchRatingCard'
 import { LiveFeedTab } from './LiveFeedTab'
@@ -43,6 +44,8 @@ import { WhereToWatchBanner } from '@/components/where-to-watch/WhereToWatchBann
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import type { LiveChannel as WtwLiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { fetchChannelRegionBlocks } from '@/lib/where-to-watch/fetch-channel-region-rules'
+
+const MATCH_PREDICTION_ENABLED = process.env.NEXT_PUBLIC_MATCH_PREDICTION_ENABLED === 'true'
 
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
@@ -1018,17 +1021,21 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         const hasPbp = tournamentSource === 'padelapi' || !!(match as any).padelapi_id || !!(match as any).external_id
         return (
           <>
-            {hasPbp && (
-              <PredictionSection
-                match={match}
-                pair1Label={pair1Label}
-                pair2Label={pair2Label}
-                prediction={prediction}
-                predStep={predStep}
-                setPredStep={setPredStep}
-                setPrediction={setPrediction}
-                clearPrediction={clearPrediction}
-              />
+            {MATCH_PREDICTION_ENABLED ? (
+              <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+            ) : (
+              hasPbp && (
+                <PredictionSection
+                  match={match}
+                  pair1Label={pair1Label}
+                  pair2Label={pair2Label}
+                  prediction={prediction}
+                  predStep={predStep}
+                  setPredStep={setPredStep}
+                  setPrediction={setPrediction}
+                  clearPrediction={clearPrediction}
+                />
+              )
             )}
             <WhereToWatchBanner
               matchStatus={match.status}
@@ -1045,23 +1052,25 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       })()}
 
       {/* ── LIVE: show prediction result (locked, no changes allowed) ── */}
-      {isLive && prediction && (
-        <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10, clipPath: CHUNKY.card }}>
-          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-          </svg>
-          <div>
-            <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 2 }}>
-              {tPred('yourPrediction')}
+      {isLive && (
+        MATCH_PREDICTION_ENABLED
+          ? <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+          : (prediction && (
+            <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10, clipPath: CHUNKY.card }}>
+              <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(126,211,33,0.5)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 2 }}>
+                  {tPred('yourPrediction')}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: GREEN }}>
+                  {tPred('win', { pair: prediction.pair === 1 ? pair1Label : pair2Label, margin: prediction.margin })}
+                </div>
+                <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>{tPred('locked')}</div>
+              </div>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: GREEN }}>
-              {tPred('win', { pair: prediction.pair === 1 ? pair1Label : pair2Label, margin: prediction.margin })}
-            </div>
-            <div style={{ fontSize: 9, color: MUTED, marginTop: 2 }}>
-              {tPred('locked')}
-            </div>
-          </div>
-        </div>
+          ))
       )}
 
       {/* ── Rate this match (above journey for prominence) ────────── */}
@@ -1070,8 +1079,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       )}
 
       {/* ── Post-match prediction result ─────────────────────────── */}
-      {isFinished && prediction && (
-        <PredictionResult match={match} prediction={prediction} pair1Label={pair1Label} pair2Label={pair2Label} />
+      {isFinished && (
+        MATCH_PREDICTION_ENABLED
+          ? <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+          : (prediction && <PredictionResult match={match} prediction={prediction} pair1Label={pair1Label} pair2Label={pair2Label} />)
       )}
 
       {/* ── Where to Watch banner (live: above the momentum chart) ── */}
