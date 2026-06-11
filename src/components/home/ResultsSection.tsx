@@ -6,37 +6,60 @@ import { Match } from '@/types/match'
 import { useFormatter } from 'next-intl'
 import { DATE_SHORT } from '@/lib/format-patterns'
 import { ResultCard } from '@/components/ResultCard'
+import { levelTierWeight } from '@/lib/tournament-labels'
 import {
   GREEN, BG_CARD, MUTED, BORDER, CHUNKY,
   FlagImg, titleCase, countryName, hasPlayers,
 } from './shared'
+
+// Cap the number of tournament groups shown. We cap by tournament — never
+// mid-group — so a tournament's matches are never cut off in the middle.
+const MAX_TOURNAMENTS = 10
 
 function ResultsSectionInner({ matches }: { matches: Match[] }) {
   const format = useFormatter()
   // 3-state: undefined = default (show 3), 'collapsed' = hide all, 'expanded' = show all
   const [tournamentState, setTournamentState] = useState<Record<string, 'collapsed' | 'expanded'>>({})
 
-  const filtered = useMemo(() => matches
-    .filter(m => hasPlayers(m))
-    .sort((a, b) => {
-      const aDate = a.finished_at ? new Date(a.finished_at).getTime() : 0
-      const bDate = b.finished_at ? new Date(b.finished_at).getTime() : 0
-      return bDate - aDate
-    })
-    .slice(0, 20), [matches])
-
-  // Group by tournament
-  const grouped: { tournament: any; matches: Match[] }[] = []
-  for (const m of filtered) {
-    const t = (m as any).tournament
-    const tid = t?.id ?? 'unknown'
-    let group = grouped.find(g => (g.tournament?.id ?? 'unknown') === tid)
-    if (!group) {
-      group = { tournament: t, matches: [] }
-      grouped.push(group)
+  // Group by tournament FIRST, then cap by tournament count — so we never
+  // truncate a tournament's match list partway through (the old flat
+  // slice(0, 20) cut groups in the middle at the limit boundary).
+  const grouped = useMemo(() => {
+    const groups: { tournament: any; matches: Match[]; latest: number }[] = []
+    for (const m of matches) {
+      if (!hasPlayers(m)) continue
+      const t = (m as any).tournament
+      const tid = t?.id ?? 'unknown'
+      let group = groups.find(g => (g.tournament?.id ?? 'unknown') === tid)
+      if (!group) {
+        group = { tournament: t, matches: [], latest: 0 }
+        groups.push(group)
+      }
+      group.matches.push(m)
+      const fin = m.finished_at ? new Date(m.finished_at).getTime() : 0
+      if (fin > group.latest) group.latest = fin
     }
-    group.matches.push(m)
-  }
+
+    // Most recent finish first within each tournament.
+    for (const g of groups) {
+      g.matches.sort((a, b) => {
+        const aDate = a.finished_at ? new Date(a.finished_at).getTime() : 0
+        const bDate = b.finished_at ? new Date(b.finished_at).getTime() : 0
+        return bDate - aDate
+      })
+    }
+
+    // Tournament hierarchy: Premier tiers first (mirrors the carousel's
+    // levelTierWeight ordering), then most recently active within a tier.
+    groups.sort((a, b) => {
+      const aw = levelTierWeight(a.tournament?.level ?? null)
+      const bw = levelTierWeight(b.tournament?.level ?? null)
+      if (aw !== bw) return aw - bw
+      return b.latest - a.latest
+    })
+
+    return groups.slice(0, MAX_TOURNAMENTS)
+  }, [matches])
 
   const toggleState = (tid: string) => {
     setTournamentState(prev => {
@@ -170,7 +193,7 @@ function ResultsSectionInner({ matches }: { matches: Match[] }) {
             </div>
           )
         })}
-        {filtered.length === 0 && (
+        {grouped.length === 0 && (
           <div style={{ textAlign: 'center', padding: '20px 0', color: MUTED, fontSize: 13 }}>
             No recent results
           </div>
