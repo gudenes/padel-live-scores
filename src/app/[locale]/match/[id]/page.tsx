@@ -22,7 +22,7 @@ import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { isPremierLevel } from '@/lib/tournament-labels'
-import { isPresenceOnlyLive } from '@/lib/tournament-tier'
+import { isPresenceOnlyLive, hasLivePointByPoint } from '@/lib/tournament-tier'
 import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
@@ -245,9 +245,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     // skip Recap and Live Feed entirely and start on Players.
     const tournamentLevel = (match as any)?.tournament?.level as string | null | undefined
     const isPremier = isPremierLevel(tournamentLevel)
+    const presenceOnlyDefault = isPresenceOnlyLive(
+      { status: (match?.status as string) ?? '', sets: (match as any)?.sets ?? null },
+      { level: tournamentLevel ?? null },
+    )
     if (match?.status === 'finished') setSubTab(isPremier ? 'recap' : 'players')
     else if (match?.status === 'scheduled') setSubTab('players')
-    else if (match && !isPremier) setSubTab('players') // live + non-Premier
+    else if (match && presenceOnlyDefault) setSubTab('players') // live, no PBP
   }, [match?.status, (match as any)?.tournament?.level])
 
   // Defensive: if a user deep-links to ?tab=live (or selection survives from
@@ -256,7 +260,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     if (!match) return
     const presenceOnlyHere = isPresenceOnlyLive(
-      { status: match.status as string },
+      { status: match.status as string, sets: (match as any)?.sets ?? null },
       { level: (match as any)?.tournament?.level ?? null },
     )
     if (presenceOnlyHere && subTab === 'live') setSubTab('players')
@@ -481,7 +485,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const isWalkover = match.status === 'walkover'
   const isLive = match.status === 'live' || (match.status as string) === 'on_court'
   const presenceOnly = isPresenceOnlyLive(
-    { status: match.status as string },
+    { status: match.status as string, sets: (match as any).sets ?? null },
     { level: (match as any).tournament?.level ?? null },
   )
 
@@ -1135,7 +1139,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         // Presence-only FIP-tier live matches never receive point-by-point
         // data — hide the Live Feed tab so the user doesn't land on an
         // empty pane. The presenceOnly flag is defined above (Task 8).
-        const showLive = isPremier && !presenceOnly
+        // Live Feed (point-by-point) shows for Premier events and for any
+        // match where real PBP data is present (e.g. a FIP event Crionet
+        // actually feeds). Stays hidden for live FIP rows with no points.
+        const showLive = isPremier || hasLivePointByPoint((match as any).sets ?? null)
 
         const tabList: { key: string; label: string }[] = isFinished
           ? showRecap
