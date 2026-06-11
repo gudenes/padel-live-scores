@@ -38,15 +38,42 @@ export function isLiveStatus(status: string): boolean {
   return status === 'live' || status === 'on_court'
 }
 
-// True when the match is flagged live in the DB but the integration will
-// never deliver point-by-point data. Premier Padel + fip_platinum get
-// PBP via Crionet (padelgod's live-poller); lower FIP tiers don't.
-// Treat unknown tiers (null level) as presence-only — the calmer default
-// is correct when we don't know better.
+// Minimal structural shape of the loaded set→game data we inspect for
+// point-by-point evidence. Compatible with both the full `Match['sets']`
+// type and the daily-page `MatchesDaySet[]` shape.
+type SetWithGames = {
+  games?: ReadonlyArray<{
+    server_player_id?: string | null
+    points?: readonly unknown[] | null
+  }> | null
+}
+
+// True when any loaded game carries point-by-point evidence — a server
+// assignment or a non-empty points array. Both fields are only ever
+// populated by padelgod's Crionet live-poller, so their presence means
+// real PBP is flowing for this match, regardless of tournament tier.
+export function hasLivePointByPoint(
+  sets: ReadonlyArray<SetWithGames> | null | undefined,
+): boolean {
+  if (!sets) return false
+  return sets.some((s) =>
+    s.games?.some(
+      (g) => g.server_player_id != null || (g.points?.length ?? 0) > 0,
+    ) ?? false,
+  )
+}
+
+// True when the match is flagged live in the DB but we have no point-by-point
+// data to render. Premier Padel + fip_platinum get PBP via Crionet and are
+// never presence-only. For any other tier the decision is data-driven: as soon
+// as real PBP data lands (hasLivePointByPoint), the match graduates to the full
+// live treatment. Treat unknown tiers (null level) as presence-only until PBP
+// data proves otherwise — the calmer default is correct when we don't know.
 export function isPresenceOnlyLive(
-  match: { status: string },
+  match: { status: string; sets?: ReadonlyArray<SetWithGames> | null },
   tournament: { level: string | null },
 ): boolean {
   if (!isLiveStatus(match.status)) return false
-  return !isPremierLevel(tournament.level)
+  if (isPremierLevel(tournament.level)) return false
+  return !hasLivePointByPoint(match.sets)
 }

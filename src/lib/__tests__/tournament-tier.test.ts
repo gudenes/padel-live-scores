@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { isPremierTier, isLiveStatus, isPresenceOnlyLive } from '../tournament-tier'
+import {
+  isPremierTier,
+  isLiveStatus,
+  isPresenceOnlyLive,
+  hasLivePointByPoint,
+} from '../tournament-tier'
 
 describe('isPremierTier', () => {
   it('returns true for P1/P2/Major/Premier_* levels', () => {
@@ -104,6 +109,53 @@ describe('isPresenceOnlyLive', () => {
     expect(isPresenceOnlyLive(
       { status: 'live' },
       { level: null },
+    )).toBe(true)
+  })
+})
+
+describe('hasLivePointByPoint', () => {
+  it('returns false for null/undefined/empty sets', () => {
+    expect(hasLivePointByPoint(null)).toBe(false)
+    expect(hasLivePointByPoint(undefined)).toBe(false)
+    expect(hasLivePointByPoint([])).toBe(false)
+  })
+
+  it('returns false when games carry no server and no points', () => {
+    expect(hasLivePointByPoint([
+      { games: [{ server_player_id: null, points: [] }] },
+    ])).toBe(false)
+    expect(hasLivePointByPoint([{ games: null }])).toBe(false)
+    expect(hasLivePointByPoint([{}])).toBe(false)
+  })
+
+  it('returns true when a game has a server assignment', () => {
+    expect(hasLivePointByPoint([
+      { games: [{ server_player_id: 'player-uuid', points: [] }] },
+    ])).toBe(true)
+  })
+
+  it('returns true when a game has a non-empty points array', () => {
+    expect(hasLivePointByPoint([
+      { games: [{ server_player_id: null, points: ['1', '2'] }] },
+    ])).toBe(true)
+  })
+})
+
+describe('isPresenceOnlyLive with live PBP data', () => {
+  it('returns false for a non-Premier live match once PBP data is present', () => {
+    expect(isPresenceOnlyLive(
+      {
+        status: 'live',
+        sets: [{ games: [{ server_player_id: 'p1-uuid', points: [] }] }],
+      },
+      { level: 'fip_gold' },
+    )).toBe(false)
+  })
+
+  it('stays presence-only for a non-Premier live match with no PBP data yet', () => {
+    expect(isPresenceOnlyLive(
+      { status: 'live', sets: [{ games: [{ server_player_id: null, points: [] }] }] },
+      { level: 'fip_gold' },
     )).toBe(true)
   })
 })
