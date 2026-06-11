@@ -98,10 +98,12 @@ export function ArrowLeftIcon({ size = 18, color = 'currentColor', strokeWidth =
 }
 
 // --- Brand glyphs -----------------------------------------------------------
-// DELIBERATE EXCEPTION to the stroke-outline convention above: social brand
-// logos are only recognizable as FILLED glyphs, so these use fill={color}
-// (no stroke). They keep the 24×24 viewBox and the {size,color} prop shape so
-// they drop into the same call sites and theme via currentColor.
+// DELIBERATE EXCEPTION to the stroke-outline convention is mixed here, by
+// design: X and TikTok are only recognizable as SOLID glyphs (fill={color},
+// no stroke), while Instagram's recognizable mark IS an outline (stroked
+// rounded square + circle + a filled dot). All three keep the 24×24 viewBox
+// and the {size,color} prop shape so they drop into the same call sites and
+// theme via currentColor.
 
 export function InstagramIcon({ size = 18, color = 'currentColor' }: IconProps) {
   return (
