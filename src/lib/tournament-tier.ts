@@ -6,12 +6,14 @@
 // FIP Platinum (where Crionet covers PBP/stats) is a FIP-circuit event.
 //
 // `isPresenceOnlyLive` is a separate question: "does this match have
-// point-by-point data we can render?" Padelgod's Crionet live-poller
-// covers both Premier Padel AND fip_platinum — see `isPremierLevel` in
-// tournament-labels.ts which is the canonical PBP-coverage predicate.
-// Lower FIP tiers (Bronze/Silver/Gold) sit at the live status until
-// fip-results-writer posts a final, sometimes hours after play ends —
-// those are the genuinely "presence-only" matches.
+// point-by-point data we can render?" Premier Padel AND fip_platinum are
+// always covered by Padelgod's Crionet live-poller — see `isPremierLevel`
+// in tournament-labels.ts. For any other tier the answer is data-driven:
+// `hasLivePointByPoint` checks the loaded games for real PBP evidence, so a
+// lower FIP tier (e.g. fip_gold) that Crionet actually feeds graduates to
+// full live treatment as soon as point data lands. A live FIP match with no
+// point data yet stays "presence-only" — it sits at the live status until
+// fip-results-writer posts a final, sometimes hours after play ends.
 //
 // Used by:
 //   - notification-icon.ts (picks Premier vs Cupra FIP icon)

@@ -252,6 +252,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     if (match?.status === 'finished') setSubTab(isPremier ? 'recap' : 'players')
     else if (match?.status === 'scheduled') setSubTab('players')
     else if (match && presenceOnlyDefault) setSubTab('players') // live, no PBP
+    // Deps intentionally omit `sets`: the default tab is chosen once on the
+    // status/level edge, not on PBP arrival. If point data lands mid-view, the
+    // Live Feed tab appears on its own (showLive below reacts in render) — we
+    // don't yank the user to a different tab under them. Don't add `sets` here.
   }, [match?.status, (match as any)?.tournament?.level])
 
   // Defensive: if a user deep-links to ?tab=live (or selection survives from
