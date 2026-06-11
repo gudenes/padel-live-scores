@@ -111,7 +111,7 @@ function statusChip(
   // Presence-only collapses both 'live' and 'on_court' to the calmer
   // amber ON COURT badge — FIP-tier matches don't deliver point-by-point
   // data. See docs/superpowers/specs/2026-05-16-fip-presence-only-live-design.md.
-  if (isPresenceOnlyLive({ status }, { level: tournamentLevel ?? null })) {
+  if (isPresenceOnlyLive({ status, sets: match.sets }, { level: tournamentLevel ?? null })) {
     return { label: 'ON COURT', bg: 'rgba(245,166,35,0.18)', color: '#F5A623' }
   }
   if (status === 'live') return { label: 'LIVE', bg: 'rgba(255,70,85,0.18)', color: LIVE_RED }
@@ -306,7 +306,7 @@ export function MatchCard({
   const courtRaw = match.court ? match.court.trim() : null
   const status = statusChip(match, tournamentLevel)
   const presenceOnlyLive = isPresenceOnlyLive(
-    { status: match.status as string },
+    { status: match.status as string, sets: match.sets },
     { level: tournamentLevel ?? null },
   )
   const dateStr = formatShortDate(match, locale, userTz)
