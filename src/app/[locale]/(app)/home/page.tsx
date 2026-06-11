@@ -8,6 +8,7 @@ import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, isWarmingUp, toShortName } from '@/types/match'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
+import SocialLinks from '@/app/components/SocialLinks'
 import { withTimeout } from '@/lib/with-timeout'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
@@ -699,6 +700,8 @@ function V3HomePageInner() {
         <span style={{ color: '#333' }}>|</span>
         <Link href="/terms" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('termsOfService')}</Link>
       </div>
+
+      <SocialLinks style={{ padding: '16px 16px 8px' }} />
 
       <div style={{ height: 30 }} />
 
