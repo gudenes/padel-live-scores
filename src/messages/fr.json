@@ -1602,5 +1602,8 @@
     "specialEvents": "Événements spéciaux",
     "tabOverview": "Aperçu",
     "tabLineups": "Compositions"
+  },
+  "social": {
+    "followUs": "Suivez-nous"
   }
 }
