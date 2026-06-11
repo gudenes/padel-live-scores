@@ -96,3 +96,35 @@ export function ArrowLeftIcon({ size = 18, color = 'currentColor', strokeWidth =
     </svg>
   )
 }
+
+// --- Brand glyphs -----------------------------------------------------------
+// DELIBERATE EXCEPTION to the stroke-outline convention above: social brand
+// logos are only recognizable as FILLED glyphs, so these use fill={color}
+// (no stroke). They keep the 24×24 viewBox and the {size,color} prop shape so
+// they drop into the same call sites and theme via currentColor.
+
+export function InstagramIcon({ size = 18, color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <rect x="2" y="2" width="20" height="20" rx="5" stroke={color} strokeWidth="2" />
+      <circle cx="12" cy="12" r="4.2" stroke={color} strokeWidth="2" />
+      <circle cx="17.4" cy="6.6" r="1.3" fill={color} />
+    </svg>
+  )
+}
+
+export function XIcon({ size = 18, color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24h-6.66l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z" />
+    </svg>
+  )
+}
+
+export function TikTokIcon({ size = 18, color = 'currentColor' }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M16.6 5.82a4.28 4.28 0 0 1-1.06-2.82h-3.2v12.93a2.59 2.59 0 1 1-2.59-2.59c.27 0 .53.04.78.12v-3.3a5.88 5.88 0 0 0-.78-.05 5.89 5.89 0 1 0 5.89 5.89V9.4a7.46 7.46 0 0 0 4.32 1.38V7.58a4.28 4.28 0 0 1-3.36-1.76Z" />
+    </svg>
+  )
+}
