@@ -8,6 +8,7 @@ import { useRouter, Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
 import { Match, isWarmingUp, toShortName } from '@/types/match'
 import BrandedLoader, { LOADER_HINTS } from '@/app/components/BrandedLoader'
+import SocialLinks from '@/app/components/SocialLinks'
 import { withTimeout } from '@/lib/with-timeout'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import { InviteWelcomeBanner } from '@/components/InviteWelcomeBanner'
@@ -35,12 +36,15 @@ import {
   compareTournamentsForCarousel,
   getLocalDayBoundaryUTC,
   hasStarted,
+  insertManagedCardsByDate,
 } from '@/lib/live-tournaments-carousel'
 import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 import { fetchClusteredNews, type ClusteredArticle } from '@/lib/news-feed-queries'
 import { WelcomeStrip } from '@/components/home/WelcomeStrip'
 import { LoginCtaSheet } from '@/components/LoginCtaSheet'
 import { useScrollMemory } from '@/hooks/useScrollMemory'
+import { getActiveManagedEvents } from '@/lib/managed-events-server'
+import { managedEventToCarouselCard } from '@/lib/managed-events'
 
 // ── Match select queries ──────────────────────────────────────
 const MATCH_PLAYER_JOINS = `
@@ -475,7 +479,19 @@ function V3HomePageInner() {
           // (back-48h + today + forward-7d); the slice keeps the rail
           // scannable on small screens.
           .slice(0, 10)
-      setCarouselLiveToday(decorate(carouselLiveRows))
+      // Operator-curated managed events — merged into the rail by bucket +
+      // start date (NOT pinned first), so a live Premier event still leads
+      // and an upcoming managed event (e.g. Reserve Cup) slots in by date.
+      // Back-window mirrors the tournament window (48h).
+      const managedCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+      let managedCards: TournamentWithMatchInfo[] = []
+      try {
+        const events = await getActiveManagedEvents(managedCutoff)
+        managedCards = events.map(managedEventToCarouselCard) as unknown as TournamentWithMatchInfo[]
+      } catch (e) {
+        console.warn('[V3 Home] managed events fetch failed:', (e as Error).message)
+      }
+      setCarouselLiveToday(insertManagedCardsByDate(decorate(carouselLiveRows), managedCards).slice(0, 10))
 
       // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
       // dataOf(10) from .maybeSingle(): { enabled, enabled_local } when
@@ -684,6 +700,8 @@ function V3HomePageInner() {
         <span style={{ color: '#333' }}>|</span>
         <Link href="/terms" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('termsOfService')}</Link>
       </div>
+
+      <SocialLinks style={{ padding: '16px 16px 8px' }} />
 
       <div style={{ height: 30 }} />
 

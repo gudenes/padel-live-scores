@@ -1613,5 +1613,29 @@
       "error": "Something went wrong — try again",
       "sub": "Join the waitlist · billing coming soon"
     }
+  },
+  "events": {
+    "whereToWatch": "Where to watch",
+    "event": "Event",
+    "lineups": "Lineups",
+    "format": "Format",
+    "venue": "Venue",
+    "dates": "Dates",
+    "prizePool": "Prize pool",
+    "players": "Players",
+    "rosterSoon": "Roster to be announced",
+    "statusUpcoming": "Upcoming",
+    "statusOngoing": "Ongoing",
+    "statusFinished": "Final",
+    "liveNote": "Live scores during the event. We'll light up results here once play begins.",
+    "getTickets": "Get tickets",
+    "watchFree": "free",
+    "standings": "Standings",
+    "specialEvents": "Special events",
+    "tabOverview": "Overview",
+    "tabLineups": "Lineups"
+  },
+  "social": {
+    "followUs": "Follow us"
   }
 }

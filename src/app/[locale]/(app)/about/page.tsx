@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
+import SocialLinks from '@/app/components/SocialLinks'
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
@@ -197,6 +198,7 @@ export default async function AboutPage() {
             hello@padelnachos.com
           </a>
         </p>
+        <SocialLinks style={{ marginTop: 24 }} />
       </div>
     </div>
   )

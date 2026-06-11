@@ -1581,5 +1581,29 @@
       "error": "Something went wrong — try again",
       "sub": "Join the waitlist · billing coming soon"
     }
+  },
+  "events": {
+    "whereToWatch": "Où regarder",
+    "event": "Événement",
+    "lineups": "Compositions",
+    "format": "Format",
+    "venue": "Lieu",
+    "dates": "Dates",
+    "prizePool": "Dotation",
+    "players": "Joueurs",
+    "rosterSoon": "Effectif à annoncer",
+    "statusUpcoming": "À venir",
+    "statusOngoing": "En cours",
+    "statusFinished": "Finale",
+    "liveNote": "Scores en direct pendant l'événement. Ils s'afficheront ici dès le début du jeu.",
+    "getTickets": "Billets",
+    "watchFree": "gratuit",
+    "standings": "Classement",
+    "specialEvents": "Événements spéciaux",
+    "tabOverview": "Aperçu",
+    "tabLineups": "Compositions"
+  },
+  "social": {
+    "followUs": "Suivez-nous"
   }
 }

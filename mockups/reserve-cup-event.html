@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reserve Cup — Event page mockup</title>
+<style>
+  :root {
+    --bg-base: #1A1A1A;
+    --bg-card: #1F1F1F;
+    --bg-card-alt: #141414;
+    --border-card: #2E2E2E;
+    --border-soft: rgba(255,255,255,0.06);
+    --text-primary: #EEE4CE;
+    --text-secondary: #9AAEC4;
+    --text-muted: #6B7280;
+    --text-dim: #4A6F8E;
+    --live: #FF4655;
+    --ongoing: #F5A623;
+    --green: #7ED321;
+    --men: #5BA8FF;
+    --women: #F472B6;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+    --clip-card: polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+    --clip-badge: polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d0d;
+    font-family: var(--font-sans);
+    display: flex;
+    justify-content: center;
+    padding: 24px 0 48px;
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+  .phone {
+    width: 390px;
+    min-height: 844px;
+    background: var(--bg-base);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+  }
+  .scroll { flex: 1; overflow-y: auto; padding-bottom: 78px; }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  /* ---------- HERO ---------- */
+  .hero {
+    position: relative;
+    height: 230px;
+    background:
+      radial-gradient(120% 90% at 70% 0%, rgba(245,166,35,0.18) 0%, rgba(245,166,35,0) 55%),
+      linear-gradient(180deg, #232017 0%, #1a1814 40%, var(--bg-base) 100%);
+    overflow: hidden;
+  }
+  .hero::after {
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(115deg, rgba(255,255,255,0.018) 0 2px, transparent 2px 26px);
+    pointer-events: none;
+  }
+  .hero-top {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 16px 0;
+    position: relative; z-index: 2;
+  }
+  .back { color: var(--text-secondary); font-size: 22px; line-height: 1; opacity: 0.85; }
+  .hero-actions { display: flex; gap: 14px; color: var(--text-secondary); font-size: 17px; opacity: 0.8; }
+  .hero-body { position: absolute; bottom: 18px; left: 16px; right: 16px; z-index: 2; }
+  .pillrow { display: flex; gap: 6px; margin-bottom: 11px; flex-wrap: wrap; }
+  .pill {
+    font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 4px 9px; clip-path: var(--clip-badge); display: inline-flex; align-items: center; gap: 4px;
+  }
+  .pill-upcoming { background: rgba(126,211,33,0.12); color: var(--green); }
+  .pill-exhib { background: rgba(245,166,35,0.15); color: var(--ongoing); }
+  .pill-series { background: rgba(255,255,255,0.07); color: var(--text-secondary); }
+  .wordmark { display: flex; align-items: baseline; gap: 9px; }
+  .wordmark .rc {
+    font-family: var(--font-mono); font-weight: 800; font-size: 13px; letter-spacing: 0.18em;
+    color: var(--ongoing); border: 1.5px solid rgba(245,166,35,0.55); padding: 3px 7px; clip-path: var(--clip-badge);
+  }
+  h1.title { font-size: 27px; font-weight: 800; letter-spacing: -0.01em; line-height: 1; }
+  .subtitle { margin-top: 9px; display: flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: 12px; }
+  .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--text-dim); display: inline-block; }
+
+  /* ---------- SECTION ---------- */
+  .section { padding: 18px 16px 4px; }
+  .section-label {
+    font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-dim); margin-bottom: 11px; display: flex; align-items: center; gap: 7px;
+  }
+  .section-label::before { content:""; width: 14px; height: 2px; background: var(--ongoing); display:inline-block; }
+
+  .card {
+    background: var(--bg-card-alt); border: 1px solid var(--border-soft);
+    clip-path: var(--clip-card); padding: 14px;
+  }
+
+  /* ---------- WATCH ---------- */
+  .watch-primary {
+    display: flex; align-items: center; gap: 12px;
+    background: linear-gradient(100deg, rgba(255,0,0,0.14), rgba(255,0,0,0.04));
+    border: 1px solid rgba(255,70,85,0.28); clip-path: var(--clip-card);
+    padding: 13px 14px; margin-bottom: 8px; cursor: pointer;
+  }
+  .yt-glyph {
+    width: 38px; height: 27px; background: #FF0000; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .yt-glyph::after { content:""; border-left: 11px solid #fff; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 3px; }
+  .watch-primary .meta { flex: 1; }
+  .watch-primary .lbl { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  .watch-primary .sub { font-size: 10.5px; color: var(--text-secondary); margin-top: 2px; }
+  .watch-primary .go { color: var(--text-muted); font-size: 18px; }
+  .watch-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .watch-chip {
+    background: var(--bg-card-alt); border: 1px solid var(--border-soft); clip-path: var(--clip-card);
+    padding: 10px 8px; text-align: center;
+  }
+  .watch-chip .name { font-size: 11px; font-weight: 700; color: var(--text-primary); }
+  .watch-chip .region { font-size: 8.5px; color: var(--text-muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ---------- INFO STRIP ---------- */
+  .info-strip { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .info-cell { background: var(--bg-card-alt); border: 1px solid var(--border-soft); clip-path: var(--clip-card); padding: 11px 13px; }
+  .info-cell .k { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); }
+  .info-cell .v { font-size: 13px; font-weight: 700; margin-top: 4px; color: var(--text-primary); }
+  .info-cell .v small { font-size: 10.5px; font-weight: 600; color: var(--text-secondary); }
+
+  /* ---------- TEAMS ---------- */
+  .division-tag {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 9px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 8px; clip-path: var(--clip-badge); margin-bottom: 10px;
+  }
+  .division-men { background: rgba(91,168,255,0.12); color: var(--men); }
+  .division-women { background: rgba(244,114,182,0.12); color: var(--women); }
+  .team-card { background: var(--bg-card-alt); border: 1px solid var(--border-soft); clip-path: var(--clip-card); padding: 12px 13px; margin-bottom: 8px; }
+  .team-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .team-name { font-size: 13px; font-weight: 800; letter-spacing: 0.01em; }
+  .team-captain { font-size: 9.5px; color: var(--text-muted); }
+  .accent-bar { width: 3px; align-self: stretch; }
+  .roster { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 12px; }
+  .player { display: flex; align-items: center; gap: 7px; }
+  .player .flag { font-size: 13px; line-height: 1; width: 18px; }
+  .player .pname { font-size: 11.5px; font-weight: 600; color: var(--text-primary); }
+  .vs-divider { display:flex; align-items:center; gap:10px; margin: 2px 0 8px; }
+  .vs-divider .line { flex:1; height:1px; background: var(--border-soft); }
+  .vs-divider .vs { font-size: 10px; font-weight: 800; color: var(--text-dim); letter-spacing: 0.1em; }
+
+  /* women placeholder */
+  .tba { display:flex; align-items:center; gap:8px; color: var(--text-muted); font-size: 11px; padding: 4px 0; }
+  .tba .badge { font-size: 8.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--women); background: rgba(244,114,182,0.10); padding: 2px 6px; clip-path: var(--clip-badge); }
+
+  /* ---------- FORMAT ---------- */
+  .fmt-list { display: flex; flex-direction: column; gap: 9px; }
+  .fmt-row { display: flex; gap: 10px; align-items: flex-start; }
+  .fmt-row .ico { font-size: 13px; width: 18px; flex-shrink: 0; text-align:center; }
+  .fmt-row .txt { font-size: 11.5px; color: var(--text-secondary); line-height: 1.45; }
+  .fmt-row .txt b { color: var(--text-primary); font-weight: 700; }
+  .points-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 12px; }
+  .day-cell { background: rgba(245,166,35,0.06); border: 1px solid rgba(245,166,35,0.18); clip-path: var(--clip-card); padding: 9px; text-align: center; }
+  .day-cell .d { font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--text-dim); letter-spacing: 0.06em; }
+  .day-cell .p { font-size: 17px; font-weight: 800; color: var(--ongoing); font-family: var(--font-mono); margin-top: 3px; }
+  .day-cell .pl { font-size: 8px; color: var(--text-muted); text-transform: uppercase; }
+
+  /* ---------- LIVE NOTE ---------- */
+  .live-note {
+    margin: 16px 16px 0; background: var(--bg-card-alt); border: 1px dashed rgba(245,166,35,0.35);
+    clip-path: var(--clip-card); padding: 13px 14px; display: flex; gap: 11px; align-items: center;
+  }
+  .live-note .pulse {
+    width: 9px; height: 9px; border-radius: 50%; background: var(--ongoing); flex-shrink:0;
+    box-shadow: 0 0 0 0 rgba(245,166,35,0.5); animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(245,166,35,0.45);} 70%{box-shadow:0 0 0 8px rgba(245,166,35,0);} 100%{box-shadow:0 0 0 0 rgba(245,166,35,0);} }
+  .live-note .t { font-size: 11px; color: var(--text-secondary); line-height: 1.45; }
+  .live-note .t b { color: var(--text-primary); font-weight: 700; }
+
+  .ticket-cta {
+    margin: 16px 16px 6px; padding: 13px; text-align: center; font-size: 12px; font-weight: 800;
+    letter-spacing: 0.04em; text-transform: uppercase; color: #1A1A1A; background: var(--ongoing);
+    clip-path: var(--clip-card); cursor: pointer;
+  }
+  .footnote { padding: 8px 16px 4px; font-size: 9.5px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ---------- BOTTOM NAV ---------- */
+  .bottomnav {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 64px;
+    background: rgba(20,20,20,0.96); border-top: 1px solid var(--border-card);
+    display: flex; align-items: center; justify-content: space-around; backdrop-filter: blur(12px);
+  }
+  .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #4B5563; }
+  .nav-item.active { color: var(--green); }
+  .nav-item svg { width: 22px; height: 22px; }
+  .nav-item span { font-size: 8.5px; font-weight: 700; letter-spacing: 0.02em; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="scroll">
+
+      <!-- HERO -->
+      <div class="hero">
+        <div class="hero-top">
+          <div class="back">‹</div>
+          <div class="hero-actions"><span>☆</span><span>⤴</span></div>
+        </div>
+        <div class="hero-body">
+          <div class="pillrow">
+            <span class="pill pill-upcoming">● Upcoming</span>
+            <span class="pill pill-exhib">Exhibition</span>
+            <span class="pill pill-series">Reserve Cup Series</span>
+          </div>
+          <div class="wordmark">
+            <span class="rc">RC26</span>
+            <h1 class="title">Reserve Cup</h1>
+          </div>
+          <div class="subtitle">
+            <span>🇪🇸 Marbella</span><span class="dot"></span>
+            <span>Puente Romano</span><span class="dot"></span>
+            <span>Jun 18–20, 2026</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WHERE TO WATCH -->
+      <div class="section">
+        <div class="section-label">Where to watch</div>
+        <div class="watch-primary">
+          <div class="yt-glyph"></div>
+          <div class="meta">
+            <div class="lbl">Reserve Cup Series</div>
+            <div class="sub">Live on YouTube · worldwide · free</div>
+          </div>
+          <div class="go">›</div>
+        </div>
+        <div class="watch-grid">
+          <div class="watch-chip"><div class="name">DAZN</div><div class="region">Worldwide</div></div>
+          <div class="watch-chip"><div class="name">Mediaset</div><div class="region">Spain · free</div></div>
+          <div class="watch-chip"><div class="name">ESPN</div><div class="region">LatAm</div></div>
+        </div>
+      </div>
+
+      <!-- INFO STRIP -->
+      <div class="section">
+        <div class="section-label">Event</div>
+        <div class="info-strip">
+          <div class="info-cell"><div class="k">Venue</div><div class="v">Puente Romano <small>Beach Resort</small></div></div>
+          <div class="info-cell"><div class="k">Dates</div><div class="v">18–20 Jun <small>· 3 days</small></div></div>
+          <div class="info-cell"><div class="k">Prize pool</div><div class="v">$1.7M <small>· record</small></div></div>
+          <div class="info-cell"><div class="k">Players</div><div class="v">12 men <small>+ 6 women</small></div></div>
+        </div>
+      </div>
+
+      <!-- MEN'S DIVISION -->
+      <div class="section">
+        <div class="section-label">Lineups</div>
+        <span class="division-tag division-men">◆ Men's division</span>
+
+        <div class="team-card" style="border-left: 3px solid var(--men);">
+          <div class="team-head">
+            <div class="team-name">Team Reserve</div>
+            <div class="team-captain">Capt. D. Jeter</div>
+          </div>
+          <div class="roster">
+            <div class="player"><span class="flag">🇪🇸</span><span class="pname">A. Coello</span></div>
+            <div class="player"><span class="flag">🇦🇷</span><span class="pname">F. Chingotto</span></div>
+            <div class="player"><span class="flag">🇦🇷</span><span class="pname">F. Stupaczuk</span></div>
+            <div class="player"><span class="flag">🇪🇸</span><span class="pname">F. Guerrero</span></div>
+            <div class="player"><span class="flag">🇪🇸</span><span class="pname">J. Leal</span></div>
+            <div class="player"><span class="flag">🇪🇸</span><span class="pname">J. Garrido</span></div>
+          </div>
+        </div>
+
+        <div class="vs-divider"><span class="line"></span><span class="vs">VS</span><span class="line"></span></div>
+
+        <div class="team-card" style="border-left: 3px solid var(--ongoing);">
+          <div class="team-head">
+            <div class="team-name">Team Marbella</div>
+            <div class="team-captain">Capt. J. Butler</div>
+          </div>
+          <div class="roster">
+            <div class="player"><span class="flag">🇦🇷</span><span class="pname">A. Tapia</span></div>
+            <div class="player"><span class="flag">🇪🇸</span><span class="pname">A. Galán</span></div>
+            <div class="player"><span class="flag">🇪🇸</span><span class="pname">M. Yanguas</span></div>
+            <div class="player"><span class="flag">🇪🇸</span><span class="pname">J. Sanz</span></div>
+            <div class="player"><span class="flag">🇧🇷</span><span class="pname">L. Bergamini</span></div>
+            <div class="player"><span class="flag">🇦🇷</span><span class="pname">G. Alfonso</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WOMEN'S DIVISION -->
+      <div class="section">
+        <span class="division-tag division-women">◆ Women's division · new for 2026</span>
+        <div class="team-card" style="border-left: 3px solid var(--women);">
+          <div class="tba">
+            <span class="badge">Roster soon</span>
+            <span>6 of the world's top players · two teams of three</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMAT -->
+      <div class="section">
+        <div class="section-label">Format</div>
+        <div class="card">
+          <div class="fmt-list">
+            <div class="fmt-row"><span class="ico">🏆</span><span class="txt"><b>Team competition</b> — two squads, cumulative points across three days decide the winner. No knockout bracket.</span></div>
+            <div class="fmt-row"><span class="ico">🎾</span><span class="txt"><b>Best of 2 sets</b>, with a <b>super tie-break</b> if split. <b>Golden point</b> on deuce.</span></div>
+            <div class="fmt-row"><span class="ico">📈</span><span class="txt">Wins are worth <b>more each day</b> — the finale carries the most weight.</span></div>
+          </div>
+          <div class="points-grid">
+            <div class="day-cell"><div class="d">Thu</div><div class="p">1</div><div class="pl">pt / win</div></div>
+            <div class="day-cell"><div class="d">Fri</div><div class="p">2</div><div class="pl">pts / win</div></div>
+            <div class="day-cell"><div class="d">Sat</div><div class="p">3</div><div class="pl">pts / win</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LIVE NOTE -->
+      <div class="live-note">
+        <span class="pulse"></span>
+        <span class="t"><b>Live scores during the event.</b> We'll light up team results here once play begins on Jun 18.</span>
+      </div>
+
+      <div class="ticket-cta">Get tickets · Ticketmaster ES</div>
+      <div class="footnote">Reserve Cup is an independent exhibition series, not part of the FIP / Premier Padel tour. Lineups and team captains are provisional and may change.</div>
+
+    </div>
+
+    <!-- BOTTOM NAV -->
+    <div class="bottomnav">
+      <div class="nav-item"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg><span>Home</span></div>
+      <div class="nav-item"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="0.6" fill="currentColor"/></svg><span>Matches</span></div>
+      <div class="nav-item"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 3l2.5 5.5 6 .5-4.5 4 1.4 6L12 16l-5.4 3 1.4-6L3.5 9l6-.5z"/></svg><span>Following</span></div>
+      <div class="nav-item active"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M6 4h12v3a6 6 0 0 1-12 0V4zM4 5h2M18 5h2M9 18h6M8 21h8"/></svg><span>Tournaments</span></div>
+      <div class="nav-item"><svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><span>Rankings</span></div>
+    </div>
+  </div>
+</body>
+</html>

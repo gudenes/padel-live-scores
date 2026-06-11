@@ -7,6 +7,7 @@ import { FlagImage } from '@/components/FlagImage'
 import { toShortName } from '@/types/match'
 import type { Match } from '@/types/match'
 import type { BracketNode } from './bracket-builder'
+import type { Tier } from './bracket-layout'
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
@@ -36,13 +37,23 @@ type Props = {
    *  with a muted "BYE" tag instead so users don't read them as a
    *  played-and-won match. */
   isFirstRound: boolean
+  /** Render density. 'full' = today's complete cell (default). Compressed
+   *  tiers keep the same cell shell but show reduced content and are
+   *  non-interactive (the column handles tap-to-focus). */
+  tier?: Tier
 }
 
-export default function BracketCell({ node, highlight, onTrackPair, pairKey, markersByPair, trackedPairKey, isFirstRound }: Props) {
+export default function BracketCell({ node, highlight, onTrackPair, pairKey, markersByPair, trackedPairKey, isFirstRound, tier = 'full' }: Props) {
   const t = useTranslations('draw')
   const format = useFormatter()
   const router = useRouter()
   const m = node.match
+
+  // Compressed tiers (focus+context): same chunky shell, reduced content,
+  // non-interactive. The enclosing column captures clicks to focus the round.
+  if (tier !== 'full') {
+    return <CompressedCell node={node} tier={tier} />
+  }
 
   const bg =
     highlight === 'tracking'
@@ -372,4 +383,77 @@ function pairLabel(match: Match, side: 1 | 2): string {
   const p2 = side === 1 ? match.pair1_player2 : match.pair2_player2
   if (!p1 || !p2) return ''
   return `${toShortName(p1.name ?? '')}/${toShortName(p2.name ?? '')}`
+}
+
+// ── compressed tiers (peek / mini / sliver) ──
+
+/** Per-side set games as display strings, e.g. ['6','4',''] . */
+function sideSetGames(match: Match, side: 1 | 2): string[] {
+  const sets = match.sets ?? []
+  return [1, 2, 3].map(sn => {
+    const s = sets.find(x => x.set_number === sn)
+    if (!s) return ''
+    const g = side === 1 ? (s as any).pair1_games : (s as any).pair2_games
+    return g == null ? '' : String(g)
+  })
+}
+
+function CompressedCell({ node, tier }: { node: BracketNode; tier: Tier }) {
+  const m = node.match
+  const shell: React.CSSProperties = {
+    width: '100%', height: '100%', background: '#141414', clipPath: CELL_CLIP,
+    color: '#fff', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+    justifyContent: 'center', boxSizing: 'border-box',
+  }
+
+  if (tier === 'sliver') {
+    return (
+      <div style={{ ...shell, alignItems: 'center', background: '#161618' }}>
+        <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#3a3a3f' }} />
+      </div>
+    )
+  }
+
+  if (tier === 'mini') {
+    // Set scores only, winner bold. (Spec: previous round shows scores, no names.)
+    if (!m) return <div style={shell} />
+    const win = m.winner_pair
+    const scoreRow = (side: 1 | 2) => (
+      <div style={{
+        display: 'flex', gap: 3, justifyContent: 'center', padding: '2px 0',
+        fontVariantNumeric: 'tabular-nums', fontSize: 11,
+        fontWeight: win === side ? 700 : 400, color: win === side ? '#fff' : MUTED,
+      }}>
+        {sideSetGames(m, side).map((g, i) => (
+          <span key={i} style={{ minWidth: 10, textAlign: 'center' }}>{g}</span>
+        ))}
+      </div>
+    )
+    return (
+      <div style={{ ...shell, padding: '4px 5px' }}>
+        {scoreRow(1)}
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '1px 0' }} />
+        {scoreRow(2)}
+      </div>
+    )
+  }
+
+  // peek (next round): short pair name only, no scores/seeds.
+  if (!m) return <div style={shell} />
+  const nameRow = (side: 1 | 2) => (
+    <div style={{
+      padding: '3px 8px', fontSize: 11, color: m.winner_pair === side ? '#fff' : '#cfcfcf',
+      fontWeight: m.winner_pair === side ? 700 : 400,
+      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+    }}>
+      {pairLabel(m, side)}
+    </div>
+  )
+  return (
+    <div style={{ ...shell, padding: '2px 0' }}>
+      {nameRow(1)}
+      <div style={{ height: 1, background: 'rgba(255,255,255,0.04)', margin: '1px 8px' }} />
+      {nameRow(2)}
+    </div>
+  )
 }
