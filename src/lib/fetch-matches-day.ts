@@ -31,6 +31,15 @@ export interface MatchesDayPlayer {
   ranking: number | null
 }
 
+export interface MatchesDayGame {
+  id: string
+  game_number: number | null
+  game_score: string | null
+  points: string[] | null
+  is_current: boolean | null
+  server_player_id: string | null
+}
+
 export interface MatchesDaySet {
   id: string
   set_number: number | null
@@ -38,6 +47,7 @@ export interface MatchesDaySet {
   pair1_games: number | null
   pair2_games: number | null
   is_current: boolean | null
+  games: MatchesDayGame[] | null
 }
 
 export interface MatchesDayMatch {
