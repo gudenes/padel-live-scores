@@ -1602,5 +1602,8 @@
     "specialEvents": "Eventi speciali",
     "tabOverview": "Panoramica",
     "tabLineups": "Formazioni"
+  },
+  "social": {
+    "followUs": "Seguici"
   }
 }
