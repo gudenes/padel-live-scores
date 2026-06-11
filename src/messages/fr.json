@@ -78,6 +78,11 @@
     }
   },
   "match": {
+    "predictionTag": {
+      "aria": "Pronostic du modèle : le favori a {pct}% de chances de gagner",
+      "header": "Notre pronostic",
+      "body": "{pair} a {pct}% de chances de gagner selon notre modèle Elo. Ce ne sont pas des cotes de paris."
+    },
     "duration": "{hours, plural, =0 {{minutes}m} other {{hours}h {minutes}m}}",
     "stream": {
       "live": {
@@ -205,6 +210,11 @@
     "pts": "+10 pts"
   },
   "prediction": {
+    "modelTitle": "Pronostic PadelNacho",
+    "whoWillWin": "Qui va gagner ?",
+    "castVote": "Vote maintenant",
+    "fansVoted": "{count} fans ont voté",
+    "yourPick": "toi",
     "cta": {
       "pick": "CHOISIR",
       "yourPick": "TON CHOIX",
