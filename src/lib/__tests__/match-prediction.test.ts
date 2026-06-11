@@ -29,4 +29,12 @@ describe('getMatchPrediction', () => {
     expect(r.favored).toBe(1)
     expect(r.pct).toBe(50)
   })
+
+  it('handles numeric-as-string from PostgREST', () => {
+    const r = getMatchPrediction({ ...base, pred_pair1_prob: '0.6200' as unknown as number })!
+    expect(r.favored).toBe(1)
+    expect(r.pct).toBe(62)
+    expect(typeof r.pair1Prob).toBe('number')
+    expect(r.pair1Prob).toBeCloseTo(0.62)
+  })
 })
