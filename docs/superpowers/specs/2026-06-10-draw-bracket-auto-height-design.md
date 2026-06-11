@@ -1,8 +1,33 @@
 # Draw bracket — auto-height focus+context pyramid
 
 **Date:** 2026-06-10
-**Status:** Design — approved in brainstorm, pending spec review
+**Status:** Implemented (see "Update — final shipped design" below)
 **Area:** Tournament detail → Draw tab (`CHAVE`)
+
+## Update — final shipped design (2026-06-10, post-test)
+
+After live testing, the design was simplified from the full "focus + context"
+pyramid (which kept compressed *previous*-round columns on the left) to:
+
+- **One round at a time**: only the **selected round** renders full-width. The
+  compressed previous-round columns were dropped per UX feedback.
+- **Next-round peek**: a thin sliver of the **next** round stays on the right edge
+  as the swipe affordance (tap it to advance). Gone on the Final.
+- **Auto-height** (unchanged): the panel height is anchored to the selected round
+  (`Hraw = ROUND_SLOTS[selected] * SLOT_PX`, `SLOT_PX` raised 58 → 84 for more
+  vertical space), eased with a `height` transition.
+- **Carousel slide between rounds**: switching rounds mounts both the outgoing and
+  incoming round and slides a horizontal track — forward (deeper) enters from the
+  right, back from the left. The next-round peek + connectors render on the
+  **destination** round through the whole slide (focus column reserves the peek's
+  width structurally) so nothing pops in at the end and the outgoing round never
+  duplicates the round being slid toward. Honors `prefers-reduced-motion`.
+
+Everything below this section is the original focus+context design; the shared
+mechanic (selected-anchored height + the `cellCenterY` pyramid formula + the chunky
+cell visuals + tap-to-focus + reduced motion) carried through. The fisheye
+column-geometry helpers (`computeColumns`/`panOffset`/`trackWidth`/`tierForDistance`)
+were removed since previous rounds are no longer shown.
 
 ## Problem
 

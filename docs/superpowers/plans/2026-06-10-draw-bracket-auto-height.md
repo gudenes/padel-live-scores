@@ -1,5 +1,13 @@
 # Draw Bracket Auto-Height Pyramid Implementation Plan
 
+> **Status: implemented + simplified.** Tasks 1–4 below were executed, then after
+> live testing the design was simplified — previous-round compressed columns were
+> dropped (only the selected round + a next-round peek render), match spacing was
+> increased (`SLOT_PX` 58 → 84), and a carousel slide transition between rounds was
+> added. The fisheye column helpers (`computeColumns`/`panOffset`/`trackWidth`/
+> `tierForDistance`) were removed. See the "Update — final shipped design" section
+> of the design spec for the authoritative final behavior.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the tournament Draw tab "tighten" as rounds advance — the panel height tracks the *selected* round, earlier rounds compress into thin columns while keeping their pyramid slots + connectors, and everything transitions smoothly — without changing the chunky cell visuals.
