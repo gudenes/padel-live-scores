@@ -8,10 +8,10 @@ import { MatchVoteCard } from './MatchVoteCard'
 /** Combined model prediction bar + fan vote. Lifecycle:
  *  - scheduled: bar (if prediction) + open vote
  *  - live/finished: bar (frozen) + locked vote showing the community split */
-export function MatchPredictionVote({ match, pair1Label, pair2Label }: {
-  match: Match; pair1Label: string; pair2Label: string
+export function MatchPredictionVote({ match, pair1Label, pair2Label, locked: lockedProp }: {
+  match: Match; pair1Label: string; pair2Label: string; locked?: boolean
 }) {
-  const locked = match.status !== 'scheduled'
+  const locked = lockedProp ?? (match.status !== 'scheduled')
   const { yourPick, aggregate, vote } = useMatchVote(match.id, locked)
   return (
     <>

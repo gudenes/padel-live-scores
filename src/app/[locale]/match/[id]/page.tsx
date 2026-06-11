@@ -1022,7 +1022,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         return (
           <>
             {MATCH_PREDICTION_ENABLED ? (
-              <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+              <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} locked={false} />
             ) : (
               hasPbp && (
                 <PredictionSection
@@ -1054,7 +1054,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* ── LIVE: show prediction result (locked, no changes allowed) ── */}
       {isLive && (
         MATCH_PREDICTION_ENABLED
-          ? <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+          ? <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} locked={true} />
           : (prediction && (
             <div style={{ background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 10, clipPath: CHUNKY.card }}>
               <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1081,7 +1081,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       {/* ── Post-match prediction result ─────────────────────────── */}
       {isFinished && (
         MATCH_PREDICTION_ENABLED
-          ? <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} />
+          ? <MatchPredictionVote match={match} pair1Label={pair1Label} pair2Label={pair2Label} locked={true} />
           : (prediction && <PredictionResult match={match} prediction={prediction} pair1Label={pair1Label} pair2Label={pair2Label} />)
       )}
 
