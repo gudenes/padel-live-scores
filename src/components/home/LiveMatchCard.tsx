@@ -64,7 +64,7 @@ function LiveMatchCardInner({ match: matchProp }: { match: Match }) {
   // (no point-by-point lands). Defensive — home spotlight prefers Premier,
   // so this rarely renders.
   const presenceOnly = isPresenceOnlyLive(
-    { status: match.status as string },
+    { status: match.status as string, sets: (match as any).sets ?? null },
     { level: (match as any).tournament?.level ?? null },
   )
 
