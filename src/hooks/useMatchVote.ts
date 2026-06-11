@@ -29,6 +29,10 @@ export function useMatchVote(matchId: string, locked: boolean): MatchVoteState {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    // Clear prior match's state so a reused instance never flashes stale data
+    // while the new GET is in flight (mirrors useProjectionVote).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setYourPick(null); setAggregate(null)
     let cancelled = false
     setLoading(true)
     const deviceId = getDeviceId()
