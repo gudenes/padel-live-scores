@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { render, screen, fireEvent, cleanup } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { MatchVoteCard } from '../MatchVoteCard'
 
+afterEach(cleanup)
+
 const messages = { prediction: {
   whoWillWin: 'Who will win?', castVote: 'Cast your vote',
-  fansVoted: '{count} fans voted', yourPick: 'you', beFirst: 'Be the first to vote',
+  fansVoted: '{count} fans voted', yourPick: 'you',
 } }
 
 function wrap(ui: React.ReactNode) {
@@ -34,5 +36,18 @@ describe('MatchVoteCard', () => {
       yourPick={1} aggregate={{ pair1: 68, pair2: 32, total: 100 }} locked={false} onVote={() => {}} />)
     expect(screen.getByText('68%')).toBeTruthy()
     expect(screen.getByText('32%')).toBeTruthy()
+  })
+
+  it('locked with votes shows split read-only, no buttons', () => {
+    wrap(<MatchVoteCard pair1Label="A/B" pair2Label="C/D"
+      yourPick={null} aggregate={{ pair1: 7, pair2: 3, total: 10 }} locked={true} onVote={() => {}} />)
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByText('70%')).toBeTruthy()
+  })
+
+  it('locked with zero votes renders nothing', () => {
+    const { container } = wrap(<MatchVoteCard pair1Label="A/B" pair2Label="C/D"
+      yourPick={null} aggregate={{ pair1: 0, pair2: 0, total: 0 }} locked={true} onVote={() => {}} />)
+    expect(container.textContent).toBe('')
   })
 })

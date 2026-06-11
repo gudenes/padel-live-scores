@@ -37,9 +37,14 @@ export async function GET(req: NextRequest) {
     .eq('match_id', matchId).eq('voter_id', voterId)
     .maybeSingle()
   const yourPick = (mine?.pair as 1 | 2 | undefined) ?? null
+  // Reveal the community split once the user has voted OR the match has started
+  // (post-match results are public; pre-match keeps reveal-after-vote).
+  const { data: m } = await supabase.from('matches').select('status').eq('id', matchId).maybeSingle()
+  const locked = !!m && m.status !== 'scheduled'
+  const reveal = yourPick != null || locked
   return NextResponse.json({
     yourPick,
-    aggregate: yourPick ? await matchTally(supabase, matchId) : null,
+    aggregate: reveal ? await matchTally(supabase, matchId) : null,
   })
 }
 
