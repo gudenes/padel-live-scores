@@ -78,6 +78,12 @@ export interface Match {
    *  via padelgod's fip-draw-populator. */
   pair1_seed?: number | null
   pair2_seed?: number | null
+  /** Latest Elo model win probability for pair 1 (0..1). Denormalized from
+   *  model_predictions by padelgod's model-prediction-snapshot worker. Null
+   *  when no prediction exists (FIP-tier, unranked, not yet computed). */
+  pred_pair1_prob?: number | null
+  pred_model_version?: string | null
+  pred_computed_at?: string | null
   /** 0-based position of this match within its round (0 = top of bracket).
    *  Optional — most rows don't carry this field today; the bracket
    *  builder falls back to sorting matches by widget_id_composite +
