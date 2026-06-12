@@ -21,6 +21,7 @@
 // styling.
 
 import { useEffect, useState, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
@@ -1083,18 +1084,16 @@ function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
 // ── PredictionFavTag — inline "🥑 %" model-favorite tag + tap-to-explain ────
 //
 // Renders on the favored pair's row (gated by shouldShowFavTag). Tapping
-// toggles a chunky popover mirroring LateHintPill's interaction:
-// preventDefault/stopPropagation so the tap doesn't navigate the card,
-// dismiss on outside-tap / Escape / 4.5s. The card body already has
-// position:relative + overflow:hidden and mc-locked-pop is in PULSE_KEYFRAMES,
-// so the popover positions and animates correctly.
+// toggles an explanation rendered as a SCREEN-CENTERED overlay (portaled to
+// document.body) so it's always fully readable and never clipped by the
+// card's overflow / narrow width. preventDefault/stopPropagation keep the tap
+// from navigating the wrapping card <Link>. Dismiss by tapping the overlay or
+// pressing Escape.
 
 function PredictionFavTag({ match, pairLabel }: { match: Match; pairLabel: string }) {
   const tMatch = useTranslations('match')
   const [open, setOpen] = useState(false)
   const pred = getMatchPrediction(match)
-  const dismissRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (dismissRef.current) clearTimeout(dismissRef.current) }, [])
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
@@ -1106,8 +1105,10 @@ function PredictionFavTag({ match, pairLabel }: { match: Match; pairLabel: strin
   const toggle = (e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
     setOpen((o) => !o)
-    if (dismissRef.current) clearTimeout(dismissRef.current)
-    if (!open) dismissRef.current = setTimeout(() => setOpen(false), 4500)
+  }
+  const close = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    setOpen(false)
   }
 
   return (
@@ -1126,29 +1127,39 @@ function PredictionFavTag({ match, pairLabel }: { match: Match; pairLabel: strin
       >
         🥑 {pred.pct}%
       </button>
-      {open && (
+      {open && typeof document !== 'undefined' && createPortal(
         <div
-          role="tooltip"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(false) }}
+          role="dialog"
+          aria-modal="true"
+          onClick={close}
           style={{
-            position: 'absolute', left: '50%', bottom: 8, transform: 'translateX(-50%)', zIndex: 4,
-            maxWidth: 260, width: 'calc(100% - 24px)', padding: '10px 12px 10px 14px',
-            background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)', clipPath: CHUNKY.badge,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 0 0 0.5px rgba(255,255,255,0.08)',
-            cursor: 'pointer', animation: 'mc-locked-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
-            display: 'flex', alignItems: 'flex-start', gap: 8,
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(2px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
           }}
         >
-          <span style={{ flexShrink: 0, marginTop: 1, fontSize: 14 }}>🥑</span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: GREEN, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 3 }}>
-              {tMatch('predictionTag.header')}
-            </div>
-            <div style={{ color: '#D8D8DD', fontSize: 11, fontWeight: 500, lineHeight: 1.4 }}>
-              {tMatch('predictionTag.body', { pair: pairLabel, pct: pred.pct })}
+          <div
+            onClick={close}
+            style={{
+              maxWidth: 340, width: '100%', padding: '18px 20px',
+              background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)', clipPath: CHUNKY.badge,
+              boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.10)',
+              animation: 'mc-locked-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+              display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
+            }}
+          >
+            <span style={{ flexShrink: 0, fontSize: 22, lineHeight: 1 }}>🥑</span>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: GREEN, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 6 }}>
+                {tMatch('predictionTag.header')}
+              </div>
+              <div style={{ color: '#E5E5EA', fontSize: 14, fontWeight: 500, lineHeight: 1.5 }}>
+                {tMatch('predictionTag.body', { pair: pairLabel, pct: pred.pct })}
+              </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
