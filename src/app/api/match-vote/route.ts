@@ -34,16 +34,19 @@ async function matchTally(supabase: SupabaseClient, matchId: string): Promise<{ 
   return { pair1, pair2, total: pair1 + pair2, real: realP1 + realP2 }
 }
 
-async function resolveVoterId(deviceId: string | null): Promise<string | null> {
+// Resolves the voter. `voterId` is the per-voter dedup key — the account id
+// when logged in, otherwise the guest device id. `userId` is the logged-in
+// account id only (null for guests), stored separately for gamification joins.
+async function resolveVoter(deviceId: string | null): Promise<{ voterId: string | null; userId: string | null }> {
   const session = await auth().catch(() => null)
-  if (session?.user?.id) return session.user.id
-  return deviceId || null
+  const userId = session?.user?.id ?? null
+  return { voterId: userId ?? deviceId ?? null, userId }
 }
 
 export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const matchId = sp.get('matchId')
-  const voterId = await resolveVoterId(sp.get('deviceId'))
+  const { voterId } = await resolveVoter(sp.get('deviceId'))
   if (!matchId || !voterId) {
     return NextResponse.json({ error: 'Missing params' }, { status: 400 })
   }
@@ -72,7 +75,7 @@ export async function POST(req: NextRequest) {
   if (!matchId || (pair !== 1 && pair !== 2)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
-  const voterId = await resolveVoterId(body?.deviceId ?? null)
+  const { voterId, userId } = await resolveVoter(body?.deviceId ?? null)
   if (!voterId) return NextResponse.json({ error: 'Must provide deviceId or auth' }, { status: 400 })
 
   const supabase = createServerClient()
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { error } = await supabase.from('match_votes').upsert(
-    { match_id: matchId, pair, voter_id: voterId, updated_at: new Date().toISOString() },
+    { match_id: matchId, pair, voter_id: voterId, user_id: userId, updated_at: new Date().toISOString() },
     { onConflict: 'match_id,voter_id' },
   )
   if (error) {
