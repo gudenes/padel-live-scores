@@ -45,7 +45,7 @@ export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, loc
     return (
       <div style={{ background: '#141414', padding: '12px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
         <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 800, color: '#9AAEC4', marginBottom: 8 }}>
-          👥 {t('communityHeader')}
+          {t('communityHeader')}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#ddd', marginBottom: 5 }}>
           <span>{pair1Label}</span><span>{pair2Label}</span>

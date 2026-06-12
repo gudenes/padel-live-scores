@@ -1081,7 +1081,7 @@ function LateHintPill({ hint, courtName, matchId, tMatch }: LateHintPillProps) {
   )
 }
 
-// ── PredictionFavTag — inline "🥑 %" model-favorite tag + tap-to-explain ────
+// ── PredictionFavTag — inline "%" model-favorite tag + tap-to-explain ───────
 //
 // Renders on the favored pair's row (gated by shouldShowFavTag). Tapping
 // toggles an explanation rendered as a SCREEN-CENTERED overlay (portaled to
@@ -1125,7 +1125,7 @@ function PredictionFavTag({ match, pairLabel }: { match: Match; pairLabel: strin
           clipPath: CHUNKY.badge, lineHeight: 1.1, cursor: 'pointer', border: 0,
         }}
       >
-        🥑 {pred.pct}%
+        {pred.pct}%
       </button>
       {open && typeof document !== 'undefined' && createPortal(
         <div
@@ -1145,10 +1145,9 @@ function PredictionFavTag({ match, pairLabel }: { match: Match; pairLabel: strin
               background: 'linear-gradient(135deg, #1A1A1D 0%, #131316 100%)', clipPath: CHUNKY.badge,
               boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 0 0.5px rgba(255,255,255,0.10)',
               animation: 'mc-locked-pop 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
-              display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer',
+              cursor: 'pointer',
             }}
           >
-            <span style={{ flexShrink: 0, fontSize: 22, lineHeight: 1 }}>🥑</span>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: GREEN, letterSpacing: 0.6, textTransform: 'uppercase', marginBottom: 6 }}>
                 {tMatch('predictionTag.header')}

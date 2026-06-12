@@ -10,7 +10,7 @@ import { getMatchPrediction } from '@/lib/match-prediction'
 // further down the page. Pair 1 = brand orange, pair 2 = brand yellow.
 const PAIR1_COLOR = '#FF6B2B'
 const PAIR2_COLOR = '#FFD166'
-const ACCENT = '#7ED321' // brand lime — only for the "🥑 Prediction" label
+const ACCENT = '#7ED321' // brand lime — only for the prediction label
 const CHUNKY_BAR = 'polygon(2% 10%, 99% 0%, 100% 90%, 1% 100%)'
 
 export function ModelPredictionBar({ match, pair1Label, pair2Label }: {
@@ -24,7 +24,7 @@ export function ModelPredictionBar({ match, pair1Label, pair2Label }: {
   return (
     <div style={{ background: '#141414', padding: '12px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
       <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 800, color: ACCENT, marginBottom: 8 }}>
-        🥑 {t('modelTitle')}
+        {t('modelTitle')}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#ddd', marginBottom: 5 }}>
         <span>{pair1Label}</span><span>{pair2Label}</span>
