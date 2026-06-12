@@ -146,6 +146,7 @@ function V3HomePageInner() {
   const [latestNews, setLatestNews] = useState<ClusteredArticle[]>([])
   const [carouselLiveToday, setCarouselLiveToday] = useState<TournamentWithMatchInfo[]>([])
   const [carouselEnabled, setCarouselEnabled] = useState<boolean>(false)
+  const [spotlightEnabled, setSpotlightEnabled] = useState<boolean>(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [spotlightChampionMen, setSpotlightChampionMen] = useState<TournamentSpotlightHeroProps['defendingChampionMen']>(null)
   const [spotlightChampionWomen, setSpotlightChampionWomen] = useState<TournamentSpotlightHeroProps['defendingChampionWomen']>(null)
@@ -342,15 +343,20 @@ function V3HomePageInner() {
           })() as any,
           'home:carousel-match-counts',
         ),
-        // Feature flag — controls whether the Live Tournaments carousel
-        // renders. Two columns (enabled, enabled_local) resolved by host.
+        // Feature flags for the home page, fetched in one round-trip:
+        //   - HOME_LIVE_TOURNAMENTS_CAROUSEL → the Live Tournaments carousel
+        //   - HOME_TOURNAMENT_SPOTLIGHT      → the Tournament Spotlight hero
+        // Each row carries (enabled, enabled_local); resolveFlag picks the
+        // column by host. Returns 0–2 rows; resolution below keys by `key`.
         wrap(
           supabase
             .from('feature_flags')
-            .select('enabled, enabled_local')
-            .eq('key', FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL)
-            .maybeSingle() as any,
-          'home:carousel-flag',
+            .select('key, enabled, enabled_local')
+            .in('key', [
+              FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL,
+              FLAG_KEYS.HOME_TOURNAMENT_SPOTLIGHT,
+            ]) as any,
+          'home:home-flags',
         ),
         // Finals matches finished in the last 48h — feeds the "crowned"
         // treatment on the carousel card so freshly-finished tournaments
@@ -493,21 +499,23 @@ function V3HomePageInner() {
       }
       setCarouselLiveToday(insertManagedCardsByDate(decorate(carouselLiveRows), managedCards).slice(0, 10))
 
-      // Resolve carousel feature flag — hostname picks enabled vs enabled_local.
-      // dataOf(10) from .maybeSingle(): { enabled, enabled_local } when
-      // present, [] when the row is missing, undefined on fetch failure.
-      const flagRow = dataOf(10)
-      const flag =
-        flagRow && !Array.isArray(flagRow)
-          ? (flagRow as { enabled?: boolean | null; enabled_local?: boolean | null })
-          : null
-      setCarouselEnabled(
-        resolveFlag(
-          flag
-            ? { enabled: flag.enabled ?? null, enabled_local: flag.enabled_local ?? null }
-            : null,
-        ),
-      )
+      // Resolve home feature flags — dataOf(10) is an array of
+      // { key, enabled, enabled_local } rows (0–2). Key by `key`;
+      // resolveFlag() picks enabled vs enabled_local by hostname and
+      // defaults missing rows to false (safe-off).
+      const flagRows = dataOf(10) as Array<{
+        key: string
+        enabled?: boolean | null
+        enabled_local?: boolean | null
+      }>
+      const resolveByKey = (key: string): boolean => {
+        const row = Array.isArray(flagRows) ? flagRows.find(r => r.key === key) : undefined
+        return resolveFlag(
+          row ? { enabled: row.enabled ?? null, enabled_local: row.enabled_local ?? null } : null,
+        )
+      }
+      setCarouselEnabled(resolveByKey(FLAG_KEYS.HOME_LIVE_TOURNAMENTS_CAROUSEL))
+      setSpotlightEnabled(resolveByKey(FLAG_KEYS.HOME_TOURNAMENT_SPOTLIGHT))
 
       const spotlight = tournaments[0] ?? null
       if (spotlight) {
