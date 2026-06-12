@@ -12,7 +12,7 @@ function getDeviceId(): string {
   } catch { return crypto.randomUUID() }
 }
 
-export interface MatchVoteAggregate { pair1: number; pair2: number; total: number }
+export interface MatchVoteAggregate { pair1: number; pair2: number; total: number; real?: number }
 export interface MatchVoteState {
   yourPick: 1 | 2 | null
   aggregate: MatchVoteAggregate | null  // null until the user votes (reveal-after-vote)

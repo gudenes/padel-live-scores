@@ -223,6 +223,7 @@
   "prediction": {
     "modelTitle": "PadelNacho Prediction",
     "whoWillWin": "Who will win?",
+    "communityHeader": "Community",
     "castVote": "Cast your vote",
     "fansVoted": "{count} fans voted",
     "yourPick": "you",

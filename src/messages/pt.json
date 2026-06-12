@@ -212,6 +212,7 @@
   "prediction": {
     "modelTitle": "Previsão PadelNacho",
     "whoWillWin": "Quem vai ganhar?",
+    "communityHeader": "Comunidade",
     "castVote": "Vota agora",
     "fansVoted": "{count} fãs votaram",
     "yourPick": "tu",

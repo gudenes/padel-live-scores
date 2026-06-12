@@ -14,7 +14,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // real votes accumulate.
 const PRIOR_VOTES = 12
 
-async function matchTally(supabase: SupabaseClient, matchId: string): Promise<{ pair1: number; pair2: number; total: number }> {
+async function matchTally(supabase: SupabaseClient, matchId: string): Promise<{ pair1: number; pair2: number; total: number; real: number }> {
   const [p1, p2, m] = await Promise.all([
     supabase.from('match_votes').select('*', { count: 'exact', head: true }).eq('match_id', matchId).eq('pair', 1),
     supabase.from('match_votes').select('*', { count: 'exact', head: true }).eq('match_id', matchId).eq('pair', 2),
@@ -29,7 +29,9 @@ async function matchTally(supabase: SupabaseClient, matchId: string): Promise<{ 
   const priorP2 = PRIOR_VOTES - priorP1
   const pair1 = realP1 + priorP1
   const pair2 = realP2 + priorP2
-  return { pair1, pair2, total: pair1 + pair2 }
+  // `real` is the genuine vote count (no prior) — used so a locked match that
+  // nobody actually voted on doesn't surface a seeded community split.
+  return { pair1, pair2, total: pair1 + pair2, real: realP1 + realP2 }
 }
 
 async function resolveVoterId(deviceId: string | null): Promise<string | null> {
