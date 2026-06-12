@@ -80,8 +80,9 @@
   "match": {
     "predictionTag": {
       "aria": "Pronostic du modèle : le favori a {pct}% de chances de gagner",
-      "header": "Notre pronostic",
-      "body": "{pair} a {pct}% de chances de gagner selon notre modèle Elo. Ce ne sont pas des cotes de paris."
+      "header": "PadelNacho Predictor",
+      "body": "{pair} sont notre favori — {pct}% de probabilité, d’après les résultats.",
+      "cta": "Ouvre le match pour voter"
     },
     "duration": "{hours, plural, =0 {{minutes}m} other {{hours}h {minutes}m}}",
     "stream": {

@@ -1155,6 +1155,13 @@ function PredictionFavTag({ match, pairLabel }: { match: Match; pairLabel: strin
               <div style={{ color: '#E5E5EA', fontSize: 14, fontWeight: 500, lineHeight: 1.5 }}>
                 {tMatch('predictionTag.body', { pair: pairLabel, pct: pred.pct })}
               </div>
+              <Link
+                href={`/match/${match.id}`}
+                onClick={(e) => e.stopPropagation()}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 14, color: GREEN, fontSize: 13, fontWeight: 800, textDecoration: 'none' }}
+              >
+                {tMatch('predictionTag.cta')} →
+              </Link>
             </div>
           </div>
         </div>,
