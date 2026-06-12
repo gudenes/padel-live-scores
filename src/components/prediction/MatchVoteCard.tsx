@@ -3,13 +3,14 @@
 import { useTranslations } from 'next-intl'
 import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 
-// Two distinct team colors so the pairs read as opposing sides — pair 1
-// brand lime, pair 2 blue. Used for both the vote buttons (PressButton
-// chunky-tilted) and the revealed community split bars so the colors stay
-// consistent across states.
+// Team colors mirror the match page's PAIR1_COLOR / PAIR2_COLOR
+// (src/app/[locale]/match/[id]/lib/constants.ts) so the vote buttons + split
+// bars match the momentum chart, stats bars and player cards. Pair 1 = brand
+// orange, pair 2 = brand yellow; skirt = a darker shade for the PressButton
+// 3D press effect.
 const TEAMS = {
-  1: { accent: '#7ED321', skirt: '#558D14', text: '#0a0a0a', fill: 'linear-gradient(90deg, #7ED321, #5fb314)' },
-  2: { accent: '#4A9EFF', skirt: '#1A4F8A', text: '#ffffff', fill: 'linear-gradient(90deg, #4A9EFF, #1f7fd6)' },
+  1: { accent: '#FF6B2B', skirt: '#C2511F', text: '#1A1A1A' },
+  2: { accent: '#FFD166', skirt: '#C9A23F', text: '#1A1A1A' },
 } as const
 
 const CHUNKY = 'polygon(1% 5%, 99% 0%, 100% 95%, 0% 100%)'
@@ -34,9 +35,11 @@ export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, loc
   return (
     <div style={{ background: '#141414', padding: '14px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
       <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{t('whoWillWin')}</div>
-      <div style={{ fontSize: 10, color: '#888', marginBottom: 11 }}>
-        {aggregate && aggregate.total > 0 ? t('fansVoted', { count: aggregate.total }) : t('castVote')}
-      </div>
+      {/* Pre-vote prompt only — once revealed the % bars speak for themselves
+          (we intentionally don't surface a fan count). */}
+      {!revealed && (
+        <div style={{ fontSize: 10, color: '#888', marginBottom: 11 }}>{t('castVote')}</div>
+      )}
 
       {!revealed && !locked && (
         <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
@@ -70,7 +73,7 @@ export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, loc
       )}
 
       {revealed && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
           {([1, 2] as const).map((p) => {
             const count = p === 1 ? aggregate!.pair1 : aggregate!.pair2
             const v = pct(count)
@@ -80,7 +83,7 @@ export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, loc
               <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ flex: 1, height: 22, background: '#23262d', borderRadius: 6, overflow: 'hidden', clipPath: CHUNKY }}>
                   <div style={{
-                    height: '100%', width: `${v}%`, minWidth: v > 0 ? 34 : 0, background: team.fill,
+                    height: '100%', width: `${v}%`, minWidth: v > 0 ? 34 : 0, background: team.accent,
                     display: 'flex', alignItems: 'center', paddingLeft: 8, fontSize: 11, fontWeight: 800, color: team.text,
                   }}>{v}%</div>
                 </div>
