@@ -7,13 +7,28 @@ import { createServerClient } from '@/lib/supabase'
 import { auth } from '@/auth'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+// A small model-derived prior so a brand-new poll never reads 100/0 with a
+// single vote (or "no one voted"). The raw counts stay honest in match_votes —
+// only the SURFACED split is seeded with PRIOR_VOTES virtual votes distributed
+// by the model's win probability. The fixed prior's weight naturally fades as
+// real votes accumulate.
+const PRIOR_VOTES = 12
+
 async function matchTally(supabase: SupabaseClient, matchId: string): Promise<{ pair1: number; pair2: number; total: number }> {
-  const [p1, p2] = await Promise.all([
+  const [p1, p2, m] = await Promise.all([
     supabase.from('match_votes').select('*', { count: 'exact', head: true }).eq('match_id', matchId).eq('pair', 1),
     supabase.from('match_votes').select('*', { count: 'exact', head: true }).eq('match_id', matchId).eq('pair', 2),
+    supabase.from('matches').select('pred_pair1_prob').eq('id', matchId).maybeSingle(),
   ])
-  const pair1 = p1.count ?? 0
-  const pair2 = p2.count ?? 0
+  const realP1 = p1.count ?? 0
+  const realP2 = p2.count ?? 0
+  // Clamp the prior probability so even a lopsided model never seeds 100/0.
+  const rawProb = m.data?.pred_pair1_prob != null ? Number(m.data.pred_pair1_prob) : 0.5
+  const prob = Number.isNaN(rawProb) ? 0.5 : Math.min(0.9, Math.max(0.1, rawProb))
+  const priorP1 = Math.round(PRIOR_VOTES * prob)
+  const priorP2 = PRIOR_VOTES - priorP1
+  const pair1 = realP1 + priorP1
+  const pair2 = realP2 + priorP2
   return { pair1, pair2, total: pair1 + pair2 }
 }
 
