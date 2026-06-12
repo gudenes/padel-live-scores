@@ -213,6 +213,8 @@
     "modelTitle": "Pronostico PadelNacho",
     "whoWillWin": "Chi vincerà?",
     "communityHeader": "Community",
+    "predictorLabel": "Predictor",
+    "fansLabel": "Tifosi",
     "castVote": "Vota ora",
     "fansVoted": "{count} fan hanno votato",
     "yourPick": "tu",
