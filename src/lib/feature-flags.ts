@@ -24,6 +24,7 @@ export const FLAG_KEYS = {
   HOME_NEWS_IMMERSIVE_LINK:       'home_news_immersive_link',
   PROJECTION_ENABLED:             'projection_enabled',
   PROJECTION_VOTE_ENABLED:        'projection_vote_enabled',
+  MATCH_PREDICTION_ENABLED:       'match_prediction_enabled',
 } as const
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS]
@@ -68,21 +69,37 @@ export function resolveFlag(
  * Caller passes the supabase client they already use elsewhere so
  * this helper doesn't open its own connection.
  */
+// Per-session dedup cache: a screen full of components sharing one flag (e.g.
+// many MatchCards) should trigger ONE query, not one per instance. Short TTL so
+// an ops toggle still propagates within ~60s without a hard reload. Keyed by
+// flag key; the cached row is host-agnostic (resolveFlag picks the column).
+const FLAG_TTL_MS = 60_000
+const flagCache = new Map<FlagKey, { at: number; promise: Promise<FeatureFlagRow> }>()
+
 export async function fetchFeatureFlag(
   supabase: SupabaseClient,
   key: FlagKey,
 ): Promise<FeatureFlagRow> {
-  const { data, error } = await supabase
-    .from('feature_flags')
-    .select('enabled, enabled_local')
-    .eq('key', key)
-    .maybeSingle()
-  if (error) {
-    console.warn(`[feature-flags] fetch failed for ${key}:`, error.message)
-    return { enabled: null, enabled_local: null }
-  }
-  return {
-    enabled: data?.enabled ?? null,
-    enabled_local: data?.enabled_local ?? null,
-  }
+  const cached = flagCache.get(key)
+  if (cached && Date.now() - cached.at < FLAG_TTL_MS) return cached.promise
+
+  const promise = (async (): Promise<FeatureFlagRow> => {
+    const { data, error } = await supabase
+      .from('feature_flags')
+      .select('enabled, enabled_local')
+      .eq('key', key)
+      .maybeSingle()
+    if (error) {
+      console.warn(`[feature-flags] fetch failed for ${key}:`, error.message)
+      flagCache.delete(key) // don't cache failures — retry next call
+      return { enabled: null, enabled_local: null }
+    }
+    return {
+      enabled: data?.enabled ?? null,
+      enabled_local: data?.enabled_local ?? null,
+    }
+  })()
+
+  flagCache.set(key, { at: Date.now(), promise })
+  return promise
 }

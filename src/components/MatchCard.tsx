@@ -36,10 +36,11 @@ import FollowButton from '@/components/FollowButton'
 import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import { getMatchPrediction } from '@/lib/match-prediction'
 import { shouldShowFavTag } from '@/components/match-card-fav-tag'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { FLAG_KEYS } from '@/lib/feature-flags'
 
 export { shouldShowFavTag } from '@/components/match-card-fav-tag'
 
-const MATCH_PREDICTION_ENABLED = process.env.NEXT_PUBLIC_MATCH_PREDICTION_ENABLED === 'true'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -234,6 +235,7 @@ export function MatchCard({
 }: MatchCardProps) {
   const tTournament = useTranslations('tournament')
   const tMatch = useTranslations('match')
+  const matchPredictionEnabled = useFeatureFlag(FLAG_KEYS.MATCH_PREDICTION_ENABLED)
 
   // Per-match realtime subscription. Only opens the channel when the
   // match is live or warming up; for scheduled / finished cards we
@@ -700,7 +702,7 @@ export function MatchCard({
                         clipPath: CHUNKY.badge, lineHeight: 1.1,
                       }}>W</span>
                     )}
-                    {shouldShowFavTag(match, pairNum as 1 | 2, MATCH_PREDICTION_ENABLED) && (
+                    {shouldShowFavTag(match, pairNum as 1 | 2, matchPredictionEnabled) && (
                       <PredictionFavTag match={match} pairLabel={pair} />
                     )}
                   </div>

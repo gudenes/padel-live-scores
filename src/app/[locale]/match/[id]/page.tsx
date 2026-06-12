@@ -30,6 +30,8 @@ import { Share } from '@capacitor/share'
 import { WinnerBanner } from './WinnerBanner'
 import { PredictionSection, PredictionResult } from './PredictionSection'
 import { MatchPredictionVote } from '@/components/prediction/MatchPredictionVote'
+import { useFeatureFlag } from '@/hooks/useFeatureFlag'
+import { FLAG_KEYS } from '@/lib/feature-flags'
 import { ScheduledSection } from './ScheduledSection'
 import { MatchRatingCard } from './MatchRatingCard'
 import { LiveFeedTab } from './LiveFeedTab'
@@ -45,8 +47,6 @@ import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import type { LiveChannel as WtwLiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { fetchChannelRegionBlocks } from '@/lib/where-to-watch/fetch-channel-region-rules'
 
-const MATCH_PREDICTION_ENABLED = process.env.NEXT_PUBLIC_MATCH_PREDICTION_ENABLED === 'true'
-
 type SubTab = 'recap' | 'live' | 'players' | 'h2h'
 
 export default function MatchPage({ params }: { params: Promise<{ id: string }> }) {
@@ -55,6 +55,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const tMatch = useTranslations('matchDetail')
   const tPred = useTranslations('prediction')
   const format = useFormatter()
+  const MATCH_PREDICTION_ENABLED = useFeatureFlag(FLAG_KEYS.MATCH_PREDICTION_ENABLED)
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const [match, setMatch] = useState<Match | null>(null)
