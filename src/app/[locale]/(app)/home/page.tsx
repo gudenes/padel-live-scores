@@ -674,7 +674,7 @@ function V3HomePageInner() {
       )}
 
       {/* ── TOURNAMENT SPOTLIGHT HERO ──────────────────────── */}
-      {spotlightTournament && (
+      {spotlightEnabled && spotlightTournament && (
         <>
           <SectionTitle action={tHome('fullEvents')} href="/tournaments">{tHome('tournamentSpotlight')}</SectionTitle>
           <TournamentSpotlightHero
