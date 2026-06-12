@@ -21,10 +21,13 @@ interface Props {
   yourPick: 1 | 2 | null
   aggregate: { pair1: number; pair2: number; total: number; real?: number } | null
   locked: boolean
+  /** Hide the pair-name row in the locked community bar — set when the
+   *  prediction bar directly above already shows the same names. */
+  hideNames?: boolean
   onVote: (pair: 1 | 2) => void
 }
 
-export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, locked, onVote }: Props) {
+export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, locked, hideNames, onVote }: Props) {
   const t = useTranslations('prediction')
   const revealed = (yourPick != null || locked) && aggregate != null
   const pct = (n: number) => (aggregate && aggregate.total > 0 ? Math.round((n / aggregate.total) * 100) : 0)
@@ -43,13 +46,15 @@ export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, loc
     const c1 = pct(aggregate.pair1)
     const c2 = 100 - c1
     return (
-      <div style={{ background: '#141414', padding: '12px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 800, color: '#9AAEC4', marginBottom: 8 }}>
+      <div style={{ background: '#141414', padding: hideNames ? '10px 16px 12px' : '12px 16px', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 800, color: '#9AAEC4', marginBottom: hideNames ? 6 : 8 }}>
           {t('communityHeader')}
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#ddd', marginBottom: 5 }}>
-          <span>{pair1Label}</span><span>{pair2Label}</span>
-        </div>
+        {!hideNames && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, fontWeight: 700, color: '#ddd', marginBottom: 5 }}>
+            <span>{pair1Label}</span><span>{pair2Label}</span>
+          </div>
+        )}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 800, fontVariantNumeric: 'tabular-nums', marginBottom: 5 }}>
           <span style={{ color: PAIR1_COLOR }}>{c1}%{yourPick === 1 ? ' ✓' : ''}</span>
           <span style={{ color: PAIR2_COLOR }}>{c2}%{yourPick === 2 ? ' ✓' : ''}</span>
