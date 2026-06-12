@@ -54,27 +54,27 @@ export function MatchVoteCard({ pair1Label, pair2Label, yourPick, aggregate, loc
               accent={team.accent}
               skirt={team.skirt}
               textColor={team.text}
-              depth={4}
+              depth={3}
               clipPath={PRESS_PRESETS.chunkyTilted.clipPath}
               aria-pressed={mine}
               onClick={interactive ? () => onVote(p) : undefined}
               style={{
                 flex: 1,
                 minWidth: 0,
-                padding: '10px 8px',
-                fontSize: 12,
+                padding: '6px 6px',
+                fontSize: 10.5,
                 fontWeight: 800,
-                lineHeight: 1.2,
+                lineHeight: 1.15,
                 textAlign: 'center',
                 opacity: dim ? 0.5 : 1,
               }}
             >
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
                 <span>{p === 1 ? pair1Label : pair2Label}</span>
                 {v != null && (
-                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span style={{ fontSize: 16, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{v}%</span>
-                    {mine && <span style={{ fontSize: 10, fontWeight: 800 }}>✓ {t('yourPick')}</span>}
+                  <span style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                    <span style={{ fontSize: 13, fontWeight: 900, fontVariantNumeric: 'tabular-nums' }}>{v}%</span>
+                    {mine && <span style={{ fontSize: 8.5, fontWeight: 800 }}>✓ {t('yourPick')}</span>}
                   </span>
                 )}
               </span>
