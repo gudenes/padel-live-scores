@@ -6,6 +6,7 @@ import { GatedGoogleAds } from "@/components/GatedGoogleAds";
 import { AuthProvider } from "@/components/AuthProvider";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
 import SplashOverlay from "@/components/SplashOverlay";
+import IosViewportFix from "@/components/IosViewportFix";
 import { buildAlternates } from "@/lib/seo-helpers";
 import "./globals.css";
 
@@ -139,6 +140,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           (no DOM mutation) — see SplashOverlay component for the
           history of the DOM-corruption bug that the v1 hit. */}
       <SplashOverlay />
+      {/* Corrects the iOS cold-launch viewport-zoom race (Capacitor
+          remote-URL mode). No-op on web/Safari — gated to native iOS. */}
+      <IosViewportFix />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
