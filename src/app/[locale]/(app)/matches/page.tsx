@@ -1,31 +1,31 @@
 // src/app/[locale]/(app)/matches/page.tsx
+// The PERMANENT live-scores hub. This URL never changes — it always
+// renders the locale's "today" — so SEO authority accumulates here
+// instead of on an ever-changing dated URL.
 //
-// /matches now redirects to /matches/{today} so the day-pill UI on the
-// daily page becomes the canonical match-list surface. The previous
-// client-side tabs implementation lived here for ~9 months — its full
-// behaviour (live/upcoming/results sections, league filter, swipe tabs)
-// is now covered by:
+// Canonical = /matches (set in matches/layout.tsx). Today's dated URL
+// (/matches/{today}) canonicalizes onto this page; see [date]/layout.tsx.
 //
-//   - Day pills on /matches/[date]                  → date selection
-//   - Live / Upcoming / Finished sections           → status grouping
-//   - MatchesFilterClient drawer + filter bar       → league / category /
-//                                                     tier / personalised
-//
-// SEO note: the redirect is computed server-side using the locale's home
-// timezone so each locale lands on its own "today" without a client
-// round-trip. Googlebot follows the 308 to the dated URL, which is the
-// long-lived crawlable target.
+// Force-dynamic: live scores evolve minute-to-minute. A stable URL and
+// dynamic content are independent — this is the Sofascore /padel pattern.
 
-import { redirect } from '@/i18n/navigation'
 import { getLocaleTodayIso } from '@/lib/locale-time'
+import DailyMatchesView from './DailyMatchesView'
 
-interface Props {
+export const dynamic = 'force-dynamic'
+
+type Props = {
   params: Promise<{ locale: string }>
 }
 
-export default async function MatchesIndexRedirect({ params }: Props) {
+export default async function MatchesHubPage({ params }: Props) {
   const { locale } = await params
   const todayIso = getLocaleTodayIso(locale)
-  // 308 — permanent. The dated URL is canonical going forward.
-  redirect({ href: `/matches/${todayIso}`, locale: locale as 'en' | 'es' | 'pt' | 'it' | 'fr' })
+  return (
+    <DailyMatchesView
+      locale={locale}
+      iso={todayIso}
+      canonicalPath="/matches"
+    />
+  )
 }
