@@ -7,7 +7,7 @@
 import type { Metadata } from 'next'
 import { setRequestLocale } from 'next-intl/server'
 import { buildDailyMetadata } from '@/lib/seo-metadata'
-import { resolveDateSegment, dateAtTzMidnight, getLocaleHomeTz } from '@/lib/locale-time'
+import { resolveDateSegment, dateAtTzMidnight, getLocaleHomeTz, matchesCanonicalPath } from '@/lib/locale-time'
 
 type Props = {
   params: Promise<{ locale: string; date: string }>
@@ -23,7 +23,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return buildDailyMetadata({
     locale,
     dateLong,
-    path: `/matches/${iso}`,
+    // Today consolidates onto the permanent hub; archives self-canonicalize.
+    path: matchesCanonicalPath(iso, locale),
   })
 }
 

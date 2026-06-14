@@ -639,7 +639,7 @@ function V3HomePageInner() {
       {/* ── COMING UP ───────��───────────────────────────���───── */}
       {upcoming.length > 0 && (
         <>
-          <SectionTitle action={tHome('allScores')} href="/matches/today">
+          <SectionTitle action={tHome('allScores')} href="/matches">
             {tHome('comingUp')}
           </SectionTitle>
           <div style={{
@@ -698,7 +698,7 @@ function V3HomePageInner() {
 
       {/* Footer links */}
       <div style={{ padding: '20px 16px 8px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 10, rowGap: 6 }}>
-        <Link href="/matches/today" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('todaySchedule')}</Link>
+        <Link href="/matches" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('todaySchedule')}</Link>
         <span style={{ color: '#333' }}>|</span>
         <Link href="/matches/yesterday" style={{ fontSize: 11, color: '#6B7280', textDecoration: 'none' }}>{tFooter('yesterdayResults')}</Link>
         <span style={{ color: '#333' }}>|</span>

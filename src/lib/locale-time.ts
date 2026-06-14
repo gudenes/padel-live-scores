@@ -126,3 +126,19 @@ export function resolveDateSegment(
 export function isLocaleToday(iso: string, locale: string, now: Date = new Date()): boolean {
   return iso === getLocaleTodayIso(locale, now)
 }
+
+/**
+ * Canonical (locale-neutral) path for a /matches day page.
+ *
+ * "Today" consolidates onto the permanent /matches hub so SEO authority
+ * accumulates on one stable URL; every other day owns its dated archive
+ * URL. Consumed by the daily-page layout's canonical/hreflang and by the
+ * page's JSON-LD `url`.
+ */
+export function matchesCanonicalPath(
+  iso: string,
+  locale: string,
+  now: Date = new Date(),
+): string {
+  return isLocaleToday(iso, locale, now) ? '/matches' : `/matches/${iso}`
+}

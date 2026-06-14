@@ -11,6 +11,7 @@ import {
   isIsoDate,
   resolveDateSegment,
   isLocaleToday,
+  matchesCanonicalPath,
 } from '../locale-time'
 
 describe('getLocaleHomeTz', () => {
@@ -141,5 +142,22 @@ describe('isLocaleToday', () => {
     expect(isLocaleToday(todayEs, 'es', now)).toBe(true)
     expect(isLocaleToday('2026-04-16', 'es', now)).toBe(false)
     expect(isLocaleToday('2026-04-18', 'es', now)).toBe(false)
+  })
+})
+
+describe('matchesCanonicalPath', () => {
+  // 2026-04-17 10:00 UTC. ES home TZ is a day ahead late at night but not here.
+  const now = new Date('2026-04-17T10:00:00Z')
+
+  it('returns the permanent /matches hub for the locale today', () => {
+    const todayEs = getLocaleTodayIso('es', now)
+    expect(matchesCanonicalPath(todayEs, 'es', now)).toBe('/matches')
+    const todayEn = getLocaleTodayIso('en', now)
+    expect(matchesCanonicalPath(todayEn, 'en', now)).toBe('/matches')
+  })
+
+  it('returns the dated archive path for any other day', () => {
+    expect(matchesCanonicalPath('2026-04-16', 'es', now)).toBe('/matches/2026-04-16')
+    expect(matchesCanonicalPath('2026-04-18', 'en', now)).toBe('/matches/2026-04-18')
   })
 })
