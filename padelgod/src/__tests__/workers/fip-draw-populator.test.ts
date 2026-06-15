@@ -175,6 +175,21 @@ function fakeSupabase(opts: Options) {
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
   const tournamentDrawsUpserted: Array<Record<string, unknown>> = [];
   const tournamentDrawsConflictKeys: Array<string | null> = [];
+  // Event keys already claimed (draw_released sent-log), persists across runs.
+  const claimedKeys = new Set<string>();
+
+  // claimNotificationEvent: .upsert({event_key},{ignoreDuplicates}).select('event_key')
+  //   → [row] on first claim, [] on duplicate.
+  const notificationEventsSentTable = () => ({
+    upsert: (row: Record<string, unknown>, _opts: unknown) => ({
+      select: (_cols: string) => {
+        const key = String(row.event_key);
+        if (claimedKeys.has(key)) return Promise.resolve({ data: [], error: null });
+        claimedKeys.add(key);
+        return Promise.resolve({ data: [{ event_key: key }], error: null });
+      },
+    }),
+  });
 
   const matchesTable = () => ({
     select: (_cols: string) => ({
@@ -390,6 +405,7 @@ function fakeSupabase(opts: Options) {
       if (t === 'tournaments') return tournamentsTable();
       if (t === 'tournament_draws') return tournamentDrawsTable();
       if (t === 'entity_external_ids') return entityExternalIdsTable();
+      if (t === 'notification_events_sent') return notificationEventsSentTable();
       throw new Error(`unexpected public table: ${t}`);
     },
     rpc: vi.fn(async (name: string) => {
@@ -3782,5 +3798,123 @@ describe('runFipDrawPopulator — pair-aware resolver wiring', () => {
     expect(md042).toBeDefined();
     expect(md042.pair2_player1_id).toBe('uuid-javier');
     expect(md042.pair2_player2_id).toBe('uuid-gonzalo');
+  });
+});
+
+describe('runFipDrawPopulator — draw_released coalescing', () => {
+  function captureNotify() {
+    const posts: Array<{ url: string; body: Record<string, any> }> = [];
+    const deps = {
+      baseUrl: 'https://app.test',
+      cronSecret: 'sec',
+      logger: { warn() {}, info() {} } as unknown,
+      fetchImpl: ((url: string, init: { body: string }) => {
+        posts.push({ url, body: JSON.parse(init.body) });
+        return Promise.resolve({ ok: true, text: () => Promise.resolve('') });
+      }) as unknown,
+    };
+    return { deps, posts };
+  }
+
+  const womenDraw: DrawSeed = {
+    ...realMatchDraw,
+    match_widget_id: 'WD017',
+    category: 'women',
+    team1_player1_name: 'Ana One',
+    team1_player2_name: 'Bea Two',
+    team2_player1_name: 'Carla Three',
+    team2_player2_name: 'Diana Four',
+  };
+
+  const entryListBoth: EntryListSeed[] = [
+    ...entryList,
+    { name: 'Ana One', fip_id: 'fip-W1', category: 'women', captured_at: '2026-04-24T07:00:00Z' },
+    { name: 'Bea Two', fip_id: 'fip-W2', category: 'women', captured_at: '2026-04-24T07:00:00Z' },
+    { name: 'Carla Three', fip_id: 'fip-W3', category: 'women', captured_at: '2026-04-24T07:00:00Z' },
+    { name: 'Diana Four', fip_id: 'fip-W4', category: 'women', captured_at: '2026-04-24T07:00:00Z' },
+  ];
+
+  const rosterBoth: PlayerSeed[] = [
+    ...rosterPlayers,
+    { id: 'uuid-W1', fip_id: 'fip-W1' },
+    { id: 'uuid-W2', fip_id: 'fip-W2' },
+    { id: 'uuid-W3', fip_id: 'fip-W3' },
+    { id: 'uuid-W4', fip_id: 'fip-W4' },
+  ];
+
+  it('fires ONE draw_released per tournament even when men + women draws drop together', async () => {
+    const { deps, posts } = captureNotify();
+    const supabase = fakeSupabase({
+      tournaments: [{ tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG }],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw, womenDraw],
+      entryList: entryListBoth,
+      players: rosterBoth,
+      existingMatches: [
+        {
+          id: 'm-men',
+          widget_id_composite: 'FIP-2026-1706:MD017',
+          pair1_player1_id: 'x1',
+          pair1_player2_id: 'x2',
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+        },
+        {
+          id: 'm-women',
+          widget_id_composite: 'FIP-2026-1706:WD017',
+          pair1_player1_id: 'y1',
+          pair1_player2_id: 'y2',
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+        },
+      ],
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    // Guard the fixture: both category draws must have resolved + updated,
+    // otherwise the "two categories" premise is void.
+    expect(result.updated).toBe(2);
+
+    const drawPosts = posts.filter((p) => p.body.category === 'draw_released');
+    // ONE push for the tournament — not one per category.
+    expect(drawPosts).toHaveLength(1);
+    expect(drawPosts[0].body).toMatchObject({
+      entityType: 'tournament',
+      entityId: TOURNAMENT_ID,
+      dedupeKey: `draw_released:${TOURNAMENT_ID}`,
+      url: `/tournaments/${TOURNAMENT_ID}`,
+    });
+  });
+
+  it('does not re-fire on a later run when no new bracket category dropped', async () => {
+    const { deps, posts } = captureNotify();
+    const supabase = fakeSupabase({
+      tournaments: [{ tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG }],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+      existingMatches: [
+        {
+          id: 'm-men',
+          widget_id_composite: 'FIP-2026-1706:MD017',
+          pair1_player1_id: 'x1',
+          pair1_player2_id: 'x2',
+          pair2_player1_id: null,
+          pair2_player2_id: null,
+        },
+      ],
+    });
+
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false, notify: deps as any, eventsEnabled: true });
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false, notify: deps as any, eventsEnabled: true });
+
+    expect(posts.filter((p) => p.body.category === 'draw_released')).toHaveLength(1);
   });
 });

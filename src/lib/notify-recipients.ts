@@ -58,7 +58,7 @@ async function fetchAnonSubsForDevices(
 export async function resolveEntityFollowers(
   supabase: Supa,
   entityType: EntityType,
-  entityId: string,
+  entityId: string | string[],
 ): Promise<EntityFollowers> {
   // Runtime guard — a caller passing an unsupported entityType (despite the
   // compile-time union) gets an empty result, never a misdirected query.
@@ -66,14 +66,27 @@ export async function resolveEntityFollowers(
     return EMPTY
   }
 
+  // Normalize the target into an id list. A plain string keeps the original
+  // single-id `.eq` query shape; an array fans out via `.in` so ONE call
+  // resolves the UNION of followers across several entities. The batch form
+  // backs per-tournament coalescing of `player_entered` sends — every fan who
+  // follows any of the newly-entered players is resolved once, deduped, and
+  // notified a single time (see fip-entry-list-populator). 'match' has no
+  // batch caller, so it always uses the first id.
+  const isBatch = Array.isArray(entityId)
+  const ids = (isBatch ? entityId : [entityId]).filter(Boolean) as string[]
+  if (ids.length === 0) return EMPTY
+
   try {
     if (entityType === 'player' || entityType === 'tournament') {
       // ── Authed: user_bookmarks of the matching type ──────────
-      const { data, error } = await supabase
+      const authedBase = supabase
         .from('user_bookmarks')
         .select('user_id')
         .eq('bookmark_type', entityType)
-        .eq('target_id', entityId)
+      const { data, error } = await (isBatch
+        ? authedBase.in('target_id', ids)
+        : authedBase.eq('target_id', ids[0]))
       if (error) return EMPTY
       const userIds = Array.from(
         new Set((data as { user_id: string }[] | null ?? []).map((r) => r.user_id).filter(Boolean)),
@@ -84,11 +97,13 @@ export async function resolveEntityFollowers(
         return { userIds, anonSubs: [] }
       }
 
-      const { data: anonBm, error: anonErr } = await supabase
+      const anonBase = supabase
         .from('anon_bookmarks')
         .select('device_id')
         .eq('bookmark_type', 'player')
-        .eq('target_id', entityId)
+      const { data: anonBm, error: anonErr } = await (isBatch
+        ? anonBase.in('target_id', ids)
+        : anonBase.eq('target_id', ids[0]))
       if (anonErr) return { userIds, anonSubs: [] }
       const deviceIds = new Set<string>()
       for (const row of (anonBm as { device_id: string }[] | null) ?? []) {
@@ -101,10 +116,11 @@ export async function resolveEntityFollowers(
     // ── match ──────────────────────────────────────────────────
     // Read the 4 player FKs off the match row, then union match-bookmarks
     // with player-follows across both authed + anon tables.
+    const matchId = ids[0]
     const { data: matchRow, error: matchErr } = await supabase
       .from('matches')
       .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
-      .eq('id', entityId)
+      .eq('id', matchId)
       .single()
     if (matchErr) return EMPTY
     const m = (matchRow ?? {}) as {
@@ -127,7 +143,7 @@ export async function resolveEntityFollowers(
       .from('user_bookmarks')
       .select('user_id')
       .eq('bookmark_type', 'match')
-      .eq('target_id', entityId)
+      .eq('target_id', matchId)
     if (matchBmErr) return EMPTY
     for (const r of (matchBm as { user_id: string }[] | null) ?? []) {
       if (r.user_id) userIdSet.add(r.user_id)
@@ -152,7 +168,7 @@ export async function resolveEntityFollowers(
       .from('anon_bookmarks')
       .select('device_id')
       .eq('bookmark_type', 'match')
-      .eq('target_id', entityId)
+      .eq('target_id', matchId)
     if (!anonMatchErr) {
       for (const r of (anonMatchBm as { device_id: string }[] | null) ?? []) {
         if (r.device_id) deviceIds.add(r.device_id)

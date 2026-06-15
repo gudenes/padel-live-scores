@@ -1145,27 +1145,34 @@ export async function runFipDrawPopulator(
     // can't happen). Ships dark: fires only when eventsEnabled AND notify
     // are both set (dry-run runs never populate `categoriesUpserted`).
     if (deps.eventsEnabled && deps.notify) {
+      // Claim per (tournament, category) so the sent-log still records each
+      // bracket once-ever, but fire AT MOST ONE "Draw is out" per tournament
+      // per run. A men's + women's draw dropping in the same run is a single
+      // event to a fan — not two pushes. The per-tournament dedupe key also
+      // caps a follower at one notice per tournament across runs (a later
+      // women's-draw release won't re-notify a fan already told for men's).
+      let anyNewlyReleased = false;
       for (const category of categoriesUpserted) {
-        const key = `draw_released:${t.tournament_id}:${category}`;
         const claimed = await claimNotificationEvent(
           supabase,
-          key,
+          `draw_released:${t.tournament_id}:${category}`,
           'draw_released',
         );
-        if (claimed) {
-          notifyEvent(
-            {
-              category: 'draw_released',
-              entityType: 'tournament',
-              entityId: t.tournament_id,
-              title: 'Draw is out',
-              body: 'The bracket for an event you follow has been published.',
-              url: `/tournaments/${t.tournament_id}`,
-              dedupeKey: key,
-            },
-            deps.notify,
-          );
-        }
+        if (claimed) anyNewlyReleased = true;
+      }
+      if (anyNewlyReleased) {
+        notifyEvent(
+          {
+            category: 'draw_released',
+            entityType: 'tournament',
+            entityId: t.tournament_id,
+            title: 'Draw is out',
+            body: 'The bracket for an event you follow has been published.',
+            url: `/tournaments/${t.tournament_id}`,
+            dedupeKey: `draw_released:${t.tournament_id}`,
+          },
+          deps.notify,
+        );
       }
     }
   }

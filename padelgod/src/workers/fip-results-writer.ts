@@ -313,32 +313,42 @@ export async function runFipResultsWriter(
                 ? [existing.pair2_player1_id, existing.pair2_player2_id]
                 : [existing.pair1_player1_id, existing.pair1_player2_id];
             const isFinal = roundCanonical(existing.round) === 'F';
-            if (isFinal) {
-              for (const pid of winners.filter(Boolean)) {
-                notifyEvent(
-                  {
-                    category: 'player_title_won',
-                    entityType: 'player',
-                    entityId: pid as string,
-                    title: 'Champion! 🏆',
-                    body: 'Your player just won the title.',
-                    url: `/match/${existing.id}`,
-                    dedupeKey: `player_title_won:${existing.id}:${pid}`,
-                  },
-                  deps.notify,
-                );
-              }
+            // Coalesce per match: both members of a pair fold into ONE notify
+            // carrying both player IDs (entityIds), so a fan who follows both
+            // partners gets a single push — not two identical ones for the
+            // same match. The endpoint resolves the union of their followers
+            // and delivers once per user; the per-match dedupe key keeps it
+            // stable. winner_team in {1,2} is already guaranteed above.
+            const winnerIds = winners.filter((p): p is string => !!p);
+            const loserIds = losers.filter((p): p is string => !!p);
+            const [firstWinnerId] = winnerIds;
+            const [firstLoserId] = loserIds;
+            if (isFinal && firstWinnerId) {
+              notifyEvent(
+                {
+                  category: 'player_title_won',
+                  entityType: 'player',
+                  entityId: firstWinnerId,
+                  entityIds: winnerIds,
+                  title: 'Champion! 🏆',
+                  body: 'Your player just won the title.',
+                  url: `/match/${existing.id}`,
+                  dedupeKey: `player_title_won:${existing.id}`,
+                },
+                deps.notify,
+              );
             }
-            for (const pid of losers.filter(Boolean)) {
+            if (firstLoserId) {
               notifyEvent(
                 {
                   category: 'player_eliminated',
                   entityType: 'player',
-                  entityId: pid as string,
+                  entityId: firstLoserId,
+                  entityIds: loserIds,
                   title: 'Knocked out',
                   body: 'Your player was eliminated.',
                   url: `/match/${existing.id}`,
-                  dedupeKey: `player_eliminated:${existing.id}:${pid}`,
+                  dedupeKey: `player_eliminated:${existing.id}`,
                 },
                 deps.notify,
               );

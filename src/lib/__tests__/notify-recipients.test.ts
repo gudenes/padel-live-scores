@@ -14,6 +14,9 @@ type Resp = { data: unknown; error: unknown }
 
 function fakeSupabase(rowsByKey: Record<string, Row[] | Row | { error: unknown }>) {
   const lastFilters: Record<string, unknown> = {}
+  // Records every filter call so tests can assert the resolver picked `.eq`
+  // (single id) vs `.in` (batch) for a given column.
+  const calls: Array<{ m: 'eq' | 'in'; col: string; val: unknown }> = []
   const builder = (table: string) => {
     const filters: Record<string, unknown> = {}
     let isSingle = false
@@ -33,17 +36,18 @@ function fakeSupabase(rowsByKey: Record<string, Row[] | Row | { error: unknown }
     }
     const chain = {
       select() { return chain },
-      eq(col: string, val: unknown) { filters[col] = val; return chain },
-      in(col: string, val: unknown) { filters[col] = val; return chain },
+      eq(col: string, val: unknown) { filters[col] = val; calls.push({ m: 'eq', col, val }); return chain },
+      in(col: string, val: unknown) { filters[col] = val; calls.push({ m: 'in', col, val }); return chain },
       single() { isSingle = true; return chain },
       then(resolve: (r: Resp) => void) { resolve(resolveResp()) },
     }
     return chain
   }
-  return { from: builder, _filters: lastFilters } as never
+  return { from: builder, _filters: lastFilters, _calls: calls } as never
 }
 
 const filtersOf = (s: unknown) => (s as { _filters: Record<string, unknown> })._filters
+const callsOf = (s: unknown) => (s as { _calls: Array<{ m: 'eq' | 'in'; col: string; val: unknown }> })._calls
 
 describe('resolveEntityFollowers', () => {
   it('queries user_bookmarks by bookmark_type+target_id for a tournament', async () => {
@@ -139,6 +143,31 @@ describe('resolveEntityFollowers', () => {
     const supa = fakeSupabase({ user_bookmarks: { error: new Error('boom') } })
     const res = await resolveEntityFollowers(supa, 'player', 'p-1')
     expect(res).toEqual({ userIds: [], anonSubs: [] })
+  })
+
+  it('batch (array entityId) resolves the union of player followers via .in, deduped', async () => {
+    const supa = fakeSupabase({ user_bookmarks: [{ user_id: 'u1' }, { user_id: 'u2' }, { user_id: 'u1' }] })
+    const res = await resolveEntityFollowers(supa, 'player', ['p-1', 'p-2', 'p-3'])
+    expect(res.userIds.sort()).toEqual(['u1', 'u2'])
+    const calls = callsOf(supa)
+    // target_id must be queried with `.in` (not `.eq`) when an array is passed.
+    expect(calls).toContainEqual({ m: 'in', col: 'target_id', val: ['p-1', 'p-2', 'p-3'] })
+    expect(calls.some((c) => c.m === 'eq' && c.col === 'target_id')).toBe(false)
+  })
+
+  it('single (string entityId) still queries target_id with .eq', async () => {
+    const supa = fakeSupabase({ user_bookmarks: [{ user_id: 'u1' }] })
+    await resolveEntityFollowers(supa, 'player', 'p-1')
+    const calls = callsOf(supa)
+    expect(calls).toContainEqual({ m: 'eq', col: 'target_id', val: 'p-1' })
+    expect(calls.some((c) => c.m === 'in' && c.col === 'target_id')).toBe(false)
+  })
+
+  it('empty array resolves to no followers without querying bookmarks', async () => {
+    const supa = fakeSupabase({ user_bookmarks: [{ user_id: 'u1' }] })
+    const res = await resolveEntityFollowers(supa, 'player', [])
+    expect(res).toEqual({ userIds: [], anonSubs: [] })
+    expect(callsOf(supa).some((c) => c.col === 'target_id')).toBe(false)
   })
 
   it('rejects unsupported entity types at the type level (runtime guard returns empty)', async () => {

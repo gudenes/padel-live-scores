@@ -44,6 +44,13 @@ interface ExistingMatchSeed {
   duration: string | null;
   finished_at: string | null;
   started_at: string | null;
+  // Read by the player_title_won / player_eliminated notify path (Plan 2B).
+  round?: string | null;
+  result_notified_at?: string | null;
+  pair1_player1_id?: string | null;
+  pair1_player2_id?: string | null;
+  pair2_player1_id?: string | null;
+  pair2_player2_id?: string | null;
 }
 
 interface Options {
@@ -76,6 +83,8 @@ function fakeSupabase(opts: Options) {
   const updated: Array<{ id: string; patch: Record<string, unknown>; terminalGuard: string[] }> = [];
   const setsUpserted: any[] = [];
   const compositeBackfills: Array<{ id: string; composite: string }> = [];
+  // Match IDs that have already won the result-notify claim (once-ever).
+  const resultClaimed = new Set<string>();
 
   const matchesTable = () => ({
     select: (_cols: string) => ({
@@ -112,8 +121,18 @@ function fakeSupabase(opts: Options) {
             updated.push({ id: val, patch, terminalGuard: values });
             return Promise.resolve({ data: null, error: null });
           },
-          // Composite backfill: .update({widget_id_composite}).eq('id').is('widget_id_composite', null)
+          // Result-notify claim: .update({result_notified_at}).eq('id').is('result_notified_at', null).select('id')
+          //   → returns [row] on first claim, [] once already claimed.
           is: (col2: string, value: unknown) => {
+            if (col2 === 'result_notified_at' && value === null) {
+              const already = resultClaimed.has(val);
+              if (!already) resultClaimed.add(val);
+              return {
+                select: (_c: string) =>
+                  Promise.resolve({ data: already ? [] : [{ id: val }], error: null }),
+              };
+            }
+            // Composite backfill: .update({widget_id_composite}).eq('id').is('widget_id_composite', null)
             if (col2 !== 'widget_id_composite' || value !== null) {
               throw new Error(`unexpected UPDATE .is: ${col2} ${String(value)}`);
             }
@@ -732,5 +751,99 @@ describe('runFipResultsWriter', () => {
 
     expect(result.matchesUpdated).toBe(1);
     expect(supabase.updated[0].patch.winner_pair).toBe(2); // newer wins
+  });
+
+  // ── player_eliminated / player_title_won coalescing ──────────────────────
+  //
+  // Both members of a pair fold into ONE notify carrying both player IDs, so a
+  // fan who follows both partners gets a single push for the match — not two.
+
+  function captureNotify() {
+    const posts: Array<{ url: string; body: Record<string, any> }> = [];
+    const deps = {
+      baseUrl: 'https://app.test',
+      cronSecret: 'sec',
+      logger: { warn() {}, info() {} } as unknown,
+      fetchImpl: ((url: string, init: { body: string }) => {
+        posts.push({ url, body: JSON.parse(init.body) });
+        return Promise.resolve({ ok: true, text: () => Promise.resolve('') });
+      }) as unknown,
+    };
+    return { deps, posts };
+  }
+
+  it('coalesces both losers of a match into ONE player_eliminated notify', async () => {
+    const { deps, posts } = captureNotify();
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [md017Finished], // winner_team 2 → losers are pair1
+      existingMatches: [
+        {
+          ...md017Existing,
+          round: 'Round of 32',
+          result_notified_at: null,
+          pair1_player1_id: 'loser-a',
+          pair1_player2_id: 'loser-b',
+          pair2_player1_id: 'winner-a',
+          pair2_player2_id: 'winner-b',
+        },
+      ],
+    });
+
+    await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    const elim = posts.filter((p) => p.body.category === 'player_eliminated');
+    expect(elim).toHaveLength(1);
+    expect(elim[0].body).toMatchObject({
+      entityType: 'player',
+      dedupeKey: 'player_eliminated:m-md017',
+      url: '/match/m-md017',
+    });
+    expect([...(elim[0].body.entityIds as string[])].sort()).toEqual(['loser-a', 'loser-b']);
+    // Not a final → no title notification.
+    expect(posts.some((p) => p.body.category === 'player_title_won')).toBe(false);
+  });
+
+  it('coalesces both winners of a FINAL into ONE player_title_won notify', async () => {
+    const { deps, posts } = captureNotify();
+    const final = { ...md017Finished, round_label: 'Final', winner_team: 1 as const };
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [final], // winner_team 1 → winners are pair1
+      existingMatches: [
+        {
+          ...md017Existing,
+          round: 'Final',
+          result_notified_at: null,
+          pair1_player1_id: 'champ-a',
+          pair1_player2_id: 'champ-b',
+          pair2_player1_id: 'runnerup-a',
+          pair2_player2_id: 'runnerup-b',
+        },
+      ],
+    });
+
+    await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    const titles = posts.filter((p) => p.body.category === 'player_title_won');
+    expect(titles).toHaveLength(1);
+    expect(titles[0].body.dedupeKey).toBe('player_title_won:m-md017');
+    expect([...(titles[0].body.entityIds as string[])].sort()).toEqual(['champ-a', 'champ-b']);
+    // Losers also coalesce into a single elimination push.
+    const elim = posts.filter((p) => p.body.category === 'player_eliminated');
+    expect(elim).toHaveLength(1);
+    expect([...(elim[0].body.entityIds as string[])].sort()).toEqual(['runnerup-a', 'runnerup-b']);
   });
 });
