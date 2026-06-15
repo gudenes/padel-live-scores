@@ -40,6 +40,11 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     return { title: 'Projection | Padel Nachos', robots: { index: false, follow: false } }
   }
 
+  const rows = await fetchProjectionRows(id, category)
+  if (rows.length === 0) {
+    return { title: 'Projection | Padel Nachos', robots: { index: false, follow: false } }
+  }
+
   const t = await getTranslations({ locale, namespace: 'seo.projection' })
   const title = t('title', { name: meta.name })
   const description = t('description', { name: meta.name })

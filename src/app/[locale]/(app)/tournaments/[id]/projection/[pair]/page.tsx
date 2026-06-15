@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
-import { notFound, permanentRedirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
+import { permanentRedirect } from '@/i18n/navigation'
 import { getTranslations } from 'next-intl/server'
 import { buildAlternates } from '@/lib/seo-helpers'
 import {
@@ -79,7 +80,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProjectionPairPage({ params }: Props) {
-  const { id, pair } = await params
+  const { id, pair, locale } = await params
 
   if (!(await isProjectionEnabledServer())) notFound()
 
@@ -90,7 +91,7 @@ export default async function ProjectionPairPage({ params }: Props) {
   if (!resolved) notFound()
 
   if (resolved.redirect) {
-    permanentRedirect(`/tournaments/${id}/projection/${resolved.canonicalSlug}`)
+    permanentRedirect({ href: `/tournaments/${id}/projection/${resolved.canonicalSlug}`, locale: locale as 'en' | 'es' | 'pt' | 'it' | 'fr' })
   }
 
   const { pairKeyToSlug } = buildSlugIndex(resolved.rows, resolved.nameById)

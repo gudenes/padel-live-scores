@@ -1,8 +1,8 @@
 // src/lib/projection-server.ts
 // Server-only data access for the projection routes. Uses the service
 // client (RLS-bypassing) the rest of the SSR layer uses. Read-only.
-// Note: `server-only` package is not installed; import omitted.
 
+import 'server-only'
 import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase'
 import { fetchFeatureFlag, resolveFlag, FLAG_KEYS } from '@/lib/feature-flags'
