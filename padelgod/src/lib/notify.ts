@@ -115,6 +115,15 @@ export interface NotifyEventPayload {
   category: string;
   entityType: 'player' | 'tournament' | 'match';
   entityId: string;
+  /**
+   * Optional batch of entity IDs. When set, the notify-event endpoint resolves
+   * the UNION of these entities' followers in a single request and delivers
+   * one notification per user — even to a fan who follows several of them.
+   * Used to coalesce all newly-entered players in a tournament into ONE
+   * `player_entered` push per user. `entityId` stays the representative single
+   * id (drives the on-device tag + stats key).
+   */
+  entityIds?: string[];
   title: string;
   body: string;
   url?: string;

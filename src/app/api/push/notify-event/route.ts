@@ -40,6 +40,7 @@ type Body = {
   category?: unknown
   entityType?: unknown
   entityId?: unknown
+  entityIds?: unknown
   title?: unknown
   body?: unknown
   url?: unknown
@@ -71,6 +72,17 @@ export async function POST(request: Request) {
     return Response.json({ error: 'bad entityId' }, { status: 400 })
   }
   const entityId = b.entityId
+  // Optional batch of entity IDs. When present (and entityType is 'player'),
+  // followers are resolved as the UNION across all of them in ONE request, and
+  // the per-user fan-out below naturally collapses to a single notification
+  // per user — even a fan who follows several of the IDs. This is how
+  // `player_entered` coalesces every newly-entered player in a tournament into
+  // one "New tournament entry" push per user. `entityId` is still required
+  // (drives the on-device tag, metadata, and stats key).
+  const entityIds =
+    Array.isArray(b.entityIds)
+      ? Array.from(new Set(b.entityIds.filter((x): x is string => typeof x === 'string' && !!x)))
+      : null
   if (typeof b.title !== 'string' || !b.title || typeof b.body !== 'string' || !b.body) {
     return Response.json({ error: 'title/body required' }, { status: 400 })
   }
@@ -99,7 +111,11 @@ export async function POST(request: Request) {
   // tier gate, NO in-app row, and NO per-category pref — they're free by
   // definition. Resolved here so an anon-only entity (zero authed followers)
   // still fans out below. Tournament events resolve anonSubs: [].
-  const { userIds, anonSubs } = await resolveEntityFollowers(supabase, entityType, entityId)
+  const { userIds, anonSubs } = await resolveEntityFollowers(
+    supabase,
+    entityType,
+    entityIds && entityIds.length > 0 ? entityIds : entityId,
+  )
   if (userIds.length === 0 && anonSubs.length === 0) {
     return Response.json({ ok: true, recipients: 0, inApp: 0, webSent: 0, fcmSent: 0, anonSent: 0 })
   }

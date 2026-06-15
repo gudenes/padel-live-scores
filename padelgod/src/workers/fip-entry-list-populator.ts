@@ -224,11 +224,19 @@ export async function runFipEntryListPopulator(
 
   const now = new Date().toISOString();
 
-  // Fire a `player_entered` event for a resolved (tournament, player).
-  // Gated dark behind eventsEnabled + notify, and claimed via the sent-log
-  // so it fires at most once-ever per (tournament_id, player_id). Never on
-  // dry-run — callers must only invoke this on real writes.
-  const firePlayerEntered = async (
+  // `player_entered` is COALESCED per tournament. A fan who follows several
+  // players that all enter the same tournament must get ONE "New tournament
+  // entry" push, not one per player. So instead of firing per player inline,
+  // we claim per (tournament, player) here — keeping the once-ever-per-player
+  // guarantee — and accumulate the newly-claimed player IDs by tournament.
+  // After the loop, flushPlayerEntered fires a SINGLE notify-event per
+  // tournament carrying every new player ID; the endpoint resolves the union
+  // of their followers and delivers once per user. Gated dark behind
+  // eventsEnabled + notify; never runs on dry-run (callers guard with
+  // !dryRun, so the map simply stays empty).
+  const enteredByTournament = new Map<string, string[]>();
+
+  const recordPlayerEntered = async (
     tournamentId: string,
     playerId: string,
   ): Promise<void> => {
@@ -240,18 +248,35 @@ export async function runFipEntryListPopulator(
       'player_entered',
     );
     if (!claimed) return;
-    notifyEvent(
-      {
-        category: 'player_entered',
-        entityType: 'player',
-        entityId: playerId,
-        title: 'New tournament entry',
-        body: 'A player you follow just entered an event.',
-        url: `/tournaments/${tournamentId}`,
-        dedupeKey: key,
-      },
-      deps.notify,
-    );
+    const list = enteredByTournament.get(tournamentId) ?? [];
+    list.push(playerId);
+    enteredByTournament.set(tournamentId, list);
+  };
+
+  const flushPlayerEntered = (): void => {
+    if (!deps.eventsEnabled || !deps.notify) return;
+    for (const [tournamentId, playerIds] of enteredByTournament) {
+      const [representativeId] = playerIds;
+      if (!representativeId) continue;
+      notifyEvent(
+        {
+          category: 'player_entered',
+          entityType: 'player',
+          // Representative single id (drives on-device tag + stats key);
+          // entityIds carries the full batch the endpoint fans out over.
+          entityId: representativeId,
+          entityIds: playerIds,
+          title: 'New tournament entry',
+          body: 'A player you follow just entered an event.',
+          url: `/tournaments/${tournamentId}`,
+          // Per-tournament dedupe so each fan gets at most ONE entry notice
+          // per tournament — across this run AND future runs (the endpoint's
+          // user_notifications dedupe probe keys on this).
+          dedupeKey: `player_entered:${tournamentId}`,
+        },
+        deps.notify,
+      );
+    }
   };
 
   // 5. Per-fip_id insert-or-update loop. Sequential by design — these
@@ -267,7 +292,7 @@ export async function runFipEntryListPopulator(
       // it once-ever; firing here covers the no-change path too. Skipped on
       // dry-run.
       if (!dryRun) {
-        await firePlayerEntered(snap.tournament_id, match.id);
+        await recordPlayerEntered(snap.tournament_id, match.id);
       }
 
       // NULL-only update. Only patch fields that differ AND only when
@@ -344,12 +369,17 @@ export async function runFipEntryListPopulator(
         }
         const newPlayerId = (inserted as { id: string } | null)?.id;
         if (newPlayerId) {
-          await firePlayerEntered(snap.tournament_id, newPlayerId);
+          await recordPlayerEntered(snap.tournament_id, newPlayerId);
         }
       }
       result.playersInserted += 1;
     }
   }
+
+  // Coalesced fan-out: one notify-event per tournament for all newly-entered
+  // players resolved this run. Placed after the write loop so the claims are
+  // all settled before any push goes out.
+  flushPlayerEntered();
 
   logger?.info(result, 'fip-entry-list-populator run complete');
   return result;

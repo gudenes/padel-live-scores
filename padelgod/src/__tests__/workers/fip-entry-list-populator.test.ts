@@ -40,6 +40,24 @@ function fakeSupabase(opts: Options) {
 
   const inserted: Record<string, unknown>[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
+  // Claim ledger for notification_events_sent — persists across runs that
+  // reuse this same fake, mirroring the real once-ever-per-key behaviour.
+  const claimedKeys = new Set<string>();
+
+  // claimNotificationEvent does: .upsert({event_key,category},{ignoreDuplicates})
+  //   .select('event_key') → returns [row] on first claim, [] on duplicate.
+  const notificationEventsSentTable = () => ({
+    upsert: (row: Record<string, unknown>, _opts: unknown) => ({
+      select: (_cols: string) => {
+        const key = String(row.event_key);
+        if (claimedKeys.has(key)) {
+          return Promise.resolve({ data: [], error: null });
+        }
+        claimedKeys.add(key);
+        return Promise.resolve({ data: [{ event_key: key }], error: null });
+      },
+    }),
+  });
 
   const entryListSnapshotsTable = () => ({
     select: (_cols: string) => ({
@@ -112,9 +130,28 @@ function fakeSupabase(opts: Options) {
     }),
     from: (t: string) => {
       if (t === 'players') return playersTable();
+      if (t === 'notification_events_sent') return notificationEventsSentTable();
       throw new Error(`unexpected public table: ${t}`);
     },
   };
+}
+
+// Capturing notify deps: records every notify-event POST so tests can assert
+// the coalesced per-tournament fan-out shape.
+function captureNotify() {
+  const posts: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const deps = {
+    baseUrl: 'https://app.test',
+    cronSecret: 'sec',
+    logger: { warn() {}, info() {} } as unknown,
+    fetchImpl: ((url: string, init: { body: string }) => {
+      posts.push({ url, body: JSON.parse(init.body) });
+      return Promise.resolve({ ok: true, text: () => Promise.resolve('') });
+    }) as unknown,
+  };
+  const entryPosts = () =>
+    posts.filter((p) => p.url.endsWith('/api/push/notify-event'));
+  return { deps, posts, entryPosts };
 }
 
 // ── Helpers for building snapshot rows ────────────────────────────────────
@@ -448,5 +485,111 @@ describe('runFipEntryListPopulator', () => {
     expect(result.playersUpdated).toBe(0);
     expect(supabase.inserted).toHaveLength(0);
     expect(supabase.updated).toHaveLength(0);
+  });
+
+  // ── player_entered coalescing (the "New tournament entry" dedup) ──────────
+
+  it('coalesces all newly-entered players in a tournament into ONE notify-event', async () => {
+    const supabase = fakeSupabase({
+      snapshots: [snap('P1', 'A'), snap('P2', 'B'), snap('P3', 'C')],
+      existingPlayers: [],
+    });
+    const { deps, entryPosts } = captureNotify();
+
+    await runFipEntryListPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    const posts = entryPosts();
+    // One push for the whole tournament — NOT one per player.
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body).toMatchObject({
+      category: 'player_entered',
+      entityType: 'player',
+      dedupeKey: `player_entered:${TOURNAMENT_ID}`,
+      url: `/tournaments/${TOURNAMENT_ID}`,
+    });
+    expect([...(posts[0].body.entityIds as string[])].sort()).toEqual([
+      'new-player-1',
+      'new-player-2',
+      'new-player-3',
+    ]);
+  });
+
+  it('fires a separate notify-event per tournament', async () => {
+    const supabase = fakeSupabase({
+      snapshots: [
+        { ...snap('P1', 'A'), tournament_id: 't-a' },
+        { ...snap('P2', 'B'), tournament_id: 't-a' },
+        { ...snap('P3', 'C'), tournament_id: 't-b' },
+      ],
+      existingPlayers: [],
+    });
+    const { deps, entryPosts } = captureNotify();
+
+    await runFipEntryListPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    const posts = entryPosts();
+    expect(posts).toHaveLength(2);
+    const byUrl = Object.fromEntries(
+      posts.map((p) => [p.body.url as string, (p.body.entityIds as string[]).length]),
+    );
+    expect(byUrl['/tournaments/t-a']).toBe(2);
+    expect(byUrl['/tournaments/t-b']).toBe(1);
+  });
+
+  it('does not re-fire for players already claimed in a prior run', async () => {
+    const supabase = fakeSupabase({
+      snapshots: [snap('P1', 'A'), snap('P2', 'B')],
+      existingPlayers: [
+        { id: 'pl-1', fip_id: 'P1', name: 'A', country: 'ES', category: 'men' },
+        { id: 'pl-2', fip_id: 'P2', name: 'B', country: 'ES', category: 'men' },
+      ],
+    });
+    const { deps, entryPosts } = captureNotify();
+
+    // First run claims both players → one coalesced push.
+    await runFipEntryListPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+    // Second run: both keys already claimed → nothing new → no push.
+    await runFipEntryListPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    const posts = entryPosts();
+    expect(posts).toHaveLength(1);
+    expect([...(posts[0].body.entityIds as string[])].sort()).toEqual(['pl-1', 'pl-2']);
+  });
+
+  it('sends nothing when eventsEnabled is off (ships dark)', async () => {
+    const supabase = fakeSupabase({
+      snapshots: [snap('P1', 'A')],
+      existingPlayers: [],
+    });
+    const { deps, entryPosts } = captureNotify();
+
+    await runFipEntryListPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: false,
+    });
+
+    expect(entryPosts()).toHaveLength(0);
   });
 });
