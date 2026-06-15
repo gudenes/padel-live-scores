@@ -328,7 +328,22 @@
     "player": "Jogador",
     "points": "Pontos",
     "men": "Masculino",
-    "women": "Feminino"
+    "women": "Feminino",
+    "money": "Dinheiro",
+    "moneyCaption": "Prémios estimados",
+    "moneySeason": "época {year}",
+    "prizeColumn": "Prémio €",
+    "moneyEventsCount": "{count, plural, one {# torneio} other {# torneios}}",
+    "moneyEmpty": "Ainda não há prémios registados esta época",
+    "moneyExplainTitle": "Como os prémios são contados",
+    "moneyExplainIntro": "Uma classificação dos prémios estimados ganhos esta época — não um ranking oficial de dinheiro de carreira.",
+    "moneyExplainStep1Lead": "Divisão por jogador.",
+    "moneyExplainStep1Body": "O prémio é atribuído por dupla — mostramos a metade de cada jogador, somada ao longo da época.",
+    "moneyExplainStep2Lead": "Apenas torneios registados, desde 2024.",
+    "moneyExplainStep2Body": "Eventos do Premier Padel e FIP Tour com tabela de prémios conhecida. Torneios menores e resultados anteriores a 2024 não são incluídos.",
+    "moneyExplainCalloutLead": "Estimado.",
+    "moneyExplainCalloutBody": "Os valores usam as tabelas de prémios publicadas e podem diferir ligeiramente dos números oficiais.",
+    "moneyExplainClose": "Percebi"
   },
   "feed": {
     "feed": "Notícias",

@@ -1,24 +1,11 @@
 'use client'
 
-// Bottom sheet that explains how the Road-to-Trophy projection works, opened by
-// the ⓘ on the projection hero. Personalized: the highlight block uses THIS
-// pair's name + numbers (champion %/final % for contenders, the projected round
-// for everyone else) so the explanation feels about the pair you're viewing.
-//
-// Structure mirrors the app's other info sheets (e.g. AISummaryInfoSheet):
-// fixed scrim (tap to close), bottom sheet with a grab handle, maxHeight + scroll,
-// and a ChunkyPressButton "Got it". Inner elements use the brand chunky clip-path.
+// Bottom sheet explaining the Road-to-Trophy projection, opened by the ⓘ on
+// the projection hero. Personalized: the highlight block uses THIS pair's name
+// + numbers. Chrome is the shared ExplainSheet.
 
-import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { ChunkyPressButton } from '@/components/feed/foryou/ChunkyPressButton'
-
-const TEXT = '#EEE4CE'
-const SECONDARY = '#9AAEC4'
-const LIME = '#7ED321'
-const GOLD = '#F5A623'
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
-const CHUNK = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
+import { ExplainSheet, TEXT, SECONDARY, LIME, MONO, GOLD } from '@/components/ExplainSheet'
 
 interface Props {
   open: boolean
@@ -35,74 +22,35 @@ interface Props {
 
 export function ProjectionExplainSheet({ open, onClose, names, contender, championPct, finalPct, roundLabel }: Props) {
   const t = useTranslations('projectionTab')
-  if (!open || typeof document === 'undefined') return null
 
-  // Portal to <body>: the tournament page collapses its hero with a CSS
-  // `transform` on scroll, and a transformed ancestor turns `position: fixed`
-  // into "fixed relative to that ancestor" — which left the sheet stuck
-  // mid-screen. Rendering at the body root keeps it pinned to the viewport.
-  //
-  // The backdrop is a full-viewport flex container that bottom-centers the
-  // sheet; the sheet is capped at the app-shell width (500) so it doesn't span
-  // the whole window on desktop. Tap the backdrop to close; taps inside the
-  // sheet stop propagation. Mirrors NotificationPromptSheet.
-  return createPortal(
-    <div
-      onClick={onClose}
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, background: '#0009', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="projection-explain-title"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%', maxWidth: 500,
-          background: '#1c1e20', color: TEXT,
-          clipPath: 'polygon(0 13px, 100% 0, 100% 100%, 0 100%)',
-          filter: 'drop-shadow(0 -10px 26px rgba(0,0,0,0.55))',
-          padding: '16px 18px 26px',
-          maxHeight: '85vh', overflowY: 'auto',
-        }}
-      >
-        <div style={{ width: 40, height: 4, borderRadius: 3, background: 'rgba(255,255,255,0.22)', margin: '0 auto 14px' }} />
-
-        <h3 id="projection-explain-title" style={{ margin: '0 0 5px', fontSize: 18, fontWeight: 900, letterSpacing: 0.2 }}>
-          {t('explainTitle')}
-        </h3>
-        <p style={{ color: SECONDARY, fontSize: 13, lineHeight: 1.5, margin: '0 0 16px' }}>{t('explainIntro')}</p>
-
-        {[t('explainStep1'), t('explainStep2')].map((step, i) => (
-          <div key={i} style={{ display: 'flex', gap: 11, marginBottom: 12 }}>
-            <div style={{ flexShrink: 0, width: 23, height: 23, clipPath: CHUNK, background: 'rgba(126,211,33,0.16)', color: LIME, fontFamily: MONO, fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{i + 1}</div>
-            <div style={{ fontSize: 12.5, lineHeight: 1.45, color: TEXT, paddingTop: 1 }}>{step}</div>
-          </div>
-        ))}
-
-        {/* Personalized highlight — uses this pair's name + numbers. */}
-        <div style={{ marginTop: 8, background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', clipPath: CHUNK, padding: '14px 15px' }}>
-          <div style={{ fontSize: 13, fontWeight: 900, marginBottom: contender ? 9 : 7 }}>{names}</div>
-          {contender ? (
-            <>
-              <Stat n={`${championPct}%`} lab={t('explainWinTitle')} />
-              <Stat n={`${finalPct}%`} lab={t('explainReachFinal')} />
-              <div style={{ color: SECONDARY, fontSize: 11.5, lineHeight: 1.4, marginTop: 6, fontStyle: 'italic' }}>{t('explainKicker')}</div>
-            </>
-          ) : (
-            <div style={{ color: TEXT, fontSize: 12.5, lineHeight: 1.5 }}>
-              {t.rich('explainUnderdogBody', { round: roundLabel, r: (c) => <span style={{ color: GOLD, fontWeight: 800 }}>{c}</span> })}
-            </div>
-          )}
+  const highlight = (
+    <>
+      <div style={{ fontSize: 13, fontWeight: 900, marginBottom: contender ? 9 : 7 }}>{names}</div>
+      {contender ? (
+        <>
+          <Stat n={`${championPct}%`} lab={t('explainWinTitle')} />
+          <Stat n={`${finalPct}%`} lab={t('explainReachFinal')} />
+          <div style={{ color: SECONDARY, fontSize: 11.5, lineHeight: 1.4, marginTop: 6, fontStyle: 'italic' }}>{t('explainKicker')}</div>
+        </>
+      ) : (
+        <div style={{ color: TEXT, fontSize: 12.5, lineHeight: 1.5 }}>
+          {t.rich('explainUnderdogBody', { round: roundLabel, r: (c) => <span style={{ color: GOLD, fontWeight: 800 }}>{c}</span> })}
         </div>
+      )}
+    </>
+  )
 
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
-          <ChunkyPressButton variant="green" filled onClick={onClose} ariaLabel={t('explainClose')}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', padding: '11px 22px', fontSize: 14, fontWeight: 800 }}>{t('explainClose')}</span>
-          </ChunkyPressButton>
-        </div>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <ExplainSheet
+      open={open}
+      onClose={onClose}
+      titleId="projection-explain-title"
+      title={t('explainTitle')}
+      intro={t('explainIntro')}
+      steps={[t('explainStep1'), t('explainStep2')]}
+      highlight={highlight}
+      closeLabel={t('explainClose')}
+    />
   )
 }
 
