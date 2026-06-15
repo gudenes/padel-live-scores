@@ -135,6 +135,38 @@ export interface NotifyEventPayload {
  *   live sends. The stats key is the `dedupeKey` (falling back to a synthetic
  *   `<entityType>:<entityId>:<category>` so `last_*` entries stay meaningful).
  */
+/**
+ * Awaiting variant of notifyEvent — resolves once the notify-event response
+ * arrives (the endpoint commits its user_notifications insert before
+ * responding, so callers can rely on the inbox row existing on resolve, which
+ * the projection-ready-notifier needs for its sequential per-user dedup).
+ * Never throws; returns { ok:false } on env-missing or network error.
+ */
+export async function notifyEventAwait(
+  payload: NotifyEventPayload,
+  deps: NotifyDeps,
+): Promise<{ ok: boolean; status: number }> {
+  const { baseUrl, cronSecret, logger } = deps;
+  if (!baseUrl || !cronSecret) return { ok: false, status: 0 };
+  const url = `${baseUrl.replace(/\/$/, '')}/api/push/notify-event`;
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  try {
+    const res = await fetchImpl(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cronSecret}` },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '<unreadable>');
+      logger.warn({ status: res.status, body: body.slice(0, 300) }, 'notifyEventAwait: non-ok');
+    }
+    return { ok: res.ok, status: res.status };
+  } catch (e) {
+    logger.warn({ err: (e as Error).message }, 'notifyEventAwait: fetch failed');
+    return { ok: false, status: 0 };
+  }
+}
+
 export function notifyEvent(payload: NotifyEventPayload, deps: NotifyDeps): void {
   // Stable identifier for the stats counters' `matchId`-shaped key slot.
   const statsKey =
