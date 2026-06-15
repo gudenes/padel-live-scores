@@ -6,7 +6,7 @@ import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
 import PressButton from '@/components/PressButton'
-import { buildPlayerLookup, buildRoadVM, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildPlayerLookup, buildRoadVM, mergeImagesIntoLookup, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
 import { ProjectionExplainSheet } from './ProjectionExplainSheet'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
@@ -103,6 +103,10 @@ export default function ProjectionTab({
   const seedByPair = useMemo(() => buildSeedMap(matches), [matches])
   const playerIds = useMemo(() => [...new Set(rows.flatMap((r) => r.pair_player_ids))], [rows])
   const images = usePairImages(playerIds)
+  // Fold image-fetched names/countries/avatars into the lookup so the road VM
+  // resolves the selected pair even when `matches` is empty (projection routes
+  // pass matches={[]}) — without this, names fall back to raw player UUIDs.
+  const enrichedLookup = useMemo(() => mergeImagesIntoLookup(lookup, images), [lookup, images])
   const resolvePlayer = useCallback((id: string): ResolvedPlayer => {
     const img = images.get(id)
     const p = lookup.get(id)
@@ -129,7 +133,7 @@ export default function ProjectionTab({
   const voteEnabled = useFeatureFlag(FLAG_KEYS.PROJECTION_VOTE_ENABLED)
   const projVote = useProjectionVote(tournamentId, category, selectedPair)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
-  const vm = useMemo(() => (row ? buildRoadVM(row, lookup, roundSchedule) : null), [row, lookup, roundSchedule])
+  const vm = useMemo(() => (row ? buildRoadVM(row, enrichedLookup, roundSchedule) : null), [row, enrichedLookup, roundSchedule])
 
   if (loading) {
     return <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>…</div>

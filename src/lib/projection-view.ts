@@ -50,6 +50,40 @@ export function buildPlayerLookup(matches: Match[]): Map<string, Player> {
   return map
 }
 
+/** Minimal player identity from `usePairImages` (id-keyed name/country/avatar). */
+export interface PlayerImageLite {
+  name: string | null
+  country: string | null
+  avatarUrl: string | null
+}
+
+/**
+ * Returns a new lookup that fills in any ids missing from the matches-derived
+ * `lookup` with player identity fetched by id (e.g. usePairImages). Matches data
+ * wins where present (it's richer). This lets `buildRoadVM` resolve the selected
+ * pair's names even when no `matches` were supplied (the projection routes pass
+ * `matches={[]}`) — otherwise the selected pair falls back to its raw
+ * `pair_player_ids` (UUIDs) as the displayed names.
+ */
+export function mergeImagesIntoLookup(
+  lookup: Map<string, Player>,
+  images: Map<string, PlayerImageLite>,
+): Map<string, Player> {
+  const merged = new Map(lookup)
+  for (const [id, img] of images) {
+    if (merged.has(id)) continue
+    merged.set(id, {
+      id,
+      external_id: '',
+      name: img.name ?? '',
+      display_name: img.name ?? null,
+      country: img.country ?? null,
+      avatar_url: img.avatarUrl ?? null,
+    })
+  }
+  return merged
+}
+
 export function roundDateFor(
   round: ProjRound,
   schedule: Record<string, string> | null | undefined,

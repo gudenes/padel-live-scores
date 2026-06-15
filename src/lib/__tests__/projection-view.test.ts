@@ -6,6 +6,7 @@ import {
   pickDefaultProjectionPair,
   roundDateFor,
   buildRoadVM,
+  mergeImagesIntoLookup,
   ROUND_LABEL_KEY,
 } from '@/lib/projection-view'
 
@@ -119,5 +120,50 @@ describe('buildRoadVM — status', () => {
     const vm = buildRoadVM(row, new Map(), null)
     expect(vm.status).toBe('eliminated')
     expect(vm.eliminatedRound).toBe('QF')
+  })
+})
+
+describe('mergeImagesIntoLookup', () => {
+  const img = (name: string | null, country: string | null = null, avatarUrl: string | null = null) => ({ name, country, avatarUrl })
+
+  it('synthesizes lookup entries from images for ids missing in the matches lookup', () => {
+    const images = new Map([
+      ['id1', img('Ale Galan', 'ES')],
+      ['id2', img('Fede Chingotto', 'AR')],
+    ])
+    const merged = mergeImagesIntoLookup(new Map<string, Player>(), images)
+    expect(merged.get('id1')).toMatchObject({ id: 'id1', name: 'Ale Galan', country: 'ES' })
+    expect(merged.get('id2')).toMatchObject({ id: 'id2', name: 'Fede Chingotto', country: 'AR' })
+  })
+
+  it('does not overwrite richer matches-derived lookup entries', () => {
+    const lookup = new Map<string, Player>([
+      ['id1', { id: 'id1', external_id: 'e1', name: 'Galan', display_name: 'A. Galán (MD)', country: 'ES', avatar_url: 'real.png' }],
+    ])
+    const images = new Map([['id1', img('Should Not Win', 'FR', 'other.png')]])
+    const merged = mergeImagesIntoLookup(lookup, images)
+    expect(merged.get('id1')).toMatchObject({ display_name: 'A. Galán (MD)', country: 'ES', avatar_url: 'real.png' })
+  })
+})
+
+describe('buildRoadVM with an image-enriched lookup (production UUID-name bug)', () => {
+  const img = (name: string | null, country: string | null = null, avatarUrl: string | null = null) => ({ name, country, avatarUrl })
+
+  it('resolves the selected-pair names from images when the matches lookup is empty (no UUID fallback)', () => {
+    // Repro: with an empty matches lookup, buildRoadVM fell back to
+    // row.pair_player_ids (UUIDs) as the displayed names — the production bug.
+    const row = {
+      tournament_id: 't', category: 'men', pair_key: 'k', pair_player_ids: ['uuid-galan', 'uuid-chingotto'],
+      tournament_level: 'p1', status: 'active', eliminated_round: null,
+      champion_prob: 0.5, finalist_prob: 0.6, semifinal_prob: 0.7, computed_at: 'now', rounds: [],
+    } as unknown as import('@/lib/projection-types').ProjectionRow
+    const images = new Map([
+      ['uuid-galan', img('Ale Galan', 'ES')],
+      ['uuid-chingotto', img('Fede Chingotto', 'AR')],
+    ])
+    const lookup = mergeImagesIntoLookup(new Map<string, Player>(), images)
+    const vm = buildRoadVM(row, lookup, null)
+    expect(vm.players.map((p) => p.name)).toEqual(['Ale Galan', 'Fede Chingotto'])
+    expect(vm.players.map((p) => p.country)).toEqual(['ES', 'AR'])
   })
 })
