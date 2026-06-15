@@ -3,6 +3,8 @@
 -- Server-side SUM+COUNT+ORDER+LIMIT keeps the response well under the 10k
 -- PostgREST cap a full season could otherwise approach.
 
+BEGIN;
+
 CREATE OR REPLACE FUNCTION public.money_leaderboard(
   p_category text,
   p_year     int,
@@ -29,10 +31,13 @@ LANGUAGE sql STABLE AS $$
   FROM public.player_tournament_earnings e
   JOIN public.players p ON p.id = e.player_id
   WHERE e.category = p_category
-    AND date_part('year', e.earned_at) = p_year
+    AND e.earned_at >= make_date(p_year, 1, 1)::timestamptz
+    AND e.earned_at <  make_date(p_year + 1, 1, 1)::timestamptz
   GROUP BY e.player_id, p.name, p.display_name, p.country, p.avatar_url
   ORDER BY total_eur DESC
-  LIMIT p_limit;
+  LIMIT LEAST(p_limit, 1000);
 $$;
 
 GRANT EXECUTE ON FUNCTION public.money_leaderboard(text, int, int) TO anon, authenticated;
+
+COMMIT;
