@@ -328,7 +328,22 @@
     "player": "Giocatore",
     "points": "Punti",
     "men": "Uomini",
-    "women": "Donne"
+    "women": "Donne",
+    "money": "Montepremi",
+    "moneyCaption": "Montepremi stimato",
+    "moneySeason": "stagione {year}",
+    "prizeColumn": "Premio €",
+    "moneyEventsCount": "{count, plural, one {# torneo} other {# tornei}}",
+    "moneyEmpty": "Nessun premio registrato questa stagione",
+    "moneyExplainTitle": "Come viene calcolato il montepremi",
+    "moneyExplainIntro": "Una classifica del montepremi stimato vinto questa stagione — non una classifica ufficiale dei guadagni in carriera.",
+    "moneyExplainStep1Lead": "Quota per giocatore.",
+    "moneyExplainStep1Body": "Il premio è assegnato per coppia: mostriamo la metà di ciascun giocatore, sommata nella stagione.",
+    "moneyExplainStep2Lead": "Solo tornei tracciati, dal 2024.",
+    "moneyExplainStep2Body": "Eventi Premier Padel e FIP Tour con tabella premi nota. Tornei minori e risultati precedenti al 2024 non sono inclusi.",
+    "moneyExplainCalloutLead": "Stimato.",
+    "moneyExplainCalloutBody": "Le cifre usano le tabelle premi pubblicate e possono differire leggermente dai dati ufficiali.",
+    "moneyExplainClose": "Ho capito"
   },
   "feed": {
     "feed": "Notizie",

@@ -328,7 +328,22 @@
     "player": "Joueur",
     "points": "Points",
     "men": "Hommes",
-    "women": "Femmes"
+    "women": "Femmes",
+    "money": "Gains",
+    "moneyCaption": "Gains estimés",
+    "moneySeason": "saison {year}",
+    "prizeColumn": "Prix €",
+    "moneyEventsCount": "{count, plural, one {# tournoi} other {# tournois}}",
+    "moneyEmpty": "Aucun gain enregistré cette saison",
+    "moneyExplainTitle": "Comment les gains sont comptés",
+    "moneyExplainIntro": "Un classement des gains estimés cette saison — pas un classement officiel des gains en carrière.",
+    "moneyExplainStep1Lead": "Part par joueur.",
+    "moneyExplainStep1Body": "Les gains sont attribués par paire — nous affichons la moitié de chaque joueur, cumulée sur la saison.",
+    "moneyExplainStep2Lead": "Tournois suivis uniquement, depuis 2024.",
+    "moneyExplainStep2Body": "Événements Premier Padel et FIP Tour avec une grille de prix connue. Les petits tournois et les résultats avant 2024 ne sont pas inclus.",
+    "moneyExplainCalloutLead": "Estimé.",
+    "moneyExplainCalloutBody": "Les chiffres utilisent les grilles de prix publiées et peuvent différer légèrement des chiffres officiels.",
+    "moneyExplainClose": "Compris"
   },
   "feed": {
     "feed": "Actualités",

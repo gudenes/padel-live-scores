@@ -339,7 +339,22 @@
     "player": "Player",
     "points": "Points",
     "men": "Men",
-    "women": "Women"
+    "women": "Women",
+    "money": "Money",
+    "moneyCaption": "Estimated prize money",
+    "moneySeason": "{year} season",
+    "prizeColumn": "Prize €",
+    "moneyEventsCount": "{count, plural, one {# event} other {# events}}",
+    "moneyEmpty": "No prize money recorded yet this season",
+    "moneyExplainTitle": "How prize money is counted",
+    "moneyExplainIntro": "A leaderboard of estimated prize money won this season — not an official career money list.",
+    "moneyExplainStep1Lead": "Per-player split.",
+    "moneyExplainStep1Body": "Prize money is awarded per pair — we show each player's half, summed across the season.",
+    "moneyExplainStep2Lead": "Tracked events only, from 2024 on.",
+    "moneyExplainStep2Body": "Premier Padel & FIP Tour events with a known prize table. Smaller events and pre-2024 results aren't included.",
+    "moneyExplainCalloutLead": "Estimated.",
+    "moneyExplainCalloutBody": "Figures use published prize tables and may differ slightly from official numbers.",
+    "moneyExplainClose": "Got it"
   },
   "feed": {
     "feed": "Feed",
