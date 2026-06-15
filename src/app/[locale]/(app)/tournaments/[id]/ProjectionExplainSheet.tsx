@@ -5,9 +5,7 @@
 // + numbers. Chrome is the shared ExplainSheet.
 
 import { useTranslations } from 'next-intl'
-import { ExplainSheet, TEXT, SECONDARY, LIME, MONO } from '@/components/ExplainSheet'
-
-const GOLD = '#F5A623'
+import { ExplainSheet, TEXT, SECONDARY, LIME, MONO, GOLD } from '@/components/ExplainSheet'
 
 interface Props {
   open: boolean

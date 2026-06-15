@@ -5,15 +5,13 @@
 // shared ExplainSheet; copy comes from the `rankings` i18n namespace.
 
 import { useTranslations } from 'next-intl'
-import { ExplainSheet } from '@/components/ExplainSheet'
-
-const GOLD = '#F5A623'
+import { ExplainSheet, TEXT, GOLD } from '@/components/ExplainSheet'
 
 export function MoneyExplainSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations('rankings')
 
   const callout = (
-    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: '#EEE4CE' }}>
+    <div style={{ fontSize: 12.5, lineHeight: 1.5, color: TEXT }}>
       <b style={{ color: GOLD }}>{t('moneyExplainCalloutLead')}</b> {t('moneyExplainCalloutBody')}
     </div>
   )
