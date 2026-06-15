@@ -119,7 +119,8 @@ export async function runProjectionReadyNotifier(
   const { data: tRows, error: tErr } = await supabase
     .from('tournaments')
     .select('id, name, level, status')
-    .not('status', 'in', `(${FINISHED.join(',')})`);
+    // keep null-status tournaments (null ≠ finished); exclude only finished/completed.
+    .or(`status.is.null,status.not.in.(${FINISHED.join(',')})`);
   if (tErr) { logger.warn({ err: tErr.message }, '[projection-ready-notifier] tournaments read failed'); return { claimed: 0, pushed: 0 }; }
   const active: ActiveTournament[] = (tRows ?? [])
     .filter((t) => t.name)
@@ -138,6 +139,7 @@ export async function runProjectionReadyNotifier(
       .in('tournament_id', activeIds),
   ]);
   if (pairsRes.error) { logger.warn({ err: pairsRes.error.message }, '[projection-ready-notifier] projections read failed'); return { claimed: 0, pushed: 0 }; }
+  if (claimsRes.error) logger.warn({ err: claimsRes.error.message }, '[projection-ready-notifier] claims read failed — assuming empty, upsert will guard');
   const pairs = (pairsRes.data ?? []) as ProjectionPairRow[];
   const claimed = new Set((claimsRes.data ?? []).map((r) => `${r.tournament_id}:${r.category}`));
 
@@ -145,7 +147,10 @@ export async function runProjectionReadyNotifier(
   if (candidates.length === 0) return { claimed: 0, pushed: 0 };
 
   // Player identity for all pair players across candidates (chunked .in()).
-  const playerIds = [...new Set(pairs.flatMap((p) => p.pair_player_ids))];
+  const candidateIds = new Set(candidates.map((c) => c.tournamentId));
+  const playerIds = [...new Set(
+    pairs.filter((p) => candidateIds.has(p.tournament_id)).flatMap((p) => p.pair_player_ids),
+  )];
   const playersById: Record<string, PlayerLite> = {};
   for (let i = 0; i < playerIds.length; i += 200) {
     const { data: pl } = await supabase.from('players').select('id, name, avatar_url').in('id', playerIds.slice(i, i + 200));
@@ -165,7 +170,8 @@ export async function runProjectionReadyNotifier(
     claimedCount++;
 
     // 4. Fan out — sequential, champion% desc, tournament-scoped dedupe.
-    const tournament = tournamentById.get(cand.tournamentId)!;
+    const tournament = tournamentById.get(cand.tournamentId);
+    if (!tournament) continue;  // impossible (candidate came from active), guarded defensively
     const payloads = buildProjectionPayloads(cand, tournament, pairs, playersById);
     for (const payload of payloads) {
       const res = await notifyEventAwait(payload, notifyDeps);
