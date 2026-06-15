@@ -115,11 +115,22 @@ export async function runProjectionReadyNotifier(
   const { supabase, logger } = deps;
   const notifyDeps: NotifyDeps = deps.notify ?? { baseUrl: undefined, cronSecret: undefined, logger };
 
-  // 1. Active (non-finished) tournaments.
+  // 1. Upcoming / ongoing tournaments only.
+  // `status` is unreliable here — over tournaments can linger as 'pending'
+  // (they never get flipped to finished/completed), so a status-only gate
+  // backfires "predictions ready" for events that ended days ago. Gate on the
+  // calendar window instead: `ends_at >= start-of-today` keeps upcoming +
+  // ongoing (incl. ending-today) and excludes anything already over. The
+  // status filter stays as belt-and-suspenders. Tournaments with a null
+  // `ends_at` are excluded (can't prove they're not over — projection-bearing
+  // events always carry dates).
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const todayStartIso = todayStart.toISOString();
   const { data: tRows, error: tErr } = await supabase
     .from('tournaments')
-    .select('id, name, level, status')
-    // keep null-status tournaments (null ≠ finished); exclude only finished/completed.
+    .select('id, name, level, status, ends_at')
+    .gte('ends_at', todayStartIso)
     .or(`status.is.null,status.not.in.(${FINISHED.join(',')})`);
   if (tErr) { logger.warn({ err: tErr.message }, '[projection-ready-notifier] tournaments read failed'); return { claimed: 0, pushed: 0 }; }
   const active: ActiveTournament[] = (tRows ?? [])
