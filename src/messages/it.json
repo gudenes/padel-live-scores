@@ -1054,6 +1054,10 @@
           "label": "Draw released",
           "sub": "Bracket is published"
         },
+        "projection_ready": {
+          "label": "Pronostici pronti",
+          "sub": "La proiezione del tuo giocatore è disponibile"
+        },
         "player_entered": {
           "label": "Player entered",
           "sub": "Your player signs up for an event"
