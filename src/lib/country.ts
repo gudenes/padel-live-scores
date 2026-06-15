@@ -21,6 +21,18 @@ import COUNTRY_3TO2_JSON from '../../shared/country-codes-3to2.json'
 
 const COUNTRY_3TO2: Record<string, string> = COUNTRY_3TO2_JSON
 
+// Non-standard alpha-2 codes some upstreams emit, remapped to the real
+// ISO 3166-1 alpha-2. The 2-char branch below otherwise trusts any
+// two-letter input verbatim, so a source quirk would land an invalid
+// code in `tournaments.country` / `players.country` — and no flag asset
+// (local PNG or flagcdn) exists for it, so `FlagImage` renders nothing.
+//   - IV: padelapi's code for Côte d'Ivoire (ISO is CI). Caught the
+//     2026 FIP Gold Abidjan event showing no flag.
+// Keep in sync with padelgod/src/lib/country.ts (same const).
+const ALPHA2_ALIASES: Record<string, string> = {
+  IV: 'CI', // Côte d'Ivoire (padelapi non-standard)
+}
+
 /**
  * Normalise an arbitrary country string (alpha-2 or alpha-3, mixed
  * case) to the canonical alpha-2 representation we store in
@@ -36,7 +48,7 @@ export function normalizeCountry(c: string | null | undefined): string | null {
   const trimmed = c.trim()
   if (trimmed.length === 0) return null
   const up = trimmed.toUpperCase()
-  if (up.length === 2) return up
+  if (up.length === 2) return ALPHA2_ALIASES[up] ?? up
   const mapped = COUNTRY_3TO2[up]
   if (mapped) return mapped
   // eslint-disable-next-line no-console
