@@ -13,6 +13,8 @@ import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
 import { formatYearWeek } from '@/lib/iso-year-week'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
+import { fetchMoneyLeaderboard, type RankedMoneyRow } from '@/lib/money-leaderboard'
+import { MoneyExplainSheet } from '@/components/MoneyExplainSheet'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -67,7 +69,7 @@ function countryFlagUrl(code: string | null): string | null {
 }
 
 // ── Types ─────────────────────────────────────────────────────
-type RankType = 'official' | 'race'
+type RankType = 'official' | 'race' | 'money'
 type Gender = 'men' | 'women'
 
 interface Player {
@@ -230,6 +232,67 @@ function PlayerRow({ player, rankType, isPulsing, onClick }: { player: Player; r
   )
 }
 
+function MoneyRow({
+  row, format, t, onClick,
+}: {
+  row: RankedMoneyRow
+  format: ReturnType<typeof useFormatter>
+  t: ReturnType<typeof useTranslations>
+  onClick: () => void
+}) {
+  const isTop3 = row.rank <= 3
+  const flagUrl = countryFlagUrl(row.country)
+  const displayName = row.display_name?.trim() || row.name
+  const initials = displayName.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
+  const [err, setErr] = useState(false)
+  const amount = format.number(row.total_eur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
+
+  return (
+    <div
+      data-player-id={row.player_id}
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px', cursor: 'pointer',
+        background: isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent',
+        borderBottom: `1px solid ${BORDER}`,
+      }}
+    >
+      <div style={{ width: 36, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+        <RankBadge rank={row.rank} />
+      </div>
+
+      {(!row.avatar_url || err) ? (
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: BG_CARD, border: `2px solid ${MEN_BLUE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: MEN_BLUE, flexShrink: 0 }}>{initials}</div>
+      ) : (
+        <img src={row.avatar_url} alt={displayName} onError={() => setErr(true)} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${MEN_BLUE}` }} />
+      )}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</div>
+        <div style={{ fontSize: 12, color: MUTED, marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+          {flagUrl ? (
+            <>
+              <img src={flagUrl} alt={row.country ?? ''} style={{ width: 16, height: 12, objectFit: 'cover' }} />
+              <span>{countryName(row.country)}</span>
+            </>
+          ) : (
+            <span style={{ color: MUTED }}>Unknown</span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>{amount}</div>
+          <div style={{ fontSize: 9, color: MUTED, marginTop: 2, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{t('moneyEventsCount', { count: row.event_count })}</div>
+        </div>
+        <FollowButton type="player" targetId={row.player_id} variant="heart" size={14} style={{ marginLeft: 8 }} />
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────
 
 export default function V3RankingPage() {
@@ -242,14 +305,16 @@ export default function V3RankingPage() {
   const initialGender: Gender =
     searchParams.get('gender') === 'women' ? 'women' : 'men'
   const initialType: RankType =
-    searchParams.get('type') === 'race' ? 'race' : 'official'
+    searchParams.get('type') === 'race' ? 'race'
+    : searchParams.get('type') === 'money' ? 'money'
+    : 'official'
   const highlight = searchParams.get('highlight')
 
   const [rankType, setRankType] = useState<RankType>(initialType)
   const [gender, setGender] = useState<Gender>(initialGender)
 
   // Swipe between Official / Race tabs
-  const RANK_KEYS = useMemo(() => ['official', 'race'] as const, [])
+  const RANK_KEYS = useMemo(() => ['official', 'race', 'money'] as const, [])
   const rankIndex = RANK_KEYS.indexOf(rankType)
   // Memoised so useSwipeTabs returns a stable goTo — without this, the
   // hook's inline onTabChange is a fresh closure on every render,
@@ -261,7 +326,7 @@ export default function V3RankingPage() {
     setVisibleCount(50)
   }, [RANK_KEYS])
   const { goTo: swipeGoTo, handlers: swipeHandlers } = useSwipeTabs({
-    count: 2,
+    count: 3,
     initial: rankIndex,
     onTabChange: handleTabChange,
   })
@@ -281,6 +346,8 @@ export default function V3RankingPage() {
   }, [gender, rankType, router, pathname])
 
   const [players, setPlayers] = useState<Player[]>([])
+  const [moneyRows, setMoneyRows] = useState<RankedMoneyRow[] | null>(null)
+  const [explainOpen, setExplainOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [updatedAt, setUpdatedAt] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
@@ -337,6 +404,20 @@ export default function V3RankingPage() {
   const load = useCallback(async (rt: RankType, g: Gender) => {
     setLoading(true)
     try {
+      if (rt === 'money') {
+        try {
+          const year = new Date().getUTCFullYear()
+          const rows = await fetchMoneyLeaderboard(g, year)
+          setMoneyRows(rows)
+        } catch (e) {
+          console.error('[V3 Ranking] money load error:', e)
+          setMoneyRows([])
+        } finally {
+          setLoading(false)
+        }
+        return
+      }
+
       const rankCol = rt === 'official' ? 'ranking' : 'race_ranking'
 
       let { data, error } = await supabase
@@ -581,6 +662,7 @@ export default function V3RankingPage() {
         tabs={[
           { key: 'official', label: t('official') },
           { key: 'race', label: t('race') },
+          { key: 'money', label: t('money') },
         ]}
         activeKey={rankType}
         onChange={(rt) => {
@@ -603,6 +685,19 @@ export default function V3RankingPage() {
       {/* ── Swipeable content area (Official ↔ Race) ────── */}
       <div {...swipeHandlers}>
 
+      {rankType === 'money' && (
+        <div
+          onClick={() => setExplainOpen(true)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px 7px', cursor: 'pointer' }}
+        >
+          <span style={{ fontSize: 10.5, color: MUTED, letterSpacing: '0.02em' }}>
+            <span style={{ color: '#9AAEC4', fontWeight: 700 }}>{t('moneyCaption')}</span>
+            {' · '}{t('moneySeason', { year: new Date().getUTCFullYear() })}
+          </span>
+          <span aria-hidden style={{ width: 18, height: 18, borderRadius: '50%', border: '1.4px solid #9AAEC4', color: '#9AAEC4', fontSize: 10, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>i</span>
+        </div>
+      )}
+
       {/* ── Column labels ─────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center',
@@ -612,7 +707,7 @@ export default function V3RankingPage() {
         <span style={{ width: 36, textAlign: 'right', fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('rank')}</span>
         <span style={{ width: 40, flexShrink: 0 }} />
         <span style={{ flex: 1, fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('player')}</span>
-        <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('points')}</span>
+        <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{rankType === 'money' ? t('prizeColumn') : t('points')}</span>
       </div>
 
       {/* ── Player list ───────────────────────────────────── */}
@@ -628,6 +723,28 @@ export default function V3RankingPage() {
           <div style={{ color: MUTED, fontSize: 13, fontWeight: 600 }}>{t('loadingRankings')}</div>
           <style dangerouslySetInnerHTML={{ __html: `@keyframes v3-rank-spin { to { transform: rotate(360deg); } }` }} />
         </div>
+      ) : rankType === 'money' ? (
+        (moneyRows && moneyRows.length > 0) ? (
+          <>
+            {moneyRows.slice(0, visibleCount).map(row => (
+              <MoneyRow key={row.player_id} row={row} format={format} t={t} onClick={() => router.push(`/player/${row.player_id}`)} />
+            ))}
+            {visibleCount < moneyRows.length && (
+              <div style={{ padding: '20px 16px', textAlign: 'center' }}>
+                <button
+                  onClick={() => setVisibleCount(v => v + 50)}
+                  style={{ background: GREEN_DIM, border: `1px solid rgba(126,211,33,0.25)`, clipPath: CHUNKY.button, padding: '11px 28px', color: GREEN, fontWeight: 800, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.04em', textTransform: 'uppercase' }}
+                >
+                  Load more
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: MUTED, fontSize: 13, fontWeight: 600 }}>
+            {t('moneyEmpty')}
+          </div>
+        )
       ) : filtered.length === 0 ? (
         <div style={{ padding: '80px 20px', textAlign: 'center' }}>
           <div style={{
@@ -683,6 +800,8 @@ export default function V3RankingPage() {
         </>
       )}
       </div>{/* end swipeable content area */}
+
+      <MoneyExplainSheet open={explainOpen} onClose={() => setExplainOpen(false)} />
     </div>
   )
 }
