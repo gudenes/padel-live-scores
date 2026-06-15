@@ -13,12 +13,10 @@ export interface SlugRow {
 }
 
 export interface SlugIndex {
-  /** canonical slug -> pair_key */
+  /** canonical slug AND reversed-order slug -> pair_key */
   slugToPairKey: Map<string, string>
   /** pair_key -> canonical slug */
   pairKeyToSlug: Map<string, string>
-  /** sorted-surname-set key -> pair_key (for order-insensitive fallback) */
-  surnameSetToPairKey: Map<string, string>
 }
 
 /** Lowercase, strip diacritics, keep [a-z0-9], collapse to single dashes. */
@@ -46,25 +44,32 @@ export function pairSlugFromNames(players: SlugPlayer[]): string {
     .join('-')
 }
 
-/** Sorted set of surnames, used as an order-insensitive fallback key. */
-function surnameSetKey(players: SlugPlayer[]): string {
-  return players.map((p) => surnameOf(p.name)).sort().join('|')
-}
-
 export function buildSlugIndex(rows: SlugRow[], nameById: Map<string, string>): SlugIndex {
   const slugToPairKey = new Map<string, string>()
   const pairKeyToSlug = new Map<string, string>()
-  const surnameSetToPairKey = new Map<string, string>()
 
   for (const row of rows) {
     const players: SlugPlayer[] = row.pair_player_ids.map((id) => ({ id, name: nameById.get(id) ?? id }))
-    const slug = pairSlugFromNames(players)
-    slugToPairKey.set(slug, row.pair_key)
-    pairKeyToSlug.set(row.pair_key, slug)
-    surnameSetToPairKey.set(surnameSetKey(players), row.pair_key)
+
+    // Canonical slug: id-sorted order (same as pairSlugFromNames).
+    const canonical = pairSlugFromNames(players)
+    slugToPairKey.set(canonical, row.pair_key)
+    pairKeyToSlug.set(row.pair_key, canonical)
+
+    // Reversed-order slug: the only other surname ordering for a 2-player pair.
+    // Store it so resolvePairSlug can resolve it by direct lookup without splitting.
+    // Note: if two distinct pairs happen to share the same two normalized surnames
+    // (improbable in this domain), the later row overwrites the earlier — acceptable.
+    const surnames = [...players]
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((p) => surnameOf(p.name))
+    const reversed = [...surnames].reverse().join('-')
+    if (reversed !== canonical) {
+      slugToPairKey.set(reversed, row.pair_key)
+    }
   }
 
-  return { slugToPairKey, pairKeyToSlug, surnameSetToPairKey }
+  return { slugToPairKey, pairKeyToSlug }
 }
 
 export interface ResolvedSlug {
@@ -76,19 +81,16 @@ export interface ResolvedSlug {
 
 /**
  * Resolve a requested slug to a pair.
- *  1. Exact canonical match -> no redirect.
- *  2. Order-insensitive surname-set match -> redirect to canonical.
+ *  1. Canonical slug match -> no redirect.
+ *  2. Reversed-order slug match -> redirect to canonical.
  *  3. Otherwise null (caller -> notFound()).
+ *
+ * Both permutations are pre-stored at build time, so no splitting is needed.
+ * This correctly handles compound surnames that contain hyphens (e.g. "Garrido-Lopez").
  */
 export function resolvePairSlug(index: SlugIndex, requestedSlug: string): ResolvedSlug | null {
-  const exact = index.slugToPairKey.get(requestedSlug)
-  if (exact) {
-    return { pairKey: exact, canonicalSlug: requestedSlug, redirect: false }
-  }
-  const setKey = requestedSlug.split('-').sort().join('|')
-  const bySet = index.surnameSetToPairKey.get(setKey)
-  if (bySet) {
-    return { pairKey: bySet, canonicalSlug: index.pairKeyToSlug.get(bySet)!, redirect: true }
-  }
-  return null
+  const pairKey = index.slugToPairKey.get(requestedSlug)
+  if (!pairKey) return null
+  const canonicalSlug = index.pairKeyToSlug.get(pairKey)!
+  return { pairKey, canonicalSlug, redirect: canonicalSlug !== requestedSlug }
 }

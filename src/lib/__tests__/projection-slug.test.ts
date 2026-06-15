@@ -56,3 +56,34 @@ describe('buildSlugIndex + resolvePairSlug', () => {
     expect(resolvePairSlug(idx, 'nobody-here')).toBeNull()
   })
 })
+
+describe('compound surname with internal hyphen', () => {
+  // Player 'a' has id 'a', player 'b' has id 'b'.
+  // id-sorted order: 'a' first → canonical slug is "garrido-lopez-tapia"
+  // (the compound surname "Garrido-Lopez" normalizes to "garrido-lopez")
+  const rows = [{ pair_key: 'k3', pair_player_ids: ['a', 'b'] }]
+  const nameById = new Map([
+    ['a', 'Maria Garrido-Lopez'],
+    ['b', 'Agustin Tapia'],
+  ])
+
+  it('resolves the canonical slug (compound surname first) with no redirect', () => {
+    const idx = buildSlugIndex(rows, nameById)
+    // canonical: id 'a' < 'b', so garrido-lopez comes first
+    expect(resolvePairSlug(idx, 'garrido-lopez-tapia')).toEqual({
+      pairKey: 'k3',
+      canonicalSlug: 'garrido-lopez-tapia',
+      redirect: false,
+    })
+  })
+
+  it('resolves the reversed-order slug to same pairKey with redirect', () => {
+    const idx = buildSlugIndex(rows, nameById)
+    // reversed: tapia first, then garrido-lopez
+    expect(resolvePairSlug(idx, 'tapia-garrido-lopez')).toEqual({
+      pairKey: 'k3',
+      canonicalSlug: 'garrido-lopez-tapia',
+      redirect: true,
+    })
+  })
+})
