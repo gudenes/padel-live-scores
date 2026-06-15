@@ -223,6 +223,8 @@ const EnvSchema = z.object({
   ENABLE_EVENT_NOTIFICATIONS: boolEnv(false),
   // tournament_starting notifier (premium notifications Plan 2A) — default off.
   ENABLE_TOURNAMENT_START_NOTIFIER: boolEnv(false),
+  // projection_ready notifier (premium notifications Plan 2C) — default off.
+  ENABLE_PROJECTION_READY_NOTIFIER: boolEnv(false),
   // Web push notification hook — set to the padelnachos.com origin to fire
   // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
   // Both vars optional: if either is unset, notify is skipped silently (so

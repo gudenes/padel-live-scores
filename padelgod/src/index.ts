@@ -179,6 +179,7 @@ async function main() {
       enablePredictionScorer: env.ENABLE_PREDICTION_SCORER,
       enableLiveOddsUpdater: env.ENABLE_LIVE_ODDS_UPDATER,
       enableTournamentStartNotifier: env.ENABLE_TOURNAMENT_START_NOTIFIER,
+      enableProjectionReadyNotifier: env.ENABLE_PROJECTION_READY_NOTIFIER,
     });
     // Build the notify config for live-poller-manager. Both env vars must be
     // present — otherwise we pass `undefined` and the hook inside

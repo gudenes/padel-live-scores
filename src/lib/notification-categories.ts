@@ -37,6 +37,7 @@ export type NotificationCategory =
   | 'ranking_threshold'
   | 'projection_outperform'
   | 'player_path'
+  | 'projection_ready'
   | 'prematch_prediction'
   | 'daily_oop'
   | 'tournament_wrapup'
@@ -79,6 +80,7 @@ export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
   player_entered:       { defaults: { push: true }, tier: 'free', group: 'tournaments',  comingSoon: true },
   player_path:          { defaults: { push: true }, tier: 'pro',  group: 'tournaments',  comingSoon: true },
   // ── Predictions & digests ──
+  projection_ready:     { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: false },
   prematch_prediction:  { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
   daily_oop:            { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
   weekly_digest:        { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: true },

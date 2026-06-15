@@ -1,7 +1,7 @@
 // src/lib/__tests__/notification-catalog.test.ts
 import { describe, it, expect } from 'vitest'
 import { deriveCategoryStatus, buildCatalog, CATEGORY_RULES, type SendAgg } from '@/lib/notification-catalog'
-import { KNOWN_CATEGORIES } from '@/lib/notification-categories'
+import { KNOWN_CATEGORIES, CATEGORY_META } from '@/lib/notification-categories'
 
 const NOW = Date.parse('2026-06-09T12:00:00Z')
 const recent = '2026-06-08T12:00:00Z'   // 1 day ago
@@ -52,5 +52,23 @@ describe('CATEGORY_RULES', () => {
     const row = rows.find(r => r.key === 'tournament_starting')!
     expect(row.description).toBe(CATEGORY_RULES.tournament_starting.rule)
     expect(row.sample).toEqual({ title: CATEGORY_RULES.tournament_starting.sampleTitle, body: CATEGORY_RULES.tournament_starting.sampleBody })
+  })
+})
+
+describe('projection_ready category', () => {
+  it('is a free predictions category with a sender shipped', () => {
+    expect(CATEGORY_META.projection_ready).toMatchObject({
+      tier: 'free', group: 'predictions', comingSoon: false,
+    })
+  })
+
+  it('appears in the built catalog with a rule + sample', () => {
+    const rows = buildCatalog([], NOW)
+    const row = rows.find((r) => r.key === 'projection_ready')
+    expect(row).toBeTruthy()
+    expect(row!.tier).toBe('free')
+    expect(row!.group).toBe('predictions')
+    expect(row!.description.length).toBeGreaterThan(0)
+    expect(row!.sample.title).toContain('Predictions for')
   })
 })
