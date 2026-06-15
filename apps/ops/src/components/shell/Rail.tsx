@@ -1,7 +1,7 @@
 'use client'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../IconSprite'
 
 type SubItem = { href: string; label: string }
@@ -59,8 +59,39 @@ const GROUPS: Group[] = [
 
 export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname()
-  const [closed, setClosed] = useState<Set<string>>(new Set(['System']))
-  const toggleGroup = (g: string) => setClosed(s => { const n = new Set(s); n.has(g) ? n.delete(g) : n.add(g); return n })
+
+  // Hover-accordion: at most ONE labeled section is open at a time.
+  // Open precedence: section under the cursor → section click-pinned open →
+  // section that owns the active route (so on load you land on your context).
+  const activeGroup = GROUPS.find(
+    g => g.label && g.items.some(it => pathname === it.href || pathname.startsWith(it.href + '/')),
+  )?.label ?? null
+  const [hovered, setHovered] = useState<string | null>(null)
+  const [pinned, setPinned] = useState<string | null>(null)
+  const expanded = hovered ?? pinned ?? activeGroup
+
+  // Hover intent: a small open delay so a quick cursor sweep down the rail
+  // doesn't cascade every section open; a short close delay bridges the gap
+  // between a header and its items / the next section.
+  const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const clearTimers = () => {
+    if (openTimer.current) { clearTimeout(openTimer.current); openTimer.current = null }
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null }
+  }
+  const onEnter = (label: string) => {
+    if (collapsed) return
+    clearTimers()
+    openTimer.current = setTimeout(() => setHovered(label), 70)
+  }
+  const onLeave = () => {
+    if (collapsed) return
+    clearTimers()
+    closeTimer.current = setTimeout(() => setHovered(null), 140)
+  }
+  // Click a header to pin it open (touch devices have no hover).
+  const togglePin = (label: string) => { setPinned(p => (p === label ? null : label)); setHovered(null) }
+  useEffect(() => () => clearTimers(), [])
 
   // Live nudge: count of pending player suggestions, polled lightly so the
   // badge reflects new submissions and clears as the operator resolves them.
@@ -83,10 +114,17 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
         <button className="collapse" onClick={onToggle} aria-label="Collapse sidebar"><Icon id="chev" /></button>
       </div>
       <div className="railscroll">
-        {GROUPS.map((g, gi) => (
-          <div key={gi} className={`navgroup ${g.label && closed.has(g.label) ? 'closed' : ''}`}>
+        {GROUPS.map((g, gi) => {
+          const open = !g.label || g.label === expanded
+          return (
+          <div
+            key={gi}
+            className={`navgroup ${g.label && !open ? 'closed' : ''} ${g.label && pinned === g.label ? 'pinned' : ''}`}
+            onMouseEnter={g.label ? () => onEnter(g.label!) : undefined}
+            onMouseLeave={g.label ? onLeave : undefined}
+          >
             {g.label && (
-              <div className="gl" onClick={() => !collapsed && toggleGroup(g.label!)}>
+              <div className="gl" onClick={() => !collapsed && togglePin(g.label!)}>
                 <span className="glabel">{g.label}</span>
                 <span className="gcount">{g.items.length}</span>
                 <span className="chev">▾</span>
@@ -129,7 +167,8 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
               })}
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
       <div className="railfoot" id="railFoot">
         <span className="sdot" />
