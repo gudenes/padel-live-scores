@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
@@ -86,6 +86,7 @@ export default function ProjectionTab({
   category,
   roundSchedule,
   initialPairKey,
+  onPairChange,
 }: {
   tournamentId: string
   matches: Match[]
@@ -93,6 +94,7 @@ export default function ProjectionTab({
   tournamentLevel: string | null
   roundSchedule: Record<string, string> | null
   initialPairKey?: string | null
+  onPairChange?: (pairKey: string | null) => void
 }) {
   const t = useTranslations('projectionTab')
   const format = useFormatter()
@@ -114,6 +116,11 @@ export default function ProjectionTab({
 
   const [view, setView] = useState<'list' | 'road'>(initialPairKey ? 'road' : 'list')
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
+  // Notify the route wrapper so it can keep the URL in sync with the
+  // visible pair (enables shareable /projection/<slug> links).
+  useEffect(() => {
+    onPairChange?.(selectedPair)
+  }, [selectedPair, onPairChange])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
   const [history, setHistory] = useState<string[]>([])  // drilled-through pairs (for ‹ Back)
