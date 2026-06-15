@@ -1,7 +1,12 @@
+'use client'
 // src/components/tournament/TournamentProjectionHeader.tsx
-// Server-rendered header for the projection routes. Deliberately simpler
-// than the main page's collapsing hero (no scroll-collapse). M/W are
-// <Link>s so both genders are crawlable and switching is a normal navigation.
+// Header for the projection routes. Deliberately simpler than the main page's
+// collapsing hero (no scroll-collapse). Marked 'use client' because it renders
+// FlagImage, which attaches an onError handler to its <img> (an interactive
+// prop that can't render inside a Server Component). It still SSRs to HTML on
+// first paint, so the <h1>, cover image, and M/W <Link>s stay crawlable.
+// The SEO-critical projection content lives in the separate server-rendered
+// ProjectionSeoBlock, which is unaffected.
 
 import { Link } from '@/i18n/navigation'
 import Image from 'next/image'
