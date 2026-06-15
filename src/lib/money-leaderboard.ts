@@ -11,15 +11,15 @@ export interface MoneyLeaderboardRpcRow {
   event_count: number
 }
 
-/** RPC row plus its computed dense rank for display. */
+/** RPC row plus its computed competition rank for display. */
 export interface RankedMoneyRow extends MoneyLeaderboardRpcRow {
   rank: number
 }
 
 /**
- * Assign dense ranks over rows already sorted by total_eur DESC (the RPC's
- * ORDER BY). Equal totals share a rank; the next distinct total takes the
- * position rank (1,1,3) — mirroring the official-tab RankBadge ties.
+ * Assign competition ranks over rows already sorted by total_eur DESC (the RPC's
+ * ORDER BY). Equal totals share a competition rank (ties share a rank; the next distinct value skips — 1,1,3) —
+ * mirroring the official-tab RankBadge ties.
  */
 export function toRankedMoneyRows(rows: MoneyLeaderboardRpcRow[]): RankedMoneyRow[] {
   let lastTotal: number | null = null

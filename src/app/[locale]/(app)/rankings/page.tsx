@@ -653,7 +653,7 @@ export default function V3RankingPage() {
             })}
           </div>
 
-          {formattedDate && (
+          {formattedDate && rankType !== 'money' && (
             <span style={{ fontSize: 10, color: MUTED, fontWeight: 500 }}>
               {formattedDate}
             </span>

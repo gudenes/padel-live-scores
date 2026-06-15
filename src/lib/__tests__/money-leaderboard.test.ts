@@ -12,7 +12,7 @@ describe('toRankedMoneyRows', () => {
     expect(out.map(r => r.rank)).toEqual([1, 2, 3])
   })
 
-  it('gives equal totals the same (dense) rank, and the next distinct total skips', () => {
+  it('gives equal totals the same (competition) rank, and the next distinct total skips', () => {
     const out = toRankedMoneyRows([row('a', 500), row('b', 500), row('c', 300)])
     expect(out.map(r => r.rank)).toEqual([1, 1, 3])
   })
