@@ -267,17 +267,17 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   useEffect(() => {
     setTabsMounted(true)
     const seen = (() => { try { return localStorage.getItem('projection_tab_seen') === '1' } catch { return false } })()
-    // Landing directly on the Projection tab (deep link) also counts as seen.
-    if (seen || pageTab === 'projection') markProjectionSeen()
+    if (seen) markProjectionSeen()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Legacy ?tab=projection deep links → the dedicated projection route.
   useEffect(() => {
     if (paramTab !== 'projection') return
+    markProjectionSeen()
     const cat = searchParams.get('category') === 'women' ? 'women' : 'men'
     router.replace(`/tournaments/${tournamentId}/projection?category=${cat}`)
-  }, [paramTab, searchParams, router, tournamentId])
+  }, [paramTab, searchParams, router, tournamentId, markProjectionSeen])
 
   const stageStripRef = useRef<HTMLDivElement>(null)
 
