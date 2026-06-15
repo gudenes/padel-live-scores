@@ -75,13 +75,13 @@ Per run:
 ### 4. Slug helper mirror
 Mirror the pure `pairSlugFromNames` (+ its `normalizeToken`/`surnameOf` internals) into `padelgod/src/lib/projection-slug.ts`, kept byte-compatible with `src/lib/projection-slug.ts` (same convention as `db-paginate.ts` / `avatar-rehost.ts`). A unit test asserts parity on a shared fixture so the worker's URLs always match the Next route's canonical slugs (otherwise a deep link could 404 or 308).
 
-### 5. Copy (i18n × 5 locales)
-Under a `notifications.projectionReady` namespace (mirroring existing notification copy):
-- `title`: "Predictions for {tournament} are ready" / ES "Las predicciones de {tournament} ya están" / etc.
-- `body`: "See {pair}'s road to the title →" / ES "Mira el camino al título de {pair} →" / etc.
-- Settings label + description for the `projection_ready` row.
+### 5. Copy — two distinct surfaces
 
-The worker is server-side (no `next-intl` request context), so copy is built from a small per-locale string map shipped with the worker (or the notify-event endpoint localizes from `metadata` + recipient locale). **Decision:** the **worker** sends a single default-locale (English) title/body and the endpoint keeps copy as-is — consistent with how the existing senders pass literal `title`/`body`. Per-recipient localization of push copy is **out of scope** (the current `/api/push/notify` + `notify-event` senders all pass a single pre-built string); matching that precedent avoids scope creep. *(If per-locale push copy is wanted later, it's a cross-cutting change to all senders, tracked separately.)*
+**(a) User-app settings toggle (i18n × 5 locales) — `padelnachos.com/profile/settings/notifications`.**
+The settings page is data-driven: it groups `CATEGORY_META` and renders each row from `notifications.settings.category.<key>` (label + description). Add `notifications.settings.category.projection_ready` (label + description) to all 5 `src/messages/*.json`, e.g. EN label "Predictions ready", description "When a player you follow has their tournament's road-to-trophy projections computed." Adding the category to `CATEGORY_META` (group `predictions`, `comingSoon:false`) makes the toggle render under **Predictions & digests** with this copy — users opt in/out there.
+
+**(b) The push/inbox copy itself (English constants, NOT i18n).**
+The worker is server-side (no `next-intl` request context). **Decision:** it sends a single English `title`/`body` string — consistent with every existing sender (`/api/push/notify` + the merged premium senders all pass one pre-built string). `title`: "Predictions for {tournament} are ready"; `body`: "See {pair}'s road to the title →". Per-recipient localization of push copy is **out of scope** — it would be a cross-cutting change to all senders, tracked separately. The in-app inbox row stores and displays exactly this title/body/url/icon.
 
 ### 6. Admin — ops Notifications Console (`/system/notifications`)
 The console is **data-driven**, so the new category surfaces with minimal work:
