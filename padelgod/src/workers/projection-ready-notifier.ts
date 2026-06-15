@@ -2,10 +2,19 @@ import { pairSlugFromNames } from '../lib/projection-slug.js';
 import type { NotifyEventPayload } from '../lib/notify.js';
 
 const ICON_BASE = 'https://padelnachos.com';
-// Mirror of the Next app's premier-tier set (notification-icon fallback only).
-const PREMIER_LEVELS = new Set(['major', 'p1', 'p2', 'finals', 'premier_mens', 'premier_womens', 'fip_platinum']);
+// Mirror of the app's isPremierTier (src/lib/tournament-tier.ts) — circuit-icon fallback only.
+function isPremierTier(level: string | null | undefined): boolean {
+  if (!level) return false;
+  const n = level.toLowerCase();
+  return (
+    n.startsWith('p1') ||
+    n.startsWith('p2') ||
+    n.startsWith('major') ||
+    n.startsWith('premier')
+  );
+}
 function circuitIcon(level: string | null): string {
-  return PREMIER_LEVELS.has((level ?? '').toLowerCase())
+  return isPremierTier(level)
     ? `${ICON_BASE}/branding/premier-padel-star.png`
     : `${ICON_BASE}/branding/fip-tour-icon.png`;
 }
@@ -56,6 +65,7 @@ export function buildProjectionPayloads(
 ): NotifyEventPayload[] {
   const pairs = allPairs
     .filter((p) => p.tournament_id === candidate.tournamentId && p.category === candidate.category)
+    // stable sort (Node ≥12) → equal-prob pairs keep input order; firing order drives the per-user "top pair" dedup.
     .sort((a, b) => b.champion_prob - a.champion_prob);
 
   const dedupeKey = `projection_ready:tournament:${candidate.tournamentId}`;
@@ -63,7 +73,9 @@ export function buildProjectionPayloads(
   const out: NotifyEventPayload[] = [];
 
   for (const pair of pairs) {
-    const slugPlayers = pair.pair_player_ids.map((id) => ({ id, name: playersById[id]?.name ?? id }));
+    const lookups = pair.pair_player_ids.map((id) => playersById[id]);
+    if (lookups.some((p) => !p?.name)) continue;  // skip pairs we can't name (orphan/data gap)
+    const slugPlayers = pair.pair_player_ids.map((id) => ({ id, name: playersById[id]!.name }));
     const slug = pairSlugFromNames(slugPlayers);
     const label = slugPlayers.map((p) => surname(p.name)).join(' / ');
     const body = `See ${label}'s road to the title →`;

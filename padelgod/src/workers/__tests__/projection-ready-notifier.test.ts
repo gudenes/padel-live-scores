@@ -62,4 +62,46 @@ describe('buildProjectionPayloads', () => {
     expect(chingotto.icon).toBe('https://padelnachos.com/branding/premier-padel-star.png');
     expect(chingotto.url).toBe('/tournaments/T1/projection/chingotto-galan');
   });
+
+  it('circuitIcon uses prefix matching: p1/p2/major/premier → premier star; fip_bronze → fip icon; fip_platinum → fip icon', () => {
+    // p1 prefix → Premier (existing behaviour still holds)
+    const t_p1: ActiveTournament = { id: 'X', name: 'Test P1', level: 'p1' };
+    const pairP1: ProjectionPairRow[] = [
+      { tournament_id: 'X', category: 'men', pair_key: 'a::b', pair_player_ids: ['idG', 'idC'], champion_prob: 0.5 },
+    ];
+    const outP1 = buildProjectionPayloads({ tournamentId: 'X', category: 'men' }, t_p1, pairP1, players);
+    expect(outP1.find((p) => p.entityId === 'idC')!.icon).toBe('https://padelnachos.com/branding/premier-padel-star.png');
+
+    // fip_bronze → FIP icon (prefix match excludes it from premier)
+    const t_bronze: ActiveTournament = { id: 'X', name: 'Test Bronze', level: 'fip_bronze' };
+    const pairBronze: ProjectionPairRow[] = [
+      { tournament_id: 'X', category: 'men', pair_key: 'a::b', pair_player_ids: ['idG', 'idC'], champion_prob: 0.5 },
+    ];
+    const outBronze = buildProjectionPayloads({ tournamentId: 'X', category: 'men' }, t_bronze, pairBronze, players);
+    expect(outBronze.find((p) => p.entityId === 'idC')!.icon).toBe('https://padelnachos.com/branding/fip-tour-icon.png');
+
+    // fip_platinum — NOT Premier circuit (prefix doesn't match p1/p2/major/premier)
+    const t_platinum: ActiveTournament = { id: 'X', name: 'Test Platinum', level: 'fip_platinum' };
+    const pairPlatinum: ProjectionPairRow[] = [
+      { tournament_id: 'X', category: 'men', pair_key: 'a::b', pair_player_ids: ['idG', 'idC'], champion_prob: 0.5 },
+    ];
+    const outPlatinum = buildProjectionPayloads({ tournamentId: 'X', category: 'men' }, t_platinum, pairPlatinum, players);
+    expect(outPlatinum.find((p) => p.entityId === 'idC')!.icon).toBe('https://padelnachos.com/branding/fip-tour-icon.png');
+  });
+
+  it('skips pairs where any player is missing from playersById, but still emits complete pairs', () => {
+    const pairsWithGap: ProjectionPairRow[] = [
+      // complete pair — both players known
+      { tournament_id: 'T1', category: 'men', pair_key: 'galan::chingotto', pair_player_ids: ['idG', 'idC'], champion_prob: 0.30 },
+      // broken pair — 'idUnknown' not in playersById
+      { tournament_id: 'T1', category: 'men', pair_key: 'coello::unknown', pair_player_ids: ['idCo', 'idUnknown'], champion_prob: 0.55 },
+    ];
+    const out = buildProjectionPayloads({ tournamentId: 'T1', category: 'men' }, tournament, pairsWithGap, players);
+    // Only the complete pair should emit payloads (2 players × 1 pair = 2 payloads)
+    expect(out.length).toBe(2);
+    expect(out.map((p) => p.entityId).sort()).toEqual(['idC', 'idG']);
+    // The broken pair (idCo, idUnknown) must not appear at all
+    expect(out.some((p) => p.entityId === 'idUnknown')).toBe(false);
+    expect(out.some((p) => p.entityId === 'idCo')).toBe(false);
+  });
 });
