@@ -15,6 +15,7 @@ import { formatYearWeek } from '@/lib/iso-year-week'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { fetchMoneyLeaderboard, type RankedMoneyRow } from '@/lib/money-leaderboard'
 import { MoneyExplainSheet } from '@/components/MoneyExplainSheet'
+import { SECONDARY } from '@/components/ExplainSheet'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -233,9 +234,10 @@ function PlayerRow({ player, rankType, isPulsing, onClick }: { player: Player; r
 }
 
 function MoneyRow({
-  row, format, t, onClick,
+  row, gender, format, t, onClick,
 }: {
   row: RankedMoneyRow
+  gender: 'men' | 'women'
   format: ReturnType<typeof useFormatter>
   t: ReturnType<typeof useTranslations>
   onClick: () => void
@@ -245,6 +247,7 @@ function MoneyRow({
   const displayName = row.display_name?.trim() || row.name
   const initials = displayName.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase()
   const [err, setErr] = useState(false)
+  const accent = gender === 'women' ? WOMEN_PURPLE : MEN_BLUE
   const amount = format.number(row.total_eur, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
 
   return (
@@ -263,9 +266,9 @@ function MoneyRow({
       </div>
 
       {(!row.avatar_url || err) ? (
-        <div style={{ width: 40, height: 40, borderRadius: '50%', background: BG_CARD, border: `2px solid ${MEN_BLUE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: MEN_BLUE, flexShrink: 0 }}>{initials}</div>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', background: BG_CARD, border: `2px solid ${accent}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: accent, flexShrink: 0 }}>{initials}</div>
       ) : (
-        <img src={row.avatar_url} alt={displayName} onError={() => setErr(true)} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${MEN_BLUE}` }} />
+        <img src={row.avatar_url} alt={displayName} onError={() => setErr(true)} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: `2px solid ${accent}` }} />
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -324,6 +327,7 @@ export default function V3RankingPage() {
   const handleTabChange = useCallback((idx: number) => {
     setRankType(RANK_KEYS[idx])
     setVisibleCount(50)
+    setMoneyRows(null)
   }, [RANK_KEYS])
   const { goTo: swipeGoTo, handlers: swipeHandlers } = useSwipeTabs({
     count: 3,
@@ -631,7 +635,7 @@ export default function V3RankingPage() {
               return (
                 <button
                   key={g}
-                  onClick={() => { setGender(g); setQuery(''); setVisibleCount(50) }}
+                  onClick={() => { setGender(g); setQuery(''); setVisibleCount(50); setMoneyRows(null) }}
                   style={{
                     padding: '6px 18px',
                     border: 'none', cursor: 'pointer',
@@ -669,6 +673,7 @@ export default function V3RankingPage() {
           setRankType(rt)
           setQuery('')
           setVisibleCount(50)
+          setMoneyRows(null)
           swipeGoTo(RANK_KEYS.indexOf(rt))
         }}
         containerStyle={{
@@ -686,16 +691,18 @@ export default function V3RankingPage() {
       <div {...swipeHandlers}>
 
       {rankType === 'money' && (
-        <div
+        <button
+          type="button"
           onClick={() => setExplainOpen(true)}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px 7px', cursor: 'pointer' }}
+          aria-label={t('moneyExplainTitle')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px 7px', cursor: 'pointer', background: 'none', border: 'none', fontFamily: 'inherit', textAlign: 'left' }}
         >
           <span style={{ fontSize: 10.5, color: MUTED, letterSpacing: '0.02em' }}>
-            <span style={{ color: '#9AAEC4', fontWeight: 700 }}>{t('moneyCaption')}</span>
+            <span style={{ color: SECONDARY, fontWeight: 700 }}>{t('moneyCaption')}</span>
             {' · '}{t('moneySeason', { year: new Date().getUTCFullYear() })}
           </span>
-          <span aria-hidden style={{ width: 18, height: 18, borderRadius: '50%', border: '1.4px solid #9AAEC4', color: '#9AAEC4', fontSize: 10, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>i</span>
-        </div>
+          <span aria-hidden style={{ width: 18, height: 18, borderRadius: '50%', border: `1.4px solid ${SECONDARY}`, color: SECONDARY, fontSize: 10, fontWeight: 800, fontStyle: 'italic', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>i</span>
+        </button>
       )}
 
       {/* ── Column labels ─────────────────────────────────── */}
@@ -727,7 +734,7 @@ export default function V3RankingPage() {
         (moneyRows && moneyRows.length > 0) ? (
           <>
             {moneyRows.slice(0, visibleCount).map(row => (
-              <MoneyRow key={row.player_id} row={row} format={format} t={t} onClick={() => router.push(`/player/${row.player_id}`)} />
+              <MoneyRow key={row.player_id} row={row} gender={gender} format={format} t={t} onClick={() => router.push(`/player/${row.player_id}`)} />
             ))}
             {visibleCount < moneyRows.length && (
               <div style={{ padding: '20px 16px', textAlign: 'center' }}>
