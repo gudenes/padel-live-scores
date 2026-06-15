@@ -1,5 +1,7 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Logger } from 'pino';
 import { pairSlugFromNames } from '../lib/projection-slug.js';
-import type { NotifyEventPayload } from '../lib/notify.js';
+import { notifyEventAwait, type NotifyDeps, type NotifyEventPayload } from '../lib/notify.js';
 
 const ICON_BASE = 'https://padelnachos.com';
 // Mirror of the app's isPremierTier (src/lib/tournament-tier.ts) — circuit-icon fallback only.
@@ -96,4 +98,80 @@ export function buildProjectionPayloads(
     }
   }
   return out;
+}
+
+export interface ProjectionReadyNotifierDeps {
+  supabase: SupabaseClient;
+  logger: Logger;
+  notify?: NotifyDeps;
+}
+export interface ProjectionReadyNotifierResult { claimed: number; pushed: number }
+
+const FINISHED = ['finished', 'completed'];
+
+export async function runProjectionReadyNotifier(
+  deps: ProjectionReadyNotifierDeps,
+): Promise<ProjectionReadyNotifierResult> {
+  const { supabase, logger } = deps;
+  const notifyDeps: NotifyDeps = deps.notify ?? { baseUrl: undefined, cronSecret: undefined, logger };
+
+  // 1. Active (non-finished) tournaments.
+  const { data: tRows, error: tErr } = await supabase
+    .from('tournaments')
+    .select('id, name, level, status')
+    .not('status', 'in', `(${FINISHED.join(',')})`);
+  if (tErr) { logger.warn({ err: tErr.message }, '[projection-ready-notifier] tournaments read failed'); return { claimed: 0, pushed: 0 }; }
+  const active: ActiveTournament[] = (tRows ?? [])
+    .filter((t) => t.name)
+    .map((t) => ({ id: t.id as string, name: t.name as string, level: (t.level as string | null) ?? null }));
+  if (active.length === 0) return { claimed: 0, pushed: 0 };
+  const activeIds = active.map((t) => t.id);
+  const tournamentById = new Map(active.map((t) => [t.id, t]));
+
+  // 2. Projection pairs for active tournaments + existing claims.
+  const [pairsRes, claimsRes] = await Promise.all([
+    supabase.from('tournament_projections')
+      .select('tournament_id, category, pair_key, pair_player_ids, champion_prob')
+      .in('tournament_id', activeIds),
+    supabase.from('projection_ready_notifications')
+      .select('tournament_id, category')
+      .in('tournament_id', activeIds),
+  ]);
+  if (pairsRes.error) { logger.warn({ err: pairsRes.error.message }, '[projection-ready-notifier] projections read failed'); return { claimed: 0, pushed: 0 }; }
+  const pairs = (pairsRes.data ?? []) as ProjectionPairRow[];
+  const claimed = new Set((claimsRes.data ?? []).map((r) => `${r.tournament_id}:${r.category}`));
+
+  const candidates = selectProjectionCandidates(active, pairs, claimed);
+  if (candidates.length === 0) return { claimed: 0, pushed: 0 };
+
+  // Player identity for all pair players across candidates (chunked .in()).
+  const playerIds = [...new Set(pairs.flatMap((p) => p.pair_player_ids))];
+  const playersById: Record<string, PlayerLite> = {};
+  for (let i = 0; i < playerIds.length; i += 200) {
+    const { data: pl } = await supabase.from('players').select('id, name, avatar_url').in('id', playerIds.slice(i, i + 200));
+    for (const p of pl ?? []) playersById[p.id as string] = { id: p.id as string, name: (p.name as string | null) ?? (p.id as string), avatar_url: (p.avatar_url as string | null) ?? null };
+  }
+
+  let claimedCount = 0;
+  let pushed = 0;
+  for (const cand of candidates) {
+    // 3. Atomic claim — only proceed if WE inserted the row.
+    const { data: claimRow, error: claimErr } = await supabase
+      .from('projection_ready_notifications')
+      .upsert({ tournament_id: cand.tournamentId, category: cand.category }, { onConflict: 'tournament_id,category', ignoreDuplicates: true })
+      .select('tournament_id');
+    if (claimErr) { logger.warn({ ...cand, err: claimErr.message }, '[projection-ready-notifier] claim failed'); continue; }
+    if (!claimRow || claimRow.length === 0) continue;  // already claimed by an overlapping tick
+    claimedCount++;
+
+    // 4. Fan out — sequential, champion% desc, tournament-scoped dedupe.
+    const tournament = tournamentById.get(cand.tournamentId)!;
+    const payloads = buildProjectionPayloads(cand, tournament, pairs, playersById);
+    for (const payload of payloads) {
+      const res = await notifyEventAwait(payload, notifyDeps);
+      if (res.ok) pushed++;
+    }
+    logger.info({ ...cand, payloads: payloads.length }, '[projection-ready-notifier] fired');
+  }
+  return { claimed: claimedCount, pushed };
 }
