@@ -1204,7 +1204,9 @@
     },
     "projection": {
       "title": "{name} Projection — Road to the Title | Padel Nachos",
-      "description": "Live championship projections for {name}: each pair's road to the title, round-by-round win probabilities."
+      "description": "Live championship projections for {name}: each pair's road to the title, round-by-round win probabilities.",
+      "pairTitle": "{pair} — Road to the Title at {name} | Padel Nachos",
+      "pairDescription": "{pair}'s projected path to the {name} title — round-by-round opponents and win probabilities."
     }
   },
   "search": {

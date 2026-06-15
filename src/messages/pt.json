@@ -1172,7 +1172,9 @@
     },
     "projection": {
       "title": "Projeção de {name} — Caminho ao Título | Padel Nachos",
-      "description": "Projeções de campeonato ao vivo para {name}: o caminho ao título de cada dupla e as probabilidades ronda a ronda."
+      "description": "Projeções de campeonato ao vivo para {name}: o caminho ao título de cada dupla e as probabilidades ronda a ronda.",
+      "pairTitle": "{pair} — Caminho ao Título em {name} | Padel Nachos",
+      "pairDescription": "O caminho projetado de {pair} rumo ao título de {name}: adversários ronda a ronda e probabilidades de vitória."
     }
   },
   "search": {
