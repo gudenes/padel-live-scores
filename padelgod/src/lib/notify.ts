@@ -124,18 +124,6 @@ export interface NotifyEventPayload {
 }
 
 /**
- * Fire an entity-scoped notification via the Next.js generic endpoint
- * `/api/push/notify-event` (vs `notifyLiveTransition`'s `/api/push/notify`).
- *
- * Same conventions as `notifyLiveTransition`:
- * - Fire-and-forget: returns immediately, response handling runs detached.
- * - No-op when `NOTIFY_BASE_URL` / `CRON_SECRET` are missing.
- * - Never throws — network/server errors logged at `warn`.
- * - Shares the `notify-stats` counters so event sends are observable next to
- *   live sends. The stats key is the `dedupeKey` (falling back to a synthetic
- *   `<entityType>:<entityId>:<category>` so `last_*` entries stay meaningful).
- */
-/**
  * Awaiting variant of notifyEvent — resolves once the notify-event response
  * arrives (the endpoint commits its user_notifications insert before
  * responding, so callers can rely on the inbox row existing on resolve, which
@@ -167,6 +155,18 @@ export async function notifyEventAwait(
   }
 }
 
+/**
+ * Fire an entity-scoped notification via the Next.js generic endpoint
+ * `/api/push/notify-event` (vs `notifyLiveTransition`'s `/api/push/notify`).
+ *
+ * Same conventions as `notifyLiveTransition`:
+ * - Fire-and-forget: returns immediately, response handling runs detached.
+ * - No-op when `NOTIFY_BASE_URL` / `CRON_SECRET` are missing.
+ * - Never throws — network/server errors logged at `warn`.
+ * - Shares the `notify-stats` counters so event sends are observable next to
+ *   live sends. The stats key is the `dedupeKey` (falling back to a synthetic
+ *   `<entityType>:<entityId>:<category>` so `last_*` entries stay meaningful).
+ */
 export function notifyEvent(payload: NotifyEventPayload, deps: NotifyDeps): void {
   // Stable identifier for the stats counters' `matchId`-shaped key slot.
   const statsKey =
