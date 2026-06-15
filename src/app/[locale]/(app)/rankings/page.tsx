@@ -259,7 +259,10 @@ function MoneyRow({
         padding: '12px 16px', cursor: 'pointer',
         background: isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent',
         borderBottom: `1px solid ${BORDER}`,
+        transition: 'background 0.15s',
       }}
+      onMouseEnter={e => (e.currentTarget.style.background = GREEN_DIM)}
+      onMouseLeave={e => (e.currentTarget.style.background = isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent')}
     >
       <div style={{ width: 36, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
         <RankBadge rank={row.rank} />
