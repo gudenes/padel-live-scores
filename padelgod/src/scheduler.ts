@@ -35,6 +35,7 @@ import { runTournamentProjectionSnapshot } from './workers/tournament-projection
 import { runPredictionScorer } from './workers/prediction-scorer.js';
 import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
+import { runProjectionReadyNotifier } from './workers/projection-ready-notifier.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -126,6 +127,10 @@ export interface SchedulerFlags {
    *  tournament when its `starts_at` passes. Atomic claim on
    *  `starting_notified_at`; no dry-run needed. Default OFF. */
   enableTournamentStartNotifier: boolean;
+  /** projection-ready-notifier — fires `projection_ready` once per
+   *  (tournament, category) when projection pairs land. Atomic claim on
+   *  `projection_ready_notifications`; no dry-run needed. Default OFF. */
+  enableProjectionReadyNotifier: boolean;
 }
 
 export interface SchedulerDeps {
@@ -195,7 +200,8 @@ export type WorkerName =
   | 'tournament-projection-snapshot'
   | 'prediction-scorer'
   | 'live-odds-updater'
-  | 'tournament-start-notifier';
+  | 'tournament-start-notifier'
+  | 'projection-ready-notifier';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -233,6 +239,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'prediction-scorer',
   'live-odds-updater',
   'tournament-start-notifier',
+  'projection-ready-notifier',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -394,6 +401,12 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       return (deps) => runLiveOddsUpdater(deps);
     case 'tournament-start-notifier':
       return (deps) => runTournamentStartNotifier({
+        supabase: deps.supabase,
+        logger: deps.logger,
+        notify: deps.notify,
+      });
+    case 'projection-ready-notifier':
+      return (deps) => runProjectionReadyNotifier({
         supabase: deps.supabase,
         logger: deps.logger,
         notify: deps.notify,
@@ -855,6 +868,17 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // notify; hourly is plenty given the 24h selection window.
       cron: '20 * * * *',
       run: getWorkerRunner('tournament-start-notifier')!,
+    });
+  }
+  if (flags.enableProjectionReadyNotifier) {
+    entries.push({
+      name: 'projection-ready-notifier',
+      // Hourly at :20 — trails the hourly tournament-projection-snapshot
+      // (which runs at :00) so newly computed projection pairs are always
+      // in place before this notifier claims them. DB-only read + atomic
+      // claim; hourly is plenty for a projection_ready fan-out.
+      cron: '20 * * * *',
+      run: getWorkerRunner('projection-ready-notifier')!,
     });
   }
   return entries;
