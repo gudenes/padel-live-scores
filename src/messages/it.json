@@ -1169,6 +1169,12 @@
       "titleVs": "{p1} vs {p2} — {tournament}{round}",
       "titleLive": "IN DIRETTA: {p1} vs {p2} — {tournament}",
       "description": "Segui i punteggi di padel in diretta su PadelNachos"
+    },
+    "projection": {
+      "title": "Proiezione di {name} — Verso il Titolo | Padel Nachos",
+      "description": "Proiezioni del campionato in diretta per {name}: il cammino verso il titolo di ogni coppia e le probabilità turno per turno.",
+      "pairTitle": "{pair} — Verso il Titolo a {name} | Padel Nachos",
+      "pairDescription": "Il cammino proiettato di {pair} verso il titolo di {name}: avversari turno per turno e probabilità di vittoria."
     }
   },
   "search": {

@@ -34,7 +34,6 @@ import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
-import ProjectionTab from './ProjectionTab'
 import { isPremierTier } from '@/lib/tournament-tier'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
@@ -208,7 +207,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const searchParams = useSearchParams()
   const paramRound = searchParams.get('round')
   const paramTab = searchParams.get('tab')
-  const paramPair = searchParams.get('pair')
   const router = useRouter()
 
   // ── State ─────────────────────────────────────────────────────
@@ -242,8 +240,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       ? 'overview'
       : paramTab === 'draw'
       ? 'draw'
-      : paramTab === 'projection'
-      ? 'projection'
       : paramTab === 'story' || paramTab === 'recap'
       ? 'story'
       : paramTab === 'matches'
@@ -271,10 +267,17 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   useEffect(() => {
     setTabsMounted(true)
     const seen = (() => { try { return localStorage.getItem('projection_tab_seen') === '1' } catch { return false } })()
-    // Landing directly on the Projection tab (deep link) also counts as seen.
-    if (seen || pageTab === 'projection') markProjectionSeen()
+    if (seen) markProjectionSeen()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Legacy ?tab=projection deep links → the dedicated projection route.
+  useEffect(() => {
+    if (paramTab !== 'projection') return
+    markProjectionSeen()
+    const cat = searchParams.get('category') === 'women' ? 'women' : 'men'
+    router.replace(`/tournaments/${tournamentId}/projection?category=${cat}`)
+  }, [paramTab, searchParams, router, tournamentId, markProjectionSeen])
 
   const stageStripRef = useRef<HTMLDivElement>(null)
 
@@ -1156,7 +1159,14 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             ) : tTournament(tab),
           }))}
           activeKey={pageTab}
-          onChange={(key) => { if (key === 'projection') markProjectionSeen(); setPageTab(key) }}
+          onChange={(key) => {
+            if (key === 'projection') {
+              markProjectionSeen()
+              router.push(`/tournaments/${tournamentId}/projection?category=${genderFilter}`)
+              return
+            }
+            setPageTab(key)
+          }}
           containerStyle={{
             position: 'sticky',
             top: `calc(env(safe-area-inset-top) + ${HERO_COLLAPSED}px)`,
@@ -1348,16 +1358,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             onSwitchToMatchesTab={() => setPageTab('matches')}
           />
         )}
-        {pageTab === 'projection' && activeTournamentObj && showProjectionTab && (
-          <ProjectionTab
-            tournamentId={tournamentId}
-            matches={allMatches.filter(m => (m as { category?: string }).category === genderFilter)}
-            category={genderFilter}
-            tournamentLevel={activeTournamentObj.level ?? null}
-            roundSchedule={(activeTournamentObj as { round_schedule?: Record<string, string> | null }).round_schedule ?? null}
-            initialPairKey={paramPair}
-          />
-        )}
+
       </main>
 
       {/* Keyframes */}
