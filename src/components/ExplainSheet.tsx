@@ -11,10 +11,10 @@ import { createPortal } from 'react-dom'
 import type { ReactNode } from 'react'
 import { ChunkyPressButton } from '@/components/feed/foryou/ChunkyPressButton'
 
-const TEXT = '#EEE4CE'
-const SECONDARY = '#9AAEC4'
-const LIME = '#7ED321'
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
+export const TEXT = '#EEE4CE'
+export const SECONDARY = '#9AAEC4'
+export const LIME = '#7ED321'
+export const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 const CHUNK = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
 
 export interface ExplainSheetProps {

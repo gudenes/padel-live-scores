@@ -5,21 +5,20 @@
 // + numbers. Chrome is the shared ExplainSheet.
 
 import { useTranslations } from 'next-intl'
-import { ExplainSheet } from '@/components/ExplainSheet'
+import { ExplainSheet, TEXT, SECONDARY, LIME, MONO } from '@/components/ExplainSheet'
 
-const TEXT = '#EEE4CE'
-const SECONDARY = '#9AAEC4'
-const LIME = '#7ED321'
 const GOLD = '#F5A623'
-const MONO = 'ui-monospace, SFMono-Regular, Menlo, monospace'
 
 interface Props {
   open: boolean
   onClose: () => void
+  /** Display name for the pair, e.g. "Galán & Chingotto". */
   names: string
+  /** True when the pair is a title contender (lead with champion %). */
   contender: boolean
   championPct: number
   finalPct: number
+  /** Localized projected-round label, e.g. "Round of 16". */
   roundLabel: string
 }
 
