@@ -1169,6 +1169,10 @@
       "titleVs": "{p1} vs {p2} — {tournament}{round}",
       "titleLive": "AO VIVO: {p1} vs {p2} — {tournament}",
       "description": "Acompanhe os placares de padel ao vivo no PadelNachos"
+    },
+    "projection": {
+      "title": "Projeção de {name} — Caminho ao Título | Padel Nachos",
+      "description": "Projeções de campeonato ao vivo para {name}: o caminho ao título de cada dupla e as probabilidades ronda a ronda."
     }
   },
   "search": {

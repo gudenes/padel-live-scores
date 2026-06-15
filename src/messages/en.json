@@ -1201,6 +1201,10 @@
       "titleVs": "{p1} vs {p2} — {tournament}{round}",
       "titleLive": "LIVE: {p1} vs {p2} — {tournament}",
       "description": "Follow live padel scores on PadelNachos"
+    },
+    "projection": {
+      "title": "{name} Projection — Road to the Title | Padel Nachos",
+      "description": "Live championship projections for {name}: each pair's road to the title, round-by-round win probabilities."
     }
   },
   "search": {
