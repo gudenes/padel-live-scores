@@ -69,19 +69,30 @@ export const fetchProjectionCategories = cache(async (tournamentId: string): Pro
   return (['men', 'women'] as ProjectionCategory[]).filter((c) => set.has(c))
 })
 
-/** Player display names keyed by id, for the given player ids. */
+/**
+ * Player display names keyed by id, for the given player ids.
+ *
+ * Chunks the `.in()` lookup (200 ids/batch) so it scales to the sitemap's
+ * cross-tournament id set — a single `.in()` with ~1k UUIDs overflows
+ * PostgREST's request-URL length, errors out, and would silently yield an
+ * empty map (every pair then degrading to an ugly UUID slug).
+ */
 export async function fetchPlayerNames(playerIds: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>()
   const ids = [...new Set(playerIds)].filter(Boolean)
   if (ids.length === 0) return map
   const supabase = createServerClient()
-  const { data, error } = await supabase
-    .from('players')
-    .select('id, name, display_name')
-    .in('id', ids)
-  if (error || !data) return map
-  for (const p of data as { id: string; name: string | null; display_name: string | null }[]) {
-    map.set(p.id, p.display_name ?? p.name ?? p.id)
+  const CHUNK = 200
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const batch = ids.slice(i, i + CHUNK)
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, name, display_name')
+      .in('id', batch)
+    if (error || !data) continue
+    for (const p of data as { id: string; name: string | null; display_name: string | null }[]) {
+      map.set(p.id, p.display_name ?? p.name ?? p.id)
+    }
   }
   return map
 }
