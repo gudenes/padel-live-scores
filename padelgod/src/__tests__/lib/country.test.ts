@@ -59,6 +59,20 @@ describe('normalizeCountry', () => {
     expect(normalizeCountry('\tEsp\n')).toBe('ES');
   });
 
+  it('remaps non-standard alpha-2 aliases to real ISO codes', () => {
+    // padelapi emits "IV" for Côte d'Ivoire (the ISO code is "CI").
+    // The 2-char branch trusts any two-letter input verbatim, so without
+    // this remap "IV" lands in tournaments.country and no flag renders
+    // (neither /flags/iv.png nor flagcdn has it). Regression: 2026 FIP
+    // Gold Abidjan showed no flag. Keep in lockstep with src/lib/country.ts.
+    expect(normalizeCountry('IV')).toBe('CI');
+    expect(normalizeCountry('iv')).toBe('CI');
+    expect(normalizeCountry('  Iv  ')).toBe('CI');
+    // Real alpha-2 codes still pass through untouched.
+    expect(normalizeCountry('CI')).toBe('CI');
+    expect(normalizeCountry('KW')).toBe('KW');
+  });
+
   it('returns null for unknown 3-letter codes (respects CHECK constraint)', () => {
     // DB has a CHECK constraint `country IS NULL OR length = 2`, so
     // pass-through would hard-fail the write. Null is the "unknown"

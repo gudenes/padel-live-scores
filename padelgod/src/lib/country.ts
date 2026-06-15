@@ -35,12 +35,24 @@
 
 import CC3_TO_CC2 from './country-codes-3to2.json' with { type: 'json' };
 
+// Non-standard alpha-2 codes some upstreams emit, remapped to the real
+// ISO 3166-1 alpha-2. The 2-char branch below otherwise trusts any
+// two-letter input verbatim, so a source quirk would persist an invalid
+// code in `tournaments.country` / `players.country` — and no flag asset
+// (local PNG or flagcdn) exists for it, so the UI renders no flag.
+//   - IV: padelapi's code for Côte d'Ivoire (ISO is CI). Caught the
+//     2026 FIP Gold Abidjan event showing no flag.
+// Keep in sync with src/lib/country.ts (same const).
+const ALPHA2_ALIASES: Record<string, string> = {
+  IV: 'CI', // Côte d'Ivoire (padelapi non-standard)
+};
+
 export function normalizeCountry(c: string | null | undefined): string | null {
   if (c == null) return null;
   const trimmed = c.trim();
   if (trimmed.length === 0) return null;
   const up = trimmed.toUpperCase();
-  if (up.length === 2) return up;
+  if (up.length === 2) return ALPHA2_ALIASES[up] ?? up;
   const mapped = (CC3_TO_CC2 as Record<string, string>)[up];
   if (mapped) return mapped;
   // Unknown 3+ letter code. Surface + return null so the row lands
