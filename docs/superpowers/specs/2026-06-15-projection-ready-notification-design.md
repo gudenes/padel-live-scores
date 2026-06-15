@@ -34,6 +34,8 @@ Add to `notification-categories.ts`:
 - Key: `projection_ready`, `tier: 'free'`, `group: 'predictions'`, `defaults: { push: true }`, `comingSoon: false` (sender ships in this project).
 - Add the i18n label/description to the settings UI strings (5 locales) and the notification copy strings.
 
+Because `NotificationCategory` is a closed union consumed by exhaustive `Record<NotificationCategory, …>` maps, adding the key is **type-enforced** to ripple into every consumer — see §6 (admin) for the `CATEGORY_RULES` entry that TypeScript will require.
+
 ### 2. Claim table — fire exactly once per `(tournament, category)`
 New migration `projection_ready_notifications`:
 ```sql
@@ -81,6 +83,17 @@ Under a `notifications.projectionReady` namespace (mirroring existing notificati
 
 The worker is server-side (no `next-intl` request context), so copy is built from a small per-locale string map shipped with the worker (or the notify-event endpoint localizes from `metadata` + recipient locale). **Decision:** the **worker** sends a single default-locale (English) title/body and the endpoint keeps copy as-is — consistent with how the existing senders pass literal `title`/`body`. Per-recipient localization of push copy is **out of scope** (the current `/api/push/notify` + `notify-event` senders all pass a single pre-built string); matching that precedent avoids scope creep. *(If per-locale push copy is wanted later, it's a cross-cutting change to all senders, tracked separately.)*
 
+### 6. Admin — ops Notifications Console (`/system/notifications`)
+The console is **data-driven**, so the new category surfaces with minimal work:
+- **Catalog rule (required).** `src/lib/notification-catalog.ts` exposes `CATEGORY_RULES: Record<NotificationCategory, CategoryRule>` (`{ rule, sampleTitle, sampleBody }`) and `buildCatalog()` maps over `KNOWN_CATEGORIES`. Adding `projection_ready` to the union makes the `CATEGORY_RULES` map a TypeScript error until an entry is added — so we add:
+  - `rule`: "Once per tournament + category, when its Road to Trophy projections first land. → followers of any player in the draw (one per user, highest-% pair). Gated by ENABLE_PROJECTION_READY_NOTIFIER (padelgod projection-ready-notifier)."
+  - `sampleTitle`: "Predictions for Madrid P1 are ready"
+  - `sampleBody`: "See Tapia / Coello's road to the title →"
+- **Auto-surfaced.** The ops console (`apps/ops/.../system/notifications`) server-fetches `/api/internal/notification-catalog` (a CRON_SECRET proxy to the main app's catalog endpoint, which calls `buildCatalog()`), and renders rows by `group` with live stats (`lastFiredAt`, `count7d`, `recipients7d`, `failed7d`) + the `tier`/`comingSoon` badges. No ops-side component or type change is needed — `apps/ops/src/lib/notification-catalog-types.ts` is a structural mirror of `CatalogRow`. The new `projection_ready` row appears under the **Predictions** group, free tier, with status `live` once it has fired (derived from `comingSoon:false` + `lastFiredAt`).
+- **"Test to me" / "Send to followers" / dry-run.** These already POST a generic body through `notify-trigger` → `/api/push/notify-event`; the console builds the test payload from the catalog row's `sample`, so the operator can fire a sample `projection_ready` push (and see dry-run reach) the moment the category exists — no per-category wiring.
+
+The user-facing settings page (`/profile/settings/notifications`) likewise renders from `CATEGORY_META` + i18n labels, so the toggle appears automatically once the label strings are added (§5).
+
 ## Data flow
 
 ```
@@ -123,9 +136,10 @@ projection-ready-notifier (after snapshot, flagged) ───────┤
 
 **Modified:**
 - `src/lib/notification-categories.ts` — add `projection_ready` to the union + `CATEGORY_META`.
-- 5 × `src/messages/*.json` — settings label/description + (worker-side default) copy strings.
+- `src/lib/notification-catalog.ts` — add the `CATEGORY_RULES['projection_ready']` entry (rule + sample) so the ops console row renders (TypeScript-required). *(No `apps/ops` change needed — the console is data-driven.)*
+- 5 × `src/messages/*.json` — settings label/description for the toggle.
 - `padelgod/src/scheduler.ts` + `padelgod/src/env.ts` — register the worker + `ENABLE_PROJECTION_READY_NOTIFIER` flag.
-- (worker copy) a small per-locale-free English copy map, or constants in the worker.
+- (worker copy) English `title`/`body` constants in the worker (single-string precedent, §5).
 
 ## Risks
 - **Slug drift** between the mirrored padelgod helper and the Next app → broken deep links. Mitigated by the parity test.
