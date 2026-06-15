@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
@@ -22,14 +23,14 @@ type Props = {
   params: Promise<{ locale: string; id: string; pair: string }>
 }
 
-async function resolvePairAcrossCategories(id: string, pairSlug: string): Promise<{
+const resolvePairAcrossCategories = cache(async (id: string, pairSlug: string): Promise<{
   row: ProjectionRow
   category: ProjectionCategory
   rows: ProjectionRow[]
   nameById: Map<string, string>
   canonicalSlug: string
   redirect: boolean
-} | null> {
+} | null> => {
   const categories = await fetchProjectionCategories(id)
   for (const category of categories) {
     const rows = await fetchProjectionRows(id, category)
@@ -43,7 +44,7 @@ async function resolvePairAcrossCategories(id: string, pairSlug: string): Promis
     }
   }
   return null
-}
+})
 
 function pairTitle(row: ProjectionRow, nameById: Map<string, string>): string {
   return row.pair_player_ids

@@ -3,6 +3,7 @@
 // client (RLS-bypassing) the rest of the SSR layer uses. Read-only.
 // Note: `server-only` package is not installed; import omitted.
 
+import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase'
 import { fetchFeatureFlag, resolveFlag, FLAG_KEYS } from '@/lib/feature-flags'
 import type { ProjectionRow } from '@/lib/projection-types'
@@ -25,7 +26,7 @@ const PROJECTION_COLUMNS =
   'tournament_id, category, pair_key, pair_player_ids, tournament_level, status, eliminated_round, champion_prob, finalist_prob, semifinal_prob, rounds, predicted_finish_round, computed_at'
 
 /** Server-side projection feature flag (production column; SSR is treated as production). */
-export async function isProjectionEnabledServer(): Promise<boolean> {
+export const isProjectionEnabledServer = cache(async (): Promise<boolean> => {
   try {
     const supabase = createServerClient()
     const row = await fetchFeatureFlag(supabase, FLAG_KEYS.PROJECTION_ENABLED)
@@ -33,13 +34,13 @@ export async function isProjectionEnabledServer(): Promise<boolean> {
   } catch {
     return false
   }
-}
+})
 
 /** All projection rows for a tournament+category, ordered by champion_prob desc. */
-export async function fetchProjectionRows(
+export const fetchProjectionRows = cache(async (
   tournamentId: string,
   category: ProjectionCategory,
-): Promise<ProjectionRow[]> {
+): Promise<ProjectionRow[]> => {
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('tournament_projections')
@@ -52,10 +53,10 @@ export async function fetchProjectionRows(
     return []
   }
   return (data ?? []) as ProjectionRow[]
-}
+})
 
 /** Which categories actually have projection rows (for default-gender + sitemap). */
-export async function fetchProjectionCategories(tournamentId: string): Promise<ProjectionCategory[]> {
+export const fetchProjectionCategories = cache(async (tournamentId: string): Promise<ProjectionCategory[]> => {
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('tournament_projections')
@@ -66,7 +67,7 @@ export async function fetchProjectionCategories(tournamentId: string): Promise<P
   for (const r of data as { category: ProjectionCategory }[]) set.add(r.category)
   // men first when both present
   return (['men', 'women'] as ProjectionCategory[]).filter((c) => set.has(c))
-}
+})
 
 /** Player display names keyed by id, for the given player ids. */
 export async function fetchPlayerNames(playerIds: string[]): Promise<Map<string, string>> {
@@ -86,9 +87,9 @@ export async function fetchPlayerNames(playerIds: string[]): Promise<Map<string,
 }
 
 /** Tournament meta for the projection header + metadata. Null when not found. */
-export async function fetchProjectionTournamentMeta(
+export const fetchProjectionTournamentMeta = cache(async (
   tournamentId: string,
-): Promise<ProjectionTournamentMeta | null> {
+): Promise<ProjectionTournamentMeta | null> => {
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('tournaments')
@@ -97,4 +98,4 @@ export async function fetchProjectionTournamentMeta(
     .single()
   if (error || !data) return null
   return data as ProjectionTournamentMeta
-}
+})
