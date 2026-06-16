@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shouldShowRecap, defaultFinishedTab } from '../recap-visibility'
+import { shouldShowRecap, defaultFinishedTab, matchDetailTabKeys } from '../recap-visibility'
 
 describe('shouldShowRecap', () => {
   it('shows for a Premier match with no breaks', () => {
@@ -25,5 +25,36 @@ describe('defaultFinishedTab', () => {
   })
   it('lands on players for a non-Premier match', () => {
     expect(defaultFinishedTab({ isPremier: false, webtugaSourced: false })).toBe('players')
+  })
+})
+
+describe('matchDetailTabKeys', () => {
+  it('finished + recap + live → recap, live, players, h2h', () => {
+    expect(matchDetailTabKeys({ isFinished: true, isScheduled: false, showRecap: true, showLive: true }))
+      .toEqual(['recap', 'live', 'players', 'h2h'])
+  })
+  it('finished webtuga: recap hidden but Live Feed STAYS → live, players, h2h', () => {
+    expect(matchDetailTabKeys({ isFinished: true, isScheduled: false, showRecap: false, showLive: true }))
+      .toEqual(['live', 'players', 'h2h'])
+  })
+  it('finished + recap, no live → recap, players, h2h', () => {
+    expect(matchDetailTabKeys({ isFinished: true, isScheduled: false, showRecap: true, showLive: false }))
+      .toEqual(['recap', 'players', 'h2h'])
+  })
+  it('finished, neither recap nor live → players, h2h', () => {
+    expect(matchDetailTabKeys({ isFinished: true, isScheduled: false, showRecap: false, showLive: false }))
+      .toEqual(['players', 'h2h'])
+  })
+  it('scheduled → players, h2h (never recap/live)', () => {
+    expect(matchDetailTabKeys({ isFinished: false, isScheduled: true, showRecap: true, showLive: true }))
+      .toEqual(['players', 'h2h'])
+  })
+  it('live with PBP → live, players, h2h', () => {
+    expect(matchDetailTabKeys({ isFinished: false, isScheduled: false, showRecap: false, showLive: true }))
+      .toEqual(['live', 'players', 'h2h'])
+  })
+  it('live without PBP → players, h2h', () => {
+    expect(matchDetailTabKeys({ isFinished: false, isScheduled: false, showRecap: false, showLive: false }))
+      .toEqual(['players', 'h2h'])
   })
 })
