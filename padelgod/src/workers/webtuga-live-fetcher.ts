@@ -133,6 +133,10 @@ export async function runWebtugaLiveFetcher(
 
     for (const rowItem of live) {
       let entry: MatchCacheEntry | undefined = cacheMap.get(rowItem.id);
+      // When we resolve a match this tick the matcher hands back the four player
+      // UUIDs, so we reuse them directly instead of re-reading the match row.
+      // On a cache HIT we don't have them in memory and fall back to a DB read.
+      let resolvedFromMatcher: ResolvedPlayers | null = null;
 
       if (!entry) {
         if (candidates === null) candidates = await loadCandidates(supabase, t.tournamentId);
@@ -148,6 +152,7 @@ export async function runWebtugaLiveFetcher(
           continue;
         }
         entry = { matchId: r.matchId, orientation: r.orientation, lastState: null };
+        resolvedFromMatcher = r.resolvedPlayers;
         if (!opts.dryRun) {
           await upsertMatchCache(supabase, t.tournamentId, rowItem.id, r.matchId, r.orientation, null);
         }
@@ -159,15 +164,22 @@ export async function runWebtugaLiveFetcher(
         const curr = webtugaToLiveState(rowItem, entry.matchId, entry.orientation);
         const prev = entry.lastState;
         const diff = diffLiveState(prev, curr);
-        const rp = (await loadResolvedPlayers(supabase, entry.matchId)) ?? {
-          pair1Player1Id: null, pair1Player2Id: null,
-          pair2Player1Id: null, pair2Player2Id: null,
-        };
+        const rp = resolvedFromMatcher
+          ?? (await loadResolvedPlayers(supabase, entry.matchId))
+          ?? {
+            pair1Player1Id: null, pair1Player2Id: null,
+            pair2Player1Id: null, pair2Player2Id: null,
+          };
         await applyDiff(supabase, entry.matchId, prev, curr, diff, rp);
         await flipStatusToLive(supabase, entry.matchId);
         await writeLastState(supabase, t.tournamentId, rowItem.id, entry.orientation, curr);
         res.applied++;
       } catch (err) {
+        // A throw here (bad point label, transient DB error, or — if the process
+        // died mid-row last tick — a stale `prev` replaying points that were
+        // already written) is isolated to this row. applyDiff's match_points
+        // UNIQUE(game_id, point_number) makes the replay idempotent: it may log
+        // a constraint warn on restart but never double-counts.
         res.errors++;
         logger.warn({ err, webtugaId: rowItem.id, matchId: entry.matchId }, 'webtuga row processing failed');
       }

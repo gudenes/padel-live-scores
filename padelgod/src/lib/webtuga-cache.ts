@@ -44,6 +44,10 @@ export async function loadMatchCache(
   supabase: SupabaseClient,
   tournamentId: string,
 ): Promise<Map<number, MatchCacheEntry>> {
+  // NOTE: scans all webtuga match rows and filters by tournament prefix in
+  // memory. Bounded + fine for the single-tournament v1. If multiple
+  // webtuga-backed tournaments ever run concurrently, add a server-side
+  // `.like('external_id', `${tournamentId}:%`)` to avoid cross-tournament reads.
   const { data, error } = await supabase
     .from('entity_external_ids')
     .select('external_id, entity_id, metadata')
