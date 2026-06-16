@@ -8,6 +8,14 @@
  * webtuga is an undocumented third-party feed, so a transitional/blank label on
  * a live tick (e.g. "-") will throw. The caller (webtuga-live-fetcher) MUST wrap
  * per-row in try/catch so one bad row can't abort the whole tick.
+ *
+ * KNOWN v1 LIMITATION — live tiebreak freeze (first fast-follow): this adapter
+ * always passes `insideTiebreak=false`, but during a 6-6 tiebreak webtuga's
+ * pointsA/B are raw counts ("5"/"7") that `parsePointState` rejects → throws →
+ * the caller drops the whole row that tick, so the scoreboard freezes at 6-6
+ * until the set completes and `setsHistory` advances (it then catches up). The
+ * fast-follow is to fetch `/matches/{id}` for `isTieBreak` (or infer it from
+ * gamesA===6 && gamesB===6) and pass it through here.
  */
 import {
   parsePointState,

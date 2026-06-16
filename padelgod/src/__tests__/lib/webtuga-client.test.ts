@@ -40,4 +40,10 @@ describe('webtuga-client', () => {
       'https://x.win.webtuga.net/api/public/results-feed',
     );
   });
+
+  it('returns [] when the host answers with a non-array body', async () => {
+    const http = fakeHttp({ '/api/public/results-feed': '<html>down for maintenance</html>' });
+    const rows = await fetchResultsFeed(http, 'https://x.win.webtuga.net');
+    expect(rows).toEqual([]);
+  });
 });

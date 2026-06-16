@@ -10,7 +10,9 @@ export async function fetchResultsFeed(
   baseUrl: string,
 ): Promise<WebtugaFeedRow[]> {
   const res = await httpClient.get(`${base(baseUrl)}/api/public/results-feed`);
-  return (res.data ?? []) as WebtugaFeedRow[];
+  // The tracker is an ad-hoc third party that may answer 200 with an HTML error
+  // page or an object. Guarantee an array so the caller's `.filter` can't throw.
+  return Array.isArray(res.data) ? (res.data as WebtugaFeedRow[]) : [];
 }
 
 export async function fetchMatchDetail(

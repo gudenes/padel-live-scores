@@ -34,10 +34,27 @@ export async function discoverWebtugaTournaments(
     .eq('entity_type', 'tournament')
     .eq('source', 'webtuga_live');
   if (error) throw new Error(`discoverWebtugaTournaments failed: ${error.message}`);
-  return (data ?? []).map((r: any) => ({
+  const rows: WebtugaTournament[] = (data ?? []).map((r: any) => ({
     tournamentId: r.entity_id as string,
     baseUrl: r.external_id as string,
   }));
+  if (rows.length === 0) return [];
+
+  // Self-disable: only poll tournaments still inside (or within a 1-day grace
+  // of) their active window, so a finished event's likely-dead host isn't hit
+  // every 15s forever. A tournament with a null `ends_at` is kept (unknown end).
+  const { data: tours, error: tErr } = await supabase
+    .from('tournaments')
+    .select('id, ends_at')
+    .in('id', rows.map((r) => r.tournamentId));
+  if (tErr) throw new Error(`discoverWebtugaTournaments tournaments lookup failed: ${tErr.message}`);
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const active = new Set(
+    (tours ?? [])
+      .filter((t: any) => t.ends_at == null || new Date(t.ends_at).getTime() >= cutoff)
+      .map((t: any) => t.id as string),
+  );
+  return rows.filter((r) => active.has(r.tournamentId));
 }
 
 export async function loadMatchCache(

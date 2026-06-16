@@ -33,21 +33,32 @@ async function main(): Promise<void> {
     auth: { persistSession: false },
   });
 
-  const { error } = await supabase.from('entity_external_ids').upsert(
-    {
-      entity_type: 'tournament',
-      entity_id: tournamentId,
-      source: 'webtuga_live',
-      external_id: baseUrl,
-    },
-    // Conflict on the entity-keyed constraint (entity_type, entity_id, source)
-    // so re-running with a corrected baseUrl UPDATES the tournament's row
-    // instead of inserting a second webtuga_live row the worker would also poll.
-    { onConflict: 'entity_type,entity_id,source' },
-  );
+  // Delete-then-insert rather than upsert: the only ON CONFLICT-usable unique
+  // constraint is (source, entity_type, external_id), which is keyed on the URL,
+  // so an upsert wouldn't replace a *corrected* baseUrl — it would leave the old
+  // row behind for the worker to also poll. (The entity-keyed uniqueness is a
+  // partial index PostgREST can't target for ON CONFLICT.) Clearing this
+  // tournament's webtuga_live row first guarantees exactly one mapping.
+  const { error: delError } = await supabase
+    .from('entity_external_ids')
+    .delete()
+    .eq('entity_type', 'tournament')
+    .eq('entity_id', tournamentId)
+    .eq('source', 'webtuga_live');
+  if (delError) {
+    console.error('clearing existing mapping failed:', delError.message);
+    process.exit(1);
+  }
+
+  const { error } = await supabase.from('entity_external_ids').insert({
+    entity_type: 'tournament',
+    entity_id: tournamentId,
+    source: 'webtuga_live',
+    external_id: baseUrl,
+  });
 
   if (error) {
-    console.error('upsert failed:', error.message);
+    console.error('insert failed:', error.message);
     process.exit(1);
   }
   console.log(`onboarded ${tournamentId} -> ${baseUrl}`);
