@@ -115,20 +115,34 @@ scheduled every ~15s (the scheduler already supports sub-minute crons — see
    count.)
 3. **Resolve → match UUID.**
    - First, O(1) cache lookup: `entity_external_ids
-     (entity_type='match', source='webtuga', external_id=<webtuga match id>)`
-     → `entity_id`.
+     (entity_type='match', source='webtuga', external_id='<tournamentId>:<webtuga
+     match id>')` → `entity_id`. The composite `external_id` (tournament UUID +
+     webtuga's per-event match id) keeps the key globally unique, since webtuga
+     ids only count from 1 within an event.
    - On miss, run the surname-overlap matcher against the tournament's matches
-     (filtered by mapped category) and, on a unique hit, **write the cache row**
-     so every later tick is O(1).
+     (filtered by mapped category) and, on a unique hit, **insert the cache row**
+     so every later tick is O(1). The matcher records which orientation matched
+     (webtuga A/B → our pair1/pair2 or pair2/pair1).
    - On no/ambiguous match: skip + increment a counter, log once. No row
      creation.
 4. **Adapt + write.** Build a `LiveMatchState` from the webtuga payload (see
-   adapter below). Load the prior `LiveMatchState` (reconstructed from current DB
-   rows, exactly as the Premier live-poller does) and run
-   `diffLiveState(prev, curr)` → `applyDiff(...)`, which idempotently upserts
-   `sets`/`games` and inserts new `match_points`. Separately flip
-   `matches.status` `scheduled → live` on first live sighting (`applyDiff`
+   adapter below). Because this is a **stateless cron** (no in-memory state
+   between ticks, unlike the persistent Premier live-poller), the **previous**
+   `LiveMatchState` is persisted in the cache row's `metadata` jsonb
+   (`metadata.lastState`). Load it, run `diffLiveState(prev, curr)` →
+   `applyDiff(...)` (which idempotently upserts `sets`/`games` and inserts new
+   `match_points`), then write `metadata.lastState = curr` back. On the very
+   first tick for a match `prev` is null, so `applyDiff` writes nothing — exactly
+   like the live-poller's first tick. Separately flip `matches.status`
+   `scheduled → live` (guarded `.eq('status','scheduled')`; `applyDiff`
    deliberately does not write `matches.status`).
+
+   **No live-notify in v1.** Today these FIP qualifying matches never reach
+   `status='live'` (PADELAPI is paused; they go `scheduled → finished` via
+   `fip-results-writer`), so there is no existing `scheduled→live` push to
+   preserve. v1 flips status silently — it does **not** call
+   `notifyLiveTransition` — to avoid introducing new pushes for qualifying-round
+   matches. Wiring live-notify in is a deliberate later decision.
 
 ### The adapter (only genuinely new logic)
 
@@ -150,9 +164,11 @@ it so games/points land on the correct pair).
 
 ### Provenance & contention
 
-- `sets` / `games` written with `score_source='live'` — the **lowest** priority
-  in the `api > inferred > live` hierarchy — so when Crionet's
-  `fip-results-writer` lands the authoritative final it cleanly overwrites.
+- `sets` / `games` written with `score_source='live'` (the value `applyDiff`
+  already uses in canonical mode — verified `point-reconstruction.ts:446`). This
+  is a non-authoritative live source: Crionet's `fip-results-writer` writes the
+  final with `score_source='api'`, and its plain `upsert` (no score-source guard)
+  cleanly overwrites the `live` rows once the match finishes.
 - **webtuga never finishes a match.** The existing `fip-results-writer` keeps
   owning the `→ finished` flip; its terminal-status guard already accepts a
   current status of `'live'` (it flips from `{scheduled, on_court, live}`), so
@@ -170,9 +186,15 @@ it so games/points land on the correct pair).
 - **Env** (`padelgod/src/lib/env.ts` + `.env.example`):
   `ENABLE_WEBTUGA_LIVE` (default false), `WEBTUGA_LIVE_DRY_RUN` (default true).
 - **No migration required.** Reuses `matches`, `sets`, `games`, `match_points`,
-  and the `entity_external_ids` sidecar. Two new `source` values are introduced
-  (`webtuga_live` for the tournament base-URL row, `webtuga` for the per-match id
-  cache) — both are plain data, no schema change.
+  and the `entity_external_ids` sidecar (which already has a `metadata jsonb`
+  column — verified). Two new `source` values are introduced:
+  - `webtuga_live` — one row per tournament, `external_id` = tracker base URL.
+  - `webtuga` — one row per resolved match, `external_id` =
+    `'<tournamentId>:<webtugaMatchId>'`, `entity_id` = match UUID, and
+    `metadata` = `{ orientation: 'AB'|'BA', lastState: <LiveMatchState JSON> }`
+    (the persisted previous tick for stateless diffing).
+
+  Both are plain data — no schema change.
 
 ## Scheduler wiring
 
