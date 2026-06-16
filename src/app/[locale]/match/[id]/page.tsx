@@ -245,16 +245,22 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     if (match && match.status === 'finished' && (match as any).winner_pair) fetchNextMatch(match)
   }, [match, fetchNextMatch])
 
-  // Eagerly fetch match-stats for finished matches: powers both the
-  // Score Recap content (passed to MatchStatsView) and the webtugaSourced
-  // flag that decides whether the recap tab shows at all.
+  // Eagerly fetch match-stats for completed matches (finished/retired/walkover):
+  // powers both the Score Recap content (passed to MatchStatsView) and the
+  // webtugaSourced flag that decides whether the recap tab shows at all.
   useEffect(() => {
-    if (match?.status !== 'finished') { setMatchStats(null); return }
+    // Mirror `isFinished` (below) so retired/walkover matches — which DO render
+    // a recap tab — also fetch their stats; otherwise MatchStatsView, which
+    // reads preloaded=null as "loading", would spin forever on those.
+    if (!['finished', 'retired', 'walkover'].includes(match?.status ?? '')) {
+      setMatchStats(null)
+      return
+    }
     let cancelled = false
     // On error resolve to an `unavailable` response, NOT null: MatchStatsView
     // reads `null` as "still loading", so leaving it null on error would spin
     // the recap forever. `unavailable` renders the breaks-only / empty state.
-    const errored: MatchStatsResponse = { stats: null, status: 'unavailable' }
+    const errored: MatchStatsResponse = { stats: null, status: 'unavailable', webtugaSourced: false }
     fetch(`/api/match-stats?matchId=${id}`)
       .then(r => (r.ok ? (r.json() as Promise<MatchStatsResponse>) : errored))
       .then((data) => { if (!cancelled) setMatchStats(data) })
@@ -276,7 +282,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       { status: (match?.status as string) ?? '', sets: (match as any)?.sets ?? null },
       { level: tournamentLevel ?? null },
     )
-    if (match?.status === 'finished') setSubTab(defaultFinishedTab({ isPremier, webtugaSourced }))
+    if (['finished', 'retired', 'walkover'].includes(match?.status ?? '')) setSubTab(defaultFinishedTab({ isPremier, webtugaSourced }))
     else if (match?.status === 'scheduled') setSubTab('players')
     else if (match && presenceOnlyDefault) setSubTab('players') // live, no PBP
     // Deps intentionally omit `sets`: the default tab is chosen once on the
