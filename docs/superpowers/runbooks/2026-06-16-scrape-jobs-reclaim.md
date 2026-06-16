@@ -74,6 +74,13 @@ const tbls=['scrape_jobs','results_snapshots','oop_snapshots','entry_list_snapsh
 ```
 `VACUUM FULL` cannot run inside a transaction — `client.query` runs it directly, which is correct.
 
+> **Also reclaim `raw_payloads` in the same window.** This worker's cascade deletes
+> `raw_payloads` rows too, so the first big backlog prune leaves substantial dead
+> tuples there. The list above intentionally omits it — run the
+> [raw_payloads reclaim runbook](2026-05-29-raw-payloads-reclaim.md) (its step 4
+> `VACUUM FULL padelgod.raw_payloads`) in the same low-activity window, or you'll
+> see less disk reclaimed than expected until that table is also vacuumed.
+
 ## 5. Verify
 Re-run the baseline size query. Expect the `padelgod` schema well under the 20 GB
 baseline (~2 GB target) once raw_payloads (separate 14d prune) is also reclaimed.

@@ -72,12 +72,15 @@ backlog to disk, taking the `padelgod` schema from ~20 GB toward ~2 GB.
    does a **sequential scan of the child table per parent delete** — unusable at 6.5M rows. The
    FK-index migration (Phase 1) is mandatory before any `scrape_jobs` prune.
 
-3. **Consumers only read recent rows.** Every writer reads the *latest* snapshot per key
+3. **Consumers only read in-scope, recent rows.** Every writer reads the *latest* snapshot per key
    (`fip-results-writer` uses a 24h lookback; others dedup latest-per-(tournament,key) — see
    `fip-results-writer.ts`, `fip-oop-writer.ts`, `fip-draw-populator.ts`,
    `fip-entry-list-populator.ts`). Nothing re-reads aged rows. There is **no `processed`/`consumed`
-   flag** to honor. A 14-day window is ≫ the ~24h consumers need → **age-based retention is
-   provably safe**.
+   flag** to honor. The binding invariant is the **active-tournament read gate**
+   (`padelgod_active_tournaments_with_slug`, window `ends_at >= now() - 7d`): a tournament's last
+   scrape happens while it is still in-scope (≤ end+7d), but its rows aren't prune-eligible until
+   scrape+14d — a **≥7-day buffer** between "consumers stop reading it" and "rows get deleted." So
+   **age-based retention is provably safe**, with margin.
 
 4. **`scrape_jobs` is a write-only ledger.** No worker reads historical job rows after the fact
    (`scrape-job.ts` writes them; the only reads fetch back the just-inserted id). Safe to prune by
@@ -186,7 +189,7 @@ leave in place even if pruning is disabled.
 |---|---|
 | Cascade slow without FK index | Phase 1 migration is a hard prerequisite; verify with `EXPLAIN`. |
 | Large cascade per batch (lock pressure) | `batchSize = 2000`; daily off-hours cron; `maxBatches` cap. |
-| Pruning a row a consumer still needs | 14d ≫ 24h consumer lookback; latest-per-key reads; aligned `captured_at ≈ started_at`. |
+| Pruning a row a consumer still needs | Active-tournament read gate (`ends_at >= now()-7d`) gives a ≥7-day buffer before scrape+14d eligibility; latest-per-key reads; aligned `captured_at ≈ started_at`. |
 | `VACUUM FULL` lock vs live workers | Low-activity window; optionally pause Railway workers; tables not read by app. |
 | Accidental over-delete | Dry-run-safe defaults everywhere; runbook requires dry-run confirmation before live. |
 | Other sessions' commits in shared dir | All work isolated in `feat/padelgod-scrape-retention` worktree. |
