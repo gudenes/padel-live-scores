@@ -127,6 +127,8 @@ export interface SchedulerFlags {
   /** webtuga-live-fetcher — ~15s FIP live point-by-point from the ad-hoc
    *  webtuga tracker. Off by default; dry-run gated. */
   enableWebtugaLive: boolean;
+  /** Set WEBTUGA_LIVE_DRY_RUN=false in Railway to enable live DB writes.
+   *  Defaults to true so the first deploy is always read-only. */
   webtugaLiveDryRun: boolean;
   /** tournament-start-notifier — fires `tournament_starting` once per
    *  tournament when its `starts_at` passes. Atomic claim on
