@@ -49,6 +49,7 @@ const GROUPS: Group[] = [
     { href: '/system/shadow-mode', label: 'Shadow Mode', icon: 'eye' },
     { href: '/system/coverage-matrix', label: 'Coverage Matrix', icon: 'matrix' },
     { href: '/system/feature-flags', label: 'Feature Flags', icon: 'toggle' },
+    { href: '/system/betting-integration', label: 'Betting Integration', icon: 'doc' },
     { href: '/system/ocr-health', label: 'OCR Health', icon: 'doc' },
     { href: '/system/seo', label: 'SEO', icon: 'search' },
     { href: '/system/architecture', label: 'Architecture', icon: 'arch' },
