@@ -44,6 +44,7 @@ import {
 } from './lib/constants'
 import { WhereToWatchBanner } from '@/components/where-to-watch/WhereToWatchBanner'
 import { BettingOddsUnit } from '@/components/betting/BettingOddsUnit'
+import { MatchBettingGate } from '@/components/betting/MatchBettingGate'
 import { BettingFooterDisclaimer } from '@/components/betting/BettingFooterDisclaimer'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import type { LiveChannel as WtwLiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
@@ -1017,16 +1018,20 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <div ref={heroSentinelRef} style={{ height: 0 }} />
       </div>
 
-      {/* Betting odds — pre-match & live only; a finished match can't be bet on.
-          Renders directly under the score (mirrors BeSoccer's pre-match odds slot).
-          All compliance gates (flag/geo/tier/consent/age) live inside the unit. */}
+      {/* Betting — pre-match & live only; a finished match can't be bet on.
+          MatchBettingGate is a page-level 18+ modal shown on open for betting-eligible
+          matches; once cleared, BettingOddsUnit renders the odds under the score.
+          Both share useBettingEligibility (flag/geo/tier/consent/age). */}
       {!isFinished && (
-        <BettingOddsUnit
-          matchId={String(match.id)}
-          tournamentLevel={(match as any).tournament?.level ?? null}
-          homeLabel={pair1Label}
-          awayLabel={pair2Label}
-        />
+        <>
+          <MatchBettingGate tournamentLevel={(match as any).tournament?.level ?? null} />
+          <BettingOddsUnit
+            matchId={String(match.id)}
+            tournamentLevel={(match as any).tournament?.level ?? null}
+            homeLabel={pair1Label}
+            awayLabel={pair2Label}
+          />
+        </>
       )}
 
       {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}

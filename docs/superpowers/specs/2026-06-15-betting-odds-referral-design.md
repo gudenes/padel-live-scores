@@ -100,13 +100,25 @@ MatchDetail page
   pattern. localStorage key `pn_age_verified` = `{ verified: boolean, birthdate: string, decided_at: number }`.
   Device-level, no login. Returns `{ verified, decided, confirm(birthdate), deny() }`.
 
-- **`src/components/betting/BettingOddsUnit.tsx`** — the gated wrapper (runs the
-  chain above; renders provider widget on pass).
+- **`src/hooks/useBettingEligibility.ts`** — the single source of truth for the
+  gate chain. Composes flag → geo market → premier tier → consent → age into
+  `{ market, geo, needsAgeGate, showWidget, setAgeVerification }`. Both the
+  page-level gate and the inline widget read this — no duplicated policy.
 
-- **`src/components/betting/AgeGatePrompt.tsx`** — the two-step gate UI.
+- **`src/components/betting/MatchBettingGate.tsx`** — **page-level** 18+ modal.
+  Renders a blocking overlay on the match detail page when `needsAgeGate` (the
+  match is betting-eligible and no age decision exists yet). Answering it is
+  remembered device-wide so it shows once. Decline/under-age → modal closes and
+  the page shows **without** odds (a score is never permanently withheld).
 
-- **`src/components/betting/BettingFooterDisclaimer.tsx`** (or fold into existing
-  footer) — geo-gated footer line, reads the same `BETTING_MARKETS` config.
+- **`src/components/betting/BettingOddsUnit.tsx`** — the inline odds widget under
+  the score; renders only when `showWidget` (eligible + verified 18+).
+
+- **`src/components/betting/AgeGatePrompt.tsx`** — the two-step gate UI (Yes/No →
+  birthdate), used inside `MatchBettingGate`.
+
+- **`src/components/betting/BettingFooterDisclaimer.tsx`** — geo-gated footer line,
+  reads the same `BETTING_MARKETS` config (flag + geo only; not tier/age gated).
 
 ### Message keys
 
@@ -115,23 +127,32 @@ New `betting.*` namespace in each `src/messages/*.json`:
 - `betting.disclaimers.es`, `betting.disclaimers.co`, … (country-specific, lawyer-approved)
 - `betting.adLabel` ("Advertisement" / "Publicidad")
 
-## Age-gate UX
+## Age-gate UX (page-level)
 
-Rendered *in place of* the odds unit until passed:
+The age gate is presented as a **page-level blocking modal** over the match detail
+page — shown on open, but ONLY for betting-eligible matches (flag + enabled market
++ premier tier + consent). Home, match lists, FIP-tier matches, and non-enabled
+markets never see it. The score renders behind the dimmed modal (it is not
+destroyed) and is fully shown the instant the gate is answered.
 
-1. **Prompt:** "This content contains betting information. Are you 18 or older?"
-   with **Yes / No**.
-   - **No** → unit collapses for the session; store `{ verified: false }`; show
-     nothing (or a one-line "Betting content hidden").
+1. **Prompt:** "This section contains betting information. Are you 18 or older?"
+   with **Yes / No** (+ the market disclaimer beneath).
+   - **No** → store `{ verified: false }`; modal closes; page shows **without** odds.
 2. **Birthdate:** on **Yes**, show a date picker. Compute age vs the country's
    `minAge` (18 for all launch markets).
-   - age ≥ minAge → store `{ verified: true, birthdate, decided_at }`, reveal widget.
-   - under-age → store `{ verified: false }`, block, never re-prompt.
-3. **Persistence:** localStorage device-level. Once verified, widget renders
-   directly on future visits; re-prompt only if storage is cleared.
+   - age ≥ minAge → store `{ verified: true, birthdate, decided_at }`; modal closes;
+     the inline odds widget (`BettingOddsUnit`) renders under the score.
+   - under-age → store `{ verified: false }`; modal closes; no odds; never re-prompt.
+3. **Persistence:** localStorage device-level (`pn_age_verified`). Answered once per
+   device — never re-prompts (any match) unless storage is cleared.
 
 DOB (not a bare "I'm 18" checkbox) is stored because it is stronger compliance
 evidence and matches BeSoccer.
+
+**Why page-level (not inline):** product decision (2026-06-16) — the gate is a
+prominent modal on opening an eligible match, rather than a quiet inline slot, so
+the 18+ confirmation is unmissable. It is still scoped to betting-eligible matches
+only, so it never blocks a score where betting isn't offered.
 
 ## Disclaimer model
 
