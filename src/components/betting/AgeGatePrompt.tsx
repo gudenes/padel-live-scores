@@ -68,6 +68,7 @@ export function AgeGatePrompt({ minAge, onResolve }: AgeGatePromptProps) {
     display: 'flex',
     flexDirection: 'column',
     gap: 14,
+    colorScheme: 'dark',
   }
   const ctaText: React.CSSProperties = {
     fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px',
@@ -77,9 +78,12 @@ export function AgeGatePrompt({ minAge, onResolve }: AgeGatePromptProps) {
   const CHEVRON =
     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E\")"
   const select: React.CSSProperties = {
-    flex: 1, padding: '11px', paddingRight: 30, borderRadius: 8, border: `1px solid ${CARD_BORDER}`,
-    background: INPUT_BG, color: TEXT, fontSize: 14, appearance: 'none', fontFamily: 'inherit',
-    backgroundImage: CHEVRON, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 11px center',
+    flex: 1, minWidth: 0, padding: '13px', paddingRight: 32, borderRadius: 8, border: `1px solid ${CARD_BORDER}`,
+    // 16px avoids iOS focus-zoom; native <select> opens the OS picker (iOS wheel /
+    // Android dialog) — colorScheme:dark makes that native picker render dark too.
+    background: INPUT_BG, color: TEXT, fontSize: 16, appearance: 'none', fontFamily: 'inherit',
+    colorScheme: 'dark',
+    backgroundImage: CHEVRON, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center',
     cursor: 'pointer',
   }
 
@@ -105,7 +109,7 @@ export function AgeGatePrompt({ minAge, onResolve }: AgeGatePromptProps) {
           {...PRESS_PRESETS.chunkyInline}
           onClick={submit}
           disabled={!month || !year}
-          style={{ width: '100%', padding: '11px', opacity: !month || !year ? 0.5 : 1, ...ctaText }}
+          style={{ width: '100%', padding: '13px', opacity: !month || !year ? 0.5 : 1, ...ctaText }}
         >
           {t('ageGate.confirm')}
         </PressButton>
@@ -121,7 +125,7 @@ export function AgeGatePrompt({ minAge, onResolve }: AgeGatePromptProps) {
         <PressButton
           {...PRESS_PRESETS.chunkyInline}
           onClick={() => setStep('birthdate')}
-          style={{ flex: 1, padding: '11px', ...ctaText }}
+          style={{ flex: 1, padding: '13px', ...ctaText }}
         >
           {t('ageGate.yes')}
         </PressButton>
@@ -132,7 +136,7 @@ export function AgeGatePrompt({ minAge, onResolve }: AgeGatePromptProps) {
           textColor="#CFCFCF"
           depth={3}
           onClick={() => onResolve({ verified: false, birthdate: null })}
-          style={{ flex: 1, padding: '11px', ...ctaText }}
+          style={{ flex: 1, padding: '13px', ...ctaText }}
         >
           {t('ageGate.no')}
         </PressButton>

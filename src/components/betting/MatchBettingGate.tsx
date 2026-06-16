@@ -26,10 +26,13 @@ export function MatchBettingGate({ tournamentLevel }: { tournamentLevel: string 
         position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(0,0,0,0.78)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 20,
+        // env(safe-area-inset-*) keeps the card clear of notches; overflow + maxHeight
+        // handle short/landscape viewports without trapping content.
+        padding: 'max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom))',
+        overflowY: 'auto',
       }}
     >
-      <div style={{ width: '100%', maxWidth: 420, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ width: '100%', maxWidth: 420, maxHeight: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <AgeGatePrompt
           minAge={market.minAge}
           onResolve={(r) => setAgeVerification({ ...r, decided_at: new Date().toISOString() })}
