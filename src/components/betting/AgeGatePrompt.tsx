@@ -32,13 +32,14 @@ export function AgeGatePrompt({ minAge, onResolve }: AgeGatePromptProps) {
   const [year, setYear] = useState('')   // 'YYYY'
   const [error, setError] = useState(false)
 
-  // Localized month names (Jan..Dec) for the dropdown.
+  // Localized month names (Jan..Dec) for the dropdown. Capitalize the first letter —
+  // es/pt/it/fr return lowercase ("enero", "janvier"); we want title case in the list.
   const months = useMemo(() => {
     const fmt = new Intl.DateTimeFormat(locale, { month: 'long' })
-    return Array.from({ length: 12 }, (_, i) => ({
-      value: String(i + 1),
-      label: fmt.format(new Date(Date.UTC(2021, i, 1))),
-    }))
+    return Array.from({ length: 12 }, (_, i) => {
+      const name = fmt.format(new Date(Date.UTC(2021, i, 1)))
+      return { value: String(i + 1), label: name.charAt(0).toUpperCase() + name.slice(1) }
+    })
   }, [locale])
 
   // Year list: current year down to 100 years back (most recent first).
@@ -71,9 +72,15 @@ export function AgeGatePrompt({ minAge, onResolve }: AgeGatePromptProps) {
   const ctaText: React.CSSProperties = {
     fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.4px',
   }
+  // Custom chevron (native arrow is stripped by appearance:none) so the field
+  // clearly reads as a dropdown.
+  const CHEVRON =
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none' stroke='%236B7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M1 1l5 5 5-5'/%3E%3C/svg%3E\")"
   const select: React.CSSProperties = {
-    flex: 1, padding: '11px', borderRadius: 8, border: `1px solid ${CARD_BORDER}`,
+    flex: 1, padding: '11px', paddingRight: 30, borderRadius: 8, border: `1px solid ${CARD_BORDER}`,
     background: INPUT_BG, color: TEXT, fontSize: 14, appearance: 'none', fontFamily: 'inherit',
+    backgroundImage: CHEVRON, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 11px center',
+    cursor: 'pointer',
   }
 
   if (error) {
