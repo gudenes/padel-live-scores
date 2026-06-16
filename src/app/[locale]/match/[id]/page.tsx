@@ -1017,6 +1017,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <div ref={heroSentinelRef} style={{ height: 0 }} />
       </div>
 
+      {/* Betting odds — pre-match & live only; a finished match can't be bet on.
+          Renders directly under the score (mirrors BeSoccer's pre-match odds slot).
+          All compliance gates (flag/geo/tier/consent/age) live inside the unit. */}
+      {!isFinished && (
+        <BettingOddsUnit
+          matchId={String(match.id)}
+          tournamentLevel={(match as any).tournament?.level ?? null}
+          homeLabel={pair1Label}
+          awayLabel={pair2Label}
+        />
+      )}
+
       {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}
       {isScheduled && (() => {
         // Only show predictions for tournaments with PBP coverage (padelapi source)
@@ -1048,12 +1060,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               todayCircuits={tournamentChannelAbbr ? [tournamentChannelAbbr] : []}
               geoCountry={wtwGeoCountry}
               channelRegionBlocks={wtwRegionBlocks}
-            />
-            <BettingOddsUnit
-              matchId={String(match.id)}
-              tournamentLevel={(match as any).tournament?.level ?? null}
-              homeLabel={pair1Label}
-              awayLabel={pair2Label}
             />
             <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
           </>
