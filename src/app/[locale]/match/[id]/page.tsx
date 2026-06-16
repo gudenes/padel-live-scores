@@ -43,6 +43,9 @@ import {
   PT_ORD, _matchPrevScores,
 } from './lib/constants'
 import { WhereToWatchBanner } from '@/components/where-to-watch/WhereToWatchBanner'
+import { BettingOddsUnit } from '@/components/betting/BettingOddsUnit'
+import { MatchBettingGate } from '@/components/betting/MatchBettingGate'
+import { BettingFooterDisclaimer } from '@/components/betting/BettingFooterDisclaimer'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import type { LiveChannel as WtwLiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { fetchChannelRegionBlocks } from '@/lib/where-to-watch/fetch-channel-region-rules'
@@ -1015,6 +1018,22 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         <div ref={heroSentinelRef} style={{ height: 0 }} />
       </div>
 
+      {/* Betting — pre-match & live only; a finished match can't be bet on.
+          MatchBettingGate is a page-level 18+ modal shown on open for betting-eligible
+          matches; once cleared, BettingOddsUnit renders the odds under the score.
+          Both share useBettingEligibility (flag/geo/tier/consent/age). */}
+      {!isFinished && (
+        <>
+          <MatchBettingGate tournamentLevel={(match as any).tournament?.level ?? null} />
+          <BettingOddsUnit
+            matchId={String(match.id)}
+            tournamentLevel={(match as any).tournament?.level ?? null}
+            homeLabel={pair1Label}
+            awayLabel={pair2Label}
+          />
+        </>
+      )}
+
       {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}
       {isScheduled && (() => {
         // Only show predictions for tournaments with PBP coverage (padelapi source)
@@ -1219,6 +1238,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {tMatch('linkCopied')}
       </div>
     )}
+    <BettingFooterDisclaimer />
     </>
   )
 }

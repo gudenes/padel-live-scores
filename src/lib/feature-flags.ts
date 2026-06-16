@@ -26,6 +26,7 @@ export const FLAG_KEYS = {
   PROJECTION_ENABLED:             'projection_enabled',
   PROJECTION_VOTE_ENABLED:        'projection_vote_enabled',
   MATCH_PREDICTION_ENABLED:       'match_prediction_enabled',
+  BETTING_ENABLED:                'betting_enabled',
 } as const
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS]

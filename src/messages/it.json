@@ -1644,5 +1644,28 @@
   },
   "social": {
     "followUs": "Seguici"
+  },
+  "betting": {
+    "adLabel": "Pubblicità",
+    "ageGate": {
+      "intro": "Questa sezione contiene informazioni sulle scommesse.",
+      "question": "Hai 18 anni o più?",
+      "yes": "Sì, ho più di 18 anni",
+      "no": "No",
+      "birthdatePrompt": "Seleziona mese e anno di nascita",
+      "month": "Mese",
+      "year": "Anno",
+      "confirm": "Conferma",
+      "underage": "Devi avere almeno 18 anni per vedere i contenuti sulle scommesse.",
+      "hidden": "Contenuto sulle scommesse nascosto."
+    },
+    "disclaimers": {
+      "es": "La ludopatía es un riesgo del juego. Juega con responsabilidad. +18. Jugarbien.es",
+      "co": "El juego compulsivo es un riesgo. Juega responsablemente. +18.",
+      "mx": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "pe": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "cl": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "br": "Jogue com responsabilidade. Apostas para maiores de 18 anos. +18."
+    }
   }
 }
