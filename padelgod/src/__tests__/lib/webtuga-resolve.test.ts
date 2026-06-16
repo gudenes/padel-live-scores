@@ -72,4 +72,41 @@ describe('resolveWebtugaMatch', () => {
     const r = resolveWebtugaMatch(feed(), [garciaMatch, dup]);
     expect(r && 'ambiguous' in r ? r.ambiguous : false).toBe(true);
   });
+
+  it('flags ambiguity on a symmetric AB/BA orientation tie', () => {
+    // Both pairs share the same two surnames, so AB and BA score identically —
+    // orientation is a coin-flip and must not be guessed.
+    const symmetric: CandidateMatch = {
+      id: 'uuid-symmetric',
+      category: 'women',
+      pair1Player1Id: 'a', pair1Player2Id: 'b',
+      pair2Player1Id: 'c', pair2Player2Id: 'd',
+      pair1Player1Name: 'Ana Lopez', pair1Player2Name: 'Bea Garcia',
+      pair2Player1Name: 'Cris Lopez', pair2Player2Name: 'Dora Garcia',
+    };
+    const r = resolveWebtugaMatch(
+      feed({ teamA: 'X. Lopez / Y. Garcia', teamB: 'Z. Lopez / W. Garcia' }),
+      [symmetric],
+    );
+    expect(r && 'ambiguous' in r ? r.ambiguous : false).toBe(true);
+  });
+
+  it('counts both members of a same-surname pair (Para / Para)', () => {
+    // Real id-8 Lusitania case. With a Set on the webtuga side this pair would
+    // score 1 instead of 2; the list-based count keeps it resolvable.
+    const para: CandidateMatch = {
+      id: 'uuid-para',
+      category: 'women',
+      pair1Player1Id: 'a', pair1Player2Id: 'b',
+      pair2Player1Id: 'c', pair2Player2Id: 'd',
+      pair1Player1Name: 'Constanca Gorito', pair1Player2Name: 'Maria Francisca Santos',
+      pair2Player1Name: 'Micaela Para', pair2Player2Name: 'Micaela Para',
+    };
+    const r = resolveWebtugaMatch(
+      feed({ teamA: 'C. Gorito / F. Santos', teamB: 'M. Para / J. Para' }),
+      [para],
+    );
+    expect(r && 'matchId' in r ? r.matchId : null).toBe('uuid-para');
+    expect(r && 'orientation' in r ? r.orientation : null).toBe('AB');
+  });
 });
