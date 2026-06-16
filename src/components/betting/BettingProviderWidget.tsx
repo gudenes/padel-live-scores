@@ -30,6 +30,9 @@ export function BettingProviderWidget({
 
   if (!src) return null
 
+  // SECURITY: allow-same-origin is needed for the provider's postMessage/auth, but
+  // combined with allow-scripts it lets the frame drop its own sandbox. The template
+  // URL must ALWAYS point at a cross-origin provider host, never padelnachos.com.
   return (
     <iframe
       src={src}

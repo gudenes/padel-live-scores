@@ -187,6 +187,22 @@ These do **not** block implementation, but **items 1, 2, 4, 5 gate the productio
    (ES first). Wording is legally prescribed in most regimes — do not freelance.
 6. **AdMob isolation** — do not co-serve AdMob on the same screen surface as the
    betting unit (publisher-policy risk to the ad account). Placement rule, not code.
+7. **MUST-FIX before flag-on — `?geo=` override bypass.** `useGeoCountry` honors a
+   `?geo=XX` query-param override (a shared test affordance, also used by ads). With
+   the betting flag live this is a geo-restriction *bypass*: a user in a non-enabled
+   market could append `?geo=ES` to self-activate the unit. Before enabling the flag
+   in prod, gate the override to non-production (e.g. `NODE_ENV !== 'production'`),
+   coordinating the change with the other `useGeoCountry` consumer (`StickyAdBanner`).
+
+## Known v1 limitations
+
+- **Age-gate denial has no expiry.** A user who answers "No" or enters an under-age
+  birthdate is locked out on that device until localStorage is cleared (a 17-yo who
+  turns 18 stays blocked). Acceptable for a device-level v1; revisit if it bites.
+- **Betting unit shows on pre-match + live only**, not finished matches (you can't
+  bet a finished match; the provider returns no odds for them anyway).
+- **v1 is serve-/provider-driven**: odds coverage is whatever the provider prices —
+  realistically Premier-tier only. The tier gate enforces this client-side.
 
 ## Open questions for implementation plan
 
