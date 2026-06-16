@@ -77,27 +77,47 @@ export function resolveWebtugaMatch(
   const scored = candidates
     .filter((m) => !cat || m.category === cat)
     .map((m) => {
-      const ab = teamScore(row.teamA, m.pair1Player1Name, m.pair1Player2Name)
-        + teamScore(row.teamB, m.pair2Player1Name, m.pair2Player2Name);
-      const ba = teamScore(row.teamA, m.pair2Player1Name, m.pair2Player2Name)
-        + teamScore(row.teamB, m.pair1Player1Name, m.pair1Player2Name);
-      const orientation: 'AB' | 'BA' = ab >= ba ? 'AB' : 'BA';
-      return { m, ab, ba, score: Math.max(ab, ba), orientation };
+      // Score each team independently per orientation. BOTH teams must
+      // contribute a surname for an orientation to be valid — otherwise a
+      // single shared pair (e.g. one match's "Melo/Roman" appearing in an
+      // unrelated webtuga row) would hijack the wrong match.
+      const abA = teamScore(row.teamA, m.pair1Player1Name, m.pair1Player2Name);
+      const abB = teamScore(row.teamB, m.pair2Player1Name, m.pair2Player2Name);
+      const baA = teamScore(row.teamA, m.pair2Player1Name, m.pair2Player2Name);
+      const baB = teamScore(row.teamB, m.pair1Player1Name, m.pair1Player2Name);
+      const ab = abA + abB;
+      const ba = baA + baB;
+      const abValid = abA >= 1 && abB >= 1;
+      const baValid = baA >= 1 && baB >= 1;
+
+      let orientation: 'AB' | 'BA' | null = null;
+      let score = 0;
+      if (abValid && baValid) {
+        orientation = ab >= ba ? 'AB' : 'BA';
+        score = Math.max(ab, ba);
+      } else if (abValid) {
+        orientation = 'AB';
+        score = ab;
+      } else if (baValid) {
+        orientation = 'BA';
+        score = ba;
+      }
+      return { m, ab, ba, score, orientation, bothValid: abValid && baValid };
     })
-    .filter((x) => x.score >= MIN_SCORE)
+    .filter((x) => x.orientation !== null && x.score >= MIN_SCORE)
     .sort((a, b) => b.score - a.score);
 
   const top = scored[0];
   if (!top) return null;
   if (scored[1] && scored[1].score === top.score) return { ambiguous: true };
-  // Orientation coin-flip: when AB and BA score identically the orientation is
-  // undetermined, and orientation drives which player each point is credited to.
-  // Treat as ambiguous (skip + counter) rather than risk a silent misassignment.
-  if (top.ab === top.ba) return { ambiguous: true };
+  // Orientation coin-flip: when BOTH orientations are valid and tie, the
+  // orientation is undetermined, and it drives which player each point is
+  // credited to. Treat as ambiguous rather than risk a silent misassignment.
+  if (top.bothValid && top.ab === top.ba) return { ambiguous: true };
 
   return {
     matchId: top.m.id,
-    orientation: top.orientation,
+    orientation: top.orientation as 'AB' | 'BA', // non-null: filtered above
     resolvedPlayers: {
       pair1Player1Id: top.m.pair1Player1Id,
       pair1Player2Id: top.m.pair1Player2Id,

@@ -49,6 +49,20 @@ function mapStatus(raw: string): LiveMatchState['status'] {
   return 'scheduled';
 }
 
+/**
+ * Normalise webtuga's raw point labels into the (team1, team2) pair that
+ * `parsePointState` understands. webtuga marks advantage on the side that holds
+ * it with an `AD`-prefixed label (e.g. "AD1") and leaves the other side BLANK —
+ * which `parsePointState` would reject. Map any `AD*` to a proper advantage:
+ * the side carrying it becomes "AD", the opponent "40".
+ */
+function normalizePoints(t1Raw: string, t2Raw: string): { a: string; b: string } {
+  const isAdv = (s: string) => /^ad/i.test((s ?? '').trim());
+  if (isAdv(t1Raw)) return { a: 'AD', b: '40' };
+  if (isAdv(t2Raw)) return { a: '40', b: 'AD' };
+  return { a: t1Raw || '0', b: t2Raw || '0' };
+}
+
 export function webtugaToLiveState(
   row: WebtugaFeedRow,
   matchId: string,
@@ -61,11 +75,12 @@ export function webtugaToLiveState(
   const t2Games = orientation === 'AB' ? row.gamesB : row.gamesA;
   const t1Points = orientation === 'AB' ? row.pointsA : row.pointsB;
   const t2Points = orientation === 'AB' ? row.pointsB : row.pointsA;
+  const pts = normalizePoints(t1Points, t2Points);
 
   return {
     matchWidgetId: String(row.id),
     matchId,
-    pointState: parsePointState(t1Points || '0', t2Points || '0', false),
+    pointState: parsePointState(pts.a, pts.b, false),
     team1Sets: buildSets(t1HistoryRaw, t1Games),
     team2Sets: buildSets(t2HistoryRaw, t2Games),
     servingTeam: null, // feed row carries no server; detail-endpoint enrichment is a later task

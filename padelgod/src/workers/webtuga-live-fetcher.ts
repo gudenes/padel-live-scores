@@ -52,14 +52,29 @@ async function loadCandidates(
   supabase: SupabaseClient,
   tournamentId: string,
 ): Promise<CandidateMatch[]> {
+  // Names come from the players FK (canonical), with the matches.pair*_name
+  // snapshot columns as a fallback. For FK-resolved draw matches the snapshot
+  // columns are mostly NULL — the real names live in `players` — so resolving
+  // against the snapshot alone would miss ~96% of matches.
   const { data, error } = await supabase
     .from('matches')
     .select(
       'id, category, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
-        'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name',
+        'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name, ' +
+        'p11:players!matches_pair1_player1_id_fkey(name), ' +
+        'p12:players!matches_pair1_player2_id_fkey(name), ' +
+        'p21:players!matches_pair2_player1_id_fkey(name), ' +
+        'p22:players!matches_pair2_player2_id_fkey(name)',
     )
     .eq('tournament_id', tournamentId);
   if (error) throw new Error(`loadCandidates failed: ${error.message}`);
+  // Embedded joins return either an object or a 1-element array depending on
+  // schema cardinality hints — normalize both to a name string.
+  const joinName = (p: unknown): string | null => {
+    if (!p) return null;
+    if (Array.isArray(p)) return (p[0] as { name?: string | null })?.name ?? null;
+    return (p as { name?: string | null }).name ?? null;
+  };
   return (data ?? []).map((m: any) => ({
     id: m.id,
     category: m.category,
@@ -67,10 +82,10 @@ async function loadCandidates(
     pair1Player2Id: m.pair1_player2_id,
     pair2Player1Id: m.pair2_player1_id,
     pair2Player2Id: m.pair2_player2_id,
-    pair1Player1Name: m.pair1_player1_name,
-    pair1Player2Name: m.pair1_player2_name,
-    pair2Player1Name: m.pair2_player1_name,
-    pair2Player2Name: m.pair2_player2_name,
+    pair1Player1Name: joinName(m.p11) ?? m.pair1_player1_name,
+    pair1Player2Name: joinName(m.p12) ?? m.pair1_player2_name,
+    pair2Player1Name: joinName(m.p21) ?? m.pair2_player1_name,
+    pair2Player2Name: joinName(m.p22) ?? m.pair2_player2_name,
   }));
 }
 

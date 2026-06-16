@@ -46,4 +46,13 @@ describe('webtugaToLiveState', () => {
     expect(s.status).toBe('scheduled');
     expect(s.team1Sets).toEqual([{ games: 0, tiebreak: null }]);
   });
+
+  it('maps webtuga AD-prefixed advantage (one side "AD1", other blank)', () => {
+    // team A holds advantage: pointsA="AD1", pointsB="" (real webtuga shape).
+    const s = webtugaToLiveState(row({ pointsA: 'AD1', pointsB: '' }), 'u', 'AB');
+    expect(s.pointState).toEqual({ kind: 'advantage', side: 1 });
+    // under BA orientation the same row means our pair2 holds advantage.
+    const s2 = webtugaToLiveState(row({ pointsA: 'AD1', pointsB: '' }), 'u', 'BA');
+    expect(s2.pointState).toEqual({ kind: 'advantage', side: 2 });
+  });
 });

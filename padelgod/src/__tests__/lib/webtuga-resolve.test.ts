@@ -91,6 +91,25 @@ describe('resolveWebtugaMatch', () => {
     expect(r && 'ambiguous' in r ? r.ambiguous : false).toBe(true);
   });
 
+  it('rejects a single-pair partial match (only one team overlaps)', () => {
+    // Real Lusitania false-positive: feed #20 (Santos/Azcoitia vs Melo/Roman)
+    // shares ONLY the Melo/Roman pair with the Bragança/Teixeira-vs-Melo/Roman
+    // match. One team overlapping must NOT resolve — both teams are required.
+    const braganca: CandidateMatch = {
+      id: 'uuid-br',
+      category: 'women',
+      pair1Player1Id: 'a', pair1Player2Id: 'b',
+      pair2Player1Id: 'c', pair2Player2Id: 'd',
+      pair1Player1Name: 'Francisca Bragança', pair1Player2Name: 'Maria Leonor Araujo Teixeira',
+      pair2Player1Name: 'Patricia Roman Aldea', pair2Player2Name: 'Bruna Albuquerque Melo',
+    };
+    const r = resolveWebtugaMatch(
+      feed({ teamA: 'C. Santos / C. Azcoitia', teamB: 'B. Melo / P. Roman' }),
+      [braganca],
+    );
+    expect(r).toBeNull();
+  });
+
   it('counts both members of a same-surname pair (Para / Para)', () => {
     // Real id-8 Lusitania case. With a Set on the webtuga side this pair would
     // score 1 instead of 2; the list-based count keeps it resolvable.
