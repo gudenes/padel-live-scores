@@ -20,6 +20,8 @@ const ALL_ENABLED = {
   enableRawPayloadsPrune: true,
   rawPayloadsPruneDryRun: false,
   enableLiveOddsUpdater: true,
+  enableWebtugaLive: true,
+  webtugaLiveDryRun: true,
 };
 
 describe('buildSchedule', () => {
@@ -184,5 +186,15 @@ describe('buildSchedule', () => {
   it('omits live-odds-updater when flag is off', () => {
     const sched = buildSchedule({ ...ALL_ENABLED, enableLiveOddsUpdater: false } as any);
     expect(sched.map((s) => s.name)).not.toContain('live-odds-updater');
+  });
+
+  it('includes webtuga-live-fetcher when enabled', () => {
+    const sched = buildSchedule(ALL_ENABLED as any);
+    expect(sched.map((e) => e.name)).toContain('webtuga-live-fetcher');
+  });
+
+  it('excludes webtuga-live-fetcher when disabled', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableWebtugaLive: false } as any);
+    expect(sched.map((e) => e.name)).not.toContain('webtuga-live-fetcher');
   });
 });

@@ -219,6 +219,8 @@ const EnvSchema = z.object({
   // Writes match_live_odds (upsert) + match_live_odds_snapshots (append).
   // Default OFF; flip to true in Railway after match_live_odds migration lands.
   ENABLE_LIVE_ODDS_UPDATER: boolEnv(false),
+  ENABLE_WEBTUGA_LIVE: boolEnv(false),
+  WEBTUGA_LIVE_DRY_RUN: boolEnv(true),
   // free event-notification senders — premium notifications Plan 2B; default off.
   ENABLE_EVENT_NOTIFICATIONS: boolEnv(false),
   // tournament_starting notifier (premium notifications Plan 2A) — default off.
