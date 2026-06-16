@@ -44,7 +44,10 @@ export function MatchStatsView({
   const t = useTranslations('matchDetail.stats')
   const parentOwnsFetch = preloaded !== undefined
   const [response, setResponse] = useState<MatchStatsResponse | null>(preloaded ?? null)
-  const [loading, setLoading] = useState(!parentOwnsFetch)
+  // Show the skeleton while data is pending: self-fetch mode (undefined), OR
+  // parent-owned mode where the parent hasn't resolved yet (preloaded === null).
+  // Only start un-loaded when preloaded already carries data.
+  const [loading, setLoading] = useState(parentOwnsFetch ? preloaded == null : true)
   const [error, setError] = useState<string | null>(null)
   const [activeSet, setActiveSet] = useState(0)
 
@@ -79,6 +82,9 @@ export function MatchStatsView({
     return () => {
       cancelled = true
     }
+    // `parentOwnsFetch` is in the deps for completeness; in practice a given
+    // mount never flips between owned/self-fetch modes (a caller either passes
+    // `preloaded` or it doesn't), so this effect re-runs only on `matchId`.
   }, [matchId, parentOwnsFetch])
 
   if (loading) return <SkeletonBars />
