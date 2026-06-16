@@ -22,7 +22,7 @@ import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { isPremierLevel } from '@/lib/tournament-labels'
-import { shouldShowRecap, defaultFinishedTab } from './recap-visibility'
+import { shouldShowRecap, defaultFinishedTab, matchDetailTabKeys } from './recap-visibility'
 import { isPresenceOnlyLive, hasLivePointByPoint } from '@/lib/tournament-tier'
 import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import { Capacitor } from '@capacitor/core'
@@ -1209,15 +1209,15 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         // actually feeds). Stays hidden for live FIP rows with no points.
         const showLive = isPremier || hasLivePointByPoint((match as any).sets ?? null)
 
-        const tabList: { key: string; label: string }[] = isFinished
-          ? showRecap
-            ? [recapTab, ...(showLive ? [liveTab] : []), playersTab, h2hTab]
-            : [playersTab, h2hTab]
-          : isScheduled
-            ? [playersTab, h2hTab]
-            : showLive
-              ? [liveTab, playersTab, h2hTab]
-              : [playersTab, h2hTab]
+        // recap and live are independent: a finished webtuga match hides the
+        // Score Recap but keeps the point-by-point Live Feed. See matchDetailTabKeys.
+        const tabDefs = { recap: recapTab, live: liveTab, players: playersTab, h2h: h2hTab }
+        const tabList: { key: string; label: string }[] = matchDetailTabKeys({
+          isFinished,
+          isScheduled,
+          showRecap,
+          showLive,
+        }).map(k => tabDefs[k])
 
         const tabKeys = tabList.map(t => t.key)
         const currentIdx = Math.max(0, tabKeys.indexOf(subTab))
