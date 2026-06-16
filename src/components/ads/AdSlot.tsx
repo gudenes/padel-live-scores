@@ -15,14 +15,16 @@ export function AdSlot({
   variant,
   banner,
   context,
+  preview = false,
 }: {
   slot: AdSlotId
   variant: 'feed' | 'detail' | 'sticky'
   banner: AdBanner | null
   context?: { matchId?: string }
+  preview?: boolean
 }) {
   if (banner) {
-    return <SponsorCard banner={banner} slot={slot} variant={variant} matchId={context?.matchId} />
+    return <SponsorCard banner={banner} slot={slot} variant={variant} matchId={context?.matchId} preview={preview} />
   }
   return <NetworkAdSlot slot={slot} variant={variant} />
 }

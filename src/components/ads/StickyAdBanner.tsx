@@ -8,6 +8,8 @@ import { pickBanner } from '@/lib/ad-banner-resolver'
 import { useActiveBanner } from '@/hooks/useActiveBanner'
 import { useGeoCountry } from '@/hooks/useGeoCountry'
 import { useConsent } from '@/hooks/useConsent'
+import { useAdPreview } from '@/hooks/useAdPreview'
+import type { AdBanner } from '@/lib/ad-banner-resolver'
 import { AdSlot } from './AdSlot'
 import { useAdMobBanner } from './useAdMobBanner'
 
@@ -31,7 +33,6 @@ export function StickyAdBanner() {
   const pathname = usePathname()
   const { hasDecided } = useConsent()
   const active = useActiveBanner('sticky-bottom')
-  const banner = active ? pickBanner(active.banners, country) : null
   // ?geo=XX is a manual testing override; in that mode we also skip the
   // consent gate so the banner can be previewed on a device without going
   // through the cookie flow.
@@ -43,11 +44,49 @@ export function StickyAdBanner() {
   // as eligible: this is a first-party, direct-sold image ad (not third-party
   // cookie tracking), and the apps run analytics in memory-mode already.
   const isNative = Capacitor.isNativePlatform()
-  // On the web, otherwise hold the banner until the visitor has dealt with the
-  // cookie-consent prompt — keeps the consent UI unobstructed and avoids firing
-  // an ad impression before consent (matters for EU/Spain visitors).
-  const visible =
-    !!banner && isAdRoute(pathname) && (hasDecided || testingGeo || isNative)
+  // Preview mode: a ?ad_preview=<id> link force-shows one specific banner
+  // (even if active=false) for stakeholder sign-off — bypassing country
+  // targeting and the consent gate. Resolves to null when no link / unknown id.
+  const previewId = useAdPreview()
+  const [previewBanner, setPreviewBanner] = useState<AdBanner | null>(null)
+  useEffect(() => {
+    let alive = true
+    if (!previewId) {
+      // Defer the reset out of the synchronous effect body to avoid tripping
+      // react-hooks/set-state-in-effect (cascading-render guard).
+      void Promise.resolve().then(() => {
+        if (alive) setPreviewBanner(null)
+      })
+      return () => {
+        alive = false
+      }
+    }
+    void fetch(`/api/ads/preview?id=${encodeURIComponent(previewId)}`)
+      .then((r) => (r.ok ? r.json() : { banner: null }))
+      .then((d: { banner: AdBanner | null }) => {
+        if (alive) setPreviewBanner(d.banner)
+      })
+      .catch(() => {
+        if (alive) setPreviewBanner(null)
+      })
+    return () => {
+      alive = false
+    }
+  }, [previewId])
+
+  const isPreview = !!previewId && !!previewBanner
+  // While a preview link is open we never show the default ad — only the
+  // resolved preview banner (null until it loads / if the id is unknown).
+  const banner = previewId
+    ? previewBanner
+    : active
+      ? pickBanner(active.banners, country)
+      : null
+  // Preview bypasses country + consent (still gated to ad routes); otherwise the
+  // normal consent / native gate applies.
+  const visible = previewId
+    ? !!previewBanner && isAdRoute(pathname)
+    : !!banner && isAdRoute(pathname) && (hasDecided || testingGeo || isNative)
 
   // We also need navHeight when the NATIVE AdMob banner is in play (no direct
   // banner, so `visible` is false, but the overlay still needs to sit above
@@ -132,7 +171,7 @@ export function StickyAdBanner() {
         zIndex: 199,
       }}
     >
-      <AdSlot slot="sticky-bottom" variant="sticky" banner={banner} />
+      <AdSlot slot="sticky-bottom" variant="sticky" banner={banner} preview={isPreview} />
     </div>
   )
 }
