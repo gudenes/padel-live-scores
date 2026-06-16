@@ -24,26 +24,50 @@ const MUTED = '#8a8f98'
 
 type StatsStatus = 'ok' | 'no_mapping' | 'pending_sync' | 'upcoming' | 'unavailable'
 
-interface ApiResponse {
+export interface MatchStatsResponse {
   stats: MatchStatsRow[] | null
   status: StatsStatus
+  webtugaSourced?: boolean
 }
 
-export function MatchStatsView({ matchId, breaks }: { matchId: string; breaks?: BreakStats }) {
+export function MatchStatsView({
+  matchId,
+  breaks,
+  preloaded,
+}: {
+  matchId: string
+  breaks?: BreakStats
+  /** When provided (even as null=loading), the parent owns the fetch and this
+   *  component renders from it instead of fetching itself. Omit for self-fetch. */
+  preloaded?: MatchStatsResponse | null
+}) {
   const t = useTranslations('matchDetail.stats')
-  const [response, setResponse] = useState<ApiResponse | null>(null)
-  const [loading, setLoading] = useState(true)
+  const parentOwnsFetch = preloaded !== undefined
+  const [response, setResponse] = useState<MatchStatsResponse | null>(preloaded ?? null)
+  // Show the skeleton while data is pending: self-fetch mode (undefined), OR
+  // parent-owned mode where the parent hasn't resolved yet (preloaded === null).
+  // Only start un-loaded when preloaded already carries data.
+  const [loading, setLoading] = useState(parentOwnsFetch ? preloaded == null : true)
   const [error, setError] = useState<string | null>(null)
   const [activeSet, setActiveSet] = useState(0)
 
+  // Parent-owned mode: mirror the prop into render state, never self-fetch.
   useEffect(() => {
+    if (!parentOwnsFetch) return
+    setResponse(preloaded ?? null)
+    setLoading(preloaded == null)
+  }, [parentOwnsFetch, preloaded])
+
+  // Self-fetch mode (back-compat for callers that don't pass `preloaded`).
+  useEffect(() => {
+    if (parentOwnsFetch) return
     let cancelled = false
     setLoading(true)
     setError(null)
     fetch(`/api/match-stats?matchId=${matchId}`)
       .then(async r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return (await r.json()) as ApiResponse
+        return (await r.json()) as MatchStatsResponse
       })
       .then(data => {
         if (cancelled) return
@@ -58,7 +82,10 @@ export function MatchStatsView({ matchId, breaks }: { matchId: string; breaks?: 
     return () => {
       cancelled = true
     }
-  }, [matchId])
+    // `parentOwnsFetch` is in the deps for completeness; in practice a given
+    // mount never flips between owned/self-fetch modes (a caller either passes
+    // `preloaded` or it doesn't), so this effect re-runs only on `matchId`.
+  }, [matchId, parentOwnsFetch])
 
   if (loading) return <SkeletonBars />
   if (error) return <ErrorState message={error} />

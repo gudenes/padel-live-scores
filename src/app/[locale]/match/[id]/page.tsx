@@ -16,12 +16,13 @@ import { useMatchPrediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
-import { MatchStatsView } from '@/components/MatchStatsView'
+import { MatchStatsView, type MatchStatsResponse } from '@/components/MatchStatsView'
 import { computeBreaks } from './break-stats'
 import { SwipeTabView } from '@/components/SwipeTabView'
 import { useAuth } from '@/components/AuthProvider'
 import { logActivity } from '@/lib/activity-log'
 import { isPremierLevel } from '@/lib/tournament-labels'
+import { shouldShowRecap, defaultFinishedTab } from './recap-visibility'
 import { isPresenceOnlyLive, hasLivePointByPoint } from '@/lib/tournament-tier'
 import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import { Capacitor } from '@capacitor/core'
@@ -87,6 +88,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
   const [wtwGeoCountry, setWtwGeoCountry] = useState<string | null>(null)
   const [wtwRegionBlocks, setWtwRegionBlocks] = useState<Array<{ channelId: string; countryIso2: string }>>([])
+  const [matchStats, setMatchStats] = useState<MatchStatsResponse | null>(null)
+  const webtugaSourced = matchStats?.webtugaSourced ?? false
   const { user } = useAuth()
 
   const fetchNextMatch = useCallback(async (m: Match) => {
@@ -242,6 +245,29 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     if (match && match.status === 'finished' && (match as any).winner_pair) fetchNextMatch(match)
   }, [match, fetchNextMatch])
 
+  // Eagerly fetch match-stats for completed matches (finished/retired/walkover):
+  // powers both the Score Recap content (passed to MatchStatsView) and the
+  // webtugaSourced flag that decides whether the recap tab shows at all.
+  useEffect(() => {
+    // Mirror `isFinished` (below) so retired/walkover matches — which DO render
+    // a recap tab — also fetch their stats; otherwise MatchStatsView, which
+    // reads preloaded=null as "loading", would spin forever on those.
+    if (!['finished', 'retired', 'walkover'].includes(match?.status ?? '')) {
+      setMatchStats(null)
+      return
+    }
+    let cancelled = false
+    // On error resolve to an `unavailable` response, NOT null: MatchStatsView
+    // reads `null` as "still loading", so leaving it null on error would spin
+    // the recap forever. `unavailable` renders the breaks-only / empty state.
+    const errored: MatchStatsResponse = { stats: null, status: 'unavailable', webtugaSourced: false }
+    fetch(`/api/match-stats?matchId=${id}`)
+      .then(r => (r.ok ? (r.json() as Promise<MatchStatsResponse>) : errored))
+      .then((data) => { if (!cancelled) setMatchStats(data) })
+      .catch(() => { if (!cancelled) setMatchStats(errored) })
+    return () => { cancelled = true }
+  }, [id, match?.status])
+
   useEffect(() => {
     if (prediction) setPredStep('done')
   }, [prediction])
@@ -256,14 +282,18 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       { status: (match?.status as string) ?? '', sets: (match as any)?.sets ?? null },
       { level: tournamentLevel ?? null },
     )
-    if (match?.status === 'finished') setSubTab(isPremier ? 'recap' : 'players')
+    if (['finished', 'retired', 'walkover'].includes(match?.status ?? '')) setSubTab(defaultFinishedTab({ isPremier, webtugaSourced }))
     else if (match?.status === 'scheduled') setSubTab('players')
     else if (match && presenceOnlyDefault) setSubTab('players') // live, no PBP
     // Deps intentionally omit `sets`: the default tab is chosen once on the
     // status/level edge, not on PBP arrival. If point data lands mid-view, the
     // Live Feed tab appears on its own (showLive below reacts in render) — we
     // don't yank the user to a different tab under them. Don't add `sets` here.
-  }, [match?.status, (match as any)?.tournament?.level])
+    // `webtugaSourced` IS a dep: when the stats fetch resolves and flips it
+    // true, a webtuga match must move off 'recap' (about to be hidden) to
+    // 'players'. This intentionally overrides a tab chosen before the flag
+    // loaded — acceptable given the brief recap-tab flash trade-off.
+  }, [match?.status, (match as any)?.tournament?.level, webtugaSourced])
 
   // Defensive: if a user deep-links to ?tab=live (or selection survives from
   // a prior render) on a presence-only FIP match, the Live Feed tab is
@@ -1169,7 +1199,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         // Show recap (Stats) for Premier matches always, and for non-Premier
         // matches when we have break data to surface. MatchStatsView handles
         // the "breaks-only" path when premier stats are unavailable.
-        const showRecap = isPremier || breaks.hasData
+        const showRecap = shouldShowRecap({ isPremier, hasBreaks: breaks.hasData, webtugaSourced })
 
         // Presence-only FIP-tier live matches never receive point-by-point
         // data — hide the Live Feed tab so the user doesn't land on an
@@ -1201,7 +1231,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             {tabList.map(t => (
               <div key={t.key} style={{ background: BG_CARD, minHeight: 300 }}>
                 {t.key === 'recap' && isFinished && (
-                  <MatchStatsView matchId={match.id} breaks={breaks} />
+                  <MatchStatsView matchId={match.id} breaks={breaks} preloaded={matchStats} />
                 )}
                 {t.key === 'live' && (
                   <LiveFeedTab match={match} pair1Label={pair1Label} pair2Label={pair2Label} isLive={isLive} />

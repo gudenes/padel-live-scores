@@ -19,6 +19,7 @@
 // Crionet-only now; see `padelgod/src/workers/match-stats-fetcher.ts`.
 
 import { createClient } from '@supabase/supabase-js'
+import { isMatchWebtugaSourced } from '@/lib/webtuga-source'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,9 +48,11 @@ export async function GET(request: Request) {
     return Response.json({ error: 'Match not found' }, { status: 404 })
   }
 
+  const webtugaSourced = await isMatchWebtugaSourced(supabase, matchId)
+
   if (match.status === 'scheduled') {
     return Response.json(
-      { stats: null, status: 'upcoming' as StatsStatus },
+      { stats: null, status: 'upcoming' as StatsStatus, webtugaSourced },
       { headers: { 'cache-control': 'public, max-age=30, stale-while-revalidate=300' } },
     )
   }
@@ -63,13 +66,13 @@ export async function GET(request: Request) {
   if (rows && rows.length > 0) {
     const stats = rows.map(({ raw_payload: _raw, ...rest }) => rest)
     return Response.json(
-      { stats, status: 'ok' as StatsStatus },
+      { stats, status: 'ok' as StatsStatus, webtugaSourced },
       { headers: { 'cache-control': 'public, max-age=60, stale-while-revalidate=600' } },
     )
   }
 
   return Response.json(
-    { stats: null, status: 'unavailable' as StatsStatus },
+    { stats: null, status: 'unavailable' as StatsStatus, webtugaSourced },
     { headers: { 'cache-control': 'public, max-age=30, stale-while-revalidate=300' } },
   )
 }
