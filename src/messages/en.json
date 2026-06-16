@@ -1676,5 +1676,26 @@
   },
   "social": {
     "followUs": "Follow us"
+  },
+  "betting": {
+    "adLabel": "Advertisement",
+    "ageGate": {
+      "intro": "This section contains betting information.",
+      "question": "Are you 18 or older?",
+      "yes": "Yes, I'm 18+",
+      "no": "No",
+      "birthdatePrompt": "Confirm your date of birth",
+      "confirm": "Confirm",
+      "underage": "You must be 18 or older to view betting content.",
+      "hidden": "Betting content hidden."
+    },
+    "disclaimers": {
+      "es": "La ludopatía es un riesgo del juego. Juega con responsabilidad. +18. Jugarbien.es",
+      "co": "El juego compulsivo es un riesgo. Juega responsablemente. +18.",
+      "mx": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "pe": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "cl": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "br": "Jogue com responsabilidade. Apostas para maiores de 18 anos. +18."
+    }
   }
 }

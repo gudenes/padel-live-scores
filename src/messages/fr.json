@@ -1644,5 +1644,26 @@
   },
   "social": {
     "followUs": "Suivez-nous"
+  },
+  "betting": {
+    "adLabel": "Publicité",
+    "ageGate": {
+      "intro": "Cette section contient des informations sur les paris.",
+      "question": "Avez-vous 18 ans ou plus ?",
+      "yes": "Oui, j'ai 18 ans ou plus",
+      "no": "Non",
+      "birthdatePrompt": "Confirmez votre date de naissance",
+      "confirm": "Confirmer",
+      "underage": "Vous devez avoir 18 ans ou plus pour voir le contenu de paris.",
+      "hidden": "Contenu de paris masqué."
+    },
+    "disclaimers": {
+      "es": "La ludopatía es un riesgo del juego. Juega con responsabilidad. +18. Jugarbien.es",
+      "co": "El juego compulsivo es un riesgo. Juega responsablemente. +18.",
+      "mx": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "pe": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "cl": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
+      "br": "Jogue com responsabilidade. Apostas para maiores de 18 anos. +18."
+    }
   }
 }
