@@ -3,6 +3,11 @@
  * diffLiveState/applyDiff. The `orientation` (from the resolver) decides whether
  * webtuga's team A is our pair1 (AB) or pair2 (BA); we always emit team1* = our
  * pair1.
+ *
+ * THROWS: `parsePointState` rejects any point label outside {0,15,30,40,Ad/AD}.
+ * webtuga is an undocumented third-party feed, so a transitional/blank label on
+ * a live tick (e.g. "-") will throw. The caller (webtuga-live-fetcher) MUST wrap
+ * per-row in try/catch so one bad row can't abort the whole tick.
  */
 import {
   parsePointState,
@@ -18,7 +23,12 @@ function parseHistory(s: string): number[] {
     .map((x) => Number(x));
 }
 
-/** Build the per-set array: completed sets from history + the current set games. */
+/**
+ * Build the per-set array: completed sets from history + the current set games.
+ * v1 limitation: `tiebreak` is always null (webtuga's setsHistory carries only
+ * the games count, not the tiebreak digit), so `currentSetHasTiebreak` in the
+ * diff engine will never be true for adapter-sourced state.
+ */
 function buildSets(history: string, currentGames: number): Array<LiveSetEntry | null> {
   const completed = parseHistory(history).map((g) => ({ games: g, tiebreak: null }));
   return [...completed, { games: currentGames, tiebreak: null }];
