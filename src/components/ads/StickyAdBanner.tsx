@@ -46,7 +46,9 @@ export function StickyAdBanner() {
   const isNative = Capacitor.isNativePlatform()
   // Preview mode: a ?ad_preview=<id> link force-shows one specific banner
   // (even if active=false) for stakeholder sign-off — bypassing country
-  // targeting and the consent gate. Resolves to null when no link / unknown id.
+  // targeting and the consent gate. Bypassing consent is safe here because
+  // preview suppresses all impression/click tracking (see SponsorCard), so no
+  // ad event fires pre-consent. Resolves to null when no link / unknown id.
   const previewId = useAdPreview()
   const [previewBanner, setPreviewBanner] = useState<AdBanner | null>(null)
   // Fetch the previewed banner when a ?ad_preview link is open. The cleanup
@@ -167,6 +169,9 @@ export function StickyAdBanner() {
         zIndex: 199,
       }}
     >
+      {/* Preview ignores the banner's own slot and renders it here as
+          sticky-bottom — safe while that's the only AdSlotId. When a second
+          slot type is added, gate preview on previewBanner.slot. */}
       <AdSlot slot="sticky-bottom" variant="sticky" banner={banner} preview={isPreview} />
     </div>
   )
