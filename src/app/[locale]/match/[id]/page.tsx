@@ -43,6 +43,8 @@ import {
   PT_ORD, _matchPrevScores,
 } from './lib/constants'
 import { WhereToWatchBanner } from '@/components/where-to-watch/WhereToWatchBanner'
+import { BettingOddsUnit } from '@/components/betting/BettingOddsUnit'
+import { BettingFooterDisclaimer } from '@/components/betting/BettingFooterDisclaimer'
 import { levelToChannelAbbr } from '@/lib/where-to-watch/circuit-map'
 import type { LiveChannel as WtwLiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-watch/group-builder'
 import { fetchChannelRegionBlocks } from '@/lib/where-to-watch/fetch-channel-region-rules'
@@ -1047,6 +1049,12 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
               geoCountry={wtwGeoCountry}
               channelRegionBlocks={wtwRegionBlocks}
             />
+            <BettingOddsUnit
+              matchId={String(match.id)}
+              tournamentLevel={(match as any).tournament?.level ?? null}
+              homeLabel={pair1Label}
+              awayLabel={pair2Label}
+            />
             <ScheduledSection match={match} pair1Label={pair1Label} pair2Label={pair2Label} countdown={countdown} tz={tz} />
           </>
         )
@@ -1219,6 +1227,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {tMatch('linkCopied')}
       </div>
     )}
+    <BettingFooterDisclaimer />
     </>
   )
 }
