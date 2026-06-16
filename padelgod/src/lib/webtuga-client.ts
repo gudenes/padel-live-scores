@@ -19,5 +19,7 @@ export async function fetchMatchDetail(
   id: number,
 ): Promise<WebtugaMatchDetail> {
   const res = await httpClient.get(`${base(baseUrl)}/api/public/matches/${id}`);
-  return res.data as WebtugaMatchDetail;
+  const data = res.data as WebtugaMatchDetail | null;
+  if (!data) throw new Error(`fetchMatchDetail: empty response for id=${id}`);
+  return data;
 }
