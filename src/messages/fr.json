@@ -1652,7 +1652,9 @@
       "question": "Avez-vous 18 ans ou plus ?",
       "yes": "Oui, j'ai 18 ans ou plus",
       "no": "Non",
-      "birthdatePrompt": "Confirmez votre date de naissance",
+      "birthdatePrompt": "Sélectionnez votre mois et année de naissance",
+      "month": "Mois",
+      "year": "Année",
       "confirm": "Confirmer",
       "underage": "Vous devez avoir 18 ans ou plus pour voir le contenu des paris.",
       "hidden": "Contenu des paris masqué."

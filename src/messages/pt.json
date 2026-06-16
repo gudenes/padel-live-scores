@@ -1652,7 +1652,9 @@
       "question": "Tens 18 anos ou mais?",
       "yes": "Sim, tenho mais de 18",
       "no": "Não",
-      "birthdatePrompt": "Confirma a tua data de nascimento",
+      "birthdatePrompt": "Seleciona o teu mês e ano de nascimento",
+      "month": "Mês",
+      "year": "Ano",
       "confirm": "Confirmar",
       "underage": "Tens de ter 18 anos ou mais para ver conteúdo de apostas.",
       "hidden": "Conteúdo de apostas oculto."

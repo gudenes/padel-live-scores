@@ -138,11 +138,13 @@ destroyed) and is fully shown the instant the gate is answered.
 1. **Prompt:** "This section contains betting information. Are you 18 or older?"
    with **Yes / No** (+ the market disclaimer beneath).
    - **No** → store `{ verified: false }`; modal closes; page shows **without** odds.
-2. **Birthdate:** on **Yes**, show a date picker. Compute age vs the country's
-   `minAge` (18 for all launch markets).
-   - age ≥ minAge → store `{ verified: true, birthdate, decided_at }`; modal closes;
-     the inline odds widget (`BettingOddsUnit`) renders under the score.
-   - under-age → store `{ verified: false }`; modal closes; no odds; never re-prompt.
+2. **Birthdate:** on **Yes**, show **Month + Year dropdowns** (no exact day — this
+   is an age gate, not KYC; native date pickers are poor UX for decades-back DOBs).
+   Eligibility is **conservative** (`isOldEnoughByMonthYear`): admit only if the user
+   is certainly ≥ `minAge` assuming the youngest possible day in that month.
+   - clearly ≥ minAge → store `{ verified: true, birthdate: 'YYYY-MM-01', decided_at }`;
+     modal closes; the inline odds widget (`BettingOddsUnit`) renders under the score.
+   - otherwise → store `{ verified: false }`; modal closes; no odds; never re-prompt.
 3. **Persistence:** localStorage device-level (`pn_age_verified`). Answered once per
    device — never re-prompts (any match) unless storage is cleared.
 

@@ -1684,7 +1684,9 @@
       "question": "Are you 18 or older?",
       "yes": "Yes, I'm 18+",
       "no": "No",
-      "birthdatePrompt": "Confirm your date of birth",
+      "birthdatePrompt": "Select your month and year of birth",
+      "month": "Month",
+      "year": "Year",
       "confirm": "Confirm",
       "underage": "You must be 18 or older to view betting content.",
       "hidden": "Betting content hidden."

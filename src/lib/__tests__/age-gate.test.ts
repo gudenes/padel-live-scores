@@ -4,6 +4,7 @@ import {
   serializeAgeVerification,
   computeAge,
   isOldEnough,
+  isOldEnoughByMonthYear,
   type AgeVerification,
 } from '@/lib/age-gate'
 
@@ -22,6 +23,30 @@ describe('computeAge', () => {
   it('returns -1 for an invalid or future date', () => {
     expect(computeAge('not-a-date', NOW)).toBe(-1)
     expect(computeAge('2030-01-01', NOW)).toBe(-1)
+  })
+})
+
+describe('isOldEnoughByMonthYear (conservative — admit only if clearly >= minAge)', () => {
+  // NOW = 2026-06-16
+  it('admits a clearly-adult month/year', () => {
+    expect(isOldEnoughByMonthYear(1990, 6, 18, NOW)).toBe(true)
+  })
+  it('admits when the birth month already passed enough years ago', () => {
+    // May 2008: even born on the last day (2008-05-31) they are 18 by 2026-06-16
+    expect(isOldEnoughByMonthYear(2008, 5, 18, NOW)).toBe(true)
+  })
+  it('blocks the exact turning-18 month (conservative)', () => {
+    // June 2008: born on the last day (2008-06-30) they are still 17 on 2026-06-16,
+    // so we cannot be sure they are 18 -> block.
+    expect(isOldEnoughByMonthYear(2008, 6, 18, NOW)).toBe(false)
+  })
+  it('blocks a clearly-underage month/year', () => {
+    expect(isOldEnoughByMonthYear(2015, 1, 18, NOW)).toBe(false)
+  })
+  it('rejects invalid month or year', () => {
+    expect(isOldEnoughByMonthYear(2000, 0, 18, NOW)).toBe(false)
+    expect(isOldEnoughByMonthYear(2000, 13, 18, NOW)).toBe(false)
+    expect(isOldEnoughByMonthYear(NaN, 6, 18, NOW)).toBe(false)
   })
 })
 

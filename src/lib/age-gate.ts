@@ -29,6 +29,26 @@ export function isOldEnough(birthdateISO: string, minAge: number, now: Date): bo
   return age >= minAge
 }
 
+/**
+ * Age eligibility from month + year only (the gate captures no exact day).
+ * CONSERVATIVE: assumes the youngest possible birthday in that month (its last
+ * day), so we admit only when the user is *certainly* >= minAge regardless of the
+ * actual day. `month` is 1-12. Invalid inputs → false.
+ */
+export function isOldEnoughByMonthYear(
+  year: number,
+  month: number,
+  minAge: number,
+  now: Date,
+): boolean {
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    return false
+  }
+  // Date.UTC(year, month, 0) → day 0 of the next month = last day of `month` (1-12).
+  const lastDay = new Date(Date.UTC(year, month, 0))
+  return isOldEnough(lastDay.toISOString().slice(0, 10), minAge, now)
+}
+
 export function serializeAgeVerification(v: AgeVerification): string {
   return JSON.stringify(v)
 }
