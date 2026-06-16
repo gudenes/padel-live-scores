@@ -251,10 +251,14 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   useEffect(() => {
     if (match?.status !== 'finished') { setMatchStats(null); return }
     let cancelled = false
+    // On error resolve to an `unavailable` response, NOT null: MatchStatsView
+    // reads `null` as "still loading", so leaving it null on error would spin
+    // the recap forever. `unavailable` renders the breaks-only / empty state.
+    const errored: MatchStatsResponse = { stats: null, status: 'unavailable' }
     fetch(`/api/match-stats?matchId=${id}`)
-      .then(r => (r.ok ? r.json() : null))
-      .then((data: MatchStatsResponse | null) => { if (!cancelled) setMatchStats(data) })
-      .catch(() => { if (!cancelled) setMatchStats(null) })
+      .then(r => (r.ok ? (r.json() as Promise<MatchStatsResponse>) : errored))
+      .then((data) => { if (!cancelled) setMatchStats(data) })
+      .catch(() => { if (!cancelled) setMatchStats(errored) })
     return () => { cancelled = true }
   }, [id, match?.status])
 
@@ -279,6 +283,10 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     // status/level edge, not on PBP arrival. If point data lands mid-view, the
     // Live Feed tab appears on its own (showLive below reacts in render) — we
     // don't yank the user to a different tab under them. Don't add `sets` here.
+    // `webtugaSourced` IS a dep: when the stats fetch resolves and flips it
+    // true, a webtuga match must move off 'recap' (about to be hidden) to
+    // 'players'. This intentionally overrides a tab chosen before the flag
+    // loaded — acceptable given the brief recap-tab flash trade-off.
   }, [match?.status, (match as any)?.tournament?.level, webtugaSourced])
 
   // Defensive: if a user deep-links to ?tab=live (or selection survives from
