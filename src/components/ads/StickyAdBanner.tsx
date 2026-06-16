@@ -49,18 +49,12 @@ export function StickyAdBanner() {
   // targeting and the consent gate. Resolves to null when no link / unknown id.
   const previewId = useAdPreview()
   const [previewBanner, setPreviewBanner] = useState<AdBanner | null>(null)
+  // Fetch the previewed banner when a ?ad_preview link is open. The cleanup
+  // clears it whenever previewId changes or the component unmounts, so a stale
+  // preview banner never lingers — and no synchronous setState in the effect body.
   useEffect(() => {
+    if (!previewId) return
     let alive = true
-    if (!previewId) {
-      // Defer the reset out of the synchronous effect body to avoid tripping
-      // react-hooks/set-state-in-effect (cascading-render guard).
-      void Promise.resolve().then(() => {
-        if (alive) setPreviewBanner(null)
-      })
-      return () => {
-        alive = false
-      }
-    }
     void fetch(`/api/ads/preview?id=${encodeURIComponent(previewId)}`)
       .then((r) => (r.ok ? r.json() : { banner: null }))
       .then((d: { banner: AdBanner | null }) => {
@@ -71,9 +65,11 @@ export function StickyAdBanner() {
       })
     return () => {
       alive = false
+      setPreviewBanner(null)
     }
   }, [previewId])
 
+  // Link present AND the banner resolved — drives the "Preview" badge + bypass.
   const isPreview = !!previewId && !!previewBanner
   // While a preview link is open we never show the default ad — only the
   // resolved preview banner (null until it loads / if the id is unknown).
