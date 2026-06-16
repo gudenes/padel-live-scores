@@ -219,6 +219,13 @@ const EnvSchema = z.object({
   // Writes match_live_odds (upsert) + match_live_odds_snapshots (append).
   // Default OFF; flip to true in Railway after match_live_odds migration lands.
   ENABLE_LIVE_ODDS_UPDATER: boolEnv(false),
+  // webtuga-live-fetcher — ~15s worker ingesting FIP-tier live point-by-point
+  // from the ad-hoc webtuga tracker (one fetch per configured tournament per
+  // tick; configured via an entity_external_ids source='webtuga_live' row).
+  // Default OFF. Once enabled, leave WEBTUGA_LIVE_DRY_RUN=true to inspect a
+  // read-only dry run first, then set it to false to write sets/games/match_points.
+  ENABLE_WEBTUGA_LIVE: boolEnv(false),
+  WEBTUGA_LIVE_DRY_RUN: boolEnv(true),
   // free event-notification senders — premium notifications Plan 2B; default off.
   ENABLE_EVENT_NOTIFICATIONS: boolEnv(false),
   // tournament_starting notifier (premium notifications Plan 2A) — default off.

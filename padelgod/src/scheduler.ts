@@ -34,6 +34,7 @@ import { runModelPredictionSnapshot } from './workers/model-prediction-snapshot.
 import { runTournamentProjectionSnapshot } from './workers/tournament-projection-snapshot.js';
 import { runPredictionScorer } from './workers/prediction-scorer.js';
 import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
+import { runWebtugaLiveFetcher } from './workers/webtuga-live-fetcher.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
 import { runProjectionReadyNotifier } from './workers/projection-ready-notifier.js';
 
@@ -123,6 +124,12 @@ export interface SchedulerFlags {
   /** live-odds-updater — ~20s in-play odds worker. Append-only snapshot +
    *  upsert on match_live_odds; no dry-run needed. Default OFF. */
   enableLiveOddsUpdater: boolean;
+  /** webtuga-live-fetcher — ~15s FIP live point-by-point from the ad-hoc
+   *  webtuga tracker. Off by default; dry-run gated. */
+  enableWebtugaLive: boolean;
+  /** Set WEBTUGA_LIVE_DRY_RUN=false in Railway to enable live DB writes.
+   *  Defaults to true so the first deploy is always read-only. */
+  webtugaLiveDryRun: boolean;
   /** tournament-start-notifier — fires `tournament_starting` once per
    *  tournament when its `starts_at` passes. Atomic claim on
    *  `starting_notified_at`; no dry-run needed. Default OFF. */
@@ -200,6 +207,7 @@ export type WorkerName =
   | 'tournament-projection-snapshot'
   | 'prediction-scorer'
   | 'live-odds-updater'
+  | 'webtuga-live-fetcher'
   | 'tournament-start-notifier'
   | 'projection-ready-notifier';
 
@@ -238,6 +246,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'tournament-projection-snapshot',
   'prediction-scorer',
   'live-odds-updater',
+  'webtuga-live-fetcher',
   'tournament-start-notifier',
   'projection-ready-notifier',
 ];
@@ -399,6 +408,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
         });
     case 'live-odds-updater':
       return (deps) => runLiveOddsUpdater(deps);
+    case 'webtuga-live-fetcher':
+      return (deps) => runWebtugaLiveFetcher(deps, { dryRun: true });
     case 'tournament-start-notifier':
       return (deps) => runTournamentStartNotifier({
         supabase: deps.supabase,
@@ -857,6 +868,15 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // of every minute.
       cron: '*/20 * * * * *',
       run: getWorkerRunner('live-odds-updater')!,
+    });
+  }
+  if (flags.enableWebtugaLive) {
+    entries.push({
+      name: 'webtuga-live-fetcher',
+      // Every 15 seconds. node-cron uses 6-field syntax when a seconds field is
+      // present; `*/15` fires at 0, 15, 30, 45 s of every minute.
+      cron: '*/15 * * * * *',
+      run: async (deps) => runWebtugaLiveFetcher(deps, { dryRun: flags.webtugaLiveDryRun }),
     });
   }
   if (flags.enableTournamentStartNotifier) {

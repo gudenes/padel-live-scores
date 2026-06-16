@@ -178,6 +178,8 @@ async function main() {
       tournamentProjectionSnapshotDryRun: env.TOURNAMENT_PROJECTION_SNAPSHOT_DRY_RUN,
       enablePredictionScorer: env.ENABLE_PREDICTION_SCORER,
       enableLiveOddsUpdater: env.ENABLE_LIVE_ODDS_UPDATER,
+      enableWebtugaLive: env.ENABLE_WEBTUGA_LIVE,
+      webtugaLiveDryRun: env.WEBTUGA_LIVE_DRY_RUN,
       enableTournamentStartNotifier: env.ENABLE_TOURNAMENT_START_NOTIFIER,
       enableProjectionReadyNotifier: env.ENABLE_PROJECTION_READY_NOTIFIER,
     });
