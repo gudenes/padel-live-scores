@@ -34,7 +34,6 @@ import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
-import { isPremierTier } from '@/lib/tournament-tier'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
@@ -828,7 +827,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const showProjectionTab = useMemo(() => {
     if (!projectionFlag) return false
     if (!activeTournamentObj) return false
-    return isPremierTier(activeTournamentObj.level ?? '')
+    // Match the dedicated /projection route + the worker: any draw-bearing
+    // tier has projection data, including the FIP tiers (Platinum/Gold/…).
+    // (Was isPremierTier(), which only matches the Premier Padel *circuit*
+    // and so hid the tab on FIP Platinum even though data existed.)
+    return DRAW_TIERS.has(activeTournamentObj.level ?? '')
   }, [projectionFlag, activeTournamentObj])
 
   // ══════════════════════════════════════════════════════════════
