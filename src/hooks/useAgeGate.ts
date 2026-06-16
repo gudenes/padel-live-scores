@@ -37,6 +37,11 @@ export function useAgeGate(): {
   }, [])
 
   useEffect(() => {
+    // One-time hydration read of localStorage after mount — the canonical
+    // SSR-safe pattern (state starts null on the server, syncs on the client).
+    // Same approach as useConsent; the new react-hooks heuristic flags it as a
+    // false positive for this subscribe-and-seed effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(readFromStorage())
     setHydrated(true)
     function onChanged() {
