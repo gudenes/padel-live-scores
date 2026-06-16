@@ -17,6 +17,10 @@ async function main(): Promise<void> {
     console.error('Usage: onboard-webtuga-tournament.ts <tournamentId> <baseUrl>');
     process.exit(1);
   }
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tournamentId)) {
+    console.error('tournamentId must be a UUID');
+    process.exit(1);
+  }
 
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -36,7 +40,10 @@ async function main(): Promise<void> {
       source: 'webtuga_live',
       external_id: baseUrl,
     },
-    { onConflict: 'source,entity_type,external_id' },
+    // Conflict on the entity-keyed constraint (entity_type, entity_id, source)
+    // so re-running with a corrected baseUrl UPDATES the tournament's row
+    // instead of inserting a second webtuga_live row the worker would also poll.
+    { onConflict: 'entity_type,entity_id,source' },
   );
 
   if (error) {
@@ -46,4 +53,7 @@ async function main(): Promise<void> {
   console.log(`onboarded ${tournamentId} -> ${baseUrl}`);
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
