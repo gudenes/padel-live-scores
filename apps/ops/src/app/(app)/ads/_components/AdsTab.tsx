@@ -113,6 +113,17 @@ export default function AdsTab() {
     await refresh()
   }
 
+  async function copyPreviewLink(id: string) {
+    const url = `https://padelnachos.com/matches?ad_preview=${encodeURIComponent(id)}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setMsg('Preview link copied — share it for sign-off.')
+    } catch {
+      // Clipboard blocked (e.g. non-secure context): surface the URL to copy by hand.
+      setMsg(`Preview link: ${url}`)
+    }
+  }
+
   async function saveConfig() {
     if (!config) return
     const res = await fetch('/api/internal/ad-network-config', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) })
@@ -177,6 +188,11 @@ export default function AdsTab() {
                       </td>
                       <td>{b.weight}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        {b.image_url && (
+                          <>
+                            <Button variant="ghost" size="sm" onClick={() => copyPreviewLink(b.id)}>Copy preview link</Button>{' '}
+                          </>
+                        )}
                         <Button variant="ghost" size="sm" onClick={() => { setEditing(b); setMsg('') }}>Edit</Button>{' '}
                         <Button variant="danger" size="sm" onClick={() => deleteBanner(b.id, b.name)}>Delete</Button>
                       </td>

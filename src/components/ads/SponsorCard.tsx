@@ -32,20 +32,23 @@ export function SponsorCard({
   slot,
   variant,
   matchId,
+  preview = false,
 }: {
   banner: AdBanner
   slot: AdSlotId
   variant: 'feed' | 'detail' | 'sticky'
   matchId?: string
+  preview?: boolean
 }) {
   // Fire one impression per mount. Guard against React 18/19 StrictMode
   // double-invocation in dev.
   const impressionFired = useRef(false)
   useEffect(() => {
+    if (preview) return // preview / sign-off views are not tracked
     if (impressionFired.current) return
     impressionFired.current = true
     trackImpression(slot, banner.id)
-  }, [slot, banner.id])
+  }, [slot, banner.id, preview])
 
   const isFeed = variant === 'feed'
 
@@ -54,7 +57,7 @@ export function SponsorCard({
       href={banner.click_url}
       target="_blank"
       rel="sponsored noopener noreferrer"
-      onClick={() => trackClick(slot, banner.id, matchId)}
+      onClick={() => { if (!preview) trackClick(slot, banner.id, matchId) }}
       data-ad-slot={slot}
       aria-label={`${banner.name} (sponsored)`}
       style={{
@@ -80,7 +83,7 @@ export function SponsorCard({
           ...(variant === 'sticky' ? { maxWidth: 320, margin: '0 auto' } : null),
         }}
       />
-      {/* Ad-disclosure tag (transparency best practice) */}
+      {/* Disclosure tag — "Preview" (amber) for sign-off links, else "Ad". */}
       <span
         style={{
           position: 'absolute',
@@ -89,15 +92,15 @@ export function SponsorCard({
           fontSize: 7,
           letterSpacing: 0.5,
           textTransform: 'uppercase',
-          color: '#e5e7eb',
-          background: 'rgba(0,0,0,0.5)',
+          color: preview ? '#1f2937' : '#e5e7eb',
+          background: preview ? '#fbbf24' : 'rgba(0,0,0,0.5)',
           padding: '1px 4px',
           borderRadius: 3,
           fontWeight: 700,
           lineHeight: 1.4,
         }}
       >
-        Ad
+        {preview ? 'Preview' : 'Ad'}
       </span>
     </a>
   )
