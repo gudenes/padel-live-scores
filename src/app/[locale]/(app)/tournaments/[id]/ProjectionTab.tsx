@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
@@ -16,6 +16,7 @@ import { useProjection } from './useProjection'
 import { usePairImages } from './usePairImages'
 import ProjectionPickerList, { type ResolvedPlayer } from './ProjectionPickerList'
 import ChampionSparkline from './ChampionSparkline'
+import { buildSlugIndex, resolvePairSlug } from '@/lib/projection-slug'
 
 const CARD = 'rgba(255,255,255,0.03)'
 const TEXT = '#EEE4CE'
@@ -87,6 +88,8 @@ export default function ProjectionTab({
   roundSchedule,
   initialPairKey,
   onPairChange,
+  initialPairSlug = null,
+  onPairSlugChange,
 }: {
   tournamentId: string
   matches: Match[]
@@ -95,6 +98,10 @@ export default function ProjectionTab({
   roundSchedule: Record<string, string> | null
   initialPairKey?: string | null
   onPairChange?: (pairKey: string | null) => void
+  /** In-page mode: initial pair given as a URL slug (resolved once rows load). */
+  initialPairSlug?: string | null
+  /** In-page mode: emits the canonical pair slug (or null) on selection change. */
+  onPairSlugChange?: (slug: string | null) => void
 }) {
   const t = useTranslations('projectionTab')
   const format = useFormatter()
@@ -118,13 +125,39 @@ export default function ProjectionTab({
     }
   }, [images, lookup])
 
+  // Slug index for in-page URL sync. Built from the same resolved names the
+  // road VM shows, so slugs match the SEO route's pairSlugFromNames output.
+  const slugIndex = useMemo(() => {
+    const nameById = new Map<string, string>()
+    for (const id of playerIds) nameById.set(id, resolvePlayer(id).name || id)
+    return buildSlugIndex(rows, nameById)
+  }, [rows, playerIds, resolvePlayer])
+
   const [view, setView] = useState<'list' | 'road'>(initialPairKey ? 'road' : 'list')
   const [selectedPair, setSelectedPair] = useState<string | null>(initialPairKey ?? null)
+
+  // Resolve initialPairSlug → pair once (rows + names load async). Guard so it
+  // runs a single time and never overrides a user tap during load.
+  const slugResolvedRef = useRef(false)
+  useEffect(() => {
+    if (slugResolvedRef.current) return
+    if (!initialPairSlug) return
+    if (rows.length === 0) return
+    slugResolvedRef.current = true
+    const resolved = resolvePairSlug(slugIndex, initialPairSlug)
+    if (resolved) {
+      setSelectedPair(resolved.pairKey)
+      setView('road')
+    }
+  }, [initialPairSlug, rows, slugIndex])
+
   // Notify the route wrapper so it can keep the URL in sync with the
-  // visible pair (enables shareable /projection/<slug> links).
+  // visible pair (enables shareable /projection/<slug> links). In in-page
+  // mode, also emit the canonical slug for shallow ?pair= URL sync.
   useEffect(() => {
     onPairChange?.(selectedPair)
-  }, [selectedPair, onPairChange])
+    onPairSlugChange?.(selectedPair ? (slugIndex.pairKeyToSlug.get(selectedPair) ?? null) : null)
+  }, [selectedPair, onPairChange, onPairSlugChange, slugIndex])
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [tbdHint, setTbdHint] = useState<Set<string>>(new Set())
   const [history, setHistory] = useState<string[]>([])  // drilled-through pairs (for ‹ Back)

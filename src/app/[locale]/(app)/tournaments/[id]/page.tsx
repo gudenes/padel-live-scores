@@ -34,6 +34,8 @@ import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
+import ProjectionTab from './ProjectionTab'
+import { buildProjectionQuery } from './projection-url'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
@@ -237,6 +239,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     // share links and bookmarks keep working.
     wantsMatchesAnimation
       ? 'overview'
+      : paramTab === 'projection'
+      ? 'projection'
       : paramTab === 'draw'
       ? 'draw'
       : paramTab === 'story' || paramTab === 'recap'
@@ -245,6 +249,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       ? 'matches'
       : 'overview'
   )
+
+  // Initial pair slug for in-page projection deep-links (?pair=<slug>). Captured
+  // once so the shallow URL sync (which rewrites the query) can't null it out
+  // before ProjectionTab resolves it against the async-loaded rows.
+  const [initialProjectionPairSlug] = useState<string | null>(() => searchParams.get('pair'))
 
   // Tracks whether the user has manually changed tabs, so the scheduled
   // animated-arrival commit doesn't override a tap that happens during the dwell.
@@ -270,14 +279,6 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Legacy ?tab=projection deep links → the dedicated projection route.
-  useEffect(() => {
-    if (paramTab !== 'projection') return
-    markProjectionSeen()
-    const cat = searchParams.get('category') === 'women' ? 'women' : 'men'
-    router.replace(`/tournaments/${tournamentId}/projection?category=${cat}`)
-  }, [paramTab, searchParams, router, tournamentId, markProjectionSeen])
-
   const stageStripRef = useRef<HTMLDivElement>(null)
 
   // prefers-reduced-motion snaps between expanded and collapsed
@@ -296,6 +297,20 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // reduced-motion). The visible animation is SlidingInkTabs' existing
   // spring on activeKey change.
   const pathname = usePathname()
+
+  // Shallow-sync the in-page projection view into the URL so it is deep-linkable
+  // without a route navigation (no scroll reset). Dedup against the last written
+  // query — ProjectionTab's emit effect can fire on many renders, and an
+  // unconditional router.replace would loop (replace → RSC refetch → re-render
+  // → replace → …).
+  const lastSyncedProjectionQs = useRef<string | null>(null)
+  const syncProjectionUrl = useCallback((pairSlug: string | null) => {
+    const qs = buildProjectionQuery(genderFilter, pairSlug)
+    if (lastSyncedProjectionQs.current === qs) return
+    lastSyncedProjectionQs.current = qs
+    router.replace(`${pathname}${qs}`, { scroll: false })
+  }, [router, pathname, genderFilter])
+
   useEffect(() => {
     if (!wantsMatchesAnimation) return
 
@@ -1165,8 +1180,14 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           onChange={(key) => {
             if (key === 'projection') {
               markProjectionSeen()
-              router.push(`/tournaments/${tournamentId}/projection?category=${genderFilter}`)
+              setPageTab('projection')
+              syncProjectionUrl(null)
               return
+            }
+            // Leaving projection: drop the ?tab/?pair params so the URL is clean.
+            if (pageTab === 'projection') {
+              lastSyncedProjectionQs.current = null
+              if (paramTab === 'projection') router.replace(pathname, { scroll: false })
             }
             setPageTab(key)
           }}
@@ -1359,6 +1380,19 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             defendingChamp={null}
             preMainDrawDate={(activeTournamentObj as any).round_schedule?.r32 ?? (activeTournamentObj as any).round_schedule?.r16 ?? null}
             onSwitchToMatchesTab={() => setPageTab('matches')}
+          />
+        )}
+
+        {/* ── Projection Tab (in-page) ── */}
+        {pageTab === 'projection' && activeTournamentObj && showProjectionTab && (
+          <ProjectionTab
+            tournamentId={tournamentId}
+            matches={allMatches.filter(m => (m as any).category === genderFilter)}
+            category={genderFilter}
+            tournamentLevel={activeTournamentObj.level ?? null}
+            roundSchedule={(activeTournamentObj as any).round_schedule ?? null}
+            initialPairSlug={paramTab === 'projection' ? initialProjectionPairSlug : null}
+            onPairSlugChange={syncProjectionUrl}
           />
         )}
 
