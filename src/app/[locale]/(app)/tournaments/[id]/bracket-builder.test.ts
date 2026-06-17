@@ -113,6 +113,35 @@ describe('buildBracket', () => {
     expect(r32top.isBye).toBe(true)
   })
 
+  it('marks a seed bye even when an empty placeholder match occupies its first-round slot', () => {
+    // Real case: FIP Platinum Lusitania men's draw. Seed 1 (Gonzalez/Campagnolo)
+    // byes R32 and appears only in R16 (opponent TBD), but the draw ALSO carries
+    // an empty placeholder R32 match (both pairs TBD) sitting in the seed's bye
+    // slot. The placeholder must NOT block bye-marking — otherwise the top seed
+    // renders as a TBD match instead of "Seed [BYE]" and vanishes from R32.
+    const matches: Match[] = [
+      // Empty placeholder R32 at MD016 → R32 slot 0 (heap-placed via Pass 0,
+      // regardless of players). Both pairs TBD. This is what occupies the bye
+      // slot in the real draw and suppresses the bye marker.
+      fakeMatch({ id: 'r32-placeholder', round: 'R32', widget_id_composite: 'FIP-TEST:MD016' }),
+      // R16 cell MD008 → slot 0: seed 1 on pair1 (top feed), opponent TBD →
+      // R32 slot 0 is the seed's first-round bye.
+      fakeMatch({
+        id: 'r16-md008', round: 'R16', widget_id_composite: 'FIP-TEST:MD008',
+        pair1_player1: { id: 'gonzalez' } as any,
+        pair1_player2: { id: 'campagnolo' } as any,
+        pair1_seed: 1,
+      }),
+    ]
+    const bracket = buildBracket(matches, 32)
+    const r32top = bracket.find(n => n.round === 'R32' && n.positionInRound === 0)!
+    expect(r32top.isBye).toBe(true)
+    expect(r32top.byePair?.player1.id).toBe('gonzalez')
+    // Placeholder dropped so BracketCell (which renders a bye only when
+    // `isBye && !match`) shows the seed bye, not a TBD-vs-TBD match.
+    expect(r32top.match).toBeNull()
+  })
+
   it('marks a bye on the bottom-feed (odd pos) side when pair2 of next round is populated', () => {
     // R16 match where pair2 is a seeded pair; the bottom-feeding R32 slot (pos 1) is a bye
     const matches: Match[] = [
