@@ -128,6 +128,44 @@ describe('runWebtugaLiveFetcher', () => {
     expect(notifyLiveTransition).toHaveBeenCalledWith('uuid-garcia', notify);
   });
 
+  it('does NOT fire notify when the row did not flip (already live/finished)', async () => {
+    baseSpies();
+    const supabase = makeSupabase({ flipped: false });
+
+    await runWebtugaLiveFetcher(
+      { supabase, httpClient: {} as any, logger, notify },
+      { dryRun: false },
+    );
+
+    expect(notifyLiveTransition).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire notify in dryRun mode', async () => {
+    baseSpies();
+    const supabase = makeSupabase({ flipped: true });
+
+    await runWebtugaLiveFetcher(
+      { supabase, httpClient: {} as any, logger, notify },
+      { dryRun: true },
+    );
+
+    expect(notifyLiveTransition).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire notify when deps.notify is undefined, and does not throw', async () => {
+    baseSpies();
+    const supabase = makeSupabase({ flipped: true });
+
+    const res = await runWebtugaLiveFetcher(
+      { supabase, httpClient: {} as any, logger },
+      { dryRun: false },
+    );
+
+    expect(notifyLiveTransition).not.toHaveBeenCalled();
+    expect(res.errors).toBe(0);
+    expect(res.applied).toBe(1);
+  });
+
   it('an error processing one row is caught + counted, never thrown', async () => {
     baseSpies();
     applyDiff.mockRejectedValueOnce(new Error('boom'));
