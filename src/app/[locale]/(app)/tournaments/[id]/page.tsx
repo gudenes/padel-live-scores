@@ -299,9 +299,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const pathname = usePathname()
 
   // Shallow-sync the in-page projection view into the URL so it is deep-linkable
-  // without a route navigation (no scroll reset).
+  // without a route navigation (no scroll reset). Dedup against the last written
+  // query — ProjectionTab's emit effect can fire on many renders, and an
+  // unconditional router.replace would loop (replace → RSC refetch → re-render
+  // → replace → …).
+  const lastSyncedProjectionQs = useRef<string | null>(null)
   const syncProjectionUrl = useCallback((pairSlug: string | null) => {
-    router.replace(`${pathname}${buildProjectionQuery(genderFilter, pairSlug)}`, { scroll: false })
+    const qs = buildProjectionQuery(genderFilter, pairSlug)
+    if (lastSyncedProjectionQs.current === qs) return
+    lastSyncedProjectionQs.current = qs
+    router.replace(`${pathname}${qs}`, { scroll: false })
   }, [router, pathname, genderFilter])
 
   useEffect(() => {
@@ -1178,8 +1185,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               return
             }
             // Leaving projection: drop the ?tab/?pair params so the URL is clean.
-            if (pageTab === 'projection' && paramTab === 'projection') {
-              router.replace(pathname, { scroll: false })
+            if (pageTab === 'projection') {
+              lastSyncedProjectionQs.current = null
+              if (paramTab === 'projection') router.replace(pathname, { scroll: false })
             }
             setPageTab(key)
           }}
