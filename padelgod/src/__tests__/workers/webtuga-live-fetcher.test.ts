@@ -6,6 +6,9 @@ vi.mock('../../lib/point-reconstruction.js', async (orig) => ({
   applyDiff,
 }));
 
+const notifyLiveTransition = vi.hoisted(() => vi.fn());
+vi.mock('../../lib/notify.js', () => ({ notifyLiveTransition }));
+
 import { runWebtugaLiveFetcher } from '../../workers/webtuga-live-fetcher.js';
 import * as client from '../../lib/webtuga-client.js';
 import * as cache from '../../lib/webtuga-cache.js';
@@ -28,8 +31,19 @@ const CANDIDATE = {
   status: 'scheduled',
 };
 
-function makeSupabase() {
-  const statusUpdate = vi.fn(() => ({ eq: () => ({ eq: async () => ({ error: null }) }) }));
+function makeSupabase(opts: { flipped?: boolean } = {}) {
+  const flipped = opts.flipped ?? true;
+  // .update(...).eq('id',..).eq('status','scheduled').select('id') → affected rows
+  const statusUpdate = vi.fn(() => ({
+    eq: () => ({
+      eq: () => ({
+        select: async () => ({
+          data: flipped ? [{ id: 'uuid-garcia' }] : [],
+          error: null,
+        }),
+      }),
+    }),
+  }));
   const supabase: any = {
     from: vi.fn((table: string) => {
       if (table === 'matches') {
@@ -56,11 +70,13 @@ function baseSpies() {
 }
 
 const logger = { info() {}, warn() {} } as any;
+const notify = { baseUrl: 'https://x', cronSecret: 'y', logger } as any;
 
 describe('runWebtugaLiveFetcher', () => {
   beforeEach(() => {
     applyDiff.mockReset();
     applyDiff.mockResolvedValue(undefined);
+    notifyLiveTransition.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -97,6 +113,57 @@ describe('runWebtugaLiveFetcher', () => {
     expect(res.applied).toBe(0);
     expect(applyDiff).not.toHaveBeenCalled();
     expect(supabase._statusUpdate).not.toHaveBeenCalled();
+  });
+
+  it('fires notifyLiveTransition once on a genuine scheduled→live flip', async () => {
+    baseSpies();
+    const supabase = makeSupabase({ flipped: true });
+
+    await runWebtugaLiveFetcher(
+      { supabase, httpClient: {} as any, logger, notify },
+      { dryRun: false },
+    );
+
+    expect(notifyLiveTransition).toHaveBeenCalledTimes(1);
+    expect(notifyLiveTransition).toHaveBeenCalledWith('uuid-garcia', notify);
+  });
+
+  it('does NOT fire notify when the row did not flip (already live/finished)', async () => {
+    baseSpies();
+    const supabase = makeSupabase({ flipped: false });
+
+    await runWebtugaLiveFetcher(
+      { supabase, httpClient: {} as any, logger, notify },
+      { dryRun: false },
+    );
+
+    expect(notifyLiveTransition).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire notify in dryRun mode', async () => {
+    baseSpies();
+    const supabase = makeSupabase({ flipped: true });
+
+    await runWebtugaLiveFetcher(
+      { supabase, httpClient: {} as any, logger, notify },
+      { dryRun: true },
+    );
+
+    expect(notifyLiveTransition).not.toHaveBeenCalled();
+  });
+
+  it('does NOT fire notify when deps.notify is undefined, and does not throw', async () => {
+    baseSpies();
+    const supabase = makeSupabase({ flipped: true });
+
+    const res = await runWebtugaLiveFetcher(
+      { supabase, httpClient: {} as any, logger },
+      { dryRun: false },
+    );
+
+    expect(notifyLiveTransition).not.toHaveBeenCalled();
+    expect(res.errors).toBe(0);
+    expect(res.applied).toBe(1);
   });
 
   it('an error processing one row is caught + counted, never thrown', async () => {

@@ -12,7 +12,9 @@
  *
  * Writes sets/games with score_source='live' (lowest priority — applyDiff's
  * canonical mode default) so Crionet's fip-results-writer keeps owning the
- * authoritative final. Never finishes a match. No live-notify in v1.
+ * authoritative final. Never finishes a match. On a genuine scheduled→live
+ * flip it fires the existing on-court push (notifyLiveTransition) — the same
+ * one the Premier live-poller sends.
  *
  * The adapter THROWS on an unrecognised point label, so the per-row adapt→write
  * block is wrapped in try/catch — one bad feed row must not abort the tick.
@@ -24,6 +26,7 @@ import { applyDiff, type ResolvedPlayers } from '../lib/point-reconstruction.js'
 import { fetchResultsFeed } from '../lib/webtuga-client.js';
 import { resolveWebtugaMatch, type CandidateMatch } from '../lib/webtuga-resolve.js';
 import { webtugaToLiveState } from '../lib/webtuga-adapter.js';
+import { notifyLiveTransition } from '../lib/notify.js';
 import {
   discoverWebtugaTournaments,
   loadMatchCache,
@@ -108,13 +111,20 @@ async function loadResolvedPlayers(
   };
 }
 
-/** Guarded scheduled→live flip. Never regresses live/finished/retired/walkover. */
-async function flipStatusToLive(supabase: SupabaseClient, matchId: string): Promise<void> {
-  await supabase
+/**
+ * Guarded scheduled→live flip. Never regresses live/finished/retired/walkover.
+ * Returns true only when this call actually transitioned the row (the
+ * `.eq('status','scheduled')` guard returns rows on the first such tick only),
+ * so the caller can fire the on-court push exactly once per match.
+ */
+async function flipStatusToLive(supabase: SupabaseClient, matchId: string): Promise<boolean> {
+  const { data } = await supabase
     .from('matches')
     .update({ status: 'live' })
     .eq('id', matchId)
-    .eq('status', 'scheduled');
+    .eq('status', 'scheduled')
+    .select('id');
+  return (data?.length ?? 0) > 0;
 }
 
 export async function runWebtugaLiveFetcher(
@@ -186,7 +196,12 @@ export async function runWebtugaLiveFetcher(
             pair2Player1Id: null, pair2Player2Id: null,
           };
         await applyDiff(supabase, entry.matchId, prev, curr, diff, rp);
-        await flipStatusToLive(supabase, entry.matchId);
+        const flipped = await flipStatusToLive(supabase, entry.matchId);
+        if (flipped && deps.notify) {
+          // Reuse the same on-court push the Premier live-poller fires.
+          // Fire-and-forget: returns immediately, never throws.
+          notifyLiveTransition(entry.matchId, deps.notify);
+        }
         await writeLastState(supabase, t.tournamentId, rowItem.id, entry.orientation, curr);
         res.applied++;
       } catch (err) {
