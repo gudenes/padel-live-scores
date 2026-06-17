@@ -158,10 +158,13 @@ export function buildFirstRoundLeaves(
     if (m) {
       if (bothIds(m.pair1_player1_id, m.pair1_player2_id)) leaves[2 * pos] = mkEntrant(m.pair1_player1_id, m.pair1_player2_id!, m.pair1_seed)
       if (bothIds(m.pair2_player1_id, m.pair2_player2_id)) leaves[2 * pos + 1] = mkEntrant(m.pair2_player1_id, m.pair2_player2_id!, m.pair2_seed)
-      continue
     }
     // Seed bye: the next-round cell carries a real pair on this slot's side.
-    if (nextRound) {
+    // Fires both when the slot has NO first-round match AND when an empty
+    // placeholder match occupies it but contributed no entrant (both leaves
+    // still null) — otherwise a top seed whose bye slot holds a TBD-vs-TBD
+    // placeholder row would vanish from the bracket entirely.
+    if (nextRound && leaves[2 * pos] == null && leaves[2 * pos + 1] == null) {
       const cell = nextMatches[Math.floor(pos / 2)]
       if (cell) {
         const top = pos % 2 === 0

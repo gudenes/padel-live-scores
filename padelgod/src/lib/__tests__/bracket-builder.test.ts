@@ -31,6 +31,25 @@ describe('buildFirstRoundLeaves', () => {
     expect(leaves[3]?.pairKey).toBe('m3::m4')
   })
 
+  it('places a seed bye even when an empty placeholder match occupies its first-round slot', () => {
+    // Real-world FIP Platinum case: the #1 seed byes R32 and appears only in an
+    // R16 cell (opponent TBD), but the draw ALSO carries an empty placeholder
+    // R32 match (both pairs TBD) sitting in the seed's bye slot. The placeholder
+    // gets placed by widget heap, occupying the slot, which must NOT suppress
+    // the seed-bye reconstruction — otherwise the top seed vanishes entirely.
+    const rows: BracketMatch[] = [
+      // Empty placeholder R32 match at heap MD016 → slot 16-16 = 0. Both TBD.
+      M({ id: 'r32empty', round_canonical: 'R32', widget_id_composite: 'X:MD016' }),
+      // R16 cell at heap MD008 (cell 0): seed 1 on pair1 (top), opponent TBD.
+      // R32 slot 0 (top feed) is the seed's first-round bye.
+      M({ id: 'r16', round_canonical: 'R16', widget_id_composite: 'X:MD008', pair1_player1_id: 's1', pair1_player2_id: 's2', pair1_seed: 1 }),
+    ]
+    const leaves = buildFirstRoundLeaves(rows, mk)
+    expect(leaves.length).toBe(32)
+    expect(leaves[0]?.pairKey).toBe('s1::s2')   // seed bye placed at slot 0
+    expect(leaves[1]).toBeNull()                 // bye → opponent null
+  })
+
   it('returns an all-null leaf array (no real teams) for a draw with no main rounds', () => {
     const leaves = buildFirstRoundLeaves([M({ round_canonical: 'Q1' })], mk)
     expect(leaves.filter(Boolean).length).toBe(0)
