@@ -28,7 +28,6 @@ describe('notification-categories', () => {
           'ranking_updated',
           'marketing',
           // new — free
-          'match_scheduled',
           'player_title_won',
           'player_eliminated',
           'tournament_starting',
@@ -132,7 +131,6 @@ describe('notification-categories', () => {
           'match_live_follow',
           'match_live_bookmark',
           'match_finished',
-          'match_scheduled',
           'match_deciding_set',
           'match_upset_live',
           'next_match_drawn',
@@ -192,11 +190,10 @@ describe('category tiers', () => {
   it('new pro categories are pro', () => {
     expect(isProCategory('match_deciding_set')).toBe(true)
     expect(isProCategory('prematch_prediction')).toBe(true)
-    expect(isProCategory('daily_oop')).toBe(true)
     expect(isProCategory('projection_outperform')).toBe(true)
   })
   it('new free categories are free', () => {
-    expect(isProCategory('match_scheduled')).toBe(false)
+    expect(isProCategory('daily_oop')).toBe(false)
     expect(isProCategory('draw_released')).toBe(false)
     expect(isProCategory('weekly_digest')).toBe(false)
   })

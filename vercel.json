@@ -64,6 +64,10 @@
     {
       "path": "/api/cron/recompute-earnings",
       "schedule": "0 6 * * 1"
+    },
+    {
+      "path": "/api/cron/matchday-digest",
+      "schedule": "0 * * * *"
     }
   ],
   "headers": [

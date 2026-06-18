@@ -1014,10 +1014,6 @@
           "label": "Nouveautés produit",
           "sub": "Nouvelles fonctionnalités, événements, actualités"
         },
-        "match_scheduled": {
-          "label": "Match scheduled",
-          "sub": "Time & court announced"
-        },
         "match_deciding_set": {
           "label": "Going the distance",
           "sub": "Match heads to a deciding 3rd set"
@@ -1071,8 +1067,8 @@
           "sub": "Model odds before they play"
         },
         "daily_oop": {
-          "label": "Daily order of play",
-          "sub": "Your players' matches today"
+          "label": "Matchday digest",
+          "sub": "A morning summary of your players' matches today"
         },
         "weekly_digest": {
           "label": "Weekly digest",

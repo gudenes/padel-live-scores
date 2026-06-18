@@ -23,7 +23,6 @@ export type NotificationCategory =
   | 'ranking_updated'
   | 'marketing'
   // new — free
-  | 'match_scheduled'
   | 'player_title_won'
   | 'player_eliminated'
   | 'tournament_starting'
@@ -64,7 +63,6 @@ export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
   match_live_follow:    { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: false },
   match_live_bookmark:  { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: false },
   match_finished:       { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: false },
-  match_scheduled:      { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: true },
   match_deciding_set:   { defaults: { push: true }, tier: 'pro',  group: 'matches',      comingSoon: true },
   match_upset_live:     { defaults: { push: true }, tier: 'pro',  group: 'matches',      comingSoon: true },
   next_match_drawn:     { defaults: { push: true }, tier: 'pro',  group: 'matches',      comingSoon: true },
@@ -82,7 +80,7 @@ export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
   // ── Predictions & digests ──
   projection_ready:     { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: false },
   prematch_prediction:  { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
-  daily_oop:            { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
+  daily_oop:            { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: true },
   weekly_digest:        { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: true },
   tournament_wrapup:    { defaults: { push: true }, tier: 'pro',  group: 'predictions',  comingSoon: true },
   marketing:            { defaults: { push: true }, tier: 'free', group: 'predictions',  comingSoon: false },
