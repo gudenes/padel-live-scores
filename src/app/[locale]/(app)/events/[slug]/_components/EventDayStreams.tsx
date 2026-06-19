@@ -18,13 +18,14 @@ const sectionLabel: React.CSSProperties = {
   marginBottom: 11,
 }
 
-// Local-timezone YYYY-MM-DD so "today"/"past" dimming matches the user's clock.
-function localToday(): string {
-  const d = new Date()
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+// A broadcast "day" is a calendar date, not a moment — so we anchor both the
+// date display and the today/past comparison to UTC. This matches the
+// server-side badge logic and avoids the viewer-timezone off-by-one that a
+// local-midnight Date would produce when next-intl formats it in another tz.
+const DATE_WEEKDAY_UTC = { ...DATE_WITH_WEEKDAY, timeZone: 'UTC' } as const
+
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10)
 }
 
 export default function EventDayStreams({ streams }: { streams: DayStreamCard[] }) {
@@ -32,7 +33,7 @@ export default function EventDayStreams({ streams }: { streams: DayStreamCard[] 
   const format = useFormatter()
   if (streams.length === 0) return null
 
-  const today = localToday()
+  const today = todayUtc()
 
   return (
     <div style={{ padding: '18px 16px 4px' }}>
@@ -42,7 +43,7 @@ export default function EventDayStreams({ streams }: { streams: DayStreamCard[] 
         const isLive = s.badge === 'live'
         const isPast = s.dayDate < today && !isLive
         const isToday = s.dayDate === today
-        const dayDateObj = new Date(`${s.dayDate}T00:00:00`)
+        const dayDateObj = new Date(`${s.dayDate}T00:00:00Z`)
 
         const label = isToday
           ? `${t('dayLabel', { n: s.day })} · ${t('today')}`
@@ -58,7 +59,7 @@ export default function EventDayStreams({ streams }: { streams: DayStreamCard[] 
         } else if (s.badge === 'upcoming') {
           const when = s.scheduledStartTime
             ? `${format.dateTime(new Date(s.scheduledStartTime), DATE_WITH_WEEKDAY)}, ${format.dateTime(new Date(s.scheduledStartTime), TIME_24H)}`
-            : format.dateTime(dayDateObj, DATE_WITH_WEEKDAY)
+            : format.dateTime(dayDateObj, DATE_WEEKDAY_UTC)
           badgeText = `${t('upcoming')} · ${when}`
           badgeColor = '#9AAEC4'
           badgeBg = 'rgba(255,255,255,0.05)'
@@ -127,7 +128,7 @@ export default function EventDayStreams({ streams }: { streams: DayStreamCard[] 
                 {label}
               </span>
               <span style={{ display: 'block', fontSize: 13, fontWeight: 700, marginTop: 2 }}>
-                {format.dateTime(dayDateObj, DATE_WITH_WEEKDAY)}
+                {format.dateTime(dayDateObj, DATE_WEEKDAY_UTC)}
               </span>
             </span>
             <span
