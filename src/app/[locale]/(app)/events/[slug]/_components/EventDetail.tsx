@@ -173,10 +173,14 @@ export default function EventDetail({
       {tab === 'overview' && (
         <div>
           {/* WHERE TO WATCH */}
-          {event.watch_links.length > 0 && (
+          {(event.watch_links.length > 0 || dayStreams.length > 0) && (
             <div style={{ padding: '18px 16px 4px' }}>
               <div style={sectionLabel}>{t('whereToWatch')}</div>
-              {primaryWatch && (
+              {/* Per-day YouTube cards (e.g. Reserve Cup) take the lead slot,
+                  replacing the single generic YouTube hero. */}
+              {dayStreams.length > 0 ? (
+                <EventDayStreams streams={dayStreams} embedded />
+              ) : primaryWatch ? (
                 <a
                   href={primaryWatch.url}
                   target="_blank"
@@ -227,7 +231,7 @@ export default function EventDetail({
                   </span>
                   <span style={{ color: MUTED, fontSize: 18 }}>›</span>
                 </a>
-              )}
+              ) : null}
               {otherWatch.length > 0 && (
                 <div
                   style={{
@@ -276,9 +280,6 @@ export default function EventDetail({
               )}
             </div>
           )}
-
-          {/* PER-DAY YOUTUBE STREAMS (e.g. Reserve Cup) */}
-          <EventDayStreams streams={dayStreams} />
 
           {/* EVENT INFO */}
           <div style={{ padding: '18px 16px 4px' }}>

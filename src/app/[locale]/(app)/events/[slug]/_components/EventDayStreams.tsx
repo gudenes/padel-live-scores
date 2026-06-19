@@ -28,18 +28,22 @@ function todayUtc(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-export default function EventDayStreams({ streams }: { streams: DayStreamCard[] }) {
+export default function EventDayStreams({
+  streams,
+  embedded = false,
+}: {
+  streams: DayStreamCard[]
+  /** When true, render just the stacked cards — no section padding or eyebrow.
+   *  Used when the cards live inside the "Where to watch" section. */
+  embedded?: boolean
+}) {
   const t = useTranslations('events.dayStreams')
   const format = useFormatter()
   if (streams.length === 0) return null
 
   const today = todayUtc()
 
-  return (
-    <div style={{ padding: '18px 16px 4px' }}>
-      <div style={sectionLabel}>{t('eyebrow')}</div>
-
-      {streams.map((s) => {
+  const cards = streams.map((s) => {
         const isLive = s.badge === 'live'
         const isPast = s.dayDate < today && !isLive
         const isToday = s.dayDate === today
@@ -156,7 +160,14 @@ export default function EventDayStreams({ streams }: { streams: DayStreamCard[] 
             </span>
           </a>
         )
-      })}
+  })
+
+  if (embedded) return <>{cards}</>
+
+  return (
+    <div style={{ padding: '18px 16px 4px' }}>
+      <div style={sectionLabel}>{t('eyebrow')}</div>
+      {cards}
     </div>
   )
 }
