@@ -7,7 +7,7 @@
 // stays available via the player's own control. Modifier/middle clicks and
 // no-JS still fall through to the YouTube link.
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { CHUNKY, MUTED, BORDER } from '@/components/home/shared'
 import { DATE_WITH_WEEKDAY, TIME_24H } from '@/lib/format-patterns'
@@ -43,16 +43,29 @@ export default function EventDayStreams({
 }) {
   const t = useTranslations('events.dayStreams')
   const format = useFormatter()
-  const [activeId, setActiveId] = useState<string | null>(null)
-  if (streams.length === 0) return null
-
   const today = todayUtc()
+  const [active, setActive] = useState<{ id: string; autoplay: boolean } | null>(null)
+  // Auto-expand today's stream — the headline during the event. Done in a
+  // mount effect (not the initial state) so the server-rendered, ISR-cached
+  // HTML matches hydration; "today" is dynamic and can't be rendered on the
+  // server. No autoplay on the auto-open — a tap starts playback.
+  const autoOpenedRef = useRef(false)
+  useEffect(() => {
+    if (autoOpenedRef.current) return
+    autoOpenedRef.current = true
+    const todays = streams.find((s) => s.dayDate === todayUtc())
+    // Intentional one-time post-hydration expand (deferred off SSR to avoid a
+    // hydration mismatch on the dynamic, ISR-cached "today").
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (todays) setActive({ id: todays.videoId, autoplay: false })
+  }, [streams])
+  if (streams.length === 0) return null
 
   const rows = streams.flatMap((s) => {
     const isLive = s.badge === 'live'
     const isPast = s.dayDate < today && !isLive
     const isToday = s.dayDate === today
-    const isOpen = activeId === s.videoId
+    const isOpen = active?.id === s.videoId
     const dayDateObj = new Date(`${s.dayDate}T00:00:00Z`)
     const dayLabel = t('dayLabel', { n: s.day })
     const dateStr = format.dateTime(dayDateObj, DATE_WEEKDAY_UTC)
@@ -84,7 +97,7 @@ export default function EventDayStreams({
       // users can still open a real tab.
       if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return
       e.preventDefault()
-      setActiveId((cur) => (cur === s.videoId ? null : s.videoId))
+      setActive((cur) => (cur?.id === s.videoId ? null : { id: s.videoId, autoplay: true }))
     }
 
     const highlight = isLive || isOpen
@@ -203,7 +216,7 @@ export default function EventDayStreams({
       >
         <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
           <iframe
-            src={`https://www.youtube.com/embed/${s.videoId}?autoplay=1&rel=0&playsinline=1&modestbranding=1`}
+            src={`https://www.youtube.com/embed/${s.videoId}?autoplay=${active?.autoplay ? 1 : 0}&rel=0&playsinline=1&modestbranding=1`}
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
             title={`${dayLabel} — ${dateStr}`}
