@@ -3,8 +3,10 @@
 // The page itself is 'use client', so generateMetadata must live here.
 
 import { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
+import { rowExistsById } from '@/lib/entity-exists'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { buildMatchSummary } from '@/lib/seo/match-summary'
 import { fetchSeoBroadcasters } from '@/lib/where-to-watch/fetch-seo-broadcasters'
@@ -141,6 +143,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function MatchLayout({ params, children }: Props) {
+  const { id } = await params
+
+  let matchExists: boolean | null = null
+  try {
+    matchExists = await rowExistsById(createServerClient(), 'matches', id)
+  } catch {
+    matchExists = null
+  }
+  if (matchExists === false) notFound()
+
   let jsonLd: object | null = null
   let h1Text: string | null = null
   let summary: ReturnType<typeof buildMatchSummary> | null = null
@@ -148,7 +160,7 @@ export default async function MatchLayout({ params, children }: Props) {
   let seoSentence: string | null = null
 
   try {
-    const { id, locale } = await params
+    const { locale } = await params
     const supabase = createServerClient()
 
     const { data: match } = await supabase

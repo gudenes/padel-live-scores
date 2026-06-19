@@ -9,8 +9,10 @@
 //      Google first-pass structured-data indexing of the post.
 
 import { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
+import { rowExistsById } from '@/lib/entity-exists'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { EditorialProvider, type EditorialPost } from '@/components/EditorialProvider'
 import { fetchSeoBroadcasters } from '@/lib/where-to-watch/fetch-seo-broadcasters'
@@ -75,6 +77,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function TournamentLayout({ params, children }: Props) {
   const { id, locale } = await params
+
+  let tournamentExists: boolean | null = null
+  try {
+    tournamentExists = await rowExistsById(createServerClient(), 'tournaments', id)
+  } catch {
+    tournamentExists = null
+  }
+  if (tournamentExists === false) notFound()
+
   let jsonLd: object | null = null
   let editorialJsonLd: object | null = null
   let editorial: EditorialPost | null = null

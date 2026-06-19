@@ -3,8 +3,10 @@
 // The page itself is 'use client', so generateMetadata must live here.
 
 import { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { createServerClient } from '@/lib/supabase'
+import { rowExistsById } from '@/lib/entity-exists'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { buildPlayerSummary, RecentMatchInput } from '@/lib/seo/player-summary'
 
@@ -94,12 +96,21 @@ const lastName = (full: string): string => {
 }
 
 export default async function PlayerLayout({ params, children }: Props) {
+  const { id } = await params
+
+  let playerExists: boolean | null = null
+  try {
+    playerExists = await rowExistsById(createServerClient(), 'players', id)
+  } catch {
+    playerExists = null
+  }
+  if (playerExists === false) notFound()
+
   let jsonLd: object | null = null
   let playerName: string | null = null
   let summary = null
 
   try {
-    const { id } = await params
     const supabase = createServerClient()
 
     // Parallel: player + last 5 finished matches involving them. The matches
