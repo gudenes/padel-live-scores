@@ -99,7 +99,7 @@ export default function EventDayStreams({
               style={{
                 width: 38,
                 height: 27,
-                background: isLive ? '#FF0000' : '#3A2326',
+                background: '#FF0000',
                 borderRadius: 7,
                 flexShrink: 0,
                 display: 'flex',
