@@ -1647,7 +1647,8 @@
       "replay": "Replay",
       "upcoming": "Em breve",
       "today": "Hoje",
-      "dayLabel": "Dia {n}"
+      "dayLabel": "Dia {n}",
+      "openOnYoutube": "Abrir no YouTube ›"
     }
   },
   "social": {
