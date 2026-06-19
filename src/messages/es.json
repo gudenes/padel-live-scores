@@ -1640,7 +1640,15 @@
     "standings": "Clasificación",
     "specialEvents": "Eventos especiales",
     "tabOverview": "Resumen",
-    "tabLineups": "Alineaciones"
+    "tabLineups": "Alineaciones",
+    "dayStreams": {
+      "eyebrow": "Ver por día",
+      "live": "En vivo",
+      "replay": "Repetición",
+      "upcoming": "Próximamente",
+      "today": "Hoy",
+      "dayLabel": "Día {n}"
+    }
   },
   "social": {
     "followUs": "Síguenos"

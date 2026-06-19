@@ -9,6 +9,8 @@ import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 import { CHUNKY, GREEN, ORANGE, MUTED, BORDER, FlagImg } from '@/components/home/shared'
 import { effectiveStatus, type ManagedEvent, type DivisionPlayer } from '@/lib/managed-events'
 import type { ManagedPlayerLite } from '@/lib/managed-events-server'
+import type { DayStreamCard } from '@/lib/event-day-streams'
+import EventDayStreams from './EventDayStreams'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 
 type TabKey = 'overview' | 'lineups'
@@ -22,9 +24,11 @@ const STATUS_COLOR: Record<string, string> = {
 export default function EventDetail({
   event,
   playersById,
+  dayStreams = [],
 }: {
   event: ManagedEvent
   playersById: Record<string, ManagedPlayerLite>
+  dayStreams?: DayStreamCard[]
 }) {
   const t = useTranslations('events')
   const format = useFormatter()
@@ -169,10 +173,14 @@ export default function EventDetail({
       {tab === 'overview' && (
         <div>
           {/* WHERE TO WATCH */}
-          {event.watch_links.length > 0 && (
+          {(event.watch_links.length > 0 || dayStreams.length > 0) && (
             <div style={{ padding: '18px 16px 4px' }}>
               <div style={sectionLabel}>{t('whereToWatch')}</div>
-              {primaryWatch && (
+              {/* Per-day YouTube cards (e.g. Reserve Cup) take the lead slot,
+                  replacing the single generic YouTube hero. */}
+              {dayStreams.length > 0 ? (
+                <EventDayStreams streams={dayStreams} embedded />
+              ) : primaryWatch ? (
                 <a
                   href={primaryWatch.url}
                   target="_blank"
@@ -223,7 +231,7 @@ export default function EventDetail({
                   </span>
                   <span style={{ color: MUTED, fontSize: 18 }}>›</span>
                 </a>
-              )}
+              ) : null}
               {otherWatch.length > 0 && (
                 <div
                   style={{
