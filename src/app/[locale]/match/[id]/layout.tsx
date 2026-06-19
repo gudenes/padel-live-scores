@@ -143,7 +143,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function MatchLayout({ params, children }: Props) {
-  const { id } = await params
+  const { id, locale } = await params
 
   let matchExists: boolean | null = null
   try {
@@ -160,7 +160,6 @@ export default async function MatchLayout({ params, children }: Props) {
   let seoSentence: string | null = null
 
   try {
-    const { locale } = await params
     const supabase = createServerClient()
 
     const { data: match } = await supabase
