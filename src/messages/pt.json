@@ -1667,5 +1667,10 @@
       "cl": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
       "br": "Jogue com responsabilidade. Apostas para maiores de 18 anos. +18."
     }
+  },
+  "notFound": {
+    "title": "Esta página não existe",
+    "body": "A página que procuras pode ter sido removida, renomeada ou nunca existiu.",
+    "cta": "Voltar ao PadelNachos"
   }
 }
