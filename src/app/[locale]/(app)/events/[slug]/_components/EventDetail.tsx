@@ -179,7 +179,7 @@ export default function EventDetail({
               {/* Per-day YouTube cards (e.g. Reserve Cup) take the lead slot,
                   replacing the single generic YouTube hero. */}
               {dayStreams.length > 0 ? (
-                <EventDayStreams streams={dayStreams} embedded eventName={event.name} />
+                <EventDayStreams streams={dayStreams} embedded />
               ) : primaryWatch ? (
                 <a
                   href={primaryWatch.url}
