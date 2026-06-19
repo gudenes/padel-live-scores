@@ -9,6 +9,8 @@ import PressButton, { PRESS_PRESETS } from '@/components/PressButton'
 import { CHUNKY, GREEN, ORANGE, MUTED, BORDER, FlagImg } from '@/components/home/shared'
 import { effectiveStatus, type ManagedEvent, type DivisionPlayer } from '@/lib/managed-events'
 import type { ManagedPlayerLite } from '@/lib/managed-events-server'
+import type { DayStreamCard } from '@/lib/event-day-streams'
+import EventDayStreams from './EventDayStreams'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
 
 type TabKey = 'overview' | 'lineups'
@@ -22,9 +24,11 @@ const STATUS_COLOR: Record<string, string> = {
 export default function EventDetail({
   event,
   playersById,
+  dayStreams = [],
 }: {
   event: ManagedEvent
   playersById: Record<string, ManagedPlayerLite>
+  dayStreams?: DayStreamCard[]
 }) {
   const t = useTranslations('events')
   const format = useFormatter()
@@ -272,6 +276,9 @@ export default function EventDetail({
               )}
             </div>
           )}
+
+          {/* PER-DAY YOUTUBE STREAMS (e.g. Reserve Cup) */}
+          <EventDayStreams streams={dayStreams} />
 
           {/* EVENT INFO */}
           <div style={{ padding: '18px 16px 4px' }}>

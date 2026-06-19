@@ -1640,7 +1640,15 @@
     "standings": "Classificação",
     "specialEvents": "Eventos especiais",
     "tabOverview": "Visão geral",
-    "tabLineups": "Escalações"
+    "tabLineups": "Escalações",
+    "dayStreams": {
+      "eyebrow": "Ver por dia",
+      "live": "Ao vivo",
+      "replay": "Replay",
+      "upcoming": "Em breve",
+      "today": "Hoje",
+      "dayLabel": "Dia {n}"
+    }
   },
   "social": {
     "followUs": "Siga-nos"

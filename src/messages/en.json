@@ -1672,7 +1672,15 @@
     "standings": "Standings",
     "specialEvents": "Special events",
     "tabOverview": "Overview",
-    "tabLineups": "Lineups"
+    "tabLineups": "Lineups",
+    "dayStreams": {
+      "eyebrow": "Watch by day",
+      "live": "Live",
+      "replay": "Replay",
+      "upcoming": "Upcoming",
+      "today": "Today",
+      "dayLabel": "Day {n}"
+    }
   },
   "social": {
     "followUs": "Follow us"

@@ -1640,7 +1640,15 @@
     "standings": "Classement",
     "specialEvents": "Événements spéciaux",
     "tabOverview": "Aperçu",
-    "tabLineups": "Compositions"
+    "tabLineups": "Compositions",
+    "dayStreams": {
+      "eyebrow": "Regarder par jour",
+      "live": "En direct",
+      "replay": "Rediffusion",
+      "upcoming": "À venir",
+      "today": "Aujourd'hui",
+      "dayLabel": "Jour {n}"
+    }
   },
   "social": {
     "followUs": "Suivez-nous"
