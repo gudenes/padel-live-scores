@@ -173,7 +173,7 @@ export default function AdsTab() {
                   <th>Weight</th>
                   <th style={{ textAlign: 'right' }}>Impressions</th>
                   <th style={{ textAlign: 'right' }}>Clicks</th>
-                  <th style={{ textAlign: 'right' }}>CTR</th>
+                  <th style={{ textAlign: 'right' }} title="Click-through rate (clicks ÷ impressions)">CTR</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
