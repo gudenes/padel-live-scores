@@ -17,11 +17,12 @@ export async function GET() {
   const deny = await requireOperator()
   if (deny) return deny
   const supabase = serviceClient()
-  const [{ data, error }, { data: stats }] = await Promise.all([
+  const [{ data, error }, { data: stats, error: statsError }] = await Promise.all([
     supabase.from('ad_banners').select(COLS).order('created_at', { ascending: false }),
     supabase.from('ad_banner_stats').select('banner_id, impressions, clicks'),
   ])
   if (error) return Response.json({ error: error.message }, { status: 500 })
+  if (statsError) console.error('[ad-banners GET] stats query failed:', statsError.message)
   const banners = mergeBannerStats(data ?? [], (stats ?? []) as BannerStatRow[])
   return Response.json({ banners })
 }
