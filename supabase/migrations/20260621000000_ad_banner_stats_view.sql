@@ -22,3 +22,8 @@ left join (
   select sponsor_id, count(*) as clicks
   from ad_clicks group by sponsor_id
 ) c on c.sponsor_id = b.id::text;
+
+-- Defense-in-depth: the view is read only via the service role (which bypasses
+-- RLS). Revoke the implicit grants so an accidental anon/authenticated read
+-- fails loudly instead of silently returning an empty set.
+revoke all on public.ad_banner_stats from anon, authenticated;

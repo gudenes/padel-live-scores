@@ -22,6 +22,9 @@ describe('formatCtr', () => {
   it('rounds to one decimal', () => {
     expect(formatCtr(1, 3)).toBe('33.3%')
   })
+  it('returns 0.0% when there are clicks-less impressions', () => {
+    expect(formatCtr(0, 100)).toBe('0.0%')
+  })
 })
 
 describe('mergeBannerStats', () => {
