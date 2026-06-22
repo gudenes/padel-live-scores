@@ -19,14 +19,14 @@ export function usePairImages(playerIds: string[]): Map<string, PairImage> {
     let cancelled = false
     supabase
       .from('players')
-      .select('id, name, country, avatar_url, photo_url')
+      .select('id, name, display_name, country, avatar_url, photo_url')
       .in('id', playerIds)
       .then(({ data, error }) => {
         if (cancelled) return
         if (error) { console.warn('[usePairImages] fetch failed:', error); return }
         const m = new Map<string, PairImage>()
-        for (const p of (data ?? []) as Array<{ id: string; name: string | null; country: string | null; avatar_url: string | null; photo_url: string | null }>) {
-          m.set(p.id, { name: p.name, country: p.country, avatarUrl: p.avatar_url, photoUrl: p.photo_url })
+        for (const p of (data ?? []) as Array<{ id: string; name: string | null; display_name: string | null; country: string | null; avatar_url: string | null; photo_url: string | null }>) {
+          m.set(p.id, { name: p.display_name ?? p.name, country: p.country, avatarUrl: p.avatar_url, photoUrl: p.photo_url })
         }
         setMap(m)
       })
