@@ -6,7 +6,7 @@ import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
 import PressButton from '@/components/PressButton'
-import { buildPlayerLookup, buildRoadVM, mergeImagesIntoLookup, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildPlayerLookup, buildRoadVM, mergeImagesIntoLookup, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, winColor, pairSurnames, type RoadOpponentVM } from '@/lib/projection-view'
 import { ProjectionExplainSheet } from './ProjectionExplainSheet'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
@@ -29,9 +29,6 @@ const CHUNK_CARD = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
 const BADGE = 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)'
 const MONO = 'ui-monospace, "SF Mono", monospace'
 
-function winColor(p: number): string {
-  return p >= 0.65 ? LIME : p >= 0.45 ? GOLD : LIVE
-}
 function TrophyIcon({ size = 18, color = '#1A1A1A' }: { size?: number; color?: string }) {
   // Bold, filled trophy (chunkier than the 🏆 emoji).
   return (
@@ -40,10 +37,6 @@ function TrophyIcon({ size = 18, color = '#1A1A1A' }: { size?: number; color?: s
     </svg>
   )
 }
-function pairName(players: RoadOpponentVM['players']): string {
-  return players.map((p) => p.name.split(' ').slice(-1)[0] || p.name).join(' / ')
-}
-
 function PairAvatars({ players, size = 24 }: { players: RoadOpponentVM['players']; size?: number }) {
   const [p1, p2] = players
   // Smooth overlap like the match momentum chart: a ring matching the card
@@ -437,7 +430,7 @@ export default function ProjectionTab({
                               {dateLabel && <span style={{ color: MUTED, fontSize: 10, fontWeight: 600 }}>{dateLabel}</span>}
                             </div>
                           )}
-                          <div style={{ color: TEXT, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pairName(opp.players)}</div>
+                          <div style={{ color: TEXT, fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pairSurnames(opp.players)}</div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
                           {played ? (

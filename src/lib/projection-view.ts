@@ -40,6 +40,20 @@ export const ROUND_LABEL_KEY: Record<ProjRound, string> = {
   R64: 'roundR64', R32: 'roundR32', R16: 'roundR16', QF: 'roundQF', SF: 'roundSF', F: 'roundF',
 }
 
+const LIME = '#7ED321'
+const GOLD = '#F5A623'
+const LIVE = '#FF4655'
+
+/** Win-probability → accent color (matches the Projection tab). */
+export function winColor(p: number): string {
+  return p >= 0.65 ? LIME : p >= 0.45 ? GOLD : LIVE
+}
+
+/** "Chozas / Libaak" — last-name tokens joined, the app's pair display rule. */
+export function pairSurnames(players: RoadPlayerVM[]): string {
+  return players.map((p) => p.name.split(' ').slice(-1)[0] || p.name).join(' / ')
+}
+
 export function buildPlayerLookup(matches: Match[]): Map<string, Player> {
   const map = new Map<string, Player>()
   for (const m of matches) {
