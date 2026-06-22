@@ -129,6 +129,14 @@ export interface NotifyEventPayload {
   url?: string;
   metadata?: Record<string, unknown>;
   icon?: string;
+  /**
+   * Opt-in: when true, the notify-event endpoint personalizes title/body/icon/
+   * url PER RECIPIENT from the players that recipient follows (used by
+   * `player_entered`). Requires entityType='player', entityIds, and
+   * metadata.tournamentId. When absent, the endpoint sends the uniform
+   * title/body/icon/url as before.
+   */
+  personalizePerFollower?: boolean;
   dedupeKey?: string;
 }
 
