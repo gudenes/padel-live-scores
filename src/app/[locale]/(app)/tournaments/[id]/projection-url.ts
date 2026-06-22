@@ -26,6 +26,7 @@ export function buildProjectionShareUrl(
 export interface ProjectionShareInput {
   pair: string
   tournamentName: string
+  /** Integer 0–100. Caller must pre-multiply: Math.round(championProb * 100). */
   championPct: number
   status: 'active' | 'eliminated' | 'champion'
 }
@@ -33,7 +34,7 @@ export interface ProjectionShareInput {
 /** Localized {title,text} for the share sheet, adapting to the pair's status. */
 export function buildProjectionSharePayload(
   input: ProjectionShareInput,
-  t: (key: string, values?: Record<string, unknown>) => string,
+  t: (key: string, values?: Record<string, string | number | Date>) => string,
 ): { title: string; text: string } {
   const title = t('shareTitle', { pair: input.pair })
   const text =
