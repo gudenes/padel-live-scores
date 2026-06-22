@@ -269,6 +269,12 @@ export async function runFipEntryListPopulator(
           title: 'New tournament entry',
           body: 'A player you follow just entered an event.',
           url: `/tournaments/${tournamentId}`,
+          // Endpoint personalizes per recipient from the players THEY follow;
+          // tournamentId lets it resolve the tournament name + level. The
+          // title/body/url above stay as the generic fallback (used for any
+          // recipient with no named followed entrant, and for anon subs).
+          personalizePerFollower: true,
+          metadata: { tournamentId },
           // Per-tournament dedupe so each fan gets at most ONE entry notice
           // per tournament — across this run AND future runs (the endpoint's
           // user_notifications dedupe probe keys on this).

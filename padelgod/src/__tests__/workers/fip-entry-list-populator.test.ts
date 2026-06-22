@@ -511,6 +511,8 @@ describe('runFipEntryListPopulator', () => {
       entityType: 'player',
       dedupeKey: `player_entered:${TOURNAMENT_ID}`,
       url: `/tournaments/${TOURNAMENT_ID}`,
+      personalizePerFollower: true,
+      metadata: { tournamentId: TOURNAMENT_ID },
     });
     expect([...(posts[0].body.entityIds as string[])].sort()).toEqual([
       'new-player-1',
