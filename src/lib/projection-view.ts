@@ -40,9 +40,9 @@ export const ROUND_LABEL_KEY: Record<ProjRound, string> = {
   R64: 'roundR64', R32: 'roundR32', R16: 'roundR16', QF: 'roundQF', SF: 'roundSF', F: 'roundF',
 }
 
-const LIME = '#7ED321'
-const GOLD = '#F5A623'
-const LIVE = '#FF4655'
+export const LIME = '#7ED321'
+export const GOLD = '#F5A623'
+export const LIVE = '#FF4655'
 
 /** Win-probability → accent color (matches the Projection tab). */
 export function winColor(p: number): string {
