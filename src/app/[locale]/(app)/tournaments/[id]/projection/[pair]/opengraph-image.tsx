@@ -45,7 +45,7 @@ const FLAG_EMOJI: Record<string, string> = {
 const flag = (c: string | null) => (c ? FLAG_EMOJI[c.toUpperCase()] ?? '' : '')
 
 // ── Image embedding ──────────────────────────────────────────────
-async function imgDataUrl(url: string | null): Promise<string | null> {
+async function imgDataUrl(url: string | null, maxBytes = 200_000): Promise<string | null> {
   if (!url) return null
   if (url.toLowerCase().includes('.webp')) return null
   try {
@@ -57,14 +57,14 @@ async function imgDataUrl(url: string | null): Promise<string | null> {
     const ct = res.headers.get('content-type') ?? ''
     if (!/^image\/(png|jpeg|jpg|gif|svg)/i.test(ct)) return null
     const buf = await res.arrayBuffer()
-    if (buf.byteLength > 600_000) return null
+    if (buf.byteLength > maxBytes) return null
     return `data:${ct.split(';')[0]};base64,${Buffer.from(buf).toString('base64')}`
   } catch { return null }
 }
 
-let LOGO_CACHE: string | null = null
+let LOGO_CACHE: string | null | undefined = undefined
 async function logoDataUrl(): Promise<string | null> {
-  if (LOGO_CACHE !== undefined && LOGO_CACHE !== null) return LOGO_CACHE
+  if (LOGO_CACHE !== undefined) return LOGO_CACHE
   try {
     // First try reading from disk (preferred: avoids HTTP round-trip)
     const buf = await readFile(join(process.cwd(), 'public/padelnachos-logo-v2.png'))
@@ -72,7 +72,10 @@ async function logoDataUrl(): Promise<string | null> {
     // resvg v0.37+ handles interlaced PNGs. If not working, the fallback text label is used.
     LOGO_CACHE = `data:image/png;base64,${buf.toString('base64')}`
     return LOGO_CACHE
-  } catch { return null }
+  } catch {
+    LOGO_CACHE = null   // cache the failure so we don't retry fs every request
+    return LOGO_CACHE
+  }
 }
 
 // ── REST helpers ─────────────────────────────────────────────────
@@ -205,20 +208,24 @@ export default async function Image({
 }) {
   const { locale, id, pair } = await params
   try {
-    const t = await getTranslations({ locale, namespace: 'projectionTab' })
-
-    const [data, tourn] = await Promise.all([resolve(id, pair), fetchTournament(id)])
+    const [t, data, tourn] = await Promise.all([
+      getTranslations({ locale, namespace: 'projectionTab' }),
+      resolve(id, pair),
+      fetchTournament(id),
+    ])
     if (!data || !tourn?.name) return fallbackImage()
 
     const vm = buildRoadVM(data.row, toLookup(data.players), null)
 
     // Build the pair's photo/avatar URLs BEFORE assembling JSX
     // Prefer photo_url (full-body portrait) for the hero section; fall back to avatar_url.
-    const heroUrl0 = data.players.get(vm.players[0]?.id ?? '')?.photo_url ?? data.players.get(vm.players[0]?.id ?? '')?.avatar_url ?? null
-    const heroUrl1 = data.players.get(vm.players[1]?.id ?? '')?.photo_url ?? data.players.get(vm.players[1]?.id ?? '')?.avatar_url ?? null
+    const p0 = data.players.get(vm.players[0]?.id ?? '')
+    const heroUrl0 = p0?.photo_url ?? p0?.avatar_url ?? null
+    const p1 = data.players.get(vm.players[1]?.id ?? '')
+    const heroUrl1 = p1?.photo_url ?? p1?.avatar_url ?? null
     const [heroImg0, heroImg1] = await Promise.all([
-      imgDataUrl(heroUrl0),
-      imgDataUrl(heroUrl1),
+      imgDataUrl(heroUrl0, 600_000),
+      imgDataUrl(heroUrl1, 600_000),
     ])
 
     // Collect all visible rounds with their opponent pair avatar URLs
@@ -228,18 +235,19 @@ export default async function Image({
       if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return false
       return true
     })
-    const roundAssets: RoundAssets[] = await Promise.all(
-      roundsToShow.map(async (rd) => {
-        if (!rd.expected) return { opp1: null, opp2: null }
-        const [opp1, opp2] = await Promise.all([
-          imgDataUrl(data.players.get(rd.expected.players[0]?.id ?? '')?.avatar_url ?? null),
-          imgDataUrl(data.players.get(rd.expected.players[1]?.id ?? '')?.avatar_url ?? null),
-        ])
-        return { opp1, opp2 }
-      }),
-    )
-
-    const logo = await logoDataUrl()
+    const [roundAssets, logo] = await Promise.all([
+      Promise.all(
+        roundsToShow.map(async (rd) => {
+          if (!rd.expected) return { opp1: null, opp2: null }
+          const [opp1, opp2] = await Promise.all([
+            imgDataUrl(data.players.get(rd.expected.players[0]?.id ?? '')?.avatar_url ?? null, 150_000),
+            imgDataUrl(data.players.get(rd.expected.players[1]?.id ?? '')?.avatar_url ?? null, 150_000),
+          ])
+          return { opp1, opp2 }
+        }),
+      ),
+      logoDataUrl(),
+    ])
 
     // Derived state for the champion card
     const champPct = Math.round(vm.championProb * 100)
@@ -816,7 +824,7 @@ export default async function Image({
                             {roundLabel}
                           </div>
                           <div style={{ color: SECONDARY, fontSize: 16, fontWeight: 600 }}>
-                            TBD
+                            {t('byeOrUnknown')}
                           </div>
                         </div>
                       </div>
