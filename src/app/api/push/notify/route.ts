@@ -38,6 +38,7 @@ import { sendPushToFcmTokens } from '@/lib/push-fcm'
 import { resolvePrefs, shouldDeliverToRecipient, type ChannelPrefs, type NotificationCategory } from '@/lib/notification-categories'
 import { isPro, type Plan } from '@/lib/entitlements'
 import { resolveNotificationIcon } from '@/lib/notification-icon'
+import { playerLastName } from '@/lib/player-name'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -69,21 +70,6 @@ interface MatchRow {
 }
 
 const FINISHED_STATUSES = new Set(['finished', 'retired', 'walkover', 'ended'])
-
-function lastName(fullName: string | null | undefined): string {
-  if (!fullName) return ''
-  const parts = fullName.trim().split(/\s+/)
-  return parts[parts.length - 1] ?? ''
-}
-
-// Last token of the player's preferred name. Reads display_name when set
-// (e.g. "Gemma Triay Pons" → display_name "Gemma Triay" → "Triay") so push
-// titles like "<player> won" use the form fans recognize, not the canonical
-// double-surname tail. Falls back to canonical name when display_name is null.
-function playerLastName(p: PlayerLite | null | undefined): string {
-  if (!p) return ''
-  return lastName(p.display_name?.trim() || p.name)
-}
 
 function buildBody(m: MatchRow): string {
   const lastNames = (a: PlayerLite | null, b: PlayerLite | null) =>
