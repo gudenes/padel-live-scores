@@ -1,6 +1,6 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useTranslations, useFormatter } from 'next-intl'
+import { useTranslations, useFormatter, useLocale } from 'next-intl'
 import type { Match } from '@/types/match'
 import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
@@ -17,6 +17,9 @@ import { usePairImages } from './usePairImages'
 import ProjectionPickerList, { type ResolvedPlayer } from './ProjectionPickerList'
 import ChampionSparkline from './ChampionSparkline'
 import { buildSlugIndex, resolvePairSlug } from '@/lib/projection-slug'
+import { Capacitor } from '@capacitor/core'
+import { Share } from '@capacitor/share'
+import { buildProjectionShareUrl, buildProjectionSharePayload } from './projection-url'
 
 const CARD = 'rgba(255,255,255,0.03)'
 const TEXT = '#EEE4CE'
@@ -80,6 +83,7 @@ export default function ProjectionTab({
   onPairChange,
   initialPairSlug = null,
   onPairSlugChange,
+  tournamentName,
 }: {
   tournamentId: string
   matches: Match[]
@@ -92,9 +96,12 @@ export default function ProjectionTab({
   initialPairSlug?: string | null
   /** In-page mode: emits the canonical pair slug (or null) on selection change. */
   onPairSlugChange?: (slug: string | null) => void
+  tournamentName?: string | null
 }) {
   const t = useTranslations('projectionTab')
   const format = useFormatter()
+  const locale = useLocale()
+  const [shareToast, setShareToast] = useState(false)
   const { rows, loading } = useProjection(tournamentId, category)
   const lookup = useMemo(() => buildPlayerLookup(matches), [matches])
   const seedByPair = useMemo(() => buildSeedMap(matches), [matches])
@@ -157,6 +164,34 @@ export default function ProjectionTab({
   const projVote = useProjectionVote(tournamentId, category, selectedPair)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, enrichedLookup, roundSchedule) : null), [row, enrichedLookup, roundSchedule])
+
+  const handleShare = async () => {
+    if (!vm || !selectedPair) return
+    const slug = slugIndex.pairKeyToSlug.get(selectedPair)
+    if (!slug) return
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://padelnachos.com'
+    const shareUrl = buildProjectionShareUrl(origin, locale, tournamentId, slug)
+    const { title, text } = buildProjectionSharePayload(
+      { pair: pairSurnames(vm.players), tournamentName: tournamentName ?? '', championPct: Math.round(vm.championProb * 100), status: vm.status },
+      t,
+    )
+    const canShareViaCapacitor = Capacitor.isNativePlatform()
+    const canShareViaWebShare = typeof navigator !== 'undefined' && 'share' in navigator
+    const copyFallback = async () => {
+      try { await navigator.clipboard.writeText(shareUrl) } catch { /* insecure context */ }
+      setShareToast(true)
+      setTimeout(() => setShareToast(false), 2200)
+    }
+    try {
+      if (canShareViaCapacitor || canShareViaWebShare) {
+        await Share.share({ title, text, url: shareUrl, dialogTitle: title })
+      } else {
+        await copyFallback()
+      }
+    } catch {
+      // user dismissed the sheet — stay quiet
+    }
+  }
 
   if (loading) {
     return <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>…</div>
@@ -256,18 +291,28 @@ export default function ProjectionTab({
   }
   return (
     <div key={`proj-road-${selectedPair}`} className="projection-cascade" style={{ padding: '14px 13px 24px' }}>
-      <button onClick={() => {
-          if (history.length > 0) {
-            setSelectedPair(history[history.length - 1]!)
-            setHistory((h) => h.slice(0, -1))
-            setExpanded(new Set()); setTbdHint(new Set())
-          } else {
-            setView('list')
-          }
-        }}
-        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '0 0 10px 2px' }}>
-        ‹ {t('back')}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0 10px 2px' }}>
+        <button onClick={() => {
+            if (history.length > 0) {
+              setSelectedPair(history[history.length - 1]!)
+              setHistory((h) => h.slice(0, -1))
+              setExpanded(new Set()); setTbdHint(new Set())
+            } else {
+              setView('list')
+            }
+          }}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: SECONDARY, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: 0 }}>
+          ‹ {t('back')}
+        </button>
+        <button onClick={handleShare} aria-label={t('shareLabel')} title={t('shareLabel')}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(126,211,33,0.1)', border: '1px solid rgba(126,211,33,0.3)', cursor: 'pointer', color: LIME, fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5, padding: '5px 11px', clipPath: CHUNK_CARD }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+          </svg>
+          {t('shareLabel')}
+        </button>
+      </div>
       {/* Selected-team hero banner — chunky broadcast-style lower-third.
           Photos + names link to each player's profile. Seed shown as #N. */}
       <div style={{ position: 'relative', display: 'flex', alignItems: 'stretch', minHeight: 130, overflow: 'hidden', marginBottom: 16, background: 'linear-gradient(135deg, #0d0d0d 0%, #1e1e1e 58%, #131313 100%)', border: '1px solid rgba(255,255,255,0.08)', clipPath: 'polygon(0 7%, 99% 0, 100% 93%, 1% 100%)' }}>
@@ -506,6 +551,11 @@ export default function ProjectionTab({
           finalPct={Math.round(vm.finalistProb * 100)}
           roundLabel={projFinishLabel ?? ''}
         />
+        {shareToast && (
+          <div style={{ position: 'fixed', left: '50%', bottom: 90, transform: 'translateX(-50%)', zIndex: 50, background: '#0d0d0d', color: LIME, border: '1px solid rgba(126,211,33,0.4)', padding: '9px 16px', clipPath: CHUNK_CARD, fontSize: 12, fontWeight: 800, letterSpacing: 0.4 }}>
+            {t('shareCopied')}
+          </div>
+        )}
     </div>
   )
 }

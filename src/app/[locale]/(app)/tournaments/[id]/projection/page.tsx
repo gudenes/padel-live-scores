@@ -91,6 +91,7 @@ export default async function ProjectionPage({ params, searchParams }: Props) {
           roundSchedule={meta.round_schedule}
           pairKeyToSlug={Object.fromEntries(pairKeyToSlug)}
           showDrawTab={showDrawTab}
+          tournamentName={meta.name}
         />
       </main>
     </div>

@@ -17,6 +17,7 @@ export default function ProjectionRouteClient({
   roundSchedule,
   pairKeyToSlug,
   showDrawTab,
+  tournamentName,
 }: {
   tournamentId: string
   category: 'men' | 'women'
@@ -25,6 +26,7 @@ export default function ProjectionRouteClient({
   roundSchedule: Record<string, string> | null
   pairKeyToSlug: Record<string, string>
   showDrawTab: boolean
+  tournamentName?: string | null
 }) {
   const t = useTranslations('tournament')
   const router = useRouter()
@@ -74,6 +76,7 @@ export default function ProjectionRouteClient({
         roundSchedule={roundSchedule}
         initialPairKey={initialPairKey}
         onPairChange={onPairChange}
+        tournamentName={tournamentName}
       />
     </>
   )

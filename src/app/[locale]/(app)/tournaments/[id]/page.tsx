@@ -1393,6 +1393,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             roundSchedule={(activeTournamentObj as any).round_schedule ?? null}
             initialPairSlug={paramTab === 'projection' ? initialProjectionPairSlug : null}
             onPairSlugChange={syncProjectionUrl}
+            tournamentName={activeTournamentObj.name ?? null}
           />
         )}
 
