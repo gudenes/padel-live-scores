@@ -165,7 +165,7 @@ export default function ProjectionTab({
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
   const vm = useMemo(() => (row ? buildRoadVM(row, enrichedLookup, roundSchedule) : null), [row, enrichedLookup, roundSchedule])
 
-  const handleShare = async () => {
+  const handleShare = useCallback(async () => {
     if (!vm || !selectedPair) return
     const slug = slugIndex.pairKeyToSlug.get(selectedPair)
     if (!slug) return
@@ -188,10 +188,13 @@ export default function ProjectionTab({
       } else {
         await copyFallback()
       }
-    } catch {
-      // user dismissed the sheet — stay quiet
+    } catch (err) {
+      // AbortError = user dismissed the share sheet (intentional) — stay quiet.
+      // Any other failure (plugin error, etc.) → copy so the tap isn't a dead no-op.
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      await copyFallback()
     }
-  }
+  }, [vm, selectedPair, slugIndex, locale, tournamentId, tournamentName, t])
 
   if (loading) {
     return <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>…</div>
@@ -552,7 +555,7 @@ export default function ProjectionTab({
           roundLabel={projFinishLabel ?? ''}
         />
         {shareToast && (
-          <div style={{ position: 'fixed', left: '50%', bottom: 90, transform: 'translateX(-50%)', zIndex: 50, background: '#0d0d0d', color: LIME, border: '1px solid rgba(126,211,33,0.4)', padding: '9px 16px', clipPath: CHUNK_CARD, fontSize: 12, fontWeight: 800, letterSpacing: 0.4 }}>
+          <div style={{ position: 'fixed', left: '50%', bottom: 100, transform: 'translateX(-50%)', zIndex: 1000, background: '#0d0d0d', color: LIME, border: '1px solid rgba(126,211,33,0.4)', padding: '9px 16px', clipPath: CHUNK_CARD, fontSize: 12, fontWeight: 800, letterSpacing: 0.4 }}>
             {t('shareCopied')}
           </div>
         )}
