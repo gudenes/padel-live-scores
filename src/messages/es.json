@@ -1588,7 +1588,13 @@
     "explainKicker": "Por eso son nuestros favoritos al título.",
     "explainUnderdogBody": "Llegan a <r>{round}</r> en la mayoría de las simulaciones, pero rara vez más lejos.",
     "explainClose": "Entendido",
-    "voteThanks": "¡Gracias por tu opinión!"
+    "voteThanks": "¡Gracias por tu opinión!",
+    "shareLabel": "Compartir",
+    "shareTitle": "{pair} — camino al título",
+    "shareTextContender": "{pct}% de ganar {name} 🏆 Mira su camino proyectado al título:",
+    "shareTextChampion": "¡Campeones en {name}! 🏆 Mira el camino que recorrieron:",
+    "shareTextEliminated": "Su paso por {name} — mira el camino proyectado:",
+    "shareCopied": "Enlace copiado"
   },
   "pro": {
     "hero": {

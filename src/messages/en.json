@@ -1620,7 +1620,13 @@
     "explainKicker": "That's why they're our pick to lift the trophy.",
     "explainUnderdogBody": "Reach <r>{round}</r> in most simulations, but rarely further.",
     "explainClose": "Got it",
-    "voteThanks": "Thanks for your feedback!"
+    "voteThanks": "Thanks for your feedback!",
+    "shareLabel": "Share",
+    "shareTitle": "{pair} — road to the title",
+    "shareTextContender": "{pct}% to win {name} 🏆 See their projected road to the title:",
+    "shareTextChampion": "Champions at {name}! 🏆 See the road they took:",
+    "shareTextEliminated": "Their {name} run — see the projected road:",
+    "shareCopied": "Link copied"
   },
   "pro": {
     "hero": {
