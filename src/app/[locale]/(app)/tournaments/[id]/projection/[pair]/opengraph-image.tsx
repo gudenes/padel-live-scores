@@ -15,7 +15,7 @@ const SUPA = process.env.NEXT_PUBLIC_SUPABASE_URL
 const KEY = process.env.SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 const PROJ_COLS =
-  'category,pair_key,pair_player_ids,tournament_level,status,eliminated_round,champion_prob,finalist_prob,semifinal_prob,rounds,predicted_finish_round,computed_at'
+  'tournament_id,category,pair_key,pair_player_ids,tournament_level,status,eliminated_round,champion_prob,finalist_prob,semifinal_prob,rounds,predicted_finish_round,computed_at'
 
 async function restGet<T>(pathAndQuery: string): Promise<T[]> {
   if (!SUPA || !KEY) return []
@@ -23,7 +23,10 @@ async function restGet<T>(pathAndQuery: string): Promise<T[]> {
     headers: { apikey: KEY, Authorization: `Bearer ${KEY}` },
     cache: 'no-store',
   })
-  if (!res.ok) return []
+  if (!res.ok) {
+    console.warn('[projection-og] REST non-ok:', res.status, pathAndQuery)
+    return []
+  }
   return (await res.json()) as T[]
 }
 
@@ -52,11 +55,15 @@ async function fetchPlayers(ids: string[]): Promise<Map<string, PlayerRow>> {
   const map = new Map<string, PlayerRow>()
   const uniq = [...new Set(ids)].filter(Boolean)
   if (uniq.length === 0) return map
-  const inList = uniq.map(encodeURIComponent).join(',')
-  const rows = await restGet<PlayerRow>(
-    `players?id=in.(${inList})&select=id,name,country,avatar_url,photo_url`,
-  )
-  for (const r of rows) map.set(r.id, r)
+  const CHUNK = 100 // raw-URL safe (UUID + encoded separators); SDK path uses 200
+  for (let i = 0; i < uniq.length; i += CHUNK) {
+    const batch = uniq.slice(i, i + CHUNK)
+    const inList = batch.map(encodeURIComponent).join(',')
+    const rows = await restGet<PlayerRow>(
+      `players?id=in.(${inList})&select=id,name,country,avatar_url,photo_url`,
+    )
+    for (const r of rows) map.set(r.id, r)
+  }
   return map
 }
 
@@ -77,8 +84,11 @@ async function resolve(
   if (!row) return null
   // Widen the player map to include this row's road opponents (for later render).
   const oppIds = row.rounds.flatMap((rd) => rd.opponents.flatMap((o) => o.player_ids))
-  const more = await fetchPlayers(oppIds)
-  for (const [pid, p] of more) players.set(pid, p)
+  const newOppIds = oppIds.filter((pid) => !players.has(pid))
+  if (newOppIds.length > 0) {
+    const more = await fetchPlayers(newOppIds)
+    for (const [pid, p] of more) players.set(pid, p)
+  }
   return { row, players }
 }
 
@@ -151,7 +161,8 @@ export default async function Image({
       ),
       { ...size },
     )
-  } catch {
+  } catch (err) {
+    console.error('[projection-og] render failed:', err)
     return fallbackImage()
   }
 }
