@@ -109,6 +109,7 @@ async function fetchProjections(id: string): Promise<ProjectionRow[]> {
 interface PlayerRow {
   id: string
   name: string | null
+  display_name: string | null
   country: string | null
   avatar_url: string | null
   photo_url: string | null
@@ -122,7 +123,7 @@ async function fetchPlayers(ids: string[]): Promise<Map<string, PlayerRow>> {
     const batch = uniq.slice(i, i + CHUNK)
     const inList = batch.map(encodeURIComponent).join(',')
     const rows = await restGet<PlayerRow>(
-      `players?id=in.(${inList})&select=id,name,country,avatar_url,photo_url`,
+      `players?id=in.(${inList})&select=id,name,display_name,country,avatar_url,photo_url`,
     )
     for (const r of rows) map.set(r.id, r)
   }
@@ -138,7 +139,7 @@ async function resolve(
   if (rows.length === 0) return null
   const players = await fetchPlayers(rows.flatMap((r) => r.pair_player_ids))
   const nameById = new Map<string, string>()
-  for (const [pid, p] of players) nameById.set(pid, p.name ?? pid)
+  for (const [pid, p] of players) nameById.set(pid, p.display_name ?? p.name ?? pid)
   const index = buildSlugIndex(rows, nameById)
   const resolved = resolvePairSlug(index, slug)
   if (!resolved) return null
@@ -161,8 +162,8 @@ function toLookup(players: Map<string, PlayerRow>): Map<string, Player> {
     m.set(pid, {
       id: pid,
       external_id: '',
-      name: p.name ?? '',
-      display_name: p.name ?? null,
+      name: p.display_name ?? p.name ?? '',
+      display_name: p.display_name ?? p.name ?? null,
       country: p.country ?? null,
       avatar_url: p.avatar_url ?? null,
       ranking: null,
