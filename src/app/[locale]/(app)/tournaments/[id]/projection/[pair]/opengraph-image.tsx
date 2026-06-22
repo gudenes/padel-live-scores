@@ -228,9 +228,8 @@ export default async function Image({
       imgDataUrl(heroUrl1, 600_000),
     ])
 
-    // Collect all visible rounds with their opponent pair avatar URLs
-    // We prefetch up to 5 rounds × 2 players = 10 images in parallel
-    type RoundAssets = { opp1: string | null; opp2: string | null }
+    // Collect all visible rounds with their opponent pair avatar URLs.
+    // We prefetch up to 5 rounds × 2 players = 10 images in parallel.
     const roundsToShow = vm.rounds.filter((rd) => {
       if (vm.status !== 'active' && rd.reachProb === 0 && !rd.expected) return false
       return true
