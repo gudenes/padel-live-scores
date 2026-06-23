@@ -527,22 +527,16 @@ export default async function Image({
                       </div>
                     </>
                   ) : (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'flex-end', gap: 2 }}>
-                        <span style={{ fontFamily: MONO, color: LIME, fontWeight: 800, fontSize: 54, lineHeight: 1 }}>
-                          {champPct}
-                        </span>
-                        <span style={{ fontFamily: MONO, color: LIME, fontWeight: 800, fontSize: 27 }}>%</span>
-                      </div>
-                      <div style={{ color: MUTED, fontSize: 14, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.7px' }}>
-                        {t('champion')}
-                      </div>
-                    </>
+                    // Active but no projected round (pair has no bracket rows) — show
+                    // nothing rather than a misleading low/0% champion number.
+                    <></>
                   )}
                 </div>
               </div>
-              {/* Champion probability bar (skip for eliminated) */}
-              {vm.status !== 'eliminated' && (
+              {/* Champion probability bar — only when we actually show a champion %
+                  (champion or genuine contender). Long-shots lead with the projected
+                  round, so a champion bar there would be misleading. */}
+              {(vm.status === 'champion' || contender) && (
                 <div
                   style={{
                     marginTop: 14,
@@ -555,7 +549,7 @@ export default async function Image({
                 >
                   <div
                     style={{
-                      width: `${Math.max(2, contender ? champPct : 20)}%`,
+                      width: `${Math.max(2, champPct)}%`,
                       height: '100%',
                       background: `linear-gradient(90deg,${LIME},#5fb314)`,
                     }}

@@ -172,7 +172,7 @@ export default function ProjectionTab({
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://padelnachos.com'
     const shareUrl = buildProjectionShareUrl(origin, locale, tournamentId, slug)
     const { title, text } = buildProjectionSharePayload(
-      { pair: pairSurnames(vm.players), tournamentName: tournamentName ?? '', championPct: Math.round(vm.championProb * 100), status: vm.status },
+      { pair: pairSurnames(vm.players), tournamentName: tournamentName ?? '', status: vm.status },
       t,
     )
     const canShareViaCapacitor = Capacitor.isNativePlatform()
