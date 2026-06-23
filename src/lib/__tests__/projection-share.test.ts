@@ -43,20 +43,21 @@ describe('buildProjectionShareUrl', () => {
 describe('buildProjectionSharePayload', () => {
   const t = (k: string, v?: Record<string, unknown>) =>
     ({ shareTitle: `${v?.pair} — road to the title`,
-       shareTextContender: `${v?.pct}% to win ${v?.name}`,
+       shareTextContender: `${v?.pair}'s road to the title at ${v?.name} is ready`,
        shareTextChampion: `Champions at ${v?.name}!`,
        shareTextEliminated: `Out of ${v?.name}` }[k] ?? k)
-  it('contender → pct text', () => {
-    const p = buildProjectionSharePayload({ pair: 'Coello / Tapia', tournamentName: 'Valladolid P2', championPct: 47, status: 'active' }, t as never)
+  it('active → percentage-free road-to-title text (no odds, never "0%")', () => {
+    const p = buildProjectionSharePayload({ pair: 'Coello / Tapia', tournamentName: 'Valladolid P2', status: 'active' }, t as never)
     expect(p.title).toBe('Coello / Tapia — road to the title')
-    expect(p.text).toBe('47% to win Valladolid P2')
+    expect(p.text).toBe("Coello / Tapia's road to the title at Valladolid P2 is ready")
+    expect(p.text).not.toContain('%')
   })
   it('champion → champion text', () => {
-    const p = buildProjectionSharePayload({ pair: 'Coello / Tapia', tournamentName: 'Valladolid P2', championPct: 100, status: 'champion' }, t as never)
+    const p = buildProjectionSharePayload({ pair: 'Coello / Tapia', tournamentName: 'Valladolid P2', status: 'champion' }, t as never)
     expect(p.text).toBe('Champions at Valladolid P2!')
   })
   it('eliminated → eliminated text', () => {
-    const p = buildProjectionSharePayload({ pair: 'X / Y', tournamentName: 'Valladolid P2', championPct: 0, status: 'eliminated' }, t as never)
+    const p = buildProjectionSharePayload({ pair: 'X / Y', tournamentName: 'Valladolid P2', status: 'eliminated' }, t as never)
     expect(p.text).toBe('Out of Valladolid P2')
   })
 })

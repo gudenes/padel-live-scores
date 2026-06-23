@@ -26,12 +26,12 @@ export function buildProjectionShareUrl(
 export interface ProjectionShareInput {
   pair: string
   tournamentName: string
-  /** Integer 0–100. Caller must pre-multiply: Math.round(championProb * 100). */
-  championPct: number
   status: 'active' | 'eliminated' | 'champion'
 }
 
-/** Localized {title,text} for the share sheet, adapting to the pair's status. */
+/** Localized {title,text} for the share sheet, adapting to the pair's status.
+ *  Deliberately percentage-free — a low/0% title chance reads badly when shared,
+ *  so active pairs get a "road to the title" framing instead of the odds. */
 export function buildProjectionSharePayload(
   input: ProjectionShareInput,
   t: (key: string, values?: Record<string, string | number | Date>) => string,
@@ -42,6 +42,6 @@ export function buildProjectionSharePayload(
       ? t('shareTextChampion', { name: input.tournamentName })
       : input.status === 'eliminated'
       ? t('shareTextEliminated', { name: input.tournamentName })
-      : t('shareTextContender', { pct: input.championPct, name: input.tournamentName })
+      : t('shareTextContender', { pair: input.pair, name: input.tournamentName })
   return { title, text }
 }

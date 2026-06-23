@@ -1591,7 +1591,7 @@
     "voteThanks": "¡Gracias por tu opinión!",
     "shareLabel": "Compartir",
     "shareTitle": "{pair} — camino al título",
-    "shareTextContender": "{pct}% de ganar {name} 🏆 Mira su camino proyectado al título:",
+    "shareTextContender": "El camino al título de {pair} en {name} ya está listo 🏆 Mira la trayectoria proyectada:",
     "shareTextChampion": "¡Campeones en {name}! 🏆 Mira el camino que recorrieron:",
     "shareTextEliminated": "Su paso por {name} — mira el camino proyectado:",
     "shareCopied": "Enlace copiado"
