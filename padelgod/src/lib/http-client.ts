@@ -28,5 +28,12 @@ export function createHttpClient(opts: HttpClientOptions): AxiosInstance {
   return client;
 }
 
+// FIP (Cloudflare WAF) started 403-blocking the self-identifying
+// "Padelgod-Scraper/..." UA on 2026-06-22, which silently killed the
+// weekly rankings + FIP draw fetches (event page + admin-ajax both 403).
+// A browser-like UA is served 200. Env-overridable so ops can rotate the
+// string from Railway (no code redeploy) if FIP tightens the rule again —
+// set PADELGOD_USER_AGENT.
 export const PADELGOD_USER_AGENT =
-  'Padelgod-Scraper/0.2.0 (contact: ops@padelnachos.com)';
+  process.env.PADELGOD_USER_AGENT ??
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
