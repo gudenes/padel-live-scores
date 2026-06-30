@@ -43,7 +43,10 @@ export function createHttpClient(opts: HttpClientOptions): AxiosInstance {
     const pattern = opts.proxyPathPattern ?? /\/wp-json\//;
     client.interceptors.request.use((config) => {
       if (pattern.test(config.url ?? '')) {
+        // FIP REST is https-only today, but set both agents so a plain-http
+        // target can't silently bypass the proxy. HttpsProxyAgent tunnels both.
         config.httpsAgent = agent;
+        config.httpAgent = agent;
         // Disable axios' built-in env-proxy handling so our agent is used.
         config.proxy = false;
       }
