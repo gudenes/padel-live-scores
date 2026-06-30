@@ -78,6 +78,13 @@ export interface FipDrawFetcherResult {
 // nonce usable for ALL tournaments' draw POSTs. We cache it module-level — the
 // scheduler is a single long-lived process, so the cache survives across the
 // hourly runs. TTL is 6h, comfortably inside FIP's validity window.
+//
+// Best-effort under overlap: node-cron does not serialize invocations, and the
+// operator refresh-tournament path runs in the same process against this same
+// cache. Concurrent runs can race `cachedNonce` (e.g. one nulls it during
+// stale-nonce recovery while another is mid-loop). This is intentionally
+// unguarded — the worst case is a few redundant event-page GETs, never
+// corruption: the postID is immutable and draw_snapshots is append-only.
 const NONCE_TTL_MS = 6 * 60 * 60 * 1000;
 let cachedNonce: { value: string; fetchedAtMs: number } | null = null;
 
