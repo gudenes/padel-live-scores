@@ -18,7 +18,7 @@ describe('createHttpClient', () => {
   });
 });
 
-describe('createHttpClient FIP REST proxy routing', () => {
+describe('createHttpClient FIP proxy routing', () => {
   const PROXY = 'http://user:pass@proxy.example:8080';
 
   function requestInterceptors(client: ReturnType<typeof createHttpClient>) {
@@ -28,13 +28,11 @@ describe('createHttpClient FIP REST proxy routing', () => {
 
   // axios-retry registers its own request interceptor, so we can't rely on a
   // fixed handler count/index. The proxy interceptor is identified by behavior:
-  // it's the one that sets httpsAgent for a /wp-json/ URL.
+  // it's the one that sets httpsAgent for a padelfip.com URL.
   function proxyInterceptor(client: ReturnType<typeof createHttpClient>) {
     return requestInterceptors(client).find((h: any) => {
       try {
-        const cfg = h.fulfilled({
-          url: 'https://www.padelfip.com/es/wp-json/probe/',
-        });
+        const cfg = h.fulfilled({ url: 'https://www.padelfip.com/probe/' });
         return cfg?.httpsAgent instanceof HttpsProxyAgent;
       } catch {
         return false;
@@ -47,22 +45,31 @@ describe('createHttpClient FIP REST proxy routing', () => {
     expect(proxyInterceptor(client)).toBeUndefined();
   });
 
-  it('routes /wp-json/ URLs through the proxy agent when proxyUrl is set', () => {
+  // FIP's Cloudflare IP-blocks Railway across the whole padelfip.com domain, so
+  // EVERY padelfip.com path must route through the proxy — REST, the event
+  // pages, and the admin-ajax draw endpoint alike.
+  it.each([
+    ['REST/wp-json', 'https://www.padelfip.com/es/wp-json/fip/v1/ranking/load-more/?gender=male'],
+    ['event page', 'https://www.padelfip.com/es/events/bordeaux-p2-2026/?tab=Cuadros'],
+    ['eventos (redirect target)', 'https://www.padelfip.com/es/eventos/bordeaux-p2-2026/'],
+    ['admin-ajax draw', 'https://www.padelfip.com/wp-admin/admin-ajax.php'],
+    ['player profile', 'https://www.padelfip.com/es/player/arturo-coello/'],
+  ])('routes padelfip.com %s through the proxy agent when proxyUrl is set', (_label, url) => {
     const client = createHttpClient({ userAgent: 'X', proxyUrl: PROXY });
-    const fulfilled = proxyInterceptor(client).fulfilled;
-    const cfg = fulfilled({
-      url: 'https://www.padelfip.com/es/wp-json/fip/v1/ranking/load-more/?gender=male',
-    });
+    const cfg = proxyInterceptor(client).fulfilled({ url });
     expect(cfg.httpsAgent).toBeInstanceOf(HttpsProxyAgent);
     expect(cfg.proxy).toBe(false);
   });
 
-  it('leaves front-end/admin-ajax URLs on the direct connection', () => {
+  it('leaves non-FIP hosts (e.g. matchscorerlive/Crionet) on the direct connection', () => {
     const client = createHttpClient({ userAgent: 'X', proxyUrl: PROXY });
     const fulfilled = proxyInterceptor(client).fulfilled;
-    const cfg = fulfilled({
-      url: 'https://www.padelfip.com/es/events/foo-p2-2026/?tab=Cuadros',
-    });
-    expect(cfg.httpsAgent).toBeUndefined();
+    for (const url of [
+      'https://www.matchscorerlive.com/draw/12345',
+      'https://api.ipify.org/?format=json',
+    ]) {
+      const cfg = fulfilled({ url });
+      expect(cfg.httpsAgent).toBeUndefined();
+    }
   });
 });

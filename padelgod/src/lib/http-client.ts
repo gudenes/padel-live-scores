@@ -7,15 +7,21 @@ export interface HttpClientOptions {
   timeoutMs?: number;
   maxRetries?: number;
   /**
-   * If set, requests whose URL matches `proxyPathPattern` (default: the FIP
-   * WordPress REST API path `/wp-json/`) are sent through this HTTP(S) proxy.
-   * All other requests use the direct connection. Defaults to
-   * `process.env.FIP_PROXY_URL` so ops can set it on Railway with no redeploy
-   * of this signature. Unset = direct connection for everything (today's
-   * behavior). See docs/superpowers/plans/2026-06-30-fip-rest-egress-proxy.md.
+   * If set, requests whose URL matches `proxyHostPattern` (default: any
+   * `padelfip.com` host) are sent through this HTTP(S) proxy. FIP's Cloudflare
+   * IP-blocks Railway's datacenter egress across the WHOLE padelfip.com domain
+   * (verified 2026-06-30: /wp-json rankings+discover AND the /es/events/ +
+   * /wp-admin/admin-ajax.php draw endpoints AND /player profile pages all 403),
+   * so we must route every padelfip.com request through a residential proxy.
+   * Non-FIP hosts (e.g. matchscorerlive.com / Crionet) stay direct — they are
+   * not blocked and shouldn't burn proxy bandwidth. All FIP callers use
+   * absolute URLs, so a host match on config.url is sufficient.
+   * Defaults to `process.env.FIP_PROXY_URL` so ops can set it on Railway with
+   * no redeploy of this signature. Unset = direct connection for everything
+   * (today's behavior). See docs/superpowers/plans/2026-06-30-fip-rest-egress-proxy.md.
    */
   proxyUrl?: string;
-  proxyPathPattern?: RegExp;
+  proxyHostPattern?: RegExp;
 }
 
 export function createHttpClient(opts: HttpClientOptions): AxiosInstance {
@@ -40,11 +46,12 @@ export function createHttpClient(opts: HttpClientOptions): AxiosInstance {
   const proxyUrl = opts.proxyUrl ?? process.env.FIP_PROXY_URL;
   if (proxyUrl) {
     const agent = new HttpsProxyAgent(proxyUrl);
-    const pattern = opts.proxyPathPattern ?? /\/wp-json\//;
+    // Match any padelfip.com host (www. or bare), in the URL's host position.
+    const pattern = opts.proxyHostPattern ?? /\/\/(?:[a-z0-9-]+\.)*padelfip\.com\//i;
     client.interceptors.request.use((config) => {
       if (pattern.test(config.url ?? '')) {
-        // FIP REST is https-only today, but set both agents so a plain-http
-        // target can't silently bypass the proxy. HttpsProxyAgent tunnels both.
+        // FIP is https-only today, but set both agents so a plain-http target
+        // can't silently bypass the proxy. HttpsProxyAgent tunnels both.
         config.httpsAgent = agent;
         config.httpAgent = agent;
         // Disable axios' built-in env-proxy handling so our agent is used.
