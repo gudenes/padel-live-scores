@@ -31,6 +31,10 @@ The interceptor keys on the `/wp-json/` substring, so all four are covered with 
 
 ---
 
+## SCOPE CORRECTION 2026-06-30 — block is DOMAIN-WIDE, not just `/wp-json/`
+
+The FIP Cloudflare IP-block on Railway covers the **entire `padelfip.com` domain**: the FIP event-page draw GETs (`/es/events/...?tab=Cuadros`) and `/es/player/` profile pages also 403 from Railway (verified: `draw_snapshots(fip_event_page)` died 06-26 14:36; 1359 event-page 403s/2d). The interceptor was therefore widened from a `/wp-json/` path match to a **`padelfip.com` host match** (commit 70aab334f); Crionet (`matchscorerlive.com`) stays direct. **Bandwidth ≈ ~16 GB/month** (mostly 296 KB event pages fetched hourly per tournament + 4 admin-ajax draws each) — the 1 GB pay-as-you-go ProxyJet allowance is far too small. Use a **flat/unmetered Static Residential** ProxyJet product, and/or cut bandwidth first (cache the per-tournament nonce/postID instead of re-GETting the 296 KB event page hourly; skip event-page refetch once a draw is complete). The `/es/events/`→`/es/eventos/` 301 is harmless (axios follows it; nonce/postID preserved).
+
 ## Phase 0: STATUS — DONE ✅ (2026-06-30)
 
 **Provider chosen & verified: ProxyJet Rotating Residential, country Spain (ES), sticky session, HTTP protocol.** Verified from local against the week-27 canary URL: egress IP `213.37.218.75` (ES residential), rankings `/wp-json/fip/v1/...` → **200 + JSON**, discover `/wp-json/wp/v2/events` → **200**; same endpoints direct with the bot UA still **403**. Endpoint shape: `http://<user>-resi-ES-ip-<sessionId>:<pass>@eu.proxy-jet.io:1010` (the real value is a secret — set it as `FIP_PROXY_URL` in the Railway dashboard, never in the repo). Note: `axios-retry` does NOT retry 403, and the sticky session pins one IP, so if that IP is ever flagged a run fails until the session id is rotated (low risk; just regenerate the endpoint). Original Phase 0 guidance retained below for reference.
