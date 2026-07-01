@@ -22,12 +22,14 @@ function fakeSupabase(opts: {
   const insertedDrawSnapshots: any[] = [];
   const insertedScrapeJobs: any[] = [];
   const postIdUpserts: any[] = [];
+  const postIdUpsertOpts: any[] = [];
   const storedPostIds: Record<string, string> = { ...(opts.storedPostIds ?? {}) };
 
   const supabase = {
     insertedDrawSnapshots,
     insertedScrapeJobs,
     postIdUpserts,
+    postIdUpsertOpts,
     storedPostIds,
     // entity_external_ids lives on the non-schema (public) accessor.
     from: (t: string) => {
@@ -47,10 +49,11 @@ function fakeSupabase(opts: {
               }),
             }),
           }),
-          upsert: (rows: any) => {
+          upsert: (rows: any, upsertOpts?: any) => {
             const arr = Array.isArray(rows) ? rows : [rows];
             for (const r of arr) {
               postIdUpserts.push(r);
+              postIdUpsertOpts.push(upsertOpts);
               storedPostIds[r.entity_id] = r.external_id;
             }
             return Promise.resolve({ data: arr, error: null });
@@ -334,6 +337,12 @@ describe('runFipDrawFetcher', () => {
       entity_id: 'brussels-uuid',
       source: 'fip_post_id',
       external_id: '290219',
+    });
+    // Conflict target MUST be the FULL unique index. The (entity_type,
+    // entity_id, source) index is PARTIAL and unusable for ON CONFLICT via
+    // supabase-js — targeting it silently fails every store in prod.
+    expect(supabase.postIdUpsertOpts[0]).toMatchObject({
+      onConflict: 'source,entity_type,external_id',
     });
   });
 

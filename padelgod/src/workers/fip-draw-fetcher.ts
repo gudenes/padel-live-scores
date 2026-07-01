@@ -219,6 +219,14 @@ async function storePostId(
   tournamentId: string,
   postId: string
 ): Promise<void> {
+  // Conflict target MUST be the FULL unique index (source, entity_type,
+  // external_id). The (entity_type, entity_id, source) index is PARTIAL
+  // (WHERE source <> 'alias'), which PostgREST/supabase-js CANNOT use for
+  // ON CONFLICT — it raises "no unique or exclusion constraint matching",
+  // silently failing every store so the nonce/postID cache never warms and the
+  // worker keeps re-fetching every ~296 KB event page. postID↔tournament is
+  // 1:1, so (source, entity_type, external_id) dedups correctly; DO NOTHING is
+  // fine since the value is immutable.
   const { error } = await deps.supabase.from('entity_external_ids').upsert(
     {
       entity_type: 'tournament',
@@ -226,7 +234,7 @@ async function storePostId(
       source: POST_ID_SOURCE,
       external_id: postId,
     },
-    { onConflict: 'entity_type,entity_id,source' }
+    { onConflict: 'source,entity_type,external_id', ignoreDuplicates: true }
   );
   if (error) {
     deps.logger?.warn(
