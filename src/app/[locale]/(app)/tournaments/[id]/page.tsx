@@ -36,6 +36,7 @@ import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
 import ProjectionTab from './ProjectionTab'
 import EntriesTab from './EntriesTab'
+import { useHasEntries } from './useEntryList'
 import { buildProjectionQuery } from './projection-url'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
@@ -863,11 +864,12 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   }, [projectionFlag, activeTournamentObj])
 
   const entryListFlag = useFeatureFlag(FLAG_KEYS.ENTRY_LIST_ENABLED)
-  const showEntriesTab = useMemo(() => {
-    if (!entryListFlag) return false
-    if (!activeTournamentObj) return false
-    return activeTournamentObj.entry_list_status === 'ready'
-  }, [entryListFlag, activeTournamentObj])
+  // Gate on real entry data (tournament_entries rows), NOT entry_list_status —
+  // that's an operator-managed FIP-workflow field that stays 'not_applicable'
+  // for Premier events (Malaga etc.) even when padelgod has captured their
+  // entry list. Probe only fires when the flag is on.
+  const hasEntries = useHasEntries(entryListFlag ? tournamentId : null)
+  const showEntriesTab = entryListFlag && hasEntries
 
   // Note: no force-switch fallback for `?tab=entries`. Like the Projection tab,
   // the render gate below (`pageTab === 'entries' && showEntriesTab`) renders

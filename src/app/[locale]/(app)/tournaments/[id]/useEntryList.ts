@@ -25,6 +25,37 @@ export interface EntryListState {
   error: boolean
 }
 
+/**
+ * Lightweight probe for whether a tournament has any resolved entries. Drives
+ * Entries-tab visibility WITHOUT depending on `entry_list_status` (which is an
+ * operator-managed FIP-workflow field that stays 'not_applicable' for Premier
+ * events even when padelgod has captured their entry list). The presence of
+ * `tournament_entries` rows is the true signal — it's populated for any tier.
+ * Pass null to skip the probe (e.g. when the feature flag is off).
+ */
+export function useHasEntries(tournamentId: string | null): boolean {
+  const [hasEntries, setHasEntries] = useState(false)
+  useEffect(() => {
+    if (!tournamentId) {
+      setHasEntries(false)
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('tournament_entries')
+      .select('id')
+      .eq('tournament_id', tournamentId)
+      .limit(1)
+      .then(({ data }) => {
+        if (!cancelled) setHasEntries((data?.length ?? 0) > 0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [tournamentId])
+  return hasEntries
+}
+
 /** Reads tournament_entries (RLS public read) + hydrates player avatars/rankings. */
 export function useEntryList(tournamentId: string): EntryListState {
   const [state, setState] = useState<EntryListState>({ entries: [], playerMap: {}, loading: true, error: false })
