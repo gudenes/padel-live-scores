@@ -8,7 +8,9 @@ create table if not exists public.tournament_entries (
   id               uuid primary key default gen_random_uuid(),
   tournament_id    uuid not null references public.tournaments(id) on delete cascade,
   category         text not null check (category in ('men','women')),
-  draw_type        text not null default 'main',   -- 'main' | 'qualifying'
+  draw_type        text not null default 'main_draw'
+                     check (draw_type in ('main_draw','qualifying')),  -- from padelgod.entry_list_snapshots
+
   seed             integer,
   marker           text,                             -- 'Q' for qualifying, else null
   player1_id       uuid references public.players(id) on delete set null,

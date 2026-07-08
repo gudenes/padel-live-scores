@@ -58,7 +58,7 @@ export function buildEntryTeams(rows: EntrySnapshotInput[]): EntryTeam[] {
       g = {
         tournament_id: r.tournament_id,
         category: r.category,
-        draw_type: r.draw_type ?? 'main',
+        draw_type: r.draw_type ?? 'main_draw',
         seed: null,
         players: new Map(),
         partnerNames: new Map(),
@@ -68,9 +68,8 @@ export function buildEntryTeams(rows: EntrySnapshotInput[]): EntryTeam[] {
     g.players.set(r.fip_id, { name: r.name, country: r.country });
     if (r.seed != null && g.seed == null) g.seed = r.seed;
     // Both rows of a pair are always written with the same draw_type by the
-    // upstream fetcher (entry-list-fetcher.ts), so this "first non-'main' wins"
-    // merge only ever promotes the shared value — never resolves a real conflict.
-    if (r.draw_type && g.draw_type === 'main') g.draw_type = r.draw_type;
+    // upstream fetcher (entry-list-fetcher.ts writes 'main_draw' | 'qualifying'),
+    // so the first row's value already wins here — no merge needed.
     if (r.partner_fip_id) g.partnerNames.set(r.partner_fip_id, r.partner_name);
   }
 

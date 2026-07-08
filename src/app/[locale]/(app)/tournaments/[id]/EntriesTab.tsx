@@ -9,8 +9,16 @@ export default function EntriesTab({ tournamentId, genderFilter }: {
   tournamentId: string
   genderFilter: 'men' | 'women'
 }) {
-  const { entries, playerMap, loading } = useEntryList(tournamentId)
+  const { entries, playerMap, loading, error } = useEntryList(tournamentId)
   const genderEntries = entries.filter((e) => e.category === genderFilter)
+
+  if (error) {
+    return (
+      <div style={{ padding: '32px 16px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
+        Couldn&rsquo;t load the entry list. Please try again.
+      </div>
+    )
+  }
 
   if (!loading && genderEntries.length === 0) {
     return (

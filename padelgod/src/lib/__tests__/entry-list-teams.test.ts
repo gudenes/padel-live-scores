@@ -6,8 +6,8 @@ const base = { tournament_id: 't1', category: 'men' as const };
 describe('buildEntryTeams', () => {
   it('collapses the two rows of a pair into one team with both countries', () => {
     const rows: EntrySnapshotInput[] = [
-      { ...base, fip_id: 'A', name: 'Galán', country: 'ES', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main' },
-      { ...base, fip_id: 'B', name: 'Chingotto', country: 'AR', seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main' },
+      { ...base, fip_id: 'A', name: 'Galán', country: 'ES', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
+      { ...base, fip_id: 'B', name: 'Chingotto', country: 'AR', seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main_draw' },
     ];
     const teams = buildEntryTeams(rows);
     expect(teams).toHaveLength(1);
@@ -17,7 +17,7 @@ describe('buildEntryTeams', () => {
     expect(t.fip2).toBe('B');
     expect(t.country2).toBe('AR');
     expect(t.seed).toBe(1);
-    expect(t.draw_type).toBe('main');
+    expect(t.draw_type).toBe('main_draw');
     expect(t.marker).toBeNull();
   });
 
@@ -36,7 +36,7 @@ describe('buildEntryTeams', () => {
 
   it('falls back to partner_name (country null) when the partner has no own row', () => {
     const rows: EntrySnapshotInput[] = [
-      { ...base, fip_id: 'E', name: 'Solo', country: 'BR', seed: null, partner_fip_id: 'F', partner_name: 'Ghost', draw_type: 'main' },
+      { ...base, fip_id: 'E', name: 'Solo', country: 'BR', seed: null, partner_fip_id: 'F', partner_name: 'Ghost', draw_type: 'main_draw' },
     ];
     const teams = buildEntryTeams(rows);
     expect(teams).toHaveLength(1);
@@ -48,18 +48,18 @@ describe('buildEntryTeams', () => {
 
   it('keeps a non-null seed when only one row of the pair carries it', () => {
     const rows: EntrySnapshotInput[] = [
-      { ...base, fip_id: 'A', name: 'Galán', country: 'ES', seed: 2, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main' },
-      { ...base, fip_id: 'B', name: 'Chingotto', country: 'AR', seed: null, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main' },
+      { ...base, fip_id: 'A', name: 'Galán', country: 'ES', seed: 2, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
+      { ...base, fip_id: 'B', name: 'Chingotto', country: 'AR', seed: null, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main_draw' },
     ];
     expect(buildEntryTeams(rows)[0].seed).toBe(2);
   });
 
   it('isolates independent pairs into separate teams', () => {
     const rows: EntrySnapshotInput[] = [
-      { ...base, fip_id: 'A', name: 'Galán', country: 'ES', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main' },
-      { ...base, fip_id: 'B', name: 'Chingotto', country: 'AR', seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main' },
-      { ...base, fip_id: 'C', name: 'Coello', country: 'ES', seed: 2, partner_fip_id: 'D', partner_name: 'Tapia', draw_type: 'main' },
-      { ...base, fip_id: 'D', name: 'Tapia', country: 'AR', seed: 2, partner_fip_id: 'C', partner_name: 'Coello', draw_type: 'main' },
+      { ...base, fip_id: 'A', name: 'Galán', country: 'ES', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
+      { ...base, fip_id: 'B', name: 'Chingotto', country: 'AR', seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main_draw' },
+      { ...base, fip_id: 'C', name: 'Coello', country: 'ES', seed: 2, partner_fip_id: 'D', partner_name: 'Tapia', draw_type: 'main_draw' },
+      { ...base, fip_id: 'D', name: 'Tapia', country: 'AR', seed: 2, partner_fip_id: 'C', partner_name: 'Coello', draw_type: 'main_draw' },
     ];
     const teams = buildEntryTeams(rows);
     expect(teams).toHaveLength(2);
