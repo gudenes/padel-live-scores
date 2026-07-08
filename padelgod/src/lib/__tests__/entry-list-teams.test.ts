@@ -50,4 +50,17 @@ describe('buildEntryTeams', () => {
     ];
     expect(buildEntryTeams(rows)[0].seed).toBe(2);
   });
+
+  it('isolates independent pairs into separate teams', () => {
+    const rows: EntrySnapshotInput[] = [
+      { ...base, fip_id: 'A', name: 'Galán', country: 'ES', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main' },
+      { ...base, fip_id: 'B', name: 'Chingotto', country: 'AR', seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main' },
+      { ...base, fip_id: 'C', name: 'Coello', country: 'ES', seed: 2, partner_fip_id: 'D', partner_name: 'Tapia', draw_type: 'main' },
+      { ...base, fip_id: 'D', name: 'Tapia', country: 'AR', seed: 2, partner_fip_id: 'C', partner_name: 'Coello', draw_type: 'main' },
+    ];
+    const teams = buildEntryTeams(rows);
+    expect(teams).toHaveLength(2);
+    const byKey = new Set(teams.map((t) => `${t.fip1}::${t.fip2}`));
+    expect(byKey).toEqual(new Set(['A::B', 'C::D']));
+  });
 });

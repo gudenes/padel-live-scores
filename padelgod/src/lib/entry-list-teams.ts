@@ -67,6 +67,9 @@ export function buildEntryTeams(rows: EntrySnapshotInput[]): EntryTeam[] {
     }
     g.players.set(r.fip_id, { name: r.name, country: r.country });
     if (r.seed != null && g.seed == null) g.seed = r.seed;
+    // Both rows of a pair are always written with the same draw_type by the
+    // upstream fetcher (entry-list-fetcher.ts), so this "first non-'main' wins"
+    // merge only ever promotes the shared value — never resolves a real conflict.
     if (r.draw_type && g.draw_type === 'main') g.draw_type = r.draw_type;
     if (r.partner_fip_id) g.partnerNames.set(r.partner_fip_id, r.partner_name);
   }
