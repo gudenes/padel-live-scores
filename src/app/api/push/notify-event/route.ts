@@ -35,6 +35,8 @@ import {
 import { isPro, type Plan } from '@/lib/entitlements'
 import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
+import { circuitIconUrl } from '@/lib/notification-icon'
+import { buildPlayerEnteredContent, type EnteredPlayer, type EnteredContent } from '@/lib/player-entered-content'
 
 type Body = {
   category?: unknown
@@ -46,6 +48,7 @@ type Body = {
   url?: unknown
   metadata?: unknown
   icon?: unknown
+  personalizePerFollower?: unknown
   dedupeKey?: unknown
   dryRun?: unknown
 }
@@ -90,6 +93,7 @@ export async function POST(request: Request) {
   const body = b.body
   const url = typeof b.url === 'string' && b.url ? b.url : '/'
   const icon = typeof b.icon === 'string' && b.icon ? b.icon : undefined
+  const personalizePerFollower = b.personalizePerFollower === true
   const metadata =
     b.metadata && typeof b.metadata === 'object' && !Array.isArray(b.metadata)
       ? (b.metadata as Record<string, unknown>)
@@ -158,6 +162,70 @@ export async function POST(request: Request) {
 
   const alreadyById = new Set((alreadyRes.data ?? []).map((r) => r.user_id as string))
 
+  // ── 2b. Per-recipient personalization (opt-in; player_entered) ──────
+  // When enabled, build a per-user EnteredContent from the players THAT user
+  // follows. Falls back to the uniform title/body/icon/url for any user with
+  // no named followed entrant, and for anon recipients (which can't be cheaply
+  // mapped to a specific followed player).
+  const uniform: EnteredContent = { title, body, icon: icon ?? '', url }
+  const contentByUser = new Map<string, EnteredContent>()
+  let anonContent: EnteredContent = uniform
+  const personalize =
+    personalizePerFollower &&
+    entityType === 'player' &&
+    !!entityIds &&
+    entityIds.length > 0 &&
+    typeof (metadata as { tournamentId?: unknown }).tournamentId === 'string'
+
+  if (personalize) {
+    const tournamentId = (metadata as { tournamentId: string }).tournamentId
+    const [dirRes, tournRes, followRes] = await Promise.all([
+      supabase
+        .from('players')
+        .select('id, name, display_name, avatar_url, ranking')
+        .in('id', entityIds as string[]),
+      supabase.from('tournaments').select('name, level').eq('id', tournamentId).maybeSingle(),
+      supabase
+        .from('user_bookmarks')
+        .select('user_id, target_id')
+        .eq('bookmark_type', 'player')
+        .in('target_id', entityIds as string[]),
+    ])
+    if (dirRes.error) console.error(`[notify-event] player directory read failed:`, dirRes.error.message)
+    if (tournRes.error) console.error(`[notify-event] tournament read failed:`, tournRes.error.message)
+    if (followRes.error) console.error(`[notify-event] follow map read failed:`, followRes.error.message)
+
+    const dir = new Map<string, EnteredPlayer>()
+    for (const p of (dirRes.data ?? []) as EnteredPlayer[]) dir.set(p.id, p)
+    const tournament =
+      (tournRes.data as { name: string | null; level: string | null } | null) ?? { name: null, level: null }
+
+    const followedByUser = new Map<string, string[]>()
+    for (const row of (followRes.data ?? []) as Array<{ user_id: string | null; target_id: string | null }>) {
+      if (!row.user_id || !row.target_id) continue
+      const list = followedByUser.get(row.user_id) ?? []
+      list.push(row.target_id)
+      followedByUser.set(row.user_id, list)
+    }
+
+    for (const [userId, playerIds] of followedByUser) {
+      const followed = playerIds.map((id) => dir.get(id)).filter((p): p is EnteredPlayer => !!p)
+      const built = buildPlayerEnteredContent(followed, tournament)
+      if (built) contentByUser.set(userId, built)
+    }
+
+    // Anon recipients: improved-but-generic (tournament name + circuit logo).
+    const tournamentName = tournament.name ?? 'an event'
+    anonContent = {
+      title: `New entries — ${tournamentName}`,
+      body: 'Players you follow joined the draw.',
+      icon: circuitIconUrl(tournament.level ?? null),
+      url: `/tournaments/${tournamentId}`,
+    }
+  }
+
+  const contentFor = (userId: string): EnteredContent => contentByUser.get(userId) ?? uniform
+
   // ── 3. Resolve per-user: in-app rows + push recipients ──────
   const inAppRows: Array<{
     user_id: string
@@ -176,12 +244,13 @@ export async function POST(request: Request) {
     // Tier gate: Pro categories withheld entirely (push + inbox) from non-Pro.
     if (!shouldDeliverToRecipient(category, proByUser.get(userId) ?? false)) continue
 
+    const c = contentFor(userId)
     inAppRows.push({
       user_id: userId,
       category,
-      title,
-      body,
-      url,
+      title: c.title,
+      body: c.body,
+      url: c.url,
       metadata: {
         ...metadata,
         dedupe_key: dedupeKey,
@@ -236,8 +305,8 @@ export async function POST(request: Request) {
 
   if (deliver.length > 0) {
     const [subsRes, nativeRes] = await Promise.all([
-      supabase.from('push_subscriptions').select('id, endpoint, keys').in('user_id', deliver),
-      supabase.from('native_push_subscriptions').select('device_token').in('user_id', deliver),
+      supabase.from('push_subscriptions').select('id, endpoint, keys, user_id').in('user_id', deliver),
+      supabase.from('native_push_subscriptions').select('device_token, user_id').in('user_id', deliver),
     ])
     if (subsRes.error) console.error(`[notify-event] push_subscriptions read failed for ${category}:`, subsRes.error.message)
     if (nativeRes.error) console.error(`[notify-event] native_push_subscriptions read failed for ${category}:`, nativeRes.error.message)
@@ -248,13 +317,14 @@ export async function POST(request: Request) {
     webFired = subs.length
     if (subs.length > 0) {
       const results = await Promise.allSettled(
-        subs.map((s) =>
-          sendPush(
+        subs.map((s) => {
+          const c = contentFor(s.user_id as string)
+          return sendPush(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { endpoint: s.endpoint as string, keys: s.keys as any },
-            { title, body, url, tag, ...(icon ? { icon } : {}) },
-          ),
-        ),
+            { title: c.title, body: c.body, url: c.url, tag, ...(c.icon ? { icon: c.icon } : {}) },
+          )
+        }),
       )
       results.forEach((r, i) => {
         if (r.status === 'fulfilled' && r.value === true) {
@@ -271,29 +341,39 @@ export async function POST(request: Request) {
       }
     }
 
-    // FCM (native devices). Same flat payload as Web Push.
-    const tokens = (nativeRes.data ?? [])
-      .map((r) => r.device_token as string)
-      .filter(Boolean)
-    fcmFired = tokens.length
-    if (tokens.length > 0) {
+    // FCM (native devices). Group tokens by resolved content so personalized
+    // recipients each get their player while we still batch identical payloads.
+    const nativeRows = (nativeRes.data ?? []) as Array<{ device_token: string | null; user_id: string | null }>
+    const tokensByContent = new Map<string, { content: EnteredContent; tokens: string[] }>()
+    for (const r of nativeRows) {
+      if (!r.device_token || !r.user_id) continue
+      const c = contentFor(r.user_id)
+      const key = `${c.title} ${c.body} ${c.url} ${c.icon}`
+      const bucket = tokensByContent.get(key) ?? { content: c, tokens: [] }
+      bucket.tokens.push(r.device_token)
+      tokensByContent.set(key, bucket)
+    }
+    fcmFired = [...tokensByContent.values()].reduce((n, b) => n + b.tokens.length, 0)
+    if (tokensByContent.size > 0) {
       try {
-        const res = await sendPushToFcmTokens(tokens, {
-          title,
-          body,
-          url,
-          tag,
-          ...(icon ? { icon } : {}),
-        })
-        fcmSent = res.success
-        fcmFailed = res.failed
-        fcmStale = res.invalidTokens.length
-        if (res.invalidTokens.length > 0) {
-          await supabase
-            .from('native_push_subscriptions')
-            .delete()
-            .in('device_token', res.invalidTokens)
-          console.log(`[NotifyEvent] Cleaned ${res.invalidTokens.length} stale FCM tokens`)
+        for (const { content: c, tokens } of tokensByContent.values()) {
+          const res = await sendPushToFcmTokens(tokens, {
+            title: c.title,
+            body: c.body,
+            url: c.url,
+            tag,
+            ...(c.icon ? { icon: c.icon } : {}),
+          })
+          fcmSent += res.success
+          fcmFailed += res.failed
+          fcmStale += res.invalidTokens.length
+          if (res.invalidTokens.length > 0) {
+            await supabase
+              .from('native_push_subscriptions')
+              .delete()
+              .in('device_token', res.invalidTokens)
+            console.log(`[NotifyEvent] Cleaned ${res.invalidTokens.length} stale FCM tokens`)
+          }
         }
       } catch (err) {
         console.error('[NotifyEvent] FCM send failed:', (err as Error).message)
@@ -313,7 +393,7 @@ export async function POST(request: Request) {
       anonSubs.map((s) =>
         sendPush(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh_key, auth: s.auth_key } },
-          { title, body, url, tag, ...(icon ? { icon } : {}) },
+          { title: anonContent.title, body: anonContent.body, url: anonContent.url, tag, ...(anonContent.icon ? { icon: anonContent.icon } : {}) },
         ),
       ),
     )

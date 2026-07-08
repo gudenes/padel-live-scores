@@ -1621,7 +1621,13 @@
     "explainKicker": "That's why they're our pick to lift the trophy.",
     "explainUnderdogBody": "Reach <r>{round}</r> in most simulations, but rarely further.",
     "explainClose": "Got it",
-    "voteThanks": "Thanks for your feedback!"
+    "voteThanks": "Thanks for your feedback!",
+    "shareLabel": "Share",
+    "shareTitle": "{pair} — road to the title",
+    "shareTextContender": "{pair}'s road to the title at {name} is ready 🏆 See the projected path:",
+    "shareTextChampion": "Champions at {name}! 🏆 See the road they took:",
+    "shareTextEliminated": "Their {name} run — see the projected road:",
+    "shareCopied": "Link copied"
   },
   "pro": {
     "hero": {
@@ -1673,7 +1679,16 @@
     "standings": "Standings",
     "specialEvents": "Special events",
     "tabOverview": "Overview",
-    "tabLineups": "Lineups"
+    "tabLineups": "Lineups",
+    "dayStreams": {
+      "eyebrow": "Watch by day",
+      "live": "Live",
+      "replay": "Replay",
+      "upcoming": "Upcoming",
+      "today": "Today",
+      "dayLabel": "Day {n}",
+      "openOnYoutube": "Open on YouTube ›"
+    }
   },
   "social": {
     "followUs": "Follow us"
@@ -1700,5 +1715,10 @@
       "cl": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
       "br": "Jogue com responsabilidade. Apostas para maiores de 18 anos. +18."
     }
+  },
+  "notFound": {
+    "title": "This page doesn't exist",
+    "body": "The page you're looking for may have been removed, renamed, or never existed.",
+    "cta": "Back to PadelNachos"
   }
 }

@@ -90,6 +90,7 @@ const COUNTRY_TZ: Record<string, string> = {
   SA: 'Asia/Riyadh',
 
   // Africa
+  CI: 'Africa/Abidjan', // Côte d'Ivoire — UTC+0, no DST. FIP GOLD Abidjan
   MA: 'Africa/Casablanca',
   SN: 'Africa/Dakar', // Senegal — FIP BRONZE Dakar
   TN: 'Africa/Tunis',

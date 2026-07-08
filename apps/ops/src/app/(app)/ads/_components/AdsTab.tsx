@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { PageHeader, Panel, Section, Field, Button, Pill, DataTable, EmptyState } from '@/components/ui'
+import { formatCount, formatCtr } from '@/lib/ad-banner-stats'
 
 interface Banner {
   id: string
@@ -13,6 +14,8 @@ interface Banner {
   click_url: string
   active: boolean
   weight: number
+  impressions: number
+  clicks: number
 }
 interface NetworkConfig {
   web_enabled: boolean
@@ -30,6 +33,7 @@ type Draft = Omit<Banner, 'id'> & { id?: string }
 const EMPTY: Draft = {
   name: '', country_codes: [], slot: 'sticky-bottom',
   image_url: '', click_url: '', active: true, weight: 1,
+  impressions: 0, clicks: 0,
 }
 
 // Country list for the searchable multi-select (no "global" entry — leaving the
@@ -167,6 +171,9 @@ export default function AdsTab() {
                   <th>Countries</th>
                   <th>Status</th>
                   <th>Weight</th>
+                  <th style={{ textAlign: 'right' }}>Impressions</th>
+                  <th style={{ textAlign: 'right' }}>Clicks</th>
+                  <th style={{ textAlign: 'right' }} title="Click-through rate (clicks ÷ impressions)">CTR</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -187,6 +194,9 @@ export default function AdsTab() {
                         {rotating && <Pill tone="warn">Rotating</Pill>}
                       </td>
                       <td>{b.weight}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCount(b.impressions)}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCount(b.clicks)}</td>
+                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{formatCtr(b.clicks, b.impressions)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {b.image_url && (
                           <>

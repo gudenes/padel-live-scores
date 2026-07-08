@@ -217,7 +217,16 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
     const nextNodes = nodesByRound.get(nextRound)!
     for (let pos = 0; pos < firstNodes.length; pos++) {
       const node = firstNodes[pos]
-      if (node.match) continue
+      // A real first-round match (with at least one assigned pair) blocks the
+      // bye. But an EMPTY PLACEHOLDER match (both pairs TBD) — which Pass 0 may
+      // heap-place into a seed's bye slot — must NOT: otherwise a top seed whose
+      // bye slot holds a TBD-vs-TBD row vanishes from R32, rendered as a TBD
+      // match instead of "Seed [BYE]".
+      const matchHasRealPair = node.match != null && (
+        (node.match.pair1_player1 != null && node.match.pair1_player2 != null) ||
+        (node.match.pair2_player1 != null && node.match.pair2_player2 != null)
+      )
+      if (matchHasRealPair) continue
       const nextCell = nextNodes[Math.floor(pos / 2)]
       if (!nextCell?.match) continue
       const isTopFeed = pos % 2 === 0
@@ -227,6 +236,9 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
       if (p1 && p2) {
         node.isBye = true
         node.byePair = { player1: p1, player2: p2, seed: seed ?? null }
+        // Drop the empty placeholder so BracketCell (which renders a bye only
+        // when `isBye && !match`) shows the seed bye, not the TBD placeholder.
+        node.match = null
       }
     }
   }

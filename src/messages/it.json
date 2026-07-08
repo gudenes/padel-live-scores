@@ -1589,7 +1589,13 @@
     "explainKicker": "Per questo sono le nostre favorite per il titolo.",
     "explainUnderdogBody": "Arrivano a <r>{round}</r> nella maggior parte delle simulazioni, ma raramente oltre.",
     "explainClose": "Capito",
-    "voteThanks": "Grazie per il tuo parere!"
+    "voteThanks": "Grazie per il tuo parere!",
+    "shareLabel": "Condividi",
+    "shareTitle": "{pair} — strada verso il titolo",
+    "shareTextContender": "La strada verso il titolo di {pair} a {name} è pronta 🏆 Guarda il percorso previsto:",
+    "shareTextChampion": "Campioni a {name}! 🏆 Guarda il percorso compiuto:",
+    "shareTextEliminated": "Il loro cammino a {name} — guarda il percorso previsto:",
+    "shareCopied": "Link copiato"
   },
   "pro": {
     "hero": {
@@ -1641,7 +1647,16 @@
     "standings": "Classifica",
     "specialEvents": "Eventi speciali",
     "tabOverview": "Panoramica",
-    "tabLineups": "Formazioni"
+    "tabLineups": "Formazioni",
+    "dayStreams": {
+      "eyebrow": "Guarda per giorno",
+      "live": "In diretta",
+      "replay": "Replay",
+      "upcoming": "In arrivo",
+      "today": "Oggi",
+      "dayLabel": "Giorno {n}",
+      "openOnYoutube": "Apri su YouTube ›"
+    }
   },
   "social": {
     "followUs": "Seguici"
@@ -1668,5 +1683,10 @@
       "cl": "El juego puede ser adictivo. Juega con responsabilidad. +18.",
       "br": "Jogue com responsabilidade. Apostas para maiores de 18 anos. +18."
     }
+  },
+  "notFound": {
+    "title": "Questa pagina non esiste",
+    "body": "La pagina che cerchi potrebbe essere stata rimossa, rinominata o non è mai esistita.",
+    "cta": "Torna a PadelNachos"
   }
 }

@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import { mergeBannerStats, type BannerStatRow } from '@/lib/ad-banner-stats'
 
 async function requireOperator() {
   const session = await auth()
@@ -16,9 +17,14 @@ export async function GET() {
   const deny = await requireOperator()
   if (deny) return deny
   const supabase = serviceClient()
-  const { data, error } = await supabase.from('ad_banners').select(COLS).order('created_at', { ascending: false })
+  const [{ data, error }, { data: stats, error: statsError }] = await Promise.all([
+    supabase.from('ad_banners').select(COLS).order('created_at', { ascending: false }),
+    supabase.from('ad_banner_stats').select('banner_id, impressions, clicks'),
+  ])
   if (error) return Response.json({ error: error.message }, { status: 500 })
-  return Response.json({ banners: data ?? [] })
+  if (statsError) console.error('[ad-banners GET] stats query failed:', statsError.message)
+  const banners = mergeBannerStats(data ?? [], (stats ?? []) as BannerStatRow[])
+  return Response.json({ banners })
 }
 
 interface BannerInput {

@@ -52,14 +52,54 @@ export interface FipDrawFetcherDeps {
   httpClient: AxiosInstance;
   logger?: Logger;
   /** When set, only tournaments whose UUID is in the allowlist are
-   *  processed. Used by the on-demand refresh endpoint. */
+   *  processed. Used by the on-demand refresh endpoint. When set, the
+   *  finished-tail skip is bypassed so an operator can force-refresh a
+   *  finished event. */
   onlyTournamentIds?: Set<string>;
+  /** Injectable clock for tests. Defaults to Date.now. */
+  now?: () => number;
 }
 
 export interface FipDrawFetcherResult {
   tournamentsProcessed: number;
   tournamentsSkipped: number;
+  /** Tournaments skipped because their bracket is static (ended >24h ago). */
+  tournamentsSkippedFinished: number;
   totalMatchesInserted: number;
+}
+
+// ── Bandwidth optimization: site-wide nonce cache ──────────────────────────
+//
+// FIP IP-blocks Railway across padelfip.com, so all traffic is metered through
+// a residential proxy. The dominant cost is the ~296 KB event-page GET this
+// worker did per tournament per hour purely to extract a WP AJAX nonce.
+//
+// VERIFIED: the `padelfip_ajax.nonce` is SITE-WIDE (same value on every event
+// page for anonymous requests) and valid ~12–24h. So ONE page fetch yields a
+// nonce usable for ALL tournaments' draw POSTs. We cache it module-level — the
+// scheduler is a single long-lived process, so the cache survives across the
+// hourly runs. TTL is 6h, comfortably inside FIP's validity window.
+//
+// Best-effort under overlap: node-cron does not serialize invocations, and the
+// operator refresh-tournament path runs in the same process against this same
+// cache. Concurrent runs can race `cachedNonce` (e.g. one nulls it during
+// stale-nonce recovery while another is mid-loop). This is intentionally
+// unguarded — the worst case is a few redundant event-page GETs, never
+// corruption: the postID is immutable and draw_snapshots is append-only.
+const NONCE_TTL_MS = 6 * 60 * 60 * 1000;
+let cachedNonce: { value: string; fetchedAtMs: number } | null = null;
+
+/** Test-only: reset the module-level nonce cache between cases. */
+export function __resetFipDrawFetcherCaches(): void {
+  cachedNonce = null;
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const POST_ID_SOURCE = 'fip_post_id';
+
+/** True if the cached nonce exists and is within its TTL. */
+function nonceIsFresh(nowMs: number): boolean {
+  return cachedNonce !== null && nowMs - cachedNonce.fetchedAtMs < NONCE_TTL_MS;
 }
 
 interface ActiveTournamentWithSlug {
@@ -148,16 +188,81 @@ async function fetchEventPageConfig(
 }
 
 /**
+ * Look up a tournament's stored FIP WP post ID from the entity_external_ids
+ * sidecar. The post ID is per-tournament but immutable (it's the event's WP
+ * post ID), so once stored we never need the event page again for it.
+ */
+async function lookupStoredPostId(
+  deps: FipDrawFetcherDeps,
+  tournamentId: string
+): Promise<string | null> {
+  const { data, error } = await deps.supabase
+    .from('entity_external_ids')
+    .select('external_id')
+    .eq('entity_type', 'tournament')
+    .eq('entity_id', tournamentId)
+    .eq('source', POST_ID_SOURCE)
+    .maybeSingle();
+  if (error) {
+    deps.logger?.warn(
+      { err: error, tournamentId },
+      'fip-draw-fetcher: fip_post_id lookup failed — falling back to page fetch'
+    );
+    return null;
+  }
+  return (data?.external_id as string | undefined) ?? null;
+}
+
+/** Idempotently persist a tournament's WP post ID for future reuse. */
+async function storePostId(
+  deps: FipDrawFetcherDeps,
+  tournamentId: string,
+  postId: string
+): Promise<void> {
+  // Conflict target MUST be the FULL unique index (source, entity_type,
+  // external_id). The (entity_type, entity_id, source) index is PARTIAL
+  // (WHERE source <> 'alias'), which PostgREST/supabase-js CANNOT use for
+  // ON CONFLICT — it raises "no unique or exclusion constraint matching",
+  // silently failing every store so the nonce/postID cache never warms and the
+  // worker keeps re-fetching every ~296 KB event page. postID↔tournament is
+  // 1:1, so (source, entity_type, external_id) dedups correctly; DO NOTHING is
+  // fine since the value is immutable.
+  const { error } = await deps.supabase.from('entity_external_ids').upsert(
+    {
+      entity_type: 'tournament',
+      entity_id: tournamentId,
+      source: POST_ID_SOURCE,
+      external_id: postId,
+    },
+    { onConflict: 'source,entity_type,external_id', ignoreDuplicates: true }
+  );
+  if (error) {
+    deps.logger?.warn(
+      { err: error, tournamentId, postId },
+      'fip-draw-fetcher: fip_post_id upsert failed — will re-fetch next run'
+    );
+  }
+}
+
+/**
  * Fetch one draw type via AJAX, parse it, and insert rows. Returns the
  * number of rows inserted (0 if the draw type is absent, e.g. a small
  * event with no qualifier).
  */
+interface DrawFetchOutcome {
+  /** Rows inserted into draw_snapshots (0 = empty/absent draw). */
+  inserted: number;
+  /** True when the response looked like an expired/invalid nonce:
+   *  HTTP 403, or a WP sentinel body of `0` / `-1`. */
+  staleNonceSignal: boolean;
+}
+
 async function fetchAndStoreDraw(
   deps: FipDrawFetcherDeps,
   t: ActiveTournamentWithSlug,
   config: { ajaxUrl: string; nonce: string; postId: string },
   drawCode: DrawCode
-): Promise<number> {
+): Promise<DrawFetchOutcome> {
   const gender = drawCode.startsWith('M') ? 'M' : 'F';
   // URL-encoded form body — matches the shape the browser sends.
   // We keep `juniorCat` empty: padelfip's JS sets it only for youth events.
@@ -177,6 +282,7 @@ async function fetchAndStoreDraw(
 
   let parsed: ParsedFipDrawMatch[] = [];
   let responseOk = false;
+  let staleNonceSignal = false;
 
   try {
     await runScrapeJob(
@@ -199,6 +305,16 @@ async function fetchAndStoreDraw(
         const body =
           typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
         const contentHash = `sha256:${createHash('sha256').update(body).digest('hex')}`;
+        // WP sentinel: admin-ajax returns the bare string `0` (action not
+        // registered) or `-1` (nonce check failed) when the security token is
+        // bad/expired. Flag it so the caller can refresh the nonce + retry.
+        if (typeof response.data === 'string') {
+          const trimmed = response.data.trim();
+          if (trimmed === '0' || trimmed === '-1') {
+            staleNonceSignal = true;
+            return { body, contentHash };
+          }
+        }
         const payload = typeof response.data === 'object'
           ? (response.data as { error?: number; html?: string; drawType?: string })
           : safeJsonParse(body);
@@ -227,14 +343,18 @@ async function fetchAndStoreDraw(
       }
     );
   } catch (err) {
+    // HTTP 403 from FIP is the canonical "nonce rejected" signal — surface it
+    // so the caller can refresh the cached nonce and retry once.
+    const status = (err as { response?: { status?: number } })?.response?.status;
     deps.logger?.warn(
       { err, tournamentId: t.tournament_id, drawCode },
       'fip-draw-fetcher: AJAX fetch failed for draw code'
     );
-    return 0;
+    return { inserted: 0, staleNonceSignal: status === 403 };
   }
 
-  if (!responseOk || parsed.length === 0) return 0;
+  if (staleNonceSignal) return { inserted: 0, staleNonceSignal: true };
+  if (!responseOk || parsed.length === 0) return { inserted: 0, staleNonceSignal: false };
 
   const scrapeJobId = await getLatestScrapeJobId(deps.supabase, t.tournament_id, targetUrl);
   if (!scrapeJobId) {
@@ -242,7 +362,7 @@ async function fetchAndStoreDraw(
       { tournamentId: t.tournament_id, drawCode },
       'fip-draw-fetcher: scrape job row disappeared between write and read — skipping insert'
     );
-    return 0;
+    return { inserted: 0, staleNonceSignal: false };
   }
 
   const { category, drawType } = categoryAndTypeFromDrawCode(drawCode);
@@ -286,7 +406,7 @@ async function fetchAndStoreDraw(
   if (error) {
     throw new Error(`draw_snapshots insert failed (${drawCode}): ${error.message}`);
   }
-  return rows.length;
+  return { inserted: rows.length, staleNonceSignal: false };
 }
 
 function safeJsonParse(body: string): { error?: number; html?: string; drawType?: string } | null {
@@ -298,12 +418,46 @@ function safeJsonParse(body: string): { error?: number; html?: string; drawType?
 }
 
 /**
+ * POST all four draw codes for one tournament with the given config.
+ * Returns total rows inserted plus whether any draw signalled a stale nonce.
+ *
+ * The ONLY stale-nonce signals are unambiguous ones: HTTP 403 and the WP
+ * sentinel bodies `0` / `-1`. An all-empty result is NOT a stale-nonce signal
+ * — a not-yet-published draw (future / early-week event) returns a valid
+ * HTTP 200 with empty/absent payload.html, and misreading that as a nonce
+ * failure would needlessly null the shared cache and push the next tournament
+ * onto the cold path (an extra ~296 KB event-page GET). WP never returns a
+ * valid empty 200 for a nonce failure.
+ */
+async function fetchAllDraws(
+  deps: FipDrawFetcherDeps,
+  t: ActiveTournamentWithSlug,
+  config: { ajaxUrl: string; nonce: string; postId: string }
+): Promise<{ inserted: number; staleNonceSignal: boolean }> {
+  let inserted = 0;
+  let staleNonceSignal = false;
+  for (const code of DRAW_CODES) {
+    const outcome = await fetchAndStoreDraw(deps, t, config, code);
+    inserted += outcome.inserted;
+    if (outcome.staleNonceSignal) staleNonceSignal = true;
+  }
+  return { inserted, staleNonceSignal };
+}
+
+/**
  * Run the FIP draw fetcher across all active tournaments (± 7 days of their
  * window). Appends to `padelgod.draw_snapshots` with `source='fip_event_page'`.
+ *
+ * Bandwidth optimization: after warmup, ZERO event-page GETs per run — a
+ * cached site-wide nonce + per-tournament stored postID drive the draw POSTs
+ * directly. See the nonce-cache block at the top of this file.
  */
 export async function runFipDrawFetcher(
   deps: FipDrawFetcherDeps
 ): Promise<FipDrawFetcherResult> {
+  const now = deps.now ?? Date.now;
+  const isAllowlisted = !!(deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0);
+
   const { data, error } = await deps.supabase.rpc(
     'padelgod_active_tournaments_with_slug',
     activeTournamentArgs(deps.onlyTournamentIds),
@@ -312,35 +466,87 @@ export async function runFipDrawFetcher(
     throw new Error(`padelgod_active_tournaments_with_slug RPC failed: ${error.message}`);
   }
   const allTournaments = (data ?? []) as ActiveTournamentWithSlug[];
-  const tournaments = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
+  const tournaments = isAllowlisted
     ? allTournaments.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
     : allTournaments;
 
   let tournamentsProcessed = 0;
   let tournamentsSkipped = 0;
+  let tournamentsSkippedFinished = 0;
   let totalMatchesInserted = 0;
 
   for (const t of tournaments) {
+    const nowMs = now();
+
+    // Finished-tail skip: a bracket is static once the event has been over for
+    // >24h, so re-fetching wastes metered bandwidth. Operator refreshes
+    // (onlyTournamentIds) bypass this so a finished event can be force-pulled.
+    // Null ends_at is never skipped.
+    if (
+      !isAllowlisted &&
+      t.ends_at &&
+      Date.parse(t.ends_at) < nowMs - ONE_DAY_MS
+    ) {
+      tournamentsSkippedFinished += 1;
+      continue;
+    }
+
+    const storedPostId = await lookupStoredPostId(deps, t.tournament_id);
+
+    // Fast path: stored postID + fresh cached nonce → no event-page GET.
+    if (storedPostId && nonceIsFresh(nowMs)) {
+      const config = { ajaxUrl: AJAX_URL, nonce: cachedNonce!.value, postId: storedPostId };
+      const outcome = await fetchAllDraws(deps, t, config);
+
+      if (outcome.staleNonceSignal) {
+        // Cached nonce looks expired — invalidate, refetch the page once for a
+        // fresh nonce (+confirm postID), and retry the draws ONCE.
+        cachedNonce = null;
+        const fresh = await fetchEventPageConfig(deps, t);
+        if (!fresh) {
+          tournamentsSkipped += 1;
+          continue;
+        }
+        cachedNonce = { value: fresh.nonce, fetchedAtMs: now() };
+        await storePostId(deps, t.tournament_id, fresh.postId);
+        tournamentsProcessed += 1;
+        const retry = await fetchAllDraws(deps, t, fresh);
+        totalMatchesInserted += retry.inserted;
+        continue;
+      }
+
+      tournamentsProcessed += 1;
+      totalMatchesInserted += outcome.inserted;
+      continue;
+    }
+
+    // Cold path: fetch the event page once (no stored postID, or stale nonce).
     const config = await fetchEventPageConfig(deps, t);
     if (!config) {
       tournamentsSkipped += 1;
       continue;
     }
+    cachedNonce = { value: config.nonce, fetchedAtMs: now() };
+    await storePostId(deps, t.tournament_id, config.postId);
     tournamentsProcessed += 1;
-    for (const code of DRAW_CODES) {
-      const inserted = await fetchAndStoreDraw(deps, t, config, code);
-      totalMatchesInserted += inserted;
-    }
+    const outcome = await fetchAllDraws(deps, t, config);
+    totalMatchesInserted += outcome.inserted;
   }
 
   deps.logger?.info(
     {
       tournamentsProcessed,
       tournamentsSkipped,
+      tournamentsSkippedFinished,
       totalMatchesInserted,
     },
     'fip-draw-fetcher run complete'
   );
 
-  return { tournamentsProcessed, tournamentsSkipped, totalMatchesInserted };
+  return {
+    tournamentsProcessed,
+    tournamentsSkipped,
+    tournamentsSkippedFinished,
+    totalMatchesInserted,
+  };
 }

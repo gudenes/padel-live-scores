@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getManagedEventBySlug, getPlayersByIds, type ManagedPlayerLite } from '@/lib/managed-events-server'
+import { getEventDayStreams } from '@/lib/event-day-streams-server'
 import EventDetail from './_components/EventDetail'
 
 export const revalidate = 300
@@ -39,6 +40,10 @@ export default async function Page({ params }: Props) {
   }
   const playersById: Record<string, ManagedPlayerLite> = await getPlayersByIds(playerIds)
 
+  // Per-day YouTube stream cards (e.g. Reserve Cup). [] for events without
+  // configured day streams. Live badges computed server-side from YouTube.
+  const dayStreams = await getEventDayStreams(slug)
+
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'SportsEvent',
@@ -53,7 +58,7 @@ export default async function Page({ params }: Props) {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <EventDetail event={event} playersById={playersById} />
+      <EventDetail event={event} playersById={playersById} dayStreams={dayStreams} />
     </>
   )
 }
