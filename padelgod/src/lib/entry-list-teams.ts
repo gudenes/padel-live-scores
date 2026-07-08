@@ -87,7 +87,12 @@ export function buildEntryTeams(rows: EntrySnapshotInput[]): EntryTeam[] {
       tournament_id: g.tournament_id,
       category: g.category,
       draw_type: g.draw_type,
-      seed: g.seed,
+      // The snapshot "seed" is a per-draw position (main draw 1..N, qualifying
+      // 1..M) — NOT a competitive seed shared across draws. Keep it only for the
+      // main draw so the entry list reads as a seeded order; qualifying entries
+      // are a separate pool surfaced via the `Q` marker, so their position must
+      // not render as a duplicate "seed 1/2/3…" alongside the main draw.
+      seed: g.draw_type === 'qualifying' ? null : g.seed,
       marker: g.draw_type === 'qualifying' ? 'Q' : null,
       fip1: fA,
       name1: pA.name,

@@ -21,14 +21,17 @@ describe('buildEntryTeams', () => {
     expect(t.marker).toBeNull();
   });
 
-  it('maps qualifying draw_type to a Q marker', () => {
+  it('maps qualifying draw_type to a Q marker and nulls its per-draw seed', () => {
+    // Qualifying rows carry a per-draw position in `seed` (1..M) that must NOT
+    // render as a competitive seed alongside the main draw.
     const rows: EntrySnapshotInput[] = [
-      { ...base, fip_id: 'C', name: 'Peña', country: 'CL', seed: null, partner_fip_id: 'D', partner_name: 'Giusto', draw_type: 'qualifying' },
-      { ...base, fip_id: 'D', name: 'Giusto', country: 'AR', seed: null, partner_fip_id: 'C', partner_name: 'Peña', draw_type: 'qualifying' },
+      { ...base, fip_id: 'C', name: 'Peña', country: 'CL', seed: 1, partner_fip_id: 'D', partner_name: 'Giusto', draw_type: 'qualifying' },
+      { ...base, fip_id: 'D', name: 'Giusto', country: 'AR', seed: 1, partner_fip_id: 'C', partner_name: 'Peña', draw_type: 'qualifying' },
     ];
     const teams = buildEntryTeams(rows);
     expect(teams).toHaveLength(1);
     expect(teams[0].marker).toBe('Q');
+    expect(teams[0].seed).toBeNull();
   });
 
   it('falls back to partner_name (country null) when the partner has no own row', () => {
