@@ -561,13 +561,35 @@ describe('runFipEntryListPopulator', () => {
       category: 'player_entered',
       entityType: 'player',
       dedupeKey: `player_entered:${TOURNAMENT_ID}`,
-      url: `/tournaments/${TOURNAMENT_ID}`,
+      url: `/tournaments/${TOURNAMENT_ID}?tab=entries`,
     });
     expect([...(posts[0].body.entityIds as string[])].sort()).toEqual([
       'new-player-1',
       'new-player-2',
       'new-player-3',
     ]);
+  });
+
+  it('lands the player_entered push on the entries tab (entries tab)', async () => {
+    // The Entries tab is the natural landing spot for a "New tournament
+    // entry" push — deep-link straight to it instead of the tournament's
+    // default tab.
+    const supabase = fakeSupabase({
+      snapshots: [snap('P200001', 'Juan Lebron')],
+      existingPlayers: [],
+    });
+    const { deps, entryPosts } = captureNotify();
+
+    await runFipEntryListPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    const posts = entryPosts();
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body.url).toBe(`/tournaments/${TOURNAMENT_ID}?tab=entries`);
   });
 
   it('fires a separate notify-event per tournament', async () => {
@@ -593,8 +615,8 @@ describe('runFipEntryListPopulator', () => {
     const byUrl = Object.fromEntries(
       posts.map((p) => [p.body.url as string, (p.body.entityIds as string[]).length]),
     );
-    expect(byUrl['/tournaments/t-a']).toBe(2);
-    expect(byUrl['/tournaments/t-b']).toBe(1);
+    expect(byUrl['/tournaments/t-a?tab=entries']).toBe(2);
+    expect(byUrl['/tournaments/t-b?tab=entries']).toBe(1);
   });
 
   it('does not re-fire for players already claimed in a prior run', async () => {

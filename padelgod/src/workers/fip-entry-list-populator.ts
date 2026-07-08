@@ -276,7 +276,7 @@ export async function runFipEntryListPopulator(
           entityIds: playerIds,
           title: 'New tournament entry',
           body: 'A player you follow just entered an event.',
-          url: `/tournaments/${tournamentId}`,
+          url: `/tournaments/${tournamentId}?tab=entries`,
           // Per-tournament dedupe so each fan gets at most ONE entry notice
           // per tournament — across this run AND future runs (the endpoint's
           // user_notifications dedupe probe keys on this).
