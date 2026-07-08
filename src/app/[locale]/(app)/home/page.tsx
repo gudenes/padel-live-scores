@@ -297,7 +297,13 @@ function V3HomePageInner() {
         // early so fans see the match is about to start instead of the
         // scheduled-card fallback.
         wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).in('status', ['live', 'on_court']).order('court_order', { ascending: true }) as any, 'home:live'),
-        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN_PREMIER).eq('status', 'scheduled').in('tournament.level', PREMIER_LEVELS).order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
+        // "Coming Up": scheduled Premier matches, but ONLY from tournaments that
+        // haven't already ended. Without the ends_at guard, matches that never
+        // got closed (e.g. qualifying rounds the Crionet results feed skipped —
+        // frozen on status='scheduled' with a null scheduled_at) leak into the
+        // upcoming list for days after the event finishes. The !inner embed on
+        // tournaments makes this filter drop rows rather than null the embed.
+        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN_PREMIER).eq('status', 'scheduled').in('tournament.level', PREMIER_LEVELS).gte('tournament.ends_at', new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString()).order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
         wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url, cover_image_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
