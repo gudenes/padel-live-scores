@@ -869,12 +869,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return activeTournamentObj.entry_list_status === 'ready'
   }, [entryListFlag, activeTournamentObj])
 
-  // Fallback: never let ?tab=entries stick on a hidden tab.
-  useEffect(() => {
-    if (pageTab === 'entries' && activeTournamentObj && !showEntriesTab) {
-      setPageTabState('overview')
-    }
-  }, [pageTab, activeTournamentObj, showEntriesTab])
+  // Note: no force-switch fallback for `?tab=entries`. Like the Projection tab,
+  // the render gate below (`pageTab === 'entries' && showEntriesTab`) renders
+  // nothing until the async feature flag resolves, then populates — race-free.
+  // A force-switch here would bounce valid deep-links to Overview during the
+  // flag-load window (the tournament fetch can beat the flag fetch).
 
   // ══════════════════════════════════════════════════════════════
   // ── RENDER ────────────────────────────────────────────────────
