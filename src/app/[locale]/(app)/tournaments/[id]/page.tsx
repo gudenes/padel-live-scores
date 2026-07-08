@@ -35,6 +35,7 @@ import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
 import ProjectionTab from './ProjectionTab'
+import EntriesTab from './EntriesTab'
 import { buildProjectionQuery } from './projection-url'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
@@ -234,11 +235,13 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const wantsMatchesAnimation =
     searchParams.get('intent') === 'matches' && paramTab === 'matches'
 
-  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw' | 'projection'>(
+  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw' | 'projection' | 'entries'>(
     // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
     // share links and bookmarks keep working.
     wantsMatchesAnimation
       ? 'overview'
+      : paramTab === 'entries'
+      ? 'entries'
       : paramTab === 'projection'
       ? 'projection'
       : paramTab === 'draw'
@@ -258,7 +261,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // Tracks whether the user has manually changed tabs, so the scheduled
   // animated-arrival commit doesn't override a tap that happens during the dwell.
   const userChangedTabRef = useRef(false)
-  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw' | 'projection') => {
+  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw' | 'projection' | 'entries') => {
     userChangedTabRef.current = true
     setPageTabState(next)
   }, [])
@@ -278,6 +281,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     if (seen) markProjectionSeen()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const [entriesSeen, setEntriesSeen] = useState(false)
+  const markEntriesSeen = useCallback(() => {
+    try { localStorage.setItem('entry_list_tab_seen', '1') } catch {}
+    setEntriesSeen(true)
+  }, [])
+  useEffect(() => {
+    const seen = (() => { try { return localStorage.getItem('entry_list_tab_seen') === '1' } catch { return false } })()
+    if (seen) markEntriesSeen()
+  }, [markEntriesSeen])
 
   const stageStripRef = useRef<HTMLDivElement>(null)
 
@@ -849,6 +862,20 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     return DRAW_TIERS.has(activeTournamentObj.level ?? '')
   }, [projectionFlag, activeTournamentObj])
 
+  const entryListFlag = useFeatureFlag(FLAG_KEYS.ENTRY_LIST_ENABLED)
+  const showEntriesTab = useMemo(() => {
+    if (!entryListFlag) return false
+    if (!activeTournamentObj) return false
+    return activeTournamentObj.entry_list_status === 'ready'
+  }, [entryListFlag, activeTournamentObj])
+
+  // Fallback: never let ?tab=entries stick on a hidden tab.
+  useEffect(() => {
+    if (pageTab === 'entries' && activeTournamentObj && !showEntriesTab) {
+      setPageTabState('overview')
+    }
+  }, [pageTab, activeTournamentObj, showEntriesTab])
+
   // ══════════════════════════════════════════════════════════════
   // ── RENDER ────────────────────────────────────────────────────
   // ══════════════════════════════════════════════════════════════
@@ -1167,9 +1194,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             flush below the chrome row on devices with a notch / status
             bar. Sliding ink-bar handled by <SlidingInkTabs>. */}
         <SlidingInkTabs
-          tabs={(['overview', ...(showProjectionTab ? ['projection'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
+          tabs={(['overview', ...(showEntriesTab ? ['entries'] as const : []), ...(showProjectionTab ? ['projection'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
             key: tab,
-            label: tab === 'projection' && tabsMounted && !projectionSeen ? (
+            label: (tab === 'projection' || tab === 'entries') && tabsMounted && !(tab === 'projection' ? projectionSeen : entriesSeen) ? (
               <span style={{ position: 'relative' }}>
                 {tTournament(tab)}
                 <span style={{ marginLeft: 5, fontSize: 8, fontWeight: 800, letterSpacing: 0.3, color: '#06210a', background: '#7ED321', padding: '1px 4px', borderRadius: 3, verticalAlign: 'middle' }}>{tTournament('newBadge')}</span>
@@ -1178,6 +1205,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           }))}
           activeKey={pageTab}
           onChange={(key) => {
+            if (key === 'entries') { markEntriesSeen(); setPageTab('entries'); return }
             if (key === 'projection') {
               markProjectionSeen()
               setPageTab('projection')
@@ -1394,6 +1422,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             initialPairSlug={paramTab === 'projection' ? initialProjectionPairSlug : null}
             onPairSlugChange={syncProjectionUrl}
           />
+        )}
+
+        {/* ── Entries Tab (in-page) ── */}
+        {pageTab === 'entries' && activeTournamentObj && showEntriesTab && (
+          <EntriesTab tournamentId={tournamentId} genderFilter={genderFilter} />
         )}
 
       </main>
