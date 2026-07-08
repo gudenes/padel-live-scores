@@ -453,6 +453,11 @@ export async function runFipEntryListPopulator(
         };
       });
 
+      // Delete-then-insert is NOT atomic: a crash between the two calls, or an
+      // insert failure, leaves this bucket empty until the next run (:46 hourly)
+      // repopulates it from the snapshot — bounded, self-healing, never permanent
+      // loss. Acceptable while the tab ships dark (entry_list_enabled=false);
+      // move both calls into a transactional RPC before flipping the flag on.
       const { error: delErr } = await supabase
         .from('tournament_entries')
         .delete()
