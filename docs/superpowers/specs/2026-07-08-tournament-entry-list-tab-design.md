@@ -124,6 +124,30 @@ players by `fip_id`. Add a final step:
 Mirror any shared helper to `padelgod/src/lib` per the repo's byte-identical
 mirror convention (as done for `avatar-rehost.ts` / `db-paginate.ts`).
 
+7. **Repoint the `player_entered` push.** `flushPlayerEntered()` in this same
+   worker already fires the "New tournament entry" web-push when a followed
+   player is resolved into an event. Today its deep-link is
+   `url: `/tournaments/${tournamentId}`` (lands on Overview). Change it to
+   `url: `/tournaments/${tournamentId}?tab=entries`` so the notification lands
+   directly on the entry list. This is guaranteed populated at click time — the
+   same worker run just wrote `tournament_entries` before firing.
+
+## Notification deep-link
+
+The "New tournament entry" (`player_entered`) push is the natural front door to
+this tab. See pipeline step 7 for the one-line worker change. Two frontend
+requirements this adds:
+
+- The page's tab-init must recognise `?tab=entries` (alongside the existing
+  `?tab=projection` / `draw` / `story` / `matches`).
+- **Graceful fallback:** if the Entries tab is not shown at click time
+  (`ENTRY_LIST_ENABLED` off, or `entry_list_status !== 'ready'`), `?tab=entries`
+  must quietly fall back to Overview — never a dead/blank tab.
+
+No `category` is passed: `player_entered` is coalesced per tournament and can span
+both draws, so the tab opens on the navbar's default gender (which auto-selects
+the populated side when only one category has entries).
+
 ## Frontend
 
 On the tournament page ([`tournaments/[id]/page.tsx`](../../../src/app/[locale]/(app)/tournaments/[id]/page.tsx)):
@@ -132,6 +156,10 @@ On the tournament page ([`tournaments/[id]/page.tsx`](../../../src/app/[locale]/
   gated by `showEntriesTab = entryListFlag && activeTournamentObj?.entry_list_status === 'ready'`.
   Add the `NEW` pill using the same pattern as Projection, with an
   `entry_list_tab_seen` localStorage key and a `markEntriesSeen()` handler.
+- **URL param.** Handle `?tab=entries` in the `pageTab` init (mirrors the
+  existing `?tab=projection`/`draw`/`story`/`matches` branches), with the
+  graceful fallback to Overview when the tab isn't shown (see Notification
+  deep-link).
 - **i18n.** Add `tournament.entries` label to all 5 message files.
 - **Data hook.** New `useEntryList(tournamentId)` — reads `tournament_entries`
   for the tournament, plus a `playerMap` (avatar_url, ranking) hydrated from
