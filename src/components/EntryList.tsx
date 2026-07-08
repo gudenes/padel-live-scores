@@ -54,6 +54,9 @@ interface EntryListProps {
   playerMap: Record<string, PlayerHydration>
   debutStatusMap: Record<string, DebutStatus>
   genderFilter: 'men' | 'women'
+  /** Show the Fresh/New filter chips. Default true; the Entries tab passes
+   *  false in v1 (no debut data computed yet). */
+  showDebutChips?: boolean
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -196,7 +199,7 @@ function StatusPill({ kind, short }: { kind: 'fresh' | 'newThisSeason'; short?: 
 
 type Filter = 'all' | 'fresh' | 'newThisSeason'
 
-export function EntryList({ entries, playerMap, debutStatusMap, genderFilter }: EntryListProps) {
+export function EntryList({ entries, playerMap, debutStatusMap, genderFilter, showDebutChips = true }: EntryListProps) {
   const [filter, setFilter] = React.useState<Filter>('all')
 
   // Scope to current gender
@@ -266,18 +269,22 @@ export function EntryList({ entries, playerMap, debutStatusMap, genderFilter }: 
         >
           All <span style={{ opacity: 0.7, fontSize: 9, marginLeft: 3 }}>{genderEntries.length}</span>
         </button>
-        <button
-          onClick={() => clickChip('fresh')}
-          style={chipStyle(filter === 'fresh', GREEN)}
-        >
-          Fresh partners <span style={{ opacity: 0.7, fontSize: 9, marginLeft: 3 }}>{freshCount}</span>
-        </button>
-        <button
-          onClick={() => clickChip('newThisSeason')}
-          style={chipStyle(filter === 'newThisSeason', YELLOW)}
-        >
-          New this season <span style={{ opacity: 0.7, fontSize: 9, marginLeft: 3 }}>{seasonCount}</span>
-        </button>
+        {showDebutChips && (
+          <>
+            <button
+              onClick={() => clickChip('fresh')}
+              style={chipStyle(filter === 'fresh', GREEN)}
+            >
+              Fresh partners <span style={{ opacity: 0.7, fontSize: 9, marginLeft: 3 }}>{freshCount}</span>
+            </button>
+            <button
+              onClick={() => clickChip('newThisSeason')}
+              style={chipStyle(filter === 'newThisSeason', YELLOW)}
+            >
+              New this season <span style={{ opacity: 0.7, fontSize: 9, marginLeft: 3 }}>{seasonCount}</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Hero rows */}

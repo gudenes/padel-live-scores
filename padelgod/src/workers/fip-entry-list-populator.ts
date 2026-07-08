@@ -50,6 +50,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import { claimNotificationEvent } from '../lib/notification-events.js';
 import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
+import { buildEntryTeams, type EntrySnapshotInput } from '../lib/entry-list-teams.js';
 
 const SNAPSHOT_LOOKBACK_DAYS = 14;
 
@@ -99,6 +100,10 @@ interface EntryListSnapshotRow {
   name: string | null;
   country: string | null;
   captured_at: string;
+  seed: number | null;
+  partner_fip_id: string | null;
+  partner_name: string | null;
+  draw_type: string | null;
 }
 
 interface ExistingPlayerRow {
@@ -107,6 +112,7 @@ interface ExistingPlayerRow {
   name: string | null;
   country: string | null;
   category: string | null;
+  points: number | null;
 }
 
 export async function runFipEntryListPopulator(
@@ -134,7 +140,9 @@ export async function runFipEntryListPopulator(
   const { data: snapshotRows, error: snapErr } = await supabase
     .schema('padelgod')
     .from('entry_list_snapshots')
-    .select('tournament_id, category, fip_id, name, country, captured_at')
+    .select(
+      'tournament_id, category, fip_id, name, country, captured_at, seed, partner_fip_id, partner_name, draw_type',
+    )
     .gte('captured_at', cutoff);
 
   if (snapErr) {
@@ -210,7 +218,7 @@ export async function runFipEntryListPopulator(
   const fipIds = Array.from(byFipId.keys());
   const { data: existing, error: existErr } = await supabase
     .from('players')
-    .select('id, fip_id, name, country, category')
+    .select('id, fip_id, name, country, category, points')
     .in('fip_id', fipIds);
 
   if (existErr) {
@@ -268,7 +276,7 @@ export async function runFipEntryListPopulator(
           entityIds: playerIds,
           title: 'New tournament entry',
           body: 'A player you follow just entered an event.',
-          url: `/tournaments/${tournamentId}`,
+          url: `/tournaments/${tournamentId}?tab=entries`,
           // Endpoint personalizes per recipient from the players THEY follow;
           // tournamentId lets it resolve the tournament name + level. The
           // title/body/url above stay as the generic fallback (used for any
@@ -386,6 +394,99 @@ export async function runFipEntryListPopulator(
   // players resolved this run. Placed after the write loop so the claims are
   // all settled before any push goes out.
   flushPlayerEntered();
+
+  // 6. Team-entry phase (Entries tab). Collapse the latest-snapshot rows into
+  //    one row per unordered pair and replace-write `public.tournament_entries`
+  //    per (tournament_id, category) bucket. Resolved player ids + summed
+  //    ranking points come from the players we already fetched — no extra
+  //    round-trip. Skipped on dry-run; honors the onlyTournamentIds allowlist.
+  if (!dryRun) {
+    const norm = (s: string | null): string | null =>
+      s ? s.replace(/^fip-/, '') : null;
+    const buckets = new Map<string, EntrySnapshotInput[]>();
+    for (const r of latestRows) {
+      if (!r.fip_id) continue;
+      if (deps.onlyTournamentIds && !deps.onlyTournamentIds.has(r.tournament_id)) {
+        continue;
+      }
+      const key = `${r.tournament_id}::${r.category}`;
+      const list = buckets.get(key) ?? [];
+      list.push({
+        tournament_id: r.tournament_id,
+        category: r.category,
+        fip_id: norm(r.fip_id)!,
+        name: r.name,
+        country: r.country,
+        seed: r.seed,
+        partner_fip_id: norm(r.partner_fip_id),
+        partner_name: r.partner_name,
+        draw_type: r.draw_type,
+      });
+      buckets.set(key, list);
+    }
+
+    for (const [, bucketRows] of buckets) {
+      const teams = buildEntryTeams(bucketRows);
+      if (teams.length === 0) continue;
+      const first = bucketRows[0];
+      if (!first) continue;
+      const { tournament_id, category } = first;
+      const capturedAt =
+        latestRows.find(
+          (r) => r.tournament_id === tournament_id && r.category === category,
+        )?.captured_at ?? new Date().toISOString();
+
+      const insertRows = teams.map((t) => {
+        const p1 = existingByFipId.get(t.fip1);
+        const p2 = t.fip2 ? existingByFipId.get(t.fip2) : undefined;
+        const pts1 = p1?.points ?? null;
+        const pts2 = p2?.points ?? null;
+        const team_points = pts1 != null && pts2 != null ? pts1 + pts2 : null;
+        return {
+          tournament_id: t.tournament_id,
+          category: t.category,
+          draw_type: t.draw_type,
+          seed: t.seed,
+          marker: t.marker,
+          player1_id: p1?.id ?? null,
+          player2_id: p2?.id ?? null,
+          player1_name: t.name1,
+          player2_name: t.name2,
+          player1_country: t.country1,
+          player2_country: t.country2,
+          team_points,
+          captured_at: capturedAt,
+        };
+      });
+
+      // Delete-then-insert is NOT atomic: a crash between the two calls, or an
+      // insert failure, leaves this bucket empty until the next run (:46 hourly)
+      // repopulates it from the snapshot — bounded, self-healing, never permanent
+      // loss. Acceptable while the tab ships dark (entry_list_enabled=false);
+      // move both calls into a transactional RPC before flipping the flag on.
+      const { error: delErr } = await supabase
+        .from('tournament_entries')
+        .delete()
+        .eq('tournament_id', tournament_id)
+        .eq('category', category);
+      if (delErr) {
+        logger?.warn(
+          { tournament_id, category, err: delErr.message },
+          'tournament_entries delete failed',
+        );
+        continue;
+      }
+      const { error: insErr } = await supabase
+        .from('tournament_entries')
+        .insert(insertRows);
+      if (insErr) {
+        logger?.warn(
+          { tournament_id, category, err: insErr.message },
+          'tournament_entries insert failed',
+        );
+      }
+    }
+  }
 
   logger?.info(result, 'fip-entry-list-populator run complete');
   return result;

@@ -19,6 +19,10 @@ interface SnapshotSeed {
   name: string | null;
   country: string | null;
   captured_at: string;
+  seed?: number | null;
+  partner_fip_id?: string | null;
+  partner_name?: string | null;
+  draw_type?: string | null;
 }
 
 interface ExistingPlayerSeed {
@@ -27,6 +31,7 @@ interface ExistingPlayerSeed {
   name: string | null;
   country: string | null;
   category: string | null;
+  points?: number | null;
 }
 
 interface Options {
@@ -40,6 +45,9 @@ function fakeSupabase(opts: Options) {
 
   const inserted: Record<string, unknown>[] = [];
   const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
+  // tournament_entries capture: replace-per-bucket delete + bulk insert.
+  const entryDeletes: Array<{ tournament_id: string; category: string }> = [];
+  const entryInserts: Record<string, unknown>[] = [];
   // Claim ledger for notification_events_sent — persists across runs that
   // reuse this same fake, mirroring the real once-ever-per-key behaviour.
   const claimedKeys = new Set<string>();
@@ -65,7 +73,20 @@ function fakeSupabase(opts: Options) {
         if (col !== 'captured_at') {
           throw new Error(`unexpected entry_list_snapshots filter: ${col}`);
         }
-        const data = snapshots.filter((s) => s.captured_at >= val);
+        const data = snapshots
+          .filter((s) => s.captured_at >= val)
+          .map((s) => ({
+            tournament_id: s.tournament_id,
+            category: s.category,
+            fip_id: s.fip_id,
+            name: s.name,
+            country: s.country,
+            captured_at: s.captured_at,
+            seed: s.seed ?? null,
+            partner_fip_id: s.partner_fip_id ?? null,
+            partner_name: s.partner_name ?? null,
+            draw_type: s.draw_type ?? null,
+          }));
         return Promise.resolve({ data, error: null });
       },
     }),
@@ -77,9 +98,9 @@ function fakeSupabase(opts: Options) {
         if (col !== 'fip_id') {
           throw new Error(`unexpected players filter: ${col}`);
         }
-        const data = existing.filter(
-          (p) => p.fip_id != null && values.includes(p.fip_id),
-        );
+        const data = existing
+          .filter((p) => p.fip_id != null && values.includes(p.fip_id))
+          .map((p) => ({ ...p, points: p.points ?? null }));
         return Promise.resolve({ data, error: null });
       },
     }),
@@ -116,9 +137,31 @@ function fakeSupabase(opts: Options) {
     }),
   });
 
-  return {
+  const tournamentEntriesTable = () => ({
+    delete: () => ({
+      eq: (col1: string, val1: string) => ({
+        eq: (col2: string, val2: string) => {
+          if (col1 !== 'tournament_id' || col2 !== 'category') {
+            throw new Error(
+              `unexpected tournament_entries delete filter: ${col1}, ${col2}`,
+            );
+          }
+          entryDeletes.push({ tournament_id: val1, category: val2 });
+          return Promise.resolve({ data: null, error: null });
+        },
+      }),
+    }),
+    insert: (rows: Record<string, unknown>[]) => {
+      for (const row of rows) entryInserts.push(row);
+      return Promise.resolve({ data: null, error: null });
+    },
+  });
+
+  const client = {
     inserted,
     updated,
+    entryDeletes,
+    entryInserts,
     schema: (name: string) => ({
       from: (t: string) => {
         if (name !== 'padelgod') {
@@ -131,9 +174,17 @@ function fakeSupabase(opts: Options) {
     from: (t: string) => {
       if (t === 'players') return playersTable();
       if (t === 'notification_events_sent') return notificationEventsSentTable();
+      if (t === 'tournament_entries') return tournamentEntriesTable();
       throw new Error(`unexpected public table: ${t}`);
     },
   };
+
+  // Existing tests use the whole return value as the supabase client
+  // (`const supabase = fakeSupabase(...)`), reading `.inserted`/`.updated`
+  // off it. The tournament_entries tests destructure `{ supabase, entryInserts,
+  // entryDeletes }`. Expose both shapes: the client keys live at the top level,
+  // and `supabase` self-references the client.
+  return Object.assign(client, { supabase: client });
 }
 
 // Capturing notify deps: records every notify-event POST so tests can assert
@@ -510,7 +561,7 @@ describe('runFipEntryListPopulator', () => {
       category: 'player_entered',
       entityType: 'player',
       dedupeKey: `player_entered:${TOURNAMENT_ID}`,
-      url: `/tournaments/${TOURNAMENT_ID}`,
+      url: `/tournaments/${TOURNAMENT_ID}?tab=entries`,
       personalizePerFollower: true,
       metadata: { tournamentId: TOURNAMENT_ID },
     });
@@ -519,6 +570,28 @@ describe('runFipEntryListPopulator', () => {
       'new-player-2',
       'new-player-3',
     ]);
+  });
+
+  it('lands the player_entered push on the entries tab (entries tab)', async () => {
+    // The Entries tab is the natural landing spot for a "New tournament
+    // entry" push — deep-link straight to it instead of the tournament's
+    // default tab.
+    const supabase = fakeSupabase({
+      snapshots: [snap('P200001', 'Juan Lebron')],
+      existingPlayers: [],
+    });
+    const { deps, entryPosts } = captureNotify();
+
+    await runFipEntryListPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+      notify: deps as any,
+      eventsEnabled: true,
+    });
+
+    const posts = entryPosts();
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body.url).toBe(`/tournaments/${TOURNAMENT_ID}?tab=entries`);
   });
 
   it('fires a separate notify-event per tournament', async () => {
@@ -544,8 +617,8 @@ describe('runFipEntryListPopulator', () => {
     const byUrl = Object.fromEntries(
       posts.map((p) => [p.body.url as string, (p.body.entityIds as string[]).length]),
     );
-    expect(byUrl['/tournaments/t-a']).toBe(2);
-    expect(byUrl['/tournaments/t-b']).toBe(1);
+    expect(byUrl['/tournaments/t-a?tab=entries']).toBe(2);
+    expect(byUrl['/tournaments/t-b?tab=entries']).toBe(1);
   });
 
   it('does not re-fire for players already claimed in a prior run', async () => {
@@ -593,5 +666,38 @@ describe('runFipEntryListPopulator', () => {
     });
 
     expect(entryPosts()).toHaveLength(0);
+  });
+
+  // ── tournament_entries writes ─────────────────────────────────────────────
+
+  it('writes one tournament_entries row per pair, resolved with team_points', async () => {
+    const { supabase, entryInserts, entryDeletes } = fakeSupabase({
+      snapshots: [
+        { tournament_id: 't1', category: 'men', fip_id: 'A', name: 'Galán', country: 'ES', captured_at: '2026-07-01T00:00:00Z', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
+        { tournament_id: 't1', category: 'men', fip_id: 'B', name: 'Chingotto', country: 'AR', captured_at: '2026-07-01T00:00:00Z', seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main_draw' },
+      ],
+      existingPlayers: [
+        { id: 'p-A', fip_id: 'A', name: 'Galán', country: 'ES', category: 'men', points: 15000 },
+        { id: 'p-B', fip_id: 'B', name: 'Chingotto', country: 'AR', category: 'men', points: 13000 },
+      ],
+    });
+    await runFipEntryListPopulator({ supabase: supabase as any, dryRun: false });
+    expect(entryDeletes).toContainEqual({ tournament_id: 't1', category: 'men' });
+    expect(entryInserts).toHaveLength(1);
+    expect(entryInserts[0]).toMatchObject({
+      tournament_id: 't1', category: 'men', draw_type: 'main_draw', seed: 1,
+      player1_id: 'p-A', player2_id: 'p-B', team_points: 28000,
+    });
+  });
+
+  it('does not touch tournament_entries on dry-run', async () => {
+    const { supabase, entryInserts, entryDeletes } = fakeSupabase({
+      snapshots: [
+        { tournament_id: 't1', category: 'men', fip_id: 'A', name: 'Galán', country: 'ES', captured_at: '2026-07-01T00:00:00Z', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
+      ],
+    });
+    await runFipEntryListPopulator({ supabase: supabase as any, dryRun: true });
+    expect(entryDeletes).toHaveLength(0);
+    expect(entryInserts).toHaveLength(0);
   });
 });
