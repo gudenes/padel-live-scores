@@ -23,23 +23,29 @@ export async function POST(req: NextRequest) {
     .eq('id', racketId)
     .single()
 
-  if (error || !racket || !racket.product_url) {
-    return NextResponse.json({ error: 'Racket not found or has no product URL' }, { status: 404 })
+  if (error || !racket) {
+    return NextResponse.json({ error: 'Racket not found' }, { status: 404 })
   }
 
   const session = await auth()
   const userId = session?.user?.id ?? null
 
-  // Fire-and-forget: insert click record
-  void supabase
-    .from('racket_clicks')
-    .insert({ racket_id: racketId, player_id: playerId ?? null, user_id: userId })
+  // Persist the click. Tracked even when the racket has no deep product_url —
+  // the client falls back to the brand's affiliate store page, so those clicks
+  // still earn commission and must be counted. Awaited (not fire-and-forget):
+  // the Supabase query builder is a lazy thenable, so an un-awaited `void`
+  // builder never actually runs and the write silently vanishes. The click
+  // handler already awaits this response, so the added latency is invisible.
+  await Promise.allSettled([
+    supabase
+      .from('racket_clicks')
+      .insert({ racket_id: racketId, player_id: playerId ?? null, user_id: userId }),
+    supabase
+      .from('padel_rackets')
+      .update({ click_count: (racket.click_count ?? 0) + 1 })
+      .eq('id', racketId),
+  ])
 
-  // Fire-and-forget: increment click_count
-  void supabase
-    .from('padel_rackets')
-    .update({ click_count: (racket.click_count ?? 0) + 1 })
-    .eq('id', racketId)
-
-  return NextResponse.json({ url: racket.product_url })
+  // product_url may be null; the client resolves the brand-store fallback.
+  return NextResponse.json({ url: racket.product_url ?? null })
 }

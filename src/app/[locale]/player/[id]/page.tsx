@@ -342,7 +342,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       balance: string | null
       image_url: string | null
       product_url: string | null
-      brand: { name: string; logo_url: string | null } | null
+      brand: { name: string; logo_url: string | null; store_url: string | null } | null
     } | null
   } | null>(null)
   const [earnings, setEarnings] = useState<{ ytdEur: number; allTimeEur: number } | null>(null)
@@ -377,12 +377,12 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         // Fetch equipment from relational tables
         const { data: eqData } = await supabase
           .from('player_equipment')
-          .select('racket:padel_rackets(id, model, year, shape, weight_grams, balance, image_url, product_url, brand:padel_brands(name, logo_url))')
+          .select('racket:padel_rackets(id, model, year, shape, weight_grams, balance, image_url, product_url, brand:padel_brands(name, logo_url, store_url))')
           .eq('player_id', id)
           .is('ended_at', null)
           .limit(1)
           .maybeSingle()
-        if (!cancelled) setCurrentEquipment(eqData as { racket: { id: string; model: string | null; year: number | null; shape: string | null; weight_grams: number | null; balance: string | null; image_url: string | null; product_url: string | null; brand: { name: string; logo_url: string | null } | null } | null } | null)
+        if (!cancelled) setCurrentEquipment(eqData as { racket: { id: string; model: string | null; year: number | null; shape: string | null; weight_grams: number | null; balance: string | null; image_url: string | null; product_url: string | null; brand: { name: string; logo_url: string | null; store_url: string | null } | null } | null } | null)
 
         // Fetch ALL career matches. Supabase's default range cap is 1000
         // rows, which comfortably covers every player in the DB today
@@ -963,7 +963,7 @@ function OverviewTab({
       balance: string | null
       image_url: string | null
       product_url: string | null
-      brand: { name: string; logo_url: string | null } | null
+      brand: { name: string; logo_url: string | null; store_url: string | null } | null
     } | null
   } | null
   earnings: { ytdEur: number; allTimeEur: number } | null
@@ -1177,7 +1177,10 @@ function OverviewTab({
         const brandLogo = racket?.brand?.logo_url ?? player.equipment?.brand_logo ?? null
         const racketModel = racket?.model ?? player.equipment?.racket_model ?? null
         const racketImage = racket?.image_url ?? player.equipment?.racket_image ?? null
-        const racketUrl = racket?.product_url ?? player.equipment?.racket_url ?? null
+        // Prefer the exact product deep link; when we don't have one, fall back
+        // to the brand's affiliate store page so the click still earns commission.
+        const brandStoreUrl = racket?.brand?.store_url ?? null
+        const racketUrl = racket?.product_url ?? player.equipment?.racket_url ?? brandStoreUrl
         const racketId = racket?.id ?? null
         const racketYear = racket?.year ?? null
         const racketShape = racket?.shape ?? null
@@ -1195,8 +1198,10 @@ function OverviewTab({
                 body: JSON.stringify({ racket_id: racketId, player_id: player.id }),
               })
               if (res.ok) {
+                // Endpoint returns the deep product_url when present, else null —
+                // fall back to the resolved brand store URL so the click lands.
                 const { url } = await res.json()
-                window.open(url, '_blank', 'noopener,noreferrer')
+                window.open(url ?? racketUrl, '_blank', 'noopener,noreferrer')
                 return
               }
             } catch { /* silent */ }
