@@ -940,15 +940,14 @@ Add next to the projection render block (around line 1387):
         )}
 ```
 
-Add the graceful fallback so `?tab=entries` never sticks on a hidden tab. After `showEntriesTab` is defined, add an effect:
-
-```ts
-  useEffect(() => {
-    if (pageTab === 'entries' && activeTournamentObj && !showEntriesTab) {
-      setPageTabState('overview')
-    }
-  }, [pageTab, activeTournamentObj, showEntriesTab])
-```
+Do NOT add a force-switch fallback effect. (An earlier draft added an effect
+that reset `pageTab` to `'overview'` when `!showEntriesTab` — this is a race:
+`entryListFlag` loads async and starts `false`, so a valid `?tab=entries`
+deep-link would bounce to Overview during the flag-load window.) Instead, rely
+on the render gate exactly like the Projection tab does — when the tab isn't
+shown, the `{pageTab === 'entries' && … && showEntriesTab && …}` block simply
+renders nothing until the flag resolves, then populates. Race-free, and the
+tab-strip omits `entries` while hidden so there's no orphaned active tab.
 
 - [ ] **Step 5: Typecheck + build**
 
