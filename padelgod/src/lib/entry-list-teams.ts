@@ -74,7 +74,8 @@ export function buildEntryTeams(rows: EntrySnapshotInput[]): EntryTeam[] {
   const teams: EntryTeam[] = [];
   for (const [key, g] of groups) {
     const fips = key.split('::');
-    const [fA, fB = null] = fips;
+    const fA = fips[0] as string;
+    const fB = fips.length > 1 ? (fips[1] as string) : null;
     const pA = g.players.get(fA) ?? { name: g.partnerNames.get(fA) ?? null, country: null };
     const pB = fB
       ? (g.players.get(fB) ?? { name: g.partnerNames.get(fB) ?? null, country: null })
