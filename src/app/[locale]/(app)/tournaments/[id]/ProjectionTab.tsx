@@ -6,7 +6,7 @@ import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
 import PressButton from '@/components/PressButton'
-import { buildPlayerLookup, buildRoadVM, mergeImagesIntoLookup, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, winColor, pairSurnames, LIME, GOLD, LIVE, type RoadOpponentVM } from '@/lib/projection-view'
+import { buildPlayerLookup, buildRoadVM, buildRoundScheduleFromMatches, mergeImagesIntoLookup, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, winColor, pairSurnames, LIME, GOLD, LIVE, type RoadOpponentVM, type ScheduleMatchLite } from '@/lib/projection-view'
 import { ProjectionExplainSheet } from './ProjectionExplainSheet'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
@@ -163,7 +163,13 @@ export default function ProjectionTab({
   const voteEnabled = useFeatureFlag(FLAG_KEYS.PROJECTION_VOTE_ENABLED)
   const projVote = useProjectionVote(tournamentId, category, selectedPair)
   const row = useMemo(() => rows.find((r) => r.pair_key === selectedPair) ?? null, [rows, selectedPair])
-  const vm = useMemo(() => (row ? buildRoadVM(row, enrichedLookup, roundSchedule) : null), [row, enrichedLookup, roundSchedule])
+  // Date each projected round from the actual matches (the FIP round_schedule
+  // is coarse and can be off by days / miss rounds); fall back to it per-round.
+  const effectiveSchedule = useMemo(
+    () => buildRoundScheduleFromMatches(matches as ScheduleMatchLite[], roundSchedule),
+    [matches, roundSchedule],
+  )
+  const vm = useMemo(() => (row ? buildRoadVM(row, enrichedLookup, effectiveSchedule) : null), [row, enrichedLookup, effectiveSchedule])
 
   const handleShare = useCallback(async () => {
     if (!vm || !selectedPair) return
