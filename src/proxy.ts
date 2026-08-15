@@ -7,6 +7,7 @@ import createMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { resolveRequestGeo } from './lib/request-geo'
 
 const handleI18nRouting = createMiddleware(routing)
 
@@ -201,21 +202,17 @@ export default function proxy(request: NextRequest) {
 
   // ── Post-i18n: decorate response with cookies ──────────────────
 
-  // Geo-country cookie
-  const country = request.headers.get('x-vercel-ip-country') ?? ''
-  if (country) {
-    response.cookies.set('geo-country', country, {
+  const geo = resolveRequestGeo(request.headers)
+  if (geo.country) {
+    response.cookies.set('geo-country', geo.country, {
       path: '/',
       httpOnly: false,
       sameSite: 'lax',
       maxAge: 86400,
     })
   }
-
-  // Geo-timezone cookie (IANA timezone from Vercel IP geolocation)
-  const timezone = request.headers.get('x-vercel-ip-timezone') ?? ''
-  if (timezone) {
-    response.cookies.set('geo-timezone', timezone, {
+  if (geo.timezone) {
+    response.cookies.set('geo-timezone', geo.timezone, {
       path: '/',
       httpOnly: false,
       sameSite: 'lax',

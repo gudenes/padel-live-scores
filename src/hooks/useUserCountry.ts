@@ -6,7 +6,7 @@
 //
 // Resolution order:
 //   1. Logged-in user's profile.preferred_country (manual override)
-//   2. geo-country cookie (set by middleware from x-vercel-ip-country)
+//   2. geo-country cookie (set by proxy from Cloudflare/Vercel geo headers)
 //   3. null (= "global only", page falls back to non-regional content)
 //
 // All return values are normalized to lowercase 2-letter ISO codes.
