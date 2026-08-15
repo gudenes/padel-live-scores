@@ -45,10 +45,12 @@ function initSentry() {
     environment:
       process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT
       ?? process.env.NEXT_PUBLIC_VERCEL_ENV
+      ?? process.env.RAILWAY_ENVIRONMENT_NAME
       ?? 'development',
     release:
       process.env.NEXT_PUBLIC_SENTRY_RELEASE
       ?? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA
+      ?? process.env.RAILWAY_GIT_COMMIT_SHA
       ?? undefined,
     sendDefaultPii: false,
     // 10% perf sampling on the client, same as server. Errors are

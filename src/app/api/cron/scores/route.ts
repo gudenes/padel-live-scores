@@ -13,6 +13,7 @@ import { PlayerResolver } from '@/lib/player-resolver'
 import { logOpsEvent } from '@/lib/ops-logger'
 import { padelapiPausedResponse } from '@/lib/padelapi-pause'
 import { sanitizeDurationHHMM } from '@/lib/match-duration'
+import { publicAppUrl } from '@/lib/public-app-url'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -706,7 +707,7 @@ async function upsertMatch(match: ApiMatch, liveState: ApiMatchLive): Promise<vo
   const wasNotLive = !existing || existing.status !== 'live'
   if (wasNotLive && liveState.status === 'live' && matchRow?.id) {
     // Fire-and-forget: don't block the cron
-    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3002'
+    const baseUrl = publicAppUrl()
     fetch(`${baseUrl}/api/push/notify`, {
       method: 'POST',
       headers: {

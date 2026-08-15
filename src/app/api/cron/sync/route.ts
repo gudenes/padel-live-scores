@@ -16,6 +16,7 @@ import { padelapiPausedResponse } from '@/lib/padelapi-pause'
 import { filterUpdateByPriority } from '@/lib/source-priority'
 import { sanitizeDurationHHMM } from '@/lib/match-duration'
 import { countryToTimezone } from '@/lib/country-timezone'
+import { publicAppUrl } from '@/lib/public-app-url'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -704,7 +705,7 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
         // missing the transition window.
         const wasNotLive = !existing || existing.status !== 'live'
         if (wasNotLive && status === 'live' && matchRow?.id) {
-          const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3002'
+          const baseUrl = publicAppUrl()
           fetch(`${baseUrl}/api/push/notify`, {
             method: 'POST',
             headers: {

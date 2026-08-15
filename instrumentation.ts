@@ -23,6 +23,7 @@
 // provides a typed helper that handles the contextual enrichment.
 
 import * as Sentry from '@sentry/nextjs'
+import { isProdRuntime, runtimeEnvironment, runtimeRelease } from '@/lib/runtime-env'
 
 /**
  * Whether Sentry should actually emit traffic. Mirrored on the client
@@ -35,21 +36,16 @@ function sentryEnabled(): boolean {
   return (
     process.env.VERCEL_ENV === 'production'
     || process.env.VERCEL_ENV === 'preview'
+    || isProdRuntime()
+    || process.env.RAILWAY_ENVIRONMENT_NAME === 'production'
   )
 }
 
 function commonInit() {
   return {
     dsn: process.env.SENTRY_DSN,
-    environment:
-      process.env.SENTRY_ENVIRONMENT
-      ?? process.env.VERCEL_ENV
-      ?? process.env.NODE_ENV
-      ?? 'development',
-    release:
-      process.env.SENTRY_RELEASE
-      ?? process.env.VERCEL_GIT_COMMIT_SHA
-      ?? undefined,
+    environment: runtimeEnvironment(),
+    release: runtimeRelease(),
     // GDPR-friendly default. The SDK never auto-attaches client IPs
     // or sensitive headers (Authorization / Cookie) when this is off.
     sendDefaultPii: false,

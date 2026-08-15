@@ -35,6 +35,7 @@
 import { randomUUID } from 'crypto'
 import { cookies } from 'next/headers'
 import { Pool } from 'pg'
+import { isHostedRuntime } from '@/lib/runtime-env'
 
 // Mirror auth.ts's connection style — same pattern, same edge cases.
 function parseDbUrl(url: string) {
@@ -88,7 +89,7 @@ async function createSessionForEmail(email: string): Promise<{ sessionToken: str
 // + production) the cookie is prefixed with __Secure- which forces secure flag.
 // On local dev (http://localhost) the unprefixed name is used.
 function authCookieName(): string {
-  return process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV
+  return process.env.NODE_ENV === 'production' || isHostedRuntime()
     ? '__Secure-authjs.session-token'
     : 'authjs.session-token'
 }
@@ -117,7 +118,7 @@ export async function GET(request: Request) {
     name: authCookieName(),
     value: result.sessionToken,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production' || !!process.env.VERCEL_ENV,
+    secure: process.env.NODE_ENV === 'production' || isHostedRuntime(),
     sameSite: 'lax',
     path: '/',
     expires: new Date(Date.now() + SESSION_TTL_MS),

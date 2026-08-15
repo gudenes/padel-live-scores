@@ -29,7 +29,10 @@ function parseDbUrl(url: string) {
 
 const pool = new Pool({
   ...parseDbUrl(process.env.DATABASE_URL ?? ''),
-  max: 1, // Vercel serverless: each function instance gets its own pool, keep minimal
+  // Serverless (Vercel): keep 1. Long-lived Railway process: allow more.
+  // Override with PG_POOL_MAX when needed.
+  max: Number(process.env.PG_POOL_MAX)
+    || (process.env.RAILWAY_ENVIRONMENT ? 8 : 1),
   ssl: { rejectUnauthorized: false },
 })
 
