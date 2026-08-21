@@ -12,6 +12,7 @@ import type { Logger } from 'pino';
 import {
   parseEventDates,
   parseMatchscorerIds,
+  parseCanonicalEventSlug,
   parseDrawSizes,
   parseOverviewFields,
   parsePrizeBreakdown,
@@ -165,6 +166,7 @@ export async function runFipEventPageEnricher(
 
       const dates = parseEventDates(html);
       const matchscorer = parseMatchscorerIds(html);
+      const canonicalSlug = parseCanonicalEventSlug(html);
       const drawSize = parseDrawSizes(html);
       const overview = parseOverviewFields(html, {
         startsAt: t.starts_at ?? null,
@@ -203,57 +205,109 @@ export async function runFipEventPageEnricher(
       writeFromFip('starts_at', t.starts_at, dates.startsAt)
       writeFromFip('ends_at', t.ends_at, dates.endsAt)
 
-      // Matchscorer-code conflict check.
+      // Matchscorer ownership. Crionet hosts ONE bracket per code. FIP
+      // often keeps two WP slugs for the same event; both 200 and embed
+      // the same code, but rel=canonical names the slug FIP publishes.
+      // widget_id_cache.widget_id is UNIQUE, so an alias that won search
+      // blocks the canonical row — populator/live-poller then skip it.
       //
-      // The matchscorer code is the authoritative identity of a
-      // physical tournament — Crionet hosts ONE bracket per code. If
-      // another tournament row already carries this code, the two
-      // rows describe the same physical event and writing here would
-      // create (or perpetuate) a duplicate. The discovery worker's
-      // `isPhysicalTwin` guard catches the sponsor-suffix subset case
-      // (`{abu, dhabi} ⊂ {damac, abu, dhabi}`) but not full rebrands,
-      // and any dup that predates that guard (PR #372, 2026-05-21)
-      // sits in the DB until merged. Skipping the write here keeps
-      // the canonical row owning the code; the orphan stays
-      // detectable for `scripts/merge-matchscorer-duplicates.ts`.
-      //
-      // Also gates the `widget_id_cache` mirror — pointing a second
-      // cache row at the same code would race downstream workers
-      // over which tournament_id owns the bracket.
-      let matchscorerConflict: { id: string; name: string } | null = null
-      if (matchscorer?.code) {
-        const { data: conflict, error: conflictErr } = await deps.supabase
+      // Rule: canonical → another slug = this row is an alias, do not
+      // claim. This page IS canonical (or has no canonical) → claim,
+      // moving matchscorer_url + cache off any other owner.
+      const isCanonicalPage = !canonicalSlug || canonicalSlug === slug;
+      let skipMatchscorerWrite = false;
+      if (matchscorer?.code && !isCanonicalPage) {
+        skipMatchscorerWrite = true;
+        deps.logger?.info?.(
+          {
+            tournamentId: t.id,
+            slug,
+            canonicalSlug,
+            matchscorerCode: matchscorer.code,
+          },
+          'fip-event-page-enricher: skipping matchscorer write — page canonical is a different slug',
+        );
+      }
+
+      if (matchscorer?.code && !skipMatchscorerWrite) {
+        const { data: urlOwner, error: urlOwnerErr } = await deps.supabase
           .from('tournaments')
           .select('id, name')
           .eq('matchscorer_url', matchscorer.code)
           .neq('id', t.id)
           .limit(1)
-          .maybeSingle()
-        if (conflictErr) {
-          // Don't fail enrichment over a probe — log and proceed
-          // without writing the code (defensive default; if the
-          // probe is unreliable, treating it as "no conflict" risks
-          // silently creating dupes).
+          .maybeSingle();
+        if (urlOwnerErr) {
           deps.logger?.warn(
-            { tournamentId: t.id, slug, err: conflictErr.message },
+            { tournamentId: t.id, slug, err: urlOwnerErr.message },
             'fip-event-page-enricher: matchscorer_url conflict probe failed — skipping matchscorer write',
-          )
-          matchscorerConflict = { id: 'probe-failed', name: '' }
-        } else if (conflict) {
-          matchscorerConflict = conflict as { id: string; name: string }
-          deps.logger?.warn(
+          );
+          skipMatchscorerWrite = true;
+        }
+
+        let cacheOwnerId: string | null = null;
+        if (!skipMatchscorerWrite) {
+          const { data: cacheOwner, error: cacheOwnerErr } = await deps.supabase
+            .schema('padelgod')
+            .from('widget_id_cache')
+            .select('tournament_id')
+            .eq('widget_id', matchscorer.code)
+            .neq('tournament_id', t.id)
+            .maybeSingle();
+          if (cacheOwnerErr) {
+            deps.logger?.warn(
+              { tournamentId: t.id, slug, err: cacheOwnerErr.message },
+              'fip-event-page-enricher: widget_id_cache conflict probe failed — skipping matchscorer write',
+            );
+            skipMatchscorerWrite = true;
+          } else {
+            cacheOwnerId =
+              (cacheOwner as { tournament_id?: string } | null)?.tournament_id ??
+              null;
+          }
+        }
+
+        const stealFromId = skipMatchscorerWrite
+          ? null
+          : ((urlOwner as { id?: string } | null)?.id ?? cacheOwnerId);
+        if (stealFromId) {
+          const { error: clearUrlErr } = await deps.supabase
+            .from('tournaments')
+            .update({
+              matchscorer_url: null,
+              last_updated_by: 'padelgod',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', stealFromId);
+          if (clearUrlErr) {
+            deps.logger?.warn(
+              { tournamentId: t.id, stealFromId, err: clearUrlErr.message },
+              'fip-event-page-enricher: failed to clear alias matchscorer_url',
+            );
+          }
+          const { error: delCacheErr } = await deps.supabase
+            .schema('padelgod')
+            .from('widget_id_cache')
+            .delete()
+            .eq('tournament_id', stealFromId);
+          if (delCacheErr) {
+            deps.logger?.warn(
+              { tournamentId: t.id, stealFromId, err: delCacheErr.message },
+              'fip-event-page-enricher: failed to delete alias widget_id_cache',
+            );
+          }
+          deps.logger?.info?.(
             {
               tournamentId: t.id,
-              tournamentName: t.slug,
-              conflictTournamentId: matchscorerConflict.id,
-              conflictTournamentName: matchscorerConflict.name,
+              slug,
+              stealFromId,
               matchscorerCode: matchscorer.code,
             },
-            'fip-event-page-enricher: matchscorer_url conflict — another tournament already owns this code; skipping write. Run scripts/merge-matchscorer-duplicates.ts to resolve.',
-          )
+            'fip-event-page-enricher: reassigned matchscorer widget to canonical FIP slug',
+          );
         }
       }
-      if (!matchscorerConflict) {
+      if (!skipMatchscorerWrite) {
         writeFromFip('matchscorer_url', t.matchscorer_url, matchscorer?.code ?? null)
       }
 
@@ -278,7 +332,7 @@ export async function runFipEventPageEnricher(
       // hit the 12-attempt circuit breaker without finding the code).
       // See `widget-code-lookup` worker + the Tournament Explorer's
       // `padelgod.widget_id_cache` fallback merged in `ef1c036`.
-      if (matchscorer?.code && !matchscorerConflict) {
+      if (matchscorer?.code && !skipMatchscorerWrite) {
         const { error: cacheErr } = await deps.supabase
           .schema('padelgod')
           .from('widget_id_cache')

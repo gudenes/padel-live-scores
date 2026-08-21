@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   parseEventDates,
   parseMatchscorerIds,
+  parseCanonicalEventSlug,
   parseDrawSizes,
   parseOverviewFields,
   parsePrizeBreakdown,
@@ -111,6 +112,75 @@ describe('parseMatchscorerIds', () => {
   it('defaults widget to "draw" when not declared', () => {
     const html = 'const eventYear="2025";const eventID="42";const totalday=1;';
     expect(parseMatchscorerIds(html)?.widget).toBe('draw');
+  });
+
+  it('parses substituted et-oop-data.php URL (FIP 2026 page shape)', () => {
+    // FIP stopped emitting `const eventYear` / `const eventID` on live
+    // event pages. The matchscorer identity now lives in the OOP iframe
+    // URL: et-oop-data.php?year=2026&id=3414&day=4&totalday=5&widget=oopbyday
+    const html = `
+      <iframe data-src="/wp-content/themes/padelfiptheme/template-parts/event/endpoint/et-oop-data.php?year=2026&id=3414&day=4&totalday=5&widget=oopbyday"></iframe>
+    `;
+    const result = parseMatchscorerIds(html);
+    expect(result).toEqual({
+      year: '2026',
+      id: '3414',
+      totalDays: 5,
+      code: 'FIP-2026-3414',
+      widget: 'oopbyday',
+    });
+  });
+
+  it('parses alphanumeric Promises id from et-oop-data.php', () => {
+    const html =
+      'et-oop-data.php?year=2026&id=P0534&day=3&totalday=4&widget=oopbyday';
+    const result = parseMatchscorerIds(html);
+    expect(result?.code).toBe('FIP-2026-P0534');
+    expect(result?.widget).toBe('oopbyday');
+    expect(result?.totalDays).toBe(4);
+  });
+
+  it('parses FIP-YYYY-ID from matchscorerlive widget URLs (team events)', () => {
+    // World Cup qualifiers embed teamresults/groups widgets instead of
+    // the eventYear JS block or et-oop-data.php.
+    const html = `
+      <iframe src="https://widget.matchscorerlive.com/screen/teamresults/FIP-2026-3416/1?t=tol"></iframe>
+      <iframe src="https://widget.matchscorerlive.com/screen/groups/FIP-2026-3416?t=tol"></iframe>
+    `;
+    const result = parseMatchscorerIds(html);
+    expect(result?.code).toBe('FIP-2026-3416');
+    expect(result?.year).toBe('2026');
+    expect(result?.id).toBe('3416');
+  });
+
+  it('prefers const eventYear/eventID when both formats are present', () => {
+    const html = `
+      const eventYear = "2025";
+      const eventID = "3301";
+      const totalday = 5;
+      et-oop-data.php?year=2026&id=9999&totalday=3&widget=oopbyday
+    `;
+    const result = parseMatchscorerIds(html);
+    expect(result?.code).toBe('FIP-2025-3301');
+    expect(result?.widget).toBe('draw');
+  });
+});
+
+describe('parseCanonicalEventSlug', () => {
+  it('extracts slug from padelfip canonical link', () => {
+    const html =
+      '<link rel="canonical" href="https://www.padelfip.com/events/fip-bronze-castro-2026/" />';
+    expect(parseCanonicalEventSlug(html)).toBe('fip-bronze-castro-2026');
+  });
+
+  it('accepts /es/events/ canonicals', () => {
+    const html =
+      '<link rel="canonical" href="https://www.padelfip.com/es/events/fip-silver-esc-padel-ii-2026/" />';
+    expect(parseCanonicalEventSlug(html)).toBe('fip-silver-esc-padel-ii-2026');
+  });
+
+  it('returns null when no canonical event URL is present', () => {
+    expect(parseCanonicalEventSlug('<p>no canonical</p>')).toBeNull();
   });
 });
 
