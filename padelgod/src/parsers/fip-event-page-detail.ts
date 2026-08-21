@@ -84,19 +84,19 @@ export interface MatchscorerIds {
 }
 
 /**
- * Extract matchscorer IDs from inline JS in event page HTML.
+ * Extract matchscorer IDs from event page HTML.
  *
- * Two formats observed in the wild:
+ * Formats, first match wins:
  *
- *   Bronze/Silver/Gold/Premier (numeric ID + draw widget):
- *     const eventYear = "2025"
- *     const eventID   = "3301"
- *     const totalday  = 5
+ *   1. Inline JS (legacy, still on some Beyond/older pages):
+ *        const eventYear = "2025"; const eventID = "3301"; const totalday = 5
+ *        Promises/Beyond also set `const widget = 'oopbyday'`
  *
- *   FIP Beyond / Promises (alphanumeric ID + oopbyday widget):
- *     const eventYear = "2026"
- *     const eventID   = "B0118"
- *     const widget    = 'oopbyday'
+ *   2. Substituted OOP URL (FIP 2026 live pages dropped the JS block):
+ *        et-oop-data.php?year=2026&id=3414&day=4&totalday=5&widget=oopbyday
+ *
+ *   3. Matchscorerlive widget path (team events / World Cup):
+ *        widget.matchscorerlive.com/screen/teamresults/FIP-2026-3416/1
  */
 export function parseMatchscorerIds(html: string): MatchscorerIds | null {
   const yearMatch = /const\s+eventYear\s*=\s*["'](\d+)["']/.exec(html);
@@ -104,20 +104,78 @@ export function parseMatchscorerIds(html: string): MatchscorerIds | null {
   const daysMatch = /const\s+totalday\s*=\s*(\d+)/.exec(html);
   const widgetMatch = /const\s+widget\s*=\s*["']([a-z]+)["']/.exec(html);
 
-  if (!yearMatch || !idMatch) return null;
+  if (yearMatch && idMatch) {
+    const year = yearMatch[1]!;
+    const id = idMatch[1]!;
+    const totalDays = daysMatch ? parseInt(daysMatch[1]!, 10) : 1;
+    const widget = widgetMatch ? widgetMatch[1]! : 'draw';
+    return {
+      year,
+      id,
+      totalDays,
+      code: `FIP-${year}-${id}`,
+      widget,
+    };
+  }
 
-  const year = yearMatch[1]!;
-  const id = idMatch[1]!;
-  const totalDays = daysMatch ? parseInt(daysMatch[1]!, 10) : 1;
-  const widget = widgetMatch ? widgetMatch[1]! : 'draw';
+  // FIP 2026 event pages dropped the `const eventYear` / `const eventID`
+  // JS block. The identity now lives in the already-substituted OOP URL:
+  //   et-oop-data.php?year=2026&id=3414&day=4&totalday=5&widget=oopbyday
+  // (Older pages used get-oop-data.php with the same query shape.)
+  const oopUrlMatch =
+    /(?:et-oop-data|get-oop-data)\.php\?([^"'<\s]*)/i.exec(html);
+  if (oopUrlMatch) {
+    const qs = oopUrlMatch[1] ?? '';
+    const year = /(?:^|&)year=(\d+)/i.exec(qs)?.[1];
+    const id = /(?:^|&)id=([A-Za-z0-9]+)/i.exec(qs)?.[1];
+    if (year && id) {
+      const totalDaysRaw = /(?:^|&)totalday=(\d+)/i.exec(qs)?.[1];
+      const widget = /(?:^|&)widget=([a-z]+)/i.exec(qs)?.[1] ?? 'oopbyday';
+      return {
+        year,
+        id,
+        totalDays: totalDaysRaw ? parseInt(totalDaysRaw, 10) : 1,
+        code: `FIP-${year}-${id}`,
+        widget,
+      };
+    }
+  }
 
-  return {
-    year,
-    id,
-    totalDays,
-    code: `FIP-${year}-${id}`,
-    widget,
-  };
+  // Team events (World Cup qualifiers) embed matchscorerlive widgets
+  // like /screen/teamresults/FIP-2026-3416/1 — no OOP URL, no JS block.
+  const codeMatch = /\bFIP-(\d{4})-([A-Za-z0-9]+)\b/.exec(html);
+  if (codeMatch) {
+    return {
+      year: codeMatch[1]!,
+      id: codeMatch[2]!,
+      totalDays: 1,
+      code: `FIP-${codeMatch[1]}-${codeMatch[2]}`,
+      widget: 'draw',
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Slug from `<link rel="canonical" href="https://www.padelfip.com/events/{slug}/">`.
+ *
+ * FIP republishes the same physical event under two slugs (geographic
+ * then sponsor-branded, or a rename like Chile VI → Castro). Both URLs
+ * 200 and embed the same matchscorer code, but the canonical href
+ * points at the slug FIP currently wants. Used by the enricher so the
+ * widget_id_cache unique lands on that row instead of flip-flopping
+ * between aliases.
+ */
+export function parseCanonicalEventSlug(html: string): string | null {
+  const m =
+    /rel=["']canonical["'][^>]*href=["']https?:\/\/www\.padelfip\.com\/(?:es\/)?events\/([a-z0-9-]+)\/?["']/i.exec(
+      html,
+    ) ??
+    /href=["']https?:\/\/www\.padelfip\.com\/(?:es\/)?events\/([a-z0-9-]+)\/?["'][^>]*rel=["']canonical["']/i.exec(
+      html,
+    );
+  return m?.[1] ?? null;
 }
 
 export interface DrawSize {
