@@ -1,4 +1,9 @@
 // HTTP cron shim. Keep JOBS in sync with vercel.json until Vercel is retired.
+//
+// Deliberate exception: /api/cron/reconcile-match-category is Railway-only.
+// The old Vercel deployment is still serving, so anything added to BOTH
+// lists fires twice. New jobs land here only — vercel.json stays frozen
+// until that deployment is torn down.
 import { CronJob } from 'cron'
 
 const BASE = (process.env.CRON_BASE_URL || process.env.AUTH_URL || '').replace(/\/$/, '')
@@ -30,6 +35,7 @@ const JOBS = [
   { path: '/api/cron/anon-push-cleanup', cron: '0 4 * * 1' },
   { path: '/api/cron/resolve-predictions', cron: '*/5 * * * *' },
   { path: '/api/cron/recompute-earnings', cron: '0 6 * * 1' },
+  { path: '/api/cron/reconcile-match-category', cron: '25 * * * *' },
 ]
 
 async function fire(path) {
