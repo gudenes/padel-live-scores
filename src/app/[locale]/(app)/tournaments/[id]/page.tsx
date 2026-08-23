@@ -150,10 +150,19 @@ function localDateKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'II', 'III', 'IV', 'BNL'])
+const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'BNL'])
+// Roman numerals must survive title-casing — FIP names events like
+// "XX MEDITERRANEAN GAMES", and "Xx Mediterranean Games" reads as a typo.
+// Enumerating II/III/IV (the old approach) missed everything else, so match
+// the grammar instead. Deliberately strict, and deliberately without M/D, so
+// ordinary words built from numeral letters aren't shouted: LIVE, CIVIL and
+// MIX are all rejected; I, IV, IX, VIII and XX match.
+const ROMAN_NUMERAL = /^C{0,3}(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/
 function titleCase(name: string): string {
   return name.split(' ').map(word => {
-    if (KEEP_UPPER.has(word.toUpperCase())) return word.toUpperCase()
+    const upper = word.toUpperCase()
+    if (KEEP_UPPER.has(upper)) return upper
+    if (upper.length > 0 && ROMAN_NUMERAL.test(upper)) return upper
     if (word.length <= 1) return word.toUpperCase()
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   }).join(' ')
@@ -504,14 +513,23 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
     }
   }, [activeTournamentObj, paramTab])
 
+  // ── Which genders this event actually has ─────────────────────
+  // Derived from the matches rather than `tournaments.categories`: that
+  // column is only maintained in ops and is not even fetched here, so it
+  // goes stale on FIP events nobody has curated. The matches are the
+  // ground truth for what we can actually render.
+  const { hasMen, hasWomen } = useMemo(() => ({
+    hasMen: allMatches.some(m => (m as any).category === 'men'),
+    hasWomen: allMatches.some(m => (m as any).category === 'women'),
+  }), [allMatches])
+  const hasBothCategories = hasMen && hasWomen
+
   // ── Auto-switch gender if no matches ──────────────────────────
   useEffect(() => {
     if (loading || allMatches.length === 0) return
-    const hasMen = allMatches.some(m => (m as any).category === 'men')
-    const hasWomen = allMatches.some(m => (m as any).category === 'women')
     if (genderFilter === 'men' && !hasMen && hasWomen) setGenderFilter('women')
     else if (genderFilter === 'women' && !hasWomen && hasMen) setGenderFilter('men')
-  }, [loading, allMatches, genderFilter])
+  }, [loading, allMatches, genderFilter, hasMen, hasWomen])
 
   // ── Available rounds (ordered R64 → Finals) ──────────────────
   const availableRounds = useMemo(() => {
@@ -999,15 +1017,26 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 marginTop offsets the toggle a few px below the back
                 button so the pair (M/W + FOLLOW) doesn't crowd against
                 the very top edge of the navbar. */}
+            {/* Hidden on single-category events: a toggle whose other side is
+                always empty is pure noise, and it was actively misleading —
+                it rendered M-selected on a women-only draw until the
+                auto-switch effect raced in. The GENDER CAPTION below still
+                names the draw, so nothing is lost by hiding it. */}
+            {hasBothCategories ? (
             <div style={{ flexShrink: 0, marginTop: 4 }}>
-              <div
+              <button
+                type="button"
+                role="switch"
+                aria-checked={genderFilter === 'women'}
+                aria-label={genderFilter === 'men' ? tTournament('men') : tTournament('women')}
+                title={genderFilter === 'men' ? tTournament('men') : tTournament('women')}
                 onClick={() => setGenderFilter(g => g === 'men' ? 'women' : 'men')}
                 style={{
                   display: 'inline-flex', alignItems: 'center', cursor: 'pointer',
                   background: 'rgba(20,20,20,0.85)',
                   clipPath: CHUNKY.badge,
                   padding: '4px 6px', position: 'relative', width: 56, height: 28,
-                  flexShrink: 0,
+                  flexShrink: 0, border: 'none',
                 }}
               >
                 <div style={{
@@ -1030,8 +1059,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                   color: genderFilter === 'women' ? '#000' : MUTED,
                   transition: 'color 0.2s',
                 }}>W</span>
-              </div>
+              </button>
             </div>
+            ) : null}
 
             {/* FOLLOW — always visible. Same opaque dark background as
                 M/W so the pair reads as one cluster. marginTop matches
@@ -1245,6 +1275,31 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
             </svg>
             <span>{tTournament('noPbpCoverage')}</span>
+          </div>
+        )}
+
+        {/* GENDER CAPTION — names the draw you're actually looking at.
+            Until this existed the only gender signal on the whole page was
+            the 2-letter M/W pill up in the navbar chrome, which reads as
+            back/follow furniture rather than as a filter over the list
+            below; users could not tell a men's draw from a women's one.
+            Rendered for every tournament, not just two-gender ones, because
+            single-category events are exactly where the ambiguity bit
+            hardest (there the toggle is now hidden entirely).
+            Colour comes from `genderFilter`, which IS the truth here — the
+            list below is filtered by strict equality on it. */}
+        {pageTab === 'matches' && availableRounds.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '10px 16px 0',
+            fontSize: 11, fontWeight: 800, letterSpacing: 0.6,
+            textTransform: 'uppercase', color: genderColor,
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: genderColor, flexShrink: 0,
+            }} />
+            {genderFilter === 'men' ? tTournament('men') : tTournament('women')}
           </div>
         )}
 

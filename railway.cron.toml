@@ -1,0 +1,43 @@
+# Config-as-code for the `padelnachos-cron` Railway service.
+#
+# WHY a second file: Railway resolves config-as-code from the service's root
+# directory, and BOTH services (padelnachos, padelnachos-cron) deploy from the
+# repo root. Without this file the cron service picks up ./railway.toml, whose
+# deploy block is the WEB service's:
+#
+#   startCommand      = "npx next start -p ${PORT:-3000}"
+#   healthcheckPath   = "/api/health"
+#
+# Config defined in code always overrides the dashboard, so the cron service
+# would boot a second copy of the web server, fire zero jobs, fail a
+# healthcheck it can't serve (the runner binds no port), burn its 10 restarts
+# and stay down — silently, since nothing alerts on "cron didn't run".
+#
+# The service is currently safe only because it was last deployed on
+# 2026-08-15, BEFORE railway.toml gained the web deploy block. The next
+# `railway up --service padelnachos-cron` would have broken it.
+#
+# TO ARM THIS: Railway dashboard → padelnachos-cron → Settings → Config as
+# code → set the path to `railway.cron.toml`. There is no env-var equivalent;
+# the path can only be set in service settings. Do that BEFORE the next cron
+# deploy.
+#
+# No healthcheckPath on purpose — the runner is a bare scheduler process with
+# no HTTP listener.
+#
+# buildCommand is `npm ci --omit=dev`, NOT `npm run build`: this service only
+# runs scripts/railway-cron-runner.mjs, which needs `cron` (a prod dependency)
+# and nothing else. Running the full Next build here is both pointless and
+# fatal — it fails at "Collecting page data" because the cron service doesn't
+# carry the web service's build-time env. This mirrors what the last known-good
+# cron deployment (2026-08-15) actually used, back when railway.toml WAS the
+# cron config.
+
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci --omit=dev"
+
+[deploy]
+startCommand = "node scripts/railway-cron-runner.mjs"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

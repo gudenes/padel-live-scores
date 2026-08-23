@@ -9,6 +9,7 @@ import crypto from 'crypto'
 import { createServerClient } from '@/lib/supabase'
 import { auth } from '@/auth'
 import { sanitizeChanges, sanitizeComment } from '@/lib/player-suggestion-fields'
+import { getClientIp } from '@/lib/client-ip'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,8 +49,10 @@ export async function POST(
   if (playerErr) return NextResponse.json({ error: 'lookup_failed' }, { status: 500 })
   if (!player) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-  // Rate limit by IP hash.
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0'
+  // Rate limit by IP hash. getClientIp() prefers Cloudflare's
+  // `cf-connecting-ip` — reading `x-forwarded-for[0]` directly would let a
+  // caller spoof a fresh IP per request and walk straight past this limit.
+  const ip = getClientIp(req.headers) ?? '0.0.0.0'
   const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 32)
   const since = new Date(Date.now() - 86400_000).toISOString()
   const { count, error: countErr } = await supabase

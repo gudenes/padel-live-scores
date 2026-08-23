@@ -10,7 +10,7 @@ export default getRequestConfig(async ({ requestLocale }) => {
     locale = routing.defaultLocale
   }
 
-  // Read user timezone from geo cookie set by proxy.ts (Vercel x-vercel-ip-timezone header)
+  // Read user timezone from geo cookie set by proxy.ts (Cloudflare/Vercel geo headers)
   let timeZone = 'UTC'
   try {
     const cookieStore = await cookies()

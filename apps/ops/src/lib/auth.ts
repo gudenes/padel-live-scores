@@ -15,6 +15,7 @@ import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
 import { verifyPassword } from './password'
 import { check as rateLimitCheck } from './rate-limit'
+import { getClientIp } from './client-ip'
 import { isUserOperator } from './operators'
 import PostgresAdapter from '@auth/pg-adapter'
 import { pgPool } from './db'
@@ -59,10 +60,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!email || !password) return null
 
         // Soft rate limit per IP (best-effort; see rate-limit.ts caveat).
-        const ip =
-          req?.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() ??
-          req?.headers?.get?.('x-real-ip') ??
-          'unknown'
+        // getClientIp() prefers `cf-connecting-ip`: behind Cloudflare the
+        // first `x-forwarded-for` entry is client-supplied, so keying the
+        // login limiter on it would make brute-forcing unlimited.
+        const ip = getClientIp(req?.headers) ?? 'unknown'
         const limit = rateLimitCheck(`login:${ip}`, 5, 15 * 60_000)
         if (!limit.allowed) {
           throw new Error('TOO_MANY_ATTEMPTS')

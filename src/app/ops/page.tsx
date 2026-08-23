@@ -20,7 +20,7 @@ async function fetchInitialData(baseUrl: string) {
 
 export default async function OpsPage() {
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
-  const host = process.env.VERCEL_URL ?? `localhost:${process.env.PORT ?? '3000'}`
+  const host = process.env.RAILWAY_PUBLIC_DOMAIN ?? process.env.VERCEL_URL ?? `localhost:${process.env.PORT ?? '3000'}`
   const baseUrl = `${protocol}://${host}`
   const data = await fetchInitialData(baseUrl)
 

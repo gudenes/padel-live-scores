@@ -1,7 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import { getLocale } from "next-intl/server";
-import { GatedAnalytics } from "@/components/GatedAnalytics";
+// NOTE: <GatedAnalytics /> (Vercel Web Analytics) was removed with the
+// Railway/Cloudflare cutover — off Vercel its injected
+// /_vercel/insights/script.js just 404s on every consented pageview and
+// the beacons go nowhere. PostHog (mounted via instrumentation-client /
+// <PostHogIdentify />) remains our product-analytics source of truth, and
+// consent gating is unchanged — see GatedGoogleAds + useConsent.
 import { GatedGoogleAds } from "@/components/GatedGoogleAds";
 import { AuthProvider } from "@/components/AuthProvider";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
@@ -173,7 +178,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {children}
               <PostHogIdentify />
             </AuthProvider>
-            <GatedAnalytics />
             <GatedGoogleAds />
           </div>
         </div>

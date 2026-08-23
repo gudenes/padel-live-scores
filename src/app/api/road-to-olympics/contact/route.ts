@@ -21,6 +21,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { sendContactEmail } from '@/lib/road-to-olympics/contact-email'
+import { getClientIp } from '@/lib/client-ip'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -84,9 +85,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'message_too_short' }, { status: 400 })
   }
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || req.headers.get('x-real-ip')
-    || '0.0.0.0'
+  // getClientIp() prefers `cf-connecting-ip`: Cloudflare appends to (rather
+  // than replaces) `x-forwarded-for`, so its first entry is client-supplied
+  // and would let a bot mint a new rate-limit key on every submission.
+  const ip = getClientIp(req.headers) ?? '0.0.0.0'
 
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: 'rate_limited' }, { status: 429 })

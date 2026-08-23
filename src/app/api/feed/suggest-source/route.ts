@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import crypto from 'crypto'
 import { detectSource } from '@/lib/source-detector-public'
+import { getClientIp } from '@/lib/client-ip'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +25,10 @@ export async function POST(req: NextRequest) {
   const note = (body.note ?? '').slice(0, 500)
   const email = (body.suggested_by_email ?? '').trim().slice(0, 200) || null
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0'
+  // getClientIp() prefers Cloudflare's `cf-connecting-ip`: behind Cloudflare
+  // the first `x-forwarded-for` entry is client-supplied, so hashing it would
+  // give every submitter an unlimited supply of fresh rate-limit buckets.
+  const ip = getClientIp(req.headers) ?? '0.0.0.0'
   const ipHash = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 32)
 
   const supabase = createServerClient()
