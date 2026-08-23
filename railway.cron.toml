@@ -24,10 +24,18 @@
 #
 # No healthcheckPath on purpose — the runner is a bare scheduler process with
 # no HTTP listener.
+#
+# buildCommand is `npm ci --omit=dev`, NOT `npm run build`: this service only
+# runs scripts/railway-cron-runner.mjs, which needs `cron` (a prod dependency)
+# and nothing else. Running the full Next build here is both pointless and
+# fatal — it fails at "Collecting page data" because the cron service doesn't
+# carry the web service's build-time env. This mirrors what the last known-good
+# cron deployment (2026-08-15) actually used, back when railway.toml WAS the
+# cron config.
 
 [build]
 builder = "RAILPACK"
-buildCommand = "npm run build"
+buildCommand = "npm ci --omit=dev"
 
 [deploy]
 startCommand = "node scripts/railway-cron-runner.mjs"
