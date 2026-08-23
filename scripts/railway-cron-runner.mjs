@@ -7,6 +7,12 @@
 import { CronJob } from 'cron'
 
 const BASE = (process.env.CRON_BASE_URL || process.env.AUTH_URL || '').replace(/\/$/, '')
+// Second origin: the admin app (apps/ops) moved off Vercel too and brought
+// its 3 SEO crons with it. They live here rather than in a fourth service —
+// one scheduler, two targets. Point this at the *.up.railway.app host, not
+// admin.padelnachos.com: cron traffic has no reason to round-trip through
+// Cloudflare, which would also subject these jobs to its 100s origin cap.
+const ADMIN_BASE = (process.env.ADMIN_BASE_URL || '').replace(/\/$/, '')
 const SECRET = process.env.CRON_SECRET
 
 if (!BASE) {
@@ -36,26 +42,43 @@ const JOBS = [
   { path: '/api/cron/resolve-predictions', cron: '*/5 * * * *' },
   { path: '/api/cron/recompute-earnings', cron: '0 6 * * 1' },
   { path: '/api/cron/reconcile-match-category', cron: '25 * * * *' },
+
+  // Admin app (apps/ops) — was apps/ops/vercel.json, same schedules.
+  // Skipped entirely when ADMIN_BASE_URL is unset, so a misconfigured
+  // deploy logs one clear line instead of hammering a bad URL daily.
+  { path: '/api/internal/seo-snapshot', cron: '0 9 * * *', target: 'admin' },
+  { path: '/api/internal/sitemap-crawl', cron: '15 9 * * *', target: 'admin' },
+  { path: '/api/internal/seo-digest', cron: '30 9 * * *', target: 'admin' },
 ]
 
-async function fire(path) {
-  const url = `${BASE}${path}`
+function baseFor(job) {
+  return job.target === 'admin' ? ADMIN_BASE : BASE
+}
+
+async function fire(job) {
+  const url = `${baseFor(job)}${job.path}`
   const started = Date.now()
   try {
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${SECRET}` },
     })
     const ms = Date.now() - started
-    console.log(JSON.stringify({ msg: 'cron', path, status: res.status, ms }))
+    console.log(JSON.stringify({ msg: 'cron', path: job.path, status: res.status, ms }))
   } catch (err) {
-    console.error(JSON.stringify({ msg: 'cron-error', path, err: String(err) }))
+    console.error(JSON.stringify({ msg: 'cron-error', path: job.path, err: String(err) }))
   }
 }
 
 for (const job of JOBS) {
+  if (!baseFor(job)) {
+    console.warn(
+      JSON.stringify({ msg: 'skipped', path: job.path, reason: 'ADMIN_BASE_URL unset' }),
+    )
+    continue
+  }
   CronJob.from({
     cronTime: job.cron,
-    onTick: () => fire(job.path),
+    onTick: () => fire(job),
     start: true,
     timeZone: 'UTC',
   })

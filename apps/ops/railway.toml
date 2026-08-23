@@ -1,0 +1,24 @@
+# Config-as-code for the `padelnachos-admin` Railway service (apps/ops).
+#
+# Lives inside apps/ops rather than at the repo root on purpose: this service
+# deploys with apps/ops as its root, so Railway resolves config-as-code from
+# here. That also keeps it away from the root railway.toml, which carries the
+# WEB service's deploy block — config in code always overrides the dashboard,
+# so a service picking up the wrong file boots the wrong process. See
+# railway.cron.toml for the same trap on the cron service.
+#
+# `npm ci` (not --omit=dev): unlike the cron runner, this service runs
+# `next build`, which needs the dev dependencies (typescript, tailwind,
+# eslint config). `prebuild` runs sync-ocr-calibrations.mjs, which reads from
+# apps/ocr-worker/ — outside this root, so it is absent from the build
+# context. It degrades on purpose (exits 0 with a warning); the only casualty
+# is the calibration overlay in the OCR snapshot drawer.
+
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "npx next start -p ${PORT:-3000}"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
