@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createHash } from 'node:crypto'
+import { getClientIp } from '@/lib/client-ip'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -51,9 +52,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'invalid_email' }, { status: 400 })
   }
 
-  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    || req.headers.get('x-real-ip')
-    || '0.0.0.0'
+  // Behind Cloudflare the first `x-forwarded-for` entry is whatever the
+  // client sent, so the ip_hash it produces is attacker-chosen (and useless
+  // for the rate-limiting it exists to enable). getClientIp() trusts
+  // `cf-connecting-ip` first.
+  const ip = getClientIp(req.headers) ?? '0.0.0.0'
   const ipHash = hashIp(ip)
 
   const supabase = createClient(

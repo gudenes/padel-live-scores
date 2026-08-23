@@ -42,15 +42,21 @@ function initSentry() {
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return
   Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    // This runs in the BROWSER, where Next.js only inlines NEXT_PUBLIC_*
+    // (plus NODE_ENV) at build time. The old chain ended in
+    // RAILWAY_ENVIRONMENT_NAME / RAILWAY_GIT_COMMIT_SHA, which are
+    // server-only — so post-Railway every production client error was
+    // tagged `environment: development` with no release, and uploaded
+    // source maps never matched. Read the NEXT_PUBLIC_* vars (set them on
+    // Railway at build time), keep the Vercel ones as fallbacks, and fall
+    // back to the build mode rather than a hardcoded 'development'.
     environment:
       process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT
       ?? process.env.NEXT_PUBLIC_VERCEL_ENV
-      ?? process.env.RAILWAY_ENVIRONMENT_NAME
-      ?? 'development',
+      ?? (process.env.NODE_ENV === 'production' ? 'production' : 'development'),
     release:
       process.env.NEXT_PUBLIC_SENTRY_RELEASE
       ?? process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA
-      ?? process.env.RAILWAY_GIT_COMMIT_SHA
       ?? undefined,
     sendDefaultPii: false,
     // 10% perf sampling on the client, same as server. Errors are
