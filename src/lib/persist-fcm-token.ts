@@ -64,6 +64,7 @@ export async function postFcmToken(token: string): Promise<PostFcmTokenResult> {
         platform: Capacitor.getPlatform(), // 'android' | 'ios' | 'web'
         deviceToken: token,
         locale: navigator.language?.split('-')[0] || 'en',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     })
     if (res.ok) return { ok: true, status: res.status }

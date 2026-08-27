@@ -35,8 +35,10 @@ import {
 import { isPro, type Plan } from '@/lib/entitlements'
 import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
-import { circuitIconUrl } from '@/lib/notification-icon'
+import { circuitIconUrl, resolveNotificationIcon } from '@/lib/notification-icon'
 import { buildPlayerEnteredContent, type EnteredPlayer, type EnteredContent } from '@/lib/player-entered-content'
+import { personalizeEliminated, personalizeScheduled, resolvePushLocale } from '@/lib/push-copy'
+import { loadFollowedPlayerByUser, loadPushMatch, matchIdFromEvent } from '@/lib/push-event-match'
 
 type Body = {
   category?: unknown
@@ -128,7 +130,7 @@ export async function POST(request: Request) {
   const [profilesRes, alreadyRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, notification_prefs, notification_mute_until, plan, plan_expires_at')
+      .select('id, locale, notification_prefs, notification_mute_until, plan, plan_expires_at')
       .in('id', userIds),
     supabase
       .from('user_notifications')
@@ -147,10 +149,12 @@ export async function POST(request: Request) {
   const prefsByUser = new Map<string, Record<string, Partial<ChannelPrefs>>>()
   const muteByUser = new Map<string, string | null>()
   const proByUser = new Map<string, boolean>()
+  const localeByUser = new Map<string, string>()
   for (const row of profilesRes.data ?? []) {
     const id = row.id as string
     prefsByUser.set(id, (row.notification_prefs ?? {}) as Record<string, Partial<ChannelPrefs>>)
     muteByUser.set(id, (row as { notification_mute_until?: string | null }).notification_mute_until ?? null)
+    localeByUser.set(id, resolvePushLocale((row as { locale?: string | null }).locale))
     proByUser.set(
       id,
       isPro({
@@ -221,6 +225,113 @@ export async function POST(request: Request) {
       body: 'Players you follow joined the draw.',
       icon: circuitIconUrl(tournament.level ?? null),
       url: `/tournaments/${tournamentId}`,
+    }
+  }
+
+  // ── 2c. match_scheduled / player_eliminated — on-court grammar ──
+  // Always on for these two categories (unlike player_entered which is
+  // opt-in via personalizePerFollower). Loads the match, maps each user
+  // to the player they follow, and formats the clock in their timezone
+  // (native/web subscription tz, else tournament tz + abbreviation).
+  if (category === 'match_scheduled' || category === 'player_eliminated') {
+    const matchId = matchIdFromEvent({ entityType, entityId, url, metadata })
+    if (matchId) {
+      const match = await loadPushMatch(supabase, matchId)
+      if (match) {
+        const playerIds = [
+          match.pair1_player1?.id,
+          match.pair1_player2?.id,
+          match.pair2_player1?.id,
+          match.pair2_player2?.id,
+        ].filter((id): id is string => !!id)
+        const followIds =
+          category === 'player_eliminated' && entityIds && entityIds.length > 0
+            ? entityIds
+            : playerIds
+
+        const [followMap, nativeTzRes, webTzRes] = await Promise.all([
+          loadFollowedPlayerByUser(supabase, userIds, followIds),
+          supabase
+            .from('native_push_subscriptions')
+            .select('user_id, locale, timezone')
+            .in('user_id', userIds),
+          supabase
+            .from('push_subscriptions')
+            .select('user_id, timezone')
+            .in('user_id', userIds),
+        ])
+        if (nativeTzRes.error) {
+          console.error('[notify-event] native tz read failed:', nativeTzRes.error.message)
+        }
+        if (webTzRes.error) {
+          console.error('[notify-event] web tz read failed:', webTzRes.error.message)
+        }
+
+        const tzByUser = new Map<string, string>()
+        for (const row of (webTzRes.data ?? []) as Array<{ user_id: string; timezone?: string | null }>) {
+          if (row.timezone) tzByUser.set(row.user_id, row.timezone)
+        }
+        for (const row of (nativeTzRes.data ?? []) as Array<{ user_id: string; locale?: string | null; timezone?: string | null }>) {
+          if (row.timezone) tzByUser.set(row.user_id, row.timezone)
+          if (row.locale) localeByUser.set(row.user_id, resolvePushLocale(row.locale))
+        }
+
+        const tournamentLevel = match.tournament?.level ?? null
+        for (const userId of userIds) {
+          const recipient = {
+            locale: localeByUser.get(userId) ?? 'en',
+            timeZone: tzByUser.get(userId) ?? null,
+            followedPlayerId: followMap.get(userId) ?? null,
+          }
+          const built =
+            category === 'match_scheduled'
+              ? personalizeScheduled(match, recipient)
+              : personalizeEliminated(match, recipient)
+          if (!built) continue
+          contentByUser.set(userId, {
+            title: built.title,
+            body: built.body,
+            url,
+            icon: resolveNotificationIcon({
+              reason: built.iconReason,
+              tournamentLevel,
+              followedPlayerAvatarUrl: built.iconAvatarUrl,
+            }),
+          })
+        }
+
+        if (category === 'match_scheduled') {
+          const anonBuilt = personalizeScheduled(match, {
+            locale: 'en',
+            timeZone: null,
+            followedPlayerId: null,
+          })
+          anonContent = {
+            title: anonBuilt.title,
+            body: anonBuilt.body,
+            url,
+            icon: resolveNotificationIcon({
+              reason: 'bookmark',
+              tournamentLevel,
+            }),
+          }
+        } else {
+          const firstLoser = followIds[0] ?? null
+          const elim = personalizeEliminated(match, { locale: 'en', followedPlayerId: firstLoser })
+          if (elim) {
+            anonContent = {
+              title: elim.title,
+              body: elim.body,
+              url,
+              icon: resolveNotificationIcon({
+                reason: 'follow',
+                tournamentLevel,
+                followedPlayerAvatarUrl: elim.iconAvatarUrl,
+              }),
+            }
+          }
+        }
+      }
     }
   }
 

@@ -297,7 +297,11 @@ export function usePushNotifications() {
       const res = await fetch('/api/user/push-subscriptions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: subscription.endpoint, keys: subscription.toJSON().keys }),
+        body: JSON.stringify({
+          endpoint: subscription.endpoint,
+          keys: subscription.toJSON().keys,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
       })
       if (!res.ok) {
         if (res.status === 401) {

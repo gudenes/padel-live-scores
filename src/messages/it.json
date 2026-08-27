@@ -1684,6 +1684,18 @@
       "br": "Jogue com responsabilidade. Apostas para maiores de 18 anos. +18."
     }
   },
+  "push": {
+    "scheduledFollowTitle": "{name} gioca alle {time}",
+    "scheduledFollowTitleNoTime": "{name} è in programma",
+    "scheduledBookmarkTitle": "Partita in programma · {time}",
+    "scheduledBookmarkTitleNoTime": "Partita in programma",
+    "scheduledBody": "{pair1} vs {pair2} — {tail}",
+    "eliminatedTitle": "{name} eliminata",
+    "eliminatedTitleWomen": "{name} eliminata",
+    "eliminatedTitleMen": "{name} eliminato",
+    "eliminatedBody": "{score} vs {opponent} — {event}",
+    "eliminatedBodyNoScore": "vs {opponent} — {event}"
+  },
   "notFound": {
     "title": "Questa pagina non esiste",
     "body": "La pagina che cerchi potrebbe essere stata rimossa, rinominata o non è mai esistita.",
