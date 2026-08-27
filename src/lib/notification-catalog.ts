@@ -5,7 +5,13 @@ import { CATEGORY_META, KNOWN_CATEGORIES, type NotificationCategory } from '@/li
 
 export type CategoryStatus = 'live' | 'idle' | 'soon'
 
-export type CategoryRule = { rule: string; sampleTitle: string; sampleBody: string }
+export type CategoryRule = {
+  rule: string
+  sampleTitle: string
+  sampleBody: string
+  /** Forwarded to /api/admin/test-push so row Test shows the right icon. */
+  sampleScenario?: 'premier' | 'fip' | 'avatar' | 'scheduled_follow' | 'scheduled_bookmark' | 'eliminated'
+}
 
 // Operator-facing documentation: how each category fires + a representative
 // sample for the per-row "Test to me". Keep rules accurate to the sender logic.
@@ -13,12 +19,12 @@ export const CATEGORY_RULES: Record<NotificationCategory, CategoryRule> = {
   match_live_follow:    { rule: "When a followed player's match goes live (scheduled → live). → that player's followers. Live now.", sampleTitle: 'Tapia is on court! 🟢', sampleBody: 'Tapia/Coello vs Galán/Chingotto — Madrid P1, QF.' },
   match_live_bookmark:  { rule: 'When a bookmarked match goes live. → users who bookmarked the match. Live now.', sampleTitle: 'Match is live! 🟢', sampleBody: 'A match you saved just started — Madrid P1, QF.' },
   match_finished:       { rule: 'When a followed/bookmarked match finishes. → match followers + bookmarkers. Live now.', sampleTitle: 'Match finished 🏆', sampleBody: 'Tapia/Coello beat Galán/Chingotto 6-4 3-6 6-2.' },
-  match_scheduled:      { rule: 'Once, when a followed match first gets a firm time + court. → match followers. Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod fip-oop-writer).', sampleTitle: 'Madrid P1: match scheduled', sampleBody: 'A match you follow now has a time and court.' },
+  match_scheduled:      { rule: 'Once, when a followed match first gets a firm time + court. → match followers. Follow copy names the player + local clock; bookmark copy is "Match scheduled · time". Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod fip-oop-writer).', sampleTitle: 'Triay plays at 18:00', sampleBody: 'Triay/Brea vs Ortega/Josemaría — Court 1 · Brussels P2 R16', sampleScenario: 'scheduled_follow' },
   match_deciding_set:   { rule: 'When a followed Premier match reaches a deciding 3rd set. → match followers. Pro · Premier-only · no sender yet (Plan 3).', sampleTitle: 'Going the distance!', sampleBody: 'Tapia/Coello forced a deciding 3rd set — 6-4 3-6.' },
   match_upset_live:     { rule: 'When an underdog leads a followed Premier match live. → match followers. Pro · Premier-only · no sender yet (Plan 3).', sampleTitle: 'Upset in progress', sampleBody: 'An underdog is leading a match you follow.' },
   next_match_drawn:     { rule: "When a followed player's next-round opponent is set after a win. → that player's followers. Pro · no sender yet (Plan 3).", sampleTitle: 'Next match drawn', sampleBody: "Tapia's next: QF vs Stupaczuk/Di Nenno." },
   player_title_won:     { rule: "When a followed player wins a final. → that player's followers. Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod fip-results-writer).", sampleTitle: 'Champion! 🏆', sampleBody: 'Your player just won the title.' },
-  player_eliminated:    { rule: "When a followed player loses (any non-final finish). → that player's followers. Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod fip-results-writer).", sampleTitle: 'Knocked out', sampleBody: 'Your player was eliminated.' },
+  player_eliminated:    { rule: "When a followed player is knocked out of a match we did not close live (results widget is first to finished). Live closes send match_finished / '{name} lost' instead. Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod fip-results-writer).", sampleTitle: 'Triay knocked out', sampleBody: '6-3, 6-4 vs Ortega/Josemaría — Brussels P2 QF', sampleScenario: 'eliminated' },
   ranking_updated:      { rule: "Weekly, when FIP rankings refresh and a followed player moves. → that player's followers. No automated sender wired yet.", sampleTitle: 'Rankings updated', sampleBody: "Your players moved in this week's rankings." },
   ranking_threshold:    { rule: "When a followed player crosses #1 / top 10 / top 20. → that player's followers. Pro · no sender yet (Plan 3).", sampleTitle: 'Ranking milestone', sampleBody: 'Ariana Sánchez is back to World No. 1.' },
   projection_outperform:{ rule: 'When a followed pair advances past their projected finish (Road to Trophy). → followers. Pro · Premier-only · no sender yet (Plan 3).', sampleTitle: 'Beating the bracket', sampleBody: 'Your pick went further than the model expected!' },
@@ -65,6 +71,7 @@ export type CatalogRow = {
   failed7d: number
   description: string
   sample: { title: string; body: string }
+  sampleScenario?: CategoryRule['sampleScenario']
 }
 
 export function buildCatalog(aggs: SendAgg[], now: number): CatalogRow[] {
@@ -84,6 +91,7 @@ export function buildCatalog(aggs: SendAgg[], now: number): CatalogRow[] {
       failed7d: agg?.failed7d ?? 0,
       description: CATEGORY_RULES[key].rule,
       sample: { title: CATEGORY_RULES[key].sampleTitle, body: CATEGORY_RULES[key].sampleBody },
+      sampleScenario: CATEGORY_RULES[key].sampleScenario,
     }
   })
 }

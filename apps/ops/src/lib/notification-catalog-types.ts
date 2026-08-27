@@ -15,4 +15,5 @@ export type CatalogRow = {
   failed7d: number
   description: string
   sample: { title: string; body: string }
+  sampleScenario?: 'premier' | 'fip' | 'avatar' | 'scheduled_follow' | 'scheduled_bookmark' | 'eliminated'
 }

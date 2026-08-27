@@ -160,6 +160,7 @@ export async function ensureSubscription(initialBookmarks: AnonBookmark[]): Prom
       endpoint: subscription.endpoint,
       keys: { p256dh: keys.p256dh, auth: keys.auth },
       user_agent: navigator.userAgent,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       bookmarks: initialBookmarks,
     }),
   }).catch(() => null)

@@ -286,6 +286,13 @@ export async function runFipResultsWriter(
         // skipped. title_won is gated to finals (roundCanonical === 'F')
         // and to the winning pair; eliminated fires for the losing pair on
         // ANY finish. Per-player fire is skipped when a pair ID is null.
+        //
+        // Knockout vs live "lost": this writer only runs when current
+        // status is still scheduled/on_court/live (terminal skip above).
+        // If the live-poller already closed the match, we never get here
+        // and `/api/push/notify` already sent `{Name} lost`. Knocked out
+        // is the no-live-score path. Copy is rewritten per-recipient in
+        // notify-event (name + photo + score).
         if (
           deps.eventsEnabled &&
           deps.notify &&
@@ -333,6 +340,7 @@ export async function runFipResultsWriter(
                   title: 'Champion! 🏆',
                   body: 'Your player just won the title.',
                   url: `/match/${existing.id}`,
+                  metadata: { match_id: existing.id },
                   dedupeKey: `player_title_won:${existing.id}`,
                 },
                 deps.notify,
@@ -348,6 +356,7 @@ export async function runFipResultsWriter(
                   title: 'Knocked out',
                   body: 'Your player was eliminated.',
                   url: `/match/${existing.id}`,
+                  metadata: { match_id: existing.id },
                   dedupeKey: `player_eliminated:${existing.id}`,
                 },
                 deps.notify,

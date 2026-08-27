@@ -21,10 +21,10 @@
 //   title    — override notification title (default "Test notification")
 //   body     — override notification body (default "If you see this, push works!")
 //   url      — deep link path (default "/")
-//   scenario — 'premier' | 'fip' | 'avatar' — picks the largeIcon URL.
-//              avatar requires `avatarUrl` (or falls back to circuit logo).
-//              Defaults to a sample copy when set so the test notification
-//              looks like a real match alert.
+//   scenario — 'premier' | 'fip' | 'avatar' | 'scheduled_follow' |
+//              'scheduled_bookmark' | 'eliminated'
+//              picks copy + largeIcon. avatar / scheduled_follow / eliminated
+//              use `avatarUrl` (or a sample Triay headshot).
 //   avatarUrl — used by scenario='avatar' (e.g. a player.avatar_url URL)
 //
 // Response shape:
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     title?: string
     body?: string
     url?: string
-    scenario?: 'premier' | 'fip' | 'avatar'
+    scenario?: 'premier' | 'fip' | 'avatar' | 'scheduled_follow' | 'scheduled_bookmark' | 'eliminated'
     avatarUrl?: string
   }
 
@@ -142,6 +142,26 @@ export async function POST(request: Request) {
       reason: 'follow',
       tournamentLevel: 'P1',
       followedPlayerAvatarUrl: avatarUrl ?? null,
+    })
+  } else if (scenario === 'scheduled_follow') {
+    scenarioTitle = 'Triay plays at 18:00'
+    scenarioBody = 'Triay/Brea vs Ortega/Josemaría — Court 1 · Brussels P2 R16'
+    icon = resolveNotificationIcon({
+      reason: 'follow',
+      tournamentLevel: 'P2',
+      followedPlayerAvatarUrl: avatarUrl ?? 'https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/triay.png',
+    })
+  } else if (scenario === 'scheduled_bookmark') {
+    scenarioTitle = 'Match scheduled · 18:00'
+    scenarioBody = 'Triay/Brea vs Ortega/Josemaría — Court 1 · Brussels P2 R16'
+    icon = resolveNotificationIcon({ reason: 'bookmark', tournamentLevel: 'P2' })
+  } else if (scenario === 'eliminated') {
+    scenarioTitle = 'Triay knocked out'
+    scenarioBody = '6-3, 6-4 vs Ortega/Josemaría — Brussels P2 QF'
+    icon = resolveNotificationIcon({
+      reason: 'follow',
+      tournamentLevel: 'P2',
+      followedPlayerAvatarUrl: avatarUrl ?? 'https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/triay.png',
     })
   }
 

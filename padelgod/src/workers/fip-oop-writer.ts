@@ -466,6 +466,7 @@ export async function runFipOopWriter(
                     title: `${t.tournament_name}: match scheduled`,
                     body: 'A match you follow now has a time and court.',
                     url: `/match/${matchId}`,
+                    metadata: { match_id: matchId },
                     dedupeKey: `match_scheduled:${matchId}`,
                   },
                   deps.notify,

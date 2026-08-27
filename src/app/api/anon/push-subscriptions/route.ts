@@ -63,6 +63,11 @@ export async function POST(req: Request) {
         auth_key: body.keys.auth,
         user_agent: body.user_agent ?? null,
         last_seen_at: new Date().toISOString(),
+        ...(((typeof (body as { timezone?: unknown }).timezone === 'string'
+          && (body as { timezone: string }).timezone.length > 0
+          && (body as { timezone: string }).timezone.length < 80)
+          ? { timezone: (body as { timezone: string }).timezone }
+          : {})),
       },
       { onConflict: 'endpoint' },
     )

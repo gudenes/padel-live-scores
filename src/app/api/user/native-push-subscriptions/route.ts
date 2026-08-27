@@ -35,18 +35,20 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Invalid platform' }, { status: 400 })
   }
 
+  const row: Record<string, unknown> = {
+    user_id: user.id,
+    platform: body.platform,
+    device_token: body.deviceToken,
+    locale: body.locale || 'en',
+    last_seen_at: new Date().toISOString(),
+  }
+  if (typeof body.timezone === 'string' && body.timezone.length > 0 && body.timezone.length < 80) {
+    row.timezone = body.timezone
+  }
+
   const { error: dbErr } = await supabase
     .from('native_push_subscriptions')
-    .upsert(
-      {
-        user_id: user.id,
-        platform: body.platform,
-        device_token: body.deviceToken,
-        locale: body.locale || 'en',
-        last_seen_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id,device_token' },
-    )
+    .upsert(row, { onConflict: 'user_id,device_token' })
 
   if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 })
   return Response.json({ ok: true })

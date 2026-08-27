@@ -59,7 +59,12 @@ export default function NotificationsConsole({ initialCategories }: { initialCat
       const r = await fetch('/api/internal/notify-test', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title: row.sample.title, body: row.sample.body, url: '/' }),
+        body: JSON.stringify({
+          title: row.sample.title,
+          body: row.sample.body,
+          url: '/',
+          scenario: row.sampleScenario,
+        }),
       })
       setRowTest((s) => ({ ...s, [row.key]: r.ok ? 'ok' : 'err' }))
     } catch {

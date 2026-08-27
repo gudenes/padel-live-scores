@@ -4,15 +4,17 @@ export async function POST(req: Request) {
   const { user, supabase, error } = await getUserOrFail()
   if (error) return error
 
-  const { endpoint, keys } = await req.json()
+  const { endpoint, keys, timezone } = await req.json()
   if (!endpoint || !keys) return Response.json({ error: 'Missing endpoint or keys' }, { status: 400 })
+
+  const row: Record<string, unknown> = { user_id: user.id, endpoint, keys }
+  if (typeof timezone === 'string' && timezone.length > 0 && timezone.length < 80) {
+    row.timezone = timezone
+  }
 
   const { error: dbErr } = await supabase
     .from('push_subscriptions')
-    .upsert(
-      { user_id: user.id, endpoint, keys },
-      { onConflict: 'user_id,endpoint' }
-    )
+    .upsert(row, { onConflict: 'user_id,endpoint' })
 
   if (dbErr) return Response.json({ error: dbErr.message }, { status: 500 })
   return Response.json({ ok: true })

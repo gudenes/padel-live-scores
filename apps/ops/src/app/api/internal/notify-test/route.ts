@@ -24,15 +24,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 })
   }
 
-  const { title, body, url } = (await req.json().catch(() => ({}))) as {
+  const { title, body, url, scenario, avatarUrl } = (await req.json().catch(() => ({}))) as {
     title?: string; body?: string; url?: string
+    scenario?: string; avatarUrl?: string
   }
   const target = process.env.MAIN_APP_URL ?? 'https://padelnachos.com'
   try {
     const r = await fetch(`${target}/api/admin/test-push`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, title, body, url }),
+      body: JSON.stringify({ email, title, body, url, scenario, avatarUrl }),
     })
     const json = await r.json().catch(() => ({}))
     // Echo the targeted email so the UI can report where the test went.
