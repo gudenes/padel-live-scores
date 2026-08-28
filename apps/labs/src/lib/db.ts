@@ -18,6 +18,13 @@ function parseDbUrl(url: string) {
 
 let _pool: Pool | null = null
 
+/** Serverless (Vercel): keep 1. Long-lived Railway process: allow more. */
+export function pgPoolMax(env: NodeJS.ProcessEnv = process.env): number {
+  const override = Number(env.PG_POOL_MAX)
+  if (Number.isFinite(override) && override > 0) return override
+  return env.RAILWAY_ENVIRONMENT ? 8 : 1
+}
+
 export function pgPool(): Pool {
   if (_pool) return _pool
   if (!process.env.DATABASE_URL) {
@@ -25,7 +32,7 @@ export function pgPool(): Pool {
   }
   _pool = new Pool({
     ...parseDbUrl(process.env.DATABASE_URL),
-    max: 1,
+    max: pgPoolMax(),
     ssl: { rejectUnauthorized: false },
   })
   return _pool

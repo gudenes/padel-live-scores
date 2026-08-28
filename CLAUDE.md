@@ -9,7 +9,7 @@ Mobile-first PWA for real-time padel score tracking, rankings, news, and tournam
 - **Frontend:** Next.js 16.2.0, React 19, Tailwind CSS 4, TypeScript 5
 - **Database:** Supabase (PostgreSQL) with Realtime subscriptions
 - **Real-time:** Pusher WebSocket (via padelapi.org) → Railway relay → Supabase
-- **Deployment:** Vercel (app + cron jobs), Railway (relay service, padelgod workers)
+- **Deployment:** Railway + Cloudflare (padelnachos.com, admin.padelnachos.com, padellabs.tech), Railway (relay, padelgod, OCR, cron)
 - **External APIs:** padelapi.org, Premier Padel beforeauth API, YouTube Data API, FIP WordPress API, matchscorerlive.com (OOP/draws), Google News RSS, Anthropic Claude API
 
 ## Project Structure
@@ -42,7 +42,7 @@ supabase/migrations/       # SQL migrations
 
 ## Padel Labs (apps/labs/)
 
-Separate B2B SaaS Next.js app at `apps/labs/`, deployed to `padellabs.tech`. Shares the Supabase project — reads from public tables, writes to `labs_*` tables (`labs_subscriptions`, `labs_conversations`, `labs_messages`, `labs_saved_queries`, `labs_usage_events`, `labs_template_runs`). Independent npm package (no workspaces). See [v1 design](docs/superpowers/specs/2026-05-06-padel-labs-v1-design.md).
+Separate B2B SaaS Next.js app at `apps/labs/`, deployed to `padellabs.tech` (Railway service `padel-labs` in `hearty-charm`, Cloudflare DNS). Shares the Supabase project — reads from public tables, writes to `labs_*` tables (`labs_subscriptions`, `labs_conversations`, `labs_messages`, `labs_saved_queries`, `labs_usage_events`, `labs_template_runs`). Independent npm package (no workspaces). See [v1 design](docs/superpowers/specs/2026-05-06-padel-labs-v1-design.md) and [Railway + Cloudflare runbook](docs/runbooks/padel-labs-railway-cloudflare.md).
 
 ## Database Tables
 

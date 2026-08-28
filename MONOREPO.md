@@ -1,16 +1,16 @@
 # Padel Nachos — Monorepo
 
-One git repo, three Next.js apps, three Vercel projects, one shared Supabase database.
+One git repo, three Next.js apps, one shared Supabase database. Public apps run on Railway with Cloudflare in front (same cutover as padelnachos.com).
 
 ## The three apps
 
-| App | Path | Port (dev) | Domain | Vercel project | What it is |
+| App | Path | Port (dev) | Domain | Host | What it is |
 |---|---|---|---|---|---|
-| **Main app** | `/` (repo root) | 3002 *(or 3000)* | `padelnachos.com` | `padelnachos` | Public PWA — live scores, rankings, tournaments, feed, news |
-| **Padel Labs** | `apps/labs/` | 3003 | `padellabs.tech` | `padel-labs` | B2B SaaS — natural-language analytics over the padel data |
-| **Padel Admin** | `apps/ops/` | 3004 | `admin.padelnachos.com` | `padelnachos-admin` | Internal ops dashboard for operators |
+| **Main app** | `/` (repo root) | 3002 *(or 3000)* | `padelnachos.com` | Railway `padelnachos` + Cloudflare | Public PWA — live scores, rankings, tournaments, feed, news |
+| **Padel Labs** | `apps/labs/` | 3003 | `padellabs.tech` | Railway `padel-labs` + Cloudflare | B2B SaaS — natural-language analytics over the padel data |
+| **Padel Admin** | `apps/ops/` | 3004 | `admin.padelnachos.com` | Railway `padelnachos-admin` + Cloudflare | Internal ops dashboard for operators |
 
-All three live in this repo. Each app has its own `package.json`, its own dependencies, its own Vercel deploy target.
+All three live in this repo. Each app has its own `package.json`, its own dependencies, its own Railway service.
 
 ## What goes where
 
@@ -74,15 +74,17 @@ The admin app uses JWT because the Credentials provider (email + password) doesn
 
 Documented decision: [`docs/superpowers/specs/2026-05-20-admin-ops-app-design.md`](docs/superpowers/specs/2026-05-20-admin-ops-app-design.md) → "Session strategy + gate".
 
-## Vercel project map
+## Railway service map
 
-Three Vercel projects, all pointing at this repo:
+All in project `hearty-charm` (`ec638a56-c42f-4fa6-9216-dcd7668e34b7`), environment `production`:
 
-| Vercel project | Root directory | Domain | What changes trigger a deploy |
+| Railway service | Root directory | Domain | What changes trigger a deploy |
 |---|---|---|---|
-| `padelnachos` | `/` | `padelnachos.com` | Anything outside `apps/labs/`, `apps/ops/`, `padelgod/`, `relay/` |
+| `padelnachos` | `/` | `padelnachos.com` | Main app (watch paths exclude `apps/*`, `padelgod/`, `relay/`) |
 | `padel-labs` | `apps/labs/` | `padellabs.tech` | Only changes under `apps/labs/` |
 | `padelnachos-admin` | `apps/ops/` | `admin.padelnachos.com` | Only changes under `apps/ops/` |
+
+Vercel projects (`padelnachos`, `padel-labs`, `padelnachos-admin`) are paused rollback origins, not the live edge.
 
 Each app has a `vercel.json` with `ignoreCommand` so PRs touching only one app don't trigger unrelated rebuilds:
 

@@ -2,6 +2,13 @@
 import { describe, it, expect } from 'vitest'
 
 describe('phase 1 smoke', () => {
+  it('sizes the pg pool for Railway vs local', async () => {
+    const { pgPoolMax } = await import('../src/lib/db')
+    expect(pgPoolMax({ RAILWAY_ENVIRONMENT: 'production' })).toBe(8)
+    expect(pgPoolMax({})).toBe(1)
+    expect(pgPoolMax({ PG_POOL_MAX: '4', RAILWAY_ENVIRONMENT: 'production' })).toBe(4)
+  })
+
   it('parses a Postgres connection URL with special chars in password', async () => {
     // Replicates the parseDbUrl logic from src/lib/db.ts. We import it
     // dynamically to avoid the Pool() side effect at module load.

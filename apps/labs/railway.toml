@@ -1,0 +1,19 @@
+# Config-as-code for the `padel-labs` Railway service (apps/labs).
+#
+# Lives inside apps/labs rather than at the repo root on purpose: this service
+# deploys with apps/labs as its root, so Railway resolves config-as-code from
+# here. That also keeps it away from the root railway.toml used by padelnachos-web.
+#
+# `npm ci` (not --omit=dev): this service runs `next build`, which needs the
+# dev dependencies (typescript, tailwind, eslint config).
+
+[build]
+builder = "RAILPACK"
+buildCommand = "npm ci && npm run build"
+
+[deploy]
+startCommand = "npx next start -p ${PORT:-3000}"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
