@@ -5,6 +5,7 @@ import type { Logger } from 'pino';
 import { runTournamentDiscovery } from './workers/tournament-discovery.js';
 import { runFipCmsOrphanPrune } from './workers/fip-cms-orphan-prune.js';
 import { runRawPayloadsPrune } from './workers/raw-payloads-prune.js';
+import { runScrapeJobsPrune } from './workers/scrape-jobs-prune.js';
 import { runWidgetCodeLookup } from './workers/widget-code-lookup.js';
 import { runPlayerRankings } from './workers/player-rankings.js';
 import { runEntryListFetcher } from './workers/entry-list-fetcher.js';
@@ -105,6 +106,11 @@ export interface SchedulerFlags {
    *  for safety; flip in Railway once the first run's dry-run output
    *  is reviewed. */
   rawPayloadsPruneDryRun: boolean;
+  enableScrapeJobsPrune: boolean;
+  /** Same dry-run semantics as the other prune workers. Defaults to true
+   *  for safety; flip in Railway once the first run's dry-run output
+   *  is reviewed. */
+  scrapeJobsPruneDryRun: boolean;
   enableScheduleHintsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   scheduleHintsWriterDryRun: boolean;
@@ -202,6 +208,7 @@ export type WorkerName =
   | 'close-stale-live-sweeper'
   | 'fip-cms-orphan-prune'
   | 'raw-payloads-prune'
+  | 'scrape-jobs-prune'
   | 'schedule-hints-writer'
   | 'model-prediction-snapshot'
   | 'tournament-projection-snapshot'
@@ -241,6 +248,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'close-stale-live-sweeper',
   'fip-cms-orphan-prune',
   'raw-payloads-prune',
+  'scrape-jobs-prune',
   'schedule-hints-writer',
   'model-prediction-snapshot',
   'tournament-projection-snapshot',
@@ -372,6 +380,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       dryRun: true,
     });
     case 'raw-payloads-prune':       return (deps) => runRawPayloadsPrune({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
+      // real env flag via closure (see buildSchedule below).
+      dryRun: true,
+    });
+    case 'scrape-jobs-prune':        return (deps) => runScrapeJobsPrune({
       supabase: deps.supabase,
       logger: deps.logger,
       // Admin-trigger dry-run-SAFE default. Scheduled cron threads the
@@ -801,6 +816,23 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.rawPayloadsPruneDryRun,
+        });
+      },
+    });
+  }
+  if (flags.enableScrapeJobsPrune) {
+    entries.push({
+      name: 'scrape-jobs-prune',
+      // Daily at 03:30 UTC (off-hours), 30 min after raw-payloads-prune.
+      // Batched DELETE of scrape_jobs rows older than the retention window;
+      // ON DELETE CASCADE removes the snapshot + raw_payload children.
+      // DB-only, no external calls.
+      cron: '30 3 * * *',
+      run: async (deps) => {
+        return runScrapeJobsPrune({
+          supabase: deps.supabase,
+          logger: deps.logger,
+          dryRun: flags.scrapeJobsPruneDryRun,
         });
       },
     });

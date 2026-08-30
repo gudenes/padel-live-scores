@@ -169,6 +169,8 @@ async function main() {
       fipCmsOrphanPruneDryRun: env.FIP_CMS_ORPHAN_PRUNE_DRY_RUN,
       enableRawPayloadsPrune: env.ENABLE_RAW_PAYLOADS_PRUNE,
       rawPayloadsPruneDryRun: env.RAW_PAYLOADS_PRUNE_DRY_RUN,
+      enableScrapeJobsPrune: env.ENABLE_SCRAPE_JOBS_PRUNE,
+      scrapeJobsPruneDryRun: env.SCRAPE_JOBS_PRUNE_DRY_RUN,
       enableScheduleHintsWriter: env.ENABLE_SCHEDULE_HINTS_WRITER,
       scheduleHintsWriterDryRun: env.SCHEDULE_HINTS_WRITER_DRY_RUN,
       scheduleHintsExpectedDurationMin: env.SCHEDULE_HINTS_EXPECTED_DURATION_MIN,
