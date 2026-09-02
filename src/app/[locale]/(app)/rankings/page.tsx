@@ -12,6 +12,7 @@ import GlobalHeader from '@/components/nav/GlobalHeader'
 import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
 import { formatYearWeek } from '@/lib/iso-year-week'
+import { formatPointsMove } from '@/lib/points-move'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { fetchMoneyLeaderboard, type RankedMoneyRow } from '@/lib/money-leaderboard'
 import { MoneyExplainSheet } from '@/components/MoneyExplainSheet'
@@ -80,9 +81,11 @@ interface Player {
   ranking: number | null
   points: number | null
   ranking_move: number | null
+  points_move: number | null
   race_ranking: number | null
   race_points: number | null
   race_move: number | null
+  race_points_move: number | null
   avatar_url: string | null
   category: string | null
   updated_at: string | null
@@ -119,6 +122,21 @@ function DeltaChip({ delta }: { delta: number }) {
       display: 'flex', alignItems: 'center', gap: 1,
     }}>
       {up ? '\u25B2' : '\u25BC'}{Math.abs(delta)}
+    </span>
+  )
+}
+
+function PointsDelta({ delta }: { delta: number | null | undefined }) {
+  const { text, kind } = formatPointsMove(delta)
+  const color = kind === 'up' ? GREEN : kind === 'down' ? '#FF4655' : MUTED
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 800, lineHeight: 1, marginTop: 2,
+      color,
+      fontVariantNumeric: 'tabular-nums',
+      display: 'block',
+    }}>
+      {text}
     </span>
   )
 }
@@ -161,6 +179,7 @@ function PlayerRow({ player, rankType, isPulsing, onClick }: { player: Player; r
   const rank = rankType === 'official' ? player.ranking : player.race_ranking
   const pts = rankType === 'official' ? player.points : player.race_points
   const move = rankType === 'official' ? (player.ranking_move ?? 0) : (player.race_move ?? 0)
+  const ptsMove = rankType === 'official' ? player.points_move : player.race_points_move
   const isTop3 = (rank ?? 999) <= 3
   const flagUrl = countryFlagUrl(player.country)
 
@@ -223,9 +242,7 @@ function PlayerRow({ player, rankType, isPulsing, onClick }: { player: Player; r
           <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
             {pts != null ? pts : '--'}
           </div>
-          <div style={{ fontSize: 9, color: MUTED, marginTop: 2, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            PTS
-          </div>
+          <PointsDelta delta={ptsMove} />
         </div>
         <FollowButton type="player" targetId={player.id} variant="heart" size={14} style={{ marginLeft: 8 }} />
       </div>
@@ -426,10 +443,12 @@ export default function V3RankingPage() {
       }
 
       const rankCol = rt === 'official' ? 'ranking' : 'race_ranking'
+      const RANKING_COLS =
+        'id, name, display_name, country, ranking, points, ranking_move, points_move, race_ranking, race_points, race_move, race_points_move, avatar_url, category, updated_at, ranking_date'
 
       let { data, error } = await supabase
         .from('players')
-        .select('id, name, display_name, country, ranking, points, ranking_move, race_ranking, race_points, race_move, avatar_url, category, updated_at, ranking_date')
+        .select(RANKING_COLS)
         .eq('category', g)
         .not(rankCol, 'is', null)
         .order(rankCol, { ascending: true })
