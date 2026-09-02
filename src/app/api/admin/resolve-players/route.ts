@@ -67,9 +67,11 @@ interface Player {
   finals: number | null
   semifinals: number | null
   ranking_move: number | null
+  points_move: number | null
   race_ranking: number | null
   race_points: number | null
   race_move: number | null
+  race_points_move: number | null
   updated_at: string | null
 }
 
@@ -101,7 +103,7 @@ function mergeFields(keep: Player, dupe: Player): Record<string, any> {
     'country', 'avatar_url', 'profile_url', 'side', 'height',
     'birthplace', 'birthdate', 'hand', 'win_rate', 'total_matches',
     'titles', 'finals', 'semifinals', 'ranking', 'points',
-    'ranking_move', 'race_ranking', 'race_points', 'race_move',
+    'ranking_move', 'points_move', 'race_ranking', 'race_points', 'race_move', 'race_points_move',
   ]
   for (const f of fields) {
     if (keep[f] == null && dupe[f] != null) {
@@ -184,7 +186,7 @@ export async function GET(req: NextRequest) {
   while (true) {
     const { data, error } = await supabase
       .from('players')
-      .select('id, external_id, fip_id, name, country, category, ranking, points, avatar_url, profile_url, side, height, birthplace, birthdate, hand, win_rate, total_matches, titles, finals, semifinals, ranking_move, race_ranking, race_points, race_move, updated_at')
+      .select('id, external_id, fip_id, name, country, category, ranking, points, avatar_url, profile_url, side, height, birthplace, birthdate, hand, win_rate, total_matches, titles, finals, semifinals, ranking_move, points_move, race_ranking, race_points, race_move, race_points_move, updated_at')
       .order('name')
       .range(offset, offset + PAGE_SIZE - 1)
 

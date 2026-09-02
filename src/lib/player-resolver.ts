@@ -30,12 +30,16 @@ export interface PlayerInput {
   points?: number | null
   /** Ranking movement */
   rankingMove?: number | null
+  /** Official points this week minus last week */
+  pointsMove?: number | null
   /** Race ranking */
   raceRanking?: number | null
   /** Race points */
   racePoints?: number | null
   /** Race movement */
   raceMove?: number | null
+  /** Race points this week minus last week */
+  racePointsMove?: number | null
   /** Height in cm */
   height?: number | null
   /** Birthplace */
@@ -437,9 +441,11 @@ export class PlayerResolver {
       ranking: input.ranking ?? null,
       points: input.points ?? null,
       ranking_move: input.rankingMove ?? null,
+      points_move: input.pointsMove ?? null,
       race_ranking: input.raceRanking ?? null,
       race_points: input.racePoints ?? null,
       race_move: input.raceMove ?? null,
+      race_points_move: input.racePointsMove ?? null,
       height: input.height ?? null,
       birthplace: input.birthplace ?? null,
       birthdate: input.birthdate ?? null,
@@ -693,6 +699,13 @@ export class PlayerResolver {
     }
   }
 
+  /** In-memory lookup after load() — used to compute points_move before enrich. */
+  peekByFipId(fipId: string): { id: string; points: number | null } | null {
+    const cached = this.byFipId.get(fipId)
+    if (!cached) return null
+    return { id: cached.id, points: cached.points }
+  }
+
   /** Find a cached player by DB id (for post-enrichment cache updates). */
   private findCachedById(id: string): CachedPlayer | null {
     for (const [, players] of this.byNormalizedName) {
@@ -778,6 +791,9 @@ export class PlayerResolver {
 
     if (input.fipId) enrichFields.fip_id = input.fipId
     if (input.rankingDate) enrichFields.ranking_date = input.rankingDate
+    // Allow explicit null so a week with no previous snapshot clears a stale chip.
+    if ('pointsMove' in input) enrichFields.points_move = input.pointsMove ?? null
+    if ('racePointsMove' in input) enrichFields.race_points_move = input.racePointsMove ?? null
 
     if (Object.keys(enrichFields).length > 0) {
       enrichFields.updated_at = input.updatedAt ?? new Date().toISOString()

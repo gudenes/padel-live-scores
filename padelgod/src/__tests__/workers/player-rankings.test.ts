@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runPlayerRankings } from '../../workers/player-rankings.js';
+import { isoYearWeek, previousIsoYearWeek } from '../../lib/points-move.js';
 
 // vi.mock must be hoisted before ESM imports so that vi.spyOn inside test
 // bodies can override captureException (ESM namespace is not configurable
@@ -124,6 +125,8 @@ interface PlayerRow {
   race_ranking: number | null;
   race_points: number | null;
   race_move: number | null;
+  points_move: number | null;
+  race_points_move: number | null;
   avatar_url: string | null;
   profile_url: string | null;
   last_updated_by: string | null;
@@ -178,10 +181,16 @@ function seedPlayer(p: Partial<PlayerRow> & { id: string; fip_id: string; catego
     race_ranking: p.race_ranking ?? null,
     race_points: p.race_points ?? null,
     race_move: p.race_move ?? null,
+    points_move: p.points_move ?? null,
+    race_points_move: p.race_points_move ?? null,
     avatar_url: p.avatar_url ?? null,
     profile_url: p.profile_url ?? null,
     last_updated_by: p.last_updated_by ?? null,
   });
+}
+
+function seedSnapshot(s: SnapshotRow) {
+  state.snapshots.push(s);
 }
 
 let nextUuidCounter = 0;
@@ -232,6 +241,8 @@ function makeSupabase() {
             race_ranking: row.race_ranking ?? null,
             race_points: row.race_points ?? null,
             race_move: row.race_move ?? null,
+            points_move: row.points_move ?? null,
+            race_points_move: row.race_points_move ?? null,
             avatar_url: null,
             profile_url: row.profile_url ?? null,
             last_updated_by: row.last_updated_by ?? null,
@@ -295,13 +306,14 @@ function makeSupabase() {
         };
       }),
       in: vi.fn(function (col: string, vals: any[]) {
-        if (table === 'players') {
-          const data = state.players.filter(
-            p => vals.includes((p as any)[col]) && filters.every(f => f(p)),
-          );
-          return Promise.resolve({ data, error: null });
-        }
-        return Promise.resolve({ data: [], error: null });
+        const rows =
+          table === 'players' ? state.players
+          : table === 'player_ranking_snapshots' ? state.snapshots
+          : [];
+        const data = rows.filter(
+          p => vals.includes((p as any)[col]) && filters.every(f => f(p)),
+        );
+        return Promise.resolve({ data, error: null });
       }),
       eq: vi.fn(function (col: string, val: any) {
         filters.push(row => row[col] === val);
@@ -325,6 +337,11 @@ function makeSupabase() {
       then: (resolve: (v: any) => void) => {
         if (table === 'players') {
           const data = state.players.filter(p => filters.every(f => f(p)));
+          resolve({ data, error: null });
+          return;
+        }
+        if (table === 'player_ranking_snapshots') {
+          const data = state.snapshots.filter(p => filters.every(f => f(p)));
           resolve({ data, error: null });
           return;
         }
@@ -555,6 +572,7 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     expect(dropped.race_ranking).toBeNull();
     expect(dropped.race_points).toBeNull();
     expect(dropped.race_move).toBeNull();
+    expect(dropped.race_points_move).toBeNull();
 
     expect(result.race.men.dropoutsCleared).toBe(1);
   });
@@ -695,5 +713,106 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     expect(officialSnap.ranking_date).toBe('2026-05-18');
     const raceSnap = state.snapshots.find(s => s.type === 'race' && s.gender === 'men')!;
     expect(raceSnap.ranking_date).toBe('2026-05-18');
+  });
+
+  it('writes points_move from last-week snapshot, not from already-updated players.points', async () => {
+    const published = '2026-05-18';
+    const { year, week } = isoYearWeek(new Date(published));
+    const prev = previousIsoYearWeek(year, week);
+
+    seedPlayer({
+      id: 'eeee1111-0000-0000-0000-000000000001',
+      fip_id: 'P000001', category: 'men', name: 'Tapia',
+      ranking: 1, points: 21000, ranking_date: `${published}T00:00:00Z`,
+    });
+    seedSnapshot({
+      player_id: 'eeee1111-0000-0000-0000-000000000001',
+      type: 'official', gender: 'men',
+      year: prev.year, week: prev.week, ranking_date: '2026-05-11',
+      ranking: 1, points: 20550, ranking_move: 0, source: 'padelgod-fip',
+    });
+
+    setHttpResponse('fip-rankings', '<div></svg>18/05/2026</span></div>');
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 1, race_points: 500, race_move: 0 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1, race_points: 400, race_move: 0 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 21000, move: 0 }),
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000, move: 0 }),
+    ]);
+
+    await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    const p1 = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(p1.points_move).toBe(450);
+  });
+
+  it('leaves points_move null on a same-week re-run with no last-week snapshot', async () => {
+    seedPlayer({
+      id: 'ffff1111-0000-0000-0000-000000000001',
+      fip_id: 'P000001', category: 'men',
+      ranking: 40, points: 1200, ranking_date: '2026-05-18T00:00:00Z',
+    });
+
+    setHttpResponse('fip-rankings', '<div></svg>18/05/2026</span></div>');
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 10, race_points: 80 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1, race_points: 400 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 40, points: 1200 }),
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000 }),
+    ]);
+
+    await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    const p1 = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(p1.points_move).toBeNull();
+  });
+
+  it('writes race_points_move from last-week race snapshot', async () => {
+    const published = '2026-05-18';
+    const { year, week } = isoYearWeek(new Date(published));
+    const prev = previousIsoYearWeek(year, week);
+
+    seedPlayer({
+      id: 'abba1111-0000-0000-0000-000000000001',
+      fip_id: 'P000001', category: 'men',
+      race_ranking: 2, race_points: 400,
+    });
+    seedSnapshot({
+      player_id: 'abba1111-0000-0000-0000-000000000001',
+      type: 'race', gender: 'men',
+      year: prev.year, week: prev.week, ranking_date: '2026-05-11',
+      ranking: 2, points: 400, ranking_move: 0, source: 'padelgod-fip',
+    });
+
+    setHttpResponse('fip-rankings', '<div></svg>18/05/2026</span></div>');
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 1, race_points: 520, race_move: 1 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1, race_points: 400 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 21000 }),
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000 }),
+    ]);
+
+    await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    const p1 = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(p1.race_points_move).toBe(120);
   });
 });

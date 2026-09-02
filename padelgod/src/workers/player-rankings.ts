@@ -5,6 +5,7 @@ import * as Sentry from '@sentry/node';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_RANKINGS_VERSION } from '../lib/parser-versions.js';
 import { rehostAvatarToSupabase, ensureAvatarsBucket } from '../lib/avatar-rehost.js';
+import { computePointsMove, previousIsoYearWeek, resolvePreviousPoints } from '../lib/points-move.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -231,6 +232,29 @@ interface ResolvedPlayer {
   outcome: 'updated' | 'created';
 }
 
+async function loadPreviousSnapshotPoints(
+  supabase: SupabaseClient,
+  playerIds: string[],
+  type: 'official' | 'race',
+  rankingDate: string,
+): Promise<Map<string, number | null>> {
+  const map = new Map<string, number | null>();
+  if (playerIds.length === 0) return map;
+  const yw = isoYearWeek(new Date(rankingDate));
+  const prev = previousIsoYearWeek(yw.year, yw.week);
+  const { data } = await supabase
+    .from('player_ranking_snapshots')
+    .select('player_id, points')
+    .eq('type', type)
+    .eq('year', prev.year)
+    .eq('week', prev.week)
+    .in('player_id', playerIds);
+  for (const row of data ?? []) {
+    map.set(row.player_id as string, (row.points as number | null) ?? null);
+  }
+  return map;
+}
+
 async function upsertOfficialPlayers(
   supabase: SupabaseClient,
   rows: FipOfficialPlayer[],
@@ -242,11 +266,18 @@ async function upsertOfficialPlayers(
 
   const { data: existing } = await supabase
     .from('players')
-    .select('id, fip_id, name, country, category, ranking, points, ranking_move, profile_url')
+    .select('id, fip_id, name, country, category, ranking, points, ranking_move, ranking_date, profile_url')
     .in('fip_id', Array.from(byFipId.keys()));
 
   const existingByFipId = new Map<string, any>();
   for (const row of existing ?? []) existingByFipId.set(row.fip_id, row);
+
+  const prevPoints = await loadPreviousSnapshotPoints(
+    supabase,
+    Array.from(existingByFipId.values()).map((r: { id: string }) => r.id),
+    'official',
+    rankingDate,
+  );
 
   const now = new Date().toISOString();
   const resolved: ResolvedPlayer[] = [];
@@ -257,10 +288,17 @@ async function upsertOfficialPlayers(
     const match = existingByFipId.get(fipId);
 
     if (match) {
+      const previous = resolvePreviousPoints({
+        snapshotPoints: prevPoints.get(match.id),
+        currentPlayerPoints: match.points,
+        currentRankingDate: match.ranking_date,
+        newRankingDate: rankingDate,
+      });
       const patch: Record<string, unknown> = {
         ranking: fipRow.rank,
         points: fipRow.points,
         ranking_move: fipRow.move,
+        points_move: computePointsMove(fipRow.points, previous),
         ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
@@ -281,6 +319,7 @@ async function upsertOfficialPlayers(
         ranking: fipRow.rank,
         points: fipRow.points,
         ranking_move: fipRow.move,
+        points_move: null,
         ranking_date: rankingDate,
         profile_url: fipRow.url || null,
         last_updated_by: 'padelgod',
@@ -306,11 +345,18 @@ async function upsertRacePlayers(
 
   const { data: existing } = await supabase
     .from('players')
-    .select('id, fip_id, name, country, category, race_ranking, race_points, race_move')
+    .select('id, fip_id, name, country, category, race_ranking, race_points, race_move, ranking_date')
     .in('fip_id', Array.from(byFipId.keys()));
 
   const existingByFipId = new Map<string, any>();
   for (const row of existing ?? []) existingByFipId.set(row.fip_id, row);
+
+  const prevPoints = await loadPreviousSnapshotPoints(
+    supabase,
+    Array.from(existingByFipId.values()).map((r: { id: string }) => r.id),
+    'race',
+    rankingDate,
+  );
 
   const now = new Date().toISOString();
   const resolved: ResolvedPlayer[] = [];
@@ -321,10 +367,17 @@ async function upsertRacePlayers(
     const match = existingByFipId.get(fipId);
 
     if (match) {
+      const previous = resolvePreviousPoints({
+        snapshotPoints: prevPoints.get(match.id),
+        currentPlayerPoints: match.race_points,
+        currentRankingDate: match.ranking_date,
+        newRankingDate: rankingDate,
+      });
       const patch: Record<string, unknown> = {
         race_ranking: fipRow.race_rank,
         race_points: fipRow.race_points,
         race_move: fipRow.race_move,
+        race_points_move: computePointsMove(fipRow.race_points, previous),
         ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
@@ -344,6 +397,7 @@ async function upsertRacePlayers(
         race_ranking: fipRow.race_rank,
         race_points: fipRow.race_points,
         race_move: fipRow.race_move,
+        race_points_move: null,
         ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
@@ -448,7 +502,7 @@ async function clearRaceDropouts(
     const chunk = dropouts.slice(i, i + RACE_CLEAR_CHUNK);
     await supabase
       .from('players')
-      .update({ race_ranking: null, race_points: null, race_move: null })
+      .update({ race_ranking: null, race_points: null, race_move: null, race_points_move: null })
       .in('id', chunk);
   }
 

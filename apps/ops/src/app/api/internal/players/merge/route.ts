@@ -19,7 +19,7 @@ import type { PoolClient } from 'pg'
 // Columns the operator may carry over from the loser onto the survivor.
 // Allowlisted so the dynamic UPDATE can never touch an unexpected column.
 const MERGE_FIELDS = [
-  'name', 'display_name', 'country', 'category', 'ranking', 'points', 'ranking_move',
+  'name', 'display_name', 'country', 'category', 'ranking', 'points', 'ranking_move', 'points_move', 'race_points_move',
   'external_id', 'fip_id', 'side', 'avatar_url', 'height', 'birthdate',
   'birthplace', 'hand', 'titles', 'finals', 'semifinals',
 ] as const

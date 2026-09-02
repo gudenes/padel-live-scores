@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { PlayerResolver } from '@/lib/player-resolver'
 import { ensureAvatarsBucket, rehostAvatarToSupabase } from '@/lib/avatar-rehost'
+import { computePointsMove, previousIsoYearWeek } from '@/lib/points-move'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,6 +32,29 @@ type SnapshotRow = {
   points: number | null
   ranking_move: number | null
   source: 'vercel-fip-manual'
+}
+
+async function loadPreviousSnapshotPoints(
+  type: 'official' | 'race',
+  year: number,
+  week: number,
+): Promise<Map<string, number>> {
+  const prev = previousIsoYearWeek(year, week)
+  const { data, error } = await supabase
+    .from('player_ranking_snapshots')
+    .select('player_id, points')
+    .eq('type', type)
+    .eq('year', prev.year)
+    .eq('week', prev.week)
+  if (error) {
+    console.error('[sync-fip] previous snapshot load failed:', error.message)
+    return new Map()
+  }
+  const map = new Map<string, number>()
+  for (const row of data ?? []) {
+    if (row.points != null) map.set(row.player_id as string, row.points as number)
+  }
+  return map
 }
 
 /** Best-effort historical ranking write. Never throws — logs to console.error on failure. */
@@ -270,6 +294,9 @@ export async function GET(req: NextRequest) {
       // isoYearWeek so storage stays canonical-ISO at year boundaries.
       const officialYearWeek = isoYearWeek(new Date(rankingDate))
       console.log(`[sync-fip] official ${fip}: ${officials.length} players fetched (ranking date: ${rankingDate})`)
+      const prevOfficialPoints = await loadPreviousSnapshotPoints(
+        'official', officialYearWeek.year, officialYearWeek.week,
+      )
 
       for (const p of officials) {
         const fullName = fipFullName(p)
@@ -277,6 +304,11 @@ export async function GET(req: NextRequest) {
         // merge-duplicate-players PR.
         const fipId = p.player_id
         const country2 = fipCountryToIso2(p.country_name)
+        const cached = resolver.peekByFipId(fipId)
+        const pointsMove = computePointsMove(
+          p.points,
+          cached ? (prevOfficialPoints.get(cached.id) ?? null) : null,
+        )
 
         try {
           const resolveResult = await resolver.resolveAndEnrich({
@@ -287,6 +319,7 @@ export async function GET(req: NextRequest) {
             ranking: p.rank,
             points: p.points,
             rankingMove: p.move,
+            pointsMove,
             // Skip avatar — rehosted to Supabase Storage post-loop. Passing
             // the raw padelfip.com URL would mean a player's largeIcon push
             // notification breaks the moment padelfip.com hiccups.
@@ -326,6 +359,9 @@ export async function GET(req: NextRequest) {
       const races = await fetchRaceRankings(fip, top)
       const raceYearWeek = isoYearWeek(new Date())
       console.log(`[sync-fip] race ${fip}: ${races.length} players fetched`)
+      const prevRacePoints = await loadPreviousSnapshotPoints(
+        'race', raceYearWeek.year, raceYearWeek.week,
+      )
 
       // Track which player UUIDs got a race row this run so we can NULL
       // race_ranking/race_points/race_move on players who DROPPED OUT
@@ -341,6 +377,11 @@ export async function GET(req: NextRequest) {
         const fullName = fipFullName(p)
         // Raw FIP id (no prefix). See note in officials loop above.
         const fipId = p.player_id
+        const cached = resolver.peekByFipId(fipId)
+        const racePointsMove = computePointsMove(
+          p.race_points,
+          cached ? (prevRacePoints.get(cached.id) ?? null) : null,
+        )
 
         try {
           const resolveResult = await resolver.resolveAndEnrich({
@@ -350,6 +391,7 @@ export async function GET(req: NextRequest) {
             raceRanking: p.race_rank,
             racePoints: p.race_points,
             raceMove: p.race_move,
+            racePointsMove,
           })
 
           if (resolveResult.action === 'created') results.race.created++
@@ -394,7 +436,7 @@ export async function GET(req: NextRequest) {
           const slice = toClear.slice(i, i + CHUNK)
           await supabase
             .from('players')
-            .update({ race_ranking: null, race_points: null, race_move: null })
+            .update({ race_ranking: null, race_points: null, race_move: null, race_points_move: null })
             .in('id', slice)
         }
       }
