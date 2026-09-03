@@ -21,6 +21,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
 import { normalize } from '@/lib/player-resolver'
+import { fetchLatestOopSnapshots, fetchLatestResultsSnapshots } from '@/lib/snapshot-latest-rows'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -223,43 +224,19 @@ export async function GET(request: Request) {
       (cacheRow?.widget_id as string | undefined) ?? null
   }
 
-  // Fetch OOP and results snapshots in parallel. We want every row — we'll
-  // pick the newest scrape_job per (day, court_position) on the client side
-  // below so we don't double-count past snapshots.
-  const [oopRes, resultsRes] = await Promise.all([
-    supabase
-      .schema('padelgod')
-      .from('oop_snapshots')
-      .select(
-        'scrape_job_id, tournament_id, day_number, day_date, category, round_label, court, court_position, ' +
-          'scheduled_label, team1_player1_name, team1_player2_name, team2_player1_name, ' +
-          'team2_player2_name, match_widget_id, status, captured_at',
-      )
-      .eq('tournament_id', tournamentId)
-      .order('captured_at', { ascending: false }),
-    supabase
-      .schema('padelgod')
-      .from('results_snapshots')
-      .select(
-        'scrape_job_id, tournament_id, day_number, category, round_label, court, match_widget_id, ' +
-          'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-          'set_scores, winner_team, status, captured_at',
-      )
-      .eq('tournament_id', tournamentId)
-      .order('captured_at', { ascending: false }),
+  // Only the newest scrape_job per day — historical snapshot rows for a
+  // live P1 are large enough that an unfiltered PostgREST select times out.
+  const [oopSettled, resultsSettled] = await Promise.allSettled([
+    fetchLatestOopSnapshots(tournamentId),
+    fetchLatestResultsSnapshots(tournamentId),
   ])
-
-  if (oopRes.error) {
-    return Response.json(
-      { error: `oop_snapshots read failed: ${oopRes.error.message}` },
-      { status: 500 },
-    )
+  const oopRows = oopSettled.status === 'fulfilled' ? oopSettled.value : []
+  const resultsRows = resultsSettled.status === 'fulfilled' ? resultsSettled.value : []
+  if (oopSettled.status === 'rejected') {
+    console.error('oop_snapshots latest-job read failed', oopSettled.reason)
   }
-  if (resultsRes.error) {
-    return Response.json(
-      { error: `results_snapshots read failed: ${resultsRes.error.message}` },
-      { status: 500 },
-    )
+  if (resultsSettled.status === 'rejected') {
+    console.error('results_snapshots latest-job read failed', resultsSettled.reason)
   }
 
   type OopRow = {
@@ -300,9 +277,6 @@ export async function GET(request: Request) {
     status: Status | null
     captured_at: string
   }
-
-  const oopRows = (oopRes.data ?? []) as unknown as OopRow[]
-  const resultsRows = (resultsRes.data ?? []) as unknown as ResultsRow[]
 
   // Keep only rows from the LATEST scrape_job per day (per source). Earlier
   // snapshots are dead weight — the newest scrape tells us today's truth.
