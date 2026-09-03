@@ -1,7 +1,7 @@
 // apps/ops/src/app/(app)/today/_components/WinProbChart.tsx
 'use client'
 import {
-  ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  ComposedChart, Area, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, ReferenceDot,
 } from 'recharts'
 import type { Match } from '../_lib/types'
@@ -10,6 +10,14 @@ import type { Match } from '../_lib/types'
 function clock(ms: number): string {
   const d = new Date(ms)
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function pressureLabel(s: Match['winProbSeries'][number]): string | null {
+  const tags: string[] = []
+  if (s.isBreakPoint) tags.push('BP')
+  if (s.isSetPoint) tags.push('SP')
+  if (s.isMatchPoint) tags.push('MP')
+  return tags.length ? tags.join(' · ') : null
 }
 
 export function WinProbChart({ match }: { match: Match }) {
@@ -21,7 +29,16 @@ export function WinProbChart({ match }: { match: Match }) {
     t: s.atMs,
     p1: s.pair1Prob * 100,
     p2: (1 - s.pair1Prob) * 100,
+    score: s.score ?? null,
+    serverPair: s.serverPair ?? null,
+    tag: pressureLabel(s),
+    isBreakPoint: Boolean(s.isBreakPoint),
+    isSetPoint: Boolean(s.isSetPoint),
+    isMatchPoint: Boolean(s.isMatchPoint),
   }))
+  const bpDots = data.filter((d) => d.isBreakPoint && !d.isSetPoint && !d.isMatchPoint)
+  const spDots = data.filter((d) => d.isSetPoint && !d.isMatchPoint)
+  const mpDots = data.filter((d) => d.isMatchPoint)
   const lastT = data[data.length - 1].t
   const lastP1 = data[data.length - 1].p1
   const prematchPct = match.prematch != null ? match.prematch.pair1Prob * 100 : null
@@ -99,12 +116,25 @@ export function WinProbChart({ match }: { match: Match }) {
               fill: 'var(--lime)',
             }}
           />
+          <Scatter data={bpDots} dataKey="p1" fill="#e8a317" name="BP" r={3} isAnimationActive={false} />
+          <Scatter data={spDots} dataKey="p1" fill="#4ea3f0" name="SP" r={4} isAnimationActive={false} />
+          <Scatter data={mpDots} dataKey="p1" fill="#e85d5d" name="MP" r={5} isAnimationActive={false} />
           <Tooltip
-            labelFormatter={(label) => clock(Number(label))}
-            formatter={(value, name) => {
-              const pct = typeof value === 'number' ? `${value.toFixed(0)}%` : String(value)
-              const who = name === 'p1' ? match.pair1.name : match.pair2.name
-              return [pct, who]
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null
+              const row = payload[0]?.payload as (typeof data)[number] | undefined
+              const serve =
+                row?.serverPair === 1 ? match.pair1.name : row?.serverPair === 2 ? match.pair2.name : null
+              return (
+                <div className="sb-chart-tip">
+                  <div className="sb-chart-tip-time">{clock(Number(label))}</div>
+                  {row?.score ? <div className="sb-chart-tip-score">{row.score}</div> : null}
+                  {serve ? <div className="sb-chart-tip-serve">{serve} serving</div> : null}
+                  {row?.tag ? <div className="sb-chart-tip-tag">{row.tag}</div> : null}
+                  <div>{match.pair1.name} {row ? `${row.p1.toFixed(0)}%` : '—'}</div>
+                  <div>{match.pair2.name} {row ? `${row.p2.toFixed(0)}%` : '—'}</div>
+                </div>
+              )
             }}
           />
         </ComposedChart>
@@ -116,6 +146,9 @@ export function WinProbChart({ match }: { match: Match }) {
         <span className="sb-chart-cap-item">
           <i className="sb-chart-cap-swatch sb-chart-cap-p2" /> {match.pair2.name}
         </span>
+        <span className="sb-chart-cap-item"><i className="sb-chart-cap-dot" style={{ background: '#e8a317' }} /> BP</span>
+        <span className="sb-chart-cap-item"><i className="sb-chart-cap-dot" style={{ background: '#4ea3f0' }} /> SP</span>
+        <span className="sb-chart-cap-item"><i className="sb-chart-cap-dot" style={{ background: '#e85d5d' }} /> MP</span>
       </div>
     </div>
   )
