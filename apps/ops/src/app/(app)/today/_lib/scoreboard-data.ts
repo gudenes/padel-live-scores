@@ -76,6 +76,31 @@ export function mapSnapshotRows(
   return rows.map((s) => ({ atMs: +new Date(s.computed_at), pair1Prob: Number(s.pair1_prob) }))
 }
 
+// Live-odds snapshots stop when the match leaves on-court, so the last tick
+// is the last model estimate (often 80–99%), not a settled result. For a
+// finished match the winner is certain: append 100% / 0% if it isn't there.
+const SETTLED_EPS = 1e-6
+export function settleFinishedWinProb(
+  history: Array<{ atMs: number; pair1Prob: number }>,
+  winnerPair: 1 | 2 | null,
+  endedAtMs?: number | null,
+): { series: Array<{ atMs: number; pair1Prob: number }>; pair1Prob: number } {
+  if (winnerPair !== 1 && winnerPair !== 2) {
+    const last = history[history.length - 1]
+    return { series: history, pair1Prob: last?.pair1Prob ?? 0.5 }
+  }
+  const terminal = winnerPair === 1 ? 1 : 0
+  const last = history[history.length - 1]
+  if (last && Math.abs(last.pair1Prob - terminal) < SETTLED_EPS) {
+    return { series: history, pair1Prob: terminal }
+  }
+  const atMs =
+    endedAtMs != null && endedAtMs >= (last?.atMs ?? 0)
+      ? endedAtMs
+      : (last?.atMs ?? 0) + 1000
+  return { series: [...history, { atMs, pair1Prob: terminal }], pair1Prob: terminal }
+}
+
 // Shape of a match_live_odds row joined to match/player/tournament display fields.
 export interface LiveOddsRow {
   match_id: string
@@ -154,6 +179,7 @@ export interface FinishedRow {
   round_canonical: string | null
   category: string
   scheduled_at: string | null
+  finished_at: string | null
   tournament: { name: string | null; level: string | null } | { name: string | null; level: string | null }[] | null
   p1a: { id: string; name: string | null } | null
   p1b: { id: string; name: string | null } | null
@@ -173,6 +199,8 @@ export function mapFinishedRowToMatch(row: FinishedRow, extra: FinishedExtras): 
     [displayName(a?.name ?? null), displayName(b?.name ?? null)].filter((x) => x !== '—').join(' / ') || 'TBD'
   const winnerPair = row.winner_pair === 1 ? 1 : row.winner_pair === 2 ? 2 : null
   const closing = extra.closing
+  const endedAtMs = row.finished_at ? +new Date(row.finished_at) : null
+  const settled = settleFinishedWinProb(extra.history, winnerPair, Number.isFinite(endedAtMs) ? endedAtMs : null)
   return {
     id: row.id,
     pair1: { name: pn(row.p1a, row.p1b), player1Name: row.p1a?.name ?? 'TBD', player2Name: row.p1b?.name ?? 'TBD', gender: row.category === 'women' ? 'women' : 'men', serving: false },
@@ -182,14 +210,14 @@ export function mapFinishedRowToMatch(row: FinishedRow, extra: FinishedExtras): 
     status: 'finished', scheduledAt: row.scheduled_at,
     setScores: extra.sets.map((s) => ({ a: s.pair1_games, b: s.pair2_games, current: false })),
     gamePoints: null,
-    winProb1: closing ? Number(closing.pair1_prob) : 0.5,
+    winProb1: winnerPair != null ? settled.pair1Prob : (closing ? Number(closing.pair1_prob) : 0.5),
     fairOdds1: closing ? Number(closing.pair1_decimal_odds) : 0,
     fairOdds2: closing ? Number(closing.pair2_decimal_odds) : 0,
     movement15m: 0,
     confidence: closing?.coverage === 'live-coarse' ? 'low' : closing ? 'full' : 'med',
     anchorSource: null,
     lastUpdatedSeconds: 0,
-    winProbSeries: extra.history,
+    winProbSeries: settled.series,
     currentSetStartedAt: null,
     winnerPair,
     prematch: extra.prematchPair1Prob != null
@@ -224,7 +252,7 @@ const LIVE_SELECT =
   'p2a:players!matches_pair2_player1_id_fkey(id,name),p2b:players!matches_pair2_player2_id_fkey(id,name))'
 
 const FINISHED_SELECT =
-  'id,status,winner_pair,court,round_canonical,category,scheduled_at,tournament:tournaments(name,level),' +
+  'id,status,winner_pair,court,round_canonical,category,scheduled_at,finished_at,tournament:tournaments(name,level),' +
   'p1a:players!matches_pair1_player1_id_fkey(id,name),p1b:players!matches_pair1_player2_id_fkey(id,name),' +
   'p2a:players!matches_pair2_player1_id_fkey(id,name),p2b:players!matches_pair2_player2_id_fkey(id,name)'
 

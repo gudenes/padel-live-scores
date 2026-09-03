@@ -8,6 +8,7 @@ import { WinProbChart } from './WinProbChart'
 function statusLabel(status: Match['status']): string {
   if (status === 'live') return 'Live'
   if (status === 'break') return 'Break'
+  if (status === 'finished') return 'Finished'
   return 'Scheduled'
 }
 
