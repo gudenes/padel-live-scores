@@ -4,6 +4,7 @@ import { getMatchOddsForDay } from '@/lib/odds-data'
 import type { Match, MatchStatus, AnchorSource, LiveOddsSnapshot } from './types'
 import { movement15m, coverageToConfidence, biggestSwing, type ProbPoint } from './movement'
 import { splitGameScore } from './score'
+import { attachScoreToSeries, scoreTimeline, type PointRow } from './score-timeline'
 
 export function shortName(name: string | null | undefined): string {
   if (!name) return '—'
@@ -59,6 +60,21 @@ export function predictionCorrect(pair1Prob: number | null | undefined, winnerPa
 
 const statusOf = (s: string): MatchStatus =>
   s === 'break' ? 'break' : s === 'live' || s === 'on_court' ? 'live' : 'scheduled'
+
+export type ScoreboardKind = 'live' | 'finished' | 'scheduled'
+
+export function scoreboardKind(status: string | null | undefined): ScoreboardKind {
+  const s = (status ?? '').toLowerCase()
+  if (s === 'live' || s === 'on_court' || s === 'break') return 'live'
+  if (s === 'finished' || s === 'retired' || s === 'walkover') return 'finished'
+  return 'scheduled'
+}
+
+export function mapSnapshotRows(
+  rows: Array<{ pair1_prob: number | string; computed_at: string }>,
+): Array<{ atMs: number; pair1Prob: number }> {
+  return rows.map((s) => ({ atMs: +new Date(s.computed_at), pair1Prob: Number(s.pair1_prob) }))
+}
 
 // Shape of a match_live_odds row joined to match/player/tournament display fields.
 export interface LiveOddsRow {
@@ -367,4 +383,178 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
     lowCoverage: liveMatches.filter((m) => m.confidence === 'low').length,
   }
   return { matches, kpis, fetchedAt: new Date(nowMs).toISOString() }
+}
+
+async function loadAllSnapshots(
+  supabase: ReturnType<typeof createServiceClient>,
+  matchId: string,
+): Promise<Array<{ atMs: number; pair1Prob: number }>> {
+  const out: Array<{ pair1_prob: number | string; computed_at: string }> = []
+  const batch = 1000
+  let start = 0
+  while (true) {
+    const { data } = await supabase
+      .from('match_live_odds_snapshots')
+      .select('pair1_prob,computed_at')
+      .eq('match_id', matchId)
+      .order('computed_at', { ascending: true })
+      .range(start, start + batch - 1)
+    if (!data || data.length === 0) break
+    out.push(...(data as Array<{ pair1_prob: number | string; computed_at: string }>))
+    if (data.length < batch) break
+    start += batch
+  }
+  return mapSnapshotRows(out)
+}
+
+async function loadMatchPoints(
+  supabase: ReturnType<typeof createServiceClient>,
+  matchId: string,
+): Promise<PointRow[]> {
+  const { data } = await supabase
+    .from('match_points')
+    .select('created_at, score_after, set_id, game_id, winner_pair')
+    .eq('match_id', matchId)
+    .order('created_at', { ascending: true })
+    .limit(2000)
+  return (data ?? []).map((p) => ({
+    created_at: p.created_at as string,
+    score_after: String(p.score_after ?? ''),
+    set_id: String(p.set_id),
+    game_id: String(p.game_id),
+    winner_pair: p.winner_pair === 2 ? 2 : 1,
+  }))
+}
+
+function withPointScores(match: Match, points: PointRow[]): Match {
+  if (points.length === 0 || match.winProbSeries.length === 0) return match
+  return {
+    ...match,
+    winProbSeries: attachScoreToSeries(match.winProbSeries, scoreTimeline(points)),
+  }
+}
+
+/** Single-match payload for the explorer drawer — same shape as a Today row. */
+export async function getMatchScoreboard(matchId: string): Promise<Match | null> {
+  const supabase = createServiceClient()
+  const nowMs = Date.now()
+
+  const { data: row } = await supabase
+    .from('matches')
+    .select(FINISHED_SELECT)
+    .eq('id', matchId)
+    .maybeSingle<FinishedRow>()
+  if (!row) return null
+
+  const [{ data: preRows }, history, { data: sets }, points] = await Promise.all([
+    supabase
+      .from('model_predictions')
+      .select('pair1_prob')
+      .eq('match_id', matchId)
+      .order('created_at', { ascending: false })
+      .limit(1),
+    loadAllSnapshots(supabase, matchId),
+    supabase
+      .from('sets')
+      .select('pair1_games,pair2_games,is_current,set_number')
+      .eq('match_id', matchId)
+      .order('set_number'),
+    loadMatchPoints(supabase, matchId),
+  ])
+  const prematchPair1Prob = preRows?.[0] ? Number(preRows[0].pair1_prob) : null
+  const kind = scoreboardKind(row.status)
+
+  if (kind === 'live') {
+    const { data: live } = await supabase
+      .from('match_live_odds')
+      .select(LIVE_SELECT)
+      .eq('match_id', matchId)
+      .maybeSingle<LiveOddsRow>()
+    const { data: games } = await supabase
+      .from('games')
+      .select('game_score')
+      .eq('match_id', matchId)
+      .eq('is_current', true)
+      .limit(1)
+    const { data: pts } = await supabase
+      .from('match_points')
+      .select('server_player_id')
+      .eq('match_id', matchId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+    const extras: LiveExtras = {
+      sets: (sets ?? []).map((s) => ({
+        pair1_games: s.pair1_games,
+        pair2_games: s.pair2_games,
+        is_current: Boolean(s.is_current),
+      })),
+      gameScore: games?.[0]?.game_score ?? null,
+      servingPlayerId: pts?.[0]?.server_player_id ?? null,
+      history: history.map((h) => ({ prob: h.pair1Prob, atMs: h.atMs })),
+      currentSetStartedAt: null,
+      prematchPair1Prob,
+    }
+    if (live) return withPointScores(mapLiveRowToMatch(live, extras, nowMs), points)
+  }
+
+  if (kind === 'finished' || history.length > 0) {
+    const { data: odds } = await supabase
+      .from('match_live_odds')
+      .select('pair1_prob,pair1_decimal_odds,pair2_decimal_odds,coverage')
+      .eq('match_id', matchId)
+      .maybeSingle()
+    return withPointScores(mapFinishedRowToMatch(row, {
+      sets: (sets ?? []).map((s) => ({ pair1_games: s.pair1_games, pair2_games: s.pair2_games })),
+      closing: odds
+        ? {
+            pair1_prob: Number(odds.pair1_prob),
+            pair1_decimal_odds: Number(odds.pair1_decimal_odds),
+            pair2_decimal_odds: Number(odds.pair2_decimal_odds),
+            coverage: odds.coverage ?? null,
+          }
+        : null,
+      history,
+      prematchPair1Prob,
+    }), points)
+  }
+
+  const pn = (a: { name: string | null } | null, b: { name: string | null } | null) =>
+    [displayName(a?.name ?? null), displayName(b?.name ?? null)].filter((x) => x !== '—').join(' / ') || 'TBD'
+  const t = Array.isArray(row.tournament) ? row.tournament[0] : row.tournament
+  return {
+    id: row.id,
+    pair1: {
+      name: pn(row.p1a, row.p1b),
+      player1Name: row.p1a?.name ?? 'TBD',
+      player2Name: row.p1b?.name ?? 'TBD',
+      gender: row.category === 'women' ? 'women' : 'men',
+      serving: false,
+    },
+    pair2: {
+      name: pn(row.p2a, row.p2b),
+      player1Name: row.p2a?.name ?? 'TBD',
+      player2Name: row.p2b?.name ?? 'TBD',
+      gender: row.category === 'women' ? 'women' : 'men',
+      serving: false,
+    },
+    tournament: t?.name ?? 'Unknown',
+    court: row.court,
+    round: row.round_canonical,
+    tier: t?.level ?? null,
+    status: 'scheduled',
+    scheduledAt: row.scheduled_at,
+    setScores: [],
+    gamePoints: null,
+    winProb1: prematchPair1Prob ?? 0.5,
+    fairOdds1: 0,
+    fairOdds2: 0,
+    movement15m: 0,
+    confidence: 'med',
+    anchorSource: null,
+    lastUpdatedSeconds: 0,
+    winProbSeries: [],
+    currentSetStartedAt: null,
+    winnerPair: null,
+    prematch: prematchPair1Prob != null ? { pair1Prob: prematchPair1Prob, correct: null } : null,
+  }
 }

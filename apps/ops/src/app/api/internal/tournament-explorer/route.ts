@@ -24,6 +24,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
 import { buildPremierBreakdownFromRulebook } from '@/lib/earnings/premier-prize-table'
+import { latestCapturedAtAll } from '@/lib/snapshot-freshness'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -232,37 +233,17 @@ export async function GET(request: Request) {
     })
   }
 
-  // ── Padelgod snapshot freshness — one row per (tournament, source) ───
-  // We only need the latest captured_at per tournament_id per table.
-  // Pull-everything-then-reduce is fine here: we cap tournaments at 500
-  // and snapshots-per-tournament rarely exceeds a few dozen.
+  // ── Padelgod snapshot freshness — one timestamp per (tournament, source)
+  // Snapshot tables are append-only (entry_list ~2M, results ~14M rows).
+  // Aggregate max(captured_at) in SQL; never pull every snapshot row.
   // Widget-lookup history is scoped to the last 7 days, matching the
   // circuit-breaker window in padelgod_tournaments_needing_widget_code.
   // Old attempts are uninteresting for ops triage — operators only care
   // about "is the worker still trying or has it given up?"
   const widgetLookupSinceISO = new Date(Date.now() - 7 * 86400000).toISOString()
 
-  const [entryListRes, oopRes, resultsRes, drawRes, widgetCacheRes, widgetJobsRes] = await Promise.all([
-    supabase.schema('padelgod')
-      .from('entry_list_snapshots')
-      .select('tournament_id, captured_at')
-      .in('tournament_id', ids)
-      .order('captured_at', { ascending: false }),
-    supabase.schema('padelgod')
-      .from('oop_snapshots')
-      .select('tournament_id, captured_at')
-      .in('tournament_id', ids)
-      .order('captured_at', { ascending: false }),
-    supabase.schema('padelgod')
-      .from('results_snapshots')
-      .select('tournament_id, captured_at')
-      .in('tournament_id', ids)
-      .order('captured_at', { ascending: false }),
-    supabase.schema('padelgod')
-      .from('draw_snapshots')
-      .select('tournament_id, captured_at')
-      .in('tournament_id', ids)
-      .order('captured_at', { ascending: false }),
+  const [freshness, widgetCacheRes, widgetJobsRes] = await Promise.all([
+    latestCapturedAtAll(ids),
     supabase.schema('padelgod')
       .from('widget_id_cache')
       .select('tournament_id, widget_id, is_active')
@@ -276,12 +257,12 @@ export async function GET(request: Request) {
       .gte('started_at', widgetLookupSinceISO)
       .order('started_at', { ascending: false }),
   ])
+  const entryListMap = freshness.entry_list_snapshots
+  const oopMap = freshness.oop_snapshots
+  const resultsMap = freshness.results_snapshots
+  const drawMap = freshness.draw_snapshots
 
   for (const [label, res] of [
-    ['entry_list_snapshots', entryListRes],
-    ['oop_snapshots', oopRes],
-    ['results_snapshots', resultsRes],
-    ['draw_snapshots', drawRes],
     ['widget_id_cache', widgetCacheRes],
     ['scrape_jobs (widget_id)', widgetJobsRes],
   ] as const) {
@@ -292,29 +273,6 @@ export async function GET(request: Request) {
       )
     }
   }
-
-  const latestPerTournament = (
-    rows: Array<{ tournament_id: string; captured_at: string }> | null,
-  ) => {
-    const m = new Map<string, string>()
-    for (const r of rows ?? []) {
-      if (!m.has(r.tournament_id)) m.set(r.tournament_id, r.captured_at)
-    }
-    return m
-  }
-
-  const entryListMap = latestPerTournament(
-    (entryListRes.data ?? []) as Array<{ tournament_id: string; captured_at: string }>,
-  )
-  const oopMap = latestPerTournament(
-    (oopRes.data ?? []) as Array<{ tournament_id: string; captured_at: string }>,
-  )
-  const resultsMap = latestPerTournament(
-    (resultsRes.data ?? []) as Array<{ tournament_id: string; captured_at: string }>,
-  )
-  const drawMap = latestPerTournament(
-    (drawRes.data ?? []) as Array<{ tournament_id: string; captured_at: string }>,
-  )
 
   // Widget cache → tournament_id → widget_id (only is_active=true rows
   // were selected upstream, so any presence here means "resolved").

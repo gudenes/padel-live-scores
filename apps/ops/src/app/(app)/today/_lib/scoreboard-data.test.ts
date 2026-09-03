@@ -1,6 +1,6 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.test.ts
 import { describe, it, expect } from 'vitest'
-import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch, predictionCorrect } from './scoreboard-data'
+import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch, predictionCorrect, scoreboardKind, mapSnapshotRows } from './scoreboard-data'
 
 describe('shortName', () => {
   it('returns the last token', () => {
@@ -128,5 +128,37 @@ describe('isUpcomingStatus', () => {
     for (const s of ['live','on_court','break','ended','finished','retired','walkover']) {
       expect(isUpcomingStatus(s)).toBe(false)
     }
+  })
+})
+
+describe('scoreboardKind', () => {
+  it('treats on_court and break as live', () => {
+    expect(scoreboardKind('live')).toBe('live')
+    expect(scoreboardKind('on_court')).toBe('live')
+    expect(scoreboardKind('break')).toBe('live')
+  })
+  it('treats retired and walkover as finished', () => {
+    expect(scoreboardKind('finished')).toBe('finished')
+    expect(scoreboardKind('retired')).toBe('finished')
+    expect(scoreboardKind('walkover')).toBe('finished')
+  })
+  it('treats unknown / scheduled as scheduled', () => {
+    expect(scoreboardKind('scheduled')).toBe('scheduled')
+    expect(scoreboardKind(null)).toBe('scheduled')
+    expect(scoreboardKind('')).toBe('scheduled')
+  })
+})
+
+describe('mapSnapshotRows', () => {
+  it('turns snapshot rows into the chart series', () => {
+    expect(
+      mapSnapshotRows([
+        { pair1_prob: '0.55', computed_at: '2026-09-02T18:18:00.000Z' },
+        { pair1_prob: 0.08, computed_at: '2026-09-02T19:36:00.000Z' },
+      ]),
+    ).toEqual([
+      { atMs: Date.parse('2026-09-02T18:18:00.000Z'), pair1Prob: 0.55 },
+      { atMs: Date.parse('2026-09-02T19:36:00.000Z'), pair1Prob: 0.08 },
+    ])
   })
 })

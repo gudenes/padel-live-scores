@@ -11,6 +11,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import ScheduleReviewPanel from './ScheduleReviewPanel'
+import { MatchOddsDrawer } from './MatchOddsDrawer'
 import { PlayerLink } from '@/components/PlayerLink'
 import { Pill } from '@/components/ui'
 
@@ -131,7 +132,10 @@ function TeamCell({
   const hasP2 = p2Name && p2Name.length > 0
   if (!hasP1 && !hasP2) return <>—</>
   return (
-    <span style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}>
+    <span
+      onClick={(e) => e.stopPropagation()}
+      style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'center', gap: 4 }}
+    >
       {hasP1 && (
         <PlayerLink
           player={
@@ -263,6 +267,9 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
   // the same `day`.
   const [tab, setTab] = useState<MatchTab>('oop')
   const [day, setDay] = useState<number | null>(null)
+  const [drawerMatchId, setDrawerMatchId] = useState<string | null>(null)
+  const [drawerUnlinked, setDrawerUnlinked] = useState(false)
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -540,12 +547,27 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
             {filtered.map((m, i) => {
               const winnerStyle = (team: 1 | 2): React.CSSProperties =>
                 m.winnerTeam === team ? { fontWeight: 700, color: 'var(--text-1)' } : {}
+              const rowKey = m.linkedMatchId ?? `unlinked:${m.matchWidgetId ?? i}`
+              const selected = selectedKey === rowKey
               return (
                 <tr
                   key={(m.matchWidgetId ?? '') + ':' + i}
+                  onClick={() => {
+                    setSelectedKey(rowKey)
+                    if (m.linkedMatchId) {
+                      setDrawerUnlinked(false)
+                      setDrawerMatchId(m.linkedMatchId)
+                    } else {
+                      setDrawerMatchId(null)
+                      setDrawerUnlinked(true)
+                    }
+                  }}
                   style={{
                     borderBottom: '1px solid var(--border-inner)',
-                    background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-2)',
+                    background: selected
+                      ? 'var(--lime-bg)'
+                      : i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-card-2)',
+                    cursor: 'pointer',
                   }}
                 >
                   <td style={{ ...td, fontFamily: 'monospace', fontSize: 11, color: 'var(--text-3)' }}>
@@ -598,6 +620,16 @@ export default function TournamentMatchesSubtab({ tournamentId }: { tournamentId
           </tbody>
         </table>
       </div>
+
+      <MatchOddsDrawer
+        matchId={drawerMatchId}
+        unlinked={drawerUnlinked}
+        onClose={() => {
+          setDrawerMatchId(null)
+          setDrawerUnlinked(false)
+          setSelectedKey(null)
+        }}
+      />
     </div>
   )
 }
@@ -778,9 +810,10 @@ function PipelineBadge({
 
   return (
     <a
-      href={`/match/${linkedMatchId}`}
+      href={`/odds/match/${linkedMatchId}`}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
       title={
         isNew
           ? `Simplified pipeline (composite: ${linkedComposite})`
