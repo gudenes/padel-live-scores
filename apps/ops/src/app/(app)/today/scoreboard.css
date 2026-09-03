@@ -589,6 +589,42 @@
 .sb-chart-cap-p2 {
   background: var(--text-3);
 }
+.sb-chart-cap-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.sb-chart-tip {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--text-1);
+  box-shadow: var(--shadow-lg);
+  max-width: 220px;
+}
+.sb-chart-tip-time {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.sb-chart-tip-score {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.sb-chart-tip-serve {
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.sb-chart-tip-tag {
+  display: inline-block;
+  margin: 4px 0;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--lime);
+}
 
 /* ===== CONNECTION BANNER ===== */
 .sb-banner {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attachScoreToSeries, flourishCaptionsCsv, scoreTimeline } from '../score-timeline'
+import { attachScoreToSeries, flourishCaptionsCsv, isBreakPoint, scoreTimeline } from '../score-timeline'
 
 const pt = (
   t: string,
@@ -7,7 +7,8 @@ const pt = (
   set_id: string,
   game_id: string,
   winner_pair: 1 | 2,
-) => ({ created_at: t, score_after, set_id, game_id, winner_pair })
+  extra: { server_player_id?: string | null } = {},
+) => ({ created_at: t, score_after, set_id, game_id, winner_pair, ...extra })
 
 describe('scoreTimeline', () => {
   it('starts at 0-0 with the current game score', () => {
@@ -48,6 +49,58 @@ describe('attachScoreToSeries', () => {
     ]
     const attached = attachScoreToSeries(series, scores)
     expect(attached.map((t) => t.score)).toEqual(['0-0 15-0', '0-0 30-0'])
+  })
+})
+
+describe('isBreakPoint', () => {
+  it('is BP when the receiver is one point from the game', () => {
+    expect(isBreakPoint('30-40', 1)).toBe(true)
+    expect(isBreakPoint('40-AD', 1)).toBe(true)
+    expect(isBreakPoint('40-30', 2)).toBe(true)
+    expect(isBreakPoint('AD-40', 2)).toBe(true)
+  })
+  it('is not BP when the server is the one a point from the game', () => {
+    expect(isBreakPoint('40-30', 1)).toBe(false)
+    expect(isBreakPoint('AD-40', 1)).toBe(false)
+    expect(isBreakPoint('30-40', 2)).toBe(false)
+  })
+  it('treats 40-40 golden point as BP for either server', () => {
+    expect(isBreakPoint('40-40', 1)).toBe(true)
+    expect(isBreakPoint('40-40', 2)).toBe(true)
+  })
+  it('ignores tiebreak numeric scores', () => {
+    expect(isBreakPoint('6-5', 1)).toBe(false)
+    expect(isBreakPoint('5-6', 2)).toBe(false)
+  })
+})
+
+describe('scoreTimeline serve + pressure flags', () => {
+  const pair1 = new Set(['p1a'])
+  const pair2 = new Set(['p2a'])
+  const ids = { pair1, pair2 }
+
+  it('maps server_player_id onto the serving pair', () => {
+    const out = scoreTimeline([
+      pt('t1', '30-40', 's1', 'g1', 2, { server_player_id: 'p1a' }),
+    ], ids)
+    expect(out[0].serverPair).toBe(1)
+    expect(out[0].isBreakPoint).toBe(true)
+  })
+
+  it('marks set point when the receiver would take the set 6-4', () => {
+    const out = scoreTimeline([
+      pt('g1', '40-0', 's1', 'g1', 1, { server_player_id: 'p1a' }),
+      pt('g2', '40-0', 's1', 'g2', 1, { server_player_id: 'p2a' }),
+      pt('g3', '40-0', 's1', 'g3', 1, { server_player_id: 'p1a' }),
+      pt('g4', '40-0', 's1', 'g4', 1, { server_player_id: 'p2a' }),
+      pt('g5', '40-0', 's1', 'g5', 1, { server_player_id: 'p1a' }),
+      pt('bp', '40-30', 's1', 'g6', 1, { server_player_id: 'p2a' }),
+    ], ids)
+    const last = out[out.length - 1]
+    expect(last.score).toBe('5-0 40-30')
+    expect(last.serverPair).toBe(2)
+    expect(last.isBreakPoint).toBe(true)
+    expect(last.isSetPoint).toBe(true)
   })
 })
 

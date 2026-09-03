@@ -4,7 +4,7 @@ import { getMatchOddsForDay } from '@/lib/odds-data'
 import type { Match, MatchStatus, AnchorSource, LiveOddsSnapshot } from './types'
 import { movement15m, coverageToConfidence, biggestSwing, type ProbPoint } from './movement'
 import { splitGameScore } from './score'
-import { attachScoreToSeries, scoreTimeline, type PointRow } from './score-timeline'
+import { attachScoreToSeries, scoreTimeline, type PointRow, type PairIds } from './score-timeline'
 
 export function shortName(name: string | null | undefined): string {
   if (!name) return '—'
@@ -441,7 +441,7 @@ async function loadMatchPoints(
 ): Promise<PointRow[]> {
   const { data } = await supabase
     .from('match_points')
-    .select('created_at, score_after, set_id, game_id, winner_pair')
+    .select('created_at, score_after, set_id, game_id, winner_pair, server_player_id, is_break_point, is_set_point, is_match_point, is_golden_point')
     .eq('match_id', matchId)
     .order('created_at', { ascending: true })
     .limit(2000)
@@ -451,14 +451,31 @@ async function loadMatchPoints(
     set_id: String(p.set_id),
     game_id: String(p.game_id),
     winner_pair: p.winner_pair === 2 ? 2 : 1,
+    server_player_id: (p.server_player_id as string | null) ?? null,
+    is_break_point: Boolean(p.is_break_point),
+    is_set_point: Boolean(p.is_set_point),
+    is_match_point: Boolean(p.is_match_point),
+    is_golden_point: Boolean(p.is_golden_point),
   }))
 }
 
-function withPointScores(match: Match, points: PointRow[]): Match {
+function pairIdsFromRow(row: {
+  p1a: { id: string } | null
+  p1b: { id: string } | null
+  p2a: { id: string } | null
+  p2b: { id: string } | null
+}): PairIds {
+  return {
+    pair1: new Set([row.p1a?.id, row.p1b?.id].filter((x): x is string => !!x)),
+    pair2: new Set([row.p2a?.id, row.p2b?.id].filter((x): x is string => !!x)),
+  }
+}
+
+function withPointScores(match: Match, points: PointRow[], ids?: PairIds): Match {
   if (points.length === 0 || match.winProbSeries.length === 0) return match
   return {
     ...match,
-    winProbSeries: attachScoreToSeries(match.winProbSeries, scoreTimeline(points)),
+    winProbSeries: attachScoreToSeries(match.winProbSeries, scoreTimeline(points, ids)),
   }
 }
 
@@ -522,7 +539,7 @@ export async function getMatchScoreboard(matchId: string): Promise<Match | null>
       currentSetStartedAt: null,
       prematchPair1Prob,
     }
-    if (live) return withPointScores(mapLiveRowToMatch(live, extras, nowMs), points)
+    if (live) return withPointScores(mapLiveRowToMatch(live, extras, nowMs), points, pairIdsFromRow(row))
   }
 
   if (kind === 'finished' || history.length > 0) {
@@ -543,7 +560,7 @@ export async function getMatchScoreboard(matchId: string): Promise<Match | null>
         : null,
       history,
       prematchPair1Prob,
-    }), points)
+    }), points, pairIdsFromRow(row))
   }
 
   const pn = (a: { name: string | null } | null, b: { name: string | null } | null) =>
