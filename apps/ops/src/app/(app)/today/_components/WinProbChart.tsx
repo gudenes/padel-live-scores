@@ -1,10 +1,11 @@
 // apps/ops/src/app/(app)/today/_components/WinProbChart.tsx
 'use client'
 import {
-  ComposedChart, Area, Line, Scatter, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   ReferenceLine, ReferenceDot,
 } from 'recharts'
 import type { Match } from '../_lib/types'
+import { setBoundaryTimes } from '../_lib/score-timeline'
 
 // ms → "HH:MM" clock label (browser-local; this is a client component).
 function clock(ms: number): string {
@@ -25,28 +26,37 @@ export function WinProbChart({ match }: { match: Match }) {
     return <div className="sb-chart-empty">No live probability history yet.</div>
   }
 
-  const data = match.winProbSeries.map((s) => ({
-    t: s.atMs,
-    p1: s.pair1Prob * 100,
-    p2: (1 - s.pair1Prob) * 100,
-    score: s.score ?? null,
-    serverPair: s.serverPair ?? null,
-    tag: pressureLabel(s),
-    isBreakPoint: Boolean(s.isBreakPoint),
-    isSetPoint: Boolean(s.isSetPoint),
-    isMatchPoint: Boolean(s.isMatchPoint),
-  }))
-  const bpDots = data.filter((d) => d.isBreakPoint && !d.isSetPoint && !d.isMatchPoint)
-  const spDots = data.filter((d) => d.isSetPoint && !d.isMatchPoint)
-  const mpDots = data.filter((d) => d.isMatchPoint)
+  const data = match.winProbSeries.map((s) => {
+    const p1 = s.pair1Prob * 100
+    const isMp = Boolean(s.isMatchPoint)
+    const isSp = Boolean(s.isSetPoint) && !isMp
+    const isBp = Boolean(s.isBreakPoint) && !isSp && !isMp
+    return {
+      t: s.atMs,
+      p1,
+      p2: (1 - s.pair1Prob) * 100,
+      score: s.score ?? null,
+      serverPair: s.serverPair ?? null,
+      tag: pressureLabel(s),
+      setsCompleted: s.setsCompleted ?? 0,
+      bp: isBp ? p1 : null,
+      sp: isSp ? p1 : null,
+      mp: isMp ? p1 : null,
+    }
+  })
+  const setEnds = setBoundaryTimes(data.map((d) => ({ atMs: d.t, setsCompleted: d.setsCompleted })))
+  if (match.status === 'finished' && data.length) {
+    const last = data[data.length - 1].t
+    if (!setEnds.includes(last)) setEnds.push(last)
+  }
   const lastT = data[data.length - 1].t
   const lastP1 = data[data.length - 1].p1
   const prematchPct = match.prematch != null ? match.prematch.pair1Prob * 100 : null
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={200}>
-        <ComposedChart data={data} margin={{ top: 12, right: 16, bottom: 4, left: 0 }}>
+      <ResponsiveContainer width="100%" height={220}>
+        <ComposedChart data={data} margin={{ top: 18, right: 16, bottom: 4, left: 0 }}>
           <XAxis
             dataKey="t"
             type="number"
@@ -65,6 +75,21 @@ export function WinProbChart({ match }: { match: Match }) {
             stroke="var(--text-3)"
             width={36}
           />
+          {setEnds.map((t, i) => (
+            <ReferenceLine
+              key={t}
+              x={t}
+              stroke="var(--text-3)"
+              strokeDasharray="3 3"
+              strokeOpacity={0.55}
+              label={{
+                value: `Set ${i + 1}`,
+                position: 'insideTopRight',
+                fontSize: 10,
+                fill: 'var(--text-3)',
+              }}
+            />
+          ))}
           {/* even (50%) reference */}
           <ReferenceLine y={50} strokeDasharray="4 4" stroke="var(--border-card)" />
           {/* pre-match anchor */}
@@ -116,9 +141,9 @@ export function WinProbChart({ match }: { match: Match }) {
               fill: 'var(--lime)',
             }}
           />
-          <Scatter data={bpDots} dataKey="p1" fill="#e8a317" name="BP" r={3} isAnimationActive={false} />
-          <Scatter data={spDots} dataKey="p1" fill="#4ea3f0" name="SP" r={4} isAnimationActive={false} />
-          <Scatter data={mpDots} dataKey="p1" fill="#e85d5d" name="MP" r={5} isAnimationActive={false} />
+          <Line type="linear" dataKey="bp" stroke="none" dot={{ r: 3, fill: '#e8a317', strokeWidth: 0 }} connectNulls={false} isAnimationActive={false} legendType="none" />
+          <Line type="linear" dataKey="sp" stroke="none" dot={{ r: 4, fill: '#4ea3f0', strokeWidth: 0 }} connectNulls={false} isAnimationActive={false} legendType="none" />
+          <Line type="linear" dataKey="mp" stroke="none" dot={{ r: 5, fill: '#e85d5d', strokeWidth: 0 }} connectNulls={false} isAnimationActive={false} legendType="none" />
           <Tooltip
             content={({ active, payload, label }) => {
               if (!active || !payload?.length) return null
