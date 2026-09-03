@@ -29,6 +29,7 @@ export interface PointContext {
   isSetPoint: boolean
   isMatchPoint: boolean
   isGoldenPoint: boolean
+  setsCompleted: number
 }
 
 export interface ScoredTick {
@@ -40,6 +41,7 @@ export interface ScoredTick {
   isSetPoint?: boolean
   isMatchPoint?: boolean
   isGoldenPoint?: boolean
+  setsCompleted?: number
 }
 
 const GAME_POINTS = new Set(['0', '15', '30', '40', 'A', 'AD'])
@@ -139,6 +141,7 @@ export function scoreTimeline(points: PointRow[], ids?: PairIds): PointContext[]
       isSetPoint: Boolean(p.is_set_point) || inferredSp,
       isMatchPoint: Boolean(p.is_match_point) || inferredMp,
       isGoldenPoint: Boolean(p.is_golden_point) || gamePointPair(p.score_after) === 'both',
+      setsCompleted: completedSets.length,
     })
   }
   return out
@@ -162,8 +165,20 @@ export function attachScoreToSeries(
       isSetPoint: Boolean(full.isSetPoint),
       isMatchPoint: Boolean(full.isMatchPoint),
       isGoldenPoint: Boolean(full.isGoldenPoint),
+      setsCompleted: full.setsCompleted ?? 0,
     }
   })
+}
+
+/** Last tick of each completed set — vertical bars on the win-prob chart. */
+export function setBoundaryTimes(ticks: Array<{ atMs: number; setsCompleted?: number }>): number[] {
+  const out: number[] = []
+  for (let i = 1; i < ticks.length; i++) {
+    const prev = ticks[i - 1].setsCompleted ?? 0
+    const cur = ticks[i].setsCompleted ?? 0
+    if (cur > prev) out.push(ticks[i - 1].atMs)
+  }
+  return out
 }
 
 export function flourishCaptionsCsv(ticks: ScoredTick[]): string {

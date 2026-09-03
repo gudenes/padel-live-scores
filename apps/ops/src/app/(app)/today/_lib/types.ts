@@ -44,6 +44,7 @@ export interface Match {
     isSetPoint?: boolean
     isMatchPoint?: boolean
     isGoldenPoint?: boolean
+    setsCompleted?: number
   }>
   currentSetStartedAt: string | null  // ISO, for the chart's Set view (live only)
   winnerPair: 1 | 2 | null       // winning pair for finished matches; null otherwise

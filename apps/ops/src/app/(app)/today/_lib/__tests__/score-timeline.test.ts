@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attachScoreToSeries, flourishCaptionsCsv, isBreakPoint, scoreTimeline } from '../score-timeline'
+import { attachScoreToSeries, flourishCaptionsCsv, isBreakPoint, scoreTimeline, setBoundaryTimes } from '../score-timeline'
 
 const pt = (
   t: string,
@@ -101,6 +101,26 @@ describe('scoreTimeline serve + pressure flags', () => {
     expect(last.serverPair).toBe(2)
     expect(last.isBreakPoint).toBe(true)
     expect(last.isSetPoint).toBe(true)
+  })
+
+  it('records setsCompleted so the chart can draw a bar at each set end', () => {
+    const out = scoreTimeline([
+      pt('2026-09-03T17:00:00Z', '40-0', 's1', 'g1', 1, { server_player_id: 'p1a' }),
+      pt('2026-09-03T17:01:00Z', '40-0', 's1', 'g2', 1, { server_player_id: 'p2a' }),
+      pt('2026-09-03T17:20:00Z', '15-0', 's2', 'g1', 1, { server_player_id: 'p1a' }),
+    ], ids)
+    expect(out[0].setsCompleted).toBe(0)
+    expect(out[1].setsCompleted).toBe(0)
+    expect(out[2].setsCompleted).toBe(1)
+    const ticks = attachScoreToSeries(
+      [
+        { atMs: Date.parse('2026-09-03T17:00:30Z'), pair1Prob: 0.6 },
+        { atMs: Date.parse('2026-09-03T17:01:30Z'), pair1Prob: 0.7 },
+        { atMs: Date.parse('2026-09-03T17:20:10Z'), pair1Prob: 0.8 },
+      ],
+      out,
+    )
+    expect(setBoundaryTimes(ticks)).toEqual([Date.parse('2026-09-03T17:01:30Z')])
   })
 })
 
