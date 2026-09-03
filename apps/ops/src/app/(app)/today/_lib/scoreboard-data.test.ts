@@ -1,6 +1,6 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.test.ts
 import { describe, it, expect } from 'vitest'
-import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch, predictionCorrect, scoreboardKind, mapSnapshotRows } from './scoreboard-data'
+import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch, predictionCorrect, scoreboardKind, mapSnapshotRows, settleFinishedWinProb } from './scoreboard-data'
 
 describe('shortName', () => {
   it('returns the last token', () => {
@@ -76,7 +76,7 @@ describe('displayName', () => {
 
 describe('mapFinishedRowToMatch', () => {
   const row = {
-    id: 'f1', status: 'finished', winner_pair: 2, court: 'Campo 6', round_canonical: 'R16', category: 'men', scheduled_at: '2026-06-04T10:00:00Z',
+    id: 'f1', status: 'finished', winner_pair: 2, court: 'Campo 6', round_canonical: 'R16', category: 'men', scheduled_at: '2026-06-04T10:00:00Z', finished_at: null,
     tournament: { name: 'Italy Major', level: 'major' },
     p1a: { id: 'a', name: 'Martin Di Nenno' }, p1b: { id: 'b', name: 'Francisco Navarro' },
     p2a: { id: 'c', name: 'Alejandro Galan Romo' }, p2b: { id: 'd', name: 'Juan Lebron' },
@@ -88,8 +88,12 @@ describe('mapFinishedRowToMatch', () => {
     expect(m.pair1.name).toBe('M. Di Nenno / F. Navarro')
     expect(m.pair2.name).toBe('A. Galan / J. Lebron')
     expect(m.setScores).toEqual([{ a: 4, b: 6, current: false }, { a: 3, b: 6, current: false }])
-    expect(m.winProb1).toBeCloseTo(0.18)
-    expect(m.winProbSeries).toEqual([{ atMs: 1000, pair1Prob: 0.5 }, { atMs: 2000, pair1Prob: 0.18 }])
+    expect(m.winProb1).toBe(0)
+    expect(m.winProbSeries).toEqual([
+      { atMs: 1000, pair1Prob: 0.5 },
+      { atMs: 2000, pair1Prob: 0.18 },
+      { atMs: 3000, pair1Prob: 0 },
+    ])
     // pre-match favored pair2 (0.34 < 0.5) and pair2 won → correct
     expect(m.prematch).toEqual({ pair1Prob: 0.34, correct: true })
   })
@@ -146,6 +150,43 @@ describe('scoreboardKind', () => {
     expect(scoreboardKind('scheduled')).toBe('scheduled')
     expect(scoreboardKind(null)).toBe('scheduled')
     expect(scoreboardKind('')).toBe('scheduled')
+  })
+})
+
+describe('settleFinishedWinProb', () => {
+  it('appends pair1=1 when pair1 won and the last live tick is not 100%', () => {
+    const out = settleFinishedWinProb(
+      [{ atMs: 1000, pair1Prob: 0.5 }, { atMs: 2000, pair1Prob: 0.881 }],
+      1,
+      3000,
+    )
+    expect(out.pair1Prob).toBe(1)
+    expect(out.series).toEqual([
+      { atMs: 1000, pair1Prob: 0.5 },
+      { atMs: 2000, pair1Prob: 0.881 },
+      { atMs: 3000, pair1Prob: 1 },
+    ])
+  })
+  it('appends pair1=0 when pair2 won', () => {
+    const out = settleFinishedWinProb(
+      [{ atMs: 1000, pair1Prob: 0.5 }, { atMs: 2000, pair1Prob: 0.18 }],
+      2,
+      2500,
+    )
+    expect(out.pair1Prob).toBe(0)
+    expect(out.series.at(-1)).toEqual({ atMs: 2500, pair1Prob: 0 })
+  })
+  it('does not duplicate a series that already settled at 100%', () => {
+    const series = [{ atMs: 1000, pair1Prob: 0.7 }, { atMs: 2000, pair1Prob: 1 }]
+    const out = settleFinishedWinProb(series, 1, 3000)
+    expect(out.series).toEqual(series)
+    expect(out.pair1Prob).toBe(1)
+  })
+  it('leaves live-style history alone when there is no winner', () => {
+    const series = [{ atMs: 1000, pair1Prob: 0.62 }]
+    const out = settleFinishedWinProb(series, null, 2000)
+    expect(out.series).toEqual(series)
+    expect(out.pair1Prob).toBe(0.62)
   })
 })
 
