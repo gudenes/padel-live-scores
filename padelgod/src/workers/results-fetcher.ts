@@ -28,23 +28,6 @@ interface ActiveTournament {
 const URL_FOR = (code: string, day: number) =>
   `https://widget.matchscorerlive.com/screen/resultsbyday/${code}/${day}?t=tol`;
 
-async function getLatestScrapeJobId(
-  supabase: SupabaseClient,
-  tournamentId: string,
-  targetUrl: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .schema('padelgod')
-    .from('scrape_jobs')
-    .select('id')
-    .eq('tournament_id', tournamentId)
-    .eq('target_url', targetUrl)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data?.id as string | undefined) ?? null;
-}
-
 async function fetchOneDay(
   deps: ResultsFetcherDeps,
   t: ActiveTournament,
@@ -53,7 +36,7 @@ async function fetchOneDay(
   const targetUrl = URL_FOR(t.widget_id, day);
   let parsed: ReturnType<typeof parseCrionetResults> = [];
 
-  await runScrapeJob(
+  const job = await runScrapeJob(
     deps.supabase,
     {
       jobType: 'oop',  // re-use OOP type for now
@@ -73,8 +56,7 @@ async function fetchOneDay(
 
   if (parsed.length === 0) return 0;
 
-  const scrapeJobId = await getLatestScrapeJobId(deps.supabase, t.tournament_id, targetUrl);
-  if (!scrapeJobId) return 0;
+  const scrapeJobId = job.scrapeJobId;
 
   const rows = parsed.map((m) => ({
     scrape_job_id: scrapeJobId,
