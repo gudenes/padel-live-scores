@@ -32,23 +32,6 @@ interface ActiveTournament {
 const URL_FOR = (code: string, day: number) =>
   `https://widget.matchscorerlive.com/screen/oopbyday/${code}/${day}?t=tol`;
 
-async function getLatestScrapeJobId(
-  supabase: SupabaseClient,
-  tournamentId: string,
-  targetUrl: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .schema('padelgod')
-    .from('scrape_jobs')
-    .select('id')
-    .eq('tournament_id', tournamentId)
-    .eq('target_url', targetUrl)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data?.id as string | undefined) ?? null;
-}
-
 async function fetchOneDay(
   deps: OopFetcherDeps,
   t: ActiveTournament,
@@ -63,7 +46,11 @@ async function fetchOneDay(
   // UI side).
   let dayDate: string | null = null;
 
-  await runScrapeJob(
+  // Use the id runScrapeJob already returns. Re-querying scrape_jobs by
+  // (tournament_id, target_url) timed out in production (no target_url
+  // index) and silently dropped parsed snapshots — Madrid P1 SF MD002
+  // 2026-09-05 never got its "Not before 6:00 PM" row.
+  const job = await runScrapeJob(
     deps.supabase,
     {
       jobType: 'oop',
@@ -88,8 +75,7 @@ async function fetchOneDay(
 
   if (parsed.length === 0) return 0;
 
-  const scrapeJobId = await getLatestScrapeJobId(deps.supabase, t.tournament_id, targetUrl);
-  if (!scrapeJobId) return 0;
+  const scrapeJobId = job.scrapeJobId;
 
   const rows = parsed.map((m) => ({
     scrape_job_id: scrapeJobId,

@@ -125,22 +125,7 @@ function mappedStatus(
   return s;
 }
 
-async function getLatestScrapeJobId(
-  supabase: SupabaseClient,
-  tournamentId: string,
-  targetUrl: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .schema('padelgod')
-    .from('scrape_jobs')
-    .select('id')
-    .eq('tournament_id', tournamentId)
-    .eq('target_url', targetUrl)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data?.id as string | undefined) ?? null;
-}
+
 
 /**
  * Fetch the event page + extract the WP AJAX nonce/post_id.
@@ -275,17 +260,16 @@ async function fetchAndStoreDraw(
   params.set('security', config.nonce);
 
   // The target URL we record in scrape_jobs includes the drawCode as a
-  // pseudo-query so each draw code gets its own latest-job row. Without
-  // this, all four draws would share one row and getLatestScrapeJobId
-  // would race.
+  // pseudo-query so each draw code gets its own latest-job row.
   const targetUrl = `${config.ajaxUrl}?drawType=${drawCode}&postID=${config.postId}`;
 
   let parsed: ParsedFipDrawMatch[] = [];
   let responseOk = false;
   let staleNonceSignal = false;
+  let scrapeJobId: string | null = null;
 
   try {
-    await runScrapeJob(
+    const job = await runScrapeJob(
       deps.supabase,
       {
         jobType: 'draw',
@@ -342,6 +326,7 @@ async function fetchAndStoreDraw(
         return { body, contentHash };
       }
     );
+    scrapeJobId = job.scrapeJobId;
   } catch (err) {
     // HTTP 403 from FIP is the canonical "nonce rejected" signal — surface it
     // so the caller can refresh the cached nonce and retry once.
@@ -356,11 +341,10 @@ async function fetchAndStoreDraw(
   if (staleNonceSignal) return { inserted: 0, staleNonceSignal: true };
   if (!responseOk || parsed.length === 0) return { inserted: 0, staleNonceSignal: false };
 
-  const scrapeJobId = await getLatestScrapeJobId(deps.supabase, t.tournament_id, targetUrl);
   if (!scrapeJobId) {
     deps.logger?.warn(
       { tournamentId: t.tournament_id, drawCode },
-      'fip-draw-fetcher: scrape job row disappeared between write and read — skipping insert'
+      'fip-draw-fetcher: scrape job id missing after successful scrape — skipping insert'
     );
     return { inserted: 0, staleNonceSignal: false };
   }

@@ -36,23 +36,6 @@ const URL_FOR = (widgetCode: string, drawTypeCode: string, round: number) =>
 
 const ROUNDS_TO_TRY = [1, 2, 3, 4, 5, 6, 7, 8];
 
-async function getLatestScrapeJobId(
-  supabase: SupabaseClient,
-  tournamentId: string,
-  targetUrl: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .schema('padelgod')
-    .from('scrape_jobs')
-    .select('id')
-    .eq('tournament_id', tournamentId)
-    .eq('target_url', targetUrl)
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return (data?.id as string | undefined) ?? null;
-}
-
 async function fetchOneDrawTypeRound(
   deps: DrawFetcherDeps,
   t: ActiveTournament,
@@ -64,7 +47,7 @@ async function fetchOneDrawTypeRound(
   const targetUrl = URL_FOR(t.widget_id, drawTypeCode, round);
   let parsed: ReturnType<typeof parseCrionetDraw> = [];
 
-  await runScrapeJob(
+  const job = await runScrapeJob(
     deps.supabase,
     {
       jobType: 'draw',
@@ -84,8 +67,7 @@ async function fetchOneDrawTypeRound(
 
   if (parsed.length === 0) return 0;
 
-  const scrapeJobId = await getLatestScrapeJobId(deps.supabase, t.tournament_id, targetUrl);
-  if (!scrapeJobId) return 0;
+  const scrapeJobId = job.scrapeJobId;
 
   const rows = parsed.map((m) => ({
     scrape_job_id: scrapeJobId,
