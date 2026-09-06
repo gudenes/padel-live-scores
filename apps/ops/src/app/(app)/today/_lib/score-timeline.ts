@@ -170,25 +170,41 @@ export function attachScoreToSeries(
   })
 }
 
+/** "6-4 3-2 40-30" → "6-4 3-2" so we can mark pressure once per game. */
+export function gameKey(score: string | null | undefined): string {
+  if (!score) return ''
+  const parts = score.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return score.trim()
+  return parts.slice(0, -1).join(' ')
+}
+
 /**
- * Snapshots land every ~20s, so a single set-point rally would paint a
- * necklace of SP dots. Keep one marker at the *onset* of each BP/SP/MP run.
+ * Snapshots land every ~20s, and a set-point game can oscillate 40-30 / deuce /
+ * AD. One marker per game (not per tick, not per save) so the chart stays readable.
  * MP wins over SP, SP over BP — same priority as the chart.
  */
 export function pressureOnsets(
-  series: Array<{ isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean }>,
+  series: Array<{ score?: string | null; isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean }>,
 ): Array<{ bp: boolean; sp: boolean; mp: boolean }> {
-  let prevBp = false
-  let prevSp = false
-  let prevMp = false
+  let bpGame: string | null = null
+  let spGame: string | null = null
+  let mpGame: string | null = null
   return series.map((s) => {
+    const key = gameKey(s.score)
     const isMp = Boolean(s.isMatchPoint)
     const isSp = Boolean(s.isSetPoint) && !isMp
     const isBp = Boolean(s.isBreakPoint) && !isSp && !isMp
-    const out = { bp: isBp && !prevBp, sp: isSp && !prevSp, mp: isMp && !prevMp }
-    prevBp = isBp
-    prevSp = isSp
-    prevMp = isMp
+    const out = {
+      bp: isBp && bpGame !== key,
+      sp: isSp && spGame !== key,
+      mp: isMp && mpGame !== key,
+    }
+    if (isBp) bpGame = key
+    else if (key !== bpGame) bpGame = null
+    if (isSp) spGame = key
+    else if (key !== spGame) spGame = null
+    if (isMp) mpGame = key
+    else if (key !== mpGame) mpGame = null
     return out
   })
 }

@@ -125,34 +125,46 @@ describe('scoreTimeline serve + pressure flags', () => {
 })
 
 describe('pressureOnsets', () => {
-  const tick = (flags: { isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean }) => flags
+  const tick = (
+    score: string,
+    flags: { isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean } = {},
+  ) => ({ score, ...flags })
 
   it('keeps one SP marker for a run of set-point snapshots, not one per tick', () => {
     const out = pressureOnsets([
-      tick({}),
-      tick({ isSetPoint: true }),
-      tick({ isSetPoint: true }),
-      tick({ isSetPoint: true }),
-      tick({}),
-      tick({ isSetPoint: true }),
+      tick('5-4 30-0'),
+      tick('5-4 40-0', { isSetPoint: true }),
+      tick('5-4 40-15', { isSetPoint: true }),
+      tick('5-4 40-30', { isSetPoint: true }),
+      tick('5-4 40-40'),
+      tick('6-5 40-30', { isSetPoint: true }),
     ])
     expect(out.map((o) => o.sp)).toEqual([false, true, false, false, false, true])
   })
 
+  it('does not paint a second SP in the same game after a save', () => {
+    const out = pressureOnsets([
+      tick('5-4 40-30', { isSetPoint: true }),
+      tick('5-4 40-40'),
+      tick('5-4 40-AD', { isSetPoint: true }),
+    ])
+    expect(out.map((o) => o.sp)).toEqual([true, false, false])
+  })
+
   it('does not also paint SP when the run is a match point', () => {
     const out = pressureOnsets([
-      tick({ isSetPoint: true, isMatchPoint: true }),
-      tick({ isSetPoint: true, isMatchPoint: true }),
+      tick('6-4 5-3 40-30', { isSetPoint: true, isMatchPoint: true }),
+      tick('6-4 5-3 40-40', { isSetPoint: true, isMatchPoint: true }),
     ])
     expect(out.map((o) => o.mp)).toEqual([true, false])
     expect(out.map((o) => o.sp)).toEqual([false, false])
   })
 
-  it('paints BP only at the start of a break-point run', () => {
+  it('paints BP only once per game', () => {
     const out = pressureOnsets([
-      tick({ isBreakPoint: true }),
-      tick({ isBreakPoint: true }),
-      tick({}),
+      tick('3-4 30-40', { isBreakPoint: true }),
+      tick('3-4 40-40', { isBreakPoint: true }),
+      tick('4-4 0-0'),
     ])
     expect(out.map((o) => o.bp)).toEqual([true, false, false])
   })
