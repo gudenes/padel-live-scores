@@ -1,6 +1,6 @@
 // apps/ops/src/app/(app)/today/_lib/scoreboard-data.test.ts
 import { describe, it, expect } from 'vitest'
-import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch, predictionCorrect, scoreboardKind, mapSnapshotRows, settleFinishedWinProb } from './scoreboard-data'
+import { shortName, displayName, mapLiveRowToMatch, isUpcomingStatus, mapFinishedRowToMatch, predictionCorrect, scoreboardKind, mapSnapshotRows, settleFinishedWinProb, withPointScores, pairIdsFromRow } from './scoreboard-data'
 
 describe('shortName', () => {
   it('returns the last token', () => {
@@ -201,5 +201,60 @@ describe('mapSnapshotRows', () => {
       { atMs: Date.parse('2026-09-02T18:18:00.000Z'), pair1Prob: 0.55 },
       { atMs: Date.parse('2026-09-02T19:36:00.000Z'), pair1Prob: 0.08 },
     ])
+  })
+  it('keeps a full-match series (not a 200-row / ~1h cap)', () => {
+    const rows = Array.from({ length: 500 }, (_, i) => ({
+      pair1_prob: 0.5,
+      computed_at: new Date(Date.parse('2026-09-06T18:00:00Z') + i * 20_000).toISOString(),
+    }))
+    const series = mapSnapshotRows(rows)
+    expect(series).toHaveLength(500)
+    expect(series[series.length - 1].atMs - series[0].atMs).toBe(499 * 20_000)
+  })
+})
+
+describe('withPointScores', () => {
+  it('stamps the reconstructed score onto each win-prob tick for hover', () => {
+    const nowMs = Date.parse('2026-09-06T20:00:00Z')
+    const match = mapLiveRowToMatch({
+      match_id: 'm1',
+      pair1_prob: 0.4,
+      pair2_prob: 0.6,
+      pair1_decimal_odds: 2.5,
+      pair2_decimal_odds: 1.67,
+      anchor_source: 'model-prediction',
+      coverage: 'live-pbp',
+      computed_at: new Date(nowMs).toISOString(),
+      matches: {
+        status: 'live',
+        court: 'Center',
+        round_canonical: 'F',
+        category: 'men',
+        tournament: { name: 'Madrid P1', level: 'p1' },
+        p1a: { id: 'a', name: 'Juan Nieto' },
+        p1b: { id: 'b', name: 'M. Yanguas' },
+        p2a: { id: 'c', name: 'Alejandro Galan' },
+        p2b: { id: 'd', name: 'Federico Chingotto' },
+      },
+    }, {
+      sets: [{ pair1_games: 4, pair2_games: 6, is_current: false }, { pair1_games: 4, pair2_games: 5, is_current: true }],
+      gameScore: '0-0',
+      servingPlayerId: 'c',
+      history: [
+        { prob: 0.5, atMs: Date.parse('2026-09-06T19:00:00Z') },
+        { prob: 0.4, atMs: Date.parse('2026-09-06T19:01:00Z') },
+      ],
+      currentSetStartedAt: null,
+      prematchPair1Prob: 0.45,
+    }, nowMs)
+    const points = [
+      { created_at: '2026-09-06T19:00:00Z', score_after: '15-0', set_id: 's1', game_id: 'g1', winner_pair: 1 as const, server_player_id: 'c' },
+      { created_at: '2026-09-06T19:00:40Z', score_after: '15-15', set_id: 's1', game_id: 'g1', winner_pair: 2 as const, server_player_id: 'c' },
+    ]
+    const out = withPointScores(match, points, pairIdsFromRow(match && {
+      p1a: { id: 'a' }, p1b: { id: 'b' }, p2a: { id: 'c' }, p2b: { id: 'd' },
+    }))
+    expect(out.winProbSeries.map((t) => t.score)).toEqual(['0-0 15-0', '0-0 15-15'])
+    expect(out.winProbSeries[1].serverPair).toBe(2)
   })
 })
