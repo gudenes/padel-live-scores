@@ -35,6 +35,25 @@ describe('scoreTimeline', () => {
     ])
     expect(out[2].score).toBe('2-0 0-0 15-0')
   })
+
+  it('uses games.winner_pair when the last recorded point is not the game winner', () => {
+    // Madrid P1 final set 1 was 4-6. Game 2's last logged point was 15-30
+    // won by pair 2, but pair 1 actually won the game.
+    const out = scoreTimeline(
+      [
+        pt('g1a', '40-15', 's1', 'g1', 1),
+        pt('g2a', '15-30', 's1', 'g2', 2),
+        pt('g3a', '15-0', 's1', 'g3', 1),
+      ],
+      undefined,
+      [
+        { id: 'g1', winner_pair: 1 },
+        { id: 'g2', winner_pair: 1 },
+        { id: 'g3', winner_pair: 1 },
+      ],
+    )
+    expect(out[2].score).toBe('2-0 15-0')
+  })
 })
 
 describe('attachScoreToSeries', () => {

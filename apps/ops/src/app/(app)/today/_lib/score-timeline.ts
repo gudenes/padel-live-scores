@@ -21,6 +21,11 @@ export interface PairIds {
   pair2: Set<string>
 }
 
+export interface GameMeta {
+  id: string
+  winner_pair: 1 | 2 | null
+}
+
 export interface PointContext {
   atMs: number
   score: string
@@ -106,17 +111,29 @@ function wouldWinMatch(completedSets: string[], pair: 1 | 2): boolean {
   return (pair === 1 ? p1 : p2) + 1 >= 2
 }
 
-export function scoreTimeline(points: PointRow[], ids?: PairIds): PointContext[] {
+function gameWinner(
+  prevGameId: string,
+  lastPointWinner: 1 | 2,
+  byId?: Map<string, 1 | 2>,
+): 1 | 2 {
+  return byId?.get(prevGameId) ?? lastPointWinner
+}
+
+export function scoreTimeline(points: PointRow[], ids?: PairIds, gamesMeta?: GameMeta[]): PointContext[] {
   const completedSets: string[] = []
   let setId: string | null = null
   let gameId: string | null = null
   let games: [number, number] = [0, 0]
   let lastWinner: 1 | 2 = 1
   const out: PointContext[] = []
+  const winnerByGame = new Map<string, 1 | 2>()
+  for (const g of gamesMeta ?? []) {
+    if (g.winner_pair === 1 || g.winner_pair === 2) winnerByGame.set(g.id, g.winner_pair)
+  }
 
   for (const p of points) {
     if (gameId !== null && p.game_id !== gameId) {
-      games[lastWinner - 1] += 1
+      games[gameWinner(gameId, lastWinner, winnerByGame) - 1] += 1
     }
     if (setId !== null && p.set_id !== setId) {
       completedSets.push(`${games[0]}-${games[1]}`)

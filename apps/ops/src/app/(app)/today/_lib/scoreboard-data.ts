@@ -4,7 +4,7 @@ import { getMatchOddsForDay } from '@/lib/odds-data'
 import type { Match, MatchStatus, AnchorSource, LiveOddsSnapshot } from './types'
 import { movement15m, coverageToConfidence, biggestSwing, type ProbPoint } from './movement'
 import { splitGameScore } from './score'
-import { attachScoreToSeries, scoreTimeline, type PointRow, type PairIds } from './score-timeline'
+import { attachScoreToSeries, scoreTimeline, type PointRow, type PairIds, type GameMeta } from './score-timeline'
 
 export function shortName(name: string | null | undefined): string {
   if (!name) return '—'
@@ -298,6 +298,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
   // 2) Per-match extras: sets, current game, serving, snapshot history
   const extrasById = new Map<string, LiveExtras>()
   const livePointsById = new Map<string, PointRow[]>()
+  const liveGamesById = new Map<string, GameMeta[]>()
   if (liveIds.length) {
     // sets/games are tiny and bounded per match — batch them with `.in()`.
     const [{ data: sets }, { data: games }] = await Promise.all([
@@ -311,14 +312,16 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
     await mapLimit(liveIds, FETCH_CONCURRENCY, async (id) => {
       // Full snapshot history — `.limit(200)` at ~20s cadence was only ~67 minutes
       // and, ordered ascending, the *first* hour of a 2h+ match.
-      const [{ data: pts }, snaps, points] = await Promise.all([
+      const [{ data: pts }, snaps, points, gameRows] = await Promise.all([
         supabase.from('match_points').select('server_player_id').eq('match_id', id).order('created_at', { ascending: false }).limit(1),
         loadAllSnapshots(supabase, id),
         loadMatchPoints(supabase, id),
+        loadMatchGames(supabase, id),
       ])
       servingById.set(id, pts?.[0]?.server_player_id ?? null)
       histById.set(id, snaps.map((s) => ({ prob: s.pair1Prob, atMs: s.atMs })))
       livePointsById.set(id, points)
+      liveGamesById.set(id, gameRows)
     })
     for (const id of liveIds) {
       const mSets = (sets ?? []).filter((s) => s.match_id === id)
@@ -338,6 +341,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
       mapLiveRowToMatch(r, extrasById.get(r.match_id) ?? { sets: [], gameScore: null, servingPlayerId: null, history: [], currentSetStartedAt: null, prematchPair1Prob: preMap.get(r.match_id) ?? null }, nowMs),
       livePointsById.get(r.match_id) ?? [],
       r.matches ? pairIdsFromRow(r.matches) : undefined,
+      liveGamesById.get(r.match_id),
     ))
 
   // 3) SCHEDULED rows (today, not already live) from model_predictions
@@ -382,6 +386,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
   // 4) FINISHED rows — fetched up-front above; build per-match extras here.
   const finExtrasById = new Map<string, FinishedExtras>()
   const finPointsById = new Map<string, PointRow[]>()
+  const finGamesById = new Map<string, GameMeta[]>()
   if (finIds.length) {
     // sets + closing odds are bounded per match — batch with `.in()`.
     const [{ data: finSets }, { data: finOdds }] = await Promise.all([
@@ -392,12 +397,14 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
     // can't be truncated out of a shared `.limit()` budget on a busy day.
     const histById = new Map<string, Array<{ atMs: number; pair1Prob: number }>>()
     await mapLimit(finIds, FETCH_CONCURRENCY, async (id) => {
-      const [snaps, points] = await Promise.all([
+      const [snaps, points, gameRows] = await Promise.all([
         loadAllSnapshots(supabase, id),
         loadMatchPoints(supabase, id),
+        loadMatchGames(supabase, id),
       ])
       histById.set(id, snaps)
       finPointsById.set(id, points)
+      finGamesById.set(id, gameRows)
     })
     for (const id of finIds) {
       const mSets = (finSets ?? []).filter((s) => s.match_id === id)
@@ -418,6 +425,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
       mapFinishedRowToMatch(r, finExtrasById.get(r.id) ?? { sets: [], closing: null, history: [], prematchPair1Prob: preMap.get(r.id) ?? null }),
       finPointsById.get(r.id) ?? [],
       pairIdsFromRow(r),
+      finGamesById.get(r.id),
     ))
 
   const matches = [...liveMatches, ...scheduled, ...finishedMatches]
@@ -476,6 +484,20 @@ async function loadMatchPoints(
   }))
 }
 
+async function loadMatchGames(
+  supabase: ReturnType<typeof createServiceClient>,
+  matchId: string,
+): Promise<GameMeta[]> {
+  const { data } = await supabase
+    .from('games')
+    .select('id,winner_pair')
+    .eq('match_id', matchId)
+  return (data ?? []).map((g) => ({
+    id: String(g.id),
+    winner_pair: g.winner_pair === 1 || g.winner_pair === 2 ? (g.winner_pair as 1 | 2) : null,
+  }))
+}
+
 export function pairIdsFromRow(row: {
   p1a: { id: string } | null
   p1b: { id: string } | null
@@ -488,11 +510,11 @@ export function pairIdsFromRow(row: {
   }
 }
 
-export function withPointScores(match: Match, points: PointRow[], ids?: PairIds): Match {
+export function withPointScores(match: Match, points: PointRow[], ids?: PairIds, games?: GameMeta[]): Match {
   if (points.length === 0 || match.winProbSeries.length === 0) return match
   return {
     ...match,
-    winProbSeries: attachScoreToSeries(match.winProbSeries, scoreTimeline(points, ids)),
+    winProbSeries: attachScoreToSeries(match.winProbSeries, scoreTimeline(points, ids, games)),
   }
 }
 
@@ -508,7 +530,7 @@ export async function getMatchScoreboard(matchId: string): Promise<Match | null>
     .maybeSingle<FinishedRow>()
   if (!row) return null
 
-  const [{ data: preRows }, history, { data: sets }, points] = await Promise.all([
+  const [{ data: preRows }, history, { data: sets }, points, gameRows] = await Promise.all([
     supabase
       .from('model_predictions')
       .select('pair1_prob')
@@ -522,6 +544,7 @@ export async function getMatchScoreboard(matchId: string): Promise<Match | null>
       .eq('match_id', matchId)
       .order('set_number'),
     loadMatchPoints(supabase, matchId),
+    loadMatchGames(supabase, matchId),
   ])
   const prematchPair1Prob = preRows?.[0] ? Number(preRows[0].pair1_prob) : null
   const kind = scoreboardKind(row.status)
@@ -556,7 +579,7 @@ export async function getMatchScoreboard(matchId: string): Promise<Match | null>
       currentSetStartedAt: null,
       prematchPair1Prob,
     }
-    if (live) return withPointScores(mapLiveRowToMatch(live, extras, nowMs), points, pairIdsFromRow(row))
+    if (live) return withPointScores(mapLiveRowToMatch(live, extras, nowMs), points, pairIdsFromRow(row), gameRows)
   }
 
   if (kind === 'finished' || history.length > 0) {
@@ -577,7 +600,7 @@ export async function getMatchScoreboard(matchId: string): Promise<Match | null>
         : null,
       history,
       prematchPair1Prob,
-    }), points, pairIdsFromRow(row))
+    }), points, pairIdsFromRow(row), gameRows)
   }
 
   const pn = (a: { name: string | null } | null, b: { name: string | null } | null) =>
