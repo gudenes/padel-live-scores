@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attachScoreToSeries, flourishCaptionsCsv, isBreakPoint, scoreTimeline, setBoundaryTimes } from '../score-timeline'
+import { attachScoreToSeries, flourishCaptionsCsv, isBreakPoint, pressureOnsets, scoreTimeline, setBoundaryTimes } from '../score-timeline'
 
 const pt = (
   t: string,
@@ -121,6 +121,40 @@ describe('scoreTimeline serve + pressure flags', () => {
       out,
     )
     expect(setBoundaryTimes(ticks)).toEqual([Date.parse('2026-09-03T17:01:30Z')])
+  })
+})
+
+describe('pressureOnsets', () => {
+  const tick = (flags: { isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean }) => flags
+
+  it('keeps one SP marker for a run of set-point snapshots, not one per tick', () => {
+    const out = pressureOnsets([
+      tick({}),
+      tick({ isSetPoint: true }),
+      tick({ isSetPoint: true }),
+      tick({ isSetPoint: true }),
+      tick({}),
+      tick({ isSetPoint: true }),
+    ])
+    expect(out.map((o) => o.sp)).toEqual([false, true, false, false, false, true])
+  })
+
+  it('does not also paint SP when the run is a match point', () => {
+    const out = pressureOnsets([
+      tick({ isSetPoint: true, isMatchPoint: true }),
+      tick({ isSetPoint: true, isMatchPoint: true }),
+    ])
+    expect(out.map((o) => o.mp)).toEqual([true, false])
+    expect(out.map((o) => o.sp)).toEqual([false, false])
+  })
+
+  it('paints BP only at the start of a break-point run', () => {
+    const out = pressureOnsets([
+      tick({ isBreakPoint: true }),
+      tick({ isBreakPoint: true }),
+      tick({}),
+    ])
+    expect(out.map((o) => o.bp)).toEqual([true, false, false])
   })
 })
 

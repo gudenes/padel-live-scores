@@ -170,6 +170,29 @@ export function attachScoreToSeries(
   })
 }
 
+/**
+ * Snapshots land every ~20s, so a single set-point rally would paint a
+ * necklace of SP dots. Keep one marker at the *onset* of each BP/SP/MP run.
+ * MP wins over SP, SP over BP — same priority as the chart.
+ */
+export function pressureOnsets(
+  series: Array<{ isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean }>,
+): Array<{ bp: boolean; sp: boolean; mp: boolean }> {
+  let prevBp = false
+  let prevSp = false
+  let prevMp = false
+  return series.map((s) => {
+    const isMp = Boolean(s.isMatchPoint)
+    const isSp = Boolean(s.isSetPoint) && !isMp
+    const isBp = Boolean(s.isBreakPoint) && !isSp && !isMp
+    const out = { bp: isBp && !prevBp, sp: isSp && !prevSp, mp: isMp && !prevMp }
+    prevBp = isBp
+    prevSp = isSp
+    prevMp = isMp
+    return out
+  })
+}
+
 /** Last tick of each completed set — vertical bars on the win-prob chart. */
 export function setBoundaryTimes(ticks: Array<{ atMs: number; setsCompleted?: number }>): number[] {
   const out: number[] = []
