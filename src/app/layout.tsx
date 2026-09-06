@@ -138,7 +138,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const locale = await getLocale()
   return (
     <html lang={locale} suppressHydrationWarning>
-    <head />
+    <head>
+      <script
+        src="https://cdn.agentlane.com/v1/snippet.js"
+        data-domain="dom-gjah92cm29nj"
+      />
+    </head>
     <body>
       {/* Splash overlay paints first so the WebView's initial frame
           shows our branded logo + lime arc spinner. CSS-only hide
