@@ -468,10 +468,12 @@ export async function runFipOopWriter(
             const firstFirmFill =
               originalValue == null || isPlaceholderScheduledAt(originalValue);
             const existingForNotify = matchById.get(matchId);
+            const notify = deps.notify;
             if (
+              notify &&
               shouldFireMatchScheduledNotify({
                 eventsEnabled: !!deps.eventsEnabled,
-                hasNotify: !!deps.notify,
+                hasNotify: true,
                 firstFirmFill,
                 approximate: p.approximate,
                 matchStatus: existingForNotify?.status,
@@ -501,7 +503,7 @@ export async function runFipOopWriter(
                     metadata: { match_id: matchId },
                     dedupeKey: `match_scheduled:${matchId}`,
                   },
-                  deps.notify,
+                  notify,
                 );
               }
             }
