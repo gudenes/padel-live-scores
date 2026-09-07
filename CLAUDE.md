@@ -289,6 +289,8 @@ Match `scheduled_at` comes from multiple sources:
 
 Incident 2026-09-07: Paris Major OOP used 24h labels; the AM/PM-only regex left all 110 `scheduled_at` NULL, so the tournament vanished from the home LIVE carousel even though courts/results were landing. Parser + `keepOnLiveCarousel` fallback. One-shot backfill: `npx tsx scripts/apply-fip-oop-schedule-now.ts --tournament <uuid>`.
 
+**`match_scheduled` push must not fire on historical fills.** `fip-oop-writer` notifies followers the first time a match gets a firm `"Starting at"` time. After the 24h parser shipped, the next cron backfilled yesterday's finished Q1 and sent "Piltcher plays at 11:00 CEST". Gate: status still `scheduled` AND `scheduled_at` in the future (`shouldFireMatchScheduledNotify`). Writing `scheduled_at` onto finished rows is fine; the push is not.
+
 ### FIP draw pipeline
 Eliminates TBD names on FIP tournament matches. Pipeline: PDF upload (ops UI) → `pdf-parse` → `src/lib/draw-parser.ts` (pure function, parses bracket + seeds + Q/WC/LL markers) → `tournament_draws` table. `fip-scores` cron loads draws at start, checks them first (token similarity ≥0.7) before PlayerResolver fallback.
 

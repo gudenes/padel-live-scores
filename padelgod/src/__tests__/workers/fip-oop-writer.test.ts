@@ -4,6 +4,7 @@ import {
   buildOopPatch,
   isPlaceholderScheduledAt,
   isScheduledAtWriteEligible,
+  shouldFireMatchScheduledNotify,
 } from '../../workers/fip-oop-writer.js';
 
 describe('isPlaceholderScheduledAt', () => {
@@ -79,6 +80,62 @@ describe('isScheduledAtWriteEligible', () => {
     // Defensive: a real scheduled_at with no label is treated as firm
     // (e.g. a hand-set value or a legacy row predating schedule_label).
     expect(isScheduledAtWriteEligible('2026-05-25T15:00:00+00:00', null)).toBe(false);
+  });
+});
+
+describe('shouldFireMatchScheduledNotify', () => {
+  const now = new Date('2026-09-07T04:47:00Z');
+  const future = '2026-09-07T10:00:00.000Z'; // later today
+  const past = '2026-09-06T09:00:00.000Z'; // yesterday's Q1
+  const base = {
+    eventsEnabled: true,
+    hasNotify: true,
+    firstFirmFill: true,
+    approximate: false,
+    matchStatus: 'scheduled',
+    scheduledAtIso: future,
+    now,
+  };
+
+  it('fires for an upcoming scheduled match getting its first firm time', () => {
+    expect(shouldFireMatchScheduledNotify(base)).toBe(true);
+  });
+
+  it('does NOT fire for a finished match (Paris Major Q1 2026-09-07 incident)', () => {
+    // Writer backfilled "Starting at 11:00" onto yesterday's finished Q1
+    // and users got "Piltcher plays at 11:00 CEST" the next morning.
+    expect(
+      shouldFireMatchScheduledNotify({
+        ...base,
+        matchStatus: 'finished',
+        scheduledAtIso: past,
+      }),
+    ).toBe(false);
+  });
+
+  it('does NOT fire when scheduled_at is already in the past', () => {
+    expect(
+      shouldFireMatchScheduledNotify({ ...base, scheduledAtIso: past }),
+    ).toBe(false);
+  });
+
+  it('does NOT fire for live / on_court / retired / walkover', () => {
+    for (const matchStatus of ['live', 'on_court', 'retired', 'walkover']) {
+      expect(shouldFireMatchScheduledNotify({ ...base, matchStatus })).toBe(false);
+    }
+  });
+
+  it('does NOT fire for approximate labels ("Not before" / "Followed by")', () => {
+    expect(shouldFireMatchScheduledNotify({ ...base, approximate: true })).toBe(false);
+  });
+
+  it('does NOT fire when events are dark or notify is unconfigured', () => {
+    expect(shouldFireMatchScheduledNotify({ ...base, eventsEnabled: false })).toBe(false);
+    expect(shouldFireMatchScheduledNotify({ ...base, hasNotify: false })).toBe(false);
+  });
+
+  it('does NOT re-fire on a Followed-by re-estimate', () => {
+    expect(shouldFireMatchScheduledNotify({ ...base, firstFirmFill: false })).toBe(false);
   });
 });
 

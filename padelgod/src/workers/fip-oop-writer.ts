@@ -136,6 +136,7 @@ interface ExistingMatch {
   /** match_scheduled notify marker (Plan 2B). NULL until the sender claims
    *  it on the first firm-time fill. Used to gate the one-shot fire. */
   scheduled_notified_at: string | null;
+  status: string | null;
 }
 
 /**
@@ -152,6 +153,36 @@ interface ExistingMatch {
  * tz is +1, where 00:00 UTC = 01:00 local — still well outside any
  * tournament play hours).
  */
+export interface MatchScheduledNotifyInput {
+  eventsEnabled: boolean;
+  hasNotify: boolean;
+  firstFirmFill: boolean;
+  approximate: boolean;
+  matchStatus: string | null | undefined;
+  scheduledAtIso: string;
+  now?: Date;
+}
+
+/**
+ * Whether to dispatch match_scheduled push after a first firm-time fill.
+ *
+ * Incident 2026-09-07: Paris Major Q1 (already finished the day before)
+ * got scheduled_at backfilled when the 24h OOP parser shipped, and the
+ * writer notified followers "Piltcher plays at 11:00 CEST". The match
+ * had been over for 17 hours. Never notify a match that is not still
+ * `scheduled`, or whose start is already in the past.
+ */
+export function shouldFireMatchScheduledNotify(
+  input: MatchScheduledNotifyInput,
+): boolean {
+  if (!input.eventsEnabled || !input.hasNotify) return false;
+  if (!input.firstFirmFill || input.approximate) return false;
+  if ((input.matchStatus ?? '').toLowerCase() !== 'scheduled') return false;
+  const at = Date.parse(input.scheduledAtIso);
+  if (Number.isNaN(at)) return false;
+  return at > (input.now ?? new Date()).getTime();
+}
+
 export function isPlaceholderScheduledAt(value: string | null): boolean {
   if (!value) return false;
   // Avoid a Date round-trip — string-match the time component.
@@ -376,6 +407,9 @@ export async function runFipOopWriter(
             .filter(({ matchId }) => matchId != null)
             .map(({ matchId, row }) => [row.match_widget_id!, matchId!]),
         );
+        const matchById = new Map(
+          [...matchByComposite.values()].map((m) => [m.id, m]),
+        );
 
         // Track unparsable WRITE candidates only — we don't care if the
         // parser dropped a row whose match doesn't exist yet.
@@ -428,23 +462,21 @@ export async function runFipOopWriter(
 
             // match_scheduled sender (Plan 2B, ships dark behind
             // ENABLE_EVENT_NOTIFICATIONS). Fire ONCE the first time a
-            // match gets a firm real time + court. Gates:
-            //   - eventsEnabled && notify configured (master switch);
-            //   - the prior value was NULL or a midnight-UTC placeholder
-            //     (originalValue check) — never re-fire on a "Followed by"
-            //     re-estimate, whose originalValue is a non-null, non-
-            //     placeholder timestamp;
-            //   - firm time only (p.approximate === false) — skip
-            //     "Not before" approximate times.
-            // The fire is then claimed atomically on scheduled_notified_at
-            // so overlapping ticks / the admin trigger never double-send.
+            // still-upcoming match gets a firm real time + court. Gates
+            // live in shouldFireMatchScheduledNotify — in particular we
+            // never notify finished/past matches (Paris Q1 2026-09-07).
             const firstFirmFill =
               originalValue == null || isPlaceholderScheduledAt(originalValue);
+            const existingForNotify = matchById.get(matchId);
             if (
-              deps.eventsEnabled &&
-              deps.notify &&
-              firstFirmFill &&
-              p.approximate === false
+              shouldFireMatchScheduledNotify({
+                eventsEnabled: !!deps.eventsEnabled,
+                hasNotify: !!deps.notify,
+                firstFirmFill,
+                approximate: p.approximate,
+                matchStatus: existingForNotify?.status,
+                scheduledAtIso: p.scheduledAt,
+              })
             ) {
               const { data: claimedSched, error: claimErr } = await supabase
                 .from('matches')
@@ -659,7 +691,7 @@ async function loadExistingMatchesByPrefix(
 ): Promise<Map<string, ExistingMatch>> {
   const { data, error } = await supabase
     .from('matches')
-    .select('id, widget_id_composite, round, court, court_order, scheduled_at, schedule_label, scheduled_notified_at')
+    .select('id, widget_id_composite, round, court, court_order, scheduled_at, schedule_label, scheduled_notified_at, status')
     .like('widget_id_composite', `${compositePrefix}%`);
   if (error) {
     throw new Error(
