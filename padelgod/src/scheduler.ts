@@ -256,7 +256,13 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     case 'tournament-discovery':     return (deps) => runTournamentDiscovery(deps);
     case 'fip-event-page-enricher':  return (deps) => runFipEventPageEnricher(deps);
     case 'widget-code-lookup':       return (deps) => runWidgetCodeLookup(deps);
-    case 'player-rankings':      return (deps) => runPlayerRankings(deps);
+    case 'player-rankings':      return (deps) => runPlayerRankings({
+      supabase: deps.supabase,
+      httpClient: deps.httpClient,
+      logger: deps.logger,
+      notify: deps.notify,
+      eventsEnabled: deps.eventsEnabled,
+    });
     case 'player-profile':       return async (deps) => {
       const tournamentResult = await runPlayerProfileBatch(
         { supabase: deps.supabase, httpClient: deps.httpClient },

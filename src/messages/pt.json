@@ -1694,7 +1694,11 @@
     "eliminatedTitleWomen": "{name} eliminada",
     "eliminatedTitleMen": "{name} eliminado",
     "eliminatedBody": "{score} vs {opponent} — {event}",
-    "eliminatedBodyNoScore": "vs {opponent} — {event}"
+    "eliminatedBodyNoScore": "vs {opponent} — {event}",
+    "rankingTitle": "Atualização do ranking 🔥",
+    "rankingBodyLead": "Maiores movimentos",
+    "rankingBodyMove": "{name} {signedMove} para #{rank}",
+    "rankingFallbackBody": "Sem movimentos ≥2 no top 30 esta semana."
   },
   "notFound": {
     "title": "Esta página não existe",

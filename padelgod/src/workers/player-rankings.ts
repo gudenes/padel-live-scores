@@ -5,7 +5,15 @@ import * as Sentry from '@sentry/node';
 import { runScrapeJob } from '../lib/scrape-job.js';
 import { FIP_RANKINGS_VERSION } from '../lib/parser-versions.js';
 import { rehostAvatarToSupabase, ensureAvatarsBucket } from '../lib/avatar-rehost.js';
-import { computePointsMove, previousIsoYearWeek, resolvePreviousPoints } from '../lib/points-move.js';
+import {
+  computePointsMove,
+  previousIsoYearWeek,
+  resolvePreviousPoints,
+  shouldWritePointsMove,
+} from '../lib/points-move.js';
+import { claimNotificationEvent } from '../lib/notification-events.js';
+import { notifyRankingUpdated, type NotifyDeps } from '../lib/notify.js';
+import { shouldNotifyNewOfficialWeek } from '../lib/ranking-week.js';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -13,6 +21,9 @@ export interface PlayerRankingsDeps {
   supabase: SupabaseClient;
   httpClient: AxiosInstance;
   logger?: Logger;
+  /** Same pair as fip-oop-writer: fire ranking_updated only when both are set. */
+  notify?: NotifyDeps;
+  eventsEnabled?: boolean;
 }
 
 interface PhaseResult {
@@ -69,6 +80,7 @@ const PAGE_SIZE = 500;
 const OFFICIAL_WEEK_FALLBACK = 3;
 const AVATAR_BATCH = 20;
 const RACE_CLEAR_CHUNK = 200;
+const SNAPSHOT_IN_CHUNK = 100;
 const PROFILE_ATTEMPT_SENTINEL = '1970-01-01T00:00:00Z';
 
 const COUNTRY_3_TO_2: Record<string, string> = {
@@ -237,20 +249,33 @@ async function loadPreviousSnapshotPoints(
   playerIds: string[],
   type: 'official' | 'race',
   rankingDate: string,
+  logger?: Logger,
 ): Promise<Map<string, number | null>> {
   const map = new Map<string, number | null>();
   if (playerIds.length === 0) return map;
   const yw = isoYearWeek(new Date(rankingDate));
   const prev = previousIsoYearWeek(yw.year, yw.week);
-  const { data } = await supabase
-    .from('player_ranking_snapshots')
-    .select('player_id, points')
-    .eq('type', type)
-    .eq('year', prev.year)
-    .eq('week', prev.week)
-    .in('player_id', playerIds);
-  for (const row of data ?? []) {
-    map.set(row.player_id as string, (row.points as number | null) ?? null);
+  // Chunk `.in(player_id)` — ~1000 UUIDs in one PostgREST URL exceeds the
+  // gateway limit and the lookup fails silently, zeroing points_move.
+  for (let i = 0; i < playerIds.length; i += SNAPSHOT_IN_CHUNK) {
+    const chunk = playerIds.slice(i, i + SNAPSHOT_IN_CHUNK);
+    const { data, error } = await supabase
+      .from('player_ranking_snapshots')
+      .select('player_id, points')
+      .eq('type', type)
+      .eq('year', prev.year)
+      .eq('week', prev.week)
+      .in('player_id', chunk);
+    if (error) {
+      logger?.warn(
+        { err: error.message, type, year: prev.year, week: prev.week, chunk: chunk.length },
+        'player-rankings: previous snapshot lookup failed',
+      );
+      continue;
+    }
+    for (const row of data ?? []) {
+      map.set(row.player_id as string, (row.points as number | null) ?? null);
+    }
   }
   return map;
 }
@@ -260,13 +285,14 @@ async function upsertOfficialPlayers(
   rows: FipOfficialPlayer[],
   category: 'men' | 'women',
   rankingDate: string,
+  logger?: Logger,
 ): Promise<ResolvedPlayer[]> {
   const byFipId = new Map<string, FipOfficialPlayer>();
   for (const r of rows) byFipId.set(r.player_id.replace(/^fip-/, ''), r);
 
   const { data: existing } = await supabase
     .from('players')
-    .select('id, fip_id, name, country, category, ranking, points, ranking_move, ranking_date, profile_url')
+    .select('id, fip_id, name, country, category, ranking, points, ranking_move, ranking_date, points_move, profile_url')
     .in('fip_id', Array.from(byFipId.keys()));
 
   const existingByFipId = new Map<string, any>();
@@ -277,6 +303,7 @@ async function upsertOfficialPlayers(
     Array.from(existingByFipId.values()).map((r: { id: string }) => r.id),
     'official',
     rankingDate,
+    logger,
   );
 
   const now = new Date().toISOString();
@@ -294,15 +321,23 @@ async function upsertOfficialPlayers(
         currentRankingDate: match.ranking_date,
         newRankingDate: rankingDate,
       });
+      const computedMove = computePointsMove(fipRow.points, previous);
       const patch: Record<string, unknown> = {
         ranking: fipRow.rank,
         points: fipRow.points,
         ranking_move: fipRow.move,
-        points_move: computePointsMove(fipRow.points, previous),
         ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
       };
+      if (shouldWritePointsMove({
+        computed: computedMove,
+        existingMove: match.points_move,
+        currentRankingDate: match.ranking_date,
+        newRankingDate: rankingDate,
+      })) {
+        patch.points_move = computedMove;
+      }
       if (fullName && fullName !== match.name) patch.name = fullName;
       if (country && country !== match.country) patch.country = country;
       if (fipRow.url && fipRow.url !== match.profile_url) patch.profile_url = fipRow.url;
@@ -339,13 +374,14 @@ async function upsertRacePlayers(
   rows: FipRacePlayer[],
   category: 'men' | 'women',
   rankingDate: string,
+  logger?: Logger,
 ): Promise<ResolvedPlayer[]> {
   const byFipId = new Map<string, FipRacePlayer>();
   for (const r of rows) byFipId.set(r.player_id.replace(/^fip-/, ''), r);
 
   const { data: existing } = await supabase
     .from('players')
-    .select('id, fip_id, name, country, category, race_ranking, race_points, race_move, ranking_date')
+    .select('id, fip_id, name, country, category, race_ranking, race_points, race_move, race_points_move, ranking_date')
     .in('fip_id', Array.from(byFipId.keys()));
 
   const existingByFipId = new Map<string, any>();
@@ -356,6 +392,7 @@ async function upsertRacePlayers(
     Array.from(existingByFipId.values()).map((r: { id: string }) => r.id),
     'race',
     rankingDate,
+    logger,
   );
 
   const now = new Date().toISOString();
@@ -373,15 +410,23 @@ async function upsertRacePlayers(
         currentRankingDate: match.ranking_date,
         newRankingDate: rankingDate,
       });
+      const computedMove = computePointsMove(fipRow.race_points, previous);
       const patch: Record<string, unknown> = {
         race_ranking: fipRow.race_rank,
         race_points: fipRow.race_points,
         race_move: fipRow.race_move,
-        race_points_move: computePointsMove(fipRow.race_points, previous),
         ranking_date: rankingDate,
         last_updated_by: 'padelgod',
         updated_at: now,
       };
+      if (shouldWritePointsMove({
+        computed: computedMove,
+        existingMove: match.race_points_move,
+        currentRankingDate: match.ranking_date,
+        newRankingDate: rankingDate,
+      })) {
+        patch.race_points_move = computedMove;
+      }
       if (fullName && fullName !== match.name) patch.name = fullName;
       if (country && country !== match.country) patch.country = country;
 
@@ -549,7 +594,7 @@ async function runOfficialPhase(
         const rowsByFipId = new Map<string, FipOfficialPlayer>();
         for (const r of players) rowsByFipId.set(r.player_id.replace(/^fip-/, ''), r);
 
-        const resolved = await upsertOfficialPlayers(deps.supabase, players, category, rd!);
+        const resolved = await upsertOfficialPlayers(deps.supabase, players, category, rd!, deps.logger);
         updated = resolved.filter(r => r.outcome === 'updated').length;
         created = resolved.filter(r => r.outcome === 'created').length;
 
@@ -617,7 +662,7 @@ async function runRacePhase(
         // page date as official so the two tabs stay consistent and the race
         // phase (runs last) doesn't clobber official's date back to "today".
         const raceDate = fipDate ? `${fipDate}T00:00:00Z` : isoYearWeek(new Date()).mondayIso;
-        const resolved = await upsertRacePlayers(deps.supabase, players, category, raceDate);
+        const resolved = await upsertRacePlayers(deps.supabase, players, category, raceDate, deps.logger);
         updated = resolved.filter(r => r.outcome === 'updated').length;
         created = resolved.filter(r => r.outcome === 'created').length;
 
@@ -650,10 +695,32 @@ async function runRacePhase(
 
 // ── Main orchestrator ────────────────────────────────────────────────────
 
+async function latestOfficialYearWeek(
+  supabase: SupabaseClient,
+): Promise<{ year: number; week: number } | null> {
+  const { data, error } = await supabase
+    .from('player_ranking_snapshots')
+    .select('year, week')
+    .eq('type', 'official')
+    .order('year', { ascending: false })
+    .order('week', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error || !data) return null;
+  const year = (data as { year: number }).year;
+  const week = (data as { week: number }).week;
+  if (typeof year !== 'number' || typeof week !== 'number') return null;
+  return { year, week };
+}
+
 export async function runPlayerRankings(
   deps: PlayerRankingsDeps,
 ): Promise<PlayerRankingsResult> {
   await ensureAvatarsBucket(deps.supabase);
+
+  // Snapshot the latest official week BEFORE this run writes, so a same-week
+  // re-upsert (weekday tick, deploy) does not claim ranking_updated.
+  const beforeOfficialWeek = await latestOfficialYearWeek(deps.supabase);
 
   const avatarMap = new Map<string, string>();
 
@@ -696,6 +763,26 @@ export async function runPlayerRankings(
       if (o.status === 'ok') rehosted++;
       else if (o.status.startsWith('skipped')) skipped++;
       else failed++;
+    }
+  }
+
+  // ranking_updated: only after a NEW official week, and only after avatars
+  // rehost so the headline photo is a supabase storage URL. Same-week
+  // upserts (deploy, weekday ticks) must not blast.
+  const rankingDate = officialMen.rankingDate ?? officialWomen.rankingDate;
+  const afterOfficialWeek = rankingDate ? isoYearWeek(new Date(rankingDate)) : null;
+  if (
+    deps.eventsEnabled &&
+    deps.notify &&
+    shouldNotifyNewOfficialWeek(beforeOfficialWeek, afterOfficialWeek)
+  ) {
+    const eventKey = `ranking_updated:${afterOfficialWeek.year}-${String(afterOfficialWeek.week).padStart(2, '0')}`;
+    const claimed = await claimNotificationEvent(deps.supabase, eventKey, 'ranking_updated');
+    if (claimed) {
+      deps.logger?.info({ eventKey }, 'player-rankings: firing ranking_updated');
+      notifyRankingUpdated(deps.notify);
+    } else {
+      deps.logger?.info({ eventKey }, 'player-rankings: ranking_updated already claimed');
     }
   }
 

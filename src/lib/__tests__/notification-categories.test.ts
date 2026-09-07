@@ -182,7 +182,14 @@ describe('category tiers', () => {
   })
   it('only categories with real senders are live (not comingSoon)', () => {
     const live = KNOWN_CATEGORIES_TIER.filter((c) => !CATEGORY_META[c].comingSoon)
-    expect(live.sort()).toEqual(['marketing', 'match_finished', 'match_live_bookmark', 'match_live_follow'])
+    expect(live.sort()).toEqual([
+      'marketing',
+      'match_finished',
+      'match_live_bookmark',
+      'match_live_follow',
+      'projection_ready',
+      'ranking_updated',
+    ])
   })
   it('existing categories stay free', () => {
     expect(isProCategory('match_live_follow')).toBe(false)

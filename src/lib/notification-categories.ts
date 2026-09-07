@@ -58,7 +58,7 @@ export type CategoryMeta = {
 }
 
 // Order within this record = render order within each group.
-// Only match live/finished have real senders today → comingSoon: false.
+// comingSoon: false only for categories with a wired sender.
 export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
   // ── Matches ──
   match_live_follow:    { defaults: { push: true }, tier: 'free', group: 'matches',      comingSoon: false },
@@ -71,7 +71,7 @@ export const CATEGORY_META: Record<NotificationCategory, CategoryMeta> = {
   // ── Results & milestones ──
   player_title_won:     { defaults: { push: true }, tier: 'free', group: 'results',      comingSoon: true },
   player_eliminated:    { defaults: { push: true }, tier: 'free', group: 'results',      comingSoon: true },
-  ranking_updated:      { defaults: { push: true }, tier: 'free', group: 'results',      comingSoon: true },
+  ranking_updated:      { defaults: { push: true }, tier: 'free', group: 'results',      comingSoon: false },
   ranking_threshold:    { defaults: { push: true }, tier: 'pro',  group: 'results',      comingSoon: true },
   projection_outperform:{ defaults: { push: true }, tier: 'pro',  group: 'results',      comingSoon: true },
   // ── Tournaments & draws ──

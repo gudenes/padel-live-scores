@@ -1726,7 +1726,11 @@
     "eliminatedTitleWomen": "{name} knocked out",
     "eliminatedTitleMen": "{name} knocked out",
     "eliminatedBody": "{score} vs {opponent} — {event}",
-    "eliminatedBodyNoScore": "vs {opponent} — {event}"
+    "eliminatedBodyNoScore": "vs {opponent} — {event}",
+    "rankingTitle": "Ranking updates 🔥",
+    "rankingBodyLead": "Biggest moves",
+    "rankingBodyMove": "{name} {signedMove} to #{rank}",
+    "rankingFallbackBody": "No moves ≥2 in the top 30 this week."
   },
   "notFound": {
     "title": "This page doesn't exist",

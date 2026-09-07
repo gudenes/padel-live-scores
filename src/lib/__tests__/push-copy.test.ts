@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   composeEliminated,
+  composeRankingUpdated,
   composeScheduled,
   formatPushTime,
   personalizeEliminated,
   personalizeScheduled,
   playerLastName,
+  rankingFallbackCopy,
 } from '@/lib/push-copy'
 
 const triay = { name: 'Gemma Triay Pons', display_name: 'Gemma Triay' }
@@ -128,6 +130,45 @@ describe('personalizeScheduled', () => {
     expect(out.title).toBe('Match scheduled · 18:00')
     expect(out.iconReason).toBe('bookmark')
     expect(out.iconAvatarUrl).toBeNull()
+  })
+})
+
+describe('composeRankingUpdated', () => {
+  it('en: Ranking updates title, Biggest moves then the two movers in the body', () => {
+    expect(composeRankingUpdated({
+      locale: 'en',
+      increase: { name: 'Triay', move: 6, rank: 8 },
+      decrease: { name: 'Galán', move: -5, rank: 12 },
+    })).toEqual({
+      title: 'Ranking updates 🔥',
+      body: 'Biggest moves\nTriay +6 to #8 · Galán -5 to #12',
+    })
+  })
+  it('omits a missing side', () => {
+    expect(composeRankingUpdated({
+      locale: 'en',
+      increase: { name: 'Triay', move: 6, rank: 8 },
+      decrease: null,
+    }).body).toBe('Biggest moves\nTriay +6 to #8')
+  })
+  it('pt / es / it / fr keep 🔥 on the bulletin title', () => {
+    for (const locale of ['pt', 'es', 'it', 'fr'] as const) {
+      const out = composeRankingUpdated({
+        locale,
+        increase: { name: 'Triay', move: 6, rank: 8 },
+        decrease: null,
+      })
+      expect(out.title).toContain('🔥')
+      expect(out.body).toContain('Triay')
+      expect(out.body).toContain('#8')
+    }
+  })
+  it('fallback copy is localized', () => {
+    expect(rankingFallbackCopy('en')).toEqual({
+      title: 'Ranking updates 🔥',
+      body: 'No moves ≥2 in the top 30 this week.',
+    })
+    expect(rankingFallbackCopy('pt').title).toContain('🔥')
   })
 })
 

@@ -22,9 +22,10 @@
 //   body     — override notification body (default "If you see this, push works!")
 //   url      — deep link path (default "/")
 //   scenario — 'premier' | 'fip' | 'avatar' | 'scheduled_follow' |
-//              'scheduled_bookmark' | 'eliminated'
+//              'scheduled_bookmark' | 'eliminated' | 'ranking_updated'
 //              picks copy + largeIcon. avatar / scheduled_follow / eliminated
 //              use `avatarUrl` (or a sample Triay headshot).
+//              ranking_updated composes live current vs previous official week.
 //   avatarUrl — used by scenario='avatar' (e.g. a player.avatar_url URL)
 //
 // Response shape:
@@ -44,6 +45,8 @@ import { createClient } from '@supabase/supabase-js'
 import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
 import { resolveNotificationIcon } from '@/lib/notification-icon'
+import { composeRankingTestPayload } from '@/lib/ranking-moves-load'
+import { resolvePushLocale } from '@/lib/push-copy'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
     title?: string
     body?: string
     url?: string
-    scenario?: 'premier' | 'fip' | 'avatar' | 'scheduled_follow' | 'scheduled_bookmark' | 'eliminated'
+    scenario?: 'premier' | 'fip' | 'avatar' | 'scheduled_follow' | 'scheduled_bookmark' | 'eliminated' | 'ranking_updated'
     avatarUrl?: string
   }
 
@@ -126,6 +129,7 @@ export async function POST(request: Request) {
   // (matches pre-Path-B test behavior).
   let scenarioTitle: string | null = null
   let scenarioBody: string | null = null
+  let scenarioUrl: string | null = null
   let icon: string | undefined = undefined
   if (scenario === 'premier') {
     scenarioTitle = 'Match is live'
@@ -163,12 +167,26 @@ export async function POST(request: Request) {
       tournamentLevel: 'P2',
       followedPlayerAvatarUrl: avatarUrl ?? 'https://www.premierpadel.com/sites/default/files/styles/200x200/public/2024-12/triay.png',
     })
+  } else if (scenario === 'ranking_updated') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('locale')
+      .eq('id', resolvedUserId!)
+      .maybeSingle()
+    const ranking = await composeRankingTestPayload(
+      supabase,
+      resolvePushLocale((profile as { locale?: string | null } | null)?.locale),
+    )
+    scenarioTitle = ranking.title
+    scenarioBody = ranking.body
+    scenarioUrl = ranking.url
+    icon = ranking.icon
   }
 
   const payload = {
     title: title || scenarioTitle || 'Test notification',
     body: msgBody || scenarioBody || 'If you see this, push works!',
-    url: url || '/',
+    url: url || scenarioUrl || '/',
     tag: `test-${Date.now()}`,
     ...(icon ? { icon } : {}),
   }

@@ -3,6 +3,7 @@ import {
   computePointsMove,
   previousIsoYearWeek,
   resolvePreviousPoints,
+  shouldWritePointsMove,
 } from '../points-move.js';
 
 describe('computePointsMove', () => {
@@ -69,5 +70,43 @@ describe('resolvePreviousPoints', () => {
       currentRankingDate: null,
       newRankingDate: '2026-06-15',
     })).toBeNull();
+  });
+});
+
+describe('shouldWritePointsMove', () => {
+  it('writes a computed delta', () => {
+    expect(shouldWritePointsMove({
+      computed: -312,
+      existingMove: null,
+      currentRankingDate: '2026-09-07',
+      newRankingDate: '2026-09-07',
+    })).toBe(true);
+  });
+
+  it('keeps an existing delta on a same-week re-run when lookup returned null', () => {
+    expect(shouldWritePointsMove({
+      computed: null,
+      existingMove: -312,
+      currentRankingDate: '2026-09-07T00:00:00Z',
+      newRankingDate: '2026-09-07',
+    })).toBe(false);
+  });
+
+  it('writes null on a newly published week with no previous snapshot', () => {
+    expect(shouldWritePointsMove({
+      computed: null,
+      existingMove: 80,
+      currentRankingDate: '2026-08-31',
+      newRankingDate: '2026-09-07',
+    })).toBe(true);
+  });
+
+  it('writes 0 (unchanged points) even on a same-week re-run', () => {
+    expect(shouldWritePointsMove({
+      computed: 0,
+      existingMove: -312,
+      currentRankingDate: '2026-09-07',
+      newRankingDate: '2026-09-07',
+    })).toBe(true);
   });
 });
