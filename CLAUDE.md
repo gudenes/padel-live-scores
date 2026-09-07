@@ -4,6 +4,16 @@
 
 Mobile-first PWA for real-time padel score tracking, rankings, news, and tournament info. Data sourced from padelapi.org (FIP/Premier Padel) and direct FIP scraping via the padelgod Railway workers.
 
+## Working with Gustavo
+
+**Talk before any fix.** When something is broken (prod incident, bad notification, missing schedule, live status, etc.):
+
+1. Investigate and show evidence of what happened.
+2. Propose the change in plain language.
+3. **Do not write a hotfix, edit production data, or deploy until Gustavo confirms.**
+
+No silent patches, no "while I'm here" remediations, no backfill scripts, no Railway/Vercel deploys on the back of a diagnosis. Diagnosis ≠ permission to ship.
+
 ## Tech Stack
 
 - **Frontend:** Next.js 16.2.0, React 19, Tailwind CSS 4, TypeScript 5
