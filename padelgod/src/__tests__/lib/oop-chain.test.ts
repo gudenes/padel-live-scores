@@ -194,4 +194,23 @@ describe('parseScheduleLabelTime', () => {
       minutes: 30,
     });
   });
+
+  it('parses 24-hour labels without AM/PM (Paris/Crionet locale)', () => {
+    expect(parseScheduleLabelTime('Starting at 12:00')).toEqual({
+      hours: 12,
+      minutes: 0,
+    });
+    expect(parseScheduleLabelTime('Not before 16:00')).toEqual({
+      hours: 16,
+      minutes: 0,
+    });
+    expect(parseScheduleLabelTime('Starting at 11:00')).toEqual({
+      hours: 11,
+      minutes: 0,
+    });
+    expect(parseScheduleLabelTime('Not before 18:00')).toEqual({
+      hours: 18,
+      minutes: 0,
+    });
+  });
 });

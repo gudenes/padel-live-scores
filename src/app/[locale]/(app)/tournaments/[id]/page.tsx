@@ -30,6 +30,7 @@ import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
 import { pickDefaultRound, type PickDefaultRoundMatch } from '@/lib/pick-default-round'
+import { parseScheduleClock } from '@/lib/schedule-label-time'
 import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
@@ -753,12 +754,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   // ── Estimated time labels for scheduled matches ───────────────
   function parseAmPm(label: string): { h: number; m: number } | null {
-    const tm = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-    if (!tm) return null
-    let h = parseInt(tm[1]); const m = parseInt(tm[2]); const ap = tm[3].toUpperCase()
-    if (ap === 'PM' && h < 12) h += 12
-    if (ap === 'AM' && h === 12) h = 0
-    return { h, m }
+    const clock = parseScheduleClock(label)
+    if (!clock) return null
+    return { h: clock.hours, m: clock.minutes }
   }
   function toAmPmLabel(h: number, m: number): string {
     const ap = h >= 12 ? 'PM' : 'AM'

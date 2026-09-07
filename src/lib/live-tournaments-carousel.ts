@@ -139,6 +139,43 @@ export function hasStarted(startsAt: string, now: Date = new Date()): boolean {
   return new Date(startsAt).getTime() <= now.getTime()
 }
 
+/**
+ * Whether a tournament belongs on the home Live Tournaments rail.
+ *
+ * Visible when any of:
+ *   - it has matches scheduled/started today (`matchesToday > 0`)
+ *   - both finals are decided (crowned sticky window)
+ *   - it hasn't started yet (upcoming hype card)
+ *   - it has started and `ends_at` is still today-or-later
+ *
+ * The last branch is the rest-day / missing-schedule fallback. Without it a
+ * live Major whose matches have NULL `scheduled_at` (e.g. Paris 2026 24h
+ * OOP labels the writer couldn't parse) disappears from the homepage even
+ * though the tournament is in progress.
+ */
+export function keepOnLiveCarousel(
+  t: {
+    starts_at: string
+    ends_at: string | null
+    matchesToday: number
+    champions?: { men?: unknown; women?: unknown }
+  },
+  now: Date = new Date(),
+): boolean {
+  const bothCrowned = !!(t.champions?.men && t.champions?.women)
+  const upcoming = !hasStarted(t.starts_at, now)
+  if (t.matchesToday > 0 || bothCrowned || upcoming) return true
+  if (!t.ends_at || !hasStarted(t.starts_at, now)) return false
+  // ends_at is UTC midnight of the final day — compare against start of
+  // today UTC so the card stays up throughout finals day.
+  const startOfTodayUtc = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  )
+  return new Date(t.ends_at).getTime() >= startOfTodayUtc
+}
+
 export function daysUntilStart(startsAt: string, now: Date = new Date()): number {
   // Whole-day calendar diff in the user's local timezone. We render
   // YYYY-MM-DD strings via en-CA, parse them as local midnight, and

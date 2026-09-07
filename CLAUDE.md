@@ -171,7 +171,7 @@ Schedule lives in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — t
 | fip-entry-list-populator | hourly :46 | Resolve entry-list rows → `players` |
 | fip-draw-populator | hourly :47 | INSERT matches from draw + OOP qualifying |
 | oop-fetcher | every 15m | Capture OOP snapshots |
-| fip-oop-writer | every 15m (offset +2) | UPDATE court/round from OOP snapshots |
+| fip-oop-writer | every 15m (offset +2) | UPDATE court/round/`scheduled_at` from OOP snapshots |
 | results-fetcher | every 5m | Capture Crionet results snapshots |
 | fip-results-writer | every 5m (offset +2) | Write final scores |
 | player-rankings | Mon every 30m 06:00–12:00 UTC + Tue–Sat 07:00 UTC | FIP rankings sync — official + race × men + women via WP JSON API. Sole owner of `players.ranking*`/`race_ranking*` + `player_ranking_snapshots` writes since the 2026-05-18 Vercel cron retirement (PR #344). |
@@ -184,9 +184,11 @@ Schedule lives in [`padelgod/src/scheduler.ts`](padelgod/src/scheduler.ts) — t
 |---|---|---|
 | `oop-monitor` (Vercel) | every 2h :30 | Watches OOP for changes, emits notifications |
 | `oop-fetcher` (padelgod) | every 15m | Fetches OOP HTML, writes `padelgod.oop_snapshots` |
-| `fip-oop-writer` (padelgod) | every 15m (+2 offset) | UPDATEs `public.matches.court`/`round`/`court_order` from snapshots |
+| `fip-oop-writer` (padelgod) | every 15m (+2 offset) | UPDATEs `public.matches.court`/`round`/`court_order` and gap-fills `scheduled_at` from snapshots |
 
-The "OOP Schedule Review" ops dashboard tab is a fourth human-in-the-loop piece — parses `scheduled_label` strings into UTC timestamps on `matches.scheduled_at`. Not automated; operator clicks "Apply N Changes" per tournament.
+The "OOP Schedule Review" ops dashboard tab is a fourth human-in-the-loop piece for reviewing/overriding times. Automated gap-fill of `matches.scheduled_at` is **Pass B of `fip-oop-writer`** — it parses `scheduled_label` + `day_date` in the tournament timezone. Operator "Apply N Changes" is no longer the only writer.
+
+**Crionet clock format is locale-dependent.** Most widgets emit 12-hour labels (`Starting at 9:00 AM`, `Not before 4:00 PM`). French/24h locales (first seen **Paris Major 2026-09-07**, widget `FIP-2026-3603`) emit `Starting at 12:00` / `Not before 16:00` with **no AM/PM**. `parseScheduleClock` in [`padelgod/src/lib/oop-schedule-parser.ts`](padelgod/src/lib/oop-schedule-parser.ts) (mirrored at [`src/lib/schedule-label-time.ts`](src/lib/schedule-label-time.ts)) accepts both. If `scheduled_at` stays NULL while `court` is filled, check `padelgod.oop_snapshots.scheduled_label` — a new clock format is the usual cause. Without `scheduled_at`, the home Live Tournaments carousel drops the event (`matchesToday` is counted from today's `scheduled_at` window). `keepOnLiveCarousel` keeps in-window started tournaments visible as a fallback.
 
 ## Live match coverage scope
 
@@ -278,11 +280,14 @@ Small green dot on the RANKING bottom-nav tab when the latest published week is 
 
 ### Scheduled time pipeline
 Match `scheduled_at` comes from multiple sources:
-1. PadelAPI `played_at` (date-only) + optional `schedule_label`
-2. OOP Schedule Review (ops dashboard) — parses matchscorerlive times → UTC timestamps
-3. **Sync cron protection:** padelapi date-only values do NOT overwrite an existing real time. Operator-reviewed times survive hourly syncs.
-4. "Followed by" estimation: previous match + 90 min
-5. Display: approximate times (from "Not before" / "Followed by") show `*` suffix
+1. **`fip-oop-writer` Pass B** (automated, every 15m) — parses OOP `scheduled_label` + `day_date` in the tournament timezone. Accepts 12-hour (`9:00 AM`) **and** 24-hour (`12:00` / `16:00`) labels. Gap-fill only: does not clobber a real existing time, except padelapi midnight-UTC placeholders and `"Followed by"` estimates.
+2. PadelAPI `played_at` (date-only) + optional `schedule_label`
+3. OOP Schedule Review (ops dashboard) — operator preview/override of the same parser
+4. **Sync cron protection:** padelapi date-only values do NOT overwrite an existing real time
+5. "Followed by" estimation: previous match on the same court + 90 min
+6. Display: approximate times (from "Not before" / "Followed by") show `*` suffix
+
+Incident 2026-09-07: Paris Major OOP used 24h labels; the AM/PM-only regex left all 110 `scheduled_at` NULL, so the tournament vanished from the home LIVE carousel even though courts/results were landing. Parser + `keepOnLiveCarousel` fallback. One-shot backfill: `npx tsx scripts/apply-fip-oop-schedule-now.ts --tournament <uuid>`.
 
 ### FIP draw pipeline
 Eliminates TBD names on FIP tournament matches. Pipeline: PDF upload (ops UI) → `pdf-parse` → `src/lib/draw-parser.ts` (pure function, parses bracket + seeds + Q/WC/LL markers) → `tournament_draws` table. `fip-scores` cron loads draws at start, checks them first (token similarity ≥0.7) before PlayerResolver fallback.

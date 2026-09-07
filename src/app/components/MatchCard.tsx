@@ -19,6 +19,7 @@ import { useRef, useEffect, useState, memo } from 'react'
 import { Match, pairName, countryFlag, parseSetScore, parseSetFromGames, getCurrentScore, isWarmingUp } from '@/types/match'
 import { useFormatter } from 'next-intl'
 import { TIME_24H } from '@/lib/format-patterns'
+import { parseScheduleClock } from '@/lib/schedule-label-time'
 
 interface MatchCardProps {
   match: Match
@@ -136,16 +137,13 @@ function MatchCard({ match, bookmarked, onBookmark, estimatedScheduleLabel, embe
 
   const scheduledTime = (() => {
     if (effectiveLabel) {
-      const timeMatch = effectiveLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-      if (timeMatch) {
+      const clock = parseScheduleClock(effectiveLabel)
+      if (clock) {
         try {
           const tournamentTz = (match as any).tournament?.timezone
           if (!tournamentTz) return effectiveLabel
-          let hours = parseInt(timeMatch[1])
-          const minutes = parseInt(timeMatch[2])
-          const ampm = timeMatch[3].toUpperCase()
-          if (ampm === 'PM' && hours < 12) hours += 12
-          if (ampm === 'AM' && hours === 12) hours = 0
+          const hours = clock.hours
+          const minutes = clock.minutes
           const today = new Date().toLocaleDateString('en-CA', { timeZone: tournamentTz })
           const naiveUTC = new Date(`${today}T${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:00Z`)
           const tournamentOffset = getTimezoneOffset(tournamentTz, naiveUTC)

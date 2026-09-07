@@ -1,3 +1,5 @@
+import { parseScheduleClock } from './oop-schedule-parser.js';
+
 /**
  * oop-chain — pure inference of per-match `started_at` from a court's
  * Order-of-Play timeline.
@@ -183,9 +185,10 @@ function parseIsoOrNull(iso: string): number | null {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a schedule label like "Starting at 11:00 AM" or "Not before 4:00 PM"
- * into `{ hours, minutes }` in 24-hour time. Returns null for labels that
- * don't carry an absolute time ("Followed by", empty, etc).
+ * Parse a schedule label like "Starting at 11:00 AM", "Not before 4:00 PM",
+ * or 24-hour "Starting at 12:00" / "Not before 16:00" into `{ hours, minutes }`
+ * in 24-hour time. Returns null for labels that don't carry an absolute time
+ * ("Followed by", empty, etc).
  *
  * Exposed as a helper for the reconciler; kept pure so callers can compose
  * it with their own timezone handling.
@@ -194,14 +197,5 @@ export function parseScheduleLabelTime(
   label: string | null,
 ): { hours: number; minutes: number } | null {
   if (!label) return null;
-  // Matches "11:00 AM", "4:00 PM", "11:00AM", etc. Case-insensitive.
-  const m = /(\d{1,2}):(\d{2})\s*(AM|PM)/i.exec(label);
-  if (!m) return null;
-  let hours = parseInt(m[1]!, 10);
-  const minutes = parseInt(m[2]!, 10);
-  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-  const isPm = m[3]!.toUpperCase() === 'PM';
-  if (isPm && hours < 12) hours += 12;
-  if (!isPm && hours === 12) hours = 0;
-  return { hours, minutes };
+  return parseScheduleClock(label);
 }

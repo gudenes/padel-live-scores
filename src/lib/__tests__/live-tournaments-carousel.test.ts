@@ -7,6 +7,7 @@ import {
   daysUntilStart,
   insertManagedCardsByDate,
   carouselBucketRank,
+  keepOnLiveCarousel,
   type TournamentForSort,
   type MatchForAggregation,
   type CarouselBucketable,
@@ -143,6 +144,48 @@ describe('daysUntilStart', () => {
   it('survives DST spring-forward (47h gap maps to 2 calendar days)', () => {
     // 2026 US DST starts 2026-03-08. Sun 2am skips to 3am; days 2026-03-08 to 2026-03-10 are 47h apart.
     expect(daysUntilStart('2026-03-10T08:00:00', new Date('2026-03-08T08:00:00'))).toBe(2)
+  })
+})
+
+describe('keepOnLiveCarousel', () => {
+  const now = new Date('2026-09-07T04:30:00Z')
+  const paris = {
+    starts_at: '2026-09-06T00:00:00Z',
+    ends_at: '2026-09-13T00:00:00Z',
+    matchesToday: 0,
+  }
+
+  it('keeps a running tournament with no matchesToday (missing scheduled_at / rest day)', () => {
+    expect(keepOnLiveCarousel(paris, now)).toBe(true)
+  })
+
+  it('keeps a running tournament that has matches today', () => {
+    expect(keepOnLiveCarousel({ ...paris, matchesToday: 12 }, now)).toBe(true)
+  })
+
+  it('keeps an upcoming tournament', () => {
+    expect(keepOnLiveCarousel({
+      starts_at: '2026-09-10T00:00:00Z',
+      ends_at: '2026-09-16T00:00:00Z',
+      matchesToday: 0,
+    }, now)).toBe(true)
+  })
+
+  it('drops a tournament whose ends_at is before today', () => {
+    expect(keepOnLiveCarousel({
+      starts_at: '2026-08-29T00:00:00Z',
+      ends_at: '2026-09-05T00:00:00Z',
+      matchesToday: 0,
+    }, now)).toBe(false)
+  })
+
+  it('keeps a crowned tournament even after ends_at', () => {
+    expect(keepOnLiveCarousel({
+      starts_at: '2026-08-29T00:00:00Z',
+      ends_at: '2026-09-05T00:00:00Z',
+      matchesToday: 0,
+      champions: { men: {}, women: {} },
+    }, now)).toBe(true)
   })
 })
 
