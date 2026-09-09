@@ -43,7 +43,7 @@ Excel do operador
    ▼
 scripts/import-amateur-season.ts   --dry-run | --apply
    │
-   ├── players            (tier='amateur', preferred_side, home_club, hidden)
+   ├── players            (tier='amateur', home_club, hidden; reusa side)
    ├── teams              (entidade reutilizável: amador + pro)
    ├── team_seasons
    ├── team_memberships
@@ -63,19 +63,18 @@ scripts/import-amateur-season.ts   --dry-run | --apply
 ```sql
 alter table public.players
   add column tier text not null default 'pro',
-  add column preferred_side text,     -- 'drive' | 'reves' | null
   add column home_club text,
   add column hidden boolean not null default false;
 
 alter table public.players
-  add constraint players_tier_check check (tier in ('pro','amateur')),
-  add constraint players_preferred_side_check
-    check (preferred_side is null or preferred_side in ('drive','reves'));
+  add constraint players_tier_check check (tier in ('pro','amateur'));
 
 create index players_tier_idx on public.players (tier) where tier <> 'pro';
 ```
 
-`preferred_side` e `home_club` valem para os dois tiers — o profissional pode aproveitar depois.
+**A posição preferida não é campo novo.** `players.side` já existe (`'drive'` / `'backhand'`) e já é editável pelo `SuggestChangesSheet` via `SUGGESTABLE_FIELDS`. O perfil amador consome essa coluna; criar um `preferred_side` paralelo seria duplicação.
+
+`home_club` vale para os dois tiers.
 
 **`hidden`** é a válvula de escape de privacidade: perfil publicado por padrão, mas se alguém do elenco pedir remoção, um UPDATE tira do ar (404 + fora do sitemap) sem deploy.
 
@@ -84,7 +83,7 @@ create index players_tier_idx on public.players (tier) where tier <> 'pro';
 O risco de misturar amador com pro é concentrado, não difuso. Fechar em três lugares:
 
 1. **`src/lib/player-resolver.ts`** — o `PlayerResolver` **nunca** considera `tier='amateur'` como candidato, em nenhum dos 5 tiers de resolução (fip_id, external_id, nome normalizado, fuzzy, alias). Um amador chamado "Juan Rivas" não pode ser casado com um jogador FIP homônimo. Este é o guard crítico.
-2. **Leituras do produto pro** — rankings, carrossel, `/rankings`, sitemap, busca global, `money_leaderboard`: todas filtram `tier='pro'`. Helper compartilhado em `src/lib/player-tier.ts` exportando `PRO_ONLY` para uso consistente.
+2. **Leituras do produto pro** — rankings, carrossel, `/rankings` e `money_leaderboard` já excluem amadores por construção: todas filtram por `ranking`, `points` ou prêmio, e nenhum amador tem qualquer um deles. O helper `src/lib/player-tier.ts` existe para quando um filtro explícito for necessário. **Busca global e sitemap são a exceção deliberada:** amadores entram nos dois, porque a decisão foi publicá-los como os profissionais. O que sai de ambos é `hidden=true`.
 3. **`padelgod/src/workers/player-rankings.ts`** — nunca escreve `players.ranking*`, `race_ranking*` nem `player_ranking_snapshots` para linha com `tier='amateur'`.
 
 O ranking amador **não** vai para `player_ranking_snapshots`. Ele vive em `team_memberships` (ver abaixo), porque é ranking de uma competição específica, não o ranking mundial.
