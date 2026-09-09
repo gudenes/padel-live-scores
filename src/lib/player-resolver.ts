@@ -486,12 +486,17 @@ export class PlayerResolver {
 
     if (error || !data) {
       console.error(`[PlayerResolver] Failed to create player ${input.name}:`, error?.message)
-      // Fallback: try to find by external_id or fip_id in case of race condition / constraint conflict
+      // Fallback: try to find by external_id or fip_id in case of race condition / constraint conflict.
+      // Tier-filtered like the cache load: if the insert collided with an
+      // *amateur* holding that source id, returning it would conflate the two.
+      // Better to resolve nothing and let the caller skip than to hand back
+      // the wrong player.
       let fallback: { id: string } | null = null
       const { data: f1 } = await this.supabase
         .from('players')
         .select('id, external_id, fip_id, name, country, category, ranking, points')
         .eq('external_id', insertData.external_id)
+        .neq(TIER_COLUMN, AMATEUR_TIER)
         .single()
       fallback = f1
 
@@ -500,6 +505,7 @@ export class PlayerResolver {
           .from('players')
           .select('id, external_id, fip_id, name, country, category, ranking, points')
           .eq('fip_id', insertData.fip_id)
+          .neq(TIER_COLUMN, AMATEUR_TIER)
           .single()
         fallback = f2
       }
