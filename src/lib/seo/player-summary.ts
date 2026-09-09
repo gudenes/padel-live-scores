@@ -1,6 +1,8 @@
 // src/lib/seo/player-summary.ts
 // Pure builder for the server-rendered SEO content block on player pages.
 
+import { isAmateurTier } from '@/lib/player-tier'
+
 export interface RecentMatchInput {
   tournament_name: string
   round: string | null
@@ -13,6 +15,8 @@ export interface PlayerSummaryInput {
   name: string
   country: string | null
   category: string | null
+  /** 'pro' | 'amateur'. Absent means professional — every pre-migration row is. */
+  tier?: string | null
   ranking: number | null
   total_matches: number | null
   /** win_rate is a percentage (0-100), matching the schema — NOT a fraction */
@@ -39,7 +43,10 @@ export function buildPlayerSummary(input: PlayerSummaryInput): PlayerSummary {
     input.ranking != null
       ? `, currently ranked #${input.ranking}${catWord ? ` in the ${catWord} circuit` : ''}`
       : ''
-  const headline = `${input.name} — professional padel player${fromCountry}${rankingClause}`
+  // Calling a club player a professional is simply wrong, and it's the line
+  // Google indexes. isAmateurTier keeps the null/legacy case as professional.
+  const tierWord = isAmateurTier(input.tier) ? 'amateur' : 'professional'
+  const headline = `${input.name} — ${tierWord} padel player${fromCountry}${rankingClause}`
 
   const facts: string[] = []
   if (input.country) facts.push(`Country: ${input.country}`)

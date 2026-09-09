@@ -26,7 +26,11 @@ export async function GET() {
   const { data, error } = await supabase
     .from('players')
     .select('id')
-    .or('ranking.not.is.null,total_matches.gt.0')
+    // Amateurs have neither a FIP ranking nor total_matches, so they need an
+    // explicit clause to make the cut. `hidden` is the takedown switch: a
+    // player who asks to be removed drops out of the crawl with one UPDATE.
+    .or('ranking.not.is.null,total_matches.gt.0,tier.eq.amateur')
+    .eq('hidden', false)
     .order('ranking', { ascending: true, nullsFirst: false })
     .limit(PLAYER_LIMIT)
 

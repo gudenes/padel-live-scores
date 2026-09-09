@@ -25,8 +25,10 @@ import { pickCurrentTournamentMatch } from '@/lib/current-tournament-match'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
-import { Widget, WidgetIcon } from './Widget'
+import { Widget, WidgetIcon, Last10SparkBar } from './Widget'
 import RoadToTrophyCard from './RoadToTrophyCard'
+import AmateurProfile from './AmateurProfile'
+import { isAmateurTier } from '@/lib/player-tier'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -54,79 +56,6 @@ function WinRateBar({ wr, color, rowIndex }: { wr: number; color: string; rowInd
           transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
         }}
       />
-    </div>
-  )
-}
-
-// Last 10 sparkline single bar (vertical, grows from bottom).
-// Extracted into its own component so each iteration can have its own
-// IntersectionObserver via useInViewOnce.
-function Last10SparkBar({
-  won,
-  isLatest,
-  rowIndex,
-  onClick,
-  title,
-  green,
-  red,
-  orange,
-}: {
-  won: boolean
-  isLatest: boolean
-  rowIndex: number
-  onClick: (e: React.MouseEvent) => void
-  title: string
-  green: string
-  red: string
-  orange: string
-}) {
-  const barRef = useRef<HTMLDivElement>(null)
-  const inView = useInViewOnce(barRef)
-  return (
-    <div
-      ref={barRef}
-      onClick={onClick}
-      title={title}
-      style={{
-        flex: 1,
-        position: 'relative',
-        height: won ? '100%' : '50%',
-        cursor: 'pointer',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: won
-            ? `linear-gradient(to top, ${green}, rgba(126,211,33,0.4))`
-            : `linear-gradient(to top, ${red}, rgba(255,70,85,0.3))`,
-          clipPath: 'polygon(0% 12%, 100% 0%, 100% 100%, 0% 100%)',
-          outline: isLatest ? `1.5px solid ${orange}` : 'none',
-          outlineOffset: isLatest ? 1 : 0,
-          transformOrigin: 'bottom center',
-          transform: inView ? 'scaleY(1)' : 'scaleY(0)',
-          transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
-        }}
-      />
-      {isLatest && (
-        <div
-          style={{
-            position: 'absolute',
-            top: -7,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: 7,
-            fontWeight: 800,
-            color: orange,
-            textTransform: 'uppercase',
-            letterSpacing: 0.3,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          ▼
-        </div>
-      )}
     </div>
   )
 }
@@ -170,6 +99,12 @@ interface PlayerRow {
   height: number | null
   hand: string | null
   side: string | null
+  // Amateur-profile columns. The query is select('*'), so they always arrive;
+  // declaring them here is what lets the amateur branch hand this row to
+  // AmateurProfile without an unchecked cast.
+  tier: string | null
+  hidden: boolean | null
+  home_club: string | null
   equipment: {
     racket_brand?: string
     racket_model?: string
@@ -385,6 +320,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         const p = playerResult.data
         if (!p) return
         setPlayer(p)
+
+        // Amateur profiles have no career matches, equipment or earnings —
+        // everything below this point would be five wasted round-trips.
+        // AmateurProfile loads its own data from the team model.
+        if (isAmateurTier(p.tier)) {
+          if (!cancelled) setLoading(false)
+          return
+        }
 
         // Fetch equipment from relational tables
         const { data: eqData } = await supabase
@@ -632,6 +575,19 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       <BottomNav />
     </>
   )
+
+  // Amateur profiles render a different page entirely — different tabs,
+  // different data source. `hidden` is the takedown switch from the spec.
+  if (player?.hidden) {
+    return (
+      <div style={{ background: BG_BASE, minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontSize: 14 }}>
+        {tCommon('notFound')}
+      </div>
+    )
+  }
+  if (player && isAmateurTier(player.tier)) {
+    return <AmateurProfile player={player} />
+  }
 
   const categoryColor = player.category === 'men' ? MEN_BLUE : player.category === 'women' ? WOMEN_PURPLE : MUTED
 
