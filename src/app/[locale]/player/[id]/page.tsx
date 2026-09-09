@@ -27,7 +27,7 @@ import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
 import { Widget, WidgetIcon, Last10SparkBar } from './Widget'
 import RoadToTrophyCard from './RoadToTrophyCard'
-import AmateurProfile, { type AmateurPlayer } from './AmateurProfile'
+import AmateurProfile from './AmateurProfile'
 import { isAmateurTier } from '@/lib/player-tier'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
@@ -99,6 +99,12 @@ interface PlayerRow {
   height: number | null
   hand: string | null
   side: string | null
+  // Amateur-profile columns. The query is select('*'), so they always arrive;
+  // declaring them here is what lets the amateur branch hand this row to
+  // AmateurProfile without an unchecked cast.
+  tier: string | null
+  hidden: boolean | null
+  home_club: string | null
   equipment: {
     racket_brand?: string
     racket_model?: string
@@ -318,7 +324,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         // Amateur profiles have no career matches, equipment or earnings —
         // everything below this point would be five wasted round-trips.
         // AmateurProfile loads its own data from the team model.
-        if (isAmateurTier((p as { tier?: string }).tier)) {
+        if (isAmateurTier(p.tier)) {
           if (!cancelled) setLoading(false)
           return
         }
@@ -572,15 +578,15 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
   // Amateur profiles render a different page entirely — different tabs,
   // different data source. `hidden` is the takedown switch from the spec.
-  if (player && (player as { hidden?: boolean }).hidden) {
+  if (player?.hidden) {
     return (
       <div style={{ background: BG_BASE, minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontSize: 14 }}>
         {tCommon('notFound')}
       </div>
     )
   }
-  if (player && isAmateurTier((player as { tier?: string }).tier)) {
-    return <AmateurProfile player={player as unknown as AmateurPlayer} />
+  if (player && isAmateurTier(player.tier)) {
+    return <AmateurProfile player={player} />
   }
 
   const categoryColor = player.category === 'men' ? MEN_BLUE : player.category === 'women' ? WOMEN_PURPLE : MUTED
