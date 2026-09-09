@@ -1,29 +1,58 @@
 import { describe, it, expect } from 'vitest';
 import { runRawPayloadsPrune } from '../../workers/raw-payloads-prune.js';
 
-// Stub supabase whose `from('raw_payloads')` builder is thenable.
-// `selectBatches` are the successive id arrays returned by select().lt().limit();
-// `countValue` is returned for the head-count select used in dry-run.
-function fakeSupabase(selectBatches: string[][], countValue = 0, deleteError?: string) {
-  const deletedBatches: string[][] = [];
-  let idx = 0;
+/**
+ * Stub supabase for the time-window prune.
+ *
+ * The old stub accepted `.in(col, ids)` happily, which is exactly why the
+ * 10,000-id URL bug shipped: the tests never built a real request. This one
+ * THROWS on `.in()` so the id-batching shape can't come back unnoticed, and
+ * it records every delete's `lt` bound so window advancement is assertable.
+ *
+ * `rows` is a set of captured_at timestamps standing in for the table; the
+ * stub deletes from it for real, so the loop's termination is exercised
+ * rather than mocked.
+ */
+function fakeSupabase(rows: string[], opts: { deleteError?: string; probeError?: string } = {}) {
+  const remaining = [...rows].sort();
+  const deleteBounds: string[] = [];
+
   return {
-    deletedBatches,
+    remaining,
+    deleteBounds,
     schema: (_s: string) => ({
       from: (_t: string) => {
-        const state: any = { op: null, head: false };
+        const state: any = { op: null, head: false, lt: null };
         const builder: any = {
-          select: (_c: string, o?: any) => { state.op = 'select'; if (o?.head) state.head = true; return builder; },
+          select: (_c: string, o?: any) => {
+            state.op = 'select';
+            if (o?.head) state.head = true;
+            return builder;
+          },
           delete: (_o?: any) => { state.op = 'delete'; return builder; },
-          lt: () => builder,
-          in: (_c: string, ids: string[]) => { state.ids = ids; return builder; },
+          lt: (_c: string, v: string) => { state.lt = v; return builder; },
+          order: () => builder,
           limit: () => builder,
+          in: () => {
+            throw new Error(
+              '.in() must never be used here — ids in the URL are what broke this worker',
+            );
+          },
           then: (resolve: any) => {
-            if (state.op === 'select' && state.head) return resolve({ count: countValue, error: null });
-            if (state.op === 'select') { const b = selectBatches[idx] ?? []; idx++; return resolve({ data: b.map((id) => ({ id })), error: null }); }
+            if (state.op === 'select' && state.head) {
+              return resolve({ count: remaining.filter((r) => r < state.lt).length, error: null });
+            }
+            if (state.op === 'select') {
+              if (opts.probeError) return resolve({ data: null, error: { message: opts.probeError } });
+              const oldest = remaining.filter((r) => r < state.lt)[0];
+              return resolve({ data: oldest ? [{ captured_at: oldest }] : [], error: null });
+            }
             if (state.op === 'delete') {
-              if (deleteError) return resolve({ count: null, error: { message: deleteError } });
-              deletedBatches.push(state.ids); return resolve({ count: state.ids.length, error: null });
+              if (opts.deleteError) return resolve({ count: null, error: { message: opts.deleteError } });
+              deleteBounds.push(state.lt);
+              const doomed = remaining.filter((r) => r < state.lt);
+              for (const d of doomed) remaining.splice(remaining.indexOf(d), 1);
+              return resolve({ count: doomed.length, error: null });
             }
             return resolve({ data: null, error: null });
           },
@@ -34,43 +63,100 @@ function fakeSupabase(selectBatches: string[][], countValue = 0, deleteError?: s
   };
 }
 
+const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString();
+
 describe('runRawPayloadsPrune', () => {
-  it('deletes rows older than cutoff across batches', async () => {
-    const sb = fakeSupabase([['a', 'b'], ['c']]);
-    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false, batchSize: 2, maxBatches: 10 });
+  it('deletes everything past the cutoff, walking one window at a time', async () => {
+    // 40, 39, 38 days old — all well past the 14-day cutoff.
+    const sb = fakeSupabase([daysAgo(40), daysAgo(39), daysAgo(38)]);
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
     expect(res.rowsDeleted).toBe(3);
-    expect(res.batchesRun).toBe(2);
-    expect(sb.deletedBatches).toEqual([['a', 'b'], ['c']]);
-    expect(res.hitMaxBatches).toBe(false);
+    expect(sb.remaining).toEqual([]);
+    // One 24h window per batch, so each row falls in its own delete.
+    expect(res.batchesRun).toBe(3);
+    expect(res.abortedEarly).toBe(false);
+  });
+
+  it('keeps rows inside the retention window', async () => {
+    const fresh = daysAgo(3);
+    const sb = fakeSupabase([daysAgo(40), fresh]);
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
+    expect(res.rowsDeleted).toBe(1);
+    expect(sb.remaining).toEqual([fresh]);
+  });
+
+  it('never widens a delete past the cutoff', async () => {
+    const sb = fakeSupabase([daysAgo(40), daysAgo(3)]);
+    await runRawPayloadsPrune({ supabase: sb as any, dryRun: false, retentionDays: 14 });
+
+    const cutoff = daysAgo(14);
+    for (const bound of sb.deleteBounds) expect(bound <= cutoff).toBe(true);
+  });
+
+  it('clears a large backlog without ever passing ids to .in()', async () => {
+    // 300 rows spread a day apart — the shape that used to abort on batch 1.
+    // The stub throws if .in() is touched, so reaching 0 proves the fix.
+    const backlog = Array.from({ length: 300 }, (_, i) => daysAgo(20 + i));
+    const sb = fakeSupabase(backlog);
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
+    expect(res.rowsDeleted).toBe(300);
+    expect(sb.remaining).toEqual([]);
+  });
+
+  it('collapses a whole backlog into one delete at a wide window', async () => {
+    const sb = fakeSupabase([daysAgo(40), daysAgo(39), daysAgo(38)]);
+    const res = await runRawPayloadsPrune({
+      supabase: sb as any, dryRun: false, windowHours: 24 * 365,
+    });
+
+    expect(res.rowsDeleted).toBe(3);
+    expect(res.batchesRun).toBe(1);   // window clamps to the cutoff
   });
 
   it('does nothing when no rows are older than cutoff', async () => {
-    const sb = fakeSupabase([[]]);
-    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false, batchSize: 2, maxBatches: 10 });
+    const sb = fakeSupabase([daysAgo(2)]);
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
     expect(res.rowsDeleted).toBe(0);
     expect(res.batchesRun).toBe(0);
-    expect(sb.deletedBatches).toEqual([]);
+    expect(sb.deleteBounds).toEqual([]);
   });
 
   it('dry-run reports candidate count and deletes nothing', async () => {
-    const sb = fakeSupabase([], 42);
+    const sb = fakeSupabase([daysAgo(40), daysAgo(39)]);
     const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: true });
-    expect(res.candidateCount).toBe(42);
+
+    expect(res.candidateCount).toBe(2);
     expect(res.rowsDeleted).toBe(0);
-    expect(sb.deletedBatches).toEqual([]);
+    expect(sb.remaining).toHaveLength(2);
   });
 
   it('stops at maxBatches and flags it', async () => {
-    const sb = fakeSupabase([['a', 'b'], ['c', 'd'], ['e', 'f']]);
-    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false, batchSize: 2, maxBatches: 2 });
+    const sb = fakeSupabase([daysAgo(40), daysAgo(39), daysAgo(38)]);
+    const res = await runRawPayloadsPrune({
+      supabase: sb as any, dryRun: false, maxBatches: 2,
+    });
+
     expect(res.batchesRun).toBe(2);
-    expect(res.rowsDeleted).toBe(4);
     expect(res.hitMaxBatches).toBe(true);
+    expect(sb.remaining).toHaveLength(1);   // leftovers wait for the next run
   });
 
-  it('aborts early and flags it when a delete batch errors', async () => {
-    const sb = fakeSupabase([['a', 'b']], 0, 'delete boom');
-    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false, batchSize: 2, maxBatches: 10 });
+  it('aborts early and flags it when a delete errors', async () => {
+    const sb = fakeSupabase([daysAgo(40)], { deleteError: 'delete boom' });
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
+    expect(res.abortedEarly).toBe(true);
+    expect(res.rowsDeleted).toBe(0);
+  });
+
+  it('aborts early when the oldest-row probe errors', async () => {
+    const sb = fakeSupabase([daysAgo(40)], { probeError: 'probe boom' });
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
     expect(res.abortedEarly).toBe(true);
     expect(res.rowsDeleted).toBe(0);
   });
