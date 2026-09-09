@@ -66,3 +66,23 @@ describe('buildPlayerSummary', () => {
     )
   })
 })
+
+describe('buildPlayerSummary tier wording', () => {
+  it('calls an amateur an amateur, not a professional', () => {
+    const summary = buildPlayerSummary({
+      ...basePlayer,
+      name: 'Gustavo Denes',
+      tier: 'amateur',
+      ranking: null,
+      total_matches: null,
+      win_rate: null,
+      recent: [],
+    })
+    expect(summary.headline).toBe('Gustavo Denes — amateur padel player from Spain')
+  })
+
+  it('still says professional when the tier is absent', () => {
+    // Every pre-migration caller omits `tier`; those rows are professionals.
+    expect(buildPlayerSummary(basePlayer).headline).toContain('professional padel player')
+  })
+})
