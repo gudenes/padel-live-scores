@@ -913,7 +913,8 @@
     "changeLanguage": "Change language",
     "tbd": "TBD",
     "_tbd_context": "Abbreviation for \"To Be Determined\" — used when a player slot in a draw isn't known yet. Keep abbreviation if natural; otherwise translate to a short phrase.",
-    "news_link": "News"
+    "news_link": "News",
+    "notFound": "Player not found"
   },
   "about": {
     "title": "About Padel Nachos",

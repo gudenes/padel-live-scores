@@ -881,7 +881,8 @@
     "shareApp": "Partilhar PadelNachos",
     "changeLanguage": "Alterar idioma",
     "tbd": "A DEFINIR",
-    "news_link": "Notícias"
+    "news_link": "Notícias",
+    "notFound": "Jogador não encontrado"
   },
   "about": {
     "title": "Sobre o Padel Nachos",
