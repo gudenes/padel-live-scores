@@ -25,7 +25,7 @@ import { pickCurrentTournamentMatch } from '@/lib/current-tournament-match'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
-import { Widget, WidgetIcon } from './Widget'
+import { Widget, WidgetIcon, Last10SparkBar } from './Widget'
 import RoadToTrophyCard from './RoadToTrophyCard'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
@@ -54,79 +54,6 @@ function WinRateBar({ wr, color, rowIndex }: { wr: number; color: string; rowInd
           transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
         }}
       />
-    </div>
-  )
-}
-
-// Last 10 sparkline single bar (vertical, grows from bottom).
-// Extracted into its own component so each iteration can have its own
-// IntersectionObserver via useInViewOnce.
-function Last10SparkBar({
-  won,
-  isLatest,
-  rowIndex,
-  onClick,
-  title,
-  green,
-  red,
-  orange,
-}: {
-  won: boolean
-  isLatest: boolean
-  rowIndex: number
-  onClick: (e: React.MouseEvent) => void
-  title: string
-  green: string
-  red: string
-  orange: string
-}) {
-  const barRef = useRef<HTMLDivElement>(null)
-  const inView = useInViewOnce(barRef)
-  return (
-    <div
-      ref={barRef}
-      onClick={onClick}
-      title={title}
-      style={{
-        flex: 1,
-        position: 'relative',
-        height: won ? '100%' : '50%',
-        cursor: 'pointer',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: won
-            ? `linear-gradient(to top, ${green}, rgba(126,211,33,0.4))`
-            : `linear-gradient(to top, ${red}, rgba(255,70,85,0.3))`,
-          clipPath: 'polygon(0% 12%, 100% 0%, 100% 100%, 0% 100%)',
-          outline: isLatest ? `1.5px solid ${orange}` : 'none',
-          outlineOffset: isLatest ? 1 : 0,
-          transformOrigin: 'bottom center',
-          transform: inView ? 'scaleY(1)' : 'scaleY(0)',
-          transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
-        }}
-      />
-      {isLatest && (
-        <div
-          style={{
-            position: 'absolute',
-            top: -7,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: 7,
-            fontWeight: 800,
-            color: orange,
-            textTransform: 'uppercase',
-            letterSpacing: 0.3,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          ▼
-        </div>
-      )}
     </div>
   )
 }
