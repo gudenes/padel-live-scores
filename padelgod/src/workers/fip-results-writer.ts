@@ -86,6 +86,13 @@ export interface FipResultsWriterResult {
   skippedNoMatch: number;
   skippedTerminalStatus: number;
   skippedNoWidgetId: number;
+  /** Snapshots rejected because winner_team contradicts set_scores, or the
+   *  scoreline isn't a completed best-of-3 despite status='finished'.
+   *  See the premature-finish guard docblock. */
+  skippedInconsistentResult: number;
+  /** Terminal matches whose winner_pair was corrected from a later, consistent
+   *  snapshot (winner-only write — status/sets/finished_at untouched). */
+  winnerCorrected: number;
   dryRun: boolean;
 }
 
@@ -132,6 +139,78 @@ interface ExistingMatch {
   pair2_player2_id: string | null;
 }
 
+/** How long after a match finishes a corrected snapshot may still rewrite
+ *  winner_pair. Upstream corrections land within minutes; 48h is generous
+ *  while still keeping the archive immutable. */
+const WINNER_CORRECTION_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+function isWithinCorrectionWindow(finishedAt: string | null): boolean {
+  // No finished_at (older rows, sidecar path) — don't risk the archive.
+  if (!finishedAt) return false;
+  const ts = Date.parse(finishedAt);
+  if (!Number.isFinite(ts)) return false;
+  return Date.now() - ts <= WINNER_CORRECTION_WINDOW_MS;
+}
+
+/** Standard padel set: first to 6 by 2, 7-5, or 7-6 on the tiebreak. */
+function isCompletedSet(g1: number, g2: number): boolean {
+  const hi = Math.max(g1, g2);
+  const lo = Math.min(g1, g2);
+  return hi >= 6 && (hi - lo >= 2 || hi === 7);
+}
+
+export type ScorelineVerdict = 'ok' | 'mismatch' | 'incomplete' | 'unknown';
+
+/**
+ * Premature-finish guard — Paris Major 2026-09-07/08 incident.
+ *
+ * Crionet occasionally publishes a match as `finished` ~10-20 min before it
+ * actually ends, carrying the WRONG winner. MD042 first landed as
+ * `6-1 5-4 / winner_team=2`, then corrected to `6-1 6-4 / winner_team=1`.
+ * The writer took the first snapshot, the terminal-status guard froze it,
+ * and fip-winner-propagator advanced the LOSING pair into the R32 slot.
+ * Same signature on WD061 the next day.
+ *
+ * So: before trusting a `finished` snapshot, check its own scoreline.
+ *  - `mismatch`    — the side that won more sets isn't `winner_team`
+ *  - `incomplete`  — the claimed winner doesn't hold 2 sets (padel is
+ *                    always best-of-3, so a real finish has a 2-set winner)
+ *  - `unknown`     — nothing to check against (no winner, unparseable or
+ *                    empty set_scores). Caller falls through to the old
+ *                    behaviour rather than blocking on missing data.
+ *
+ * Only meaningful for status='finished'. Retirements and walkovers can
+ * legitimately hand the win to the side that's behind on the scoreboard,
+ * so callers must not apply this to them.
+ */
+export function assessScoreline(
+  setScoresText: string | null,
+  winnerTeam: 1 | 2 | null
+): ScorelineVerdict {
+  if (winnerTeam !== 1 && winnerTeam !== 2) return 'unknown';
+  const sets = setScoresText ? parseSetScores(setScoresText) : [];
+  if (sets.length === 0) return 'unknown';
+
+  let won1 = 0;
+  let won2 = 0;
+  sets.forEach((s, i) => {
+    // Only the LAST token can be a set still in play — upstream wouldn't
+    // have moved on otherwise. `6-1 5-4` must count as one set, not two,
+    // or a leading side reads as a 2-set winner mid-match.
+    const isLast = i === sets.length - 1;
+    if (isLast && !isCompletedSet(s.pair1_games, s.pair2_games)) return;
+    if (s.pair1_games > s.pair2_games) won1 += 1;
+    else if (s.pair2_games > s.pair1_games) won2 += 1;
+  });
+
+  const claimedWinnerSets = winnerTeam === 1 ? won1 : won2;
+  const otherSets = winnerTeam === 1 ? won2 : won1;
+
+  if (otherSets > claimedWinnerSets) return 'mismatch';
+  if (claimedWinnerSets < 2) return 'incomplete';
+  return 'ok';
+}
+
 // ── Main entry ─────────────────────────────────────────────────────────
 
 export async function runFipResultsWriter(
@@ -150,6 +229,8 @@ export async function runFipResultsWriter(
     skippedNoMatch: 0,
     skippedTerminalStatus: 0,
     skippedNoWidgetId: 0,
+    skippedInconsistentResult: 0,
+    winnerCorrected: 0,
     dryRun,
   };
 
@@ -230,9 +311,78 @@ export async function runFipResultsWriter(
         continue;
       }
 
+      // Premature-finish guard. A 'finished' snapshot whose winner_team
+      // contradicts its own set_scores (or that isn't a completed
+      // best-of-3 yet) is upstream noise — Crionet corrects it within a
+      // few ticks. Never write it. See assessScoreline docblock.
+      // Retired/walkover are exempt: the winner can legitimately be
+      // behind on the scoreboard.
+      const verdict =
+        r.status === 'finished'
+          ? assessScoreline(r.set_scores, r.winner_team)
+          : 'unknown';
+      if (verdict === 'mismatch' || verdict === 'incomplete') {
+        result.skippedInconsistentResult += 1;
+        logger?.warn(
+          {
+            composite,
+            matchId: existing.id,
+            verdict,
+            setScores: r.set_scores,
+            winnerTeam: r.winner_team,
+            capturedAt: r.captured_at,
+          },
+          'fip-results-writer: rejected inconsistent finished snapshot (premature-finish guard)'
+        );
+        continue;
+      }
+
       // Terminal-status regression guard. See docblock.
       const currentStatus = existing.status ?? 'scheduled';
       if (!['scheduled', 'on_court', 'live'].includes(currentStatus)) {
+        // Self-heal: if we already stored a winner and a later CONSISTENT
+        // snapshot disagrees, correct winner_pair alone. Without this the
+        // Paris Major bad-winner rows stayed wrong forever — the guard
+        // blocked every corrected snapshot that followed. Status, sets and
+        // finished_at stay untouched (that's what the guard protects), and
+        // the correction is bounded to recently-finished matches so a stale
+        // snapshot can never rewrite the archive.
+        if (
+          verdict === 'ok' &&
+          (r.winner_team === 1 || r.winner_team === 2) &&
+          existing.winner_pair !== null &&
+          existing.winner_pair !== r.winner_team &&
+          isWithinCorrectionWindow(existing.finished_at)
+        ) {
+          logger?.warn(
+            {
+              composite,
+              matchId: existing.id,
+              storedWinnerPair: existing.winner_pair,
+              correctedTo: r.winner_team,
+              setScores: r.set_scores,
+              capturedAt: r.captured_at,
+            },
+            'fip-results-writer: correcting stored winner_pair from later snapshot'
+          );
+          if (!dryRun) {
+            const { error: fixErr } = await supabase
+              .from('matches')
+              .update({
+                winner_pair: r.winner_team,
+                last_updated_by: 'padelgod',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', existing.id);
+            if (fixErr) {
+              throw new Error(
+                `winner_pair correction failed (id=${existing.id}): ${fixErr.message}`
+              );
+            }
+          }
+          result.winnerCorrected += 1;
+          continue;
+        }
         result.skippedTerminalStatus += 1;
         continue;
       }

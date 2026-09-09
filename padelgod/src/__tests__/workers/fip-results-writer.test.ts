@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import {
   runFipResultsWriter,
   computeFinishedAt,
+  assessScoreline,
 } from '../../workers/fip-results-writer.js';
 
 // All snapshot fixtures in this file use captured_at on 2026-04-24. The
@@ -511,7 +512,7 @@ describe('runFipResultsWriter', () => {
       tournaments: [isla],
       widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
       resultsRows: [
-        { ...md017Finished, set_scores: '7-6(3) 4-6 7-5' },
+        { ...md017Finished, set_scores: '7-6(3) 4-6 7-5', winner_team: 1 as const },
       ],
       existingMatches: [md017Existing],
     });
@@ -812,7 +813,15 @@ describe('runFipResultsWriter', () => {
 
   it('coalesces both winners of a FINAL into ONE player_title_won notify', async () => {
     const { deps, posts } = captureNotify();
-    const final = { ...md017Finished, round_label: 'Final', winner_team: 1 as const };
+    // set_scores flipped to match winner_team — md017Finished's '0-6 2-6' is a
+    // pair-2 win, and the premature-finish guard rejects a seed that
+    // contradicts itself. This test is about notify coalescing.
+    const final = {
+      ...md017Finished,
+      round_label: 'Final',
+      set_scores: '6-0 6-2',
+      winner_team: 1 as const,
+    };
     const supabase = fakeSupabase({
       tournaments: [isla],
       widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
@@ -845,5 +854,189 @@ describe('runFipResultsWriter', () => {
     const elim = posts.filter((p) => p.body.category === 'player_eliminated');
     expect(elim).toHaveLength(1);
     expect([...(elim[0].body.entityIds as string[])].sort()).toEqual(['runnerup-a', 'runnerup-b']);
+  });
+});
+
+// ── Premature-finish guard (Paris Major 2026-09-07/08) ─────────────────
+
+describe('assessScoreline', () => {
+  it('accepts a completed best-of-3 that agrees with winner_team', () => {
+    expect(assessScoreline('6-1 6-4', 1)).toBe('ok');
+    expect(assessScoreline('6-4 4-6 6-3', 1)).toBe('ok');
+    expect(assessScoreline('7-6(3) 6-2', 1)).toBe('ok');
+    expect(assessScoreline('0-6 2-6', 2)).toBe('ok');
+  });
+
+  it('flags a winner_team that lost more sets than it won', () => {
+    // MD042 as it eventually settled, but with the bad winner still attached
+    expect(assessScoreline('6-1 6-4', 2)).toBe('mismatch');
+    expect(assessScoreline('6-4 7-5', 2)).toBe('mismatch');
+  });
+
+  it('flags a scoreline that is not a finished best-of-3', () => {
+    // The literal Paris Major MD042 first snapshot: set 2 still in play
+    expect(assessScoreline('6-1 5-4', 1)).toBe('incomplete');
+    // Same scoreline with the bad winner attached trips the mismatch arm
+    // first — the literal Paris Major MD042 snapshot. Rejected either way.
+    expect(assessScoreline('6-1 5-4', 2)).toBe('mismatch');
+    expect(assessScoreline('6-4', 1)).toBe('incomplete');
+  });
+
+  it('returns unknown when there is nothing to check against', () => {
+    expect(assessScoreline('6-1 6-4', null)).toBe('unknown');
+    expect(assessScoreline(null, 1)).toBe('unknown');
+    expect(assessScoreline('', 1)).toBe('unknown');
+    expect(assessScoreline('walkover', 1)).toBe('unknown');
+  });
+});
+
+const md042Premature: ResultsSeed = {
+  ...md017Finished,
+  match_widget_id: 'MD042',
+  set_scores: '6-1 5-4',
+  winner_team: 2,
+  status: 'finished',
+};
+
+const md042Existing: ExistingMatchSeed = {
+  ...md017Existing,
+  id: 'm-md042',
+  widget_id_composite: 'FIP-2026-1706:MD042',
+};
+
+describe('runFipResultsWriter premature-finish guard', () => {
+  it('rejects the premature finished snapshot instead of writing a wrong winner', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [md042Premature],
+      existingMatches: [{ ...md042Existing, status: 'live' }],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedInconsistentResult).toBe(1);
+    expect(result.matchesUpdated).toBe(0);
+    expect(result.setsWritten).toBe(0);
+    expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('rejects a finished snapshot whose winner contradicts its set scores', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [{ ...md042Premature, set_scores: '6-1 6-4', winner_team: 2 }],
+      existingMatches: [{ ...md042Existing, status: 'live' }],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedInconsistentResult).toBe(1);
+    expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('still writes retired/walkover results whose winner trails on the scoreboard', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [
+        { ...md042Premature, set_scores: '6-1 2-5', winner_team: 2, status: 'retired' },
+      ],
+      existingMatches: [{ ...md042Existing, status: 'live' }],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedInconsistentResult).toBe(0);
+    expect(result.matchesUpdated).toBe(1);
+    expect(supabase.updated[0].patch.winner_pair).toBe(2);
+  });
+
+  it('corrects a stored winner_pair when a later consistent snapshot disagrees', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [{ ...md042Premature, set_scores: '6-1 6-4', winner_team: 1 }],
+      existingMatches: [
+        {
+          ...md042Existing,
+          status: 'finished',
+          winner_pair: 2,
+          finished_at: '2026-04-24T15:50:00.000Z', // 40 min before frozen now
+        },
+      ],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.winnerCorrected).toBe(1);
+    expect(result.skippedTerminalStatus).toBe(0);
+    expect(supabase.updated).toHaveLength(1);
+    // winner-only write: status / finished_at / sets untouched
+    expect(supabase.updated[0].patch.winner_pair).toBe(1);
+    expect(supabase.updated[0].patch.status).toBeUndefined();
+    expect(supabase.updated[0].patch.finished_at).toBeUndefined();
+    expect(supabase.setsUpserted).toHaveLength(0);
+  });
+
+  it('does not correct a winner outside the 48h window (archive stays immutable)', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [{ ...md042Premature, set_scores: '6-1 6-4', winner_team: 1 }],
+      existingMatches: [
+        {
+          ...md042Existing,
+          status: 'finished',
+          winner_pair: 2,
+          finished_at: '2026-04-01T12:00:00.000Z',
+        },
+      ],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.winnerCorrected).toBe(0);
+    expect(result.skippedTerminalStatus).toBe(1);
+    expect(supabase.updated).toHaveLength(0);
+  });
+
+  it('dry-run: counts the correction but writes nothing', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [isla],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      resultsRows: [{ ...md042Premature, set_scores: '6-1 6-4', winner_team: 1 }],
+      existingMatches: [
+        {
+          ...md042Existing,
+          status: 'finished',
+          winner_pair: 2,
+          finished_at: '2026-04-24T15:50:00.000Z',
+        },
+      ],
+    });
+
+    const result = await runFipResultsWriter({
+      supabase: supabase as any,
+      dryRun: true,
+    });
+
+    expect(result.winnerCorrected).toBe(1);
+    expect(supabase.updated).toHaveLength(0);
   });
 });
