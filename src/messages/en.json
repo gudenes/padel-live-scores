@@ -589,6 +589,7 @@
   },
   "amateur": {
     "badge": "Amateur",
+    "seasonSelector": "Season",
     "games": "Games",
     "record": "Record",
     "competitionRank": "{competition} rank",

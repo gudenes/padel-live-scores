@@ -558,6 +558,7 @@
   },
   "amateur": {
     "badge": "Amador",
+    "seasonSelector": "Temporada",
     "games": "Jogos",
     "record": "Balanço",
     "competitionRank": "Ranking {competition}",
