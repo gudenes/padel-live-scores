@@ -25,7 +25,7 @@ const PLAYER_COLUMNS =
   'profile_url, side, height, birthdate, birthplace, hand, titles, finals, ' +
   // `equipment` (legacy jsonb) intentionally excluded — source of truth is
   // the `player_equipment` junction surfaced in the top-level `equipment` array.
-  'semifinals, win_rate, total_matches, public_id, slug, coaches, ' +
+  'semifinals, win_rate, total_matches, public_id, slug, coaches, tier, ' +
   'created_at, updated_at'
 
 // Allow-list for PATCH. Anything outside this set is rejected with 400.
