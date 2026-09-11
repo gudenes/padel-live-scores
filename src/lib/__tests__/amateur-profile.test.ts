@@ -37,6 +37,8 @@ const RAW: AmateurRawRows = {
     crest_url: null,
     competition: 'Series Nacionales de Pádel · Barcelona · Masculino 1000',
     category: 'men',
+    badge_label: 'Amador · SNP',
+    short_name: 'SNP',
   },
   roster: [
     { player_id: PLAYER_ID,  roster_rank: 9, games_played: 7, wins: 2, losses: 5, player: { id: PLAYER_ID,  name: 'Gustavo Denes',  avatar_url: null } },

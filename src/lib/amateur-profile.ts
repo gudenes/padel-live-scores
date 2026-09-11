@@ -50,6 +50,8 @@ export interface AmateurRawRows {
     crest_url: string | null
     competition: string | null
     category: string | null
+    badge_label: string | null
+    short_name: string | null
   }
   roster: Array<{
     player_id: string
@@ -245,7 +247,7 @@ export async function fetchAmateurProfile(playerId: string): Promise<AmateurProf
 
   const { data: team } = await supabase
     .from('teams')
-    .select('id, slug, name, club, city, country, crest_url, competition, category')
+    .select('id, slug, name, club, city, country, crest_url, competition, category, badge_label, short_name')
     .eq('id', season.team_id)
     .single()
   if (!team) return null

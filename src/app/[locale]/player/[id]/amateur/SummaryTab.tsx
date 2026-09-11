@@ -82,7 +82,9 @@ export function SummaryTab({ player, data }: { player: AmateurPlayer; data: Amat
       )}
 
       {data.competitionPoints != null && (
-        <Widget label={t('competitionPoints', { competition: data.team.competition?.split('·')[0].trim() ?? '' })}>
+        <Widget label={t('competitionPoints', {
+          competition: data.team.short_name ?? data.team.competition?.split('·')[0].trim() ?? '',
+        })}>
           <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
             {Number(data.competitionPoints).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
           </div>

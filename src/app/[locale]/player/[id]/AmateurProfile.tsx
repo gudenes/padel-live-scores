@@ -73,6 +73,9 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   // "Series Nacionales de Pádel · Barcelona · Masculino 1000" is too long for a
   // pill; the first segment carries enough identity.
   const competitionShort = competition ? competition.split('·')[0].trim() : null
+  // Prefer the operator-set short name; fall back to the first segment of the
+  // full competition string, which is what v1 derived.
+  const competitionLabel = data?.team.short_name ?? competitionShort
   const sideLabel = player.side === 'drive'
     ? t('sideDrive')
     : player.side === 'backhand'
@@ -83,9 +86,9 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   if (data) {
     chips.push({ label: t('games'), value: String(data.record.played) })
     chips.push({ label: t('record'), value: `${data.record.wins}–${data.record.losses}`, accent: 'green' })
-    if (data.competitionRank != null && competitionShort) {
+    if (data.competitionRank != null && competitionLabel) {
       chips.push({
-        label: t('competitionRank', { competition: competitionShort }),
+        label: t('competitionRank', { competition: competitionLabel }),
         value: `#${data.competitionRank}`,
         accent: 'orange',
       })
@@ -158,7 +161,8 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
                 marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5,
               }}>
-                {competitionShort ? `${t('badge')} · ${competitionShort}` : t('badge')}
+                {data?.team.badge_label
+                  ?? (competitionShort ? `${t('badge')} · ${competitionShort}` : t('badge'))}
               </span>
               <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>{displayName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: MUTED, fontSize: 12 }}>
@@ -206,8 +210,8 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 </div>
                 <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {[
-                    data.season.ranking != null && competitionShort
-                      ? t('teamRank', { rank: data.season.ranking, competition: competitionShort })
+                    data.season.ranking != null && competitionLabel
+                      ? t('teamRank', { rank: data.season.ranking, competition: competitionLabel })
                       : null,
                     data.season.label,
                   ].filter(Boolean).join(' · ')}
