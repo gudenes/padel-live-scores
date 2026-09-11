@@ -223,16 +223,77 @@ export function buildAmateurProfile(playerId: string, raw: AmateurRawRows): Amat
   }
 }
 
+export interface AmateurSeasonRef {
+  seasonId: string
+  label: string
+  /** team_seasons.starts_on — null on the hand-imported 25/26. */
+  startsOn: string | null
+  teamId: string
+  teamName: string
+}
+
 /**
- * Loads the player's most recent team season. Returns null when the player
- * has no membership — an amateur row with no season still renders a profile,
- * just without the team sections.
+ * Most recent first. Sorts by start date, then by label — the 25/26 import
+ * left starts_on null, so label ordering is the real tiebreak in practice.
+ * A dated season always outranks an undated one.
  */
-export async function fetchAmateurProfile(playerId: string): Promise<AmateurProfileData | null> {
-  const { data: membership } = await supabase
+export function sortSeasonRefs(refs: AmateurSeasonRef[]): AmateurSeasonRef[] {
+  return [...refs].sort((a, b) => {
+    if (a.startsOn && b.startsOn) return b.startsOn.localeCompare(a.startsOn)
+    if (a.startsOn) return -1
+    if (b.startsOn) return 1
+    return b.label.localeCompare(a.label)
+  })
+}
+
+/** Every season this player has a membership in, most recent first. */
+export async function fetchAmateurSeasons(playerId: string): Promise<AmateurSeasonRef[]> {
+  const { data } = await supabase
+    .from('team_memberships')
+    .select('team_season_id, season:team_seasons(id, label, starts_on, team:teams(id, name))')
+    .eq('player_id', playerId)
+
+  type Row = {
+    team_season_id: string
+    season: {
+      id: string
+      label: string
+      starts_on: string | null
+      team: { id: string; name: string } | null
+    } | null
+  }
+
+  const refs = ((data ?? []) as unknown as Row[])
+    .filter(r => r.season != null)
+    .map(r => ({
+      seasonId: r.season!.id,
+      label: r.season!.label,
+      startsOn: r.season!.starts_on,
+      teamId: r.season!.team?.id ?? '',
+      teamName: r.season!.team?.name ?? '',
+    }))
+
+  return sortSeasonRefs(refs)
+}
+
+/**
+ * Loads the player's most recent team season, or a specific one when
+ * `seasonId` is given. Returns null when the player has no membership — an
+ * amateur row with no season still renders a profile, just without the team
+ * sections.
+ */
+export async function fetchAmateurProfile(
+  playerId: string,
+  seasonId?: string,
+): Promise<AmateurProfileData | null> {
+  let membershipQuery = supabase
     .from('team_memberships')
     .select('team_season_id, player_id, competition_points, competition_rank, roster_rank, games_played, wins, losses')
     .eq('player_id', playerId)
+
+  if (seasonId) membershipQuery = membershipQuery.eq('team_season_id', seasonId)
+
+  const { data: membership } = await membershipQuery
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
