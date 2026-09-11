@@ -77,6 +77,9 @@ function computeCountryOptions(): CountryOption[] {
       } catch {
         continue
       }
+      // ZZ is CLDR's sentinel for "Unknown Region". It resolves to a name and
+      // so survives the filter, but it is not a country an operator would pick.
+      if (code === 'ZZ') continue
       if (name && name !== code) out.push({ code, name })
     }
   }
