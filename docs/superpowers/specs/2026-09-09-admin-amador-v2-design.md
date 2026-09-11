@@ -108,9 +108,10 @@ export async function fetchAmateurProfile(
 ```ts
 export interface AmateurSeasonRef {
   seasonId: string
-  label: string      // '25/26'
+  label: string        // '25/26'
+  startsOn: string | null  // team_seasons.starts_on — null na 25/26 importada
   teamId: string
-  teamName: string   // 'Blue Padel Mataró'
+  teamName: string     // 'Blue Padel Mataró'
 }
 ```
 
