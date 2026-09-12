@@ -7,9 +7,11 @@
 // visual language through the Widget module and the same brand constants.
 
 import { useState, useEffect } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import FollowButton from '@/components/FollowButton'
+import ShareButton from '@/components/ShareButton'
+import { buildShareUrl } from '@/lib/share-url'
 import { FlagImage } from '@/components/FlagImage'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import BottomNav from '@/components/nav/BottomNavV3'
@@ -54,6 +56,7 @@ export interface AmateurPlayer {
 export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   const t = useTranslations('amateur')
   const tPlayer = useTranslations('player')
+  const locale = useLocale()
   const router = useRouter()
   const [data, setData] = useState<AmateurProfileData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -206,6 +209,7 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 <span>{[player.home_club, data?.team.city].filter(Boolean).join(' · ')}</span>
               </div>
             </div>
+            <ShareButton url={buildShareUrl(locale, player.id)} />
             <FollowButton type="player" targetId={player.id} variant="follow" />
           </div>
 

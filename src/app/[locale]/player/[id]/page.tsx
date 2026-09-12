@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useRef, use } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Link, useRouter, usePathname } from '@/i18n/navigation'
-import { useTranslations, useFormatter } from 'next-intl'
+import { useTranslations, useFormatter, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { parseSetScore, toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
@@ -30,6 +30,8 @@ import { PlaysWithCard } from './PlaysWithCard'
 import RoadToTrophyCard from './RoadToTrophyCard'
 import AmateurProfile from './AmateurProfile'
 import { isAmateurTier } from '@/lib/player-tier'
+import ShareButton from '@/components/ShareButton'
+import { buildShareUrl } from '@/lib/share-url'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -248,6 +250,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const tPlayer = useTranslations('player')
   const tCommon = useTranslations('common')
   const format = useFormatter()
+  const locale = useLocale()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const searchParams = useSearchParams()
@@ -712,6 +715,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
             {/* Follow button */}
+            <ShareButton url={buildShareUrl(locale, player.id)} />
             <FollowButton type="player" targetId={player.id} variant="follow" />
           </div>
 
