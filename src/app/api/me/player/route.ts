@@ -118,18 +118,16 @@ export async function PATCH(req: NextRequest) {
     if (!racket) return NextResponse.json({ error: 'bad_racket' }, { status: 400 })
   }
 
-  if ('side' in patch) {
-    const { error } = await supabase
-      .from('players').update({ side: patch.side ?? null }).eq('id', playerId)
-    if (error) return NextResponse.json({ error: 'write_failed' }, { status: 500 })
-  }
-
+  // A raquete vai primeiro: é o caminho de múltiplas escritas com risco de
+  // ficar pela metade. Rodando antes, uma falha aqui não deixa nada escrito
+  // ainda — nem a posição.
   if ('racketId' in patch) {
     const { data: active, error: activeErr } = await supabase
-      .from('player_equipment').select('racket_id')
+      .from('player_equipment').select('id, racket_id')
       .eq('player_id', playerId).is('ended_at', null).maybeSingle()
     if (activeErr) return NextResponse.json({ error: 'lookup_failed' }, { status: 500 })
 
+    const activeId = (active?.id as string | undefined) ?? null
     const today = new Date().toISOString().split('T')[0]
     const plan = planRacketChange({
       activeRacketId: (active?.racket_id as string | undefined) ?? null,
@@ -137,10 +135,9 @@ export async function PATCH(req: NextRequest) {
       today,
     })
 
-    if (plan.endActive) {
+    if (plan.endActive && activeId) {
       const { error } = await supabase
-        .from('player_equipment').update({ ended_at: today })
-        .eq('player_id', playerId).is('ended_at', null)
+        .from('player_equipment').update({ ended_at: today }).eq('id', activeId)
       if (error) return NextResponse.json({ error: 'write_failed' }, { status: 500 })
     }
     if (plan.insert) {
@@ -150,7 +147,27 @@ export async function PATCH(req: NextRequest) {
         started_at: plan.insert.startedAt,
         ended_at: null,
       })
-      if (error) return NextResponse.json({ error: 'write_failed' }, { status: 500 })
+      if (error) {
+        // A atribuição antiga já foi fechada. Deixar assim tira a raquete de
+        // quem só queria trocar de raquete — pior que o estado de partida.
+        // Reabre a anterior e devolve erro, para o usuário tentar de novo.
+        if (activeId) {
+          await supabase.from('player_equipment')
+            .update({ ended_at: null }).eq('id', activeId)
+        }
+        return NextResponse.json({ error: 'write_failed' }, { status: 500 })
+      }
+    }
+  }
+
+  if ('side' in patch) {
+    const { error } = await supabase
+      .from('players').update({ side: patch.side ?? null }).eq('id', playerId)
+    if (error) {
+      return NextResponse.json(
+        { error: 'write_failed', applied: 'racketId' in patch ? ['racket'] : [] },
+        { status: 500 },
+      )
     }
   }
 
