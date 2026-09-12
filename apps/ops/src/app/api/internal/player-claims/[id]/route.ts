@@ -33,12 +33,21 @@ export async function POST(
   const action = body.action
 
   const supabase = serviceClient()
-  const reviewer = session.user.email ?? 'operator'
+  const reviewer = session.user.email ?? 'ops'
 
   const { data: claim, error: loadErr } = await supabase
     .from('player_claims').select('id, player_id, user_id, status').eq('id', id).maybeSingle()
   if (loadErr) return NextResponse.json({ error: loadErr.message }, { status: 500 })
   if (!claim) return NextResponse.json({ error: 'not_found' }, { status: 404 })
+
+  if (action === 'approve' || action === 'reject') {
+    // Same class of risk as the unlink guard below: acting on a claim that
+    // isn't 'pending' anymore can strand a link with no way back through the
+    // admin (see the approve rollback comment further down).
+    if (claim.status !== 'pending') {
+      return NextResponse.json({ error: 'not_pending' }, { status: 409 })
+    }
+  }
 
   if (action === 'approve') {
     const { data: updated, error: linkErr } = await supabase
@@ -80,16 +89,29 @@ export async function POST(
   // 'rejected' with review_note 'unlinked' so the claim no longer counts as
   // an active approval, without needing a schema change.
   const newStatus = action === 'approve' ? 'approved' : 'rejected'
+  // On unlink, 'unlinked' is the ONLY thing in the All list that distinguishes
+  // this from a genuine rejection (both collapse to status='rejected') — it
+  // must not be overwritable by a caller-supplied note.
+  const reviewNote = action === 'unlink' ? 'unlinked' : (body.note ?? null)
   const { error: statusErr } = await supabase
     .from('player_claims')
     .update({
       status: newStatus,
       reviewed_by: reviewer,
       reviewed_at: new Date().toISOString(),
-      review_note: body.note ?? (action === 'unlink' ? 'unlinked' : null),
+      review_note: reviewNote,
     })
     .eq('id', id)
-  if (statusErr) return NextResponse.json({ error: statusErr.message }, { status: 500 })
+  if (statusErr) {
+    // A escrita do vínculo já passou. Deixar assim produz o pior estado
+    // possível: conta ligada, claim ainda 'pending', e o botão Unlink — que
+    // só aparece em linhas aprovadas — fora de alcance. Desfaz o vínculo e
+    // devolve erro, para o operador simplesmente tentar de novo.
+    if (action === 'approve') {
+      await supabase.from('profiles').update({ player_id: null }).eq('id', claim.user_id)
+    }
+    return NextResponse.json({ error: statusErr.message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true, status: newStatus })
 }
