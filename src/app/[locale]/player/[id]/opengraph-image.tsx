@@ -89,13 +89,32 @@ async function fetchMembership(playerId: string): Promise<MembershipRow | null> 
 }
 
 /** Satori accepts PNG, JPEG, GIF, SVG. WebP is flaky, so we refuse it. */
+/**
+ * Supabase Storage serves the original bytes at /object/public/. An operator
+ * upload is allowed up to 2 MB, while this route refuses anything over 150 KB
+ * — so every uploaded photo would silently fall back to the initial circle.
+ * The two limits were never reconciled.
+ *
+ * /render/image/public/ returns a resized variant instead: the real avatar of
+ * 1.9 MB comes back at ~127 KB, comfortably under the cap and faster to fetch.
+ * The card draws it at 150 px, so 300 px is already generous.
+ *
+ * Non-Supabase URLs are returned untouched.
+ */
+function toThumbnailUrl(url: string): string {
+  if (!url.includes('/storage/v1/object/public/')) return url
+  const base = url.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
+  const sep = base.includes('?') ? '&' : '?'
+  return `${base}${sep}width=300&height=300&resize=cover&quality=75`
+}
+
 async function fetchAvatarDataUrl(url: string | null): Promise<string | null> {
   if (!url) return null
   if (url.toLowerCase().includes('.webp')) return null
   try {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 1500)
-    const res = await fetch(url, { signal: controller.signal })
+    const res = await fetch(toThumbnailUrl(url), { signal: controller.signal })
     clearTimeout(timer)
     if (!res.ok) return null
     const contentType = res.headers.get('content-type') ?? ''
