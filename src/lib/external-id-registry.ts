@@ -127,8 +127,16 @@ export async function findEntityBySourceId(
  * if one exists for the source, otherwise upserts into the sidecar with
  * last_seen_at refreshed.
  *
- * Registering the same (entity_id, source) again updates the external ID
- * in place (rare but possible — e.g. a source re-issues IDs).
+ * The sidecar is keyed by (source, entity_type, external_id): a given
+ * external id points at one entity. Re-registering it against a different
+ * entity moves it.
+ *
+ * It is deliberately NOT keyed by (entity_type, entity_id, source) — an
+ * entity may legitimately hold several ids from one source. `source='alias'`
+ * is exactly that: it stores every name variant the PlayerResolver has
+ * learned for a player, and some players carry five. Keying the other way
+ * would collapse those into one and undo the protection against name
+ * conflation.
  */
 export async function registerSourceId(
   supabase: SupabaseClient,
@@ -152,8 +160,12 @@ export async function registerSourceId(
     return
   }
 
-  // Sidecar upsert — onConflict by (entity_type, entity_id, source) refreshes
-  // the row if it already exists.
+  // Sidecar upsert. The conflict target must match the table's only unique
+  // index, `entity_external_ids_source_external_uk (source, entity_type,
+  // external_id)`. It previously named (entity_type, entity_id, source),
+  // which does not exist — so every sidecar write threw "no unique or
+  // exclusion constraint matching the ON CONFLICT specification" and this
+  // path had never worked for any source.
   const { error } = await supabase
     .from('entity_external_ids')
     .upsert(
@@ -165,7 +177,7 @@ export async function registerSourceId(
         metadata: metadata ?? null,
         last_seen_at: new Date().toISOString(),
       },
-      { onConflict: 'entity_type,entity_id,source' }
+      { onConflict: 'source,entity_type,external_id' }
     )
   if (error) {
     throw new Error(`registerSourceId (sidecar ${entityType}:${source}): ${error.message}`)
