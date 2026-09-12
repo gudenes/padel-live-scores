@@ -15,6 +15,9 @@ import ProfileHeader, { type ProfileHeaderPlayer } from './ProfileHeader'
 import IdentitySection, { type IdentitySectionPlayer } from './IdentitySection'
 import ProfileSection, { type ProfileSectionPlayer } from './ProfileSection'
 import MatchHistorySection, { type MatchHistoryRow } from './MatchHistorySection'
+import AmateurCourtHistorySection, {
+  type AmateurCourtHistoryRow,
+} from './AmateurCourtHistorySection'
 import EarningsSection, { type Earning } from './EarningsSection'
 import CoachesSection from './CoachesSection'
 import EquipmentTab from '../../_components/EquipmentTab'
@@ -33,6 +36,7 @@ interface AggregatorResponse {
   player: AggregatorPlayer
   equipment: unknown[]
   recentMatches: MatchHistoryRow[]
+  teamCourtHistory: AmateurCourtHistoryRow[]
   earnings: Earning[]
 }
 
@@ -143,12 +147,18 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
             </Panel>
           </div>
 
-          {/* Match history full-width. */}
+          {/* Match / court history full-width. Amateurs never have rows in
+              `matches` — their games live in the team model — so they get
+              AmateurCourtHistorySection instead of MatchHistorySection. */}
           <div style={{ marginBottom: 16 }}>
-            <MatchHistorySection
-              playerId={state.data.player.id}
-              matches={state.data.recentMatches}
-            />
+            {state.data.player.tier === 'amateur' ? (
+              <AmateurCourtHistorySection games={state.data.teamCourtHistory} />
+            ) : (
+              <MatchHistorySection
+                playerId={state.data.player.id}
+                matches={state.data.recentMatches}
+              />
+            )}
           </div>
 
           {/* Earnings + Coaches side-by-side on lg, stacked on mobile. */}
