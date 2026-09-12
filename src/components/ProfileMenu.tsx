@@ -250,6 +250,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
               }
               label={tProfile('myPlayer')}
               rightSlot={<Chevron/>}
+              tone="muted"
             />
           )}
           <Item

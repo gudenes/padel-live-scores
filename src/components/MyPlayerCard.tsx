@@ -40,11 +40,11 @@ export function MyPlayerCard() {
             <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
           </svg>
         </div>
-        <div style={{ minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: 1, textTransform: 'uppercase', color: MUTED }}>
             {t('myPlayer')}
           </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginTop: 2 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {mine.playerName ?? ''}
           </div>
           <div style={{ fontSize: 10, color: MUTED, marginTop: 1 }}>{t('myPlayerPending')}</div>
