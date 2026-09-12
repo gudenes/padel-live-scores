@@ -99,6 +99,14 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
         </Widget>
       )}
 
+      {data.nationalRank != null && (
+        <Widget label={t('nationalRank')}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+            #{data.nationalRank}
+          </div>
+        </Widget>
+      )}
+
       {(partners.confirmed.length > 0 || partners.probable.length > 0) && (
         <Widget label={t('partners')} wide>
           <div style={{ display: 'flex', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
