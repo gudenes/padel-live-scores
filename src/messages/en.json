@@ -632,6 +632,9 @@
   "team": {
     "squad": "Squad",
     "rounds": "Rounds",
+    "tabOverview": "Overview",
+    "tabSquad": "Squad",
+    "tabRounds": "Rounds",
     "tiesWon": "Ties won",
     "courtRecord": "Court record",
     "pointsFor": "Points for / against",

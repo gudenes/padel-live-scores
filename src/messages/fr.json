@@ -601,6 +601,9 @@
   "team": {
     "squad": "Effectif",
     "rounds": "Journées",
+    "tabOverview": "Résumé",
+    "tabSquad": "Effectif",
+    "tabRounds": "Journées",
     "tiesWon": "Rencontres gagnées",
     "courtRecord": "Bilan sur terrain",
     "pointsFor": "Points pour / contre",

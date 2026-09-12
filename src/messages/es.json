@@ -601,6 +601,9 @@
   "team": {
     "squad": "Plantilla",
     "rounds": "Jornadas",
+    "tabOverview": "Resumen",
+    "tabSquad": "Plantilla",
+    "tabRounds": "Jornadas",
     "tiesWon": "Eliminatorias ganadas",
     "courtRecord": "Balance en pista",
     "pointsFor": "Puntos a favor / en contra",

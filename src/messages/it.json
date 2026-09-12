@@ -601,6 +601,9 @@
   "team": {
     "squad": "Rosa",
     "rounds": "Giornate",
+    "tabOverview": "Riepilogo",
+    "tabSquad": "Rosa",
+    "tabRounds": "Giornate",
     "tiesWon": "Incontri vinti",
     "courtRecord": "Bilancio in campo",
     "pointsFor": "Punti a favore / contro",
