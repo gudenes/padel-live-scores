@@ -87,7 +87,11 @@ export async function fetchTeamSeason(
 ): Promise<TeamSeasonPageData | null>
 ```
 
-**O cliente entra por parâmetro, e isso não é detalhe de estilo.** `src/lib/amateur-profile.ts` hoje importa o cliente do browser (`import { supabase } from '@/lib/supabase'`), que não funciona num Server Component. Como a página é server-rendered, ela passa `createServerClient()`; o perfil amador, sendo client-side, passa o cliente do browser. Sem essa inversão a página simplesmente não roda — e o erro só apareceria em runtime.
+**O cliente entra por parâmetro, e isso não é detalhe de estilo.** `src/lib/amateur-profile.ts` hoje importa o cliente do browser (`import { supabase } from '@/lib/supabase'`), que não funciona num Server Component. Sem essa inversão a página simplesmente não roda — e o erro só apareceria em runtime.
+
+**Qual cliente a página usa importa mais ainda.** `createServerClient` neste repo é alias de `createServiceClient` ([`src/lib/supabase.ts:47`](../../../src/lib/supabase.ts)) — a service key, que **ignora RLS**. Uma página pública não deve renderizar com ela: hoje as tabelas de equipe têm política de leitura para `anon`, então a service key não mostraria nada a mais; mas no dia em que uma política for apertada (por exemplo para respeitar `players.hidden`), a página continuaria servindo o que a política passou a proteger, sem nenhum sinal.
+
+A página usa um cliente **anon no servidor** — `createClient` com `NEXT_PUBLIC_SUPABASE_ANON_KEY`, instanciado por requisição. Se um helper assim não existir em `src/lib/supabase.ts`, ele é criado como parte deste trabalho. A regra: o que o visitante anônimo pode ler é exatamente o que a página renderiza.
 
 `fetchAmateurProfile` e `fetchAmateurSeasons` ganham o mesmo parâmetro, e os dois call sites atuais passam o cliente do browser explicitamente. É uma mudança mecânica em três funções e dois chamadores.
 
