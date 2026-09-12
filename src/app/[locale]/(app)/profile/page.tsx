@@ -25,6 +25,7 @@ import {
 } from '@/components/icons'
 import { BadgeIcon } from '@/components/BadgeIcon'
 import { BadgeTooltip } from '@/components/BadgeTooltip'
+import { MyPlayerCard } from '@/components/MyPlayerCard'
 
 const V3 = {
   GREEN: '#7ED321',
@@ -218,6 +219,8 @@ export default function ProfilePage() {
           follows: t('stats.follows'),
         }}
       />
+
+      <MyPlayerCard />
 
       <LatestAchievementsStrip
         header={t('latestAchievements')}
