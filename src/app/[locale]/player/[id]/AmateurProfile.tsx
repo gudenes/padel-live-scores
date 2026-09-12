@@ -78,11 +78,18 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
       .is('ended_at', null)
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return
         const row = data as unknown as { racket: PlaysWithRacket | null } | null
         setRacket(row?.racket ?? null)
-        setRacketLoaded(true)
+        // `racketLoaded` só vira true quando a consulta SUCEDEU. O cliente do
+        // Supabase não rejeita a promise em erro de consulta — resolve com
+        // `{data: null, error}`. Ignorar o `error` faria uma falha transitória
+        // parecer "esta pessoa não tem raquete", e aí o botão Editar apareceria
+        // com a raquete já zerada: salvar apagaria a raquete real.
+        // Em erro, o botão simplesmente não aparece. Falhar fechado aqui custa
+        // uma funcionalidade indisponível; falhar aberto custa o dado.
+        if (!error) setRacketLoaded(true)
       })
     return () => { cancelled = true }
   }, [player.id])
