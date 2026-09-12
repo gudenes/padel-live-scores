@@ -79,9 +79,20 @@ export async function POST(
     if (claim.status !== 'approved') {
       return NextResponse.json({ error: 'not_approved' }, { status: 409 })
     }
-    const { error: unlinkErr } = await supabase
-      .from('profiles').update({ player_id: null }).eq('id', claim.user_id)
+    // Só desfaz se o vínculo ainda for deste jogador. Sem o segundo filtro,
+    // desvincular uma claim antiga cortaria um vínculo mais novo feito para
+    // outro jogador — o usuário perderia o perfil certo por causa de um
+    // registro obsoleto.
+    const { data: cleared, error: unlinkErr } = await supabase
+      .from('profiles')
+      .update({ player_id: null })
+      .eq('id', claim.user_id)
+      .eq('player_id', claim.player_id)
+      .select('id')
     if (unlinkErr) return NextResponse.json({ error: unlinkErr.message }, { status: 500 })
+    if (!cleared || cleared.length === 0) {
+      return NextResponse.json({ error: 'link_moved' }, { status: 409 })
+    }
   }
 
   // player_claims.status has a 3-way check constraint (pending/approved/

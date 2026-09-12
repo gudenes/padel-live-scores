@@ -14,6 +14,7 @@ export type ClaimRejection =
   | 'already_claimed'
   | 'account_linked'
   | 'pending'
+  | 'account_pending'
 
 /** Os únicos valores que `players.tier` aceita — a constraint do banco é
  *  `check (tier in ('pro','amateur'))`. Tipar aqui faz o compilador pegar
@@ -51,8 +52,11 @@ export interface ClaimContext {
   playerOwnerUserId: string | null
   /** jogador que esta conta já possui, se houver */
   accountPlayerId: string | null
-  /** já existe pedido pendente desta conta para este jogador */
-  hasPendingClaim: boolean
+  /** Jogador do pedido pendente desta conta, se houver. Uma conta tem no
+   *  máximo um pedido em aberto: dois pendentes para jogadores diferentes,
+   *  ambos aprovados, fazem o segundo sobrescrever o primeiro em silêncio —
+   *  e o Unlink do antigo passa a cortar o vínculo do novo. */
+  pendingClaimPlayerId: string | null
 }
 
 export type ClaimVerdict =
@@ -67,6 +71,7 @@ export function evaluateClaim(ctx: ClaimContext): ClaimVerdict {
   if (ctx.player.tier !== CLAIMABLE_TIER) return { ok: false, reason: 'not_claimable', status: 403 }
   if (ctx.playerOwnerUserId) return { ok: false, reason: 'already_claimed', status: 409 }
   if (ctx.accountPlayerId) return { ok: false, reason: 'account_linked', status: 409 }
-  if (ctx.hasPendingClaim) return { ok: false, reason: 'pending', status: 409 }
+  if (ctx.pendingClaimPlayerId === ctx.player.id) return { ok: false, reason: 'pending', status: 409 }
+  if (ctx.pendingClaimPlayerId) return { ok: false, reason: 'account_pending', status: 409 }
   return { ok: true }
 }

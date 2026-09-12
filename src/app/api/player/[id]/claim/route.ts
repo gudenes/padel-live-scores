@@ -33,8 +33,9 @@ export async function POST(
     supabase.from('players').select('id, tier, name, display_name').eq('id', playerId).maybeSingle(),
     supabase.from('profiles').select('id').eq('player_id', playerId).maybeSingle(),
     supabase.from('profiles').select('player_id').eq('id', userId).maybeSingle(),
-    supabase.from('player_claims').select('id')
-      .eq('user_id', userId).eq('player_id', playerId).eq('status', 'pending').maybeSingle(),
+    supabase.from('player_claims').select('id, player_id')
+      .eq('user_id', userId).eq('status', 'pending')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle(),
   ])
 
   // Todas as quatro consultas têm que ter SUCEDIDO para o veredito valer.
@@ -62,7 +63,7 @@ export async function POST(
       : null,
     playerOwnerUserId: ownerRes.data?.id ?? null,
     accountPlayerId: accountRes.data?.player_id ?? null,
-    hasPendingClaim: !!pendingRes.data,
+    pendingClaimPlayerId: pendingRes.data?.player_id ?? null,
   })
   if (!verdict.ok) {
     return NextResponse.json({ error: verdict.reason }, { status: verdict.status })

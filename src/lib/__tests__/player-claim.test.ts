@@ -6,7 +6,7 @@ const base: ClaimContext = {
   player: { id: 'player-1', tier: 'amateur' },
   playerOwnerUserId: null,
   accountPlayerId: null,
-  hasPendingClaim: false,
+  pendingClaimPlayerId: null,
 }
 
 describe('evaluateClaim', () => {
@@ -45,8 +45,13 @@ describe('evaluateClaim', () => {
   })
 
   it('rejects a duplicate pending request', () => {
-    expect(evaluateClaim({ ...base, hasPendingClaim: true }))
+    expect(evaluateClaim({ ...base, pendingClaimPlayerId: 'player-1' }))
       .toEqual({ ok: false, reason: 'pending', status: 409 })
+  })
+
+  it('rejects a second pending request for a different player on the same account', () => {
+    expect(evaluateClaim({ ...base, pendingClaimPlayerId: 'player-9' }))
+      .toEqual({ ok: false, reason: 'account_pending', status: 409 })
   })
 
   it('checks identity before ownership — an anonymous visitor is never told who owns the player', () => {

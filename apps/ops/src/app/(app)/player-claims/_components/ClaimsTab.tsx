@@ -54,6 +54,8 @@ export default function ClaimsTab() {
     if (!res.ok) {
       if (d.error === 'already_claimed') {
         alert('This player was linked to another account in the meantime — nothing was changed.')
+      } else if (d.error === 'link_moved') {
+        alert('This account is now linked to a different player — nothing was changed.')
       } else {
         alert(`Failed: ${d.error ?? res.status}`)
       }
