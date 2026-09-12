@@ -270,7 +270,7 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
             />
             {activeTab === 'summary' && <SummaryTab player={player} data={data} racket={racket} />}
             {activeTab === 'season' && <AmateurSeasonTab playerId={player.id} data={data} seasons={seasons} />}
-            {activeTab === 'team' && <TeamTab data={data} currentPlayerId={player.id} />}
+            {activeTab === 'team' && <TeamTab data={data} />}
           </>
         )}
       </div>
