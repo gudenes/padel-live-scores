@@ -106,7 +106,10 @@ export function TeamPageShell({ data }: { data: TeamSeasonPageData }) {
         </button>
         <div style={{
           position: 'relative', zIndex: 2,
-          padding: '0 16px 14px', width: '100%', display: 'flex', gap: 12, alignItems: 'flex-end',
+          padding: '0 16px 14px', width: '100%', display: 'flex', gap: 12,
+          // Centred, not bottom-aligned: the text block is three lines tall and
+          // bottom-alignment dropped the crest below the name it belongs to.
+          alignItems: 'center',
         }}>
           {crest && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -137,7 +140,15 @@ export function TeamPageShell({ data }: { data: TeamSeasonPageData }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: '#C9C9C9', fontSize: 12 }}>
               {data.team.country && <FlagImage country={data.team.country} size={16} />}
-              <span>{[data.team.competition, data.team.city].filter(Boolean).join(' · ')}</span>
+              {/* The full competition string ("Series Nacionales de Pádel ·
+                  Barcelona · Masculino 1000") wraps to two lines next to the
+                  city and repeats the region. The short name is what belongs
+                  on one line beside a place. */}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {[data.team.short_name ?? data.team.competition, data.team.city]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
             </div>
             <div style={{ fontSize: 11, color: ORANGE, marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.8 }}>
               {t('seasonLabel')} {data.season.label}
