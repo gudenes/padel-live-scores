@@ -37,7 +37,19 @@ export async function POST(
       .eq('user_id', userId).eq('player_id', playerId).eq('status', 'pending').maybeSingle(),
   ])
 
-  if (playerRes.error) return NextResponse.json({ error: 'lookup_failed' }, { status: 500 })
+  // Todas as quatro consultas têm que ter SUCEDIDO para o veredito valer.
+  // Checar só o jogador deixava as outras três falharem em silêncio: numa
+  // falha transitória do Supabase, `data` vem nulo e a guarda correspondente
+  // ("já é de outra conta", "esta conta já tem jogador", "já há pedido")
+  // passaria batido. Uma consulta que não pôde ser feita tem que bloquear a
+  // escrita, não liberá-la.
+  if (playerRes.error || ownerRes.error || accountRes.error || pendingRes.error) {
+    console.warn(
+      '[claim] lookup failed:',
+      playerRes.error?.message ?? ownerRes.error?.message ?? accountRes.error?.message ?? pendingRes.error?.message,
+    )
+    return NextResponse.json({ error: 'lookup_failed' }, { status: 500 })
+  }
 
   const verdict = evaluateClaim({
     userId,
