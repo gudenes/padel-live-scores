@@ -50,17 +50,46 @@ export function TeamPageShell({ data }: { data: TeamSeasonPageData }) {
   ]
 
   const cover = data.team.cover_image_url
+  const crest = data.team.crest_url
+  // Three-step backdrop. A real cover wins. Failing that, a club crest is
+  // almost always a square logo, so it is blown up and blurred behind the
+  // text instead of being stretched edge-to-edge — stretching a circular
+  // badge into a 375x190 banner looks broken, and it carries the club's own
+  // colours either way. With neither, the brand gradient.
+  const backdrop = cover ?? crest ?? null
 
   return (
     <>
       <div style={{
         position: 'relative', height: 190, display: 'flex', alignItems: 'flex-end',
-        // Fixed height so the page does not jump as the cover loads. Without a
-        // cover this is the brand gradient, which is every team today.
-        background: cover
-          ? `linear-gradient(to top, rgba(10,10,10,0.95) 10%, rgba(10,10,10,0.35) 60%, rgba(10,10,10,0.15)), url(${cover}) center/cover`
+        overflow: 'hidden',
+        // Fixed height so the page does not jump as the image loads.
+        background: backdrop
+          ? '#0A0A0A'
           : 'linear-gradient(160deg, rgba(126,211,33,0.22), rgba(245,166,35,0.12) 60%, #0A0A0A)',
       }}>
+        {backdrop && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute', inset: -30, zIndex: 0,
+              background: `url(${backdrop}) center/cover`,
+              // The crest path needs heavy blur to read as a backdrop rather
+              // than as a misplaced logo; a real cover only needs a touch.
+              filter: cover ? 'blur(2px) brightness(0.55)' : 'blur(26px) brightness(0.5)',
+              transform: cover ? 'none' : 'scale(1.25)',
+            }}
+          />
+        )}
+        {backdrop && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute', inset: 0, zIndex: 1,
+              background: 'linear-gradient(to top, rgba(10,10,10,0.92) 12%, rgba(10,10,10,0.45) 55%, rgba(10,10,10,0.2))',
+            }}
+          />
+        )}
         <button
           onClick={handleBack}
           style={{
@@ -75,13 +104,21 @@ export function TeamPageShell({ data }: { data: TeamSeasonPageData }) {
             <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
           </svg>
         </button>
-        <div style={{ padding: '0 16px 14px', width: '100%', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-          {data.team.crest_url && (
+        <div style={{
+          position: 'relative', zIndex: 2,
+          padding: '0 16px 14px', width: '100%', display: 'flex', gap: 12, alignItems: 'flex-end',
+        }}>
+          {crest && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={data.team.crest_url}
+              src={crest}
               alt={data.team.name}
-              style={{ width: 52, height: 52, objectFit: 'contain', flexShrink: 0 }}
+              style={{
+                width: 58, height: 58, objectFit: 'contain', flexShrink: 0,
+                // Club crests are usually circular; the ring keeps the logo
+                // from dissolving into its own blurred copy behind it.
+                borderRadius: '50%', border: '2px solid rgba(255,255,255,0.14)',
+              }}
             />
           )}
           <div style={{ minWidth: 0 }}>
