@@ -48,6 +48,7 @@ export interface AmateurRawRows {
     city: string | null
     country: string | null
     crest_url: string | null
+    cover_image_url: string | null
     competition: string | null
     category: string | null
     badge_label: string | null
@@ -321,7 +322,7 @@ export async function fetchAmateurProfile(
 
   const { data: team } = await client
     .from('teams')
-    .select('id, slug, name, club, city, country, crest_url, competition, category, badge_label, short_name')
+    .select('id, slug, name, club, city, country, crest_url, cover_image_url, competition, category, badge_label, short_name')
     .eq('id', season.team_id)
     .single()
   if (!team) return null
@@ -395,7 +396,7 @@ export async function fetchTeamSeason(
 ): Promise<TeamSeasonPageData | null> {
   const { data: team } = await client
     .from('teams')
-    .select('id, slug, name, club, city, country, crest_url, competition, category, badge_label, short_name')
+    .select('id, slug, name, club, city, country, crest_url, cover_image_url, competition, category, badge_label, short_name')
     .eq('slug', slug)
     .eq('source', source)
     .maybeSingle()

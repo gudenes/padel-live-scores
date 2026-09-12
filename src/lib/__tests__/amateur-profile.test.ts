@@ -35,6 +35,7 @@ const RAW: AmateurRawRows = {
     city: 'Mataró',
     country: 'ES',
     crest_url: null,
+    cover_image_url: null,
     competition: 'Series Nacionales de Pádel · Barcelona · Masculino 1000',
     category: 'men',
     badge_label: 'Amador · SNP',

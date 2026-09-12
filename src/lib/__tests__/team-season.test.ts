@@ -18,6 +18,7 @@ const RAW: AmateurRawRows = {
   team: {
     id: 't-1', slug: 'blue-padel-mataro', name: 'Blue Padel Mataró',
     club: 'Blue Padel', city: 'Mataró', country: 'ES', crest_url: null,
+    cover_image_url: null,
     competition: 'Series Nacionales de Pádel', category: 'men',
     badge_label: 'Amador · SNP', short_name: 'SNP',
   },
