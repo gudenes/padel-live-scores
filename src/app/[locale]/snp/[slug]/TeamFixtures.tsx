@@ -3,6 +3,8 @@
 
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { toShortName } from '@/types/match'
+import Avatar from '@/components/Avatar'
 import type { AmateurFixture, AmateurRosterEntry } from '@/lib/amateur-profile'
 
 const GREEN = '#7ED321'
@@ -14,7 +16,7 @@ export function TeamFixtures({
 }: { fixtures: AmateurFixture[]; roster: AmateurRosterEntry[] }) {
   const t = useTranslations('team')
   const router = useRouter()
-  const nameById = new Map(roster.map(r => [r.playerId, r.name]))
+  const playerById = new Map(roster.map(r => [r.playerId, r]))
 
   return (
     <>
@@ -72,18 +74,29 @@ export function TeamFixtures({
                 </span>
               </span>
               <span style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
-                {s.playerIds.map(id => (
-                  <button
-                    key={id}
-                    onClick={() => router.push(`/player/${id}` as Parameters<typeof router.push>[0])}
-                    style={{
-                      border: '1px solid #2A2A2A', padding: '2px 8px', fontSize: 11, fontWeight: 600,
-                      background: 'none', color: '#fff', cursor: 'pointer', font: 'inherit',
-                    }}
-                  >
-                    {nameById.get(id) ?? id}
-                  </button>
-                ))}
+                {s.playerIds.map(id => {
+                  const player = playerById.get(id)
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => router.push(`/player/${id}` as Parameters<typeof router.push>[0])}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5,
+                        border: '1px solid #2A2A2A', padding: '2px 8px 2px 2px', fontSize: 11, fontWeight: 600,
+                        background: 'none', color: '#fff', cursor: 'pointer', font: 'inherit',
+                      }}
+                    >
+                      <Avatar
+                        src={player?.avatarUrl ?? null}
+                        alt={player?.name ?? id}
+                        size={20}
+                        fallback={player?.name?.[0]}
+                        unoptimized
+                      />
+                      {player ? toShortName(player.name) : id}
+                    </button>
+                  )
+                })}
                 {!s.exact && (
                   <span style={{ width: '100%', fontSize: 9, color: MUTED, marginTop: 3 }}>
                     {t('ambiguousPairing', { count: s.courtCount })}

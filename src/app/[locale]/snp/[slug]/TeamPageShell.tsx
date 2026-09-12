@@ -15,11 +15,13 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { FlagImage } from '@/components/FlagImage'
+import { useRouter } from '@/i18n/navigation'
 import type { TeamSeasonPageData } from '@/lib/amateur-profile'
 import { TeamRoster } from './TeamRoster'
 import { TeamFixtures } from './TeamFixtures'
 
 const ORANGE = '#F5A623'
+const GREEN = '#7ED321'
 const BG_CARD = '#141414'
 const MUTED = '#8A8A8A'
 
@@ -27,7 +29,13 @@ type Tab = 'overview' | 'squad' | 'rounds'
 
 export function TeamPageShell({ data }: { data: TeamSeasonPageData }) {
   const t = useTranslations('team')
+  const router = useRouter()
   const [tab, setTab] = useState<Tab>('overview')
+
+  const handleBack = () => {
+    if (window.history.length > 1) router.back()
+    else router.push('/')
+  }
 
   const totals = [
     { label: t('tiesWon'), value: `${data.season.ties_won ?? 0}/${data.season.ties_played ?? 0}` },
@@ -53,6 +61,20 @@ export function TeamPageShell({ data }: { data: TeamSeasonPageData }) {
           ? `linear-gradient(to top, rgba(10,10,10,0.95) 10%, rgba(10,10,10,0.35) 60%, rgba(10,10,10,0.15)), url(${cover}) center/cover`
           : 'linear-gradient(160deg, rgba(126,211,33,0.22), rgba(245,166,35,0.12) 60%, #0A0A0A)',
       }}>
+        <button
+          onClick={handleBack}
+          style={{
+            position: 'absolute', top: 10, left: 10, zIndex: 2,
+            width: 36, height: 36, border: 'none', cursor: 'pointer',
+            background: 'rgba(10,10,10,0.45)', borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
+          }}
+          aria-label="Go back"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5" /><path d="M12 19l-7-7 7-7" />
+          </svg>
+        </button>
         <div style={{ padding: '0 16px 14px', width: '100%', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
           {data.team.crest_url && (
             // eslint-disable-next-line @next/next/no-img-element
@@ -63,6 +85,16 @@ export function TeamPageShell({ data }: { data: TeamSeasonPageData }) {
             />
           )}
           <div style={{ minWidth: 0 }}>
+            {data.team.badge_label && (
+              <span style={{
+                display: 'inline-block', background: GREEN, color: '#173404',
+                fontSize: 9, fontWeight: 800, padding: '3px 9px',
+                clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
+                marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5,
+              }}>
+                {data.team.badge_label}
+              </span>
+            )}
             <div style={{ fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.15 }}>
               {data.team.name}
             </div>
