@@ -54,6 +54,8 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
         </Widget>
       )}
 
+      {racket && <PlaysWithCard racket={racket} playerId={player.id} />}
+
       <Widget label={t('position')}>
         <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
           {player.side === 'drive' ? t('sideDrive') : player.side === 'backhand' ? t('sideBackhand') : '—'}
@@ -113,8 +115,6 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
           </div>
         </Widget>
       )}
-
-      {racket && <PlaysWithCard racket={racket} playerId={player.id} />}
 
       <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, border: '1px dashed #2A2A2A', padding: '9px 10px' }}>
         <div style={{ flex: 1, fontSize: 10, color: MUTED }}>
