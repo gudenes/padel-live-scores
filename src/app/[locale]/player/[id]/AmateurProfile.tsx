@@ -112,9 +112,6 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   // "Series Nacionales de Pádel · Barcelona · Masculino 1000" is too long for a
   // pill; the first segment carries enough identity.
   const competitionShort = competition ? competition.split('·')[0].trim() : null
-  // Prefer the operator-set short name; fall back to the first segment of the
-  // full competition string, which is what v1 derived.
-  const competitionLabel = data?.team.short_name ?? competitionShort
   const sideLabel = player.side === 'drive'
     ? t('sideDrive')
     : player.side === 'backhand'
@@ -125,13 +122,14 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   if (data) {
     chips.push({ label: t('games'), value: String(data.record.played) })
     chips.push({ label: t('record'), value: `${data.record.wins}–${data.record.losses}`, accent: 'green' })
-    if (data.competitionRank != null && competitionLabel) {
-      chips.push({
-        label: t('competitionRank', { competition: competitionLabel }),
-        value: `#${data.competitionRank}`,
-        accent: 'orange',
-      })
-    }
+    // The zonal ranking leads: it measures the player against people they can
+    // actually meet on a court. The national number is in the thousands and
+    // says little about the next match — it lives in the Summary tab.
+    chips.push({
+      label: t('localRank'),
+      value: data.localRank != null ? `#${data.localRank}` : '—',
+      accent: 'orange',
+    })
   }
   chips.push({ label: t('position'), value: sideLabel })
 
@@ -207,10 +205,27 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 {data?.team.badge_label
                   ?? (competitionShort ? `${t('badge')} · ${competitionShort}` : t('badge'))}
               </span>
-              <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>{displayName}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0 }}>
+                <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {displayName}
+                </span>
+                {data?.isCaptain && (
+                  <span style={{
+                    display: 'inline-block', marginLeft: 8, verticalAlign: 'middle',
+                    border: `1px solid ${ORANGE}`, color: ORANGE,
+                    fontSize: 8, fontWeight: 800, padding: '2px 6px',
+                    textTransform: 'uppercase', letterSpacing: 0.5,
+                  }}>
+                    {t('captain')}
+                  </span>
+                )}
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: MUTED, fontSize: 12 }}>
                 {player.country && <FlagImage country={player.country} size={16} />}
-                <span>{[player.home_club, data?.team.city].filter(Boolean).join(' · ')}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {data?.team.name ?? ''}
+                </span>
               </div>
             </div>
             <FollowButton type="player" targetId={player.id} variant="follow" />
@@ -234,34 +249,6 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
             ))}
           </div>
 
-          {data && (
-            <button
-              onClick={() => setActiveTab('team')}
-              style={{
-                marginTop: 8, width: '100%', textAlign: 'left', cursor: 'pointer',
-                background: 'rgba(245,166,35,0.07)', border: '1px solid rgba(245,166,35,0.18)',
-                borderRadius: 6, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8,
-                fontFamily: 'inherit', color: 'inherit',
-              }}
-            >
-              <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
-                {t('team')}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {data.team.name}
-                </div>
-                <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {[
-                    data.season.ranking != null && competitionLabel
-                      ? t('teamRank', { rank: data.season.ranking, competition: competitionLabel })
-                      : null,
-                    data.season.label,
-                  ].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-            </button>
-          )}
         </div>
 
         {data == null ? (
