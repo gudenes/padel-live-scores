@@ -44,24 +44,34 @@ async function load(userId: string): Promise<Cached> {
   if (cacheUserId !== userId) { cacheValue = null; inFlight = null; cacheUserId = userId }
   if (!inFlight) {
     const gen = generation
-    inFlight = fetch('/api/me/player')
+    const thisFlight: Promise<Cached> = fetch('/api/me/player')
       .then((r): Promise<unknown> | unknown => (r.ok ? r.json() : { status: 'none' }))
       .then((v: unknown): Cached => (isCached(v) ? v : { status: 'none' }))
       .catch((): Cached => ({ status: 'none' }))
       .then((v: Cached) => {
-        inFlight = null
-        // Se invalidateMyPlayer() rodou enquanto esta requisição estava em
-        // voo, a geração mudou: não grava um valor potencialmente
-        // pré-invalidação por cima do cache já limpo.
-        if (gen === generation) cacheValue = v
+        // Só limpa o slot compartilhado se ainda for o dono dele — uma
+        // requisição atrasada não pode apagar um `inFlight` mais novo que
+        // já assumiu o lugar.
+        if (inFlight === thisFlight) inFlight = null
+        // E só escreve no cache se ainda for para o mesmo usuário e a
+        // mesma geração: entre o disparo e a resolução, invalidateMyPlayer()
+        // pode ter rodado (gen muda) ou o usuário pode ter trocado
+        // (cacheUserId muda) — nos dois casos esta resposta chegou tarde
+        // demais e não deve reviver/contaminar o cache atual.
+        if (gen === generation && cacheUserId === userId) cacheValue = v
         return v
       })
+    inFlight = thisFlight
   }
   return inFlight
 }
 
-/** Limpa o cache — chame depois de enviar um pedido, para o estado
- *  "pending" aparecer sem recarregar a página. */
+/** Descarta o valor em cache. Vale para a PRÓXIMA montagem — não notifica
+ *  quem já está montado, porque os deps do efeito são [user, loading]. É o
+ *  suficiente para o caso real: quem envia um pedido atualiza a própria
+ *  linha com estado local, e o card do /profile é alcançado navegando, o
+ *  que monta o componente do zero. Um store com assinantes resolveria o
+ *  caso que falta, e esse caso não acontece. */
 export function invalidateMyPlayer() {
   cacheValue = null
   inFlight = null
@@ -86,8 +96,8 @@ export function useMyPlayer(): MyPlayerState {
     return () => { cancelled = true }
   }, [user, loading])
 
+  if (fetched && user && fetched.userId === user.id) return fetched.value
   if (loading) return { status: 'loading' }
   if (!user) return { status: 'none' }
-  if (fetched && fetched.userId === user.id) return fetched.value
   return { status: 'loading' }
 }
