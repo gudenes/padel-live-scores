@@ -9,7 +9,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
-import { useSearchParams } from 'next/navigation'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
@@ -54,19 +53,15 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   const t = useTranslations('amateur')
   const tPlayer = useTranslations('player')
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [data, setData] = useState<AmateurProfileData | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<AmateurTab>('summary')
   const [imgError, setImgError] = useState(false)
   const [seasons, setSeasons] = useState<AmateurSeasonRef[]>([])
-  // The label carries a slash ("25/26"). URLSearchParams encodes on write and
-  // decodes on read by itself — adding encodeURIComponent on top would double
-  // it into "25%252F26".
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(
-    searchParams.get('season'),
-  )
 
+  // The hero always shows the player's current team and current-season
+  // numbers — identity, not history. Season history (including the season
+  // selector) lives inside the Season tab; see AmateurSeasonTab.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -74,15 +69,13 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
       const list = await fetchAmateurSeasons(player.id)
       if (cancelled) return
       setSeasons(list)
-      // An unknown label in the URL falls back to the most recent season.
-      const chosen = list.find(s => s.label === selectedLabel) ?? list[0] ?? null
-      const result = await fetchAmateurProfile(player.id, chosen?.seasonId)
+      const result = await fetchAmateurProfile(player.id, list[0]?.seasonId)
       if (cancelled) return
       setData(result)
       setLoading(false)
     })()
     return () => { cancelled = true }
-  }, [player.id, selectedLabel])
+  }, [player.id])
 
   const handleBack = () => {
     if (window.history.length > 1) router.back()
@@ -240,28 +233,6 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                   ].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              {seasons.length > 1 && (
-                <select
-                  value={seasons.find(s => s.label === selectedLabel)?.label ?? seasons[0].label}
-                  onClick={e => e.stopPropagation()}
-                  onChange={e => {
-                    const label = e.target.value
-                    setSelectedLabel(label)
-                    const sp = new URLSearchParams(Array.from(searchParams.entries()))
-                    sp.set('season', label)
-                    window.history.replaceState(null, '', `?${sp.toString()}`)
-                  }}
-                  aria-label={t('seasonSelector')}
-                  style={{
-                    background: BG_CARD, color: '#fff', border: `1px solid ${BORDER}`,
-                    fontSize: 10, padding: '2px 4px', fontFamily: 'inherit', flexShrink: 0,
-                  }}
-                >
-                  {seasons.map(s => (
-                    <option key={s.seasonId} value={s.label}>{s.label}</option>
-                  ))}
-                </select>
-              )}
             </button>
           )}
         </div>
@@ -278,7 +249,7 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
               onChange={setActiveTab}
             />
             {activeTab === 'summary' && <SummaryTab player={player} data={data} />}
-            {activeTab === 'season' && <AmateurSeasonTab data={data} />}
+            {activeTab === 'season' && <AmateurSeasonTab playerId={player.id} data={data} seasons={seasons} />}
             {activeTab === 'team' && <TeamTab data={data} currentPlayerId={player.id} />}
           </>
         )}
