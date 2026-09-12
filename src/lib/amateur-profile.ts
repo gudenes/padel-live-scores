@@ -21,7 +21,9 @@ export interface AmateurRawRows {
     team_season_id: string
     player_id: string
     competition_points: number | null
-    competition_rank: number | null
+    national_rank: number | null
+    local_rank: number | null
+    is_captain: boolean
     roster_rank: number | null
     games_played: number | null
     wins: number | null
@@ -60,6 +62,7 @@ export interface AmateurRawRows {
     games_played: number | null
     wins: number | null
     losses: number | null
+    is_captain: boolean
     player: { id: string; name: string; avatar_url: string | null; country: string | null } | null
   }>
   fixtures: Array<{
@@ -127,13 +130,16 @@ export interface AmateurRosterEntry {
   gamesPlayed: number
   wins: number
   losses: number
+  isCaptain: boolean
 }
 
 export interface AmateurProfileData {
   team: AmateurRawRows['team']
   season: AmateurRawRows['season']
   competitionPoints: number | null
-  competitionRank: number | null
+  nationalRank: number | null
+  localRank: number | null
+  isCaptain: boolean
   rosterRank: number | null
   games: AmateurGame[]
   fixtures: AmateurFixture[]
@@ -193,6 +199,7 @@ export function buildRoster(raw: AmateurRawRows): AmateurRosterEntry[] {
       gamesPlayed: r.games_played ?? 0,
       wins: r.wins ?? 0,
       losses: r.losses ?? 0,
+      isCaptain: r.is_captain ?? false,
     }))
     .sort((a, b) => (a.rosterRank ?? 999) - (b.rosterRank ?? 999))
 }
@@ -224,7 +231,9 @@ export function buildAmateurProfile(playerId: string, raw: AmateurRawRows): Amat
     team: raw.team,
     season: raw.season,
     competitionPoints: raw.membership.competition_points,
-    competitionRank: raw.membership.competition_rank,
+    nationalRank: raw.membership.national_rank,
+    localRank: raw.membership.local_rank,
+    isCaptain: raw.membership.is_captain ?? false,
     rosterRank: raw.membership.roster_rank,
     games,
     fixtures,
@@ -304,7 +313,7 @@ export async function fetchAmateurProfile(
 ): Promise<AmateurProfileData | null> {
   let membershipQuery = client
     .from('team_memberships')
-    .select('team_season_id, player_id, competition_points, competition_rank, roster_rank, games_played, wins, losses')
+    .select('team_season_id, player_id, competition_points, national_rank, local_rank, is_captain, roster_rank, games_played, wins, losses')
     .eq('player_id', playerId)
 
   if (seasonId) membershipQuery = membershipQuery.eq('team_season_id', seasonId)
@@ -331,7 +340,7 @@ export async function fetchAmateurProfile(
 
   const { data: roster } = await client
     .from('team_memberships')
-    .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url, country)')
+    .select('player_id, roster_rank, games_played, wins, losses, is_captain, player:players(id, name, avatar_url, country)')
     .eq('team_season_id', season.id)
 
   const { data: fixtures } = await client
@@ -419,7 +428,7 @@ export async function fetchTeamSeason(
 
   const { data: roster } = await client
     .from('team_memberships')
-    .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url, country)')
+    .select('player_id, roster_rank, games_played, wins, losses, is_captain, player:players(id, name, avatar_url, country)')
     .eq('team_season_id', season.id)
 
   const { data: fixtures } = await client
@@ -448,7 +457,7 @@ export async function fetchTeamSeason(
     // keeps the shared AmateurRawRows shape without pretending a player exists.
     membership: {
       team_season_id: season.id, player_id: '',
-      competition_points: null, competition_rank: null, roster_rank: null,
+      competition_points: null, national_rank: null, local_rank: null, is_captain: false, roster_rank: null,
       games_played: null, wins: null, losses: null,
     },
     season,

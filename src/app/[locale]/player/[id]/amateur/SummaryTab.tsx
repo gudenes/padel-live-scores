@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { Widget, Last10SparkBar } from '../Widget'
 import { PlaysWithCard, type PlaysWithRacket } from '../PlaysWithCard'
 import { SuggestChangesSheet } from '@/components/SuggestChangesSheet'
+import { ClaimProfileRow } from '@/components/ClaimProfileRow'
 import type { AmateurProfileData } from '@/lib/amateur-profile'
 import type { AmateurPlayer } from '../AmateurProfile'
 
@@ -54,6 +55,8 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
         </Widget>
       )}
 
+      {racket && <PlaysWithCard racket={racket} playerId={player.id} />}
+
       <Widget label={t('position')}>
         <div style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>
           {player.side === 'drive' ? t('sideDrive') : player.side === 'backhand' ? t('sideBackhand') : '—'}
@@ -97,6 +100,14 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
         </Widget>
       )}
 
+      {data.nationalRank != null && (
+        <Widget label={t('nationalRank')}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
+            #{data.nationalRank}
+          </div>
+        </Widget>
+      )}
+
       {(partners.confirmed.length > 0 || partners.probable.length > 0) && (
         <Widget label={t('partners')} wide>
           <div style={{ display: 'flex', gap: 5, marginTop: 4, flexWrap: 'wrap' }}>
@@ -114,8 +125,6 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
         </Widget>
       )}
 
-      {racket && <PlaysWithCard racket={racket} playerId={player.id} />}
-
       <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, border: '1px dashed #2A2A2A', padding: '9px 10px' }}>
         <div style={{ flex: 1, fontSize: 10, color: MUTED }}>
           {t('suggestPrompt')}{' '}
@@ -127,6 +136,8 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
           </button>
         </div>
       </div>
+
+      <ClaimProfileRow playerId={player.id} />
 
       {data.season.notes && (
         <div style={{ gridColumn: '1 / -1', background: '#141414', padding: '9px 10px' }}>

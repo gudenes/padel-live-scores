@@ -17,9 +17,15 @@ export function parseCsv(text: string): Array<Record<string, string>> {
   })
 }
 
+/**
+ * The SNP sheet writes "s/d" (sin datos) where a value does not exist.
+ * It must become null, never 0 — a zero in a ranking column claims first
+ * place, which is the opposite of "we have no figure".
+ */
 function num(value: string): number | null {
-  if (value === '') return null
-  const n = Number(value)
+  const v = value.trim()
+  if (v === '' || v.toLowerCase() === 's/d') return null
+  const n = Number(v.replace(/,/g, ''))
   return Number.isFinite(n) ? n : null
 }
 
@@ -32,11 +38,14 @@ export interface AmateurPlayerRow {
   side: string | null
   homeClub: string | null
   competitionPoints: number | null
-  competitionRank: number | null
   rosterRank: number | null
   gamesPlayed: number | null
   wins: number | null
   losses: number | null
+  snpId: string | null
+  nationalRank: number | null
+  localRank: number | null
+  isCaptain: boolean
 }
 
 export function parsePlayersCsv(text: string): AmateurPlayerRow[] {
@@ -45,11 +54,14 @@ export function parsePlayersCsv(text: string): AmateurPlayerRow[] {
     side: r.side || null,
     homeClub: r.home_club || null,
     competitionPoints: num(r.competition_points),
-    competitionRank: num(r.competition_rank),
     rosterRank: num(r.roster_rank),
     gamesPlayed: num(r.games_played),
     wins: num(r.wins),
     losses: num(r.losses),
+    snpId: r.snp_id?.trim() || null,
+    nationalRank: num(r.national_rank ?? ''),
+    localRank: num(r.local_rank ?? ''),
+    isCaptain: (r.is_captain ?? '').trim().toLowerCase() === 'true',
   }))
 }
 

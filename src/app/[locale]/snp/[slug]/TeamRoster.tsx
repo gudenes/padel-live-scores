@@ -16,6 +16,7 @@ import type { AmateurRosterEntry } from '@/lib/amateur-profile'
 
 const CARD = 'rgba(255,255,255,0.03)'
 const MUTED = '#8A8A8A'
+const ORANGE = '#F5A623'
 const CHUNK = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
 const AVATAR = 34
 const FLAG_W = 14
@@ -52,6 +53,7 @@ function RosterAvatar({ entry }: { entry: AmateurRosterEntry }) {
 
 export function TeamRoster({ roster }: { roster: AmateurRosterEntry[] }) {
   const t = useTranslations('team')
+  const tAmateur = useTranslations('amateur')
   const router = useRouter()
 
   return (
@@ -75,6 +77,15 @@ export function TeamRoster({ roster }: { roster: AmateurRosterEntry[] }) {
             }}>
               {r.name}
             </span>
+            {r.isCaptain && (
+              <span style={{
+                flexShrink: 0, border: `1px solid ${ORANGE}`, color: ORANGE,
+                fontSize: 8, fontWeight: 800, padding: '1px 5px',
+                textTransform: 'uppercase', letterSpacing: 0.5,
+              }}>
+                {tAmateur('captain')}
+              </span>
+            )}
             <span style={{ fontSize: 11, color: MUTED, fontVariantNumeric: 'tabular-nums', flexShrink: 0, whiteSpace: 'nowrap' }}>
               {played
                 ? t('playerLine', { games: r.gamesPlayed, wins: r.wins, losses: r.losses })

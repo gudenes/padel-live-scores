@@ -14,6 +14,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { parsePlayersCsv, parseFixturesCsv, parseSlotsCsv } from './lib/amateur-csv'
+import { resolvePlayerId, normalizeName, type ResolutionIndex } from './lib/amateur-resolve'
+import { registerSourceId } from '../src/lib/external-id-registry'
 
 const envText = fs.readFileSync('.env.local', 'utf8')
 for (const line of envText.split(/\r?\n/)) {
@@ -44,16 +46,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!,
 )
 
-/** Same normalisation the players table uses for normalized_name. */
-function normalize(name: string): string {
-  return name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim()
-}
-
 async function main() {
   const players = parsePlayersCsv(fs.readFileSync(path.join(DIR, 'players.csv'), 'utf8'))
   const fixtures = parseFixturesCsv(fs.readFileSync(path.join(DIR, 'fixtures.csv'), 'utf8'))
@@ -61,8 +53,8 @@ async function main() {
 
   // Every name referenced anywhere must exist in players.csv, or the roster
   // and the line-ups would disagree.
-  const known = new Set(players.map(p => normalize(p.name)))
-  const orphans = [...new Set(slots.flatMap(s => s.playerNames))].filter(n => !known.has(normalize(n)))
+  const known = new Set(players.map(p => normalizeName(p.name)))
+  const orphans = [...new Set(slots.flatMap(s => s.playerNames))].filter(n => !known.has(normalizeName(n)))
   if (orphans.length > 0) {
     throw new Error(`Names in slots.csv missing from players.csv: ${orphans.join(', ')}`)
   }
@@ -72,17 +64,35 @@ async function main() {
     throw new Error(`Slots reference unknown fixtures: ${[...new Set(badSlots.map(s => s.fixtureCode))].join(', ')}`)
   }
 
-  // Match existing players by normalized name; the rest get created as amateurs.
+  // Resolve players by SNP id first, normalized name as fallback. The id
+  // survives a spreadsheet name correction (e.g. an accent fixed); the name
+  // alone does not — see scripts/lib/amateur-resolve.ts.
   const { data: existing } = await supabase
     .from('players')
     .select('id, name, normalized_name, tier')
-    .in('normalized_name', players.map(p => normalize(p.name)))
+    .in('normalized_name', players.map(p => normalizeName(p.name)))
+
+  const { data: snpIds } = await supabase
+    .from('entity_external_ids')
+    .select('entity_id, external_id')
+    .eq('entity_type', 'player')
+    .eq('source', 'snp')
+
+  const index: ResolutionIndex = {
+    bySnpId: new Map((snpIds ?? []).map(r => [r.external_id, r.entity_id])),
+    byNormalizedName: new Map(
+      (existing ?? [])
+        .filter(r => r.normalized_name)
+        .map(r => [r.normalized_name as string, r.id]),
+    ),
+  }
 
   const idByNormalized = new Map<string, string>()
-  for (const row of existing ?? []) {
-    if (row.normalized_name) idByNormalized.set(row.normalized_name, row.id)
+  for (const p of players) {
+    const id = resolvePlayerId(index, p.snpId, p.name)
+    if (id) idByNormalized.set(normalizeName(p.name), id)
   }
-  const toCreate = players.filter(p => !idByNormalized.has(normalize(p.name)))
+  const toCreate = players.filter(p => !idByNormalized.has(normalizeName(p.name)))
 
   console.log(`Team:      ${TEAM_NAME} (${TEAM_SLUG})`)
   console.log(`Season:    ${SEASON_LABEL}`)
@@ -90,11 +100,12 @@ async function main() {
   console.log(`Fixtures:  ${fixtures.length}`)
   console.log(`Slots:     ${slots.length}`)
   if (toCreate.length > 0) console.log(`Creating:  ${toCreate.map(p => p.name).join(', ')}`)
-  const matched = players.filter(p => idByNormalized.has(normalize(p.name)))
+  const matched = players.filter(p => idByNormalized.has(normalizeName(p.name)))
   if (matched.length > 0) {
     console.log(`Matched:   ${matched.map(p => {
-      const row = (existing ?? []).find(r => r.normalized_name === normalize(p.name))
-      return `${p.name} (existing id=${row?.id}, tier=${row?.tier})`
+      const id = idByNormalized.get(normalizeName(p.name))
+      const row = (existing ?? []).find(r => r.id === id)
+      return `${p.name} (existing id=${id}, tier=${row?.tier})`
     }).join(', ')}`)
   }
 
@@ -110,7 +121,21 @@ async function main() {
       .select('id')
       .single()
     if (error || !data) throw new Error(`Failed to create ${p.name}: ${error?.message}`)
-    idByNormalized.set(normalize(p.name), data.id)
+    idByNormalized.set(normalizeName(p.name), data.id)
+  }
+
+  // Register the SNP id for every player row that carries one — both newly
+  // created and previously matched — so the next import resolves by id.
+  for (const p of players) {
+    if (!p.snpId) continue
+    const playerId = idByNormalized.get(normalizeName(p.name))
+    if (!playerId) continue
+    await registerSourceId(supabase, {
+      entityType: 'player',
+      entityId: playerId,
+      source: 'snp',
+      externalId: p.snpId,
+    })
   }
 
   const { data: team, error: teamErr } = await supabase
@@ -145,12 +170,15 @@ async function main() {
   if (seasonErr || !season) throw new Error(`Failed to upsert season: ${seasonErr?.message}`)
 
   for (const p of players) {
-    const playerId = idByNormalized.get(normalize(p.name))!
+    const playerId = idByNormalized.get(normalizeName(p.name))!
     const { error } = await supabase.from('team_memberships').upsert(
       {
         team_season_id: season.id, player_id: playerId,
-        competition_points: p.competitionPoints, competition_rank: p.competitionRank,
+        competition_points: p.competitionPoints,
         roster_rank: p.rosterRank, games_played: p.gamesPlayed, wins: p.wins, losses: p.losses,
+        national_rank: p.nationalRank,
+        local_rank: p.localRank,
+        is_captain: p.isCaptain,
       },
       { onConflict: 'team_season_id,player_id' },
     )
@@ -186,7 +214,7 @@ async function main() {
 
     // Replace the line-up wholesale so a corrected re-import drops stale names.
     await supabase.from('team_fixture_slot_players').delete().eq('slot_id', data.id)
-    const rows = s.playerNames.map(n => ({ slot_id: data.id, player_id: idByNormalized.get(normalize(n))! }))
+    const rows = s.playerNames.map(n => ({ slot_id: data.id, player_id: idByNormalized.get(normalizeName(n))! }))
     const { error: linkErr } = await supabase.from('team_fixture_slot_players').insert(rows)
     if (linkErr) throw new Error(`Failed to link players on ${s.fixtureCode}/${s.sortOrder}: ${linkErr.message}`)
   }
