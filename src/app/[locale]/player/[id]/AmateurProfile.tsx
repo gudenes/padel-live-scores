@@ -25,6 +25,7 @@ import {
 import { SummaryTab } from './amateur/SummaryTab'
 import { AmateurSeasonTab } from './amateur/SeasonTab'
 import { TeamTab } from './amateur/TeamTab'
+import { type PlaysWithRacket } from './PlaysWithCard'
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
@@ -59,6 +60,24 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   const [activeTab, setActiveTab] = useState<AmateurTab>('summary')
   const [imgError, setImgError] = useState(false)
   const [seasons, setSeasons] = useState<AmateurSeasonRef[]>([])
+  const [racket, setRacket] = useState<PlaysWithRacket | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    supabase
+      .from('player_equipment')
+      .select('racket:padel_rackets(id, model, year, shape, weight_grams, balance, image_url, product_url, brand:padel_brands(name, logo_url))')
+      .eq('player_id', player.id)
+      .is('ended_at', null)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        const row = data as unknown as { racket: PlaysWithRacket | null } | null
+        setRacket(row?.racket ?? null)
+      })
+    return () => { cancelled = true }
+  }, [player.id])
 
   // The hero always shows the player's current team and current-season
   // numbers — identity, not history. Season history (including the season
@@ -249,7 +268,7 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
               activeKey={activeTab}
               onChange={setActiveTab}
             />
-            {activeTab === 'summary' && <SummaryTab player={player} data={data} />}
+            {activeTab === 'summary' && <SummaryTab player={player} data={data} racket={racket} />}
             {activeTab === 'season' && <AmateurSeasonTab playerId={player.id} data={data} seasons={seasons} />}
             {activeTab === 'team' && <TeamTab data={data} currentPlayerId={player.id} />}
           </>
