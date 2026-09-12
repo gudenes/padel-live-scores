@@ -8,6 +8,8 @@ import { useBadges } from '@/hooks/useBadges'
 import { overallTierFromBadgeCount, TIER_META } from '@/lib/badges'
 import { supabase } from '@/lib/supabase'
 import { useInvite } from '@/hooks/useInvite'
+import { useMyPlayer } from '@/hooks/useMyPlayer'
+import Avatar from '@/components/Avatar'
 import { readAllPredictions } from '@/hooks/useMatchPrediction'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { FLAG_BY_LOCALE } from '@/components/icons/FlagIcons'
@@ -39,11 +41,13 @@ interface ProfileMenuProps {
 
 export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuProps) {
   const t = useTranslations('profileMenu')
+  const tProfile = useTranslations('profile')
   const locale = useLocale() as LocaleCode
   const router = useRouter()
   const pathname = usePathname()
   const { user, profile } = useAuth()
   const { badges: earnedBadges } = useBadges()
+  const mine = useMyPlayer()
   const tier = overallTierFromBadgeCount(earnedBadges?.length ?? 0)
   const tierColor = tier ? TIER_META[tier].color : '#7ED321'
 
@@ -229,6 +233,25 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
 
       {user && (
         <>
+          {/* O card acima é "sua conta", esta linha é "seu jogador" — as duas
+              identidades ficam juntas, e abaixo começa a lista de funções.
+              O ícone é a foto do jogador, não um SVG verde como as outras
+              linhas: é o que separa quem eu sou do que eu faço.
+              O estado pendente NÃO entra aqui — menu é lista de destinos, e
+              uma linha morta num dropdown é pior que linha nenhuma. */}
+          {mine.status === 'linked' && (
+            <Item
+              href={`/player/${mine.player.id}`}
+              onClick={onClose}
+              icon={
+                <div style={{ width: 18, height: 18, borderRadius: '50%', overflow: 'hidden', border: '1.5px solid #F5A623' }}>
+                  <Avatar src={mine.player.avatarUrl} alt="" size={18} fallback={mine.player.name?.[0]} unoptimized />
+                </div>
+              }
+              label={tProfile('myPlayer')}
+              rightSlot={<Chevron/>}
+            />
+          )}
           <Item
             href="/notifications"
             onClick={onClose}
