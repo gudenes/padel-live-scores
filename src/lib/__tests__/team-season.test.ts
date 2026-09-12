@@ -7,7 +7,7 @@ import { buildTeamSeason, buildAmateurProfile, fetchTeamSeason, type AmateurRawR
 const RAW: AmateurRawRows = {
   membership: {
     team_season_id: 'ts-1', player_id: 'p-1',
-    competition_points: 41250, competition_rank: 412, roster_rank: 5,
+    competition_points: 41250, national_rank: 4397, local_rank: 528, is_captain: false, roster_rank: 5,
     games_played: 2, wins: 1, losses: 1,
   },
   season: {
@@ -23,8 +23,8 @@ const RAW: AmateurRawRows = {
     badge_label: 'Amador · SNP', short_name: 'SNP',
   },
   roster: [
-    { player_id: 'p-1', roster_rank: 5, games_played: 2, wins: 1, losses: 1, player: { id: 'p-1', name: 'Gustavo Denes', avatar_url: null, country: null } },
-    { player_id: 'p-2', roster_rank: 22, games_played: 0, wins: 0, losses: 0, player: { id: 'p-2', name: 'Wenjie Zhou', avatar_url: null, country: null } },
+    { player_id: 'p-1', roster_rank: 5, games_played: 2, wins: 1, losses: 1, is_captain: false, player: { id: 'p-1', name: 'Gustavo Denes', avatar_url: null, country: null } },
+    { player_id: 'p-2', roster_rank: 22, games_played: 0, wins: 0, losses: 0, is_captain: false, player: { id: 'p-2', name: 'Wenjie Zhou', avatar_url: null, country: null } },
   ],
   fixtures: [
     { id: 'f-1', code: 'J1', label: 'Jornada 1', sort_order: 1, complete: true, result: 'W', points_for: 9, points_against: 3, courts_won: 4, courts_lost: 1, opponent_name: null, played_on: null },
