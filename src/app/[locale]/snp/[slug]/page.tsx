@@ -39,7 +39,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const { locale, slug } = await params
   const { season } = await searchParams
   const data = await fetchTeamSeason(createAnonServerClient(), slug, SOURCE, season)
-  if (!data) return { title: 'Team | Padel Nachos' }
+  // The root layout applies `template: '%s | Padel Nachos'`, so titles here
+  // must NOT carry the brand themselves — that is how you get
+  // "… | Padel Nachos | Padel Nachos" in the tab and in every shared link.
+  if (!data) return { title: 'Team' }
 
   const t = await getTranslations({ locale, namespace: 'team' })
   const title = t('metaTitle', {
@@ -58,7 +61,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   })
 
   return {
-    title: `${title} | Padel Nachos`,
+    title,
     description,
     alternates: {
       canonical: `${BASE_URL}/${locale}/snp/${slug}`,
