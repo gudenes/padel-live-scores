@@ -28,6 +28,7 @@ const GROUPS: Group[] = [
     { href: '/players', label: 'Players', icon: 'users' },
     { href: '/teams', label: 'Teams', icon: 'users' },
     { href: '/player-suggestions', label: 'Suggestions', icon: 'flag' },
+    { href: '/player-claims', label: 'Claims', icon: 'flag' },
     { href: '/brands', label: 'Brands', icon: 'tag' },
     { href: '/streams', label: 'Streams', icon: 'video' },
     { href: '/yt-channels', label: 'YouTube Channels', icon: 'yt' },
@@ -109,6 +110,21 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
     const id = setInterval(load, 60_000)
     return () => { alive = false; clearInterval(id) }
   }, [])
+
+  // Live nudge: count of pending player claims — an operator who can't see
+  // requests are waiting won't review them.
+  const [pendingClaims, setPendingClaims] = useState(0)
+  useEffect(() => {
+    let alive = true
+    const load = () =>
+      fetch('/api/internal/player-claims/count')
+        .then(r => r.json())
+        .then(d => { if (alive && typeof d.count === 'number') setPendingClaims(d.count) })
+        .catch(() => {})
+    load()
+    const id = setInterval(load, 60_000)
+    return () => { alive = false; clearInterval(id) }
+  }, [])
   return (
     <nav className="rail">
       <div className="railtop">
@@ -138,10 +154,12 @@ export function Rail({ collapsed, onToggle }: { collapsed: boolean; onToggle: ()
                 const activeChild = it.children
                   ?.filter(c => pathname === c.href || pathname.startsWith(c.href + '/'))
                   .sort((a, b) => b.href.length - a.href.length)[0]?.href
-                // Inject the live pending-suggestions nudge onto its nav item.
+                // Inject the live pending-suggestions / pending-claims nudge onto its nav item.
                 const cnt = it.href === '/player-suggestions' && pendingSuggestions > 0
                   ? pendingSuggestions
-                  : it.cnt
+                  : it.href === '/player-claims' && pendingClaims > 0
+                    ? pendingClaims
+                    : it.cnt
                 return (
                   <div key={it.href}>
                     <Link
