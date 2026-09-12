@@ -43,5 +43,26 @@ export function createServiceClient() {
   })
 }
 
+/**
+ * Server-side client with the ANON key — RLS applies exactly as it does for a
+ * visitor's browser. Use this for server-rendered public pages.
+ *
+ * Deliberately not the service client: that one bypasses RLS, so the day a
+ * policy is tightened (say, to respect players.hidden) a page built on it
+ * would keep serving what the policy started protecting, with no signal.
+ */
+export function createAnonServerClient() {
+  const url = supabaseUrl || process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const anon = supabaseAnonKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  if (!url || !anon) {
+    throw new Error(
+      'createAnonServerClient requires NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY',
+    )
+  }
+  return createClient(url, anon, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  })
+}
+
 // Legacy alias — keep existing server-side call sites working
 export { createServiceClient as createServerClient }

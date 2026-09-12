@@ -15,10 +15,17 @@ import SlidingInkTabs from '@/components/SlidingInkTabs'
 import BottomNav from '@/components/nav/BottomNavV3'
 import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
 import { titleCase } from '@/lib/title-case'
-import { fetchAmateurProfile, type AmateurProfileData } from '@/lib/amateur-profile'
+import { supabase } from '@/lib/supabase'
+import {
+  fetchAmateurProfile,
+  fetchAmateurSeasons,
+  type AmateurProfileData,
+  type AmateurSeasonRef,
+} from '@/lib/amateur-profile'
 import { SummaryTab } from './amateur/SummaryTab'
 import { AmateurSeasonTab } from './amateur/SeasonTab'
 import { TeamTab } from './amateur/TeamTab'
+import { type PlaysWithRacket } from './PlaysWithCard'
 
 const GREEN = '#7ED321'
 const ORANGE = '#F5A623'
@@ -52,12 +59,41 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<AmateurTab>('summary')
   const [imgError, setImgError] = useState(false)
+  const [seasons, setSeasons] = useState<AmateurSeasonRef[]>([])
+  const [racket, setRacket] = useState<PlaysWithRacket | null>(null)
 
   useEffect(() => {
     let cancelled = false
-    fetchAmateurProfile(player.id)
-      .then(result => { if (!cancelled) setData(result) })
-      .finally(() => { if (!cancelled) setLoading(false) })
+    supabase
+      .from('player_equipment')
+      .select('racket:padel_rackets(id, model, year, shape, weight_grams, balance, image_url, product_url, brand:padel_brands(name, logo_url))')
+      .eq('player_id', player.id)
+      .is('ended_at', null)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return
+        const row = data as unknown as { racket: PlaysWithRacket | null } | null
+        setRacket(row?.racket ?? null)
+      })
+    return () => { cancelled = true }
+  }, [player.id])
+
+  // The hero always shows the player's current team and current-season
+  // numbers — identity, not history. Season history (including the season
+  // selector) lives inside the Season tab; see AmateurSeasonTab.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      const list = await fetchAmateurSeasons(supabase, player.id)
+      if (cancelled) return
+      setSeasons(list)
+      const result = await fetchAmateurProfile(supabase, player.id, list[0]?.seasonId)
+      if (cancelled) return
+      setData(result)
+      setLoading(false)
+    })()
     return () => { cancelled = true }
   }, [player.id])
 
@@ -73,6 +109,9 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   // "Series Nacionales de Pádel · Barcelona · Masculino 1000" is too long for a
   // pill; the first segment carries enough identity.
   const competitionShort = competition ? competition.split('·')[0].trim() : null
+  // Prefer the operator-set short name; fall back to the first segment of the
+  // full competition string, which is what v1 derived.
+  const competitionLabel = data?.team.short_name ?? competitionShort
   const sideLabel = player.side === 'drive'
     ? t('sideDrive')
     : player.side === 'backhand'
@@ -83,9 +122,9 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   if (data) {
     chips.push({ label: t('games'), value: String(data.record.played) })
     chips.push({ label: t('record'), value: `${data.record.wins}–${data.record.losses}`, accent: 'green' })
-    if (data.competitionRank != null && competitionShort) {
+    if (data.competitionRank != null && competitionLabel) {
       chips.push({
-        label: t('competitionRank', { competition: competitionShort }),
+        label: t('competitionRank', { competition: competitionLabel }),
         value: `#${data.competitionRank}`,
         accent: 'orange',
       })
@@ -158,7 +197,8 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 clipPath: 'polygon(4% 10%, 96% 0%, 100% 90%, 0% 100%)',
                 marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5,
               }}>
-                {competitionShort ? `${t('badge')} · ${competitionShort}` : t('badge')}
+                {data?.team.badge_label
+                  ?? (competitionShort ? `${t('badge')} · ${competitionShort}` : t('badge'))}
               </span>
               <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff' }}>{displayName}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: MUTED, fontSize: 12 }}>
@@ -206,8 +246,8 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 </div>
                 <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {[
-                    data.season.ranking != null && competitionShort
-                      ? t('teamRank', { rank: data.season.ranking, competition: competitionShort })
+                    data.season.ranking != null && competitionLabel
+                      ? t('teamRank', { rank: data.season.ranking, competition: competitionLabel })
                       : null,
                     data.season.label,
                   ].filter(Boolean).join(' · ')}
@@ -228,9 +268,9 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
               activeKey={activeTab}
               onChange={setActiveTab}
             />
-            {activeTab === 'summary' && <SummaryTab player={player} data={data} />}
-            {activeTab === 'season' && <AmateurSeasonTab data={data} />}
-            {activeTab === 'team' && <TeamTab data={data} currentPlayerId={player.id} />}
+            {activeTab === 'summary' && <SummaryTab player={player} data={data} racket={racket} />}
+            {activeTab === 'season' && <AmateurSeasonTab playerId={player.id} data={data} seasons={seasons} />}
+            {activeTab === 'team' && <TeamTab data={data} />}
           </>
         )}
       </div>

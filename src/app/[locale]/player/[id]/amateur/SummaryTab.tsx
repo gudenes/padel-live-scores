@@ -6,6 +6,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Widget, Last10SparkBar } from '../Widget'
+import { PlaysWithCard, type PlaysWithRacket } from '../PlaysWithCard'
 import { SuggestChangesSheet } from '@/components/SuggestChangesSheet'
 import type { AmateurProfileData } from '@/lib/amateur-profile'
 import type { AmateurPlayer } from '../AmateurProfile'
@@ -15,7 +16,7 @@ const RED = '#FF4655'
 const ORANGE = '#F5A623'
 const MUTED = '#8A8A8A'
 
-export function SummaryTab({ player, data }: { player: AmateurPlayer; data: AmateurProfileData }) {
+export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; data: AmateurProfileData; racket: PlaysWithRacket | null }) {
   const t = useTranslations('amateur')
   const [suggestOpen, setSuggestOpen] = useState(false)
 
@@ -82,7 +83,9 @@ export function SummaryTab({ player, data }: { player: AmateurPlayer; data: Amat
       )}
 
       {data.competitionPoints != null && (
-        <Widget label={t('competitionPoints', { competition: data.team.competition?.split('·')[0].trim() ?? '' })}>
+        <Widget label={t('competitionPoints', {
+          competition: data.team.short_name ?? data.team.competition?.split('·')[0].trim() ?? '',
+        })}>
           <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums' }}>
             {Number(data.competitionPoints).toLocaleString('es-ES', { minimumFractionDigits: 2 })}
           </div>
@@ -110,6 +113,8 @@ export function SummaryTab({ player, data }: { player: AmateurPlayer; data: Amat
           </div>
         </Widget>
       )}
+
+      {racket && <PlaysWithCard racket={racket} playerId={player.id} />}
 
       <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, border: '1px dashed #2A2A2A', padding: '9px 10px' }}>
         <div style={{ flex: 1, fontSize: 10, color: MUTED }}>

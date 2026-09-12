@@ -18,6 +18,7 @@ export const PAGE_COMMANDS: PageCommand[] = [
   { href: '/needs-review', label: 'Needs Review', group: 'Tournament Ops' },
   { href: '/simulator', label: 'Simulator', group: 'Tournament Ops' },
   { href: '/players', label: 'Players', group: 'Catalogs' },
+  { href: '/teams', label: 'Teams', group: 'Catalogs' },
   { href: '/brands', label: 'Brands', group: 'Catalogs' },
   { href: '/streams', label: 'Streams', group: 'Catalogs' },
   { href: '/yt-channels', label: 'YouTube Channels', group: 'Catalogs' },
