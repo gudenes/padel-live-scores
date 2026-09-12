@@ -42,8 +42,8 @@ const RAW: AmateurRawRows = {
     short_name: 'SNP',
   },
   roster: [
-    { player_id: PLAYER_ID,  roster_rank: 9, games_played: 7, wins: 2, losses: 5, player: { id: PLAYER_ID,  name: 'Gustavo Denes',  avatar_url: null } },
-    { player_id: 'p-abraham', roster_rank: 22, games_played: 0, wins: 0, losses: 0, player: { id: 'p-abraham', name: 'Abraham Torres', avatar_url: null } },
+    { player_id: PLAYER_ID,  roster_rank: 9, games_played: 7, wins: 2, losses: 5, player: { id: PLAYER_ID,  name: 'Gustavo Denes',  avatar_url: null, country: null } },
+    { player_id: 'p-abraham', roster_rank: 22, games_played: 0, wins: 0, losses: 0, player: { id: 'p-abraham', name: 'Abraham Torres', avatar_url: null, country: null } },
   ],
   fixtures: [
     { id: 'f-1', code: 'J2', label: 'Jornada 2', sort_order: 2, complete: true,  result: 'L', points_for: 0, points_against: 12, courts_won: 0, courts_lost: 5, opponent_name: null, played_on: null },

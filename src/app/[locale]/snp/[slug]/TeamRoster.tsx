@@ -11,11 +11,44 @@
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import Avatar from '@/components/Avatar'
+import { FlagImage } from '@/components/FlagImage'
 import type { AmateurRosterEntry } from '@/lib/amateur-profile'
 
 const CARD = 'rgba(255,255,255,0.03)'
 const MUTED = '#8A8A8A'
 const CHUNK = 'polygon(0% 4%, 99.5% 0%, 100% 96%, 0.5% 100%)'
+const AVATAR = 34
+const FLAG_W = 14
+
+/**
+ * Avatar with the player's flag tucked into the bottom-right corner — the
+ * same treatment PartnerAvatar gives professionals on the player profile.
+ * The ring around the flag is the row's own background, so the badge reads as
+ * cut into the avatar rather than floating over it.
+ *
+ * Without a country there is no badge at all: an unknown nationality must not
+ * render as a placeholder that looks like a real one.
+ */
+function RosterAvatar({ entry }: { entry: AmateurRosterEntry }) {
+  const avatar = (
+    <Avatar src={entry.avatarUrl} alt={entry.name} size={AVATAR} fallback={entry.name?.[0]} unoptimized />
+  )
+  if (!entry.country) return avatar
+
+  return (
+    <div style={{ position: 'relative', width: AVATAR, height: AVATAR, flexShrink: 0 }}>
+      {avatar}
+      <div style={{
+        position: 'absolute', right: -2, bottom: -2,
+        width: FLAG_W, height: Math.round(FLAG_W * 0.75),
+        borderRadius: 2, overflow: 'hidden',
+        boxShadow: '0 0 0 2px #0E0E0E',
+      }}>
+        <FlagImage country={entry.country} size={FLAG_W} />
+      </div>
+    </div>
+  )
+}
 
 export function TeamRoster({ roster }: { roster: AmateurRosterEntry[] }) {
   const t = useTranslations('team')
@@ -35,7 +68,7 @@ export function TeamRoster({ roster }: { roster: AmateurRosterEntry[] }) {
               padding: '8px 12px', marginBottom: 6, clipPath: CHUNK, font: 'inherit', color: 'inherit',
             }}
           >
-            <Avatar src={r.avatarUrl} alt={r.name} size={34} fallback={r.name?.[0]} unoptimized />
+            <RosterAvatar entry={r} />
             <span style={{
               flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, color: played ? '#fff' : MUTED,
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',

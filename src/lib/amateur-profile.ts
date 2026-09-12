@@ -60,7 +60,7 @@ export interface AmateurRawRows {
     games_played: number | null
     wins: number | null
     losses: number | null
-    player: { id: string; name: string; avatar_url: string | null } | null
+    player: { id: string; name: string; avatar_url: string | null; country: string | null } | null
   }>
   fixtures: Array<{
     id: string
@@ -122,6 +122,7 @@ export interface AmateurRosterEntry {
   playerId: string
   name: string
   avatarUrl: string | null
+  country: string | null
   rosterRank: number | null
   gamesPlayed: number
   wins: number
@@ -187,6 +188,7 @@ export function buildRoster(raw: AmateurRawRows): AmateurRosterEntry[] {
       playerId: r.player_id,
       name: r.player!.name,
       avatarUrl: r.player!.avatar_url,
+      country: r.player!.country,
       rosterRank: r.roster_rank,
       gamesPlayed: r.games_played ?? 0,
       wins: r.wins ?? 0,
@@ -329,7 +331,7 @@ export async function fetchAmateurProfile(
 
   const { data: roster } = await client
     .from('team_memberships')
-    .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url)')
+    .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url, country)')
     .eq('team_season_id', season.id)
 
   const { data: fixtures } = await client
@@ -417,7 +419,7 @@ export async function fetchTeamSeason(
 
   const { data: roster } = await client
     .from('team_memberships')
-    .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url)')
+    .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url, country)')
     .eq('team_season_id', season.id)
 
   const { data: fixtures } = await client
