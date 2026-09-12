@@ -205,21 +205,23 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 {data?.team.badge_label
                   ?? (competitionShort ? `${t('badge')} · ${competitionShort}` : t('badge'))}
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 0, minWidth: 0 }}>
-                <span style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {displayName}
+              {/* The captain badge rides with the competition badge, not with
+                  the name. Beside the name it ate the width the name needs and
+                  truncated even a short one like "Eric Ortega" — and the real
+                  roster has "Adrián Rivas Fernández". */}
+              {data?.isCaptain && (
+                <span style={{
+                  display: 'inline-block', marginLeft: 6, marginBottom: 4, verticalAlign: 'middle',
+                  border: `1px solid ${ORANGE}`, color: ORANGE,
+                  fontSize: 8, fontWeight: 800, padding: '2px 6px',
+                  textTransform: 'uppercase', letterSpacing: 0.5,
+                }}>
+                  {t('captain')}
                 </span>
-                {data?.isCaptain && (
-                  <span style={{
-                    display: 'inline-block', marginLeft: 8, verticalAlign: 'middle',
-                    border: `1px solid ${ORANGE}`, color: ORANGE,
-                    fontSize: 8, fontWeight: 800, padding: '2px 6px',
-                    textTransform: 'uppercase', letterSpacing: 0.5,
-                  }}>
-                    {t('captain')}
-                  </span>
-                )}
+              )}
+              <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.1, color: '#fff',
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {displayName}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, color: MUTED, fontSize: 12 }}>
                 {player.country && <FlagImage country={player.country} size={16} />}
