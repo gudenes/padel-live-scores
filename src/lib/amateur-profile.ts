@@ -145,11 +145,10 @@ function asResult(value: string | null): 'W' | 'L' | null {
   return value === 'W' || value === 'L' ? value : null
 }
 
-export function buildAmateurProfile(playerId: string, raw: AmateurRawRows): AmateurProfileData {
-  const fixtureByOrder = new Map(raw.fixtures.map(f => [f.id, f]))
-  const orderedFixtures = [...raw.fixtures].sort((a, b) => a.sort_order - b.sort_order)
-
-  const fixtures: AmateurFixture[] = orderedFixtures.map(f => ({
+/** Fixtures with their slots, ordered. Shared by the profile and the team page. */
+export function buildFixtures(raw: AmateurRawRows): AmateurFixture[] {
+  const ordered = [...raw.fixtures].sort((a, b) => a.sort_order - b.sort_order)
+  return ordered.map(f => ({
     id: f.id,
     code: f.code,
     label: f.label,
@@ -177,6 +176,27 @@ export function buildAmateurProfile(playerId: string, raw: AmateurRawRows): Amat
         playerIds: s.player_ids,
       })),
   }))
+}
+
+/** Squad, ordered by roster rank, players who never played included. */
+export function buildRoster(raw: AmateurRawRows): AmateurRosterEntry[] {
+  return raw.roster
+    .filter(r => r.player != null)
+    .map(r => ({
+      playerId: r.player_id,
+      name: r.player!.name,
+      avatarUrl: r.player!.avatar_url,
+      rosterRank: r.roster_rank,
+      gamesPlayed: r.games_played ?? 0,
+      wins: r.wins ?? 0,
+      losses: r.losses ?? 0,
+    }))
+    .sort((a, b) => (a.rosterRank ?? 999) - (b.rosterRank ?? 999))
+}
+
+export function buildAmateurProfile(playerId: string, raw: AmateurRawRows): AmateurProfileData {
+  const fixtureByOrder = new Map(raw.fixtures.map(f => [f.id, f]))
+  const fixtures: AmateurFixture[] = buildFixtures(raw)
 
   const games: AmateurGame[] = raw.slots
     .filter(s => s.player_ids.includes(playerId))
@@ -195,18 +215,7 @@ export function buildAmateurProfile(playerId: string, raw: AmateurRawRows): Amat
       partnerIds: s.player_ids.filter(id => id !== playerId),
     }))
 
-  const roster: AmateurRosterEntry[] = raw.roster
-    .filter(r => r.player != null)
-    .map(r => ({
-      playerId: r.player_id,
-      name: r.player!.name,
-      avatarUrl: r.player!.avatar_url,
-      rosterRank: r.roster_rank,
-      gamesPlayed: r.games_played ?? 0,
-      wins: r.wins ?? 0,
-      losses: r.losses ?? 0,
-    }))
-    .sort((a, b) => (a.rosterRank ?? 999) - (b.rosterRank ?? 999))
+  const roster: AmateurRosterEntry[] = buildRoster(raw)
 
   return {
     team: raw.team,
@@ -350,6 +359,97 @@ export async function fetchAmateurProfile(
     // Supabase's join-type inference reports `player` as an array even
     // though this is a to-one FK; the actual runtime shape is a single
     // object (or null), matching AmateurRawRows['roster'].
+    roster: (roster ?? []) as unknown as AmateurRawRows['roster'],
+    fixtures: (fixtures ?? []) as AmateurRawRows['fixtures'],
+    slots: normalizedSlots as AmateurRawRows['slots'],
+  })
+}
+
+export interface TeamSeasonPageData {
+  team: AmateurRawRows['team']
+  season: AmateurRawRows['season']
+  roster: AmateurRosterEntry[]
+  fixtures: AmateurFixture[]
+}
+
+/** Team-season view: everything about the squad, nothing about one player. */
+export function buildTeamSeason(raw: AmateurRawRows): TeamSeasonPageData {
+  return {
+    team: raw.team,
+    season: raw.season,
+    roster: buildRoster(raw),
+    fixtures: buildFixtures(raw),
+  }
+}
+
+/**
+ * Loads a team season by slug WITHIN a league. Resolving by slug alone would
+ * let /snp/<x> serve a team from another league — the URL promises the league,
+ * so the query has to honour it.
+ */
+export async function fetchTeamSeason(
+  client: SupabaseClient,
+  slug: string,
+  source: string,
+  seasonLabel?: string,
+): Promise<TeamSeasonPageData | null> {
+  const { data: team } = await client
+    .from('teams')
+    .select('id, slug, name, club, city, country, crest_url, competition, category, badge_label, short_name')
+    .eq('slug', slug)
+    .eq('source', source)
+    .maybeSingle()
+  if (!team) return null
+
+  let seasonQuery = client
+    .from('team_seasons')
+    .select('id, team_id, label, starts_on, ranking, ties_played, ties_won, courts_won, courts_lost, points_for, points_against, notes')
+    .eq('team_id', team.id)
+  if (seasonLabel) seasonQuery = seasonQuery.eq('label', seasonLabel)
+
+  const { data: seasons } = await seasonQuery
+    .order('starts_on', { ascending: false, nullsFirst: false })
+    .order('label', { ascending: false })
+    .limit(1)
+  const season = seasons?.[0]
+  if (!season) return null
+
+  const { data: roster } = await client
+    .from('team_memberships')
+    .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url)')
+    .eq('team_season_id', season.id)
+
+  const { data: fixtures } = await client
+    .from('team_fixtures')
+    .select('id, code, label, sort_order, complete, result, points_for, points_against, courts_won, courts_lost, opponent_name, played_on')
+    .eq('team_season_id', season.id)
+    .order('sort_order')
+
+  const fixtureIds = (fixtures ?? []).map(f => f.id)
+  const { data: slots } = fixtureIds.length
+    ? await client
+        .from('team_fixture_slots')
+        .select('id, fixture_id, label, worth, slot_group, result, sets, court_count, exact, partial, sort_order, players:team_fixture_slot_players(player_id)')
+        .in('fixture_id', fixtureIds)
+    : { data: [] as Array<Record<string, unknown>> }
+
+  const normalizedSlots = (slots ?? []).map(s => {
+    const row = s as unknown as AmateurRawRows['slots'][number] & {
+      players: Array<{ player_id: string }> | null
+    }
+    return { ...row, player_ids: (row.players ?? []).map(p => p.player_id) }
+  })
+
+  return buildTeamSeason({
+    // membership is player-scoped and unused by the team view; a zeroed stub
+    // keeps the shared AmateurRawRows shape without pretending a player exists.
+    membership: {
+      team_season_id: season.id, player_id: '',
+      competition_points: null, competition_rank: null, roster_rank: null,
+      games_played: null, wins: null, losses: null,
+    },
+    season,
+    team,
     roster: (roster ?? []) as unknown as AmateurRawRows['roster'],
     fixtures: (fixtures ?? []) as AmateurRawRows['fixtures'],
     slots: normalizedSlots as AmateurRawRows['slots'],
