@@ -15,13 +15,19 @@ export type ClaimRejection =
   | 'account_linked'
   | 'pending'
 
+/** Os únicos valores que `players.tier` aceita — a constraint do banco é
+ *  `check (tier in ('pro','amateur'))`. Tipar aqui faz o compilador pegar
+ *  um erro de digitação na consulta que monta o contexto, em vez de deixá-lo
+ *  virar um `not_claimable` silencioso. */
+export type PlayerTier = 'pro' | 'amateur'
+
 /** Teto do texto livre do pedido. Curto de propósito: é um recado para o
  *  operador ("sou o Eric, capitão"), não um formulário. */
 export const NOTE_MAX_LENGTH = 280
 
 /** Só jogadores amadores podem ser reivindicados. Um pedido para um
  *  profissional não tem upside — só gera fila para recusar. */
-export const CLAIMABLE_TIER = 'amateur'
+export const CLAIMABLE_TIER: PlayerTier = 'amateur'
 
 /** O jogador vinculado, como as duas telas o consomem. Mora aqui — e não no
  *  arquivo da rota nem no do hook — porque a rota (servidor) e o hook
@@ -40,7 +46,7 @@ export interface ClaimContext {
   /** id da sessão, ou null se não houver */
   userId: string | null
   /** o jogador alvo, ou null se o id não existe */
-  player: { id: string; tier: string | null } | null
+  player: { id: string; tier: PlayerTier | null } | null
   /** conta que já é dona deste jogador, se houver */
   playerOwnerUserId: string | null
   /** jogador que esta conta já possui, se houver */
