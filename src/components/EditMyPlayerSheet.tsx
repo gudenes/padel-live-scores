@@ -67,7 +67,10 @@ export function EditMyPlayerSheet({
   }
 
   useEffect(() => {
-    if (!open) return
+    // O guard funcional em setRackets protege a escrita, não a chamada de
+    // rede — sem isto, reabrir a folha refaz a consulta a cada vez. O
+    // catálogo não muda dentro de uma sessão de edição, então uma vez basta.
+    if (!open || rackets.length > 0) return
     let cancelled = false
     supabase
       .from('padel_rackets')
@@ -78,7 +81,18 @@ export function EditMyPlayerSheet({
         setRackets(prev => (prev.length > 0 ? prev : (data ?? []) as unknown as RacketRow[]))
       })
     return () => { cancelled = true }
-  }, [open])
+  }, [open, rackets.length])
+
+  // Esc fecha, respeitando o mesmo guard do backdrop: um pedido em voo não
+  // pode ser abandonado sem que o usuário veja o resultado.
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [open, saving, onClose])
 
   if (!open) return null
 
@@ -110,7 +124,10 @@ export function EditMyPlayerSheet({
 
   return (
     <div
-      onClick={onClose}
+      // Clicar fora durante um save em voo esconderia a falha (ela pintaria
+      // numa folha já fechada) ou surpreenderia com um reload depois de o
+      // usuário achar que cancelou. Ignora o backdrop até o save assentar.
+      onClick={() => { if (!saving) onClose() }}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100,
@@ -119,6 +136,7 @@ export function EditMyPlayerSheet({
       <div
         onClick={e => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
         aria-label={t('editTitle')}
         style={{
           background: BG, width: '100%', maxWidth: 500, maxHeight: '85dvh',

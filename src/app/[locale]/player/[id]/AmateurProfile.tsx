@@ -64,6 +64,10 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   const [imgError, setImgError] = useState(false)
   const [seasons, setSeasons] = useState<AmateurSeasonRef[]>([])
   const [racket, setRacket] = useState<PlaysWithRacket | null>(null)
+  // Distinto de `racket == null`, que também é o estado antes da resposta
+  // chegar. Sem isso, o editor não teria como saber se "sem raquete" é real
+  // ou só ainda não sabe — ver EditMyPlayerSheet / SummaryTab.
+  const [racketLoaded, setRacketLoaded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -78,6 +82,7 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
         if (cancelled) return
         const row = data as unknown as { racket: PlaysWithRacket | null } | null
         setRacket(row?.racket ?? null)
+        setRacketLoaded(true)
       })
     return () => { cancelled = true }
   }, [player.id])
@@ -264,7 +269,7 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
               activeKey={activeTab}
               onChange={setActiveTab}
             />
-            {activeTab === 'summary' && <SummaryTab player={player} data={data} racket={racket} />}
+            {activeTab === 'summary' && <SummaryTab player={player} data={data} racket={racket} racketLoaded={racketLoaded} />}
             {activeTab === 'season' && <AmateurSeasonTab playerId={player.id} data={data} seasons={seasons} />}
             {activeTab === 'team' && <TeamTab data={data} />}
           </>

@@ -19,7 +19,7 @@ const RED = '#FF4655'
 const ORANGE = '#F5A623'
 const MUTED = '#8A8A8A'
 
-export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; data: AmateurProfileData; racket: PlaysWithRacket | null }) {
+export function SummaryTab({ player, data, racket, racketLoaded }: { player: AmateurPlayer; data: AmateurProfileData; racket: PlaysWithRacket | null; racketLoaded: boolean }) {
   const t = useTranslations('amateur')
   const [suggestOpen, setSuggestOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
@@ -132,7 +132,11 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
         </Widget>
       )}
 
-      {isMine && (
+      {/* racketLoaded, não `racket != null`: enquanto a busca não volta, "ainda
+          não sei" e "não tem raquete" são o mesmo `null`. Abrir a folha nesse
+          estado e salvar mandaria racketId:null, que a API trata como limpar —
+          e apagaria a raquete da pessoa. */}
+      {isMine && racketLoaded && (
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
           <button
             onClick={() => setEditOpen(true)}
