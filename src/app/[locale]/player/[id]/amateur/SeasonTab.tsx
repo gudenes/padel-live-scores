@@ -15,6 +15,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 import { fetchAmateurProfile, type AmateurProfileData, type AmateurSeasonRef } from '@/lib/amateur-profile'
 
 const GREEN = '#7ED321'
@@ -55,7 +56,7 @@ export function AmateurSeasonTab({
     if (isCurrentSeason || selected == null) return
     let cancelled = false
     ;(async () => {
-      const result = await fetchAmateurProfile(playerId, selected.seasonId)
+      const result = await fetchAmateurProfile(supabase, playerId, selected.seasonId)
       if (cancelled) return
       setOlderData(result)
     })()

@@ -15,6 +15,7 @@ import SlidingInkTabs from '@/components/SlidingInkTabs'
 import BottomNav from '@/components/nav/BottomNavV3'
 import DetailPageSkeleton from '@/components/skeletons/DetailPageSkeleton'
 import { titleCase } from '@/lib/title-case'
+import { supabase } from '@/lib/supabase'
 import {
   fetchAmateurProfile,
   fetchAmateurSeasons,
@@ -66,10 +67,10 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
     let cancelled = false
     ;(async () => {
       setLoading(true)
-      const list = await fetchAmateurSeasons(player.id)
+      const list = await fetchAmateurSeasons(supabase, player.id)
       if (cancelled) return
       setSeasons(list)
-      const result = await fetchAmateurProfile(player.id, list[0]?.seasonId)
+      const result = await fetchAmateurProfile(supabase, player.id, list[0]?.seasonId)
       if (cancelled) return
       setData(result)
       setLoading(false)

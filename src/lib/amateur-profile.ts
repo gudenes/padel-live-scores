@@ -5,7 +5,7 @@
 // is pure and holds every shaping decision, so the interesting logic is testable
 // without a database.
 
-import { supabase } from '@/lib/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   computeRecord,
   computeUsualCourt,
@@ -247,8 +247,11 @@ export function sortSeasonRefs(refs: AmateurSeasonRef[]): AmateurSeasonRef[] {
 }
 
 /** Every season this player has a membership in, most recent first. */
-export async function fetchAmateurSeasons(playerId: string): Promise<AmateurSeasonRef[]> {
-  const { data } = await supabase
+export async function fetchAmateurSeasons(
+  client: SupabaseClient,
+  playerId: string,
+): Promise<AmateurSeasonRef[]> {
+  const { data } = await client
     .from('team_memberships')
     .select('team_season_id, season:team_seasons(id, label, starts_on, team:teams(id, name))')
     .eq('player_id', playerId)
@@ -283,10 +286,11 @@ export async function fetchAmateurSeasons(playerId: string): Promise<AmateurSeas
  * sections.
  */
 export async function fetchAmateurProfile(
+  client: SupabaseClient,
   playerId: string,
   seasonId?: string,
 ): Promise<AmateurProfileData | null> {
-  let membershipQuery = supabase
+  let membershipQuery = client
     .from('team_memberships')
     .select('team_season_id, player_id, competition_points, competition_rank, roster_rank, games_played, wins, losses')
     .eq('player_id', playerId)
@@ -299,26 +303,26 @@ export async function fetchAmateurProfile(
     .maybeSingle()
   if (!membership) return null
 
-  const { data: season } = await supabase
+  const { data: season } = await client
     .from('team_seasons')
     .select('id, team_id, label, ranking, ties_played, ties_won, courts_won, courts_lost, points_for, points_against, notes')
     .eq('id', membership.team_season_id)
     .single()
   if (!season) return null
 
-  const { data: team } = await supabase
+  const { data: team } = await client
     .from('teams')
     .select('id, slug, name, club, city, country, crest_url, competition, category, badge_label, short_name')
     .eq('id', season.team_id)
     .single()
   if (!team) return null
 
-  const { data: roster } = await supabase
+  const { data: roster } = await client
     .from('team_memberships')
     .select('player_id, roster_rank, games_played, wins, losses, player:players(id, name, avatar_url)')
     .eq('team_season_id', season.id)
 
-  const { data: fixtures } = await supabase
+  const { data: fixtures } = await client
     .from('team_fixtures')
     .select('id, code, label, sort_order, complete, result, points_for, points_against, courts_won, courts_lost, opponent_name, played_on')
     .eq('team_season_id', season.id)
@@ -326,7 +330,7 @@ export async function fetchAmateurProfile(
 
   const fixtureIds = (fixtures ?? []).map(f => f.id)
   const { data: slots } = fixtureIds.length
-    ? await supabase
+    ? await client
         .from('team_fixture_slots')
         .select('id, fixture_id, label, worth, slot_group, result, sets, court_count, exact, partial, sort_order, players:team_fixture_slot_players(player_id)')
         .in('fixture_id', fixtureIds)
