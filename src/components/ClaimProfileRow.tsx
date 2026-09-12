@@ -80,7 +80,10 @@ export function ClaimProfileRow({ playerId }: { playerId: string }) {
           {t('claimCta')}
         </button>
       </span>
-      {failed && <span style={{ color: RED, marginLeft: 6 }}>{t('claimFailed')}</span>}
+      {/* role=alert: a falha só existe como texto pintado ao lado do botão.
+          Sem isso, quem usa leitor de tela clica, nada é anunciado, e a
+          conclusão razoável é que o pedido foi enviado. */}
+      {failed && <span role="alert" style={{ color: RED, marginLeft: 6 }}>{t('claimFailed')}</span>}
     </Row>
   )
 }
