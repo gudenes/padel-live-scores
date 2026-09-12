@@ -10,9 +10,12 @@
 // com `playerId`, `ranking` ou `is_captain` é simplesmente ignorado. A rota
 // nunca lê o jogador do request — ele vem da sessão.
 
-export type PlayerSide = 'drive' | 'backhand'
+// A lista é a fonte da verdade e o tipo deriva dela. Declarar os dois à mão
+// deixaria um par que pode divergir em silêncio: um valor novo aceito em
+// runtime mas rejeitado pelo compilador, ou o contrário.
+const ALLOWED_SIDES = ['drive', 'backhand'] as const
 
-const ALLOWED_SIDES: readonly string[] = ['drive', 'backhand']
+export type PlayerSide = (typeof ALLOWED_SIDES)[number]
 
 /** Só as chaves presentes são aplicadas. `null` limpa; ausente não mexe. */
 export interface SelfEditPatch {
@@ -35,7 +38,7 @@ export function parseSelfEditPayload(body: unknown): SelfEditResult {
     const v = raw.side
     if (v === null) {
       patch.side = null
-    } else if (typeof v === 'string' && ALLOWED_SIDES.includes(v)) {
+    } else if (typeof v === 'string' && (ALLOWED_SIDES as readonly string[]).includes(v)) {
       patch.side = v as PlayerSide
     } else {
       return { ok: false, error: 'bad_side', status: 400 }
