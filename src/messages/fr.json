@@ -890,6 +890,7 @@
   "common": {
     "back": "Retour",
     "share": "Partager",
+    "linkCopied": "Lien copié",
     "search": "Rechercher joueurs, événements, matchs...",
     "loading": "Chargement...",
     "vs": "vs",

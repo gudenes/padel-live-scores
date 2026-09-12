@@ -921,6 +921,7 @@
   "common": {
     "back": "Back",
     "share": "Share",
+    "linkCopied": "Link copied",
     "search": "Search players, events, matches...",
     "loading": "Loading...",
     "vs": "vs",

@@ -890,6 +890,7 @@
   "common": {
     "back": "Indietro",
     "share": "Condividi",
+    "linkCopied": "Link copiato",
     "search": "Cerca giocatori, eventi, partite...",
     "loading": "Caricamento...",
     "vs": "vs",
