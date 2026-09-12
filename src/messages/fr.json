@@ -616,6 +616,8 @@
     "partialRound": "Résultat partiel",
     "partialRoundHint": "Seule une partie de la composition a pu être confirmée, le score n'est donc pas affiché.",
     "ambiguousPairing": "Même résultat sur {count} terrains — la paire exacte n'est pas enregistrée.",
+    "courtPoints": "{worth} points",
+    "pairingUnknown": "la paire n'est pas enregistrée",
     "methodNote": "Méthode et limites",
     "viewTeam": "Voir l'équipe complète",
     "metaTitle": "{team} — {competition} {season}",

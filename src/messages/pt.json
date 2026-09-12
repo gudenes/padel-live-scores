@@ -616,6 +616,8 @@
     "partialRound": "Registro parcial",
     "partialRoundHint": "Só parte da escalação pôde ser confirmada, então o placar não é mostrado.",
     "ambiguousPairing": "Mesmo resultado em {count} pistas — a dupla exata não consta.",
+    "courtPoints": "{worth} pontos",
+    "pairingUnknown": "a dupla não consta",
     "methodNote": "Método e limitações",
     "viewTeam": "Ver a equipe completa",
     "metaTitle": "{team} — {competition} {season}",

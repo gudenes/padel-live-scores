@@ -10,6 +10,8 @@ import type { AmateurFixture, AmateurRosterEntry } from '@/lib/amateur-profile'
 const GREEN = '#7ED321'
 const RED = '#FF4655'
 const MUTED = '#8A8A8A'
+const AMBER = '#F5A623'
+const AMBER_TINT = 'rgba(245,166,35,0.04)'
 
 export function TeamFixtures({
   fixtures, roster,
@@ -49,62 +51,101 @@ export function TeamFixtures({
             </div>
           )}
 
-          {f.slots.map(s => (
-            <div
-              key={s.id}
-              style={{
-                display: 'grid', gridTemplateColumns: '92px 70px minmax(0, 1fr)', gap: 10,
-                padding: '9px 0 9px 7px', borderBottom: '1px solid #171717',
-                borderLeft: `2px solid ${s.result === 'W' ? GREEN : RED}`,
-              }}
-            >
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', textTransform: 'uppercase' }}>
-                {s.label}
-                <span style={{ display: 'block', fontSize: 9, fontWeight: 600, color: MUTED }}>
-                  {s.worth} pts
-                </span>
-              </span>
-              <span style={{
-                fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
-                color: s.result === 'W' ? GREEN : RED,
-              }}>
-                {s.result === 'W' ? t('won') : t('lost')}
-                <span style={{ display: 'block', fontSize: 9, fontWeight: 400, color: MUTED, textTransform: 'none' }}>
-                  {s.sets != null ? t('setsValue', { count: s.sets }) : '—'}
-                </span>
-              </span>
-              <span style={{ display: 'flex', flexWrap: 'wrap', gap: 5, alignItems: 'flex-start' }}>
-                {s.playerIds.map(id => {
-                  const player = playerById.get(id)
-                  return (
-                    <button
-                      key={id}
-                      onClick={() => router.push(`/player/${id}` as Parameters<typeof router.push>[0])}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 5,
-                        border: '1px solid #2A2A2A', padding: '2px 8px 2px 2px', fontSize: 11, fontWeight: 600,
-                        background: 'none', color: '#fff', cursor: 'pointer', font: 'inherit',
-                      }}
-                    >
-                      <Avatar
-                        src={player?.avatarUrl ?? null}
-                        alt={player?.name ?? id}
-                        size={20}
-                        fallback={player?.name?.[0]}
-                        unoptimized
-                      />
-                      {player ? toShortName(player.name) : id}
-                    </button>
-                  )
-                })}
-                {!s.exact && (
-                  <span style={{ width: '100%', fontSize: 9, color: MUTED, marginTop: 3 }}>
-                    {t('ambiguousPairing', { count: s.courtCount })}
-                  </span>
-                )}
-              </span>
-            </div>
-          ))}
+          {f.slots.map(s => {
+            const players = s.playerIds.map(id => ({ id, player: playerById.get(id) }))
+            const goToPlayer = (id: string) =>
+              router.push(`/player/${id}` as Parameters<typeof router.push>[0])
+
+            return (
+              <div
+                key={s.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '9px 10px 9px 7px', borderBottom: '1px solid #171717',
+                  borderLeft: `2px solid ${s.result === 'W' ? GREEN : RED}`,
+                  background: s.exact ? undefined : AMBER_TINT,
+                }}
+              >
+                {/* Left — overlapping avatars (or an uncertain-pairing placeholder). */}
+                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                  {s.exact ? (
+                    players.slice(0, 2).map(({ id, player }, i) => (
+                      <button
+                        key={id}
+                        onClick={() => goToPlayer(id)}
+                        style={{
+                          marginLeft: i === 0 ? 0 : -9, border: 'none', padding: 0,
+                          background: 'none', cursor: 'pointer', lineHeight: 0,
+                        }}
+                      >
+                        <Avatar
+                          src={player?.avatarUrl ?? null}
+                          alt={player?.name ?? id}
+                          size={26}
+                          fallback={player?.name?.[0]}
+                          unoptimized
+                          style={{ border: '1.5px solid #0A0A0A' }}
+                        />
+                      </button>
+                    ))
+                  ) : (
+                    [0, 1].map(i => (
+                      <div
+                        key={i}
+                        style={{
+                          marginLeft: i === 0 ? 0 : -9, width: 26, height: 26, borderRadius: '50%',
+                          border: '1.5px dashed #4A4A4A', background: 'rgba(255,255,255,0.02)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 700, color: '#4A4A4A', flexShrink: 0,
+                        }}
+                      >
+                        ?
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Middle — the pair (or, when uncertain, everyone on the slot). */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 6px', fontSize: 12, fontWeight: 700, color: '#fff' }}>
+                    {players.map(({ id, player }, i) => (
+                      <span key={id} style={{ display: 'inline-flex' }}>
+                        <button
+                          onClick={() => goToPlayer(id)}
+                          style={{
+                            border: 'none', padding: 0, background: 'none', color: 'inherit',
+                            cursor: 'pointer', font: 'inherit',
+                          }}
+                        >
+                          {player ? toShortName(player.name) : id}
+                        </button>
+                        {i < players.length - 1 && <span style={{ color: MUTED, marginLeft: 6 }}>·</span>}
+                      </span>
+                    ))}
+                  </div>
+                  {s.exact ? (
+                    <div style={{ fontSize: 9, fontWeight: 600, color: MUTED, marginTop: 2 }}>
+                      {s.label} · {t('courtPoints', { worth: s.worth })}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 9, fontWeight: 600, color: AMBER, marginTop: 2 }}>
+                      {t('pairingUnknown')} — {t('ambiguousPairing', { count: s.courtCount })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right — the outcome. */}
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: s.result === 'W' ? GREEN : RED }}>
+                    {s.result === 'W' ? t('won') : t('lost')}
+                  </div>
+                  <div style={{ fontSize: 9, fontWeight: 400, color: MUTED, marginTop: 1 }}>
+                    {s.sets != null ? t('setsValue', { count: s.sets }) : '—'}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       ))}
     </>

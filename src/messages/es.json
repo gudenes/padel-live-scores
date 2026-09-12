@@ -616,6 +616,8 @@
     "partialRound": "Registro parcial",
     "partialRoundHint": "Solo se pudo confirmar parte de la alineación, así que no se muestra el marcador.",
     "ambiguousPairing": "Mismo resultado en {count} pistas — no consta la pareja exacta.",
+    "courtPoints": "{worth} puntos",
+    "pairingUnknown": "la pareja no consta",
     "methodNote": "Método y limitaciones",
     "viewTeam": "Ver el equipo completo",
     "metaTitle": "{team} — {competition} {season}",
