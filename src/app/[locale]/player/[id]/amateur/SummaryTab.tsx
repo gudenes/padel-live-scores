@@ -8,6 +8,7 @@ import { useTranslations } from 'next-intl'
 import { Widget, Last10SparkBar } from '../Widget'
 import { PlaysWithCard, type PlaysWithRacket } from '../PlaysWithCard'
 import { SuggestChangesSheet } from '@/components/SuggestChangesSheet'
+import { ClaimProfileRow } from '@/components/ClaimProfileRow'
 import type { AmateurProfileData } from '@/lib/amateur-profile'
 import type { AmateurPlayer } from '../AmateurProfile'
 
@@ -135,6 +136,8 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
           </button>
         </div>
       </div>
+
+      <ClaimProfileRow playerId={player.id} />
 
       {data.season.notes && (
         <div style={{ gridColumn: '1 / -1', background: '#141414', padding: '9px 10px' }}>
