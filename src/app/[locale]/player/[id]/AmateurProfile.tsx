@@ -164,7 +164,11 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
           <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             {tPlayer('playerProfile')}
           </div>
-          <div style={{ width: 36 }} />
+          {/* Sits in the slot that was a 36px spacer for centring the
+              title. Keeping it out of the hero matters: there it stole
+              width from the name block, which is the flexible element,
+              and a two-word name started wrapping. */}
+          <ShareButton url={buildShareUrl(locale, player.id)} title={displayName} imageUrl={`/player/${player.id}/opengraph-image`} />
         </div>
 
         <div style={{
@@ -209,7 +213,6 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
                 <span>{[player.home_club, data?.team.city].filter(Boolean).join(' · ')}</span>
               </div>
             </div>
-            <ShareButton url={buildShareUrl(locale, player.id)} />
             <FollowButton type="player" targetId={player.id} variant="follow" />
           </div>
 

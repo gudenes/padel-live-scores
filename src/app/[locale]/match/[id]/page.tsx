@@ -25,8 +25,7 @@ import { isPremierLevel } from '@/lib/tournament-labels'
 import { shouldShowRecap, defaultFinishedTab, matchDetailTabKeys } from './recap-visibility'
 import { isPresenceOnlyLive, hasLivePointByPoint } from '@/lib/tournament-tier'
 import PresenceOnlyHint from '@/components/PresenceOnlyHint'
-import { Capacitor } from '@capacitor/core'
-import { Share } from '@capacitor/share'
+import ShareButton from '@/components/ShareButton'
 
 import { WinnerBanner } from './WinnerBanner'
 import { PredictionSection, PredictionResult } from './PredictionSection'
@@ -82,7 +81,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     (match as any)?.avg_rating ?? null,
     (match as any)?.rating_count ?? 0
   )
-  const [shareToast, setShareToast] = useState(false)
   const [wtwBroadcasters, setWtwBroadcasters] = useState<BroadcasterRow[]>([])
   const [wtwLiveChannels, setWtwLiveChannels] = useState<WtwLiveChannel[]>([])
   const [wtwChannelsMeta, setWtwChannelsMeta] = useState<ChannelMeta[]>([])
@@ -649,121 +647,29 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
             </div>
           )
         )}
-        <button
-          onClick={async () => {
-            if (!match) return
-            const shareUrl = `https://padelnachos.com/match/${match.id}`
-            const scores = (match.sets ?? [])
-              .sort((a: any, b: any) => a.set_number - b.set_number)
-              .map((s: any) => {
-                const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
-                return parsed ? `${parsed.p1}-${parsed.p2}` : null
-              })
-              .filter(Boolean)
-              .join(', ')
-            const tournamentName = (match as any).tournament?.name ?? ''
-            const round = (match as any).round ?? ''
-            const status = isLive ? 'LIVE' : isFinished ? 'Final' : 'Upcoming'
-            const title = `${pair1Label} vs ${pair2Label}`
-            const text = [
-              title,
-              scores ? `${status}: ${scores}` : status,
-              [tournamentName, round].filter(Boolean).join(' · '),
-            ].filter(Boolean).join('\n')
-
-            // Three platform tiers:
-            // - Capacitor native (Android/iOS app): Share plugin opens
-            //   the native sheet. `navigator.share` is undefined inside
-            //   the WebView, so gating on it would skip the native path.
-            // - Web Share API (modern browsers): Share plugin proxies to
-            //   navigator.share. Level 2 file attachment is only
-            //   reachable via direct navigator.share — Capacitor's Share
-            //   takes file:// URI strings, not File objects.
-            // - Fallback (older browsers): copy URL to clipboard.
-            const canShareViaCapacitor = Capacitor.isNativePlatform()
-            const canShareViaWebShare = typeof navigator !== 'undefined' && 'share' in navigator
-            const canShare = canShareViaCapacitor || canShareViaWebShare
-
-            // Try to include the dynamic OG image as a file attachment via
-            // Web Share API Level 2 (iOS 15+, Chrome Android). Only reachable
-            // through navigator.share, so skip on Capacitor native (where
-            // we'd just throw the file away anyway).
-            //
-            // Best-effort — we cap the image fetch at 3s so a slow render
-            // never blocks the share sheet from opening.
-            let imageFile: File | null = null
-            if (canShareViaWebShare) {
-              try {
-                const controller = new AbortController()
-                const timeout = setTimeout(() => controller.abort(), 3000)
-                const res = await fetch(`/match/${match.id}/opengraph-image`, { signal: controller.signal })
-                clearTimeout(timeout)
-                if (res.ok) {
-                  const blob = await res.blob()
-                  imageFile = new File([blob], `padelnachos-match-${match.id}.png`, { type: blob.type || 'image/png' })
-                }
-              } catch {
-                // Image fetch failed or timed out — fall through to URL-only share
-              }
-            }
-
-            // Copy the URL + flash the "link copied" toast. Used both as the
-            // no-share-API path and as the catch-all fallback so the button
-            // ALWAYS gives visible feedback (the previous silent `catch {}`
-            // left users unsure whether the tap did anything).
-            const copyFallback = async () => {
-              try {
-                await navigator.clipboard.writeText(shareUrl)
-              } catch {
-                // Clipboard blocked (insecure context / no gesture) — still
-                // flash the toast so the tap isn't a dead no-op.
-              }
-              setShareToast(true)
-              setTimeout(() => setShareToast(false), 2200)
-            }
-
-            try {
-              if (canShare) {
-                const canShareFiles =
-                  imageFile !== null &&
-                  canShareViaWebShare &&
-                  typeof navigator.canShare === 'function' &&
-                  navigator.canShare({ files: [imageFile] })
-
-                if (canShareFiles && imageFile) {
-                  // Web Share API Level 2 file attachment.
-                  await navigator.share({ title, text, url: shareUrl, files: [imageFile] })
-                } else {
-                  // URL-only share via Capacitor — opens native sheet on
-                  // Android/iOS, proxies to navigator.share on web.
-                  await Share.share({ title, text, url: shareUrl, dialogTitle: title })
-                }
-              } else {
-                await copyFallback()
-              }
-            } catch (err) {
-              // User dismissed the native/Web share sheet — intentional, stay quiet.
-              if (err instanceof DOMException && err.name === 'AbortError') return
-              // Share genuinely failed or is unavailable in this WebView — copy
-              // the link instead so the tap always produces visible feedback.
-              await copyFallback()
-            }
-          }}
-          style={{
-            width: 36, height: 36,
-            clipPath: CHUNKY.badge,
-            background: 'rgba(255,255,255,0.06)',
-            border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', cursor: 'pointer', flexShrink: 0,
-          }}
-          aria-label="Share"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-        </button>
+        {match && (
+          <ShareButton
+            url={`https://padelnachos.com/match/${match.id}`}
+            title={`${pair1Label} vs ${pair2Label}`}
+            text={[
+              `${pair1Label} vs ${pair2Label}`,
+              (() => {
+                const scores = (match.sets ?? [])
+                  .sort((a: any, b: any) => a.set_number - b.set_number)
+                  .map((s: any) => {
+                    const parsed = parseSetScore(s.set_score) ?? parseSetFromGames(s.pair1_games, s.pair2_games)
+                    return parsed ? `${parsed.p1}-${parsed.p2}` : null
+                  })
+                  .filter(Boolean)
+                  .join(', ')
+                const status = isLive ? 'LIVE' : isFinished ? 'Final' : 'Upcoming'
+                return scores ? `${status}: ${scores}` : status
+              })(),
+              [(match as any).tournament?.name ?? '', (match as any).round ?? ''].filter(Boolean).join(' · '),
+            ].filter(Boolean).join('\n')}
+            imageUrl={`/match/${match.id}/opengraph-image`}
+          />
+        )}
       </div>
 
       {/* ── Winner banner ────────────────────────────────────────────── */}
@@ -1258,16 +1164,6 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         )
       })()}
     </main>
-    {shareToast && (
-      <div style={{
-        position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
-        background: '#7ED321', color: '#000', padding: '8px 20px',
-        borderRadius: 8, fontSize: 13, fontWeight: 700, zIndex: 1000,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-      }}>
-        {tMatch('linkCopied')}
-      </div>
-    )}
     <BettingFooterDisclaimer />
     </>
   )

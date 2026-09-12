@@ -647,7 +647,15 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             {tPlayer('playerProfile')}
           </div>
-          <div style={{ width: 36 }} />
+          {/* Sits in the slot that was a 36px spacer for centring the
+              title. Keeping it out of the hero matters: there it stole
+              width from the name block, which is the flexible element,
+              and a two-word name started wrapping. */}
+          <ShareButton
+            url={buildShareUrl(locale, player.id)}
+            title={titleCase(player.display_name?.trim() || player.name)}
+            imageUrl={`/player/${player.id}/opengraph-image`}
+          />
         </div>
 
         {/* ── HERO ────────────────────────────────────────────── */}
@@ -715,7 +723,6 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
               </div>
             </div>
             {/* Follow button */}
-            <ShareButton url={buildShareUrl(locale, player.id)} />
             <FollowButton type="player" targetId={player.id} variant="follow" />
           </div>
 
