@@ -9,6 +9,8 @@ import { Widget, Last10SparkBar } from '../Widget'
 import { PlaysWithCard, type PlaysWithRacket } from '../PlaysWithCard'
 import { SuggestChangesSheet } from '@/components/SuggestChangesSheet'
 import { ClaimProfileRow } from '@/components/ClaimProfileRow'
+import { EditMyPlayerSheet } from '@/components/EditMyPlayerSheet'
+import { useMyPlayer } from '@/hooks/useMyPlayer'
 import type { AmateurProfileData } from '@/lib/amateur-profile'
 import type { AmateurPlayer } from '../AmateurProfile'
 
@@ -17,9 +19,14 @@ const RED = '#FF4655'
 const ORANGE = '#F5A623'
 const MUTED = '#8A8A8A'
 
-export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; data: AmateurProfileData; racket: PlaysWithRacket | null }) {
+export function SummaryTab({ player, data, racket, racketLoaded }: { player: AmateurPlayer; data: AmateurProfileData; racket: PlaysWithRacket | null; racketLoaded: boolean }) {
   const t = useTranslations('amateur')
   const [suggestOpen, setSuggestOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const mine = useMyPlayer()
+  // O botão só existe para o dono do perfil. Visitante não vê nada — não há
+  // modo de edição desabilitado, há ausência.
+  const isMine = mine.status === 'linked' && mine.player.id === player.id
 
   const { games, record, usualCourt, partners } = data
   const nameById = new Map(data.roster.map(r => [r.playerId, r.name]))
@@ -125,6 +132,25 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
         </Widget>
       )}
 
+      {/* racketLoaded, não `racket != null`: enquanto a busca não volta, "ainda
+          não sei" e "não tem raquete" são o mesmo `null`. Abrir a folha nesse
+          estado e salvar mandaria racketId:null, que a API trata como limpar —
+          e apagaria a raquete da pessoa. */}
+      {isMine && racketLoaded && (
+        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            onClick={() => setEditOpen(true)}
+            style={{
+              background: 'none', border: `1px solid ${ORANGE}`, color: ORANGE,
+              padding: '5px 12px', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              textTransform: 'uppercase', letterSpacing: 0.5, font: 'inherit',
+            }}
+          >
+            {t('editCta')}
+          </button>
+        </div>
+      )}
+
       <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8, border: '1px dashed #2A2A2A', padding: '9px 10px' }}>
         <div style={{ flex: 1, fontSize: 10, color: MUTED }}>
           {t('suggestPrompt')}{' '}
@@ -162,6 +188,14 @@ export function SummaryTab({ player, data, racket }: { player: AmateurPlayer; da
           hand: player.hand,
           side: player.side,
         }}
+      />
+
+      <EditMyPlayerSheet
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        initialSide={player.side === 'drive' || player.side === 'backhand' ? player.side : null}
+        initialRacketId={racket?.id ?? null}
+        onSaved={() => window.location.reload()}
       />
     </div>
   )

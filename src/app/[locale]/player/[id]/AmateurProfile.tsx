@@ -64,6 +64,10 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
   const [imgError, setImgError] = useState(false)
   const [seasons, setSeasons] = useState<AmateurSeasonRef[]>([])
   const [racket, setRacket] = useState<PlaysWithRacket | null>(null)
+  // Distinto de `racket == null`, que também é o estado antes da resposta
+  // chegar. Sem isso, o editor não teria como saber se "sem raquete" é real
+  // ou só ainda não sabe — ver EditMyPlayerSheet / SummaryTab.
+  const [racketLoaded, setRacketLoaded] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -74,10 +78,18 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
       .is('ended_at', null)
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return
         const row = data as unknown as { racket: PlaysWithRacket | null } | null
         setRacket(row?.racket ?? null)
+        // `racketLoaded` só vira true quando a consulta SUCEDEU. O cliente do
+        // Supabase não rejeita a promise em erro de consulta — resolve com
+        // `{data: null, error}`. Ignorar o `error` faria uma falha transitória
+        // parecer "esta pessoa não tem raquete", e aí o botão Editar apareceria
+        // com a raquete já zerada: salvar apagaria a raquete real.
+        // Em erro, o botão simplesmente não aparece. Falhar fechado aqui custa
+        // uma funcionalidade indisponível; falhar aberto custa o dado.
+        if (!error) setRacketLoaded(true)
       })
     return () => { cancelled = true }
   }, [player.id])
@@ -264,7 +276,7 @@ export default function AmateurProfile({ player }: { player: AmateurPlayer }) {
               activeKey={activeTab}
               onChange={setActiveTab}
             />
-            {activeTab === 'summary' && <SummaryTab player={player} data={data} racket={racket} />}
+            {activeTab === 'summary' && <SummaryTab player={player} data={data} racket={racket} racketLoaded={racketLoaded} />}
             {activeTab === 'season' && <AmateurSeasonTab playerId={player.id} data={data} seasons={seasons} />}
             {activeTab === 'team' && <TeamTab data={data} />}
           </>
