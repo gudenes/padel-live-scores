@@ -6,6 +6,7 @@ import {
   pickDefaultProjectionPair,
   roundDateFor,
   buildRoadVM,
+  buildRoundScheduleFromMatches,
   mergeImagesIntoLookup,
   ROUND_LABEL_KEY,
 } from '@/lib/projection-view'
@@ -42,6 +43,47 @@ describe('roundDateFor', () => {
     expect(roundDateFor('F', sched)).toBe('2026-06-10')
     expect(roundDateFor('SF', null)).toBeNull()
     expect(roundDateFor('QF', { sf: 'x' })).toBeNull()
+  })
+})
+
+describe('buildRoundScheduleFromMatches', () => {
+  // The Malaga P1 bug: FIP round_schedule scraped r32 as 2026-07-16, but every
+  // actual R32 match is scheduled 2026-07-14. Real match dates must win.
+  it('overrides the FIP fallback with the actual match date for a round', () => {
+    const fallback = { r64: '2026-07-13', r32: '2026-07-16', qf: '2026-07-17' }
+    const matches = [
+      { round: 'R32', scheduled_at: '2026-07-14T11:00:00+00:00' },
+      { round: 'R32', scheduled_at: '2026-07-14T13:00:00+00:00' },
+    ]
+    const sched = buildRoundScheduleFromMatches(matches, fallback)
+    expect(sched.r32).toBe('2026-07-14T11:00:00+00:00') // earliest R32 match, not Jul 16
+    expect(sched.r64).toBe('2026-07-13') // fallback kept — no R64 match date supplied
+    expect(sched.qf).toBe('2026-07-17')
+  })
+
+  it('fills a round missing from the fallback (e.g. r16 dropped by the scrape)', () => {
+    const fallback = { r32: '2026-07-14' }
+    const matches = [{ round_canonical: 'R16', scheduled_at: '2026-07-15T10:00:00+00:00' }]
+    const sched = buildRoundScheduleFromMatches(matches, fallback)
+    expect(sched.r16).toBe('2026-07-15T10:00:00+00:00')
+  })
+
+  it('keeps the fallback for a round whose matches have no date yet', () => {
+    const fallback = { r16: '2026-07-15' }
+    const matches = [{ round: 'R16', scheduled_at: null }]
+    const sched = buildRoundScheduleFromMatches(matches, fallback)
+    expect(sched.r16).toBe('2026-07-15')
+  })
+
+  it('prefers round_canonical over round and recognises FIP long labels', () => {
+    const matches = [{ round: 'garbage', round_canonical: 'Round of 32', scheduled_at: '2026-07-14T09:00:00+00:00' }]
+    const sched = buildRoundScheduleFromMatches(matches, null)
+    expect(sched.r32).toBe('2026-07-14T09:00:00+00:00')
+  })
+
+  it('ignores unrecognised rounds and returns fallback when no matches match', () => {
+    const sched = buildRoundScheduleFromMatches([{ round: 'Q1', scheduled_at: '2026-07-11T09:00:00+00:00' }], { f: '2026-07-19' })
+    expect(sched).toEqual({ f: '2026-07-19' })
   })
 })
 
