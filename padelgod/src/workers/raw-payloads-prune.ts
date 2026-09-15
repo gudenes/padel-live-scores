@@ -29,6 +29,25 @@ import type { Logger } from 'pino';
  * id list, and progress is guaranteed because the oldest candidate row
  * is always strictly older than windowEnd.
  *
+ * ...and the second wall behind the first
+ * ---------------------------------------
+ * Fixing the URL was not enough. The first live run STILL deleted zero
+ * rows: PostgREST authenticates as `authenticator`, which carries
+ * `statement_timeout = 8s` (and `lock_timeout = 8s`), and a 24h window
+ * was ~23k rows — too much for that budget on a cold cache. Measured on
+ * production during the backlog clear, 5k-row deletes ranged from 0.3s
+ * to 4.7s, so 23k in 8s was never achievable.
+ *
+ * Hence the halving: on a timeout the window is halved and the SAME batch
+ * retried, down to MIN_WINDOW_MS. A heavy night now degrades to slower
+ * progress instead of a silent no-op — which is the whole lesson of this
+ * worker's history. `windowShrinks` and `finalWindowHours` in the result
+ * make the backoff visible in the logs rather than invisible.
+ *
+ * Note the asymmetry: a direct DB connection gets `statement_timeout =
+ * 120s`, so one-off backlog clears are far better run through psql/pg
+ * than through this worker.
+ *
  * Recurring daily prune uses plain DELETE; autovacuum reuses the freed
  * space so steady-state stays flat. The existing ~18 GB backlog is
  * reclaimed to disk by a one-time VACUUM FULL (see the reclaim runbook),
@@ -45,12 +64,13 @@ export interface RawPayloadsPruneDeps {
   logger?: Logger;
   /** Delete rows older than this many days. Default 14. */
   retentionDays?: number;
-  /** Size of each delete's time slice, in hours. Default 24 — roughly a
-   *  day of inflow (~35k rows) per statement. Lower it if a single day's
-   *  delete ever approaches the statement timeout. */
+  /** Starting size of each delete's time slice, in hours. Default 2 —
+   *  ~2k rows per statement, which measured at ~1s against production.
+   *  The run halves this on timeout, so this is an opening bid, not a
+   *  commitment. */
   windowHours?: number;
-  /** Safety cap on batches per run. Default 500 — at the 24h default that
-   *  is 500 days of backlog, far more than the archive can hold. */
+  /** Safety cap on batches per run. Default 500 — at the 2h default that
+   *  is ~41 days of backlog in one run. */
   maxBatches?: number;
   /** When true, only count candidates; delete nothing. */
   dryRun: boolean;
@@ -69,12 +89,42 @@ export interface RawPayloadsPruneResult {
    *  (partial run). Distinguishes an error-aborted run from clean
    *  completion in the logged result. */
   abortedEarly: boolean;
+  /** How many times a delete timed out and the window was halved. Non-zero
+   *  is normal on a heavy night; persistently non-zero means the starting
+   *  windowHours is too optimistic for the data. */
+  windowShrinks: number;
+  /** Window size the run finished on, in hours. Compare with the requested
+   *  windowHours to see how far it had to back off. */
+  finalWindowHours: number;
   dryRun: boolean;
 }
 
 const DEFAULT_RETENTION_DAYS = 14;
-const DEFAULT_WINDOW_HOURS = 24;
+const DEFAULT_WINDOW_HOURS = 2;
 const DEFAULT_MAX_BATCHES = 500;
+/** Floor for the halving. Below this a timeout means something is wrong
+ *  with the table, not with the batch size — abort and let a human look. */
+const MIN_WINDOW_MS = 5 * 60 * 1000;
+
+/**
+ * Postgres cancels on statement_timeout with SQLSTATE 57014. PostgREST
+ * surfaces it as a message, not always a code, so match both.
+ */
+function isTimeoutError(err: { message?: string; code?: string }): boolean {
+  if (err.code === '57014') return true;
+  const m = (err.message ?? '').toLowerCase();
+  return m.includes('statement timeout') || m.includes('canceling statement');
+}
+
+/**
+ * End bound for the next delete. Strictly greater than `oldestIso` — the
+ * probe only returns rows below the cutoff, so clamping to the cutoff can
+ * never land on or before the oldest row. That is what guarantees every
+ * batch removes at least one row and the loop cannot spin.
+ */
+function nextWindowEnd(oldestIso: string, windowMs: number, cutoffMs: number): string {
+  return new Date(Math.min(Date.parse(oldestIso) + windowMs, cutoffMs)).toISOString();
+}
 
 export async function runRawPayloadsPrune(
   deps: RawPayloadsPruneDeps,
@@ -92,6 +142,8 @@ export async function runRawPayloadsPrune(
     batchesRun: 0,
     hitMaxBatches: false,
     abortedEarly: false,
+    windowShrinks: 0,
+    finalWindowHours: windowHours,
     dryRun,
   };
 
@@ -111,7 +163,7 @@ export async function runRawPayloadsPrune(
   }
 
   const cutoffMs = Date.parse(cutoffIso);
-  const windowMs = windowHours * 3600 * 1000;
+  let windowMs = windowHours * 3600 * 1000;
 
   for (let batch = 0; batch < maxBatches; batch++) {
     // Oldest surviving candidate. One row, no id list — this is the only
@@ -131,31 +183,48 @@ export async function runRawPayloadsPrune(
     const oldestIso = (data ?? [])[0]?.captured_at as string | undefined;
     if (!oldestIso) break;  // nothing left older than the cutoff
 
-    // Strictly greater than oldestIso (oldest < cutoff is guaranteed by the
-    // probe filter), so every batch removes at least the oldest row and the
-    // loop cannot spin.
-    const windowEndIso = new Date(
-      Math.min(Date.parse(oldestIso) + windowMs, cutoffMs),
-    ).toISOString();
+    // Retry the SAME batch at a smaller window while deletes time out.
+    // Bounded: halving from the default reaches MIN_WINDOW_MS in ~5 steps,
+    // after which a timeout is treated as fatal.
+    let deleted: number | null = null;
+    for (;;) {
+      const windowEndIso = nextWindowEnd(oldestIso, windowMs, cutoffMs);
+      const { error: delErr, count } = await supabase
+        .schema('padelgod')
+        .from('raw_payloads')
+        .delete({ count: 'exact' })
+        .lt('captured_at', windowEndIso);
 
-    const { error: delErr, count } = await supabase
-      .schema('padelgod')
-      .from('raw_payloads')
-      .delete({ count: 'exact' })
-      .lt('captured_at', windowEndIso);
-    if (delErr) {
+      if (!delErr) {
+        deleted = count ?? 0;
+        break;
+      }
+
+      if (isTimeoutError(delErr) && windowMs > MIN_WINDOW_MS) {
+        windowMs = Math.max(Math.floor(windowMs / 2), MIN_WINDOW_MS);
+        result.windowShrinks += 1;
+        logger?.info(
+          { batch, windowEndIso, newWindowHours: windowMs / 3600_000 },
+          'raw-payloads-prune: delete timed out, halving window and retrying',
+        );
+        continue;
+      }
+
       logger?.warn(
-        { err: delErr.message, batch, windowEndIso },
+        { err: delErr.message, batch, windowEndIso, windowHours: windowMs / 3600_000 },
         'raw-payloads-prune: delete batch failed',
       );
       result.abortedEarly = true;
       break;
     }
+    if (deleted === null) break;   // aborted inside the retry loop
 
-    result.rowsDeleted += count ?? 0;
+    result.rowsDeleted += deleted;
     result.batchesRun += 1;
     if (batch === maxBatches - 1) result.hitMaxBatches = true;
   }
+
+  result.finalWindowHours = windowMs / 3600_000;
 
   logger?.info(result, 'raw-payloads-prune: done');
   return result;
