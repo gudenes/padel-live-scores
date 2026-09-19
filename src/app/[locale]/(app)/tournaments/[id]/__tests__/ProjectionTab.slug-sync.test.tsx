@@ -47,6 +47,15 @@ vi.mock('@/hooks/useProjectionVote', () => ({
   useProjectionVote: () => ({ yourVote: null, global: null, loading: false, vote: () => {} }),
 }))
 vi.mock('../ChampionSparkline', () => ({ default: () => null }))
+// All fixture rows here have length > 0, so ProjectionTab never actually
+// needs entries for its own phase logic — but every test passes
+// matches={[]} (the in-page prop shape used by the /projection SEO routes),
+// which unconditionally triggers the fetch. Mock it to stop the real
+// `supabase.from('tournament_entries')` call this test would otherwise fire.
+vi.mock('../useEntryList', () => ({
+  useEntryList: () => ({ entries: [], playerMap: {}, loading: false, error: false }),
+  useHasEntries: () => false,
+}))
 
 import ProjectionTab from '../ProjectionTab'
 

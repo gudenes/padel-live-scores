@@ -91,7 +91,15 @@ export default function ProjectionTab({
   // projection rows yet), and the /projection server routes, which pass
   // matches={[]} and so have no other source of seeds. Skip the fetch
   // otherwise — the in-page tab's `matches` already carries the seeds.
-  const needEntries = rows.length === 0 || matches.length === 0
+  // `!loading` gates the field-phase arm: useProjection starts as
+  // `{ rows: [], loading: true }`, so on the very first render
+  // `rows.length === 0` is true for EVERY caller before the projection fetch
+  // has even resolved — without the gate we'd fire a throwaway entries fetch
+  // on every mount of a tournament that already has projections. The
+  // matches.length === 0 arm stays ungated: those SEO routes always pass
+  // matches={[]} and need entries as their only seed source regardless of
+  // phase.
+  const needEntries = (!loading && rows.length === 0) || matches.length === 0
   const entryState = useEntryList(needEntries ? tournamentId : null)
   const categoryEntries = useMemo(
     () => entryState.entries.filter((e) => e.category === category),
