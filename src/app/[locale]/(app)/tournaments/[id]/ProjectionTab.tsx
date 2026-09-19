@@ -12,11 +12,13 @@ import HeroPhoto from './HeroPhoto'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 import { useProjectionVote } from '@/hooks/useProjectionVote'
-import { buildSeedMap } from '@/lib/projection-picker'
+import { buildSeedMap, seedMapFromEntries } from '@/lib/projection-picker'
 import { useProjection } from './useProjection'
 import { usePairImages } from './usePairImages'
 import ProjectionPickerList, { type ResolvedPlayer } from './ProjectionPickerList'
 import ChampionSparkline from './ChampionSparkline'
+import FieldView from './FieldView'
+import { useEntryList } from './useEntryList'
 import { buildSlugIndex, resolvePairSlug } from '@/lib/projection-slug'
 import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
@@ -85,7 +87,20 @@ export default function ProjectionTab({
   const [shareToast, setShareToast] = useState(false)
   const { rows, loading } = useProjection(tournamentId, category)
   const lookup = useMemo(() => buildPlayerLookup(matches), [matches])
-  const seedByPair = useMemo(() => buildSeedMap(matches), [matches])
+  // Entries are needed in exactly two cases: the pre-draw field phase (no
+  // projection rows yet), and the /projection server routes, which pass
+  // matches={[]} and so have no other source of seeds. Skip the fetch
+  // otherwise — the in-page tab's `matches` already carries the seeds.
+  const needEntries = rows.length === 0 || matches.length === 0
+  const entryState = useEntryList(needEntries ? tournamentId : null)
+  const categoryEntries = useMemo(
+    () => entryState.entries.filter((e) => e.category === category),
+    [entryState.entries, category],
+  )
+  const seedByPair = useMemo(
+    () => (matches.length > 0 ? buildSeedMap(matches) : seedMapFromEntries(categoryEntries)),
+    [matches, categoryEntries],
+  )
   const playerIds = useMemo(() => [...new Set(rows.flatMap((r) => r.pair_player_ids))], [rows])
   const images = usePairImages(playerIds)
   // Fold image-fetched names/countries/avatars into the lookup so the road VM
@@ -181,13 +196,18 @@ export default function ProjectionTab({
     return <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>…</div>
   }
 
+  // Phase `field` — no projection rows means the main draw isn't loaded far
+  // enough for the worker to forward-simulate (the ≥50%-of-leaves gate lives
+  // in tournament-projection-snapshot.ts, deliberately NOT reimplemented
+  // here). Show the entry list instead of an empty projection.
   if (rows.length === 0) {
     return (
-      <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-        <div style={{ fontSize: 30, marginBottom: 10 }}>🏆</div>
-        <div style={{ color: TEXT, fontSize: 15, fontWeight: 800, marginBottom: 6 }}>{t('lockedTitle')}</div>
-        <div style={{ color: SECONDARY, fontSize: 12, lineHeight: 1.5, maxWidth: 280, margin: '0 auto 16px' }}>{t('lockedBody')}</div>
-      </div>
+      <FieldView
+        entries={categoryEntries}
+        playerMap={entryState.playerMap}
+        loading={entryState.loading}
+        error={entryState.error}
+      />
     )
   }
 
