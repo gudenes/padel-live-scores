@@ -1689,6 +1689,7 @@
     "fieldSeeded": "Inscritos · Cabezas de serie",
     "fieldUnseeded": "Sin cabeza de serie",
     "fieldCombined": "Combinados",
+    "fieldPoints": "PTS",
     "fieldBestRank": "Mejor ranking",
     "fieldPathLocked": "Camino bloqueado",
     "fieldPathLockedBody": "Se abre cuando salga el cuadro principal.",

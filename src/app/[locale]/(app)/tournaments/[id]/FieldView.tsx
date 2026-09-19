@@ -1,6 +1,6 @@
 'use client'
 import { useMemo, useState, type CSSProperties } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useFormatter } from 'next-intl'
 import Avatar from '@/components/Avatar'
 import { FlagImage } from '@/components/FlagImage'
 import { Link } from '@/i18n/navigation'
@@ -24,18 +24,14 @@ function surnames(entry: FieldEntry): string {
     .join(' / ')
 }
 
-/** Stable identity for an entry row — the two player ids, or the names when
- *  padelgod hasn't resolved the players to rows yet. */
-function entryKey(entry: FieldEntry): string {
-  return `${entry.player1_id ?? entry.player1_name ?? '?'}::${entry.player2_id ?? entry.player2_name ?? '?'}`
-}
-
 function EntryRow({ entry, playerMap, rank, onPick }: {
   entry: FieldEntry
   playerMap: Record<string, PlayerHydration>
   rank: number | null
   onPick: () => void
 }) {
+  const t = useTranslations('projectionTab')
+  const format = useFormatter()
   const p1 = entry.player1_id ? playerMap[entry.player1_id] : undefined
   const p2 = entry.player2_id ? playerMap[entry.player2_id] : undefined
   const points = combinedPoints(entry)
@@ -44,6 +40,7 @@ function EntryRow({ entry, playerMap, rank, onPick }: {
     <div
       role="button"
       tabIndex={0}
+      className="pn-field-row"
       onClick={onPick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick() } }}
       style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', background: CARD, border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', clipPath: CHUNK_CARD, marginBottom: 6 }}
@@ -67,8 +64,8 @@ function EntryRow({ entry, playerMap, rank, onPick }: {
       </div>
       {points != null && (
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800, color: TEXT, lineHeight: 1 }}>{points.toLocaleString()}</div>
-          <div style={{ color: MUTED, fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>PTS</div>
+          <div style={{ fontFamily: MONO, fontSize: 15, fontWeight: 800, color: TEXT, lineHeight: 1 }}>{format.number(points)}</div>
+          <div style={{ color: MUTED, fontSize: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>{t('fieldPoints')}</div>
         </div>
       )}
     </div>
@@ -87,11 +84,12 @@ export default function FieldView({ entries, playerMap, loading, error }: {
   error: boolean
 }) {
   const t = useTranslations('projectionTab')
+  const format = useFormatter()
   const [selected, setSelected] = useState<string | null>(null)
 
   const { seeded, unseeded } = useMemo(() => partitionField(entries), [entries])
   const selectedEntry = useMemo(
-    () => entries.find((e) => entryKey(e) === selected) ?? null,
+    () => entries.find((e) => e.id === selected) ?? null,
     [entries, selected],
   )
   // Full-body photos for the hero banner. Only the selected pair is fetched.
@@ -135,7 +133,16 @@ export default function FieldView({ entries, playerMap, loading, error }: {
             {players.map((p, i) => {
               const img = p.id ? heroImages.get(p.id) : undefined
               const avatar = (p.id ? playerMap[p.id]?.avatar_url : null) ?? img?.avatarUrl ?? null
-              if (!p.id) return null
+              if (!p.id) {
+                // Unresolved player: no id means no HeroPhoto (it links to /player/<id>).
+                // Render the same fallback slot HeroPhoto uses for a missing photo, so
+                // the banner stays two-photos-wide instead of lopsided.
+                return (
+                  <div key={p.name} style={{ height: 130, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 12, marginLeft: i > 0 ? -38 : 0 }}>
+                    <Avatar src={null} alt={p.name as string} size={82} fallback={p.name?.[0]} unoptimized style={{ border: '2px solid rgba(255,255,255,0.12)' }} />
+                  </div>
+                )
+              }
               return <HeroPhoto key={p.id} id={p.id} name={p.name as string} photoUrl={img?.photoUrl ?? null} avatarUrl={avatar} overlap={i > 0} />
             })}
           </div>
@@ -163,7 +170,7 @@ export default function FieldView({ entries, playerMap, loading, error }: {
         <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
           <div style={{ flex: 1, background: CARD, border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', clipPath: CHUNK_CARD }}>
             <div style={{ color: MUTED, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('fieldCombined')}</div>
-            <div style={{ fontFamily: MONO, fontSize: 19, fontWeight: 900, color: TEXT, marginTop: 2 }}>{points != null ? points.toLocaleString() : '—'}</div>
+            <div style={{ fontFamily: MONO, fontSize: 19, fontWeight: 900, color: TEXT, marginTop: 2 }}>{points != null ? format.number(points) : '—'}</div>
           </div>
           <div style={{ flex: 1, background: CARD, border: '1px solid rgba(255,255,255,0.07)', padding: '10px 12px', clipPath: CHUNK_CARD }}>
             <div style={{ color: MUTED, fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 0.5 }}>{t('fieldBestRank')}</div>
@@ -197,7 +204,7 @@ export default function FieldView({ entries, playerMap, loading, error }: {
         <>
           <div style={SECTION_LABEL}>{t('fieldSeeded')}</div>
           {seeded.map((e) => (
-            <EntryRow key={entryKey(e)} entry={e} playerMap={playerMap} rank={e.seed} onPick={() => setSelected(entryKey(e))} />
+            <EntryRow key={e.id} entry={e} playerMap={playerMap} rank={e.seed} onPick={() => setSelected(e.id)} />
           ))}
         </>
       )}
@@ -206,7 +213,7 @@ export default function FieldView({ entries, playerMap, loading, error }: {
         <>
           <div style={{ ...SECTION_LABEL, marginTop: 18 }}>{t('fieldUnseeded')} · {unseeded.length}</div>
           {unseeded.map((e) => (
-            <EntryRow key={entryKey(e)} entry={e} playerMap={playerMap} rank={null} onPick={() => setSelected(entryKey(e))} />
+            <EntryRow key={e.id} entry={e} playerMap={playerMap} rank={null} onPick={() => setSelected(e.id)} />
           ))}
         </>
       )}

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import type { FieldEntry, PlayerHydration } from '@/lib/entry-field'
 
 interface EntryRow {
+  id: string
   category: 'men' | 'women'
   draw_type: string
   seed: number | null
@@ -80,7 +81,7 @@ export function useEntryList(tournamentId: string | null): EntryListState {
     ;(async () => {
       const { data, error } = await supabase
         .from('tournament_entries')
-        .select('category, draw_type, seed, marker, player1_id, player2_id, player1_name, player2_name, player1_country, player2_country, team_points')
+        .select('id, category, draw_type, seed, marker, player1_id, player2_id, player1_name, player2_name, player1_country, player2_country, team_points')
         .eq('tournament_id', tournamentId)
       if (cancelled) return
       if (error) {
@@ -93,6 +94,7 @@ export function useEntryList(tournamentId: string | null): EntryListState {
       // Ordering now lives in `partitionField` (src/lib/entry-field.ts) — the
       // old synthesized `draw_position` ordinal went away with EntryList.
       const entries: FieldEntry[] = rows.map((r) => ({
+        id: r.id,
         seed: r.seed,
         marker: r.marker,
         category: r.category,

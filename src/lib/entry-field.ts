@@ -7,6 +7,7 @@
 
 /** One pair on the entry list. Mirrors the columns `useEntryList` selects. */
 export interface FieldEntry {
+  id: string
   seed: number | null
   marker: string | null
   category: 'men' | 'women'

@@ -769,3 +769,10 @@ button:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   .pn-vote-pop, .pn-vote-thanks { animation: none !important; }
 }
+
+/* Entries-tab field-list row: clip-path removes the default focus outline,
+   so give keyboard focus a visible treatment that survives the clip. */
+.pn-field-row:focus-visible {
+  background: rgba(126,211,33,0.10);
+  border-color: rgba(126,211,33,0.45);
+}

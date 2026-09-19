@@ -1721,6 +1721,7 @@
     "fieldSeeded": "The field · Seeded",
     "fieldUnseeded": "Unseeded",
     "fieldCombined": "Combined",
+    "fieldPoints": "PTS",
     "fieldBestRank": "Best rank",
     "fieldPathLocked": "Path locked",
     "fieldPathLockedBody": "Opens when the main draw is released.",

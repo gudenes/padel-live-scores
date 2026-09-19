@@ -3,6 +3,7 @@ import { partitionField, combinedPoints, bestRank, type FieldEntry } from '@/lib
 
 function entry(over: Partial<FieldEntry> = {}): FieldEntry {
   return {
+    id: 'e1',
     seed: null,
     marker: null,
     category: 'men',
