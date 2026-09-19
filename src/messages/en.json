@@ -1713,7 +1713,19 @@
     "shareTextContender": "{pair}'s road to the title at {name} is ready 🏆 See the projected path:",
     "shareTextChampion": "Champions at {name}! 🏆 See the road they took:",
     "shareTextEliminated": "Their {name} run — see the projected road:",
-    "shareCopied": "Link copied"
+    "shareCopied": "Link copied",
+    "fieldTitle": "Who's in the hunt",
+    "fieldSubtitle": "{count} pairs entered",
+    "fieldOddsNote": "Odds open when the draw is released.",
+    "fieldOddsNoteBody": "Until then, this is the field by ranking.",
+    "fieldSeeded": "The field · Seeded",
+    "fieldUnseeded": "Unseeded",
+    "fieldCombined": "Combined",
+    "fieldBestRank": "Best rank",
+    "fieldPathLocked": "Path locked",
+    "fieldPathLockedBody": "Opens when the main draw is released.",
+    "fieldError": "Couldn't load the entry list. Try again.",
+    "fieldEmpty": "The entry list for this event is being prepared. Check back soon."
   },
   "pro": {
     "hero": {

@@ -1681,7 +1681,19 @@
     "shareTextContender": "La route vers le titre de {pair} à {name} est prête 🏆 Découvrez le parcours projeté :",
     "shareTextChampion": "Champions à {name} ! 🏆 Découvrez le parcours accompli :",
     "shareTextEliminated": "Leur parcours à {name} — découvrez la route projetée :",
-    "shareCopied": "Lien copié"
+    "shareCopied": "Lien copié",
+    "fieldTitle": "Qui vise le titre",
+    "fieldSubtitle": "{count} paires inscrites",
+    "fieldOddsNote": "Les probabilités s'ouvrent à la sortie du tableau.",
+    "fieldOddsNoteBody": "D'ici là, voici les inscrits classés par classement.",
+    "fieldSeeded": "Inscrits · Têtes de série",
+    "fieldUnseeded": "Sans tête de série",
+    "fieldCombined": "Cumulés",
+    "fieldBestRank": "Meilleur rang",
+    "fieldPathLocked": "Parcours verrouillé",
+    "fieldPathLockedBody": "S'ouvre à la publication du tableau principal.",
+    "fieldError": "Impossible de charger la liste des inscrits. Réessayez.",
+    "fieldEmpty": "La liste des inscrits de cet événement est en préparation. Revenez bientôt."
   },
   "pro": {
     "hero": {
