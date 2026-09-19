@@ -1611,12 +1611,12 @@
   "projectionTab": {
     "roadToTrophy": "Strada verso il titolo",
     "champion": "campione",
-    "winsToLift": "{count} vittorie per alzarlo",
+    "winsToLift": "{count, plural, one {# vittoria per alzarlo} other {# vittorie per alzarlo}}",
     "tracking": "Segui",
     "live": "Dal vivo",
     "toFace": "{pct}% di affrontare",
     "reach": "arriva {pct}%",
-    "morePossible": "+{count} possibili avversari · tocca",
+    "morePossible": "{count, plural, one {+# possibile avversario · tocca} other {+# possibili avversari · tocca}}",
     "possibleOpponentsHeading": "Possibili avversari",
     "byeOrUnknown": "Avversario da definire",
     "eliminatedIn": "Eliminato ai {round}",
@@ -1681,7 +1681,20 @@
     "shareTextContender": "La strada verso il titolo di {pair} a {name} è pronta 🏆 Guarda il percorso previsto:",
     "shareTextChampion": "Campioni a {name}! 🏆 Guarda il percorso compiuto:",
     "shareTextEliminated": "Il loro cammino a {name} — guarda il percorso previsto:",
-    "shareCopied": "Link copiato"
+    "shareCopied": "Link copiato",
+    "fieldTitle": "Chi punta al titolo",
+    "fieldSubtitle": "{count, plural, one {# coppia iscritta} other {# coppie iscritte}}",
+    "fieldOddsNote": "Le probabilità si aprono quando esce il tabellone.",
+    "fieldOddsNoteBody": "Fino ad allora, questo è l'elenco degli iscritti per ranking.",
+    "fieldSeeded": "Iscritti · Teste di serie",
+    "fieldUnseeded": "Senza testa di serie",
+    "fieldCombined": "Combinati",
+    "fieldPoints": "PTI",
+    "fieldBestRank": "Miglior ranking",
+    "fieldPathLocked": "Percorso bloccato",
+    "fieldPathLockedBody": "Si apre quando viene pubblicato il tabellone principale.",
+    "fieldError": "Impossibile caricare l'elenco degli iscritti. Riprova.",
+    "fieldEmpty": "L'elenco degli iscritti per questo evento è in preparazione. Torna presto."
   },
   "pro": {
     "hero": {

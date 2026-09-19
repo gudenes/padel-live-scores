@@ -2,9 +2,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import type { DrawEntry, PlayerHydration } from '@/components/EntryList'
+import type { FieldEntry, PlayerHydration } from '@/lib/entry-field'
 
 interface EntryRow {
+  id: string
   category: 'men' | 'women'
   draw_type: string
   seed: number | null
@@ -19,7 +20,7 @@ interface EntryRow {
 }
 
 export interface EntryListState {
-  entries: DrawEntry[]
+  entries: FieldEntry[]
   playerMap: Record<string, PlayerHydration>
   loading: boolean
   error: boolean
@@ -56,11 +57,23 @@ export function useHasEntries(tournamentId: string | null): boolean {
   return hasEntries
 }
 
-/** Reads tournament_entries (RLS public read) + hydrates player avatars/rankings. */
-export function useEntryList(tournamentId: string): EntryListState {
-  const [state, setState] = useState<EntryListState>({ entries: [], playerMap: {}, loading: true, error: false })
+/**
+ * Reads tournament_entries (RLS public read) + hydrates player avatars/rankings.
+ * Pass null to skip the fetch entirely — correct only when the caller already
+ * has another source for pairs and seeds (a non-empty `matches` array). Draw
+ * state alone is NOT the condition: the standalone /projection routes pass
+ * matches={[]} and still need entries post-draw, since that's their only
+ * source of main-draw seeds.
+ */
+export function useEntryList(tournamentId: string | null): EntryListState {
+  const [state, setState] = useState<EntryListState>({ entries: [], playerMap: {}, loading: tournamentId != null, error: false })
 
   useEffect(() => {
+    if (!tournamentId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- skip path, no fetch
+      setState({ entries: [], playerMap: {}, loading: false, error: false })
+      return
+    }
     let cancelled = false
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset before async fetch
     setState({ entries: [], playerMap: {}, loading: true, error: false })
@@ -68,7 +81,7 @@ export function useEntryList(tournamentId: string): EntryListState {
     ;(async () => {
       const { data, error } = await supabase
         .from('tournament_entries')
-        .select('category, draw_type, seed, marker, player1_id, player2_id, player1_name, player2_name, player1_country, player2_country, team_points')
+        .select('id, category, draw_type, seed, marker, player1_id, player2_id, player1_name, player2_name, player1_country, player2_country, team_points')
         .eq('tournament_id', tournamentId)
       if (cancelled) return
       if (error) {
@@ -78,13 +91,10 @@ export function useEntryList(tournamentId: string): EntryListState {
       }
       const rows = (data ?? []) as EntryRow[]
 
-      // Synthesize draw_position: sort by seed (nulls last) then team_points
-      // desc, assign an ordinal. This is a display ordinal only — never a real
-      // bracket position (there is no draw yet at entry-list time).
-      const strength = (r: EntryRow) => (r.seed != null ? r.seed : 1000 - (r.team_points ?? 0) / 1e6)
-      const sorted = [...rows].sort((a, b) => strength(a) - strength(b))
-      const entries: DrawEntry[] = sorted.map((r, i) => ({
-        draw_position: i + 1,
+      // Ordering now lives in `partitionField` (src/lib/entry-field.ts) — the
+      // old synthesized `draw_position` ordinal went away with EntryList.
+      const entries: FieldEntry[] = rows.map((r) => ({
+        id: r.id,
         seed: r.seed,
         marker: r.marker,
         category: r.category,

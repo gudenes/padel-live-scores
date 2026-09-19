@@ -1643,12 +1643,12 @@
   "projectionTab": {
     "roadToTrophy": "Road to the trophy",
     "champion": "champion",
-    "winsToLift": "{count} wins to lift it",
+    "winsToLift": "{count, plural, one {# win to lift it} other {# wins to lift it}}",
     "tracking": "Tracking",
     "live": "Live",
     "toFace": "{pct}% to face",
     "reach": "reach {pct}%",
-    "morePossible": "+{count} possible opponents · tap",
+    "morePossible": "{count, plural, one {+# possible opponent · tap} other {+# possible opponents · tap}}",
     "possibleOpponentsHeading": "Possible opponents",
     "byeOrUnknown": "Opponent TBD",
     "eliminatedIn": "Eliminated in {round}",
@@ -1713,7 +1713,20 @@
     "shareTextContender": "{pair}'s road to the title at {name} is ready 🏆 See the projected path:",
     "shareTextChampion": "Champions at {name}! 🏆 See the road they took:",
     "shareTextEliminated": "Their {name} run — see the projected road:",
-    "shareCopied": "Link copied"
+    "shareCopied": "Link copied",
+    "fieldTitle": "Who's in the hunt",
+    "fieldSubtitle": "{count, plural, one {# pair entered} other {# pairs entered}}",
+    "fieldOddsNote": "Odds open when the draw is released.",
+    "fieldOddsNoteBody": "Until then, this is the field by ranking.",
+    "fieldSeeded": "The field · Seeded",
+    "fieldUnseeded": "Unseeded",
+    "fieldCombined": "Combined",
+    "fieldPoints": "PTS",
+    "fieldBestRank": "Best rank",
+    "fieldPathLocked": "Path locked",
+    "fieldPathLockedBody": "Opens when the main draw is released.",
+    "fieldError": "Couldn't load the entry list. Try again.",
+    "fieldEmpty": "The entry list for this event is being prepared. Check back soon."
   },
   "pro": {
     "hero": {

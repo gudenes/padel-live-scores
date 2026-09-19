@@ -30,6 +30,26 @@ export function buildSeedMap(matches: Match[]): Map<string, number> {
   return map
 }
 
+/** Minimal shape needed to read a seed off an entry-list row. */
+export interface SeedBearingEntry {
+  seed: number | null
+  player1_id: string | null
+  player2_id: string | null
+}
+
+/** pair_key → seed, derived from `tournament_entries`. Used where `matches` is
+ *  empty (the /projection server routes) and pre-draw, where no match rows
+ *  exist yet at all. Entry-list seeds are main-draw seeds by construction, so
+ *  there is no qualifying-seed leak to guard against here. */
+export function seedMapFromEntries(entries: SeedBearingEntry[]): Map<string, number> {
+  const map = new Map<string, number>()
+  for (const e of entries) {
+    if (e.seed == null || !e.player1_id || !e.player2_id) continue
+    map.set(pairKeyFromIds(e.player1_id, e.player2_id), e.seed)
+  }
+  return map
+}
+
 export interface OrderedPicker {
   feature: ProjectionRow[]
   rest: ProjectionRow[]
