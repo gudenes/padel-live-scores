@@ -1940,6 +1940,7 @@ function StatsTab({
     p1: 'Premier Padel', p2: 'Premier Padel', major: 'Premier Padel', finals: 'Premier Padel',
     wpt_master: 'World Padel Tour', wpt_1000: 'World Padel Tour', wpt_500: 'World Padel Tour', wpt_final: 'World Padel Tour',
     fip_platinum: 'FIP', fip_gold: 'FIP', fip_other: 'FIP',
+    ppl: 'PPL', ppl_ii: 'PPL',
   }
   const circuitMap = new Map<string, { wins: number; losses: number }>()
   for (const m of derived.finished) {
@@ -1953,7 +1954,7 @@ function StatsTab({
     if (won) entry.wins++; else entry.losses++
     circuitMap.set(circuit, entry)
   }
-  const CIRCUIT_ORDER = ['Premier Padel', 'World Padel Tour', 'FIP', 'Other']
+  const CIRCUIT_ORDER = ['Premier Padel', 'World Padel Tour', 'FIP', 'PPL', 'Other']
   const circuits = [...circuitMap.entries()].sort((a, b) => {
     const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
     const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)
