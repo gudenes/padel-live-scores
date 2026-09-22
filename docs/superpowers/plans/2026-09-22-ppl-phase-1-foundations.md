@@ -963,6 +963,26 @@ Summarise: tests added, gates closed, and the fact that the migration is written
 
 ---
 
+## Discovered during execution (2026-09-22)
+
+**The plan missed a mirror.** `apps/ops` is a separate npm package whose tsconfig resolves `@/*` to its own `./src/*`, so it does not import from the root `src/`. It carries a **byte-identical copy of `src/lib/match-quality.ts`**, which the ops highlight picker consumes via `@/lib/match-quality`.
+
+Task 6 added the PPL tier weights to the root copy only. That left the ops highlight picker still scoring a team-league match at the `fip_silver` fallback — the exact bug Task 6 exists to prevent, surviving in the admin surface.
+
+Fixed in commit `f35f3b2d8`: the mirror was re-synced and an identity test added to `src/lib/__tests__/match-quality-league.test.ts`. The test lives in the root suite deliberately — `apps/ops` has no installed test harness, so an assertion placed there would never run.
+
+**Generalisation for later phases:** before changing anything under `src/lib/`, check for copies:
+
+```bash
+find apps padelgod relay -name "<file>.ts" -not -path "*/node_modules/*"
+```
+
+Then confirm whether each copy was byte-identical on `origin/main` (a maintained mirror that must be updated) or already divergent (an independent copy that must not be touched).
+
+Two known cases as of this phase:
+- `apps/ops/src/lib/match-quality.ts` — **maintained mirror**, now test-enforced
+- `apps/ops/src/lib/earnings/types.ts` — **already divergent** on `origin/main` (pre-existing drift; it carries its own `EarningTerminalCode`). Task 7's comment-only change was not propagated. Its `tierFromLevel` still has the same `default: return null`, so the money surface is protected on both sides — but the drift is untested and will widen.
+
 ## Deliberately not in this phase
 
 - **`model-prediction-snapshot.ts` and `tournament-projection-snapshot.ts` are not modified.** Their unfiltered training reads are fixed centrally by Task 3. Filtering at the call sites too would be redundant and would leave the backtest harness — which has the same bug — still exposed.
