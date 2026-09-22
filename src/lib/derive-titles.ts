@@ -1,4 +1,5 @@
 import { resolveMatchRoles, type MatchPlayer } from './match-roles'
+import { isLeagueLevel } from './league-levels'
 
 export interface MatchRowForTitles {
   id: string
@@ -45,6 +46,9 @@ export function deriveTitles(
   const seen = new Set<string>()
   for (const m of matches) {
     if (m.round !== 'F') continue
+    // Winning a team-league final is not a career title — different
+    // competition, different format.
+    if (isLeagueLevel(m.tournament?.level)) continue
     if (!m.tournament?.id) continue
     if (seen.has(m.tournament.id)) continue
     const roles = resolveMatchRoles(m, playerId)
