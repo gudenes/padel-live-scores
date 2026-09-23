@@ -149,7 +149,7 @@ async function main() {
     console.log(`\n  starter map file:\n${JSON.stringify(suggestion, null, 2)}`)
   }
 
-  const ties = tournaments.reduce((n, t) => n + new Set(t.matches.map((m) => `${m.stage}|${m.sessionNumber}`)).size, 0)
+  const ties = tournaments.reduce((n, t) => n + new Set(t.matches.map((m) => `${m.stage}|${m.sessionNumber ?? ''}|${m.homeTeamSlug}|${m.awayTeamSlug}`)).size, 0)
   const totalMatches = tournaments.reduce((n, t) => n + t.matches.length, 0)
   console.log(`\n=== EVENTS ===`)
   console.log(`  tournaments : ${tournaments.length}`)
@@ -301,15 +301,25 @@ async function main() {
       const awaySeason = seasonIdByKey.get(`${first.awayTeamSlug}|${t.league}`)
       if (!homeSeason || !awaySeason) { console.warn(`  tie: missing season for ${first.id}`); continue }
 
+      // Keyed on tie_key, a non-null natural key the importer composes:
+      //   "<stage>|<session or empty>|<homeSlug>|<awaySlug>"
+      // The first version keyed on (tournament_id, session_number, stage) and
+      // was wrong twice over: several franchise pairings share a session, so
+      // that key identifies a time SLOT not a confrontation — it collapsed 52
+      // ties into 20 and hung unrelated matches off the same row. It also
+      // needed partial indexes for the NULL session_number on podium ties,
+      // and PostgREST cannot infer a partial index in ON CONFLICT.
+      const tieKey = `${first.stage}|${first.sessionNumber ?? ''}|${first.homeTeamSlug}|${first.awayTeamSlug}`
       const { data: tie, error: tieErr } = await supabase
         .from('league_ties')
         .upsert({
           tournament_id: tournamentId,
+          tie_key: tieKey,
           session_number: first.sessionNumber,
           stage: first.stage,
           home_team_season_id: homeSeason,
           away_team_season_id: awaySeason,
-        }, { onConflict: first.sessionNumber == null ? 'tournament_id,stage' : 'tournament_id,session_number,stage' })
+        }, { onConflict: 'tournament_id,tie_key' })
         .select('id')
         .single()
       if (tieErr) throw new Error(`league_ties upsert failed (${first.id}): ${tieErr.message}`)
