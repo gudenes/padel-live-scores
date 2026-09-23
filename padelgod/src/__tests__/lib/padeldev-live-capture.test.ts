@@ -19,16 +19,22 @@ import { parsePadeldevScore } from '../../lib/padeldev-score.js';
 import { diffLiveState } from '../../lib/live-state.js';
 import type { PadeldevMatchFeed } from '../../lib/padeldev-types.js';
 
-const DIR = path.join(__dirname, '../fixtures/padeldev/timeseries');
+// One JSONL record per DISTINCT observed state, deduped on
+// (match, score value, starpoint, serving). The unused `points` / `stats` /
+// `chart*` blocks are stripped — they were ~70% of the bytes and v1 reads
+// neither. Six full payloads live alongside as *.json for the deferred stats
+// work, which needs the `stats` block intact.
+const CAPTURE = path.join(__dirname, '../fixtures/padeldev/live-capture.jsonl');
 
 function load(): Array<{ name: string; feed: PadeldevMatchFeed }> {
-  if (!fs.existsSync(DIR)) return [];
+  if (!fs.existsSync(CAPTURE)) return [];
   return fs
-    .readdirSync(DIR)
-    .filter((f) => f.endsWith('.json'))
-    .map((name) => ({
-      name,
-      feed: JSON.parse(fs.readFileSync(path.join(DIR, name), 'utf8')) as PadeldevMatchFeed,
+    .readFileSync(CAPTURE, 'utf8')
+    .split('\n')
+    .filter((l) => l.trim().length > 0)
+    .map((line, i) => ({
+      name: `capture#${i}`,
+      feed: JSON.parse(line) as PadeldevMatchFeed,
     }));
 }
 
@@ -48,7 +54,33 @@ function byMatch(): Map<string, PadeldevMatchFeed[]> {
 
 describe('padeldev captured live traffic', () => {
   it('captured a usable sample', () => {
-    expect(SNAPSHOTS.length).toBeGreaterThan(20);
+    expect(SNAPSHOTS.length).toBeGreaterThan(300);
+  });
+
+  /**
+   * Honest record of what this capture does NOT cover, so the gap is visible
+   * rather than mistaken for verified behaviour.
+   *
+   * Across ~90 minutes of Lyon play no set reached 6-6, so the tiebreak branch
+   * of the adapter (inferring `insideTiebreak` from a 6-6 current set) is
+   * REASONED, NOT OBSERVED. If a tiebreak's point labels turn out not to be
+   * plain integers, that path will throw and the affected row will be skipped
+   * for the duration of the tiebreak — the same failure webtuga's v1 has.
+   *
+   * This test asserts the gap still exists; if a future capture includes a 6-6
+   * set it will fail, which is the prompt to verify the branch for real.
+   */
+  it('documents that no tiebreak was observed (inferred path, unverified)', () => {
+    const tiebreaks = SNAPSHOTS.filter(
+      (s) => (s.feed.score?.value ?? '').split(/\s+/)[1] === '6/6',
+    );
+    expect(tiebreaks.length).toBe(0);
+  });
+
+  it('documents that no finished state was captured mid-sample', () => {
+    // The sampler skipped finished matches, so finished-state handling is
+    // covered by the separate finished_*.json fixtures, not by this replay.
+    expect(SNAPSHOTS.every((s) => Number(s.feed.isfinished) === 0)).toBe(true);
   });
 
   it('adapts every captured snapshot without throwing', () => {

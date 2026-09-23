@@ -203,9 +203,22 @@ traffic caught them**. Both would have shipped as silent corruption.
    **every deuce and advantage** in every match. The field is now ignored outright.
    This event uses traditional advantage scoring.
 
-These are locked in by `padeldev-live-capture.test.ts`, which replays 55 real
-snapshots. Lyon is finite — once it ends this traffic cannot be re-captured, so those
-fixtures are the durable record of how the feed behaves.
+These are locked in by `padeldev-live-capture.test.ts`, which replays **406 distinct
+captured states** (~90 minutes of play, deduped on match + score + starpoint + server).
+Lyon is finite — once it ends this traffic cannot be re-captured, so those fixtures are
+the durable record of how the feed behaves.
+
+### Known gaps in the capture
+
+- **No tiebreak was observed.** No set reached 6-6 during the sample, so the
+  `insideTiebreak` inference is *reasoned, not verified*. If tiebreak point labels
+  aren't plain integers, that path throws and the row is skipped for the duration of
+  the tiebreak — the same failure webtuga's v1 has. A test asserts the gap still
+  exists, so it fails loudly if a future capture covers it.
+- **No finished transition was captured** mid-sample; finished handling is covered by
+  the separate `finished_*.json` fixtures instead.
+- Six full payloads (`live_*.json`, `finished_*.json`) retain the `points` and `stats`
+  blocks, which the slim capture strips. They are the seed for the deferred stats work.
 
 ## Failure modes
 
