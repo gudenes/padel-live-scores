@@ -29,6 +29,12 @@ export interface ParsedPlayer {
 }
 
 export interface ParsedPair {
+  /**
+   * Which scoreboard row this pair is, 0 or 1. `ParsedSet.row0`/`row1` are
+   * indexed the same way, so the caller can orient scores to pairs without
+   * assuming an order.
+   */
+  rowIndex: 0 | 1
   /** Upstream franchise name, verbatim. The caller maps it onto a team_season. */
   team: string | null
   won: boolean
@@ -37,13 +43,24 @@ export interface ParsedPair {
 
 export interface ParsedSet {
   setNumber: number
-  home: number
-  away: number
+  /**
+   * Games for the FIRST scoreboard row and the SECOND, in page order.
+   *
+   * Deliberately NOT called home/away. The first version used those names,
+   * and the caller reasonably read "home" as the tie's home franchise while
+   * this file meant "the top row of the scoreboard". Those two disagree on
+   * most matches, which silently reversed every set score written on
+   * 2026-09-23. The names now say only what they are; orienting them to a
+   * pair is the caller's job, via ParsedPair.rowIndex.
+   */
+  row0: number
+  row1: number
 }
 
 export interface PctPair {
-  home: number | null
-  away: number | null
+  /** Same row ordering as ParsedSet — first scoreboard row, then second. */
+  row0: number | null
+  row1: number | null
 }
 
 export interface ParsedMatchStats {
@@ -58,7 +75,7 @@ export interface PplMatchResult {
   url: string
   isFinal: boolean
   durationSeconds: number | null
-  /** [0] is the first scoreboard row (home), [1] the second (away). */
+  /** In scoreboard row order; each carries its own `rowIndex`. */
   pairs: ParsedPair[]
   sets: ParsedSet[]
   stats: ParsedMatchStats
@@ -146,7 +163,7 @@ const STAT_LABELS: Array<[keyof ParsedMatchStats, string]> = [
 /** Each stat row is `43%|POINTS WON|57%`. */
 function parseStats(rows: string[]): ParsedMatchStats {
   const out = {} as ParsedMatchStats
-  for (const [key, label] of STAT_LABELS) out[key] = { home: null, away: null }
+  for (const [key, label] of STAT_LABELS) out[key] = { row0: null, row1: null }
   for (const row of rows) {
     const parts = row.split('|').map((x) => x.trim())
     if (parts.length < 3) continue
@@ -157,7 +174,7 @@ function parseStats(rows: string[]): ParsedMatchStats {
       const n = Number(v.replace('%', ''))
       return Number.isFinite(n) ? n : null
     }
-    out[hit[0]] = { home: num(parts[0]), away: num(parts[2]) }
+    out[hit[0]] = { row0: num(parts[0]), row1: num(parts[2]) }
   }
   return out
 }
@@ -172,10 +189,11 @@ export function parseMatchDom(raw: RawMatchDom): PplMatchResult {
 
   const cards = raw.playerCards.map((c) => parsePlayerCard(raw, c))
 
-  const pairs: ParsedPair[] = raw.scoreRows.map((row) => {
+  const pairs: ParsedPair[] = raw.scoreRows.map((row, rowIndex) => {
     const key = normTeam(row.team)
     if (!key) fail(raw, 'score row has no team name')
     return {
+      rowIndex: rowIndex as 0 | 1,
       team: row.team,
       won: row.winner,
       players: cards.filter((c) => normTeam(c.team) === key).map(({ team: _t, ...p }) => p),
@@ -214,12 +232,12 @@ export function parseMatchDom(raw: RawMatchDom): PplMatchResult {
   }
 
   const sets: ParsedSet[] = setCells[0].map((cell, i) => {
-    const home = Number(cell.v)
-    const away = Number(setCells[1][i].v)
-    if (!Number.isFinite(home) || !Number.isFinite(away)) {
+    const row0 = Number(cell.v)
+    const row1 = Number(setCells[1][i].v)
+    if (!Number.isFinite(row0) || !Number.isFinite(row1)) {
       fail(raw, `set ${i + 1} has a non-numeric score: "${cell.v}" / "${setCells[1][i].v}"`)
     }
-    return { setNumber: i + 1, home, away }
+    return { setNumber: i + 1, row0, row1 }
   })
 
   return {

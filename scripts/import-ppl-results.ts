@@ -83,6 +83,18 @@ function normTeam(s: string | null | undefined): string {
     .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
+/**
+ * `matches.duration` is TEXT and every existing row is HH:MM. Upstream gives
+ * HH:MM:SS; seconds are dropped rather than introducing a second format in
+ * the same column.
+ */
+function formatDuration(seconds: number | null): string | null {
+  if (seconds == null) return null
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 /** Any trailing "(…)" the page attached to a franchise name, e.g. "DQ". */
 function teamMarker(s: string | null | undefined): string | null {
   const m = (s ?? '').match(/\(([^)]*)\)\s*$/)
@@ -187,8 +199,8 @@ async function main() {
   if (targets.length === 0) { console.log('nothing to do'); return }
 
   const browser = await chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })
-  const plan: Array<{ t: Target; r: PplMatchResult; pair1: string[]; pair2: string[]; winnerPair: 1 | 2 }> = []
-  let parseFailed = 0, unresolvedSlug = 0, teamMismatch = 0, markedTeams = 0
+  const plan: Array<{ t: Target; r: PplMatchResult; pair1: string[]; pair2: string[]; winnerPair: 1 | 2; sets: Array<{ setNumber: number; pair1Games: number; pair2Games: number }>; stats: Record<string, unknown> }> = []
+  let parseFailed = 0, unresolvedSlug = 0, teamMismatch = 0, markedTeams = 0, orientationFailed = 0
 
   try {
     for (const t of targets) {
@@ -222,15 +234,48 @@ async function main() {
         continue
       }
 
+      // Orient every score to pair1/pair2. The parser reports in SCOREBOARD
+      // row order, which is not the tie's home/away order on most matches —
+      // conflating the two reversed every set written on the first run.
+      const flip = homePair.rowIndex === 1
+      const orientedSets = r.sets.map((s0) => ({
+        setNumber: s0.setNumber,
+        pair1Games: flip ? s0.row1 : s0.row0,
+        pair2Games: flip ? s0.row0 : s0.row1,
+      }))
+      const orientPct = (v: { row0: number | null; row1: number | null }) =>
+        flip ? { pair1: v.row1, pair2: v.row0 } : { pair1: v.row0, pair2: v.row1 }
+      const orientedStats = Object.fromEntries(
+        Object.entries(r.stats).map(([k, v]) => [k, orientPct(v as { row0: number | null; row1: number | null })]),
+      )
+
+      // Cross-check: the pair that won more sets must be the pair marked the
+      // winner. If those disagree the orientation is wrong, and writing it
+      // would be worse than skipping.
+      let p1Sets = 0, p2Sets = 0
+      for (const s0 of orientedSets) {
+        if (s0.pair1Games > s0.pair2Games) p1Sets++
+        else if (s0.pair2Games > s0.pair1Games) p2Sets++
+      }
+      const impliedWinner = p1Sets > p2Sets ? 1 : 2
+      const declaredWinner = homePair.won ? 1 : 2
+      if (impliedWinner !== declaredWinner) {
+        orientationFailed++
+        console.warn(`  ORIENTATION MISMATCH ${t.pplMatchId}: sets imply pair${impliedWinner}, page marks pair${declaredWinner}`)
+        continue
+      }
+
       plan.push({
         t, r,
         pair1: pair1 as string[],
         pair2: pair2 as string[],
-        winnerPair: homePair.won ? 1 : 2,
+        winnerPair: declaredWinner,
+        sets: orientedSets,
+        stats: orientedStats,
       })
       const markers = [homePair, awayPair].map((p) => teamMarker(p.team)).filter(Boolean)
       if (markers.length > 0) markedTeams++
-      console.log(`  ok ${t.pplMatchId.padEnd(38)} ${r.sets.map((s) => `${s.home}-${s.away}`).join(' ')}  winner=pair${homePair.won ? 1 : 2}${markers.length ? `  [team marker: ${markers.join(', ')}]` : ''}`)
+      console.log(`  ok ${t.pplMatchId.padEnd(38)} ${orientedSets.map((s0) => `${s0.pair1Games}-${s0.pair2Games}`).join(' ')}  winner=pair${declaredWinner}${markers.length ? `  [team marker: ${markers.join(', ')}]` : ''}`)
     }
   } finally {
     await browser.close()
@@ -242,14 +287,89 @@ async function main() {
   console.log(`  parse failed          : ${parseFailed}`)
   console.log(`  unresolved slug       : ${unresolvedSlug}`)
   console.log(`  team mismatch         : ${teamMismatch}`)
+  console.log(`  orientation mismatch  : ${orientationFailed}`)
   console.log(`  with a team marker    : ${markedTeams}  (e.g. "(DQ)" on a disqualified franchise)`)
   console.log(`\n  would set lineups     : ${plan.length} matches (4 player FKs each)`)
   console.log(`  would set results     : ${plan.filter((p) => p.r.isFinal).length} final`)
-  console.log(`  would write set rows  : ${plan.reduce((n, p) => n + p.r.sets.length, 0)}`)
+  console.log(`  would write set rows  : ${plan.reduce((n, p) => n + p.sets.length, 0)}`)
   console.log(`  would write stat rows : ${plan.length}`)
 
   if (!APPLY) { console.log(`\nDry run complete. Nothing written.`); return }
-  throw new Error('--apply is not implemented yet (Task 4)')
+
+  console.log(`\n=== APPLYING ===`)
+  let matchesWritten = 0, setsWritten = 0, statsWritten = 0
+  const nowIso = new Date().toISOString()
+
+  for (const { t, r, pair1, pair2, winnerPair, sets, stats } of plan) {
+    // NEVER set matches.external_id — sync_matches_id_columns is
+    // unconditional and would copy it into padelapi_id, a column reserved
+    // for padelapi's numeric ids.
+    const { error: mErr } = await supabase
+      .from('matches')
+      .update({
+        pair1_player1_id: pair1[0], pair1_player2_id: pair1[1],
+        pair2_player1_id: pair2[0], pair2_player2_id: pair2[1],
+        winner_pair: winnerPair,
+        status: r.isFinal ? 'finished' : 'scheduled',
+        // `duration` is TEXT and the house format is HH:MM — upstream gives
+        // HH:MM:SS. Match the existing convention rather than inventing a
+        // third format in the same column.
+        duration: formatDuration(r.durationSeconds),
+        last_updated_by: 'manual',
+        updated_at: nowIso,
+      })
+      .eq('id', t.matchId)
+    if (mErr) throw new Error(`matches update failed (${t.pplMatchId}): ${mErr.message}`)
+    matchesWritten++
+
+    for (const set of sets) {
+      const { error: sErr } = await supabase.from('sets').upsert({
+        match_id: t.matchId,
+        set_number: set.setNumber,
+        set_score: `${set.pair1Games}-${set.pair2Games}`,
+        pair1_games: set.pair1Games,
+        pair2_games: set.pair2Games,
+        is_current: false,
+        score_source: 'api',
+        updated_at: nowIso,
+      }, { onConflict: 'match_id,set_number' })
+      if (sErr) throw new Error(`sets upsert failed (${t.pplMatchId} set ${set.setNumber}): ${sErr.message}`)
+      setsWritten++
+    }
+
+    // Every match_stats numeric column is a won/played COUNT pair. PPL
+    // publishes percentages with no denominator, so none of them can be
+    // filled honestly — the whole payload goes to raw_payload until a screen
+    // needs it queryable, which is what the spec calls for.
+    const { error: stErr } = await supabase.from('match_stats').upsert({
+      match_id: t.matchId,
+      set_number: 0,
+      source: 'ppl',
+      source_match_id: t.pplMatchId,
+      computed_at: nowIso,
+      raw_payload: {
+        scrapedAt: nowIso,
+        url: r.url,
+        stats,
+        pairs: r.pairs.map((p) => ({
+          team: p.team,
+          won: p.won,
+          players: p.players.map((pl) => ({
+            slug: pl.slug, name: pl.name,
+            firstServeInPct: pl.firstServeInPct, aces: pl.aces, doubleFaults: pl.doubleFaults,
+            winners: pl.winners,
+          })),
+        })),
+      },
+    }, { onConflict: 'match_id,set_number' })
+    if (stErr) throw new Error(`match_stats upsert failed (${t.pplMatchId}): ${stErr.message}`)
+    statsWritten++
+  }
+
+  console.log(`  matches updated : ${matchesWritten}`)
+  console.log(`  set rows        : ${setsWritten}`)
+  console.log(`  stat rows       : ${statsWritten}`)
+  console.log(`\nApply complete.`)
 }
 
 main().catch((e) => { console.error(e); process.exit(1) })

@@ -37,9 +37,9 @@ describe('parseMatchDom', () => {
 
   it('reads the sets, excluding the W/L cell', () => {
     expect(r.sets).toEqual([
-      { setNumber: 1, home: 7, away: 6 },
-      { setNumber: 2, home: 0, away: 6 },
-      { setNumber: 3, home: 7, away: 10 },
+      { setNumber: 1, row0: 7, row1: 6 },
+      { setNumber: 2, row0: 0, row1: 6 },
+      { setNumber: 3, row0: 7, row1: 10 },
     ])
   })
 
@@ -53,11 +53,11 @@ describe('parseMatchDom', () => {
 
   it('reads the five match statistics as home/away percentages', () => {
     expect(r.stats).toMatchObject({
-      pointsWonPct: { home: 43, away: 57 },
-      servesWonPct: { home: 46, away: 60 },
-      breakPointsConvertedPct: { home: 40, away: 54 },
-      goldenPointsWonPct: { home: 67, away: 33 },
-      longRalliesWonPct: { home: 48, away: 52 },
+      pointsWonPct: { row0: 43, row1: 57 },
+      servesWonPct: { row0: 46, row1: 60 },
+      breakPointsConvertedPct: { row0: 40, row1: 54 },
+      goldenPointsWonPct: { row0: 67, row1: 33 },
+      longRalliesWonPct: { row0: 48, row1: 52 },
     })
   })
 
@@ -159,5 +159,19 @@ describe('parseMatchDom', () => {
       })),
     }
     expect(() => parseMatchDom(ret)).toThrow(/non-numeric/)
+  })
+
+  it('tags each pair with its scoreboard row so scores can be oriented', () => {
+    // This is the guard against the 2026-09-23 reversal. The parser reports
+    // in scoreboard order; the tie's home franchise is often the SECOND row.
+    // Without rowIndex the caller cannot tell, and silently writes every set
+    // backwards.
+    expect(r.pairs.map((p) => p.rowIndex)).toEqual([0, 1])
+    const winner = r.pairs.find((p) => p.won)!
+    const winnerSetsWon = r.sets.filter((s) =>
+      winner.rowIndex === 0 ? s.row0 > s.row1 : s.row1 > s.row0,
+    ).length
+    const loserSetsWon = r.sets.length - winnerSetsWon
+    expect(winnerSetsWon).toBeGreaterThan(loserSetsWon)
   })
 })
