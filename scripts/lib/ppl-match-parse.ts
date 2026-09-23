@@ -191,7 +191,24 @@ export function parseMatchDom(raw: RawMatchDom): PplMatchResult {
 
   // The last cell is the W/L marker, not a set. Trusting cell COUNT instead of
   // the `game` flag would read "W" as a set score.
-  const setCells = raw.scoreRows.map((r) => r.cells.filter((c) => !c.game))
+  //
+  // A two-set match still renders a third column, filled with an em dash
+  // placeholder on BOTH rows so the table keeps its shape. Those are dropped
+  // by position, not by value, and only when both rows agree the column is
+  // empty — a dash on one side and a number on the other is a real anomaly
+  // and must still fail loudly.
+  const rawSetCells = raw.scoreRows.map((r) => r.cells.filter((c) => !c.game))
+  const isBlank = (v: string) => v === '' || /^[-\u2012-\u2015\u2212]+$/.test(v.trim())
+  const columns = Math.min(rawSetCells[0].length, rawSetCells[1].length)
+  const keep: number[] = []
+  for (let i = 0; i < columns; i++) {
+    const a = rawSetCells[0][i].v
+    const b = rawSetCells[1][i].v
+    if (isBlank(a) && isBlank(b)) continue
+    keep.push(i)
+  }
+  const setCells = rawSetCells.map((cells) => keep.map((i) => cells[i]))
+  if (setCells[0].length === 0) fail(raw, 'no played sets on the scoreboard')
   if (setCells[0].length !== setCells[1].length) {
     fail(raw, `score rows disagree on set count: ${setCells[0].length} vs ${setCells[1].length}`)
   }

@@ -108,4 +108,56 @@ describe('parseMatchDom', () => {
     }
     expect(parseMatchDom(twoSets).sets).toHaveLength(2)
   })
+
+  it('drops a trailing empty third set on a two-set match', () => {
+    // Real case: los-angeles-2026-d1-m1-mens renders a third column filled
+    // with an em dash on BOTH rows so the table keeps its shape.
+    const dash = (row: (typeof RAW)['scoreRows'][number]) => ({
+      ...row,
+      cells: [row.cells[0], row.cells[1], { v: '\u2014', game: false }, row.cells[row.cells.length - 1]],
+    })
+    const twoSets: RawMatchDom = { ...RAW, scoreRows: RAW.scoreRows.map(dash) }
+    const parsed = parseMatchDom(twoSets)
+    expect(parsed.sets).toHaveLength(2)
+    expect(parsed.sets.map((s) => s.setNumber)).toEqual([1, 2])
+  })
+
+  it('still fails when only ONE row has a dash — that is a real anomaly', () => {
+    const lopsided: RawMatchDom = {
+      ...RAW,
+      scoreRows: RAW.scoreRows.map((row, i) => ({
+        ...row,
+        cells: i === 0
+          ? [row.cells[0], row.cells[1], { v: '\u2014', game: false }, row.cells[row.cells.length - 1]]
+          : [row.cells[0], row.cells[1], { v: '10', game: false }, row.cells[row.cells.length - 1]],
+      })),
+    }
+    expect(() => parseMatchDom(lopsided)).toThrow(/non-numeric/)
+  })
+
+  it('refuses a scoreboard with no played sets at all', () => {
+    const empty: RawMatchDom = {
+      ...RAW,
+      scoreRows: RAW.scoreRows.map((row) => ({
+        ...row,
+        cells: [{ v: '\u2014', game: false }, row.cells[row.cells.length - 1]],
+      })),
+    }
+    expect(() => parseMatchDom(empty)).toThrow(/no played sets/)
+  })
+
+  it('does NOT treat every non-number as an empty column', () => {
+    // Only a dash or an empty string means "this set was not played". Any
+    // other non-numeric token — a retirement marker, a walkover — is a real
+    // signal we do not understand yet, and must fail loudly rather than be
+    // quietly dropped as if the column were blank.
+    const ret: RawMatchDom = {
+      ...RAW,
+      scoreRows: RAW.scoreRows.map((row) => ({
+        ...row,
+        cells: [row.cells[0], row.cells[1], { v: 'RET', game: false }, row.cells[row.cells.length - 1]],
+      })),
+    }
+    expect(() => parseMatchDom(ret)).toThrow(/non-numeric/)
+  })
 })
