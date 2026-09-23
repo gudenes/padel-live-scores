@@ -184,6 +184,8 @@ async function main() {
       enableLiveOddsUpdater: env.ENABLE_LIVE_ODDS_UPDATER,
       enableWebtugaLive: env.ENABLE_WEBTUGA_LIVE,
       webtugaLiveDryRun: env.WEBTUGA_LIVE_DRY_RUN,
+      enablePadeldevLive: env.ENABLE_PADELDEV_LIVE,
+      padeldevLiveDryRun: env.PADELDEV_LIVE_DRY_RUN,
       enableTournamentStartNotifier: env.ENABLE_TOURNAMENT_START_NOTIFIER,
       enableProjectionReadyNotifier: env.ENABLE_PROJECTION_READY_NOTIFIER,
     });

@@ -35,6 +35,7 @@ import { runTournamentProjectionSnapshot } from './workers/tournament-projection
 import { runPredictionScorer } from './workers/prediction-scorer.js';
 import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 import { runWebtugaLiveFetcher } from './workers/webtuga-live-fetcher.js';
+import { runPadeldevLiveFetcher } from './workers/padeldev-live-fetcher.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
 import { runProjectionReadyNotifier } from './workers/projection-ready-notifier.js';
 import { runMarketGenerator } from './workers/market-generator.js';
@@ -136,6 +137,14 @@ export interface SchedulerFlags {
   /** Set WEBTUGA_LIVE_DRY_RUN=false in Railway to enable live DB writes.
    *  Defaults to true so the first deploy is always read-only. */
   webtugaLiveDryRun: boolean;
+  /** padeldev-live-fetcher — ~15s FIP live point-by-point from the padeldev
+   *  feed behind FIP's `Live Score` tab. Seeded per-tournament via an
+   *  entity_external_ids `source='padeldev_live'` row. Off by default;
+   *  dry-run gated. */
+  enablePadeldevLive: boolean;
+  /** Set PADELDEV_LIVE_DRY_RUN=false in Railway to enable live DB writes.
+   *  Defaults to true so the first deploy is always read-only. */
+  padeldevLiveDryRun: boolean;
   /** tournament-start-notifier — fires `tournament_starting` once per
    *  tournament when its `starts_at` passes. Atomic claim on
    *  `starting_notified_at`; no dry-run needed. Default OFF. */
@@ -214,6 +223,7 @@ export type WorkerName =
   | 'prediction-scorer'
   | 'live-odds-updater'
   | 'webtuga-live-fetcher'
+  | 'padeldev-live-fetcher'
   | 'tournament-start-notifier'
   | 'projection-ready-notifier'
   | 'market-generator'
@@ -255,6 +265,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'prediction-scorer',
   'live-odds-updater',
   'webtuga-live-fetcher',
+  'padeldev-live-fetcher',
   'tournament-start-notifier',
   'projection-ready-notifier',
   'market-generator',
@@ -426,6 +437,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       return (deps) => runLiveOddsUpdater(deps);
     case 'webtuga-live-fetcher':
       return (deps) => runWebtugaLiveFetcher(deps, { dryRun: true });
+    case 'padeldev-live-fetcher':
+      return (deps) => runPadeldevLiveFetcher(deps, { dryRun: true });
     case 'tournament-start-notifier':
       return (deps) => runTournamentStartNotifier({
         supabase: deps.supabase,
@@ -938,6 +951,16 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // present; `*/15` fires at 0, 15, 30, 45 s of every minute.
       cron: '*/15 * * * * *',
       run: async (deps) => runWebtugaLiveFetcher(deps, { dryRun: flags.webtugaLiveDryRun }),
+    });
+  }
+  if (flags.enablePadeldevLive) {
+    entries.push({
+      name: 'padeldev-live-fetcher',
+      // Every 15 seconds (node-cron 6-field syntax). The feed's `lastupdate`
+      // guard means an idle match costs one tournament-feed read per tick,
+      // not a per-match fetch.
+      cron: '*/15 * * * * *',
+      run: async (deps) => runPadeldevLiveFetcher(deps, { dryRun: flags.padeldevLiveDryRun }),
     });
   }
   if (flags.enableTournamentStartNotifier) {
