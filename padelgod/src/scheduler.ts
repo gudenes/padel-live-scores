@@ -37,6 +37,8 @@ import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 import { runWebtugaLiveFetcher } from './workers/webtuga-live-fetcher.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
 import { runProjectionReadyNotifier } from './workers/projection-ready-notifier.js';
+import { runMarketGenerator } from './workers/market-generator.js';
+import { runMarketResolver } from './workers/market-resolver.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -118,6 +120,10 @@ export interface SchedulerFlags {
   /** When true, the tournament-projection-snapshot worker computes everything
    *  but skips DB writes. Same dry-run pattern as modelPredictionSnapshot. */
   tournamentProjectionSnapshotDryRun: boolean;
+  enableMarketGenerator: boolean;
+  marketGeneratorDryRun: boolean;
+  enableMarketResolver: boolean;
+  marketResolverDryRun: boolean;
   /** prediction-scorer is append-only with `ON CONFLICT DO NOTHING`, so a
    *  single enable-flag is sufficient — no dry-run needed. */
   enablePredictionScorer: boolean;
@@ -209,7 +215,9 @@ export type WorkerName =
   | 'live-odds-updater'
   | 'webtuga-live-fetcher'
   | 'tournament-start-notifier'
-  | 'projection-ready-notifier';
+  | 'projection-ready-notifier'
+  | 'market-generator'
+  | 'market-resolver';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -249,6 +257,8 @@ export const ALL_WORKERS: WorkerName[] = [
   'webtuga-live-fetcher',
   'tournament-start-notifier',
   'projection-ready-notifier',
+  'market-generator',
+  'market-resolver',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -428,6 +438,17 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
         logger: deps.logger,
         notify: deps.notify,
       });
+    case 'market-generator': return (deps) => runMarketGenerator({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger is always dry-run-safe; the cron threads the real flag.
+      dryRun: true,
+    });
+    case 'market-resolver': return (deps) => runMarketResolver({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      dryRun: true,
+    });
     default: return null;
   }
 }
@@ -849,6 +870,33 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: d.supabase,
           logger: d.logger,
           dryRun: flags.tournamentProjectionSnapshotDryRun,
+        }),
+    });
+  }
+  if (flags.enableMarketGenerator) {
+    entries.push({
+      name: 'market-generator',
+      cron: '25 * * * *', // hourly at :25
+      run: async (d) =>
+        runMarketGenerator({
+          supabase: d.supabase,
+          logger: d.logger,
+          dryRun: flags.marketGeneratorDryRun,
+        }),
+    });
+  }
+  if (flags.enableMarketResolver) {
+    entries.push({
+      name: 'market-resolver',
+      // Every 5 minutes, offset from the :25 generator. Keep this worker at
+      // concurrency 1: a `hold` can lose a race to a `settle` from a second
+      // instance, and a rejected optimistic write is silent.
+      cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *',
+      run: async (d) =>
+        runMarketResolver({
+          supabase: d.supabase,
+          logger: d.logger,
+          dryRun: flags.marketResolverDryRun,
         }),
     });
   }

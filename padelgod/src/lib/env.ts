@@ -226,6 +226,13 @@ const EnvSchema = z.object({
   // read-only dry run first, then set it to false to write sets/games/match_points.
   ENABLE_WEBTUGA_LIVE: boolEnv(false),
   WEBTUGA_LIVE_DRY_RUN: boolEnv(true),
+  // Play prediction market. Both default OFF with dry-run ON, so enabling in
+  // Railway is a two-step commit — same pattern as
+  // tournament-projection-snapshot.
+  ENABLE_MARKET_GENERATOR: boolEnv(false),
+  MARKET_GENERATOR_DRY_RUN: boolEnv(true),
+  ENABLE_MARKET_RESOLVER: boolEnv(false),
+  MARKET_RESOLVER_DRY_RUN: boolEnv(true),
   // free event-notification senders — premium notifications Plan 2B; default off.
   ENABLE_EVENT_NOTIFICATIONS: boolEnv(false),
   // tournament_starting notifier (premium notifications Plan 2A) — default off.
