@@ -233,6 +233,11 @@ const EnvSchema = z.object({
   MARKET_GENERATOR_DRY_RUN: boolEnv(true),
   ENABLE_MARKET_RESOLVER: boolEnv(false),
   MARKET_RESOLVER_DRY_RUN: boolEnv(true),
+  // padeldev-live-fetcher — live PBP from the padeldev feed behind FIP's
+  // `Live Score` tab. Default OFF. Leave PADELDEV_LIVE_DRY_RUN=true first to
+  // confirm resolution (resolved vs unresolved/ambiguous) before writing.
+  ENABLE_PADELDEV_LIVE: boolEnv(false),
+  PADELDEV_LIVE_DRY_RUN: boolEnv(true),
   // free event-notification senders — premium notifications Plan 2B; default off.
   ENABLE_EVENT_NOTIFICATIONS: boolEnv(false),
   // tournament_starting notifier (premium notifications Plan 2A) — default off.

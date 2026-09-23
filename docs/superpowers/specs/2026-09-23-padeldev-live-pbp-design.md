@@ -178,9 +178,34 @@ attached to a best guess.
 2. **No tiebreak freeze.** webtuga's v1 throws on tiebreak point labels and freezes the
    scoreboard at 6–6. Here `insideTiebreak` is inferred from the current-set games being
    `6/6` and passed to `parsePointState`, so tiebreaks track live.
-3. **Golden point.** `score.starpoint` is mapped to `parsePointState`'s golden-point path.
-   *Inferred from the field name — not yet observed true in a live payload; must degrade
-   safely if the meaning differs.*
+## Vendor dialect — learned from captured live traffic
+
+Two assumptions in the first draft were wrong, and **only replaying real captured
+traffic caught them**. Both would have shipped as silent corruption.
+
+1. **Advantage is a bare `A`, not `AD`.** The feed emits `A-40` / `40-A`.
+   `parsePointState` only accepts `AD`, so every advantage point would have thrown,
+   the worker would have dropped the row, and the scoreboard would visibly freeze at
+   deuce until the game ended. Normalised in `padeldev-adapter.ts` — deliberately
+   *not* in `live-state.ts`, which the Crionet live-poller shares.
+
+2. **`score.starpoint` is a deuce counter, not a golden-point flag.** Observed:
+
+   ```
+   40-40  starpoint=1      first deuce
+   A-40   starpoint=1
+   40-40  starpoint=2      back to deuce
+   40-A   starpoint=2
+   40-40  starpoint=3      third deuce
+   ```
+
+   The first draft mapped `starpoint=1` to golden point, which would have relabelled
+   **every deuce and advantage** in every match. The field is now ignored outright.
+   This event uses traditional advantage scoring.
+
+These are locked in by `padeldev-live-capture.test.ts`, which replays 55 real
+snapshots. Lyon is finite — once it ends this traffic cannot be re-captured, so those
+fixtures are the durable record of how the feed behaves.
 
 ## Failure modes
 
