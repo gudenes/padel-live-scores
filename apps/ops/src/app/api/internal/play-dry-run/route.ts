@@ -79,5 +79,12 @@ export async function POST(request: Request) {
   if (!upstream.ok) {
     return Response.json({ error: json, status: upstream.status }, { status: upstream.status })
   }
-  return Response.json({ worker, result: json })
+
+  // padelgod wraps the worker's return value twice: { data: { worker, result, durationMs } }.
+  // Unwrap here so the client receives the worker result flat and never has to
+  // guess the nesting — guessing it wrong is what crashed this page once.
+  const body = json as { data?: { result?: unknown }; result?: unknown }
+  const result = body.data?.result ?? body.result ?? json
+
+  return Response.json({ worker, result })
 }
