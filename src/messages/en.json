@@ -435,7 +435,8 @@
     "tournamentTabs": {
       "premier": "Premier Padel",
       "fip": "FIP Tour",
-      "_context": "Premier Padel and FIP are organisations — proper nouns. Do NOT translate."
+      "_context": "Premier Padel and FIP are organisations — proper nouns. Do NOT translate.",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "All",

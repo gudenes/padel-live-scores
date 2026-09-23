@@ -419,7 +419,8 @@
     "eventsCount": "{count, plural, one {# evento} other {# eventos}}",
     "tournamentTabs": {
       "premier": "Premier Padel",
-      "fip": "FIP Tour"
+      "fip": "FIP Tour",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "Todos",
