@@ -21,7 +21,7 @@ import fs from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 import {
   computeRecords, computePlayerRecords, type TieInput, type ParticipationInput,
-} from './lib/ppl-standings'
+} from '../src/lib/ppl-standings'
 
 if (fs.existsSync('.env.local')) {
   for (const line of fs.readFileSync('.env.local', 'utf8').split('\n')) {

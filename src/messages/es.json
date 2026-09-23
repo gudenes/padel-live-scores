@@ -1803,5 +1803,20 @@
     "title": "Esta página no existe",
     "body": "La página que buscas puede haber sido eliminada, renombrada o nunca existió.",
     "cta": "Volver a PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "General",
+    "scopeMen": "Masculino",
+    "scopeWomen": "Femenino",
+    "colTeam": "Franquicia",
+    "colTies": "Duelos",
+    "loading": "Cargando clasificación...",
+    "emptyScope": "Esta división aún no tiene partidos en este apartado.",
+    "courtsRecord": "{won}-{lost} pistas",
+    "standingsNote": "El orden se deriva de los resultados (duelos ganados y luego diferencia de pistas). La liga otorga sus propios puntos por posición final, que no publicamos.",
+    "eventsHeading": "Eventos",
+    "noEvents": "Aún no hay eventos.",
+    "upcoming": "Próximo"
   }
 }

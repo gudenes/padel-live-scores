@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeRecords, computePlayerRecords, type TieInput } from '../lib/ppl-standings'
+import { computeRecords, computePlayerRecords, type TieInput } from '../ppl-standings'
 
 const tie = (id: string, home: string, away: string, winners: Array<1 | 2 | null>): TieInput =>
   ({ tieId: id, homeSeasonId: home, awaySeasonId: away, matches: winners.map((w) => ({ winnerPair: w })) })
@@ -44,6 +44,37 @@ describe('computeRecords', () => {
     ])
     // A: won t1 2-0, split t2 1-1, lost t3 0-2 -> 3 played, 1 won, 3 courts, 3 lost
     expect(r.get('A')).toMatchObject({ tiesPlayed: 3, tiesWon: 1, courtsWon: 3, courtsLost: 3 })
+  })
+
+  it('re-decides each tie within a gender scope, not filters the overall table', () => {
+    // A tie split 1-1 overall is a clean WIN in one scope and a clean LOSS in
+    // the other. This is the whole reason the league keeps three tables.
+    const t: TieInput = {
+      tieId: 't1', homeSeasonId: 'A', awaySeasonId: 'B',
+      matches: [{ winnerPair: 1, category: 'men' }, { winnerPair: 2, category: 'women' }],
+    }
+    expect(computeRecords([t], 'all').get('A')).toMatchObject({ tiesWon: 0, courtsWon: 1, courtsLost: 1 })
+    expect(computeRecords([t], 'men').get('A')).toMatchObject({ tiesPlayed: 1, tiesWon: 1, courtsWon: 1, courtsLost: 0 })
+    expect(computeRecords([t], 'women').get('A')).toMatchObject({ tiesPlayed: 1, tiesWon: 0, courtsWon: 0, courtsLost: 1 })
+  })
+
+  it('drops a tie entirely from a scope it has no court in', () => {
+    // PPL II is the real case: each club fields ONE pairing, so a men's-only
+    // tie must not appear in the women's table with a 0-0 played record.
+    const t: TieInput = {
+      tieId: 't1', homeSeasonId: 'A', awaySeasonId: 'B',
+      matches: [{ winnerPair: 1, category: 'men' }],
+    }
+    expect(computeRecords([t], 'women').size).toBe(0)
+    expect(computeRecords([t], 'men').size).toBe(2)
+  })
+
+  it('defaults to the overall scope when none is given', () => {
+    const t: TieInput = {
+      tieId: 't1', homeSeasonId: 'A', awaySeasonId: 'B',
+      matches: [{ winnerPair: 1, category: 'men' }, { winnerPair: 1, category: 'women' }],
+    }
+    expect(computeRecords([t])).toEqual(computeRecords([t], 'all'))
   })
 
   it('never writes league points or a ranking', () => {

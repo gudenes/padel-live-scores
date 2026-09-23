@@ -1803,5 +1803,20 @@
     "title": "Questa pagina non esiste",
     "body": "La pagina che cerchi potrebbe essere stata rimossa, rinominata o non è mai esistita.",
     "cta": "Torna a PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Generale",
+    "scopeMen": "Maschile",
+    "scopeWomen": "Femminile",
+    "colTeam": "Franchigia",
+    "colTies": "Sfide",
+    "loading": "Caricamento classifica...",
+    "emptyScope": "Questa divisione non ha ancora partite in questa sezione.",
+    "courtsRecord": "{won}-{lost} campi",
+    "standingsNote": "L'ordine deriva dai risultati (sfide vinte, poi differenza campi). La lega assegna i propri punti in base al piazzamento finale, che non pubblichiamo.",
+    "eventsHeading": "Eventi",
+    "noEvents": "Nessun evento.",
+    "upcoming": "In arrivo"
   }
 }

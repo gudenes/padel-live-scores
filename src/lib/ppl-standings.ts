@@ -23,8 +23,17 @@ export interface TieInput {
   homeSeasonId: string
   awaySeasonId: string
   /** One entry per match in the tie. `winnerPair` 1 = home, 2 = away. */
-  matches: Array<{ winnerPair: 1 | 2 | null }>
+  matches: Array<{ winnerPair: 1 | 2 | null; category?: 'men' | 'women' | null }>
 }
+
+/**
+ * The league keeps standings three ways, because a franchise can top the
+ * men's table and sit last in the women's. A scoped table is NOT a filtered
+ * view of the overall one — it re-decides each tie on that gender's court
+ * alone, so a club that split a tie 1-1 overall shows a clean win in one
+ * scope and a clean loss in the other.
+ */
+export type Scope = 'all' | 'men' | 'women'
 
 export interface SeasonRecord {
   seasonId: string
@@ -40,7 +49,7 @@ export interface SeasonRecord {
  * counts as played for both sides and won by neither. The league breaks those
  * ties with its own points system, which we deliberately do not model.
  */
-export function computeRecords(ties: TieInput[]): Map<string, SeasonRecord> {
+export function computeRecords(ties: TieInput[], scope: Scope = 'all'): Map<string, SeasonRecord> {
   const out = new Map<string, SeasonRecord>()
   const seed = (seasonId: string): SeasonRecord => {
     let r = out.get(seasonId)
@@ -52,7 +61,10 @@ export function computeRecords(ties: TieInput[]): Map<string, SeasonRecord> {
   }
 
   for (const tie of ties) {
-    const decided = tie.matches.filter((m) => m.winnerPair === 1 || m.winnerPair === 2)
+    const inScope = scope === 'all'
+      ? tie.matches
+      : tie.matches.filter((m) => m.category === scope)
+    const decided = inScope.filter((m) => m.winnerPair === 1 || m.winnerPair === 2)
     // A tie with nothing decided has not been played. Counting it would
     // inflate every franchise's played column the moment a fixture is listed.
     if (decided.length === 0) continue

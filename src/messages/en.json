@@ -1835,5 +1835,20 @@
     "title": "This page doesn't exist",
     "body": "The page you're looking for may have been removed, renamed, or never existed.",
     "cta": "Back to PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Overall",
+    "scopeMen": "Men's",
+    "scopeWomen": "Women's",
+    "colTeam": "Franchise",
+    "colTies": "Ties",
+    "loading": "Loading standings...",
+    "emptyScope": "This franchise division has no matches in this scope yet.",
+    "courtsRecord": "{won}-{lost} courts",
+    "standingsNote": "Order is derived from results (ties won, then court difference). The league awards its own standings points by finishing position, which we do not publish.",
+    "eventsHeading": "Events",
+    "noEvents": "No events yet.",
+    "upcoming": "Upcoming"
   }
 }
