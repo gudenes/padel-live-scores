@@ -161,7 +161,7 @@ export async function runMarketGenerator(
   const rows = unwrap(
     await deps.supabase
       .from('matches')
-      .select('id, tournament_id, category, round, scheduled_at, pred_pair1_prob, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
+      .select('id, tournament_id, category, round, round_canonical, scheduled_at, pred_pair1_prob, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
       .in('tournament_id', premierIds)
       .eq('status', 'scheduled')
       .gt('scheduled_at', now.toISOString()),

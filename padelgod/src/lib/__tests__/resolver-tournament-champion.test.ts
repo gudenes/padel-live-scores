@@ -2,19 +2,21 @@ import { describe, it, expect } from 'vitest'
 import { tournamentChampionIsPair } from '../market-resolvers/tournament-champion.js'
 import type { ResolverContext } from '../market-resolvers/types.js'
 
-/** Stub returning a list from .select().eq().eq().eq() then awaited. */
-function stubSupabase(rows: Record<string, unknown>[]) {
+/** Stub returning a list from .select().eq().eq().eq() then awaited.
+ *  `seen` collects the filtered column names so a test can assert which
+ *  round column the resolver actually asks for. */
+function stubSupabase(rows: Record<string, unknown>[], seen?: string[]) {
   const chain: Record<string, unknown> = {
     select: () => chain,
-    eq: () => chain,
+    eq: (col: string) => { seen?.push(col); return chain },
     then: (res: (v: unknown) => unknown) => res({ data: rows, error: null }),
   }
   return { from: () => chain } as never
 }
 
-function ctx(rows: Record<string, unknown>[]): ResolverContext {
+function ctx(rows: Record<string, unknown>[], seen?: string[]): ResolverContext {
   return {
-    supabase: stubSupabase(rows),
+    supabase: stubSupabase(rows, seen),
     marketId: 'm1',
     matchId: null,
     tournamentId: 'tour-1',
@@ -78,6 +80,14 @@ describe('tournament.champion_is_pair', () => {
     }
     const r = await tournamentChampionIsPair(ctx([{ id: 'f1', ...final }, { id: 'f2', ...final }]), PAIR)
     expect(r.state).toBe('void')
+  })
+
+  it('filters on round_canonical, not the free-text round column', () => {
+    const seen: string[] = []
+    return tournamentChampionIsPair(ctx([], seen), PAIR).then(() => {
+      expect(seen).toContain('round_canonical')
+      expect(seen).not.toContain('round')
+    })
   })
 
   it('throws when the pair params are missing', async () => {

@@ -25,7 +25,9 @@ export const tournamentChampionIsPair: Resolver = async (ctx, params) => {
     .select('id, status, winner_pair, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
     .eq('tournament_id', ctx.tournamentId)
     .eq('category', ctx.category)
-    .eq('round', 'F')
+    // round_canonical, never `round`: the free-text column spells the final at
+    // least two ways ('Finals' and 'Final'), so .eq('round','F') never matches.
+    .eq('round_canonical', 'F')
 
   if (error) throw new Error(`tournament.champion_is_pair: ${error.message}`)
 
@@ -34,7 +36,7 @@ export const tournamentChampionIsPair: Resolver = async (ctx, params) => {
   if (finals.length > 1) {
     // Multi-draw events (Games/championship formats) can produce several rows
     // labelled F for one category. Refuse rather than pick one.
-    return { state: 'void', reason: `${finals.length} rows with round='F' — ambiguous final` }
+    return { state: 'void', reason: `${finals.length} rows with round_canonical='F' — ambiguous final` }
   }
 
   // Exactly one row survives the length checks above.

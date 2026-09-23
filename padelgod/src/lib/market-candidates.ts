@@ -7,6 +7,10 @@ export interface MatchRow {
   tournament_id: string | null
   category: string | null
   round: string | null
+  /** Normalised round — 'SF', 'F', 'QF', 'R32'. `round` itself is free-text
+   *  from upstream scrapers ('Semifinals', 'SemiFinals', 'Finals', 'Final',
+   *  'Quarter', 'Quarterfinals'), so gates must never compare against it. */
+  round_canonical: string | null
   scheduled_at: string | null
   /** PostgREST returns numeric columns as strings. */
   pred_pair1_prob: string | number | null
@@ -45,7 +49,7 @@ export function matchRowToCandidate(
     matchId: row.id,
     tournamentId: row.tournament_id,
     category: row.category === 'women' ? 'women' : row.category === 'men' ? 'men' : null,
-    round: row.round,
+    round: row.round_canonical,
     bestRanking: bestRanking(row, ranks),
     modelProb: prob !== null && Number.isFinite(prob) ? prob : null,
     scheduledAt: row.scheduled_at ? new Date(row.scheduled_at) : null,

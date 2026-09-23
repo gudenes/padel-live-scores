@@ -3,7 +3,9 @@ import { matchRowToCandidate, type MatchRow } from '../market-candidates.js'
 
 function row(over: Partial<MatchRow> = {}): MatchRow {
   return {
-    id: 'match-1', tournament_id: 'tour-1', category: 'men', round: 'SF',
+    id: 'match-1', tournament_id: 'tour-1', category: 'men',
+    round: 'Semifinals',      // free-text, as upstream actually writes it
+    round_canonical: 'SF',    // normalised — this is what the gate must see
     scheduled_at: '2026-09-26T18:00:00Z', pred_pair1_prob: '0.62',
     pair1_player1_id: 'p1', pair1_player2_id: 'p2',
     pair2_player1_id: 'p3', pair2_player2_id: 'p4',
@@ -22,6 +24,17 @@ describe('matchRowToCandidate', () => {
     expect(c.round).toBe('SF')
     expect(c.modelProb).toBeCloseTo(0.62, 6)
   })
+  it('reads round_canonical, never the free-text round', () => {
+    // matches.round spells finals as 'Finals' AND 'Final'; a gate on ["SF","F"]
+    // compared against it matches nothing, permanently.
+    const c = matchRowToCandidate(row({ round: 'Final', round_canonical: 'F' }), RANKS, 't', 12000)
+    expect(c.round).toBe('F')
+  })
+
+  it('reports a null round_canonical as null', () => {
+    expect(matchRowToCandidate(row({ round_canonical: null }), RANKS, 't', 12000).round).toBeNull()
+  })
+
   it('coerces pred_pair1_prob from the string PostgREST returns', () => {
     expect(matchRowToCandidate(row({ pred_pair1_prob: '0.34' }), RANKS, 't', 12000).modelProb).toBeCloseTo(0.34, 6)
   })
