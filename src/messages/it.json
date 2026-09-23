@@ -1810,13 +1810,16 @@
     "scopeMen": "Maschile",
     "scopeWomen": "Femminile",
     "colTeam": "Franchigia",
-    "colTies": "Sfide",
     "loading": "Caricamento classifica...",
     "emptyScope": "Questa divisione non ha ancora partite in questa sezione.",
-    "courtsRecord": "{won}-{lost} campi",
-    "standingsNote": "L'ordine deriva dai risultati (sfide vinte, poi differenza campi). La lega assegna i propri punti in base al piazzamento finale, che non pubblichiamo.",
+    "standingsNote": "I punti di classifica sono assegnati dalla lega e pubblicati su propadelleague.com. Le statistiche riflettono la fase a gironi; i punti includono il giorno del podio.",
     "eventsHeading": "Eventi",
     "noEvents": "Nessun evento.",
-    "upcoming": "In arrivo"
+    "upcoming": "In arrivo",
+    "colPoints": "Pti",
+    "colRecord": "V-S",
+    "matchesShort": "partite",
+    "pctMatches": "partite vinte",
+    "pctSets": "set"
   }
 }

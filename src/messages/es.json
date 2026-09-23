@@ -1810,13 +1810,16 @@
     "scopeMen": "Masculino",
     "scopeWomen": "Femenino",
     "colTeam": "Franquicia",
-    "colTies": "Duelos",
     "loading": "Cargando clasificación...",
     "emptyScope": "Esta división aún no tiene partidos en este apartado.",
-    "courtsRecord": "{won}-{lost} pistas",
-    "standingsNote": "El orden se deriva de los resultados (duelos ganados y luego diferencia de pistas). La liga otorga sus propios puntos por posición final, que no publicamos.",
+    "standingsNote": "Los puntos de la clasificación los otorga la liga y se publican en propadelleague.com. Las estadísticas reflejan la fase de grupos; los puntos incluyen el día del podio.",
     "eventsHeading": "Eventos",
     "noEvents": "Aún no hay eventos.",
-    "upcoming": "Próximo"
+    "upcoming": "Próximo",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "partidos",
+    "pctMatches": "partidos gan.",
+    "pctSets": "sets"
   }
 }

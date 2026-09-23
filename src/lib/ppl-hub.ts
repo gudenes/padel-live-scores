@@ -58,8 +58,27 @@ export function eventCityFromSlug(slug: string | null | undefined): string | nul
   // page renders "2026" where a city should be.
   if (words.length === 0 || words.every((w) => /^\d+$/.test(w))) return null
   return words
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((w, i) =>
+      // Spanish/Portuguese particles stay lowercase inside a name: the city
+      // is "Playa del Carmen", not "Playa Del Carmen". Never at position 0,
+      // where the particle would be the start of the name.
+      i > 0 && LOWERCASE_PARTICLES.has(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
+}
+
+const LOWERCASE_PARTICLES = new Set(['del', 'de', 'la', 'las', 'los', 'da', 'do', 'dos', 'das', 'y'])
+
+/**
+ * Scopes a division actually has a standing for.
+ *
+ * PPL II publishes no overall table: each club fields ONE drafted pairing,
+ * so a club's overall record and its gendered record are the same thing, and
+ * only five of the ten franchises appear in each. Offering an "Overall" tab
+ * there would either show half the league or invent a number — upstream
+ * itself serves the men's table when asked for `division=teams`.
+ */
+export function scopesForLevel(level: PplLevel): Array<'all' | 'men' | 'women'> {
+  return level === 'ppl_ii' ? ['men', 'women'] : ['all', 'men', 'women']
 }
 
 export interface StandingsRow {

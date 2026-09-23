@@ -1810,13 +1810,16 @@
     "scopeMen": "Masculino",
     "scopeWomen": "Feminino",
     "colTeam": "Franquia",
-    "colTies": "Confrontos",
     "loading": "Carregando classificação...",
     "emptyScope": "Esta divisão ainda não tem partidas neste recorte.",
-    "courtsRecord": "{won}-{lost} quadras",
-    "standingsNote": "A ordem é derivada dos resultados (confrontos vencidos e depois saldo de quadras). A liga concede os próprios pontos por colocação final, que não publicamos.",
+    "standingsNote": "Os pontos da classificação são atribuídos pela liga e publicados em propadelleague.com. As estatísticas refletem a fase de grupos; os pontos incluem o dia do pódio.",
     "eventsHeading": "Eventos",
     "noEvents": "Ainda não há eventos.",
-    "upcoming": "Em breve"
+    "upcoming": "Em breve",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "jogos",
+    "pctMatches": "jogos ganhos",
+    "pctSets": "sets"
   }
 }

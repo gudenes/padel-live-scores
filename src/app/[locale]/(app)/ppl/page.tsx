@@ -5,12 +5,16 @@
 // Modelled on rankings/page.tsx: client component, anon Supabase, GlobalHeader
 // + own title row, chunky pill toggle, SlidingInkTabs, 12px/16px rows.
 //
-// Standings are computed here from ties and matches rather than read from
-// team_seasons' record columns. Those columns hold the OVERALL record only,
-// so a men's/women's table cannot come from them — and running the overall
-// scope off the columns while the gendered scopes are derived would be two
-// code paths for one concept, free to disagree. One path, three scopes.
-// The stored columns remain the canonical record for other surfaces.
+// The standings shown here are the LEAGUE'S OWN, read from league_standings
+// and ordered by their rank. They are not derived and deliberately not
+// re-sorted: the order follows points awarded by finishing position, which no
+// arithmetic over our results reproduces — in their PPL II women's table a
+// 6-0 franchise ranks below a 4-2 one.
+//
+// Our derived figures (ties won, courts won) live on team_seasons and serve
+// the franchise and player surfaces. They are a different measurement, not a
+// competing version of this one, and mixing the two in one table would
+// present our arithmetic with the authority of an official standing.
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
@@ -21,10 +25,10 @@ import SlidingInkTabs from '@/components/SlidingInkTabs'
 import {
   CHUNKY, GREEN, GREEN_DIM, MUTED, BORDER, BG_BASE, BG_CARD, MEN_BLUE, WOMEN_PURPLE,
 } from '@/components/home/shared'
-import { computeRecords, type TieInput, type Scope } from '@/lib/ppl-standings'
+import { type Scope } from '@/lib/ppl-standings'
 import {
-  PPL_LEVELS, levelToLeague, divisionLabel, eventCityFromSlug, sortStandings,
-  type PplLevel, type StandingsRow,
+  PPL_LEVELS, levelToLeague, divisionLabel, eventCityFromSlug, scopesForLevel,
+  type PplLevel,
 } from '@/lib/ppl-hub'
 import { DATE_SHORT } from '@/lib/format-patterns'
 
@@ -32,6 +36,29 @@ interface TeamRow { id: string; name: string; crest_url: string | null; brand_co
 interface SeasonRow { id: string; team_id: string; league: string }
 interface TieRow { id: string; tournament_id: string; home_team_season_id: string; away_team_season_id: string }
 interface MatchRow { tie_id: string | null; winner_pair: number | null; category: string | null }
+interface StandingDbRow {
+  team_season_id: string
+  scope: string
+  event_key: string
+  rank: number | null
+  points: number | null
+  matches_played: number | null
+  wins: number | null
+  losses: number | null
+  pct_matches_won: number | null
+  pct_sets_won: number | null
+  pct_games_won: number | null
+  pct_points_won: number | null
+}
+
+/** Row as rendered: the published standing plus the franchise's identity. */
+interface HubRow extends StandingDbRow {
+  teamName: string
+  crestUrl: string | null
+  brandColor: string | null
+}
+
+const SEASON_KEY = 'season-2026'
 interface EventRow {
   id: string; name: string; level: string; external_id: string | null
   starts_at: string | null; ends_at: string | null
@@ -43,18 +70,19 @@ export default function PplHubPage() {
   const router = useRouter()
 
   const [level, setLevel] = useState<PplLevel>('ppl')
-  const [scope, setScope] = useState<Scope>('all')
+  const [rawScope, setScope] = useState<Scope>('all')
   const [loading, setLoading] = useState(true)
   const [teams, setTeams] = useState<TeamRow[]>([])
   const [seasons, setSeasons] = useState<SeasonRow[]>([])
   const [ties, setTies] = useState<TieRow[]>([])
   const [matches, setMatches] = useState<MatchRow[]>([])
   const [events, setEvents] = useState<EventRow[]>([])
+  const [standings, setStandings] = useState<StandingDbRow[]>([])
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const [teamsRes, seasonsRes, tiesRes, matchesRes, eventsRes] = await Promise.all([
+      const [teamsRes, seasonsRes, tiesRes, matchesRes, eventsRes, standingsRes] = await Promise.all([
         supabase.from('teams').select('id,name,crest_url,brand_color').eq('source', 'ppl'),
         supabase.from('team_seasons').select('id,team_id,league').not('league', 'is', null),
         supabase.from('league_ties').select('id,tournament_id,home_team_season_id,away_team_season_id'),
@@ -63,6 +91,12 @@ export default function PplHubPage() {
           .select('id,name,level,external_id,starts_at,ends_at')
           .in('level', PPL_LEVELS as unknown as string[])
           .order('starts_at', { ascending: true }),
+        // One string literal, not a concatenation: supabase-js parses the
+        // select at the type level, and a computed string collapses the row
+        // type to GenericStringError[].
+        supabase.from('league_standings')
+          .select('team_season_id,scope,event_key,rank,points,matches_played,wins,losses,pct_matches_won,pct_sets_won,pct_games_won,pct_points_won')
+          .eq('event_key', SEASON_KEY),
       ])
       if (cancelled) return
       setTeams(teamsRes.data ?? [])
@@ -70,6 +104,7 @@ export default function PplHubPage() {
       setTies(tiesRes.data ?? [])
       setMatches(matchesRes.data ?? [])
       setEvents(eventsRes.data ?? [])
+      setStandings(standingsRes.data ?? [])
       setLoading(false)
     })()
     return () => { cancelled = true }
@@ -83,47 +118,34 @@ export default function PplHubPage() {
     return new Set(seasons.filter((s) => s.league === league).map((s) => s.id))
   }, [seasons, level])
 
-  const standings = useMemo<StandingsRow[]>(() => {
-    const byTie = new Map<string, MatchRow[]>()
-    for (const m of matches) {
-      if (!m.tie_id) continue
-      if (!byTie.has(m.tie_id)) byTie.set(m.tie_id, [])
-      byTie.get(m.tie_id)!.push(m)
-    }
-    const inputs: TieInput[] = ties
-      .filter((x) => divisionSeasonIds.has(x.home_team_season_id))
-      .map((x) => ({
-        tieId: x.id,
-        homeSeasonId: x.home_team_season_id,
-        awaySeasonId: x.away_team_season_id,
-        matches: (byTie.get(x.id) ?? []).map((m) => ({
-          winnerPair: (m.winner_pair === 1 || m.winner_pair === 2 ? m.winner_pair : null) as 1 | 2 | null,
-          category: (m.category === 'men' || m.category === 'women' ? m.category : null),
-        })),
-      }))
+  // PPL II has no overall table upstream — see scopesForLevel. The effective
+  // scope is DERIVED rather than corrected in an effect: storing an illegal
+  // scope and fixing it afterwards renders one empty frame first, and the
+  // state would be briefly lying about what is on screen.
+  const availableScopes = useMemo(() => scopesForLevel(level), [level])
+  const scope = availableScopes.includes(rawScope) ? rawScope : availableScopes[0]
 
-    const records = computeRecords(inputs, scope)
+  // The table is the league's own published standing, ordered by ITS rank.
+  // Not re-sorted here: the order comes from points awarded by finishing
+  // position, which no arithmetic over our results reproduces — a 6-0
+  // franchise sits below a 4-2 one in their PPL II women's table.
+  const hubRows = useMemo<HubRow[]>(() => {
     const teamById = new Map(teams.map((x) => [x.id, x]))
-    const rows: StandingsRow[] = []
-    for (const s of seasons) {
-      if (!divisionSeasonIds.has(s.id)) continue
-      const rec = records.get(s.id)
-      if (!rec) continue // no court in this scope — see the PPL II case
-      const team = teamById.get(s.team_id)
-      rows.push({
-        seasonId: s.id,
-        teamId: s.team_id,
-        teamName: team?.name ?? '—',
-        crestUrl: team?.crest_url ?? null,
-        brandColor: team?.brand_color ?? null,
-        tiesPlayed: rec.tiesPlayed,
-        tiesWon: rec.tiesWon,
-        courtsWon: rec.courtsWon,
-        courtsLost: rec.courtsLost,
+    const seasonById = new Map(seasons.map((s) => [s.id, s]))
+    return standings
+      .filter((r) => r.scope === scope && divisionSeasonIds.has(r.team_season_id))
+      .map((r) => {
+        const season = seasonById.get(r.team_season_id)
+        const team = season ? teamById.get(season.team_id) : undefined
+        return {
+          ...r,
+          teamName: team?.name ?? '—',
+          crestUrl: team?.crest_url ?? null,
+          brandColor: team?.brand_color ?? null,
+        }
       })
-    }
-    return sortStandings(rows)
-  }, [ties, matches, seasons, teams, divisionSeasonIds, scope])
+      .sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999))
+  }, [standings, seasons, teams, divisionSeasonIds, scope])
 
   const divisionEvents = useMemo(
     () => events.filter((e) => e.level === level),
@@ -144,7 +166,12 @@ export default function PplHubPage() {
     return out
   }, [ties, matches])
 
-  const onLevel = useCallback((next: PplLevel) => { setLevel(next); setScope('all') }, [])
+  // Reset to the first scope the NEW division actually has, not to 'all',
+  // which PPL II does not publish.
+  const onLevel = useCallback((next: PplLevel) => {
+    setLevel(next)
+    setScope(scopesForLevel(next)[0])
+  }, [])
 
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
@@ -181,11 +208,10 @@ export default function PplHubPage() {
       </div>
 
       <SlidingInkTabs<Scope>
-        tabs={[
-          { key: 'all', label: t('scopeOverall') },
-          { key: 'men', label: t('scopeMen') },
-          { key: 'women', label: t('scopeWomen') },
-        ]}
+        tabs={availableScopes.map((s) => ({
+          key: s,
+          label: s === 'all' ? t('scopeOverall') : s === 'men' ? t('scopeMen') : t('scopeWomen'),
+        }))}
         activeKey={scope}
         onChange={setScope}
         activeColor={scope === 'men' ? MEN_BLUE : scope === 'women' ? WOMEN_PURPLE : GREEN}
@@ -202,25 +228,25 @@ export default function PplHubPage() {
         <span style={{ width: 36, textAlign: 'right', fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>#</span>
         <span style={{ width: 40, flexShrink: 0 }} />
         <span style={{ flex: 1, fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('colTeam')}</span>
-        <span style={{ fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('colTies')}</span>
+        <span style={{ width: 34, textAlign: 'right', fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('colRecord')}</span>
+        <span style={{ width: 38, textAlign: 'right', fontSize: 9, color: MUTED, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t('colPoints')}</span>
       </div>
 
       {loading ? (
         <div style={{ padding: '32px 16px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
           {t('loading')}
         </div>
-      ) : standings.length === 0 ? (
+      ) : hubRows.length === 0 ? (
         <div style={{ padding: '32px 16px', textAlign: 'center', color: MUTED, fontSize: 13 }}>
           {t('emptyScope')}
         </div>
       ) : (
-        standings.map((row, i) => (
-          <StandingRow key={row.seasonId} row={row} position={i + 1} t={t} />
-        ))
+        hubRows.map((row) => <StandingRow key={row.team_season_id} row={row} t={t} />)
       )}
 
-      {/* The ordering is ours, not the league's. Saying so is the difference
-          between a derived table and a fake official one. */}
+      {/* These are the league's published points, not a number we computed.
+          Saying whose they are is the difference between reporting a standing
+          and inventing one. */}
       <p style={{ padding: '10px 16px 0', margin: 0, fontSize: 10, color: MUTED, lineHeight: 1.5 }}>
         {t('standingsNote')}
       </p>
@@ -276,14 +302,21 @@ export default function PplHubPage() {
 }
 
 function StandingRow({
-  row, position, t,
+  row, t,
 }: {
-  row: StandingsRow
-  position: number
+  row: HubRow
   t: ReturnType<typeof useTranslations>
 }) {
-  const isTop3 = position <= 3
-  const diff = row.courtsWon - row.courtsLost
+  const position = row.rank ?? 0
+  const isTop3 = position > 0 && position <= 3
+  // Their table has ten columns. At 500px the four percentages cannot each
+  // own one, so the two that actually separate franchises — matches and sets
+  // won — ride in the subline, and %games / %points are left to the
+  // franchise page rather than crushed into unreadable columns here.
+  const pcts = [
+    row.pct_matches_won != null ? `${row.pct_matches_won}% ${t('pctMatches')}` : null,
+    row.pct_sets_won != null ? `${row.pct_sets_won}% ${t('pctSets')}` : null,
+  ].filter(Boolean).join(' · ')
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 12,
@@ -296,7 +329,7 @@ function StandingRow({
           fontWeight: 800, fontSize: isTop3 ? 17 : 15,
           color: position === 1 ? '#F5A623' : position === 2 ? '#94A3B8' : position === 3 ? '#CD7F32' : GREEN,
           fontVariantNumeric: 'tabular-nums',
-        }}>{position}</span>
+        }}>{position || '–'}</span>
       </div>
 
       <Crest name={row.teamName} url={row.crestUrl} color={row.brandColor} />
@@ -306,18 +339,27 @@ function StandingRow({
           fontWeight: 700, fontSize: 14, color: '#E2E8F0',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>{row.teamName}</div>
-        <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
-          {t('courtsRecord', { won: row.courtsWon, lost: row.courtsLost })}
-          <span style={{ color: diff > 0 ? GREEN : diff < 0 ? '#FF4655' : MUTED, marginLeft: 6, fontWeight: 700 }}>
-            {diff > 0 ? `+${diff}` : diff}
-          </span>
+        <div style={{
+          fontSize: 11, color: MUTED, marginTop: 2,
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
+          {row.matches_played != null ? `${row.matches_played} ${t('matchesShort')}` : ''}
+          {pcts ? ` · ${pcts}` : ''}
         </div>
       </div>
 
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
-          {row.tiesWon}<span style={{ color: MUTED, fontWeight: 600 }}>/{row.tiesPlayed}</span>
-        </div>
+      <div style={{
+        width: 34, textAlign: 'right', flexShrink: 0,
+        fontSize: 13, fontWeight: 700, color: '#94A3B8', fontVariantNumeric: 'tabular-nums',
+      }}>
+        {row.wins != null && row.losses != null ? `${row.wins}-${row.losses}` : '–'}
+      </div>
+
+      <div style={{
+        width: 38, textAlign: 'right', flexShrink: 0,
+        fontWeight: 800, fontSize: 16, color: GREEN, fontVariantNumeric: 'tabular-nums',
+      }}>
+        {row.points ?? '–'}
       </div>
     </div>
   )

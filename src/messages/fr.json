@@ -1810,13 +1810,16 @@
     "scopeMen": "Hommes",
     "scopeWomen": "Femmes",
     "colTeam": "Franchise",
-    "colTies": "Duels",
     "loading": "Chargement du classement...",
     "emptyScope": "Cette division n'a pas encore de matchs dans cette catégorie.",
-    "courtsRecord": "{won}-{lost} terrains",
-    "standingsNote": "L'ordre est dérivé des résultats (duels gagnés, puis différence de terrains). La ligue attribue ses propres points selon le classement final, que nous ne publions pas.",
+    "standingsNote": "Les points du classement sont attribués par la ligue et publiés sur propadelleague.com. Les statistiques portent sur la phase de groupes ; les points incluent la journée du podium.",
     "eventsHeading": "Événements",
     "noEvents": "Aucun événement.",
-    "upcoming": "À venir"
+    "upcoming": "À venir",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "matchs",
+    "pctMatches": "matchs gagnés",
+    "pctSets": "sets"
   }
 }

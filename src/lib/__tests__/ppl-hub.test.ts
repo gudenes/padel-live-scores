@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   levelToLeague, leagueToLevel, divisionLabel, eventCityFromSlug, sortStandings,
-  PPL_LEVELS, type StandingsRow,
+  scopesForLevel, PPL_LEVELS, type StandingsRow,
 } from '../ppl-hub'
 
 describe('division spelling', () => {
@@ -38,7 +38,7 @@ describe('eventCityFromSlug', () => {
     expect(eventCityFromSlug('new-york-ppl-ii-2026')).toBe('New York')
     expect(eventCityFromSlug('los-angeles-2026')).toBe('Los Angeles')
     expect(eventCityFromSlug('los-angeles-ppl-ii-2026')).toBe('Los Angeles')
-    expect(eventCityFromSlug('playa-del-carmen-ppl-ii-2026')).toBe('Playa Del Carmen')
+    expect(eventCityFromSlug('playa-del-carmen-ppl-ii-2026')).toBe('Playa del Carmen')
     expect(eventCityFromSlug('miami-2026')).toBe('Miami')
   })
 
@@ -89,5 +89,19 @@ describe('sortStandings', () => {
     const input = [row('B', 1, 1, 1), row('A', 5, 5, 0)]
     sortStandings(input)
     expect(input.map(r => r.teamName)).toEqual(['B', 'A'])
+  })
+})
+
+describe('scopesForLevel', () => {
+  it('gives PPL all three scopes', () => {
+    expect(scopesForLevel('ppl')).toEqual(['all', 'men', 'women'])
+  })
+
+  it('gives PPL II no overall scope', () => {
+    // Each club fields ONE drafted pairing, so only five of the ten
+    // franchises appear per gender and there is no overall table upstream.
+    // Asking their site for division=teams silently returns the men's table.
+    expect(scopesForLevel('ppl_ii')).toEqual(['men', 'women'])
+    expect(scopesForLevel('ppl_ii')).not.toContain('all')
   })
 })
