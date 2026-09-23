@@ -7,9 +7,9 @@
 // valid images; only one of them is a cover. Stretched into a landscape card,
 // the poster is both distorted and upscaled past its own resolution.
 //
-// So the importer needs the aspect ratio BEFORE it commits an image to a
-// cover slot, and the cheapest honest way to get it is to read the header of
-// the bytes it has already downloaded.
+// The importer needs to know the real pixel size BEFORE it commits an image
+// to a cover slot, and the cheapest honest way to get it is to read the
+// header of the bytes it has already downloaded.
 //
 // Returns null for anything it cannot read with certainty. A caller that gets
 // null must fall back, never guess — the whole point is to avoid displaying
@@ -76,36 +76,27 @@ export function imageDimensions(bytes: Uint8Array): ImageSize | null {
 }
 
 /**
- * Is this image shaped like a cover?
+ * Is this image big enough to fill a cover slot?
  *
- * Measured against every image the Pro Padel League publishes, which turned
- * out to be three different things under one field name:
+ * This used to also reject by SHAPE — portrait posters and ultra-wide
+ * banners — on the reasoning that neither survives a landscape crop. Looking
+ * at the source proved that wrong: propadelleague.com renders the very same
+ * 496x820 `vertical.jpg` as its own event hero, as a background-size:cover
+ * fill of a 903x500 landscape area, and the skyline reads perfectly. A crop
+ * is not damage when the subject survives it.
  *
- *   496x820    ratio 0.60  portrait poster      (New York, both divisions)
- *   1440x382   ratio 3.77  ultra-wide banner    (Los Angeles, both divisions)
- *   2560x1440  ratio 1.78  landscape photo      (Playa del Carmen)
- *   2132x1096  ratio 1.95  landscape photo      (Miami)
+ * What a crop CANNOT rescue is resolution, so that is all this checks now.
+ * The card measures 464x335 CSS px, so an image narrower than that is being
+ * enlarged past its own pixels no matter how it is framed.
  *
- * Three independent rejections, because the failure modes differ:
- *
- *   too tall   distorted or heavily letterboxed
- *   too wide   a 3.77 banner cropped into a ~16:9 slot shows its middle
- *              half, which is where the event branding usually is NOT
- *   too narrow right shape, but upscaled past its own resolution into blur
- *
- * Null dimensions return false. An image we could not measure is not one to
- * commit to a cover slot — the fallback gradient is a known-good result and
- * a mangled photo is not.
+ * Null dimensions still return false: an image we could not measure is one
+ * we cannot make this promise about.
  */
 export function isUsableCover(
   size: ImageSize | null,
-  opts: { minWidth?: number; minRatio?: number; maxRatio?: number } = {},
+  opts: { minWidth?: number } = {},
 ): boolean {
   if (!size) return false
-  const minWidth = opts.minWidth ?? 1000
-  const minRatio = opts.minRatio ?? 1.2
-  const maxRatio = opts.maxRatio ?? 2.6
-  if (size.width < minWidth) return false
-  const ratio = size.width / size.height
-  return ratio >= minRatio && ratio <= maxRatio
+  // The rendered card width. Not a round number by accident — measured.
+  return size.width >= (opts.minWidth ?? 460)
 }

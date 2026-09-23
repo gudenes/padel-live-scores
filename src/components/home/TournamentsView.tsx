@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { isLeagueLevel } from '@/lib/league-levels'
 import Avatar from '@/components/Avatar'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { Link } from '@/i18n/navigation'
@@ -1235,6 +1236,7 @@ function BigTournamentCard({
               src={tournament.cover_image_url}
               alt={tournament.name}
               variant="hero"
+              focal={isLeagueLevel(tournament.level) ? 'center' : 'top'}
               sizes="(max-width: 480px) 100vw, 480px"
             />
             {/* top band keeps the status pill / countdown legible */}

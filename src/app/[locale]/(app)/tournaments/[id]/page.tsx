@@ -4,6 +4,8 @@
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
+import { isLeagueLevel } from '@/lib/league-levels'
+import { titleCase } from '@/lib/title-case'
 import Image from 'next/image'
 import { useFormatter, useTranslations, useLocale } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
@@ -151,23 +153,9 @@ function localDateKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'BNL'])
-// Roman numerals must survive title-casing — FIP names events like
-// "XX MEDITERRANEAN GAMES", and "Xx Mediterranean Games" reads as a typo.
-// Enumerating II/III/IV (the old approach) missed everything else, so match
-// the grammar instead. Deliberately strict, and deliberately without M/D, so
-// ordinary words built from numeral letters aren't shouted: LIVE, CIVIL and
-// MIX are all rejected; I, IV, IX, VIII and XX match.
-const ROMAN_NUMERAL = /^C{0,3}(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/
-function titleCase(name: string): string {
-  return name.split(' ').map(word => {
-    const upper = word.toUpperCase()
-    if (KEEP_UPPER.has(upper)) return upper
-    if (upper.length > 0 && ROMAN_NUMERAL.test(upper)) return upper
-    if (word.length <= 1) return word.toUpperCase()
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  }).join(' ')
-}
+// titleCase lives in @/lib/title-case — it was copied into this file and
+// into TournamentSpotlightHero, and each copy carried its own acronym list.
+// Adding 'PPL' to one left the others rendering 'Ppl'.
 
 // levelLabel is imported at the top from @/lib/tournament-labels —
 // the canonical map there covers all FIP tiers (Beyond, Promises,
@@ -1084,6 +1072,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 src={activeTournamentObj.cover_image_url}
                 alt={activeTournamentObj.name}
                 variant="hero"
+                focal={isLeagueLevel(activeTournamentObj.level) ? 'center' : 'top'}
                 sizes="(max-width: 480px) 100vw, 500px"
                 priority
               />

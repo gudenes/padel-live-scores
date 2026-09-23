@@ -81,41 +81,29 @@ describe('imageDimensions — PNG', () => {
 })
 
 describe('isUsableCover', () => {
-  it('accepts the landscape hero', () => {
-    expect(isUsableCover({ width: 2560, height: 1440 })).toBe(true)
-  })
-
-  it('rejects the portrait poster — wrong shape', () => {
-    // Stretched into a landscape card this is distorted, not merely small.
-    expect(isUsableCover({ width: 496, height: 820 })).toBe(false)
-  })
-
-  it('rejects a landscape image too narrow to fill a card — upscaled to blur', () => {
-    // Right shape, wrong resolution. A separate failure from the above, and
-    // it has to be caught separately or a 400px-wide banner sails through.
-    expect(isUsableCover({ width: 600, height: 300 })).toBe(false)
-  })
-
-  it('rejects the ultra-wide banner — cropped to its middle half', () => {
-    // Los Angeles, both divisions: 1440x382. Right orientation, but in a
-    // ~16:9 slot object-fit:cover shows roughly the middle 47% of its width,
-    // which is exactly where an event banner's branding tends not to be.
-    expect(isUsableCover({ width: 1440, height: 382 })).toBe(false)
-  })
-
-  it('accepts both real landscape shapes', () => {
+  it('accepts every shape upstream publishes, once it is big enough', () => {
+    // Shape used to be rejected here. propadelleague.com renders the same
+    // 496x820 vertical.jpg as its own landscape event hero via
+    // background-size:cover, so a crop is evidently not damage — the skyline
+    // survives it. Only resolution is checked now.
     expect(isUsableCover({ width: 2560, height: 1440 })).toBe(true) // Playa del Carmen
     expect(isUsableCover({ width: 2132, height: 1096 })).toBe(true) // Miami
+    expect(isUsableCover({ width: 1440, height: 382 })).toBe(true)  // Los Angeles banner
+    expect(isUsableCover({ width: 496, height: 820 })).toBe(true)   // New York poster
+  })
+
+  it('rejects an image narrower than the card it must fill', () => {
+    // The card is 464 CSS px wide — measured, not assumed. Below that the
+    // image is enlarged past its own pixels whatever the framing.
+    expect(isUsableCover({ width: 320, height: 180 })).toBe(false)
   })
 
   it('refuses when the size could not be read', () => {
-    // Unmeasurable is not the same as fine. Committing an unknown image to a
-    // cover slot is the exact gamble this module exists to avoid.
+    // Unmeasurable is not the same as fine.
     expect(isUsableCover(null)).toBe(false)
   })
 
-  it('honours overridden thresholds', () => {
-    expect(isUsableCover({ width: 600, height: 300 }, { minWidth: 500 })).toBe(true)
-    expect(isUsableCover({ width: 2560, height: 1440 }, { minRatio: 2 })).toBe(false)
+  it('honours an overridden minimum', () => {
+    expect(isUsableCover({ width: 496, height: 820 }, { minWidth: 1000 })).toBe(false)
   })
 })
