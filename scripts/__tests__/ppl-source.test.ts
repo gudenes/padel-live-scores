@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseTournamentPayload, extractBuildId } from '../lib/ppl-source'
+import { parseTournamentPayload, extractBuildId, stripNickname } from '../lib/ppl-source'
 
 const FIXTURE = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/ppl-los-angeles-2026.json'), 'utf8'),
@@ -68,5 +68,32 @@ describe('parseTournamentPayload', () => {
 
   it('carries no score data — that is Phase 2b', () => {
     for (const m of t.matches) expect(m).not.toHaveProperty('sets')
+  })
+})
+
+// These three lock in the name-source decision. Without them the module
+// passes its whole suite with the WRONG field preference — measured: reading
+// firstName+lastName instead of displayName resolves 46 of 132 players
+// against our database where displayName resolves 67, because upstream's
+// split fields carry the two Spanish surnames in reverse order.
+describe('player name source', () => {
+  const t = parseTournamentPayload(FIXTURE, 'los-angeles-2026')
+
+  it('strips a quoted nickname', () => {
+    expect(stripNickname('Alejandro "Alex" Ruiz')).toBe('Alejandro Ruiz')
+    expect(stripNickname('Leonel "Tolito" Aguirre')).toBe('Leonel Aguirre')
+    expect(stripNickname('Federico Chingotto')).toBe('Federico Chingotto')
+  })
+
+  it('strips the nickname off a real roster entry', () => {
+    // upstream: displayName 'Alejandro "Alex" Ruiz', firstName 'Alejandro "Alex"'
+    expect(t.players.find((p) => p.slug === 'alejandro-alex-ruiz')!.name).toBe('Alejandro Ruiz')
+  })
+
+  it('keeps the displayName surname ORDER, not the reversed split fields', () => {
+    // upstream: displayName 'Anna Ortiz Gasco' vs firstName+lastName 'Anna Gasco Ortiz'.
+    // Spanish paternal surname comes first, and that is what our DB holds.
+    expect(t.players.find((p) => p.slug === 'anna-ortiz-gasco')!.name).toBe('Anna Ortiz Gasco')
+    expect(t.players.find((p) => p.slug === 'araceli-martinez-ibanez')!.name).toBe('Araceli Martinez Ibanez')
   })
 })

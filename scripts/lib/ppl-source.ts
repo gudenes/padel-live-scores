@@ -92,6 +92,38 @@ function rawDate(v: unknown): string | null {
   return typeof v === 'string' && v.length > 0 ? v : null
 }
 
+/**
+ * Removes a quoted nickname from a player name:
+ *   `Alejandro "Alex" Ruiz` -> `Alejandro Ruiz`
+ *
+ * Upstream puts the nickname in BOTH `displayName` AND `firstName`
+ * (firstName is literally `Alejandro "Alex"`), so stripping has to happen
+ * whichever field we read. Affects 4 of 132 players.
+ *
+ * ── Why we read `displayName` and not `firstName` + `lastName` ──
+ *
+ * The separate name fields look like the cleaner source, and an earlier
+ * draft of this module preferred them for exactly that reason. Measured
+ * against our `players` table on 2026-09-23, that was wrong:
+ *
+ *   displayName          67 resolved   64 missed
+ *   firstName+lastName   46 resolved   85 missed
+ *
+ * 32 of 132 players (24%) have the two forms disagreeing, and the pattern is
+ * that upstream's split fields carry the two Spanish surnames in the WRONG
+ * ORDER — `displayName: "Anna Ortiz Gasco"` against
+ * `firstName: "Anna", lastName: "Gasco Ortiz"` — and sometimes duplicate one
+ * (`"Agueda Perez Ortiz Perez"`). Since the paternal surname comes first in
+ * Spanish and that is the order our database holds, the composed form fails
+ * to match. Preferring it would have minted 21 duplicate player rows.
+ */
+export function stripNickname(name: string): string {
+  return name
+    .replace(/["'“”‘’][^"'“”‘’]*["'“”‘’]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 export function parseTournamentPayload(payload: any, slug: string): PplTournament {
   const props = payload?.pageProps
   const ctx = props?.broadcastContext
@@ -112,13 +144,13 @@ export function parseTournamentPayload(payload: any, slug: string): PplTournamen
 
   const players: PplPlayer[] = Object.entries(ctx.playerRowsById ?? {}).map(([id, row]: [string, any]) => {
     const v = row.values ?? {}
-    const composed = `${v.firstName ?? ''} ${v.lastName ?? ''}`.trim()
+    const composed = stripNickname(`${v.firstName ?? ''} ${v.lastName ?? ''}`.trim())
+    const display = stripNickname(v.displayName ?? '')
     return {
       slug: id,
-      // Prefer the composed first+last over displayName: displayName is where
-      // upstream puts nicknames in quotes (ALEJANDRO "ALEX" RUIZ), which would
-      // poison name-based resolution.
-      name: composed.length > 0 ? composed : (v.displayName ?? id),
+      // displayName first — see the stripNickname docblock for why the
+      // composed first+last form is the WORSE choice despite looking cleaner.
+      name: display.length > 0 ? display : composed.length > 0 ? composed : id,
       sex: v.sex ?? null,
       league: v.leagueId ?? null,
       status: v.status ?? null,
