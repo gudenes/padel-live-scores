@@ -17,6 +17,10 @@ export interface Candidate {
   /** Model probability for the YES side; null when no anchor exists. */
   modelProb: number | null
   scheduledAt: Date | null
+  /** This market's subsidy in guacas — the template's max_loss_guacas, i.e.
+   *  lmsr_b · ln(2). Per-template, NOT a global constant: match.winner is
+   *  12,000 while tournament.outright is 40,000. */
+  subsidyGuacas: number
 }
 
 export interface Gates {
@@ -94,7 +98,6 @@ export interface Caps {
   createdPerTournamentToday: Record<string, number>
   maxSubsidyPerDay: number
   subsidyUsedToday: number
-  subsidyPerMarket: number
 }
 
 export interface CapResult {
@@ -132,14 +135,14 @@ export function applyCaps(candidates: Candidate[], caps: Caps): CapResult {
       if (used >= caps.maxPerTournamentDay) { drop('over per-tournament daily cap'); continue }
     }
 
-    if (subsidy + caps.subsidyPerMarket > caps.maxSubsidyPerDay) {
+    if (subsidy + cand.subsidyGuacas > caps.maxSubsidyPerDay) {
       drop('over daily subsidy budget'); continue
     }
 
     kept.push(cand)
     open += 1
     today += 1
-    subsidy += caps.subsidyPerMarket
+    subsidy += cand.subsidyGuacas
     if (cand.matchId) perMatch[cand.matchId] = (perMatch[cand.matchId] ?? 0) + 1
     if (cand.tournamentId) perTournament[cand.tournamentId] = (perTournament[cand.tournamentId] ?? 0) + 1
   }

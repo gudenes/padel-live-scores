@@ -15,8 +15,6 @@ import { isPremierTier } from './match-stats-fetcher.js'
 /** Never seed at a probability the CHECK constraint would reject. */
 const SEED_MIN = 0.02
 const SEED_MAX = 0.98
-/** Matches the default in market_limits; used for the subsidy budget. */
-const DEFAULT_SUBSIDY_PER_MARKET = 5000
 
 export interface GeneratorTemplate {
   id: string
@@ -191,10 +189,10 @@ export async function runMarketGenerator(
   // Existing markets, for dedup and for the caps.
   const existing = unwrap(
     await deps.supabase
-      .from('markets').select('template_id, match_id, tournament_id, status, created_at')
+      .from('markets').select('template_id, match_id, tournament_id, status, created_at, lmsr_b')
       .eq('season_id', season.id),
     'existing markets',
-  ) as { template_id: string; match_id: string | null; tournament_id: string | null; status: string; created_at: string }[]
+  ) as { template_id: string; match_id: string | null; tournament_id: string | null; status: string; created_at: string; lmsr_b: number | string }[]
 
   const startOfDay = new Date(now)
   startOfDay.setUTCHours(0, 0, 0, 0)
@@ -205,6 +203,7 @@ export async function runMarketGenerator(
   const existingPerMatch: Record<string, number> = {}
   const createdPerTournamentToday: Record<string, number> = {}
   let createdToday = 0
+  let subsidyUsedToday = 0
   let currentOpen = 0
 
   for (const m of existing) {
@@ -212,6 +211,10 @@ export async function runMarketGenerator(
     if (m.match_id) existingPerMatch[m.match_id] = (existingPerMatch[m.match_id] ?? 0) + 1
     if (new Date(m.created_at) >= startOfDay) {
       createdToday += 1
+      // Real committed subsidy, not an assumed constant: lmsr_b · ln2 is
+      // exactly the max_loss_guacas frozen onto the market at creation.
+      // PostgREST returns numeric as a string, hence Number().
+      subsidyUsedToday += Number(m.lmsr_b) * Math.LN2
       if (m.tournament_id) {
         createdPerTournamentToday[m.tournament_id] = (createdPerTournamentToday[m.tournament_id] ?? 0) + 1
       }
@@ -228,7 +231,7 @@ export async function runMarketGenerator(
     const gates = (t.gates ?? {}) as Gates
     for (const row of rows) {
       if (existingKeys.has(`${t.id}:${row.id}`)) continue
-      const cand = matchRowToCandidate(row, ranks, t.key)
+      const cand = matchRowToCandidate(row, ranks, t.key, t.max_loss_guacas)
       if (seenKeys.has(cand.key)) continue
       seenKeys.add(cand.key)
       result.candidates += 1
@@ -252,8 +255,7 @@ export async function runMarketGenerator(
     maxPerTournamentDay: limits.max_per_tournament_day as number,
     createdPerTournamentToday,
     maxSubsidyPerDay: limits.max_subsidy_per_day as number,
-    subsidyUsedToday: createdToday * DEFAULT_SUBSIDY_PER_MARKET,
-    subsidyPerMarket: DEFAULT_SUBSIDY_PER_MARKET,
+    subsidyUsedToday: Math.round(subsidyUsedToday),
   })
   result.capDrops = caps.drops
 

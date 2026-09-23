@@ -5,7 +5,7 @@ function c(key: string, over: Partial<Candidate> = {}): Candidate {
   return {
     key, matchId: `match-${key}`, tournamentId: 'tour-1', category: 'men',
     round: 'SF', bestRanking: 5, modelProb: 0.5,
-    scheduledAt: new Date('2026-09-26T18:00:00Z'), ...over,
+    scheduledAt: new Date('2026-09-26T18:00:00Z'), subsidyGuacas: 5_000, ...over,
   }
 }
 
@@ -14,7 +14,7 @@ const CAPS: Caps = {
   maxNewPerDay: 20, createdToday: 0,
   maxPerMatch: 3, existingPerMatch: {},
   maxPerTournamentDay: 8, createdPerTournamentToday: {},
-  maxSubsidyPerDay: 250_000, subsidyUsedToday: 0, subsidyPerMarket: 5_000,
+  maxSubsidyPerDay: 250_000, subsidyUsedToday: 0,
 }
 
 describe('applyCaps', () => {
@@ -54,9 +54,30 @@ describe('applyCaps', () => {
 
   it('enforces the daily subsidy budget', () => {
     const r = applyCaps([c('a'), c('b'), c('c')], {
-      ...CAPS, maxSubsidyPerDay: 10_000, subsidyUsedToday: 0, subsidyPerMarket: 5_000,
+      ...CAPS, maxSubsidyPerDay: 10_000, subsidyUsedToday: 0,
     })
     expect(r.kept).toHaveLength(2)
+    expect(r.drops).toEqual([{ reason: 'over daily subsidy budget', count: 1 }])
+  })
+
+  it('counts each candidate at its own subsidy, not a flat rate', () => {
+    // match.winner is seeded at 12,000 and tournament.outright at 40,000.
+    // A flat-rate cap let 20 markets look like 40% of a 250k budget when they
+    // were really 96% of it.
+    const cands = [
+      c('cheap', { subsidyGuacas: 5_000 }),
+      c('dear', { subsidyGuacas: 40_000 }),
+    ]
+    const r = applyCaps(cands, { ...CAPS, maxSubsidyPerDay: 30_000, subsidyUsedToday: 0 })
+    expect(r.kept.map(k => k.key)).toEqual(['cheap'])
+    expect(r.drops).toEqual([{ reason: 'over daily subsidy budget', count: 1 }])
+  })
+
+  it('respects subsidy already committed today', () => {
+    const r = applyCaps([c('a', { subsidyGuacas: 12_000 })], {
+      ...CAPS, maxSubsidyPerDay: 250_000, subsidyUsedToday: 240_000,
+    })
+    expect(r.kept).toEqual([])
     expect(r.drops).toEqual([{ reason: 'over daily subsidy budget', count: 1 }])
   })
 

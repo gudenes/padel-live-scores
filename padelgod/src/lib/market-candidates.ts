@@ -35,6 +35,7 @@ export function matchRowToCandidate(
   row: MatchRow,
   ranks: Map<string, number>,
   templateKey: string,
+  subsidyGuacas: number,
 ): Candidate {
   const raw = row.pred_pair1_prob
   const prob = raw === null || raw === undefined ? null : Number(raw)
@@ -48,5 +49,6 @@ export function matchRowToCandidate(
     bestRanking: bestRanking(row, ranks),
     modelProb: prob !== null && Number.isFinite(prob) ? prob : null,
     scheduledAt: row.scheduled_at ? new Date(row.scheduled_at) : null,
+    subsidyGuacas,
   }
 }

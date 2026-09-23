@@ -11,6 +11,7 @@ function candidate(over: Partial<Candidate> = {}): Candidate {
     bestRanking: 4,
     modelProb: 0.55,
     scheduledAt: new Date('2026-09-26T18:00:00Z'),
+    subsidyGuacas: 5000,
     ...over,
   }
 }
