@@ -32,7 +32,7 @@ import {
 } from '@/lib/ppl-hub'
 import { DATE_SHORT } from '@/lib/format-patterns'
 
-interface TeamRow { id: string; name: string; crest_url: string | null; brand_color: string | null }
+interface TeamRow { id: string; name: string; external_id: string | null; crest_url: string | null; brand_color: string | null }
 interface SeasonRow { id: string; team_id: string; league: string }
 interface TieRow { id: string; tournament_id: string; home_team_season_id: string; away_team_season_id: string }
 interface MatchRow { tie_id: string | null; winner_pair: number | null; category: string | null }
@@ -54,6 +54,7 @@ interface StandingDbRow {
 /** Row as rendered: the published standing plus the franchise's identity. */
 interface HubRow extends StandingDbRow {
   teamName: string
+  teamSlug: string | null
   crestUrl: string | null
   brandColor: string | null
 }
@@ -83,7 +84,7 @@ export default function PplHubPage() {
     let cancelled = false
     ;(async () => {
       const [teamsRes, seasonsRes, tiesRes, matchesRes, eventsRes, standingsRes] = await Promise.all([
-        supabase.from('teams').select('id,name,crest_url,brand_color').eq('source', 'ppl'),
+        supabase.from('teams').select('id,name,external_id,crest_url,brand_color').eq('source', 'ppl'),
         supabase.from('team_seasons').select('id,team_id,league').not('league', 'is', null),
         supabase.from('league_ties').select('id,tournament_id,home_team_season_id,away_team_season_id'),
         supabase.from('matches').select('tie_id,winner_pair,category').not('tie_id', 'is', null),
@@ -140,6 +141,7 @@ export default function PplHubPage() {
         return {
           ...r,
           teamName: team?.name ?? '—',
+          teamSlug: team?.external_id ?? null,
           crestUrl: team?.crest_url ?? null,
           brandColor: team?.brand_color ?? null,
         }
@@ -241,7 +243,16 @@ export default function PplHubPage() {
           {t('emptyScope')}
         </div>
       ) : (
-        hubRows.map((row) => <StandingRow key={row.team_season_id} row={row} t={t} />)
+        hubRows.map((row) => (
+          <StandingRow
+            key={row.team_season_id}
+            row={row}
+            t={t}
+            onClick={row.teamSlug
+              ? () => router.push(`/ppl/team/${row.teamSlug}${level === 'ppl_ii' ? '?division=ppl_ii' : ''}`)
+              : undefined}
+          />
+        ))
       )}
 
       {/* These are the league's published points, not a number we computed.
@@ -302,10 +313,13 @@ export default function PplHubPage() {
 }
 
 function StandingRow({
-  row, t,
+  row, t, onClick,
 }: {
   row: HubRow
   t: ReturnType<typeof useTranslations>
+  /** Absent when the franchise has no slug — the row then stays inert rather
+   *  than navigating to a URL that cannot resolve. */
+  onClick?: () => void
 }) {
   const position = row.rank ?? 0
   const isTop3 = position > 0 && position <= 3
@@ -318,12 +332,19 @@ function StandingRow({
     row.pct_sets_won != null ? `${row.pct_sets_won}% ${t('pctSets')}` : null,
   ].filter(Boolean).join(' · ')
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      padding: '12px 16px',
-      background: isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent',
-      borderBottom: `1px solid ${BORDER}`,
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px',
+        cursor: onClick ? 'pointer' : 'default',
+        background: isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent',
+        borderBottom: `1px solid ${BORDER}`,
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={(e) => { if (onClick) e.currentTarget.style.background = GREEN_DIM }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = isTop3 ? 'rgba(245,166,35,0.04)' : 'transparent' }}
+    >
       <div style={{ width: 36, textAlign: 'right', flexShrink: 0 }}>
         <span style={{
           fontWeight: 800, fontSize: isTop3 ? 17 : 15,

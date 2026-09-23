@@ -1823,6 +1823,16 @@
     "pctMatches": "partite vinte",
     "pctSets": "set",
     "widgetTitle": "Classifica PPL",
-    "widgetCta": "Tabella completa"
+    "widgetCta": "Tabella completa",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} nella {division}: {tiesWon} sfide vinte su {tiesPlayed}, {courtsWon}–{courtsLost} sui campi. Rosa, risultati e classifica.",
+    "colTiesShort": "Sfide",
+    "colCourts": "Campi",
+    "tabResults": "Risultati",
+    "tabSquad": "Rosa",
+    "noTies": "Ancora nessuna sfida.",
+    "noRoster": "Nessuna rosa registrata.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "non ha giocato"
   }
 }

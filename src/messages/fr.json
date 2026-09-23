@@ -1823,6 +1823,16 @@
     "pctMatches": "matchs gagnés",
     "pctSets": "sets",
     "widgetTitle": "Classement PPL",
-    "widgetCta": "Tableau complet"
+    "widgetCta": "Tableau complet",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} en {division} : {tiesWon} duels gagnés sur {tiesPlayed}, {courtsWon}–{courtsLost} sur les terrains. Effectif, résultats et classement.",
+    "colTiesShort": "Duels",
+    "colCourts": "Terrains",
+    "tabResults": "Résultats",
+    "tabSquad": "Effectif",
+    "noTies": "Aucun duel pour le moment.",
+    "noRoster": "Aucun effectif enregistré.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "n a pas joué"
   }
 }

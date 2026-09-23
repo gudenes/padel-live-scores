@@ -1855,6 +1855,16 @@
     "pctMatches": "matches won",
     "pctSets": "sets",
     "widgetTitle": "PPL Standings",
-    "widgetCta": "Full table"
+    "widgetCta": "Full table",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} in the {division}: {tiesWon} of {tiesPlayed} ties won, {courtsWon}–{courtsLost} on courts. Squad, results and standing.",
+    "colTiesShort": "Ties",
+    "colCourts": "Courts",
+    "tabResults": "Results",
+    "tabSquad": "Squad",
+    "noTies": "No ties yet.",
+    "noRoster": "No squad recorded yet.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "did not play"
   }
 }

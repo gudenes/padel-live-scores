@@ -1823,6 +1823,16 @@
     "pctMatches": "jogos ganhos",
     "pctSets": "sets",
     "widgetTitle": "Classificação PPL",
-    "widgetCta": "Tabela completa"
+    "widgetCta": "Tabela completa",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} na {division}: {tiesWon} de {tiesPlayed} confrontos vencidos, {courtsWon}–{courtsLost} em quadras. Elenco, resultados e classificação.",
+    "colTiesShort": "Confrontos",
+    "colCourts": "Quadras",
+    "tabResults": "Resultados",
+    "tabSquad": "Elenco",
+    "noTies": "Ainda não há confrontos.",
+    "noRoster": "Ainda não há elenco registrado.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "não jogou"
   }
 }
