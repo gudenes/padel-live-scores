@@ -186,6 +186,50 @@ export function parseTournamentPayload(payload: any, slug: string): PplTournamen
   }
 }
 
+export interface PplEventRef {
+  slug: string
+  league: string | null
+  name: string | null
+}
+
+/**
+ * The season's events, read from upstream's own index.
+ *
+ * The importer used to carry a hand-written list built as `<city>-<year>`.
+ * That guess was wrong for Playa del Carmen, whose real slug is
+ * `playa-del-carmen` with no year, so its 24 matches were never fetched —
+ * and the miss was invisible, because a wrong slug 404s exactly like an
+ * unpublished event and the importer logged it as "not published yet".
+ *
+ * Reading the index makes the slug upstream's fact rather than our guess,
+ * and surfaces events we did not know to ask for.
+ */
+export function extractTournamentIndex(payload: any): PplEventRef[] {
+  const rows = payload?.pageProps?.extraProps?.tournaments
+  if (!Array.isArray(rows)) return []
+  const out: PplEventRef[] = []
+  for (const r of rows) {
+    const slug = typeof r?.id === 'string' ? r.id : null
+    if (!slug) continue
+    const v = r.values ?? {}
+    out.push({
+      slug,
+      league: v?.league?.docId ?? null,
+      name: typeof v?.title === 'string' ? v.title : (typeof v?.name === 'string' ? v.name : null),
+    })
+  }
+  return out
+}
+
+export async function fetchTournamentIndex(
+  fetchFn: Fetcher,
+  buildId: string,
+): Promise<PplEventRef[]> {
+  const r = await fetchFn(`${PPL_ORIGIN}/_next/data/${buildId}/tournaments.json`)
+  if (r.status !== 200) throw new Error(`fetchTournamentIndex: HTTP ${r.status}`)
+  return extractTournamentIndex(JSON.parse(await r.text()))
+}
+
 export async function fetchTournament(
   fetchFn: Fetcher,
   buildId: string,

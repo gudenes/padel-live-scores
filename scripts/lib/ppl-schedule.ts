@@ -28,6 +28,10 @@ const VENUE_TIMEZONE: Record<string, string> = {
   'new-york-ppl-ii-2026': 'America/New_York',
   'los-angeles-2026': 'America/Los_Angeles',
   'los-angeles-ppl-ii-2026': 'America/Los_Angeles',
+  // Upstream's slug for the 2026 stop carries no year. The year-suffixed
+  // spelling is kept because the PPL II event does use it, and because a
+  // future season may well reintroduce it for the top division too.
+  'playa-del-carmen': 'America/Cancun',
   'playa-del-carmen-2026': 'America/Cancun',
   'playa-del-carmen-ppl-ii-2026': 'America/Cancun',
   'guadalajara-2026': 'America/Mexico_City',

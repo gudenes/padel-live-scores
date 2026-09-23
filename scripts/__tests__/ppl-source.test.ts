@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseTournamentPayload, extractBuildId, stripNickname } from '../lib/ppl-source'
+import { parseTournamentPayload, extractBuildId, stripNickname, extractTournamentIndex } from '../lib/ppl-source'
 
 const FIXTURE = JSON.parse(
   readFileSync(join(__dirname, 'fixtures/ppl-los-angeles-2026.json'), 'utf8'),
@@ -95,5 +95,53 @@ describe('player name source', () => {
     // Spanish paternal surname comes first, and that is what our DB holds.
     expect(t.players.find((p) => p.slug === 'anna-ortiz-gasco')!.name).toBe('Anna Ortiz Gasco')
     expect(t.players.find((p) => p.slug === 'araceli-martinez-ibanez')!.name).toBe('Araceli Martinez Ibanez')
+  })
+})
+
+describe('extractTournamentIndex', () => {
+  const index = JSON.parse(
+    readFileSync(join(__dirname, 'fixtures/ppl-tournaments-index.json'), 'utf8'),
+  )
+
+  it('finds every event upstream publishes, across both divisions and seasons', () => {
+    const refs = extractTournamentIndex(index)
+    expect(refs.length).toBe(12)
+    expect(refs.filter((r) => r.league === 'ppl-ii').length).toBe(4)
+  })
+
+  it('carries the slug whose shape our hand-written list got wrong', () => {
+    // The whole reason this function exists. The guessed list said
+    // `playa-del-carmen-2026`; upstream says `playa-del-carmen`, with no
+    // year, and the 24 matches behind it were silently never fetched.
+    const slugs = extractTournamentIndex(index).map((r) => r.slug)
+    expect(slugs).toContain('playa-del-carmen')
+    expect(slugs).not.toContain('playa-del-carmen-2026')
+  })
+
+  it('does not invent a year suffix for any slug', () => {
+    // A tempting "normalisation" would append the season year and rebuild
+    // exactly the bug this replaced.
+    const refs = extractTournamentIndex(index)
+    const pdc = refs.find((r) => r.slug.startsWith('playa-del-carmen') && r.league === 'ppl')
+    expect(pdc!.slug).toBe('playa-del-carmen')
+  })
+
+  it('reports the division so the caller need not parse it out of the slug', () => {
+    const refs = extractTournamentIndex(index)
+    expect(refs.find((r) => r.slug === 'miami-ppl-ii-2026')!.league).toBe('ppl-ii')
+    expect(refs.find((r) => r.slug === 'miami-2026')!.league).toBe('ppl')
+  })
+
+  it('returns empty rather than throwing when the index reshapes', () => {
+    // Upstream owns this structure. A throw here would take down an import
+    // that could still run from its fallback list.
+    expect(extractTournamentIndex({})).toEqual([])
+    expect(extractTournamentIndex({ pageProps: { extraProps: {} } })).toEqual([])
+    expect(extractTournamentIndex(null)).toEqual([])
+  })
+
+  it('skips a row with no id instead of emitting a null slug', () => {
+    const shaped = { pageProps: { extraProps: { tournaments: [{ values: {} }, { id: 'ok' }] } } }
+    expect(extractTournamentIndex(shaped).map((r) => r.slug)).toEqual(['ok'])
   })
 })

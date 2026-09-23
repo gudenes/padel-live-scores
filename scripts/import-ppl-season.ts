@@ -20,6 +20,7 @@ import { createClient } from '@supabase/supabase-js'
 import {
   fetchBuildId,
   fetchTournament,
+  fetchTournamentIndex,
   PPL_USER_AGENT,
   type Fetcher,
   type PplTournament,
@@ -44,17 +45,20 @@ function argValue(name: string): string | null {
 
 const MAP_FILE = argValue('map')
 
-const SEASON_SLUGS = [
+/**
+ * Fallback only. Slugs now come from upstream's tournaments index — see
+ * `fetchTournamentIndex`. This list is what the importer used to guess, and
+ * it is kept solely so a broken index does not stop an import cold.
+ *
+ * It is also the evidence for why discovery replaced it: it says
+ * `playa-del-carmen-2026`, and the real slug is `playa-del-carmen`.
+ */
+const FALLBACK_SLUGS = [
   'new-york-2026',
   'new-york-ppl-ii-2026',
   'los-angeles-2026',
   'los-angeles-ppl-ii-2026',
-  'playa-del-carmen-2026',
-  'playa-del-carmen-ppl-ii-2026',
-  'guadalajara-2026',
-  'guadalajara-ppl-ii-2026',
   'miami-2026',
-  'miami-ppl-ii-2026',
 ]
 
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
@@ -117,10 +121,26 @@ async function main() {
   const buildId = await fetchBuildId(nodeFetch)
   console.log(`buildId: ${buildId}`)
 
+  let slugs: string[]
+  try {
+    const index = await fetchTournamentIndex(nodeFetch, buildId)
+    slugs = index.map((r) => r.slug)
+    console.log(`discovered ${slugs.length} events from upstream index`)
+    const missing = FALLBACK_SLUGS.filter((s) => !slugs.includes(s))
+    if (missing.length) console.log(`  NOTE: known slug(s) absent from index: ${missing.join(', ')}`)
+  } catch (e) {
+    console.log(`index discovery failed (${(e as Error).message}) — falling back to the hard-coded list`)
+    slugs = FALLBACK_SLUGS
+  }
+
   const tournaments: PplTournament[] = []
-  for (const slug of SEASON_SLUGS) {
+  for (const slug of slugs) {
     const t = await fetchTournament(nodeFetch, buildId, slug)
-    if (!t) { console.log(`  ${slug}: not published yet (404)`); continue }
+    // A 404 here is NOT proof the event is unpublished — that reading is
+    // exactly what hid the Playa del Carmen miss. Now that slugs come from
+    // upstream's own index, a 404 means the event is listed but has no
+    // detail page yet, which is a real state worth naming as such.
+    if (!t) { console.log(`  ${slug}: listed, but no detail page (404)`); continue }
     console.log(`  ${slug}: ${t.matches.length} matches, ${t.teams.length} teams, league=${t.league}`)
     tournaments.push(t)
   }
@@ -167,6 +187,21 @@ async function main() {
 
   const ties = tournaments.reduce((n, t) => n + new Set(t.matches.map((m) => `${m.stage}|${m.sessionNumber ?? ''}|${m.homeTeamSlug}|${m.awayTeamSlug}`)).size, 0)
   const totalMatches = tournaments.reduce((n, t) => n + t.matches.length, 0)
+  // Pre-flight: an event whose venue timezone we don't know would write its
+  // whole card with scheduled_at NULL, and a dateless match is invisible —
+  // it drops off the home carousel and out of today's list. The old code
+  // only warned, from inside the write loop, which is after the fact. Fail
+  // here instead, while nothing has been written.
+  const undated = tournaments.filter((t) => t.matches.length > 0 && !venueTimezone(t.slug))
+  if (undated.length > 0) {
+    throw new Error(
+      `no venue timezone for: ${undated.map((t) => t.slug).join(', ')}. ` +
+      `Add them to VENUE_TIMEZONE in scripts/lib/ppl-schedule.ts — importing now ` +
+      `would write ${undated.reduce((n, t) => n + t.matches.length, 0)} matches with no date, ` +
+      `which renders them invisible rather than merely incomplete.`,
+    )
+  }
+
   console.log(`\n=== EVENTS ===`)
   console.log(`  tournaments : ${tournaments.length}`)
   console.log(`  ties        : ${ties}`)
@@ -252,23 +287,24 @@ async function main() {
     }
   }
 
-  let memberships = 0
-  for (const t of tournaments) {
-    for (const tm of t.teams) {
-      const seasonId = seasonIdByKey.get(`${tm.slug}|${t.league}`)
-      if (!seasonId) continue
-      for (const slug of [...tm.mensPlayerIds, ...tm.womensPlayerIds]) {
-        const playerId = playerIdBySlug.get(slug)
-        if (!playerId) { console.warn(`  roster: unresolved slug ${slug} on ${tm.slug}`); continue }
-        const { error } = await supabase
-          .from('team_memberships')
-          .upsert({ team_season_id: seasonId, player_id: playerId }, { onConflict: 'team_season_id,player_id' })
-        if (error) throw new Error(`team_memberships upsert failed (${slug}): ${error.message}`)
-        memberships++
-      }
-    }
-  }
-  console.log(`team_seasons: ${seasonIdByKey.size} | membership upserts: ${memberships}`)
+  // Rosters are NOT written here.
+  //
+  // This used to upsert `teamsById`'s squad block. That block is
+  // FRANCHISE-wide and byte-identical in the PPL and PPL II payloads, so it
+  // claimed each club fielded its whole squad in PPL II, where the league
+  // drafts one pairing per club. `import-ppl-standings.ts` derives the real
+  // per-division roster from who actually took the court.
+  //
+  // Leaving the write here would not merely be redundant, it would FIGHT
+  // that script: this runs an unconditional upsert, so every season import
+  // re-added the 100 squad rows the standings run had just pruned. Observed,
+  // not theorised — the Playa del Carmen import took league memberships from
+  // 80 back to 180.
+  //
+  // The squad block is still read, for player discovery above. It is only
+  // its use as a per-division roster that is wrong.
+  const memberships = 0
+  console.log(`team_seasons: ${seasonIdByKey.size} | memberships: not written here (see import-ppl-standings.ts) [${memberships}]`)
 
   // ── Phase 4 — tournaments ────────────────────────────────────────────────
 
