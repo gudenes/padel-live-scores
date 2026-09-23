@@ -60,7 +60,7 @@ async function loadExistingPlayers(): Promise<ExistingPlayer[]> {
   for (let start = 0; ; start += 1000) {
     const { data, error } = await supabase
       .from('players')
-      .select('id,name,normalized_name,category,tier')
+      .select('id,name,display_name,normalized_name,category,tier')
       .range(start, start + 999)
     if (error) throw new Error(`players read failed: ${error.message}`)
     rows.push(...(data as ExistingPlayer[]))

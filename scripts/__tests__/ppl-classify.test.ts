@@ -5,8 +5,8 @@ import type { PplPlayer } from '../lib/ppl-source'
 const p = (slug: string, name: string, sex = 'male'): PplPlayer =>
   ({ slug, name, sex, league: 'ppl', status: 'active' })
 
-const e = (id: string, name: string, category = 'men'): ExistingPlayer =>
-  ({ id, name, normalized_name: normalizeForMatch(name), category, tier: 'pro' })
+const e = (id: string, name: string, category = 'men', display_name: string | null = null): ExistingPlayer =>
+  ({ id, name, display_name, normalized_name: normalizeForMatch(name), category, tier: 'pro' })
 
 describe('normalizeForMatch', () => {
   it('strips accents, case and punctuation', () => {
@@ -100,5 +100,92 @@ describe('classifyRoster', () => {
     expect(r.linked).toHaveLength(1)
     expect(r.linked[0].playerId).toBe('uuid-1')
     expect(r.ambiguous).toHaveLength(0)
+  })
+})
+
+// Tiers 2 and 3. Every fixture here is chosen so the tiers DISAGREE — a case
+// where all tiers give the same answer would pass against a broken
+// implementation and prove nothing.
+describe('display_name as a subset source', () => {
+  it('matches a nickname that the canonical name alone cannot reach', () => {
+    // Real row: our name is "Francisco Navarro", display_name "Paquito
+    // Navarro". PPL publishes the nickname form. Tier 1 misses, and the
+    // subset tier misses against `name` — {paquito, navarro} is NOT a subset
+    // of {francisco, navarro}. It only resolves because the subset tier also
+    // reads display_name. Drop that and this test fails; that is the point.
+    const r = classifyRoster(
+      [p('paquito-navarro', 'Paquito Navarro')],
+      [e('uuid-n', 'Francisco Navarro', 'men', 'Paquito Navarro')],
+      new Map(), new Map(),
+    )
+    expect(r.toLink).toHaveLength(1)
+    expect(r.toLink[0].playerId).toBe('uuid-n')
+    expect(r.toCreate).toHaveLength(0)
+  })
+})
+
+describe('token subset tier', () => {
+  it('matches the short form against our fuller canonical name', () => {
+    // PPL "Ariana Sanchez" ⊂ our "Ariana Sanchez Fallada". Note our
+    // display_name is "Ari Sanchez", which does NOT match either — so this
+    // can only pass via the subset tier.
+    const r = classifyRoster(
+      [p('ariana-sanchez', 'Ariana Sanchez', 'female')],
+      [e('uuid-a', 'Ariana Sanchez Fallada', 'women', 'Ari Sanchez')],
+      new Map(), new Map(),
+    )
+    expect(r.toLink).toHaveLength(1)
+    expect(r.toLink[0].playerId).toBe('uuid-a')
+  })
+
+  it('is one-directional — our shorter name never swallows a longer PPL name', () => {
+    const r = classifyRoster(
+      [p('marta-ortega', 'Marta Ortega', 'female')],
+      [e('uuid-m', 'Marta', 'women')],
+      new Map(), new Map(),
+    )
+    expect(r.toCreate).toHaveLength(1)
+    expect(r.toLink).toHaveLength(0)
+  })
+
+  it('refuses a single-token name so a bare surname cannot match', () => {
+    const r = classifyRoster(
+      [p('triay', 'Triay', 'female')],
+      [e('uuid-t', 'Gemma Triay Pons', 'women')],
+      new Map(), new Map(),
+    )
+    expect(r.toCreate).toHaveLength(1)
+    expect(r.toLink).toHaveLength(0)
+  })
+
+  it('two subset survivors are AMBIGUOUS, never an automatic pick', () => {
+    const r = classifyRoster(
+      [p('marta-ortega', 'Marta Ortega', 'female')],
+      [e('uuid-1', 'Marta Ortega Ruiz', 'women'), e('uuid-2', 'Marta Ortega Lopez', 'women')],
+      new Map(), new Map(),
+    )
+    expect(r.ambiguous).toHaveLength(1)
+    expect(r.ambiguous[0].candidates).toHaveLength(2)
+    expect(r.toLink).toHaveLength(0)
+    expect(r.toCreate).toHaveLength(0)
+  })
+
+  it('an exact hit wins over a looser subset hit', () => {
+    // 'David Gala' matches uuid-exact exactly AND uuid-longer by subset.
+    // Tier 1 must short-circuit, otherwise this would be ambiguous.
+    const r = classifyRoster(
+      [p('david-gala', 'David Gala')],
+      [e('uuid-exact', 'David Gala'), e('uuid-longer', 'David Gala Moreno')],
+      new Map(), new Map(),
+    )
+    expect(r.toLink).toHaveLength(1)
+    expect(r.toLink[0].playerId).toBe('uuid-exact')
+    expect(r.ambiguous).toHaveLength(0)
+  })
+
+  it('still never matches an amateur, even via subset', () => {
+    const am: ExistingPlayer = { ...e('uuid-am', 'Luis Estrada Ramos'), tier: 'amateur' }
+    const r = classifyRoster([p('luis-estrada', 'Luis Estrada')], [am], new Map(), new Map())
+    expect(r.toCreate).toHaveLength(1)
   })
 })

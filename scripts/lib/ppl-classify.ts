@@ -9,16 +9,27 @@
 // So: ambiguity is never guessed. It goes in its own bucket, the dry run
 // prints it, and `--apply` refuses until a human maps it.
 //
-// Matching is exact-normalized-name only. No fuzzy, no token subset. The
-// backfill runs once with a human reading the output; the cost of a missed
-// link is one extra row in `toCreate` that an operator merges later, while
-// the cost of a wrong link is silent and permanent.
+// Two matching tiers, neither of them fuzzy:
+//   1. exact normalized `name`
+//   2. strict token subset against `name` OR `display_name` — the house
+//      short-name column (see src/lib/player-name.ts and
+//      src/lib/player-short-name.ts)
+//
+// An exact `display_name` index was tried as a third tier and removed: an
+// exact match implies a subset match, and tier 2 already reads the column,
+// so it changed nothing. Measured on the real 132-player roster — identical
+// 100/28/4 with and without it.
+//
+// No Levenshtein, no similarity score. Both tiers ADD candidates; neither
+// chooses among them. Two or more survivors is always `ambiguous`.
 
 import type { PplPlayer } from './ppl-source'
 
 export interface ExistingPlayer {
   id: string
   name: string | null
+  /** Curated broadcast form, e.g. "Paquito Navarro" for "Francisco Navarro". Populated for ~1% of rows. */
+  display_name: string | null
   normalized_name: string | null
   category: string | null
   tier: string | null
@@ -31,7 +42,7 @@ export interface AmbiguousEntry { player: PplPlayer; candidates: ExistingPlayer[
 export interface Classification {
   /** Already carries an `entity_external_ids` row for source='ppl'. Nothing to do. */
   linked: LinkedEntry[]
-  /** Unambiguous name match — needs only the sidecar registration. */
+  /** Unambiguous match — needs only the sidecar registration. */
   toLink: LinkedEntry[]
   /** No match at all — needs a new `players` row. */
   toCreate: CreateEntry[]
@@ -58,6 +69,51 @@ function categoryOf(sex: string | null): 'men' | 'women' {
   return sex === 'female' ? 'women' : 'men'
 }
 
+function tokens(s: string): Set<string> {
+  return new Set(normalizeForMatch(s).split(' ').filter(Boolean))
+}
+
+/**
+ * Tier 2 — every token of the PPL name must appear in ours, checked against
+ * both the canonical `name` and the curated `display_name`.
+ *
+ * PPL publishes the broadcast form; our `players.name` is FIP-sourced and
+ * carries the full Spanish double surname. Measured on 2026-09-23 against
+ * the 132-player roster:
+ *
+ *   exact on name only                67 resolved   63 missed
+ *   + exact on display_name           75 resolved   55 missed
+ *   + this subset tier               100 resolved   26 missed
+ *
+ * Exact-only would have created 63 duplicates, including the women's world
+ * No. 1 twice over (`Gemma Triay` vs our `Gemma Triay Pons`, `Delfi Brea`
+ * vs `Delfina Brea Senesi`).
+ *
+ * Deliberately STRICT and one-directional: the PPL name must be a subset of
+ * ours, never the reverse. A reverse match would let our bare `Marta` swallow
+ * PPL's `Marta Ortega`. Minimum two tokens, so a lone surname cannot match.
+ *
+ * This tier only ADDS candidates — it never picks among them. Two or more
+ * survivors still land in `ambiguous` and still block `--apply`.
+ */
+function subsetCandidates(
+  name: string,
+  category: string,
+  pool: ExistingPlayer[],
+): ExistingPlayer[] {
+  const want = tokens(name)
+  if (want.size < 2) return []
+  return pool.filter((o) => {
+    if (o.category !== category) return false
+    for (const source of [o.name, o.display_name]) {
+      if (!source) continue
+      const have = tokens(source)
+      if ([...want].every((t) => have.has(t))) return true
+    }
+    return false
+  })
+}
+
 export function classifyRoster(
   roster: PplPlayer[],
   existing: ExistingPlayer[],
@@ -66,16 +122,21 @@ export function classifyRoster(
   /** pplSlug → players.id, operator-supplied overrides */
   overrides: Map<string, string>,
 ): Classification {
-  const byName = new Map<string, ExistingPlayer[]>()
-  for (const p of existing) {
-    // Amateur rows are a separate population and must never be matched —
-    // see src/lib/player-tier.ts.
-    if (p.tier === 'amateur') continue
+  // Amateur rows are a separate population and must never be matched —
+  // see src/lib/player-tier.ts.
+  const pool = existing.filter((p) => p.tier !== 'amateur')
+
+  const byName = new Map<string, Map<string, ExistingPlayer>>()
+  for (const p of pool) {
     const key = p.normalized_name || normalizeForMatch(p.name ?? '')
     if (!key) continue
-    if (!byName.has(key)) byName.set(key, [])
-    byName.get(key)!.push(p)
+    if (!byName.has(key)) byName.set(key, new Map())
+    byName.get(key)!.set(p.id, p)
   }
+
+  const exact = (name: string, category: string): ExistingPlayer[] =>
+    [...(byName.get(normalizeForMatch(name)) ?? new Map<string, ExistingPlayer>()).values()]
+      .filter((c) => c.category === category)
 
   const out: Classification = { linked: [], toLink: [], toCreate: [], ambiguous: [] }
 
@@ -87,8 +148,10 @@ export function classifyRoster(
     if (override) { out.toLink.push({ player, playerId: override }); continue }
 
     const category = categoryOf(player.sex)
-    const candidates = (byName.get(normalizeForMatch(player.name)) ?? [])
-      .filter((c) => c.category === category)
+    const exactHits = exact(player.name, category)
+    const candidates = exactHits.length > 0
+      ? exactHits
+      : subsetCandidates(player.name, category, pool)
 
     if (candidates.length === 1) out.toLink.push({ player, playerId: candidates[0].id })
     else if (candidates.length === 0) out.toCreate.push({ player, category })
