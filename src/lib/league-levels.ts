@@ -22,3 +22,18 @@ export function isLeagueLevel(level: string | null | undefined): boolean {
   if (!level) return false
   return LEAGUE_LEVELS.has(level.toLowerCase())
 }
+
+/**
+ * Splits finished matches into the circuit-only set and the full set.
+ *
+ * This is the guard behind the product decision that team-league results
+ * appear in a player's history but never in their win rate, W-L record or
+ * partner stats. It lives here as a pure function purely so it can be
+ * tested — inside the player page it was a single `.filter` in a 2600-line
+ * component's useMemo, which nothing could assert on.
+ */
+export function partitionLeagueMatches<
+  T extends { tournament?: { level?: string | null } | null },
+>(rows: T[]): { circuit: T[]; all: T[] } {
+  return { circuit: rows.filter((r) => !isLeagueLevel(r.tournament?.level)), all: rows }
+}

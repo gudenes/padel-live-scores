@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { LEAGUE_LEVELS, isLeagueLevel } from '../league-levels'
+import { LEAGUE_LEVELS, isLeagueLevel, partitionLeagueMatches } from '../league-levels'
 
 describe('isLeagueLevel', () => {
   it('matches the two PPL levels', () => {
@@ -37,5 +37,28 @@ describe('padelgod mirror', () => {
     const a = readFileSync(join(root, 'src/lib/league-levels.ts'), 'utf8')
     const b = readFileSync(join(root, 'padelgod/src/lib/league-levels.ts'), 'utf8')
     expect(b).toBe(a)
+  })
+})
+
+describe('partitionLeagueMatches', () => {
+  const m = (id: string, level: string | null) => ({ id, tournament: level ? { level } : null })
+
+  it('keeps league matches in `all` but drops them from `circuit`', () => {
+    const rows = [m('a', 'p1'), m('b', 'ppl'), m('c', 'fip_gold'), m('d', 'ppl_ii')]
+    const { circuit, all } = partitionLeagueMatches(rows)
+    expect(all).toHaveLength(4)
+    expect(circuit.map((r) => r.id)).toEqual(['a', 'c'])
+  })
+
+  it('keeps a match with no tournament in both', () => {
+    const rows = [m('x', null)]
+    const { circuit, all } = partitionLeagueMatches(rows)
+    expect(circuit).toHaveLength(1)
+    expect(all).toHaveLength(1)
+  })
+
+  it('returns the same array instance for `all` — no copy, no reorder', () => {
+    const rows = [m('a', 'p1')]
+    expect(partitionLeagueMatches(rows).all).toBe(rows)
   })
 })

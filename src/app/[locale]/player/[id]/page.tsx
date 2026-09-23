@@ -30,6 +30,7 @@ import { PlaysWithCard } from './PlaysWithCard'
 import RoadToTrophyCard from './RoadToTrophyCard'
 import AmateurProfile from './AmateurProfile'
 import { isAmateurTier } from '@/lib/player-tier'
+import { partitionLeagueMatches } from '@/lib/league-levels'
 import ShareButton from '@/components/ShareButton'
 import { buildShareUrl } from '@/lib/share-url'
 
@@ -412,7 +413,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
   // ── Derived data ─────────────────────────────────────────────
   const derived = useMemo(() => {
-    const finished = matches.filter(m => m.status === 'finished' && m.winner_pair != null)
+    // Team-league results (PPL) live in `matches` so they show up in a
+    // player's history, but they must never feed circuit metrics — different
+    // competition, different format (super-tiebreak third set, team ties).
+    // `allFinished` keeps them for history surfaces; `finished` is the
+    // circuit-only set everything else in this memo derives from.
+    const { circuit: finished, all: allFinished } = partitionLeagueMatches(
+      matches.filter(m => m.status === 'finished' && m.winner_pair != null),
+    )
     const wins = finished.filter(m => resolveMatchRoles(m, id).won).length
     const losses = finished.length - wins
     const winRate = finished.length > 0 ? Math.round((wins / finished.length) * 100) : null
@@ -504,7 +512,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         })()
 
     return {
-      finished, wins, losses, winRate, last10Matches,
+      finished, allFinished, wins, losses, winRate, last10Matches,
       currentPartner, cpWins, cpLosses, firstPartneredIso, lastPartneredIso,
       partnersList, availableYears,
       nextScheduled, nextTournament,
@@ -1943,7 +1951,10 @@ function StatsTab({
     ppl: 'PPL', ppl_ii: 'PPL',
   }
   const circuitMap = new Map<string, { wins: number; losses: number }>()
-  for (const m of derived.finished) {
+  // Uses allFinished on purpose: LEVEL_TO_CIRCUIT carries a dedicated 'PPL'
+  // bucket, so the league belongs here — shown, but in its own row, never
+  // folded into the circuit totals above.
+  for (const m of derived.allFinished) {
     const circuit = LEVEL_TO_CIRCUIT[m.tournament?.level ?? ''] ?? 'Other'
     const entry = circuitMap.get(circuit) ?? { wins: 0, losses: 0 }
     const won = m.winner_pair != null && (
