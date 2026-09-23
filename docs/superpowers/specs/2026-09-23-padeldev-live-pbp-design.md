@@ -230,6 +230,28 @@ the durable record of how the feed behaves.
 | Replay after mid-tick crash | `applyDiff`'s `UNIQUE(game_id, point_number)` makes it idempotent. |
 | `starpoint` means something else | Treated as an enhancement; a wrong read degrades to a normal point, not a throw. |
 
+## Known gap — completed sets are lost on first sight
+
+`diffLiveState` returns an **empty diff** when `prev === null` ("First poll — no baseline,
+no diff"). That is correct for the Crionet live-poller, which watches a match from the first
+point. This worker is different: it will routinely join a match **already in progress** —
+whenever a tournament is newly seeded, the service restarts, or (as on 2026-09-23) the match
+row only appears mid-play.
+
+Observed in production: match `brnxqx` was first seen at 7-6, 4-3. The worker's own
+`lastState` correctly held `[7,4]-[6,3]`, but only **set 2** was written to `public.sets` —
+set 1's 7-6 never landed.
+
+Bounded impact:
+- Only affects matches first observed mid-play; anything seen from 0-0 accumulates normally.
+- Expected to self-heal when `fip-results-writer` posts the final score on completion
+  (not yet observed end-to-end).
+
+The fix is to materialise `curr`'s completed sets on the first-sight tick. Note
+`dualWriteShadowToPublic` already does exactly this ("Writes EVERY set present in
+`curr.team1Sets / team2Sets` each tick") — but only on the **shadow** path, not the canonical
+one this worker uses. **webtuga-live-fetcher has the same gap**, for the same reason.
+
 ## Configuration
 
 - `enablePadeldevLive` — default **OFF**
