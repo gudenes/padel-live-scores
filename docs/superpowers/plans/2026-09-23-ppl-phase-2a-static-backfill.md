@@ -280,10 +280,9 @@ export function parseTournamentPayload(payload: any, slug: string): PplTournamen
     const composed = `${v.firstName ?? ''} ${v.lastName ?? ''}`.trim()
     return {
       slug: id,
-      // Prefer the composed first+last over displayName: displayName is where
-      // upstream puts nicknames in quotes (ALEJANDRO "ALEX" RUIZ), which would
-      // poison name-based resolution.
-      name: composed.length > 0 ? composed : (v.displayName ?? id),
+      // ⚠️ CORRECTED DURING EXECUTION — see the note below this code block.
+      // The line originally specified here was wrong in both directions.
+      name: display.length > 0 ? display : composed.length > 0 ? composed : id,
       sex: v.sex ?? null,
       league: v.leagueId ?? null,
       status: v.status ?? null,
@@ -333,6 +332,23 @@ export async function fetchTournament(
 ```
 
 **Note on `hero.title`:** the fixture's PPL II payload has `"New York -- PPL II"`. The test above only asserts the PPL form. Do not strip the suffix in the parser — the script maps slug → our tournament name, and mangling it here would hide the division.
+
+### ⚠️ Correction applied during execution (commit `7c755a2af`)
+
+**This plan originally specified the wrong name source, with a wrong rationale.** It said to prefer the composed `firstName + lastName` because `displayName` carries quoted nicknames. Both halves were false, and the shipped code does the opposite. Implemented as written, the backfill would have created **21 duplicate player rows**.
+
+The nickname is in **both** fields — `firstName` is literally `Alejandro "Alex"` — so composing escapes nothing. It affects 4 of 132 players and is handled by a `stripNickname()` helper regardless of which field is read.
+
+Meanwhile 32 of 132 players (24%) have the two forms disagreeing, because upstream's split fields carry the two Spanish surnames **in reverse order** (`displayName: "Anna Ortiz Gasco"` against `firstName: "Anna"`, `lastName: "Gasco Ortiz"`), and sometimes duplicate one (`"Agueda Perez Ortiz Perez"`). The paternal surname comes first in Spanish, which is the order our `players` table holds. Measured against production:
+
+| name source | resolved | missed |
+|---|---|---|
+| `displayName` + strip | **68** | 63 |
+| `firstName + lastName` | 46 | 85 |
+
+The shipped module therefore prefers `displayName`, strips quoted nicknames from whichever field it uses, and carries the full rationale in the `stripNickname` docblock. Three extra tests lock the decision in.
+
+**How it was caught, and the lesson for the rest of this plan:** the original 9 tests all passed against the buggy code. They used Agustin Tapia, whose two name forms happen to be identical, so they never exercised the decision. It surfaced only by *mutating* the parser — flipping the field preference — and observing the suite stay green. **A green suite proves nothing about a line the fixture does not discriminate.** When reviewing the remaining tasks, pick fixture rows where the competing branches produce different answers.
 
 - [ ] **Step 5: Run it, expect PASS (8 tests)**
 
