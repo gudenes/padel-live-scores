@@ -65,6 +65,7 @@ export async function GET() {
           .from('matches')
           .select(
             'id, tournament_id, round_canonical, scheduled_at, status, winner_pair, ' +
+            'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
             'pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name',
           )
           .in('id', matchIds)
@@ -82,12 +83,34 @@ export async function GET() {
     : { data: [] as JoinRow[] }
   const tournaments = (tourRes.data ?? []) as unknown as JoinRow[]
 
+  // The denormalised pair*_player*_name columns are frequently NULL (verified
+  // on live FIP Platinum rows), so resolve names by id and treat the
+  // denormalised column as a fallback rather than the source.
+  const playerIds = new Set<string>()
+  for (const m of matches) {
+    for (const k of ['pair1_player1_id','pair1_player2_id','pair2_player1_id','pair2_player2_id']) {
+      const v = m[k]
+      if (typeof v === 'string' && v) playerIds.add(v)
+    }
+  }
+  const playersRes = playerIds.size
+    ? await supabase.from('players').select('id, name').in('id', [...playerIds])
+    : { data: [] as JoinRow[] }
+  const nameById = new Map(
+    ((playersRes.data ?? []) as unknown as JoinRow[]).map((p) => [p.id as string, p.name as string]),
+  )
+
   const tplById = new Map(templates.map((t) => [t.id as string, t]))
   const matchById = new Map(matches.map((m) => [m.id as string, m]))
   const tourById = new Map(tournaments.map((t) => [t.id as string, t]))
 
-  const surname = (n: unknown) =>
-    typeof n === 'string' && n.trim() ? n.trim().split(/\s+/).slice(-1)[0] : '?'
+  /** Prefer the joined player name; fall back to the denormalised column. */
+  const surname = (match: JoinRow, idKey: string, nameKey: string) => {
+    const id = match[idKey]
+    const joined = typeof id === 'string' ? nameById.get(id) : undefined
+    const raw = joined ?? match[nameKey]
+    return typeof raw === 'string' && raw.trim() ? raw.trim().split(/\s+/).slice(-1)[0] : '?'
+  }
 
   const out = rows.map((m) => {
     const tpl = tplById.get(m.template_id as string)
@@ -111,8 +134,10 @@ export async function GET() {
       templateKey: (tpl?.key as string) ?? '?',
       question: (tpl?.question_i18n as Record<string, string> | null)?.en ?? '—',
       subject: match
-        ? `${surname(match.pair1_player1_name)}/${surname(match.pair1_player2_name)}` +
-          ` vs ${surname(match.pair2_player1_name)}/${surname(match.pair2_player2_name)}`
+        ? `${surname(match, 'pair1_player1_id', 'pair1_player1_name')}/` +
+          `${surname(match, 'pair1_player2_id', 'pair1_player2_name')} vs ` +
+          `${surname(match, 'pair2_player1_id', 'pair2_player1_name')}/` +
+          `${surname(match, 'pair2_player2_id', 'pair2_player2_name')}`
         : ((tour?.name as string) ?? '—'),
       tournament: (tour?.name as string) ?? null,
       level: (tour?.level as string) ?? null,

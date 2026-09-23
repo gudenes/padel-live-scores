@@ -96,6 +96,136 @@ function DropList({ title, drops }: { title: string; drops?: { reason: string; c
   )
 }
 
+
+/** Read-only detail. Only `enabled` is mutable anywhere in this page: a
+ *  template's question, resolver, gates and subsidy are FROZEN onto every
+ *  market at creation, so editing them here would imply a retroactive effect
+ *  they do not have. */
+function TemplateDrawer({
+  t, onClose, onToggle, pending,
+}: {
+  t: Template | null
+  onClose: () => void
+  onToggle: (key: string, next: boolean) => void
+  pending: boolean
+}) {
+  const gates = (t?.gates ?? {}) as Record<string, unknown>
+  const rounds = gates.rounds as string[] | undefined
+  const minRanking = gates.minRanking as number | undefined
+  const band = gates.competitiveness as [number, number] | undefined
+  const locales = t?.question_i18n ? Object.keys(t.question_i18n) : []
+
+  return (
+    <>
+      <div className="ui-drawer-scrim" data-on={!!t} onClick={onClose} />
+      <aside className="ui-drawer" data-on={!!t} aria-hidden={!t}>
+        {t ? (
+          <>
+            <div className="ui-drawer-head">
+              <div>
+                <h3 className="ui-drawer-title">{t.key}</h3>
+                <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>
+                  {t.question_i18n?.en ?? '—'}
+                </div>
+              </div>
+              <button className="ui-btn" data-variant="ghost" data-size="sm" onClick={onClose} aria-label="Close">
+                ✕
+              </button>
+            </div>
+
+            <div className="ui-drawer-body">
+              <button
+                className="ui-switch"
+                data-on={t.enabled}
+                disabled={pending}
+                onClick={() => onToggle(t.key, !t.enabled)}
+              >
+                <span className="ui-switch-track" />
+                {pending ? 'saving…' : t.enabled
+                  ? 'Enabled — the generator will use this template'
+                  : 'Disabled — the generator ignores this template'}
+              </button>
+
+              <div>
+                <div className="ui-section-label" style={{ marginBottom: 8 }}>Generation</div>
+                <dl className="ui-dl">
+                  <dt>Horizon</dt><dd>{t.horizon}</dd>
+                  <dt>Trigger</dt><dd style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{t.trigger}</dd>
+                  <dt>Locks at</dt><dd style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{t.lock_rule}</dd>
+                  <dt>Seed price</dt><dd>{t.seed_source}</dd>
+                  <dt>Markets made</dt><dd className="tabular">{t.produced}</dd>
+                </dl>
+              </div>
+
+              <div>
+                <div className="ui-section-label" style={{ marginBottom: 8 }}>Eligibility gates</div>
+                <dl className="ui-dl">
+                  <dt>Rounds</dt><dd>{rounds?.length ? rounds.join(', ') : 'all rounds'}</dd>
+                  <dt>Ranking</dt><dd>{minRanking ? `at least one top-${minRanking} player` : 'any'}</dd>
+                  <dt>Competitiveness</dt>
+                  <dd>
+                    {band ? `model probability ${band[0]}–${band[1]}` : 'any'}
+                    {band ? (
+                      <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
+                        excludes foregone conclusions — nobody trades a 92% certainty
+                      </div>
+                    ) : null}
+                  </dd>
+                </dl>
+              </div>
+
+              <div>
+                <div className="ui-section-label" style={{ marginBottom: 8 }}>Resolution &amp; cost</div>
+                <dl className="ui-dl">
+                  <dt>Resolver</dt>
+                  <dd style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>{t.resolver_key}</dd>
+                  <dt>Params</dt>
+                  <dd style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
+                    {JSON.stringify(t.params ?? {})}
+                  </dd>
+                  <dt>Subsidy</dt>
+                  <dd className="tabular">
+                    {t.max_loss_guacas.toLocaleString('en-US')} G
+                    <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>
+                      worst-case maker loss, bounded at b·ln(2) — knowable before any trade
+                    </div>
+                  </dd>
+                </dl>
+              </div>
+
+              <div>
+                <div className="ui-section-label" style={{ marginBottom: 8 }}>
+                  Question ({locales.length} locales)
+                </div>
+                <dl className="ui-dl">
+                  {locales.map((loc) => (
+                    <FragmentRow key={loc} k={loc} v={t.question_i18n?.[loc] ?? ''} />
+                  ))}
+                </dl>
+              </div>
+
+              <p style={{ fontSize: 11.5, color: 'var(--text-3)', lineHeight: 1.6, margin: 0 }}>
+                Everything above except the switch is read-only. Each market freezes this
+                configuration at the moment it is created, so changing it here could never
+                affect a market that already exists — only future ones.
+              </p>
+            </div>
+          </>
+        ) : null}
+      </aside>
+    </>
+  )
+}
+
+function FragmentRow({ k, v }: { k: string; v: string }) {
+  return (
+    <>
+      <dt>{k}</dt>
+      <dd style={{ fontSize: 12 }}>{v}</dd>
+    </>
+  )
+}
+
 export default function PlayTemplatesTab() {
   const [templates, setTemplates] = useState<Template[]>([])
   const [season, setSeason] = useState<Season>(null)
@@ -106,13 +236,17 @@ export default function PlayTemplatesTab() {
   const [dryRunning, setDryRunning] = useState(false)
   const [dryRun, setDryRun] = useState<DryRunResult | null>(null)
   const [dryRunError, setDryRunError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Template | null>(null)
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/internal/play-templates', { cache: 'no-store' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? `HTTP ${res.status}`)
-      setTemplates(json.templates ?? [])
+      const list: Template[] = json.templates ?? []
+      setTemplates(list)
+      // Re-point the drawer at the reloaded row so it never shows stale state.
+      setSelected((cur) => (cur ? (list.find((t) => t.key === cur.key) ?? null) : null))
       setSeason(json.season ?? null)
       setLimits(json.limits ?? null)
       setError(null)
@@ -348,7 +482,11 @@ export default function PlayTemplatesTab() {
               const minRanking = t.gates?.minRanking as number | undefined
               const band = t.gates?.competitiveness as [number, number] | undefined
               return (
-                <tr key={t.key}>
+                <tr
+                  key={t.key}
+                  onClick={() => setSelected(t)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>
                     <div style={{ fontWeight: 600 }}>{t.key}</div>
                     <div style={dim}>{t.question_i18n?.en ?? '—'}</div>
@@ -379,13 +517,17 @@ export default function PlayTemplatesTab() {
                   </td>
                   <td>
                     <button
-                      className="ui-btn"
-                      data-size="sm"
-                      data-variant={t.enabled ? 'primary' : undefined}
+                      className="ui-switch"
+                      data-on={t.enabled}
                       disabled={pending === t.key}
-                      onClick={() => void toggle(t.key, !t.enabled)}
+                      aria-label={`${t.enabled ? 'Disable' : 'Enable'} ${t.key}`}
+                      onClick={(e) => {
+                        e.stopPropagation() // don't also open the drawer
+                        void toggle(t.key, !t.enabled)
+                      }}
                     >
-                      {pending === t.key ? '…' : t.enabled ? 'Enabled' : 'Disabled'}
+                      <span className="ui-switch-track" />
+                      {pending === t.key ? '…' : t.enabled ? 'On' : 'Off'}
                     </button>
                   </td>
                 </tr>
@@ -394,6 +536,13 @@ export default function PlayTemplatesTab() {
           </tbody>
         </DataTable>
       )}
+
+      <TemplateDrawer
+        t={selected}
+        pending={pending === selected?.key}
+        onClose={() => setSelected(null)}
+        onToggle={(k, n) => void toggle(k, n)}
+      />
     </div>
   )
 }
