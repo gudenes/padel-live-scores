@@ -1865,6 +1865,7 @@
     "noTies": "No ties yet.",
     "noRoster": "No squad recorded yet.",
     "playerRecord": "{games} · {wins}–{losses}",
-    "noGames": "did not play"
+    "noGames": "did not play",
+    "lineupTbd": "line-up TBD"
   }
 }

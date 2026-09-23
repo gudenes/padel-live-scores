@@ -244,30 +244,41 @@ function TieCard({ tie, opponent, eventLabel, roster, format, t }: {
           )}
       </div>
 
-      {tie.courts.map((c) => (
+      {tie.courts.map((c) => {
+        const names = c.ourPlayerIds.map((id) => nameById.get(id)).filter(Boolean).join(' / ')
+        return (
         <div key={c.matchId} style={{
           display: 'flex', alignItems: 'center', gap: 8,
           padding: '6px 0 6px 8px',
           borderLeft: `2px solid ${c.result === 'W' ? GREEN : c.result === 'L' ? '#FF4655' : BORDER}`,
           marginTop: 4,
         }}>
+          {/* No fixed width: the label is one word in English and a much
+              longer one in Spanish ("MASCULINO"), and a hard 34px column
+              printed it straight through the player names. */}
           <span style={{
             fontSize: 8, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase',
-            color: c.category === 'women' ? WOMEN_PURPLE : MEN_BLUE, width: 34, flexShrink: 0,
+            color: c.category === 'women' ? WOMEN_PURPLE : MEN_BLUE,
+            flexShrink: 0, marginRight: 4,
           }}>
             {c.category ? t(c.category === 'men' ? 'scopeMen' : 'scopeWomen') : ''}
           </span>
           <span style={{
-            flex: 1, minWidth: 0, fontSize: 11, color: '#CBD5E1',
+            flex: 1, minWidth: 0, fontSize: 11,
+            color: names ? '#CBD5E1' : MUTED,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
-            {c.ourPlayerIds.map((id) => nameById.get(id) ?? '—').join(' / ')}
+            {/* An upcoming court has no line-up yet — the pairing is named on
+                the day. Saying so beats an empty row that reads as missing
+                data rather than as a fixture. */}
+            {names || t('lineupTbd')}
           </span>
           <span style={{ fontSize: 11, color: MUTED, fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>
             {c.sets.map((s) => `${s.ours}-${s.theirs}`).join(' ')}
           </span>
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

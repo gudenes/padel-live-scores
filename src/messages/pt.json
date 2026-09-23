@@ -1833,6 +1833,7 @@
     "noTies": "Ainda não há confrontos.",
     "noRoster": "Ainda não há elenco registrado.",
     "playerRecord": "{games} · {wins}–{losses}",
-    "noGames": "não jogou"
+    "noGames": "não jogou",
+    "lineupTbd": "escalação a confirmar"
   }
 }

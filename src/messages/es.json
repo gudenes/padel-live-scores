@@ -1833,6 +1833,7 @@
     "noTies": "Aún no hay duelos.",
     "noRoster": "Aún no hay plantilla registrada.",
     "playerRecord": "{games} · {wins}–{losses}",
-    "noGames": "no jugó"
+    "noGames": "no jugó",
+    "lineupTbd": "alineación por confirmar"
   }
 }

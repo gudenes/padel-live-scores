@@ -1833,6 +1833,7 @@
     "noTies": "Ancora nessuna sfida.",
     "noRoster": "Nessuna rosa registrata.",
     "playerRecord": "{games} · {wins}–{losses}",
-    "noGames": "non ha giocato"
+    "noGames": "non ha giocato",
+    "lineupTbd": "formazione da definire"
   }
 }
