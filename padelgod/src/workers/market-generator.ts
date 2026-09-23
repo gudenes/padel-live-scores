@@ -16,6 +16,24 @@ import { isPremierTier } from './match-stats-fetcher.js'
 const SEED_MIN = 0.02
 const SEED_MAX = 0.98
 
+/**
+ * The only `tournaments.status` values that exist, measured in production
+ * 2026-09-23: null (643), 'pending' (87), 'finished' (24), 'live' (2).
+ * There is no 'ongoing' and no 'upcoming'.
+ */
+export const TOURNAMENT_STATUSES = ['pending', 'finished', 'live'] as const
+
+/** Statuses a market may be generated for — everything except finished. */
+export const ACTIVE_TOURNAMENT_STATUSES = ['pending', 'live'] as const
+
+/**
+ * PostgREST `.or()` filter for the above, including NULL.
+ * `status.neq.finished` alone would DROP null rows, which are the majority —
+ * in SQL, NULL != 'finished' evaluates to NULL, not true.
+ */
+export const ACTIVE_TOURNAMENT_STATUS_FILTER =
+  `status.is.null,${ACTIVE_TOURNAMENT_STATUSES.map((s) => `status.eq.${s}`).join(',')}`
+
 export interface GeneratorTemplate {
   id: string
   key: string
@@ -151,7 +169,14 @@ export async function runMarketGenerator(
 
   const tours = unwrap(
     await deps.supabase
-      .from('tournaments').select('id, level').in('status', ['live', 'ongoing', 'upcoming']),
+      .from('tournaments').select('id, level')
+      // `tournaments.status` only ever holds null / 'pending' / 'finished' /
+      // 'live' — there is no 'ongoing' or 'upcoming' in this schema, and null
+      // is by far the most common (643 of 756 rows). An allow-list of
+      // ['live','ongoing','upcoming'] matched only the 2 live rows and made
+      // the generator permanently blind to every event that had not started.
+      // Verified against production 2026-09-23.
+      .or(ACTIVE_TOURNAMENT_STATUS_FILTER),
     'tournaments',
   ) as { id: string; level: string | null }[]
 

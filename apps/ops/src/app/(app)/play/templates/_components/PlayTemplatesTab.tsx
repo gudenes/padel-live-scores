@@ -49,8 +49,11 @@ type DryRunResult = {
 
 const dim = { fontSize: 11.5, color: 'var(--text-3)', marginTop: 3 }
 
-function sum(drops: { count: number }[]): number {
-  return drops.reduce((a, d) => a + d.count, 0)
+/** Tolerates undefined — an unexpected payload shape must degrade to 0, not
+ *  take the whole page down. It did exactly that once. */
+function sum(drops?: { count: number }[] | null): number {
+  if (!Array.isArray(drops)) return 0
+  return drops.reduce((a, d) => a + (Number(d?.count) || 0), 0)
 }
 
 function Stat({ label, value }: { label: string; value: number | string }) {
@@ -68,17 +71,18 @@ function Stat({ label, value }: { label: string; value: number | string }) {
 
 /** Drops are itemised deliberately: a generator that discards work silently
  *  looks identical to one that covered everything. */
-function DropList({ title, drops }: { title: string; drops: { reason: string; count: number }[] }) {
+function DropList({ title, drops }: { title: string; drops?: { reason: string; count: number }[] | null }) {
+  const list = Array.isArray(drops) ? drops : []
   return (
     <div>
       <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 8 }}>
-        {title} ({sum(drops)})
+        {title} ({sum(list)})
       </div>
-      {drops.length === 0 ? (
+      {list.length === 0 ? (
         <div style={{ fontSize: 12, color: 'var(--text-4)' }}>none</div>
       ) : (
         <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 12.5, lineHeight: 1.9, color: 'var(--text-2)' }}>
-          {drops.map((d) => (
+          {list.map((d) => (
             <li key={d.reason}>
               <span className="tabular" style={{ color: 'var(--live-text)', fontWeight: 700, marginRight: 8 }}>
                 −{d.count}
@@ -157,8 +161,14 @@ export default function PlayTemplatesTab() {
       })
       const json = await res.json()
       if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : JSON.stringify(json.error))
-      // padelgod wraps the worker's return value; tolerate either shape.
-      setDryRun((json.result?.result ?? json.result) as DryRunResult)
+      // The route already unwraps padelgod's { data: { result } }. Tolerate the
+      // older nestings too, then REFUSE anything that isn't actually a result —
+      // silently rendering a wrong-shaped object is what crashed this page.
+      const r = (json?.result?.result ?? json?.result ?? json) as DryRunResult
+      if (!r || typeof r.candidates !== 'number') {
+        throw new Error(`unexpected response shape: ${JSON.stringify(json).slice(0, 200)}`)
+      }
+      setDryRun(r)
     } catch (e) {
       setDryRunError(e instanceof Error ? e.message : String(e))
     } finally {

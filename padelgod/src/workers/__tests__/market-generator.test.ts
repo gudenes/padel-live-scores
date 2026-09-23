@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { buildMarketRow } from '../market-generator.js'
+import {
+  buildMarketRow,
+  ACTIVE_TOURNAMENT_STATUS_FILTER,
+  TOURNAMENT_STATUSES,
+} from '../market-generator.js'
 import { priceYes } from '../../lib/lmsr.js'
 
 const TEMPLATE = {
@@ -26,6 +30,32 @@ const CANDIDATE = {
   // until tests enter the typecheck scope.
   subsidyGuacas: 12000,
 }
+
+describe('tournament status filter', () => {
+  it('includes NULL, which is the majority of rows', () => {
+    // status.neq.finished alone drops nulls: in SQL, NULL != 'finished' is
+    // NULL, not true. 643 of 756 tournaments have a null status.
+    expect(ACTIVE_TOURNAMENT_STATUS_FILTER).toContain('status.is.null')
+  })
+
+  it('admits pending and live', () => {
+    expect(ACTIVE_TOURNAMENT_STATUS_FILTER).toContain('status.eq.pending')
+    expect(ACTIVE_TOURNAMENT_STATUS_FILTER).toContain('status.eq.live')
+  })
+
+  it('excludes finished', () => {
+    expect(ACTIVE_TOURNAMENT_STATUS_FILTER).not.toContain('status.eq.finished')
+  })
+
+  it('never reintroduces the statuses that do not exist in this schema', () => {
+    // An allow-list of ['live','ongoing','upcoming'] made the generator
+    // permanently blind to every tournament that had not started yet.
+    expect(ACTIVE_TOURNAMENT_STATUS_FILTER).not.toContain('ongoing')
+    expect(ACTIVE_TOURNAMENT_STATUS_FILTER).not.toContain('upcoming')
+    expect(TOURNAMENT_STATUSES).not.toContain('ongoing' as never)
+    expect(TOURNAMENT_STATUSES).not.toContain('upcoming' as never)
+  })
+})
 
 describe('buildMarketRow', () => {
   it('derives b from the template ceiling', () => {
