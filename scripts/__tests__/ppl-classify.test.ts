@@ -138,10 +138,35 @@ describe('token subset tier', () => {
     expect(r.toLink[0].playerId).toBe('uuid-a')
   })
 
-  it('is one-directional — our shorter name never swallows a longer PPL name', () => {
+  it('matches in the REVERSE direction when our row is the shorter one', () => {
+    // Real case: PPL "Javier Gomez Garrido" against our "Javier Garrido",
+    // world No. 20. The one-directional version shipped first and missed 13
+    // players like this, including two top-40s.
+    const r = classifyRoster(
+      [p('javier-gomez-garrido', 'Javier Gomez Garrido')],
+      [e('uuid-g', 'Javier Garrido')],
+      new Map(), new Map(),
+    )
+    expect(r.toLink).toHaveLength(1)
+    expect(r.toLink[0].playerId).toBe('uuid-g')
+  })
+
+  it('a one-token row never swallows a longer PPL name', () => {
+    // The guard that makes the reverse direction safe. Our bare "Marta"
+    // must not absorb PPL's "Marta Ortega".
     const r = classifyRoster(
       [p('marta-ortega', 'Marta Ortega', 'female')],
       [e('uuid-m', 'Marta', 'women')],
+      new Map(), new Map(),
+    )
+    expect(r.toCreate).toHaveLength(1)
+    expect(r.toLink).toHaveLength(0)
+  })
+
+  it('a one-token PPL name never matches a longer row either', () => {
+    const r = classifyRoster(
+      [p('garrido', 'Garrido')],
+      [e('uuid-g', 'Javier Garrido')],
       new Map(), new Map(),
     )
     expect(r.toCreate).toHaveLength(1)

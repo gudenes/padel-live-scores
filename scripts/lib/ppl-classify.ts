@@ -11,8 +11,8 @@
 //
 // Two matching tiers, neither of them fuzzy:
 //   1. exact normalized `name`
-//   2. strict token subset against `name` OR `display_name` — the house
-//      short-name column (see src/lib/player-name.ts and
+//   2. bidirectional token subset against `name` OR `display_name` — the
+//      house short-name column (see src/lib/player-name.ts and
 //      src/lib/player-short-name.ts)
 //
 // An exact `display_name` index was tried as a third tier and removed: an
@@ -74,41 +74,54 @@ function tokens(s: string): Set<string> {
 }
 
 /**
- * Tier 2 — every token of the PPL name must appear in ours, checked against
- * both the canonical `name` and the curated `display_name`.
+ * Tier 2 — one name's tokens must be a subset of the other's, checked
+ * against both the canonical `name` and the curated `display_name`.
  *
- * PPL publishes the broadcast form; our `players.name` is FIP-sourced and
- * carries the full Spanish double surname. Measured on 2026-09-23 against
- * the 132-player roster:
+ * Neither side is reliably the longer one. PPL publishes the broadcast form
+ * and our `players.name` is FIP-sourced with the full Spanish double
+ * surname, so usually ours is longer — but often enough it is the other way
+ * round (`Alvaro Cepero Rodriguez` upstream against our `Alvaro Cepero`,
+ * `Javier Gomez Garrido` against our `Javier Garrido` at world No. 20).
  *
- *   exact on name only                67 resolved   63 missed
- *   + exact on display_name           75 resolved   55 missed
- *   + this subset tier               100 resolved   26 missed
+ * Measured on 2026-09-23 against the 132-player roster:
  *
- * Exact-only would have created 63 duplicates, including the women's world
- * No. 1 twice over (`Gemma Triay` vs our `Gemma Triay Pons`, `Delfi Brea`
- * vs `Delfina Brea Senesi`).
+ *   exact on name only                     67 linked    63 to create
+ *   + exact on display_name                75 linked    55 to create
+ *   + subset, PPL-into-ours only          100 linked    26 to create
+ *   + subset, both directions             113 linked    13 to create
  *
- * Deliberately STRICT and one-directional: the PPL name must be a subset of
- * ours, never the reverse. A reverse match would let our bare `Marta` swallow
- * PPL's `Marta Ortega`. Minimum two tokens, so a lone surname cannot match.
+ * Going both ways added **zero** new ambiguous cases, measured — so it is
+ * pure gain over the one-directional version that shipped first.
+ *
+ * The danger in the reverse direction is a short row swallowing a longer
+ * upstream name — our bare `Marta` matching PPL's `Marta Ortega`. That is
+ * what MIN_TOKENS guards: whichever side is acting as the subset must carry
+ * at least two tokens, so a lone given name or surname can never match.
  *
  * This tier only ADDS candidates — it never picks among them. Two or more
  * survivors still land in `ambiguous` and still block `--apply`.
  */
+const MIN_TOKENS = 2
+
+function isSubset(small: Set<string>, big: Set<string>): boolean {
+  if (small.size < MIN_TOKENS) return false
+  for (const t of small) if (!big.has(t)) return false
+  return true
+}
+
 function subsetCandidates(
   name: string,
   category: string,
   pool: ExistingPlayer[],
 ): ExistingPlayer[] {
   const want = tokens(name)
-  if (want.size < 2) return []
+  if (want.size < MIN_TOKENS) return []
   return pool.filter((o) => {
     if (o.category !== category) return false
     for (const source of [o.name, o.display_name]) {
       if (!source) continue
       const have = tokens(source)
-      if ([...want].every((t) => have.has(t))) return true
+      if (isSubset(want, have) || isSubset(have, want)) return true
     }
     return false
   })
