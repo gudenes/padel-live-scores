@@ -25,6 +25,7 @@ import { createClient } from '@supabase/supabase-js'
 import { chromium, type Browser } from 'playwright'
 import { extractMatchDom, type RawMatchDom } from './lib/ppl-match-dom'
 import { parseMatchDom, type PplMatchResult } from './lib/ppl-match-parse'
+import { finishedAtFrom } from './lib/ppl-schedule'
 
 // .env.local is how this runs on a laptop. On the Railway container the
 // variables are already in the environment and the file does not exist, so
@@ -58,6 +59,7 @@ interface Target {
   pplMatchId: string
   tournamentSlug: string
   category: string | null
+  scheduledAt: string | null
   complete: boolean
   homeTeam: string | null
   awayTeam: string | null
@@ -104,7 +106,7 @@ function teamMarker(s: string | null | undefined): string | null {
 async function loadTargets(): Promise<Target[]> {
   const { data: matches, error } = await supabase
     .from('matches')
-    .select('id, tie_id, category, winner_pair, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, tournament_id')
+    .select('id, tie_id, category, winner_pair, scheduled_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, tournament_id')
     .not('tie_id', 'is', null)
   if (error) throw new Error(`matches read failed: ${error.message}`)
 
@@ -144,6 +146,7 @@ async function loadTargets(): Promise<Target[]> {
       pplMatchId,
       tournamentSlug,
       category: (m.category as string) ?? null,
+      scheduledAt: (m.scheduled_at as string) ?? null,
       complete: Boolean(
         m.winner_pair && m.pair1_player1_id && m.pair1_player2_id && m.pair2_player1_id && m.pair2_player2_id,
       ),
@@ -315,6 +318,11 @@ async function main() {
         // HH:MM:SS. Match the existing convention rather than inventing a
         // third format in the same column.
         duration: formatDuration(r.durationSeconds),
+        // Derived, never observed — upstream publishes no end time. It exists
+        // because the player profile orders history by finished_at FIRST, so a
+        // league match without one sinks below every circuit match regardless
+        // of when it was actually played.
+        finished_at: finishedAtFrom(t.scheduledAt, r.durationSeconds),
         last_updated_by: 'manual',
         updated_at: nowIso,
       })

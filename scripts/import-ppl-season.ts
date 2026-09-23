@@ -27,6 +27,7 @@ import {
   type PplMatch,
 } from './lib/ppl-source'
 import { classifyRoster, type ExistingPlayer } from './lib/ppl-classify'
+import { parseWallClock, wallClockToUtc, venueTimezone } from './lib/ppl-schedule'
 
 const envText = fs.readFileSync('.env.local', 'utf8')
 for (const line of envText.split('\n')) {
@@ -93,6 +94,21 @@ async function loadRegisteredSlugs(): Promise<Map<string, string>> {
     if (data.length < 1000) break
   }
   return out
+}
+
+/**
+ * Upstream wall-clock + the venue's timezone -> a real instant.
+ *
+ * Warns and returns null for a venue missing from the timezone table rather
+ * than falling back to anything. A country is not specific enough — the US
+ * spans four zones — so a guess would be silently hours off.
+ */
+function scheduledAtFor(tournamentSlug: string, rawDate: string | null): string | null {
+  const tz = venueTimezone(tournamentSlug)
+  if (!tz) { console.warn(`  no venue timezone for ${tournamentSlug} — scheduled_at left null`); return null }
+  const wall = parseWallClock(rawDate)
+  if (!wall) return null
+  return wallClockToUtc(wall, tz)
 }
 
 async function main() {
@@ -333,16 +349,25 @@ async function main() {
           .maybeSingle()
 
         if (found?.entity_id) {
-          // Idempotent re-run: only ever gap-fill the tie link.
+          // Idempotent re-run: gap-fill only. Never clobber a value already
+          // there — another writer may know better than we do.
           await supabase.from('matches').update({ tie_id: tie.id }).eq('id', found.entity_id).is('tie_id', null)
+          const when = scheduledAtFor(t.slug, m.scheduledAt)
+          if (when) {
+            await supabase.from('matches').update({ scheduled_at: when })
+              .eq('id', found.entity_id).is('scheduled_at', null)
+          }
           matchLinked++
           continue
         }
 
         // Deliberately NOT setting status / winner_pair / sets — Phase 2b.
-        // scheduled_at stays NULL too: upstream emits zone-less wall-clock in
-        // two different formats and guessing the timezone would bake in a
-        // silent error.
+        //
+        // scheduled_at IS set now, from the venue's timezone. Leaving it null
+        // to avoid guessing a zone was the wrong trade: the player profile
+        // orders history by date, so 72 correct matches sat invisible at the
+        // bottom of every list. Correct-but-undated reads as absent.
+        //
         // NEVER set external_id here — sync_matches_id_columns would copy it
         // into padelapi_id.
         const { data: inserted, error: insErr } = await supabase
@@ -352,6 +377,7 @@ async function main() {
             tie_id: tie.id,
             category: m.category,
             round: m.stage,
+            scheduled_at: scheduledAtFor(t.slug, m.scheduledAt),
             last_updated_by: 'manual',
           })
           .select('id')
