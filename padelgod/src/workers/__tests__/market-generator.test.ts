@@ -21,6 +21,10 @@ const CANDIDATE = {
   bestRanking: 3,
   modelProb: 0.62,
   scheduledAt: new Date('2026-09-26T18:00:00Z'),
+  // Required by Candidate. buildMarketRow never reads it, and tsconfig
+  // excludes __tests__ from typecheck, so omitting it would go unnoticed
+  // until tests enter the typecheck scope.
+  subsidyGuacas: 12000,
 }
 
 describe('buildMarketRow', () => {

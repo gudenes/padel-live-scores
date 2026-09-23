@@ -1598,6 +1598,11 @@ export interface Candidate {
   /** Model probability for the YES side; null when no anchor exists. */
   modelProb: number | null
   scheduledAt: Date | null
+  /** This market's subsidy in guacas — the template's max_loss_guacas, i.e.
+   *  lmsr_b · ln(2). Per-template, NOT a constant: match.winner is 12,000
+   *  while tournament.outright is 40,000. Using a flat rate made the
+   *  generator believe 20 markets cost 40% of budget when it was 96%. */
+  subsidyGuacas: number
 }
 
 export interface Gates {
@@ -1804,7 +1809,6 @@ export interface Caps {
   createdPerTournamentToday: Record<string, number>
   maxSubsidyPerDay: number
   subsidyUsedToday: number
-  subsidyPerMarket: number
 }
 
 export interface CapResult {
@@ -1842,14 +1846,14 @@ export function applyCaps(candidates: Candidate[], caps: Caps): CapResult {
       if (used >= caps.maxPerTournamentDay) { drop('over per-tournament daily cap'); continue }
     }
 
-    if (subsidy + caps.subsidyPerMarket > caps.maxSubsidyPerDay) {
+    if (subsidy + cand.subsidyGuacas > caps.maxSubsidyPerDay) {
       drop('over daily subsidy budget'); continue
     }
 
     kept.push(cand)
     open += 1
     today += 1
-    subsidy += caps.subsidyPerMarket
+    subsidy += cand.subsidyGuacas
     if (cand.matchId) perMatch[cand.matchId] = (perMatch[cand.matchId] ?? 0) + 1
     if (cand.tournamentId) perTournament[cand.tournamentId] = (perTournament[cand.tournamentId] ?? 0) + 1
   }
@@ -2925,39 +2929,24 @@ git commit -m "feat(play): register market-generator and market-resolver workers
 
 ---
 
-> ## ⚠ MUST FIX BEFORE APPLYING TASK 16
+> **Subsidy accounting — FIXED during execution (commit `de7a8946b`).**
+> `applyCaps` originally took a scalar `subsidyPerMarket` and the generator
+> passed a constant 5,000, while this migration seeds `match.winner` at 12,000
+> and `tournament.outright` at 40,000. The generator believed 20 markets used
+> 40% of a 250,000 budget when the true figure was 96%, and raising
+> `max_new_per_day` to 21 silently committed 252,000. The cap was also
+> unreachable dead code (250,000 ÷ 5,000 = 50 markets against a daily cap of 20).
 >
-> **The subsidy budget is mis-accounted, and this seed migration is what
-> activates it.** Verified during execution:
+> Now: `Candidate.subsidyGuacas` carries the template's `max_loss_guacas`, and
+> `subsidyUsedToday` is summed from each existing market's frozen
+> `lmsr_b · ln(2)` rather than assumed. Verified — at 12,000/market the cap binds
+> at 20 markets / 240,000, and the 21st is refused with
+> `over daily subsidy budget`.
 >
-> `applyCaps` takes a single scalar `subsidyPerMarket`, and the generator passes
-> the constant `5000`. But a market's true subsidy is its frozen
-> `lmsr_b · ln2` — i.e. its template's `max_loss_guacas`, which is a
-> **per-template** value. This migration seeds `match.winner` at **12,000** and
-> `tournament.outright` at **40,000**.
->
-> | | generator believes | reality |
-> |---|---|---|
-> | 20 markets against a 250,000 budget | 100,000 (40%) | **240,000 (96%)** |
-> | raise `max_new_per_day` to 21 | still "fine" | **252,000 — budget exceeded, silently** |
->
-> It survives today only because `max_new_per_day = 20` binds first, leaving a
-> 10,000 margin. Either admin edit the spec advertises as safe — bumping the
-> daily cap by one, or nudging `max_loss_guacas` to 12,500 — breaks it, and the
-> `over daily subsidy budget` drop reason never fires to say so. Phase 2 enabling
-> `tournament.outright` under-counts by 8×.
->
-> Worse: under the seeded defaults the subsidy cap is **unreachable dead code** —
-> 250,000 ÷ 5,000 = 50 markets, against a daily cap of 20. The ceiling the spec
-> calls the thing that keeps the Economy page honest can never fire. Correcting
-> the per-market figure to 12,000 makes it bind at 20.8 markets, so the
-> correctness fix and the cap becoming live are the same change.
->
-> **Fix:** `applyCaps` must take a per-candidate subsidy, not a scalar. Add the
-> market's `max_loss_guacas` to `Candidate` (or pass a `subsidyFor(candidate)`
-> callback), and have the generator select `lmsr_b` on the existing-markets query
-> so `subsidyUsedToday` reflects what was actually committed. This touches
-> already-committed `market-gates.ts` and its tests.
+> Note the figure is deliberately **committed** exposure, not realised spend:
+> voided and settled markets still count at full worst-case loss for the day.
+> That preserves the pre-commitment property that makes the budget meaningful,
+> and refuses to free budget when bad upstream data voids a batch.
 
 ## Task 16: Seed season 1 and the two phase-1 templates
 
