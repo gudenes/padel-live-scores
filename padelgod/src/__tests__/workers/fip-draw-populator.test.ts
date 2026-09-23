@@ -144,6 +144,13 @@ interface Options {
    *  Tournaments not in this map are returned with level=null when
    *  the populator queries for levels. */
   tournamentLevels?: Record<string, string | null>;
+  /** Make the sidecar `matches ... .in('id', …)` read fail when the requested
+   *  ids include any of these. Scoped per-id so ONE tournament can fail while
+   *  the next stays healthy — which is the whole point of the regression.
+   *  Models the production incident of 2026-09-23: a transient
+   *  `TypeError: fetch failed` on the FIRST of 43 tournaments aborted the
+   *  entire hourly run and silently starved the other 42. */
+  failSidecarMatchesReadForIds?: string[];
 }
 
 function fakeSupabase(opts: Options) {
@@ -206,6 +213,15 @@ function fakeSupabase(opts: Options) {
       in: (col: string, values: string[]) => {
         if (col !== 'id')
           throw new Error(`unexpected matches IN filter: ${col}`);
+        const boom = opts.failSidecarMatchesReadForIds ?? [];
+        if (boom.length > 0 && values.some((v) => boom.includes(v))) {
+          // Shape mirrors supabase-js on a network failure: no data, an error
+          // object the worker turns into `throw new Error(...)`.
+          return Promise.resolve({
+            data: null,
+            error: { message: 'TypeError: fetch failed' },
+          });
+        }
         const data = existingState.filter((m) => values.includes(m.id));
         return Promise.resolve({ data, error: null });
       },
@@ -520,6 +536,93 @@ const realMatchDraw: DrawSeed = {
   status: 'finished',
   captured_at: '2026-04-24T08:00:00Z',
 };
+
+describe('runFipDrawPopulator — one bad tournament must not starve the rest', () => {
+  // Production incident 2026-09-23. The per-tournament loop had no try/catch,
+  // so a transient `TypeError: fetch failed` reading the sidecar for
+  // FIP-2026-3803 (position 1 of 43) threw straight out of
+  // runFipDrawPopulator. All 42 later tournaments — including FIP Platinum
+  // Lyon at position 16 — were never processed, and because the function threw
+  // the `run complete` counters never logged, so the loss was silent.
+  const BAD = 't-explodes';
+  // Reuse the baseline tournament id for the healthy case — the entryList /
+  // rosterPlayers fixtures are scoped to it, so player resolution behaves
+  // exactly as in the passing INSERT test above. Only the ORDER matters here.
+  const GOOD = TOURNAMENT_ID;
+
+  function twoTournaments() {
+    return fakeSupabase({
+      tournaments: [
+        // Order matters: the failing one is FIRST, exactly as in production.
+        { tournament_id: BAD, tournament_name: 'Explodes', slug: 'explodes-2026' },
+        { tournament_id: GOOD, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [BAD]: 'FIP-2026-3803', [GOOD]: TOURNAMENT_WIDGET },
+      draws: [
+        { ...realMatchDraw, tournament_id: BAD, match_widget_id: 'MD001' },
+        { ...realMatchDraw, tournament_id: GOOD },
+      ],
+      entryList,
+      players: rosterPlayers,
+      // The bad tournament owns a sidecar-mapped match; reading it blows up.
+      sidecarMappings: [{ entity_id: 'sidecar-boom', external_id: 'FIP-2026-3803:MD001' }],
+      failSidecarMatchesReadForIds: ['sidecar-boom'],
+    });
+  }
+
+  it('does not throw out of the worker when one tournament fails', async () => {
+    await expect(
+      runFipDrawPopulator({ supabase: twoTournaments() as any, dryRun: false }),
+    ).resolves.toBeDefined();
+  });
+
+  it('still processes the healthy tournament that comes after the failure', async () => {
+    const supabase = twoTournaments();
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    // The whole point: the second tournament's match must still be written.
+    expect(result.inserted).toBeGreaterThanOrEqual(1);
+    expect(
+      supabase.inserted.some((r: any) =>
+        String(r.widget_id_composite ?? '').startsWith(TOURNAMENT_WIDGET),
+      ),
+    ).toBe(true);
+  });
+
+  it('reports the failure in a counter instead of failing silently', async () => {
+    const result = await runFipDrawPopulator({
+      supabase: twoTournaments() as any,
+      dryRun: false,
+    });
+    expect(result.tournamentsFailed).toBe(1);
+  });
+
+  it('logs the failing tournament so it can be traced', async () => {
+    const warn = vi.fn();
+    await runFipDrawPopulator({
+      supabase: twoTournaments() as any,
+      dryRun: false,
+      logger: { info: vi.fn(), warn, error: vi.fn(), debug: vi.fn() } as any,
+    });
+    const said = warn.mock.calls.some(
+      (c) => JSON.stringify(c).includes(BAD) || JSON.stringify(c).includes('FIP-2026-3803'),
+    );
+    expect(said).toBe(true);
+  });
+
+  it('keeps a clean run at zero failures', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    expect(result.tournamentsFailed).toBe(0);
+  });
+});
 
 describe('runFipDrawPopulator', () => {
   it('INSERTs a new match with real widget composite when none exists (non-dry-run)', async () => {
