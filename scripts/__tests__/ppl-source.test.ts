@@ -145,3 +145,32 @@ describe('extractTournamentIndex', () => {
     expect(extractTournamentIndex(shaped).map((r) => r.slug)).toEqual(['ok'])
   })
 })
+
+describe('hero image capture', () => {
+  const la = JSON.parse(
+    readFileSync(join(__dirname, 'fixtures/ppl-los-angeles-2026.json'), 'utf8'),
+  )
+
+  it('captures the hero image URL', () => {
+    const t = parseTournamentPayload(la, 'los-angeles-2026')
+    expect(t.heroImage).toMatch(/^https:\/\/firebasestorage\.googleapis\.com\//)
+  })
+
+  it('captures it verbatim, token and all', () => {
+    // The URL carries ?alt=media&token=... Stripping the query would 403.
+    // It is also why these images are rehosted rather than hotlinked: that
+    // token is upstream's to rotate.
+    const t = parseTournamentPayload(la, 'los-angeles-2026')
+    expect(t.heroImage).toContain('token=')
+  })
+
+  it('is null, not undefined, when upstream omits it', () => {
+    const bare = { pageProps: { hero: {}, broadcastContext: {} } }
+    expect(parseTournamentPayload(bare, 'x').heroImage).toBeNull()
+  })
+
+  it('ignores a non-string image field rather than passing it through', () => {
+    const odd = { pageProps: { hero: { image: { url: 'x' } }, broadcastContext: {} } }
+    expect(parseTournamentPayload(odd, 'x').heroImage).toBeNull()
+  })
+})

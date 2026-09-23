@@ -55,6 +55,10 @@ export interface PplTournament {
   startDate: string | null
   endDate: string | null
   location: string | null
+  /** Upstream hero image. May be a landscape photo, an ultra-wide banner or
+   *  a portrait poster — the caller must check the shape before using it as
+   *  a cover. See src/lib/image-dimensions.ts. */
+  heroImage: string | null
   league: string
   teams: PplTeam[]
   players: PplPlayer[]
@@ -179,6 +183,7 @@ export function parseTournamentPayload(payload: any, slug: string): PplTournamen
     startDate: hero.startDate ?? null,
     endDate: hero.endDate ?? null,
     location: hero.location ?? null,
+    heroImage: typeof hero.image === 'string' ? hero.image : null,
     league,
     teams,
     players,

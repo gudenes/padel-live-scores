@@ -1821,6 +1821,8 @@
     "colRecord": "V-D",
     "matchesShort": "matchs",
     "pctMatches": "matchs gagnés",
-    "pctSets": "sets"
+    "pctSets": "sets",
+    "widgetTitle": "Classement PPL",
+    "widgetCta": "Tableau complet"
   }
 }

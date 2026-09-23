@@ -29,6 +29,7 @@ import {
 } from './lib/ppl-source'
 import { classifyRoster, type ExistingPlayer } from './lib/ppl-classify'
 import { parseWallClock, wallClockToUtc, venueTimezone } from './lib/ppl-schedule'
+import { rehostCover } from './lib/ppl-cover'
 
 const envText = fs.readFileSync('.env.local', 'utf8')
 for (const line of envText.split('\n')) {
@@ -113,6 +114,34 @@ function scheduledAtFor(tournamentSlug: string, rawDate: string | null): string 
   const wall = parseWallClock(rawDate)
   if (!wall) return null
   return wallClockToUtc(wall, tz)
+}
+
+
+/**
+ * Download, measure and (when applying) rehost each event's hero image.
+ *
+ * Rehosted rather than hotlinked: the source host is not in next.config's
+ * remotePatterns, and its URLs carry an access token upstream can rotate.
+ * Shape is checked first — `hero.image` is a portrait poster for some events
+ * and an ultra-wide banner for others. Anything not cover-shaped is left to
+ * the tier gradient that already renders underneath.
+ */
+async function reportCovers(
+  tournaments: PplTournament[],
+  opts: { apply: boolean },
+  idBySlug?: Map<string, string>,
+  existingBySlug?: Map<string, string | null>,
+): Promise<void> {
+  console.log(`\n=== COVERS ===`)
+  const counts: Record<string, number> = {}
+  for (const t of tournaments) {
+    const id = idBySlug?.get(t.slug) ?? 'preview'
+    const existing = existingBySlug?.get(t.slug) ?? null
+    const r = await rehostCover(supabase, id, t.slug, t.heroImage, existing, opts)
+    counts[r.status] = (counts[r.status] ?? 0) + 1
+    console.log(`  ${t.slug.padEnd(28)} ${r.status}${r.detail ? ` — ${r.detail}` : ''}`)
+  }
+  console.log(`  ${Object.entries(counts).map(([k, v]) => `${k}=${v}`).join(' | ')}`)
 }
 
 async function main() {
@@ -206,6 +235,13 @@ async function main() {
   console.log(`  tournaments : ${tournaments.length}`)
   console.log(`  ties        : ${ties}`)
   console.log(`  matches     : ${totalMatches}`)
+
+  // Cover preview runs in DRY RUN too. It downloads and measures but never
+  // uploads, and the shape verdict is the whole point of reviewing this
+  // before an apply — a dry run that stayed silent about which images get
+  // used would be reporting on the least certain part of the import by
+  // saying nothing about it.
+  await reportCovers(tournaments, { apply: false })
 
   if (!APPLY) { console.log(`\nDry run complete. Nothing written.`); return }
 
@@ -308,6 +344,12 @@ async function main() {
 
   // ── Phase 4 — tournaments ────────────────────────────────────────────────
 
+  const { data: existingTours } = await supabase
+    .from('tournaments').select('external_id,cover_image_url').eq('source', 'ppl')
+  const existingCoverBySlug = new Map(
+    (existingTours ?? []).map((r) => [r.external_id as string, r.cover_image_url as string | null]),
+  )
+
   const tournamentIdBySlug = new Map<string, string>()
   for (const t of tournaments) {
     const level = t.league === 'ppl-ii' ? 'ppl_ii' : 'ppl'
@@ -332,6 +374,8 @@ async function main() {
     tournamentIdBySlug.set(t.slug, data.id)
   }
   console.log(`tournaments: ${tournamentIdBySlug.size}`)
+
+  await reportCovers(tournaments, { apply: true }, tournamentIdBySlug, existingCoverBySlug)
 
   // ── Phase 5 — ties and match skeletons ──────────────────────────────────
 

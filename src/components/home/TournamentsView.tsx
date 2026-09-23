@@ -8,6 +8,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT } from '@/lib/format-patterns'
 import { supabase } from '@/lib/supabase'
 import { PPL_LEVELS } from '@/lib/ppl-hub'
+import PplStandingsWidget from '@/components/home/PplStandingsWidget'
 import {
   GREEN, GREEN_DIM, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, CHUNKY,
   MEN_BLUE, WOMEN_PURPLE,
@@ -568,6 +569,12 @@ export default function TournamentsView({
           </button>
         ))}
       </div>
+
+      {/* Standings card — only on the PPL tab. The Events tab made PPL's
+          events reachable while its standings stayed orphaned at /ppl with
+          nothing linking to them; this is that link, carrying the top three
+          so it earns the space instead of being a bare button. */}
+      {tab === 'ppl' && <PplStandingsWidget />}
 
       {/* FIP sub-tier chips — only when FIP Tour is active.
           Smaller than the main tabs; chunky for visual consistency.
