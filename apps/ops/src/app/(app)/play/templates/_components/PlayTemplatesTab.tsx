@@ -195,15 +195,31 @@ export default function PlayTemplatesTab() {
           operator concluding the system is broken. */}
       <Panel>
         <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <Pill tone="warn" dot>
-            Workers off
-          </Pill>
+          {/* Ground truth, not a guess: `dryRun` comes back from the worker
+              itself. Before a run we know nothing about the Railway flags and
+              must not claim otherwise — this banner previously asserted
+              "Workers off" while the generator was in fact enabled. */}
+          {dryRun ? (
+            dryRun.dryRun ? (
+              <Pill tone="lime" dot>
+                Dry-run · writes nothing
+              </Pill>
+            ) : (
+              <Pill tone="live" dot>
+                LIVE · creates markets
+              </Pill>
+            )
+          ) : (
+            <Pill tone="neutral">Run to check</Pill>
+          )}
           <div style={{ fontSize: 12.5, lineHeight: 1.65, color: 'var(--text-2)' }}>
-            Enabling a template marks it eligible, but no market is created until{' '}
-            <code style={{ fontFamily: 'var(--mono)' }}>ENABLE_MARKET_GENERATOR</code> is set on
-            Railway — and while{' '}
-            <code style={{ fontFamily: 'var(--mono)' }}>MARKET_GENERATOR_DRY_RUN</code> stays true
-            the generator only logs what it would do. Both default off, deliberately.{' '}
+            Enabling a template only marks it eligible. Whether a market is actually created
+            depends on two Railway variables —{' '}
+            <code style={{ fontFamily: 'var(--mono)' }}>ENABLE_MARKET_GENERATOR</code> (does the
+            cron run at all) and{' '}
+            <code style={{ fontFamily: 'var(--mono)' }}>MARKET_GENERATOR_DRY_RUN</code> (if true,
+            it only logs). This page cannot read Railway, so hit <strong>Dry run</strong> and the
+            pill will show what the worker itself reports.{' '}
             {season ? (
               <>
                 Active season: <strong>{season.name}</strong>.
@@ -250,7 +266,14 @@ export default function PlayTemplatesTab() {
         <>
           <Panel
             title="Dry run · what the generator would create right now"
-            actions={<Pill tone={dryRun.created === 0 ? 'lime' : 'warn'}>nothing written</Pill>}
+            actions={
+              dryRun.created === 0 ? (
+                <Pill tone="lime">nothing written</Pill>
+              ) : (
+                // Must never claim "nothing written" when rows were created.
+                <Pill tone="live">{dryRun.created} market(s) CREATED</Pill>
+              )
+            }
           >
             <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', marginBottom: 14 }}>
               <Stat label="Templates considered" value={dryRun.templatesConsidered} />
