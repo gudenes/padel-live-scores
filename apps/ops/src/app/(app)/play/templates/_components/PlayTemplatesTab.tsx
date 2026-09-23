@@ -35,7 +35,62 @@ type Limits = {
   max_subsidy_per_day: number
 } | null
 
+/** Shape returned by padelgod's market-generator when run dry. */
+type DryRunResult = {
+  dryRun: boolean
+  templatesConsidered: number
+  candidates: number
+  gateDrops: { reason: string; count: number }[]
+  capDrops: { reason: string; count: number }[]
+  created: number
+  errors: number
+  durationMs: number
+}
+
 const dim = { fontSize: 11.5, color: 'var(--text-3)', marginTop: 3 }
+
+function sum(drops: { count: number }[]): number {
+  return drops.reduce((a, d) => a + d.count, 0)
+}
+
+function Stat({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--text-3)' }}>
+        {label}
+      </div>
+      <div className="tabular" style={{ fontFamily: 'var(--display)', fontSize: 24, fontWeight: 700, marginTop: 4 }}>
+        {value}
+      </div>
+    </div>
+  )
+}
+
+/** Drops are itemised deliberately: a generator that discards work silently
+ *  looks identical to one that covered everything. */
+function DropList({ title, drops }: { title: string; drops: { reason: string; count: number }[] }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--text-3)', marginBottom: 8 }}>
+        {title} ({sum(drops)})
+      </div>
+      {drops.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--text-4)' }}>none</div>
+      ) : (
+        <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 12.5, lineHeight: 1.9, color: 'var(--text-2)' }}>
+          {drops.map((d) => (
+            <li key={d.reason}>
+              <span className="tabular" style={{ color: 'var(--live-text)', fontWeight: 700, marginRight: 8 }}>
+                −{d.count}
+              </span>
+              {d.reason}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export default function PlayTemplatesTab() {
   const [templates, setTemplates] = useState<Template[]>([])
@@ -44,6 +99,9 @@ export default function PlayTemplatesTab() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
+  const [dryRunning, setDryRunning] = useState(false)
+  const [dryRun, setDryRun] = useState<DryRunResult | null>(null)
+  const [dryRunError, setDryRunError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -87,6 +145,27 @@ export default function PlayTemplatesTab() {
     }
   }
 
+  async function runDryRun() {
+    setDryRunning(true)
+    setDryRunError(null)
+    setDryRun(null)
+    try {
+      const res = await fetch('/api/internal/play-dry-run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ worker: 'market-generator' }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(typeof json.error === 'string' ? json.error : JSON.stringify(json.error))
+      // padelgod wraps the worker's return value; tolerate either shape.
+      setDryRun((json.result?.result ?? json.result) as DryRunResult)
+    } catch (e) {
+      setDryRunError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setDryRunning(false)
+    }
+  }
+
   const enabledCount = templates.filter((t) => t.enabled).length
 
   return (
@@ -94,6 +173,11 @@ export default function PlayTemplatesTab() {
       <PageHeader
         title="Market Templates"
         subtitle="Templates are generators, not markets. Each one watches the calendar and instantiates markets automatically — nobody authors a market by hand."
+        actions={
+          <button className="ui-btn" data-size="sm" disabled={dryRunning} onClick={() => void runDryRun()}>
+            {dryRunning ? 'Running…' : 'Dry run'}
+          </button>
+        }
       />
 
       {/* The most important thing on this screen: enabling a template does
@@ -130,6 +214,67 @@ export default function PlayTemplatesTab() {
       </Panel>
 
       <div style={{ height: 18 }} />
+
+      {dryRunError ? (
+        <>
+          <Panel title="Dry run failed">
+            <div style={{ fontSize: 12.5, lineHeight: 1.6, color: 'var(--text-2)' }}>
+              <div style={{ color: 'var(--live-text)', marginBottom: 8 }}>{dryRunError}</div>
+              {/* The overwhelmingly likely cause, stated so nobody debugs the
+                  wrong layer: the worker exists on this branch but padelgod on
+                  Railway is still running the previously deployed build. */}
+              {dryRunError.includes('Unknown worker') ? (
+                <>
+                  padelgod does not know this worker yet. It is registered on this branch but
+                  the deployed service is running an older build — deploy padelgod
+                  (<code style={{ fontFamily: 'var(--mono)' }}>railway up</code>) and try again.
+                </>
+              ) : null}
+            </div>
+          </Panel>
+          <div style={{ height: 18 }} />
+        </>
+      ) : null}
+
+      {dryRun ? (
+        <>
+          <Panel
+            title="Dry run · what the generator would create right now"
+            actions={<Pill tone={dryRun.created === 0 ? 'lime' : 'warn'}>nothing written</Pill>}
+          >
+            <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', marginBottom: 14 }}>
+              <Stat label="Templates considered" value={dryRun.templatesConsidered} />
+              <Stat label="Candidates" value={dryRun.candidates} />
+              <Stat
+                label="Would create"
+                value={Math.max(
+                  0,
+                  dryRun.candidates -
+                    sum(dryRun.gateDrops) -
+                    sum(dryRun.capDrops),
+                )}
+              />
+              <Stat label="Errors" value={dryRun.errors} />
+              <Stat label="Took" value={`${dryRun.durationMs}ms`} />
+            </div>
+
+            {dryRun.candidates === 0 ? (
+              <div style={{ fontSize: 12.5, color: 'var(--text-2)', lineHeight: 1.65 }}>
+                No candidates. Between Premier events this is the <strong>correct</strong> answer,
+                not a fault — the generator only looks at Premier-tier tournaments with future
+                scheduled matches. Check whether a Premier event is actually in window before
+                treating this as a bug.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 16, gridTemplateColumns: '1fr 1fr' }}>
+                <DropList title="Dropped by gates" drops={dryRun.gateDrops} />
+                <DropList title="Dropped by caps" drops={dryRun.capDrops} />
+              </div>
+            )}
+          </Panel>
+          <div style={{ height: 18 }} />
+        </>
+      ) : null}
 
       {error ? (
         <>
