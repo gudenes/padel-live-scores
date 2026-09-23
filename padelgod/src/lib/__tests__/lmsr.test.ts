@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { bFromMaxLoss, maxLoss, cost, priceYes, seedShares } from '../lmsr.js'
+import { bFromMaxLoss, maxLoss, cost, priceYes, seedShares, quoteBuy, quoteSell } from '../lmsr.js'
 
 describe('bFromMaxLoss / maxLoss', () => {
   it('round-trips: b derived from a ceiling reproduces that ceiling', () => {
@@ -52,5 +52,73 @@ describe('seedShares', () => {
   it('rejects probabilities outside (0,1)', () => {
     expect(() => seedShares(0, 7213)).toThrow()
     expect(() => seedShares(1, 7213)).toThrow()
+  })
+})
+
+describe('quoteBuy', () => {
+  const b = 7213
+
+  it('spends exactly the guacas offered', () => {
+    const { qYes, qNo } = seedShares(0.38, b)
+    const q = quoteBuy(qYes, qNo, b, 'yes', 250)
+    expect(q.cost).toBeGreaterThanOrEqual(250)
+    expect(q.cost).toBeLessThanOrEqual(251)
+  })
+
+  it('buying YES moves the YES price up', () => {
+    const { qYes, qNo } = seedShares(0.38, b)
+    const before = priceYes(qYes, qNo, b)
+    const q = quoteBuy(qYes, qNo, b, 'yes', 2000)
+    expect(priceYes(q.qYesAfter, q.qNoAfter, b)).toBeGreaterThan(before)
+  })
+
+  it('buying NO moves the YES price down', () => {
+    const { qYes, qNo } = seedShares(0.38, b)
+    const before = priceYes(qYes, qNo, b)
+    const q = quoteBuy(qYes, qNo, b, 'no', 2000)
+    expect(priceYes(q.qYesAfter, q.qNoAfter, b)).toBeLessThan(before)
+  })
+
+  it('a cheap side buys more shares than an expensive one', () => {
+    const { qYes, qNo } = seedShares(0.20, b)
+    const cheap = quoteBuy(qYes, qNo, b, 'yes', 1000)
+    const dear  = quoteBuy(qYes, qNo, b, 'no', 1000)
+    expect(cheap.shares).toBeGreaterThan(dear.shares)
+  })
+
+  it('average price paid is worse than the pre-trade price (slippage)', () => {
+    const { qYes, qNo } = seedShares(0.50, b)
+    const q = quoteBuy(qYes, qNo, b, 'yes', 2000)
+    expect(q.avgPrice).toBeGreaterThan(0.50)
+  })
+
+  it('rejects a non-positive stake', () => {
+    const { qYes, qNo } = seedShares(0.5, b)
+    expect(() => quoteBuy(qYes, qNo, b, 'yes', 0)).toThrow()
+  })
+})
+
+describe('quoteSell', () => {
+  const b = 7213
+
+  it('selling back what you just bought returns roughly what you paid', () => {
+    const { qYes, qNo } = seedShares(0.45, b)
+    const buy = quoteBuy(qYes, qNo, b, 'yes', 1000)
+    const sell = quoteSell(buy.qYesAfter, buy.qNoAfter, b, 'yes', buy.shares)
+    expect(sell.refund).toBeGreaterThan(996)
+    expect(sell.refund).toBeLessThanOrEqual(1000)
+  })
+
+  it('rounds the refund down, never up — selling cannot mint guacas', () => {
+    const { qYes, qNo } = seedShares(0.45, b)
+    const buy = quoteBuy(qYes, qNo, b, 'yes', 1000)
+    const sell = quoteSell(buy.qYesAfter, buy.qNoAfter, b, 'yes', buy.shares)
+    expect(Number.isInteger(sell.refund)).toBe(true)
+    expect(sell.refund).toBeLessThanOrEqual(buy.cost)
+  })
+
+  it('rejects selling more shares than exist on that side', () => {
+    const { qYes, qNo } = seedShares(0.5, b)
+    expect(() => quoteSell(qYes, qNo, b, 'yes', 1e12)).toThrow()
   })
 })
