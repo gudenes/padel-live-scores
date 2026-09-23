@@ -876,7 +876,10 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableMarketGenerator) {
     entries.push({
       name: 'market-generator',
-      cron: '25 * * * *', // hourly at :25
+      // :21 — deliberately NOT :25, which model-prediction-snapshot already
+      // owns (see the worker above, whose comment routes around it too).
+      // :21 is also clear of */5, 2-57/5, 3-58/5 and the resolver below.
+      cron: '21 * * * *',
       run: async (d) =>
         runMarketGenerator({
           supabase: d.supabase,
@@ -888,10 +891,14 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableMarketResolver) {
     entries.push({
       name: 'market-resolver',
-      // Every 5 minutes, offset from the :25 generator. Keep this worker at
-      // concurrency 1: a `hold` can lose a race to a `settle` from a second
-      // instance, and a rejected optimistic write is silent.
-      cron: '2,7,12,17,22,27,32,37,42,47,52,57 * * * *',
+      // Every 5 minutes at 4,9,…,59 — deliberately NOT 2-57/5, which
+      // fip-results-writer owns. That worker writes final scores and flips
+      // matches.status, which is exactly what this one reads; firing on the
+      // same tick invites reading a match mid-write.
+      // Keep this worker at concurrency 1: a `hold` can lose a race to a
+      // `settle` from a second instance, and a rejected optimistic write is
+      // silent (PostgREST returns success on a zero-row update).
+      cron: '4-59/5 * * * *',
       run: async (d) =>
         runMarketResolver({
           supabase: d.supabase,
