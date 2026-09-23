@@ -12,7 +12,8 @@ import type { ResolverResult } from './market-resolvers/types.js'
 export const CONFIRMATION_WINDOW_MS = 30 * 60 * 1000
 
 export interface MarketState {
-  status: 'open' | 'locked' | 'proposed' | 'settled' | 'void'
+  // 'held' is persisted and only an operator moves a market out of it.
+  status: 'open' | 'locked' | 'proposed' | 'held' | 'settled' | 'void'
   proposedOutcome: boolean | null
   proposedAt: Date | null
   settlesAt: Date | null
@@ -30,15 +31,27 @@ export function decideSettlement(
   result: ResolverResult,
   now: Date,
 ): SettlementDecision {
-  // Only locked and proposed markets are in play. `open` markets have not
-  // stopped trading yet; settled/void are terminal.
+  // Only locked and proposed markets are in play. `open` has not stopped
+  // trading; settled/void are terminal; 'held' is terminal until an operator
+  // intervenes. That last one is the whole safety guarantee: without this
+  // short-circuit a held market reverts to auto-settling the moment the
+  // upstream answer flaps back to its original value.
   if (market.status !== 'locked' && market.status !== 'proposed') {
     return { action: 'none' }
   }
 
   if (result.state === 'void') {
     // A refund needs no confirmation window — nobody can be harmed by it.
+    // NOTE: a proposed→void transition IS an answer change, but void refunds
+    // every position at cost basis, so no user can lose by it. Deliberate.
     return { action: 'void', reason: result.reason }
+  }
+
+  // A proposed market with no settles_at can never advance and never reaches
+  // the hold path, so it would sit invisible to the operator queue forever.
+  // Surface it instead.
+  if (market.status === 'proposed' && market.settlesAt === null) {
+    return { action: 'hold', reason: 'proposed market has no settles_at — incomplete record' }
   }
 
   if (result.state === 'undecided') {

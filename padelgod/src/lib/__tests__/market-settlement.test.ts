@@ -98,4 +98,33 @@ describe('decideSettlement', () => {
     expect(decideSettlement(market({ status: 'settled' }), r, NOW)).toEqual({ action: 'none' })
     expect(decideSettlement(market({ status: 'void' }), r, NOW)).toEqual({ action: 'none' })
   })
+
+  it('never re-evaluates a held market, even when the answer flaps back', () => {
+    // The exact hole: propose(true) → hold on a flip → upstream corrects back
+    // to true after the window. A held market must stay held.
+    const m = market({
+      status: 'held', proposedOutcome: true,
+      proposedAt: new Date(NOW.getTime() - 3_600_000),
+      settlesAt: new Date(NOW.getTime() - 1_000),
+    })
+    const r: ResolverResult = { state: 'decided', outcome: true, evidence: {} }
+    expect(decideSettlement(m, r, NOW)).toEqual({ action: 'none' })
+  })
+
+  it('holds a proposed market that has no settles_at rather than stalling silently', () => {
+    const m = market({
+      status: 'proposed', proposedOutcome: true,
+      proposedAt: new Date(NOW.getTime() - 60_000),
+      settlesAt: null,
+    })
+    const r: ResolverResult = { state: 'decided', outcome: true, evidence: {} }
+    const d = decideSettlement(m, r, NOW)
+    expect(d.action).toBe('hold')
+    if (d.action === 'hold') expect(d.reason).toMatch(/settles_at/)
+  })
+
+  it('a held market is not resurrected by a void either', () => {
+    const m = market({ status: 'held', proposedOutcome: true, proposedAt: NOW, settlesAt: NOW })
+    expect(decideSettlement(m, { state: 'void', reason: 'walkover' }, NOW)).toEqual({ action: 'none' })
+  })
 })
