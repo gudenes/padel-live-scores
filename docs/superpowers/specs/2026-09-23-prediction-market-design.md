@@ -30,7 +30,19 @@ Nothing converts to money. See "Why guacas stay non-convertible" below — it is
 
 ## Scope — deliberately narrow
 
-**Premier tier only** (`P1`, `P2`, `Major`, `Premier_Mens`, `Premier_Womens`). Point-by-point and `match_stats` only exist at Premier tier anyway; FIP-tier matches flip to `live` with no data behind them.
+**Premier tier only.** Use the canonical `isPremierTier()` helper in
+`padelgod/src/workers/match-stats-fetcher.ts` — do NOT compare `tournaments.level`
+to literals. Levels are stored **lowercase** (`p1`, `p2`, `major`, `fip_platinum`),
+not the title-case forms an earlier draft of this spec listed, and the helper is
+case-insensitive and also admits `fip_platinum`.
+
+**Round gates must read `matches.round_canonical`, never `matches.round`.**
+`round` is free-text from upstream scrapers and spells the same round several ways
+— `Semifinals` and `SemiFinals`, `Finals` and `Final`, `Quarter` and
+`Quarterfinals`. `round_canonical` holds `SF` / `F` / `QF` / `R32`. A gate of
+`["SF","F"]` compared against `round` matches **zero rows, permanently**; against
+`round_canonical` it finds the real field. Caveat: `round_canonical` is only
+partially backfilled, and a null fails the gate with no fallback. Point-by-point and `match_stats` only exist at Premier tier anyway; FIP-tier matches flip to `live` with no data behind them.
 
 **Final rounds only.** The round gate is a config value, defaulting to **SF + F**. The arithmetic decides it:
 
