@@ -80,3 +80,72 @@ export function scoreCandidate(c: Candidate): number {
 
   return roundScore + rankScore + closeness
 }
+
+export interface Caps {
+  maxOpenMarkets: number
+  currentOpen: number
+  maxNewPerDay: number
+  createdToday: number
+  maxPerMatch: number
+  /** matchId → markets that already exist for it. */
+  existingPerMatch: Record<string, number>
+  maxPerTournamentDay: number
+  /** tournamentId → markets created for it today. */
+  createdPerTournamentToday: Record<string, number>
+  maxSubsidyPerDay: number
+  subsidyUsedToday: number
+  subsidyPerMarket: number
+}
+
+export interface CapResult {
+  kept: Candidate[]
+  /** Aggregated by reason. Never truncate silently — a generator that drops
+   *  work without saying so looks identical to one that covered everything. */
+  drops: { reason: string; count: number }[]
+}
+
+export function applyCaps(candidates: Candidate[], caps: Caps): CapResult {
+  // Best-first, so whatever survives is the most worth opening.
+  const ordered = [...candidates].sort((a, b) => scoreCandidate(b) - scoreCandidate(a))
+
+  const kept: Candidate[] = []
+  const dropCounts = new Map<string, number>()
+  const drop = (reason: string) => dropCounts.set(reason, (dropCounts.get(reason) ?? 0) + 1)
+
+  let open = caps.currentOpen
+  let today = caps.createdToday
+  let subsidy = caps.subsidyUsedToday
+  const perMatch = { ...caps.existingPerMatch }
+  const perTournament = { ...caps.createdPerTournamentToday }
+
+  for (const cand of ordered) {
+    if (open >= caps.maxOpenMarkets) { drop('over global open cap'); continue }
+    if (today >= caps.maxNewPerDay) { drop('over daily new-market cap'); continue }
+
+    if (cand.matchId) {
+      const used = perMatch[cand.matchId] ?? 0
+      if (used >= caps.maxPerMatch) { drop('over per-match cap'); continue }
+    }
+
+    if (cand.tournamentId) {
+      const used = perTournament[cand.tournamentId] ?? 0
+      if (used >= caps.maxPerTournamentDay) { drop('over per-tournament daily cap'); continue }
+    }
+
+    if (subsidy + caps.subsidyPerMarket > caps.maxSubsidyPerDay) {
+      drop('over daily subsidy budget'); continue
+    }
+
+    kept.push(cand)
+    open += 1
+    today += 1
+    subsidy += caps.subsidyPerMarket
+    if (cand.matchId) perMatch[cand.matchId] = (perMatch[cand.matchId] ?? 0) + 1
+    if (cand.tournamentId) perTournament[cand.tournamentId] = (perTournament[cand.tournamentId] ?? 0) + 1
+  }
+
+  return {
+    kept,
+    drops: [...dropCounts.entries()].map(([reason, count]) => ({ reason, count })),
+  }
+}
