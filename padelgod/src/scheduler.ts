@@ -37,6 +37,8 @@ import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 import { runWebtugaLiveFetcher } from './workers/webtuga-live-fetcher.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
 import { runProjectionReadyNotifier } from './workers/projection-ready-notifier.js';
+import { runMarketGenerator } from './workers/market-generator.js';
+import { runMarketResolver } from './workers/market-resolver.js';
 
 export interface ScheduleEntry {
   name: string;
@@ -118,6 +120,10 @@ export interface SchedulerFlags {
   /** When true, the tournament-projection-snapshot worker computes everything
    *  but skips DB writes. Same dry-run pattern as modelPredictionSnapshot. */
   tournamentProjectionSnapshotDryRun: boolean;
+  enableMarketGenerator: boolean;
+  marketGeneratorDryRun: boolean;
+  enableMarketResolver: boolean;
+  marketResolverDryRun: boolean;
   /** prediction-scorer is append-only with `ON CONFLICT DO NOTHING`, so a
    *  single enable-flag is sufficient — no dry-run needed. */
   enablePredictionScorer: boolean;
@@ -209,7 +215,9 @@ export type WorkerName =
   | 'live-odds-updater'
   | 'webtuga-live-fetcher'
   | 'tournament-start-notifier'
-  | 'projection-ready-notifier';
+  | 'projection-ready-notifier'
+  | 'market-generator'
+  | 'market-resolver';
 
 export type WorkerRunner = (deps: SchedulerDeps) => Promise<unknown>;
 
@@ -249,6 +257,8 @@ export const ALL_WORKERS: WorkerName[] = [
   'webtuga-live-fetcher',
   'tournament-start-notifier',
   'projection-ready-notifier',
+  'market-generator',
+  'market-resolver',
 ];
 
 export function getWorkerRunner(name: string): WorkerRunner | null {
@@ -428,6 +438,17 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
         logger: deps.logger,
         notify: deps.notify,
       });
+    case 'market-generator': return (deps) => runMarketGenerator({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger is always dry-run-safe; the cron threads the real flag.
+      dryRun: true,
+    });
+    case 'market-resolver': return (deps) => runMarketResolver({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      dryRun: true,
+    });
     default: return null;
   }
 }
@@ -849,6 +870,40 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: d.supabase,
           logger: d.logger,
           dryRun: flags.tournamentProjectionSnapshotDryRun,
+        }),
+    });
+  }
+  if (flags.enableMarketGenerator) {
+    entries.push({
+      name: 'market-generator',
+      // :21 — deliberately NOT :25, which model-prediction-snapshot already
+      // owns (see the worker above, whose comment routes around it too).
+      // :21 is also clear of */5, 2-57/5, 3-58/5 and the resolver below.
+      cron: '21 * * * *',
+      run: async (d) =>
+        runMarketGenerator({
+          supabase: d.supabase,
+          logger: d.logger,
+          dryRun: flags.marketGeneratorDryRun,
+        }),
+    });
+  }
+  if (flags.enableMarketResolver) {
+    entries.push({
+      name: 'market-resolver',
+      // Every 5 minutes at 4,9,…,59 — deliberately NOT 2-57/5, which
+      // fip-results-writer owns. That worker writes final scores and flips
+      // matches.status, which is exactly what this one reads; firing on the
+      // same tick invites reading a match mid-write.
+      // Keep this worker at concurrency 1: a `hold` can lose a race to a
+      // `settle` from a second instance, and a rejected optimistic write is
+      // silent (PostgREST returns success on a zero-row update).
+      cron: '4-59/5 * * * *',
+      run: async (d) =>
+        runMarketResolver({
+          supabase: d.supabase,
+          logger: d.logger,
+          dryRun: flags.marketResolverDryRun,
         }),
     });
   }

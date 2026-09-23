@@ -18,6 +18,9 @@ const GROUPS: Group[] = [
       { href: '/odds/methodology', label: 'Methodology' },
     ] },
   ]},
+  { label: 'Play · Prediction Market', items: [
+    { href: '/play/templates', label: 'Templates', icon: 'grid' },
+  ]},
   { label: 'Tournament Ops', items: [
     { href: '/tournament-explorer', label: 'Tournament Explorer', icon: 'grid' },
     { href: '/entry-lists', label: 'Entry Lists', icon: 'list' },

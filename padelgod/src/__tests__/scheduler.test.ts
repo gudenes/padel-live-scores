@@ -22,10 +22,14 @@ const ALL_ENABLED = {
   enableLiveOddsUpdater: true,
   enableWebtugaLive: true,
   webtugaLiveDryRun: true,
+  enableMarketGenerator: true,
+  marketGeneratorDryRun: true,
+  enableMarketResolver: true,
+  marketResolverDryRun: true,
 };
 
 describe('buildSchedule', () => {
-  it('includes all 16 workers when fully enabled', () => {
+  it('includes all 21 scheduled entries when fully enabled', () => {
     const sched = buildSchedule(ALL_ENABLED);
     const names = sched.map((s) => s.name);
     expect(names).toContain('tournament-discovery');
@@ -45,6 +49,8 @@ describe('buildSchedule', () => {
     expect(names).toContain('close-stale-live-sweeper');
     expect(names).toContain('raw-payloads-prune');
     expect(names).toContain('live-odds-updater');
+    expect(names).toContain('market-generator');
+    expect(names).toContain('market-resolver');
   });
 
   it('schedules close-stale-live-sweeper every 5 minutes', () => {

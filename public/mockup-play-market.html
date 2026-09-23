@@ -1,0 +1,1337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PadelNachos · Play the Next — prediction market mockup</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   PadelNachos — "Play the Next" prediction-market mockup
+   Design system source of truth:
+     · public/mockup-buttons.html   (.pn-press chunky-tilted family)
+     · src/app/globals.css          (Forge Dark v2 tokens)
+   Nothing here invents a new colour or a new button shape.
+   ══════════════════════════════════════════════════════════════════ */
+
+:root{
+  /* Forge Dark v2 — copied verbatim from globals.css */
+  --bg-base:#1A1A1A; --bg-card:#1F1F1F; --bg-card-alt:#1C1C1C; --bg-subtle:#1E1E1E;
+  --border-base:#2A2A2A; --border-card:#2E2E2E; --border-strong:#383838; --border-inner:#252525;
+  --text-primary:#EEE4CE; --text-secondary:#9AAEC4; --text-muted:#6889A5; --text-dim:#4A6F8E; --text-faint:#365A78;
+  --color-live:#FF4655; --color-live-bg:rgba(255,70,85,.10); --color-live-border:rgba(255,70,85,.35);
+  --color-accent:#38C8FF; --color-accent-bg:rgba(56,200,255,.08); --color-accent-border:rgba(56,200,255,.25);
+  --color-women:#F472B6; --color-men:#5BA8FF;
+  /* Guacas / primary lime — the .intent-primary pair */
+  --lime:#7ED321; --lime-skirt:#558D14; --lime-bg:rgba(126,211,33,.10); --lime-border:rgba(126,211,33,.30);
+  --no:#FF4655; --no-skirt:#99131D; --no-bg:rgba(255,70,85,.10); --no-border:rgba(255,70,85,.30);
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-mono:ui-monospace,"SF Mono","Fira Code",monospace;
+  /* Shared silhouettes */
+  --clip-card:polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+  --clip-tag:polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  --clip-chunky:polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:#0A0A0A; color:var(--text-primary); font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased; min-height:100vh;
+  background-image:radial-gradient(1100px 620px at 18% -10%, rgba(126,211,33,.07), transparent 62%),
+                   radial-gradient(900px 520px at 100% 0%, rgba(56,200,255,.05), transparent 60%);
+}
+
+/* ─────────────────────────── Lab chrome ─────────────────────────── */
+.lab-head{max-width:1180px;margin:0 auto;padding:34px 22px 10px;display:flex;flex-wrap:wrap;gap:22px;align-items:flex-end;justify-content:space-between}
+.brand{font-size:30px;font-weight:900;letter-spacing:-.6px;line-height:1}
+.brand .n{color:var(--lime)}
+.brand-sub{margin-top:7px;font-size:9.5px;letter-spacing:2.2px;font-weight:800;color:var(--text-dim);text-transform:uppercase}
+.lockup{text-align:right}
+.lockup h1{margin:0;font-size:15px;letter-spacing:5px;font-weight:900;text-transform:uppercase}
+.lockup p{margin:7px 0 0;font-size:9.5px;letter-spacing:2.4px;font-weight:800;color:var(--lime);text-transform:uppercase}
+
+.stage{max-width:1180px;margin:0 auto;padding:26px 22px 80px;display:grid;grid-template-columns:minmax(0,375px) minmax(0,1fr);gap:54px;align-items:start}
+@media(max-width:900px){.stage{grid-template-columns:1fr;gap:34px;justify-items:center}}
+
+/* ─────────────────────────── Phone shell ────────────────────────── */
+.phone{
+  position:sticky;top:26px;width:375px;height:812px;flex:none;
+  background:#0A0A0A;border:1px solid var(--border-strong);border-radius:38px;
+  box-shadow:0 40px 90px rgba(0,0,0,.75), inset 0 0 0 7px #000;
+  overflow:hidden;display:flex;flex-direction:column;
+}
+@media(max-width:900px){.phone{position:static}}
+@media(max-width:420px){
+  .phone{width:100%;max-width:375px;height:760px;border-radius:26px}
+  .stage{padding:20px 12px 60px}
+}
+.statusbar{height:30px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 22px;font-size:11px;font-weight:800;color:var(--text-primary);opacity:.85}
+.statusbar .sb-r{display:flex;gap:5px;align-items:center}
+.statusbar svg{width:13px;height:13px;fill:currentColor;opacity:.9}
+
+/* ── GlobalHeader — 1:1 with src/components/nav/GlobalHeader.tsx ── */
+.ghead{flex:none;height:62px;background:#0A0A0A;box-shadow:0 1px 8px rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:space-between;padding:12px 16px}
+.ghead .glogo{height:52px;object-fit:contain;flex:none}
+.gsearch{flex:1;height:34px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);
+  clip-path:polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%);display:flex;align-items:center;gap:8px;
+  padding:0 12px;margin-left:10px;margin-right:6px;max-width:260px;cursor:pointer}
+.gsearch svg{width:14px;height:14px;flex:none;fill:none;stroke:#7ED321;stroke-width:2.5;stroke-linecap:round}
+.gsearch span{color:rgba(255,255,255,.7);font-size:11px;font-weight:500;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.gavatar{width:34px;height:34px;flex:none;border-radius:50%;overflow:hidden;cursor:pointer;
+  box-shadow:0 0 0 2px rgba(255,255,255,.10)}
+.gavatar svg{display:block;width:100%;height:100%}
+
+/* Guacas balance chip */
+.guacas{display:inline-flex;align-items:center;gap:7px;background:var(--bg-card);border:1px solid var(--border-card);
+  padding:5px 11px 5px 6px;clip-path:var(--clip-tag);font-weight:900;font-size:12.5px;font-variant-numeric:tabular-nums}
+.coin{width:17px;height:17px;border-radius:50%;background:var(--lime);color:#0a0a0a;display:grid;place-items:center;
+  font-size:10px;font-weight:900;flex:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.35)}
+
+/* Screen container */
+.screens{position:relative;flex:1;min-height:0}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;opacity:0;pointer-events:none;transition:opacity .22s ease}
+.screen.on{opacity:1;pointer-events:auto}
+
+/* ─────────────────────────── Swipe deck ─────────────────────────── */
+.deck-wrap{flex:1;min-height:0;position:relative;padding:14px 14px 0}
+.deck{position:absolute;inset:14px 14px 0;perspective:1200px}
+.mcard{
+  position:absolute;inset:0;background:var(--bg-card);border:1px solid var(--border-card);
+  clip-path:var(--clip-card);overflow:hidden;display:flex;flex-direction:column;
+  will-change:transform;transform-origin:50% 120%;user-select:none;touch-action:pan-y;
+}
+.mcard.behind{pointer-events:none}
+.mcard.anim{transition:transform .32s cubic-bezier(.34,1.3,.64,1), opacity .32s ease}
+
+/* Hero — procedural art, no photography available.
+   Perspective court + spotlight + ghosted pair monogram. */
+.hero{position:relative;height:168px;flex:none;overflow:hidden;background:#0d1410}
+.hero svg{position:absolute;inset:0;width:100%;height:100%}
+.hero .mono{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:16px;
+  font-size:72px;font-weight:900;letter-spacing:-4px;color:rgba(255,255,255,.055);
+  text-shadow:0 2px 40px rgba(0,0,0,.6)}
+.hero .mono i{font-style:normal}
+.hero .mono s{text-decoration:none;font-size:30px;color:rgba(126,211,33,.30);letter-spacing:0}
+.hero::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(10,10,10,.05) 0%,rgba(10,10,10,.35) 46%,var(--bg-card) 99%)}
+.hero .chips{position:absolute;top:12px;left:12px;right:12px;z-index:3;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+
+.tag{font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:4px 8px;clip-path:var(--clip-tag)}
+.tag.live{background:var(--color-live);color:#fff}
+.tag.horizon{background:rgba(10,10,10,.72);color:var(--text-secondary);border:1px solid var(--border-strong)}
+.tag.horizon.season{color:var(--color-accent);border-color:var(--color-accent-border)}
+.tag.horizon.tourn{color:var(--color-women);border-color:rgba(244,114,182,.30)}
+.tag.ctx{background:rgba(10,10,10,.72);color:var(--text-muted);border:1px solid var(--border-base)}
+.dot{width:5px;height:5px;border-radius:50%;background:#fff;display:inline-block;margin-right:5px;vertical-align:1px;animation:blink 1.4s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+
+.mbody{flex:1;min-height:0;overflow:hidden;padding:2px 17px 12px;display:flex;flex-direction:column;
+  position:relative;z-index:2;margin-top:-34px}
+.q{font-size:21px;font-weight:900;line-height:1.16;letter-spacing:-.5px;margin:0 0 8px}
+.sub{font-size:11.5px;color:var(--text-secondary);line-height:1.5;margin:0}
+.sub b{color:var(--text-primary);font-weight:800}
+.state{margin-top:9px;font-size:10px;font-weight:900;letter-spacing:1.1px;text-transform:uppercase;color:var(--text-muted)}
+.state em{font-style:normal;color:var(--lime)}
+
+/* Price history — solid = crowd, dashed = our Elo. The gap is the story. */
+.spark{margin-top:15px}
+.spark .lg{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;
+  font-size:8.5px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--text-faint)}
+.spark .lg .k2{display:inline-flex;align-items:center;gap:6px}
+.spark .lg i{width:13px;border-top:2px solid var(--lime);display:inline-block}
+.spark .lg i.dash{border-top:2px dashed var(--color-accent)}
+.spark svg{display:block;width:100%;height:46px;overflow:visible}
+
+/* YES / NO price blocks */
+.odds{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:auto}
+.odd{padding:11px 10px 10px;text-align:center;clip-path:var(--clip-tag);border:1px solid}
+.odd .lbl{font-size:9.5px;font-weight:900;letter-spacing:1.4px}
+.odd .pct{font-size:25px;font-weight:900;line-height:1.12;font-variant-numeric:tabular-nums}
+.odd.yes{background:var(--lime-bg);border-color:var(--lime-border)} .odd.yes .lbl,.odd.yes .pct{color:var(--lime)}
+.odd.no{background:var(--no-bg);border-color:var(--no-border)} .odd.no .lbl,.odd.no .pct{color:var(--no)}
+
+/* Model line — our Elo, the thing nobody else has */
+.model{margin-top:9px;display:flex;align-items:center;justify-content:center;gap:7px;
+  font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--text-muted)}
+.model .ai{display:inline-flex;align-items:center;gap:5px;background:var(--color-accent-bg);
+  border:1px solid var(--color-accent-border);color:var(--color-accent);padding:3px 7px;clip-path:var(--clip-tag);
+  font-size:9px;font-weight:900;letter-spacing:.9px}
+
+/* Drag stamps */
+.stamp{position:absolute;top:44px;font-size:37px;font-weight:900;letter-spacing:2px;padding:7px 20px;
+  border:4px solid;opacity:0;pointer-events:none;z-index:6;clip-path:var(--clip-chunky)}
+.stamp.s-yes{left:20px;transform:rotate(-13deg);color:var(--lime);border-color:var(--lime);background:rgba(126,211,33,.10)}
+.stamp.s-no{right:20px;transform:rotate(13deg);color:var(--no);border-color:var(--no);background:rgba(255,70,85,.10)}
+.mcard.tint-yes{box-shadow:inset 0 0 0 2px var(--lime), 0 0 42px rgba(126,211,33,.18)}
+.mcard.tint-no{box-shadow:inset 0 0 0 2px var(--no), 0 0 42px rgba(255,70,85,.18)}
+
+/* Deck actions */
+.actions{flex:none;padding:11px 22px 4px;display:flex;align-items:center;justify-content:center;gap:26px}
+.swipe-hint{flex:none;text-align:center;padding-bottom:8px;font-size:9px;font-weight:800;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--text-faint)}
+.swipe-hint b{color:var(--no)} .swipe-hint i{font-style:normal;color:var(--lime)}
+
+/* Round chunky press button (icon-only, pill) — .pn-press family */
+.pn-press{position:relative;background:transparent;border:0;padding:0;cursor:pointer;font-family:inherit;
+  display:inline-block;--pn-press-depth:5px;margin-bottom:var(--pn-press-depth);color:#0a0a0a;
+  -webkit-tap-highlight-color:transparent}
+.pn-press[data-block="1"]{display:block;width:100%}
+.pn-press .pn-press-skirt{position:absolute;inset:0;transform:translateY(var(--pn-press-depth));background:var(--lime-skirt)}
+.pn-press .pn-press-face{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;height:100%;background:var(--lime);color:inherit;box-shadow:inset 0 1px 0 rgba(255,255,255,.22);
+  transition:transform 70ms ease-out;transform:translateY(0);
+  font-weight:900;letter-spacing:.4px;text-transform:uppercase;user-select:none}
+.pn-press:active:not([disabled]) .pn-press-face{transform:translateY(var(--pn-press-depth))}
+.pn-press[disabled]{cursor:not-allowed;opacity:.42}
+.pn-press .pn-press-face svg{width:1em;height:1em;flex:none;fill:currentColor}
+.shape-chunky-tilted .pn-press-face,.shape-chunky-tilted .pn-press-skirt{clip-path:var(--clip-chunky)}
+.shape-pill .pn-press-face,.shape-pill .pn-press-skirt{border-radius:999px}
+.intent-primary .pn-press-face{background:var(--lime)} .intent-primary .pn-press-skirt{background:var(--lime-skirt)}
+.intent-live .pn-press-face{background:var(--no);color:#fff} .intent-live .pn-press-skirt{background:var(--no-skirt)}
+.intent-neutral .pn-press-face{background:#2A2A2A;color:#fff} .intent-neutral .pn-press-skirt{background:#0A0A0A}
+.intent-ghost .pn-press-face{background:transparent;color:var(--lime);box-shadow:inset 0 0 0 2px var(--lime)}
+.intent-ghost .pn-press-skirt{background:#2F4D10}
+.size-sm{--pn-press-depth:4px} .size-sm .pn-press-face{font-size:11px;padding:9px 16px}
+.size-md{--pn-press-depth:5px} .size-md .pn-press-face{font-size:12px;padding:12px 22px}
+.size-lg{--pn-press-depth:6px} .size-lg .pn-press-face{font-size:13px;padding:15px 28px}
+.icon-only .pn-press-face{padding:0!important;aspect-ratio:1/1}
+.btn-round{--pn-press-depth:5px}
+.btn-round .pn-press-face{width:58px;height:58px;border-radius:999px}
+.btn-round .pn-press-skirt{border-radius:999px}
+.btn-round .pn-press-face svg{width:24px;height:24px}
+
+/* ── BottomNavV3 — 1:1 with src/components/nav/BottomNavV3.tsx ────
+   GREEN #7ED321 active / DIM #4B5563 inactive · 48px lime ink-bar
+   pinned to the top edge · red count badges. */
+.v3nav{flex:none;position:relative;display:flex;justify-content:space-around;align-items:flex-end;
+  background:rgba(10,10,10,.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid rgba(255,255,255,.04);padding-top:4px;padding-bottom:16px}
+.v3-ink-bar{position:absolute;top:0;left:0;width:48px;height:5px;background:#7ED321;
+  clip-path:var(--clip-tag);transform:translate3d(var(--bar-x,0px),0,0);
+  transition:transform .36s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:0}
+.v3tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;text-decoration:none;
+  padding:6px 0 0;color:#4B5563;-webkit-tap-highlight-color:transparent;cursor:pointer}
+.v3tab.on{color:#7ED321}
+.v3-nav-icon{position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center;z-index:1}
+.v3tab svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.v3tab .lbl3{font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;z-index:1}
+.v3-nav-badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:16px;background:#FF4655;color:#fff;
+  font-size:9px;font-weight:800;border-radius:2px;display:flex;align-items:center;justify-content:center;
+  padding:0 4px;z-index:3;clip-path:var(--clip-tag)}
+
+/* Play — the marquee tab. Raised above the bar on the same chunky
+   press idiom as every primary CTA (face + skirt, face stamps down on
+   press), so it reads as part of the system rather than a bolted-on
+   FAB. Always lime: it's the hero action, not a state. */
+.v3tab.play{justify-content:flex-end}
+.playpod{position:relative;width:54px;height:54px;margin-top:-24px;margin-bottom:3px}
+.playpod-skirt{position:absolute;inset:0;transform:translateY(5px);background:var(--lime-skirt);
+  clip-path:var(--clip-chunky)}
+.playpod-face{position:relative;width:100%;height:100%;display:grid;place-items:center;background:var(--lime);
+  clip-path:var(--clip-chunky);box-shadow:inset 0 1px 0 rgba(255,255,255,.22);
+  transition:transform 70ms ease-out}
+.v3tab.play:active .playpod-face{transform:translateY(5px)}
+.playpod-face svg{width:28px;height:28px;stroke:#0a0a0a;stroke-width:2.1}
+.v3tab.play .lbl3{color:var(--lime)}
+
+/* ─────────────────────────── Trade sheet ────────────────────────── */
+.sheet{position:absolute;inset:0;background:rgba(6,6,6,.80);backdrop-filter:blur(3px);
+  display:flex;flex-direction:column;justify-content:flex-end;z-index:20}
+.sheet-panel{background:var(--bg-card);border-top:1px solid var(--border-card);padding:18px 18px 22px;
+  clip-path:polygon(0% 2%, 100% 0%, 100% 100%, 0% 100%)}
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:16px}
+.sheet-head h3{margin:0;font-size:19px;font-weight:900;letter-spacing:-.3px}
+.sheet-head p{margin:5px 0 0;font-size:11.5px;color:var(--text-secondary);line-height:1.45}
+.x{background:none;border:0;color:var(--text-muted);font-size:21px;cursor:pointer;line-height:1;padding:2px 4px;font-family:inherit}
+
+.price-row{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:stretch;margin-bottom:15px}
+.side-block{padding:11px 16px;text-align:center;clip-path:var(--clip-tag);border:1px solid;min-width:104px}
+.side-block .lbl{font-size:9.5px;font-weight:900;letter-spacing:1.4px}
+.side-block .pct{font-size:25px;font-weight:900;line-height:1.15;font-variant-numeric:tabular-nums}
+.side-block.yes{background:var(--lime-bg);border-color:var(--lime-border)}
+.side-block.yes .lbl,.side-block.yes .pct{color:var(--lime)}
+.side-block.no{background:var(--no-bg);border-color:var(--no-border)}
+.side-block.no .lbl,.side-block.no .pct{color:var(--no)}
+.pps{background:var(--bg-subtle);border:1px solid var(--border-base);clip-path:var(--clip-tag);
+  display:flex;flex-direction:column;justify-content:center;padding:10px 14px}
+.pps .k{font-size:9.5px;font-weight:900;letter-spacing:1.2px;color:var(--text-muted);text-transform:uppercase}
+.pps .v{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;margin-top:2px}
+
+.amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.amt{background:var(--bg-subtle);border:1px solid var(--border-base);color:var(--text-secondary);
+  font-family:inherit;font-size:13px;font-weight:900;padding:11px 0;cursor:pointer;clip-path:var(--clip-tag);
+  font-variant-numeric:tabular-nums;transition:background .12s,color .12s,border-color .12s}
+.amt.on{background:var(--lime);border-color:var(--lime);color:#0a0a0a}
+.shares{text-align:center;font-size:11.5px;font-weight:800;color:var(--text-muted);margin-bottom:15px;font-variant-numeric:tabular-nums}
+.shares b{color:var(--text-primary)}
+
+.bal{display:flex;align-items:center;justify-content:space-between;background:var(--bg-subtle);
+  border:1px solid var(--border-base);padding:11px 14px;clip-path:var(--clip-tag);margin-bottom:15px}
+.bal .k{font-size:9.5px;font-weight:900;letter-spacing:1.2px;color:var(--text-muted);text-transform:uppercase}
+.note{display:flex;gap:9px;align-items:flex-start;margin-top:13px;background:var(--bg-subtle);
+  border:1px solid var(--border-base);padding:10px 12px;font-size:10.5px;line-height:1.5;color:var(--text-muted)}
+.note svg{width:14px;height:14px;flex:none;margin-top:1px;fill:var(--text-dim)}
+
+/* ─────────────────────────── Confirmation ───────────────────────── */
+.confirm{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 18px 14px;position:relative;overflow:hidden}
+.confirm-art{position:relative;height:172px;flex:none;margin:0 -18px 0;overflow:hidden;background:#0d1410}
+.confirm-art svg{position:absolute;inset:0;width:100%;height:100%}
+.confirm-art::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,10,10,.1),var(--bg-base) 96%)}
+.tick{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:74px;height:74px;border-radius:50%;
+  background:var(--lime);display:grid;place-items:center;z-index:3;box-shadow:0 0 0 9px rgba(126,211,33,.13), 0 10px 30px rgba(0,0,0,.6);
+  animation:pop .42s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.tick svg{position:static;width:36px;height:36px;stroke:#0a0a0a;stroke-width:3.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.confirm h3{margin:16px 0 0;text-align:center;font-size:22px;font-weight:900;letter-spacing:-.3px}
+.confirm .deal{margin:9px 0 0;text-align:center;font-size:13.5px;color:var(--text-secondary);line-height:1.6}
+.confirm .deal b{color:var(--text-primary);font-weight:900}
+.confirm .deal .sideY{color:var(--lime);font-weight:900} .confirm .deal .sideN{color:var(--no);font-weight:900}
+.confirm .approx{margin:4px 0 0;text-align:center;font-size:11px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.confirm-cta{margin-top:18px;display:flex;flex-direction:column;gap:9px}
+.upnext{margin-top:auto;border-top:1px solid var(--border-base);padding-top:13px}
+.upnext .k{font-size:9.5px;font-weight:900;letter-spacing:1.3px;color:var(--text-muted);text-transform:uppercase;margin-bottom:9px}
+.upnext-card{display:flex;align-items:center;gap:12px;background:var(--bg-card);border:1px solid var(--border-card);
+  padding:11px 13px;clip-path:var(--clip-card);cursor:pointer}
+.upnext-card .thumb{width:46px;height:46px;flex:none;position:relative;overflow:hidden;background:#0d1410;clip-path:var(--clip-tag)}
+.upnext-card .thumb svg{position:absolute;inset:0;width:100%;height:100%}
+.upnext-card .t{flex:1;min-width:0}
+.upnext-card .t .h{font-size:8.5px;font-weight:900;letter-spacing:1px;color:var(--color-women);text-transform:uppercase}
+.upnext-card .t .q2{font-size:12.5px;font-weight:800;line-height:1.35;margin-top:3px}
+.upnext-card .t .m{font-size:10px;color:var(--text-dim);margin-top:3px}
+.upnext-card .go{color:var(--text-muted);font-size:17px;font-weight:900}
+
+/* ─────────────────────────── Positions ──────────────────────────── */
+.pos-head{flex:none;padding:14px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.pos-head h2{margin:0;font-size:20px;font-weight:900;letter-spacing:-.3px}
+.seg{flex:none;display:flex;gap:6px;padding:13px 16px 12px}
+.seg button{flex:1;background:var(--bg-subtle);border:1px solid var(--border-base);color:var(--text-muted);
+  font-family:inherit;font-size:10.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;
+  padding:9px 0;cursor:pointer;clip-path:var(--clip-tag)}
+.seg button.on{background:var(--lime);border-color:var(--lime);color:#0a0a0a}
+.pos-list{flex:1;min-height:0;overflow-y:auto;padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
+.pos{display:flex;gap:12px;background:var(--bg-card);border:1px solid var(--border-card);padding:12px 13px;clip-path:var(--clip-card)}
+.pos .side{flex:none;width:52px;text-align:center;padding:7px 0;clip-path:var(--clip-tag);border:1px solid;align-self:flex-start}
+.pos .side .s{font-size:9px;font-weight:900;letter-spacing:1.1px}
+.pos .side .p{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.2}
+.pos .side.yes{background:var(--lime-bg);border-color:var(--lime-border)} .pos .side.yes .s,.pos .side.yes .p{color:var(--lime)}
+.pos .side.no{background:var(--no-bg);border-color:var(--no-border)} .pos .side.no .s,.pos .side.no .p{color:var(--no)}
+.pos .mid{flex:1;min-width:0}
+.pos .mid .q3{font-size:12.5px;font-weight:800;line-height:1.35}
+.pos .mid .ctx{font-size:10px;color:var(--text-dim);margin-top:4px;line-height:1.45}
+.pos .mid .ctx .livepill{color:var(--color-live);font-weight:900}
+.pos .mid .stake{font-size:10.5px;color:var(--text-muted);margin-top:6px;font-weight:800;font-variant-numeric:tabular-nums}
+.pos .pnl{flex:none;text-align:right;align-self:center}
+.pos .pnl .d{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums}
+.pos .pnl .d.up{color:var(--lime)} .pos .pnl .d.down{color:var(--no)}
+.pos .pnl .now{font-size:10px;color:var(--text-dim);margin-top:3px;font-variant-numeric:tabular-nums}
+
+/* ─────────────────────────── Play sub-nav ───────────────────────── */
+.subnav{flex:none;display:flex;gap:6px;padding:10px 12px 11px;border-bottom:1px solid var(--border-base)}
+.subnav.hide{display:none}
+.subnav button{flex:1;background:var(--bg-subtle);border:1px solid var(--border-base);color:var(--text-muted);
+  font-family:inherit;font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;
+  padding:8px 0;cursor:pointer;clip-path:var(--clip-tag);position:relative;transition:background .12s,color .12s}
+.subnav button.on{background:var(--lime);border-color:var(--lime);color:#0a0a0a}
+/* Sits INSIDE the button — the parent's clip-path clips its children, so a
+   negatively-offset badge would be sliced off at the tilted edge. */
+.subnav button .badge{position:absolute;top:4px;right:5px;width:6px;height:6px;border-radius:50%;
+  background:var(--color-live)}
+/* Balance doubles as the route into your positions — tapping your money
+   to see your money is the obvious gesture, and it buys back a tab slot. */
+.subnav button.balchip{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:0 10px;
+  background:var(--bg-card);border-color:var(--border-card);color:var(--text-primary);
+  font-size:12px;font-variant-numeric:tabular-nums;letter-spacing:0;text-transform:none}
+.subnav button.balchip.on{background:var(--lime);border-color:var(--lime);color:#0a0a0a}
+.subnav button.balchip.on .coin{background:#0a0a0a;color:var(--lime);box-shadow:none}
+
+/* Generated character avatars — deterministic from the username, so a
+   user always looks the same without us storing or hosting an image. */
+.av{width:32px;height:32px;flex:none;border-radius:50%;overflow:hidden;
+  box-shadow:0 0 0 1px rgba(255,255,255,.10)}
+.av.lg{width:44px;height:44px}
+.av svg{display:block;width:100%;height:100%}
+
+/* ─────────────────────────── Activity ──────────────────────────── */
+.act-head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:12px 16px 10px}
+.act-head .t{font-size:10px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-muted)}
+.act-head .t em{font-style:normal;color:var(--color-live)}
+.act-filters{display:flex;gap:6px}
+.act-filters button{background:var(--bg-subtle);border:1px solid var(--border-base);color:var(--text-muted);
+  font-family:inherit;font-size:9.5px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;
+  padding:6px 11px;cursor:pointer;clip-path:var(--clip-tag)}
+.act-filters button.on{background:var(--bg-card);border-color:var(--border-strong);color:var(--text-primary)}
+.act-list{flex:1;min-height:0;overflow-y:auto;padding:0 12px 14px;display:flex;flex-direction:column;gap:7px}
+.act{display:flex;gap:10px;align-items:flex-start;background:var(--bg-card);border:1px solid var(--border-card);
+  padding:10px 11px;clip-path:var(--clip-card)}
+.act.fresh{animation:slideIn .42s cubic-bezier(.34,1.4,.64,1)}
+@keyframes slideIn{0%{opacity:0;transform:translateY(-11px)}100%{opacity:1;transform:translateY(0)}}
+.act .body{flex:1;min-width:0}
+.act .line1{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11.5px;line-height:1.4}
+.act .who{font-weight:900;color:var(--text-primary)}
+.act .verb{color:var(--text-muted);font-weight:700}
+.act .chip{font-size:9px;font-weight:900;letter-spacing:.8px;padding:2px 6px;clip-path:var(--clip-tag)}
+.act .chip.yes{background:var(--lime-bg);color:var(--lime);border:1px solid var(--lime-border)}
+.act .chip.no{background:var(--no-bg);color:var(--no);border:1px solid var(--no-border)}
+.act .chip.whale{background:rgba(234,179,8,.12);color:#EAB308;border:1px solid rgba(234,179,8,.32)}
+.act .at{font-weight:900;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.act .q4{font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.45;
+  overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.act .ago{flex:none;font-size:9.5px;font-weight:800;color:var(--text-faint);font-variant-numeric:tabular-nums;padding-top:2px}
+
+/* ─────────────────────────── Leaderboard ───────────────────────── */
+.lb-head{flex:none;padding:13px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.lb-head h2{margin:0;font-size:20px;font-weight:900;letter-spacing:-.3px}
+.lb-head .per{display:flex;gap:5px}
+.lb-head .per button{background:var(--bg-subtle);border:1px solid var(--border-base);color:var(--text-muted);
+  font-family:inherit;font-size:9.5px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;
+  padding:6px 10px;cursor:pointer;clip-path:var(--clip-tag)}
+.lb-head .per button.on{background:var(--lime);border-color:var(--lime);color:#0a0a0a}
+
+.podium{flex:none;display:grid;grid-template-columns:1fr 1.16fr 1fr;gap:8px;align-items:end;padding:15px 14px 13px}
+.pod{background:var(--bg-card);border:1px solid var(--border-card);clip-path:var(--clip-card);
+  padding:12px 7px 11px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px}
+.pod.p1{border-color:var(--lime-border);background:linear-gradient(180deg,var(--lime-bg),var(--bg-card) 62%)}
+.pod .rk{font-size:9px;font-weight:900;letter-spacing:1.2px;color:var(--text-muted)}
+.pod.p1 .rk{color:var(--lime)}
+.pod .nm{font-size:11px;font-weight:900;line-height:1.25;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod .gv{font-size:14px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--lime)}
+.pod .sec{font-size:9px;font-weight:800;color:var(--text-dim);letter-spacing:.4px}
+
+.lb-list{flex:1;min-height:0;overflow-y:auto;padding:0 14px 12px;display:flex;flex-direction:column;gap:7px}
+.lbr{display:flex;align-items:center;gap:10px;background:var(--bg-card);border:1px solid var(--border-card);
+  padding:9px 11px;clip-path:var(--clip-card)}
+.lbr .r{flex:none;width:20px;text-align:center;font-size:12px;font-weight:900;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.lbr .who2{flex:1;min-width:0}
+.lbr .who2 .n2{font-size:12.5px;font-weight:900;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbr .who2 .s2{font-size:9.5px;font-weight:800;color:var(--text-dim);margin-top:2px;letter-spacing:.4px}
+.lbr .g2{flex:none;text-align:right}
+.lbr .g2 .v2{font-size:13px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--lime)}
+.lbr .g2 .m2{font-size:9.5px;font-weight:900;font-variant-numeric:tabular-nums;margin-top:2px}
+.lbr .g2 .m2.up{color:var(--lime)} .lbr .g2 .m2.down{color:var(--no)} .lbr .g2 .m2.flat{color:var(--text-faint)}
+/* Pinned "you" row. --lime-bg is rgba(…,.10) — translucent, so list rows
+   scroll visibly *through* the pin and the text collides. Uses the
+   pre-composited opaque equivalent (lime .10 over --bg-card) + a lift. */
+.lbr.me{border-color:var(--lime);background:#28311F;position:sticky;bottom:0;
+  box-shadow:0 -10px 18px rgba(10,10,10,.8)}
+.lbr.me .r{color:var(--lime)}
+.lb-foot{flex:none;padding:0 14px 14px}
+.lb-note{font-size:9.5px;color:var(--text-faint);text-align:center;padding:2px 14px 10px;line-height:1.5}
+
+/* ─────────────────────────── Notes column ───────────────────────── */
+.notes{padding-top:6px;max-width:560px}
+.notes h2{margin:0 0 6px;font-size:13px;letter-spacing:2.6px;font-weight:900;text-transform:uppercase;color:var(--lime)}
+.notes .lead{margin:0 0 26px;font-size:13.5px;line-height:1.72;color:var(--text-secondary)}
+.step{display:grid;grid-template-columns:38px 1fr;gap:15px;padding:15px 0;border-top:1px solid var(--border-base);cursor:pointer}
+.step:hover .st-t{color:var(--lime)}
+.step .num{width:32px;height:32px;display:grid;place-items:center;background:var(--lime-bg);border:1px solid var(--lime-border);
+  color:var(--lime);font-weight:900;font-size:13px;clip-path:var(--clip-tag)}
+.step .st-t{font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;transition:color .15s}
+.step .st-d{margin-top:5px;font-size:12.5px;line-height:1.65;color:var(--text-muted)}
+.callout{margin-top:26px;border:1px solid var(--lime-border);background:var(--lime-bg);padding:15px 17px;clip-path:var(--clip-card)}
+.callout h3{margin:0 0 7px;font-size:10.5px;letter-spacing:1.6px;font-weight:900;text-transform:uppercase;color:var(--lime)}
+.callout p{margin:0 0 9px;font-size:12.5px;line-height:1.68;color:var(--text-secondary)}
+.callout p:last-child{margin-bottom:0}
+.callout b{color:var(--text-primary)}
+.foot{max-width:1180px;margin:0 auto;padding:0 22px 60px;font-size:11px;color:var(--text-faint);letter-spacing:.4px}
+</style>
+</head>
+<body>
+
+<div class="lab-head">
+  <div>
+    <div class="brand">Padel<span class="n">Nachos</span></div>
+    <div class="brand-sub">Live scores. More than scores.</div>
+  </div>
+  <div class="lockup">
+    <h1>Play the Next</h1>
+    <p>Predict · Trade · Earn Guacas</p>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- ══════════════════ PHONE ══════════════════ -->
+  <div class="phone">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="sb-r">
+        <svg viewBox="0 0 24 24"><path d="M2 17h3v4H2zm5-4h3v8H7zm5-4h3v12h-3zm5-5h3v17h-3z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M12 19a1.6 1.6 0 1 0 0 3.2A1.6 1.6 0 0 0 12 19zm0-5c-1.8 0-3.4.7-4.6 1.9l1.7 1.7A4.1 4.1 0 0 1 12 16.4c1.1 0 2.1.4 2.9 1.2l1.7-1.7A6.5 6.5 0 0 0 12 14zm0-5a11 11 0 0 0-8.1 3.5l1.7 1.7A8.6 8.6 0 0 1 12 11.4c2.4 0 4.6 1 6.4 2.8l1.7-1.7A11 11 0 0 0 12 9z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M2 8h16v8H2zm17 2h2v4h-2z"/></svg>
+      </span>
+    </div>
+
+    <header class="ghead">
+      <img class="glogo" src="padelnachos-logo-v2.png" alt="PadelNachos">
+      <div class="gsearch">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <span>Try &ldquo;Arturo Coello&rdquo;</span>
+      </div>
+      <div class="gavatar">G</div>
+    </header>
+
+    <div class="subnav" id="subnav">
+      <button data-k="markets" class="on">Markets</button>
+      <button data-k="activity">Activity<span class="badge"></span></button>
+      <button data-k="leaders">Leaders</button>
+      <button data-k="mine" class="balchip" aria-label="My positions">
+        <span class="coin">G</span><span id="balance">12,450</span>
+      </button>
+    </div>
+
+    <div class="screens">
+
+      <!-- ── 1/2/3 · DECK ────────────────────────────────── -->
+      <section class="screen on" id="sc-deck">
+        <div class="deck-wrap"><div class="deck" id="deck"></div></div>
+        <div class="actions">
+          <button class="pn-press shape-pill intent-live btn-round" id="btn-no" aria-label="No">
+            <span class="pn-press-skirt"></span>
+            <span class="pn-press-face"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span>
+          </button>
+          <button class="pn-press shape-pill intent-primary btn-round" id="btn-yes" aria-label="Yes">
+            <span class="pn-press-skirt"></span>
+            <span class="pn-press-face"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.2 5.2L20 7"/></svg></span>
+          </button>
+        </div>
+        <div class="swipe-hint">Swipe left for <b>No</b> &nbsp;·&nbsp; right for <i>Yes</i></div>
+      </section>
+
+      <!-- ── 4 · TRADE SHEET ─────────────────────────────── -->
+      <section class="screen" id="sc-trade">
+        <div class="sheet">
+          <div class="sheet-panel">
+            <div class="sheet-head">
+              <div>
+                <h3>How many Guacas?</h3>
+                <p id="trade-q">Will this set reach a tiebreak?</p>
+              </div>
+              <button class="x" id="trade-close" aria-label="Close">✕</button>
+            </div>
+
+            <div class="price-row">
+              <div class="side-block yes" id="trade-side">
+                <div class="lbl">YES</div><div class="pct" id="trade-pct">38%</div>
+              </div>
+              <div class="pps">
+                <div class="k">Price per share</div>
+                <div class="v" id="trade-price">0.38</div>
+              </div>
+            </div>
+
+            <div class="amounts" id="amounts">
+              <button class="amt on" data-amt="100">100</button>
+              <button class="amt" data-amt="250">250</button>
+              <button class="amt" data-amt="500">500</button>
+              <button class="amt" data-amt="1000">1,000</button>
+            </div>
+            <div class="shares">≈ <b id="trade-shares">263</b> shares</div>
+
+            <div class="bal">
+              <span class="k">Balance</span>
+              <span class="guacas"><span class="coin">G</span><span id="balance-2">12,450</span></span>
+            </div>
+
+            <button class="pn-press shape-chunky-tilted intent-primary size-lg" data-block="1" id="btn-confirm">
+              <span class="pn-press-skirt"></span>
+              <span class="pn-press-face">Confirm Trade</span>
+            </button>
+
+            <div class="note">
+              <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+              <span>You can sell your position at any time before the market resolves.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 5 · CONFIRMATION ────────────────────────────── -->
+      <section class="screen" id="sc-done">
+        <div class="confirm">
+          <div class="confirm-art">
+            <svg viewBox="0 0 375 172" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              <defs>
+                <radialGradient id="cspot" cx="50%" cy="38%" r="62%">
+                  <stop offset="0%" stop-color="#7ED321" stop-opacity=".30"/>
+                  <stop offset="100%" stop-color="#0d1410" stop-opacity="0"/>
+                </radialGradient>
+              </defs>
+              <rect width="375" height="172" fill="#0d1410"/>
+              <rect width="375" height="172" fill="url(#cspot)"/>
+              <g stroke="#7ED321" stroke-opacity=".17" fill="none" stroke-width="1.1">
+                <path d="M92 172 L150 42 L225 42 L283 172"/><path d="M60 172 L128 22 L247 22 L315 172"/>
+                <path d="M104 128 L271 128"/><path d="M118 88 L257 88"/><path d="M187.5 128 L187.5 42"/>
+              </g>
+            </svg>
+            <div class="tick"><svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.2L20 7"/></svg></div>
+          </div>
+          <h3>Position added!</h3>
+          <p class="deal">You bought <span id="done-side" class="sideY">YES</span> · <b id="done-amt">250</b> Guacas at <b id="done-price">0.38</b></p>
+          <p class="approx">≈ <span id="done-shares">658</span> shares · <span id="done-q">Will this set reach a tiebreak?</span></p>
+
+          <div class="confirm-cta">
+            <button class="pn-press shape-chunky-tilted intent-primary size-md" data-block="1" id="btn-positions">
+              <span class="pn-press-skirt"></span>
+              <span class="pn-press-face">View My Positions</span>
+            </button>
+            <button class="pn-press shape-chunky-tilted intent-neutral size-md" data-block="1" id="btn-next">
+              <span class="pn-press-skirt"></span>
+              <span class="pn-press-face">Next Prediction</span>
+            </button>
+          </div>
+
+          <div class="upnext">
+            <div class="k">Up next</div>
+            <div class="upnext-card" id="upnext-card">
+              <div class="thumb">
+                <svg viewBox="0 0 46 46" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  <rect width="46" height="46" fill="#140d12"/>
+                  <g stroke="#F472B6" stroke-opacity=".4" fill="none" stroke-width=".9">
+                    <path d="M10 46 L18 12 L28 12 L36 46"/><path d="M13 32 L33 32"/><path d="M23 32 L23 12"/>
+                  </g>
+                </svg>
+              </div>
+              <div class="t">
+                <div class="h">Tournament</div>
+                <div class="q2">Will Triay / Brea reach the final?</div>
+                <div class="m">Madrid P1 · Women</div>
+              </div>
+              <div class="go">›</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 6 · POSITIONS ───────────────────────────────── -->
+      <section class="screen" id="sc-pos">
+        <div class="pos-head">
+          <h2>My Positions</h2>
+          <div class="guacas"><span class="coin">G</span><span id="balance-3">12,200</span></div>
+          <!-- kept as the net-worth readout; the sub-nav chip shows spendable balance -->
+        </div>
+        <div class="seg">
+          <button class="on">Open</button><button>Resolved</button><button>History</button>
+        </div>
+        <div class="pos-list" id="pos-list"></div>
+        <div style="padding:0 16px 16px">
+          <button class="pn-press shape-chunky-tilted intent-ghost size-md" data-block="1" id="btn-back-deck">
+            <span class="pn-press-skirt"></span>
+            <span class="pn-press-face">Explore more markets</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ── 7 · ACTIVITY ────────────────────────────────── -->
+      <section class="screen" id="sc-activity">
+        <div class="act-head">
+          <div class="t"><span class="dot" style="background:var(--color-live)"></span><em>412 trades</em> in the last 5 min</div>
+          <div class="act-filters">
+            <button class="on" data-f="all">All</button>
+            <button data-f="following">Following</button>
+          </div>
+        </div>
+        <div class="act-list" id="act-list"></div>
+      </section>
+
+      <!-- ── 8 · LEADERBOARD ─────────────────────────────── -->
+      <section class="screen" id="sc-leader">
+        <div class="lb-head">
+          <h2>Leaders</h2>
+          <div class="per">
+            <button class="on" data-p="week">Week</button>
+            <button data-p="season">Season</button>
+            <button data-p="all">All time</button>
+          </div>
+        </div>
+        <div class="podium" id="podium"></div>
+        <div class="lb-list" id="lb-list"></div>
+        <div class="lb-note">Ranked by net worth — balance plus the live value of open positions.</div>
+      </section>
+
+    </div>
+
+    <nav class="v3nav" id="v3nav">
+      <div class="v3-ink-bar" id="inkbar"></div>
+
+      <!-- HomeIcon -->
+      <a class="v3tab" href="#"><div class="v3-nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <div class="v3-nav-badge">9+</div>
+      </div><span class="lbl3">Home</span></a>
+
+      <!-- ScoresIcon -->
+      <a class="v3tab" href="#"><div class="v3-nav-icon">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M4.5 7.5C7 7 9.5 9 10 12c0.3 2-0.5 4.5-1.5 6.5"/><path d="M19.5 16.5C17 17 14.5 15 14 12c-0.3-2 0.5-4.5 1.5-6.5"/></svg>
+        <div class="v3-nav-badge">3</div>
+      </div><span class="lbl3">Matches</span></a>
+
+      <!-- PLAY — takes the slot FollowingIcon (star) held. Stacked cards
+           echo the swipe deck; worth iterating on. -->
+      <a class="v3tab play on" href="#">
+        <div class="playpod">
+          <span class="playpod-skirt"></span>
+          <span class="playpod-face">
+            <svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2.8" y="7.2" width="11.4" height="13.6" rx="2"/><path d="M8.4 4.6h9.2a2 2 0 012 2v9.6"/></svg>
+          </span>
+        </div>
+        <span class="lbl3">Play</span>
+      </a>
+
+      <!-- TournamentsIcon -->
+      <a class="v3tab" href="#"><div class="v3-nav-icon">
+        <svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+      </div><span class="lbl3">Events</span></a>
+
+      <!-- RankingIcon -->
+      <a class="v3tab" href="#"><div class="v3-nav-icon">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="3" y1="20" x2="21" y2="20"/></svg>
+      </div><span class="lbl3">Ranking</span></a>
+    </nav>
+  </div>
+
+  <!-- ══════════════════ NOTES ══════════════════ -->
+  <div class="notes">
+    <h2>The loop</h2>
+    <p class="lead">
+      One binary question at a time, priced by the crowd and anchored to our own Elo model.
+      Swipe to take a side, choose a stake, and the position stays tradeable until the market
+      resolves. Every card below is a market our database can settle on its own — no operator
+      judgement required.
+    </p>
+
+    <div class="step" data-go="sc-deck"><div class="num">1</div><div>
+      <div class="st-t">Discover</div>
+      <div class="st-d">A new market every swipe. The horizon chip — LIVE, MATCH, TOURNAMENT, SEASON — tells you how long your money is committed before it can resolve.</div>
+    </div></div>
+
+    <div class="step" data-go="sc-deck"><div class="num">2</div><div>
+      <div class="st-t">Swipe right for Yes</div>
+      <div class="st-d">Confidence expressed as a gesture. The card tilts, the YES stamp bleeds in, and the border picks up the lime as you cross the commit threshold.</div>
+    </div></div>
+
+    <div class="step" data-go="sc-deck"><div class="num">3</div><div>
+      <div class="st-t">Swipe left for No</div>
+      <div class="st-d">Same physics, red stamp. Taking the No side is a first-class action, not a rejection — it's how the underdog price gets made.</div>
+    </div></div>
+
+    <div class="step" data-go="sc-trade"><div class="num">4</div><div>
+      <div class="st-t">Choose amount</div>
+      <div class="st-d">Price per share is the crowd probability expressed in Guacas. 250 Guacas at 0.38 buys 658 shares, each worth 1.00 if the market resolves your way.</div>
+    </div></div>
+
+    <div class="step" data-go="sc-done"><div class="num">5</div><div>
+      <div class="st-t">You're in</div>
+      <div class="st-d">Confirmation plus an immediate next card. The deck never dead-ends — that's what keeps session length up.</div>
+    </div></div>
+
+    <div class="step" data-go="sc-pos"><div class="num">6</div><div>
+      <div class="st-t">Track &amp; trade</div>
+      <div class="st-d">Open positions revalue as prices move. Sell early to lock a gain, or ride it to resolution.</div>
+    </div></div>
+
+    <div class="step" data-go="sc-activity"><div class="num">7</div><div>
+      <div class="st-t">Activity</div>
+      <div class="st-d">Other people's trades, arriving live. ADI shows anonymous wallet hashes because on-chain it has no choice — we have accounts, so the feed carries names and becomes social instead of just noisy. Big stakes get flagged, so you can see where conviction is.</div>
+    </div></div>
+
+    <div class="step" data-go="sc-leader"><div class="num">8</div><div>
+      <div class="st-t">Leaders</div>
+      <div class="st-d">Ranked by net worth — balance plus the live value of open positions — so holding a winning position counts before it resolves. Your own row stays pinned at the bottom no matter how far down you are.</div>
+    </div></div>
+
+    <div class="callout">
+      <h3>Three deliberate changes from the reference</h3>
+      <p><b>No currency symbols.</b> The reference showed P&amp;L as <b>€0.54</b>. In a no-money product a € or $ anywhere is a regulatory and trust problem — P&amp;L here is shown in <b>G</b> only.</p>
+      <p><b>Yes and No always sum to 100.</b> ADI PredictStreet shows 54% / 47% because it bakes a spread into each side. A play-money market has no house cut, so anything but 100 just reads as broken arithmetic.</p>
+      <p><b>The model is visible, not hidden.</b> Every card carries our Elo number next to the crowd price. The gap between them is the whole story — and it's a signal no competitor can copy.</p>
+    </div>
+  </div>
+</div>
+
+<div class="foot">Mockup · design tokens from <code>src/app/globals.css</code> · buttons from <code>public/mockup-buttons.html</code> · hero art is procedural SVG (placeholder for player photography)</div>
+
+<script>
+'use strict';
+
+/* Markets — every one resolvable from our own tables.
+   resolves = the column that settles it (shown for the design conversation). */
+const MARKETS = [
+  { q:'Will this set reach a tiebreak?',            sub:'Coello / Tapia <b>vs</b> Galán / Chingotto',
+    ctx:'Madrid P1 · Men · Final', horizon:'live',  live:true, state:'Set 1 · <em>4–4</em>',
+    yes:38, model:34, flow:'412 trades in the last 5 min', a:'CT', b:'GC' },
+  { q:'Will Coello / Tapia win this match?',        sub:'Coello / Tapia <b>vs</b> Galán / Chingotto',
+    ctx:'Madrid P1 · Men · Final', horizon:'match', live:true, state:'Set 1 · <em>4–4</em>',
+    yes:68, model:64, flow:'1,204 trades today', a:'CT', b:'GC' },
+  { q:'Will Galán / Chingotto win the first set?',  sub:'Coello / Tapia <b>vs</b> Galán / Chingotto',
+    ctx:'Madrid P1 · Men · Final', horizon:'match', live:true, state:'Set 1 · <em>4–4</em>',
+    yes:46, model:51, flow:'389 trades in the last 5 min', a:'GC', b:'CT' },
+  { q:'Will Triay / Brea reach the final?',         sub:'Madrid P1 · Women\'s draw',
+    ctx:'Semi-final · Saturday', horizon:'tourn', live:false, state:'Semi-final · tomorrow',
+    yes:71, model:66, flow:'2,940 Guacas traded', a:'TB', b:'', },
+  { q:'Will this match go to a third set?',         sub:'Coello / Tapia <b>vs</b> Galán / Chingotto',
+    ctx:'Madrid P1 · Men · Final', horizon:'match', live:true, state:'Set 1 · <em>4–4</em>',
+    yes:44, model:47, flow:'876 trades today', a:'CT', b:'GC' },
+  { q:'Will Coello finish 2026 as world No.1?',     sub:'Season market · resolves on the final ranking week',
+    ctx:'FIP official ranking', horizon:'season', live:false, state:'Currently No.1 · 14 events left',
+    yes:57, model:61, flow:'18,430 Guacas traded', a:'AC', b:'' },
+];
+
+const HORIZON_LABEL = { live:'In-match', match:'Match', tourn:'Tournament', season:'Season' };
+
+/* Deterministic price history — solid line is the crowd, dashed is our Elo.
+   The gap between the two lines is the entire pitch of this product. */
+function seeded(n){ let s = n * 9301 + 49297; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
+
+/* The series is persisted on the market so the live tick can extend it
+   rather than regenerate a different-looking history every render. */
+function ensureSeries(m, i){
+  if (m._series) return m._series;
+  const rnd = seeded(i + 3), N = 26, vals = [];
+  let v = m.yes + (rnd() * 20 - 10);
+  for (let k = 0; k < N; k++){
+    v += (rnd() - 0.5) * 6.5;
+    v += (m.yes - v) * (k / (N - 1)) * 0.38;      // drift toward the current price
+    vals.push(v);
+  }
+  vals[N - 1] = m.yes;
+  m._series = vals;
+  return vals;
+}
+
+function sparkSVG(m, i){
+  const vals = ensureSeries(m, i), N = vals.length;
+  const lo = Math.min(...vals, m.model) - 5, hi = Math.max(...vals, m.model) + 5;
+  const X = k => (k / (N - 1)) * 300;
+  const Y = val => 50 - ((val - lo) / (hi - lo)) * 44;
+
+  const pts  = vals.map((val, k) => `${X(k).toFixed(1)},${Y(val).toFixed(1)}`).join(' ');
+  const area = `0,54 ${pts} 300,54`;
+  const up   = vals[N - 1] >= vals[0];
+  const col  = up ? '#7ED321' : '#FF4655';
+  const my   = Y(m.model).toFixed(1);
+
+  return `<svg viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="sg${i}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${col}" stop-opacity=".26"/>
+      <stop offset="100%" stop-color="${col}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${area}" fill="url(#sg${i})"/>
+    <line x1="0" y1="${my}" x2="300" y2="${my}" stroke="#38C8FF" stroke-opacity=".75" stroke-width="1.4" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="300" cy="${Y(vals[N-1]).toFixed(1)}" r="3" fill="${col}"/>
+  </svg>`;
+}
+
+/* Procedural hero art — perspective court under a spotlight.
+   Stands in for player photography we don't have yet. */
+function heroSVG(tone, i){
+  const c = tone === 'tourn' ? '#F472B6' : tone === 'season' ? '#38C8FF' : '#7ED321';
+  const bg = tone === 'tourn' ? '#140d12' : tone === 'season' ? '#0b1016' : '#0d1410';
+  return `<svg viewBox="0 0 345 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <radialGradient id="sp${i}" cx="50%" cy="26%" r="72%">
+        <stop offset="0%" stop-color="${c}" stop-opacity=".34"/>
+        <stop offset="60%" stop-color="${c}" stop-opacity=".07"/>
+        <stop offset="100%" stop-color="${bg}" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="fl${i}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${c}" stop-opacity=".13"/>
+        <stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <rect width="345" height="190" fill="${bg}"/>
+    <rect width="345" height="190" fill="url(#sp${i})"/>
+    <path d="M78 190 L142 40 L203 40 L267 190 Z" fill="url(#fl${i})"/>
+    <g stroke="${c}" stroke-opacity=".22" fill="none" stroke-width="1.1">
+      <path d="M78 190 L142 40 L203 40 L267 190"/>
+      <path d="M40 190 L120 18 L225 18 L305 190"/>
+      <path d="M96 148 L249 148"/><path d="M110 104 L235 104"/><path d="M120 72 L225 72"/>
+      <path d="M172.5 148 L172.5 40"/>
+    </g>
+    <g stroke="${c}" stroke-opacity=".5" fill="none" stroke-width="1.6" stroke-dasharray="3 5">
+      <path d="M88 168 L257 168"/>
+    </g>
+  </svg>`;
+}
+
+function cardHTML(m, i){
+  const horizonCls = m.horizon === 'season' ? 'season' : m.horizon === 'tourn' ? 'tourn' : '';
+  const livePill = m.live ? `<span class="tag live"><span class="dot"></span>Live</span>` : '';
+  const mono = m.b
+    ? `<i>${m.a}</i><s>vs</s><i>${m.b}</i>`
+    : `<i>${m.a}</i>`;
+  return `
+  <div class="hero">
+    ${heroSVG(m.horizon, i)}
+    <div class="mono">${mono}</div>
+    <div class="chips">
+      ${livePill}
+      <span class="tag horizon ${horizonCls}">${HORIZON_LABEL[m.horizon]}</span>
+      <span class="tag ctx">${m.ctx}</span>
+    </div>
+  </div>
+  <div class="mbody">
+    <h2 class="q">${m.q}</h2>
+    <p class="sub">${m.sub}</p>
+    <div class="state">${m.state}</div>
+    <div class="spark">
+      <div class="lg">
+        <span class="k2"><i></i>Crowd price · 60 min</span>
+        <span class="k2"><i class="dash"></i>Our model</span>
+      </div>
+      ${sparkSVG(m, i)}
+    </div>
+    <div class="odds">
+      <div class="odd yes"><div class="lbl">YES</div><div class="pct">${m.yes}%</div></div>
+      <div class="odd no"><div class="lbl">NO</div><div class="pct">${100 - m.yes}%</div></div>
+    </div>
+    <div class="model">
+      <span class="ai">AI ${m.model}%</span>
+      <span>${m.flow}</span>
+    </div>
+  </div>
+  <div class="stamp s-yes">YES</div>
+  <div class="stamp s-no">NO</div>`;
+}
+
+/* ── Deck ─────────────────────────────────────────────────────── */
+const deck = document.getElementById('deck');
+let idx = 0, busy = false, pending = null;
+
+function renderDeck(){
+  deck.innerHTML = '';
+  // Render up to three cards; the topmost is last in DOM so it paints on top.
+  for (let d = 2; d >= 0; d--){
+    const m = MARKETS[(idx + d) % MARKETS.length];
+    const el = document.createElement('div');
+    el.className = 'mcard' + (d ? ' behind' : '');
+    el.innerHTML = cardHTML(m, (idx + d) % MARKETS.length);
+    const scale = 1 - d * 0.035, lift = d * -9;
+    el.style.transform = `translateY(${lift}px) scale(${scale})`;
+    el.style.opacity = d === 2 ? '.45' : d === 1 ? '.75' : '1';
+    if (!d) attachDrag(el, m);
+    deck.appendChild(el);
+  }
+}
+
+function attachDrag(el, m){
+  const yes = el.querySelector('.s-yes'), no = el.querySelector('.s-no');
+  let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false, id = null;
+
+  const paint = () => {
+    const rot = dx / 18, t = Math.min(Math.abs(dx) / 95, 1);
+    el.style.transform = `translate(${dx}px, ${dy * .25}px) rotate(${rot}deg)`;
+    yes.style.opacity = dx > 0 ? t : 0;
+    no.style.opacity  = dx < 0 ? t : 0;
+    el.classList.toggle('tint-yes', dx > 55);
+    el.classList.toggle('tint-no',  dx < -55);
+  };
+
+  el.addEventListener('pointerdown', e => {
+    if (busy) return;
+    dragging = true; id = e.pointerId; startX = e.clientX; startY = e.clientY;
+    el.setPointerCapture(id); el.classList.remove('anim');
+  });
+  el.addEventListener('pointermove', e => {
+    if (!dragging || e.pointerId !== id) return;
+    dx = e.clientX - startX; dy = e.clientY - startY; paint();
+  });
+  const end = e => {
+    if (!dragging || (e.pointerId !== undefined && e.pointerId !== id)) return;
+    dragging = false;
+    try { el.releasePointerCapture(id); } catch (_) {}
+    if (Math.abs(dx) > 95) { fly(el, m, dx > 0 ? 'yes' : 'no'); }
+    else {
+      el.classList.add('anim');
+      el.style.transform = 'translate(0,0) rotate(0deg)';
+      yes.style.opacity = no.style.opacity = 0;
+      el.classList.remove('tint-yes','tint-no');
+    }
+    dx = dy = 0;
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', end);
+}
+
+function fly(el, m, side){
+  busy = true;
+  el.classList.add('anim');
+  el.querySelector(side === 'yes' ? '.s-yes' : '.s-no').style.opacity = 1;
+  el.style.transform = `translate(${side === 'yes' ? 620 : -620}px, 40px) rotate(${side === 'yes' ? 26 : -26}deg)`;
+  el.style.opacity = '0';
+  setTimeout(() => { openTrade(m, side); busy = false; }, 270);
+}
+
+/* Programmatic swipe from the round buttons / keyboard. */
+function swipe(side){
+  if (busy) return;
+  const top = deck.lastElementChild;
+  if (top) fly(top, MARKETS[idx % MARKETS.length], side);
+}
+document.getElementById('btn-yes').addEventListener('click', () => swipe('yes'));
+document.getElementById('btn-no').addEventListener('click',  () => swipe('no'));
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('sc-deck').classList.contains('on')) return;
+  if (e.key === 'ArrowRight') swipe('yes');
+  if (e.key === 'ArrowLeft')  swipe('no');
+});
+
+/* ── Screens ──────────────────────────────────────────────────── */
+const SUBNAV_FOR = { 'sc-deck':'markets', 'sc-activity':'activity', 'sc-leader':'leaders', 'sc-pos':'mine' };
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+  // The sub-nav belongs to the Play section; the trade sheet and the
+  // confirmation take over the full frame, so it hides for those.
+  const key = SUBNAV_FOR[id];
+  document.getElementById('subnav').classList.toggle('hide', !key);
+  document.querySelectorAll('#subnav button').forEach(b => b.classList.toggle('on', b.dataset.k === key));
+}
+
+document.getElementById('subnav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  show({ markets:'sc-deck', activity:'sc-activity', leaders:'sc-leader', mine:'sc-pos' }[b.dataset.k]);
+});
+
+/* ── Trade sheet ──────────────────────────────────────────────── */
+let amount = 100;
+
+function openTrade(m, side){
+  const pct   = side === 'yes' ? m.yes : 100 - m.yes;
+  const price = (pct / 100).toFixed(2);
+  pending = { m, side, pct, price:+price };
+
+  document.getElementById('trade-q').textContent = m.q;
+  const sb = document.getElementById('trade-side');
+  sb.className = 'side-block ' + side;
+  sb.querySelector('.lbl').textContent = side.toUpperCase();
+  document.getElementById('trade-pct').textContent = pct + '%';
+  document.getElementById('trade-price').textContent = price;
+  setAmount(100);
+  show('sc-trade');
+}
+
+function setAmount(v){
+  amount = v;
+  document.querySelectorAll('.amt').forEach(b => b.classList.toggle('on', +b.dataset.amt === v));
+  if (pending) {
+    document.getElementById('trade-shares').textContent =
+      Math.round(v / pending.price).toLocaleString('en-US');
+  }
+}
+document.getElementById('amounts').addEventListener('click', e => {
+  const b = e.target.closest('.amt'); if (b) setAmount(+b.dataset.amt);
+});
+
+document.getElementById('trade-close').addEventListener('click', () => { advance(); show('sc-deck'); });
+
+/* ── Confirm ──────────────────────────────────────────────────── */
+let balance = 12450;
+
+document.getElementById('btn-confirm').addEventListener('click', () => {
+  const { m, side, price } = pending;
+  const shares = Math.round(amount / price);
+
+  balance -= amount;
+  ['balance','balance-2','balance-3'].forEach(id => {
+    document.getElementById(id).textContent = balance.toLocaleString('en-US');
+  });
+
+  const sideEl = document.getElementById('done-side');
+  sideEl.textContent = side.toUpperCase();
+  sideEl.className = side === 'yes' ? 'sideY' : 'sideN';
+  document.getElementById('done-amt').textContent    = amount.toLocaleString('en-US');
+  document.getElementById('done-price').textContent  = price.toFixed(2);
+  document.getElementById('done-shares').textContent = shares.toLocaleString('en-US');
+  document.getElementById('done-q').textContent      = m.q;
+
+  POSITIONS.unshift({
+    side, pct:pending.pct, q:m.q, ctx:m.ctx, live:m.live,
+    amount, price, delta:0, now:price,
+  });
+  renderPositions();
+  advance();
+  show('sc-done');
+});
+
+function advance(){ idx = (idx + 1) % MARKETS.length; renderDeck(); }
+
+document.getElementById('btn-next').addEventListener('click',      () => show('sc-deck'));
+document.getElementById('upnext-card').addEventListener('click',   () => show('sc-deck'));
+document.getElementById('btn-positions').addEventListener('click', () => show('sc-pos'));
+document.getElementById('btn-back-deck').addEventListener('click', () => show('sc-deck'));
+
+document.querySelectorAll('.step').forEach(s => {
+  s.addEventListener('click', () => {
+    const t = s.dataset.go;
+    if (t === 'sc-trade' && !pending) openTrade(MARKETS[idx % MARKETS.length], 'yes');
+    else show(t);
+  });
+});
+
+/* ── Positions ────────────────────────────────────────────────── */
+const POSITIONS = [
+  { side:'yes', pct:38, q:'Will this set reach a tiebreak?',
+    ctx:'Coello / Tapia vs Galán / Chingotto · Set 1 · 4–4', live:true,
+    amount:250, price:0.38, delta:+42, now:0.54 },
+  { side:'no',  pct:54, q:'Will Galán / Chingotto win the first set?',
+    ctx:'Coello / Tapia vs Galán / Chingotto', live:true,
+    amount:250, price:0.46, delta:-18, now:0.38 },
+  { side:'yes', pct:71, q:'Will Triay / Brea reach the final?',
+    ctx:'Madrid P1 · Women', live:false,
+    amount:500, price:0.29, delta:+7, now:0.31 },
+];
+
+function renderPositions(){
+  document.getElementById('pos-list').innerHTML = POSITIONS.map(p => {
+    const up  = p.delta >= 0;
+    const sgn = up ? '+' : '';
+    return `<div class="pos">
+      <div class="side ${p.side}">
+        <div class="s">${p.side.toUpperCase()}</div>
+        <div class="p">${p.pct}%</div>
+      </div>
+      <div class="mid">
+        <div class="q3">${p.q}</div>
+        <div class="ctx">${p.ctx}${p.live ? ' · <span class="livepill">LIVE</span>' : ''}</div>
+        <div class="stake">${p.amount.toLocaleString('en-US')} G @ ${p.price.toFixed(2)}</div>
+      </div>
+      <div class="pnl">
+        <div class="d ${up ? 'up' : 'down'}">${sgn}${p.delta}%</div>
+        <div class="now">${p.now.toFixed(2)} G</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ── Activity ─────────────────────────────────────────────────────
+   Real names, not wallet hashes. ADI shows `0x4a47…760f sold No at 85¢`,
+   which is anonymous by necessity on-chain — we have accounts, so the
+   feed can carry identity and become social rather than just noisy. */
+/* ── Generated character avatars ──────────────────────────────────
+   Reddit-style: a flat vector character assembled from a handful of
+   swappable parts, picked deterministically from a hash of the
+   username. Same name always yields the same face, no image storage,
+   no upload flow, no moderation surface — and it stays legible at
+   32px because every part is a solid shape with no fine detail. */
+const AV_BG    = ['#7ED321','#38C8FF','#F472B6','#EAB308','#818CF8','#FF4655','#5BA8FF','#34D399'];
+const AV_SKIN  = ['#F2C29B','#E8B084','#C68642','#8D5524','#FFD9B8','#A9713F'];
+const AV_HAIR  = ['#2B211A','#4A3427','#8B5A2B','#D9A441','#12100E','#6B3F23'];
+const AV_SHIRT = ['#1F2937','#7ED321','#38C8FF','#F472B6','#EAB308','#F4F4F5','#FF4655','#818CF8'];
+
+function hashOf(s){ let h = 2166136261; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return Math.abs(h); }
+
+function avatarSVG(name){
+  const h  = hashOf(name);
+  const bg = AV_BG[h % AV_BG.length];
+  const sk = AV_SKIN[(h >> 3) % AV_SKIN.length];
+  const hr = AV_HAIR[(h >> 6) % AV_HAIR.length];
+  // Shirt is offset off the bg index so the character never disappears
+  // into its own background.
+  const sh = AV_SHIRT[((h >> 9) + 3) % AV_SHIRT.length] === bg
+    ? AV_SHIRT[((h >> 9) + 4) % AV_SHIRT.length]
+    : AV_SHIRT[((h >> 9) + 3) % AV_SHIRT.length];
+  const hairStyle = (h >> 12) % 4;   // 0 short · 1 long · 2 bun · 3 buzz
+  const acc       = (h >> 15) % 5;   // 0 none · 1 headband · 2 cap · 3 shades · 4 none
+  const mouth     = (h >> 18) % 3;
+
+  const hairTop = hairStyle === 3
+    ? `<path d="M11.4 17.6 A8.6 8.6 0 0 1 28.6 17.6 Z" fill="${hr}"/>`
+    : `<path d="M11 18 A9 9 0 0 1 29 18 L29 15.5 A9 9 0 0 0 11 15.5 Z" fill="${hr}"/>
+       <path d="M11 17 A9 9 0 0 1 29 17 Z" fill="${hr}"/>`;
+  const hairSide = hairStyle === 1
+    ? `<rect x="10.2" y="16" width="3.4" height="11" rx="1.7" fill="${hr}"/>
+       <rect x="26.4" y="16" width="3.4" height="11" rx="1.7" fill="${hr}"/>` : '';
+  const hairBun = hairStyle === 2 ? `<circle cx="20" cy="7.4" r="3.4" fill="${hr}"/>` : '';
+
+  const accessory =
+    acc === 1 ? `<rect x="10.6" y="13.4" width="18.8" height="3.1" rx="1.4" fill="#FF4655"/>` :
+    acc === 2 ? `<path d="M11 16 A9 9 0 0 1 29 16 Z" fill="#1F2937"/><rect x="8.6" y="15.2" width="22.8" height="2.7" rx="1.35" fill="#111827"/>` :
+    acc === 3 ? `<g fill="#111827"><rect x="12.6" y="16.2" width="6.2" height="4.4" rx="1.4"/><rect x="21.2" y="16.2" width="6.2" height="4.4" rx="1.4"/><rect x="18.8" y="17.8" width="2.4" height="1.2"/></g>` : '';
+
+  const eyes = acc === 3 ? '' :
+    `<circle cx="16.6" cy="18.6" r="1.35" fill="#15120F"/><circle cx="23.4" cy="18.6" r="1.35" fill="#15120F"/>`;
+
+  const mouthPath =
+    mouth === 0 ? `<path d="M17 22.6 q3 2.5 6 0" stroke="#15120F" stroke-width="1.3" fill="none" stroke-linecap="round"/>` :
+    mouth === 1 ? `<path d="M17.4 23.1 h5.2" stroke="#15120F" stroke-width="1.3" fill="none" stroke-linecap="round"/>` :
+                  `<ellipse cx="20" cy="23.2" rx="2.1" ry="1.7" fill="#15120F"/>`;
+
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <rect width="40" height="40" fill="${bg}"/>
+    <path d="M2 40 C2 31.5 10.5 27.5 20 27.5 C29.5 27.5 38 31.5 38 40 Z" fill="${sh}"/>
+    <rect x="17.4" y="23" width="5.2" height="6" fill="${sk}"/>
+    <circle cx="20" cy="18" r="9" fill="${sk}"/>
+    ${hairBun}${hairTop}${hairSide}${accessory}${eyes}${mouthPath}
+  </svg>`;
+}
+
+function avatarFor(name, big){
+  return `<div class="av${big ? ' lg' : ''}">${avatarSVG(name)}</div>`;
+}
+
+const ACT_USERS = ['Marta R.','nico_pdl','Bea Glz','PadelProfeta','Tiago M.','laura.87',
+                   'ElGato','Sofia V.','juanma','Kiko P.','Ana Ruiz','MatiasB'];
+const ACT_VERBS = [
+  { v:'bought', side:'yes' }, { v:'bought', side:'no' },
+  { v:'sold',   side:'yes' }, { v:'sold',   side:'no' },
+];
+
+const ACTIVITY = [
+  { u:'Marta R.',      verb:'bought', side:'yes', price:.38, amt:500,  q:'Will this set reach a tiebreak?',              ago:'12s', whale:true  },
+  { u:'nico_pdl',      verb:'sold',   side:'no',  price:.62, amt:250,  q:'Will this set reach a tiebreak?',              ago:'34s', whale:false },
+  { u:'PadelProfeta',  verb:'bought', side:'yes', price:.57, amt:2000, q:'Will Coello finish 2026 as world No.1?',       ago:'1m',  whale:true  },
+  { u:'Bea Glz',       verb:'bought', side:'no',  price:.29, amt:100,  q:'Will Triay / Brea reach the final?',           ago:'1m',  whale:false },
+  { u:'Tiago M.',      verb:'sold',   side:'yes', price:.68, amt:750,  q:'Will Coello / Tapia win this match?',          ago:'2m',  whale:true  },
+  { u:'laura.87',      verb:'bought', side:'no',  price:.54, amt:250,  q:'Will Galán / Chingotto win the first set?',    ago:'2m',  whale:false },
+  { u:'ElGato',        verb:'bought', side:'yes', price:.44, amt:100,  q:'Will this match go to a third set?',           ago:'3m',  whale:false },
+  { u:'Sofia V.',      verb:'sold',   side:'no',  price:.33, amt:500,  q:'Will Triay / Brea reach the final?',           ago:'3m',  whale:false },
+  { u:'juanma',        verb:'bought', side:'yes', price:.41, amt:1500, q:'Will this set reach a tiebreak?',              ago:'4m',  whale:true  },
+  { u:'Ana Ruiz',      verb:'bought', side:'no',  price:.36, amt:250,  q:'Will Coello / Tapia win this match?',          ago:'5m',  whale:false },
+];
+
+function actHTML(a, fresh){
+  return `<div class="act${fresh ? ' fresh' : ''}">
+    ${avatarFor(a.u)}
+    <div class="body">
+      <div class="line1">
+        <span class="who">${a.u}</span>
+        <span class="verb">${a.verb}</span>
+        <span class="chip ${a.side}">${a.side.toUpperCase()}</span>
+        <span class="verb">at</span>
+        <span class="at">${a.price.toFixed(2)}</span>
+        ${a.whale ? '<span class="chip whale">Big</span>' : ''}
+      </div>
+      <div class="q4">${a.amt.toLocaleString('en-US')} G · ${a.q}</div>
+    </div>
+    <div class="ago">${a.ago}</div>
+  </div>`;
+}
+
+function renderActivity(){
+  document.getElementById('act-list').innerHTML = ACTIVITY.map(a => actHTML(a, false)).join('');
+}
+
+/* New trades arrive while you watch — the cheapest way to make a thin
+   market feel liquid. Only ticks while the Activity screen is visible. */
+let actTick = 0;
+setInterval(() => {
+  if (!document.getElementById('sc-activity').classList.contains('on')) return;
+  actTick++;
+  const rnd  = seeded(actTick * 7 + 11);
+  const vb   = ACT_VERBS[Math.floor(rnd() * ACT_VERBS.length)];
+  const m    = MARKETS[Math.floor(rnd() * MARKETS.length)];
+  const amt  = [100, 250, 500, 1000, 2000][Math.floor(rnd() * 5)];
+  const base = vb.side === 'yes' ? m.yes : 100 - m.yes;
+  ACTIVITY.unshift({
+    u: ACT_USERS[Math.floor(rnd() * ACT_USERS.length)],
+    verb: vb.v, side: vb.side,
+    price: Math.min(.97, Math.max(.03, (base + (rnd() * 8 - 4)) / 100)),
+    amt, q: m.q, ago: 'now', whale: amt >= 1000,
+  });
+  if (ACTIVITY.length > 14) ACTIVITY.pop();
+  const list = document.getElementById('act-list');
+  list.innerHTML = ACTIVITY.map((a, i) => actHTML(a, i === 0)).join('');
+}, 3200);
+
+document.querySelector('.act-filters').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('.act-filters button').forEach(x => x.classList.toggle('on', x === b));
+});
+
+/* ── Leaderboard ──────────────────────────────────────────────── */
+const LEADERS = [
+  { n:'PadelProfeta', g:48210, acc:71, streak:9, move:+2 },
+  { n:'Marta R.',     g:44905, acc:68, streak:4, move:-1 },
+  { n:'juanma',       g:41330, acc:64, streak:0, move:+3 },
+  { n:'Bea Glz',      g:37880, acc:66, streak:2, move:0  },
+  { n:'nico_pdl',     g:35120, acc:61, streak:5, move:+4 },
+  { n:'Tiago M.',     g:33475, acc:63, streak:1, move:-2 },
+  { n:'Sofia V.',     g:31090, acc:59, streak:0, move:+1 },
+  { n:'ElGato',       g:28640, acc:57, streak:3, move:-3 },
+  { n:'laura.87',     g:26315, acc:60, streak:0, move:0  },
+];
+const ME = { n:'You', g:12350, acc:55, streak:2, move:+6, rank:214 };
+
+function moveHTML(m){
+  if (m > 0) return `<div class="m2 up">▲ ${m}</div>`;
+  if (m < 0) return `<div class="m2 down">▼ ${Math.abs(m)}</div>`;
+  return `<div class="m2 flat">—</div>`;
+}
+
+function renderLeaders(){
+  // Podium order: 2nd, 1st, 3rd — so first place sits centre and tallest.
+  const order = [1, 0, 2];
+  document.getElementById('podium').innerHTML = order.map(i => {
+    const L = LEADERS[i], place = i + 1;
+    return `<div class="pod${place === 1 ? ' p1' : ''}">
+      <div class="rk">${place === 1 ? '① CHAMPION' : place === 2 ? '②' : '③'}</div>
+      ${avatarFor(L.n, place === 1)}
+      <div class="nm">${L.n}</div>
+      <div class="gv">${L.g.toLocaleString('en-US')}</div>
+      <div class="sec">${L.acc}% accurate</div>
+    </div>`;
+  }).join('');
+
+  const rows = LEADERS.slice(3).map((L, k) => `
+    <div class="lbr">
+      <div class="r">${k + 4}</div>
+      ${avatarFor(L.n)}
+      <div class="who2">
+        <div class="n2">${L.n}</div>
+        <div class="s2">${L.acc}% accurate${L.streak ? ` · ${L.streak} streak` : ''}</div>
+      </div>
+      <div class="g2"><div class="v2">${L.g.toLocaleString('en-US')}</div>${moveHTML(L.move)}</div>
+    </div>`).join('');
+
+  const me = `
+    <div class="lbr me">
+      <div class="r">${ME.rank}</div>
+      ${avatarFor(ME.n)}
+      <div class="who2">
+        <div class="n2">${ME.n}</div>
+        <div class="s2">${ME.acc}% accurate · ${ME.streak} streak</div>
+      </div>
+      <div class="g2"><div class="v2">${ME.g.toLocaleString('en-US')}</div>${moveHTML(ME.move)}</div>
+    </div>`;
+
+  document.getElementById('lb-list').innerHTML = rows + me;
+}
+
+document.querySelector('.lb-head .per').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('.lb-head .per button').forEach(x => x.classList.toggle('on', x === b));
+});
+
+/* ── Bottom-nav ink bar ───────────────────────────────────────────
+   Measured from the active tab rather than hardcoded, so it stays
+   centred at any phone width — same contract as the real component
+   (INK_BAR_WIDTH = 48 must match the CSS rule). */
+const INK_BAR_WIDTH = 48;
+function placeInkBar(){
+  const nav = document.getElementById('v3nav');
+  const active = nav.querySelector('.v3tab.on');
+  if (!active) return;
+  const nb = nav.getBoundingClientRect(), tb = active.getBoundingClientRect();
+  const x = (tb.left - nb.left) + tb.width / 2 - INK_BAR_WIDTH / 2;
+  const bar = document.getElementById('inkbar');
+  bar.style.setProperty('--bar-x', `${x.toFixed(1)}px`);
+  // The raised Play pod is its own active indicator — a bar underneath it
+  // would just collide with the skirt.
+  bar.style.opacity = active.classList.contains('play') ? '0' : '1';
+}
+window.addEventListener('resize', placeInkBar);
+
+// The signed-in user gets the same generated character as everyone else.
+document.querySelector('.gavatar').innerHTML = avatarSVG('Gustavo D.');
+
+renderDeck();
+renderPositions();
+renderActivity();
+renderLeaders();
+show('sc-deck');
+placeInkBar();
+</script>
+</body>
+</html>
