@@ -19,6 +19,7 @@ const GROUPS: Group[] = [
     ] },
   ]},
   { label: 'Play · Prediction Market', items: [
+    { href: '/play/markets', label: 'Markets', icon: 'list' },
     { href: '/play/templates', label: 'Templates', icon: 'grid' },
   ]},
   { label: 'Tournament Ops', items: [
