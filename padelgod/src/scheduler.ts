@@ -956,9 +956,12 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enablePadeldevLive) {
     entries.push({
       name: 'padeldev-live-fetcher',
-      // Every 15 seconds (node-cron 6-field syntax). The feed's `lastupdate`
-      // guard means an idle match costs one tournament-feed read per tick,
-      // not a per-match fetch.
+      // Every 15 seconds (node-cron 6-field syntax).
+      //
+      // Cost per tick = 1 tournament-feed fetch + 1 per-match fetch for every
+      // in-progress match. The `lastupdate` guard is checked AFTER the match
+      // fetch, so it saves the diff and the DB writes — NOT the HTTP request.
+      // Measured in prod: ~43% of ticks on a live match are `unchanged`.
       cron: '*/15 * * * * *',
       run: async (deps) => runPadeldevLiveFetcher(deps, { dryRun: flags.padeldevLiveDryRun }),
     });
