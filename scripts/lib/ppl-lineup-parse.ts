@@ -54,9 +54,14 @@ export interface LineupProblem {
 /**
  * Strips a quoted nickname from a published name.
  *
- * `LEONEL "TOLITO" AGUIRRE` -> `LEONEL AGUIRRE`. Upstream embeds nicknames
- * in both its name fields; Phase 2a hit the same thing when resolving the
- * roster, and the resolver is keyed on the plain name.
+ * KEPT BUT NO LONGER APPLIED ON THE MAIN PATH, and the reason is worth
+ * recording: the obvious move is to strip `LEONEL "TOLITO" AGUIRRE` down to
+ * `LEONEL AGUIRRE` before matching. That is backwards here. Upstream's own
+ * player registry stores the nickname form (`Leonel "Tolito" Aguirre`), and
+ * so does our players row for him, so stripping destroys the very match it
+ * was meant to enable. The resolver keys on a normalisation that drops
+ * punctuation instead, which makes both forms converge without losing a
+ * token. This stays for callers that genuinely need the bare legal name.
  */
 export function stripLineupNickname(name: string): string {
   return name
@@ -102,9 +107,12 @@ export function parseLineups(
       continue
     }
 
+    // Names are kept VERBATIM. See stripLineupNickname's note: upstream's
+    // registry carries the nickname, so removing it here would break the
+    // lookup rather than help it.
     const cleaned = c.sides.map((s) => ({
       team: s.team.trim(),
-      players: s.players.map(stripLineupNickname).filter(Boolean),
+      players: s.players.map((p) => p.trim()).filter(Boolean),
     }))
 
     const bad = cleaned.find((s) => s.players.length !== 2)
@@ -126,4 +134,51 @@ export function parseLineups(
   }
 
   return { parsed, problems }
+}
+
+/** Normalises a franchise name for comparison: case and spacing only. */
+function teamKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+export interface AlignedLineup {
+  /** Players for the side OUR tie calls home (pair1). */
+  homePlayers: string[]
+  /** Players for the side OUR tie calls away (pair2). */
+  awayPlayers: string[]
+  /** True when upstream listed the franchises the other way round. */
+  flipped: boolean
+}
+
+/**
+ * Re-orients a published line-up onto OUR tie's home/away.
+ *
+ * Upstream lists whichever franchise it likes first; our tie already fixed a
+ * home and an away when it was imported, and `matches.pair1_*` means the
+ * tie's home. If those disagree and nobody notices, the pairs get written to
+ * the wrong franchises — every player attached to the opponent, every result
+ * inverted downstream.
+ *
+ * This is the third place in this feature where a home/away mismatch could
+ * silently invert data (the score parser and the franchise page were the
+ * others), so it gets the same treatment: a named function that refuses when
+ * the teams do not match at all, rather than falling back to positional order.
+ */
+export function alignLineupToTie(
+  court: ParsedLineupCourt,
+  tieHomeTeam: string,
+  tieAwayTeam: string,
+): AlignedLineup | null {
+  const h = teamKey(court.home.team)
+  const a = teamKey(court.away.team)
+  const th = teamKey(tieHomeTeam)
+  const ta = teamKey(tieAwayTeam)
+
+  if (h === th && a === ta) {
+    return { homePlayers: court.home.players, awayPlayers: court.away.players, flipped: false }
+  }
+  if (h === ta && a === th) {
+    return { homePlayers: court.away.players, awayPlayers: court.home.players, flipped: true }
+  }
+  return null
 }

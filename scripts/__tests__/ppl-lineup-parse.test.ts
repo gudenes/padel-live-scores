@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
-  parseLineups, stripLineupNickname, type RawLineupCourt,
+  parseLineups, stripLineupNickname, alignLineupToTie, type RawLineupCourt,
 } from '../lib/ppl-lineup-parse'
 
 // Captured 2026-09-24 from the Playa del Carmen schedule page, day 1.
@@ -99,14 +99,17 @@ describe('parseLineups', () => {
     expect(problems[0].reason).toBe('unknown-gender')
   })
 
-  it('strips nicknames on the way through', () => {
+  it('keeps the nickname VERBATIM — stripping it breaks the lookup', () => {
+    // Measured: upstream's player registry stores `Leonel "Tolito" Aguirre`,
+    // and so does our players row. Stripping to `LEONEL AGUIRRE` made him
+    // unresolvable. The resolver normalises punctuation away instead.
     const { parsed } = parseLineups([court({
       sides: [
         { rank: '#6', team: 'A', players: ['LEONEL "TOLITO" AGUIRRE', 'B B'] },
         { rank: '#9', team: 'B', players: ['C C', 'D D'] },
       ],
     })])
-    expect(parsed[0].home.players[0]).toBe('LEONEL AGUIRRE')
+    expect(parsed[0].home.players[0]).toBe('LEONEL "TOLITO" AGUIRRE')
   })
 
   it('keeps good courts when a sibling is rejected', () => {
@@ -123,5 +126,40 @@ describe('parseLineups', () => {
 
   it('returns empty for empty input', () => {
     expect(parseLineups([])).toEqual({ parsed: [], problems: [] })
+  })
+})
+
+describe('alignLineupToTie', () => {
+  const parsed = parseLineups([court()]).parsed[0]
+
+  it('keeps the order when upstream agrees with our tie', () => {
+    const a = alignLineupToTie(parsed, 'NEW YORK ATLANTICS', 'MEXICO WAVES')!
+    expect(a.flipped).toBe(false)
+    expect(a.homePlayers).toEqual(['MARTA TALAVAN', 'SOFIA SAIZ VALLEJO'])
+    expect(a.awayPlayers).toEqual(['LUCIA PERALTA', 'PATRICIA MARTINEZ FORTUN'])
+  })
+
+  it('SWAPS when our tie stored the franchises the other way round', () => {
+    // pair1_* means the tie's home. If upstream lists the away side first and
+    // nobody re-orients, every player lands on the opposing franchise.
+    const a = alignLineupToTie(parsed, 'MEXICO WAVES', 'NEW YORK ATLANTICS')!
+    expect(a.flipped).toBe(true)
+    expect(a.homePlayers).toEqual(['LUCIA PERALTA', 'PATRICIA MARTINEZ FORTUN'])
+    expect(a.awayPlayers).toEqual(['MARTA TALAVAN', 'SOFIA SAIZ VALLEJO'])
+  })
+
+  it('tolerates case and spacing differences in the franchise name', () => {
+    // Upstream shouts its team names; ours are title-case in `teams.name`.
+    expect(alignLineupToTie(parsed, 'New York Atlantics', 'Mexico  Waves')).not.toBeNull()
+  })
+
+  it('returns null when the franchises do not match, rather than assuming order', () => {
+    // A positional fallback here would attach a whole pairing to a franchise
+    // that never played the match.
+    expect(alignLineupToTie(parsed, 'TORONTO POLAR BEARS', 'MIAMI PADEL CLUB')).toBeNull()
+  })
+
+  it('returns null when only one side matches', () => {
+    expect(alignLineupToTie(parsed, 'NEW YORK ATLANTICS', 'TORONTO POLAR BEARS')).toBeNull()
   })
 })
