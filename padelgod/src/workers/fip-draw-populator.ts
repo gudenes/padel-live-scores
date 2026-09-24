@@ -158,6 +158,11 @@ export interface FipDrawPopulatorResult {
   /** Tournaments skipped because their `level` was in `excludeLevels`.
    *  Always 0 when the filter is unset/empty. */
   tournamentsSkippedExcludedLevel: number;
+  /** Tournaments whose processing threw and were skipped. Before 2026-09-23 a
+   *  throw escaped the whole worker, so this was structurally impossible to
+   *  observe: the run died and the counters never logged. Alert on this — a
+   *  non-zero value means that hour's data for those events is stale. */
+  tournamentsFailed: number;
   drawRowsConsidered: number;
   inserted: number;
   updated: number;
@@ -506,6 +511,7 @@ export async function runFipDrawPopulator(
     tournamentsSkippedNoWidget: 0,
     tournamentsSkippedNotInAllowlist: 0,
     tournamentsSkippedExcludedLevel: 0,
+    tournamentsFailed: 0,
     drawRowsConsidered: 0,
     inserted: 0,
     updated: 0,
@@ -570,6 +576,16 @@ export async function runFipDrawPopulator(
   }
 
   for (const t of tournaments) {
+    // One tournament must never take down the batch. Until 2026-09-23 this
+    // loop had no try/catch: a transient `TypeError: fetch failed` reading the
+    // sidecar for the FIRST of 43 tournaments threw straight out of the worker,
+    // so the other 42 were never processed — and because the function threw,
+    // the `run complete` counters never logged and the loss was silent.
+    //
+    // The body below is deliberately NOT re-indented into this try. Doing so
+    // would rewrite ~600 lines and make the diff unreviewable on a worker that
+    // writes match data; the two-line guard is the whole behavioural change.
+    try {
     // Allowlist filter. Evaluated FIRST so we don't waste widget-id
     // lookups on tournaments we won't process. Kept as a counter so
     // the result object can prove to operators that the allowlist
@@ -1174,6 +1190,20 @@ export async function runFipDrawPopulator(
           deps.notify,
         );
       }
+    }
+    } catch (err) {
+      // Skip this tournament, keep the batch going. Counted + logged so a bad
+      // event is visible rather than silently starving everything after it.
+      result.tournamentsFailed += 1;
+      logger?.warn(
+        {
+          tournamentId: t.tournament_id,
+          tournamentName: t.tournament_name,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'fip-draw-populator: tournament failed — skipping, batch continues',
+      );
+      continue;
     }
   }
 
