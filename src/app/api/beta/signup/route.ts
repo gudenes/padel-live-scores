@@ -9,7 +9,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'signups_closed' }, { status: 410 })
   }
   const origin = request.headers.get('origin')
-  if (origin && origin !== new URL(request.url).origin) {
+  // Railway forwards the public site to an internal host. Keep the canonical
+  // public origins explicit instead of trusting arbitrary forwarded headers.
+  const allowedOrigins = new Set([
+    new URL(request.url).origin, 'https://padelnachos.com', 'https://www.padelnachos.com',
+  ])
+  if (origin && !allowedOrigins.has(origin)) {
     return NextResponse.json({ error: 'invalid_origin' }, { status: 403 })
   }
 

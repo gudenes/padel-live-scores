@@ -49,6 +49,14 @@ describe('beta signup', () => {
     expect((await send(body)).status).toBe(400)
     expect(insert).not.toHaveBeenCalled()
   })
+  it('accepts the public origin behind Railway’s internal host', async () => {
+    const response = await POST(new Request('http://localhost:3000/api/beta/signup', {
+      method: 'POST', headers: { origin: 'https://padelnachos.com', 'Content-Type': 'application/json' },
+      body: JSON.stringify(valid),
+    }))
+    expect(response.status).toBe(200)
+    expect(insert).toHaveBeenCalledOnce()
+  })
   it('rejects cross-origin requests', async () => {
     expect((await send(valid, 'https://another.example')).status).toBe(403)
     expect(insert).not.toHaveBeenCalled()
