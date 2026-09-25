@@ -59,7 +59,8 @@
         "label": "Liga",
         "all": "Todas",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Categoria",
@@ -419,7 +420,8 @@
     "eventsCount": "{count, plural, one {# evento} other {# eventos}}",
     "tournamentTabs": {
       "premier": "Premier Padel",
-      "fip": "FIP Tour"
+      "fip": "FIP Tour",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "Todos",
@@ -1803,5 +1805,36 @@
     "title": "Esta página não existe",
     "body": "A página que procuras pode ter sido removida, renomeada ou nunca existiu.",
     "cta": "Voltar ao PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Geral",
+    "scopeMen": "Masculino",
+    "scopeWomen": "Feminino",
+    "colTeam": "Franquia",
+    "loading": "Carregando classificação...",
+    "emptyScope": "Esta divisão ainda não tem partidas neste recorte.",
+    "standingsNote": "Os pontos da classificação são atribuídos pela liga e publicados em propadelleague.com. As estatísticas refletem a fase de grupos; os pontos incluem o dia do pódio.",
+    "eventsHeading": "Eventos",
+    "noEvents": "Ainda não há eventos.",
+    "upcoming": "Em breve",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "jogos",
+    "pctMatches": "jogos ganhos",
+    "pctSets": "sets",
+    "widgetTitle": "Classificação PPL",
+    "widgetCta": "Tabela completa",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} na {division}: {tiesWon} de {tiesPlayed} confrontos vencidos, {courtsWon}–{courtsLost} em quadras. Elenco, resultados e classificação.",
+    "colTiesShort": "Confrontos",
+    "colCourts": "Quadras",
+    "tabResults": "Resultados",
+    "tabSquad": "Elenco",
+    "noTies": "Ainda não há confrontos.",
+    "noRoster": "Ainda não há elenco registrado.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "não jogou",
+    "lineupTbd": "escalação a confirmar"
   }
 }

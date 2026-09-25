@@ -59,7 +59,8 @@
         "label": "Liga",
         "all": "Todas",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Categoría",
@@ -419,7 +420,8 @@
     "eventsCount": "{count, plural, one {# evento} other {# eventos}}",
     "tournamentTabs": {
       "premier": "Premier Padel",
-      "fip": "FIP Tour"
+      "fip": "FIP Tour",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "Todas",
@@ -1803,5 +1805,36 @@
     "title": "Esta página no existe",
     "body": "La página que buscas puede haber sido eliminada, renombrada o nunca existió.",
     "cta": "Volver a PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "General",
+    "scopeMen": "Masculino",
+    "scopeWomen": "Femenino",
+    "colTeam": "Franquicia",
+    "loading": "Cargando clasificación...",
+    "emptyScope": "Esta división aún no tiene partidos en este apartado.",
+    "standingsNote": "Los puntos de la clasificación los otorga la liga y se publican en propadelleague.com. Las estadísticas reflejan la fase de grupos; los puntos incluyen el día del podio.",
+    "eventsHeading": "Eventos",
+    "noEvents": "Aún no hay eventos.",
+    "upcoming": "Próximo",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "partidos",
+    "pctMatches": "partidos gan.",
+    "pctSets": "sets",
+    "widgetTitle": "Clasificación PPL",
+    "widgetCta": "Tabla completa",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} en la {division}: {tiesWon} de {tiesPlayed} duelos ganados, {courtsWon}–{courtsLost} en pistas. Plantilla, resultados y clasificación.",
+    "colTiesShort": "Duelos",
+    "colCourts": "Pistas",
+    "tabResults": "Resultados",
+    "tabSquad": "Plantilla",
+    "noTies": "Aún no hay duelos.",
+    "noRoster": "Aún no hay plantilla registrada.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "no jugó",
+    "lineupTbd": "alineación por confirmar"
   }
 }

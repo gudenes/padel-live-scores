@@ -86,6 +86,12 @@ export function tierFromLevel(level: string | null, category: Category): Tier | 
     case 'fip_silver': return 'fip_silver'
     case 'fip_gold': return 'fip_gold'
     case 'fip_platinum': return 'fip_platinum'
-    default: return null  // fip_beyond, fip_promises, fip_other, unknown
+    // Default-deny is load-bearing: money_leaderboard() does not join
+    // tournaments and cannot filter by level, so this is the ONLY thing
+    // keeping non-earning levels (fip_beyond, fip_promises, fip_other,
+    // team leagues, anything new) out of prize money. Pinned by
+    // src/lib/earnings/__tests__/tier-from-level.test.ts — do not
+    // refactor into a fall-through.
+    default: return null
   }
 }

@@ -59,7 +59,8 @@
         "label": "Ligue",
         "all": "Toutes",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Catégorie",
@@ -419,7 +420,8 @@
     "eventsCount": "{count, plural, one {# évènement} other {# évènements}}",
     "tournamentTabs": {
       "premier": "Premier Padel",
-      "fip": "FIP Tour"
+      "fip": "FIP Tour",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "Tous",
@@ -1803,5 +1805,36 @@
     "title": "Cette page n'existe pas",
     "body": "La page que vous recherchez a peut-être été supprimée, renommée ou n'a jamais existé.",
     "cta": "Retour à PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Général",
+    "scopeMen": "Hommes",
+    "scopeWomen": "Femmes",
+    "colTeam": "Franchise",
+    "loading": "Chargement du classement...",
+    "emptyScope": "Cette division n'a pas encore de matchs dans cette catégorie.",
+    "standingsNote": "Les points du classement sont attribués par la ligue et publiés sur propadelleague.com. Les statistiques portent sur la phase de groupes ; les points incluent la journée du podium.",
+    "eventsHeading": "Événements",
+    "noEvents": "Aucun événement.",
+    "upcoming": "À venir",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "matchs",
+    "pctMatches": "matchs gagnés",
+    "pctSets": "sets",
+    "widgetTitle": "Classement PPL",
+    "widgetCta": "Tableau complet",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} en {division} : {tiesWon} duels gagnés sur {tiesPlayed}, {courtsWon}–{courtsLost} sur les terrains. Effectif, résultats et classement.",
+    "colTiesShort": "Duels",
+    "colCourts": "Terrains",
+    "tabResults": "Résultats",
+    "tabSquad": "Effectif",
+    "noTies": "Aucun duel pour le moment.",
+    "noRoster": "Aucun effectif enregistré.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "n a pas joué",
+    "lineupTbd": "composition à confirmer"
   }
 }

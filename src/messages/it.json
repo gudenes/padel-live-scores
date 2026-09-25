@@ -59,7 +59,8 @@
         "label": "Campionato",
         "all": "Tutti",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Categoria",
@@ -419,7 +420,8 @@
     "eventsCount": "{count, plural, one {# evento} other {# eventi}}",
     "tournamentTabs": {
       "premier": "Premier Padel",
-      "fip": "FIP Tour"
+      "fip": "FIP Tour",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "Tutti",
@@ -1803,5 +1805,36 @@
     "title": "Questa pagina non esiste",
     "body": "La pagina che cerchi potrebbe essere stata rimossa, rinominata o non è mai esistita.",
     "cta": "Torna a PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Generale",
+    "scopeMen": "Maschile",
+    "scopeWomen": "Femminile",
+    "colTeam": "Franchigia",
+    "loading": "Caricamento classifica...",
+    "emptyScope": "Questa divisione non ha ancora partite in questa sezione.",
+    "standingsNote": "I punti di classifica sono assegnati dalla lega e pubblicati su propadelleague.com. Le statistiche riflettono la fase a gironi; i punti includono il giorno del podio.",
+    "eventsHeading": "Eventi",
+    "noEvents": "Nessun evento.",
+    "upcoming": "In arrivo",
+    "colPoints": "Pti",
+    "colRecord": "V-S",
+    "matchesShort": "partite",
+    "pctMatches": "partite vinte",
+    "pctSets": "set",
+    "widgetTitle": "Classifica PPL",
+    "widgetCta": "Tabella completa",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} nella {division}: {tiesWon} sfide vinte su {tiesPlayed}, {courtsWon}–{courtsLost} sui campi. Rosa, risultati e classifica.",
+    "colTiesShort": "Sfide",
+    "colCourts": "Campi",
+    "tabResults": "Risultati",
+    "tabSquad": "Rosa",
+    "noTies": "Ancora nessuna sfida.",
+    "noRoster": "Nessuna rosa registrata.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "non ha giocato",
+    "lineupTbd": "formazione da definire"
   }
 }

@@ -280,6 +280,48 @@ async function loadPreviousSnapshotPoints(
   return map;
 }
 
+/**
+ * Guard against the FIP feed renaming a player into somebody else.
+ *
+ * Incident 2026-09-23: the worker overwrote `players.name` on fip_id
+ * P101601 — Andres Fernandez Lancha — with "Pol Hernandez Alvarez", a
+ * different real player who has his own row under fip_id P100048. The two
+ * appear in the same match (Bnl Italy Major R64) and differ in height and
+ * side, so they are demonstrably not the same person. Only the name was
+ * wrong: the ranking history on both rows stayed coherent and correct.
+ *
+ * Matching here is strictly by fip_id and cannot confuse two players, so
+ * the bad name came in on the feed row itself. `profile_url` survived
+ * intact because that same feed row carried no `url`, which is what made
+ * the corruption visible at all.
+ *
+ * So `profile_url` is the witness. Its padelfip slug is the name we were
+ * told this fip_id belongs to, and a feed name sharing ZERO tokens with it
+ * is refused rather than written. Sharing one token is enough to pass —
+ * legitimate changes (marriage, accent fixes, adding a second surname,
+ * short form to full form) all keep at least one.
+ *
+ * Returns false only when there is a real profile_url to contradict. With
+ * no profile_url we have no witness and the feed wins, which is the
+ * pre-incident behaviour.
+ */
+export function shouldAcceptFeedName(
+  feedName: string | null | undefined,
+  profileUrl: string | null | undefined,
+): boolean {
+  if (!feedName) return false;
+  if (!profileUrl) return true;
+  const slug = profileUrl.match(/\/player\/([^/]+)\/?(?:[?#].*)?$/)?.[1];
+  if (!slug) return true;
+  const norm = (v: string) =>
+    v.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ').trim();
+  const slugTokens = new Set(norm(slug.replace(/-/g, ' ')).split(' ').filter(Boolean));
+  const nameTokens = norm(feedName).split(' ').filter(Boolean);
+  if (slugTokens.size === 0 || nameTokens.length === 0) return true;
+  return nameTokens.some((t) => slugTokens.has(t));
+}
+
 async function upsertOfficialPlayers(
   supabase: SupabaseClient,
   rows: FipOfficialPlayer[],
@@ -338,7 +380,16 @@ async function upsertOfficialPlayers(
       })) {
         patch.points_move = computedMove;
       }
-      if (fullName && fullName !== match.name) patch.name = fullName;
+      if (fullName && fullName !== match.name) {
+        if (shouldAcceptFeedName(fullName, match.profile_url)) {
+          patch.name = fullName;
+        } else {
+          logger?.warn(
+            { worker: 'player-rankings', fipId, playerId: match.id, currentName: match.name, feedName: fullName, profileUrl: match.profile_url },
+            'refused feed name: shares no tokens with the profile_url slug',
+          );
+        }
+      }
       if (country && country !== match.country) patch.country = country;
       if (fipRow.url && fipRow.url !== match.profile_url) patch.profile_url = fipRow.url;
 
@@ -381,7 +432,7 @@ async function upsertRacePlayers(
 
   const { data: existing } = await supabase
     .from('players')
-    .select('id, fip_id, name, country, category, race_ranking, race_points, race_move, race_points_move, ranking_date')
+    .select('id, fip_id, name, country, category, race_ranking, race_points, race_move, race_points_move, ranking_date, profile_url')
     .in('fip_id', Array.from(byFipId.keys()));
 
   const existingByFipId = new Map<string, any>();
@@ -427,7 +478,16 @@ async function upsertRacePlayers(
       })) {
         patch.race_points_move = computedMove;
       }
-      if (fullName && fullName !== match.name) patch.name = fullName;
+      if (fullName && fullName !== match.name) {
+        if (shouldAcceptFeedName(fullName, match.profile_url)) {
+          patch.name = fullName;
+        } else {
+          logger?.warn(
+            { worker: 'player-rankings', fipId, playerId: match.id, currentName: match.name, feedName: fullName, profileUrl: match.profile_url },
+            'refused feed name: shares no tokens with the profile_url slug',
+          );
+        }
+      }
       if (country && country !== match.country) patch.country = country;
 
       await supabase.from('players').update(patch).eq('id', match.id);

@@ -59,7 +59,8 @@
         "label": "League",
         "all": "All",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Category",
@@ -435,7 +436,8 @@
     "tournamentTabs": {
       "premier": "Premier Padel",
       "fip": "FIP Tour",
-      "_context": "Premier Padel and FIP are organisations — proper nouns. Do NOT translate."
+      "_context": "Premier Padel and FIP are organisations — proper nouns. Do NOT translate.",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "All",
@@ -1835,5 +1837,36 @@
     "title": "This page doesn't exist",
     "body": "The page you're looking for may have been removed, renamed, or never existed.",
     "cta": "Back to PadelNachos"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Overall",
+    "scopeMen": "Men's",
+    "scopeWomen": "Women's",
+    "colTeam": "Franchise",
+    "loading": "Loading standings...",
+    "emptyScope": "This franchise division has no matches in this scope yet.",
+    "standingsNote": "Standings points are awarded by the league and published on propadelleague.com. Statistics reflect group-stage matches; points include podium day.",
+    "eventsHeading": "Events",
+    "noEvents": "No events yet.",
+    "upcoming": "Upcoming",
+    "colPoints": "Pts",
+    "colRecord": "W-L",
+    "matchesShort": "matches",
+    "pctMatches": "matches won",
+    "pctSets": "sets",
+    "widgetTitle": "PPL Standings",
+    "widgetCta": "Full table",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} in the {division}: {tiesWon} of {tiesPlayed} ties won, {courtsWon}–{courtsLost} on courts. Squad, results and standing.",
+    "colTiesShort": "Ties",
+    "colCourts": "Courts",
+    "tabResults": "Results",
+    "tabSquad": "Squad",
+    "noTies": "No ties yet.",
+    "noRoster": "No squad recorded yet.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "did not play",
+    "lineupTbd": "line-up TBD"
   }
 }

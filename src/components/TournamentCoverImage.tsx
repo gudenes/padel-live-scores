@@ -29,6 +29,19 @@ interface Props {
   sizes: string
   /** Forwarded to next/image. Default false — only above-the-fold heroes opt in. */
   priority?: boolean
+  /**
+   * Which part of the source survives the crop.
+   *
+   * Defaults to `top`, which is right for FIP posters: they reliably place
+   * players and the tier badge in the upper half.
+   *
+   * It is wrong for a photograph. The Pro Padel League ships portrait event
+   * photos — a 496x820 New York skyline — and a top crop of that is sky with
+   * the tip of one building. Their own site renders the same file centred and
+   * the skyline reads perfectly, so the framing, not the image, was the
+   * problem.
+   */
+  focal?: 'top' | 'center'
 }
 
 export default function TournamentCoverImage({
@@ -37,6 +50,7 @@ export default function TournamentCoverImage({
   variant: _variant,
   sizes,
   priority = false,
+  focal = 'top',
 }: Props) {
   if (!src) return null
   return (
@@ -46,7 +60,7 @@ export default function TournamentCoverImage({
       fill
       sizes={sizes}
       priority={priority}
-      style={{ objectFit: 'cover', objectPosition: 'center top' }}
+      style={{ objectFit: 'cover', objectPosition: focal === 'center' ? 'center' : 'center top' }}
     />
   )
 }

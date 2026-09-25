@@ -1,12 +1,15 @@
 'use client'
 
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import { isLeagueLevel } from '@/lib/league-levels'
 import Avatar from '@/components/Avatar'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { Link } from '@/i18n/navigation'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT } from '@/lib/format-patterns'
 import { supabase } from '@/lib/supabase'
+import { PPL_LEVELS } from '@/lib/ppl-hub'
+import PplStandingsWidget from '@/components/home/PplStandingsWidget'
 import {
   GREEN, GREEN_DIM, ORANGE, LIVE_RED, BG_BASE, BG_CARD, MUTED, BORDER, CHUNKY,
   MEN_BLUE, WOMEN_PURPLE,
@@ -22,7 +25,7 @@ import type { ManagedEvent } from '@/lib/managed-events'
 
 // ── Types ──────────────────────────────────────────────────────
 
-type TournamentTab = 'premier' | 'fip'
+type TournamentTab = 'premier' | 'fip' | 'ppl'
 
 const PREMIER_LEVELS = ['finals', 'major', 'p1', 'p2']
 // Includes every FIP-tier code padelgod can stamp (see
@@ -195,12 +198,22 @@ export default function TournamentsView({
       setLoading(true)
       // Narrow the level set when the user picks a FIP sub-tier. 'all'
       // keeps the legacy "every FIP level" query.
+      // The circuit tabs are level allow-lists sent straight to the query,
+      // so a level in none of them is unreachable from this page. That is
+      // what kept PPL invisible here.
+      //
+      // The PPL tab deliberately INCLUDES levels that the metric gates
+      // deliberately EXCLUDE (see src/lib/league-levels.ts). Those are
+      // different jobs: team-league results belong in a listing and in a
+      // player's history, but never in win rate, titles, Elo or prize money.
       const levels =
-        tab === 'premier'
-          ? PREMIER_LEVELS
-          : fipSubTier === 'all'
-            ? FIP_LEVELS.filter((l) => !isHiddenLevel(l))
-            : [fipSubTier]
+        tab === 'ppl'
+          ? [...PPL_LEVELS]
+          : tab === 'premier'
+            ? PREMIER_LEVELS
+            : fipSubTier === 'all'
+              ? FIP_LEVELS.filter((l) => !isHiddenLevel(l))
+              : [fipSubTier]
 
       // Fetch all tournaments for this circuit
       const { data: tournamentsData } = await supabase
@@ -543,7 +556,7 @@ export default function TournamentsView({
           (when showInternalHeader=true) supplies its own bottom padding,
           so no double-spacing in that mode. */}
       <div style={{ display: 'flex', gap: 8, padding: showInternalHeader ? '0 16px 10px' : '14px 16px 10px' }}>
-        {(['premier', 'fip'] as TournamentTab[]).map(t => (
+        {(['premier', 'fip', 'ppl'] as TournamentTab[]).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{
             background: tab === t ? GREEN : 'rgba(255,255,255,0.06)',
             color: tab === t ? '#000' : MUTED,
@@ -553,10 +566,16 @@ export default function TournamentsView({
             letterSpacing: 0.5,
             fontFamily: 'inherit',
           }}>
-            {t === 'premier' ? tTabs('premier') : tTabs('fip')}
+            {tTabs(t)}
           </button>
         ))}
       </div>
+
+      {/* Standings card — only on the PPL tab. The Events tab made PPL's
+          events reachable while its standings stayed orphaned at /ppl with
+          nothing linking to them; this is that link, carrying the top three
+          so it earns the space instead of being a bare button. */}
+      {tab === 'ppl' && <PplStandingsWidget />}
 
       {/* FIP sub-tier chips — only when FIP Tour is active.
           Smaller than the main tabs; chunky for visual consistency.
@@ -1217,6 +1236,7 @@ function BigTournamentCard({
               src={tournament.cover_image_url}
               alt={tournament.name}
               variant="hero"
+              focal={isLeagueLevel(tournament.level) ? 'center' : 'top'}
               sizes="(max-width: 480px) 100vw, 480px"
             />
             {/* top band keeps the status pill / countdown legible */}
