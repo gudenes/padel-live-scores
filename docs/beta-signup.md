@@ -9,7 +9,8 @@ language is recorded separately so participants can choose their preference.
 Apply `supabase/migrations/20260925000000_prediction_beta_signups.sql` to the
 target Supabase database before deploying the page. The API uses the existing
 `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_KEY` environment variables.
-No production migration or deployment was performed as part of this change.
+The production signup migration was applied on September 25, 2026.
+Deployment uses the existing Railway `padelnachos` service.
 
 Signups are stored in `public.prediction_beta_signups`. The table is private;
 anonymous and signed-in browser clients cannot read or write it directly.
