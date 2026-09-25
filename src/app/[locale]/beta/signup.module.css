@@ -1,0 +1,103 @@
+.page { container: beta / inline-size; min-height: 100svh; background: radial-gradient(ellipse at 8% 15%, #38c8ff09, transparent 48%), var(--bg-base); padding: 0 28px 120px; }
+.header { max-width: 1080px; margin: 0 auto; padding: 30px 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-bottom: 1px solid var(--border-base); }
+.brand { font-size: 15px; font-weight: 900; letter-spacing: -.5px; color: var(--text-primary); text-decoration: none; }
+.brand span { color: var(--color-accent); }
+.languages { display: flex; flex-wrap: wrap; gap: 4px; }
+.languages button { min-height: 44px; padding: 8px 12px; border-radius: 8px; color: var(--text-secondary); cursor: pointer; font-size: 13px; }
+.languages button[aria-pressed=true] { color: var(--color-accent); background: var(--color-accent-bg); }
+.layout { max-width: 1080px; margin: 72px auto 0; display: grid; grid-template-columns: 1.15fr 1fr; gap: 76px; align-items: start; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--color-accent); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 26px; }
+.eyebrow span { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.product { color: var(--text-secondary); font-size: 14px; margin-bottom: 12px; }
+.introduction h1 { font-size: clamp(34px, 10cqw, 52px); letter-spacing: -1.8px; line-height: 1.08; font-weight: 800; margin: 0 0 22px; text-wrap: balance; }
+.intro { font-size: 16px; line-height: 1.7; color: var(--text-secondary); }
+.details { margin-top: 32px; }
+.detail { display: flex; gap: 16px; padding: 19px 0; border-top: 1px solid var(--border-base); }
+.number { color: var(--color-accent); font: 12px var(--font-mono); padding-top: 4px; }
+.detail h2 { font-size: 16px; font-weight: 700; margin-bottom: 7px; }
+.detail p { font-size: 14px; line-height: 1.65; color: var(--text-secondary); }
+.card { background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: 20px; padding: 32px; box-shadow: 0 16px 60px #0002; }
+.card h2 { font-size: 25px; font-weight: 750; letter-spacing: -.6px; line-height: 1.2; }
+.formIntro, .success p { color: var(--text-secondary); font-size: 14px; line-height: 1.65; margin: 12px 0 26px; }
+.fields { border: 0; padding: 0; margin: 0; display: grid; gap: 20px; min-width: 0; }
+.fields label { display: grid; gap: 8px; font-size: 13px; font-weight: 600; }
+.fields input:not([type=checkbox]), .fields select { width: 100%; min-width: 0; background: var(--bg-input); border: 1px solid var(--border-strong); color: var(--text-primary); border-radius: 9px; padding: 13px 12px; font-size: 16px; }
+.page :is(input, select, button, a):focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
+.fields .checkbox { display: flex; align-items: start; gap: 11px; color: var(--text-secondary); font-weight: 400; line-height: 1.55; cursor: pointer; }
+.checkbox input { width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; accent-color: var(--color-accent); }
+.submit { display: flex; justify-content: space-between; align-items: center; min-height: 50px; padding: 14px 18px; background: var(--color-accent); color: #10191d; font-size: 15px; font-weight: 750; border-radius: 9px; cursor: pointer; }
+.fields:disabled { opacity: .6; }
+.privacy { display: block; text-align: center; color: var(--text-secondary); text-decoration: underline; font-size: 12px; margin-top: 20px; }
+.error { color: #ff9aa2; font-size: 14px; }
+.trap { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.success { padding: 36px 0; }
+.success a { color: var(--color-accent); font-size: 14px; }
+.check { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--color-accent-bg); color: var(--color-accent); font-size: 25px; margin-bottom: 24px; }
+@container beta (max-width: 780px) { .layout { grid-template-columns: 1fr; gap: 28px; margin-top: 36px; max-width: 520px; } .header { max-width: 520px; flex-direction: column; align-items: flex-start; gap: 12px; padding: 20px 0; } .card { padding: 24px; } }
+
+/* Match the existing Padel Nachos wordmark, chunky controls and Pro gold. */
+.page { --color-accent: #b0dc15; --color-accent-bg: #b0dc1512; --beta-gold: #ffb51b; background: radial-gradient(ellipse at 90% 10%, #a3cc120a, transparent 42%), #141414; padding-inline: 22px; }
+.header { padding: 12px 0; gap: 12px; }
+.brand { flex-shrink: 0; }
+.brand img { width: 104px; height: auto; }
+.languages { gap: 2px; }
+.languages button { padding: 8px; font-size: 12px; border-radius: 5px; }
+.layout { gap: 44px; margin-top: 34px; }
+.eyebrow { color: #b0dc15; margin-bottom: 14px; }
+.product { color: #f4ac23; font-size: 12px; font-weight: 700; }
+.introduction h1 { font-style: italic; font-weight: 900; font-size: clamp(32px, 9.5cqw, 48px); letter-spacing: -1.25px; }
+.heroArt { position: relative; margin: 22px 0; padding: 8px 12px 12px; overflow: hidden; background: radial-gradient(ellipse at 55% 60%, #a1c72316, transparent 70%); border-block: 1px solid #ffffff0d; }
+.court { display: block; width: 100%; height: auto; }
+.heroArt p { text-align: center; color: #c5cead; font-size: 11px; letter-spacing: .3px; }
+.artTag { position: absolute; right: 8px; top: 15px; background: #ffb51b; color: #171710; padding: 6px 10px; transform: rotate(7deg); font-size: 12px; font-style: italic; font-weight: 800; box-shadow: 3px 3px 0 #000; }
+.intro { font-size: 14px; line-height: 1.65; }
+.details { margin-top: 22px; }
+.detail { gap: 14px; }
+.number { display: grid; place-items: center; flex-shrink: 0; width: 43px; height: 43px; padding: 0; background: #b0dc150b; border: 1px solid #b0dc1526; color: #b0dc15; font-size: 19px; font-weight: 800; transform: rotate(-3deg); border-radius: 7px; }
+.detail h2 { font-size: 15px; }
+.detail p { font-size: 13px; }
+.reward { position: relative; margin-top: 20px; padding: 22px; background: linear-gradient(125deg, #352a13, #1d1b16 70%); border: 1px solid #eab30855; border-radius: 12px; overflow: hidden; }
+.reward::after { content: ''; position: absolute; width: 100px; height: 160px; right: -75px; top: -20px; background: #ffb51b0a; transform: rotate(30deg); pointer-events: none; }
+.rewardTop { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 10px; color: #d9c89c; letter-spacing: .5px; text-transform: uppercase; }
+.proLabel { background: var(--beta-gold); color: #211a0d; font-size: 11px; font-weight: 900; font-style: italic; padding: 3px 8px; transform: skew(-7deg); }
+.rewardMain { display: flex; align-items: center; gap: 12px; margin: 20px 0 14px; color: var(--beta-gold); }
+.rewardMain h2 { font-size: 30px; font-weight: 900; letter-spacing: -1px; font-style: italic; }
+.rewardMain svg { flex-shrink: 0; }
+.reward > p { font-size: 13px; line-height: 1.65; color: #dfd4b9; }
+.badge { display: flex; align-items: center; gap: 10px; color: #b0dc15; font-size: 12px; font-weight: 600; border-top: 1px solid #eab30826; margin-top: 18px; padding-top: 16px; }
+.badge svg { flex-shrink: 0; }
+.card { border-radius: 12px; border-color: #353535; padding: 26px; box-shadow: none; border-top: 3px solid #b0dc15; }
+.card h2 { font-weight: 850; font-size: 24px; }
+.submit { background: #b0dc15; border-radius: 5px; box-shadow: 0 3px 0 #607805; }
+.submit:hover { background: #c1ed2a; }
+@container beta (max-width: 780px) {
+  .header { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .layout { margin-top: 28px; gap: 28px; }
+  .card { padding: 22px; }
+}
+@container beta (max-width: 320px) {
+  .header { justify-content: center; }
+  .reward { padding: 18px; }
+  .rewardMain h2 { font-size: 27px; }
+}
+
+/* Campaign styling follows the supplied prediction-market preview. */
+.page { --color-accent: #9bf438; --color-accent-bg: #9bf43814; color: #f6f7f2; background: radial-gradient(ellipse at 85% 25%, #12303544, transparent 55%), #090d0e; }
+.eyebrow, .number, .badge { color: #9bf438; }
+.languages button[aria-pressed=true] { color: #9bf438; background: #9bf43818; }
+.product { color: #a0b8ca; }
+.introduction h1 { font-style: normal; font-size: clamp(31px, 9cqw, 46px); letter-spacing: -1.1px; }
+.campaignDates { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 20px 0 12px; font-size: 13px; font-weight: 700; }
+.campaignDates time { color: #9bf438; }
+.campaignDates > span { color: #a0b8ca; border-left: 1px solid #ffffff30; padding-left: 12px; }
+.countdown { display: flex; justify-content: space-between; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: 11px; color: #a0b8ca; padding: 10px 0; border-block: 1px solid #ffffff12; }
+.countdown time { color: #f3f5ee; font: 600 12px var(--font-mono); font-variant-numeric: tabular-nums; }
+.heroCta { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #9bf438; color: #0b1503; border-radius: 28px; padding: 15px 20px; margin: 20px 0 28px; font-size: 14px; font-weight: 850; text-decoration: none; box-shadow: 0 6px 24px #9bf43812; }
+.heroCta:hover, .submit:hover { background: #b2ff59; }
+.marketPreview { margin: 26px -10px 24px; }
+.marketPreview h2 { padding: 0 10px; font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+.marketPreview img { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid #45627755; }
+.marketPreview figcaption { color: #9eafbc; font-size: 10px; line-height: 1.5; padding: 10px; text-align: center; }
+.card { scroll-margin-top: 20px; background: #101719; border-color: #29383b; border-top-color: #9bf438; }
+.fields input:not([type=checkbox]), .fields select { background: #090e10; border-color: #304047; color: #f6f7f2; }
+.submit { background: #9bf438; border-radius: 28px; box-shadow: none; }
