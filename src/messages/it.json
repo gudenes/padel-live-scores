@@ -59,7 +59,8 @@
         "label": "Campionato",
         "all": "Tutti",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Categoria",

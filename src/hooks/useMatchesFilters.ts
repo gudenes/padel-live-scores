@@ -24,7 +24,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 const STORAGE_KEY = 'matches:filters:v1'
 
-export type LeagueFilter = 'all' | 'premier' | 'fip'
+export type LeagueFilter = 'all' | 'premier' | 'fip' | 'ppl'
 export type CategoryFilter = 'both' | 'men' | 'women'
 
 export interface StatusFilter {

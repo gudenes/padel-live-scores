@@ -59,7 +59,8 @@
         "label": "Ligue",
         "all": "Toutes",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Catégorie",
