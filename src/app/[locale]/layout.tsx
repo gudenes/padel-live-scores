@@ -10,6 +10,7 @@ import { buildLocaleRootMetadata } from '@/lib/seo-metadata'
 import { ConsentBanner } from '@/components/consent/ConsentBanner'
 import { PWAInstallNudge } from '@/components/PWAInstallNudge'
 import { StickyAdBanner } from '@/components/ads/StickyAdBanner'
+import { BetaInvitation } from '@/components/BetaInvitation'
 import { AlertBanner } from '@/components/announcements/AlertBanner'
 
 export function generateStaticParams() {
@@ -56,6 +57,7 @@ export default async function LocaleLayout({
             {children}
             <ConsentBanner />
             <PWAInstallNudge />
+            <BetaInvitation />
             <StickyAdBanner />
           </NotificationNudgeProvider>
         </BookmarkToastProvider>

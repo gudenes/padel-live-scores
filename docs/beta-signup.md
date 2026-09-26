@@ -49,3 +49,12 @@ The beta starts October 10, 2026 (Europe/Madrid). Signups close October 2,
 Both the countdown and API use `src/lib/beta-schedule.ts`. At the deadline,
 the form switches to a closed state and the API refuses new submissions.
 The market image is the supplied design reference, labelled as sample data.
+
+## App invitation
+
+The localized beta invitation appears once per browser or native app installation,
+after cookie consent and other modal dialogs are dismissed. It does not interrupt
+beta signup, onboarding, legal, or support pages. An actual impression or successful
+signup is remembered in local storage; this is not synchronized across accounts or
+devices. Blocked storage falls back to memory for the current page session. The
+invitation automatically stops at the campaign signup deadline.

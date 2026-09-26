@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Link, useRouter } from '@/i18n/navigation'
 import { betaCopy, type BetaLocale } from '@/lib/beta-copy'
 import styles from './signup.module.css'
+import { markBetaSignupComplete } from '@/lib/beta-invitation'
 import { BETA_STARTS_AT, BETA_SIGNUPS_CLOSE_AT, betaSignupsClosed, betaTimeRemaining } from '@/lib/beta-schedule'
 
 const languages = { en: 'English', es: 'Español', pt: 'Português' } as const
@@ -54,6 +55,7 @@ export default function BetaSignup({ locale }: { locale: BetaLocale }) {
         return
       }
       if (!response.ok) throw new Error('signup_failed')
+      markBetaSignupComplete()
       setStatus('success')
     } catch {
       setStatus('error')
