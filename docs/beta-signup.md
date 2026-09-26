@@ -19,8 +19,17 @@ Duplicate email submissions succeed without changing the original signup.
 
 The form records name, email, preferred interview language, page language,
 participation commitment, email contact consent, copy version, and signup time.
-It does not create a game account or send email automatically. Beta access,
-interview scheduling, and rewards are handled by the team after signup.
+New signups receive a confirmation through Resend in their preferred interview
+language (English, Spanish, or Portuguese). The message confirms the October 10
+start and tells them to expect access instructions by email. HTML and plain-text
+versions live in `src/lib/email/beta-confirmation.ts`. Sending uses the existing
+`RESEND_API_KEY` and `AUTH_EMAIL_FROM` settings. Duplicate submissions do not
+resend. Delivery failures are logged without undoing the registration; Resend
+messages are tagged `campaign=prediction-beta` for tracking. There is no
+automatic retry or backfill for existing signups.
+
+It does not create a game account. The October 10 access email, interview
+scheduling, and rewards are handled by the team separately.
 
 The participant reward is an exclusive in-game badge plus one year of Pro,
 with eligibility to win real prizes. Edit `src/lib/beta-copy.ts` to update the

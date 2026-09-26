@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { sendBetaConfirmationEmail } from '@/lib/email/beta-confirmation'
 import { betaSignupsClosed } from '@/lib/beta-schedule'
 
 export const runtime = 'nodejs'
@@ -50,6 +51,14 @@ export async function POST(request: Request) {
     if (error && error.code !== '23505') {
       console.error('[beta-signup] Save failed:', error.code)
       return NextResponse.json({ error: 'save_failed' }, { status: 503 })
+    }
+    if (!error) {
+      try {
+        await sendBetaConfirmationEmail(email, input.language)
+      } catch {
+        // Registration remains valid if the email provider is unavailable.
+        console.error('[beta-signup] Confirmation email failed; signup is saved')
+      }
     }
     return NextResponse.json({ ok: true })
   } catch {
