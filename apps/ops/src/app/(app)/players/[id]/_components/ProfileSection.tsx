@@ -10,6 +10,8 @@
 
 import { useRef, useState } from 'react'
 import { Panel } from '@/components/ui'
+import Combobox, { type ComboboxOption } from '../../_components/Combobox'
+import { COUNTRY_OPTIONS } from '@/lib/country'
 
 // Birthdate may arrive as either 'YYYY-MM-DD' or a full ISO timestamp depending on
 // Supabase column type. <input type="date"> only accepts YYYY-MM-DD as defaultValue.
@@ -34,23 +36,80 @@ export interface ProfileSectionPlayer {
 
 type EditableField = Exclude<keyof ProfileSectionPlayer, 'id' | 'coaches'>
 
+interface SelectOption {
+  value: string
+  label: string
+}
+
 interface FieldDef {
   key: EditableField
   label: string
-  type?: 'text' | 'date'
+  type?: 'text' | 'date' | 'select' | 'country'
+  // Only for type: 'select'. Does not need to include the empty/unset
+  // option — that's added by the renderer.
+  options?: SelectOption[]
 }
+
+// Real, enforced vocabularies — see the code that actually tests these
+// values (src/app/[locale]/player/[id]/page.tsx, AmateurProfile.tsx,
+// SummaryTab.tsx, PlayerCard.tsx). The old free-text labels ("Side
+// (left|right)") lied about this: `side` has never accepted 'left'/'right',
+// only 'drive'/'backhand'.
+const SIDE_OPTIONS: SelectOption[] = [
+  { value: 'drive', label: 'Drive' },
+  { value: 'backhand', label: 'Backhand' },
+]
+const HAND_OPTIONS: SelectOption[] = [
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' },
+]
+const CATEGORY_OPTIONS: SelectOption[] = [
+  { value: 'men', label: 'Men' },
+  { value: 'women', label: 'Women' },
+]
 
 const FIELDS: FieldDef[] = [
   { key: 'name', label: 'Full name' },
   { key: 'display_name', label: 'Display name' },
-  { key: 'country', label: 'Country code' },
-  { key: 'category', label: 'Category (men|women)' },
-  { key: 'side', label: 'Side (left|right)' },
-  { key: 'hand', label: 'Hand (left|right)' },
+  { key: 'country', label: 'Country', type: 'country' },
+  { key: 'category', label: 'Category', type: 'select', options: CATEGORY_OPTIONS },
+  { key: 'side', label: 'Side', type: 'select', options: SIDE_OPTIONS },
+  { key: 'hand', label: 'Hand', type: 'select', options: HAND_OPTIONS },
   { key: 'height', label: 'Height (cm)' },
   { key: 'birthdate', label: 'Birthdate', type: 'date' },
   { key: 'birthplace', label: 'Birthplace' },
 ]
+
+// Combobox needs an explicit "no selection" row since it only shows the
+// placeholder for `value === null`, not for an empty-string id. Prepending
+// this lets the operator clear the field back to unset.
+const UNSET_COUNTRY_OPTION: ComboboxOption = { id: '', label: '(unset)' }
+
+const COUNTRY_COMBOBOX_OPTIONS: ComboboxOption[] = [
+  UNSET_COUNTRY_OPTION,
+  ...COUNTRY_OPTIONS.map((c) => ({ id: c.code, label: c.name, sublabel: c.code })),
+]
+
+// A select whose current DB value isn't in the known vocabulary (e.g. the
+// dirty 'Right'/'Left' rows, or a legacy free-text country code no longer
+// resolvable) must still show the operator what's actually stored, not
+// silently fall back to blank-and-unsaved. We inject a clearly-marked extra
+// option for exactly that value rather than auto-correcting it — a separate
+// cleanup script owns fixing the data.
+function optionsWithCurrentValue(base: SelectOption[], current: string | null): SelectOption[] {
+  if (!current) return base
+  if (base.some((o) => o.value === current)) return base
+  return [...base, { value: current, label: `${current} (unrecognized — stored as-is)` }]
+}
+
+function countryOptionsWithCurrentValue(current: string | null): ComboboxOption[] {
+  if (!current || current === '') return COUNTRY_COMBOBOX_OPTIONS
+  if (COUNTRY_COMBOBOX_OPTIONS.some((o) => o.id === current)) return COUNTRY_COMBOBOX_OPTIONS
+  return [
+    ...COUNTRY_COMBOBOX_OPTIONS,
+    { id: current, label: `${current} (unrecognized — stored as-is)` },
+  ]
+}
 
 export default function ProfileSection({
   player: initial,
@@ -103,29 +162,67 @@ export default function ProfileSection({
                 </span>
               )}
             </div>
-            <input
-              type={f.type ?? 'text'}
-              defaultValue={
-                f.type === 'date'
-                  ? toDateInputValue(player[f.key])
-                  : player[f.key] ?? ''
-              }
-              onBlur={(e) => {
-                const raw = e.target.value
-                const initial = committedRef.current[f.key] ?? (player[f.key] ?? '')
-                if (raw === initial) return // no-op blur
-                committedRef.current[f.key] = raw
-                const v = raw || null
-                setPlayer((p) => ({ ...p, [f.key]: v }))
-                save(f.key, v)
-              }}
-              className="w-full px-2 py-1.5 text-sm border rounded"
-              style={{
-                borderColor: 'var(--border-card)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-1)',
-              }}
-            />
+            {f.type === 'select' ? (
+              <select
+                defaultValue={player[f.key] ?? ''}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  committedRef.current[f.key] = raw
+                  const v = raw || null
+                  setPlayer((p) => ({ ...p, [f.key]: v }))
+                  save(f.key, v)
+                }}
+                className="w-full px-2 py-1.5 text-sm border rounded"
+                style={{
+                  borderColor: 'var(--border-card)',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-1)',
+                }}
+              >
+                <option value="">(unset)</option>
+                {optionsWithCurrentValue(f.options ?? [], player[f.key]).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            ) : f.type === 'country' ? (
+              <Combobox
+                options={countryOptionsWithCurrentValue(player.country)}
+                value={player.country ?? ''}
+                placeholder="Select a country"
+                onChange={(id) => {
+                  const v = id ? id.toUpperCase() : null
+                  committedRef.current.country = v ?? ''
+                  setPlayer((p) => ({ ...p, country: v }))
+                  save('country', v)
+                }}
+              />
+            ) : (
+              <input
+                type={f.type ?? 'text'}
+                defaultValue={
+                  f.type === 'date'
+                    ? toDateInputValue(player[f.key])
+                    : player[f.key] ?? ''
+                }
+                onBlur={(e) => {
+                  const raw = e.target.value
+                  const initial = committedRef.current[f.key] ?? (player[f.key] ?? '')
+                  if (raw === initial) return // no-op blur
+                  committedRef.current[f.key] = raw
+                  const v = raw || null
+                  setPlayer((p) => ({ ...p, [f.key]: v }))
+                  save(f.key, v)
+                }}
+                className="w-full px-2 py-1.5 text-sm border rounded"
+                style={{
+                  borderColor: 'var(--border-card)',
+                  background: 'var(--bg-card)',
+                  color: 'var(--text-1)',
+                }}
+              />
+            )}
           </div>
         ))}
       </div>

@@ -8,14 +8,17 @@ import { Link } from '@/i18n/navigation'
 import PressButton from '@/components/PressButton'
 import { buildPlayerLookup, buildRoadVM, mergeImagesIntoLookup, projectedFinishRound, predictionVerdict, isContender, ROUND_LABEL_KEY, winColor, pairSurnames, LIME, GOLD, LIVE, type RoadOpponentVM } from '@/lib/projection-view'
 import { ProjectionExplainSheet } from './ProjectionExplainSheet'
+import HeroPhoto from './HeroPhoto'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 import { useProjectionVote } from '@/hooks/useProjectionVote'
-import { buildSeedMap } from '@/lib/projection-picker'
+import { buildSeedMap, seedMapFromEntries } from '@/lib/projection-picker'
 import { useProjection } from './useProjection'
 import { usePairImages } from './usePairImages'
 import ProjectionPickerList, { type ResolvedPlayer } from './ProjectionPickerList'
 import ChampionSparkline from './ChampionSparkline'
+import FieldView from './FieldView'
+import { useEntryList } from './useEntryList'
 import { buildSlugIndex, resolvePairSlug } from '@/lib/projection-slug'
 import { Capacitor } from '@capacitor/core'
 import { Share } from '@capacitor/share'
@@ -54,26 +57,6 @@ function PairAvatars({ players, size = 24 }: { players: RoadOpponentVM['players'
   )
 }
 
-// Player image for the hero banner; links to the player profile.
-// Prefers the full-body `photoUrl`; when a player has no body shot, falls back
-// to the smaller circular headshot (then Avatar's own initial fallback) so the
-// banner degrades gracefully instead of showing a giant letter. `overlap`
-// slides this photo over the previous one (broadcast-style).
-function HeroPhoto({ id, name, photoUrl, avatarUrl, overlap }: { id: string; name: string; photoUrl: string | null; avatarUrl: string | null; overlap?: boolean }) {
-  return (
-    <Link href={`/player/${id}`} aria-label={name} style={{ display: 'block', lineHeight: 0, flexShrink: 0, marginLeft: overlap ? -38 : 0 }}>
-      {photoUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoUrl} alt={name} style={{ height: 130, width: 'auto', objectFit: 'cover', objectPosition: 'top center', display: 'block' }} />
-      ) : (
-        <div style={{ height: 130, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 12 }}>
-          <Avatar src={avatarUrl} alt={name} size={82} fallback={name?.[0]} unoptimized style={{ border: '2px solid rgba(255,255,255,0.12)' }} />
-        </div>
-      )}
-    </Link>
-  )
-}
-
 export default function ProjectionTab({
   tournamentId,
   matches,
@@ -104,7 +87,28 @@ export default function ProjectionTab({
   const [shareToast, setShareToast] = useState(false)
   const { rows, loading } = useProjection(tournamentId, category)
   const lookup = useMemo(() => buildPlayerLookup(matches), [matches])
-  const seedByPair = useMemo(() => buildSeedMap(matches), [matches])
+  // Entries are needed in exactly two cases: the pre-draw field phase (no
+  // projection rows yet), and the /projection server routes, which pass
+  // matches={[]} and so have no other source of seeds. Skip the fetch
+  // otherwise — the in-page tab's `matches` already carries the seeds.
+  // `!loading` gates the field-phase arm: useProjection starts as
+  // `{ rows: [], loading: true }`, so on the very first render
+  // `rows.length === 0` is true for EVERY caller before the projection fetch
+  // has even resolved — without the gate we'd fire a throwaway entries fetch
+  // on every mount of a tournament that already has projections. The
+  // matches.length === 0 arm stays ungated: those SEO routes always pass
+  // matches={[]} and need entries as their only seed source regardless of
+  // phase.
+  const needEntries = (!loading && rows.length === 0) || matches.length === 0
+  const entryState = useEntryList(needEntries ? tournamentId : null)
+  const categoryEntries = useMemo(
+    () => entryState.entries.filter((e) => e.category === category),
+    [entryState.entries, category],
+  )
+  const seedByPair = useMemo(
+    () => (matches.length > 0 ? buildSeedMap(matches) : seedMapFromEntries(categoryEntries)),
+    [matches, categoryEntries],
+  )
   const playerIds = useMemo(() => [...new Set(rows.flatMap((r) => r.pair_player_ids))], [rows])
   const images = usePairImages(playerIds)
   // Fold image-fetched names/countries/avatars into the lookup so the road VM
@@ -200,13 +204,18 @@ export default function ProjectionTab({
     return <div style={{ padding: 24, textAlign: 'center', color: MUTED, fontSize: 12 }}>…</div>
   }
 
+  // Phase `field` — no projection rows means the main draw isn't loaded far
+  // enough for the worker to forward-simulate (the ≥50%-of-leaves gate lives
+  // in tournament-projection-snapshot.ts, deliberately NOT reimplemented
+  // here). Show the entry list instead of an empty projection.
   if (rows.length === 0) {
     return (
-      <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-        <div style={{ fontSize: 30, marginBottom: 10 }}>🏆</div>
-        <div style={{ color: TEXT, fontSize: 15, fontWeight: 800, marginBottom: 6 }}>{t('lockedTitle')}</div>
-        <div style={{ color: SECONDARY, fontSize: 12, lineHeight: 1.5, maxWidth: 280, margin: '0 auto 16px' }}>{t('lockedBody')}</div>
-      </div>
+      <FieldView
+        entries={categoryEntries}
+        playerMap={entryState.playerMap}
+        loading={entryState.loading}
+        error={entryState.error}
+      />
     )
   }
 

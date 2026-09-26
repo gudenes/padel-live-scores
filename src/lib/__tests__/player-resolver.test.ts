@@ -28,7 +28,7 @@ function makeFake() {
       // the eq/in/is filter chain, all terminating in payload.
       const node: Record<string, unknown> = {}
       const term = () => Promise.resolve(payload)
-      const fns = ['select', 'eq', 'in', 'is', 'or', 'range', 'limit', 'order', 'maybeSingle', 'single']
+      const fns = ['select', 'eq', 'neq', 'in', 'is', 'or', 'range', 'limit', 'order', 'maybeSingle', 'single']
       for (const f of fns) node[f] = (..._args: unknown[]) => (f === 'single' || f === 'maybeSingle' ? term() : node)
       // Make the node itself awaitable (covers select() chains that don't
       // terminate in single()).
@@ -39,6 +39,7 @@ function makeFake() {
     const node: Record<string, unknown> = {
       select: (..._args: unknown[]) => node,
       eq: (..._args: unknown[]) => node,
+      neq: (..._args: unknown[]) => node,
       in: (..._args: unknown[]) => node,
       is: (..._args: unknown[]) => node,
       or: (..._args: unknown[]) => node,

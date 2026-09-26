@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useRef, use } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Link, useRouter, usePathname } from '@/i18n/navigation'
-import { useTranslations, useFormatter } from 'next-intl'
+import { useTranslations, useFormatter, useLocale } from 'next-intl'
 import { supabase } from '@/lib/supabase'
 import { parseSetScore, toShortName } from '@/types/match'
 import BottomNav from '@/components/nav/BottomNavV3'
@@ -25,8 +25,14 @@ import { pickCurrentTournamentMatch } from '@/lib/current-tournament-match'
 import type { PageTab, MatchRow, PartnerInfo, DerivedData } from './types'
 import { SeasonTab } from './SeasonTab'
 import { EarningsTab } from './EarningsTab'
-import { Widget, WidgetIcon } from './Widget'
+import { Widget, WidgetIcon, Last10SparkBar } from './Widget'
+import { PlaysWithCard } from './PlaysWithCard'
 import RoadToTrophyCard from './RoadToTrophyCard'
+import AmateurProfile from './AmateurProfile'
+import { isAmateurTier } from '@/lib/player-tier'
+import { partitionLeagueMatches } from '@/lib/league-levels'
+import ShareButton from '@/components/ShareButton'
+import { buildShareUrl } from '@/lib/share-url'
 
 // Win-rate bar with scroll-triggered grow-from-left animation.
 const CHUNKY_BAR = 'polygon(2% 0%, 98% 4%, 100% 100%, 0% 96%)'
@@ -54,79 +60,6 @@ function WinRateBar({ wr, color, rowIndex }: { wr: number; color: string; rowInd
           transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
         }}
       />
-    </div>
-  )
-}
-
-// Last 10 sparkline single bar (vertical, grows from bottom).
-// Extracted into its own component so each iteration can have its own
-// IntersectionObserver via useInViewOnce.
-function Last10SparkBar({
-  won,
-  isLatest,
-  rowIndex,
-  onClick,
-  title,
-  green,
-  red,
-  orange,
-}: {
-  won: boolean
-  isLatest: boolean
-  rowIndex: number
-  onClick: (e: React.MouseEvent) => void
-  title: string
-  green: string
-  red: string
-  orange: string
-}) {
-  const barRef = useRef<HTMLDivElement>(null)
-  const inView = useInViewOnce(barRef)
-  return (
-    <div
-      ref={barRef}
-      onClick={onClick}
-      title={title}
-      style={{
-        flex: 1,
-        position: 'relative',
-        height: won ? '100%' : '50%',
-        cursor: 'pointer',
-      }}
-    >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: won
-            ? `linear-gradient(to top, ${green}, rgba(126,211,33,0.4))`
-            : `linear-gradient(to top, ${red}, rgba(255,70,85,0.3))`,
-          clipPath: 'polygon(0% 12%, 100% 0%, 100% 100%, 0% 100%)',
-          outline: isLatest ? `1.5px solid ${orange}` : 'none',
-          outlineOffset: isLatest ? 1 : 0,
-          transformOrigin: 'bottom center',
-          transform: inView ? 'scaleY(1)' : 'scaleY(0)',
-          transition: `transform 700ms cubic-bezier(0.25, 0.1, 0.25, 1) ${rowIndex * 80}ms`,
-        }}
-      />
-      {isLatest && (
-        <div
-          style={{
-            position: 'absolute',
-            top: -7,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            fontSize: 7,
-            fontWeight: 800,
-            color: orange,
-            textTransform: 'uppercase',
-            letterSpacing: 0.3,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          ▼
-        </div>
-      )}
     </div>
   )
 }
@@ -170,6 +103,12 @@ interface PlayerRow {
   height: number | null
   hand: string | null
   side: string | null
+  // Amateur-profile columns. The query is select('*'), so they always arrive;
+  // declaring them here is what lets the amateur branch hand this row to
+  // AmateurProfile without an unchecked cast.
+  tier: string | null
+  hidden: boolean | null
+  home_club: string | null
   equipment: {
     racket_brand?: string
     racket_model?: string
@@ -312,6 +251,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const tPlayer = useTranslations('player')
   const tCommon = useTranslations('common')
   const format = useFormatter()
+  const locale = useLocale()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const searchParams = useSearchParams()
@@ -385,6 +325,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         const p = playerResult.data
         if (!p) return
         setPlayer(p)
+
+        // Amateur profiles have no career matches, equipment or earnings —
+        // everything below this point would be five wasted round-trips.
+        // AmateurProfile loads its own data from the team model.
+        if (isAmateurTier(p.tier)) {
+          if (!cancelled) setLoading(false)
+          return
+        }
 
         // Fetch equipment from relational tables
         const { data: eqData } = await supabase
@@ -465,7 +413,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
   // ── Derived data ─────────────────────────────────────────────
   const derived = useMemo(() => {
-    const finished = matches.filter(m => m.status === 'finished' && m.winner_pair != null)
+    // Team-league results (PPL) live in `matches` so they show up in a
+    // player's history, but they must never feed circuit metrics — different
+    // competition, different format (super-tiebreak third set, team ties).
+    // `allFinished` keeps them for history surfaces; `finished` is the
+    // circuit-only set everything else in this memo derives from.
+    const { circuit: finished, all: allFinished } = partitionLeagueMatches(
+      matches.filter(m => m.status === 'finished' && m.winner_pair != null),
+    )
     const wins = finished.filter(m => resolveMatchRoles(m, id).won).length
     const losses = finished.length - wins
     const winRate = finished.length > 0 ? Math.round((wins / finished.length) * 100) : null
@@ -557,7 +512,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         })()
 
     return {
-      finished, wins, losses, winRate, last10Matches,
+      finished, allFinished, wins, losses, winRate, last10Matches,
       currentPartner, cpWins, cpLosses, firstPartneredIso, lastPartneredIso,
       partnersList, availableYears,
       nextScheduled, nextTournament,
@@ -633,6 +588,19 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
     </>
   )
 
+  // Amateur profiles render a different page entirely — different tabs,
+  // different data source. `hidden` is the takedown switch from the spec.
+  if (player?.hidden) {
+    return (
+      <div style={{ background: BG_BASE, minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: MUTED, fontSize: 14 }}>
+        {tCommon('notFound')}
+      </div>
+    )
+  }
+  if (player && isAmateurTier(player.tier)) {
+    return <AmateurProfile player={player} />
+  }
+
   const categoryColor = player.category === 'men' ? MEN_BLUE : player.category === 'women' ? WOMEN_PURPLE : MUTED
 
   // Hero stat chips — pick the 4 most relevant available metrics
@@ -687,7 +655,15 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           <div style={{ flex: 1, textAlign: 'center', color: '#fff', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
             {tPlayer('playerProfile')}
           </div>
-          <div style={{ width: 36 }} />
+          {/* Sits in the slot that was a 36px spacer for centring the
+              title. Keeping it out of the hero matters: there it stole
+              width from the name block, which is the flexible element,
+              and a two-word name started wrapping. */}
+          <ShareButton
+            url={buildShareUrl(locale, player.id)}
+            title={titleCase(player.display_name?.trim() || player.name)}
+            imageUrl={`/player/${player.id}/opengraph-image`}
+          />
         </div>
 
         {/* ── HERO ────────────────────────────────────────────── */}
@@ -1044,14 +1020,8 @@ function OverviewTab({
   const t = useTranslations('player')
   const format = useFormatter()
   const age = computeAge(player.birthdate)
-  const [brandLogoFailed, setBrandLogoFailed] = useState(false)
-  const [racketImageFailed, setRacketImageFailed] = useState(false)
   const [suggestOpen, setSuggestOpen] = useState(false)
 
-  useEffect(() => {
-    setBrandLogoFailed(false)
-    setRacketImageFailed(false)
-  }, [currentEquipment?.racket?.id])
   const profileRows: Array<[string, string | null]> = [
     [t('born'), player.birthdate ? formatDate(player.birthdate, format) : null],
     [t('age'), age != null ? t('ageYrs', { count: age }) : null],
@@ -1253,138 +1223,11 @@ function OverviewTab({
       )}
 
       {/* Equipment — "Plays with" (wide card with racket image + specs) */}
-      {(() => {
-        // New relational tables take priority; fall back to legacy JSONB if not migrated yet
-        const racket = currentEquipment?.racket
-        const brandName = racket?.brand?.name ?? player.equipment?.racket_brand
-        const brandLogo = racket?.brand?.logo_url ?? player.equipment?.brand_logo ?? null
-        const racketModel = racket?.model ?? player.equipment?.racket_model ?? null
-        const racketImage = racket?.image_url ?? player.equipment?.racket_image ?? null
-        const racketUrl = racket?.product_url ?? player.equipment?.racket_url ?? null
-        const racketId = racket?.id ?? null
-        const racketYear = racket?.year ?? null
-        const racketShape = racket?.shape ?? null
-        const racketWeight = racket?.weight_grams ?? null
-        const racketBalance = racket?.balance ?? null
-
-        const handleRacketClick = async (e: React.MouseEvent) => {
-          e.preventDefault()
-          if (!racketUrl) return
-          if (racketId) {
-            try {
-              const res = await fetch('/api/racket-click', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ racket_id: racketId, player_id: player.id }),
-              })
-              if (res.ok) {
-                const { url } = await res.json()
-                window.open(url, '_blank', 'noopener,noreferrer')
-                return
-              }
-            } catch { /* silent */ }
-          }
-          window.open(racketUrl, '_blank', 'noopener,noreferrer')
-        }
-
-        const hasSpecs = racketShape || racketWeight || racketBalance
-        const specPillStyle: React.CSSProperties = {
-          fontSize: 9, fontWeight: 600, color: 'rgba(255,255,255,0.7)',
-          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 4, padding: '2px 6px',
-          display: 'inline-flex', alignItems: 'center', gap: 3,
-        }
-
-        if (!brandName) return null
-        const specRowStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'rgba(255,255,255,0.4)', lineHeight: 1.6 }
-        const specValueStyle: React.CSSProperties = { color: 'rgba(255,255,255,0.65)', fontWeight: 600 }
-        return (
-          <Widget wide label={t('playsWith')}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              {/* Left — Brand, model, specs */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {/* Brand logo or name */}
-                <div style={{ marginBottom: 4 }}>
-                  {brandLogo && !brandLogoFailed ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={brandLogo}
-                      alt={brandName}
-                      onError={() => setBrandLogoFailed(true)}
-                      style={{ height: 20, objectFit: 'contain', filter: 'brightness(0) invert(1)', opacity: 0.7 }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 9, fontWeight: 800, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.5 }}>{brandName}</span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-                  {racketModel}
-                </div>
-                {racketYear && (
-                  <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>{racketYear}</div>
-                )}
-                {/* Spec rows */}
-                {hasSpecs && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginTop: 6 }}>
-                    {racketShape && (
-                      <div style={specRowStyle}>
-                        <span>{t('shape')}</span>
-                        <span style={specValueStyle}>{t(`shape_${racketShape}`)}</span>
-                      </div>
-                    )}
-                    {racketWeight && (
-                      <div style={specRowStyle}>
-                        <span>{t('weight')}</span>
-                        <span style={specValueStyle}>{racketWeight}g</span>
-                      </div>
-                    )}
-                    {racketBalance && (
-                      <div style={specRowStyle}>
-                        <span>{t('balance')}</span>
-                        <span style={specValueStyle}>{t(`balance_${racketBalance}`)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {/* Learn more */}
-                {racketUrl && (
-                  <button
-                    onClick={handleRacketClick}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 3,
-                      marginTop: 6, background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                    }}
-                  >
-                    <span style={{ fontSize: 8, color: '#4A6F8E', fontWeight: 600 }}>{t('learnMore')}</span>
-                    <svg width={8} height={8} viewBox="0 0 24 24" fill="none" stroke="#4A6F8E" strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                  </button>
-                )}
-              </div>
-              {/* Right — Racket image */}
-              <div style={{ flexShrink: 0, width: 90, textAlign: 'center' }}>
-                {racketImage && !racketImageFailed ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={racketImage}
-                    alt={racketModel ?? ''}
-                    onError={() => setRacketImageFailed(true)}
-                    style={{
-                      height: 110, objectFit: 'contain',
-                      filter: 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))',
-                    }}
-                  />
-                ) : (
-                  <div style={{ height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="8" r="6"/><line x1="12" y1="14" x2="12" y2="22"/><line x1="9" y1="19" x2="15" y2="19"/>
-                    </svg>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Widget>
-        )
-      })()}
+      <PlaysWithCard
+        racket={currentEquipment?.racket ?? null}
+        legacy={player.equipment}
+        playerId={player.id}
+      />
       {/* Profile Info — wide */}
       {availableProfileRows.length > 0 && (
         <Widget wide label="Profile Info">
@@ -2105,9 +1948,13 @@ function StatsTab({
     p1: 'Premier Padel', p2: 'Premier Padel', major: 'Premier Padel', finals: 'Premier Padel',
     wpt_master: 'World Padel Tour', wpt_1000: 'World Padel Tour', wpt_500: 'World Padel Tour', wpt_final: 'World Padel Tour',
     fip_platinum: 'FIP', fip_gold: 'FIP', fip_other: 'FIP',
+    ppl: 'PPL', ppl_ii: 'PPL',
   }
   const circuitMap = new Map<string, { wins: number; losses: number }>()
-  for (const m of derived.finished) {
+  // Uses allFinished on purpose: LEVEL_TO_CIRCUIT carries a dedicated 'PPL'
+  // bucket, so the league belongs here — shown, but in its own row, never
+  // folded into the circuit totals above.
+  for (const m of derived.allFinished) {
     const circuit = LEVEL_TO_CIRCUIT[m.tournament?.level ?? ''] ?? 'Other'
     const entry = circuitMap.get(circuit) ?? { wins: 0, losses: 0 }
     const won = m.winner_pair != null && (
@@ -2118,7 +1965,7 @@ function StatsTab({
     if (won) entry.wins++; else entry.losses++
     circuitMap.set(circuit, entry)
   }
-  const CIRCUIT_ORDER = ['Premier Padel', 'World Padel Tour', 'FIP', 'Other']
+  const CIRCUIT_ORDER = ['Premier Padel', 'World Padel Tour', 'FIP', 'PPL', 'Other']
   const circuits = [...circuitMap.entries()].sort((a, b) => {
     const wrA = a[1].wins / (a[1].wins + a[1].losses || 1)
     const wrB = b[1].wins / (b[1].wins + b[1].losses || 1)

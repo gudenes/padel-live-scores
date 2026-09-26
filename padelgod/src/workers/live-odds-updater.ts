@@ -7,6 +7,7 @@ import type { SchedulerDeps } from '../scheduler.js'
 import { computeLiveProb } from '../lib/inplay-odds.js'
 import { buildScoreState, type SetRow } from '../lib/live-score-state.js'
 import { fipPriorElo, pairWinProbability, toDecimal } from '../lib/elo-model.js'
+import { isLeagueLevel } from '../lib/league-levels.js'
 
 const LIVE = ['live', 'on_court', 'break']
 const PBP_RECENCY_MS = 2 * 60 * 1000
@@ -15,24 +16,30 @@ interface MatchRow {
   id: string; status: string
   pair1_player1_id: string | null; pair1_player2_id: string | null
   pair2_player1_id: string | null; pair2_player2_id: string | null
+  tournament: { level: string | null } | null
 }
 
 export async function runLiveOddsUpdater(deps: SchedulerDeps): Promise<{
-  updated: number; model: number; coldStart: number; skippedNoPbp: number; errors: number
+  updated: number; model: number; coldStart: number; skippedNoPbp: number; skippedLeague: number; errors: number
 }> {
   const { supabase, logger } = deps
-  let updated = 0, model = 0, coldStart = 0, skippedNoPbp = 0, errors = 0
+  let updated = 0, model = 0, coldStart = 0, skippedNoPbp = 0, skippedLeague = 0, errors = 0
 
   const { data: matches, error } = await supabase
     .from('matches')
-    .select('id,status,pair1_player1_id,pair1_player2_id,pair2_player1_id,pair2_player2_id')
+    .select('id,status,pair1_player1_id,pair1_player2_id,pair2_player1_id,pair2_player2_id,tournament:tournaments(level)')
     .in('status', LIVE)
     .returns<MatchRow[]>()
-  if (error) { logger.error({ worker: 'live-odds-updater', error: error.message }, 'live match query failed'); return { updated, model, coldStart, skippedNoPbp, errors: 1 } }
+  if (error) { logger.error({ worker: 'live-odds-updater', error: error.message }, 'live match query failed'); return { updated, model, coldStart, skippedNoPbp, skippedLeague, errors: 1 } }
 
   const cutoff = new Date(Date.now() - PBP_RECENCY_MS).toISOString()
   for (const m of matches ?? []) {
     try {
+      // Team-league matches get no model odds: their Elo anchor would be
+      // meaningless (league results never train the model) and the in-play
+      // engine assumes circuit scoring.
+      if (isLeagueLevel(m.tournament?.level)) { skippedLeague++; continue }
+
       const { count } = await supabase.from('match_points')
         .select('point_number', { count: 'exact', head: true })
         .eq('match_id', m.id).gte('created_at', cutoff)
@@ -78,8 +85,8 @@ export async function runLiveOddsUpdater(deps: SchedulerDeps): Promise<{
       logger.warn({ worker: 'live-odds-updater', matchId: m.id, err: String(e) }, 'live odds update failed')
     }
   }
-  logger.info({ worker: 'live-odds-updater', updated, model, coldStart, skippedNoPbp, errors }, 'live-odds-updater done')
-  return { updated, model, coldStart, skippedNoPbp, errors }
+  logger.info({ worker: 'live-odds-updater', updated, model, coldStart, skippedNoPbp, skippedLeague, errors }, 'live-odds-updater done')
+  return { updated, model, coldStart, skippedNoPbp, skippedLeague, errors }
 }
 
 function round3(x: number): number { return Math.round(x * 1000) / 1000 }

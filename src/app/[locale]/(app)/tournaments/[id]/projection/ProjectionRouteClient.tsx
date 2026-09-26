@@ -7,7 +7,7 @@ import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { useTranslations } from 'next-intl'
 import ProjectionTab from '../ProjectionTab'
 
-type TabKey = 'overview' | 'projection' | 'story' | 'matches' | 'draw'
+type TabKey = 'overview' | 'entries' | 'story' | 'matches' | 'draw'
 
 export default function ProjectionRouteClient({
   tournamentId,
@@ -52,19 +52,21 @@ export default function ProjectionRouteClient({
     }
   }, [pairKeyToSlug, projectionBase, category, pathname, router])
 
+  // This route IS the entries tab's projected phase — tapping it is a no-op.
+  // Everything else goes back to the in-page tabs.
   const onTabChange = useCallback((key: TabKey) => {
-    if (key === 'projection') return
+    if (key === 'entries') return
     router.push(`/tournaments/${tournamentId}?tab=${key}`)
   }, [router, tournamentId])
 
-  const tabs = (['overview', 'projection', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const)
+  const tabs = (['overview', 'entries', 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const)
     .map((key) => ({ key, label: t(key) }))
 
   return (
     <>
       <SlidingInkTabs
         tabs={tabs}
-        activeKey="projection"
+        activeKey="entries"
         onChange={onTabChange}
         containerStyle={{ position: 'sticky', top: 0, zIndex: 19, background: '#0A0A0A', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
       />

@@ -56,3 +56,22 @@ export function resolvePreviousPoints(opts: {
   if (prevKey && nextKey && prevKey === nextKey) return null;
   return opts.currentPlayerPoints;
 }
+
+/**
+ * Same-week re-runs (Monday 30-min ticks) must not clobber a previously
+ * computed delta with null when last week's snapshot lookup came back empty
+ * (PostgREST `.in()` URL too long). A newly published week still writes null
+ * so the UI shows `--` until a real previous week exists.
+ */
+export function shouldWritePointsMove(opts: {
+  computed: number | null;
+  existingMove: number | null | undefined;
+  currentRankingDate: string | null | undefined;
+  newRankingDate: string;
+}): boolean {
+  if (opts.computed != null) return true;
+  const sameWeek =
+    rankingDateKey(opts.currentRankingDate) === rankingDateKey(opts.newRankingDate);
+  if (sameWeek && opts.existingMove != null) return false;
+  return true;
+}

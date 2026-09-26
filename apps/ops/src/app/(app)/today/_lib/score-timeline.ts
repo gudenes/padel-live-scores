@@ -21,6 +21,11 @@ export interface PairIds {
   pair2: Set<string>
 }
 
+export interface GameMeta {
+  id: string
+  winner_pair: 1 | 2 | null
+}
+
 export interface PointContext {
   atMs: number
   score: string
@@ -106,17 +111,29 @@ function wouldWinMatch(completedSets: string[], pair: 1 | 2): boolean {
   return (pair === 1 ? p1 : p2) + 1 >= 2
 }
 
-export function scoreTimeline(points: PointRow[], ids?: PairIds): PointContext[] {
+function gameWinner(
+  prevGameId: string,
+  lastPointWinner: 1 | 2,
+  byId?: Map<string, 1 | 2>,
+): 1 | 2 {
+  return byId?.get(prevGameId) ?? lastPointWinner
+}
+
+export function scoreTimeline(points: PointRow[], ids?: PairIds, gamesMeta?: GameMeta[]): PointContext[] {
   const completedSets: string[] = []
   let setId: string | null = null
   let gameId: string | null = null
   let games: [number, number] = [0, 0]
   let lastWinner: 1 | 2 = 1
   const out: PointContext[] = []
+  const winnerByGame = new Map<string, 1 | 2>()
+  for (const g of gamesMeta ?? []) {
+    if (g.winner_pair === 1 || g.winner_pair === 2) winnerByGame.set(g.id, g.winner_pair)
+  }
 
   for (const p of points) {
     if (gameId !== null && p.game_id !== gameId) {
-      games[lastWinner - 1] += 1
+      games[gameWinner(gameId, lastWinner, winnerByGame) - 1] += 1
     }
     if (setId !== null && p.set_id !== setId) {
       completedSets.push(`${games[0]}-${games[1]}`)
@@ -167,6 +184,45 @@ export function attachScoreToSeries(
       isGoldenPoint: Boolean(full.isGoldenPoint),
       setsCompleted: full.setsCompleted ?? 0,
     }
+  })
+}
+
+/** "6-4 3-2 40-30" → "6-4 3-2" so we can mark pressure once per game. */
+export function gameKey(score: string | null | undefined): string {
+  if (!score) return ''
+  const parts = score.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return score.trim()
+  return parts.slice(0, -1).join(' ')
+}
+
+/**
+ * Snapshots land every ~20s, and a set-point game can oscillate 40-30 / deuce /
+ * AD. One marker per game (not per tick, not per save) so the chart stays readable.
+ * MP wins over SP, SP over BP — same priority as the chart.
+ */
+export function pressureOnsets(
+  series: Array<{ score?: string | null; isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean }>,
+): Array<{ bp: boolean; sp: boolean; mp: boolean }> {
+  let bpGame: string | null = null
+  let spGame: string | null = null
+  let mpGame: string | null = null
+  return series.map((s) => {
+    const key = gameKey(s.score)
+    const isMp = Boolean(s.isMatchPoint)
+    const isSp = Boolean(s.isSetPoint) && !isMp
+    const isBp = Boolean(s.isBreakPoint) && !isSp && !isMp
+    const out = {
+      bp: isBp && bpGame !== key,
+      sp: isSp && spGame !== key,
+      mp: isMp && mpGame !== key,
+    }
+    if (isBp) bpGame = key
+    else if (key !== bpGame) bpGame = null
+    if (isSp) spGame = key
+    else if (key !== spGame) spGame = null
+    if (isMp) mpGame = key
+    else if (key !== mpGame) mpGame = null
+    return out
   })
 }
 

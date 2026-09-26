@@ -29,7 +29,10 @@ export interface PartnerInfo {
 }
 
 export interface DerivedData {
+  /** Circuit-only finished matches. Excludes team leagues (PPL). Drives every W-L, win-rate and partner stat. */
   finished: MatchRow[]
+  /** Every finished match including team leagues. For history surfaces only. */
+  allFinished: MatchRow[]
   wins: number
   losses: number
   winRate: number | null

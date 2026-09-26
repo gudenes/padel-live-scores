@@ -1,10 +1,10 @@
 // Parses Crionet OOP scheduled_label strings into UTC timestamps.
 //
-// The OOP widget emits schedule labels in three forms:
+// The OOP widget emits schedule labels in three forms (12h or 24h clock):
 //
-//   "Starting at 2:30 PM"   — exact time (firm)
-//   "Not before 7:00 PM"    — exact time (approximate — match COULD start later)
-//   "Followed by"           — implicit time (= previous match on same court + 90 min)
+//   "Starting at 2:30 PM" / "Starting at 12:00"  — exact time (firm)
+//   "Not before 7:00 PM" / "Not before 16:00"    — exact time (approximate)
+//   "Followed by"                                — previous match on same court + 90 min
 //
 // All three carry the local-tournament time, NOT UTC. We convert to UTC using
 // the tournament's IANA timezone (e.g. "Asia/Singapore") and the day_date
@@ -58,7 +58,36 @@ export interface OopScheduleResult {
   approximate: boolean;
 }
 
-const TIME_RE = /(\d{1,2}):(\d{2})\s*(AM|PM)/i;
+// AM/PM is optional: Crionet widgets in 12h locales emit
+// "Starting at 2:30 PM" / "Not before 7:00 PM"; French/24h locales
+// (Paris Major 2026) emit "Starting at 12:00" / "Not before 16:00".
+const TIME_RE = /(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i;
+
+/**
+ * Parse a clock from an OOP schedule label into 24-hour `{ hours, minutes }`.
+ * Returns null for labels without an absolute time ("Followed by", empty).
+ *
+ * 12-hour conversion only runs when AM/PM is present — otherwise the
+ * number is already 24-hour (12:00 = noon, not midnight).
+ */
+export function parseScheduleClock(
+  label: string,
+): { hours: number; minutes: number } | null {
+  const timeMatch = TIME_RE.exec(label);
+  if (!timeMatch) return null;
+  let hours = parseInt(timeMatch[1]!, 10);
+  const minutes = parseInt(timeMatch[2]!, 10);
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes > 59) return null;
+  const ampm = timeMatch[3]?.toUpperCase();
+  if (ampm) {
+    if (hours < 1 || hours > 12) return null;
+    if (ampm === 'PM' && hours < 12) hours += 12;
+    if (ampm === 'AM' && hours === 12) hours = 0;
+  } else if (hours > 23) {
+    return null;
+  }
+  return { hours, minutes };
+}
 
 /**
  * Convert a local YYYY-MM-DD + HH:MM in `timezone` to UTC ISO.
@@ -155,16 +184,12 @@ export function parseOopScheduledAtBatch(
     let scheduledAt: string | null = null;
     let approximate = false;
 
-    const timeMatch = TIME_RE.exec(row.scheduledLabel);
-    if (timeMatch) {
-      // "Starting at H:MM AM/PM" or "Not before H:MM PM" — both carry an
-      // explicit time we can parse directly.
-      let hours = parseInt(timeMatch[1]!, 10);
-      const minutes = parseInt(timeMatch[2]!, 10);
-      const ampm = timeMatch[3]!.toUpperCase();
-      if (ampm === 'PM' && hours < 12) hours += 12;
-      if (ampm === 'AM' && hours === 12) hours = 0;
-      scheduledAt = localTimeToUtc(row.dayDate, hours, minutes, timezone);
+    const clock = parseScheduleClock(row.scheduledLabel);
+    if (clock) {
+      // "Starting at H:MM AM/PM", "Not before H:MM PM", or 24h
+      // "Starting at 12:00" / "Not before 16:00" — all carry an explicit
+      // local time we can convert to UTC.
+      scheduledAt = localTimeToUtc(row.dayDate, clock.hours, clock.minutes, timezone);
       if (scheduledAt) {
         lastTimePerCourt.set(courtKey, new Date(scheduledAt));
       }

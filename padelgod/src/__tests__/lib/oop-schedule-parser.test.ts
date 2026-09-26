@@ -156,6 +156,71 @@ describe('parseOopScheduledAtBatch', () => {
     expect(byId.MQ008!.scheduledAt).toBe('2026-04-30T19:30:00.000Z'); // 16:30 ARG = 21:30 Madrid CEST
   });
 
+  it('parses 24-hour "Starting at 12:00" without AM/PM (Paris/Crionet locale)', () => {
+    // Paris Major 2026 widget emits 24h labels: "Starting at 12:00",
+    // "Not before 16:00" — no AM/PM. Europe/Paris CEST = UTC+2.
+    const rows: OopScheduleRow[] = [
+      {
+        matchWidgetId: 'MQ006',
+        court: 'PHILIPPE CHATRIER',
+        courtPosition: 0,
+        scheduledLabel: 'Starting at 12:00',
+        dayDate: '2026-09-07',
+      },
+    ];
+    const out = parseOopScheduledAtBatch(rows, 'Europe/Paris');
+    expect(out).toHaveLength(1);
+    expect(out[0]).toEqual({
+      matchWidgetId: 'MQ006',
+      scheduledAt: '2026-09-07T10:00:00.000Z', // 12:00 CEST
+      scheduleLabel: 'Starting at 12:00',
+      approximate: false,
+    });
+  });
+
+  it('parses 24-hour "Not before 16:00" as approximate', () => {
+    const rows: OopScheduleRow[] = [
+      {
+        matchWidgetId: 'MQ001',
+        court: 'COURT 5',
+        courtPosition: 0,
+        scheduledLabel: 'Not before 16:00',
+        dayDate: '2026-09-07',
+      },
+    ];
+    const out = parseOopScheduledAtBatch(rows, 'Europe/Paris');
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      matchWidgetId: 'MQ001',
+      scheduledAt: '2026-09-07T14:00:00.000Z', // 16:00 CEST
+      approximate: true,
+    });
+  });
+
+  it('chains "Followed by" off a 24-hour Starting-at anchor', () => {
+    const rows: OopScheduleRow[] = [
+      {
+        matchWidgetId: 'MQ006',
+        court: 'PHILIPPE CHATRIER',
+        courtPosition: 0,
+        scheduledLabel: 'Starting at 12:00',
+        dayDate: '2026-09-07',
+      },
+      {
+        matchWidgetId: 'MQ005',
+        court: 'PHILIPPE CHATRIER',
+        courtPosition: 1,
+        scheduledLabel: 'Followed by',
+        dayDate: '2026-09-07',
+      },
+    ];
+    const out = parseOopScheduledAtBatch(rows, 'Europe/Paris');
+    const byId = Object.fromEntries(out.map((r) => [r.matchWidgetId, r]));
+    expect(byId.MQ006!.scheduledAt).toBe('2026-09-07T10:00:00.000Z'); // 12:00 CEST
+    expect(byId.MQ005!.scheduledAt).toBe('2026-09-07T11:30:00.000Z'); // 13:30 CEST = 12:00 + 90
+    expect(byId.MQ005!.approximate).toBe(true);
+  });
+
   it('skips rows without a match widget id (cannot link to public.matches)', () => {
     const rows: OopScheduleRow[] = [
       {

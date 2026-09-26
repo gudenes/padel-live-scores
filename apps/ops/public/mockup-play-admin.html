@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play · Operator panel — mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   Play — operator panel mockup
+   Tokens copied verbatim from apps/ops/src/app/globals.css.
+   Component classes are the real ui-* classes from apps/ops/src/app/ui.css,
+   so this markup can be lifted into the app with only the data swapped.
+   Both themes are wired — the admin ships a light/dark toggle.
+   ══════════════════════════════════════════════════════════════════ */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg-app);color:var(--text-1);font-family:var(--font);-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+.tabular{font-variant-numeric:tabular-nums}
+
+/* ---------- DARK (default) ---------- */
+:root{
+  --font:"Inter Tight",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --display:"Bricolage Grotesque",var(--font);
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:12px; --r-xl:16px; --r-2xl:20px; --r-full:9999px;
+  --bg-app:#101010; --bg-surface:#181818; --bg-card:#1E1E1E; --bg-card-2:#1A1A1A;
+  --bg-sunken:#151515; --bg-hover:#242424; --bg-sel:#23260f; --bg-input:#161616;
+  --border:#282828; --border-card:#2E2E2E; --border-strong:#3a3a3a; --border-inner:#222;
+  --text-1:#EEE4CE; --text-2:#B4AC9C; --text-3:#857F72; --text-4:#5C574E;
+  --lime:#6ABF3A; --lime-2:#82D24F; --lime-deep:#4F9E28; --lime-ink:#08160A; --lime-text:#8FD867;
+  --lime-bg:rgba(106,191,58,.13); --lime-bg-2:rgba(106,191,58,.20); --lime-border:rgba(106,191,58,.36);
+  --lime-glow:0 0 0 1px rgba(106,191,58,.40),0 6px 22px rgba(106,191,58,.20);
+  --track:#2C2C2C; --track-ink:#9A9384;
+  --live:#FF4655; --live-text:#FF6B77; --live-bg:rgba(255,70,85,.13); --live-border:rgba(255,70,85,.36);
+  --orange:#F29321; --orange-hot:#E85D1A; --orange-text:#F4A93F;
+  --orange-bg:rgba(242,147,33,.13); --orange-border:rgba(242,147,33,.34);
+  --men:#5BA8FF; --men-bg:rgba(91,168,255,.13); --men-border:rgba(91,168,255,.32);
+  --women:#F472B6; --women-bg:rgba(244,114,182,.13); --women-border:rgba(244,114,182,.32);
+  --rd-ok:#5FB83A; --rd-ok-bg:rgba(95,184,58,.14); --rd-ok-border:rgba(95,184,58,.40);
+  --rd-gap:#D9A441; --rd-gap-bg:rgba(217,164,65,.14); --rd-gap-border:rgba(217,164,65,.40);
+  --rd-bad:#E0533D; --rd-bad-bg:rgba(224,83,61,.16); --rd-bad-border:rgba(224,83,61,.45);
+  --rail-bg:#121212; --rail-bg-grad:linear-gradient(180deg,#161616,#0E0E0E); --rail-border:#242424;
+  --rail-hover:#1D1D1D; --rail-text:#D6D0C2; --rail-dim:#7C766A; --rail-divider:#222;
+  --header-bg:#161616; --header-border:#272727;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.45); --shadow-md:0 6px 18px rgba(0,0,0,.5); --shadow-lg:0 16px 40px rgba(0,0,0,.6);
+  --gh:58px; --t-fast:.12s ease; --t:.2s cubic-bezier(.25,.1,.25,1);
+}
+/* ---------- LIGHT (toggle) ---------- */
+:root[data-theme="light"]{
+  --bg-app:#EEF0E8; --bg-surface:#FFFFFF; --bg-card:#FFFFFF; --bg-card-2:#F7F8F2;
+  --bg-sunken:#E9ECE1; --bg-hover:#EDF2E2; --bg-sel:#E4F3C5; --bg-input:#F1F3EA;
+  --border:#DCE0D2; --border-card:#D8DCCD; --border-strong:#C2C8B4; --border-inner:#E6E9DD;
+  --text-1:#1A2012; --text-2:#4C5544; --text-3:#7B8470; --text-4:#A6AE99;
+  --lime:#5AA72F; --lime-2:#6FBF3A; --lime-deep:#3F7D1F; --lime-ink:#0A1605; --lime-text:#3D7A14;
+  --lime-bg:rgba(90,167,47,.13); --lime-bg-2:rgba(90,167,47,.20); --lime-border:rgba(90,167,47,.38);
+  --track:#DDE2D2; --track-ink:#6E7563;
+  --live:#E11D32; --live-text:#C81026; --live-bg:rgba(225,29,50,.10); --live-border:rgba(225,29,50,.30);
+  --orange:#E07d10; --orange-hot:#D5500F; --orange-text:#C26A06;
+  --orange-bg:rgba(224,125,16,.12); --orange-border:rgba(224,125,16,.32);
+  --men:#2E7DDB; --men-bg:rgba(46,125,219,.10); --men-border:rgba(46,125,219,.30);
+  --women:#D6418F; --women-bg:rgba(214,65,143,.10); --women-border:rgba(214,65,143,.30);
+  --rd-ok:#3F8B22; --rd-ok-bg:rgba(63,139,34,.12); --rd-ok-border:rgba(63,139,34,.34);
+  --rd-gap:#B07D14; --rd-gap-bg:rgba(176,125,20,.12); --rd-gap-border:rgba(176,125,20,.34);
+  --rd-bad:#C8341F; --rd-bad-bg:rgba(200,52,31,.10); --rd-bad-border:rgba(200,52,31,.32);
+  --header-bg:#FFFFFF; --header-border:#E1E5D8;
+  --shadow-sm:0 1px 2px rgba(40,50,30,.07); --shadow-md:0 6px 18px rgba(40,50,30,.10); --shadow-lg:0 16px 40px rgba(40,50,30,.14);
+}
+
+/* ─────────── ui.css primitives (verbatim) ─────────── */
+.ui-page{padding:28px 32px;max-width:1320px}
+.ui-ph{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin:0 0 22px}
+.ui-ph-title{font-family:var(--display);font-size:22px;font-weight:700;color:var(--text-1);margin:0;line-height:1.1;letter-spacing:-.01em}
+.ui-ph-sub{font-size:13px;color:var(--text-3);margin:5px 0 0;max-width:72ch;line-height:1.55}
+.ui-ph-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.ui-panel{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--r-lg);box-shadow:var(--shadow-sm)}
+.ui-panel-pad{padding:18px 20px}
+.ui-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;border-bottom:1px solid var(--border-inner)}
+.ui-panel-title{font-size:13px;font-weight:600;color:var(--text-1);margin:0}
+.ui-section{margin:0 0 22px}
+.ui-section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px}
+.ui-section-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);margin:0}
+.ui-kpis{display:grid;grid-template-columns:repeat(var(--ui-kpi-cols,4),1fr);gap:14px;margin:0 0 22px}
+.ui-kpi{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--r-lg);padding:16px 18px 14px;box-shadow:var(--shadow-sm)}
+.ui-kpi-label{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3)}
+.ui-kpi-dot{width:8px;height:8px;border-radius:var(--r-full);flex-shrink:0}
+.ui-kpi-value{font-family:var(--display);font-variant-numeric:tabular-nums;font-size:30px;font-weight:700;color:var(--text-1);margin-top:8px;line-height:1}
+.ui-kpi-sub{font-size:11.5px;color:var(--text-3);margin-top:6px}
+.ui-pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:var(--r-full);font-size:11px;font-weight:600;line-height:1.5;border:1px solid transparent}
+.ui-pill[data-tone="lime"]{color:var(--lime-text);background:var(--lime-bg);border-color:var(--lime-border)}
+.ui-pill[data-tone="live"]{color:var(--live-text);background:var(--live-bg);border-color:var(--live-border)}
+.ui-pill[data-tone="warn"],.ui-pill[data-tone="urgent"]{color:var(--orange-text);background:var(--orange-bg);border-color:var(--orange-border)}
+.ui-pill[data-tone="men"]{color:var(--men);background:var(--men-bg);border-color:var(--men-border)}
+.ui-pill[data-tone="women"]{color:var(--women);background:var(--women-bg);border-color:var(--women-border)}
+.ui-pill[data-tone="neutral"]{color:var(--text-2);background:var(--bg-hover);border-color:var(--border)}
+.ui-pill-dot{width:7px;height:7px;border-radius:var(--r-full);background:currentColor}
+.ui-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px;border-radius:var(--r-sm);border:1px solid var(--border-strong);background:var(--bg-card);color:var(--text-1);cursor:pointer;transition:background var(--t-fast),border-color var(--t-fast)}
+.ui-btn:hover{background:var(--bg-hover)}
+.ui-btn[data-size="sm"]{font-size:12px;padding:5px 10px}
+.ui-btn[data-variant="primary"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+.ui-btn[data-variant="primary"]:hover{background:var(--lime-2);border-color:var(--lime-2)}
+.ui-btn[data-variant="ghost"]{background:transparent;border-color:transparent;color:var(--text-2)}
+.ui-btn[data-variant="ghost"]:hover{background:var(--bg-hover);color:var(--text-1)}
+.ui-btn[data-variant="danger"]{background:var(--live-bg);border-color:var(--live-border);color:var(--live-text)}
+.ui-field{display:flex;flex-direction:column;gap:5px}
+.ui-field-label{font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--text-3)}
+.ui-input,.ui-select{font-family:var(--font);font-size:13px;color:var(--text-1);background:var(--bg-input);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;outline:none;transition:border-color var(--t-fast);width:100%}
+.ui-input:focus,.ui-select:focus{border-color:var(--lime-border)}
+.ui-table-wrap{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-sm)}
+.ui-table{width:100%;border-collapse:collapse;font-size:13px}
+.ui-table thead th{background:var(--bg-card-2);color:var(--text-3);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-align:left;padding:10px 14px;border-bottom:1px solid var(--border-inner)}
+.ui-table tbody td{padding:11px 14px;color:var(--text-1);border-bottom:1px solid var(--border-inner);vertical-align:top}
+.ui-table tbody tr:last-child td{border-bottom:none}
+.ui-table tbody tr:hover td{background:var(--bg-hover)}
+.ui-chip{padding:4px 11px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;color:var(--text-2);font-size:12px;cursor:pointer;font-family:var(--font)}
+.ui-chip[data-on="true"]{background:var(--lime-bg);border-color:var(--lime-border);color:var(--lime-text)}
+
+/* ─────────── Shell ─────────── */
+.shell{display:grid;grid-template-columns:238px 1fr;min-height:100vh}
+.rail{background:var(--rail-bg-grad);border-right:1px solid var(--rail-border);padding:0 0 26px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.rail-brand{height:var(--gh);display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid var(--rail-divider);color:var(--rail-text);font-weight:800;font-size:14px;letter-spacing:-.01em}
+.rail-brand .sq{width:22px;height:22px;border-radius:6px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;font-size:12px;font-weight:800}
+.navgroup{padding:14px 10px 2px}
+.navgroup-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--rail-dim);padding:0 8px 7px}
+.navitem{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--r-sm);color:var(--rail-text);font-size:13px;font-weight:500;cursor:pointer;margin-bottom:1px}
+.navitem:hover{background:var(--rail-hover)}
+.navitem[data-on="true"]{background:var(--lime-bg);color:var(--lime-text);font-weight:600}
+.navitem[data-soon="true"]{color:var(--rail-dim);cursor:default}
+.navitem[data-soon="true"]:hover{background:transparent}
+.navitem .ic{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.navitem .cnt{margin-left:auto;font-size:10.5px;font-weight:700;background:var(--live-bg);color:var(--live-text);border:1px solid var(--live-border);border-radius:999px;padding:1px 7px}
+
+.head{height:var(--gh);background:var(--header-bg);border-bottom:1px solid var(--header-border);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:0 24px;position:sticky;top:0;z-index:20}
+.head .crumb{font-size:12.5px;color:var(--text-3)}
+.head .crumb b{color:var(--text-1);font-weight:600}
+.head-right{display:flex;align-items:center;gap:10px}
+
+/* ─────────── Page-local bits ─────────── */
+.mono{font-family:var(--mono);font-size:12px}
+.tok{font-family:var(--mono);font-size:11.5px;background:var(--lime-bg);color:var(--lime-text);border:1px solid var(--border-inner);border-radius:var(--r-xs);padding:1px 5px}
+.muted{color:var(--text-3)}
+.sub2{font-size:11.5px;color:var(--text-3);margin-top:3px;line-height:1.5}
+.rowmain{font-weight:600}
+/* Editor is a slide-over, not a split column: a side-by-side panel left the
+   table ~540px, below the ~660px it needs, so the last columns were clipped. */
+.drawer-scrim{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;
+  transition:opacity var(--t);z-index:40}
+.drawer-scrim[data-on="true"]{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;height:100vh;width:min(440px,94vw);background:var(--bg-surface);
+  border-left:1px solid var(--border-strong);box-shadow:var(--shadow-lg);z-index:50;
+  transform:translateX(100%);transition:transform var(--t);display:flex;flex-direction:column}
+.drawer[data-on="true"]{transform:translateX(0)}
+.editor-body{padding:16px 18px;display:flex;flex-direction:column;gap:15px;overflow-y:auto;min-height:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hint{font-size:11.5px;color:var(--text-3);line-height:1.55;margin:0}
+/* Generation limits */
+.limits{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:16px 18px}
+@media(max-width:1060px){.limits{grid-template-columns:1fr 1fr}}
+.lim-k{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3)}
+.lim-v{font-family:var(--display);font-size:19px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;color:var(--text-1)}
+.lim-v small{font-size:12.5px;color:var(--text-3);font-weight:600}
+.track{height:6px;border-radius:999px;background:var(--track);margin-top:9px;overflow:hidden}
+.track i{display:block;height:100%;border-radius:999px;background:var(--lime);transition:width var(--t)}
+.track[data-tone="warn"] i{background:var(--orange)}
+.track[data-tone="hot"] i{background:var(--live)}
+.lim-sub{font-size:11px;color:var(--text-3);margin-top:7px;line-height:1.5}
+.drops{margin:9px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--text-3);line-height:1.7}
+.drops li::before{content:"−";color:var(--live-text);font-weight:700;margin-right:6px}
+/* Markets + Traders */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+.toolbar .ui-input{max-width:260px}
+.spread{display:inline-flex;align-items:baseline;gap:7px;font-variant-numeric:tabular-nums}
+.spread .px{font-weight:700;font-size:14px}
+.spread .md{font-size:11.5px;color:var(--text-3)}
+.delta{font-variant-numeric:tabular-nums;font-weight:700;font-size:12px}
+.delta[data-hot="true"]{color:var(--orange-text)}
+.delta[data-hot="false"]{color:var(--text-3)}
+.av{width:28px;height:28px;flex:none;border-radius:50%;overflow:hidden;box-shadow:0 0 0 1px var(--border-strong)}
+.av svg{display:block;width:100%;height:100%}
+.who{display:flex;align-items:center;gap:10px}
+.who .nm2{font-weight:600}
+.who .sub3{font-size:11px;color:var(--text-3);margin-top:2px}
+.flagcard{display:flex;gap:13px;align-items:flex-start;padding:13px 16px;border-bottom:1px solid var(--border-inner)}
+.flagcard:last-child{border-bottom:0}
+.flagcard .fc-b{flex:1;min-width:0}
+.flagcard .fc-t{font-weight:600;font-size:13px}
+.flagcard .fc-d{font-size:12px;color:var(--text-3);margin-top:4px;line-height:1.6}
+.flagcard .fc-a{display:flex;gap:7px;flex-shrink:0}
+
+/* Economy */
+.eco2{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+@media(max-width:1100px){.eco2{grid-template-columns:1fr}}
+.flow{padding:4px 18px 16px}
+.flow-h{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:700;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);padding:12px 0 8px}
+.flow-r{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:7px 0;
+  border-bottom:1px solid var(--border-inner);font-size:13px}
+.flow-r:last-of-type{border-bottom:0}
+.flow-r .n{color:var(--text-2)}
+.flow-r .n small{display:block;font-size:11px;color:var(--text-4);margin-top:2px}
+.flow-r .v{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.flow-r .v[data-dir="in"]{color:var(--lime-text)}
+.flow-r .v[data-dir="out"]{color:var(--text-2)}
+.flow-net{display:flex;align-items:baseline;justify-content:space-between;margin-top:12px;padding-top:12px;
+  border-top:1px solid var(--border-strong)}
+.flow-net .k{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.flow-net .v{font-family:var(--display);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.flow-net .v[data-tone="bad"]{color:var(--orange-text)}
+.chart{padding:14px 18px 18px}
+.chart svg{display:block;width:100%;height:150px;overflow:visible}
+.chart-legend{display:flex;gap:16px;font-size:11px;font-weight:600;color:var(--text-3);margin-top:10px}
+.chart-legend i{display:inline-block;width:12px;border-top:2px solid var(--lime);margin-right:6px;vertical-align:4px}
+.chart-legend i.dash{border-top-style:dashed;border-top-color:var(--orange)}
+.knobs{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px 18px}
+.formula{font-family:var(--mono);font-size:12px;background:var(--bg-sunken);border:1px solid var(--border-inner);
+  border-radius:var(--r-md);padding:11px 13px;color:var(--text-2);line-height:1.8}
+.formula b{color:var(--lime-text);font-weight:700}
+.dryrun{background:var(--bg-sunken);border:1px solid var(--border-inner);border-radius:var(--r-md);padding:12px 14px}
+.dryrun h4{margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.dryrun ul{margin:0;padding-left:16px;font-size:12px;color:var(--text-2);line-height:1.75}
+.toggle{display:inline-flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-2);cursor:pointer}
+.switch{width:38px;height:21px;border-radius:999px;background:var(--track);position:relative;transition:background var(--t-fast);flex:none}
+.switch::after{content:"";position:absolute;top:2.5px;left:2.5px;width:16px;height:16px;border-radius:50%;background:var(--bg-card);transition:transform var(--t-fast);box-shadow:var(--shadow-sm)}
+.toggle[data-on="true"] .switch{background:var(--lime)}
+.toggle[data-on="true"] .switch::after{transform:translateX(17px)}
+.banner{display:flex;gap:12px;align-items:flex-start;border-radius:var(--r-lg);padding:13px 16px;margin:0 0 20px;font-size:12.5px;line-height:1.6}
+.banner[data-tone="warn"]{background:var(--orange-bg);border:1px solid var(--orange-border);color:var(--text-1)}
+.banner[data-tone="lime"]{background:var(--lime-bg);border:1px solid var(--lime-border);color:var(--text-1)}
+.banner b{font-weight:700}
+.banner .bic{width:17px;height:17px;flex:none;margin-top:1px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+.evidence{font-family:var(--mono);font-size:11.5px;background:var(--bg-sunken);border:1px solid var(--border-inner);border-radius:var(--r-xs);padding:6px 8px;color:var(--text-2);line-height:1.6;display:inline-block}
+.evidence em{font-style:normal;color:var(--lime-text)}
+.cd{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text-1)}
+.cd[data-soon="true"]{color:var(--orange-text)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.filters{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+.page{display:none}
+.page[data-on="true"]{display:block}
+.outcome{font-weight:700}
+.outcome[data-o="yes"]{color:var(--lime-text)}
+.outcome[data-o="no"]{color:var(--live-text)}
+.outcome[data-o="void"]{color:var(--text-3)}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- ─────────── Rail ─────────── -->
+  <aside class="rail">
+    <div class="rail-brand"><span class="sq">P</span> PadelNachos Admin</div>
+
+    <div class="navgroup">
+      <div class="navitem"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</div>
+      <div class="navitem"><svg class="ic" viewBox="0 0 24 24"><path d="M3 17l5-6 4 4 5-8 4 5"/></svg>Live Odds</div>
+    </div>
+
+    <!-- NEW GROUP -->
+    <div class="navgroup">
+      <div class="navgroup-label">Play · Prediction Market</div>
+      <div class="navitem" data-page="mkt"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18"/></svg>Markets</div>
+      <div class="navitem" data-on="true" data-page="tpl"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Templates</div>
+      <div class="navitem" data-page="res"><svg class="ic" viewBox="0 0 24 24"><path d="M9 11l3 3 6-6"/><circle cx="12" cy="12" r="9"/></svg>Resolution<span class="cnt">9</span></div>
+      <div class="navitem" data-page="eco"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M9.5 10.5h5M9.5 13.5h5"/></svg>Economy</div>
+      <div class="navitem" data-page="trd"><svg class="ic" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 20c0-3.4 2.8-5.4 6.2-5.4s6.2 2 6.2 5.4"/><path d="M17 11.2A3 3 0 1 0 17 5.6"/></svg>Traders<span class="cnt">3</span></div>
+    </div>
+
+    <div class="navgroup">
+      <div class="navgroup-label">Tournament Ops</div>
+      <div class="navitem"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 9v12"/></svg>Tournament Explorer</div>
+      <div class="navitem"><svg class="ic" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/></svg>Entry Lists</div>
+      <div class="navitem"><svg class="ic" viewBox="0 0 24 24"><path d="M4 21V4h9l1 2h6v9h-7l-1-2H4"/></svg>Needs Review</div>
+    </div>
+
+    <div class="navgroup">
+      <div class="navgroup-label">System</div>
+      <div class="navitem"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="4"/><circle cx="16" cy="12" r="2.6"/></svg>Feature Flags</div>
+      <div class="navitem"><svg class="ic" viewBox="0 0 24 24"><path d="M3 12h4l2.5 6 5-14 2.5 8H21"/></svg>Integration Health</div>
+    </div>
+  </aside>
+
+  <!-- ─────────── Main ─────────── -->
+  <div>
+    <header class="head">
+      <div class="crumb">Play · Prediction Market / <b id="crumb">Templates</b></div>
+      <div class="head-right">
+        <span class="ui-pill" data-tone="warn"><span class="ui-pill-dot"></span>play_market_enabled · OFF</span>
+        <button class="ui-btn" data-size="sm" id="theme">Light</button>
+      </div>
+    </header>
+
+    <!-- ══════════ TEMPLATES ══════════ -->
+    <main class="ui-page page" data-on="true" id="page-tpl">
+      <div class="ui-ph">
+        <div>
+          <h1 class="ui-ph-title">Market Templates</h1>
+          <p class="ui-ph-sub">Templates are generators, not markets. Each one watches the calendar and instantiates markets automatically — a season of Premier events becomes a few hundred markets without anyone authoring them by hand.</p>
+        </div>
+        <div class="ui-ph-actions">
+          <button class="ui-btn" data-size="sm">Run all dry-runs</button>
+          <button class="ui-btn" data-variant="primary" data-size="sm">New template</button>
+        </div>
+      </div>
+
+      <div class="banner" data-tone="lime">
+        <svg class="bic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4.5M12 8.2h.01"/></svg>
+        <div><b>Operators never write queries.</b> Every template points at a <span class="mono">resolver</span> — a named, unit-tested function in the code registry — and fills in its parameters. Free-text SQL in an admin panel is how a market silently settles wrong and pays out thousands of Guacas.</div>
+      </div>
+
+      <div class="ui-kpis">
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--lime)"></span>Enabled templates</div>
+          <div class="ui-kpi-value">12</div><div class="ui-kpi-sub">of 18 defined</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--men)"></span>Markets generated · 7d</div>
+          <div class="ui-kpi-value">284</div><div class="ui-kpi-sub">Madrid P1 + Rome P2</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--orange)"></span>Subsidy outstanding</div>
+          <div class="ui-kpi-value">1.24M</div><div class="ui-kpi-sub">Guacas across open markets</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--rd-gap)"></span>Dry-runs pending review</div>
+          <div class="ui-kpi-value">2</div><div class="ui-kpi-sub">changed since last approval</div>
+        </div>
+      </div>
+
+      <!-- ── Generation limits ─────────────────────────────────────── -->
+      <div class="ui-section">
+        <div class="ui-panel">
+          <div class="ui-panel-head">
+            <h3 class="ui-panel-title">Generation limits</h3>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="ui-pill" data-tone="lime"><span class="ui-pill-dot"></span>Target: 12–15 open</span>
+              <button class="ui-btn" data-size="sm">Edit limits</button>
+            </div>
+          </div>
+
+          <div class="limits">
+            <div>
+              <div class="lim-k">Open markets</div>
+              <div class="lim-v">12 <small>/ 15</small></div>
+              <div class="track" data-tone="warn"><i style="width:80%"></i></div>
+              <div class="lim-sub">The master dial. Nothing generates past this, whatever templates want.</div>
+            </div>
+            <div>
+              <div class="lim-k">New markets today</div>
+              <div class="lim-v">9 <small>/ 20</small></div>
+              <div class="track"><i style="width:45%"></i></div>
+              <div class="lim-sub">Resets 00:00 in the tournament's timezone.</div>
+            </div>
+            <div>
+              <div class="lim-k">Subsidy committed today</div>
+              <div class="lim-v">148k <small>/ 250k G</small></div>
+              <div class="track"><i style="width:59%"></i></div>
+              <div class="lim-sub">Second ceiling, in Guacas — a raised subsidy can't quietly commit millions.</div>
+            </div>
+            <div>
+              <div class="lim-k">Max per match</div>
+              <div class="lim-v">3</div>
+              <div class="lim-sub">Stops one match spawning a whole deck of its own.</div>
+            </div>
+            <div>
+              <div class="lim-k">Max per tournament / day</div>
+              <div class="lim-v">8</div>
+              <div class="lim-sub">Keeps a busy event from eating the global cap.</div>
+            </div>
+            <div>
+              <div class="lim-k">Max stake · user / market</div>
+              <div class="lim-v">2,000 <small>G</small></div>
+              <div class="lim-sub">Different axis: stops one account moving a thin market alone.</div>
+            </div>
+          </div>
+
+          <div style="padding:0 18px 16px">
+            <p class="hint"><b>Why the cap is this low.</b> The binding constraint is liquidity per market, not database size. At ~40 daily actives making ~120 trades, 300 markets gives 0.4&nbsp;trades each and every price sits frozen at its seed. Twelve markets gives ~10 trades each and the price actually moves. Rule of thumb: <span class="mono">open markets ≈ daily actives ÷ 10</span> — raise it as users arrive, not as matches do.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ui-table-wrap">
+        <table class="ui-table">
+          <thead><tr>
+            <th style="width:38%">Template</th><th>Horizon</th><th>Resolver</th>
+            <th style="text-align:right">7&nbsp;days</th><th>State</th>
+          </tr></thead>
+          <tbody id="tpl-rows"></tbody>
+        </table>
+      </div>
+      <p class="hint" style="margin-top:12px">Select a template to edit it.</p>
+
+      <!-- Template editor — slide-over drawer, matching the PlayerDrawer
+           pattern the admin already uses, so the table keeps full width. -->
+      <div class="drawer-scrim" id="scrim"></div>
+      <div class="drawer" id="drawer" aria-hidden="true">
+          <div class="ui-panel" style="border:0;border-radius:0;box-shadow:none;background:transparent;display:flex;flex-direction:column;min-height:0;height:100%">
+            <div class="ui-panel-head">
+              <h3 class="ui-panel-title" id="ed-title">Set to reach a tiebreak</h3>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span class="ui-pill" data-tone="lime" id="ed-state"><span class="ui-pill-dot"></span>Enabled</span>
+                <button class="ui-btn" data-variant="ghost" data-size="sm" id="ed-close" aria-label="Close">✕</button>
+              </div>
+            </div>
+            <div class="editor-body">
+              <div class="ui-field">
+                <span class="ui-field-label">Question</span>
+                <input class="ui-input" id="ed-q" value="Will this set reach a tiebreak?">
+                <p class="hint">Tokens available: <span class="tok">{pair1}</span> <span class="tok">{pair2}</span> <span class="tok">{player}</span> <span class="tok">{round}</span> <span class="tok">{tournament}</span></p>
+              </div>
+
+              <div class="grid2">
+                <div class="ui-field">
+                  <span class="ui-field-label">Horizon</span>
+                  <select class="ui-select" id="ed-horizon"><option>in-match</option><option>pre-match</option><option>day</option><option>tournament</option><option>swing</option><option>season</option><option>roster</option></select>
+                </div>
+                <div class="ui-field">
+                  <span class="ui-field-label">Tier gate</span>
+                  <select class="ui-select"><option>Premier only</option><option>Premier + FIP Gold</option><option>All tiers</option></select>
+                </div>
+              </div>
+
+              <div class="ui-field">
+                <span class="ui-field-label">Trigger</span>
+                <select class="ui-select" id="ed-trigger"><option>match.status → live (has point-by-point)</option><option>match.status → scheduled</option><option>draw released</option><option>ranking week published</option><option>entry list published</option></select>
+                <p class="hint">Only fires where the data exists. In-match templates are gated on point-by-point, which lands at Premier tier only.</p>
+              </div>
+
+              <div class="grid2">
+                <div class="ui-field">
+                  <span class="ui-field-label">Locks at</span>
+                  <select class="ui-select" id="ed-lock"><option>Set start</option><option>Match start</option><option>First ball of round</option><option>Season start</option><option>Entry deadline</option></select>
+                </div>
+                <div class="ui-field">
+                  <span class="ui-field-label">Subsidy (G)</span>
+                  <input class="ui-input tabular" id="ed-subsidy" value="5,000">
+                </div>
+              </div>
+
+              <div class="ui-field">
+                <span class="ui-field-label">Resolver</span>
+                <select class="ui-select" id="ed-res">
+                  <option>set.reaches_tiebreak</option>
+                  <option>match.winner_is_pair</option>
+                  <option>match.total_games_over</option>
+                  <option>match.goes_to_deciding_set</option>
+                  <option>tournament.champion_is_pair</option>
+                  <option>tournament.pair_reaches_round</option>
+                  <option>ranking.year_end_number_one</option>
+                  <option>roster.pair_on_same_entry_list</option>
+                </select>
+                <p class="hint">Settles from <span id="ed-settles" class="mono">sets.pair1_games / pair2_games</span>. Registered in code, unit-tested, versioned — not editable here.</p>
+              </div>
+
+              <div style="border-top:1px solid var(--border-inner);padding-top:14px">
+                <div class="ui-section-label" style="margin-bottom:10px">Eligibility gates</div>
+                <div class="grid2" style="margin-bottom:12px">
+                  <div class="ui-field">
+                    <span class="ui-field-label">Round</span>
+                    <select class="ui-select" id="ed-round"><option>R16 and deeper</option><option>R32 and deeper</option><option>QF and deeper</option><option>All rounds</option></select>
+                  </div>
+                  <div class="ui-field">
+                    <span class="ui-field-label">Ranking</span>
+                    <select class="ui-select"><option>Top 50 involved</option><option>Top 20 involved</option><option>Top 10 involved</option><option>Any</option></select>
+                  </div>
+                </div>
+                <div class="grid2" style="margin-bottom:12px">
+                  <div class="ui-field">
+                    <span class="ui-field-label">Court</span>
+                    <select class="ui-select"><option>Streamed courts only</option><option>Centre court only</option><option>Any court</option></select>
+                  </div>
+                  <div class="ui-field">
+                    <span class="ui-field-label">Daily cap</span>
+                    <input class="ui-input tabular" value="6">
+                  </div>
+                </div>
+                <div class="ui-field">
+                  <span class="ui-field-label">Competitiveness band</span>
+                  <select class="ui-select"><option>0.35 – 0.65 (close matches)</option><option>0.25 – 0.75</option><option>Any</option></select>
+                  <p class="hint">Filters on <span class="mono">matches.pred_pair1_prob</span>. A 92%-certain match makes a market nobody wants to trade — quietly the strongest filter of the five.</p>
+                </div>
+              </div>
+
+              <div class="ui-field">
+                <span class="ui-field-label">Seed price</span>
+                <select class="ui-select" id="ed-seed"><option>In-play model (match_live_odds)</option><option>Elo pre-match (model_predictions)</option><option>Projection (tournament_projections)</option><option>FIP rank cold-start</option><option>Fixed 50/50</option></select>
+                <p class="hint">Markets open at the model's number, never at a blank 50/50, so there is a price to trade against from the first second.</p>
+              </div>
+
+              <div class="dryrun">
+                <h4>Dry run · next 7 days</h4>
+                <ul id="ed-dry"></ul>
+              </div>
+
+              <div style="display:flex;gap:9px;align-items:center;justify-content:space-between">
+                <div class="toggle" data-on="true" id="ed-toggle"><span class="switch"></span> Enabled</div>
+                <div style="display:flex;gap:8px">
+                  <button class="ui-btn" data-size="sm">Dry run</button>
+                  <button class="ui-btn" data-variant="primary" data-size="sm">Save</button>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+    </main>
+
+    <!-- ══════════ RESOLUTION ══════════ -->
+    <main class="ui-page page" id="page-res">
+      <div class="ui-ph">
+        <div>
+          <h1 class="ui-ph-title">Resolution Queue</h1>
+          <p class="ui-ph-sub">Auto-resolution <b>proposes</b>; settlement happens after a confirmation window. Nothing pays out until the clock runs down or an operator confirms it early.</p>
+        </div>
+        <div class="ui-ph-actions">
+          <button class="ui-btn" data-size="sm">Audit log</button>
+          <button class="ui-btn" data-variant="primary" data-size="sm">Confirm all clear</button>
+        </div>
+      </div>
+
+      <div class="banner" data-tone="warn">
+        <svg class="bic" viewBox="0 0 24 24"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4.5M12 17h.01"/></svg>
+        <div><b>Why the delay exists.</b> Crionet has marked a match <span class="mono">finished</span> roughly twenty minutes early <b>with the wrong winner</b> — twice at Paris Major. With instant payout, Guacas would move on a phantom result and we would be clawing balances back from users. The window turns an upstream bug into a held row instead of an incident.</div>
+      </div>
+
+      <div class="ui-kpis" style="--ui-kpi-cols:4">
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--lime)"></span>Awaiting window</div>
+          <div class="ui-kpi-value">6</div><div class="ui-kpi-sub">auto-settle, no action needed</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--orange)"></span>Needs operator</div>
+          <div class="ui-kpi-value">2</div><div class="ui-kpi-sub">data can't decide</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--live)"></span>Held — conflict</div>
+          <div class="ui-kpi-value">1</div><div class="ui-kpi-sub">upstream disagreement</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--text-3)"></span>Settled today</div>
+          <div class="ui-kpi-value">38</div><div class="ui-kpi-sub">412,900 G paid out</div>
+        </div>
+      </div>
+
+      <div class="filters">
+        <button class="ui-chip" data-on="true">All · 9</button>
+        <button class="ui-chip">Awaiting window · 6</button>
+        <button class="ui-chip">Needs operator · 2</button>
+        <button class="ui-chip">Held · 1</button>
+        <button class="ui-chip">Settled today · 38</button>
+      </div>
+
+      <div class="ui-table-wrap">
+        <table class="ui-table">
+          <thead><tr>
+            <th style="width:27%">Market</th><th>Proposed</th><th style="width:29%">Evidence</th>
+            <th>Exposure</th><th>Settles in</th><th style="text-align:right">Actions</th>
+          </tr></thead>
+          <tbody id="res-rows"></tbody>
+        </table>
+      </div>
+
+      <p class="hint" style="margin-top:14px">Every override writes to <span class="mono">market_audit_log</span> with the operator, the timestamp and a required reason. Settlement is never silent.</p>
+    </main>
+
+    <!-- ══════════ MARKETS ══════════ -->
+    <main class="ui-page page" id="page-mkt">
+      <div class="ui-ph">
+        <div>
+          <h1 class="ui-ph-title">Markets</h1>
+          <p class="ui-ph-sub">Every market a template actually created. You don't author rows here — you find one, watch it, or kill it.</p>
+        </div>
+        <div class="ui-ph-actions">
+          <button class="ui-btn" data-size="sm">Export</button>
+          <button class="ui-btn" data-variant="danger" data-size="sm">Void selected</button>
+        </div>
+      </div>
+
+      <div class="ui-kpis">
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--lime)"></span>Open markets</div>
+          <div class="ui-kpi-value">12</div><div class="ui-kpi-sub">of 15 cap</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--men)"></span>Volume · 24h</div>
+          <div class="ui-kpi-value">2.61M</div><div class="ui-kpi-sub">Guacas traded</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--women)"></span>Traders · 24h</div>
+          <div class="ui-kpi-value">41</div><div class="ui-kpi-sub">3.2 markets each</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--orange)"></span>Crowd vs model gap</div>
+          <div class="ui-kpi-value">2</div><div class="ui-kpi-sub">markets diverging &gt;12 pts</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input class="ui-input" placeholder="Search question, player, tournament…">
+        <button class="ui-chip" data-on="true">All · 34</button>
+        <button class="ui-chip">Open · 12</button>
+        <button class="ui-chip">Locked · 9</button>
+        <button class="ui-chip">Resolving · 9</button>
+        <button class="ui-chip">Settled · 3</button>
+        <button class="ui-chip">Voided · 1</button>
+      </div>
+
+      <div class="ui-table-wrap">
+        <table class="ui-table">
+          <thead><tr>
+            <th style="width:32%">Market</th><th>Template</th>
+            <th>Crowd / model</th><th style="text-align:right">Volume</th>
+            <th style="text-align:right">Positions</th><th>Closes</th><th>State</th><th></th>
+          </tr></thead>
+          <tbody id="mkt-rows"></tbody>
+        </table>
+      </div>
+
+      <p class="hint" style="margin-top:14px"><b>The column that earns its place is “crowd / model”.</b> A big gap is either an edge we should learn from, a model that's wrong, or someone pushing a thin market on their own — and all three are worth a look. It's also the number no competitor can show, because nobody else runs a padel model alongside the book.</p>
+    </main>
+
+    <!-- ══════════ TRADERS ══════════ -->
+    <main class="ui-page page" id="page-trd">
+      <div class="ui-ph">
+        <div>
+          <h1 class="ui-ph-title">Traders</h1>
+          <p class="ui-ph-sub">Play money removes the fraud risk but not the manipulation risk — a leaderboard is still worth cheating for.</p>
+        </div>
+        <div class="ui-ph-actions">
+          <button class="ui-btn" data-size="sm">Audit log</button>
+        </div>
+      </div>
+
+      <div class="ui-kpis">
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--lime)"></span>Active traders · 7d</div>
+          <div class="ui-kpi-value">168</div><div class="ui-kpi-sub">of 1,284 accounts</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--men)"></span>Median net worth</div>
+          <div class="ui-kpi-value">11,240</div><div class="ui-kpi-sub">balance + open positions</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--women)"></span>Median accuracy</div>
+          <div class="ui-kpi-value">54%</div><div class="ui-kpi-sub">model scores 61%</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--live)"></span>Flagged</div>
+          <div class="ui-kpi-value">3</div><div class="ui-kpi-sub">awaiting review</div>
+        </div>
+      </div>
+
+      <div class="ui-section">
+        <div class="ui-panel">
+          <div class="ui-panel-head">
+            <h3 class="ui-panel-title">Flagged for review</h3>
+            <span class="ui-pill" data-tone="live"><span class="ui-pill-dot"></span>3 open</span>
+          </div>
+
+          <div class="flagcard">
+            <span class="ui-pill" data-tone="warn">Concentration</span>
+            <div class="fc-b">
+              <div class="fc-t">ElGato · 78% of one market's volume</div>
+              <div class="fc-d">Took 11,600 G of the 14,900 G traded on <em>“Will a qualifier reach the QF?”</em> and moved the price 22 points alone. Not necessarily cheating — thin markets do this — but the price stopped reflecting a crowd.</div>
+            </div>
+            <div class="fc-a"><button class="ui-btn" data-size="sm">Inspect</button><button class="ui-btn" data-size="sm" data-variant="danger">Limit</button></div>
+          </div>
+
+          <div class="flagcard">
+            <span class="ui-pill" data-tone="live">Paired trading</span>
+            <div class="fc-b">
+              <div class="fc-t">juanma ↔ nico_pdl · 14 opposing trades in 6 minutes</div>
+              <div class="fc-d">Two accounts consistently taking opposite sides of the same markets within seconds, same device fingerprint. Classic volume farming — harmless to balances, fatal to the leaderboard's meaning.</div>
+            </div>
+            <div class="fc-a"><button class="ui-btn" data-size="sm">Inspect</button><button class="ui-btn" data-size="sm" data-variant="danger">Suspend</button></div>
+          </div>
+
+          <div class="flagcard">
+            <span class="ui-pill" data-tone="warn">Late entry</span>
+            <div class="fc-b">
+              <div class="fc-t">Kiko P. · 4 trades placed after the match went live</div>
+              <div class="fc-d">Lock time fired at 18:02; these landed 18:02–18:04. Almost certainly a clock or worker-lag bug on our side, not a user exploiting anything — but the positions still need voiding.</div>
+            </div>
+            <div class="fc-a"><button class="ui-btn" data-size="sm">Inspect</button><button class="ui-btn" data-size="sm" data-variant="danger">Void trades</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input class="ui-input" placeholder="Search trader…">
+        <button class="ui-chip" data-on="true">All</button>
+        <button class="ui-chip">Flagged · 3</button>
+        <button class="ui-chip">Most active</button>
+        <button class="ui-chip">New accounts</button>
+      </div>
+
+      <div class="ui-table-wrap">
+        <table class="ui-table">
+          <thead><tr>
+            <th style="width:26%">Trader</th><th style="text-align:right">Net worth</th>
+            <th style="text-align:right">Realised P&amp;L</th><th style="text-align:right">Accuracy</th>
+            <th style="text-align:right">Trades 7d</th><th style="text-align:right">Open</th><th>Flags</th>
+          </tr></thead>
+          <tbody id="trd-rows"></tbody>
+        </table>
+      </div>
+
+      <p class="hint" style="margin-top:14px">Accuracy is shown against the model's 61% so a trader's number has a reference point. Beating the model consistently is the signal worth surfacing publicly — and the thing the “crowd vs model” market on the Play tab is built to bet on.</p>
+    </main>
+
+    <!-- ══════════ ECONOMY ══════════ -->
+    <main class="ui-page page" id="page-eco">
+      <div class="ui-ph">
+        <div>
+          <h1 class="ui-ph-title">Economy</h1>
+          <p class="ui-ph-sub">Guacas are play money, but the supply still has to be governed. If balances inflate faster than the user base, a 250&nbsp;G stake stops meaning anything and every decision in the app gets cheaper.</p>
+        </div>
+        <div class="ui-ph-actions">
+          <button class="ui-btn" data-size="sm">Export ledger</button>
+          <button class="ui-btn" data-variant="primary" data-size="sm">Edit issuance</button>
+        </div>
+      </div>
+
+      <div class="banner" data-tone="warn">
+        <svg class="bic" viewBox="0 0 24 24"><path d="M10.3 3.9 1.9 18a2 2 0 0 0 1.7 3h16.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4.5M12 17h.01"/></svg>
+        <div><b>Inflation is running hot.</b> Net issuance is <b>+8.5%/week</b> against circulation — at this rate the money supply <b>doubles in about 8 weeks</b>, while the user base does not. The typical stake has already fallen from 4.1% to 2.2% of the median balance. Levers, in order of bluntness: cut the daily stipend, add a real sink, or shorten the season.</div>
+      </div>
+
+      <div class="ui-kpis">
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--lime)"></span>In circulation</div>
+          <div class="ui-kpi-value">4.82M</div><div class="ui-kpi-sub">Guacas across 1,284 accounts</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--orange)"></span>Net issuance · 7d</div>
+          <div class="ui-kpi-value">+412k</div><div class="ui-kpi-sub">+8.5% — target is under +2%</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--men)"></span>Median balance</div>
+          <div class="ui-kpi-value">11,240</div><div class="ui-kpi-sub">typical stake = 2.2% of it</div>
+        </div>
+        <div class="ui-kpi">
+          <div class="ui-kpi-label"><span class="ui-kpi-dot" style="background:var(--women)"></span>Locked in open positions</div>
+          <div class="ui-kpi-value">1.18M</div><div class="ui-kpi-sub">24% of circulation is at risk</div>
+        </div>
+      </div>
+
+      <!-- Circulation chart -->
+      <div class="ui-section">
+        <div class="ui-panel">
+          <div class="ui-panel-head">
+            <h3 class="ui-panel-title">Money supply · last 12 weeks</h3>
+            <span class="ui-pill" data-tone="warn"><span class="ui-pill-dot"></span>Diverging from users</span>
+          </div>
+          <div class="chart">
+            <svg id="eco-chart" viewBox="0 0 640 150" preserveAspectRatio="none" aria-hidden="true"></svg>
+            <div class="chart-legend">
+              <span><i></i>Guacas in circulation</span>
+              <span><i class="dash"></i>Accounts (indexed to the same start)</span>
+            </div>
+            <p class="hint" style="margin-top:10px">The gap between the two lines <em>is</em> the inflation. Supply is compounding; the user base is growing linearly. Healthy is the two lines tracking each other.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="eco2">
+        <!-- Supply & sinks -->
+        <div class="ui-panel">
+          <div class="ui-panel-head">
+            <h3 class="ui-panel-title">Supply &amp; sinks · last 7 days</h3>
+            <button class="ui-btn" data-size="sm" data-variant="ghost">30d</button>
+          </div>
+          <div class="flow">
+            <div class="flow-h"><span>Guacas created</span><span>520,000</span></div>
+            <div class="flow-r"><span class="n">Daily stipend<small>500 G × ~40 daily actives × 7</small></span><span class="v" data-dir="in">+140,000</span></div>
+            <div class="flow-r"><span class="n">Signup grants<small>10,000 G × 14 new accounts</small></span><span class="v" data-dir="in">+140,000</span></div>
+            <div class="flow-r"><span class="n">AMM subsidy paid out<small>net cost of seeding prices</small></span><span class="v" data-dir="in">+186,000</span></div>
+            <div class="flow-r"><span class="n">Achievement rewards<small>existing badge tiers</small></span><span class="v" data-dir="in">+34,000</span></div>
+            <div class="flow-r"><span class="n">Referral bonuses</span><span class="v" data-dir="in">+20,000</span></div>
+
+            <div class="flow-h" style="padding-top:18px"><span>Guacas destroyed</span><span>108,000</span></div>
+            <div class="flow-r"><span class="n">Subsidy recovered<small>markets that closed in the maker's favour</small></span><span class="v" data-dir="out">−55,000</span></div>
+            <div class="flow-r"><span class="n">Cosmetic unlocks<small>avatar parts — the only real sink today</small></span><span class="v" data-dir="out">−41,000</span></div>
+            <div class="flow-r"><span class="n">Market creation fees<small>user-authored markets</small></span><span class="v" data-dir="out">−12,000</span></div>
+
+            <div class="flow-net"><span class="k">Net issuance</span><span class="v" data-tone="bad">+412,000 G</span></div>
+            <p class="hint" style="margin-top:12px"><b>Trading itself is not a source.</b> Between traders it nets to zero — one side's gain is the other's loss. The only true injection is the subsidy, plus the grants and stipends above.</p>
+          </div>
+        </div>
+
+        <div>
+          <!-- AMM subsidy -->
+          <div class="ui-section">
+            <div class="ui-panel">
+              <div class="ui-panel-head">
+                <h3 class="ui-panel-title">AMM subsidy sizing</h3>
+                <span class="ui-pill" data-tone="lime"><span class="ui-pill-dot"></span>LMSR</span>
+              </div>
+              <div class="chart" style="padding-bottom:6px">
+                <p class="hint" style="margin:0 0 11px">The good news: an LMSR market maker's loss is <b>mathematically bounded</b>, so the worst case is knowable before a single trade happens. You pick the ceiling; <span class="mono">b</span> follows.</p>
+                <div class="formula">
+                  max loss = <b>b · ln(2)</b> = b × 0.6931 &nbsp;<span style="color:var(--text-4)">(binary market)</span><br>
+                  b = <b>5,000 / 0.6931</b> = 7,213<br>
+                  worst case per market = <b>5,000 G</b><br>
+                  daily ceiling = 20 markets × 5,000 = <b>100,000 G</b>
+                </div>
+              </div>
+              <div class="knobs">
+                <div class="ui-field">
+                  <span class="ui-field-label">Max loss per market (G)</span>
+                  <input class="ui-input tabular" value="5,000">
+                </div>
+                <div class="ui-field">
+                  <span class="ui-field-label">Derived b</span>
+                  <input class="ui-input tabular" value="7,213" disabled>
+                </div>
+              </div>
+              <p class="hint" style="padding:0 18px 16px;margin:0">Higher <span class="mono">b</span> = deeper liquidity, prices move less per trade, costs more. Lower <span class="mono">b</span> = a thin market a single 2,000&nbsp;G order can swing 20 points. At our volume, err <b>low</b> — a price that moves is the entire product.</p>
+            </div>
+          </div>
+
+          <!-- Issuance controls -->
+          <div class="ui-section">
+            <div class="ui-panel">
+              <div class="ui-panel-head"><h3 class="ui-panel-title">Issuance controls</h3></div>
+              <div class="knobs">
+                <div class="ui-field"><span class="ui-field-label">Signup grant (G)</span><input class="ui-input tabular" value="10,000"></div>
+                <div class="ui-field"><span class="ui-field-label">Daily stipend (G)</span><input class="ui-input tabular" value="500"></div>
+                <div class="ui-field"><span class="ui-field-label">Referral bonus (G)</span><input class="ui-input tabular" value="2,000"></div>
+                <div class="ui-field"><span class="ui-field-label">Market creation fee (G)</span><input class="ui-input tabular" value="1,000"></div>
+              </div>
+              <p class="hint" style="padding:0 18px 16px;margin:0">The stipend is the dial that matters. It is the only source that scales with <em>engagement</em> rather than with signups, so it compounds exactly when the app is working.</p>
+            </div>
+          </div>
+
+          <!-- Season reset -->
+          <div class="ui-panel">
+            <div class="ui-panel-head">
+              <h3 class="ui-panel-title">Season reset</h3>
+              <span class="ui-pill" data-tone="lime"><span class="ui-pill-dot"></span>Season 1 · 34 days left</span>
+            </div>
+            <div class="chart" style="padding-bottom:16px">
+              <p class="hint" style="margin:0 0 11px"><b>The structural fix.</b> Tuning stipends fights inflation one decimal at a time; a reset bounds it by construction. At season end every balance returns to the baseline and the leaderboard is archived — so a season is winnable by someone who joins late, which is also the retention argument.</p>
+              <div class="knobs" style="padding:0">
+                <div class="ui-field"><span class="ui-field-label">Season length</span><select class="ui-select"><option>3 months</option><option>6 months</option><option>12 months</option></select></div>
+                <div class="ui-field"><span class="ui-field-label">Reset balance to (G)</span><input class="ui-input tabular" value="10,000"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* ─────────── Templates ─────────── */
+/* `dry.raw` = candidates the trigger matched · `dry.kept` = what survives the
+   gates and caps. Everything dropped is itemised — a generator that silently
+   truncates looks identical to one that covered everything, right up until
+   someone asks why a marquee match had no market. */
+const TEMPLATES = [
+  { name:'Set to reach a tiebreak', q:'Will this set reach a tiebreak?', horizon:'in-match',
+    resolver:'set.reaches_tiebreak', seed:'In-play model', subsidy:'5,000', unit:5000, state:'on',
+    settles:'sets.pair1_games / pair2_games',
+    dry:{ raw:37, kept:12, drops:[ {n:18,why:'below round gate (Q1/Q2/R64)'}, {n:4,why:'outside competitiveness band'}, {n:3,why:'over per-match cap'} ] } },
+  { name:'Match winner', q:'Will {pair1} win this match?', horizon:'pre-match',
+    resolver:'match.winner_is_pair', seed:'Elo pre-match', subsidy:'12,000', unit:12000, state:'on',
+    settles:'matches.winner_pair',
+    dry:{ raw:96, kept:12, drops:[ {n:48,why:'below round gate'}, {n:20,why:'no top-50 player'}, {n:16,why:'over daily cap'} ] } },
+  { name:'Deciding set', q:'Will this match go to a third set?', horizon:'pre-match',
+    resolver:'match.goes_to_deciding_set', seed:'Elo pre-match', subsidy:'6,000', unit:6000, state:'on',
+    settles:'count(sets) per match_id',
+    dry:{ raw:96, kept:8, drops:[ {n:48,why:'below round gate'}, {n:30,why:'outside competitiveness band'}, {n:10,why:'over daily cap'} ] } },
+  { name:'Total games over/under', q:'Over {line} games in this match?', horizon:'pre-match',
+    resolver:'match.total_games_over', seed:'Elo pre-match', subsidy:'6,000', unit:6000, state:'on',
+    settles:'sum(sets.pair1_games + pair2_games)',
+    dry:{ raw:96, kept:6, drops:[ {n:48,why:'below round gate'}, {n:30,why:'outside competitiveness band'}, {n:12,why:'over global open cap'} ] } },
+  { name:'Tournament outright', q:'Will {pair1} win {tournament}?', horizon:'tournament',
+    resolver:'tournament.champion_is_pair', seed:'Projection', subsidy:'40,000', unit:40000, state:'on',
+    settles:'matches.winner_pair where round = F',
+    dry:{ raw:32, kept:12, drops:[ {n:20,why:'no top-50 player'} ] } },
+  { name:'Pair reaches round', q:'Will {pair1} reach the {round}?', horizon:'tournament',
+    resolver:'tournament.pair_reaches_round', seed:'Projection', subsidy:'15,000', unit:15000, state:'on',
+    settles:'matches.round progression',
+    dry:{ raw:24, kept:8, drops:[ {n:12,why:'no top-50 player'}, {n:4,why:'over per-tournament cap'} ] } },
+  { name:'Year-end world No.1', q:'Will {player} finish the season as world No.1?', horizon:'season',
+    resolver:'ranking.year_end_number_one', seed:'FIP rank cold-start', subsidy:'80,000', unit:80000, state:'on',
+    settles:'player_ranking_snapshots (final week)',
+    dry:{ raw:0, kept:0, drops:[ {n:0,why:'8 already open — season markets generate once'} ] } },
+  { name:'Still partners at next Major', q:'Will {pair1} still be a pair at {tournament}?', horizon:'roster',
+    resolver:'roster.pair_on_same_entry_list', seed:'Fixed 50/50', subsidy:'10,000', unit:10000, state:'draft',
+    settles:'tournament_entries (both names, same row)',
+    dry:{ raw:6, kept:0, drops:[ {n:6,why:'entry list not published yet'} ] } },
+  { name:'Shot-count over/under', q:'Over {line} winners in this match?', horizon:'pre-match',
+    resolver:'—', seed:'—', subsidy:'—', unit:0, state:'blocked',
+    settles:'nothing — no such column exists',
+    dry:{ raw:0, kept:0, drops:[ {n:0,why:'winners / unforced errors are not in the database'} ] } },
+];
+
+/* Trigger + lock follow from the horizon — an in-match template can't wait
+   for a draw to be released, and a season template has no set to lock to. */
+const HORIZON_RULES = {
+  'in-match':   { trigger:'match.status → live',      lock:'Set start' },
+  'pre-match':  { trigger:'match.status → scheduled', lock:'Match start' },
+  'tournament': { trigger:'draw released',            lock:'First ball of round' },
+  'season':     { trigger:'ranking week published',   lock:'Season start' },
+  'roster':     { trigger:'entry list published',     lock:'Entry deadline' },
+};
+
+function setSelectByText(el, text){
+  const o = [...el.options].find(x => x.text.startsWith(text));
+  if (o) el.value = o.value;
+}
+
+const STATE_PILL = {
+  on:      ['lime','Enabled'],
+  draft:   ['warn','Draft'],
+  blocked: ['live','Blocked'],
+};
+
+document.getElementById('tpl-rows').innerHTML = TEMPLATES.map((t, i) => {
+  const [tone, label] = STATE_PILL[t.state];
+  const blocked = t.state === 'blocked';
+  return `<tr data-i="${i}" style="cursor:pointer">
+    <td>
+      <div class="rowmain">${t.name}</div>
+      <div class="sub2">${t.q.replace(/\{(\w+)\}/g, '<span class="tok">{$1}</span>')}</div>
+      ${blocked ? '<div class="sub2" style="color:var(--live-text)">No resolver — winners / unforced errors are not in the database</div>' : ''}
+    </td>
+    <td><span class="ui-pill" data-tone="neutral">${t.horizon}</span></td>
+    <td><span class="mono">${t.resolver}</span><div class="sub2">${t.seed} · ${t.subsidy} G</div></td>
+    <td class="tabular" style="text-align:right">
+      <div style="font-weight:700">${t.dry.kept || '—'}</div>
+      ${t.dry.raw ? `<div class="sub2">of ${t.dry.raw} candidates</div>` : ''}
+    </td>
+    <td><span class="ui-pill" data-tone="${tone}"><span class="ui-pill-dot"></span>${label}</span></td>
+  </tr>`;
+}).join('');
+
+document.getElementById('tpl-rows').addEventListener('click', e => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  const t = TEMPLATES[+tr.dataset.i];
+  document.getElementById('ed-title').textContent = t.name;
+  document.getElementById('ed-q').value = t.q;
+  const sel = document.getElementById('ed-res');
+  [...sel.options].forEach(o => { if (o.text === t.resolver) sel.value = o.value; });
+
+  // Every field in the drawer tracks the selected template. A panel that
+  // shows one template's config under another's name is worse than blank.
+  setSelectByText(document.getElementById('ed-horizon'), t.horizon);
+  setSelectByText(document.getElementById('ed-trigger'), HORIZON_RULES[t.horizon].trigger);
+  setSelectByText(document.getElementById('ed-lock'),    HORIZON_RULES[t.horizon].lock);
+  setSelectByText(document.getElementById('ed-seed'),    t.seed);
+  document.getElementById('ed-subsidy').value = t.subsidy;
+  const [pillTone, pillLabel] = STATE_PILL[t.state];
+  const pill = document.getElementById('ed-state');
+  pill.dataset.tone = pillTone;
+  pill.lastChild.textContent = pillLabel;
+
+  // The resolver hint and the dry-run must track the selected template —
+  // a forecast that never changes is worse than no forecast.
+  document.getElementById('ed-settles').textContent = t.settles;
+
+  const d = t.dry;
+  const dropped = d.drops.reduce((a, x) => a + x.n, 0);
+  const headline = d.kept
+    ? `<b>${d.kept} markets</b> would be created${d.raw ? ` — capped from ${d.raw} candidates` : ''}`
+    : `<b>No markets</b> would be created${d.raw ? ` — all ${d.raw} candidates dropped` : ''}`;
+  document.getElementById('ed-dry').innerHTML =
+    `<li>${headline}</li>` +
+    (d.kept ? `<li>Subsidy committed: <b>${(d.kept * t.unit).toLocaleString('en-US')} G</b></li>` : '') +
+    (dropped || d.drops.length
+      ? `<li>Dropped ${dropped}:<ul class="drops">${d.drops.map(x => `<li>${x.n ? `${x.n} — ` : ''}${x.why}</li>`).join('')}</ul></li>`
+      : '');
+  const tog = document.getElementById('ed-toggle');
+  tog.dataset.on = String(t.state === 'on');
+  tog.lastChild.textContent = t.state === 'on' ? ' Enabled' : ' Disabled';
+  openDrawer(true);
+});
+
+function openDrawer(on){
+  document.getElementById('drawer').dataset.on = String(on);
+  document.getElementById('drawer').setAttribute('aria-hidden', String(!on));
+  document.getElementById('scrim').dataset.on = String(on);
+}
+document.getElementById('scrim').addEventListener('click', () => openDrawer(false));
+document.getElementById('ed-close').addEventListener('click', () => openDrawer(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') openDrawer(false); });
+
+document.getElementById('ed-toggle').addEventListener('click', e => {
+  const el = e.currentTarget;
+  const on = el.dataset.on !== 'true';
+  el.dataset.on = String(on);
+  el.lastChild.textContent = on ? ' Enabled' : ' Disabled';
+});
+
+/* ─────────── Resolution queue ─────────── */
+const RES = [
+  { q:'Will this set reach a tiebreak?', ctx:'Coello / Tapia vs Galán / Chingotto · Madrid P1 · Final',
+    outcome:'YES', o:'yes', resolver:'set.reaches_tiebreak',
+    ev:'sets[1] = <em>7–6</em> → tiebreak reached', exposure:'182,400 G', pos:412, secs:640, kind:'window' },
+  { q:'Will Coello / Tapia win this match?', ctx:'Madrid P1 · Final',
+    outcome:'YES', o:'yes', resolver:'match.winner_is_pair',
+    ev:'matches.winner_pair = <em>1</em>', exposure:'906,100 G', pos:1204, secs:1560, kind:'window' },
+  { q:'Will this match go to a third set?', ctx:'Madrid P1 · Final',
+    outcome:'NO', o:'no', resolver:'match.goes_to_deciding_set',
+    ev:'count(sets) = <em>2</em>', exposure:'241,000 G', pos:876, secs:1560, kind:'window' },
+  { q:'Over 22.5 games in this match?', ctx:'Rome P2 · QF',
+    outcome:'NO', o:'no', resolver:'match.total_games_over',
+    ev:'sum(games) = <em>21</em> · line 22.5', exposure:'88,300 G', pos:310, secs:240, kind:'window' },
+  { q:'Will Triay / Brea reach the final?', ctx:'Madrid P1 · Women',
+    outcome:'YES', o:'yes', resolver:'tournament.pair_reaches_round',
+    ev:'round <em>F</em> · winner_pair = 2', exposure:'314,700 G', pos:590, secs:3180, kind:'window' },
+  { q:'Will a qualifier reach the QF?', ctx:'Rome P2 · Men',
+    outcome:'NO', o:'no', resolver:'tournament.pair_reaches_round',
+    ev:'0 rows with marker = <em>Q</em> in QF', exposure:'52,900 G', pos:204, secs:5400, kind:'window' },
+
+  { q:'Will Sánchez / Nieto still be a pair at Rome P2?', ctx:'Roster market',
+    outcome:'—', o:'void', resolver:'roster.pair_on_same_entry_list',
+    ev:'entry list <em>not published</em> · deadline passed', exposure:'41,200 G', pos:168, secs:null, kind:'operator' },
+  { q:'Will Lebrón play Madrid P1?', ctx:'Roster market',
+    outcome:'—', o:'void', resolver:'roster.player_on_entry_list',
+    ev:'listed, then <em>withdrew</em> pre-R1 — rule ambiguous', exposure:'29,800 G', pos:121, secs:null, kind:'operator' },
+
+  { q:'Will Piltcher / Sanz win this match?', ctx:'Bordeaux P2 · WQ012',
+    outcome:'YES', o:'yes', resolver:'match.winner_is_pair',
+    ev:'winner_pair=1 at 14:02, <em>flipped to 2 at 14:21</em>', exposure:'76,500 G', pos:288, secs:null, kind:'held' },
+];
+
+const KIND_PILL = {
+  window:   ['lime','Awaiting window'],
+  operator: ['warn','Needs operator'],
+  held:     ['live','Held — conflict'],
+};
+
+function fmtCd(s){
+  const m = Math.floor(s / 60), ss = s % 60;
+  return `${m}:${String(ss).padStart(2,'0')}`;
+}
+
+function renderRes(){
+  document.getElementById('res-rows').innerHTML = RES.map((r, i) => {
+    const [tone, label] = KIND_PILL[r.kind];
+    const countdown = r.secs === null
+      ? `<span class="ui-pill" data-tone="${tone}"><span class="ui-pill-dot"></span>${label}</span>`
+      : `<div class="cd" data-soon="${r.secs < 300}" data-cd="${i}">${fmtCd(r.secs)}</div>
+         <div class="sub2">${label}</div>`;
+    const actions = r.kind === 'window'
+      ? `<button class="ui-btn" data-size="sm" data-variant="primary">Confirm now</button>
+         <button class="ui-btn" data-size="sm">Hold</button>`
+      : r.kind === 'operator'
+        ? `<button class="ui-btn" data-size="sm" data-variant="primary">Settle…</button>
+           <button class="ui-btn" data-size="sm" data-variant="danger">Void &amp; refund</button>`
+        : `<button class="ui-btn" data-size="sm">Re-check</button>
+           <button class="ui-btn" data-size="sm" data-variant="danger">Void &amp; refund</button>`;
+    return `<tr>
+      <td><div class="rowmain">${r.q}</div><div class="sub2">${r.ctx}</div></td>
+      <td><span class="outcome" data-o="${r.o}">${r.outcome}</span><div class="sub2 mono">${r.resolver}</div></td>
+      <td><span class="evidence">${r.ev}</span></td>
+      <td><div class="tabular">${r.exposure}</div><div class="sub2">${r.pos} positions</div></td>
+      <td>${countdown}</td>
+      <td><div class="acts" style="justify-content:flex-end">${actions}</div></td>
+    </tr>`;
+  }).join('');
+}
+renderRes();
+
+// Live countdowns — the queue drains itself while you watch.
+setInterval(() => {
+  RES.forEach((r, i) => {
+    if (r.secs === null) return;
+    r.secs = Math.max(0, r.secs - 1);
+    const el = document.querySelector(`[data-cd="${i}"]`);
+    if (el){ el.textContent = fmtCd(r.secs); el.dataset.soon = String(r.secs < 300); }
+  });
+}, 1000);
+
+/* ─────────── Shell wiring ─────────── */
+document.querySelectorAll('.navitem[data-page]').forEach(n => {
+  n.addEventListener('click', () => {
+    document.querySelectorAll('.navitem').forEach(x => x.removeAttribute('data-on'));
+    n.dataset.on = 'true';
+    const p = n.dataset.page;
+    document.querySelectorAll('.page').forEach(pg => pg.removeAttribute('data-on'));
+    document.getElementById('page-' + p).dataset.on = 'true';
+    document.getElementById('crumb').textContent =
+      ({ tpl:'Templates', res:'Resolution', eco:'Economy', mkt:'Markets', trd:'Traders' })[p];
+  });
+});
+
+document.querySelectorAll('.filters').forEach(f => f.addEventListener('click', e => {
+  const b = e.target.closest('.ui-chip'); if (!b) return;
+  f.querySelectorAll('.ui-chip').forEach(x => x.removeAttribute('data-on'));
+  b.dataset.on = 'true';
+}));
+
+/* ─────────── Markets ─────────── */
+const MKT_STATE = {
+  open:    ['lime','Open'],
+  locked:  ['neutral','Locked'],
+  resolve: ['warn','Resolving'],
+  settled: ['neutral','Settled'],
+  void:    ['live','Voided'],
+};
+
+const MARKETS = [
+  { q:'Will Coello / Tapia win this match?', ctx:'Madrid P1 · Men · Final', tpl:'Match winner',
+    px:.68, md:.64, vol:'906,100', pos:1204, closes:'at lock · 19:00', state:'open' },
+  { q:'Will this set reach a tiebreak?', ctx:'Madrid P1 · Final · Set 1', tpl:'Set to reach a tiebreak',
+    px:.38, md:.34, vol:'182,400', pos:412, closes:'set start', state:'locked' },
+  { q:'Will Triay / Brea reach the final?', ctx:'Madrid P1 · Women', tpl:'Pair reaches round',
+    px:.71, md:.66, vol:'314,700', pos:590, closes:'SF · Sat 16:00', state:'open' },
+  { q:'Will a qualifier reach the QF?', ctx:'Rome P2 · Men', tpl:'Pair reaches round',
+    px:.27, md:.49, vol:'14,900', pos:38, closes:'R16 · Thu', state:'open', flag:'thin' },
+  { q:'Will Coello finish 2026 as world No.1?', ctx:'Season · FIP official', tpl:'Year-end world No.1',
+    px:.57, md:.61, vol:'1,284,000', pos:2140, closes:'final ranking week', state:'open' },
+  { q:'Over 22.5 games in this match?', ctx:'Rome P2 · QF', tpl:'Total games over/under',
+    px:.44, md:.47, vol:'88,300', pos:310, closes:'match start', state:'resolve' },
+  { q:'Will this match go to a third set?', ctx:'Madrid P1 · Final', tpl:'Deciding set',
+    px:.44, md:.47, vol:'241,000', pos:876, closes:'match start', state:'resolve' },
+  { q:'Will Galán / Chingotto win the first set?', ctx:'Madrid P1 · Final', tpl:'Match winner',
+    px:.46, md:.51, vol:'167,500', pos:498, closes:'set start', state:'settled' },
+  { q:'Will Sánchez / Nieto reach the SF?', ctx:'Rome P2 · Women', tpl:'Pair reaches round',
+    px:.33, md:.52, vol:'41,200', pos:168, closes:'QF · Fri', state:'open', flag:'diverging' },
+  { q:'Will Piltcher / Sanz win this match?', ctx:'Bordeaux P2 · WQ012', tpl:'Match winner',
+    px:.55, md:.53, vol:'76,500', pos:288, closes:'—', state:'void' },
+];
+
+document.getElementById('mkt-rows').innerHTML = MARKETS.map(m => {
+  const [tone, label] = MKT_STATE[m.state];
+  const d = Math.round((m.px - m.md) * 100);
+  const hot = Math.abs(d) >= 12;
+  const flag = m.flag === 'thin'
+    ? '<span class="ui-pill" data-tone="warn">Thin</span>'
+    : m.flag === 'diverging'
+      ? '<span class="ui-pill" data-tone="warn">Diverging</span>' : '';
+  return `<tr>
+    <td><div class="rowmain">${m.q}</div><div class="sub2">${m.ctx}</div></td>
+    <td class="muted">${m.tpl}</td>
+    <td>
+      <span class="spread"><span class="px">${m.px.toFixed(2)}</span><span class="md">/ ${m.md.toFixed(2)}</span></span>
+      <div class="delta" data-hot="${hot}">${d >= 0 ? '+' : ''}${d} pts${hot ? ' ⚠' : ''}</div>
+    </td>
+    <td class="tabular" style="text-align:right">${m.vol}</td>
+    <td class="tabular" style="text-align:right">${m.pos.toLocaleString('en-US')}</td>
+    <td class="muted">${m.closes}</td>
+    <td><span class="ui-pill" data-tone="${tone}"><span class="ui-pill-dot"></span>${label}</span>
+      ${flag ? `<div style="margin-top:5px">${flag}</div>` : ''}</td>
+    <td style="text-align:right"><button class="ui-btn" data-size="sm" data-variant="ghost">⋯</button></td>
+  </tr>`;
+}).join('');
+
+/* ─────────── Traders ───────────
+   NOTE: this avatar generator is copied from public/mockup-play-market.html.
+   In the real build it MUST be a shared module — two copies drifting means the
+   operator sees a different face than the user does. */
+const AV_BG    = ['#7ED321','#38C8FF','#F472B6','#EAB308','#818CF8','#FF4655','#5BA8FF','#34D399'];
+const AV_SKIN  = ['#F2C29B','#E8B084','#C68642','#8D5524','#FFD9B8','#A9713F'];
+const AV_HAIR  = ['#2B211A','#4A3427','#8B5A2B','#D9A441','#12100E','#6B3F23'];
+const AV_SHIRT = ['#1F2937','#7ED321','#38C8FF','#F472B6','#EAB308','#F4F4F5','#FF4655','#818CF8'];
+
+function hashOf(s){ let h = 2166136261; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return Math.abs(h); }
+
+function avatarSVG(name){
+  const h = hashOf(name);
+  const bg = AV_BG[h % AV_BG.length];
+  const sk = AV_SKIN[(h >> 3) % AV_SKIN.length];
+  const hr = AV_HAIR[(h >> 6) % AV_HAIR.length];
+  const base = AV_SHIRT[((h >> 9) + 3) % AV_SHIRT.length];
+  const sh = base === bg ? AV_SHIRT[((h >> 9) + 4) % AV_SHIRT.length] : base;
+  const hairStyle = (h >> 12) % 4, acc = (h >> 15) % 5, mouth = (h >> 18) % 3;
+
+  const hairTop = hairStyle === 3
+    ? `<path d="M11.4 17.6 A8.6 8.6 0 0 1 28.6 17.6 Z" fill="${hr}"/>`
+    : `<path d="M11 18 A9 9 0 0 1 29 18 L29 15.5 A9 9 0 0 0 11 15.5 Z" fill="${hr}"/>
+       <path d="M11 17 A9 9 0 0 1 29 17 Z" fill="${hr}"/>`;
+  const hairSide = hairStyle === 1
+    ? `<rect x="10.2" y="16" width="3.4" height="11" rx="1.7" fill="${hr}"/>
+       <rect x="26.4" y="16" width="3.4" height="11" rx="1.7" fill="${hr}"/>` : '';
+  const hairBun = hairStyle === 2 ? `<circle cx="20" cy="7.4" r="3.4" fill="${hr}"/>` : '';
+  const accessory =
+    acc === 1 ? `<rect x="10.6" y="13.4" width="18.8" height="3.1" rx="1.4" fill="#FF4655"/>` :
+    acc === 2 ? `<path d="M11 16 A9 9 0 0 1 29 16 Z" fill="#1F2937"/><rect x="8.6" y="15.2" width="22.8" height="2.7" rx="1.35" fill="#111827"/>` :
+    acc === 3 ? `<g fill="#111827"><rect x="12.6" y="16.2" width="6.2" height="4.4" rx="1.4"/><rect x="21.2" y="16.2" width="6.2" height="4.4" rx="1.4"/><rect x="18.8" y="17.8" width="2.4" height="1.2"/></g>` : '';
+  const eyes = acc === 3 ? '' :
+    `<circle cx="16.6" cy="18.6" r="1.35" fill="#15120F"/><circle cx="23.4" cy="18.6" r="1.35" fill="#15120F"/>`;
+  const mouthPath =
+    mouth === 0 ? `<path d="M17 22.6 q3 2.5 6 0" stroke="#15120F" stroke-width="1.3" fill="none" stroke-linecap="round"/>` :
+    mouth === 1 ? `<path d="M17.4 23.1 h5.2" stroke="#15120F" stroke-width="1.3" fill="none" stroke-linecap="round"/>` :
+                  `<ellipse cx="20" cy="23.2" rx="2.1" ry="1.7" fill="#15120F"/>`;
+
+  return `<svg viewBox="0 0 40 40" aria-hidden="true">
+    <rect width="40" height="40" fill="${bg}"/>
+    <path d="M2 40 C2 31.5 10.5 27.5 20 27.5 C29.5 27.5 38 31.5 38 40 Z" fill="${sh}"/>
+    <rect x="17.4" y="23" width="5.2" height="6" fill="${sk}"/>
+    <circle cx="20" cy="18" r="9" fill="${sk}"/>
+    ${hairBun}${hairTop}${hairSide}${accessory}${eyes}${mouthPath}</svg>`;
+}
+
+const TRADERS = [
+  { n:'PadelProfeta', joined:'Mar 2026', nw:48210, pnl:+18420, acc:71, t7:64,  open:9,  flags:[] },
+  { n:'Marta R.',     joined:'Jan 2026', nw:44905, pnl:+14100, acc:68, t7:51,  open:7,  flags:[] },
+  { n:'juanma',       joined:'Aug 2026', nw:41330, pnl:+11980, acc:64, t7:212, open:14, flags:[['live','Paired trading']] },
+  { n:'Bea Glz',      joined:'Feb 2026', nw:37880, pnl:+9240,  acc:66, t7:38,  open:5,  flags:[] },
+  { n:'nico_pdl',     joined:'Aug 2026', nw:35120, pnl:+7610,  acc:61, t7:198, open:12, flags:[['live','Paired trading']] },
+  { n:'Tiago M.',     joined:'Apr 2026', nw:33475, pnl:+6180,  acc:63, t7:44,  open:6,  flags:[] },
+  { n:'ElGato',       joined:'Sep 2026', nw:28640, pnl:-2310,  acc:57, t7:29,  open:11, flags:[['warn','Concentration']] },
+  { n:'Sofia V.',     joined:'May 2026', nw:31090, pnl:+4020,  acc:59, t7:33,  open:4,  flags:[] },
+  { n:'Kiko P.',      joined:'Sep 2026', nw:19800, pnl:-980,   acc:52, t7:22,  open:3,  flags:[['warn','Late entry']] },
+  { n:'laura.87',     joined:'Jun 2026', nw:26315, pnl:+1450,  acc:60, t7:27,  open:5,  flags:[] },
+];
+
+document.getElementById('trd-rows').innerHTML = TRADERS.map(t => `
+  <tr>
+    <td><div class="who">
+      <div class="av">${avatarSVG(t.n)}</div>
+      <div><div class="nm2">${t.n}</div><div class="sub3">joined ${t.joined}</div></div>
+    </div></td>
+    <td class="tabular" style="text-align:right">${t.nw.toLocaleString('en-US')}</td>
+    <td class="tabular" style="text-align:right;color:${t.pnl >= 0 ? 'var(--lime-text)' : 'var(--live-text)'}">${t.pnl >= 0 ? '+' : ''}${t.pnl.toLocaleString('en-US')}</td>
+    <td class="tabular" style="text-align:right">${t.acc}%</td>
+    <td class="tabular" style="text-align:right">${t.t7}</td>
+    <td class="tabular" style="text-align:right">${t.open}</td>
+    <td>${t.flags.map(([tone, label]) => `<span class="ui-pill" data-tone="${tone}">${label}</span>`).join(' ') || '<span class="muted">—</span>'}</td>
+  </tr>`).join('');
+
+/* ─────────── Economy chart ───────────
+   Supply compounds, accounts grow linearly. Both series are indexed to the
+   same starting point so the divergence — which IS the inflation — is the
+   only thing the eye has to read. */
+(function drawEconomy(){
+  const supply   = [2.10,2.24,2.41,2.58,2.79,3.02,3.28,3.55,3.86,4.18,4.49,4.82]; // millions of G
+  const accounts = [ 980,1010,1040,1068,1094,1121,1149,1178,1205,1232,1259,1284]; // accounts
+
+  const W = 640, H = 150, PAD = 6;
+  const idx = a => a.map(v => v / a[0]);              // index both to 1.0 at week 0
+  const s = idx(supply), u = idx(accounts);
+  const hi = Math.max(...s, ...u) * 1.04, lo = 0.96;
+  const X = i => PAD + (i / (s.length - 1)) * (W - PAD * 2);
+  const Y = v => H - PAD - ((v - lo) / (hi - lo)) * (H - PAD * 2);
+  const pts = a => a.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+
+  document.getElementById('eco-chart').innerHTML = `
+    <defs><linearGradient id="ecoFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--lime)" stop-opacity=".28"/>
+      <stop offset="100%" stop-color="var(--lime)" stop-opacity="0"/>
+    </linearGradient></defs>
+    <polygon points="${X(0)},${H - PAD} ${pts(s)} ${X(s.length - 1)},${H - PAD}" fill="url(#ecoFill)"/>
+    <polyline points="${pts(u)}" fill="none" stroke="var(--orange)" stroke-width="2"
+      stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
+    <polyline points="${pts(s)}" fill="none" stroke="var(--lime)" stroke-width="2.4"
+      stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${X(s.length - 1)}" cy="${Y(s[s.length - 1])}" r="3.5" fill="var(--lime)"/>`;
+})();
+
+const themeBtn = document.getElementById('theme');
+themeBtn.addEventListener('click', () => {
+  const light = document.documentElement.dataset.theme === 'light';
+  document.documentElement.dataset.theme = light ? 'dark' : 'light';
+  themeBtn.textContent = light ? 'Light' : 'Dark';
+});
+</script>
+</body>
+</html>

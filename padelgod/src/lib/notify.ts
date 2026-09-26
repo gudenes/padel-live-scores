@@ -173,6 +173,53 @@ export async function notifyEventAwait(
 }
 
 /**
+ * Fire-and-forget POST to `/api/push/notify-ranking`. The Next.js endpoint
+ * composes the weekly bulletin from live official snapshots; this side only
+ * triggers the send after a NEW official week is observed.
+ */
+export function notifyRankingUpdated(deps: NotifyDeps): void {
+  const statsKey = 'ranking_updated';
+  recordAttempt();
+
+  const { baseUrl, cronSecret, logger } = deps;
+  if (!baseUrl || !cronSecret) {
+    recordSkipEnvMissing(statsKey);
+    return;
+  }
+
+  const url = `${baseUrl.replace(/\/$/, '')}/api/push/notify-ranking`;
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  recordFired();
+
+  fetchImpl(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${cronSecret}`,
+    },
+    body: '{}',
+  })
+    .then(async (res) => {
+      if (!res.ok) {
+        const body = await res.text().catch(() => '<unreadable>');
+        recordNonOk(statsKey, res.status, body);
+        logger.warn(
+          { statsKey, status: res.status, body: body.slice(0, 500) },
+          'notify: notify-ranking endpoint returned non-ok',
+        );
+      } else {
+        recordSuccess(statsKey);
+        logger.info({ statsKey }, 'notify: fired notify-ranking');
+      }
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      recordFetchError(statsKey, message);
+      logger.warn({ statsKey, err: message }, 'notify: notify-ranking fetch failed');
+    });
+}
+
+/**
  * Fire an entity-scoped notification via the Next.js generic endpoint
  * `/api/push/notify-event` (vs `notifyLiveTransition`'s `/api/push/notify`).
  *

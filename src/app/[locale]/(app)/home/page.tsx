@@ -37,6 +37,7 @@ import {
   getLocalDayBoundaryUTC,
   hasStarted,
   insertManagedCardsByDate,
+  keepOnLiveCarousel,
 } from '@/lib/live-tournaments-carousel'
 import { FLAG_KEYS, resolveFlag } from '@/lib/feature-flags'
 import { fetchClusteredNews, type ClusteredArticle } from '@/lib/news-feed-queries'
@@ -466,11 +467,7 @@ function V3HomePageInner() {
           // progress with nothing to show" state). Upcoming and
           // crowned rows always survive — they have their own status
           // affordances on the card.
-          .filter(t => {
-            const bothCrowned = !!(t.champions?.men && t.champions?.women)
-            const upcoming = !hasStarted(t.starts_at)
-            return t.matchesToday > 0 || bothCrowned || upcoming
-          })
+          .filter(t => keepOnLiveCarousel(t))
           // Bucket order on the rail: LIVE (matches happening now) →
           // UPCOMING (next 7 days, hype) → CROWNED (recently finished,
           // celebratory wrap-up). Within each bucket the canonical

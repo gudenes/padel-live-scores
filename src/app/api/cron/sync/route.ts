@@ -573,11 +573,11 @@ async function syncTournamentMatches(tournamentExternalId: string): Promise<numb
         // If no time is available, store the date-only value.
         let scheduledAt: string | null = match.played_at ?? null
         if (match.played_at && match.schedule_label) {
-          const timeMatch = (match.schedule_label as string).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
+          const timeMatch = (match.schedule_label as string).match(/(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i)
           if (timeMatch && tournamentRow?.timezone) {
             let hours = parseInt(timeMatch[1])
             const minutes = parseInt(timeMatch[2])
-            const ampm = timeMatch[3].toUpperCase()
+            const ampm = timeMatch[3]?.toUpperCase()
             if (ampm === 'PM' && hours < 12) hours += 12
             if (ampm === 'AM' && hours === 12) hours = 0
             try {

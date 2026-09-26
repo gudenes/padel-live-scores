@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { Match, Player } from '@/types/match'
 import type { ProjectionRow } from '@/lib/projection-types'
-import { buildSeedMap, isQualifyingRound, orderPickerPairs, pairKeyFromIds } from '@/lib/projection-picker'
+import { buildSeedMap, isQualifyingRound, orderPickerPairs, pairKeyFromIds, seedMapFromEntries } from '@/lib/projection-picker'
 
 function player(id: string): Player { return { id, external_id: id, name: id, country: 'ES', avatar_url: null } }
 function match(round: string, opts: Partial<Match>): Match {
@@ -78,5 +78,37 @@ describe('orderPickerPairs', () => {
     const { feature, rest } = orderPickerPairs(justOne, new Map([['s1', 1]]))
     expect(feature).toEqual([])
     expect(rest.map(r => r.pair_key)).toEqual(['s1', 'u2', 'u1'])
+  })
+})
+
+describe('seedMapFromEntries', () => {
+  it('maps a pair key to its seed', () => {
+    const map = seedMapFromEntries([
+      { seed: 1, player1_id: 'b', player2_id: 'a' },
+    ])
+    expect(map.get(pairKeyFromIds('a', 'b'))).toBe(1)
+  })
+
+  it('is order-independent on the two player ids', () => {
+    const map = seedMapFromEntries([{ seed: 4, player1_id: 'z', player2_id: 'y' }])
+    expect(map.get(pairKeyFromIds('y', 'z'))).toBe(4)
+    expect(map.get(pairKeyFromIds('z', 'y'))).toBe(4)
+  })
+
+  it('skips unseeded entries', () => {
+    const map = seedMapFromEntries([{ seed: null, player1_id: 'a', player2_id: 'b' }])
+    expect(map.size).toBe(0)
+  })
+
+  it('skips entries missing a player id', () => {
+    const map = seedMapFromEntries([
+      { seed: 2, player1_id: 'a', player2_id: null },
+      { seed: 3, player1_id: null, player2_id: 'b' },
+    ])
+    expect(map.size).toBe(0)
+  })
+
+  it('returns an empty map for no entries', () => {
+    expect(seedMapFromEntries([]).size).toBe(0)
   })
 })

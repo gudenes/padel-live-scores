@@ -1,6 +1,7 @@
 'use client'
 
 import TournamentCoverImage from '@/components/TournamentCoverImage'
+import { isLeagueLevel } from '@/lib/league-levels'
 import { useFormatter, useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import {
@@ -125,6 +126,7 @@ function TournamentCarouselCard({
             src={cover}
             alt=""
             variant="tile-portrait"
+            focal={isLeagueLevel(level) ? 'center' : 'top'}
             sizes="196px"
           />
         </div>

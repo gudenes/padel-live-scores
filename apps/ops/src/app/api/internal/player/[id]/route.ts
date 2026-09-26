@@ -15,6 +15,12 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import {
+  buildAmateurCourtHistory,
+  type AmateurCourtHistoryRow,
+  type AmateurSlotMembershipRow,
+  type AmateurSlotPartnersRow,
+} from '@/lib/amateur-court-history'
 
 // Columns selected from `players`. Mirrors the existing /api/internal/players
 // GET PLUS public_id / slug / coaches (verified present in migrations
@@ -25,7 +31,7 @@ const PLAYER_COLUMNS =
   'profile_url, side, height, birthdate, birthplace, hand, titles, finals, ' +
   // `equipment` (legacy jsonb) intentionally excluded — source of truth is
   // the `player_equipment` junction surfaced in the top-level `equipment` array.
-  'semifinals, win_rate, total_matches, public_id, slug, coaches, ' +
+  'semifinals, win_rate, total_matches, public_id, slug, coaches, tier, ' +
   'created_at, updated_at'
 
 // Allow-list for PATCH. Anything outside this set is rejected with 400.
@@ -89,24 +95,84 @@ export async function GET(
     return NextResponse.json({ error: equipmentErr.message }, { status: 500 })
   }
 
-  // 3. Recent matches — same OR pattern the players GET uses for counting.
-  //    Limit 50; ordered by scheduled_at DESC so the most recent show first.
-  const { data: recentMatches, error: matchesErr } = await supabase
-    .from('matches')
-    .select(
-      'id, status, scheduled_at, round, court, winner_pair, ' +
-        'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
-        'tournament:tournaments(id, name, logo_url)',
-    )
-    .or(
-      `pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},` +
-        `pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`,
-    )
-    .order('scheduled_at', { ascending: false, nullsFirst: false })
-    .limit(50)
+  // 3. Recent matches — only meaningful for tour players. Amateurs never get
+  //    rows in `matches` (their games live in the team model, see below), so
+  //    skip this query entirely for them rather than run a guaranteed-empty
+  //    OR scan. Professional players keep the exact same query + output.
+  //
+  // PostgREST's inferred type for `player` includes GenericStringError when
+  // the column projection is partial (same as tournament-explorer's route);
+  // we already checked `playerErr` above so this is a real row. Round-trip
+  // through unknown to peel off the error variant for TS.
+  const playerRow = player as unknown as { tier: string | null }
+  const isAmateur = playerRow.tier === 'amateur'
 
-  if (matchesErr) {
-    return NextResponse.json({ error: matchesErr.message }, { status: 500 })
+  let recentMatches: unknown[] = []
+  if (!isAmateur) {
+    const { data, error: matchesErr } = await supabase
+      .from('matches')
+      .select(
+        'id, status, scheduled_at, round, court, winner_pair, ' +
+          'pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id, ' +
+          'tournament:tournaments(id, name, logo_url)',
+      )
+      .or(
+        `pair1_player1_id.eq.${id},pair1_player2_id.eq.${id},` +
+          `pair2_player1_id.eq.${id},pair2_player2_id.eq.${id}`,
+      )
+      .order('scheduled_at', { ascending: false, nullsFirst: false })
+      .limit(50)
+
+    if (matchesErr) {
+      return NextResponse.json({ error: matchesErr.message }, { status: 500 })
+    }
+    recentMatches = data ?? []
+  }
+
+  // 3b. Team court history — amateurs only. A team season has rounds
+  // (`team_fixtures`), each round contested across five courts
+  // (`team_fixture_slots`); this player's rows in `team_fixture_slot_players`
+  // are their appearances. There is no opponent and no per-set score in this
+  // model — only won/lost and how many sets it lasted — so the shaped rows
+  // deliberately don't carry those fields.
+  let teamCourtHistory: AmateurCourtHistoryRow[] = []
+  if (isAmateur) {
+    const { data: membershipRows, error: membershipErr } = await supabase
+      .from('team_fixture_slot_players')
+      .select(
+        'slot_id, slot:team_fixture_slots(id, fixture_id, label, worth, result, sets, ' +
+          'court_count, exact, partial, sort_order, ' +
+          'fixture:team_fixtures(id, code, label, sort_order, complete, result, team_season_id, ' +
+          'season:team_seasons(id, label, starts_on, team:teams(id, name))))',
+      )
+      .eq('player_id', id)
+
+    if (membershipErr) {
+      return NextResponse.json({ error: membershipErr.message }, { status: 500 })
+    }
+
+    const slotIds = [
+      ...new Set(((membershipRows ?? []) as unknown as AmateurSlotMembershipRow[]).map((r) => r.slot_id)),
+    ]
+
+    let partnerRows: AmateurSlotPartnersRow[] = []
+    if (slotIds.length > 0) {
+      const { data: partners, error: partnersErr } = await supabase
+        .from('team_fixture_slots')
+        .select('id, players:team_fixture_slot_players(player_id, player:players(id, name))')
+        .in('id', slotIds)
+
+      if (partnersErr) {
+        return NextResponse.json({ error: partnersErr.message }, { status: 500 })
+      }
+      partnerRows = (partners ?? []) as unknown as AmateurSlotPartnersRow[]
+    }
+
+    teamCourtHistory = buildAmateurCourtHistory(
+      id,
+      (membershipRows ?? []) as unknown as AmateurSlotMembershipRow[],
+      partnerRows,
+    )
   }
 
   // 4. Earnings — table is materialised by scripts/backfill-player-earnings.ts.
@@ -127,7 +193,8 @@ export async function GET(
   return NextResponse.json({
     player,
     equipment: equipment ?? [],
-    recentMatches: recentMatches ?? [],
+    recentMatches,
+    teamCourtHistory,
     earnings: earnings ?? [],
   })
 }

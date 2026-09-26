@@ -4,6 +4,8 @@
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
+import { isLeagueLevel } from '@/lib/league-levels'
+import { titleCase } from '@/lib/title-case'
 import Image from 'next/image'
 import { useFormatter, useTranslations, useLocale } from 'next-intl'
 import { TIME_24H, DATE_SHORT, DATE_WITH_WEEKDAY } from '@/lib/format-patterns'
@@ -30,17 +32,18 @@ import { EditorialBlock } from '@/components/EditorialBlock'
 import { FlagImage } from '@/components/FlagImage'
 import EmptyState from '@/components/EmptyState'
 import { pickDefaultRound, type PickDefaultRoundMatch } from '@/lib/pick-default-round'
+import { parseScheduleClock } from '@/lib/schedule-label-time'
 import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
 import ProjectionTab from './ProjectionTab'
-import EntriesTab from './EntriesTab'
 import { useHasEntries } from './useEntryList'
 import { buildProjectionQuery } from './projection-url'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
+import { ENTRIES_TAB_SEEN_KEY, readEntriesTabSeen } from '@/lib/tab-seen'
 
 // ── Brand colors ───────────────────────────────────────────────
 const GREEN = '#7ED321'
@@ -150,23 +153,9 @@ function localDateKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'BNL'])
-// Roman numerals must survive title-casing — FIP names events like
-// "XX MEDITERRANEAN GAMES", and "Xx Mediterranean Games" reads as a typo.
-// Enumerating II/III/IV (the old approach) missed everything else, so match
-// the grammar instead. Deliberately strict, and deliberately without M/D, so
-// ordinary words built from numeral letters aren't shouted: LIVE, CIVIL and
-// MIX are all rejected; I, IV, IX, VIII and XX match.
-const ROMAN_NUMERAL = /^C{0,3}(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/
-function titleCase(name: string): string {
-  return name.split(' ').map(word => {
-    const upper = word.toUpperCase()
-    if (KEEP_UPPER.has(upper)) return upper
-    if (upper.length > 0 && ROMAN_NUMERAL.test(upper)) return upper
-    if (word.length <= 1) return word.toUpperCase()
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  }).join(' ')
-}
+// titleCase lives in @/lib/title-case — it was copied into this file and
+// into TournamentSpotlightHero, and each copy carried its own acronym list.
+// Adding 'PPL' to one left the others rendering 'Ppl'.
 
 // levelLabel is imported at the top from @/lib/tournament-labels —
 // the canonical map there covers all FIP tiers (Beyond, Promises,
@@ -245,15 +234,13 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const wantsMatchesAnimation =
     searchParams.get('intent') === 'matches' && paramTab === 'matches'
 
-  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw' | 'projection' | 'entries'>(
-    // Map the legacy `?tab=recap` URL param to the new 'story' tab so old
-    // share links and bookmarks keep working.
+  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw' | 'entries'>(
+    // Legacy param mapping: `?tab=recap` → 'story', and the old projection
+    // tab param → 'entries' now that Projection is content inside the Entries tab.
     wantsMatchesAnimation
       ? 'overview'
-      : paramTab === 'entries'
+      : paramTab === 'entries' || paramTab === 'projection'
       ? 'entries'
-      : paramTab === 'projection'
-      ? 'projection'
       : paramTab === 'draw'
       ? 'draw'
       : paramTab === 'story' || paramTab === 'recap'
@@ -271,35 +258,23 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // Tracks whether the user has manually changed tabs, so the scheduled
   // animated-arrival commit doesn't override a tap that happens during the dwell.
   const userChangedTabRef = useRef(false)
-  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw' | 'projection' | 'entries') => {
+  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw' | 'entries') => {
     userChangedTabRef.current = true
     setPageTabState(next)
   }, [])
 
-  // "New" badge on the Projection tab — persists (localStorage) until the user
-  // opens Projection once (click or deep-link). `tabsMounted` gates it to the
-  // client so SSR/hydration stay in sync.
+  // "New" chip on the Entries tab — persists (localStorage) until the user
+  // opens it once. `tabsMounted` gates it to the client so SSR/hydration stay
+  // in sync. Anyone who saw the old Projection tab counts as having seen this.
   const [tabsMounted, setTabsMounted] = useState(false)
-  const [projectionSeen, setProjectionSeen] = useState(false)
-  const markProjectionSeen = useCallback(() => {
-    try { localStorage.setItem('projection_tab_seen', '1') } catch {}
-    setProjectionSeen(true)
-  }, [])
-  useEffect(() => {
-    setTabsMounted(true)
-    const seen = (() => { try { return localStorage.getItem('projection_tab_seen') === '1' } catch { return false } })()
-    if (seen) markProjectionSeen()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   const [entriesSeen, setEntriesSeen] = useState(false)
   const markEntriesSeen = useCallback(() => {
-    try { localStorage.setItem('entry_list_tab_seen', '1') } catch {}
+    try { localStorage.setItem(ENTRIES_TAB_SEEN_KEY, '1') } catch {}
     setEntriesSeen(true)
   }, [])
   useEffect(() => {
-    const seen = (() => { try { return localStorage.getItem('entry_list_tab_seen') === '1' } catch { return false } })()
-    if (seen) markEntriesSeen()
+    setTabsMounted(true)
+    if (readEntriesTabSeen((k) => localStorage.getItem(k))) markEntriesSeen()
   }, [markEntriesSeen])
 
   const stageStripRef = useRef<HTMLDivElement>(null)
@@ -753,12 +728,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
 
   // ── Estimated time labels for scheduled matches ───────────────
   function parseAmPm(label: string): { h: number; m: number } | null {
-    const tm = label.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-    if (!tm) return null
-    let h = parseInt(tm[1]); const m = parseInt(tm[2]); const ap = tm[3].toUpperCase()
-    if (ap === 'PM' && h < 12) h += 12
-    if (ap === 'AM' && h === 12) h = 0
-    return { h, m }
+    const clock = parseScheduleClock(label)
+    if (!clock) return null
+    return { h: clock.hours, m: clock.minutes }
   }
   function toAmPmLabel(h: number, m: number): string {
     const ap = h >= 12 ? 'PM' : 'AM'
@@ -871,29 +843,29 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   }, [activeTournamentObj])
 
   const projectionFlag = useFeatureFlag(FLAG_KEYS.PROJECTION_ENABLED)
-  const showProjectionTab = useMemo(() => {
-    if (!projectionFlag) return false
-    if (!activeTournamentObj) return false
-    // Match the dedicated /projection route + the worker: any draw-bearing
-    // tier has projection data, including the FIP tiers (Platinum/Gold/…).
-    // (Was isPremierTier(), which only matches the Premier Padel *circuit*
-    // and so hid the tab on FIP Platinum even though data existed.)
-    return DRAW_TIERS.has(activeTournamentObj.level ?? '')
-  }, [projectionFlag, activeTournamentObj])
-
   const entryListFlag = useFeatureFlag(FLAG_KEYS.ENTRY_LIST_ENABLED)
   // Gate on real entry data (tournament_entries rows), NOT entry_list_status —
   // that's an operator-managed FIP-workflow field that stays 'not_applicable'
   // for Premier events (Malaga etc.) even when padelgod has captured their
   // entry list. Probe only fires when the flag is on.
   const hasEntries = useHasEntries(entryListFlag ? tournamentId : null)
-  const showEntriesTab = entryListFlag && hasEntries
+  // One tab, two phases. Show it if EITHER source can populate it: entry rows
+  // (pre-draw field) or a draw-bearing tier (projections once the draw lands).
+  // Every case that ended up showing a tab before the merge still shows one.
+  // One transient case tightens: the old entries-only gate didn't wait on
+  // `activeTournamentObj`, so the pill could appear a beat before the body
+  // could render. Both now gate on it, so strip and body always agree.
+  const showEntriesTab = useMemo(() => {
+    if (!activeTournamentObj) return false
+    if (entryListFlag && hasEntries) return true
+    return projectionFlag && DRAW_TIERS.has(activeTournamentObj.level ?? '')
+  }, [activeTournamentObj, entryListFlag, hasEntries, projectionFlag])
 
-  // Note: no force-switch fallback for `?tab=entries`. Like the Projection tab,
-  // the render gate below (`pageTab === 'entries' && showEntriesTab`) renders
-  // nothing until the async feature flag resolves, then populates — race-free.
-  // A force-switch here would bounce valid deep-links to Overview during the
-  // flag-load window (the tournament fetch can beat the flag fetch).
+  // Note: no force-switch fallback for `?tab=entries`. The render gate below
+  // (`pageTab === 'entries' && showEntriesTab`) renders nothing until the
+  // async feature flag resolves, then populates — race-free. A force-switch
+  // here would bounce valid deep-links to Overview during the flag-load
+  // window (the tournament fetch can beat the flag fetch).
 
   // ══════════════════════════════════════════════════════════════
   // ── RENDER ────────────────────────────────────────────────────
@@ -1100,6 +1072,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
                 src={activeTournamentObj.cover_image_url}
                 alt={activeTournamentObj.name}
                 variant="hero"
+                focal={isLeagueLevel(activeTournamentObj.level) ? 'center' : 'top'}
                 sizes="(max-width: 480px) 100vw, 500px"
                 priority
               />
@@ -1225,9 +1198,9 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             flush below the chrome row on devices with a notch / status
             bar. Sliding ink-bar handled by <SlidingInkTabs>. */}
         <SlidingInkTabs
-          tabs={(['overview', ...(showEntriesTab ? ['entries'] as const : []), ...(showProjectionTab ? ['projection'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
+          tabs={(['overview', ...(showEntriesTab ? ['entries'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
             key: tab,
-            label: (tab === 'projection' || tab === 'entries') && tabsMounted && !(tab === 'projection' ? projectionSeen : entriesSeen) ? (
+            label: tab === 'entries' && tabsMounted && !entriesSeen ? (
               <span style={{ position: 'relative' }}>
                 {tTournament(tab)}
                 <span style={{ marginLeft: 5, fontSize: 8, fontWeight: 800, letterSpacing: 0.3, color: '#06210a', background: '#7ED321', padding: '1px 4px', borderRadius: 3, verticalAlign: 'middle' }}>{tTournament('newBadge')}</span>
@@ -1236,17 +1209,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           }))}
           activeKey={pageTab}
           onChange={(key) => {
-            if (key === 'entries') { markEntriesSeen(); setPageTab('entries'); return }
-            if (key === 'projection') {
-              markProjectionSeen()
-              setPageTab('projection')
+            if (key === 'entries') {
+              markEntriesSeen()
+              setPageTab('entries')
               syncProjectionUrl(null)
               return
             }
-            // Leaving projection: drop the ?tab/?pair params so the URL is clean.
-            if (pageTab === 'projection') {
+            // Leaving entries: drop the ?tab/?pair params so the URL is clean.
+            if (pageTab === 'entries') {
               lastSyncedProjectionQs.current = null
-              if (paramTab === 'projection') router.replace(pathname, { scroll: false })
+              if (paramTab === 'entries' || paramTab === 'projection') router.replace(pathname, { scroll: false })
             }
             setPageTab(key)
           }}
@@ -1256,8 +1228,8 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             zIndex: 19,
             background: '#0A0A0A',
             borderBottom: `1px solid ${BORDER}`,
-            // Content-width, scrollable strip so 5 tabs (incl. the longer
-            // "Projection") get breathing room instead of cramped equal splits.
+            // Content-width, scrollable strip so the tabs get breathing room
+            // instead of cramped equal splits.
             overflowX: 'auto',
             scrollbarWidth: 'none',
           }}
@@ -1467,23 +1439,18 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
           />
         )}
 
-        {/* ── Projection Tab (in-page) ── */}
-        {pageTab === 'projection' && activeTournamentObj && showProjectionTab && (
+        {/* ── Entries Tab (in-page) — field before the draw, projections after ── */}
+        {pageTab === 'entries' && activeTournamentObj && showEntriesTab && (
           <ProjectionTab
             tournamentId={tournamentId}
             matches={allMatches.filter(m => (m as any).category === genderFilter)}
             category={genderFilter}
             tournamentLevel={activeTournamentObj.level ?? null}
             roundSchedule={(activeTournamentObj as any).round_schedule ?? null}
-            initialPairSlug={paramTab === 'projection' ? initialProjectionPairSlug : null}
+            initialPairSlug={paramTab === 'entries' || paramTab === 'projection' ? initialProjectionPairSlug : null}
             onPairSlugChange={syncProjectionUrl}
             tournamentName={activeTournamentObj.name ?? null}
           />
-        )}
-
-        {/* ── Entries Tab (in-page) ── */}
-        {pageTab === 'entries' && activeTournamentObj && showEntriesTab && (
-          <EntriesTab tournamentId={tournamentId} genderFilter={genderFilter} />
         )}
 
       </main>

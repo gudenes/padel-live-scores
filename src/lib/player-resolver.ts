@@ -4,6 +4,7 @@
 // player records, ensuring consistent deduplication and data enrichment.
 
 import { SupabaseClient } from '@supabase/supabase-js'
+import { TIER_COLUMN, AMATEUR_TIER } from './player-tier'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -242,6 +243,11 @@ export class PlayerResolver {
       const { data, error } = await this.supabase
         .from('players')
         .select('id, external_id, fip_id, name, normalized_name, country, category, ranking, points')
+        // Amateur profiles share this table but are never resolution
+        // candidates — a club player named "Juan Rivas" must not be matched
+        // onto the FIP professional of the same name. Excluding them from
+        // the cache closes all five resolution tiers at once.
+        .neq(TIER_COLUMN, AMATEUR_TIER)
         .range(offset, offset + PAGE_SIZE - 1)
 
       if (error || !data) {
@@ -480,12 +486,17 @@ export class PlayerResolver {
 
     if (error || !data) {
       console.error(`[PlayerResolver] Failed to create player ${input.name}:`, error?.message)
-      // Fallback: try to find by external_id or fip_id in case of race condition / constraint conflict
+      // Fallback: try to find by external_id or fip_id in case of race condition / constraint conflict.
+      // Tier-filtered like the cache load: if the insert collided with an
+      // *amateur* holding that source id, returning it would conflate the two.
+      // Better to resolve nothing and let the caller skip than to hand back
+      // the wrong player.
       let fallback: { id: string } | null = null
       const { data: f1 } = await this.supabase
         .from('players')
         .select('id, external_id, fip_id, name, country, category, ranking, points')
         .eq('external_id', insertData.external_id)
+        .neq(TIER_COLUMN, AMATEUR_TIER)
         .single()
       fallback = f1
 
@@ -494,6 +505,7 @@ export class PlayerResolver {
           .from('players')
           .select('id, external_id, fip_id, name, country, category, ranking, points')
           .eq('fip_id', insertData.fip_id)
+          .neq(TIER_COLUMN, AMATEUR_TIER)
           .single()
         fallback = f2
       }

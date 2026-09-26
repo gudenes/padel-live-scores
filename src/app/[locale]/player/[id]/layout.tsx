@@ -61,6 +61,7 @@ type PlayerRow = {
   category: string | null
   total_matches: number | null
   win_rate: number | null
+  tier: string | null
 }
 
 type DbRecent = {
@@ -118,7 +119,7 @@ export default async function PlayerLayout({ params, children }: Props) {
     const [playerRes, recentRes] = await Promise.all([
       supabase
         .from('players')
-        .select('id, name, country, ranking, category, total_matches, win_rate')
+        .select('id, name, country, ranking, category, total_matches, win_rate, tier')
         .eq('id', id)
         .single(),
       supabase
@@ -200,6 +201,7 @@ export default async function PlayerLayout({ params, children }: Props) {
           name: player.name,
           country: countryName(player.country),
           category: player.category,
+          tier: player.tier,
           ranking: player.ranking,
           total_matches: player.total_matches,
           win_rate: player.win_rate,

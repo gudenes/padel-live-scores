@@ -118,6 +118,40 @@ export function composeScheduled(input: {
   return { title, body }
 }
 
+export type RankingMoveLine = { name: string; move: number; rank: number }
+
+function signedMove(n: number): string {
+  return n > 0 ? `+${n}` : String(n)
+}
+
+function formatRankingMoveLine(template: string, line: RankingMoveLine): string {
+  return interpolate(template, {
+    name: line.name,
+    signedMove: signedMove(line.move),
+    rank: String(line.rank),
+  })
+}
+
+export function composeRankingUpdated(input: {
+  locale: string
+  increase?: RankingMoveLine | null
+  decrease?: RankingMoveLine | null
+}): { title: string; body: string } {
+  const locale = resolvePushLocale(input.locale)
+  const msg = PUSH_BY_LOCALE[locale]
+  const parts: string[] = []
+  if (input.increase) parts.push(formatRankingMoveLine(msg.rankingBodyMove, input.increase))
+  if (input.decrease) parts.push(formatRankingMoveLine(msg.rankingBodyMove, input.decrease))
+  const list = parts.join(' · ')
+  const body = list ? `${msg.rankingBodyLead}\n${list}` : msg.rankingBodyLead
+  return { title: msg.rankingTitle, body }
+}
+
+export function rankingFallbackCopy(locale: string): { title: string; body: string } {
+  const msg = PUSH_BY_LOCALE[resolvePushLocale(locale)]
+  return { title: msg.rankingTitle, body: msg.rankingFallbackBody }
+}
+
 export function composeEliminated(input: {
   locale: string
   playerName: string

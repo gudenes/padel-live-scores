@@ -1,8 +1,13 @@
+'use client'
 // apps/ops/src/app/(app)/players/[id]/_components/ProfileHeader.tsx
 // Top-of-page identity card for the full player profile.
 // Pure presentation: avatar (or initials), name, country + category + ranking,
 // birthdate + age, public_id, and two action links (public page, drawer).
+// Amateur players also get an inline photo-upload control (see Task 3/4 of
+// docs/superpowers/plans/2026-09-09-admin-amador-v2.md) — professionals don't,
+// since a manual avatar there would be overwritten by the padelapi sync.
 
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 
 export interface ProfileHeaderPlayer {
@@ -17,6 +22,7 @@ export interface ProfileHeaderPlayer {
   photo_url: string | null
   public_id: string | null
   slug: string | null
+  tier: string | null
 }
 
 function initials(name: string): string {
@@ -58,31 +64,95 @@ export default function ProfileHeader({ player }: { player: ProfileHeaderPlayer 
     : null
   const displayName = player.display_name ?? player.name
 
+  const [avatarUrl, setAvatarUrl] = useState(player.avatar_url)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const isAmateur = player.tier === 'amateur'
+
+  async function handleFile(file: File) {
+    setUploading(true)
+    setUploadError(null)
+    try {
+      const form = new FormData()
+      form.set('file', file)
+      form.set('playerId', player.id)
+      const up = await fetch('/api/internal/upload-player-avatar', { method: 'POST', body: form })
+      const upBody = await up.json()
+      if (!up.ok) throw new Error(upBody.error ?? 'upload failed')
+
+      const patch = await fetch(`/api/internal/player/${player.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_url: upBody.url }),
+      })
+      if (!patch.ok) throw new Error((await patch.json()).error ?? 'save failed')
+
+      setAvatarUrl(upBody.url)
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   return (
     <div className="flex gap-6 items-start">
-      {player.avatar_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={player.avatar_url}
-          alt={player.name}
-          className="w-24 h-24 rounded-full object-cover border"
-          style={{
-            background: 'var(--bg-hover)',
-            borderColor: 'var(--border-card)',
-          }}
-        />
-      ) : (
-        <div
-          className="w-24 h-24 rounded-full border flex items-center justify-center text-2xl font-bold"
-          style={{
-            background: 'var(--bg-hover)',
-            borderColor: 'var(--border-card)',
-            color: 'var(--text-3)',
-          }}
-        >
-          {initials(displayName)}
-        </div>
-      )}
+      <div className="relative">
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt={player.name}
+            className="w-24 h-24 rounded-full object-cover border"
+            style={{ background: 'var(--bg-hover)', borderColor: 'var(--border-card)' }}
+          />
+        ) : (
+          <div
+            className="w-24 h-24 rounded-full border flex items-center justify-center text-2xl font-bold"
+            style={{
+              background: 'var(--bg-hover)',
+              borderColor: 'var(--border-card)',
+              color: 'var(--text-3)',
+            }}
+          >
+            {initials(displayName)}
+          </div>
+        )}
+        {isAmateur && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) handleFile(f)
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading}
+              className="mt-2 w-24 px-2 py-1 text-xs border rounded cursor-pointer"
+              style={{
+                borderColor: 'var(--border-card)',
+                background: 'var(--bg-card)',
+                color: 'var(--text-1)',
+              }}
+            >
+              {uploading ? 'Uploading…' : avatarUrl ? 'Replace photo' : 'Add photo'}
+            </button>
+            {uploadError && (
+              <div className="mt-1 w-24 text-xs" style={{ color: 'var(--text-danger, #e24b4a)' }}>
+                {uploadError}
+              </div>
+            )}
+          </>
+        )}
+      </div>
       <div className="flex-1 min-w-0">
         <div className="text-2xl font-bold" style={{ color: 'var(--text-1)' }}>
           {displayName}

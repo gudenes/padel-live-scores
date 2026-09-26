@@ -10,7 +10,7 @@ export type CategoryRule = {
   sampleTitle: string
   sampleBody: string
   /** Forwarded to /api/admin/test-push so row Test shows the right icon. */
-  sampleScenario?: 'premier' | 'fip' | 'avatar' | 'scheduled_follow' | 'scheduled_bookmark' | 'eliminated'
+  sampleScenario?: 'premier' | 'fip' | 'avatar' | 'scheduled_follow' | 'scheduled_bookmark' | 'eliminated' | 'ranking_updated'
 }
 
 // Operator-facing documentation: how each category fires + a representative
@@ -25,7 +25,7 @@ export const CATEGORY_RULES: Record<NotificationCategory, CategoryRule> = {
   next_match_drawn:     { rule: "When a followed player's next-round opponent is set after a win. → that player's followers. Pro · no sender yet (Plan 3).", sampleTitle: 'Next match drawn', sampleBody: "Tapia's next: QF vs Stupaczuk/Di Nenno." },
   player_title_won:     { rule: "When a followed player wins a final. → that player's followers. Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod fip-results-writer).", sampleTitle: 'Champion! 🏆', sampleBody: 'Your player just won the title.' },
   player_eliminated:    { rule: "When a followed player is knocked out of a match we did not close live (results widget is first to finished). Live closes send match_finished / '{name} lost' instead. Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod fip-results-writer).", sampleTitle: 'Triay knocked out', sampleBody: '6-3, 6-4 vs Ortega/Josemaría — Brussels P2 QF', sampleScenario: 'eliminated' },
-  ranking_updated:      { rule: "Weekly, when FIP rankings refresh and a followed player moves. → that player's followers. No automated sender wired yet.", sampleTitle: 'Rankings updated', sampleBody: "Your players moved in this week's rankings." },
+  ranking_updated:      { rule: 'Once per ISO week, when padelgod writes a NEW official FIP ranking week. Title "Ranking updates 🔥"; body is "Biggest moves" then the biggest top-30 climb and drop (men + women). → everyone who enabled push (authed web/FCM + anon PWA). Authed can opt out via ranking_updated.push. Gated by ENABLE_EVENT_NOTIFICATIONS (padelgod player-rankings). Test composes live current vs previous official week.', sampleTitle: 'Ranking updates 🔥', sampleBody: 'Biggest moves\nTriay +6 to #8 · Galán -5 to #12', sampleScenario: 'ranking_updated' },
   ranking_threshold:    { rule: "When a followed player crosses #1 / top 10 / top 20. → that player's followers. Pro · no sender yet (Plan 3).", sampleTitle: 'Ranking milestone', sampleBody: 'Ariana Sánchez is back to World No. 1.' },
   projection_outperform:{ rule: 'When a followed pair advances past their projected finish (Road to Trophy). → followers. Pro · Premier-only · no sender yet (Plan 3).', sampleTitle: 'Beating the bracket', sampleBody: 'Your pick went further than the model expected!' },
   tournament_starting:  { rule: "Once, when a followed tournament's start time passes (within a 24h window). → tournament followers. Gated by ENABLE_TOURNAMENT_START_NOTIFIER (padelgod tournament-start-notifier).", sampleTitle: 'Madrid P1 is underway', sampleBody: 'Play has started — follow the action and order of play.' },

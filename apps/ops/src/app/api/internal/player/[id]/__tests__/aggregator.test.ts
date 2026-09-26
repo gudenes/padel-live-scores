@@ -165,6 +165,218 @@ describe('GET /api/internal/player/[id]', () => {
     const res = await GET(makeRequest(), makeCtx('p1'))
     expect(res.status).toBe(401)
   })
+
+  it('skips the matches query and returns teamCourtHistory for an amateur player', async () => {
+    const player = {
+      id: 'p-amateur',
+      name: 'Amateur Player',
+      display_name: null,
+      country: 'ES',
+      category: 'men',
+      ranking: null,
+      points: null,
+      ranking_move: null,
+      race_ranking: null,
+      race_points: null,
+      race_move: null,
+      external_id: null,
+      fip_id: null,
+      avatar_url: null,
+      profile_url: null,
+      side: null,
+      height: null,
+      birthdate: null,
+      birthplace: null,
+      hand: null,
+      titles: 0,
+      finals: 0,
+      semifinals: 0,
+      win_rate: null,
+      total_matches: null,
+      equipment: null,
+      public_id: null,
+      slug: null,
+      coaches: [],
+      tier: 'amateur',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-05-01T00:00:00Z',
+    }
+
+    const membershipRows = [
+      {
+        slot_id: 'slot-1',
+        slot: {
+          id: 'slot-1',
+          fixture_id: 'fix-1',
+          label: 'Courts 1-2',
+          worth: 3,
+          result: 'W',
+          sets: 2,
+          court_count: 1,
+          exact: true,
+          partial: false,
+          sort_order: 1,
+          fixture: {
+            id: 'fix-1',
+            code: 'J1',
+            label: 'Jornada 1',
+            sort_order: 1,
+            complete: true,
+            result: 'W',
+            team_season_id: 'season-1',
+            season: {
+              id: 'season-1',
+              label: '25/26',
+              starts_on: '2025-09-01',
+              team: { id: 'team-1', name: 'Blue Padel' },
+            },
+          },
+        },
+      },
+    ]
+
+    const partnerRows = [
+      {
+        id: 'slot-1',
+        players: [
+          { player_id: 'p-amateur', player: { id: 'p-amateur', name: 'Amateur Player' } },
+          { player_id: 'p-partner', player: { id: 'p-partner', name: 'Partner Player' } },
+        ],
+      },
+    ]
+
+    // Deliberately NOT registering a handler for 'matches' — if the route
+    // queries it for an amateur, the test throws ("No stub registered"),
+    // which is exactly the regression this guards against.
+    tableHandlers.set('players', () => buildQueryStub({ data: player, error: null }))
+    tableHandlers.set('player_equipment', () => buildQueryStub({ data: [], error: null }))
+    tableHandlers.set('player_tournament_earnings', () => buildQueryStub({ data: [], error: null }))
+    tableHandlers.set('team_fixture_slot_players', () =>
+      buildQueryStub({ data: membershipRows, error: null }),
+    )
+    tableHandlers.set('team_fixture_slots', () => buildQueryStub({ data: partnerRows, error: null }))
+
+    const res = await GET(makeRequest(), makeCtx('p-amateur'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+
+    expect(body.recentMatches).toEqual([])
+    expect(body.teamCourtHistory).toHaveLength(1)
+    expect(body.teamCourtHistory[0]).toMatchObject({
+      slotId: 'slot-1',
+      seasonLabel: '25/26',
+      teamName: 'Blue Padel',
+      fixtureCode: 'J1',
+      result: 'W',
+      sets: 2,
+      exact: true,
+      courtCount: 1,
+      partners: [{ id: 'p-partner', name: 'Partner Player' }],
+    })
+  })
+
+  it('marks partners as unconfirmed when a slot spans more than one court', async () => {
+    const player = {
+      id: 'p-amateur-2',
+      name: 'Amateur Player 2',
+      display_name: null,
+      country: null,
+      category: null,
+      ranking: null,
+      points: null,
+      ranking_move: null,
+      race_ranking: null,
+      race_points: null,
+      race_move: null,
+      external_id: null,
+      fip_id: null,
+      avatar_url: null,
+      profile_url: null,
+      side: null,
+      height: null,
+      birthdate: null,
+      birthplace: null,
+      hand: null,
+      titles: 0,
+      finals: 0,
+      semifinals: 0,
+      win_rate: null,
+      total_matches: null,
+      equipment: null,
+      public_id: null,
+      slug: null,
+      coaches: [],
+      tier: 'amateur',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-05-01T00:00:00Z',
+    }
+
+    const membershipRows = [
+      {
+        slot_id: 'slot-2',
+        slot: {
+          id: 'slot-2',
+          fixture_id: 'fix-2',
+          label: 'Courts 3-5',
+          worth: 2,
+          result: 'L',
+          sets: 3,
+          court_count: 3,
+          exact: true, // import says exact, but court_count > 1 must still win
+          partial: false,
+          sort_order: 2,
+          fixture: {
+            id: 'fix-2',
+            code: 'J2',
+            label: 'Jornada 2',
+            sort_order: 2,
+            complete: false,
+            result: 'L',
+            team_season_id: 'season-1',
+            season: {
+              id: 'season-1',
+              label: '25/26',
+              starts_on: '2025-09-01',
+              team: { id: 'team-1', name: 'Blue Padel' },
+            },
+          },
+        },
+      },
+    ]
+
+    const partnerRows = [
+      {
+        id: 'slot-2',
+        players: [
+          { player_id: 'p-amateur-2', player: { id: 'p-amateur-2', name: 'Amateur Player 2' } },
+          { player_id: 'p-x', player: { id: 'p-x', name: 'Player X' } },
+          { player_id: 'p-y', player: { id: 'p-y', name: 'Player Y' } },
+        ],
+      },
+    ]
+
+    tableHandlers.set('players', () => buildQueryStub({ data: player, error: null }))
+    tableHandlers.set('player_equipment', () => buildQueryStub({ data: [], error: null }))
+    tableHandlers.set('player_tournament_earnings', () => buildQueryStub({ data: [], error: null }))
+    tableHandlers.set('team_fixture_slot_players', () =>
+      buildQueryStub({ data: membershipRows, error: null }),
+    )
+    tableHandlers.set('team_fixture_slots', () => buildQueryStub({ data: partnerRows, error: null }))
+
+    const res = await GET(makeRequest(), makeCtx('p-amateur-2'))
+    expect(res.status).toBe(200)
+    const body = await res.json()
+
+    expect(body.teamCourtHistory).toHaveLength(1)
+    expect(body.teamCourtHistory[0]).toMatchObject({
+      exact: false, // court_count === 3 overrides the raw `exact: true`
+      fixtureComplete: false,
+      partners: [
+        { id: 'p-x', name: 'Player X' },
+        { id: 'p-y', name: 'Player Y' },
+      ],
+    })
+  })
 })
 
 describe('PATCH /api/internal/player/[id]', () => {

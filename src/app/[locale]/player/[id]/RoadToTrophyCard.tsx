@@ -52,7 +52,7 @@ export default function RoadToTrophyCard({
   if (!row) return null
 
   const go = () => {
-    router.push(`/tournaments/${tournamentId}?tab=projection&pair=${encodeURIComponent(row.pair_key)}&category=${category}` as Parameters<typeof router.push>[0])
+    router.push(`/tournaments/${tournamentId}?tab=entries&pair=${encodeURIComponent(row.pair_key)}&category=${category}` as Parameters<typeof router.push>[0])
   }
 
   return (

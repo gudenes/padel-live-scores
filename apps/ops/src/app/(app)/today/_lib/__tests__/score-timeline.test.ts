@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { attachScoreToSeries, flourishCaptionsCsv, isBreakPoint, scoreTimeline, setBoundaryTimes } from '../score-timeline'
+import { attachScoreToSeries, flourishCaptionsCsv, isBreakPoint, pressureOnsets, scoreTimeline, setBoundaryTimes } from '../score-timeline'
 
 const pt = (
   t: string,
@@ -34,6 +34,25 @@ describe('scoreTimeline', () => {
       pt('t3', '15-0', 's2', 'g1', 1),
     ])
     expect(out[2].score).toBe('2-0 0-0 15-0')
+  })
+
+  it('uses games.winner_pair when the last recorded point is not the game winner', () => {
+    // Madrid P1 final set 1 was 4-6. Game 2's last logged point was 15-30
+    // won by pair 2, but pair 1 actually won the game.
+    const out = scoreTimeline(
+      [
+        pt('g1a', '40-15', 's1', 'g1', 1),
+        pt('g2a', '15-30', 's1', 'g2', 2),
+        pt('g3a', '15-0', 's1', 'g3', 1),
+      ],
+      undefined,
+      [
+        { id: 'g1', winner_pair: 1 },
+        { id: 'g2', winner_pair: 1 },
+        { id: 'g3', winner_pair: 1 },
+      ],
+    )
+    expect(out[2].score).toBe('2-0 15-0')
   })
 })
 
@@ -121,6 +140,52 @@ describe('scoreTimeline serve + pressure flags', () => {
       out,
     )
     expect(setBoundaryTimes(ticks)).toEqual([Date.parse('2026-09-03T17:01:30Z')])
+  })
+})
+
+describe('pressureOnsets', () => {
+  const tick = (
+    score: string,
+    flags: { isBreakPoint?: boolean; isSetPoint?: boolean; isMatchPoint?: boolean } = {},
+  ) => ({ score, ...flags })
+
+  it('keeps one SP marker for a run of set-point snapshots, not one per tick', () => {
+    const out = pressureOnsets([
+      tick('5-4 30-0'),
+      tick('5-4 40-0', { isSetPoint: true }),
+      tick('5-4 40-15', { isSetPoint: true }),
+      tick('5-4 40-30', { isSetPoint: true }),
+      tick('5-4 40-40'),
+      tick('6-5 40-30', { isSetPoint: true }),
+    ])
+    expect(out.map((o) => o.sp)).toEqual([false, true, false, false, false, true])
+  })
+
+  it('does not paint a second SP in the same game after a save', () => {
+    const out = pressureOnsets([
+      tick('5-4 40-30', { isSetPoint: true }),
+      tick('5-4 40-40'),
+      tick('5-4 40-AD', { isSetPoint: true }),
+    ])
+    expect(out.map((o) => o.sp)).toEqual([true, false, false])
+  })
+
+  it('does not also paint SP when the run is a match point', () => {
+    const out = pressureOnsets([
+      tick('6-4 5-3 40-30', { isSetPoint: true, isMatchPoint: true }),
+      tick('6-4 5-3 40-40', { isSetPoint: true, isMatchPoint: true }),
+    ])
+    expect(out.map((o) => o.mp)).toEqual([true, false])
+    expect(out.map((o) => o.sp)).toEqual([false, false])
+  })
+
+  it('paints BP only once per game', () => {
+    const out = pressureOnsets([
+      tick('3-4 30-40', { isBreakPoint: true }),
+      tick('3-4 40-40', { isBreakPoint: true }),
+      tick('4-4 0-0'),
+    ])
+    expect(out.map((o) => o.bp)).toEqual([true, false, false])
   })
 })
 

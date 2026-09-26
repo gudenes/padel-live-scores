@@ -35,7 +35,7 @@ const TIDX = args.indexOf('--tournament')
 const TOURNAMENT_FILTER = TIDX >= 0 ? args[TIDX + 1] : null
 
 const FOLLOWED_BY_GAP_MINUTES = 90
-const TIME_RE = /(\d{1,2}):(\d{2})\s*(AM|PM)/i
+const TIME_RE = /(\d{1,2}):(\d{2})(?:\s*(AM|PM))?/i
 
 const COUNTRY_TIMEZONES: Record<string, string> = {
   ES: 'Europe/Madrid', FR: 'Europe/Paris', IT: 'Europe/Rome', DE: 'Europe/Berlin',
@@ -159,7 +159,7 @@ async function main() {
           const tm = TIME_RE.exec(row.scheduled_label)
           if (tm) {
             let h = parseInt(tm[1]); const mn = parseInt(tm[2])
-            const ap = tm[3].toUpperCase()
+            const ap = tm[3]?.toUpperCase()
             if (ap === 'PM' && h < 12) h += 12
             if (ap === 'AM' && h === 12) h = 0
             scheduledAt = localTimeToUtc(row.day_date, h, mn, tz)

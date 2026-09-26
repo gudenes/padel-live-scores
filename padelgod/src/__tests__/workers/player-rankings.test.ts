@@ -159,12 +159,13 @@ interface FakeSupabaseState {
   snapshots: SnapshotRow[];
   scrapeJobs: ScrapeJobRow[];
   storageUploads: Array<{ bucket: string; path: string }>;
+  eventsSent: Array<{ event_key: string; category: string }>;
 }
 
 let state: FakeSupabaseState;
 
 function freshState(): FakeSupabaseState {
-  return { players: [], snapshots: [], scrapeJobs: [], storageUploads: [] };
+  return { players: [], snapshots: [], scrapeJobs: [], storageUploads: [], eventsSent: [] };
 }
 
 function seedPlayer(p: Partial<PlayerRow> & { id: string; fip_id: string; category: 'men' | 'women' }) {
@@ -256,7 +257,7 @@ function makeSupabase() {
         }
         throw new Error(`MOCK: insert on unknown table ${table}`);
       }),
-      upsert: vi.fn(async function (rows: any, _opts: any) {
+      upsert: vi.fn(function (rows: any, _opts: any) {
         if (table === 'player_ranking_snapshots') {
           const arr = Array.isArray(rows) ? rows : [rows];
           for (const r of arr) {
@@ -271,7 +272,20 @@ function makeSupabase() {
             if (idx >= 0) state.snapshots[idx] = r;
             else state.snapshots.push(r);
           }
-          return { error: null, count: arr.length };
+          return Promise.resolve({ error: null, count: arr.length });
+        }
+        if (table === 'notification_events_sent') {
+          const arr = Array.isArray(rows) ? rows : [rows];
+          const inserted: Array<{ event_key: string }> = [];
+          for (const r of arr) {
+            if (!state.eventsSent.some(e => e.event_key === r.event_key)) {
+              state.eventsSent.push({ event_key: r.event_key, category: r.category });
+              inserted.push({ event_key: r.event_key });
+            }
+          }
+          return {
+            select: () => Promise.resolve({ data: inserted, error: null }),
+          };
         }
         throw new Error(`MOCK: upsert on unknown table ${table}`);
       }),
@@ -319,6 +333,12 @@ function makeSupabase() {
         filters.push(row => row[col] === val);
         return queryShape;
       }),
+      order: vi.fn(function () {
+        return queryShape;
+      }),
+      limit: vi.fn(function () {
+        return queryShape;
+      }),
       not: vi.fn(function (col: string, op: string, val: any) {
         // 'is' + null → "is not null"
         if (op === 'is' && val === null) {
@@ -330,6 +350,12 @@ function makeSupabase() {
         if (table === 'players') {
           const row = state.players.find(p => filters.every(f => f(p)));
           return { data: row ?? null, error: null };
+        }
+        if (table === 'player_ranking_snapshots') {
+          const rows = state.snapshots
+            .filter(p => filters.every(f => f(p)))
+            .sort((a, b) => b.year - a.year || b.week - a.week);
+          return { data: rows[0] ?? null, error: null };
         }
         return { data: null, error: null };
       }),
@@ -814,5 +840,127 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
 
     const p1 = state.players.find(p => p.fip_id === 'P000001')!;
     expect(p1.race_points_move).toBe(120);
+  });
+
+  it('keeps existing points_move on a same-week re-run when last-week snapshot lookup is empty', async () => {
+    seedPlayer({
+      id: 'cccc1111-0000-0000-0000-000000000001',
+      fip_id: 'P000001', category: 'men', name: 'Tapia',
+      ranking: 1, points: 20597, points_move: -312,
+      ranking_date: '2026-05-18T00:00:00Z',
+    });
+
+    setHttpResponse('fip-rankings', '<div></svg>18/05/2026</span></div>');
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 1, race_points: 500 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1, race_points: 400 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 20597 }),
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000 }),
+    ]);
+
+    await runPlayerRankings({ supabase: makeSupabase(), httpClient: makeHttpClient() });
+
+    const p1 = state.players.find(p => p.fip_id === 'P000001')!;
+    expect(p1.points_move).toBe(-312);
+  });
+});
+
+function makeNotifyDeps(fetchImpl: ReturnType<typeof vi.fn>) {
+  return {
+    baseUrl: 'https://padelnachos.com',
+    cronSecret: 'secret',
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() } as any,
+    fetchImpl: fetchImpl as unknown as typeof fetch,
+  };
+}
+
+describe('runPlayerRankings ranking_updated hook', () => {
+  function seedHappyPath() {
+    seedPlayer({
+      id: 'dddd1111-0000-0000-0000-000000000001',
+      fip_id: 'P000001', category: 'men', name: 'Tapia',
+      ranking: 1, points: 21000,
+    });
+    setHttpResponse('fip-rankings', '<div></svg>18/05/2026</span></div>');
+    setHttpResponse('search_type=race&gender=male', [
+      raceRow({ player_id: 'P000001', race_rank: 1 }),
+    ]);
+    setHttpResponse('search_type=race&gender=female', [
+      raceRow({ player_id: 'P000002', race_rank: 1 }),
+    ]);
+    setHttpResponse('gender=male&limit', [
+      officialRow({ player_id: 'P000001', rank: 1, points: 21000 }),
+    ]);
+    setHttpResponse('gender=female&limit', [
+      officialRow({ player_id: 'P000002', rank: 1, points: 18000 }),
+    ]);
+  }
+
+  it('POSTs notify-ranking when the official week advances', async () => {
+    const published = '2026-05-18';
+    const { year, week } = isoYearWeek(new Date(published));
+    const prev = previousIsoYearWeek(year, week);
+    seedSnapshot({
+      player_id: 'dddd1111-0000-0000-0000-000000000001',
+      type: 'official', gender: 'men',
+      year: prev.year, week: prev.week, ranking_date: '2026-05-11',
+      ranking: 1, points: 20550, ranking_move: 0, source: 'padelgod-fip',
+    });
+    seedHappyPath();
+
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+    await runPlayerRankings({
+      supabase: makeSupabase(),
+      httpClient: makeHttpClient(),
+      eventsEnabled: true,
+      notify: makeNotifyDeps(fetchImpl),
+    });
+
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledOnce());
+    expect(fetchImpl.mock.calls[0][0]).toBe('https://padelnachos.com/api/push/notify-ranking');
+    expect(state.eventsSent).toEqual([
+      { event_key: `ranking_updated:${year}-${String(week).padStart(2, '0')}`, category: 'ranking_updated' },
+    ]);
+  });
+
+  it('does not fire on a same-week re-upsert', async () => {
+    const published = '2026-05-18';
+    const { year, week } = isoYearWeek(new Date(published));
+    seedSnapshot({
+      player_id: 'dddd1111-0000-0000-0000-000000000001',
+      type: 'official', gender: 'men',
+      year, week, ranking_date: published,
+      ranking: 1, points: 21000, ranking_move: 0, source: 'padelgod-fip',
+    });
+    seedHappyPath();
+
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+    await runPlayerRankings({
+      supabase: makeSupabase(),
+      httpClient: makeHttpClient(),
+      eventsEnabled: true,
+      notify: makeNotifyDeps(fetchImpl),
+    });
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(state.eventsSent).toHaveLength(0);
+  });
+
+  it('does not fire when eventsEnabled is off', async () => {
+    seedHappyPath();
+    const fetchImpl = vi.fn();
+    await runPlayerRankings({
+      supabase: makeSupabase(),
+      httpClient: makeHttpClient(),
+      eventsEnabled: false,
+      notify: makeNotifyDeps(fetchImpl),
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

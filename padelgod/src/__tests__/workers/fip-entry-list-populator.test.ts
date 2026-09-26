@@ -669,12 +669,18 @@ describe('runFipEntryListPopulator', () => {
   });
 
   // ── tournament_entries writes ─────────────────────────────────────────────
+  //
+  // captured_at MUST stay relative to NOW. The worker only reads snapshots
+  // newer than SNAPSHOT_LOOKBACK_DAYS (14), so a hardcoded date silently
+  // stops matching once it ages past the window — these two tests were
+  // pinned to 2026-07-01 and went red on 2026-07-15, months before anyone
+  // traced it back here.
 
   it('writes one tournament_entries row per pair, resolved with team_points', async () => {
     const { supabase, entryInserts, entryDeletes } = fakeSupabase({
       snapshots: [
-        { tournament_id: 't1', category: 'men', fip_id: 'A', name: 'Galán', country: 'ES', captured_at: '2026-07-01T00:00:00Z', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
-        { tournament_id: 't1', category: 'men', fip_id: 'B', name: 'Chingotto', country: 'AR', captured_at: '2026-07-01T00:00:00Z', seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main_draw' },
+        { tournament_id: 't1', category: 'men', fip_id: 'A', name: 'Galán', country: 'ES', captured_at: NOW, seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
+        { tournament_id: 't1', category: 'men', fip_id: 'B', name: 'Chingotto', country: 'AR', captured_at: NOW, seed: 1, partner_fip_id: 'A', partner_name: 'Galán', draw_type: 'main_draw' },
       ],
       existingPlayers: [
         { id: 'p-A', fip_id: 'A', name: 'Galán', country: 'ES', category: 'men', points: 15000 },
@@ -693,7 +699,7 @@ describe('runFipEntryListPopulator', () => {
   it('does not touch tournament_entries on dry-run', async () => {
     const { supabase, entryInserts, entryDeletes } = fakeSupabase({
       snapshots: [
-        { tournament_id: 't1', category: 'men', fip_id: 'A', name: 'Galán', country: 'ES', captured_at: '2026-07-01T00:00:00Z', seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
+        { tournament_id: 't1', category: 'men', fip_id: 'A', name: 'Galán', country: 'ES', captured_at: NOW, seed: 1, partner_fip_id: 'B', partner_name: 'Chingotto', draw_type: 'main_draw' },
       ],
     });
     await runFipEntryListPopulator({ supabase: supabase as any, dryRun: true });

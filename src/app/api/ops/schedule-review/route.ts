@@ -12,6 +12,7 @@ import {
 } from '@/lib/oop-snapshots-reader'
 import { normalize, tokenSimilarity } from '@/lib/player-resolver'
 import { resolveOopPlayerToId } from '@/lib/oop-player-lookup'
+import { parseScheduleClock } from '@/lib/schedule-label-time'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -312,15 +313,9 @@ export async function GET(request: Request) {
     // Build proposed scheduled_at from OOP time + day date + timezone
     let proposedScheduledAt: string | null = null
     if (dayDate) {
-      const timeMatch = oop.scheduleLabel.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i)
-      if (timeMatch) {
-        // "Starting at X:XX AM/PM" or "Not before X:XX PM" — parse exact time
-        let hours = parseInt(timeMatch[1])
-        const minutes = parseInt(timeMatch[2])
-        const ampm = timeMatch[3].toUpperCase()
-        if (ampm === 'PM' && hours < 12) hours += 12
-        if (ampm === 'AM' && hours === 12) hours = 0
-        proposedScheduledAt = localTimeToUtc(dayDate, hours, minutes)
+      const clock = parseScheduleClock(oop.scheduleLabel)
+      if (clock) {
+        proposedScheduledAt = localTimeToUtc(dayDate, clock.hours, clock.minutes)
         if (proposedScheduledAt) {
           lastTimePerCourt.set(oop.court, new Date(proposedScheduledAt))
         }

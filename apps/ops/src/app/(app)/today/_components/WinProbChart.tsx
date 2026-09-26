@@ -5,7 +5,7 @@ import {
   ReferenceLine, ReferenceDot,
 } from 'recharts'
 import type { Match } from '../_lib/types'
-import { setBoundaryTimes } from '../_lib/score-timeline'
+import { pressureOnsets, setBoundaryTimes } from '../_lib/score-timeline'
 
 // ms → "HH:MM" clock label (browser-local; this is a client component).
 function clock(ms: number): string {
@@ -26,11 +26,10 @@ export function WinProbChart({ match }: { match: Match }) {
     return <div className="sb-chart-empty">No live probability history yet.</div>
   }
 
-  const data = match.winProbSeries.map((s) => {
+  const onsets = pressureOnsets(match.winProbSeries)
+  const data = match.winProbSeries.map((s, i) => {
     const p1 = s.pair1Prob * 100
-    const isMp = Boolean(s.isMatchPoint)
-    const isSp = Boolean(s.isSetPoint) && !isMp
-    const isBp = Boolean(s.isBreakPoint) && !isSp && !isMp
+    const mark = onsets[i]!
     return {
       t: s.atMs,
       p1,
@@ -39,9 +38,9 @@ export function WinProbChart({ match }: { match: Match }) {
       serverPair: s.serverPair ?? null,
       tag: pressureLabel(s),
       setsCompleted: s.setsCompleted ?? 0,
-      bp: isBp ? p1 : null,
-      sp: isSp ? p1 : null,
-      mp: isMp ? p1 : null,
+      bp: mark.bp ? p1 : null,
+      sp: mark.sp ? p1 : null,
+      mp: mark.mp ? p1 : null,
     }
   })
   const setEnds = setBoundaryTimes(data.map((d) => ({ atMs: d.t, setsCompleted: d.setsCompleted })))
@@ -62,7 +61,7 @@ export function WinProbChart({ match }: { match: Match }) {
             type="number"
             scale="time"
             domain={['dataMin', 'dataMax']}
-            tickCount={5}
+            minTickGap={28}
             tickFormatter={clock}
             fontSize={10}
             stroke="var(--text-3)"
@@ -153,7 +152,11 @@ export function WinProbChart({ match }: { match: Match }) {
               return (
                 <div className="sb-chart-tip">
                   <div className="sb-chart-tip-time">{clock(Number(label))}</div>
-                  {row?.score ? <div className="sb-chart-tip-score">{row.score}</div> : null}
+                  {row?.score ? (
+                    <div className="sb-chart-tip-score">
+                      <span className="sb-chart-tip-score-lab">Score</span> {row.score}
+                    </div>
+                  ) : null}
                   {serve ? <div className="sb-chart-tip-serve">{serve} serving</div> : null}
                   {row?.tag ? <div className="sb-chart-tip-tag">{row.tag}</div> : null}
                   <div>{match.pair1.name} {row ? `${row.p1.toFixed(0)}%` : '—'}</div>

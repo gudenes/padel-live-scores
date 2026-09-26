@@ -55,6 +55,23 @@ describe('CATEGORY_RULES', () => {
   })
 })
 
+describe('ranking_updated category', () => {
+  it('is a free results category with a sender shipped', () => {
+    expect(CATEGORY_META.ranking_updated).toMatchObject({
+      tier: 'free', group: 'results', comingSoon: false,
+    })
+  })
+
+  it('catalog Test uses the live current-vs-previous scenario', () => {
+    const rows = buildCatalog([], NOW)
+    const row = rows.find((r) => r.key === 'ranking_updated')
+    expect(row).toBeTruthy()
+    expect(row!.sampleScenario).toBe('ranking_updated')
+    expect(row!.sample.title).toContain('🔥')
+    expect(row!.description).toContain('top-30')
+  })
+})
+
 describe('projection_ready category', () => {
   it('is a free predictions category with a sender shipped', () => {
     expect(CATEGORY_META.projection_ready).toMatchObject({

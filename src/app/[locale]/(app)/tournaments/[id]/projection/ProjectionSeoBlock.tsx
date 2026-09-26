@@ -33,6 +33,12 @@ export function ProjectionSeoBlock({
 }) {
   const single = pairKey ? rows.find((r) => r.pair_key === pairKey) ?? null : null
 
+  // No projection rows means ProjectionTab is rendering the pre-draw field
+  // list, not a road to the title — emitting a "road to the title" heading
+  // over an empty list would mislead screen readers. The route is already
+  // noindex in this state, so there's nothing to lose by staying silent.
+  if (rows.length === 0) return null
+
   if (single) {
     return (
       <section className="sr-only" aria-hidden={false}>
