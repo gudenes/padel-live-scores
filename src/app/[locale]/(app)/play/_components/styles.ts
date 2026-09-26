@@ -26,6 +26,23 @@ export const PLAY_STYLES = `
      body padding — that number is 11px short, which every other page
      gets away with because they scroll and Play does not. Measured, not
      guessed: nav rect was 729→812 on a 812px viewport. */
+  /* The card's two-colour language, after the Padel Labs match-recap reel:
+     one pair orange, the other lime, on black.
+
+     ORANGE is #FF6B2B — NOT a new colour. It is already the app's pair-one /
+     streak / upset orange (MomentumChart, MatchStatsBar, every
+     components/prediction/* bar, lib/badges). It lives here rather than in
+     globals.css because globals has never had an orange token and every other
+     surface hardcodes the literal; scoping it to .pl-root is the smallest
+     change that cannot affect a page outside Play.
+
+     The skirt is the pressed-button underside, darkened on the same ratio
+     --lime-skirt (#558D14) sits below --lime (#7ED321): about x0.68. */
+  --pl-orange:        #FF6B2B;
+  --pl-orange-skirt:  #AD481D;
+  --pl-orange-bg:     rgba(255, 107, 43, 0.10);
+  --pl-orange-border: rgba(255, 107, 43, 0.32);
+
   --pl-navh: calc(67px + max(env(safe-area-inset-bottom, 16px), 16px));
   /* Header (62) + sub-nav (50) + nav, plus the iOS safe-area inset the
      body already carries. What's left is the deck's playfield. */
@@ -121,8 +138,8 @@ export const PLAY_STYLES = `
 }
 .pl-mcard.pl-behind { pointer-events: none; }
 .pl-mcard.pl-anim { transition: transform .32s cubic-bezier(.34,1.3,.64,1), opacity .32s ease; }
-.pl-mcard.pl-tint-yes { box-shadow: inset 0 0 0 2px var(--lime), 0 0 42px rgba(126,211,33,.18); }
-.pl-mcard.pl-tint-no  { box-shadow: inset 0 0 0 2px var(--no),   0 0 42px rgba(255,70,85,.18); }
+.pl-mcard.pl-tint-yes { box-shadow: inset 0 0 0 2px var(--pl-orange), 0 0 42px rgba(255,107,43,.18); }
+.pl-mcard.pl-tint-no  { box-shadow: inset 0 0 0 2px var(--lime),      0 0 42px rgba(126,211,33,.18); }
 
 /* Hero — procedural art; we have no player photography.
    186px, not the original 168: the four faces went from 46px to 66px and the
@@ -137,7 +154,10 @@ export const PLAY_STYLES = `
   text-shadow: 0 2px 40px rgba(0,0,0,.6);
 }
 .pl-hero .pl-mono i { font-style: normal; }
-.pl-hero .pl-mono s { text-decoration: none; font-size: 30px; color: rgba(126,211,33,.30); letter-spacing: 0; }
+/* Neutral, not lime. Season- and tournament-horizon markets have no two pairs
+   to colour, so the monogram stays a ghosted white placeholder — a lime "vs"
+   here would assert a side that this card does not have. */
+.pl-hero .pl-mono s { text-decoration: none; font-size: 30px; color: rgba(255,255,255,.22); letter-spacing: 0; }
 
 /* Identity — four faces, 2 v 2, over the court art. Sits under ::after's
    bottom fade (z-index 2 beats the gradient's stacking position but the
@@ -148,7 +168,17 @@ export const PLAY_STYLES = `
   display: flex; align-items: center; justify-content: center; gap: 8px;
   padding: 32px 9px 40px;
 }
-.pl-pair { display: flex; align-items: flex-start; justify-content: center; gap: 6px; flex: 1; min-width: 0; }
+/* --pl-side is the pair's brand colour, set once here and read by everything
+   inside: the avatar ring and the surname. The default is neutral white, so a
+   pair rendered without an accent (or by a surface that has no subject to
+   point at) degrades to the pre-colour look instead of inheriting a side. */
+.pl-pair {
+  display: flex; align-items: flex-start; justify-content: center; gap: 6px; flex: 1; min-width: 0;
+  --pl-side: rgba(255,255,255,.55);
+}
+/* The pair the question NAMES — the one a YES is a bet on. */
+.pl-pair.pl-subject { --pl-side: var(--pl-orange); }
+.pl-pair.pl-other   { --pl-side: var(--lime); }
 .pl-vs-sep {
   flex: none; font-size: 12px; font-weight: 900; letter-spacing: .5px; text-transform: uppercase;
   color: rgba(255,255,255,.60); text-shadow: 0 1px 8px rgba(0,0,0,.85);
@@ -162,7 +192,9 @@ export const PLAY_STYLES = `
 .pl-face {
   width: 66px; height: 66px; flex: none; border-radius: 50%; overflow: hidden;
   background: #16161a; object-fit: cover; object-position: center top;
-  box-shadow: 0 0 0 1.5px rgba(255,255,255,.16), 0 4px 14px rgba(0,0,0,.55);
+  /* The ring is the pair's colour. 2px rather than the old 1.5px: at 66px the
+     hairline read as a rendering artefact instead of a deliberate accent. */
+  box-shadow: 0 0 0 2px var(--pl-side, rgba(255,255,255,.16)), 0 4px 14px rgba(0,0,0,.55);
   position: relative;
 }
 /* Below 360px the 66px faces stop fitting two-per-pair (320px viewport leaves
@@ -183,8 +215,12 @@ export const PLAY_STYLES = `
   position: static; inset: auto; display: block; width: 100%; height: 100%;
 }
 .pl-pmeta { display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: 100%; }
+/* The name carries the accent too, so the pairing is legible without having
+   to compare two thin rings. The heavy shadow below is what keeps a saturated
+   orange or lime readable over the court art. */
 .pl-pname {
-  font-size: 11px; font-weight: 900; letter-spacing: -.1px; line-height: 1.15; color: #fff;
+  font-size: 11px; font-weight: 900; letter-spacing: -.1px; line-height: 1.15;
+  color: var(--pl-side, #fff);
   text-shadow: 0 1px 6px rgba(0,0,0,.9);
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -257,15 +293,21 @@ export const PLAY_STYLES = `
 .pl-spark .pl-lg i.pl-dash { border-top: 2px dashed var(--color-accent); }
 .pl-spark svg { display: block; width: 100%; height: 46px; overflow: visible; }
 
-/* YES / NO price blocks */
+/* YES / NO price blocks.
+   YES is a bet ON the subject pair, so it wears the subject pair's ORANGE;
+   NO is a bet on the other pair and wears their LIME. This replaces the old
+   lime-YES / red-NO mapping: red is a match state (--color-live, the LIVE
+   pill) and using it for a side made "No" read as an error rather than a
+   position, while a lime YES claimed the colour the other pair now owns.
+   Both sides are equally valid bets, so neither gets the alarm colour. */
 .pl-odds { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: auto; }
 .pl-odd { padding: 11px 10px 10px; text-align: center; clip-path: var(--clip-tag); border: 1px solid; }
 .pl-odd .pl-lbl { font-size: 9.5px; font-weight: 900; letter-spacing: 1.4px; text-transform: uppercase; }
 .pl-odd .pl-pct { font-size: 25px; font-weight: 900; line-height: 1.12; font-variant-numeric: tabular-nums; }
-.pl-odd.pl-yes { background: var(--lime-bg); border-color: var(--lime-border); }
-.pl-odd.pl-yes .pl-lbl, .pl-odd.pl-yes .pl-pct { color: var(--lime); }
-.pl-odd.pl-no { background: var(--no-bg); border-color: var(--no-border); }
-.pl-odd.pl-no .pl-lbl, .pl-odd.pl-no .pl-pct { color: var(--no); }
+.pl-odd.pl-yes { background: var(--pl-orange-bg); border-color: var(--pl-orange-border); }
+.pl-odd.pl-yes .pl-lbl, .pl-odd.pl-yes .pl-pct { color: var(--pl-orange); }
+.pl-odd.pl-no { background: var(--lime-bg); border-color: var(--lime-border); }
+.pl-odd.pl-no .pl-lbl, .pl-odd.pl-no .pl-pct { color: var(--lime); }
 
 /* Model line — our Elo, the thing nobody else has */
 .pl-model {
@@ -284,17 +326,26 @@ export const PLAY_STYLES = `
   padding: 7px 20px; border: 4px solid; opacity: 0; pointer-events: none; z-index: 6;
   clip-path: var(--clip-chunky); text-transform: uppercase;
 }
-.pl-stamp.pl-s-yes { left: 20px; transform: rotate(-13deg); color: var(--lime); border-color: var(--lime); background: rgba(126,211,33,.10); }
-.pl-stamp.pl-s-no  { right: 20px; transform: rotate(13deg);  color: var(--no);   border-color: var(--no);   background: rgba(255,70,85,.10); }
+.pl-stamp.pl-s-yes { left: 20px; transform: rotate(-13deg); color: var(--pl-orange); border-color: var(--pl-orange); background: var(--pl-orange-bg); }
+.pl-stamp.pl-s-no  { right: 20px; transform: rotate(13deg);  color: var(--lime);      border-color: var(--lime);      background: var(--lime-bg); }
 
-/* Deck actions */
+/* Deck actions.
+   Both buttons are authored as intent-neutral and repainted here. The stock
+   intents cannot express this pairing: intent-primary is lime (which is now
+   the NO side's colour) and intent-live is the alarm red reserved for match
+   state. Three classes deep so these beat .intent-neutral .pn-press-face on
+   specificity rather than on stylesheet order. */
 .pl-actions { flex: none; padding: 11px 22px 4px; display: flex; align-items: center; justify-content: center; gap: 26px; }
+.pl-actions .pl-btn-yes .pn-press-face  { background: var(--pl-orange); color: #0a0a0a; }
+.pl-actions .pl-btn-yes .pn-press-skirt { background: var(--pl-orange-skirt); }
+.pl-actions .pl-btn-no  .pn-press-face  { background: var(--lime); color: #0a0a0a; }
+.pl-actions .pl-btn-no  .pn-press-skirt { background: var(--lime-skirt); }
 .pl-swipe-hint {
   flex: none; text-align: center; padding-bottom: 8px;
   font-size: 9px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-faint);
 }
-.pl-swipe-hint b { color: var(--no); }
-.pl-swipe-hint i { font-style: normal; color: var(--lime); }
+.pl-swipe-hint b { color: var(--lime); }
+.pl-swipe-hint i { font-style: normal; color: var(--pl-orange); }
 
 /* ── Trade sheet ───────────────────────────────────────────────── */
 .pl-sheet {
@@ -368,13 +419,17 @@ export const PLAY_STYLES = `
   font-size: 10px; font-weight: 900; letter-spacing: .6px; line-height: 1.3;
   display: block; overflow: hidden; text-overflow: ellipsis;
 }
-.pl-dside.pl-p1 { color: var(--lime); }
-.pl-dside.pl-p2 { color: var(--color-accent); }
+/* Keyed on subject/other, not on slot order — the sheet opens from the card
+   and has to wear the same colour on the same pair. */
+.pl-dside.pl-subject { color: var(--pl-orange); }
+.pl-dside.pl-other   { color: var(--lime); }
 /* The avatar strip inside the sheet is on an opaque panel, not the court art,
-   so it drops the heavy text-shadow the hero needs. */
+   so it drops the heavy text-shadow the hero needs — and the surname reverts
+   to plain text, because the pair heading right above it already carries the
+   colour and two coloured lines in a row is noise. */
 .pl-dpair .pl-pname { color: var(--text-primary); text-shadow: none; }
 .pl-dpair .pl-pline { color: var(--text-muted); text-shadow: none; }
-.pl-dpair .pl-face { width: 40px; height: 40px; box-shadow: 0 0 0 1px rgba(255,255,255,.12); }
+.pl-dpair .pl-face { width: 40px; height: 40px; box-shadow: 0 0 0 1.5px var(--pl-side, rgba(255,255,255,.12)); }
 .pl-dplayer { margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border-base); }
 .pl-dname { font-size: 11.5px; font-weight: 900; line-height: 1.3; }
 .pl-dstats {
@@ -651,8 +706,12 @@ export const PLAY_STYLES = `
 .pl-trade-question { font-size:21px; line-height:1.3; font-weight:900; margin:7px 0 17px; }
 .pl-choice-toggle { display:flex; gap:6px; margin-bottom:17px; }
 .pl-choice-toggle button { flex:1; padding:11px; min-height:44px; border:1px solid var(--border-card); background:var(--bg-subtle); color:var(--text-muted); font:inherit; font-weight:900; clip-path:var(--clip-tag); cursor:pointer; }
-.pl-choice-toggle .pl-yes[aria-pressed=true] { background:var(--lime); color:#0a0a0a; }
-.pl-choice-toggle .pl-no[aria-pressed=true] { background:var(--no); color:#0a0a0a; }
+/* Follows the deck's mapping. The toggle is the direct continuation of the
+   round button the user just pressed — tapping an orange YES and landing on a
+   sheet where YES is lime would read as having picked the wrong side. The
+   profit/loss colours further down the sheet are NOT sides and keep lime/red. */
+.pl-choice-toggle .pl-yes[aria-pressed=true] { background:var(--pl-orange); color:#0a0a0a; }
+.pl-choice-toggle .pl-no[aria-pressed=true] { background:var(--lime); color:#0a0a0a; }
 .pl-stake-label { display:block; text-align:center; font-size:12px; color:var(--text-muted); }
 .pl-stake-input { display:flex; align-items:center; justify-content:center; gap:9px; margin:3px 0; }
 .pl-stake-input input { width:190px; max-width:70%; padding:0; font-family:inherit; font-size:46px; font-weight:900; line-height:1.2; text-align:center; background:transparent; color:var(--text-primary); border:0; border-bottom:1px solid var(--border-card); border-radius:0; }

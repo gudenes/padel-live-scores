@@ -66,8 +66,28 @@ function PlayerChip({ player, size }: { player: PlayPlayer; size: number }) {
   )
 }
 
+/**
+ * Which of the card's two brand colours a pair wears.
+ *
+ * 'subject' is the pair the question names — it gets ORANGE, the same
+ * #FF6B2B this app already uses for pair one on the momentum chart and the
+ * prediction bars. 'other' gets the LIME brand accent. 'neutral' is for
+ * surfaces that have no subject to point at.
+ *
+ * The colour lands as a `--pl-side` custom property on the pair wrapper, so
+ * the avatar ring and the name both read it from one place.
+ */
+export type PairAccent = 'subject' | 'other' | 'neutral'
+
+const ACCENT_CLASS: Record<PairAccent, string> = {
+  subject: ' pl-subject',
+  other: ' pl-other',
+  neutral: '',
+}
+
 export interface PairIdentityProps {
   players: PlayPlayer[]
+  accent?: PairAccent
   /**
    * Rendered avatar box in px — only the next/image request size. The painted
    * box is .pl-face's CSS width, which steps down on narrow and short
@@ -77,9 +97,9 @@ export interface PairIdentityProps {
   size?: number
 }
 
-export function PairIdentity({ players, size = 66 }: PairIdentityProps) {
+export function PairIdentity({ players, accent = 'neutral', size = 66 }: PairIdentityProps) {
   return (
-    <div className="pl-pair">
+    <div className={`pl-pair${ACCENT_CLASS[accent]}`}>
       {players.map((p, i) => (
         <PlayerChip key={p.id ?? `${p.name}-${i}`} player={p} size={size} />
       ))}
@@ -90,25 +110,32 @@ export function PairIdentity({ players, size = 66 }: PairIdentityProps) {
 /**
  * The full 2-v-2 strip that sits over the court art, replacing the monogram.
  * `vsLabel` is translated by the caller — this component holds no copy.
+ *
+ * `subjectPair` comes from the API (see PlayMarket.subjectPair) and says which
+ * of the two pairs the question names. It is NOT inferred from slot order:
+ * plenty of templates ask about pair two, and guessing would paint those
+ * markets' colours backwards.
  */
 export function VersusIdentity({
   pair1,
   pair2,
   vsLabel,
+  subjectPair,
   size = 66,
 }: {
   pair1: PlayPlayer[]
   pair2: PlayPlayer[]
   vsLabel: string
+  subjectPair: 1 | 2
   size?: number
 }) {
   return (
     <div className="pl-vs">
-      <PairIdentity players={pair1} size={size} />
+      <PairIdentity players={pair1} accent={subjectPair === 1 ? 'subject' : 'other'} size={size} />
       <span className="pl-vs-sep" aria-hidden>
         {vsLabel}
       </span>
-      <PairIdentity players={pair2} size={size} />
+      <PairIdentity players={pair2} accent={subjectPair === 2 ? 'subject' : 'other'} size={size} />
     </div>
   )
 }
