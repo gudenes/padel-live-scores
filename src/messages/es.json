@@ -3,6 +3,7 @@
     "home": "Inicio",
     "matches": "Partidos",
     "following": "Siguiendo",
+    "play": "Juega",
     "feed": "Noticias",
     "tournaments": "Eventos",
     "ranking": "Ranking",
@@ -1281,6 +1282,10 @@
       "description": "Proyecciones de campeonato en directo para {name}: el camino al título de cada pareja y las probabilidades ronda a ronda.",
       "pairTitle": "{pair} — Camino al Título en {name} | Padel Nachos",
       "pairDescription": "El camino proyectado de {pair} hacia el título de {name}: rivales ronda a ronda y probabilidades de victoria."
+    },
+    "play": {
+      "title": "Play the Next",
+      "description": "Predice lo que pasa a continuación en el pádel. Elige un lado en mercados en vivo, opera con Guacas y sube en la clasificación. Solo dinero ficticio: nada que comprar ni que cobrar."
     }
   },
   "search": {
@@ -1803,5 +1808,187 @@
     "title": "Esta página no existe",
     "body": "La página que buscas puede haber sido eliminada, renombrada o nunca existió.",
     "cta": "Volver a PadelNachos"
+  },
+  "play": {
+    "live": "En vivo",
+    "horizon": {
+      "live": "En partido",
+      "match": "Partido",
+      "tourn": "Torneo",
+      "season": "Temporada"
+    },
+    "subnav": {
+      "label": "Secciones de Play",
+      "markets": "Mercados",
+      "activity": "Actividad",
+      "leaders": "Líderes",
+      "myPositions": "Mis posiciones"
+    },
+    "deck": {
+      "yes": "Sí",
+      "no": "No",
+      "navHint": "Desliza hacia arriba para el siguiente mercado",
+      "crowdPrice": "Precio del público",
+      "ourModel": "Nuestro modelo",
+      "aiPct": "IA {pct}%",
+      "volumeTraded": "{amount} G negociados",
+      "noTradesYet": "Aún sin operaciones",
+      "empty": {
+        "title": "No hay mercados abiertos",
+        "body": "Se abren mercados nuevos cuando se programan los próximos partidos. Vuelve en un rato."
+      },
+      "error": {
+        "title": "Mercados no disponibles",
+        "body": "No pudimos cargar los mercados en este momento."
+      },
+      "stateLiveNow": "En vivo ahora",
+      "stateStartingSoon": "Empieza pronto",
+      "vs": "vs",
+      "formLine": "{name} ganó {wins} de los últimos {of}"
+    },
+    "trade": {
+      "title": "¿Cuántos Guacas?",
+      "close": "Cerrar",
+      "pricePerShare": "Precio por acción",
+      "sharesEstimate": "≈ <b>{shares}</b> acciones",
+      "balance": "Saldo",
+      "confirm": "Confirmar operación",
+      "submitting": "Enviando…",
+      "sellAnytime": "Puedes vender tu posición en cualquier momento antes de que el mercado se resuelva.",
+      "insufficient": "No tienes suficientes Guacas para esta cantidad.",
+      "locked": "Este mercado ya está cerrado.",
+      "failed": "La operación no se completó. Inténtalo de nuevo.",
+      "stakeLimit": "Has alcanzado el límite de participación en este mercado."
+    },
+    "done": {
+      "title": "¡Posición añadida!",
+      "deal": "Compraste <side>{sideLabel}</side> · <b>{amount}</b> Guacas a <b>{price}</b>",
+      "approx": "≈ {shares} acciones · {question}",
+      "viewPositions": "Ver mis posiciones",
+      "next": "Siguiente predicción",
+      "upNext": "A continuación"
+    },
+    "positions": {
+      "title": "Mis posiciones",
+      "netWorth": "Patrimonio",
+      "open": "Abiertas",
+      "resolved": "Resueltas",
+      "history": "Historial",
+      "stake": "{amount} G a {price}",
+      "explore": "Explorar más mercados",
+      "empty": {
+        "open": {
+          "title": "No tienes posiciones abiertas",
+          "body": "Desliza un mercado y elige un lado — tus posiciones aparecerán aquí."
+        },
+        "resolved": {
+          "title": "Todavía no hay nada resuelto",
+          "body": "Cuando se resuelva un mercado en el que operaste, aparecerá aquí con tu resultado."
+        },
+        "history": {
+          "title": "Aún sin operaciones",
+          "body": "Todo lo que negocies — abierto o resuelto — se listará aquí."
+        }
+      }
+    },
+    "activity": {
+      "latest": "Últimas operaciones",
+      "bought": "compró",
+      "sold": "vendió",
+      "at": "a",
+      "big": "Grande",
+      "someone": "Alguien",
+      "empty": {
+        "all": {
+          "title": "Aún no hay operaciones",
+          "body": "Sé el primero — elige un lado en un mercado y tu operación aparecerá aquí."
+        }
+      }
+    },
+    "leaders": {
+      "title": "Líderes",
+      "week": "Semana",
+      "season": "Temporada",
+      "all": "Histórico",
+      "champion": "Campeón",
+      "accuracy": "{pct}% de acierto",
+      "streak": "racha de {n}",
+      "you": "Tú",
+      "note": "Clasificados por patrimonio — saldo más el valor actual de las posiciones abiertas.",
+      "empty": {
+        "title": "La clasificación está vacía",
+        "body": "Se llenará en cuanto la gente empiece a operar."
+      }
+    },
+    "time": {
+      "now": "ahora",
+      "seconds": "{n}s",
+      "minutes": "{n}min",
+      "hours": "{n}h",
+      "days": "{n}d"
+    },
+    "error": {
+      "title": "Algo salió mal",
+      "body": "No pudimos cargar esto ahora mismo.",
+      "retry": "Reintentar"
+    },
+    "detail": {
+      "title": "Detalles",
+      "open": "Abrir los detalles del mercado",
+      "openShort": "Detalles",
+      "close": "Cerrar",
+      "headToHead": "Cara a cara",
+      "neverMet": "Nunca se han enfrentado",
+      "rank": "Puesto #{n}",
+      "race": "Race #{n}",
+      "titles": "{n, plural, =0 {Sin títulos} one {# título} other {# títulos}}",
+      "winRate": "{pct}% de victorias",
+      "winRateOf": "{pct}% de victorias en {n}",
+      "formLast": "Últimos {of}",
+      "win": "V",
+      "loss": "D",
+      "noStats": "Todavía sin estadísticas",
+      "crowdVsModel": "El público vs nuestro modelo",
+      "yesNote": "Ambas cifras son la probabilidad de Sí."
+    },
+    "explore": {
+      "all": "Todos",
+      "today": "Hoy",
+      "weeks": "Próximas semanas",
+      "long": "Largo plazo",
+      "title": "¿Qué quieres predecir?",
+      "search": "Buscar jugador o torneo",
+      "type": "Todos los tipos",
+      "matches": "Partidos",
+      "tournaments": "Torneos",
+      "season": "Temporada",
+      "returnWith": "Retorno con",
+      "markets": "{count, plural, one {# mercado} other {# mercados}}",
+      "includes": "Total estimado si aciertas · incluye tus {amount} G",
+      "timeLabel": "Plazo del mercado",
+      "timeHint": "Por cierre de compras · largo plazo incluye temporada",
+      "live": "En vivo",
+      "closes": "Cierra: {date}",
+      "choose": "Elegir",
+      "details": "Ver detalles",
+      "empty": "Sin mercados para estos filtros",
+      "emptyBody": "Prueba otro plazo o cambia tu búsqueda.",
+      "reset": "Limpiar filtros",
+      "estimate": "Estimación al precio actual. El retorno puede cambiar antes de confirmar.",
+      "validAmount": "Introduce un importe entero válido para ver el retorno.",
+      "prediction": "Tu predicción",
+      "outcome": "Resultado",
+      "amount": "Importe",
+      "available": "Disponible:",
+      "ifWin": "Si aciertas, recibes",
+      "gain": "Incluye {stake} · Ganancia ≈{gain}",
+      "ifLose": "Si no aciertas, pierdes",
+      "balanceAfter": "Saldo después",
+      "filters": "Filtros",
+      "feed": "Mercados para predecir",
+      "shortReturn": "Total estimado si aciertas · incluye importe",
+      "next": "Siguiente mercado",
+      "showMarkets": "Ver mercados ({count})"
+    }
   }
 }

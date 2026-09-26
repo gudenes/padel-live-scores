@@ -3,6 +3,7 @@
     "home": "Home",
     "matches": "Matches",
     "following": "Following",
+    "play": "Play",
     "feed": "Feed",
     "tournaments": "Events",
     "ranking": "Ranking",
@@ -1313,6 +1314,10 @@
       "description": "Live championship projections for {name}: each pair's road to the title, round-by-round win probabilities.",
       "pairTitle": "{pair} — Road to the Title at {name} | Padel Nachos",
       "pairDescription": "{pair}'s projected path to the {name} title — round-by-round opponents and win probabilities."
+    },
+    "play": {
+      "title": "Play the Next",
+      "description": "Predict what happens next in padel. Take a side on live markets, trade with Guacas and climb the leaderboard. Play money only — nothing to buy, nothing to cash out."
     }
   },
   "search": {
@@ -1835,5 +1840,187 @@
     "title": "This page doesn't exist",
     "body": "The page you're looking for may have been removed, renamed, or never existed.",
     "cta": "Back to PadelNachos"
+  },
+  "play": {
+    "live": "Live",
+    "horizon": {
+      "live": "In-match",
+      "match": "Match",
+      "tourn": "Tournament",
+      "season": "Season"
+    },
+    "subnav": {
+      "label": "Play sections",
+      "markets": "Markets",
+      "activity": "Activity",
+      "leaders": "Leaders",
+      "myPositions": "My positions"
+    },
+    "deck": {
+      "yes": "Yes",
+      "no": "No",
+      "navHint": "Swipe up for the next market",
+      "crowdPrice": "Crowd price",
+      "ourModel": "Our model",
+      "aiPct": "AI {pct}%",
+      "volumeTraded": "{amount} G traded",
+      "noTradesYet": "No trades yet",
+      "empty": {
+        "title": "No open markets",
+        "body": "New markets open when the next matches are scheduled. Check back shortly."
+      },
+      "error": {
+        "title": "Markets unavailable",
+        "body": "We couldn't load the markets right now."
+      },
+      "stateLiveNow": "Live now",
+      "stateStartingSoon": "Starting soon",
+      "vs": "vs",
+      "formLine": "{name} won {wins} of the last {of}"
+    },
+    "trade": {
+      "title": "How many Guacas?",
+      "close": "Close",
+      "pricePerShare": "Price per share",
+      "sharesEstimate": "≈ <b>{shares}</b> shares",
+      "balance": "Balance",
+      "confirm": "Confirm trade",
+      "submitting": "Placing trade…",
+      "sellAnytime": "You can sell your position at any time before the market resolves.",
+      "insufficient": "You don't have enough Guacas for this amount.",
+      "locked": "This market has already closed.",
+      "failed": "That trade didn't go through. Try again.",
+      "stakeLimit": "You've reached the stake limit for this market."
+    },
+    "done": {
+      "title": "Position added!",
+      "deal": "You bought <side>{sideLabel}</side> · <b>{amount}</b> Guacas at <b>{price}</b>",
+      "approx": "≈ {shares} shares · {question}",
+      "viewPositions": "View my positions",
+      "next": "Next prediction",
+      "upNext": "Up next"
+    },
+    "positions": {
+      "title": "My positions",
+      "netWorth": "Net worth",
+      "open": "Open",
+      "resolved": "Resolved",
+      "history": "History",
+      "stake": "{amount} G @ {price}",
+      "explore": "Explore more markets",
+      "empty": {
+        "open": {
+          "title": "No open positions",
+          "body": "Swipe a market and take a side — your positions show up here."
+        },
+        "resolved": {
+          "title": "Nothing resolved yet",
+          "body": "When a market you traded settles, it lands here with your result."
+        },
+        "history": {
+          "title": "No trades yet",
+          "body": "Everything you trade — open or settled — is listed here."
+        }
+      }
+    },
+    "activity": {
+      "latest": "Latest trades",
+      "bought": "bought",
+      "sold": "sold",
+      "at": "at",
+      "big": "Big",
+      "someone": "Someone",
+      "empty": {
+        "all": {
+          "title": "No trades yet",
+          "body": "Be the first — take a side on a market and your trade shows up here."
+        }
+      }
+    },
+    "leaders": {
+      "title": "Leaders",
+      "week": "Week",
+      "season": "Season",
+      "all": "All time",
+      "champion": "Champion",
+      "accuracy": "{pct}% accurate",
+      "streak": "{n} streak",
+      "you": "You",
+      "note": "Ranked by net worth — balance plus the live value of open positions.",
+      "empty": {
+        "title": "The leaderboard is empty",
+        "body": "It fills up once people start trading."
+      }
+    },
+    "time": {
+      "now": "now",
+      "seconds": "{n}s",
+      "minutes": "{n}m",
+      "hours": "{n}h",
+      "days": "{n}d"
+    },
+    "error": {
+      "title": "Something went wrong",
+      "body": "We couldn't load this right now.",
+      "retry": "Try again"
+    },
+    "detail": {
+      "title": "Details",
+      "open": "Open market details",
+      "openShort": "Details",
+      "close": "Close",
+      "headToHead": "Head to head",
+      "neverMet": "They have never met",
+      "rank": "Rank #{n}",
+      "race": "Race #{n}",
+      "titles": "{n, plural, =0 {No titles} one {# title} other {# titles}}",
+      "winRate": "{pct}% win rate",
+      "winRateOf": "{pct}% won of {n}",
+      "formLast": "Last {of}",
+      "win": "W",
+      "loss": "L",
+      "noStats": "No career stats yet",
+      "crowdVsModel": "Crowd vs our model",
+      "yesNote": "Both figures are the probability of Yes."
+    },
+    "explore": {
+      "all": "All",
+      "today": "Today",
+      "weeks": "Coming weeks",
+      "long": "Long term",
+      "title": "What will you predict?",
+      "search": "Search player or tournament",
+      "type": "All types",
+      "matches": "Matches",
+      "tournaments": "Tournaments",
+      "season": "Season",
+      "returnWith": "Return with",
+      "markets": "{count, plural, one {# market} other {# markets}}",
+      "includes": "Estimated total if correct · includes your {amount} G",
+      "timeLabel": "Market timeframe",
+      "timeHint": "By purchase deadline · long term includes season markets",
+      "live": "Live",
+      "closes": "Closes: {date}",
+      "choose": "Choose",
+      "details": "View details",
+      "empty": "No markets match these filters",
+      "emptyBody": "Try another timeframe or change your search.",
+      "reset": "Clear filters",
+      "estimate": "Estimate at the current price. Returns may change before confirmation.",
+      "validAmount": "Enter a valid whole amount to see the return.",
+      "prediction": "Your prediction",
+      "outcome": "Outcome",
+      "amount": "Amount",
+      "available": "Available:",
+      "ifWin": "If correct, you receive",
+      "gain": "Includes {stake} · Gain ≈{gain}",
+      "ifLose": "If incorrect, you lose",
+      "balanceAfter": "Balance after",
+      "filters": "Filters",
+      "feed": "Prediction feed",
+      "shortReturn": "Estimated total if correct · stake included",
+      "next": "Next market",
+      "showMarkets": "Show markets ({count})"
+    }
   }
 }

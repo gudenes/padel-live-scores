@@ -125,21 +125,44 @@ export const PLAY_STYLES = `
   box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
 }
 
-/* ── Swipe deck ────────────────────────────────────────────────── */
+/* ── Market deck ───────────────────────────────────────────────────
+   The deck never scrolls: .pl-screens is a fixed 100dvh-minus-chrome box
+   with overflow:hidden, and everything below is sized to fit inside it. The
+   card is absolutely positioned against that box rather than laid out by its
+   own content, so a long question cannot push the YES/NO blocks off-screen —
+   .pl-mbody clips instead, and .pl-odds is pinned to the bottom by its
+   margin-top:auto. */
 .pl-deck-wrap { flex: 1; min-height: 0; position: relative; padding: 14px 14px 0; }
-.pl-deck { position: absolute; inset: 14px 14px 0; perspective: 1200px; }
+/* --pl-peek is the strip of the NEXT market left showing below the current
+   card. The card is inset by exactly that much, so the peek is reserved
+   space and never overlaps anything the top card needs. PEEK_GAP_PX (10) in
+   DeckScreen.tsx is spent on the seam, leaving 34px of actual card. */
+.pl-deck { position: absolute; inset: 14px 14px 0; perspective: 1200px; --pl-peek: 44px; }
 .pl-mcard {
-  position: absolute; inset: 0;
+  position: absolute; inset: 0 0 var(--pl-peek);
   background: var(--bg-card); border: 1px solid var(--border-card);
   clip-path: var(--clip-card); overflow: hidden;
   display: flex; flex-direction: column;
-  will-change: transform; transform-origin: 50% 120%;
-  user-select: none; touch-action: pan-y;
+  /* Top-centre, so the peek card's scale shrinks it downward from a fixed top
+     edge — the visible strip stays exactly where the geometry above puts it.
+     (The old 50% 120% served a rotation that the removed horizontal drag
+     owned; nothing rotates any more.) */
+  will-change: transform; transform-origin: 50% 0;
+  /* none, not pan-y: the vertical drag IS the gesture now, and pan-y would
+     hand it to the browser's scroller and fire pointercancel mid-drag. */
+  user-select: none; touch-action: none;
 }
 .pl-mcard.pl-behind { pointer-events: none; }
+/* Snap-back after an uncommitted drag — springy, because the card is coming
+   back to where it started and the overshoot reads as elastic. */
 .pl-mcard.pl-anim { transition: transform .32s cubic-bezier(.34,1.3,.64,1), opacity .32s ease; }
-.pl-mcard.pl-tint-yes { box-shadow: inset 0 0 0 2px var(--pl-orange), 0 0 42px rgba(255,107,43,.18); }
-.pl-mcard.pl-tint-no  { box-shadow: inset 0 0 0 2px var(--lime),      0 0 42px rgba(126,211,33,.18); }
+/* Committed move to another market — no spring, it is leaving. Duration must
+   stay in step with NAV_MS in DeckScreen.tsx; the deck remounts when it
+   elapses and a remount mid-transition snaps. */
+.pl-mcard.pl-nav { transition: transform .24s cubic-bezier(.22,.61,.36,1), opacity .24s ease; }
+/* .pl-tint-yes / .pl-tint-no are gone with the horizontal drag that painted
+   them: they were live feedback for a gesture that no longer exists, and the
+   YES/NO stamp is the whole of the commit feedback now. */
 
 /* Hero — procedural art; we have no player photography.
    186px, not the original 168: the four faces went from 46px to 66px and the
@@ -344,8 +367,61 @@ export const PLAY_STYLES = `
   flex: none; text-align: center; padding-bottom: 8px;
   font-size: 9px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-faint);
 }
-.pl-swipe-hint b { color: var(--lime); }
-.pl-swipe-hint i { font-style: normal; color: var(--pl-orange); }
+
+/* Short viewports (iPhone SE / 8 at 375x667, and any phone in split view).
+   The deck gets 584px of .pl-screens there against 729px on a 812px phone —
+   145px less — and .pl-mbody clips rather than scrolls, so the YES/NO blocks
+   would be the thing cut off. Everything below buys that 145px back:
+
+     hero       186 -> 162   (the .pl-vs box still clears 66px faces + names)
+     peek        44 ->  34
+     question    21 ->  18px
+     sparkline   46 ->  36px
+     YES/NO pct  25 ->  21px
+     actions padding 11/4 -> 7/2
+
+   Measured against the worst realistic case, a three-line question: ~284px
+   of body content into ~317px of body. The round buttons keep their 58px
+   target — a short screen is not a reason to make the only commit
+   affordance harder to hit. */
+@media (max-height: 740px) {
+  .pl-deck { --pl-peek: 34px; }
+  .pl-hero { height: 162px; }
+  .pl-vs { padding: 22px 9px 32px; }
+  .pl-q { font-size: 18px; }
+  .pl-spark { margin-top: 10px; }
+  .pl-spark svg { height: 36px; }
+  .pl-odd .pl-pct { font-size: 21px; }
+  .pl-actions { padding: 7px 22px 2px; }
+}
+
+/* Below 620px of viewport — a first-generation SE, or any phone in a small
+   split view. Under the 375x667 floor this work targets, but .pl-mbody clips
+   rather than scrolls, so without this the YES/NO blocks are the thing that
+   disappears. (It clipped here before the peek strip existed too; this is the
+   pre-existing squeeze, not a new one, but the strip made it worse.)
+
+   The peek shrinks to a sliver rather than vanishing: there is no room to
+   promise another card when the current one barely fits, but a hard edge at
+   the bottom reads as "this is the only one", which is a lie. 24px less the
+   10px seam leaves 14px of card — thin, but unmistakably a second card. */
+@media (max-height: 620px) {
+  .pl-deck { --pl-peek: 24px; }
+  .pl-hero { height: 132px; }
+  /* The faces step down with the hero — 66px no longer clears the padding
+     box, and a clipped face is worse than a smaller one. */
+  .pl-face { width: 54px; height: 54px; }
+  .pl-vs { padding: 14px 9px 22px; }
+  .pl-q { font-size: 16px; }
+  .pl-state { margin-top: 6px; }
+  .pl-form { margin-top: 6px; }
+  .pl-spark { margin-top: 7px; }
+  .pl-spark svg { height: 28px; }
+  .pl-odd { padding: 8px 10px 7px; }
+  .pl-odd .pl-pct { font-size: 19px; }
+  .pl-model { margin-top: 6px; }
+  .pl-mbody { padding-bottom: 8px; }
+}
 
 /* ── Trade sheet ───────────────────────────────────────────────── */
 .pl-sheet {
@@ -646,11 +722,15 @@ export const PLAY_STYLES = `
 
 /* ── Reduced motion ────────────────────────────────────────────────
    Drag itself is direct manipulation and stays — what goes is every
-   animation the user did not physically drive: the fly-off, the snap-back
-   spring, the tick pop, the blinking live dot, the skeleton shimmer. */
+   animation the user did not physically drive: the card's exit, the
+   snap-back spring, the tick pop, the blinking live dot, the skeleton
+   shimmer. DeckScreen also drops its timeouts to 0 under the same query, so
+   a committed move hands over on the next tick instead of waiting out a
+   transition that is not running. */
 @media (prefers-reduced-motion: reduce) {
   .pl-screen { transition: none; }
   .pl-mcard.pl-anim { transition: opacity .12s ease; }
+  .pl-mcard.pl-nav { transition: none; }
   .pl-tick { animation: none; }
   .pl-dot { animation: none; }
   .pl-skel { animation: none; }
