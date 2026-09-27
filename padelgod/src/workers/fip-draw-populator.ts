@@ -568,10 +568,23 @@ export function isQualifierSlotRow(
   if (!parent) return false;
   const named = drawRowNames(row);
   if (named.length === 0) return false;
-  const parentNames = new Set(drawRowNames(parent).map(normalizeName));
-  if (parentNames.size === 0) return true;
+  const parentNames = drawRowNames(parent).map(normalizeName);
+  // An EMPTY parent cell is not evidence of a qualifier slot — FIP publishes
+  // the first round before it fills the next one in, so "nobody has advanced
+  // yet" and "this pair never will" look identical. Only a parent that
+  // actually names somebody can settle the question. Treating empty as
+  // "qualifier" reclassified 41 of 55 walkover cells on the 2026-09-27
+  // production dry-run, against ~12 real ones.
+  if (parentNames.length === 0) return false;
+  // Surname-level comparison. Feeds spell first names inconsistently
+  // ("A. Salazar Bengoechea" vs "Alejandra Salazar Bengoechea"), and every
+  // near-miss here must fail toward "bye" — that is the pre-existing
+  // behaviour. Matching on the trailing surname tokens keeps an abbreviation
+  // from inventing a qualifier slot.
+  const surname = (n: string) => n.split(/\s+/).filter((t) => !/^[a-z]\.?$/.test(t)).slice(-2).join(' ')
+  const parentSurnames = new Set(parentNames.map(surname));
   // Pair present in the parent cell → it advanced → true bye.
-  return !named.some((n) => parentNames.has(normalizeName(n)));
+  return !named.some((n) => parentSurnames.has(surname(normalizeName(n))));
 }
 
 // ── Main entry ─────────────────────────────────────────────────────────
@@ -867,11 +880,22 @@ export async function runFipDrawPopulator(
     // pre-tournament R32+ cell on a 56-draw event with byes.
     const firstRoundByCategory = computeFirstRoundByCategory(latestDraws);
 
-    // Widget-id index over this tournament's draw rows, used by the
+    // Widget-id index over this tournament's BRACKET rows, used by the
     // bye-vs-qualifier discriminator below to look up a cell's parent.
+    //
+    // Bracket rows only. `latestDraws` also carries OOP-merged rows, and OOP
+    // abbreviates first names ("A. Salazar Bengoechea") where the bracket
+    // spells them out ("Alejandra Salazar Bengoechea"). A last-wins index over
+    // the merged array let an OOP row shadow its bracket twin, the name
+    // comparison then failed, and a real bye was misread as a qualifier slot —
+    // 39 false positives against 6 real ones on the 2026-09-27 dry-run. The
+    // gate itself only fires for `fip_event_page` rows, so scoping the index
+    // to the same source keeps both sides of the comparison in one dialect.
     const drawRowsByWidgetId = new Map<string, (typeof latestDraws)[number]>();
     for (const d of latestDraws) {
-      if (d.match_widget_id) drawRowsByWidgetId.set(d.match_widget_id, d);
+      if (d.match_widget_id && d.source === 'fip_event_page') {
+        drawRowsByWidgetId.set(d.match_widget_id, d);
+      }
     }
 
     // draw_released sender (Plan 2B, ships dark behind eventsEnabled).

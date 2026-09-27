@@ -871,6 +871,50 @@ describe('runFipDrawPopulator', () => {
     expect(md018.pair2_player2_id ?? null).toBeNull();
   });
 
+  // Caught by a production dry-run: an EMPTY parent cell is not evidence of
+  // a qualifier slot. FIP publishes the first round before filling the next
+  // one in, so "nobody has advanced yet" and "this pair never will" look
+  // identical. Treating empty-parent as qualifier reclassified 41 of 55
+  // walkover cells against ~12 real ones — so it must stay a bye.
+  it('treats a walkover-shaped cell with an EMPTY parent as a bye, not a qualifier slot', async () => {
+    const unknownCell: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD018',
+      round_label: 'R32',
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team2_fip_id: '1900641629',
+      status: 'walkover',
+    };
+    const emptyParent: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD009',
+      round_label: 'R16',
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [unknownCell, emptyParent],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.qualifierSlots).toBe(0);
+    expect(result.skippedBye).toBe(1);
+  });
+
   it('still skips a walkover-shaped first-round cell whose pair HAS advanced into the parent (true bye)', async () => {
     const trueBye: DrawSeed = {
       ...realMatchDraw,
