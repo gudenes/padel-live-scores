@@ -4,6 +4,8 @@ import {
   collapseToFrontier,
   buildDoneProjections,
   buildSnapshotRows,
+  fillQualifierSlots,
+  isQualifierStandIn,
   type FrontierMatchRow,
 } from '../tournament-projection-snapshot.js';
 import { matchupKey, type FrontierEntrant } from '../../lib/bracket-projection.js';
@@ -109,5 +111,86 @@ describe('buildPlayedRounds', () => {
     expect(a.lostRound).toBe('R16')
     // lastPlayedIdx points at R16 in PROJ_ROUND_ORDER (R64,R32,R16,QF,SF,F → idx 2)
     expect(a.lastPlayedIdx).toBe(2)
+  })
+})
+
+describe('fillQualifierSlots', () => {
+  // A `null` leaf means "bye OR not-yet-known" and the simulator advances it
+  // for free. Correct for a true bye; wrong for a pair waiting on a qualifier.
+  const row = (o: Partial<FrontierMatchRow & { round: string | null; round_canonical: string | null }>) => ({
+    id: 'x', widget_id_composite: null, draw_position: null, status: 'scheduled',
+    winner_pair: null, pair1_player1_id: null, pair1_player2_id: null,
+    pair2_player1_id: null, pair2_player2_id: null, pair1_seed: null, pair2_seed: null,
+    round: 'R16', round_canonical: 'R16',
+    ...o,
+  }) as FrontierMatchRow & { round: string | null; round_canonical: string | null }
+
+  const E = (k: string): FrontierEntrant => {
+    const [a, b] = k.split('::'); return { pairKey: k, playerIds: [a!, b!], teamElo: 1500 }
+  }
+
+  it('substitutes a stand-in for the empty side of a pair-vs-qualifier cell', () => {
+    // R16 draw → 8 first-round cells → 16 leaf slots. WD008 is cell 0.
+    const rows = [row({
+      id: 'q1', widget_id_composite: 'T:WD008', round: 'R16', round_canonical: 'R16',
+      pair1_player1_id: 'a', pair1_player2_id: 'b',
+    })]
+    const leaves: (FrontierEntrant | null)[] = new Array(16).fill(null)
+    leaves[0] = E('a::b')
+
+    const n = fillQualifierSlots(leaves, rows, new Map(), new Map())
+
+    expect(n).toBe(1)
+    expect(leaves[1]).not.toBeNull()
+    expect(isQualifierStandIn(leaves[1]!.pairKey)).toBe(true)
+  })
+
+  it('leaves a true bye alone — no first-round row, so the seed keeps its free pass', () => {
+    // Seed lifted into the leaves from the next-round cell: there is no
+    // first-round row at all, so nothing should be substituted.
+    const rows = [row({
+      id: 'r16', widget_id_composite: 'T:WD004', round: 'QF', round_canonical: 'QF',
+      pair1_player1_id: 'a', pair1_player2_id: 'b',
+    })]
+    const leaves: (FrontierEntrant | null)[] = new Array(16).fill(null)
+    leaves[0] = E('a::b')
+
+    const n = fillQualifierSlots(leaves, rows, new Map(), new Map())
+
+    expect(n).toBe(0)
+    expect(leaves[1]).toBeNull()
+  })
+
+  it('ignores cells where both sides are known', () => {
+    const rows = [row({
+      id: 'full', widget_id_composite: 'T:WD008', round: 'R16', round_canonical: 'R16',
+      pair1_player1_id: 'a', pair1_player2_id: 'b',
+      pair2_player1_id: 'c', pair2_player2_id: 'd',
+    })]
+    const leaves: (FrontierEntrant | null)[] = new Array(16).fill(null)
+    leaves[0] = E('a::b'); leaves[1] = E('c::d')
+
+    expect(fillQualifierSlots(leaves, rows, new Map(), new Map())).toBe(0)
+  })
+
+  it('prices the stand-in off the qualifying field, not the main draw', () => {
+    const elo = new Map<string, number>([
+      ['a', 2000], ['b', 2000], ['q1', 1200], ['q2', 1200], ['q3', 1300], ['q4', 1300],
+    ])
+    const rows = [
+      row({ id: 'q', widget_id_composite: 'T:WD008', round: 'R16', round_canonical: 'R16',
+        pair1_player1_id: 'a', pair1_player2_id: 'b' }),
+      row({ id: 'qual', widget_id_composite: 'T:WQ001', round: 'Q1', round_canonical: 'Q1',
+        pair1_player1_id: 'q1', pair1_player2_id: 'q2',
+        pair2_player1_id: 'q3', pair2_player2_id: 'q4' }),
+    ]
+    const leaves: (FrontierEntrant | null)[] = new Array(16).fill(null)
+    leaves[0] = { pairKey: 'a::b', playerIds: ['a', 'b'], teamElo: 2000 }
+
+    fillQualifierSlots(leaves, rows, elo, new Map())
+
+    // Qualifying pairs average (1200+1300)/1 → 1250, well below the 2000 main-draw pair.
+    expect(leaves[1]!.teamElo).toBeCloseTo(1250, 5)
+    expect(leaves[1]!.teamElo).toBeLessThan(2000)
   })
 })
