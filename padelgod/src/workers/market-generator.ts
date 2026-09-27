@@ -9,7 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Logger } from 'pino'
 import { bFromMaxLoss, seedShares } from '../lib/lmsr.js'
 import { applyCaps, passesGates, type Candidate, type Gates } from '../lib/market-gates.js'
-import { matchRowToCandidate, type MatchRow } from '../lib/market-candidates.js'
+import { matchRowToCandidate, seedSpecForTemplate, type MatchRow } from '../lib/market-candidates.js'
 import { isPremierTier } from './match-stats-fetcher.js'
 
 /** Never seed at a probability the CHECK constraint would reject. */
@@ -67,14 +67,23 @@ export function buildMarketRow(
   candidate: Candidate,
   seasonId: string,
 ): MarketRow {
-  if (candidate.modelProb === null) {
-    throw new Error(`cannot seed market for ${candidate.key}: no model probability`)
+  // `seedProb` is the resolved anchor — the model probability for an elo
+  // template, the template's own constant for a fixed one. Reading modelProb
+  // here instead is what made every fixed-seed market throw (or, upstream in
+  // the gate, vanish) while its seed price sat unread in params.
+  //
+  // `Number.isFinite` rather than a plain null check: an undefined would sail
+  // past `=== null` and clamp to NaN, and __tests__ are outside the typecheck
+  // scope so TypeScript would not catch a hand-built candidate that omits it.
+  const seed = candidate.seedProb
+  if (seed === null || !Number.isFinite(seed)) {
+    throw new Error(`cannot seed market for ${candidate.key}: no seed probability`)
   }
   if (candidate.scheduledAt === null) {
     throw new Error(`cannot lock market for ${candidate.key}: no scheduled_at`)
   }
 
-  const p = Math.min(SEED_MAX, Math.max(SEED_MIN, candidate.modelProb))
+  const p = Math.min(SEED_MAX, Math.max(SEED_MIN, seed))
   const b = bFromMaxLoss(template.max_loss_guacas)
   const { qYes, qNo } = seedShares(p, b)
 
@@ -254,9 +263,12 @@ export async function runMarketGenerator(
 
   for (const t of templates) {
     const gates = (t.gates ?? {}) as Gates
+    // Resolved once per template, not per row: for a fixed-seed template this
+    // reads the constant out of `params` and every candidate opens at it.
+    const seed = seedSpecForTemplate(t)
     for (const row of rows) {
       if (existingKeys.has(`${t.id}:${row.id}`)) continue
-      const cand = matchRowToCandidate(row, ranks, t.key, t.max_loss_guacas)
+      const cand = matchRowToCandidate(row, ranks, t.key, t.max_loss_guacas, seed)
       if (seenKeys.has(cand.key)) continue
       seenKeys.add(cand.key)
       result.candidates += 1

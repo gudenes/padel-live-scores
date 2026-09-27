@@ -2,10 +2,13 @@ import { describe, it, expect } from 'vitest'
 import { getResolver, listResolverKeys, RESOLVERS } from '../market-resolvers/index.js'
 
 describe('resolver registry', () => {
-  it('exposes the phase-1 resolvers', () => {
-    expect(listResolverKeys().sort()).toEqual(
-      ['match.winner_is_pair', 'tournament.champion_is_pair'],
-    )
+  it('exposes every registered resolver', () => {
+    expect(listResolverKeys().sort()).toEqual([
+      'match.any_set_bagel',
+      'match.went_to_three_sets',
+      'match.winner_is_pair',
+      'tournament.champion_is_pair',
+    ])
   })
 
   it('returns a resolver by key', () => {

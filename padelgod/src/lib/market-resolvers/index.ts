@@ -10,12 +10,18 @@
 import type { Resolver } from './types.js'
 import { matchWinnerIsPair } from './match-winner.js'
 import { tournamentChampionIsPair } from './tournament-champion.js'
+import { matchAnySetBagel } from './any-set-bagel.js'
+import { matchWentToThreeSets } from './went-to-three-sets.js'
 
 export type { Resolver, ResolverContext, ResolverResult } from './types.js'
 
 export const RESOLVERS: Record<string, Resolver> = {
   'match.winner_is_pair': matchWinnerIsPair,
   'tournament.champion_is_pair': tournamentChampionIsPair,
+  // Set-shape resolvers. Both read `public.sets` and share one truncation
+  // rule — see market-resolvers/match-sets.ts.
+  'match.any_set_bagel': matchAnySetBagel,
+  'match.went_to_three_sets': matchWentToThreeSets,
 }
 
 export function listResolverKeys(): string[] {

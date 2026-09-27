@@ -5,6 +5,17 @@
 // 0.4 trades each and every price sits frozen at its seed. These gates exist
 // to keep the open-market count near `daily actives ÷ 10`.
 
+/**
+ * `market_templates.seed_source` value meaning "the opening price is a constant
+ * carried in the template's own params", not something read off the match.
+ *
+ * This is the escape hatch for every question the Elo model does not answer.
+ * `matches.pred_pair1_prob` predicts WHO WINS; it says nothing about whether a
+ * set finishes 6-0 or whether a match reaches a decider, so those templates
+ * ship a measured historical base rate instead.
+ */
+export const FIXED_SEED_SOURCE = 'fixed'
+
 export interface Candidate {
   /** Stable identity for dedup/logging, e.g. `${templateKey}:${matchId}`. */
   key: string
@@ -14,8 +25,21 @@ export interface Candidate {
   round: string | null
   /** Best (lowest) FIP ranking across the four players; null if unranked. */
   bestRanking: number | null
-  /** Model probability for the YES side; null when no anchor exists. */
+  /**
+   * The model's probability for THIS market's YES side, or null when the model
+   * has no opinion on the question being asked. A fixed-seed template is
+   * exactly that case — carrying `pred_pair1_prob` across to a bagel market
+   * would be a winner probability wearing a different question's label.
+   */
   modelProb: number | null
+  /** The template's `seed_source`, verbatim. */
+  seedSource: string
+  /**
+   * The price this market will actually OPEN at, already resolved from
+   * `seedSource`: the model probability for 'elo', the template's constant for
+   * 'fixed'. null means there is no anchor, and therefore no market.
+   */
+  seedProb: number | null
   scheduledAt: Date | null
   /** This market's subsidy in guacas — the template's max_loss_guacas, i.e.
    *  lmsr_b · ln(2). Per-template, NOT a global constant: match.winner is
@@ -42,7 +66,12 @@ const ROUND_WEIGHT: Record<string, number> = {
 export function passesGates(c: Candidate, g: Gates): GateResult {
   // A market with no anchor would open at a blank 50/50, which is the exact
   // cold-start failure this product is designed to avoid.
-  if (c.modelProb === null) return { ok: false, reason: 'no seed price available' }
+  //
+  // Gated on `seedProb`, NOT on `modelProb`: a fixed-seed template brings its
+  // own anchor and legitimately has no model opinion. Checking modelProb here
+  // is what silently discarded every non-winner candidate with the misleading
+  // reason "no seed price available" while a seed price was sitting in params.
+  if (c.seedProb === null) return { ok: false, reason: 'no seed price available' }
 
   // Without scheduled_at the market has no lock time and would trade forever.
   if (c.scheduledAt === null) return { ok: false, reason: 'no scheduled_at' }
@@ -59,7 +88,13 @@ export function passesGates(c: Candidate, g: Gates): GateResult {
     }
   }
 
-  if (g.competitiveness) {
+  // The competitiveness band is a WINNER-market idea: it drops foregone
+  // conclusions like a world number 1 against a qualifier. There is no
+  // equivalent reading for "will any set finish 6-0" — that seed is the same
+  // constant on every match, so banding it would either keep every candidate
+  // or reject every one, depending on the band. Applied only where there is a
+  // model probability to band.
+  if (g.competitiveness && c.modelProb !== null) {
     const [lo, hi] = g.competitiveness
     if (c.modelProb < lo || c.modelProb > hi) {
       return { ok: false, reason: 'outside competitiveness band' }
@@ -80,6 +115,12 @@ export function scoreCandidate(c: Candidate): number {
   const rankScore = c.bestRanking === null ? 0 : 50 / Math.log2(c.bestRanking + 2) * 0.6
 
   // A coin flip is the most interesting market; 0.5 → 40, 0.65 → 28.
+  // A fixed-seed candidate has no model probability and scores 0 here, so it
+  // sorts below winner markets on the same match. Deliberate: when the caps
+  // bite, a market the model has an opinion about is worth more subsidy than a
+  // base-rate market. Inventing a closeness from the base rate would just be
+  // the same constant for every candidate and change nothing but the ordering
+  // against winner markets.
   const closeness = c.modelProb === null ? 0 : (1 - Math.abs(c.modelProb - 0.5) * 2) * 40
 
   return roundScore + rankScore + closeness
