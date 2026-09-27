@@ -103,6 +103,32 @@ export function buildFirstRoundLeaves(
   const firstMatches = byRound.get(firstRound) ?? []
   const nextMatches = nextRound ? (byRound.get(nextRound) ?? []) : []
 
+  // Index the next round by BRACKET POSITION, not array position. A round with
+  // `slotCount` cells occupies heap nodes [slotCount, 2*slotCount-1], so
+  // position = heapNum - slotCount.
+  //
+  // Using the array index here is a silent correctness bug: one missing
+  // next-round row shifts every later index by one, so the bye-lift below
+  // consults the wrong cell — or runs off the end — and seeds that byed the
+  // first round vanish from the bracket entirely. Rotterdam P2 2026 women:
+  // `WD013` was never ingested (a lucky-loser the entry list didn't carry),
+  // which silently dropped seed 5 (Ortega/Araujo) AND seed 2 (Josemaria/
+  // Gonzalez) from the projection — neither of which had anything wrong with
+  // their own rows. Keyed by position, a gap only costs its own cell.
+  const nextSlotCount = nextRound ? ROUND_SLOTS[nextRound] : 0
+  const nextByPos = new Map<number, BracketMatch>()
+  for (const m of nextMatches) {
+    const num = widgetHeapNumber(m.widget_id_composite)
+    if (num == null) continue
+    const idx = num - nextSlotCount
+    if (idx < 0 || idx >= nextSlotCount || nextByPos.has(idx)) continue
+    nextByPos.set(idx, m)
+  }
+  // Data sources without widget heap codes (some FIP draws) keep the legacy
+  // positional mapping — it is all they can support.
+  if (nextByPos.size === 0) nextMatches.forEach((m, j) => nextByPos.set(j, m))
+  const nextCellAt = (j: number): BracketMatch | undefined => nextByPos.get(j)
+
   // Place first-round matches at bracket positions.
   const byPos = new Map<number, BracketMatch>()
   const unplaced = new Set<BracketMatch>(firstMatches)
@@ -128,8 +154,7 @@ export function buildFirstRoundLeaves(
     }
     return undefined
   }
-  for (let j = 0; j < nextMatches.length; j++) {
-    const m = nextMatches[j]!
+  for (const [j, m] of nextByPos) {
     const top = feedMatch(m.pair1_player1_id, m.pair1_player2_id)
     if (top && !byPos.has(2 * j)) { byPos.set(2 * j, top); unplaced.delete(top) }
     const bot = feedMatch(m.pair2_player1_id, m.pair2_player2_id)
@@ -139,7 +164,7 @@ export function buildFirstRoundLeaves(
   // Fallback: fill remaining unplaced into empty, non-bye positions.
   const isLikelyBye = (pos: number): boolean => {
     if (!nextRound) return false
-    const cell = nextMatches[Math.floor(pos / 2)]
+    const cell = nextCellAt(Math.floor(pos / 2))
     if (!cell) return false
     const side = pos % 2 === 0 ? cell.pair1_player1_id : cell.pair2_player1_id
     return side != null
@@ -165,7 +190,7 @@ export function buildFirstRoundLeaves(
     // still null) — otherwise a top seed whose bye slot holds a TBD-vs-TBD
     // placeholder row would vanish from the bracket entirely.
     if (nextRound && leaves[2 * pos] == null && leaves[2 * pos + 1] == null) {
-      const cell = nextMatches[Math.floor(pos / 2)]
+      const cell = nextCellAt(Math.floor(pos / 2))
       if (cell) {
         const top = pos % 2 === 0
         const s1 = top ? cell.pair1_player1_id : cell.pair2_player1_id

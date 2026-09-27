@@ -116,10 +116,34 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
     firstRoundUnplaced.delete(m)
   }
 
+  // Index the next round by BRACKET POSITION, not array position. A round with
+  // `slotCount` cells occupies heap nodes [slotCount, 2*slotCount-1], so
+  // position = heapNum - slotCount.
+  //
+  // The array index is a silent correctness bug: one missing next-round row
+  // shifts every later index by one, so the seed-bye lookup consults the wrong
+  // cell — or runs off the end — and seeds that byed the first round vanish
+  // from the bracket. Rotterdam P2 2026 women: `WD013` was never ingested (a
+  // lucky loser the entry list didn't carry), which silently dropped seed 5
+  // (Ortega/Araujo) and seed 2 (Josemaria/Gonzalez). Keyed by position, a gap
+  // only ever costs its own cell.
+  const nextSlotCount = nextRound ? ROUND_SLOTS[nextRound] : 0
+  const nextByPos = new Map<number, Match>()
   if (nextRound) {
-    const nextMatches = matchesByRound.get(nextRound) ?? []
-    for (let j = 0; j < nextMatches.length; j++) {
-      const m = nextMatches[j]
+    const all = matchesByRound.get(nextRound) ?? []
+    for (const m of all) {
+      const num = widgetHeapNumber(m)
+      if (num == null) continue
+      const idx = num - nextSlotCount
+      if (idx < 0 || idx >= nextSlotCount || nextByPos.has(idx)) continue
+      nextByPos.set(idx, m)
+    }
+    // Widget-less sources (some OOP-built draws) keep the legacy positional map.
+    if (nextByPos.size === 0) all.forEach((m, j) => nextByPos.set(j, m))
+  }
+
+  if (nextRound) {
+    for (const [j, m] of nextByPos) {
       // Seed-bye detection: a seeded pair with the opposite side fully empty
       // is a bye. Pass 1 (exact UUID) still runs — it catches carry-forward
       // seeds whose feeder DID play in the previous round. But Pass 2 (name
@@ -163,8 +187,7 @@ export function buildBracket(matches: Match[], drawSize: number): BracketNode[] 
   // game — that's the original "no bracket yet" path.
   const isLikelyBye = (pos: number): boolean => {
     if (!nextRound) return false
-    const nextMatches = matchesByRound.get(nextRound) ?? []
-    const nextCell = nextMatches[Math.floor(pos / 2)]
+    const nextCell = nextByPos.get(Math.floor(pos / 2))
     if (!nextCell) return false
     const isTopFeed = pos % 2 === 0
     const sidePlayer = isTopFeed ? nextCell.pair1_player1 : nextCell.pair2_player1
