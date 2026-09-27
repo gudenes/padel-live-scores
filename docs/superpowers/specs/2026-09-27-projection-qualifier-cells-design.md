@@ -188,9 +188,29 @@ tournaments that had none (Lyon, Dubai, Houten, São João):
    name comparison failed, and a real bye was read as a qualifier slot. The
    index is now scoped to `fip_event_page` rows, matching the gate's own
    scope, so both sides of the comparison speak one dialect.
-2. **An empty parent cell was treated as "nobody advanced → qualifier".** FIP
-   publishes the first round before filling the next one in, so empty means
-   *unknowable*, not *qualifier*. It now falls back to bye.
+2. ~~An empty parent cell was treated as "nobody advanced → qualifier".~~
+   **This second "cause" was not real, and "fixing" it was an over-correction
+   that shipped a false negative.** See below.
+
+### The over-correction (shipped in PR #614, fixed in the follow-up)
+
+Blaming the 39 false positives on *both* causes was sloppy: cause 1 accounted
+for 37 of them, cause 2 for exactly 2 — and those 2 were **genuine qualifier
+slots**. Rotterdam men's `MD028` is Stupaczuk/Sanz, seed 5, drawn against a
+qualifier; it feeds `MD014`, which is empty on both sides. Calling that a bye
+silently dropped a top-5 seed from the men's draw.
+
+The reasoning was backwards. A bye **is** advancement, and FIP fills the pair
+into the parent the moment the draw is published — which is exactly why
+Rotterdam's women's R16 cells already carry Triay, Salazar and the rest before
+a ball is hit. So an empty parent is positive evidence the pair did *not*
+advance, i.e. a qualifier slot. Restored to `return true`.
+
+Final production dry-run: **6 qualifier slots, 49 byes, 55 total** — matching
+the unmodified worker's 55 exactly. All 6 are Rotterdam (`WD018`, `WD022`,
+`WD025`, `WD030`, `MD021`, `MD028`), each confirmed against the FIP draw page.
+Zero false positives in the Lyon / Dubai / Houten class, confirming cause 1
+was the whole story.
 
 Name comparison is additionally surname-level, so any residual feed-dialect
 mismatch fails toward **bye** — the pre-existing behaviour — rather than
