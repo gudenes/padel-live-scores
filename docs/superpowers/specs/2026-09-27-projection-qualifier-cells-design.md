@@ -166,6 +166,44 @@ These are separate defects surfaced during the investigation. Not part of this c
    would lag ~45 min rather than 15. The worker is currently dark
    (`ENABLE_PROJECTION_READY_NOTIFIER` unset; last row 2026-06-15), so this is latent.
 
+## Post-mortem: the first cut would have invented 36 matches
+
+Worth recording, because the unit tests were green and the logic read as
+correct. A **production dry-run**, diffed against the unmodified worker, is
+what caught it:
+
+```
+baseline (no fix):  inserted=0,  skippedBye=55
+first cut:          inserted=40, skippedBye=14, qualifierSlots=41   <- 39 false positives
+final:              inserted=4,  skippedBye=51, qualifierSlots=4    <- 51+4 = 55 reconciles
+```
+
+Two independent causes, both of which invented first-round matches in
+tournaments that had none (Lyon, Dubai, Houten, São João):
+
+1. **OOP rows shadowed their bracket twins.** The parent index was built
+   last-wins over `latestDraws`, which also carries OOP-merged rows. OOP
+   abbreviates first names — `"A. Salazar Bengoechea"` where the bracket says
+   `"Alejandra Salazar Bengoechea"` — so the lookup returned an OOP row, the
+   name comparison failed, and a real bye was read as a qualifier slot. The
+   index is now scoped to `fip_event_page` rows, matching the gate's own
+   scope, so both sides of the comparison speak one dialect.
+2. **An empty parent cell was treated as "nobody advanced → qualifier".** FIP
+   publishes the first round before filling the next one in, so empty means
+   *unknowable*, not *qualifier*. It now falls back to bye.
+
+Name comparison is additionally surname-level, so any residual feed-dialect
+mismatch fails toward **bye** — the pre-existing behaviour — rather than
+conjuring a match.
+
+**The generalisable lesson:** this class of change is not verifiable by unit
+test alone. The fixtures encode what I *believed* the feed looked like; only
+the real corpus contains the second naming dialect. Any future change to draw
+ingest should be dry-run against production and **diffed against the
+unmodified worker**, because the absolute counter (`qualifierSlots: 41`) looked
+plausible in isolation — it was only obviously wrong next to the baseline's
+`skippedBye: 55`.
+
 ## Verification
 
 - Rotterdam P2 women projects with all 20 known pairs present, without changing the gate.
