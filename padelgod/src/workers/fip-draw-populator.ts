@@ -569,13 +569,20 @@ export function isQualifierSlotRow(
   const named = drawRowNames(row);
   if (named.length === 0) return false;
   const parentNames = drawRowNames(parent).map(normalizeName);
-  // An EMPTY parent cell is not evidence of a qualifier slot — FIP publishes
-  // the first round before it fills the next one in, so "nobody has advanced
-  // yet" and "this pair never will" look identical. Only a parent that
-  // actually names somebody can settle the question. Treating empty as
-  // "qualifier" reclassified 41 of 55 walkover cells on the 2026-09-27
-  // production dry-run, against ~12 real ones.
-  if (parentNames.length === 0) return false;
+  // An EMPTY parent cell means the pair did NOT advance, which is precisely
+  // what a qualifier slot looks like. A bye *is* advancement, so FIP fills
+  // the pair into the parent the moment the draw is published — that is why
+  // Rotterdam's women's R16 cells already carry Triay, Salazar and the rest
+  // before a ball is hit. Men's `MD028` (Stupaczuk/Sanz, seed 5, vs a
+  // qualifier) feeds `MD014`, which is empty on both sides — nobody has
+  // advanced there because the match still has to be played.
+  //
+  // An earlier cut treated empty-parent as a bye, on the theory that FIP
+  // might publish round 1 before round 2. That turned out to account for
+  // exactly 2 cells — and both were genuine qualifier slots that it wrongly
+  // dropped (a top-5 seed among them). The false positives it was blamed for
+  // were entirely the OOP name-shadowing fixed above.
+  if (parentNames.length === 0) return true;
   // Surname-level comparison. Feeds spell first names inconsistently
   // ("A. Salazar Bengoechea" vs "Alejandra Salazar Bengoechea"), and every
   // near-miss here must fail toward "bye" — that is the pre-existing

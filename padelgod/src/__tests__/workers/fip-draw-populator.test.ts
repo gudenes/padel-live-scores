@@ -17,6 +17,9 @@ import {
   type BracketOverlay,
   // NEW from Task 4:
   type Tier,
+  // 2026-09-27 — bye vs qualifier-slot discriminator:
+  isQualifierSlotRow,
+  parentWidgetId,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -871,15 +874,16 @@ describe('runFipDrawPopulator', () => {
     expect(md018.pair2_player2_id ?? null).toBeNull();
   });
 
-  // Caught by a production dry-run: an EMPTY parent cell is not evidence of
-  // a qualifier slot. FIP publishes the first round before filling the next
-  // one in, so "nobody has advanced yet" and "this pair never will" look
-  // identical. Treating empty-parent as qualifier reclassified 41 of 55
-  // walkover cells against ~12 real ones — so it must stay a bye.
-  it('treats a walkover-shaped cell with an EMPTY parent as a bye, not a qualifier slot', async () => {
-    const unknownCell: DrawSeed = {
+  // An EMPTY parent proves the pair did NOT advance — and a bye *is*
+  // advancement, which FIP fills in the moment the draw is published. So an
+  // empty parent is a qualifier slot, not a bye. Rotterdam men's MD028
+  // (Stupaczuk/Sanz, seed 5, vs a qualifier) feeds MD014, empty on both
+  // sides; an earlier cut called that a bye and silently dropped a top-5
+  // seed from the draw.
+  it('treats a walkover-shaped cell with an EMPTY parent as a qualifier slot', async () => {
+    const qualifierSlot: DrawSeed = {
       ...realMatchDraw,
-      match_widget_id: 'MD018',
+      match_widget_id: 'MD028',
       round_label: 'R32',
       team2_player1_name: null,
       team2_player2_name: null,
@@ -888,7 +892,7 @@ describe('runFipDrawPopulator', () => {
     };
     const emptyParent: DrawSeed = {
       ...realMatchDraw,
-      match_widget_id: 'MD009',
+      match_widget_id: 'MD014',
       round_label: 'R16',
       team1_player1_name: null,
       team1_player2_name: null,
@@ -901,7 +905,7 @@ describe('runFipDrawPopulator', () => {
         { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
       ],
       widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
-      draws: [unknownCell, emptyParent],
+      draws: [qualifierSlot, emptyParent],
       entryList,
       players: rosterPlayers,
     });
@@ -911,8 +915,13 @@ describe('runFipDrawPopulator', () => {
       dryRun: false,
     });
 
-    expect(result.qualifierSlots).toBe(0);
-    expect(result.skippedBye).toBe(1);
+    expect(result.qualifierSlots).toBe(1);
+    expect(result.skippedBye).toBe(0);
+    expect(
+      supabase.inserted.find(
+        (r: any) => r.widget_id_composite === 'FIP-2026-1706:MD028',
+      ),
+    ).toBeDefined();
   });
 
   it('still skips a walkover-shaped first-round cell whose pair HAS advanced into the parent (true bye)', async () => {
@@ -4164,5 +4173,52 @@ describe('runFipDrawPopulator — draw_released coalescing', () => {
     await runFipDrawPopulator({ supabase: supabase as any, dryRun: false, notify: deps as any, eventsEnabled: true });
 
     expect(posts.filter((p) => p.body.category === 'draw_released')).toHaveLength(1);
+  });
+});
+
+describe('isQualifierSlotRow — bye vs qualifier discriminator', () => {
+  const cell = (id: string, a1: string | null, a2: string | null, b1: string | null = null, b2: string | null = null) => ({
+    match_widget_id: id,
+    team1_player1_name: a1, team1_player2_name: a2,
+    team2_player1_name: b1, team2_player2_name: b2,
+  });
+
+  it('derives the parent cell from the widget heap', () => {
+    expect(parentWidgetId('WD018')).toBe('WD009');
+    expect(parentWidgetId('MD031')).toBe('MD015');
+    expect(parentWidgetId('MD001')).toBeNull(); // root
+    expect(parentWidgetId(null)).toBeNull();
+  });
+
+  it('calls it a BYE when the pair has advanced into the parent', () => {
+    const child = cell('WD016', 'Gemma Triay Pons', 'Delfina Brea Senesi');
+    const parent = cell('WD008', 'Gemma Triay Pons', 'Delfina Brea Senesi', 'Eugenia Guimet', 'Anastasiia Ryzhova');
+    expect(isQualifierSlotRow(child, new Map([['WD008', parent]]))).toBe(false);
+  });
+
+  // The 2026-09-27 false-positive cause: OOP abbreviates first names where
+  // the bracket spells them out. Any residual dialect mismatch must fail
+  // toward BYE — the pre-existing behaviour — never conjure a match.
+  it('still calls it a BYE when the parent abbreviates first names', () => {
+    const child = cell('WD016', 'Alejandra Salazar Bengoechea', 'Aranzazu Osoro Ulrich');
+    const parent = cell('WD008', 'A. Salazar Bengoechea', 'A. Osoro Ulrich', 'E. Guimet', 'A. Ryzhova');
+    expect(isQualifierSlotRow(child, new Map([['WD008', parent]]))).toBe(false);
+  });
+
+  it('calls it a QUALIFIER SLOT when the parent names somebody else entirely', () => {
+    const child = cell('WD018', 'Marta Barrera De La Fuente', 'Jana Montes Cabruja');
+    const parent = cell('WD009', null, null, 'Alejandra Salazar Bengoechea', 'Aranzazu Osoro Ulrich');
+    expect(isQualifierSlotRow(child, new Map([['WD009', parent]]))).toBe(true);
+  });
+
+  it('calls it a QUALIFIER SLOT when the parent is empty (nobody advanced)', () => {
+    const child = cell('MD028', 'Franco Stupaczuk', 'Jon Sanz');
+    const parent = cell('MD014', null, null, null, null);
+    expect(isQualifierSlotRow(child, new Map([['MD014', parent]]))).toBe(true);
+  });
+
+  it('falls back to BYE when the parent row is absent entirely (unverifiable)', () => {
+    const child = cell('MD028', 'Franco Stupaczuk', 'Jon Sanz');
+    expect(isQualifierSlotRow(child, new Map())).toBe(false);
   });
 });
