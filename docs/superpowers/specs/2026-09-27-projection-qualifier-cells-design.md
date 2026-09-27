@@ -1,8 +1,20 @@
 # Projections: ingest qualifier cells instead of widening the gate
 
 **Date:** 2026-09-27
-**Status:** Proposed, not implemented
+**Status:** Steps 1 + 2 implemented, not deployed. Step 3 (gate) deliberately untouched.
 **Branch:** `feat/projection-qualifier-cells`
+
+> **Implementation note (2026-09-27).** The root cause turned out to be one
+> level lower than this spec first assumed. The `(Q)` cells *are* scraped —
+> all 16 of Rotterdam's women's R32 cells are in `padelgod.draw_snapshots`.
+> FIP renders "pair waiting on a qualifier" with **exactly** the same shape as
+> a bye (one side named, other blank, `status='walkover'`), so
+> `fip-draw-populator`'s blanket bye-skip discarded both. No new column and no
+> migration were needed: the two are separable structurally, because a true
+> bye's pair has already advanced into the parent cell and a qualifier slot's
+> has not. That discriminator classified all 12 walkover-shaped cells in the
+> Rotterdam women's draw correctly, and 376 bye / 12 qualifier across every
+> FIP + Premier draw of the last 45 days.
 
 ## Problem
 

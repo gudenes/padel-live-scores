@@ -168,6 +168,10 @@ export interface FipDrawPopulatorResult {
   updated: number;
   skippedNoWidget: number;
   skippedBye: number;
+  /** Walkover-shaped first-round cells that turned out to be a real pair
+   *  waiting on a qualifier rather than a bye, and were therefore INSERTed
+   *  instead of skipped. Observability for the 2026-09-27 fix. */
+  qualifierSlots: number;
   skippedPlayerUnresolved: number;
   skippedAlreadyComplete: number;
   /** Number of `tournament_draws` UPSERT calls (one per team per
@@ -497,6 +501,79 @@ export function computeFirstRoundByCategory(
   return out;
 }
 
+/**
+ * Parent (next-round) cell id in the widget heap: a cell numbered N feeds
+ * cell floor(N/2). `WD018` → `WD009`, `MD031` → `MD015`. Returns null when
+ * the id isn't heap-shaped or is already the root.
+ */
+export function parentWidgetId(id: string | null | undefined): string | null {
+  if (!id) return null;
+  const m = /^([A-Za-z]+)(\d+)$/.exec(id);
+  if (!m) return null;
+  const digits = m[2]!;
+  const n = Number.parseInt(digits, 10);
+  if (!Number.isFinite(n) || n < 2) return null;
+  return `${m[1]}${String(Math.floor(n / 2)).padStart(digits.length, '0')}`;
+}
+
+function drawRowNames(r: {
+  team1_player1_name?: string | null;
+  team1_player2_name?: string | null;
+  team2_player1_name?: string | null;
+  team2_player2_name?: string | null;
+}): string[] {
+  return [
+    r.team1_player1_name,
+    r.team1_player2_name,
+    r.team2_player1_name,
+    r.team2_player2_name,
+  ].filter((n): n is string => n != null && n !== '');
+}
+
+type DrawRowNames = {
+  team1_player1_name?: string | null;
+  team1_player2_name?: string | null;
+  team2_player1_name?: string | null;
+  team2_player2_name?: string | null;
+};
+
+/**
+ * FIP renders two very different first-round cells identically — one side
+ * named, the other blank, `status='walkover'`:
+ *
+ *   - a TRUE BYE — the seed advances unopposed, no match is ever played
+ *   - a QUALIFIER SLOT — a real pair waiting on a qualifier to be decided
+ *
+ * They are separable structurally rather than by seeding. A true bye's pair
+ * is ALREADY placed in the parent cell — that is what advancing unopposed
+ * means — while a qualifier slot leaves the parent slot empty until the
+ * match is actually played.
+ *
+ * Rotterdam P2 2026, women's draw: `WD016` (Triay/Brea, a real bye) appears
+ * again in parent `WD008`; `WD018` (Barrera/Montes, waiting on a qualifier)
+ * does not appear in parent `WD009`. The same discriminator separated all
+ * 12 walkover-shaped cells in that draw correctly.
+ *
+ * Returns false — "treat as a bye, skip" — when the parent cell is missing
+ * from the snapshot, preserving the pre-2026-09-27 behaviour rather than
+ * inventing a match we cannot corroborate.
+ */
+export function isQualifierSlotRow(
+  row: DrawRowNames & { match_widget_id: string | null },
+  byWidgetId: ReadonlyMap<string, DrawRowNames>,
+): boolean {
+  const parentId = parentWidgetId(row.match_widget_id);
+  if (!parentId) return false;
+  const parent = byWidgetId.get(parentId);
+  if (!parent) return false;
+  const named = drawRowNames(row);
+  if (named.length === 0) return false;
+  const parentNames = new Set(drawRowNames(parent).map(normalizeName));
+  if (parentNames.size === 0) return true;
+  // Pair present in the parent cell → it advanced → true bye.
+  return !named.some((n) => parentNames.has(normalizeName(n)));
+}
+
 // ── Main entry ─────────────────────────────────────────────────────────
 
 export async function runFipDrawPopulator(
@@ -517,6 +594,7 @@ export async function runFipDrawPopulator(
     updated: 0,
     skippedNoWidget: 0,
     skippedBye: 0,
+    qualifierSlots: 0,
     skippedPlayerUnresolved: 0,
     skippedAlreadyComplete: 0,
     tournamentDrawsWritten: 0,
@@ -789,6 +867,13 @@ export async function runFipDrawPopulator(
     // pre-tournament R32+ cell on a 56-draw event with byes.
     const firstRoundByCategory = computeFirstRoundByCategory(latestDraws);
 
+    // Widget-id index over this tournament's draw rows, used by the
+    // bye-vs-qualifier discriminator below to look up a cell's parent.
+    const drawRowsByWidgetId = new Map<string, (typeof latestDraws)[number]>();
+    for (const d of latestDraws) {
+      if (d.match_widget_id) drawRowsByWidgetId.set(d.match_widget_id, d);
+    }
+
     // draw_released sender (Plan 2B, ships dark behind eventsEnabled).
     // Collect the distinct categories for which we actually upserted
     // tournament_draws rows this run, then fire ONCE per (tournament,
@@ -836,8 +921,25 @@ export async function runFipDrawPopulator(
           d.status === 'walkover' &&
           (!team1HasNames || !team2HasNames)
         ) {
-          result.skippedBye += 1;
-          continue;
+          // Same rendered shape, two different meanings. A true bye is
+          // skipped (no match is ever played); a pair waiting on a
+          // qualifier is a REAL upcoming match and must be inserted with
+          // the known side populated and the qualifier side left NULL.
+          // Skipping the latter used to drop the known pair from the app
+          // entirely — see the 2026-09-27 Rotterdam P2 women's draw, where
+          // 4 of 8 real R32 cells vanished and the projection went blank.
+          if (!isQualifierSlotRow(d, drawRowsByWidgetId)) {
+            result.skippedBye += 1;
+            continue;
+          }
+          result.qualifierSlots += 1;
+          logger?.debug(
+            {
+              tournamentId: t.tournament_id,
+              matchWidgetId: d.match_widget_id,
+            },
+            'fip-draw-populator: walkover-shaped cell is a qualifier slot, not a bye — inserting',
+          );
         }
       }
 
