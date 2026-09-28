@@ -2164,7 +2164,10 @@
       "cameraUnavailable": "Fotocamera non disponibile. Chiudi questa anteprima e scegli una foto.",
       "cameraCancel": "Chiudi fotocamera",
       "cameraCapture": "Scatta foto",
-      "cameraTimeout": "La fotocamera non si è aperta. Controlla il permesso nelle impostazioni del browser o dell’app. Puoi scegliere una foto qui sotto o aprire il sito in Safari o Chrome. L’app installata potrebbe richiedere un aggiornamento."
+      "cameraTimeout": "La fotocamera non si è aperta. Controlla il permesso nelle impostazioni del browser o dell’app. Puoi scegliere una foto qui sotto o aprire il sito in Safari o Chrome. L’app installata potrebbe richiedere un aggiornamento.",
+      "upload_connection": "La connessione di caricamento è stata interrotta. Tieni aperta l’app e riprova con una connessione stabile.",
+      "upload_timeout": "La richiesta è scaduta. Attendi un momento prima di riprovare.",
+      "upload_session": "Non è stato possibile verificare la sessione. Accedi di nuovo e riprova."
     }
   },
   "ppl": {

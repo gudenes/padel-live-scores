@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import AvatarCamera from './AvatarCamera'
+import { prepareAvatarPhoto, uploadAvatarPhoto, AvatarUploadError } from '@/lib/avatar-photo-upload'
 import { AVATAR_UPLOAD_MAX_BYTES } from '@/lib/avatar-upload'
 import { useTranslations } from 'next-intl'
 import { parseOutfit, type PlayerOutfit } from '@/lib/player-outfit'
@@ -37,20 +38,13 @@ export default function PhotoAvatarCreator({ onPreview }: { onPreview: (outfit: 
     const controller = new AbortController()
     request.current = controller
     try {
-      const form = new FormData()
-      form.set('photo', file); form.set('consent', 'true')
-      const response = await fetch('/api/play/avatar', { method: 'POST', body: form, signal: controller.signal })
-      const result = await response.json()
-      if (!response.ok) {
-        const known = ['not_configured', 'daily_limit', 'generation_busy', 'provider_busy', 'invalid_photo', 'photo_too_large', 'generation_failed', 'generation_unavailable']
-        setError(t(known.includes(result.error) ? result.error : 'generation_failed'))
-        return
-      }
-      const outfit = parseOutfit(result.outfit)
+      const photo = await prepareAvatarPhoto(file, controller.signal)
+      if (controller.signal.aborted) return
+      const outfit = parseOutfit(await uploadAvatarPhoto(photo, controller.signal))
       if (!outfit?.startsWith('custom:')) throw new Error('invalid result')
       onPreview(outfit)
-    } catch {
-      if (!controller.signal.aborted) setError(t('generation_unavailable'))
+    } catch (error) {
+      if (!controller.signal.aborted) setError(t(error instanceof AvatarUploadError ? error.message : 'generation_failed'))
     } finally { if (!controller.signal.aborted) setBusy(false) }
   }
   return <div className={styles.photoCreator}>

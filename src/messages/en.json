@@ -2196,7 +2196,10 @@
       "cameraUnavailable": "Camera unavailable. Close this preview and choose a photo instead.",
       "cameraCancel": "Close camera",
       "cameraCapture": "Take photo",
-      "cameraTimeout": "The camera did not open. Check camera access in your browser or app settings. You can choose a photo below, or try the website in Safari or Chrome. Installed apps may need an update."
+      "cameraTimeout": "The camera did not open. Check camera access in your browser or app settings. You can choose a photo below, or try the website in Safari or Chrome. Installed apps may need an update.",
+      "upload_connection": "The upload connection was interrupted. Keep the app open and try again on a stable connection.",
+      "upload_timeout": "The request timed out. Wait a moment before trying again.",
+      "upload_session": "Your session could not be verified. Sign in again and retry."
     }
   },
   "ppl": {

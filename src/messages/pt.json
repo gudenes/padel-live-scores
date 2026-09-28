@@ -2164,7 +2164,10 @@
       "cameraUnavailable": "Câmara indisponível. Fecha esta vista e escolhe uma foto.",
       "cameraCancel": "Fechar câmara",
       "cameraCapture": "Tirar foto",
-      "cameraTimeout": "A câmara não abriu. Verifica a permissão da câmara nas definições do navegador ou da app. Podes escolher uma foto abaixo ou abrir o site no Safari ou Chrome. A app instalada pode precisar de uma atualização."
+      "cameraTimeout": "A câmara não abriu. Verifica a permissão da câmara nas definições do navegador ou da app. Podes escolher uma foto abaixo ou abrir o site no Safari ou Chrome. A app instalada pode precisar de uma atualização.",
+      "upload_connection": "A ligação de envio foi interrompida. Mantém a app aberta e tenta novamente com uma ligação estável.",
+      "upload_timeout": "O pedido demorou demasiado. Espera um momento antes de tentar novamente.",
+      "upload_session": "Não foi possível verificar a tua sessão. Inicia sessão novamente e tenta outra vez."
     }
   },
   "ppl": {

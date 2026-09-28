@@ -32,6 +32,8 @@ export async function POST(req: Request) {
   const key = settings?.enabled ? settings.apiKey : null
   if (!key) return json({ error: 'not_configured' }, 503)
   if (!req.headers.get('content-type')?.startsWith('multipart/form-data')) return json({ error: 'invalid_photo' }, 400)
+  let stage = 'upload'
+  const started = Date.now()
   let release: (() => Promise<void>) | undefined
   try {
     // Enforce the bound while reading, including requests without Content-Length.
@@ -57,12 +59,17 @@ export async function POST(req: Request) {
       clean = await sharp(Buffer.from(await photo.arrayBuffer()), { limitInputPixels: AVATAR_UPLOAD_MAX_PIXELS })
         .rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer()
     } catch { return json({ error: 'invalid_photo' }, 400) }
+    stage = 'quota'
     release = await (process.env.NODE_ENV === 'production' ? reserveProductionAvatar(access.supabase, access.userId) : reserveAvatarGeneration(access.userId))
+    stage = 'reference'
     const reference = await readFile(path.join(process.cwd(), 'public/play/avatars/starter.png'))
+    stage = 'generation'
     const bytes = await generateAvatar(new Blob([new Uint8Array(clean)], { type: 'image/jpeg' }), new Blob([new Uint8Array(reference)], { type: 'image/png' }), key)
+    stage = 'storage'
     const id = await (process.env.NODE_ENV === 'production' ? saveProductionAvatar(access.supabase, access.userId, bytes) : saveLocalAvatar(access.userId, bytes))
     return json({ outfit: `custom:${id}` })
   } catch (error) {
+    console.warn('[avatar] request failed', { stage, elapsedMs: Date.now() - started, code: error instanceof AvatarGenerationError ? error.code : 'request_failed' })
     if (error instanceof AvatarGenerationError) return json({ error: error.code }, error.status)
     return json({ error: 'generation_failed' }, 500)
   } finally { await release?.() }
