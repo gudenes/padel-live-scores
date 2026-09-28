@@ -3,6 +3,16 @@ import { AVATAR_UPLOAD_MAX_PIXELS } from './avatar-upload'
 export class AvatarUploadError extends Error {}
 
 export async function prepareAvatarPhoto(file: File, signal: AbortSignal): Promise<Blob> {
+  // Resizing is a bandwidth optimization. Mobile WebViews can fail to
+  // decode/canvas-export a file that the server's image decoder accepts.
+  try { return await resizeAvatarPhoto(file, signal) }
+  catch (error) {
+    if (signal.aborted) throw error
+    return file
+  }
+}
+
+async function resizeAvatarPhoto(file: File, signal: AbortSignal): Promise<Blob> {
   const url = URL.createObjectURL(file)
   const image = new Image()
   try {

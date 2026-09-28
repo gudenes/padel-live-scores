@@ -36,3 +36,21 @@ it('returns the generated outfit on success',async ()=>{
   const fetcher=vi.fn().mockResolvedValue(Response.json({outfit:'custom:test'}))
   expect(await uploadAvatarPhoto(new Blob(),new AbortController().signal,fetcher)).toBe('custom:test')
 })
+
+it('uploads the original when the mobile image decoder fails', async () => {
+  const revoke = vi.fn()
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:photo', revokeObjectURL: revoke })
+  vi.stubGlobal('Image', class {
+    onerror: (() => void) | null = null
+    set src(value: string) { if(value) queueMicrotask(() => this.onerror?.()) }
+  })
+  const original = new File(['valid source'], 'phone.jpg', {type:'image/jpeg'})
+  expect(await prepareAvatarPhoto(original, new AbortController().signal)).toBe(original)
+  expect(revoke).toHaveBeenCalled()
+})
+it('does not upload the original after cancellation', async () => {
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:photo', revokeObjectURL: vi.fn() })
+  vi.stubGlobal('Image', class { set src(_value: string) {} })
+  const controller = new AbortController(); controller.abort()
+  await expect(prepareAvatarPhoto(new File(['photo'],'phone.jpg'),controller.signal)).rejects.toThrow('Aborted')
+})
