@@ -60,8 +60,24 @@ function isHeaderLine(line: string): boolean {
 // before the ranking number. Normal lines (remainder already starts with the
 // ranking digit) are left untouched because the marker group requires >=1
 // uppercase token before a digit.
+// Named entry markers FIP prints inline, in the name column, ahead of the
+// ranking: `LLi 10 Claudia Jensen AR`. `LLi` ("lucky loser in", followed by the
+// player's entry-time ranking) is mixed-case, so the uppercase-only group below
+// never matched it and the marker stayed glued to the name — the stored player
+// was literally "LLi 10 Claudia Jensen". That name then resolves against
+// nothing, the pair is dropped, and its main-draw cell never reaches `matches`.
+// Rotterdam P2 2026: cost the women's draw seed 8, and (before the bracket
+// indexing fix) seeds 2 and 5 as collateral.
+//
+// The `(?=\d)` lookahead is the safety rail — a marker is only stripped when a
+// ranking digit follows, so real names ("Aroa Segura", "Ann Lei") are untouched.
+const ENTRY_MARKER_RE = /^\s*(?:(?:LLi|LL|WC|Alt|Q)\s+)+(?=\d)/i;
+
 function stripEntryMarkers(s: string): string {
-  return s.replace(/^\s*(?:[A-Z]{1,3}\s+)+(?=\d)/, '').trim();
+  return s
+    .replace(ENTRY_MARKER_RE, '')
+    .replace(/^\s*(?:[A-Z]{1,3}\s+)+(?=\d)/, '')
+    .trim();
 }
 
 // Safety net: if a name still looks like leaked column data (the word "points",
@@ -121,7 +137,9 @@ export function parseEntryListText(text: string): ParseResult {
       continue;
     }
     const position = parseInt(posMatch[1]!, 10);
-    const afterPos = wcLine.replace(/^\d+\s*\t?\s*/, '');
+    // Strip named markers here too — player 1's name comes straight out of this
+    // segment, and only `WC` was being handled (above, as a positional prefix).
+    const afterPos = stripEntryMarkers(wcLine.replace(/^\d+\s*\t?\s*/, ''));
 
     const p1Match = playerRe.exec(afterPos);
     let player1Ranking: number;
