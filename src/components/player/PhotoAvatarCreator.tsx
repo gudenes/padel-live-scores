@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import AvatarCamera from './AvatarCamera'
 import { useTranslations } from 'next-intl'
 import { parseOutfit, type PlayerOutfit } from '@/lib/player-outfit'
 import { useApiResource } from '@/app/[locale]/(app)/play/_components/usePlayData'
@@ -10,6 +11,8 @@ import styles from './PlayerProfile.module.css'
 export default function PhotoAvatarCreator({ onPreview }: { onPreview: (outfit: PlayerOutfit) => void }) {
   const t = useTranslations('playerProfile.photo')
   const settings = useApiResource('/api/play/avatar', (data: unknown) => (data as { enabled?: boolean }).enabled === true)
+  const [camera, setCamera] = useState(false)
+  const closeCamera = useCallback(() => setCamera(false), [])
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [consent, setConsent] = useState(false)
@@ -54,13 +57,14 @@ export default function PhotoAvatarCreator({ onPreview }: { onPreview: (outfit: 
     {settings.status === 'loading' && <p role="status" className={styles.note}>{t('checking')}</p>}
     {settings.status === 'error' && <div role="status" className={styles.photoNotice}>{t('unavailable')} <button className={styles.textButton} onClick={settings.reload}>{t('retry')}</button></div>}
     {settings.status === 'ready' && !settings.data && <p className={styles.photoNotice}>{t('not_configured')}</p>}
+    {camera && <AvatarCamera onPhoto={select} onClose={closeCamera} />}
     <div className={styles.photoButtons}>
-      <label className={styles.uploadButton}>{t('takePhoto')}<input type="file" accept="image/jpeg,image/png,image/webp" capture="user" disabled={busy} onChange={e => { select(e.target.files?.[0]); e.target.value = '' }} /></label>
-      <label className={styles.uploadButton}>{t('uploadPhoto')}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { select(e.target.files?.[0]); e.target.value = '' }} /></label>
+      <button type="button" className={styles.uploadButton} disabled={busy || camera} onClick={() => setCamera(true)}>{t('takePhoto')}</button>
+      <label className={styles.uploadButton}>{t('uploadPhoto')}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || camera} onChange={e => { select(e.target.files?.[0]); e.target.value = '' }} /></label>
     </div>
     {preview && <div className={styles.photoPreview}><Image src={preview} alt={t('selectedPhoto')} width={120} height={120} unoptimized /><span>{t('fileHelp')}</span></div>}
     <label className={styles.consent}><input type="checkbox" checked={consent} disabled={busy || !file} onChange={e => setConsent(e.target.checked)} /><span>{t('consent')}</span></label>
-    <button className={styles.primary} disabled={!file || !consent || busy || !settings.data} onClick={generate}>{t(busy ? 'generating' : 'generate')}</button>
+    <button className={styles.primary} disabled={!file || !consent || busy || camera || !settings.data} onClick={generate}>{t(busy ? 'generating' : 'generate')}</button>
     <p role="status" className={styles.note}>{busy ? t('waiting') : t('retention')}</p>
     {error && <p role="alert" className={styles.photoError}>{error}</p>}
   </div>

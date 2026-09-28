@@ -2146,7 +2146,7 @@
       "uploadPhoto": "Scegli una foto",
       "selectedPhoto": "La tua foto selezionata",
       "fileHelp": "JPG, PNG o WebP · fino a 6 MB",
-      "consent": "Invia questa foto a OpenAI per creare il mio avatar. Ho il permesso di usare questa foto.",
+      "consent": "Invia questa foto a un modello LLM per creare il mio avatar. Ho il permesso di usare questa foto.",
       "generate": "Crea il mio avatar",
       "generating": "Creazione del tuo giocatore…",
       "waiting": "Potrebbero volerci alcuni minuti. Il tuo avatar attuale resta al suo posto.",
@@ -2155,9 +2155,15 @@
       "photo_too_large": "Scegli una foto più piccola di 6 MB.",
       "daily_limit": "Hai raggiunto i 5 tentativi di oggi. Riprova domani.",
       "generation_busy": "Un avatar è già in fase di creazione. Attendi.",
-      "provider_busy": "OpenAI è occupato. Riprova più tardi.",
+      "provider_busy": "Il modello LLM è occupato. Riprova più tardi.",
       "generation_failed": "Impossibile creare questo avatar. Prova un’altra foto nitida.",
-      "generation_unavailable": "Impossibile contattare il servizio. Riprova più tardi."
+      "generation_unavailable": "Impossibile contattare il servizio. Riprova più tardi.",
+      "cameraPreview": "Anteprima della fotocamera",
+      "cameraStarting": "Apertura della fotocamera…",
+      "cameraDenied": "Accesso alla fotocamera negato. Consentilo nel browser oppure chiudi questa anteprima e scegli una foto.",
+      "cameraUnavailable": "Fotocamera non disponibile. Chiudi questa anteprima e scegli una foto.",
+      "cameraCancel": "Chiudi fotocamera",
+      "cameraCapture": "Scatta foto"
     }
   },
   "ppl": {
