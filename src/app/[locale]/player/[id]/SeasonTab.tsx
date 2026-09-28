@@ -186,8 +186,11 @@ export function SeasonTab({
   )
 
   const seasonTournaments = useMemo(
-    () => deriveSeasonTournaments(derived.finished, playerId, selectedYear),
-    [derived.finished, playerId, selectedYear],
+    // allFinished: a PPL event SHOULD appear as a row in the season list.
+    // The W-L bars and win rate above deliberately use `finished` and leave
+    // it out.
+    () => deriveSeasonTournaments(derived.allFinished, playerId, selectedYear),
+    [derived.allFinished, playerId, selectedYear],
   )
 
   const maxTotal = Math.max(1, ...monthly.map(m => m.wins + m.losses))

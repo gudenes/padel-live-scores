@@ -60,7 +60,8 @@
         "label": "Liga",
         "all": "Todas",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Categoría",
@@ -420,7 +421,8 @@
     "eventsCount": "{count, plural, one {# evento} other {# eventos}}",
     "tournamentTabs": {
       "premier": "Premier Padel",
-      "fip": "FIP Tour"
+      "fip": "FIP Tour",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "Todas",
@@ -1284,7 +1286,6 @@
       "pairDescription": "El camino proyectado de {pair} hacia el título de {name}: rivales ronda a ronda y probabilidades de victoria."
     },
     "play": {
-
       "title": "Play the Next",
       "description": "Predice lo que pasa a continuación en el pádel. Elige un lado en mercados en vivo, opera con Guacas y sube en la clasificación. Solo dinero ficticio: nada que comprar ni que cobrar."
     }
@@ -1811,8 +1812,28 @@
     "cta": "Volver a PadelNachos"
   },
   "play": {
-    "results": {"netWin": "Ganancia neta", "netLoss": "Pérdida neta", "netResult": "Resultado neto", "totalPaid": "Total recibido", "invested": "{amount} G invertidos", "won": "Ganada", "lost": "Perdida", "refunded": "Reembolsada", "pending": "Pendiente de resolución", "closed": "Mercado cerrado", "corrected": "Resultado corregido", "adjustment": "Saldo ajustado en {amount} G.", "owed": "La corrección supera tu saldo disponible. Los próximos abonos cubrirán la diferencia antes de volver a jugar."},
-    "ticker": {"title": "Últimas jugadas", "pause": "Pausar", "resume": "Continuar", "open": "Ver la actividad de todos los mercados", "empty": "Aún no hay jugadas."},
+    "results": {
+      "netWin": "Ganancia neta",
+      "netLoss": "Pérdida neta",
+      "netResult": "Resultado neto",
+      "totalPaid": "Total recibido",
+      "invested": "{amount} G invertidos",
+      "won": "Ganada",
+      "lost": "Perdida",
+      "refunded": "Reembolsada",
+      "pending": "Pendiente de resolución",
+      "closed": "Mercado cerrado",
+      "corrected": "Resultado corregido",
+      "adjustment": "Saldo ajustado en {amount} G.",
+      "owed": "La corrección supera tu saldo disponible. Los próximos abonos cubrirán la diferencia antes de volver a jugar."
+    },
+    "ticker": {
+      "title": "Últimas jugadas",
+      "pause": "Pausar",
+      "resume": "Continuar",
+      "open": "Ver la actividad de todos los mercados",
+      "empty": "Aún no hay jugadas."
+    },
     "courtside": {
       "title": "En la pista",
       "all": "Ver todo",
@@ -1823,7 +1844,7 @@
       "empty": "Aún no hay jugadas en este mercado.",
       "noOwn": "Aún no tienes jugadas en este mercado.",
       "simulationNote": "Las jugadas simuladas son locales y no participan en premios."
-}, 
+    },
     "live": "En vivo",
     "horizon": {
       "live": "En partido",
@@ -2081,7 +2102,12 @@
     "outfitsLabel": "Elige un conjunto",
     "equipped": "Equipado",
     "localNote": "Elige cara y conjunto por separado · se guardan juntos en este dispositivo.",
-    "creator": {"compatibility": "Este personaje conserva su conjunto original. Prueba Rafa para explorar el primer vestuario combinable.", "tryRafa": "Personalizar Rafa", "ready": "3 conjuntos", "whole": "Avatar completo · guardado en este dispositivo. Próximamente, más personajes personalizables."},
+    "creator": {
+      "compatibility": "Este personaje conserva su conjunto original. Prueba Rafa para explorar el primer vestuario combinable.",
+      "tryRafa": "Personalizar Rafa",
+      "ready": "3 conjuntos",
+      "whole": "Avatar completo · guardado en este dispositivo. Próximamente, más personajes personalizables."
+    },
     "equip": "Usar este avatar",
     "restore": "Usar mi foto de perfil",
     "restored": "Foto de perfil restaurada.",
@@ -2133,5 +2159,36 @@
       "generation_failed": "No pudimos crear este avatar. Prueba con otra foto clara.",
       "generation_unavailable": "No se pudo conectar con el servicio. Inténtalo más tarde."
     }
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "General",
+    "scopeMen": "Masculino",
+    "scopeWomen": "Femenino",
+    "colTeam": "Franquicia",
+    "loading": "Cargando clasificación...",
+    "emptyScope": "Esta división aún no tiene partidos en este apartado.",
+    "standingsNote": "Los puntos de la clasificación los otorga la liga y se publican en propadelleague.com. Las estadísticas reflejan la fase de grupos; los puntos incluyen el día del podio.",
+    "eventsHeading": "Eventos",
+    "noEvents": "Aún no hay eventos.",
+    "upcoming": "Próximo",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "partidos",
+    "pctMatches": "partidos gan.",
+    "pctSets": "sets",
+    "widgetTitle": "Clasificación PPL",
+    "widgetCta": "Tabla completa",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} en la {division}: {tiesWon} de {tiesPlayed} duelos ganados, {courtsWon}–{courtsLost} en pistas. Plantilla, resultados y clasificación.",
+    "colTiesShort": "Duelos",
+    "colCourts": "Pistas",
+    "tabResults": "Resultados",
+    "tabSquad": "Plantilla",
+    "noTies": "Aún no hay duelos.",
+    "noRoster": "Aún no hay plantilla registrada.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "no jugó",
+    "lineupTbd": "alineación por confirmar"
   }
 }

@@ -1,0 +1,13 @@
+.dialog { position: fixed; inset: 0; width: min(360px, calc(100% - 32px)); max-height: calc(100dvh - 48px); margin: auto; padding: 28px 24px 16px; overflow-y: auto; border: 1px solid #33412b; border-top: 3px solid #9bf438; border-radius: 18px; color: #f6f7f2; background: radial-gradient(ellipse at 80% 0%, #9bf43815, transparent 65%), #101719; box-shadow: 0 20px 80px #0009; }
+.dialog::backdrop { background: #000b; }
+.dialog:not([open]) { display: none; }
+.close { position: absolute; top: 5px; right: 5px; width: 44px; height: 44px; font-size: 26px; color: #a0b8ca; cursor: pointer; }
+.label { max-width: calc(100% - 22px); font-size: 10px; letter-spacing: 1px; color: #9bf438; font-weight: 800; }
+.symbol { width: 52px; height: 52px; display: grid; place-items: center; margin: 22px 0 18px; background: #9bf438; color: #101719; border-radius: 12px; transform: rotate(-6deg); font-size: 38px; font-weight: 800; }
+.dialog h2 { font-size: 29px; font-weight: 850; letter-spacing: -.8px; line-height: 1.12; margin: 0 0 14px; }
+.body { color: #b5c4ce; font-size: 14px; line-height: 1.6; }
+.commitment { color: #dce4e8; font-size: 12px; line-height: 1.5; margin: 16px 0; }
+.reward { border-block: 1px solid #eab30830; padding: 14px 0; color: #f8cd75; font-size: 13px; line-height: 1.5; }
+.join { display: flex; justify-content: space-between; gap: 12px; padding: 14px 18px; margin-top: 22px; background: #9bf438; color: #101719; font-size: 14px; font-weight: 800; border-radius: 26px; text-decoration: none; }
+.dismiss { display: block; min-height: 44px; width: 100%; margin-top: 6px; font-size: 13px; color: #b5c4ce; cursor: pointer; }
+.dialog :is(button, a):focus-visible { outline: 2px solid #9bf438; outline-offset: 3px; }

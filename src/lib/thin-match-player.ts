@@ -38,6 +38,16 @@ import { normalizeCountry } from './country'
 interface MinimalPlayer {
   id: string
   name: string | null
+  /**
+   * Marks a synthesized FRANCHISE stand-in rather than a person.
+   *
+   * A team-league fixture is published before its line-up: we know Mexico
+   * Waves meet New York Atlantics, not yet who takes the court. Rendering
+   * "TBD vs TBD" throws away the half we do know. `pairName` reads this flag
+   * to print the franchise verbatim instead of running it through the
+   * surname heuristic, which turns "Mexico Waves" into "M. Waves".
+   */
+  is_team?: boolean
   display_name?: string | null
   country?: string | null
   ranking?: number | null
@@ -50,6 +60,11 @@ interface MinimalPlayer {
 }
 
 interface MatchRowWithThinNames {
+  /** Present only on franchise-league rows; see the is_team note above. */
+  tie?: {
+    home?: { team?: { name?: string | null } | null } | null
+    away?: { team?: { name?: string | null } | null } | null
+  } | null
   pair1_player1?: MinimalPlayer | null
   pair1_player2?: MinimalPlayer | null
   pair2_player1?: MinimalPlayer | null
@@ -92,6 +107,29 @@ export function hydrateThinPlayers<T extends MatchRowWithThinNames>(row: T): T {
       ;(row as any)[fkKey] = synthesizeThinPlayer(name, country ?? null)
     }
   }
+
+  // Franchise fallback, applied ONLY when a side has nothing else.
+  //
+  // A team-league fixture is published days before its line-up. Until the
+  // pairing is named, "TBD vs TBD" discards the half we do know — which
+  // franchises are meeting. This fills that gap and never competes with a
+  // real player or a thin name: it runs last and only on an empty side.
+  //
+  // Deliberately one stand-in per side, in slot 1, so `pairName` renders the
+  // franchise alone rather than "Mexico Waves / Mexico Waves".
+  const teamSides: Array<['pair1_player1' | 'pair2_player1', 'pair1_player2' | 'pair2_player2', string | null | undefined]> = [
+    ['pair1_player1', 'pair1_player2', row.tie?.home?.team?.name],
+    ['pair2_player1', 'pair2_player2', row.tie?.away?.team?.name],
+  ]
+  for (const [slot1, slot2, teamName] of teamSides) {
+    if (!teamName || !teamName.trim()) continue
+    if (row[slot1] || row[slot2]) continue
+    ;(row as Record<string, unknown>)[slot1] = {
+      id: '', name: teamName.trim(), display_name: null,
+      country: null, ranking: null, is_team: true,
+    } satisfies MinimalPlayer
+  }
+
   return row
 }
 

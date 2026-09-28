@@ -34,6 +34,7 @@ import { useTranslations } from 'next-intl'
 import type { Match } from '@/types/match'
 import { bucketDayMatches, bucketStatus } from '@/lib/match-day-bucket'
 import { isPremierTier } from '@/lib/tournament-tier'
+import { isLeagueLevel } from '@/lib/league-levels'
 
 const GREEN = '#7ED321'
 const LIVE_RED = '#FF4655'
@@ -229,7 +230,9 @@ export default function MatchesTournamentGroup({ group }: { group: TournamentGro
         return { label: tStage(stageKey as 'quarterfinals'|'r16'|'r32'|'r64'|'r128'), color: GREEN, bg: 'rgba(126,211,33,0.12)' }
       })()
     : null
-  const dataLeague = group.isPremier ? 'premier' : 'fip'
+  // Three-way, not a premier/else boolean: a franchise league is its own
+  // circuit, and 'else' silently labelled every PPL event as FIP Tour.
+  const dataLeague = isLeagueLevel(group.tournamentLevel) ? 'ppl' : group.isPremier ? 'premier' : 'fip'
   const levelText = group.tournamentLevel ? levelLabel(group.tournamentLevel) : null
   const dateText = formatDateRange(
     group.tournamentStartsAt,

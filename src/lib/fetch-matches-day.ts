@@ -127,6 +127,10 @@ const MATCH_SELECT = `
   pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
   pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
   tournament:tournaments(id, name, level, country, timezone, starts_at, ends_at, status),
+  tie:league_ties(
+    home:team_seasons!league_ties_home_team_season_id_fkey(team:teams(name)),
+    away:team_seasons!league_ties_away_team_season_id_fkey(team:teams(name))
+  ),
   ${PLAYER_JOIN_FIELDS},
   sets(id, set_number, set_score, pair1_games, pair2_games, is_current,
        games(id, game_number, game_score, points, is_current, server_player_id))

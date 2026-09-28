@@ -60,7 +60,8 @@
         "label": "League",
         "all": "All",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Category",
@@ -436,7 +437,8 @@
     "tournamentTabs": {
       "premier": "Premier Padel",
       "fip": "FIP Tour",
-      "_context": "Premier Padel and FIP are organisations — proper nouns. Do NOT translate."
+      "_context": "Premier Padel and FIP are organisations — proper nouns. Do NOT translate.",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "All",
@@ -1316,7 +1318,6 @@
       "pairDescription": "{pair}'s projected path to the {name} title — round-by-round opponents and win probabilities."
     },
     "play": {
-
       "title": "Play the Next",
       "description": "Predict what happens next in padel. Take a side on live markets, trade with Guacas and climb the leaderboard. Play money only — nothing to buy, nothing to cash out."
     }
@@ -1843,8 +1844,28 @@
     "cta": "Back to PadelNachos"
   },
   "play": {
-    "results": {"netWin": "Net winnings", "netLoss": "Net loss", "netResult": "Net result", "totalPaid": "Total returned", "invested": "{amount} G invested", "won": "Won", "lost": "Lost", "refunded": "Refunded", "pending": "Awaiting settlement", "closed": "Market closed", "corrected": "Result corrected", "adjustment": "Balance adjusted by {amount} G.", "owed": "A result correction exceeded your available balance. Future credits will cover the difference before you can play again."},
-    "ticker": {"title": "Latest predictions", "pause": "Pause", "resume": "Resume", "open": "View all market activity", "empty": "No predictions yet."},
+    "results": {
+      "netWin": "Net winnings",
+      "netLoss": "Net loss",
+      "netResult": "Net result",
+      "totalPaid": "Total returned",
+      "invested": "{amount} G invested",
+      "won": "Won",
+      "lost": "Lost",
+      "refunded": "Refunded",
+      "pending": "Awaiting settlement",
+      "closed": "Market closed",
+      "corrected": "Result corrected",
+      "adjustment": "Balance adjusted by {amount} G.",
+      "owed": "A result correction exceeded your available balance. Future credits will cover the difference before you can play again."
+    },
+    "ticker": {
+      "title": "Latest predictions",
+      "pause": "Pause",
+      "resume": "Resume",
+      "open": "View all market activity",
+      "empty": "No predictions yet."
+    },
     "courtside": {
       "title": "Courtside",
       "all": "View all",
@@ -1855,7 +1876,7 @@
       "empty": "No predictions in this market yet.",
       "noOwn": "You have no predictions in this market yet.",
       "simulationNote": "Simulated predictions are local and excluded from prizes."
-}, 
+    },
     "live": "Live",
     "horizon": {
       "live": "In-match",
@@ -2113,7 +2134,12 @@
     "outfitsLabel": "Choose an outfit",
     "equipped": "Equipped",
     "localNote": "Choose your face and outfit separately · saved together on this device.",
-    "creator": {"compatibility": "This character keeps its original outfit. Try Rafa to explore the first mix-and-match wardrobe.", "tryRafa": "Customize Rafa", "ready": "3 outfits", "whole": "Complete avatar · saved on this device. More customizable characters are coming."},
+    "creator": {
+      "compatibility": "This character keeps its original outfit. Try Rafa to explore the first mix-and-match wardrobe.",
+      "tryRafa": "Customize Rafa",
+      "ready": "3 outfits",
+      "whole": "Complete avatar · saved on this device. More customizable characters are coming."
+    },
     "equip": "Use this avatar",
     "restore": "Use my profile photo",
     "restored": "Profile photo restored.",
@@ -2165,5 +2191,36 @@
       "generation_failed": "We could not create this avatar. Try another clear photo.",
       "generation_unavailable": "Could not reach the image service. Try again later."
     }
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Overall",
+    "scopeMen": "Men's",
+    "scopeWomen": "Women's",
+    "colTeam": "Franchise",
+    "loading": "Loading standings...",
+    "emptyScope": "This franchise division has no matches in this scope yet.",
+    "standingsNote": "Standings points are awarded by the league and published on propadelleague.com. Statistics reflect group-stage matches; points include podium day.",
+    "eventsHeading": "Events",
+    "noEvents": "No events yet.",
+    "upcoming": "Upcoming",
+    "colPoints": "Pts",
+    "colRecord": "W-L",
+    "matchesShort": "matches",
+    "pctMatches": "matches won",
+    "pctSets": "sets",
+    "widgetTitle": "PPL Standings",
+    "widgetCta": "Full table",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} in the {division}: {tiesWon} of {tiesPlayed} ties won, {courtsWon}–{courtsLost} on courts. Squad, results and standing.",
+    "colTiesShort": "Ties",
+    "colCourts": "Courts",
+    "tabResults": "Results",
+    "tabSquad": "Squad",
+    "noTies": "No ties yet.",
+    "noRoster": "No squad recorded yet.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "did not play",
+    "lineupTbd": "line-up TBD"
   }
 }

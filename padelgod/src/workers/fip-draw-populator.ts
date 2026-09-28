@@ -158,11 +158,20 @@ export interface FipDrawPopulatorResult {
   /** Tournaments skipped because their `level` was in `excludeLevels`.
    *  Always 0 when the filter is unset/empty. */
   tournamentsSkippedExcludedLevel: number;
+  /** Tournaments whose processing threw and were skipped. Before 2026-09-23 a
+   *  throw escaped the whole worker, so this was structurally impossible to
+   *  observe: the run died and the counters never logged. Alert on this — a
+   *  non-zero value means that hour's data for those events is stale. */
+  tournamentsFailed: number;
   drawRowsConsidered: number;
   inserted: number;
   updated: number;
   skippedNoWidget: number;
   skippedBye: number;
+  /** Walkover-shaped first-round cells that turned out to be a real pair
+   *  waiting on a qualifier rather than a bye, and were therefore INSERTed
+   *  instead of skipped. Observability for the 2026-09-27 fix. */
+  qualifierSlots: number;
   skippedPlayerUnresolved: number;
   skippedAlreadyComplete: number;
   /** Number of `tournament_draws` UPSERT calls (one per team per
@@ -492,6 +501,99 @@ export function computeFirstRoundByCategory(
   return out;
 }
 
+/**
+ * Parent (next-round) cell id in the widget heap: a cell numbered N feeds
+ * cell floor(N/2). `WD018` → `WD009`, `MD031` → `MD015`. Returns null when
+ * the id isn't heap-shaped or is already the root.
+ */
+export function parentWidgetId(id: string | null | undefined): string | null {
+  if (!id) return null;
+  const m = /^([A-Za-z]+)(\d+)$/.exec(id);
+  if (!m) return null;
+  const digits = m[2]!;
+  const n = Number.parseInt(digits, 10);
+  if (!Number.isFinite(n) || n < 2) return null;
+  return `${m[1]}${String(Math.floor(n / 2)).padStart(digits.length, '0')}`;
+}
+
+function drawRowNames(r: {
+  team1_player1_name?: string | null;
+  team1_player2_name?: string | null;
+  team2_player1_name?: string | null;
+  team2_player2_name?: string | null;
+}): string[] {
+  return [
+    r.team1_player1_name,
+    r.team1_player2_name,
+    r.team2_player1_name,
+    r.team2_player2_name,
+  ].filter((n): n is string => n != null && n !== '');
+}
+
+type DrawRowNames = {
+  team1_player1_name?: string | null;
+  team1_player2_name?: string | null;
+  team2_player1_name?: string | null;
+  team2_player2_name?: string | null;
+};
+
+/**
+ * FIP renders two very different first-round cells identically — one side
+ * named, the other blank, `status='walkover'`:
+ *
+ *   - a TRUE BYE — the seed advances unopposed, no match is ever played
+ *   - a QUALIFIER SLOT — a real pair waiting on a qualifier to be decided
+ *
+ * They are separable structurally rather than by seeding. A true bye's pair
+ * is ALREADY placed in the parent cell — that is what advancing unopposed
+ * means — while a qualifier slot leaves the parent slot empty until the
+ * match is actually played.
+ *
+ * Rotterdam P2 2026, women's draw: `WD016` (Triay/Brea, a real bye) appears
+ * again in parent `WD008`; `WD018` (Barrera/Montes, waiting on a qualifier)
+ * does not appear in parent `WD009`. The same discriminator separated all
+ * 12 walkover-shaped cells in that draw correctly.
+ *
+ * Returns false — "treat as a bye, skip" — when the parent cell is missing
+ * from the snapshot, preserving the pre-2026-09-27 behaviour rather than
+ * inventing a match we cannot corroborate.
+ */
+export function isQualifierSlotRow(
+  row: DrawRowNames & { match_widget_id: string | null },
+  byWidgetId: ReadonlyMap<string, DrawRowNames>,
+): boolean {
+  const parentId = parentWidgetId(row.match_widget_id);
+  if (!parentId) return false;
+  const parent = byWidgetId.get(parentId);
+  if (!parent) return false;
+  const named = drawRowNames(row);
+  if (named.length === 0) return false;
+  const parentNames = drawRowNames(parent).map(normalizeName);
+  // An EMPTY parent cell means the pair did NOT advance, which is precisely
+  // what a qualifier slot looks like. A bye *is* advancement, so FIP fills
+  // the pair into the parent the moment the draw is published — that is why
+  // Rotterdam's women's R16 cells already carry Triay, Salazar and the rest
+  // before a ball is hit. Men's `MD028` (Stupaczuk/Sanz, seed 5, vs a
+  // qualifier) feeds `MD014`, which is empty on both sides — nobody has
+  // advanced there because the match still has to be played.
+  //
+  // An earlier cut treated empty-parent as a bye, on the theory that FIP
+  // might publish round 1 before round 2. That turned out to account for
+  // exactly 2 cells — and both were genuine qualifier slots that it wrongly
+  // dropped (a top-5 seed among them). The false positives it was blamed for
+  // were entirely the OOP name-shadowing fixed above.
+  if (parentNames.length === 0) return true;
+  // Surname-level comparison. Feeds spell first names inconsistently
+  // ("A. Salazar Bengoechea" vs "Alejandra Salazar Bengoechea"), and every
+  // near-miss here must fail toward "bye" — that is the pre-existing
+  // behaviour. Matching on the trailing surname tokens keeps an abbreviation
+  // from inventing a qualifier slot.
+  const surname = (n: string) => n.split(/\s+/).filter((t) => !/^[a-z]\.?$/.test(t)).slice(-2).join(' ')
+  const parentSurnames = new Set(parentNames.map(surname));
+  // Pair present in the parent cell → it advanced → true bye.
+  return !named.some((n) => parentSurnames.has(surname(normalizeName(n))));
+}
+
 // ── Main entry ─────────────────────────────────────────────────────────
 
 export async function runFipDrawPopulator(
@@ -506,11 +608,13 @@ export async function runFipDrawPopulator(
     tournamentsSkippedNoWidget: 0,
     tournamentsSkippedNotInAllowlist: 0,
     tournamentsSkippedExcludedLevel: 0,
+    tournamentsFailed: 0,
     drawRowsConsidered: 0,
     inserted: 0,
     updated: 0,
     skippedNoWidget: 0,
     skippedBye: 0,
+    qualifierSlots: 0,
     skippedPlayerUnresolved: 0,
     skippedAlreadyComplete: 0,
     tournamentDrawsWritten: 0,
@@ -570,6 +674,16 @@ export async function runFipDrawPopulator(
   }
 
   for (const t of tournaments) {
+    // One tournament must never take down the batch. Until 2026-09-23 this
+    // loop had no try/catch: a transient `TypeError: fetch failed` reading the
+    // sidecar for the FIRST of 43 tournaments threw straight out of the worker,
+    // so the other 42 were never processed — and because the function threw,
+    // the `run complete` counters never logged and the loss was silent.
+    //
+    // The body below is deliberately NOT re-indented into this try. Doing so
+    // would rewrite ~600 lines and make the diff unreviewable on a worker that
+    // writes match data; the two-line guard is the whole behavioural change.
+    try {
     // Allowlist filter. Evaluated FIRST so we don't waste widget-id
     // lookups on tournaments we won't process. Kept as a counter so
     // the result object can prove to operators that the allowlist
@@ -773,6 +887,24 @@ export async function runFipDrawPopulator(
     // pre-tournament R32+ cell on a 56-draw event with byes.
     const firstRoundByCategory = computeFirstRoundByCategory(latestDraws);
 
+    // Widget-id index over this tournament's BRACKET rows, used by the
+    // bye-vs-qualifier discriminator below to look up a cell's parent.
+    //
+    // Bracket rows only. `latestDraws` also carries OOP-merged rows, and OOP
+    // abbreviates first names ("A. Salazar Bengoechea") where the bracket
+    // spells them out ("Alejandra Salazar Bengoechea"). A last-wins index over
+    // the merged array let an OOP row shadow its bracket twin, the name
+    // comparison then failed, and a real bye was misread as a qualifier slot —
+    // 39 false positives against 6 real ones on the 2026-09-27 dry-run. The
+    // gate itself only fires for `fip_event_page` rows, so scoping the index
+    // to the same source keeps both sides of the comparison in one dialect.
+    const drawRowsByWidgetId = new Map<string, (typeof latestDraws)[number]>();
+    for (const d of latestDraws) {
+      if (d.match_widget_id && d.source === 'fip_event_page') {
+        drawRowsByWidgetId.set(d.match_widget_id, d);
+      }
+    }
+
     // draw_released sender (Plan 2B, ships dark behind eventsEnabled).
     // Collect the distinct categories for which we actually upserted
     // tournament_draws rows this run, then fire ONCE per (tournament,
@@ -820,8 +952,25 @@ export async function runFipDrawPopulator(
           d.status === 'walkover' &&
           (!team1HasNames || !team2HasNames)
         ) {
-          result.skippedBye += 1;
-          continue;
+          // Same rendered shape, two different meanings. A true bye is
+          // skipped (no match is ever played); a pair waiting on a
+          // qualifier is a REAL upcoming match and must be inserted with
+          // the known side populated and the qualifier side left NULL.
+          // Skipping the latter used to drop the known pair from the app
+          // entirely — see the 2026-09-27 Rotterdam P2 women's draw, where
+          // 4 of 8 real R32 cells vanished and the projection went blank.
+          if (!isQualifierSlotRow(d, drawRowsByWidgetId)) {
+            result.skippedBye += 1;
+            continue;
+          }
+          result.qualifierSlots += 1;
+          logger?.debug(
+            {
+              tournamentId: t.tournament_id,
+              matchWidgetId: d.match_widget_id,
+            },
+            'fip-draw-populator: walkover-shaped cell is a qualifier slot, not a bye — inserting',
+          );
         }
       }
 
@@ -1174,6 +1323,20 @@ export async function runFipDrawPopulator(
           deps.notify,
         );
       }
+    }
+    } catch (err) {
+      // Skip this tournament, keep the batch going. Counted + logged so a bad
+      // event is visible rather than silently starving everything after it.
+      result.tournamentsFailed += 1;
+      logger?.warn(
+        {
+          tournamentId: t.tournament_id,
+          tournamentName: t.tournament_name,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'fip-draw-populator: tournament failed — skipping, batch continues',
+      );
+      continue;
     }
   }
 
