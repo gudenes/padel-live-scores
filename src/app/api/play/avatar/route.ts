@@ -5,6 +5,7 @@ import { readAvatarSettings } from '@/lib/local-avatar-settings'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
+import { AVATAR_UPLOAD_MAX_BYTES, AVATAR_UPLOAD_MAX_PIXELS } from '@/lib/avatar-upload'
 import { requirePlayAccess } from '@/lib/play-access'
 import { AvatarGenerationError, generateAvatar, isLocalAvatarRequest } from '@/lib/avatar-generation'
 import { reserveAvatarGeneration, saveLocalAvatar } from '@/lib/avatar-local-store'
@@ -12,7 +13,7 @@ import { reserveAvatarGeneration, saveLocalAvatar } from '@/lib/avatar-local-sto
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 180
-const MAX_UPLOAD = 6 * 1024 * 1024
+const MAX_UPLOAD = AVATAR_UPLOAD_MAX_BYTES
 function json(body: unknown, status = 200) { return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } }) }
 
 export async function GET(req: Request) {
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     if (photo.size > MAX_UPLOAD) return json({ error: 'photo_too_large' }, 413)
     let clean: Buffer
     try {
-      clean = await sharp(Buffer.from(await photo.arrayBuffer()), { limitInputPixels: 24_000_000 })
+      clean = await sharp(Buffer.from(await photo.arrayBuffer()), { limitInputPixels: AVATAR_UPLOAD_MAX_PIXELS })
         .rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer()
     } catch { return json({ error: 'invalid_photo' }, 400) }
     release = await (process.env.NODE_ENV === 'production' ? reserveProductionAvatar(access.supabase, access.userId) : reserveAvatarGeneration(access.userId))

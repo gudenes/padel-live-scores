@@ -34,7 +34,7 @@ describe('private local photo route', () => {
   it('rejects malformed photos and oversized streamed bodies', async () => {
     const form = new FormData(); form.set('consent','true'); form.set('photo',new Blob(['invalid'],{type:'image/png'}),'photo.png')
     expect((await POST(request(form))).status).toBe(400)
-    const oversized = new Request(url, { method: 'POST', headers: { origin: 'http://localhost:3012', 'content-type': 'multipart/form-data; boundary=test' }, body: new Uint8Array(7*1024*1024) })
+    const oversized = new Request(url, { method: 'POST', headers: { origin: 'http://localhost:3012', 'content-type': 'multipart/form-data; boundary=test' }, body: new Uint8Array(21*1024*1024) })
     expect((await POST(oversized)).status).toBe(413)
     expect(mocks.generate).not.toHaveBeenCalled()
   })
@@ -74,4 +74,25 @@ it('production uses shared settings and storage, scoped to the invited user', as
   expect(mocks.productionSave.mock.calls[0][1]).toBe('alice')
   expect(mocks.save).not.toHaveBeenCalled()
   expect(await response.text()).not.toContain('private-test-key')
+})
+
+it.each(['development', 'production'])('accepts a photo above 6 MB and resizes it in %s', async environment => {
+  vi.stubEnv('NODE_ENV', environment)
+  mocks.productionSettings.mockResolvedValue({enabled:true,apiKey:'test-key'})
+  mocks.productionReserve.mockResolvedValue(mocks.release)
+  mocks.productionSave.mockResolvedValue('20fca730-15c5-4e54-ab12-b2e34e2fd913')
+  // A valid 25 MP PNG with trailing bytes simulates a source above 6 MB.
+  const photo = await sharp({create:{width:5000,height:5000,channels:3,background:'#eee'}}).png({compressionLevel:1}).toBuffer()
+  const padded = Buffer.concat([photo, Buffer.alloc(7*1024*1024)])
+  const form = new FormData()
+  form.set('consent','true')
+  form.set('photo',new Blob([new Uint8Array(padded)],{type:'image/png'}),'large.png')
+  const origin = environment === 'production' ? 'https://padelnachos.com' : 'http://localhost:3012'
+  expect((await POST(request(form,origin))).status).toBe(200)
+  const sent = mocks.generate.mock.calls[0][0] as Blob
+  const metadata = await sharp(Buffer.from(await sent.arrayBuffer())).metadata()
+  expect(metadata.format).toBe('jpeg')
+  expect(metadata.width).toBe(1024)
+  expect(metadata.height).toBe(1024)
+  expect(sent.size).toBeLessThan(1024*1024)
 })

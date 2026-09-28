@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import AvatarCamera from './AvatarCamera'
+import { AVATAR_UPLOAD_MAX_BYTES } from '@/lib/avatar-upload'
 import { useTranslations } from 'next-intl'
 import { parseOutfit, type PlayerOutfit } from '@/lib/player-outfit'
 import { useApiResource } from '@/app/[locale]/(app)/play/_components/usePlayData'
@@ -25,7 +26,7 @@ export default function PhotoAvatarCreator({ onPreview }: { onPreview: (outfit: 
     if (!next || busy) return
     setError('')
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(next.type)) { setError(t('invalid_photo')); return }
-    if (next.size > 6 * 1024 * 1024) { setError(t('photo_too_large')); return }
+    if (next.size > AVATAR_UPLOAD_MAX_BYTES) { setError(t('photo_too_large')); return }
     if (photoUrl.current) URL.revokeObjectURL(photoUrl.current)
     photoUrl.current = URL.createObjectURL(next)
     setPreview(photoUrl.current); setFile(next); setConsent(false)
