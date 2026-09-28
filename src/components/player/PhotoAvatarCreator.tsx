@@ -60,7 +60,7 @@ export default function PhotoAvatarCreator({ onPreview }: { onPreview: (outfit: 
     {camera && <AvatarCamera onPhoto={select} onClose={closeCamera} />}
     <div className={styles.photoButtons}>
       <button type="button" className={styles.uploadButton} disabled={busy || camera} onClick={() => setCamera(true)}>{t('takePhoto')}</button>
-      <label className={styles.uploadButton}>{t('uploadPhoto')}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || camera} onChange={e => { select(e.target.files?.[0]); e.target.value = '' }} /></label>
+      <label className={styles.uploadButton}>{t('uploadPhoto')}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={e => { closeCamera(); select(e.target.files?.[0]); e.target.value = '' }} /></label>
     </div>
     {preview && <div className={styles.photoPreview}><Image src={preview} alt={t('selectedPhoto')} width={120} height={120} unoptimized /><span>{t('fileHelp')}</span></div>}
     <label className={styles.consent}><input type="checkbox" checked={consent} disabled={busy || !file} onChange={e => setConsent(e.target.checked)} /><span>{t('consent')}</span></label>

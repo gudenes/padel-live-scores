@@ -2195,7 +2195,8 @@
       "cameraDenied": "Camera access was denied. Allow camera access in your browser, or close this preview and choose a photo.",
       "cameraUnavailable": "Camera unavailable. Close this preview and choose a photo instead.",
       "cameraCancel": "Close camera",
-      "cameraCapture": "Take photo"
+      "cameraCapture": "Take photo",
+      "cameraTimeout": "The camera did not open. Check camera access in your browser or app settings. You can choose a photo below, or try the website in Safari or Chrome. Installed apps may need an update."
     }
   },
   "ppl": {

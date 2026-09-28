@@ -62,3 +62,28 @@ it('captures a resized JPEG for preview without uploading it', async () => {
   expect(onPhoto.mock.calls[0][0].type).toBe('image/jpeg')
   expect(onClose).toHaveBeenCalled()
 })
+
+it('ends the waiting state and stops a stream granted after the timeout', async () => {
+  vi.useFakeTimers()
+  try {
+    let resolve!: (value: typeof stream) => void
+    getUserMedia.mockReturnValue(new Promise(r => { resolve = r }))
+    render(<AvatarCamera onPhoto={vi.fn()} onClose={vi.fn()} />)
+    await act(async () => { vi.advanceTimersByTime(15000) })
+    expect(screen.getByRole('alert').textContent).toBe('cameraTimeout')
+    await act(async () => resolve(stream))
+    expect(stop).toHaveBeenCalled()
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+  } finally { vi.useRealTimers() }
+})
+
+it('does not time out after video frames arrive', async () => {
+  vi.useFakeTimers()
+  try {
+    render(<AvatarCamera onPhoto={vi.fn()} onClose={vi.fn()} />)
+    await act(async () => {})
+    fireEvent.loadedData(screen.getByLabelText('cameraPreview', { selector: 'video' }))
+    await act(async () => { vi.advanceTimersByTime(15000) })
+    expect(screen.queryByRole('alert')).toBeNull()
+  } finally { vi.useRealTimers() }
+})

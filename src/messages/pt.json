@@ -2163,7 +2163,8 @@
       "cameraDenied": "O acesso à câmara foi negado. Permite o acesso no navegador ou fecha esta vista e escolhe uma foto.",
       "cameraUnavailable": "Câmara indisponível. Fecha esta vista e escolhe uma foto.",
       "cameraCancel": "Fechar câmara",
-      "cameraCapture": "Tirar foto"
+      "cameraCapture": "Tirar foto",
+      "cameraTimeout": "A câmara não abriu. Verifica a permissão da câmara nas definições do navegador ou da app. Podes escolher uma foto abaixo ou abrir o site no Safari ou Chrome. A app instalada pode precisar de uma atualização."
     }
   },
   "ppl": {

@@ -2163,7 +2163,8 @@
       "cameraDenied": "Accesso alla fotocamera negato. Consentilo nel browser oppure chiudi questa anteprima e scegli una foto.",
       "cameraUnavailable": "Fotocamera non disponibile. Chiudi questa anteprima e scegli una foto.",
       "cameraCancel": "Chiudi fotocamera",
-      "cameraCapture": "Scatta foto"
+      "cameraCapture": "Scatta foto",
+      "cameraTimeout": "La fotocamera non si è aperta. Controlla il permesso nelle impostazioni del browser o dell’app. Puoi scegliere una foto qui sotto o aprire il sito in Safari o Chrome. L’app installata potrebbe richiedere un aggiornamento."
     }
   },
   "ppl": {

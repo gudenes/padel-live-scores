@@ -15,6 +15,14 @@ export default function AvatarCamera({ onPhoto, onClose }: { onPhoto: (file: Fil
     let stream: MediaStream | undefined
     alive.current = true
     const stop = () => { stream?.getTracks().forEach(track => track.stop()) }
+    const timeout = window.setTimeout(() => {
+      cancelled = true
+      stop()
+      setError('cameraTimeout')
+    }, 15000)
+    const loaded = () => window.clearTimeout(timeout)
+    const element = video.current
+    element?.addEventListener('loadeddata', loaded)
     const close = () => { stop(); onClose() }
     const hide = () => { if (document.visibilityState === 'hidden') close() }
     const dialog = video.current?.closest('dialog')
@@ -28,11 +36,12 @@ export default function AvatarCamera({ onPhoto, onClose }: { onPhoto: (file: Fil
         if (video.current) { video.current.srcObject = stream; await video.current.play() }
       } catch (e) {
         stop()
+        window.clearTimeout(timeout)
         if (!cancelled) setError(typeof e === 'object' && e !== null && 'name' in e && e.name === 'NotAllowedError' ? 'cameraDenied' : 'cameraUnavailable')
       }
     }
     void start()
-    return () => { cancelled = true; alive.current = false; stop(); dialog?.removeEventListener('close', close); document.removeEventListener('visibilitychange', hide) }
+    return () => { cancelled = true; alive.current = false; window.clearTimeout(timeout); element?.removeEventListener('loadeddata', loaded); stop(); dialog?.removeEventListener('close', close); document.removeEventListener('visibilitychange', hide) }
   }, [onClose])
   function capture() {
     const source = video.current

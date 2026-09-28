@@ -2163,7 +2163,8 @@
       "cameraDenied": "Accès à la caméra refusé. Autorise-le dans ton navigateur ou ferme cet aperçu et choisis une photo.",
       "cameraUnavailable": "Caméra indisponible. Ferme cet aperçu et choisis une photo.",
       "cameraCancel": "Fermer la caméra",
-      "cameraCapture": "Prendre une photo"
+      "cameraCapture": "Prendre une photo",
+      "cameraTimeout": "La caméra ne s’est pas ouverte. Vérifie son autorisation dans les réglages du navigateur ou de l’app. Tu peux choisir une photo ci-dessous ou ouvrir le site dans Safari ou Chrome. L’app installée peut nécessiter une mise à jour."
     }
   },
   "ppl": {

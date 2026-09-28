@@ -2163,7 +2163,8 @@
       "cameraDenied": "Se ha denegado el acceso a la cámara. Permítelo en tu navegador o cierra esta vista y elige una foto.",
       "cameraUnavailable": "Cámara no disponible. Cierra esta vista y elige una foto.",
       "cameraCancel": "Cerrar cámara",
-      "cameraCapture": "Hacer foto"
+      "cameraCapture": "Hacer foto",
+      "cameraTimeout": "La cámara no se abrió. Revisa el permiso de cámara en los ajustes del navegador o de la app. Puedes elegir una foto abajo o abrir la web en Safari o Chrome. La app instalada puede necesitar una actualización."
     }
   },
   "ppl": {
