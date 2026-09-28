@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { projectPairs, matchupKey, type FrontierEntrant } from '../bracket-projection.js';
+import { buildFirstRoundLeaves } from '../bracket-builder.js';
 
 // Deterministic RNG (mulberry32) so MC results are reproducible.
 function mulberry32(seed: number): () => number {
@@ -98,5 +99,65 @@ describe('projectPairs — forced (decided) results', () => {
 
   it('matchupKey is order-independent', () => {
     expect(matchupKey('x', 'y')).toBe(matchupKey('y', 'x'))
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Regression: a gap in the next round must not evict unrelated seeds.
+// Rotterdam P2 2026 women — WD013 (a lucky loser the entry list didn't carry)
+// was never ingested, and the positional next-round lookup then dropped seed 5
+// (WD014) and seed 2 (WD015) from the bracket as collateral.
+// ---------------------------------------------------------------------------
+describe('buildFirstRoundLeaves — next-round gaps are local', () => {
+  const cell = (
+    heap: number, round: 'R32' | 'R16',
+    p1: string | null, p2: string | null, s1: number | null, s2: number | null,
+  ) => ({
+    id: `m-${heap}`, round, round_canonical: round,
+    widget_id_composite: `T:WD${String(heap).padStart(3, '0')}`,
+    winner_pair: null,
+    pair1_player1_id: p1, pair1_player2_id: p1 ? `${p1}b` : null,
+    pair2_player1_id: p2, pair2_player2_id: p2 ? `${p2}b` : null,
+    pair1_seed: s1, pair2_seed: s2,
+  })
+  const mk = (a: string, b: string) => ({ pairKey: `${a}::${b}`, playerIds: [a, b] as [string, string], teamElo: 1500 })
+  const keysOf = (leaves: any[]) => leaves.filter(Boolean).map((l: any) => String(l.pairKey).split('::')[0])
+  const has = (leaves: any[], id: string) => keysOf(leaves).includes(id)
+
+  // Rotterdam P2 2026 women's draw, exactly: first round R32 (heap 16..31),
+  // next round R16 (heap 8..15). The real R32 cells matter — they occupy the
+  // positions a mis-shifted bye-lift would otherwise land on, which is what
+  // turned "seed appears at the wrong slot" into "seed disappears entirely".
+  const r32 = [
+    cell(17, 'R32', 'a', 'b', null, null), cell(18, 'R32', 'c', 'd', null, null),
+    cell(21, 'R32', 'e', 'f', null, null), cell(22, 'R32', 'g', 'h', null, null),
+    cell(25, 'R32', 'i', 'j', null, null), cell(26, 'R32', 'k', 'l', null, null),
+    cell(29, 'R32', 'm', 'n', null, null), cell(30, 'R32', 'o', 'p', null, null),
+  ]
+  // Seeds alternate sides exactly as FIP publishes them.
+  const r16 = [
+    cell(8, 'R16', 's1', null, 1, null), cell(9, 'R16', null, 's7', null, 7),
+    cell(10, 'R16', 's6', null, 6, null), cell(11, 'R16', null, 's3', null, 3),
+    cell(12, 'R16', 's4', null, 4, null), cell(13, 'R16', null, 's8', null, 8),
+    cell(14, 'R16', 's5', null, 5, null), cell(15, 'R16', null, 's2', null, 2),
+  ]
+
+  it('lifts every byed seed when the next round is complete', () => {
+    const leaves = buildFirstRoundLeaves([...r32, ...r16] as any, mk)
+    for (const s of ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'])
+      expect(has(leaves, s)).toBe(true)
+  })
+
+  it('loses ONLY the missing cell when one next-round row is absent', () => {
+    // Drop WD013 (seed 8) — the exact Rotterdam shape.
+    const withGap = [...r32, ...r16.filter(m => !m.widget_id_composite.endsWith('WD013'))]
+    const leaves = buildFirstRoundLeaves(withGap as any, mk)
+    expect(has(leaves, 's8')).toBe(false) // its own cell is genuinely gone
+    // ...but the seeds positioned AFTER the gap must be untouched. With the
+    // array-index lookup these two silently vanished.
+    expect(has(leaves, 's5')).toBe(true)  // WD014
+    expect(has(leaves, 's2')).toBe(true)  // WD015
+    // and the ones before the gap are unaffected either way
+    expect(has(leaves, 's1')).toBe(true)
   })
 })
