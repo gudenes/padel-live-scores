@@ -1,9 +1,9 @@
 [build]
 builder = "RAILPACK"
-buildCommand = "npm run build"
+buildCommand = "if [ \"$RAILWAY_SERVICE_NAME\" = \"padelnachos-admin\" ]; then npm ci --prefix apps/ops && npm run build --prefix apps/ops; else npm run build; fi"
 
 [deploy]
-startCommand = "npx next start -p ${PORT:-3000}"
+startCommand = "if [ \"$RAILWAY_SERVICE_NAME\" = \"padelnachos-admin\" ]; then cd apps/ops; fi; npx next start -p ${PORT:-3000}"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

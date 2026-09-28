@@ -1,10 +1,12 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import sharp from 'sharp'
-const mocks = vi.hoisted(() => ({ access: vi.fn(), generate: vi.fn(), reserve: vi.fn(), save: vi.fn(), release: vi.fn(), settings: vi.fn() }))
+const mocks = vi.hoisted(() => ({ access: vi.fn(), generate: vi.fn(), reserve: vi.fn(), save: vi.fn(), release: vi.fn(), settings: vi.fn(), productionSettings: vi.fn(), productionReserve: vi.fn(), productionSave: vi.fn() }))
 vi.mock('@/lib/local-avatar-settings', () => ({ readAvatarSettings: mocks.settings }))
 vi.mock('@/lib/play-access', () => ({ requirePlayAccess: mocks.access }))
 vi.mock('@/lib/avatar-local-store', () => ({ reserveAvatarGeneration: mocks.reserve, saveLocalAvatar: mocks.save }))
 vi.mock('@/lib/avatar-generation', async importOriginal => ({ ...await importOriginal<typeof import('@/lib/avatar-generation')>(), generateAvatar: mocks.generate }))
+vi.mock('@/lib/production-avatar-settings', () => ({ readProductionAvatarSettings: mocks.productionSettings }))
+vi.mock('@/lib/production-avatar-store', () => ({ reserveProductionAvatar: mocks.productionReserve, saveProductionAvatar: mocks.productionSave }))
 import { GET, POST } from './route'
 const url = 'http://localhost:3012/api/play/avatar'
 function request(form = new FormData(), origin = 'http://localhost:3012') { return new Request(url, { method: 'POST', headers: { origin }, body: form }) }
@@ -55,4 +57,21 @@ describe('private local photo route', () => {
     expect(mocks.release).toHaveBeenCalledOnce()
     expect(mocks.save).not.toHaveBeenCalled()
   })
+})
+
+it('production uses shared settings and storage, scoped to the invited user', async () => {
+  vi.stubEnv('NODE_ENV','production')
+  const db = {}
+  mocks.access.mockResolvedValue({userId:'alice',supabase:db})
+  mocks.productionSettings.mockResolvedValue({enabled:true,apiKey:'private-test-key'})
+  mocks.productionReserve.mockResolvedValue(mocks.release)
+  mocks.productionSave.mockResolvedValue('20fca730-15c5-4e54-ab12-b2e34e2fd913')
+  const image=await sharp({create:{width:32,height:32,channels:3,background:'#eee'}}).png().toBuffer()
+  const form=new FormData();form.set('consent','true');form.set('photo',new Blob([new Uint8Array(image)],{type:'image/png'}),'photo.png')
+  const response=await POST(new Request('http://internal:3000/api/play/avatar',{method:'POST',headers:{origin:'https://padelnachos.com'},body:form}))
+  expect(response.status).toBe(200)
+  expect(mocks.productionReserve).toHaveBeenCalledWith(db,'alice')
+  expect(mocks.productionSave.mock.calls[0][1]).toBe('alice')
+  expect(mocks.save).not.toHaveBeenCalled()
+  expect(await response.text()).not.toContain('private-test-key')
 })

@@ -1,3 +1,5 @@
+import { readProductionAvatarSettings } from '@/lib/production-avatar-settings'
+import { reserveProductionAvatar, saveProductionAvatar } from '@/lib/production-avatar-store'
 import { hasSameLocalOrigin } from '@/lib/local-request-origin'
 import { readAvatarSettings } from '@/lib/local-avatar-settings'
 import { readFile } from 'node:fs/promises'
@@ -14,17 +16,18 @@ const MAX_UPLOAD = 6 * 1024 * 1024
 function json(body: unknown, status = 200) { return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } }) }
 
 export async function GET(req: Request) {
-  if (!isLocalAvatarRequest(req) || !await requirePlayAccess()) return json({ error: 'not_found' }, 404)
-  try { const settings = await readAvatarSettings(); return json({ enabled: settings.enabled && !!settings.apiKey, dailyLimit: 5 }) }
+  const access = await requirePlayAccess()
+  if ((!isLocalAvatarRequest(req) && process.env.NODE_ENV !== 'production') || !access) return json({ error: 'not_found' }, 404)
+  try { const settings = process.env.NODE_ENV === 'production' ? await readProductionAvatarSettings(access.supabase) : await readAvatarSettings(); return json({ enabled: settings.enabled && !!settings.apiKey, dailyLimit: 5 }) }
   catch { return json({ error: 'not_configured' }, 503) }
 }
 
 export async function POST(req: Request) {
-  if (!isLocalAvatarRequest(req)) return json({ error: 'not_found' }, 404)
-  if (!hasSameLocalOrigin(req)) return json({ error: 'invalid_origin' }, 403)
+  if (!isLocalAvatarRequest(req) && process.env.NODE_ENV !== 'production') return json({ error: 'not_found' }, 404)
+  if (!(process.env.NODE_ENV === 'production' ? ['https://padelnachos.com','https://www.padelnachos.com'].includes(req.headers.get('origin') ?? '') : hasSameLocalOrigin(req))) return json({ error: 'invalid_origin' }, 403)
   const access = await requirePlayAccess()
   if (!access) return json({ error: 'not_found' }, 404)
-  const settings = await readAvatarSettings().catch(() => null)
+  const settings = await (process.env.NODE_ENV === 'production' ? readProductionAvatarSettings(access.supabase) : readAvatarSettings()).catch(() => null)
   const key = settings?.enabled ? settings.apiKey : null
   if (!key) return json({ error: 'not_configured' }, 503)
   if (!req.headers.get('content-type')?.startsWith('multipart/form-data')) return json({ error: 'invalid_photo' }, 400)
@@ -53,10 +56,10 @@ export async function POST(req: Request) {
       clean = await sharp(Buffer.from(await photo.arrayBuffer()), { limitInputPixels: 24_000_000 })
         .rotate().resize(1024, 1024, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer()
     } catch { return json({ error: 'invalid_photo' }, 400) }
-    release = await reserveAvatarGeneration(access.userId)
+    release = await (process.env.NODE_ENV === 'production' ? reserveProductionAvatar(access.supabase, access.userId) : reserveAvatarGeneration(access.userId))
     const reference = await readFile(path.join(process.cwd(), 'public/play/avatars/starter.png'))
     const bytes = await generateAvatar(new Blob([new Uint8Array(clean)], { type: 'image/jpeg' }), new Blob([new Uint8Array(reference)], { type: 'image/png' }), key)
-    const id = await saveLocalAvatar(access.userId, bytes)
+    const id = await (process.env.NODE_ENV === 'production' ? saveProductionAvatar(access.supabase, access.userId, bytes) : saveLocalAvatar(access.userId, bytes))
     return json({ outfit: `custom:${id}` })
   } catch (error) {
     if (error instanceof AvatarGenerationError) return json({ error: error.code }, error.status)

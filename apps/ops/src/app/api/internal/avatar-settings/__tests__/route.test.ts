@@ -1,7 +1,9 @@
 import {beforeEach,afterEach,it,expect,vi} from 'vitest'
-const mocks=vi.hoisted(()=>({auth:vi.fn(),read:vi.fn(),write:vi.fn()}))
+const mocks=vi.hoisted(()=>({auth:vi.fn(),read:vi.fn(),write:vi.fn(),prodRead:vi.fn(),prodWrite:vi.fn()}))
 vi.mock('@/lib/auth',()=>({auth:mocks.auth}))
 vi.mock('../../../../../../../../src/lib/local-avatar-settings',()=>({readAvatarSettings:mocks.read,writeAvatarSettings:mocks.write,avatarSettingsStatus:(s:{enabled:boolean;apiKey:string|null})=>({enabled:s.enabled,configured:!!s.apiKey,suffix:s.apiKey?.slice(-4)??null})}))
+vi.mock('../../../../../../../../src/lib/supabase',()=>({createServiceClient:()=>({})}))
+vi.mock('../../../../../../../../src/lib/production-avatar-settings',()=>({readProductionAvatarSettings:mocks.prodRead,writeProductionAvatarSettings:mocks.prodWrite}))
 import {GET,POST} from '../route'
 const url='http://127.0.0.1:3014/api/internal/avatar-settings'
 const post=(data:unknown,origin='http://127.0.0.1:3014')=>new Request(url,{method:'POST',headers:{origin},body:JSON.stringify(data)})
@@ -12,7 +14,8 @@ it('requires a local operator and same-origin writes',async()=>{
  expect((await GET(new Request(url))).status).toBe(401)
  expect((await POST(post({action:'remove'},'https://other.test'))).status).toBe(403)
  vi.stubEnv('NODE_ENV','production')
- expect((await GET(new Request(url))).status).toBe(403)
+ mocks.prodRead.mockResolvedValue({enabled:false,apiKey:null})
+ expect((await GET(new Request(url))).status).toBe(200)
  expect(mocks.write).not.toHaveBeenCalled()
 })
 it('does not enable without a key, saves masked status, and removes with disable',async()=>{
@@ -38,4 +41,12 @@ it('accepts the browser Host when Next normalizes its internal request URL', asy
  expect(response.status).toBe(400)
  expect(await response.json()).toEqual({error:'Save an OpenAI key first.'})
  expect(mocks.write).not.toHaveBeenCalled()
+})
+
+it('production accepts only admin-origin mutations and returns only masked status',async()=>{
+ vi.stubEnv('NODE_ENV','production');mocks.prodRead.mockResolvedValue({enabled:false,apiKey:null})
+ expect((await POST(post({action:'save',enabled:true,apiKey:'sk-example-secret-abcdefghijklmnop'},'https://other.test'))).status).toBe(403)
+ const r=await POST(post({action:'save',enabled:true,apiKey:'sk-example-secret-abcdefghijklmnop'},'https://admin.padelnachos.com'))
+ expect(r.status).toBe(200);expect(await r.text()).not.toContain('sk-example-secret')
+ expect(mocks.prodWrite).toHaveBeenCalled();expect(mocks.write).not.toHaveBeenCalled()
 })
