@@ -1,14 +1,12 @@
 import { mkdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import path from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { openSimulation, seed, status, activity, setPaused, setIntervalMs, tick, resolve, importMarkets, audit, configure, heartbeat, LIMITS } from './engine.mjs'
 
 // Fixed worktree-local storage. Never load .env.local or connect to Supabase.
 const directory = fileURLToPath(new URL('../../.local/play-simulation/', import.meta.url))
 mkdirSync(directory, { recursive: true })
-const file = process.env.PLAY_SIMULATION_DB_PATH || `${directory}simulation.sqlite`
-mkdirSync(path.dirname(file), { recursive: true })
+const file = `${directory}simulation.sqlite`
 const db = openSimulation(file)
 const [command = 'status', arg, extra] = process.argv.slice(2)
 const print = value => console.log(JSON.stringify(value, null, 2))

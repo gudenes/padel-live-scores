@@ -26,4 +26,4 @@ function run(args, auxiliary=false) {
   child.on('exit',ended)
 }
 run(['node_modules/next/dist/bin/next','start','-p',process.env.PORT || '3000'])
-if (process.env.PLAY_SIMULATION_DB_PATH) run(['scripts/play-simulation/production-worker.mjs'],true)
+if (process.env.PLAY_SIMULATION_ENABLED === 'true') run(['scripts/play-simulation/production-worker.mjs'],true)

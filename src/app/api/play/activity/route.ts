@@ -1,5 +1,5 @@
 // Recorded human trades plus explicitly labelled simulation trades.
-import { localMarketActivity } from '@/lib/local-market-activity'
+import { localMarketActivity, productionMarketActivity } from '@/lib/local-market-activity'
 import { requirePlayAccess } from '@/lib/play-access'
 import {
   MARKET_SELECT,
@@ -42,7 +42,8 @@ export async function GET(req: Request) {
   const locale = parseLocale(params.get('locale'))
   const marketId = params.get('marketId')
   if (marketId && !/^[a-f0-9-]{36}$/i.test(marketId)) return Response.json({ error: 'invalid_market' }, { status: 400 })
-  const simulated = localMarketActivity(req, marketId)
+  const simulated = process.env.NODE_ENV === 'production'
+    ? await productionMarketActivity(supabase, marketId) : localMarketActivity(req, marketId)
 
   let query = supabase
     .from('market_trades')

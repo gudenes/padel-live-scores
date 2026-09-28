@@ -149,28 +149,20 @@ from the worktree root. CLI equivalent settings: `configure 50 15000` (milliseco
 
 ## Production deployment
 
-The hosted pilot reuses this engine with a dedicated Railway volume mounted at
-`/data` on the web service. `PLAY_SIMULATION_DB_PATH` points to
-`/data/simulation.sqlite`. Never put that database in the image:
-the volume retains balances and recorded trades across deploys. Use a consistent
-SQLite backup when moving the local pilot, then run the ledger audit.
+Production stores simulation data in separate Supabase `play_sim_*` tables. RLS
+blocks browser access; authenticated admin routes use service-role RPCs. Public
+activity and standings require the existing Play allowlist. Bots stay labelled,
+have no human profiles, and cannot enter prize rankings or change human balances.
 
-`scripts/start-web.mjs` supervises Next and the production worker. Worker failures
-restart after 30 seconds without taking the website down. The worker reads source
-market status before every tick, imports open markets as separate copies, stops
-held/closed/missing sources, and settles confirmed outcomes idempotently. A source
-lookup failure prevents the tick. Conflicting outcome corrections fail closed and
-need operator review; they never adjust human wallets.
+Set `PLAY_SIMULATION_ENABLED=true` on the Railway web service. The supervised
+worker uses DATABASE_URL and locks a shared control row for each transaction,
+so multiple regions share one schedule. No filesystem volume is required.
+The default mean attempt interval is 120 seconds, with 25% jitter.
 
-Production admin controls remain under Play → Simulation. The operator-authenticated
-admin route calls a web endpoint using `PLAY_SIMULATION_ADMIN_SECRET`, shared only
-between the two services. The endpoint accepts only status, configure, pause and
-resume. Public UI reads require the existing Play allowlist. Bots have no human
-profiles, prize eligibility, or access to human trade/wallet writes. All activity
-and leaderboard rows retain the simulation label. Weekly ranking includes bots
-with recorded activity; season/all-time include every enrolled bot.
+The worker copies open source markets into separate books, stops held/closed/missing
+sources, and settles confirmed results once. Failed reads roll back the tick.
+Conflicting outcome corrections require operator review. No open markets means
+no trades. Admin → Play → Simulation controls pause, count, and interval.
 
-Verify worker heartbeat, audit, bot count and interval after every deployment.
-With no open source markets the worker remains connected but makes no trades.
-To stop: Pause simulation in admin. To hide the production simulation and stop its
-worker entirely, remove PLAY_SIMULATION_DB_PATH and redeploy the web service.
+After deployment verify the heartbeat and ledger audit. Pause in admin to stop
+trades; set PLAY_SIMULATION_ENABLED=false and redeploy to hide bots and stop workers.

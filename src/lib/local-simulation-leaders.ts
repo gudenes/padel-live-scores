@@ -11,6 +11,14 @@ interface Holding { bot_id: string; source_market_id: string | null; status: str
 
 /** Local simulation wallets are read-only and never enter the prize ranking. */
 export async function localSimulationLeaders(req: Request, supabase: SupabaseClient, period: string): Promise<SimulationLeader[]> {
+  if (process.env.NODE_ENV === 'production' && process.env.PLAY_SIMULATION_ENABLED === 'true') {
+    const { data, error } = await supabase.rpc('play_simulation_leaders', { p_period: period })
+    if (error) throw new Error('Could not load simulation standings')
+    return (data ?? []).map((b: {id: string; name: string; net_worth: number}) => ({
+      userId: `sim:${b.id}`, displayName: simulationDisplayName(b.name), avatarSeed: b.id,
+      netWorth: Number(b.net_worth), isSimulation: true, prizeEligible: false,
+    }))
+  }
   const file = simulationStoragePath(req)
   if (!file || !existsSync(file)) return []
   const db = new DatabaseSync(file, { readOnly: true })
