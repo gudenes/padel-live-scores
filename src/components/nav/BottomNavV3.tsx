@@ -11,6 +11,7 @@
 //     sessionStorage on tab switch and replayed when the user returns
 //     to a tab. Means swiping back to Feed lands where you left off.
 
+import Image from 'next/image'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
@@ -111,21 +112,37 @@ const INK_BAR_WIDTH = 48
 // via the home page's "Latest news" section. The unread-news badge
 // previously on the Feed tab moved onto Home (same useFeedLastVisit
 // data path, just a different display anchor).
-const TABS = [
-  { key: 'home',        labelKey: 'home' as const,        href: '/home',        icon: null },
-  { key: 'scores',      labelKey: 'matches' as const,     href: '/matches',     icon: ScoresIcon },
-  { key: 'following',   labelKey: 'following' as const,   href: '/following',   icon: FollowingIcon },
-  { key: 'tournaments', labelKey: 'tournaments' as const, href: '/tournaments', icon: TournamentsIcon },
-  { key: 'ranking',     labelKey: 'ranking' as const,     href: '/rankings',    icon: RankingIcon },
-] as const
+type TabKey = 'home' | 'scores' | 'following' | 'play' | 'tournaments' | 'ranking'
+type NavLabelKey = 'home' | 'matches' | 'following' | 'play' | 'tournaments' | 'ranking'
+
+interface NavTab {
+  key: TabKey
+  labelKey: NavLabelKey
+  href: string
+  icon: ((props: { color: string }) => React.JSX.Element) | null
+}
+
+const TABS: NavTab[] = [
+  { key: 'home',        labelKey: 'home',        href: '/home',        icon: null },
+  { key: 'scores',      labelKey: 'matches',     href: '/matches',     icon: ScoresIcon },
+  { key: 'following',   labelKey: 'following',   href: '/following',   icon: FollowingIcon },
+  { key: 'tournaments', labelKey: 'tournaments', href: '/tournaments', icon: TournamentsIcon },
+  { key: 'ranking',     labelKey: 'ranking',     href: '/rankings',    icon: RankingIcon },
+]
+
+// Play takes the slot Following holds — but only for users who actually
+// have access. See PLAY_TAB_SWAP below; the swap is cosmetic, the real gate
+// is the server component at src/app/[locale]/(app)/play/layout.tsx.
+const PLAY_TAB: NavTab = { key: 'play', labelKey: 'play', href: '/play', icon: null }
 
 // Map a pathname to its top-level tab key. Anything outside the five
 // tabs returns null (no scroll snapshot). `/feed` stays here for
 // scroll-restoration even though there's no tab — users coming back
 // from feed via in-page nav still benefit from the saved scroll.
-function tabKeyFromPath(pathname: string): typeof TABS[number]['key'] | null {
+function tabKeyFromPath(pathname: string): TabKey | null {
   if (pathname === '/home' || pathname === '/home/') return 'home'
   if (pathname.startsWith('/matches')) return 'scores'
+  if (pathname.startsWith('/play')) return 'play'
   if (pathname.startsWith('/following')) return 'following'
   if (pathname.startsWith('/tournaments')) return 'tournaments'
   if (pathname.startsWith('/rankings')) return 'ranking'
@@ -143,6 +160,29 @@ export default function BottomNavV3() {
   const lastVisitedRankingsWeek = useRankingsLastVisit()
   const [latestRankingsWeek, setLatestRankingsWeek] = useState<string | null>(null)
   const lastTabRef = useRef<string | null>(null)
+
+  // ── Play tab visibility ──────────────────────────────────────
+  // Cosmetic only. /api/play/access answers 200 {allowed:false} rather than
+  // 404 precisely because the nav asks it on every page, and we start from
+  // `false` so the first paint never flashes a tab the user can't open.
+  const [playAllowed, setPlayAllowed] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/play/access', { headers: { Accept: 'application/json' } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body: { allowed?: boolean } | null) => {
+        if (!cancelled) setPlayAllowed(body?.allowed === true)
+      })
+      .catch(() => { /* no access, no tab — silent */ })
+    return () => { cancelled = true }
+  }, [])
+
+  // Without access the array is untouched and Following keeps its slot,
+  // exactly as before this feature existed.
+  const tabs = useMemo(
+    () => (playAllowed ? TABS.map((tab) => (tab.key === 'following' ? PLAY_TAB : tab)) : TABS),
+    [playAllowed],
+  )
 
   // Determine active tab
   const activeKey = tabKeyFromPath(pathname) ?? 'home'
@@ -354,12 +394,19 @@ export default function BottomNavV3() {
             effect. transition handles resize/idle moves; the
             v3-nav-animating class triggers the keyframe slide+stretch
             for tab-to-tab transitions. */}
-        <div ref={inkBarRef} className="v3-ink-bar" aria-hidden />
+        {/* The raised Play pod is its own active indicator — an ink bar
+            underneath it would just collide with the skirt. */}
+        <div
+          ref={inkBarRef}
+          className={`v3-ink-bar${activeKey === 'play' ? ' v3-ink-hidden' : ''}`}
+          aria-hidden
+        />
 
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const isActive = activeKey === tab.key
           const wasActive = previousActiveKey === tab.key
-          const color = isActive ? GREEN : DIM
+          // Play is always lime: it's the hero action, not a state.
+          const color = isActive || tab.key === 'play' ? GREEN : DIM
 
           return (
             <Link
@@ -370,8 +417,10 @@ export default function BottomNavV3() {
               }}
               href={tab.href}
               prefetch={true}
+              aria-label={t(tab.labelKey)}
+              aria-current={isActive ? 'page' : undefined}
               onClick={saveCurrentScroll}
-              className={`v3-nav-tab${isActive ? ' v3-tab-active' : ''}${wasActive ? ' v3-tab-was-active' : ''}`}
+              className={`v3-nav-tab${isActive ? ' v3-tab-active' : ''}${wasActive ? ' v3-tab-was-active' : ''}${tab.key === 'play' ? ' v3-tab-play' : ''}`}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -383,7 +432,16 @@ export default function BottomNavV3() {
                 WebkitTapHighlightColor: 'transparent',
               }}
             >
-              {/* Icon wrapper */}
+              {/* Play — the marquee tab. Raised above the bar on the same
+                  chunky press idiom as every primary CTA (face + skirt, face
+                  stamps down on press), so it reads as part of the system
+                  rather than a bolted-on FAB. */}
+              {tab.key === 'play' ? (
+                <span className="v3-joystick-press" aria-hidden="true">
+                  <Image className="v3-joystick" src="/play/navigation/joystick-v1.webp" width={88} height={88} alt="" unoptimized />
+                </span>
+              ) : (
+              /* Icon wrapper */
               <div className="v3-nav-icon" style={{ position: 'relative', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1 }}>
                 <div style={{ position: 'relative', zIndex: 2 }}>
                   {tab.key === 'home' ? (
@@ -417,15 +475,16 @@ export default function BottomNavV3() {
                   <div className="v3-nav-rank-dot" aria-label={t('rankUpdated')} />
                 )}
               </div>
+              )}
 
               {/* Label — split into per-character spans so the active
                   tab can cascade its letters in. aria-label keeps it
                   one word for screen readers. */}
-              <NavLabel
+              {tab.key !== 'play' && <NavLabel
                 text={t(tab.labelKey)}
                 isActive={isActive}
-                color={isActive ? GREEN : DIM}
-              />
+                color={color}
+              />}
             </Link>
           )
         })}
@@ -529,6 +588,26 @@ const NAV_STYLES = `
     box-shadow: 0 0 0 2px rgba(10,10,10,0.96);
     z-index: 3;
   }
+
+  /* ── Play pod ─────────────────────────────────────────────────
+     The marquee tab, raised above the bar on the same chunky press
+     idiom as every primary CTA: a skirt offset down by 5px and a face
+     that stamps onto it on :active. Always lime — Play is the hero
+     action, not a state, so it does not dim when another tab is
+     active. Tokens come from globals.css; nothing new is invented. */
+  .v3-nav-tab.v3-tab-play { justify-content:center; min-width:64px; min-height:54px; }
+  .v3-joystick-press { display:block; width:88px; height:88px; margin-top:-25px; margin-bottom:-5px; z-index:2; transition:transform .12s ease-out; }
+  .v3-joystick { display:block; width:88px; height:88px; object-fit:contain; transform-origin:50% 80%; filter:drop-shadow(0 2px 1px #0006); animation:v3-joystick-nudge 7s ease-in-out infinite; }
+  .v3-tab-play.v3-tab-active .v3-joystick { animation:none; transform:none; }
+  .v3-tab-play:active .v3-joystick-press { transform:translateY(4px) scale(.94); }
+  .v3-tab-play:focus-visible { outline:2px solid #b6e688; outline-offset:-2px; }
+  .v3-tab-play.v3-tab-active::after { content:''; position:absolute; bottom:4px; width:20px; height:3px; background:#7ed321; border-radius:2px; }
+  @keyframes v3-joystick-nudge { 0%,72%,100% { transform:rotate(0); } 78% { transform:rotate(-7deg) translateY(-2px); } 84% { transform:rotate(6deg) translateY(-2px); } 90% { transform:rotate(-3deg); } 96% { transform:rotate(0); } }
+  @media (prefers-reduced-motion:reduce) { .v3-joystick { animation:none; } .v3-joystick-press { transition:none; } }
+  /* The pod is its own active indicator; the bar would collide with
+     the skirt. Opacity rather than display:none so the bar keeps its
+     measured position for the slide back out. */
+  .v3-ink-bar.v3-ink-hidden { opacity: 0; }
 
   /* ── Option D · Ink Slide + Spring ───────────────────────────
      Single shared ink-bar that physically slides between tabs

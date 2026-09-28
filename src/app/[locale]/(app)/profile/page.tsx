@@ -17,7 +17,6 @@ import { getUnreadNotificationCount } from '@/lib/notifications'
 import {
   ArrowLeftIcon,
   GearIcon,
-  FlameIcon,
   BellIcon,
   BookmarkIcon,
   SearchIcon,
@@ -25,6 +24,7 @@ import {
 } from '@/components/icons'
 import { BadgeIcon } from '@/components/BadgeIcon'
 import { BadgeTooltip } from '@/components/BadgeTooltip'
+import PlayerProfile from '@/components/player/PlayerProfile'
 import { MyPlayerCard } from '@/components/MyPlayerCard'
 
 const V3 = {
@@ -198,15 +198,7 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      <AvatarBlock
-        displayName={profile?.display_name ?? null}
-        avatarUrl={profile?.avatar_url ?? null}
-        earnedBadgeCount={earnedBadgeCount}
-        loginStreak={counts?.loginStreak ?? 0}
-        streakLabel={t('streakDays', { count: counts?.loginStreak ?? 0 })}
-        tierPrefixTemplate={(n) => t('tierPrefix', { n })}
-        loading={!profileReady || !profile}
-      />
+      {profileReady && user && <PlayerProfile key={user.id} userId={user.id} name={profile?.display_name ?? t('profile')} />}
 
       <StatsStrip
         xp={countsLoading ? null : computeXp(earnedBadges, counts?.loginStreak ?? 0)}
@@ -281,108 +273,6 @@ export default function ProfilePage() {
           },
         ]}
       />
-    </div>
-  )
-}
-
-// ── AvatarBlock ──────────────────────────────────────────────────
-
-interface AvatarBlockProps {
-  displayName: string | null
-  avatarUrl: string | null
-  earnedBadgeCount: number
-  loginStreak: number
-  streakLabel: string
-  tierPrefixTemplate: (n: number) => string
-  loading: boolean
-}
-
-function AvatarBlock({
-  displayName,
-  avatarUrl,
-  earnedBadgeCount,
-  loginStreak,
-  streakLabel,
-  tierPrefixTemplate,
-  loading,
-}: AvatarBlockProps) {
-  const tier = overallTierFromBadgeCount(earnedBadgeCount)
-  const tierMeta = tier ? TIER_META[tier] : null
-
-  return (
-    <div style={{ padding: '24px 16px 16px', textAlign: 'center' }}>
-      <div style={{
-        width: 96, height: 96, margin: '0 auto 10px',
-        position: 'relative', display: 'inline-block',
-      }}>
-        <div style={{
-          width: 64, height: 64, borderRadius: '50%',
-          border: `3px solid ${V3.ORANGE}`, overflow: 'hidden',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          margin: '16px auto 0',
-        }}>
-          {loading ? (
-            <span className="skeleton-line" style={{ width: '100%', height: '100%', borderRadius: '50%' }} aria-hidden="true" />
-          ) : avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div style={{
-              width: '100%', height: '100%',
-              background: `linear-gradient(135deg, ${V3.GREEN}, ${V3.ORANGE})`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#000', fontSize: 24, fontWeight: 700,
-            }}>
-              {(displayName ?? 'U').charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
-        {!loading && tierMeta && tier !== null && (
-          <div style={{
-            position: 'absolute',
-            bottom: 0, left: '50%',
-            transform: 'translate(-50%, 50%)',
-            clipPath: V3.clip.badge,
-            padding: '3px 9px',
-            fontSize: 9, fontWeight: 800, letterSpacing: 0.3,
-            textTransform: 'uppercase',
-            color: tierMeta.color,
-            background: `${tierMeta.color}20`,
-            whiteSpace: 'nowrap',
-          }}>
-            {`${tierPrefixTemplate(tier)} · ${tierMeta.label}`}
-          </div>
-        )}
-      </div>
-
-      <div style={{ color: '#fff', fontSize: 18, fontWeight: 700, marginTop: 10 }}>
-        {displayName ?? <SkeletonText width={140} height="1em" />}
-      </div>
-
-      {!loading && loginStreak >= 1 && (
-        <div style={{
-          marginTop: 8,
-          display: 'inline-flex', alignItems: 'center', gap: 10,
-        }}>
-          <div style={{
-            width: 28, height: 28,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            clipPath: V3.clip.chunky,
-            background: `linear-gradient(135deg, ${V3.STREAK}40, ${V3.STREAK}10)`,
-            border: `1.5px solid ${V3.STREAK}`,
-          }}>
-            <FlameIcon size={14} color={V3.STREAK} />
-          </div>
-          <div style={{ color: '#fff', fontSize: 12, fontWeight: 700 }}>
-            {streakLabel}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

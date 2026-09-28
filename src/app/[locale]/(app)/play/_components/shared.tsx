@@ -29,6 +29,8 @@ export interface PressProps {
   block?: boolean
   disabled?: boolean
   onClick?: () => void
+  ariaExpanded?: boolean
+  ariaHasPopup?: "dialog"
   ariaLabel?: string
   className?: string
 }
@@ -43,6 +45,8 @@ export function Press({
   disabled = false,
   onClick,
   ariaLabel,
+  ariaExpanded,
+  ariaHasPopup,
   className,
 }: PressProps) {
   const classes = ['pn-press', shape, intent, size]
@@ -56,6 +60,8 @@ export function Press({
       disabled={disabled}
       onClick={onClick}
       aria-label={ariaLabel}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
     >
       <span className="pn-press-skirt" />
       <span className="pn-press-face">{children}</span>

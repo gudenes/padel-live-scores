@@ -31,6 +31,7 @@ export function useApiResource<T>(
   url: string | null,
   parse: (payload: unknown) => T,
   enabled = true,
+  pollMs = 0,
 ): Resource<T> {
   const [nonce, setNonce] = useState(0)
   // One piece of state holding the result AND the request it belongs to.
@@ -61,24 +62,36 @@ export function useApiResource<T>(
     const seq = ++requestRef.current
     let cancelled = false
 
-    fetch(url, { headers: { Accept: 'application/json' } })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`${url} → ${res.status}`)
-        return res.json()
-      })
-      .then((payload: unknown) => {
-        if (cancelled || seq !== requestRef.current) return
-        setResult({ key, data: parseRef.current(payload), status: 'ready' })
-      })
-      .catch(() => {
-        if (cancelled || seq !== requestRef.current) return
-        setResult({ key, data: null, status: 'error' })
-      })
-
+    let pending = false
+    const controller = new AbortController()
+    const refresh = () => {
+      if (pending) return
+      pending = true
+      fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`${url} → ${res.status}`)
+          return res.json()
+        })
+        .then((payload: unknown) => {
+          if (cancelled || seq !== requestRef.current) return
+          setResult({ key, data: parseRef.current(payload), status: 'ready' })
+        })
+        .catch(() => {
+          if (cancelled || seq !== requestRef.current) return
+          setResult(previous => previous.key === key && previous.data ? previous : { key, data: null, status: 'error' })
+        }).finally(() => { pending = false })
+    }
+    refresh()
+    const visibleRefresh = () => { if (!document.hidden) refresh() }
+    const timer = pollMs ? setInterval(visibleRefresh, pollMs) : null
+    if (pollMs) document.addEventListener('visibilitychange', visibleRefresh)
     return () => {
       cancelled = true
+      controller.abort()
+      if (timer) clearInterval(timer)
+      document.removeEventListener('visibilitychange', visibleRefresh)
     }
-  }, [url, enabled, key])
+  }, [url, enabled, key, pollMs])
 
   const reload = useCallback(() => setNonce((n) => n + 1), [])
 

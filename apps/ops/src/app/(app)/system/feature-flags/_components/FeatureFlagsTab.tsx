@@ -8,6 +8,7 @@
 // Both write to the same DB row; the app resolves the right one per host.
 // Lifted from src/app/ops/FeatureFlagsTab.tsx (Plan 3b-extra Task 1).
 
+import AvatarSettings from './AvatarSettings'
 import { useEffect, useState } from 'react'
 import { PageHeader, Panel, Button, EmptyState } from '@/components/ui'
 
@@ -73,6 +74,7 @@ export default function FeatureFlagsTab() {
     return (
       <div className="ui-page">
         <PageHeader title="Feature Flags" />
+        <AvatarSettings />
         <div style={{ color: 'var(--text-2)' }}>Loading feature flags...</div>
       </div>
     )
@@ -81,6 +83,7 @@ export default function FeatureFlagsTab() {
     return (
       <div className="ui-page">
         <PageHeader title="Feature Flags" />
+        <AvatarSettings />
         <EmptyState title={`Failed to load: ${error}`} hint={<Button size="sm" onClick={refresh}>Retry</Button>} />
       </div>
     )
@@ -98,6 +101,7 @@ export default function FeatureFlagsTab() {
           </>
         }
       />
+      <AvatarSettings />
 
       {flags.length === 0 ? (
         <EmptyState title="No feature flags defined yet." hint={<>Add a row to the <code>feature_flags</code> table.</>} />

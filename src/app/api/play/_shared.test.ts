@@ -26,6 +26,7 @@ function mkMarket(over: Partial<MarketRow> = {}): MarketRow {
     resolver_params: { pair: 1 },
     lmsr_b: String(b),
     seed_prob: '0.6200',
+    seed_source: 'elo',
     q_yes: String(seeded.qYes),
     q_no: String(seeded.qNo),
     volume_guacas: '0',
@@ -166,6 +167,52 @@ describe('describeMarket', () => {
     expect(v.question).toBe('Will Coello / Tapia win Madrid P1?')
     expect(v.context).toBe('Madrid P1 · Men')
     expect(v.modelProb).toBeCloseTo(0.62, 6) // falls back to seed_prob
+  })
+})
+
+// A set-shape market ("will any set finish 6-0") sits on an ordinary match that
+// DOES carry a pred_pair1_prob. Without the seed_source check, the card would
+// print the favourite's chance of winning the match under a "model" label — a
+// real number answering a question nobody asked.
+describe('describeMarket · fixed-seed markets show a base rate, never a model', () => {
+  function bagel() {
+    return mkMarket({
+      seed_source: 'fixed',
+      seed_prob: '0.2030',
+      resolver_params: { seedProb: 0.203 },
+      template: { question_i18n: { en: 'Will any set finish 6-0?' }, horizon: 'pre-match' },
+    })
+  }
+
+  it('reports no model probability even though the match carries a prediction', () => {
+    const v = describeMarket(bagel(), 'en')
+    expect(v.modelProb).toBeNull()
+    // The match's 0.64 must not leak through under any label.
+    expect(v.baselineProb).not.toBeCloseTo(0.64, 2)
+  })
+
+  it('exposes the frozen seed as the historical baseline', () => {
+    expect(describeMarket(bagel(), 'en').baselineProb).toBeCloseTo(0.203, 6)
+  })
+
+  it('leaves baselineProb null on an elo market', () => {
+    const v = describeMarket(mkMarket(), 'en')
+    expect(v.baselineProb).toBeNull()
+    expect(v.modelProb).toBeCloseTo(0.64, 6)
+  })
+
+  it('keeps the two mutually exclusive', () => {
+    for (const row of [mkMarket(), bagel()]) {
+      const v = describeMarket(row, 'en')
+      expect(v.modelProb === null).not.toBe(v.baselineProb === null)
+    }
+  })
+
+  it('still prices, locks and renders the card normally', () => {
+    const v = describeMarket(bagel(), 'en')
+    expect(v.question).toBe('Will any set finish 6-0?')
+    expect(v.priceYes).toBeCloseTo(0.62, 6) // from live LMSR state, not the seed
+    expect(v.subtitle).toBe('Coello / Tapia vs Galan / Chingotto')
   })
 })
 

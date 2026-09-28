@@ -7,7 +7,8 @@ const dirname = path.dirname(fileURLToPath(import.meta.url))
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ['pdf-parse', 'sharp'],
-  turbopack: { root: dirname },
+  // Share the local avatar settings module with the player app.
+  turbopack: { root: path.resolve(dirname, '../..') },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },

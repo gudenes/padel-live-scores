@@ -14,11 +14,12 @@
 // Head-to-head is derived from `matches`, not stored, and ZERO meetings is the
 // common case — "they have never met" is the normal answer here, not an error.
 
-import { useEffect, useRef } from 'react'
-import { useTranslations } from 'next-intl'
+import { useEffect, useRef, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { PairIdentity, type PairAccent } from './PlayerIdentity'
-import { toPct } from './shared'
-import type { PlayMarket, PlayPlayer } from './types'
+import { previewBuy } from './market-preview'
+import { Press, toPct } from './shared'
+import type { PlayMarket, PlayPlayer, Side } from './types'
 
 /** "Rufo / Castello" from the resolved players, or '' if none resolved. */
 function pairNames(players: PlayPlayer[]): string {
@@ -95,13 +96,25 @@ function PairBlock({ players, accent }: { players: PlayPlayer[]; accent: PairAcc
 
 export interface MarketDetailSheetProps {
   market: PlayMarket
+  onChoose: (side: Side) => void
   onClose: () => void
 }
 
-export default function MarketDetailSheet({ market, onClose }: MarketDetailSheetProps) {
+export default function MarketDetailSheet({ market, onClose, onChoose }: MarketDetailSheetProps) {
   const t = useTranslations('play')
+  const locale = useLocale()
+  const odds = (side: Side) => {
+    const quote = previewBuy(market, side, 1)
+    return quote ? `${new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(quote.shares / quote.cost)}×` : '—'
+  }
 
   const dialog = useRef<HTMLDialogElement>(null)
+  const [closing, setClosing] = useState(false)
+  const requestClose = () => {
+    if (closing) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) onClose()
+    else setClosing(true)
+  }
   useEffect(() => {
     const element = dialog.current
     const previous = document.activeElement as HTMLElement | null
@@ -112,18 +125,25 @@ export default function MarketDetailSheet({ market, onClose }: MarketDetailSheet
   const players = market.players
   const h2h = market.h2h
   const crowd = toPct(market.priceYes)
-  const model = toPct(market.modelProb)
+  // Exactly one of these is ever non-null. A set-shape market ("will any set
+  // finish 6-0") has no model prediction — the Elo model only predicts who
+  // wins — so it shows the measured historical rate instead, in a deliberately
+  // different visual register. Dressing an average as a prediction is the one
+  // thing this block must not do.
+  const model = market.modelProb !== null ? toPct(market.modelProb) : null
+  const baseline = market.baselineProb !== null ? toPct(market.baselineProb) : null
 
   return (
-    <dialog ref={dialog} className="pl-trade-dialog" aria-label={t('detail.title')}
-      onCancel={e => { e.preventDefault(); onClose() }}>
+    <dialog ref={dialog} className={`pl-trade-dialog pl-amount-dialog pl-details-dialog${closing ? ' pl-closing' : ''}`} aria-label={t('detail.title')}
+      onAnimationEnd={e => { if (closing && e.target === e.currentTarget) onClose() }}
+      onCancel={e => { e.preventDefault(); requestClose() }}>
       <div className="pl-trade-content pl-detail">
         <div className="pl-sheet-head">
           <div>
             <h3>{t('detail.title')}</h3>
             <p>{market.question}</p>
           </div>
-          <button type="button" className="pl-x" onClick={onClose} aria-label={t('detail.close')}>
+          <button type="button" className="pl-x" onClick={requestClose} aria-label={t('detail.close')}>
             ✕
           </button>
         </div>
@@ -163,18 +183,44 @@ export default function MarketDetailSheet({ market, onClose }: MarketDetailSheet
         )}
 
         <div className="pl-dsec">
-          <div className="pl-dk">{t('detail.crowdVsModel')}</div>
+          <div className="pl-dk">
+            {model === null && baseline !== null
+              ? t('detail.crowdVsBaseline')
+              : t('detail.crowdVsModel')}
+          </div>
           <div className="pl-dsplit">
             <div>
               <span>{t('deck.crowdPrice')}</span>
               <b>{crowd}%</b>
             </div>
-            <div>
-              <span>{t('deck.ourModel')}</span>
-              <b className="pl-dmodel">{model}%</b>
-            </div>
+            {model !== null ? (
+              <div>
+                <span>{t('deck.ourModel')}</span>
+                <b className="pl-dmodel">{model}%</b>
+              </div>
+            ) : baseline !== null ? (
+              <div>
+                <span>{t('detail.baseRate')}</span>
+                <b className="pl-dbaseline">{t('deck.historicalPct', { pct: baseline })}</b>
+              </div>
+            ) : null}
           </div>
-          <p className="pl-dnote">{t('detail.yesNote')}</p>
+          <p className="pl-dnote">
+            {model === null && baseline !== null
+              ? t('detail.baseRateNote')
+              : t('detail.yesNote')}
+          </p>
+        </div>
+      </div>
+      <div className="pl-detail-choice-footer">
+        <div className="pl-odds pl-pair-choices">
+          {(players && market.subjectPair === 2 ? ['no', 'yes'] as const : ['yes', 'no'] as const).map((side, index) => <div className="pl-detail-choice" key={side}>
+            {players && <span className="pl-choice-pair">{pairNames(index === 0 ? players.pair1 : players.pair2)}</span>}
+            <Press className={`pl-choice-press pl-${side}`} size="size-lg" intent="intent-neutral" disabled={closing}
+              onClick={() => onChoose(side)} ariaLabel={`${t(`deck.${side}`)} · ${odds(side)}`}>
+              <span className="pl-lbl">{t(`deck.${side}`)}</span><span className="pl-pct">{odds(side)}</span>
+            </Press>
+          </div>)}
         </div>
       </div>
     </dialog>

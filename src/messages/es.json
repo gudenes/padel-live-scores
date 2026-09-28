@@ -1284,6 +1284,7 @@
       "pairDescription": "El camino proyectado de {pair} hacia el título de {name}: rivales ronda a ronda y probabilidades de victoria."
     },
     "play": {
+
       "title": "Play the Next",
       "description": "Predice lo que pasa a continuación en el pádel. Elige un lado en mercados en vivo, opera con Guacas y sube en la clasificación. Solo dinero ficticio: nada que comprar ni que cobrar."
     }
@@ -1810,6 +1811,19 @@
     "cta": "Volver a PadelNachos"
   },
   "play": {
+    "results": {"netWin": "Ganancia neta", "netLoss": "Pérdida neta", "netResult": "Resultado neto", "totalPaid": "Total recibido", "invested": "{amount} G invertidos", "won": "Ganada", "lost": "Perdida", "refunded": "Reembolsada", "pending": "Pendiente de resolución", "closed": "Mercado cerrado", "corrected": "Resultado corregido", "adjustment": "Saldo ajustado en {amount} G.", "owed": "La corrección supera tu saldo disponible. Los próximos abonos cubrirán la diferencia antes de volver a jugar."},
+    "ticker": {"title": "Últimas jugadas", "pause": "Pausar", "resume": "Continuar", "open": "Ver la actividad de todos los mercados", "empty": "Aún no hay jugadas."},
+    "courtside": {
+      "title": "En la pista",
+      "all": "Ver todo",
+      "you": "Tú",
+      "simulated": "Simulado",
+      "loading": "Cargando jugadas…",
+      "error": "No se pudo actualizar",
+      "empty": "Aún no hay jugadas en este mercado.",
+      "noOwn": "Aún no tienes jugadas en este mercado.",
+      "simulationNote": "Las jugadas simuladas son locales y no participan en premios."
+}, 
     "live": "En vivo",
     "horizon": {
       "live": "En partido",
@@ -1819,10 +1833,11 @@
     },
     "subnav": {
       "label": "Secciones de Play",
-      "markets": "Mercados",
+      "markets": "Mercados abiertos",
       "activity": "Actividad",
       "leaders": "Líderes",
-      "myPositions": "Mis posiciones"
+      "myPositions": "Mis posiciones",
+      "mine": "Mis jugadas"
     },
     "deck": {
       "yes": "Sí",
@@ -1831,6 +1846,7 @@
       "crowdPrice": "Precio del público",
       "ourModel": "Nuestro modelo",
       "aiPct": "IA {pct}%",
+      "historicalPct": "histórico {pct}%",
       "volumeTraded": "{amount} G negociados",
       "noTradesYet": "Aún sin operaciones",
       "empty": {
@@ -1844,7 +1860,8 @@
       "stateLiveNow": "En vivo ahora",
       "stateStartingSoon": "Empieza pronto",
       "vs": "vs",
-      "formLine": "{name} ganó {wins} de los últimos {of}"
+      "formLine": "{name} ganó {wins} de los últimos {of}",
+      "oddsUnit": "Retorno por 1 G · incluye tu importe"
     },
     "trade": {
       "title": "¿Cuántos Guacas?",
@@ -1866,7 +1883,12 @@
       "approx": "≈ {shares} acciones · {question}",
       "viewPositions": "Ver mis posiciones",
       "next": "Siguiente predicción",
-      "upNext": "A continuación"
+      "upNext": "A continuación",
+      "yourPick": "Tu elección",
+      "placed": "Has invertido",
+      "ifWin": "Si aciertas, recibes",
+      "includesStake": "Incluye el importe invertido",
+      "keepExploring": "Seguir explorando"
     },
     "positions": {
       "title": "Mis posiciones",
@@ -1889,7 +1911,11 @@
           "title": "Aún sin operaciones",
           "body": "Todo lo que negocies — abierto o resuelto — se listará aquí."
         }
-      }
+      },
+      "yourPosition": "Tu posición",
+      "expandMarket": "Ver mercado",
+      "collapseMarket": "Contraer mercado",
+      "investedAmount": "{amount} G invertidos"
     },
     "activity": {
       "latest": "Últimas operaciones",
@@ -1906,6 +1932,15 @@
       }
     },
     "leaders": {
+      "weeklyCount": "{count} participantes · últimos 7 días",
+      "playerCount": "{count} participantes",
+      "seeEveryone": "Ver todos",
+      "findMe": "Ir a mi puesto",
+      "openPlayer": "Ver a {name}, puesto {rank}",
+      "player": "Jugador",
+      "myProfile": "Mi perfil",
+      "simulationNote": "Incluye jugadores simulados locales. Sus saldos pertenecen a la simulación; no participan en premios.",
+      "humanRank": "#{rank} entre jugadores",
       "title": "Líderes",
       "week": "Semana",
       "season": "Temporada",
@@ -1918,7 +1953,10 @@
       "empty": {
         "title": "La clasificación está vacía",
         "body": "Se llenará en cuanto la gente empiece a operar."
-      }
+      },
+      "yourPosition": "Tu posición",
+      "netWorth": "Patrimonio",
+      "standings": "Clasificación"
     },
     "time": {
       "now": "ahora",
@@ -1949,7 +1987,10 @@
       "loss": "D",
       "noStats": "Todavía sin estadísticas",
       "crowdVsModel": "El público vs nuestro modelo",
-      "yesNote": "Ambas cifras son la probabilidad de Sí."
+      "crowdVsBaseline": "Público vs histórico",
+      "baseRate": "Tasa histórica",
+      "yesNote": "Ambas cifras son la probabilidad de Sí.",
+      "baseRateNote": "No tenemos una predicción del modelo para esta pregunta. La segunda cifra es la frecuencia con la que esto ha ocurrido en partidos de los últimos 12 meses: un promedio, no una predicción sobre este partido."
     },
     "explore": {
       "all": "Todos",
@@ -1981,14 +2022,116 @@
       "amount": "Importe",
       "available": "Disponible:",
       "ifWin": "Si aciertas, recibes",
-      "gain": "Incluye {stake} · Ganancia ≈{gain}",
+      "gain": "Incluye {stake} · Ganancia {gain}",
       "ifLose": "Si no aciertas, pierdes",
       "balanceAfter": "Saldo después",
       "filters": "Filtros",
       "feed": "Mercados para predecir",
       "shortReturn": "Total estimado si aciertas · incluye importe",
       "next": "Siguiente mercado",
-      "showMarkets": "Ver mercados ({count})"
+      "showMarkets": "Ver mercados ({count})",
+      "estimatedReturn": "Retorno estimado si aciertas",
+      "operationDetails": "Detalles de la operación"
+    },
+    "filters": {
+      "label": "Filtros de mercados",
+      "all": "Todos",
+      "today": "Hoy",
+      "tourn": "Torneos",
+      "season": "Temporada",
+      "empty": "No hay mercados aquí todavía",
+      "emptyBody": "Prueba otra categoría para seguir jugando.",
+      "showAll": "Ver todos",
+      "allMarkets": "Todos los mercados",
+      "more": "Filtros",
+      "when": "Cuándo quieres jugar",
+      "competition": "Competición",
+      "allCompetitions": "Todas las competiciones",
+      "category": "Categoría",
+      "allCategories": "Todas las categorías",
+      "men": "Masculino",
+      "women": "Femenino",
+      "apply": "Aplicar filtros",
+      "reset": "Restablecer"
+    }
+  },
+  "playerProfile": {
+    "yourPlayer": "Tu jugador",
+    "yourStyle": "Tu juego. Tu estilo.",
+    "wardrobe": "Mi jugador",
+    "characterAlt": "Tu jugador de pádel",
+    "saved": "Conjunto guardado en este dispositivo.",
+    "saveError": "No se pudo guardar. Permite el almacenamiento del navegador e inténtalo de nuevo.",
+    "predictor": "Tus predicciones",
+    "leaderboard": "Clasificación",
+    "loading": "Cargando tus predicciones…",
+    "loadError": "No se pudieron cargar tus predicciones.",
+    "retry": "Reintentar",
+    "available": "Guacas disponibles",
+    "invested": "Invertido",
+    "markets": "Mercados activos",
+    "seasonRank": "Puesto de temporada",
+    "yes": "Sí",
+    "no": "No",
+    "empty": "Tu primera predicción empieza aquí.",
+    "explore": "Explorar mercados",
+    "allPositions": "Todas mis jugadas",
+    "close": "Cerrar vestuario",
+    "avatarPreview": "Vista del avatar",
+    "outfitsLabel": "Elige un conjunto",
+    "equipped": "Equipado",
+    "localNote": "Elige cara y conjunto por separado · se guardan juntos en este dispositivo.",
+    "creator": {"compatibility": "Este personaje conserva su conjunto original. Prueba Rafa para explorar el primer vestuario combinable.", "tryRafa": "Personalizar Rafa", "ready": "3 conjuntos", "whole": "Avatar completo · guardado en este dispositivo. Próximamente, más personajes personalizables."},
+    "equip": "Usar este avatar",
+    "restore": "Usar mi foto de perfil",
+    "restored": "Foto de perfil restaurada.",
+    "outfits": {
+      "starter": "Starter",
+      "court-club": "Court Club",
+      "night-match": "Night Match"
+    },
+    "faces": {
+      "face-01": "Chispa",
+      "face-02": "Rayo",
+      "face-03": "Brasa",
+      "face-04": "Ziggy",
+      "face-05": "Nova",
+      "face-06": "Nacho",
+      "face-07": "Mika",
+      "face-08": "Dash",
+      "face-09": "Coco",
+      "face-10": "Ace"
+    },
+    "chooseStyle": "Elige tu personaje",
+    "customFace": "Mi avatar",
+    "previewReady": "Tu avatar está listo. Revísalo antes de usarlo.",
+    "tabs": {
+      "faces": "Caras",
+      "looks": "Conjuntos",
+      "photo": "Con mi foto"
+    },
+    "photo": {
+      "intro": "Crea un jugador que se parezca a ti. Usa una foto clara, de frente y en la que salgas solo.",
+      "checking": "Comprobando disponibilidad…",
+      "unavailable": "La creación con foto no está disponible ahora.",
+      "retry": "Reintentar",
+      "not_configured": "La creación con foto aún no está activada en esta vista local.",
+      "takePhoto": "Hacer una foto",
+      "uploadPhoto": "Elegir una foto",
+      "selectedPhoto": "Tu foto seleccionada",
+      "fileHelp": "JPG, PNG o WebP · hasta 6 MB",
+      "consent": "Enviar esta foto a OpenAI para crear mi avatar. Tengo permiso para usar esta foto.",
+      "generate": "Crear mi avatar",
+      "generating": "Creando tu jugador…",
+      "waiting": "Puede tardar un par de minutos. Tu avatar actual se mantiene.",
+      "retention": "No guardamos la foto original. El avatar generado se guarda en este servidor local. Hasta 5 intentos al día.",
+      "invalid_photo": "Elige una foto JPG, PNG o WebP válida.",
+      "photo_too_large": "Elige una foto de menos de 6 MB.",
+      "daily_limit": "Has alcanzado los 5 intentos de hoy. Vuelve mañana.",
+      "generation_busy": "Ya se está creando un avatar. Espera un momento.",
+      "provider_busy": "OpenAI está ocupado. Inténtalo más tarde.",
+      "generation_failed": "No pudimos crear este avatar. Prueba con otra foto clara.",
+      "generation_unavailable": "No se pudo conectar con el servicio. Inténtalo más tarde."
     }
   }
 }

@@ -21,6 +21,7 @@ const GROUPS: Group[] = [
   { label: 'Play · Prediction Market', items: [
     { href: '/play/markets', label: 'Markets', icon: 'list' },
     { href: '/play/templates', label: 'Templates', icon: 'grid' },
+    { href: '/play/simulation', label: 'Simulation', icon: 'play' },
   ]},
   { label: 'Tournament Ops', items: [
     { href: '/tournament-explorer', label: 'Tournament Explorer', icon: 'grid' },

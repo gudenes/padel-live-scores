@@ -63,6 +63,30 @@
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+
+  /* ── Brand lime ─────────────────────────────────────────────────
+   * #7ED321 is the PadelNachos accent and has always been hard-coded
+   * as a JS const in each consumer (BottomNavV3, PressButton, every
+   * page's local colour block). These promote it to a token so the
+   * class-driven .pn-press family below can reference it. The JS
+   * consts are unchanged — same value, two spellings, for now. */
+  --lime:        #7ED321;
+  --lime-skirt:  #558D14;
+  --lime-bg:     rgba(126, 211, 33, 0.10);
+  --lime-border: rgba(126, 211, 33, 0.30);
+
+  /* The "no"/decline pair. Same hue as --color-live, but semantically
+   * distinct: live is a match state, no is a side of a market. */
+  --no:        #FF4655;
+  --no-skirt:  #99131D;
+  --no-bg:     rgba(255, 70, 85, 0.10);
+  --no-border: rgba(255, 70, 85, 0.30);
+
+  /* Shared silhouettes. These exact polygons are already repeated as
+   * per-page `CHUNKY` objects across the codebase; same numbers. */
+  --clip-card:   polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+  --clip-tag:    polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  --clip-chunky: polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -129,16 +153,8 @@ textarea,
   user-select: text;
 }
 
-/* ── Splash overlay ─────────────────────────────────────────────────────
-   Server-rendered overlay (see src/components/SplashOverlay.tsx) shown
-   over the WebView until the app's first frame paints. Replaces the
-   dated native UIActivityIndicator with a modern Material-style arc
-   spinner in lime green, positioned in the lower third so it doesn't
-   compete with the logo.
-   Inset 0 + z-index 10000 ensures the overlay sits above EVERYTHING
-   (sticky headers, body::before safe-area band, the bottom nav). On
-   .hidden, opacity fades to 0 over 400ms and the element is removed
-   from the DOM by the inline script in SplashOverlay. */
+/* Splash is server-rendered for the first frame and fades after hydration.
+   Keep the node mounted so React can safely reconcile error boundaries. */
 #splash-overlay {
   position: fixed;
   inset: 0;
@@ -613,6 +629,107 @@ button:focus { outline: none; }
     transition: none;
   }
 }
+
+/* ── PressButton, class-driven variants ───────────────────────────
+ * <PressButton> above drives colour and shape through inline styles,
+ * which suits one-off buttons. The mockups (public/mockup-buttons.html
+ * is the design-system source of truth) instead compose from named
+ * classes: shape · intent · size. Play's UI is built from those, and
+ * they lived only in the mockups until now.
+ *
+ * Markup contract — all three nodes, in this order:
+ *   <button class="pn-press shape-chunky-tilted intent-primary size-lg">
+ *     <span class="pn-press-skirt" />
+ *     <span class="pn-press-face">Confirm</span>
+ *   </button>
+ *
+ * Note the disabled selector is :disabled, not [disabled] as in the
+ * mockups — it matches the rule above and works on real <button>s.
+ * If one of these is ever rendered as a non-button element, add the
+ * attribute form here too rather than changing it.
+ */
+.pn-press {
+  position: relative;
+  display: inline-block;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  color: #0a0a0a;
+  --pn-press-depth: 5px;
+  /* Reserves room for the skirt so the button doesn't overlap whatever
+   * follows it; without this every stacked CTA sits 5px too close. */
+  margin-bottom: var(--pn-press-depth);
+  -webkit-tap-highlight-color: transparent;
+}
+.pn-press[data-block="1"] { display: block; width: 100%; }
+.pn-press[disabled] { cursor: not-allowed; opacity: 0.42; }
+
+.pn-press .pn-press-skirt {
+  position: absolute;
+  inset: 0;
+  transform: translateY(var(--pn-press-depth));
+  background: var(--lime-skirt);
+}
+.pn-press .pn-press-face {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--lime);
+  color: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  user-select: none;
+}
+/* `fill: currentColor` suits the solid glyphs this system was built for, but
+ * it also beat the `fill="none"` attribute on stroke-only icons — the YES
+ * button's checkmark filled in and rendered as a wedge. Scope the fill to
+ * icons that have not opted out. */
+.pn-press .pn-press-face svg { width: 1em; height: 1em; flex: none; }
+.pn-press .pn-press-face svg:not([fill="none"]) { fill: currentColor; }
+
+/* ── Shapes ── */
+.shape-chunky-tilted .pn-press-face,
+.shape-chunky-tilted .pn-press-skirt { clip-path: var(--clip-chunky); }
+.shape-pill .pn-press-face,
+.shape-pill .pn-press-skirt { border-radius: 999px; }
+
+/* ── Intents (face background + text · skirt background) ── */
+.intent-primary .pn-press-face { background: var(--lime); }
+.intent-primary .pn-press-skirt { background: var(--lime-skirt); }
+.intent-live .pn-press-face { background: var(--no); color: #fff; }
+.intent-live .pn-press-skirt { background: var(--no-skirt); }
+.intent-neutral .pn-press-face { background: #2A2A2A; color: #fff; }
+.intent-neutral .pn-press-skirt { background: #0A0A0A; }
+.intent-ghost .pn-press-face {
+  background: transparent;
+  color: var(--lime);
+  box-shadow: inset 0 0 0 2px var(--lime);
+}
+.intent-ghost .pn-press-skirt { background: #2F4D10; }
+
+/* ── Sizes ── */
+.size-sm { --pn-press-depth: 4px; }
+.size-sm .pn-press-face { font-size: 11px; padding: 9px 16px; }
+.size-md { --pn-press-depth: 5px; }
+.size-md .pn-press-face { font-size: 12px; padding: 12px 22px; }
+.size-lg { --pn-press-depth: 6px; }
+.size-lg .pn-press-face { font-size: 13px; padding: 15px 28px; }
+
+/* ── Modifiers ── */
+.pn-press.icon-only .pn-press-face { padding: 0 !important; aspect-ratio: 1 / 1; }
+.pn-press.btn-round { --pn-press-depth: 5px; }
+.pn-press.btn-round .pn-press-face { width: 58px; height: 58px; border-radius: 999px; }
+.pn-press.btn-round .pn-press-skirt { border-radius: 999px; }
+.pn-press.btn-round .pn-press-face svg { width: 24px; height: 24px; }
 
 /* ──────────────────────────────────────────────────────────────────────
    DesktopDownloadRail

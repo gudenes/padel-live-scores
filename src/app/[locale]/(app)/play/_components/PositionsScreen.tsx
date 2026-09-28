@@ -7,6 +7,7 @@
 // currency symbol anywhere is a regulatory and trust problem, and the
 // design brief calls it out explicitly.
 
+import GuacaCoin from '@/components/GuacaCoin'
 import { useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Blank, Press, SkeletonList, formatGuacas, formatPrice, toPct } from './shared'
@@ -23,8 +24,8 @@ const RESOLVED_STATUSES = new Set(['settled', 'void'])
 
 function bucket(position: PlayPosition, filter: PositionFilter): boolean {
   if (filter === 'history') return true
-  if (filter === 'resolved') return RESOLVED_STATUSES.has(position.status)
-  return OPEN_STATUSES.has(position.status)
+  if (filter === 'resolved') return RESOLVED_STATUSES.has(position.status) && position.result !== 'pending'
+  return OPEN_STATUSES.has(position.status) || position.result === 'pending'
 }
 
 export interface PositionsScreenProps {
@@ -52,11 +53,18 @@ export default function PositionsScreen({ me, status, onExplore, onRetry }: Posi
             sub-nav chip next to it shows spendable balance; they differ, and
             that difference is the point of holding a position. */}
         <div className="pl-guacas" title={t('positions.netWorth')}>
-          <span className="pl-coin">G</span>
+          <GuacaCoin size={30} />
           <span>{formatGuacas(me?.netWorth ?? 0, locale)}</span>
         </div>
       </div>
 
+      {(me?.notices ?? []).filter(n => n.corrected).slice(0, 3).map(n => <div className="pl-result-notice" role="status" key={n.id}>
+        <strong>{t('results.corrected')}</strong>
+        {n.question && <p>{n.question}</p>}
+        <p>{t('results.adjustment', { amount: `${n.delta > 0 ? '+' : ''}${formatGuacas(n.delta, locale)}` })}</p>
+        <small>{n.reason}</small>
+      </div>)}
+      {(me?.balance ?? 0) < 0 && <p className="pl-result-notice">{t('results.owed')}</p>}
       <div className="pl-seg">
         {FILTERS.map((f) => (
           <button
@@ -96,12 +104,14 @@ export default function PositionsScreen({ me, status, onExplore, onRetry }: Posi
       {status === 'ready' && rows.length > 0 && (
         <div className="pl-pos-list">
           {rows.map((p) => {
-            const up = p.deltaPct >= 0
+            const resolved = RESOLVED_STATUSES.has(p.status) && p.result !== 'pending'
+            const gain = Math.round(p.valueNow - p.costBasis)
+            const up = resolved ? gain >= 0 : p.deltaPct >= 0
             return (
               <div className="pl-pos" key={`${p.marketId}-${p.side}`}>
                 <div className={`pl-side pl-${p.side}`}>
                   <div className="pl-s">{p.side === 'yes' ? t('deck.yes') : t('deck.no')}</div>
-                  <div className="pl-p">{toPct(p.currentPrice)}%</div>
+                  <div className="pl-p">{p.result === 'won' ? '✓' : p.result === 'lost' ? '×' : p.result === 'refunded' ? '↩' : toPct(p.currentPrice) + '%'}</div>
                 </div>
                 <div className="pl-mid">
                   <div className="pl-q3">{p.question}</div>
@@ -115,18 +125,20 @@ export default function PositionsScreen({ me, status, onExplore, onRetry }: Posi
                     )}
                   </div>
                   <div className="pl-stake">
-                    {t('positions.stake', {
+                    {p.result && <strong>{t(`results.${p.result}`)}{p.corrected ? ` · ${t('results.corrected')}` : ''}<br /></strong>}
+                    {resolved ? t('results.invested', { amount: formatGuacas(p.costBasis, locale) }) : t('positions.stake', {
                       amount: formatGuacas(p.costBasis, locale),
                       price: formatPrice(p.avgPrice),
                     })}
                   </div>
                 </div>
-                <div className="pl-pnl">
+                <div className={`pl-pnl${resolved ? ' pl-pnl-resolved' : ''}`}>
+                  {resolved && <div className="pl-result-label">{t(gain > 0 ? 'results.netWin' : gain < 0 ? 'results.netLoss' : 'results.netResult')}</div>}
                   <div className={`pl-d ${up ? 'pl-up' : 'pl-down'}`}>
-                    {up ? '+' : ''}
-                    {Math.round(p.deltaPct)}%
+                    {resolved ? <>{gain > 0 ? '+' : ''}{formatGuacas(gain, locale)} <GuacaCoin size={24} /></>
+                      : <>{up ? '+' : ''}{Math.round(p.deltaPct)}%</>}
                   </div>
-                  <div className="pl-now">{formatGuacas(p.valueNow, locale)} G</div>
+                  <div className="pl-now">{resolved && <>{t('results.totalPaid')}<br /></>}{formatGuacas(p.valueNow, locale)} <GuacaCoin size={16} /></div>
                 </div>
               </div>
             )

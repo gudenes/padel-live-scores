@@ -80,11 +80,30 @@ export interface PlayMarket {
   subtitle: string
   /** Crowd price for YES, 0..1. */
   priceYes: number
-  /** Our Elo model's probability for YES, 0..1. */
-  modelProb: number
+  /**
+   * Our Elo model's probability for YES, 0..1, or null when the model has no
+   * opinion on the question.
+   *
+   * Nullable, and deliberately NOT defaulted to the crowd price: set-shape
+   * markets ("will any set finish 6-0") are priced from a historical base rate
+   * because the Elo model only predicts who wins. Defaulting would print the
+   * crowd's own number back at them as "what our model thinks".
+   */
+  modelProb: number | null
+  /**
+   * The historical base rate this market opened at, 0..1 — mutually exclusive
+   * with `modelProb`.
+   *
+   * Must never be rendered in the model's visual language. It is a twelve-month
+   * average over past matches, not a prediction about this one.
+   */
+  baselineProb: number | null
   live: boolean
   /** e.g. "Set 1 · 4–4". Free text from the API. */
   stateLabel: string
+  competition?: string | null
+  category?: string | null
+  startsAt?: string | null
   locksAt: string | null
   volumeGuacas: number
   monogram: { a: string; b: string }
@@ -114,6 +133,8 @@ export interface PlayMarket {
 
 /** One row of `GET /api/play/me` → `positions`. */
 export interface PlayPosition {
+  result?: 'won' | 'lost' | 'refunded' | 'pending' | null
+  corrected?: boolean
   marketId: string
   publicId: string
   question: string
@@ -137,6 +158,7 @@ export interface PlayPosition {
 
 /** `GET /api/play/me`. */
 export interface PlayMe {
+  notices?: Array<{ id: number; market_id: string; delta: number; corrected: boolean; reason: string; question?: string }>
   balance: number
   locked: number
   netWorth: number
@@ -145,6 +167,13 @@ export interface PlayMe {
 
 /** One row of `GET /api/play/activity` → `trades`. */
 export interface PlayTrade {
+  marketStatus?: string | null
+  marketId: string
+  userId: string | null
+  avatarUrl: string | null
+  avatarSeed: string
+  isMe: boolean
+  isSimulation: boolean
   id: string
   displayName: string
   side: Side
@@ -159,6 +188,10 @@ export interface PlayTrade {
 
 /** One row of `GET /api/play/leaderboard` → `rows` / `me`. */
 export interface PlayLeader {
+  isSimulation?: boolean
+  avatarSeed?: string
+  humanRank?: number | null
+  avatarUrl?: string | null
   rank: number
   userId: string | null
   displayName: string
@@ -172,6 +205,7 @@ export interface PlayLeader {
 }
 
 export interface PlayLeaderboard {
+  hasSimulation?: boolean
   rows: PlayLeader[]
   me: PlayLeader | null
 }
@@ -362,9 +396,16 @@ export function parseMarkets(payload: unknown): PlayMarket[] {
       context: asString(pick(r, 'context')),
       subtitle: asString(pick(r, 'subtitle')),
       priceYes,
-      modelProb: toProb(pick(r, 'modelProb', 'model_prob')) ?? priceYes,
+      // No `?? priceYes` fallback: an absent model probability is the documented
+      // shape of a base-rate market, and echoing the crowd price back as the
+      // model's view would be a fabricated agreement.
+      modelProb: toProb(pick(r, 'modelProb', 'model_prob')),
+      baselineProb: toProb(pick(r, 'baselineProb', 'baseline_prob')),
       live: pick(r, 'live') === true,
       stateLabel: asString(pick(r, 'stateLabel', 'state_label')),
+      competition: asString(pick(r, 'competition')) || null,
+      category: asString(pick(r, 'category')) || null,
+      startsAt: asString(pick(r, 'startsAt')) || null,
       locksAt: asString(pick(r, 'locksAt', 'locks_at')) || null,
       volumeGuacas: asNumber(pick(r, 'volumeGuacas', 'volume_guacas')) ?? 0,
       monogram: { a: asString(mono.a), b: asString(mono.b) },
@@ -391,6 +432,8 @@ export function parseMe(payload: unknown): PlayMe {
       if (!marketId || avgPrice === null) continue
       positions.push({
         marketId,
+        result: ['won', 'lost', 'refunded', 'pending'].includes(String(p.result)) ? p.result as PlayPosition['result'] : null,
+        corrected: p.corrected === true,
         publicId: asString(pick(p, 'publicId', 'public_id'), marketId),
         question: asString(pick(p, 'question')),
         context: asString(pick(p, 'context')),
@@ -411,6 +454,7 @@ export function parseMe(payload: unknown): PlayMe {
     locked: asNumber(pick(r, 'locked')) ?? 0,
     netWorth: asNumber(pick(r, 'netWorth', 'net_worth')) ?? 0,
     positions,
+    notices: Array.isArray(r.notices) ? r.notices.filter((n): n is NonNullable<PlayMe['notices']>[number] => !!n && typeof n === 'object' && typeof n.delta === 'number' && typeof n.corrected === 'boolean') : [],
   }
 }
 
@@ -425,6 +469,13 @@ export function parseActivity(payload: unknown): PlayTrade[] {
     if (price === null) return
     out.push({
       id: asString(pick(r, 'id'), `t${i}`),
+      marketId: asString(r.marketId),
+      marketStatus: asString(r.marketStatus) || null,
+      userId: asString(r.userId) || null,
+      avatarUrl: asString(r.avatarUrl) || null,
+      avatarSeed: asString(r.avatarSeed),
+      isMe: r.isMe === true,
+      isSimulation: r.isSimulation === true,
       displayName: asString(pick(r, 'displayName', 'display_name', 'userName', 'user_name')),
       side: asSide(pick(r, 'side')),
       direction: asString(pick(r, 'direction')).toLowerCase() === 'sell' ? 'sell' : 'buy',
@@ -444,9 +495,13 @@ export function parseLeaderboard(payload: unknown): PlayLeaderboard {
     if (!item || typeof item !== 'object') return null
     const l = item as Record<string, unknown>
     return {
+      isSimulation: l.isSimulation === true,
+      avatarSeed: asString(l.avatarSeed),
+      humanRank: asNumber(l.humanRank),
       rank: asNumber(pick(l, 'rank')) ?? fallbackRank,
       userId: asString(pick(l, 'userId', 'user_id')) || null,
       displayName: asString(pick(l, 'displayName', 'display_name')),
+      avatarUrl: asString(pick(l, 'avatarUrl', 'avatar_url')) || null,
       netWorth: asNumber(pick(l, 'netWorth', 'net_worth')) ?? 0,
       accuracy: asNumber(pick(l, 'accuracy')),
       streak: asNumber(pick(l, 'streak')),
@@ -463,5 +518,5 @@ export function parseLeaderboard(payload: unknown): PlayLeaderboard {
       if (parsed) rows.push(parsed)
     })
   }
-  return { rows, me: one(pick(r, 'me'), rows.length + 1, true) }
+  return { hasSimulation: r.hasSimulation === true, rows, me: one(pick(r, 'me'), rows.length + 1, true) }
 }

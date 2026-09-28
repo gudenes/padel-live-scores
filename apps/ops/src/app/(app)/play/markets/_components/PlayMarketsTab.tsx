@@ -1,9 +1,10 @@
 'use client'
 
 // Play → Markets. Every market a template actually created.
-// Read-only: markets are generated, never authored, and their config is frozen
-// at creation. Operator actions on a market live on the Resolution page.
+// Local editorial drafts sit above the existing generated markets.
 
+import SettlementControl from './SettlementControl'
+import MarketDrafts from './MarketDrafts'
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader, Panel, Pill, DataTable, EmptyState, Skeleton } from '@/components/ui'
 
@@ -68,6 +69,8 @@ export default function PlayMarketsTab() {
   }, [])
 
   useEffect(() => {
+    // load updates state after its network request completes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
     // Markets appear on the generator's :21 tick and change state as matches
     // play, so a static snapshot goes stale while you are looking at it.
@@ -87,13 +90,15 @@ export default function PlayMarketsTab() {
     <div className="ui-page">
       <PageHeader
         title="Markets"
-        subtitle="Every market a template actually created. You don't author rows here — you find one, watch it, or act on it from Resolution."
+        subtitle="Review markets, settle results, and record corrections with player notifications."
         actions={
           <button className="ui-btn" data-size="sm" onClick={() => void load()}>
             Refresh
           </button>
         }
       />
+
+      {process.env.NODE_ENV === 'development' && <><MarketDrafts /><div style={{ height: 18 }} /></>}
 
       {held > 0 ? (
         <>
@@ -209,6 +214,7 @@ export default function PlayMarketsTab() {
                   <td style={{ fontSize: 11.5, color: 'var(--text-2)' }}>{fmtWhen(m.locksAt)}</td>
                   <td>
                     <Pill tone={STATUS_TONE[m.status] ?? 'neutral'}>{m.status}</Pill>
+                    {m.status !== 'open' && <SettlementControl marketId={m.id} onSaved={() => void load()} />}
                     {m.status === 'settled' && m.outcome !== null ? (
                       <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 4 }}>
                         {m.outcome ? 'YES' : 'NO'}

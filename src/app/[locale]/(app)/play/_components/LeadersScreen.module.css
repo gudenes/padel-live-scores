@@ -1,0 +1,41 @@
+.jump { flex:none; display:flex; align-items:center; gap:10px; margin:0 14px 12px; padding:10px 12px; min-height:54px; color:#eee7d2; background:#28311f; border:1px solid #7ed32166; box-shadow:inset 0 1px #ffffff10,0 3px #111; cursor:pointer; text-align:left; font:inherit; }
+.jump strong { color:#a4dd65; margin-left:5px; }
+.jumpLabel { margin-left:auto; color:#b9dd8e; font-size:11px; font-weight:800; }
+.list { overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#59703b transparent; scroll-padding:12px; gap:5px; }
+.list :global(.pl-lbr) { padding:7px 10px; gap:9px; min-height:54px; border-color:#ffffff12; box-shadow:inset 0 1px 0 #ffffff07; }
+.list .row { width:100%; text-align:left; color:var(--text-primary,#eee7d2); font-family:inherit; cursor:pointer; transition:background .15s, border-color .15s; }
+.list .row:hover { background:#2b2d26; border-color:#7ed32155; }
+.list .row:active { background:#343b29; }
+.list :global(.pl-r) { width:34px; font-size:16px; color:var(--text-muted) !important; }
+.list :global(.pl-n2) { white-space:normal; overflow-wrap:anywhere; }
+.list :global(.pl-me) { background:#293322; border-color:#7ed32199; box-shadow:inset 3px 0 #7ed321; }
+.list :global(.pl-me .pl-r) { color:#a4dd65 !important; }
+.you { display:block; color:#a4c989; font-size:10px; margin-top:2px; font-weight:600; }
+.row:focus-visible,.jump:focus-visible { outline:2px solid #9fdbec; outline-offset:-3px; }
+.preview { max-width:440px; }
+.playerHero { display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px 0 24px; background:radial-gradient(ellipse at center,#7ed32118,transparent 70%); }
+.playerHero>span { color:#b9dd8e; font-size:12px; }
+.stats { display:flex; justify-content:space-between; gap:16px; padding:20px 0; border-block:1px solid #ffffff15; }
+.stats span { display:block; font-size:12px; color:#bdc6af; margin-bottom:8px; }
+.stats strong { font-size:26px; color:#eee7d2; }
+.stats>div:last-child { text-align:right; }
+.profileNote { color:#bdc6af; font-size:12px; line-height:1.6; margin:18px 0; }
+@media(max-width:360px) { .list :global(.pl-lbr) { gap:8px; padding:7px 8px; } .jump { font-size:12px; } }
+
+/* Muted court colors keep the score legible; the player's lime stays distinct. */
+.list .row[data-tone="0"] { background:linear-gradient(110deg,#203037,#20231f 75%); border-left-color:#4c879c; }
+.list .row[data-tone="1"] { background:linear-gradient(110deg,#30293a,#22221f 75%); border-left-color:#8f77b1; }
+.list .row[data-tone="2"] { background:linear-gradient(110deg,#342b24,#23231f 75%); border-left-color:#b68155; }
+.list .row[data-podium="1"] { background:linear-gradient(110deg,#44391e,#27251d 80%); border-color:#b99b4866; }
+.list .row[data-podium="2"] { background:linear-gradient(110deg,#343d45,#23272b 80%); border-color:#a1b4c566; }
+.list .row[data-podium="3"] { background:linear-gradient(110deg,#443025,#29231f 80%); border-color:#b77c5366; }
+.list .row[data-podium="1"] :global(.pl-r) { color:#edca6f !important; }
+.list .row[data-podium="2"] :global(.pl-r) { color:#cad9e8 !important; }
+.list .row[data-podium="3"] :global(.pl-r) { color:#e3a67b !important; }
+.list .row:global(.pl-me) { background:linear-gradient(110deg,#354b22,#24301f 85%); border-color:#7ed321aa; box-shadow:inset 3px 0 #7ed321,0 0 16px #7ed32110; }
+.list .row:hover { filter:brightness(1.15); }
+.figure { width:160px; height:240px; }
+
+.scope { flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 16px 9px; color:#b7bdaf; font-size:11px; }
+.scope button { border:0; background:transparent; color:#b9dd8e; font:inherit; font-weight:700; padding:8px 0 8px 8px; cursor:pointer; }
+.scope button:focus-visible { outline:2px solid #9fdbec; outline-offset:2px; }

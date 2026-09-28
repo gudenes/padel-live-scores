@@ -6,6 +6,7 @@
 // visit to /achievements.
 
 import { useState, useEffect, useRef } from 'react'
+import { PlayerAvatar, usePlayerOutfit } from '@/components/PlayerAvatar'
 import Avatar from '@/components/Avatar'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
@@ -26,8 +27,9 @@ function highestMilestoneReached(streak: number): number {
   return best
 }
 
-export default function ProfileButton() {
+export default function ProfileButton({ size = 34, onProfileClick, label }: { size?: number; onProfileClick?: () => void; label?: string }) {
   const { user, profile, loading } = useAuth()
+  const { outfit } = usePlayerOutfit(user?.id)
   const [hasNotification, setHasNotification] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -105,11 +107,12 @@ export default function ProfileButton() {
     <div style={{ position: 'relative' }}>
       <button
         ref={triggerRef}
-        onClick={handleClick}
+        onClick={isLoggedIn && onProfileClick ? onProfileClick : handleClick}
+        aria-label={label}
         suppressHydrationWarning
         style={{
           position: 'relative',
-          width: 34, height: 34, borderRadius: '50%',
+          width: size, height: size, borderRadius: '50%',
           border: isLoggedIn ? '2px solid #F5A623' : '1.5px solid rgba(126,211,33,0.5)',
           cursor: 'pointer',
           background: isLoggedIn ? 'transparent' : 'rgba(126,211,33,0.08)',
@@ -141,11 +144,11 @@ export default function ProfileButton() {
           overflow: 'hidden',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-        {isLoggedIn && profile?.avatar_url ? (
+        {isLoggedIn && outfit ? <PlayerAvatar outfit={outfit} size={size - 4} /> : isLoggedIn && profile?.avatar_url ? (
           <Avatar
             src={profile.avatar_url}
             alt=""
-            size={34}
+            size={size}
             style={{ width: '100%', height: '100%' }}
           />
         ) : isLoggedIn && profile?.display_name && /^[a-zA-Z]/.test(profile.display_name) ? (

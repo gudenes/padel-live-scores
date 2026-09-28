@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "play:sim": "node scripts/play-simulation/cli.mjs",
+    "test:play-sim": "node --test scripts/play-simulation/engine.test.mjs",
+    "dev:safe": "python3 scripts/dev-local.py app",
+    "dev:admin:safe": "python3 scripts/dev-local.py admin"
   },
   "overrides": {
     "html-encoding-sniffer": "3.0.0"
@@ -50,10 +54,12 @@
     "resend": "^6.11.0",
     "rss-parser": "^3.13.0",
     "server-only": "^0.0.1",
+    "sharp": "^0.34.5",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",

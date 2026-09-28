@@ -1,0 +1,1 @@
+Joystick generated from the selected Play navigation concept on 2026-09-27. Transparent raster asset, optimized to 192px WebP for the 88px navigation slot. Lime arcade joystick with an orange button; movement is CSS and respects reduced motion.

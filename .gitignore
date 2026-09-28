@@ -85,3 +85,18 @@ apps/ops/calibrations/
 
 # Operator-supplied amateur-season import data (real named people; local only).
 import/
+
+# Isolated Play bot simulation wallets and logs
+.local/play-simulation/
+
+# Private local avatar previews (never uploaded photos)
+.local/play-avatars/
+
+# Encrypted local avatar provider settings and encryption key
+.local/avatar-settings/
+
+.local/dev-preview.lock
+
+# Private development state and generated previews
+.local/
+output/

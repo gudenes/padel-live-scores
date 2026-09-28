@@ -1316,6 +1316,7 @@
       "pairDescription": "{pair}'s projected path to the {name} title — round-by-round opponents and win probabilities."
     },
     "play": {
+
       "title": "Play the Next",
       "description": "Predict what happens next in padel. Take a side on live markets, trade with Guacas and climb the leaderboard. Play money only — nothing to buy, nothing to cash out."
     }
@@ -1842,6 +1843,19 @@
     "cta": "Back to PadelNachos"
   },
   "play": {
+    "results": {"netWin": "Net winnings", "netLoss": "Net loss", "netResult": "Net result", "totalPaid": "Total returned", "invested": "{amount} G invested", "won": "Won", "lost": "Lost", "refunded": "Refunded", "pending": "Awaiting settlement", "closed": "Market closed", "corrected": "Result corrected", "adjustment": "Balance adjusted by {amount} G.", "owed": "A result correction exceeded your available balance. Future credits will cover the difference before you can play again."},
+    "ticker": {"title": "Latest predictions", "pause": "Pause", "resume": "Resume", "open": "View all market activity", "empty": "No predictions yet."},
+    "courtside": {
+      "title": "Courtside",
+      "all": "View all",
+      "you": "You",
+      "simulated": "Simulated",
+      "loading": "Loading activity…",
+      "error": "Could not refresh",
+      "empty": "No predictions in this market yet.",
+      "noOwn": "You have no predictions in this market yet.",
+      "simulationNote": "Simulated predictions are local and excluded from prizes."
+}, 
     "live": "Live",
     "horizon": {
       "live": "In-match",
@@ -1851,10 +1865,11 @@
     },
     "subnav": {
       "label": "Play sections",
-      "markets": "Markets",
+      "markets": "Open markets",
       "activity": "Activity",
       "leaders": "Leaders",
-      "myPositions": "My positions"
+      "myPositions": "My positions",
+      "mine": "My plays"
     },
     "deck": {
       "yes": "Yes",
@@ -1863,6 +1878,7 @@
       "crowdPrice": "Crowd price",
       "ourModel": "Our model",
       "aiPct": "AI {pct}%",
+      "historicalPct": "historical {pct}%",
       "volumeTraded": "{amount} G traded",
       "noTradesYet": "No trades yet",
       "empty": {
@@ -1876,7 +1892,8 @@
       "stateLiveNow": "Live now",
       "stateStartingSoon": "Starting soon",
       "vs": "vs",
-      "formLine": "{name} won {wins} of the last {of}"
+      "formLine": "{name} won {wins} of the last {of}",
+      "oddsUnit": "Return per 1 G · includes your stake"
     },
     "trade": {
       "title": "How many Guacas?",
@@ -1898,7 +1915,12 @@
       "approx": "≈ {shares} shares · {question}",
       "viewPositions": "View my positions",
       "next": "Next prediction",
-      "upNext": "Up next"
+      "upNext": "Up next",
+      "yourPick": "Your pick",
+      "placed": "Amount placed",
+      "ifWin": "If you win, you receive",
+      "includesStake": "Includes your stake",
+      "keepExploring": "Keep exploring"
     },
     "positions": {
       "title": "My positions",
@@ -1921,7 +1943,11 @@
           "title": "No trades yet",
           "body": "Everything you trade — open or settled — is listed here."
         }
-      }
+      },
+      "yourPosition": "Your position",
+      "expandMarket": "Expand market",
+      "collapseMarket": "Collapse market",
+      "investedAmount": "{amount} G invested"
     },
     "activity": {
       "latest": "Latest trades",
@@ -1938,6 +1964,15 @@
       }
     },
     "leaders": {
+      "weeklyCount": "{count} participants · last 7 days",
+      "playerCount": "{count} participants",
+      "seeEveryone": "See everyone",
+      "findMe": "Find me",
+      "openPlayer": "View {name}, rank {rank}",
+      "player": "Player",
+      "myProfile": "My profile",
+      "simulationNote": "Local simulation players are included. Their totals belong to the local simulation; they are excluded from prizes.",
+      "humanRank": "#{rank} among players",
       "title": "Leaders",
       "week": "Week",
       "season": "Season",
@@ -1950,7 +1985,10 @@
       "empty": {
         "title": "The leaderboard is empty",
         "body": "It fills up once people start trading."
-      }
+      },
+      "yourPosition": "Your position",
+      "netWorth": "Net worth",
+      "standings": "Standings"
     },
     "time": {
       "now": "now",
@@ -1981,7 +2019,10 @@
       "loss": "L",
       "noStats": "No career stats yet",
       "crowdVsModel": "Crowd vs our model",
-      "yesNote": "Both figures are the probability of Yes."
+      "crowdVsBaseline": "Crowd vs history",
+      "baseRate": "Historical rate",
+      "yesNote": "Both figures are the probability of Yes.",
+      "baseRateNote": "We have no model prediction for this question. The second figure is how often this has happened in past matches over the last 12 months — an average, not a prediction about this match."
     },
     "explore": {
       "all": "All",
@@ -2013,14 +2054,116 @@
       "amount": "Amount",
       "available": "Available:",
       "ifWin": "If correct, you receive",
-      "gain": "Includes {stake} · Gain ≈{gain}",
+      "gain": "Includes {stake} · Gain {gain}",
       "ifLose": "If incorrect, you lose",
       "balanceAfter": "Balance after",
       "filters": "Filters",
       "feed": "Prediction feed",
       "shortReturn": "Estimated total if correct · stake included",
       "next": "Next market",
-      "showMarkets": "Show markets ({count})"
+      "showMarkets": "Show markets ({count})",
+      "estimatedReturn": "Estimated return if you win",
+      "operationDetails": "Trade details"
+    },
+    "filters": {
+      "label": "Market filters",
+      "all": "All",
+      "today": "Today",
+      "tourn": "Tournaments",
+      "season": "Season",
+      "empty": "No markets here yet",
+      "emptyBody": "Try another category to keep exploring.",
+      "showAll": "View all",
+      "allMarkets": "All markets",
+      "more": "Filters",
+      "when": "When to play",
+      "competition": "Competition",
+      "allCompetitions": "All competitions",
+      "category": "Category",
+      "allCategories": "All categories",
+      "men": "Men",
+      "women": "Women",
+      "apply": "Apply filters",
+      "reset": "Reset"
+    }
+  },
+  "playerProfile": {
+    "yourPlayer": "Your player",
+    "yourStyle": "Your game. Your style.",
+    "wardrobe": "My player",
+    "characterAlt": "Your padel player",
+    "saved": "Outfit saved on this device.",
+    "saveError": "Could not save. Please allow browser storage and try again.",
+    "predictor": "Your predictions",
+    "leaderboard": "Leaderboard",
+    "loading": "Loading your predictions…",
+    "loadError": "Could not load your predictions.",
+    "retry": "Try again",
+    "available": "Available Guacas",
+    "invested": "Invested",
+    "markets": "Active markets",
+    "seasonRank": "Season rank",
+    "yes": "Yes",
+    "no": "No",
+    "empty": "Your first prediction starts here.",
+    "explore": "Explore markets",
+    "allPositions": "All my predictions",
+    "close": "Close wardrobe",
+    "avatarPreview": "Avatar preview",
+    "outfitsLabel": "Choose an outfit",
+    "equipped": "Equipped",
+    "localNote": "Choose your face and outfit separately · saved together on this device.",
+    "creator": {"compatibility": "This character keeps its original outfit. Try Rafa to explore the first mix-and-match wardrobe.", "tryRafa": "Customize Rafa", "ready": "3 outfits", "whole": "Complete avatar · saved on this device. More customizable characters are coming."},
+    "equip": "Use this avatar",
+    "restore": "Use my profile photo",
+    "restored": "Profile photo restored.",
+    "outfits": {
+      "starter": "Starter",
+      "court-club": "Court Club",
+      "night-match": "Night Match"
+    },
+    "faces": {
+      "face-01": "Chispa",
+      "face-02": "Rayo",
+      "face-03": "Brasa",
+      "face-04": "Ziggy",
+      "face-05": "Nova",
+      "face-06": "Nacho",
+      "face-07": "Mika",
+      "face-08": "Dash",
+      "face-09": "Coco",
+      "face-10": "Ace"
+    },
+    "chooseStyle": "Choose your character",
+    "customFace": "My avatar",
+    "previewReady": "Your avatar is ready. Preview it, then apply it.",
+    "tabs": {
+      "faces": "Faces",
+      "looks": "Looks",
+      "photo": "From my photo"
+    },
+    "photo": {
+      "intro": "Make a player that looks like you. Use a clear photo of just you, facing the camera.",
+      "checking": "Checking availability…",
+      "unavailable": "Photo generation is unavailable right now.",
+      "retry": "Try again",
+      "not_configured": "Photo generation is not enabled on this local preview yet.",
+      "takePhoto": "Take a photo",
+      "uploadPhoto": "Choose a photo",
+      "selectedPhoto": "Your selected photo",
+      "fileHelp": "JPG, PNG or WebP · up to 6 MB",
+      "consent": "Send this photo to OpenAI to create my avatar. I have permission to use this photo.",
+      "generate": "Create my avatar",
+      "generating": "Creating your player…",
+      "waiting": "This can take a couple of minutes. Your current avatar stays in place.",
+      "retention": "We do not save the original photo. The generated avatar stays on this local server. Up to 5 attempts per day.",
+      "invalid_photo": "Choose a valid JPG, PNG or WebP photo.",
+      "photo_too_large": "Choose a photo smaller than 6 MB.",
+      "daily_limit": "You have reached today’s 5 attempts. Try again tomorrow.",
+      "generation_busy": "An avatar is already being created. Please wait.",
+      "provider_busy": "OpenAI is busy. Try again later.",
+      "generation_failed": "We could not create this avatar. Try another clear photo.",
+      "generation_unavailable": "Could not reach the image service. Try again later."
     }
   }
 }
