@@ -1,4 +1,5 @@
 // Trades and settlement share a database row lock; all trade writes commit together.
+import { isTrustedPlayWrite } from '@/lib/play-write-origin'
 import { requirePlayAccess } from '@/lib/play-access'
 import { priceYes, quoteBuy, quoteSell, type Side } from '@/lib/lmsr'
 import { ensureBalance, num, playNotFound, type PositionRow } from '../_shared'
@@ -30,6 +31,7 @@ function bad(code: string, status: number, extra?: Record<string, unknown>) {
 export async function POST(req: Request) {
   const access = await requirePlayAccess()
   if (!access) return playNotFound()
+  if (!isTrustedPlayWrite(req)) return bad('invalid_origin', 403)
   const { supabase, userId } = access
 
   // ── Validate input ───────────────────────────────────────────────────

@@ -35,6 +35,8 @@ describe('formatPushTime', () => {
   })
   it('falls back to tournament clock + abbreviation when user tz is missing', () => {
     const out = formatPushTime(iso, { userTimeZone: null, tournamentTimeZone: 'Europe/Brussels' })
+    expect(out).not.toBeNull()
+    if (out === null) throw new Error('Expected a formatted time')
     expect(out.startsWith('18:00')).toBe(true)
     expect(out.length).toBeGreaterThan(5)
   })

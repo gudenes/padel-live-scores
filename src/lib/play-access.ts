@@ -59,12 +59,13 @@ const PRIVATE_IP = new RegExp(
  * and the per-user whitelist still has to pass either way.
  */
 async function isLocalRequest(): Promise<boolean> {
+  if (process.env.NODE_ENV === 'production') return false
   try {
     const host = (await headers()).get('host') ?? ''
     const hostname = host.split(':')[0]
     if (LOCAL_HOSTS.has(hostname)) return true
     // LAN addresses count as local ONLY in a dev build — never in production.
-    return process.env.NODE_ENV !== 'production' && PRIVATE_IP.test(hostname)
+    return PRIVATE_IP.test(hostname)
   } catch {
     // headers() throws outside a request scope. Treat that as production.
     return false

@@ -63,7 +63,7 @@ describe('private LAN address detection', () => {
     const src = readFileSync(join(__dirname, '..', 'play-access.ts'), 'utf8')
     // The NODE_ENV guard is the reason this relaxation is safe at all.
     expect(src).toMatch(
-      /process\.env\.NODE_ENV !== 'production' && PRIVATE_IP\.test/,
+      /if \(process\.env\.NODE_ENV === 'production'\) return false/,
     )
   })
 })
