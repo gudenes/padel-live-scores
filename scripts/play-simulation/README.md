@@ -146,3 +146,31 @@ positions and history while excluding the higher-numbered bots from new scheduli
 The worker heartbeat, recent trades, markets and balance audit refresh every five seconds.
 Resume enables trading but does not spawn a worker: start `npm run play:sim -- run`
 from the worktree root. CLI equivalent settings: `configure 50 15000` (milliseconds).
+
+## Production deployment
+
+The hosted pilot reuses this engine with a dedicated Railway volume mounted at
+`/data` on the web service. `PLAY_SIMULATION_DB_PATH` points to
+`/data/simulation.sqlite`. Never put that database in the image:
+the volume retains balances and recorded trades across deploys. Use a consistent
+SQLite backup when moving the local pilot, then run the ledger audit.
+
+`scripts/start-web.mjs` supervises Next and the production worker. Worker failures
+restart after 30 seconds without taking the website down. The worker reads source
+market status before every tick, imports open markets as separate copies, stops
+held/closed/missing sources, and settles confirmed outcomes idempotently. A source
+lookup failure prevents the tick. Conflicting outcome corrections fail closed and
+need operator review; they never adjust human wallets.
+
+Production admin controls remain under Play → Simulation. The operator-authenticated
+admin route calls a web endpoint using `PLAY_SIMULATION_ADMIN_SECRET`, shared only
+between the two services. The endpoint accepts only status, configure, pause and
+resume. Public UI reads require the existing Play allowlist. Bots have no human
+profiles, prize eligibility, or access to human trade/wallet writes. All activity
+and leaderboard rows retain the simulation label. Weekly ranking includes bots
+with recorded activity; season/all-time include every enrolled bot.
+
+Verify worker heartbeat, audit, bot count and interval after every deployment.
+With no open source markets the worker remains connected but makes no trades.
+To stop: Pause simulation in admin. To hide the production simulation and stop its
+worker entirely, remove PLAY_SIMULATION_DB_PATH and redeploy the web service.

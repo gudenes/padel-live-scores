@@ -11,8 +11,7 @@ beforeEach(() => { vi.stubEnv('NODE_ENV', 'development'); auth.mockResolvedValue
 afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 describe('local simulation controls', () => {
   it('requires operator authentication', async () => { auth.mockResolvedValue(null); expect((await GET(new Request(url))).status).toBe(401); expect(command).not.toHaveBeenCalled() })
-  it('blocks production and remote hosts', async () => {
-    vi.stubEnv('NODE_ENV', 'production'); expect((await GET(new Request(url))).status).toBe(403)
+  it('blocks remote development hosts', async () => {
     vi.stubEnv('NODE_ENV', 'development'); expect((await GET(new Request('http://example.com/api/internal/play-simulation'))).status).toBe(403)
     expect(command).not.toHaveBeenCalled()
   })
@@ -27,4 +26,13 @@ describe('local simulation controls', () => {
     expect(command).toHaveBeenNthCalledWith(2, ['admin-state'])
   })
   it('reports failures without claiming success', async () => { command.mockRejectedValueOnce(new Error('failure')); expect((await POST(request({ action: 'pause' }))).status).toBe(503) })
+})
+
+it('allows authenticated production controls only from the admin origin', async () => {
+ vi.stubEnv('NODE_ENV','production')
+ expect((await GET(new Request('https://admin.padelnachos.com/api/internal/play-simulation'))).status).toBe(200)
+ expect((await POST(request({action:'pause'},'https://elsewhere.com'))).status).toBe(403)
+ expect((await POST(request({action:'pause'},'https://admin.padelnachos.com'))).status).toBe(200)
+ auth.mockResolvedValue(null)
+ expect((await POST(request({action:'resume'},'https://admin.padelnachos.com'))).status).toBe(401)
 })

@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import { existsSync } from 'node:fs'
-import path from 'node:path'
+import { simulationStoragePath } from './simulation-storage'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { priceYes } from './lmsr'
 import { simulationDisplayName } from './local-market-activity'
@@ -11,9 +11,8 @@ interface Holding { bot_id: string; source_market_id: string | null; status: str
 
 /** Local simulation wallets are read-only and never enter the prize ranking. */
 export async function localSimulationLeaders(req: Request, supabase: SupabaseClient, period: string): Promise<SimulationLeader[]> {
-  if (process.env.NODE_ENV !== 'development' || !['localhost','127.0.0.1','[::1]'].includes(new URL(req.url).hostname)) return []
-  const file = path.join(process.cwd(), '.local/play-simulation/simulation.sqlite')
-  if (!existsSync(file)) return []
+  const file = simulationStoragePath(req)
+  if (!file || !existsSync(file)) return []
   const db = new DatabaseSync(file, { readOnly: true })
   let bots: Bot[], holdings: Holding[]
   try {

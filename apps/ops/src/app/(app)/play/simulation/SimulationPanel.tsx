@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { PageHeader, Panel, Pill, Button } from '@/components/ui'
 
 type State = {
-  paused: number; bots: number; bot_limit: number; interval_ms: number; worker_seen: number; trades: number
+  mode?: string; paused: number; bots: number; bot_limit: number; interval_ms: number; worker_seen: number; trades: number
   audit: { ok: boolean }
   limits: { botDaily: number; marketDaily: number; botMarket: number; maxStake: number; maxDrift: number }
   markets: { id: string; question: string; status: string; priceYes: number; locks_at: number }[]
@@ -55,15 +55,15 @@ export default function SimulationPanel() {
     } catch (e) { setError(e instanceof Error ? e.message : 'Update failed') }
     finally { writing.current = false; setBusy(false) }
   }
-  const online = !error && !!data && observedAt - data.worker_seen < 10000
+  const online = !error && !!data && observedAt - data.worker_seen < 30000
   const valid = Number.isInteger(Number(count)) && Number(count) >= 1 && Number(count) <= 1000
     && Number.isInteger(Number(seconds)) && Number(seconds) >= 5 && Number(seconds) <= 300
   const inputStyle = { padding: '10px', background: 'var(--bg-card, #202020)', color: 'inherit', border: '1px solid var(--border, #444)', width: '100%' }
 
   return <div className="ui-page">
-    <PageHeader title="Simulation" subtitle="Adjust the local bot pilot. Simulated balances and activity stay separate from human markets, rankings and prizes." />
+    <PageHeader title="Simulation" subtitle="Adjust simulated players. Simulated balances and activity stay separate from human markets, rankings and prizes." />
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-      <Pill tone="warn">Local only</Pill><Pill>Prize eligibility: excluded</Pill>
+      <Pill tone="warn">{data?.mode === 'production_simulation' ? 'Production simulation' : 'Local simulation'}</Pill><Pill>Prize eligibility: excluded</Pill>
       {data && <><Pill tone={data.paused ? 'neutral' : online ? 'lime' : 'warn'}>{data.paused ? 'Paused' : online ? 'Running' : 'Enabled · worker offline'}</Pill>
         <Pill tone={online ? 'lime' : 'warn'}>Worker {online ? 'connected' : 'offline'}</Pill>
         <Pill tone={data.audit.ok ? 'lime' : 'urgent'}>Balance audit {data.audit.ok ? 'passed' : 'needs attention'}</Pill></>}
@@ -79,7 +79,7 @@ export default function SimulationPanel() {
           </div>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 20 }}><Button type="submit" variant="primary" disabled={busy || !valid}>{busy ? 'Saving…' : 'Save settings'}</Button><span>{data.bots} accounts created · {data.trades} trades</span></div>
         </form>
-        {!online && <p>Start the local worker from the project root: <code>npm run play:sim -- run</code>. Enabling the simulation does not start a process.</p>}
+        {!online && data.mode !== 'production_simulation' && <p>Start the local worker from the project root: <code>npm run play:sim -- run</code>. Enabling the simulation does not start a process.</p>}
       </Panel>
       <Panel title="Trading limits">
         <p>{data.limits.maxStake} G per trade · {data.limits.botDaily} G per bot/day · {data.limits.marketDaily} G per market/day · {data.limits.botMarket} G per bot/market</p>

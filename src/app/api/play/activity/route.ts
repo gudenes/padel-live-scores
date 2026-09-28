@@ -1,4 +1,4 @@
-// Recorded human trades plus explicitly labelled, local-only simulation trades.
+// Recorded human trades plus explicitly labelled simulation trades.
 import { localMarketActivity } from '@/lib/local-market-activity'
 import { requirePlayAccess } from '@/lib/play-access'
 import {

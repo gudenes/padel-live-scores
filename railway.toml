@@ -3,7 +3,7 @@ builder = "RAILPACK"
 buildCommand = "if [ \"$RAILWAY_SERVICE_NAME\" = \"padelnachos-admin\" ]; then npm ci --prefix apps/ops && npm run build --prefix apps/ops; else npm run build; fi"
 
 [deploy]
-startCommand = "if [ \"$RAILWAY_SERVICE_NAME\" = \"padelnachos-admin\" ]; then cd apps/ops; fi; npx next start -p ${PORT:-3000}"
+startCommand = "if [ \"$RAILWAY_SERVICE_NAME\" = \"padelnachos-admin\" ]; then cd apps/ops; npx next start -p ${PORT:-3000}; else node scripts/start-web.mjs; fi"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

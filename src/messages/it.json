@@ -1843,7 +1843,7 @@
       "error": "Aggiornamento non riuscito",
       "empty": "Nessun pronostico in questo mercato.",
       "noOwn": "Non hai ancora pronostici in questo mercato.",
-      "simulationNote": "I pronostici simulati sono locali ed esclusi dai premi."
+      "simulationNote": "I pronostici simulati sono esclusi dai premi."
     },
     "live": "Live",
     "horizon": {
@@ -1960,7 +1960,7 @@
       "openPlayer": "Vedi {name}, posizione {rank}",
       "player": "Giocatore",
       "myProfile": "Il mio profilo",
-      "simulationNote": "Include giocatori simulati locali. I saldi appartengono alla simulazione; sono esclusi dai premi.",
+      "simulationNote": "Include giocatori simulati. I saldi appartengono alla simulazione; sono esclusi dai premi.",
       "humanRank": "Nº {rank} tra i giocatori",
       "title": "Classifica",
       "week": "Settimana",

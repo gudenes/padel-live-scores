@@ -1843,7 +1843,7 @@
       "error": "No se pudo actualizar",
       "empty": "Aún no hay jugadas en este mercado.",
       "noOwn": "Aún no tienes jugadas en este mercado.",
-      "simulationNote": "Las jugadas simuladas son locales y no participan en premios."
+      "simulationNote": "Las jugadas simuladas no participan en premios."
     },
     "live": "En vivo",
     "horizon": {
@@ -1960,7 +1960,7 @@
       "openPlayer": "Ver a {name}, puesto {rank}",
       "player": "Jugador",
       "myProfile": "Mi perfil",
-      "simulationNote": "Incluye jugadores simulados locales. Sus saldos pertenecen a la simulación; no participan en premios.",
+      "simulationNote": "Incluye jugadores simulados. Sus saldos pertenecen a la simulación; no participan en premios.",
       "humanRank": "#{rank} entre jugadores",
       "title": "Líderes",
       "week": "Semana",

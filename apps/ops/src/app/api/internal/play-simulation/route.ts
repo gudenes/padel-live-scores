@@ -6,12 +6,12 @@ export const dynamic = 'force-dynamic'
 
 async function guard(req: Request, write = false) {
   const url = new URL(req.url)
-  if (process.env.NODE_ENV !== 'development' || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) {
+  if (process.env.NODE_ENV !== 'production' && (process.env.NODE_ENV !== 'development' || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))) {
     return Response.json({ error: 'Simulation controls are available only in local development.' }, { status: 403 })
   }
   const session = await auth()
   if (!session?.user?.isOperator) return Response.json({ error: 'unauthorized' }, { status: 401 })
-  if (write && req.headers.get('origin') !== url.origin) return Response.json({ error: 'Invalid origin' }, { status: 403 })
+  if (write && req.headers.get('origin') !== (process.env.NODE_ENV === 'production' ? 'https://admin.padelnachos.com' : url.origin)) return Response.json({ error: 'Invalid origin' }, { status: 403 })
 }
 
 export async function GET(req: Request) {
@@ -20,7 +20,7 @@ export async function GET(req: Request) {
   try {
     return Response.json(await simulationCommand(['admin-state']), { headers: { 'Cache-Control': 'no-store' } })
   } catch {
-    return Response.json({ error: 'Could not read the local simulation. Check the local Node runtime and worker setup.' }, { status: 503 })
+    return Response.json({ error: 'Could not read the simulation. Check the worker connection.' }, { status: 503 })
   }
 }
 

@@ -1875,7 +1875,7 @@
       "error": "Could not refresh",
       "empty": "No predictions in this market yet.",
       "noOwn": "You have no predictions in this market yet.",
-      "simulationNote": "Simulated predictions are local and excluded from prizes."
+      "simulationNote": "Simulated predictions are excluded from prizes."
     },
     "live": "Live",
     "horizon": {
@@ -1992,7 +1992,7 @@
       "openPlayer": "View {name}, rank {rank}",
       "player": "Player",
       "myProfile": "My profile",
-      "simulationNote": "Local simulation players are included. Their totals belong to the local simulation; they are excluded from prizes.",
+      "simulationNote": "Simulated players are included. Their totals belong to the simulation; they are excluded from prizes.",
       "humanRank": "#{rank} among players",
       "title": "Leaders",
       "week": "Week",

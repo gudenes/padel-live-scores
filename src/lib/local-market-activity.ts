@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import { existsSync } from 'node:fs'
-import path from 'node:path'
+import { simulationStoragePath } from './simulation-storage'
 
 const SIM_NAMES = ['Chispa', 'Rayo', 'Brasa', 'Ziggy', 'Nova', 'Nacho', 'Mika', 'Dash', 'Coco', 'Ace']
 export function simulationDisplayName(name: string) {
@@ -12,11 +12,8 @@ export function simulationDisplayName(name: string) {
 
 /** Read existing simulation trades only. Never creates or changes the ledger. */
 export function localMarketActivity(req: Request, marketId: string | null) {
-  if (process.env.NODE_ENV !== 'development') return []
-  const hostname = new URL(req.url).hostname
-  if (!['localhost', '127.0.0.1', '[::1]'].includes(hostname)) return []
-  const file = path.join(process.cwd(), '.local/play-simulation/simulation.sqlite')
-  if (!existsSync(file)) return []
+  const file = simulationStoragePath(req)
+  if (!file || !existsSync(file)) return []
   const db = new DatabaseSync(file, { readOnly: true })
   try {
     const rows = db.prepare(`SELECT t.id,t.bot_id,t.side,t.cost,t.price,t.created_at,b.name,m.source_market_id,m.question
