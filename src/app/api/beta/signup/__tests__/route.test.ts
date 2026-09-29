@@ -39,9 +39,22 @@ describe('beta signup', () => {
   it('saves normalized details, interview language and consent', async () => {
     expect((await send(valid)).status).toBe(200)
     expect(insert).toHaveBeenCalledWith({
-      name: 'Padel Fan', email: 'fan@example.com', language: 'es', locale: 'en',
-      commitment: true, contact_consent: true, consent_version: '2026-09-25',
+      name: 'Padel Fan', email: 'fan@example.com', whatsapp: null, language: 'es', locale: 'en',
+      commitment: true, contact_consent: true, consent_version: '2026-09-29',
     })
+  })
+  it.each(['+34 612 345 678', '+34 (612) 345-678'])('normalizes an international WhatsApp number: %s', async whatsapp => {
+    expect((await send({ ...valid, whatsapp })).status).toBe(200)
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ whatsapp: '+34612345678' }))
+  })
+  it.each(['', '   ', null])('allows an optional WhatsApp number: %s', async whatsapp => {
+    expect((await send({ ...valid, whatsapp })).status).toBe(200)
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ whatsapp: null }))
+  })
+  it.each(['612345678', '+012345678', '+12345', '+1234567890123456', '+34612abc345678', 34612345678, {}, '+34' + ' '.repeat(33)])('rejects an invalid WhatsApp number: %j', async whatsapp => {
+    expect((await send({ ...valid, whatsapp })).status).toBe(400)
+    expect(insert).not.toHaveBeenCalled()
+    expect(sendEmail).not.toHaveBeenCalled()
   })
   it.each([null, [], { ...valid, name: 12 }, { ...valid, name: ' ' },
     { ...valid, name: 'x'.repeat(81) }, { ...valid, email: 'not-an-email' },

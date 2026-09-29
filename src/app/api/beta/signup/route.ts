@@ -35,6 +35,14 @@ export async function POST(request: Request) {
   if (input.website) return NextResponse.json({ ok: true })
   const name = typeof input.name === 'string' ? input.name.trim() : ''
   const email = typeof input.email === 'string' ? input.email.trim().toLowerCase() : ''
+  const rawWhatsapp = input.whatsapp == null ? '' : input.whatsapp
+  if (typeof rawWhatsapp !== 'string' || rawWhatsapp.length > 32) {
+    return NextResponse.json({ error: 'invalid_input' }, { status: 400 })
+  }
+  const whatsapp = rawWhatsapp.replace(/[\s()\-]/g, '')
+  if (whatsapp && !/^\+[1-9][0-9]{6,14}$/.test(whatsapp)) {
+    return NextResponse.json({ error: 'invalid_input' }, { status: 400 })
+  }
   if (!name || name.length > 80 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
     || typeof input.language !== 'string' || !['en', 'es', 'pt'].includes(input.language)
     || typeof input.locale !== 'string' || !['en', 'es', 'pt'].includes(input.locale)
@@ -44,8 +52,8 @@ export async function POST(request: Request) {
 
   try {
     const { error } = await createServiceClient().from('prediction_beta_signups').insert({
-      name, email, language: input.language, locale: input.locale,
-      commitment: true, contact_consent: true, consent_version: '2026-09-25',
+      name, email, whatsapp: whatsapp || null, language: input.language, locale: input.locale,
+      commitment: true, contact_consent: true, consent_version: '2026-09-29',
     })
     // Identical responses prevent revealing whether an email is already signed up.
     if (error && error.code !== '23505') {

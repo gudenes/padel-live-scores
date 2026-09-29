@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Link, useRouter } from '@/i18n/navigation'
 import { betaCopy, type BetaLocale } from '@/lib/beta-copy'
 import styles from './signup.module.css'
+import { IOS_APP_URL, ANDROID_APP_URL } from '@/lib/app-redirect'
 import { markBetaSignupComplete } from '@/lib/beta-invitation'
 import { BETA_STARTS_AT, BETA_SIGNUPS_CLOSE_AT, betaSignupsClosed, betaTimeRemaining } from '@/lib/beta-schedule'
 
@@ -42,7 +43,7 @@ export default function BetaSignup({ locale }: { locale: BetaLocale }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: data.get('name'), email: data.get('email'),
+          name: data.get('name'), email: data.get('email'), whatsapp: data.get('whatsapp'),
           language: data.get('language'), locale,
           commitment: data.get('commitment') === 'on',
           contactConsent: data.get('contactConsent') === 'on',
@@ -158,6 +159,13 @@ export default function BetaSignup({ locale }: { locale: BetaLocale }) {
                   <label htmlFor="beta-email">{copy.email}
                     <input id="beta-email" name="email" type="email" autoComplete="email" required maxLength={254} />
                   </label>
+                  <label htmlFor="beta-whatsapp">{copy.whatsapp}
+                    <input id="beta-whatsapp" name="whatsapp" type="tel" autoComplete="tel"
+                      maxLength={32} placeholder={locale === 'pt' ? '+55 11 91234 5678' : '+34 612 345 678'}
+                      pattern={String.raw`\+[1-9](?:[\s\(\)\-]*[0-9]){6,14}[\s\(\)\-]*`}
+                      title={copy.whatsappHint} aria-describedby="beta-whatsapp-hint" />
+                    <span id="beta-whatsapp-hint" className={styles.fieldHint}>{copy.whatsappHint}</span>
+                  </label>
                   <label htmlFor="beta-language">{copy.language}
                     <select id="beta-language" name="language" defaultValue={locale}>
                       {Object.entries(languages).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -180,6 +188,16 @@ export default function BetaSignup({ locale }: { locale: BetaLocale }) {
               <Link href="/privacy" className={styles.privacy}>{copy.privacy}</Link>
             </>
           )}
+          <section className={styles.download} aria-labelledby="beta-download-title">
+            <p className={styles.downloadLabel}>{copy.downloadLabel}</p>
+            <h3 id="beta-download-title">{copy.downloadTitle}</h3>
+            <p className={styles.downloadText}>{copy.downloadText}</p>
+            <div className={styles.storeLinks}>
+              <a href={IOS_APP_URL} target="_blank" rel="noopener noreferrer">App Store <span aria-hidden="true">↗</span></a>
+              <a href={ANDROID_APP_URL} target="_blank" rel="noopener noreferrer">Google Play <span aria-hidden="true">↗</span></a>
+            </div>
+            <p className={styles.downloadNote}>{copy.downloadNote}</p>
+          </section>
         </section>
       </div>
     </main>
