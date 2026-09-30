@@ -35,7 +35,10 @@
 
 [build]
 builder = "RAILPACK"
-buildCommand = "npm ci --omit=dev"
+# `npm ci` is strict and the root lockfile has drifted from package.json under npm 10
+# (fails with "Missing: @swc/helpers ... from lock file"). The runner only needs `cron`,
+# so a tolerant install is enough; the shared root lockfile is left untouched.
+buildCommand = "npm install --omit=dev --no-audit --no-fund"
 
 [deploy]
 startCommand = "node scripts/railway-cron-runner.mjs"
