@@ -11,6 +11,7 @@ type Group = { label?: string; items: Item[] }
 const GROUPS: Group[] = [
   { items: [
     { href: '/today', label: 'Today', icon: 'today' },
+    { href: '/growth', label: 'Growth', icon: 'users' },
     { href: '/odds', label: 'Live Odds', icon: 'odds', pill: 'live', children: [
       { href: '/today', label: 'Overview' },
       { href: '/odds/calibration', label: 'Calibration' },
