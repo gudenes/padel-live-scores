@@ -125,3 +125,19 @@ describe('scoreCandidate', () => {
     expect(scoreCandidate(candidate())).toBe(scoreCandidate(candidate()))
   })
 })
+
+// Match-day rollout: all main-draw rounds, retaining the existing quality gates.
+describe('main-draw winner eligibility', () => {
+  const gates: Gates = { rounds: ['R128','R64','R32','R16','QF','SF','F'], minRanking: 50, competitiveness: [.15,.85] }
+  it.each(['R128','R64','R32','R16','QF','SF','F'])('accepts %s', round => {
+    expect(passesGates(candidate({ round }), gates).ok).toBe(true)
+  })
+  it.each(['Q1','Q2','Q3','Q',null])('excludes qualifying/unknown round %s', round => {
+    expect(passesGates(candidate({ round }), gates).ok).toBe(false)
+  })
+  it('still requires prices, a schedule and ranking/competitiveness eligibility', () => {
+    for (const patch of [{ seedProb: null }, { scheduledAt: null }, { bestRanking: 90 }, { modelProb: .99 }]) {
+      expect(passesGates(candidate({ round: 'R32', ...patch }), gates).ok).toBe(false)
+    }
+  })
+})

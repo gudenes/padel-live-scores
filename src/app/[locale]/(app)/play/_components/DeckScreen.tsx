@@ -26,7 +26,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import MarketCard from './MarketCard'
-import { Press } from './shared'
 import type { PlayMarket, Side } from './types'
 
 // Depth 0 is the card being read; depth 1 peeks out below it. cardRefs is
@@ -263,7 +262,7 @@ export default function DeckScreen({
     }
 
     const onDown = (e: PointerEvent) => {
-      if (busyRef.current) return
+      if (busyRef.current || (e.target as HTMLElement).closest('button, input, select, a')) return
       dragging = true
       pointerId = e.pointerId
       startX = e.clientX
@@ -337,6 +336,7 @@ export default function DeckScreen({
       // so `active` alone does not tell us it is open. Paging the deck behind
       // it would leave the sheet describing a market that is no longer shown.
       if (document.querySelector('dialog[open]')) return
+      if (e.target instanceof HTMLElement && e.target.closest('button, input, select, textarea, a')) return
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         if (!busyRef.current && markets.length > 1) navigate(1)
@@ -376,44 +376,14 @@ export default function DeckScreen({
               >
                 {/* Only the top card gets the detail affordance — the one
                     behind it is aria-hidden scenery and not interactive. */}
-                <MarketCard market={market} onDetail={depth === TOP ? onDetail : undefined} />
+                <MarketCard market={market} onDetail={depth === TOP ? onDetail : undefined} onChoose={depth === TOP ? swipe : undefined} />
               </div>
             )
           })}
         </div>
       </div>
 
-      <div className="pl-actions">
-        {/* intent-neutral, repainted by .pl-btn-* in styles.ts: NO is the
-            other pair's lime and YES the subject pair's orange, and neither
-            stock intent carries those. */}
-        <Press
-          shape="shape-pill"
-          intent="intent-neutral"
-          className="pl-btn-no"
-          round
-          onClick={() => swipe('no')}
-          ariaLabel={t('deck.no')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
-        </Press>
-        <Press
-          shape="shape-pill"
-          intent="intent-neutral"
-          className="pl-btn-yes"
-          round
-          onClick={() => swipe('yes')}
-          ariaLabel={t('deck.yes')}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 12.5l5.2 5.2L20 7" />
-          </svg>
-        </Press>
-      </div>
-
-      <div className="pl-swipe-hint">{t('deck.navHint')}</div>
+      {markets.length > 1 && <div className="pl-swipe-hint">{t('deck.navHint')}</div>}
     </>
   )
 }

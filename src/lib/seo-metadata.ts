@@ -14,7 +14,7 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import { buildAlternates } from '@/lib/seo-helpers'
 
-type SeoPageKey = 'home' | 'matches' | 'rankings' | 'feed' | 'tournaments' | 'about' | 'following'
+type SeoPageKey = 'home' | 'matches' | 'rankings' | 'feed' | 'tournaments' | 'about' | 'following' | 'play'
 
 // Map our i18n locale codes → BCP-47 OG locale tags
 const OG_LOCALE: Record<string, string> = {

@@ -7,7 +7,11 @@ describe('resolver registry', () => {
       'match.any_set_bagel',
       'match.went_to_three_sets',
       'match.winner_is_pair',
+      'player.reaches_ranking_v1',
+      'season.pair_title_count_v1',
       'tournament.champion_is_pair',
+      'tournament.other_pair_wins_v1',
+      'tournament.pair_reaches_round_v1',
     ])
   })
 
@@ -22,7 +26,7 @@ describe('resolver registry', () => {
   it('every registered key matches its map key', () => {
     for (const [key, fn] of Object.entries(RESOLVERS)) {
       expect(typeof fn).toBe('function')
-      expect(key).toMatch(/^[a-z]+\.[a-z_]+$/)
+      expect(key).toMatch(/^[a-z]+\.[a-z_0-9]+$/)
     }
   })
 })

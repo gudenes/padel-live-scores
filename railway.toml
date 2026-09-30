@@ -1,9 +1,9 @@
 [build]
 builder = "RAILPACK"
-buildCommand = "npm run build"
+buildCommand = "npm run build -- --webpack"
 
 [deploy]
-startCommand = "npx next start -p ${PORT:-3000}"
+startCommand = "node scripts/start-web.mjs"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"

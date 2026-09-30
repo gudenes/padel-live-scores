@@ -1,28 +1,9 @@
 'use client'
-// src/app/[locale]/(app)/play/_components/ActivityScreen.tsx
-//
-// Other people's trades.
-//
-// The mockup ran a setInterval that invented a new trade every 3.2s from a
-// pool of fake usernames, to make a thin market feel liquid. That ticker is
-// NOT ported, and neither is the fake pool. Production has zero trades, and
-// manufacturing user activity on a social feed is not a design decision we
-// get to make — it is a lie about other people. What ships instead is an
-// honest empty state and a real poll of the real endpoint.
-//
-// What IS ported is the identity treatment: real display names with
-// generated character avatars. ADI shows anonymous wallet hashes because
-// on-chain it has no choice; we have accounts, so the feed can carry names
-// and be social rather than just noisy.
-//
-// The mockup's All / Following filter pair is NOT rendered: GET
-// /api/play/activity reads no filter parameter, so a "Following" pill would
-// send the same request and present everyone's trades as your friends'.
-// Restore it the moment the endpoint learns the parameter.
 
+import GuacaCoin from '@/components/GuacaCoin'
 import { useEffect, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import GeneratedAvatar from '@/components/GeneratedAvatar'
+import { TradeAvatar } from './MarketActivity'
 import { Blank, Press, SkeletonList, formatGuacas, formatPrice, relativeShort } from './shared'
 import type { PlayTrade } from './types'
 import type { LoadStatus } from './usePlayData'
@@ -92,10 +73,11 @@ export default function ActivityScreen({ trades, status, onRetry }: ActivityScre
             const name = a.displayName || t('activity.someone')
             return (
               <div className="pl-act" key={a.id}>
-                <GeneratedAvatar name={name} className="pl-av" />
+                <TradeAvatar trade={a} />
                 <div className="pl-body">
                   <div className="pl-line1">
-                    <span className="pl-who">{name}</span>
+                    <span className="pl-who">{a.isMe ? t('courtside.you') : name}</span>
+                    {a.isSimulation && <span className="pl-chip">{t('courtside.simulated')}</span>}
                     <span className="pl-verb">
                       {a.direction === 'sell' ? t('activity.sold') : t('activity.bought')}
                     </span>
@@ -109,7 +91,8 @@ export default function ActivityScreen({ trades, status, onRetry }: ActivityScre
                     )}
                   </div>
                   <div className="pl-q4">
-                    {formatGuacas(a.guacas, locale)} G
+                    {a.marketStatus && a.marketStatus !== 'open' && <span className="pl-chip" style={{ marginRight: 6 }}>{t('results.closed')}</span>}
+                    {formatGuacas(a.guacas, locale)} <GuacaCoin size={16} />
                     {a.question ? ` · ${a.question}` : ''}
                   </div>
                 </div>

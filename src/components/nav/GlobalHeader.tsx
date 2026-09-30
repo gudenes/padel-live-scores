@@ -8,13 +8,13 @@
 // when Tournaments and Ranking became their own top-level tabs and
 // needed the same chrome.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import SearchOverlay from '@/components/nav/SearchOverlay'
-import ProfileButton from '@/components/ProfileButton'
+import HeaderAccount from './HeaderAccount'
 import { CHUNKY } from '@/components/home/shared'
 
-export default function GlobalHeader() {
+export default function GlobalHeader({ playerWallet, onSearchOpen }: { playerWallet?: ReactNode; onSearchOpen?: () => void }) {
   const tHome = useTranslations('home')
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -71,8 +71,9 @@ export default function GlobalHeader() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 16px',
+        padding: '6px 16px',
         height: 62,
+        flexShrink: 0,
       }}>
         {/* Logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -83,10 +84,13 @@ export default function GlobalHeader() {
         />
 
         {/* Search trigger — opens SearchOverlay */}
-        <div
-          onClick={() => setSearchOpen(true)}
+        <button
+          type="button"
+          aria-label={tHome('searchHint0')}
+          onClick={() => onSearchOpen ? onSearchOpen() : setSearchOpen(true)}
           style={{
             flex: 1,
+            minWidth: 40,
             height: 34,
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.10)',
@@ -105,6 +109,9 @@ export default function GlobalHeader() {
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
           <span style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
             color: 'rgba(255,255,255,0.7)',
             fontSize: 11,
             fontWeight: 500,
@@ -114,9 +121,9 @@ export default function GlobalHeader() {
           }}>
             {SEARCH_HINTS[hintIdx]}
           </span>
-        </div>
+        </button>
 
-        <ProfileButton />
+        {playerWallet ?? <HeaderAccount />}
       </header>
 
       {/* Mounted alongside the header so it works on every tab. */}

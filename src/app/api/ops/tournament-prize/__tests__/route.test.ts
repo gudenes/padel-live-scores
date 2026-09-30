@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validatePatchInput } from '../route'
+import { validatePatchInput } from '../validation'
 
 describe('validatePatchInput', () => {
   it('accepts a positive integer', () => {

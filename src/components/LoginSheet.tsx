@@ -217,8 +217,12 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     setSending(true)
     setError(null)
     try {
-      await signIn('resend', { email: email.trim(), redirect: false })
-      setSent(true)
+      const result = await signIn('resend', { email: email.trim(), redirect: false })
+      if (!result || result.error || !result.ok) {
+        setError(t('errorSendLink'))
+      } else {
+        setSent(true)
+      }
     } catch {
       setError(t('errorSendLink'))
     }

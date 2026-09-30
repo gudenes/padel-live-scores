@@ -199,6 +199,17 @@ export default function proxy(request: NextRequest) {
 
   // ── Run next-intl locale routing ───────────────────────────────
   const response = handleI18nRouting(request)
+  // The guarded local server binds to 127.0.0.1. A rewrite to localhost
+  // is treated as an external request in development, re-running this proxy
+  // on /en/* and redirecting back to the original unprefixed URL forever.
+  const rewrite = response.headers.get('x-middleware-rewrite')
+  if (process.env.NODE_ENV === 'development' && rewrite) {
+    const target = new URL(rewrite)
+    if (target.hostname === 'localhost' && target.port === '3012') {
+      target.hostname = '127.0.0.1'
+      response.headers.set('x-middleware-rewrite', target.toString())
+    }
+  }
 
   // ── Post-i18n: decorate response with cookies ──────────────────
 

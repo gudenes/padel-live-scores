@@ -35,8 +35,8 @@ describe('formatPushTime', () => {
   })
   it('falls back to tournament clock + abbreviation when user tz is missing', () => {
     const out = formatPushTime(iso, { userTimeZone: null, tournamentTimeZone: 'Europe/Brussels' })
-    expect(out.startsWith('18:00')).toBe(true)
-    expect(out.length).toBeGreaterThan(5)
+    expect(out!.startsWith('18:00')).toBe(true)
+    expect(out!.length).toBeGreaterThan(5)
   })
   it('returns null when scheduled_at is missing', () => {
     expect(formatPushTime(null, { userTimeZone: 'UTC', tournamentTimeZone: 'UTC' })).toBeNull()

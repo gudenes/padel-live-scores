@@ -4,16 +4,17 @@
 // Season leaderboard, ranked by net worth — balance plus the live value of
 // open positions — so holding a winning position counts before it resolves.
 //
-// Your own row stays pinned to the bottom of the list no matter how far
-// down you are. It uses an opaque background (#28311F = lime .10
-// pre-composited over --bg-card) rather than the translucent --lime-bg,
-// because list rows scroll visibly THROUGH a translucent pin.
-//
-// The mockup's nine fake leaders are not ported. An empty leaderboard is a
-// real state of a brand-new season and is rendered as one.
+// The full ladder opens around the signed-in player’s actual rank.
 
+import { useEffect, useRef, useState } from 'react'
+import {MemberAvatar} from '@/components/player/MemberAvatar'
+import GuacaCoin from '@/components/GuacaCoin'
 import { useLocale, useTranslations } from 'next-intl'
-import GeneratedAvatar from '@/components/GeneratedAvatar'
+import { simulationPlayerLook } from '@/lib/player-outfit'
+import Avatar from '@/components/Avatar'
+import { PlayerAvatar, PlayerFigure } from '@/components/PlayerAvatar'
+import { useRouter } from '@/i18n/navigation'
+import styles from './LeadersScreen.module.css'
 import { Blank, Press, SkeletonList, formatGuacas } from './shared'
 import type { LeaderPeriod, PlayLeader, PlayLeaderboard } from './types'
 import type { LoadStatus } from './usePlayData'
@@ -32,7 +33,15 @@ function Move({ move }: { move: number | null }) {
   return <div className="pl-m2 pl-down">▼ {Math.abs(move)}</div>
 }
 
+/** Member appearances come from their saved wardrobe on every device. */
+function LeaderAvatar({ leader, size = 44 }: { leader: PlayLeader; size?: number }) {
+  const fallback = leader.avatarUrl ? <Avatar src={leader.avatarUrl} alt="" size={size} unoptimized /> : <PlayerAvatar outfit="starter" size={size} />
+  if (leader.isSimulation) return <PlayerAvatar outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} size={size} />
+  return leader.userId ? <MemberAvatar userId={leader.userId} size={size} fallback={fallback}/> : fallback
+}
+
 export interface LeadersScreenProps {
+  active: boolean
   board: PlayLeaderboard | null
   status: LoadStatus
   period: LeaderPeriod
@@ -41,6 +50,7 @@ export interface LeadersScreenProps {
 }
 
 export default function LeadersScreen({
+  active,
   board,
   status,
   period,
@@ -49,14 +59,26 @@ export default function LeadersScreen({
 }: LeadersScreenProps) {
   const t = useTranslations('play')
   const locale = useLocale()
+  const router = useRouter()
 
+  const list = useRef<HTMLDivElement>(null)
+  const ownRow = useRef<HTMLButtonElement>(null)
+  const centeredPeriod = useRef<string | null>(null)
+  const [selected, setSelected] = useState<PlayLeader | null>(null)
+  const jumpToMe = () => {
+    if (list.current && ownRow.current) {
+      list.current.scrollTop += ownRow.current.getBoundingClientRect().top
+        - list.current.getBoundingClientRect().top
+        - (list.current.clientHeight - ownRow.current.clientHeight) / 2
+    }
+  }
+  useEffect(() => {
+    if (!active) { centeredPeriod.current = null; return }
+    if (status !== 'ready' || centeredPeriod.current === period) return
+    centeredPeriod.current = period
+    jumpToMe()
+  }, [active, status, period, board])
   const rows = board?.rows ?? []
-  // The podium needs a full three to read as a podium; below that it is
-  // just three boxes of different heights with nothing in two of them.
-  const hasPodium = rows.length >= 3
-  const podiumOrder = [1, 0, 2] // 2nd · 1st · 3rd — first place centre and tallest
-  const listRows = hasPodium ? rows.slice(3) : rows
-
   // Accuracy and streak are not in the leaderboard payload today. Returning
   // an empty string keeps the sub-line out of the DOM rather than rendering
   // "0% accurate" for everybody.
@@ -80,6 +102,7 @@ export default function LeadersScreen({
               key={p}
               type="button"
               className={p === period ? 'pl-on' : undefined}
+              aria-pressed={p === period}
               onClick={() => onPeriod(p)}
             >
               {t(`leaders.${p}`)}
@@ -111,75 +134,64 @@ export default function LeadersScreen({
         <Blank icon="trophy" title={t('leaders.empty.title')} body={t('leaders.empty.body')} />
       )}
 
-      {status === 'ready' && hasPodium && (
-        <div className="pl-podium">
-          {podiumOrder.map((i) => {
-            const l = rows[i]!
-            const place = i + 1
-            return (
-              <div className={`pl-pod${place === 1 ? ' pl-p1' : ''}`} key={l.userId ?? place}>
-                <div className="pl-rk">
-                  {place === 1 ? `① ${t('leaders.champion')}` : place === 2 ? '②' : '③'}
-                </div>
-                <GeneratedAvatar
-                  name={nameOf(l)}
-                  fallbackSeed={l.userId ?? 'anonymous'}
-                  className={place === 1 ? 'pl-av pl-lg' : 'pl-av'}
-                />
-                <div className="pl-nm">{nameOf(l)}</div>
-                <div className="pl-gv">{formatGuacas(l.netWorth, locale)}</div>
-                {secondary(l) && <div className="pl-sec">{secondary(l)}</div>}
-              </div>
-            )
-          })}
-        </div>
-      )}
+      {status === 'ready' && board?.me && <button className={styles.jump} onClick={jumpToMe}>
+        <LeaderAvatar leader={board.me} size={34} />
+        <span>{t('leaders.yourPosition')} <strong>#{board.me.rank}</strong></span>
+        <span className={styles.jumpLabel}>{t('leaders.findMe')} <span aria-hidden>↕</span></span>
+      </button>}
+
+      {status === 'ready' && rows.length > 0 && <div className={styles.scope}>
+        <span>{t(period === 'week' ? 'leaders.weeklyCount' : 'leaders.playerCount', { count: rows.length })}</span>
+        {period === 'week' && <button onClick={() => onPeriod('season')}>{t('leaders.seeEveryone')} ↗</button>}
+      </div>}
 
       {status === 'ready' && (rows.length > 0 || board?.me) && (
-        <div className="pl-lb-list">
-          {listRows.map((l, k) => (
-            <div className={`pl-lbr${l.isMe ? ' pl-me' : ''}`} key={l.userId ?? `r${k}`}>
-              <div className="pl-r">{l.rank || (hasPodium ? k + 4 : k + 1)}</div>
-              <GeneratedAvatar
-                name={nameOf(l)}
-                fallbackSeed={l.userId ?? 'anonymous'}
-                className="pl-av"
-              />
+        <div ref={list} className={`pl-lb-list ${styles.list}`} tabIndex={0} role="region" aria-label={t('leaders.standings')}>
+          {rows.map((l, k) => (
+            <button type="button" data-podium={l.rank <= 3 ? l.rank : undefined} data-tone={l.rank % 3} ref={l.isMe ? ownRow : undefined} className={`pl-lbr ${styles.row}${l.isMe ? ' pl-me' : ''}`} key={l.userId ?? `r${k}`} onClick={() => setSelected(l)} aria-label={t('leaders.openPlayer', { name: nameOf(l), rank: l.rank })}>
+              <div className="pl-r">{l.rank || (k + 1)}</div>
+              <LeaderAvatar leader={l} size={36} />
               <div className="pl-who2">
-                <div className="pl-n2">{nameOf(l)}</div>
+                <div className="pl-n2">{nameOf(l)}{l.isSimulation && <span className={styles.you}>{t('courtside.simulated')}</span>}{l.isMe && <span className={styles.you}>{t('leaders.you')}</span>}</div>
                 {secondary(l) && <div className="pl-s2">{secondary(l)}</div>}
               </div>
               <div className="pl-g2">
-                <div className="pl-v2">{formatGuacas(l.netWorth, locale)}</div>
+                <div className="pl-v2">{formatGuacas(l.netWorth, locale)} <GuacaCoin size={18} /></div>
                 <Move move={l.move} />
               </div>
-            </div>
+            </button>
           ))}
 
-          {/* Pinned "you" row — only when the user isn't already visible in
-              the list above, otherwise they appear twice. */}
-          {board?.me && !listRows.some((l) => l.isMe) && (
-            <div className="pl-lbr pl-me">
-              <div className="pl-r">{board.me.rank}</div>
-              <GeneratedAvatar
-                name={board.me.displayName || t('leaders.you')}
-                fallbackSeed={board.me.userId ?? 'anonymous'}
-                className="pl-av"
-              />
-              <div className="pl-who2">
-                <div className="pl-n2">{board.me.displayName || t('leaders.you')}</div>
-                {secondary(board.me) && <div className="pl-s2">{secondary(board.me)}</div>}
-              </div>
-              <div className="pl-g2">
-                <div className="pl-v2">{formatGuacas(board.me.netWorth, locale)}</div>
-                <Move move={board.me.move} />
-              </div>
-            </div>
-          )}
+
         </div>
       )}
 
-      {status === 'ready' && rows.length > 0 && <div className="pl-lb-note">{t('leaders.note')}</div>}
+      {selected && <PlayerPreview leader={selected} name={nameOf(selected)} period={period} onClose={() => setSelected(null)} onProfile={() => router.push('/profile')} />}
+      {status === 'ready' && rows.length > 0 && <div className="pl-lb-note">{board?.hasSimulation ? t('leaders.simulationNote') : t('leaders.note')}</div>}
     </>
   )
+}
+
+function PlayerPreview({ leader, name, period, onClose, onProfile }: {
+  leader: PlayLeader; name: string; period: LeaderPeriod; onClose: () => void; onProfile: () => void
+}) {
+  const t = useTranslations('play')
+  const locale = useLocale()
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const element = dialog.current
+    const previous = document.activeElement as HTMLElement | null
+    element?.showModal()
+    return () => { element?.close(); previous?.focus({ preventScroll: true }) }
+  }, [])
+  return <dialog ref={dialog} className={`pl-trade-dialog pl-amount-dialog ${styles.preview}`} aria-labelledby="leader-player-title" onCancel={e => { e.preventDefault(); onClose() }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+    <div className="pl-trade-content">
+      <div className="pl-sheet-head"><h2 id="leader-player-title">{name}</h2><button className="pl-x" onClick={onClose} aria-label={t('detail.close')}>×</button></div>
+      <div className={styles.playerHero}>{leader.isSimulation ? <div className={styles.figure}><PlayerFigure outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} /></div> : leader.userId ? <MemberAvatar userId={leader.userId} full fallback={<LeaderAvatar leader={leader} size={112}/>}/> : <LeaderAvatar leader={leader} size={112} />}<span>{leader.isSimulation ? t('courtside.simulated') : leader.isMe ? t('leaders.you') : t('leaders.player')}</span></div>
+      <div className={styles.stats}><div><span>{t(`leaders.${period}`)}</span><strong>#{leader.rank}</strong></div><div><span>{t('leaders.netWorth')}</span><strong>{formatGuacas(leader.netWorth, locale)} <GuacaCoin size={24} /></strong></div></div>
+      {leader.humanRank && <p className={styles.profileNote}>{t('leaders.humanRank', { rank: leader.humanRank })}</p>}
+      {leader.isSimulation && <p className={styles.profileNote}>{t('leaders.simulationNote')}</p>}
+      {leader.isMe && <Press onClick={onProfile}>{t('leaders.myProfile')} ↗</Press>}
+    </div>
+  </dialog>
 }

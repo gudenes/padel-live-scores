@@ -891,14 +891,8 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
   if (flags.enableMarketResolver) {
     entries.push({
       name: 'market-resolver',
-      // Every 5 minutes at 4,9,…,59 — deliberately NOT 2-57/5, which
-      // fip-results-writer owns. That worker writes final scores and flips
-      // matches.status, which is exactly what this one reads; firing on the
-      // same tick invites reading a match mid-write.
-      // Keep this worker at concurrency 1: a `hold` can lose a race to a
-      // `settle` from a second instance, and a rejected optimistic write is
-      // silent (PostgREST returns success on a zero-row update).
-      cron: '4-59/5 * * * *',
+      // Recovery for missed result events and non-match resolvers.
+      cron: '* * * * *',
       run: async (d) =>
         runMarketResolver({
           supabase: d.supabase,

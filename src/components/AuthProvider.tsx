@@ -64,7 +64,7 @@ function AuthInner({ children }: { children: ReactNode }) {
       return
     }
     let alive = true
-    void supabase
+    const refreshProfile = () => { void supabase
       .from('profiles')
       .select('display_name, avatar_url, preferred_country')
       .eq('id', userId)
@@ -77,7 +77,10 @@ function AuthInner({ children }: { children: ReactNode }) {
           preferred_country: data.preferred_country,
         })
       })
-    return () => { alive = false }
+    }
+    refreshProfile()
+    window.addEventListener('pn:profile-updated', refreshProfile)
+    return () => { alive = false; window.removeEventListener('pn:profile-updated', refreshProfile) }
   }, [userId])
 
   // Push token re-registration on sign-in. native-init.ts runs at app

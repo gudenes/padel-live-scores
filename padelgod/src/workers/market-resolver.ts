@@ -1,11 +1,5 @@
-// market-resolver — locks due markets, then proposes and settles outcomes.
-//
-// Every 5 minutes. Flag: ENABLE_MARKET_RESOLVER (default off),
-// MARKET_RESOLVER_DRY_RUN (default on).
-//
-// Auto-resolution PROPOSES; settlement happens after a confirmation window.
-// See lib/market-settlement.ts for why that window exists.
-
+// Recovery worker: locks due markets and settles authoritative results atomically.
+// Match-winner results also settle immediately via the database result trigger.
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Logger } from 'pino'
 import { getResolver } from '../lib/market-resolvers/index.js'
@@ -109,13 +103,17 @@ export async function runMarketResolver(
     r.locked += 1
   }
 
-  // Pass B — resolve locked and proposed markets. 'held' is deliberately NOT
-  // in this list: only an operator moves a market out of held.
-  const { data: pending } = await deps.supabase
+  // Retry failed result events as well, including corrections of paid markets.
+  const retries = await deps.supabase.from('market_settlement_retries').select('market_id').limit(BATCH_LIMIT)
+  if (retries.error) throw new Error(retries.error.message)
+  const retryIds = (retries.data ?? []).map(row => row.market_id as string)
+  const { data: pending, error: pendingError } = await deps.supabase
     .from('markets')
-    .select('id, status, match_id, tournament_id, category, tokens, resolver_key, resolver_params, proposed_outcome, proposed_at, settles_at')
-    .in('status', ['locked', 'proposed'])
+    .select('id, status, match_id, tournament_id, category, tokens, resolver_key, resolver_params, proposed_outcome, proposed_at, settles_at, settlement_revision')
+    .or(`status.in.(locked,proposed)${retryIds.length ? `,id.in.(${retryIds.join(',')})` : ''}`)
+    .neq('status', 'held')
     .limit(BATCH_LIMIT)
+  if (pendingError) throw new Error(pendingError.message)
 
   for (const m of pending ?? []) {
     try {
@@ -130,7 +128,9 @@ export async function runMarketResolver(
         now,
       }, (m.resolver_params ?? {}) as Record<string, unknown>)
 
-      const decision = decideSettlement(toMarketState(m as never), outcome, now)
+      const decision: SettlementDecision = retryIds.includes(m.id) && outcome.state !== 'undecided'
+        ? outcome.state === 'void' ? { action: 'void', reason: outcome.reason } : { action: 'settle', outcome: outcome.outcome }
+        : decideSettlement(toMarketState(m as never), outcome, now)
 
       switch (decision.action) {
         case 'none':    r.undecided += 1; break
@@ -146,19 +146,19 @@ export async function runMarketResolver(
 
       if (deps.dryRun) continue
 
-      // Phase 1 has no trade API, so no market can have positions. If one
-      // does, something is very wrong — fail loudly rather than settle
-      // without paying anybody.
       if (decision.action === 'settle' || decision.action === 'void') {
-        const { count } = await deps.supabase
-          .from('market_positions')
-          .select('market_id', { count: 'exact', head: true })
-          .eq('market_id', m.id)
-        if ((count ?? 0) > 0) {
-          throw new Error(
-            `market ${m.id} has ${count} positions but payout is not implemented until phase 3`,
-          )
+        if (outcome.state === 'decided') {
+          const saved = await deps.supabase.from('markets').update({ proposed_evidence: outcome.evidence }).eq('id', m.id).eq('settlement_revision', m.settlement_revision)
+          if (saved.error) throw new Error(saved.error.message)
         }
+        const { error } = await deps.supabase.rpc('play_settle_market', {
+          p_market_id: m.id,
+          p_outcome: decision.action === 'void' ? 'void' : decision.outcome ? 'yes' : 'no',
+          p_reason: decision.action === 'void' ? decision.reason : 'Confirmed resolver result',
+          p_actor: 'market-resolver', p_expected_revision: m.settlement_revision,
+        })
+        if (error) throw new Error(error.message)
+        continue
       }
 
       const patch = applyDecisionPatch(decision, now)

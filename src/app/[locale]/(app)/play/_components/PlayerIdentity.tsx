@@ -4,12 +4,8 @@
 // Who is playing — the four avatars, 2 v 2, that replaced the ghosted "LB vs
 // CS" monogram on the deck card. Shared with the detail sheet.
 //
-// The photos are real: all four players on a Premier/FIP draw carry
-// `players.avatar_url`, and those URLs are rehosted onto our own Supabase
-// Storage bucket (see src/lib/avatar-rehost.ts), so they are not hotlinks that
-// can rot. Rows that have not been rehosted yet, or have no photo at all, fall
-// back to GeneratedAvatar seeded on the player's name — the same deterministic
-// face the Activity feed and leaderboard use. Never a broken-image glyph.
+// Available photos use the stored player URL. Missing or failed photos show
+// the player's initials, matching the match detail screen.
 //
 // Every value rendered here comes from GET /api/play/markets. Nothing is
 // derived from a guess: a null ranking prints no ranking, a null country
@@ -17,7 +13,7 @@
 
 import Image from 'next/image'
 import { FlagImage } from '@/components/FlagImage'
-import GeneratedAvatar from '@/components/GeneratedAvatar'
+import { useState } from 'react'
 import type { PlayPlayer } from './types'
 
 /**
@@ -28,26 +24,14 @@ import type { PlayPlayer } from './types'
  * `size` is the rendered CSS box; the request is made at 2× for retina.
  */
 function Face({ player, size }: { player: PlayPlayer; size: number }) {
-  if (!player.avatarUrl) {
-    return (
-      <GeneratedAvatar
-        name={player.name}
-        className="pl-face"
-        // Seeded on the name, so the same player always gets the same face.
-        fallbackSeed={player.id ?? 'player'}
-      />
-    )
+  const [failed, setFailed] = useState<string[]>([])
+  const source = player.avatarUrl
+  if (!source || failed.includes(source)) {
+    const initials = player.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toLocaleUpperCase() ?? '').join('') || '?'
+    return <span className="pl-face pl-face-initials" role="img" aria-label={player.name}>{initials}</span>
   }
-  return (
-    <Image
-      className="pl-face"
-      src={player.avatarUrl}
-      alt={player.name}
-      width={size * 2}
-      height={size * 2}
-      referrerPolicy="no-referrer"
-    />
-  )
+  return <Image className="pl-face" src={source} alt={player.name} width={size * 2} height={size * 2}
+    referrerPolicy="no-referrer" onError={() => setFailed(previous => [...previous, source])} />
 }
 
 /** Avatar + flag + ranking for one player. */

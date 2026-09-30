@@ -60,7 +60,8 @@
         "label": "Liga",
         "all": "Todas",
         "premier": "Premier",
-        "fip": "FIP Tour"
+        "fip": "FIP Tour",
+        "ppl": "PPL"
       },
       "category": {
         "label": "Categoria",
@@ -420,7 +421,8 @@
     "eventsCount": "{count, plural, one {# evento} other {# eventos}}",
     "tournamentTabs": {
       "premier": "Premier Padel",
-      "fip": "FIP Tour"
+      "fip": "FIP Tour",
+      "ppl": "PPL"
     },
     "fipTier": {
       "all": "Todos",
@@ -1810,6 +1812,39 @@
     "cta": "Voltar ao PadelNachos"
   },
   "play": {
+    "results": {
+      "netWin": "Ganho líquido",
+      "netLoss": "Perda líquida",
+      "netResult": "Resultado líquido",
+      "totalPaid": "Total recebido",
+      "invested": "{amount} G investidos",
+      "won": "Ganha",
+      "lost": "Perdida",
+      "refunded": "Reembolsada",
+      "pending": "A aguardar resolução",
+      "closed": "Mercado fechado",
+      "corrected": "Resultado corrigido",
+      "adjustment": "Saldo ajustado em {amount} G.",
+      "owed": "A correção excedeu o saldo disponível. Os próximos créditos cobrirão a diferença antes de voltares a jogar."
+    },
+    "ticker": {
+      "title": "Últimas jogadas",
+      "pause": "Pausar",
+      "resume": "Continuar",
+      "open": "Ver atividade de todos os mercados",
+      "empty": "Ainda não há jogadas."
+    },
+    "courtside": {
+      "title": "Na pista",
+      "all": "Ver tudo",
+      "you": "Tu",
+      "simulated": "Simulado",
+      "loading": "A carregar jogadas…",
+      "error": "Não foi possível atualizar",
+      "empty": "Ainda não há jogadas neste mercado.",
+      "noOwn": "Ainda não tens jogadas neste mercado.",
+      "simulationNote": "As jogadas simuladas não participam em prémios."
+    },
     "live": "Ao vivo",
     "horizon": {
       "live": "Em jogo",
@@ -1819,10 +1854,11 @@
     },
     "subnav": {
       "label": "Secções do Play",
-      "markets": "Mercados",
+      "markets": "Mercados abertos",
       "activity": "Atividade",
       "leaders": "Líderes",
-      "myPositions": "Minhas posições"
+      "myPositions": "Minhas posições",
+      "mine": "As minhas jogadas"
     },
     "deck": {
       "yes": "Sim",
@@ -1831,6 +1867,7 @@
       "crowdPrice": "Preço do público",
       "ourModel": "Nosso modelo",
       "aiPct": "IA {pct}%",
+      "historicalPct": "histórico {pct}%",
       "volumeTraded": "{amount} G negociados",
       "noTradesYet": "Ainda sem negociações",
       "empty": {
@@ -1844,7 +1881,8 @@
       "stateLiveNow": "Ao vivo agora",
       "stateStartingSoon": "Começa em breve",
       "vs": "vs",
-      "formLine": "{name} venceu {wins} dos últimos {of}"
+      "formLine": "{name} venceu {wins} dos últimos {of}",
+      "oddsUnit": "Retorno por 1 G · inclui o valor aplicado"
     },
     "trade": {
       "title": "Quantos Guacas?",
@@ -1866,7 +1904,12 @@
       "approx": "≈ {shares} cotas · {question}",
       "viewPositions": "Ver minhas posições",
       "next": "Próxima previsão",
-      "upNext": "A seguir"
+      "upNext": "A seguir",
+      "yourPick": "A tua escolha",
+      "placed": "Valor investido",
+      "ifWin": "Se acertares, recebes",
+      "includesStake": "Inclui o valor investido",
+      "keepExploring": "Continuar a explorar"
     },
     "positions": {
       "title": "Minhas posições",
@@ -1889,7 +1932,11 @@
           "title": "Ainda sem negociações",
           "body": "Tudo o que negociar — aberto ou resolvido — fica listado aqui."
         }
-      }
+      },
+      "yourPosition": "A tua posição",
+      "expandMarket": "Ver mercado",
+      "collapseMarket": "Recolher mercado",
+      "investedAmount": "{amount} G investidos"
     },
     "activity": {
       "latest": "Últimas negociações",
@@ -1906,6 +1953,15 @@
       }
     },
     "leaders": {
+      "weeklyCount": "{count} participantes · últimos 7 dias",
+      "playerCount": "{count} participantes",
+      "seeEveryone": "Ver todos",
+      "findMe": "O meu lugar",
+      "openPlayer": "Ver {name}, posição {rank}",
+      "player": "Jogador",
+      "myProfile": "O meu perfil",
+      "simulationNote": "Inclui jogadores simulados. Os saldos pertencem à simulação; não participam em prémios.",
+      "humanRank": "#{rank} entre jogadores",
       "title": "Líderes",
       "week": "Semana",
       "season": "Temporada",
@@ -1918,7 +1974,10 @@
       "empty": {
         "title": "A classificação está vazia",
         "body": "Enche-se assim que as pessoas começarem a negociar."
-      }
+      },
+      "yourPosition": "A tua posição",
+      "netWorth": "Património",
+      "standings": "Classificação"
     },
     "time": {
       "now": "agora",
@@ -1949,7 +2008,10 @@
       "loss": "D",
       "noStats": "Ainda sem estatísticas",
       "crowdVsModel": "O público vs o nosso modelo",
-      "yesNote": "Ambos os valores são a probabilidade de Sim."
+      "crowdVsBaseline": "Público vs histórico",
+      "baseRate": "Taxa histórica",
+      "yesNote": "Ambos os valores são a probabilidade de Sim.",
+      "baseRateNote": "Não temos uma previsão do modelo para esta pergunta. O segundo número é a frequência com que isto aconteceu em jogos dos últimos 12 meses — uma média, não uma previsão sobre este jogo."
     },
     "explore": {
       "all": "Todos",
@@ -1981,14 +2043,309 @@
       "amount": "Valor",
       "available": "Disponível:",
       "ifWin": "Se acertares, recebes",
-      "gain": "Inclui {stake} · Ganho ≈{gain}",
+      "gain": "Inclui {stake} · Ganho {gain}",
       "ifLose": "Se não acertares, perdes",
       "balanceAfter": "Saldo depois",
       "filters": "Filtros",
       "feed": "Mercados para prever",
       "shortReturn": "Total estimado se acertares · inclui valor",
       "next": "Próximo mercado",
-      "showMarkets": "Ver mercados ({count})"
+      "showMarkets": "Ver mercados ({count})",
+      "estimatedReturn": "Retorno estimado se acertares",
+      "operationDetails": "Detalhes da operação"
+    },
+    "filters": {
+      "label": "Filtros de mercados",
+      "all": "Todos",
+      "today": "Hoje",
+      "tourn": "Torneios",
+      "season": "Época",
+      "empty": "Ainda não há mercados aqui",
+      "emptyBody": "Explora outra categoria para continuar.",
+      "showAll": "Ver todos",
+      "allMarkets": "Todos os mercados",
+      "more": "Filtros",
+      "when": "Quando jogar",
+      "competition": "Competição",
+      "allCompetitions": "Todas as competições",
+      "category": "Categoria",
+      "allCategories": "Todas as categorias",
+      "men": "Masculino",
+      "women": "Feminino",
+      "apply": "Aplicar filtros",
+      "reset": "Repor",
+      "match": "Jogos"
+    },
+    "editorial": {
+      "ranking": "Objetivo de ranking",
+      "titles": "Objetivo de títulos",
+      "round": "Objetivo de ronda",
+      "other_champion": "Outra dupla vence",
+      "current": "Atual",
+      "target": "Objetivo",
+      "titlesTarget": "{count} títulos · mesma dupla",
+      "until": "Até {date}",
+      "opening": "Estimativa inicial",
+      "sourceUnavailable": "Fonte indisponível",
+      "estimateNote": "É a estimativa na abertura, não uma previsão em direto. Os preços mudam com as operações.",
+      "rankingQuestion": "{names} chegará ao top {target}?",
+      "titlesQuestion": "{names} vencerão {target} títulos?"
+    },
+    "matchNavigation": {
+      "followLive": "Acompanhar ao vivo",
+      "viewMatch": "Ver jogo",
+      "liveCount": "Ao vivo · {count}",
+      "yourPlay": "A tua jogada",
+      "viewPlays": "Ver minhas jogadas",
+      "predict": "Fazer um palpite",
+      "liveEmpty": "Sem jogadas ao vivo agora",
+      "liveEmptyBody": "Os teus palpites aparecerão aqui quando os jogos começarem."
     }
+  },
+  "playerProfile": {
+    "yourPlayer": "O teu jogador",
+    "yourStyle": "O teu jogo. O teu estilo.",
+    "wardrobe": "O meu jogador",
+    "characterAlt": "O teu jogador de padel",
+    "saved": "Conjunto guardado neste dispositivo.",
+    "saveError": "Não foi possível guardar. Permite o armazenamento do navegador e tenta novamente.",
+    "predictor": "As tuas previsões",
+    "leaderboard": "Classificação",
+    "loading": "A carregar as tuas previsões…",
+    "loadError": "Não foi possível carregar as previsões.",
+    "retry": "Tentar novamente",
+    "available": "Guacas disponíveis",
+    "invested": "Investido",
+    "markets": "Mercados ativos",
+    "seasonRank": "Posição na época",
+    "yes": "Sim",
+    "no": "Não",
+    "empty": "A tua primeira previsão começa aqui.",
+    "explore": "Explorar mercados",
+    "allPositions": "Todas as minhas jogadas",
+    "close": "Fechar vestiário",
+    "avatarPreview": "Prévia do avatar",
+    "outfitsLabel": "Escolhe um conjunto",
+    "equipped": "Equipado",
+    "localNote": "Escolhe o rosto e o conjunto separadamente · ficam guardados juntos neste dispositivo.",
+    "creator": {
+      "compatibility": "Esta personagem mantém o conjunto original. Experimenta o Rafa para explorar o primeiro guarda-roupa combinável.",
+      "tryRafa": "Personalizar Rafa",
+      "ready": "3 conjuntos",
+      "whole": "Avatar completo · guardado neste dispositivo. Em breve, mais personagens personalizáveis."
+    },
+    "equip": "Usar este avatar",
+    "restore": "Usar a minha foto de perfil",
+    "restored": "Foto de perfil restaurada.",
+    "outfits": {
+      "starter": "Starter",
+      "court-club": "Court Club",
+      "night-match": "Night Match"
+    },
+    "faces": {
+      "face-01": "Brisa",
+      "face-02": "Nilo",
+      "face-03": "Dara",
+      "face-04": "Tano",
+      "face-05": "Vera",
+      "face-06": "Beltrán",
+      "face-07": "Alexis",
+      "face-08": "Ciro",
+      "face-09": "Mika",
+      "face-10": "Rocco"
+    },
+    "chooseStyle": "Escolhe a tua personagem",
+    "customFace": "O meu avatar",
+    "previewReady": "O teu avatar está pronto. Revê antes de o usar.",
+    "tabs": {
+      "faces": "Rostos",
+      "looks": "Conjuntos",
+      "photo": "Com a minha foto"
+    },
+    "photo": {
+      "intro": "Cria um jogador parecido contigo. Usa uma foto nítida, de frente e em que estejas sozinho.",
+      "checking": "A verificar disponibilidade…",
+      "unavailable": "A criação com foto não está disponível agora.",
+      "retry": "Tentar novamente",
+      "not_configured": "A criação com fotografia ainda não está ativa.",
+      "takePhoto": "Tirar uma foto",
+      "uploadPhoto": "Escolher uma foto",
+      "selectedPhoto": "A tua foto selecionada",
+      "fileHelp": "JPG, PNG ou WebP · até 20 MB",
+      "consent": "Enviar esta foto a um modelo LLM para criar o meu avatar. Tenho autorização para usar esta foto.",
+      "generate": "Criar o meu avatar",
+      "generating": "A criar o teu jogador…",
+      "waiting": "Pode demorar alguns minutos. O teu avatar atual mantém-se.",
+      "retention": "Não guardamos a fotografia original. O avatar gerado é guardado de forma privada. Até 5 tentativas por dia.",
+      "invalid_photo": "Escolhe uma foto JPG, PNG ou WebP válida.",
+      "photo_too_large": "Escolhe uma foto com menos de 20 MB.",
+      "daily_limit": "Atingiste as 5 tentativas de hoje. Tenta amanhã.",
+      "generation_busy": "Já está a ser criado um avatar. Aguarda.",
+      "provider_busy": "O modelo LLM está ocupado. Tenta mais tarde.",
+      "generation_failed": "Não foi possível criar o avatar. Tenta outra foto nítida.",
+      "generation_unavailable": "Não foi possível contactar o serviço. Tenta mais tarde.",
+      "cameraPreview": "Pré-visualização da câmara",
+      "cameraStarting": "A abrir a câmara…",
+      "cameraDenied": "O acesso à câmara foi negado. Permite o acesso no navegador ou fecha esta vista e escolhe uma foto.",
+      "cameraUnavailable": "Câmara indisponível. Fecha esta vista e escolhe uma foto.",
+      "cameraCancel": "Fechar câmara",
+      "cameraCapture": "Tirar foto",
+      "cameraTimeout": "A câmara não abriu. Verifica a permissão da câmara nas definições do navegador ou da app. Podes escolher uma foto abaixo ou abrir o site no Safari ou Chrome. A app instalada pode precisar de uma atualização.",
+      "upload_connection": "A ligação de envio foi interrompida. Mantém a app aberta e tenta novamente com uma ligação estável.",
+      "upload_timeout": "O pedido demorou demasiado. Espera um momento antes de tentar novamente.",
+      "upload_session": "Não foi possível verificar a tua sessão. Inicia sessão novamente e tenta outra vez."
+    },
+    "shopTitle": "Vestiário",
+    "shopBrowse": "Ver loja",
+    "shopEntry": "Personalizar o teu jogador e explorar a loja"
+  },
+  "ppl": {
+    "title": "Pro Padel League",
+    "scopeOverall": "Geral",
+    "scopeMen": "Masculino",
+    "scopeWomen": "Feminino",
+    "colTeam": "Franquia",
+    "loading": "Carregando classificação...",
+    "emptyScope": "Esta divisão ainda não tem partidas neste recorte.",
+    "standingsNote": "Os pontos da classificação são atribuídos pela liga e publicados em propadelleague.com. As estatísticas refletem a fase de grupos; os pontos incluem o dia do pódio.",
+    "eventsHeading": "Eventos",
+    "noEvents": "Ainda não há eventos.",
+    "upcoming": "Em breve",
+    "colPoints": "Pts",
+    "colRecord": "V-D",
+    "matchesShort": "jogos",
+    "pctMatches": "jogos ganhos",
+    "pctSets": "sets",
+    "widgetTitle": "Classificação PPL",
+    "widgetCta": "Tabela completa",
+    "teamMetaTitle": "{team} — {division}",
+    "teamMetaDescription": "{team} na {division}: {tiesWon} de {tiesPlayed} confrontos vencidos, {courtsWon}–{courtsLost} em quadras. Elenco, resultados e classificação.",
+    "colTiesShort": "Confrontos",
+    "colCourts": "Quadras",
+    "tabResults": "Resultados",
+    "tabSquad": "Elenco",
+    "noTies": "Ainda não há confrontos.",
+    "noRoster": "Ainda não há elenco registrado.",
+    "playerRecord": "{games} · {wins}–{losses}",
+    "noGames": "não jogou",
+    "lineupTbd": "escalação a confirmar"
+  },
+  "badgeCollection": {
+    "title": "Insígnias",
+    "collection": "A tua coleção",
+    "earned": "Conquistada",
+    "locked": "Por desbloquear",
+    "legacy": "Legado",
+    "all": "Todas",
+    "prediction": "Palpites",
+    "following": "Seguir",
+    "engagement": "Participação",
+    "getting_started": "Comunidade",
+    "close": "Fechar",
+    "back": "Voltar",
+    "collected": "{count} de {total} conquistadas",
+    "target": "Alcança {target} para desbloquear",
+    "progress": "Progresso",
+    "loading": "A carregar progresso…",
+    "error": "O progresso não está disponível. Tenta novamente.",
+    "retry": "Tentar novamente",
+    "max": "Nível máximo alcançado",
+    "legacyNote": "Manténs as insígnias que já conquistaste. Estas já não são atribuídas.",
+    "tier": "Nível {tier}",
+    "unlocked": "Insígnia conquistada",
+    "predictionNote": "O progresso usa os resultados atuais. Uma vitória significa receber mais Guacas do que investiste. Cada mercado conta uma vez. Manténs as insígnias após correções dos resultados.",
+    "items": {
+      "first_pick": {
+        "name": "Primeiro palpite",
+        "description": "Conclui o teu primeiro palpite resolvido. Mercados anulados não contam."
+      },
+      "king_of_predict": {
+        "name": "Rei dos palpites",
+        "description": "Termina 25 mercados com lucro em Guacas."
+      },
+      "on_fire": {
+        "name": "Em alta",
+        "description": "Termina 5 mercados seguidos com lucro, por ordem de resolução. Os anulados são ignorados."
+      },
+      "tournament_brain": {
+        "name": "Mente de torneio",
+        "description": "Termina 10 mercados do mesmo torneio com lucro em Guacas."
+      },
+      "follow_players": {
+        "name": "Olheiro",
+        "description": "Segue os teus jogadores favoritos. Metas: 1, 5 e 15 jogadores."
+      },
+      "follow_matches": {
+        "name": "Caçador de partidas",
+        "description": "Guarda partidas para as acompanhar. Metas: 1, 10 e 50 partidas."
+      },
+      "rate_matches": {
+        "name": "Crítico de partidas",
+        "description": "Avalia partidas para ajudar outros fãs. Metas: 1, 10 e 50 avaliações."
+      },
+      "early_adopter": {
+        "name": "Membro fundador",
+        "description": "Registaste-te antes de 15 de maio de 2026, no período original de membros fundadores."
+      },
+      "ambassador": {
+        "name": "Embaixador",
+        "description": "Convida amigos que se registem com o teu link. Metas: 1, 5, 15 e 50 registos."
+      },
+      "profile_complete": {
+        "name": "Boas-vindas",
+        "description": "Criaste uma conta no Padel Nachos."
+      },
+      "genius_insider": {
+        "name": "Genius Insider",
+        "description": "Inscreveste-te no acesso antecipado ao PadelGenius."
+      },
+      "push_enabled": {
+        "name": "Sempre ligado",
+        "description": "Ativaste as notificações push."
+      },
+      "follow_tournaments": {
+        "name": "Globetrotter",
+        "description": "Seguiste torneios de todo o mundo."
+      },
+      "read_articles": {
+        "name": "Sempre informado",
+        "description": "Leste notícias e histórias de padel."
+      },
+      "watch_videos": {
+        "name": "Melhores momentos",
+        "description": "Viste vídeos de destaques de padel."
+      },
+      "share_app": {
+        "name": "Megafone",
+        "description": "Partilhaste o Padel Nachos com amigos."
+      },
+      "login_streak": {
+        "name": "Presença diária",
+        "description": "Visitaste a app em dias consecutivos."
+      },
+      "longest_streak": {
+        "name": "Sequência lendária",
+        "description": "Alcançaste a tua melhor sequência de visitas diárias."
+      }
+    }
+  },
+  "avatarSharing": {
+    "title": "Partilhar avatar",
+    "close": "Fechar",
+    "preparing": "A preparar o teu avatar…",
+    "preview": "Pré-visualização do avatar",
+    "error": "Não foi possível preparar ou partilhar a imagem. Tenta novamente.",
+    "retry": "Tentar novamente",
+    "chooseWhatsApp": "Escolhe o WhatsApp no menu de partilha.",
+    "downloadHint": "Descarrega a imagem e anexa-a no WhatsApp.",
+    "share": "Partilhar imagem",
+    "download": "Descarregar imagem"
+  },
+  "profileTabs": {
+    "player": "Jogador",
+    "badges": "Insígnias",
+    "navigation": "Secções do perfil",
+    "new": "Novas",
+    "newCount": "{count} novas insígnias"
   }
 }

@@ -1,15 +1,8 @@
-// The propose → confirm → settle decision, as a pure function.
-//
-// Auto-resolution PROPOSES; settlement happens only after a confirmation
-// window. Crionet has marked a match `finished` roughly twenty minutes early
-// WITH THE WRONG WINNER, twice at Paris Major. With instant payout, guacas
-// would move on a phantom result and we would be clawing balances back from
-// users. This window turns an upstream bug into a held row.
-
+// Immediate outcomes; payouts and corrections are transactional in Postgres.
 import type { ResolverResult } from './market-resolvers/types.js'
 
-/** 30 minutes. Long enough to catch a premature-finish reversal. */
-export const CONFIRMATION_WINDOW_MS = 30 * 60 * 1000
+/** Kept for existing imports; decided results have no delay. */
+export const CONFIRMATION_WINDOW_MS = 0
 
 export interface MarketState {
   // 'held' is persisted and only an operator moves a market out of it.
@@ -29,7 +22,7 @@ export type SettlementDecision =
 export function decideSettlement(
   market: MarketState,
   result: ResolverResult,
-  now: Date,
+  _now: Date,
 ): SettlementDecision {
   // Only locked and proposed markets are in play. `open` has not stopped
   // trading; settled/void are terminal; 'held' is terminal until an operator
@@ -47,43 +40,8 @@ export function decideSettlement(
     return { action: 'void', reason: result.reason }
   }
 
-  // A proposed market with no settles_at can never advance and never reaches
-  // the hold path, so it would sit invisible to the operator queue forever.
-  // Surface it instead.
-  if (market.status === 'proposed' && market.settlesAt === null) {
-    return { action: 'hold', reason: 'proposed market has no settles_at — incomplete record' }
-  }
-
-  if (result.state === 'undecided') {
-    // Going backwards from a proposal means the upstream data moved under us.
-    if (market.status === 'proposed') {
-      return { action: 'hold', reason: 'resolver became undecided after proposing' }
-    }
-    return { action: 'none' }
-  }
-
-  // result.state === 'decided'
-  if (market.status === 'locked') {
-    return {
-      action: 'propose',
-      outcome: result.outcome,
-      evidence: result.evidence,
-      settlesAt: new Date(now.getTime() + CONFIRMATION_WINDOW_MS),
-    }
-  }
-
-  // Already proposed. The single most important rule in the pipeline:
-  // if the answer has CHANGED, hold forever and never auto-settle.
-  if (market.proposedOutcome !== result.outcome) {
-    return {
-      action: 'hold',
-      reason: `resolver answer changed: proposed ${market.proposedOutcome}, now ${result.outcome}`,
-    }
-  }
-
-  if (market.settlesAt && now.getTime() >= market.settlesAt.getTime()) {
-    return { action: 'settle', outcome: result.outcome }
-  }
-
-  return { action: 'none' }
+  if (result.state === 'undecided') return { action: 'none' }
+  // Finished + authoritative outcome is sufficient. Corrections are audited
+  // delta payments in play_settle_market, never a second full payout.
+  return { action: 'settle', outcome: result.outcome }
 }

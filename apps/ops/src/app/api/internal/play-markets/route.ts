@@ -39,7 +39,7 @@ export async function GET() {
   const { data: markets, error } = await supabase
     .from('markets')
     .select(
-      'id, public_id, template_id, match_id, tournament_id, category, resolver_key, ' +
+      'id, public_id, question_snapshot, tokens, template_id, match_id, tournament_id, category, resolver_key, ' +
       'lmsr_b, seed_prob, seed_source, q_yes, q_no, volume_guacas, position_count, ' +
       'status, locks_at, proposed_outcome, proposed_at, settles_at, outcome, ' +
       'settled_at, settled_by, void_reason, hold_reason, created_at',
@@ -132,13 +132,13 @@ export async function GET() {
       id: m.id,
       publicId: m.public_id,
       templateKey: (tpl?.key as string) ?? '?',
-      question: (tpl?.question_i18n as Record<string, string> | null)?.en ?? '—',
+      question: (m.question_snapshot as Record<string,string> | null)?.en ?? (tpl?.question_i18n as Record<string, string> | null)?.en ?? '—',
       subject: match
         ? `${surname(match, 'pair1_player1_id', 'pair1_player1_name')}/` +
           `${surname(match, 'pair1_player2_id', 'pair1_player2_name')} vs ` +
           `${surname(match, 'pair2_player1_id', 'pair2_player1_name')}/` +
           `${surname(match, 'pair2_player2_id', 'pair2_player2_name')}`
-        : ((tour?.name as string) ?? '—'),
+        : ((m.tokens as Record<string,string> | null)?.subject ?? (tour?.name as string) ?? '—'),
       tournament: (tour?.name as string) ?? null,
       level: (tour?.level as string) ?? null,
       round: (match?.round_canonical as string) ?? null,

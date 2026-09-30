@@ -99,8 +99,14 @@ export function ThumbArt({ tone }: { tone: MarketHorizon }) {
 export interface SparklineProps {
   /** Current crowd price, 0..1. */
   crowd: number
-  /** Our model's probability, 0..1. */
-  model: number
+  /**
+   * Our model's probability, 0..1, or null when the model has no opinion on
+   * the question — a base-rate market ("will any set finish 6-0"). The dashed
+   * line is then OMITTED rather than drawn at the base rate: a dashed model
+   * line the crowd is diverging from is a claim about this match, and a
+   * twelve-month average is not that claim.
+   */
+  model: number | null
   /** Crowd price series oldest → newest, 0..1. Optional. */
   history?: number[]
   /** Unique suffix for the gradient id. */
@@ -117,9 +123,11 @@ export function Sparkline({ crowd, model, history, idSeed }: SparklineProps) {
   const first = vals[0] ?? crowd
 
   // Pad the domain by 5 percentage points either side, as the mockup does,
-  // so a flat line sits mid-box instead of hugging an edge.
-  const lo = Math.min(...vals, model) - 0.05
-  const hi = Math.max(...vals, model) + 0.05
+  // so a flat line sits mid-box instead of hugging an edge. The model is only
+  // part of the domain when it is actually being drawn.
+  const domain = model === null ? vals : [...vals, model]
+  const lo = Math.min(...domain) - 0.05
+  const hi = Math.max(...domain) + 0.05
   const span = hi - lo || 1
 
   const X = (k: number) => (n === 1 ? 300 : (k / (n - 1)) * 300)
@@ -129,7 +137,7 @@ export function Sparkline({ crowd, model, history, idSeed }: SparklineProps) {
   const area = `0,54 ${pts} 300,54`
   const up = last >= first
   const col = up ? '#7ED321' : '#FF4655'
-  const my = Y(model).toFixed(1)
+  const my = model === null ? null : Y(model).toFixed(1)
   const gid = `pl-sg-${idSeed}`
 
   return (
@@ -141,11 +149,13 @@ export function Sparkline({ crowd, model, history, idSeed }: SparklineProps) {
         </linearGradient>
       </defs>
       <polygon points={area} fill={`url(#${gid})`} />
-      <line
-        x1="0" y1={my} x2="300" y2={my}
-        stroke="#38C8FF" strokeOpacity=".75" strokeWidth="1.4"
-        strokeDasharray="4 4" vectorEffect="non-scaling-stroke"
-      />
+      {my !== null && (
+        <line
+          x1="0" y1={my} x2="300" y2={my}
+          stroke="#38C8FF" strokeOpacity=".75" strokeWidth="1.4"
+          strokeDasharray="4 4" vectorEffect="non-scaling-stroke"
+        />
+      )}
       <polyline
         points={pts} fill="none" stroke={col} strokeWidth="2"
         strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke"

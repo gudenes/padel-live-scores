@@ -1,7 +1,8 @@
 // src/lib/badges.ts
 //
 // Badge catalog for the PadelNachos gamification system.
-// 18 badges across 5 categories with padel-themed tier progression:
+// Nine active collectibles, with retired badges preserved for existing owners.
+// Original tier progression remains:
 // Rookie → Intermediate → Advanced → Padel Genius
 
 // ── Tier system ──────────────────────────────────────────────────
@@ -16,12 +17,17 @@ export const TIER_META = {
 export type TierNumber = 1 | 2 | 3 | 4
 
 export type BadgeCategory =
+  | 'prediction'
   | 'getting_started'
   | 'following'
   | 'engagement'
   | 'consistency'
 
 export type EvalType =
+  | 'prediction_count'
+  | 'prediction_wins'
+  | 'prediction_streak'
+  | 'prediction_tournament'
   | 'bookmark_count'   // COUNT user_bookmarks WHERE bookmark_type = evalParam
   | 'rating_count'     // COUNT match_ratings
   | 'activity_count'   // COUNT user_activity_log WHERE action = evalParam
@@ -59,7 +65,7 @@ export const OG_FAN_CUTOFF = new Date(LAUNCH_DATE.getTime() + 30 * 24 * 60 * 60 
 
 // ── Badge catalog ────────────────────────────────────────────────
 
-export const BADGE_CATALOG: BadgeDefinition[] = [
+const ORIGINAL_CATALOG: BadgeDefinition[] = [
   // ── Getting Started ─────────────────────────────────
   {
     id: 'profile_complete',
@@ -275,16 +281,25 @@ export const BADGE_CATALOG: BadgeDefinition[] = [
   },
 ]
 
-// Lookup helpers
-export const BADGE_MAP = Object.fromEntries(
-  BADGE_CATALOG.map(b => [b.id, b])
-) as Record<string, BadgeDefinition>
-
+// Keep old IDs and tiers intact so previously earned badges remain available.
+const retained: Record<string, string> = {
+  follow_players: 'scout', follow_matches: 'match-tracker', rate_matches: 'match-critic',
+  early_adopter: 'founding-member', ambassador: 'ambassador',
+}
+export const LEGACY_BADGES = ORIGINAL_CATALOG.filter(b => !retained[b.id])
+export const BADGE_CATALOG: BadgeDefinition[] = [
+  { id: 'first_pick', name: 'First Pick', description: 'Complete your first settled prediction. Voided markets do not count.', svgIcon: 'first-pick', category: 'prediction', categoryLabel: 'Predictions', isSingleTier: false, tiers: [{tier: 1, threshold: 1}], evalType: 'prediction_count' },
+  { id: 'king_of_predict', name: 'King of Predict', description: 'Finish 25 markets with a Guacas profit. Each settled market counts once.', svgIcon: 'king-of-predict', category: 'prediction', categoryLabel: 'Predictions', isSingleTier: false, tiers: [{tier: 1, threshold: 25}], evalType: 'prediction_wins', isPremium: true },
+  { id: 'on_fire', name: 'On Fire', description: 'Finish 5 markets in a row with a Guacas profit, in settlement order. Voided markets are skipped.', svgIcon: 'on-fire', category: 'prediction', categoryLabel: 'Predictions', isSingleTier: false, tiers: [{tier: 1, threshold: 5}], evalType: 'prediction_streak' },
+  { id: 'tournament_brain', name: 'Tournament Brain', description: 'Finish 10 markets in the same tournament with a Guacas profit.', svgIcon: 'tournament-brain', category: 'prediction', categoryLabel: 'Predictions', isSingleTier: false, tiers: [{tier: 1, threshold: 10}], evalType: 'prediction_tournament' },
+  ...Object.entries(retained).map(([id, svgIcon]) => ({...ORIGINAL_CATALOG.find(b => b.id === id)!, svgIcon})),
+]
+export const BADGE_MAP = Object.fromEntries([...BADGE_CATALOG, ...LEGACY_BADGES].map(b => [b.id,b])) as Record<string, BadgeDefinition>
 export const BADGE_CATEGORIES = [
-  { key: 'getting_started', label: 'Getting Started' },
+  { key: 'prediction', label: 'Predictions' },
   { key: 'following', label: 'Following' },
   { key: 'engagement', label: 'Engagement' },
-  { key: 'consistency', label: 'Consistency' },
+  { key: 'getting_started', label: 'Community' },
 ] as const
 
 /**

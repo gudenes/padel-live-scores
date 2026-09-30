@@ -5,6 +5,9 @@ import { withSentryConfig } from '@sentry/nextjs'
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts')
 
 const nextConfig: NextConfig = {
+  // Preserve loopback rewrite host; normalization otherwise turns 127.0.0.1
+  // into localhost and the guarded dev server proxies the request to itself.
+  skipProxyUrlNormalize: process.env.NODE_ENV === 'development',
   allowedDevOrigins: ["192.168.1.169"],
   serverExternalPackages: ['pdf-parse'],
   // pdfjs-dist (loaded by pdf-parse) lazily loads `pdf.worker.mjs` at first

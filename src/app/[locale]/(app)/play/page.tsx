@@ -6,10 +6,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import MarketToolbar from './_components/MarketToolbar'
+import { unplayedFirst, filterMarkets, EMPTY_FACETS, type MarketFacets, type MarketFilter } from './_components/market-filters'
 import GlobalHeader from '@/components/nav/GlobalHeader'
+import PlayerWallet from './_components/PlayerWallet'
 import { PLAY_STYLES } from './_components/styles'
 import SubNav, { type SubNavKey } from './_components/SubNav'
-import DeckScreen from './_components/DeckScreen'
+import MarketFeed from './_components/MarketFeed'
+import ActivityBanner from './_components/ActivityBanner'
 import TradeSheet from './_components/TradeSheet'
 import MarketDetailSheet from './_components/MarketDetailSheet'
 import ConfirmScreen, { type ConfirmedTrade } from './_components/ConfirmScreen'
@@ -50,6 +54,7 @@ export default function PlayPage() {
   const t = useTranslations('play')
   const locale = useLocale()
 
+  const [linkedMatch, setLinkedMatch] = useState<string | null>(null)
   const [screen, setScreen] = useState<Screen>('deck')
   const [deckIndex, setDeckIndex] = useState(0)
   const [pending, setPending] = useState<{ market: PlayMarket; side: Side; stake: number } | null>(null)
@@ -63,14 +68,25 @@ export default function PlayPage() {
   const [balanceAfterTrade, setBalanceAfterTrade] = useState<number | null>(null)
   const [leaderPeriod, setLeaderPeriod] = useState<LeaderPeriod>('week')
   const [leadersOpened, setLeadersOpened] = useState(false)
-  const [activitySeen, setActivitySeen] = useState(false)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const match = params.get('match')
+    if (match && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(match)) setLinkedMatch(match)
+    const view = params.get('view')
+    if (view === 'mine' || view === 'leaders') {
+      setScreen(view)
+      if (view === 'leaders') setLeadersOpened(true)
+    }
+  }, [])
+  const [facets, setFacets] = useState<MarketFacets>(EMPTY_FACETS)
+  const [marketFilter, setMarketFilter] = useState<MarketFilter>('all')
 
   // ── Data ──────────────────────────────────────────────────────
   // `locale` is forwarded because the market question, its context line and
   // the pair names are localised server-side from market_templates.question_i18n.
-  const markets = useApiResource(`/api/play/markets?locale=${locale}`, parseMarkets)
-  const me = useApiResource(`/api/play/me?locale=${locale}`, parseMe)
-  const activity = useApiResource(`/api/play/activity?locale=${locale}`, parseActivity)
+  const markets = useApiResource(`/api/play/markets?locale=${locale}${linkedMatch ? `&matchId=${linkedMatch}` : ''}`, parseMarkets, true, 30_000)
+  const me = useApiResource(`/api/play/me?locale=${locale}`, parseMe, true, 30_000)
+  const activity = useApiResource(`/api/play/activity?locale=${locale}`, parseActivity, screen === 'activity')
   // The leaderboard is the one screen most users never open; don't spend a
   // request on it until they do.
   const leaders = useApiResource(
@@ -91,27 +107,13 @@ export default function PlayPage() {
   const balance = balanceAfterTrade ?? me.data?.balance ?? 0
   // Memoised so the `?? []` fallback doesn't produce a new array identity on
   // every render and churn the deck's layout effects.
-  const list = useMemo(() => markets.data ?? [], [markets.data])
+  const list = useMemo(() => unplayedFirst(filterMarkets(markets.data ?? [], marketFilter, new Date(), facets), me.data?.positions ?? []), [markets.data, marketFilter, facets, me.data?.positions])
 
   const advance = useCallback(() => setDeckIndex((i) => i + 1), [])
-
-  /**
-   * Browsing the deck — the vertical swipe and the Up/Down keys. Takes no side
-   * and touches no market state; it is `advance` with a direction.
-   *
-   * Clamped at zero because every read of the list is `list[deckIndex %
-   * list.length]`, and JS `%` keeps the sign of the dividend: a -1 index would
-   * ask for slot -1 and render nothing.
-   */
-  const navigate = useCallback(
-    (delta: 1 | -1) => setDeckIndex((i) => Math.max(0, i + delta)),
-    [],
-  )
 
   // ── Screen switching ──────────────────────────────────────────
   const goto = useCallback((key: SubNavKey) => {
     if (key === 'leaders') setLeadersOpened(true)
-    if (key === 'activity') setActivitySeen(true)
     // Leaving the deck dismisses the detail sheet — coming back to a sheet the
     // user navigated away from would be a surprise.
     setDetail(null)
@@ -120,10 +122,11 @@ export default function PlayPage() {
 
   // ── Trade flow ────────────────────────────────────────────────
   const onCommit = useCallback((market: PlayMarket, side: Side, stake: number) => {
+    setDeckIndex(Math.max(0, list.findIndex(item => item.id === market.id)))
     setPending({ market, side, stake })
     setTradeError(null)
     setScreen('trade')
-  }, [])
+  }, [list])
 
   const openDetail = useCallback((market: PlayMarket) => setDetail(market), [])
   const closeDetail = useCallback(() => setDetail(null), [])
@@ -173,6 +176,7 @@ export default function PlayPage() {
         }
 
         setConfirmed({
+          market: pending.market,
           side,
           question: pending.market.question,
           cost: payload.cost ?? guacas,
@@ -201,20 +205,27 @@ export default function PlayPage() {
   )
 
   const subnavKey = SUBNAV_FOR[screen]
-  const activityDot = !activitySeen && (activity.data?.length ?? 0) > 0
 
   return (
     <div className={`pl-root${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
       <style dangerouslySetInnerHTML={{ __html: PLAY_STYLES }} />
-      {screen !== 'deck' && screen !== 'trade' && <GlobalHeader />}
+      <GlobalHeader playerWallet={<PlayerWallet balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} />
 
-      {subnavKey && screen !== 'deck' && screen !== 'trade' && (
-        <SubNav active={subnavKey} balance={balance} activityDot={activityDot} onSelect={goto} />
+      {subnavKey && (
+        <SubNav myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data ?? []).filter(m => m.live).length} />
       )}
 
+      {(screen === 'mine' || screen === 'activity') && <div className="pl-time-nav pl-personal-tabs">
+        <button type="button" aria-pressed={screen === 'mine'} onClick={() => goto('mine')}>{t('subnav.myPositions')}</button>
+        <button type="button" aria-pressed={screen === 'activity'} onClick={() => goto('activity')}>{t('subnav.activity')}</button>
+      </div>}
       <div className="pl-screens">
         {/* ── Deck ────────────────────────────────────────────── */}
         <section hidden={screen !== 'deck' && screen !== 'trade'} className={`pl-screen${screen === 'deck' || screen === 'trade' ? ' pl-on' : ''}`}>
+          <MarketToolbar markets={markets.data ?? []} filter={marketFilter} facets={facets}
+            onFilter={filter => { setMarketFilter(filter); setDeckIndex(0) }}
+            onFacets={next => { setFacets(next); setDeckIndex(0) }} />
+          <ActivityBanner active={screen === 'deck'} onOpen={() => { activity.reload(); goto('activity') }} />
           {markets.status === 'loading' && (
             <div style={{ paddingTop: 16 }}>
               <SkeletonList rows={1} height={380} />
@@ -233,19 +244,19 @@ export default function PlayPage() {
             />
           )}
           {markets.status === 'ready' && list.length === 0 && (
-            <Blank icon="deck" title={t('deck.empty.title')} body={t('deck.empty.body')} />
+            <Blank icon="deck" title={t(marketFilter === 'all' && !facets.competition && !facets.category ? 'deck.empty.title' : 'filters.empty')}
+              body={t(marketFilter === 'all' && !facets.competition && !facets.category ? 'deck.empty.body' : 'filters.emptyBody')}
+              action={linkedMatch || marketFilter !== 'all' || facets.competition || facets.category ? <Press size="size-sm" onClick={() => { setLinkedMatch(null); setMarketFilter('all'); setFacets(EMPTY_FACETS); setDeckIndex(0) }}>{t('filters.showAll')}</Press> : undefined} />
           )}
           {markets.status === 'ready' && list.length > 0 && (
-            // The deck chooses a SIDE, not an amount — the trade sheet owns the
-            // stake and opens on this default, which matches its first preset.
-            <DeckScreen
+            <> {linkedMatch && <Press size="size-sm" intent="intent-ghost" onClick={() => setLinkedMatch(null)}>{t('filters.showAll')}</Press>}<MarketFeed
+              key={JSON.stringify([marketFilter, facets])}
               markets={list}
-              index={deckIndex}
-              onCommit={(market, side) => onCommit(market, side, DEFAULT_STAKE)}
-              onNavigate={navigate}
+              positions={me.data?.positions ?? []}
+              onViewPositions={() => goto('mine')}
+              onChoose={(market, side) => onCommit(market, side, DEFAULT_STAKE)}
               onDetail={openDetail}
-              active={screen === 'deck'}
-            />
+            /></>
           )}
         </section>
 
@@ -271,6 +282,7 @@ export default function PlayPage() {
         {/* ── Leaders ─────────────────────────────────────────── */}
         <section hidden={screen !== 'leaders'} className={`pl-screen${screen === 'leaders' ? ' pl-on' : ''}`}>
           <LeadersScreen
+            active={screen === 'leaders'}
             board={leaders.data}
             status={leaders.status}
             period={leaderPeriod}
@@ -298,6 +310,7 @@ export default function PlayPage() {
             // card cannot carry over.
             key={detail.id}
             market={detail}
+            onChoose={side => { setDetail(null); onCommit(detail, side, DEFAULT_STAKE) }}
             onClose={closeDetail}
           />
         )}

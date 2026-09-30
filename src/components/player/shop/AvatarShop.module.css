@@ -1,0 +1,148 @@
+.shop{color:#eee9d7;background:#191a17;min-height:100%;padding:10px 14px 110px}.header{display:flex;align-items:center;justify-content:space-between;gap:8px;height:58px}.header h1{font-size:24px;font-weight:850;letter-spacing:-.7px;margin:0}.header>a{font-size:38px;color:#a8df54;text-decoration:none}.wallet{display:flex;gap:5px;align-items:center;position:relative;padding:7px 7px 13px;background:#2c3024;clip-path:polygon(6% 0,100% 0,94% 100%,0 100%)}.wallet strong{font-size:18px}.wallet small{position:absolute;bottom:1px;left:27px;font-size:7px;letter-spacing:.8px;color:#b6c594}.shop button{font:inherit;cursor:pointer;border:1px solid #424632;background:#24271e;color:inherit;transition:transform .12s,border-color .12s}.shop button:active{transform:translateY(2px)}.shop button:focus-visible,.shop a:focus-visible,.shop select:focus-visible{outline:2px solid #9ee030;outline-offset:3px}.shop button:disabled{cursor:default;opacity:.55}.tabs{display:flex;border-bottom:1px solid #363b2b}.tabs button{flex:1;border:0;background:none;font-weight:750;color:#91987c;padding:15px 0 12px;border-bottom:3px solid transparent}.tabs button[aria-pressed=true]{color:#a8ec36;border-bottom-color:#a8ec36}.stage{height:330px;position:relative;overflow:hidden}.figure{height:100%;position:relative}.figure>svg{display:block;height:100%;width:100%;mask-image:linear-gradient(to right,transparent,#000 15%,#000 85%,transparent)}.wornSticker{position:absolute;width:95px;height:95px;object-fit:contain;bottom:32px;right:4px;transform:rotate(-7deg)}.avatars{position:absolute;left:0;top:14px;display:flex;flex-direction:column;gap:9px;z-index:2}.avatars button{padding:2px;border-radius:50%;line-height:0}.avatars button[aria-pressed=true]{border-color:#95df29}.compare{position:absolute;bottom:8px;right:0;padding:8px 10px;font-size:10px!important;z-index:2}.categories{display:flex;gap:5px;overflow-x:auto;padding:5px 0 9px;scrollbar-width:thin}.categories button{flex:0 0 auto;padding:11px 10px;font-size:10px;font-weight:750;clip-path:polygon(5% 0,100% 0,95% 100%,0 100%);box-shadow:inset 0 -3px #14170d}.categories button[aria-pressed=true]{color:#142000;background:#91dc26;border-color:#bcf15c}.items{display:flex;gap:9px;overflow-x:auto;scroll-snap-type:x proximity;padding:2px 0 9px;scrollbar-width:thin;scrollbar-color:#7b9c3d #23251f}.tile{flex:0 0 132px;min-height:172px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:9px!important;scroll-snap-align:start;overflow:hidden}.tile[aria-pressed=true]{border:2px solid #9de535;background:#2c3023}.tile>svg,.tile>img{height:90px;width:110px;object-fit:contain;display:block}.tile strong{font-size:12px;line-height:1.3}.tile>span{font-size:13px;display:flex;align-items:center;gap:5px;font-weight:700}.tile small{font-size:9px;color:#b3c78d}.purchase{padding-top:8px}.shop .primary{display:flex;align-items:center;justify-content:center;gap:7px;background:#8bdd20;border:0;box-shadow:inset 0 -4px #528b11;clip-path:polygon(2% 0,100% 0,98% 100%,0 100%);width:100%;padding:14px 10px 17px;color:#111b08;text-transform:uppercase;font-weight:900;font-size:14px}.purchase>p{text-align:center;color:#a1ab8d;font-size:11px;margin:9px 0}.progress{margin-bottom:10px;font-size:11px;display:grid;gap:5px;color:#c3d1a3}.progress progress{width:100%;height:5px;accent-color:#a2dd36}.progress small{font-size:10px;color:#8d967d}.notice{font-size:12px;text-align:center;color:#b3e778;min-height:18px;margin:5px 0}.previewControls{font-size:11px;color:#929a83;border-top:1px solid #3a402d;padding-top:12px}.previewControls p{line-height:1.5}.previewControls label{display:grid;gap:7px}.previewControls select{padding:8px;background:#24271e;color:#ecebd8;border:1px solid #485333}.previewControls button{margin:12px 0;padding:9px;width:100%}.previewControls a{display:block;color:#c5e59c}.dialog{background:#24271f;color:#eee9d7;border:1px solid #829d40;padding:24px;width:min(360px,90vw);box-sizing:border-box}.dialog::backdrop{background:#000b;backdrop-filter:blur(5px)}.dialog h2{margin:0;font-size:26px}.dialog h3{margin:9px 0}.dialog p{font-size:12px;color:#b8c4a0}.confirmPicture{height:145px;margin:12px 0}.confirmPicture>svg,.confirmPicture>img{height:100%;width:100%;object-fit:contain}.cancel{width:100%;padding:12px;margin-top:9px}.empty{min-height:140px;display:grid;place-content:center;text-align:center;gap:15px;font-size:13px;width:100%;color:#b5c19b}.empty button{padding:12px}.textButton{background:none!important;border:0!important;text-decoration:underline;display:block;margin:auto;font-size:11px!important}@media(max-height:760px){.stage{height:280px}}@media(prefers-reduced-motion:reduce){.shop button{transition:none}}
+.shop{padding-bottom:35px}.categories{scrollbar-width:none;gap:4px}.categories::-webkit-scrollbar{display:none}.categories button{flex:1 0 46px;padding:5px 3px 8px;font-size:9px}.categoryArt{display:block;height:24px;margin-bottom:3px}.categoryArt svg,.categoryArt img{display:block;width:100%;height:100%;object-fit:contain}.stage{height:315px}.tile{min-height:158px}.tile>svg,.tile>img{height:78px}.items{scrollbar-width:none}.items::-webkit-scrollbar{display:none}
+.stage{background:none}.figure>svg{mix-blend-mode:lighten}@media(max-height:760px){.stage{height:220px}.tile{min-height:140px}.tile>svg,.tile>img{height:64px}.tabs button{padding-top:9px;padding-bottom:9px}.header{height:48px}}
+.stage{background:none}.figure>svg{mix-blend-mode:normal}
+
+.noAccessory{height:78px;width:110px;display:grid!important;place-items:center;color:#a6ad97;font-size:11px!important;font-weight:500!important}.confirmPicture>.noAccessory{height:100%;width:100%}.tile>svg{filter:drop-shadow(0 5px 5px #0003)}
+.tile>svg{width:78px;height:78px}.categoryArt svg{width:24px;height:24px;margin:auto}.confirmPicture>svg{width:145px;height:145px;display:block;margin:auto}@media(max-height:760px){.tile>svg{width:64px;height:64px}}
+.wallet{padding:8px 10px}.editorActions{display:flex;gap:7px;padding:8px 0 12px;border-bottom:1px solid #363b2b}.editorActions>button{display:flex;gap:7px;align-items:center;justify-content:center;flex:1;min-height:48px;padding:7px;font-size:11px;font-weight:700;text-align:left;box-shadow:inset 0 1px #ffffff0b,inset 0 -3px #0003}.editorActions small{display:block;font-size:9px;color:#b2c395;margin-top:3px}.editorActions>button:last-child{color:#c4e497}.chooser{margin:auto;max-height:85dvh;overflow-y:auto;width:min(420px,calc(100vw - 24px));padding:18px}.chooserHeading{display:flex;align-items:center;justify-content:space-between;gap:10px}.chooserHeading h2{font-size:21px;font-weight:800}.chooserHeading button{width:36px;height:36px;font-size:24px}.characterGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:16px 0}.characterGrid button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 3px;font-size:11px}.characterGrid button[aria-pressed=true]{border-color:#9de535;background:#344126}.dialog{margin:auto}.chooser .primary{font-size:11px}.chooser::backdrop{background:#000c}
+
+.editorIdentity{min-width:0;flex:1;padding-left:8px}.editorIdentity small{display:block;color:#a7b18f;font-size:8px;letter-spacing:1.7px;margin-bottom:3px}.header .editorIdentity h1{font-size:20px;line-height:1.1;overflow-wrap:anywhere}.wallet{background:transparent;clip-path:none;padding:5px 0 5px 7px}.stage,.figure{background:#242520}.figure>svg{mix-blend-mode:lighten}.tile>svg,.categoryArt svg,.confirmPicture>svg{mix-blend-mode:lighten;filter:none}.shop .tile{background:#24271e}.shop .tile[aria-pressed=true]{background:#2c3023}.categoryArt{mix-blend-mode:lighten}.stage{margin-top:8px}.figure>svg{mask-image:linear-gradient(to right,transparent,#000 24%,#000 76%,transparent)}
+.shop{background:#242520}.categories button[aria-pressed=true]{background:#344126;color:#e6f4d4;border-color:#a2e638;box-shadow:inset 0 -3px #8bdd20}.categoryArt{mix-blend-mode:normal}.categoryArt svg{mix-blend-mode:lighten}
+
+/* Shared neutral surfaces keep raster edges from forming a second card. */
+.shop{--shop-surface:#242520;--shop-accent:#7ed321;background:var(--shop-surface)}
+.stage,.figure{background:transparent}
+.figure>svg{mix-blend-mode:lighten;mask-image:none}
+.shop .primary{background:var(--shop-accent);box-shadow:inset 0 1px #ffffff35,inset 0 -4px #477b22}
+.shop .primary:disabled{background:#30352a;color:#c6d4b5;box-shadow:none;opacity:1}
+.shop .tile{background:var(--shop-surface);border-color:#49503d}
+.shop .tile[aria-pressed=true]{background:#30352a;border-color:var(--shop-accent)}
+.shop .categories button[aria-pressed=true]{background:#30352a;border-color:var(--shop-accent);box-shadow:inset 0 -3px var(--shop-accent)}
+.shop .editName{display:block;border:0;background:transparent;padding:5px 0;min-height:28px;font-size:10px;color:#b6ce91;text-decoration:underline;text-underline-offset:3px}
+.header{height:auto;min-height:70px}.tryOn{height:100%;animation:tryOn .24s ease-out}
+.dialog[open]{animation:sheetIn .2s ease-out}.nameForm{display:grid;gap:10px}.nameForm label{font-size:12px;margin-top:12px}.nameForm input{width:100%;padding:12px;border:1px solid #718048;background:#191a17;color:#eee9d7;font:inherit}.nameForm input:focus-visible{outline:2px solid #7ed321;outline-offset:2px}
+.toastRegion{position:fixed;bottom:max(22px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(370px,calc(100vw - 36px));z-index:90;pointer-events:none}
+.toast{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 16px;background:#303b25;border:1px solid #7ed321;border-left:4px solid #7ed321;color:#eef4e5;box-shadow:0 8px 24px #0005;animation:sheetIn .22s ease-out;font-size:13px;line-height:1.4;pointer-events:auto}
+.toast>span{flex:1}.shop .toast button{background:transparent;border:0;min-width:40px;min-height:40px;font-size:24px}
+.compare{min-height:40px}.categories button{min-height:48px}
+@keyframes tryOn{from{opacity:.7;transform:translateY(4px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes sheetIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.shop *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* Blend against a stable surface even while the preview is transforming. */
+.tryOn{background:#242520;isolation:isolate}
+
+.portrait,.portrait svg{display:block;width:100%;height:100%}
+
+/* Scale decorations with the rendered character, including compact previews. */
+.wornSticker{width:26%;height:auto;max-height:30%;bottom:9%;right:2%;object-fit:contain}
+
+/* Restrained game feedback, tuned to the approved 0.75x playback. */
+.shop button{transition:transform 160ms ease,border-color 160ms ease,background 267ms ease}
+.tryOn{animation-duration:400ms}.dialog[open]{animation-duration:533ms}
+.toastRegion{bottom:calc(84px + env(safe-area-inset-bottom))}
+.toast{border-radius:14px;animation-duration:507ms;overflow:hidden}
+.toast .toastPicture{flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center}
+.toastPicture>svg,.toastPicture>img{width:42px;height:42px;object-fit:contain}
+.purchaseDialog{border-radius:24px;padding:26px;border-color:#617b3b;box-shadow:0 20px 80px #0008}
+.reward{text-align:center}.reward>small{color:#ffa050;letter-spacing:2px;font-size:10px;font-weight:800}
+.reward .confirmPicture{height:175px;margin:18px 0}.reward h2{font-size:25px}.reward p{margin:12px 0 24px}
+.purchaseDialog .purchaseError{color:#ffb698;border-left:2px solid #ff923e;padding-left:10px}
+.spinner{width:18px;height:18px;border:2px solid #314b0e;border-top-color:transparent;border-radius:50%;animation:processingSpin 867ms linear infinite}
+.equipHalo{position:absolute;inset:18% 15%;border-radius:50%;background:radial-gradient(ellipse,#a0dc3026,transparent 68%);z-index:1;pointer-events:none;animation:equipHalo 933ms ease-out both}
+@keyframes processingSpin{to{transform:rotate(360deg)}}
+@keyframes equipHalo{0%{opacity:0;transform:scale(.7)}40%{opacity:1}100%{opacity:0;transform:scale(1.2)}}
+@media(prefers-reduced-motion:reduce){.shop button,.tryOn,.dialog[open],.toast,.spinner,.equipHalo{animation:none!important;transition:none!important}.equipHalo{display:none}}
+
+.sessionLink{color:#b8e57e;font-size:13px;text-underline-offset:3px}
+
+/* Keep the checkout frame stable while the success sequence plays at 0.75x. */
+.purchaseDialog{height:470px;max-height:calc(100dvh - 40px);overflow-y:auto;border-color:#465535;background:#22261d}
+.purchaseDialog[open]{animation:checkoutEnter 320ms ease-out}
+.purchaseDialog .confirmPicture{height:145px;width:180px;max-width:100%;margin:18px auto;display:grid;place-items:center}
+.purchaseDialog .confirmPicture>img,.purchaseDialog .confirmPicture>svg{width:160px;height:140px;max-width:100%;object-fit:contain}
+.reward{min-height:100%;display:flex;flex-direction:column;justify-content:center;align-items:stretch;animation:rewardReveal 533ms ease-out both}
+.reward>small{display:flex;justify-content:center;align-items:center;gap:8px;letter-spacing:1.8px}
+.rewardCheck{width:28px;height:28px;flex:none;stroke:#b1e877;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.rewardCheck circle{stroke:#75974a;stroke-dasharray:1;animation:rewardDraw 667ms ease-out both}
+.rewardCheck path{stroke-dasharray:1;animation:rewardDraw 400ms 267ms ease-out both}
+.reward .rewardPicture{height:145px;margin:20px auto 14px;background:radial-gradient(ellipse,#52603522,transparent 70%)}
+.reward h2{font-size:23px;font-weight:750;margin:0;line-height:1.25}
+.reward p{max-width:240px;align-self:center;line-height:1.6;margin:10px 0 24px}
+@keyframes checkoutEnter{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
+@keyframes rewardReveal{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.purchaseDialog[open],.reward{animation:none!important}}
+
+/* The item lifts into place once, with a soft glow behind it. No flying particles. */
+.reward .rewardPicture{position:relative;isolation:isolate;background:none}
+.rewardPicture::before{content:'';position:absolute;inset:-12px;border-radius:50%;background:radial-gradient(ellipse,#a3e63535,transparent 68%);z-index:-1;pointer-events:none;animation:rewardGlow 1067ms ease-out both}
+.rewardPicture>svg,.rewardPicture>img{animation:rewardItem 800ms cubic-bezier(.16,1,.3,1) both}
+@keyframes rewardDraw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes rewardItem{from{opacity:0;transform:translateY(12px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes rewardGlow{0%{opacity:0;transform:scale(.65)}45%{opacity:1}100%{opacity:.45;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.rewardCheck circle,.rewardCheck path,.rewardPicture>svg,.rewardPicture>img,.rewardPicture::before{animation:none!important}.rewardPicture::before{opacity:.35}}
+
+/* Keep browsing and the unlock requirement together inside the device screen. */
+.shop{box-sizing:border-box;height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding:6px 14px max(10px,env(safe-area-inset-bottom))}
+.shop>.header{flex:none;min-height:60px}
+.shop>.editorActions{flex:none;padding:5px 0 8px}
+.shop>.stage{flex:1 1 0;height:auto;min-height:0;margin-top:4px}
+.shop>.categories{flex:none;padding:4px 0 6px}
+.shop>.items{flex:none;padding-bottom:5px}
+.shop .tile{min-height:132px;padding:7px!important;gap:3px}
+.shop .tile>svg,.shop .tile>img{width:64px;height:64px}
+.shop>.purchase{flex:none;min-height:132px;padding-top:5px;display:flex;flex-direction:column;justify-content:flex-end}
+.purchase .progress{gap:3px;margin-bottom:6px}
+.purchase .primary{min-height:46px;padding:10px 8px 13px}
+.purchase>p{margin:5px 0;font-size:10px}
+
+/* Preserve access when enlarged text or a landscape viewport leaves too little room. */
+@media(max-height:580px){.shop>.header{min-height:44px;height:44px}.shop .tile{min-height:98px}.shop .tile>svg,.shop .tile>img{width:40px;height:40px}.shop>.purchase{min-height:108px}.shop .categories button{min-height:38px}}
+
+/* Artwork shares the app surface; selection is conveyed by its green outline. */
+.shop .tile,.shop .tile[aria-pressed=true],.categoryArt{background:var(--shop-surface)}
+.shop .categories button,.shop .categories button[aria-pressed=true]{background:transparent}
+.tile,.categoryArt,.toastPicture,.confirmPicture{isolation:isolate}
+.tile>svg,.tile>img,.categoryArt>svg,.categoryArt>img,
+.confirmPicture>svg,.confirmPicture>img,.toastPicture>svg,.toastPicture>img{mix-blend-mode:lighten}
+.confirmPicture,.reward .rewardPicture{background:#22261d}
+.toastPicture{background:#303b25}
+
+/* Category tabs use a calm selected surface instead of clipped, uneven borders. */
+.shop .categories{gap:6px;align-items:stretch;padding:5px 1px 8px}
+.shop .categories button{position:relative;clip-path:none;border:1px solid transparent;border-radius:9px;box-shadow:none;background:transparent;padding:6px 3px 9px;color:#b6bca8;transition:background 200ms ease,color 200ms ease,border-color 200ms ease}
+.shop .categories button[aria-pressed=true]{background:#2c3722;border-color:#566c39;color:#d9f4b2;box-shadow:none}
+.shop .categories button::after{content:'';position:absolute;bottom:0;left:25%;right:25%;height:3px;border-radius:3px 3px 0 0;background:transparent}
+.shop .categories button[aria-pressed=true]::after{background:var(--shop-accent)}
+.categories .categoryArt{background:transparent;isolation:auto}
+@media(prefers-reduced-motion:reduce){.shop .categories button{transition:none}}
+/* Leave a small action row below the figure, so controls never cover its face. */
+.shop>.stage .tryOn{height:calc(100% - 42px)}
+@media(max-height:620px){
+ .shop>.header{height:44px;min-height:44px}
+ .shop>.editorActions{padding:3px 0 5px;height:46px}
+ .editorActions>button{min-height:36px;padding:4px;font-size:10px;line-height:1.2}
+ .editorActions small{display:none}
+ .shop>.categories{padding:2px 0 4px}
+ .shop .categories button{min-height:38px;padding:3px;font-size:9px;line-height:11px}
+ .categoryArt{height:18px;margin-bottom:2px}
+ .categoryArt svg{width:18px;height:18px}
+ .shop .tile{min-height:100px;flex-basis:110px;padding:5px!important;gap:2px;font-size:11px;line-height:1.2}
+ .shop .tile>svg,.shop .tile>img,.shop .noAccessory{height:36px;width:48px}
+ .shop .tile strong{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .shop .tile small{font-size:9px;line-height:11px}
+ .shop>.purchase{min-height:100px;padding-top:3px}
+ .purchase .primary{min-height:38px;padding:7px;font-size:12px}
+ .purchase .progress{font-size:10px;line-height:1.2;gap:2px;margin-bottom:4px}
+ .purchase .progress small{font-size:9px;line-height:1.2}
+ .purchase>p{font-size:9px;line-height:1.2;margin:3px 0}
+}
+@media(max-height:480px) and (min-width:520px){
+ .shop{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);grid-template-rows:44px 44px minmax(90px,1fr) 104px;gap:3px 10px}
+ .shop>.header{grid-column:1 / -1;grid-row:1}
+ .shop>.editorActions{grid-column:1;grid-row:2}
+ .shop>.stage{grid-column:1;grid-row:3 / 5;margin:0}
+ .shop>.categories{grid-column:2;grid-row:2}
+ .shop>.items{grid-column:2;grid-row:3;min-height:0}
+ .shop>.purchase{grid-column:2;grid-row:4;min-height:0}
+}

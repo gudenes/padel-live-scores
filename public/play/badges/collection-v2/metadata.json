@@ -1,0 +1,47 @@
+{
+  "ambassador.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": true
+  },
+  "first-pick.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": true
+  },
+  "founding-member.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": false
+  },
+  "king-of-predict.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": true
+  },
+  "match-critic.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": true
+  },
+  "match-tracker.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": true
+  },
+  "on-fire.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": true
+  },
+  "scout.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": false
+  },
+  "tournament-brain.png": {
+    "width": 1254,
+    "height": 1254,
+    "hasAlpha": true
+  }
+}

@@ -22,6 +22,8 @@
 //    (lmsr_b, seed_prob, q_yes, q_no, shares, price, pred_pair1_prob) arrives
 //    as `string | number`. Coerce once, at the boundary, via num().
 
+import type { EditorialView } from '../../../../shared/play-editorial-view'
+import { editorialKind } from './_editorial'
 import { priceYes } from '@/lib/lmsr'
 import { roundLabel } from '@/lib/match-quality'
 import { lastName } from '@/lib/player-name'
@@ -90,6 +92,7 @@ export interface PlayerJoin {
 }
 
 export interface TournamentJoin {
+  cover_image_url?: string | null
   name: string | null
   level: string | null
 }
@@ -127,6 +130,7 @@ export interface TemplateJoin {
 }
 
 export interface MarketRow {
+  resolver_key?: string
   id: string
   public_id: string
   season_id: string
@@ -135,9 +139,18 @@ export interface MarketRow {
   tournament_id: string | null
   category: string | null
   tokens: Record<string, unknown> | null
+  question_snapshot?: Record<string,string> | null
+  rules_snapshot?: Record<string,string> | null
   resolver_params: Record<string, unknown> | null
   lmsr_b: string | number
   seed_prob: string | number
+  /**
+   * Frozen `market_templates.seed_source`. Decides whether `seed_prob` is a
+   * model opinion or a measured historical base rate — see modelProbFor /
+   * baselineProbFor. Nullable here only because it is read from a row the
+   * generated Supabase types do not cover.
+   */
+  seed_source: string | null
   q_yes: string | number
   q_no: string | number
   volume_guacas: string | number
@@ -180,7 +193,7 @@ const PLAYER_FIELDS =
 
 export const MARKET_SELECT = `
   id, public_id, season_id, template_id, match_id, tournament_id, category,
-  tokens, resolver_params, lmsr_b, seed_prob, q_yes, q_no,
+  tokens, question_snapshot, rules_snapshot, resolver_key, resolver_params, lmsr_b, seed_prob, seed_source, q_yes, q_no,
   volume_guacas, position_count, status, locks_at, outcome,
   template:market_templates!markets_template_id_fkey(question_i18n, horizon),
   match:matches!markets_match_id_fkey(
@@ -193,7 +206,7 @@ export const MARKET_SELECT = `
     pair2_player2:players!matches_pair2_player2_id_fkey(${PLAYER_FIELDS}),
     tournament:tournaments(name, level)
   ),
-  tournament:tournaments!markets_tournament_id_fkey(name, level)
+  tournament:tournaments!markets_tournament_id_fkey(name, level, cover_image_url)
 `.replace(/\s+/g, ' ').trim()
 
 /** The four player slots of a match, in `(pair, index)` order. */
@@ -324,6 +337,7 @@ export interface MarketPlayers {
  * why these are never fetched per market.
  */
 export interface MarketEnrichment {
+  editorial?: Map<string, EditorialView>
   /** player UUID → recent form. */
   form?: Map<string, PlayerForm>
   /** market UUID → head-to-head. */
@@ -406,16 +420,37 @@ function renderQuestion(
 // ── Market presentation ────────────────────────────────────────────────
 
 export interface MarketView {
+  editorial?: EditorialView | null
   id: string
   publicId: string
   question: string
+  rules?: string | null
   horizon: string
   context: string
   subtitle: string
   priceYes: number
   modelProb: number | null
+  /**
+   * The HISTORICAL base rate a `seed_source='fixed'` market opened at, 0..1.
+   * Null on every other market.
+   *
+   * Set-shape markets ("will any set finish 6-0") have no model prediction at
+   * all — the Elo model answers a different question. This field exists so the
+   * UI can still show the fan a number to anchor against, LABELLED as a
+   * historical average. It must never be rendered in the model's visual
+   * language: the whole point is that it is a twelve-month average, not a
+   * prediction about this match.
+   *
+   * `modelProb` and `baselineProb` are mutually exclusive by construction.
+   */
+  baselineProb: number | null
+  tournamentImage: string | null
+  matchId: string | null
   live: boolean
   stateLabel: string | null
+  competition: string | null
+  category: string | null
+  startsAt: string | null
   locksAt: string
   volumeGuacas: number
   monogram: { a: string; b: string }
@@ -483,7 +518,7 @@ export function describeMarket(
   // `markets` guarantees exactly one of the two is set.
   const tournament = row.match?.tournament ?? row.tournament ?? null
 
-  const i18n = row.template?.question_i18n ?? {}
+  const i18n = row.question_snapshot ?? row.template?.question_i18n ?? {}
   const rawQuestion = i18n[locale] ?? i18n.en ?? ''
   const question = renderQuestion(rawQuestion, row.tokens, {
     pair1: names.pair1,
@@ -503,7 +538,7 @@ export function describeMarket(
     .filter(Boolean)
     .join(' · ')
 
-  const subtitle = row.match ? `${names.pair1} vs ${names.pair2}` : (tournament?.name ?? '')
+  const subtitle = row.match ? `${names.pair1} vs ${names.pair2}` : String(row.tokens?.subject ?? tournament?.name ?? '')
 
   const live = LIVE_STATUSES.has(row.match?.status ?? '')
 
@@ -518,15 +553,23 @@ export function describeMarket(
 
   return {
     id: row.id,
+    matchId: row.match_id,
+    tournamentImage: row.match_id ? null : row.tournament?.cover_image_url ?? null,
     publicId: row.public_id,
+    editorial: enrich?.editorial?.get(row.id) ?? null,
     question,
+    rules: row.rules_snapshot?.[locale] ?? row.rules_snapshot?.en ?? null,
     horizon: row.template?.horizon ?? 'pre-match',
     context,
     subtitle,
     priceYes: pYes,
     modelProb: modelProbFor(row),
+    baselineProb: baselineProbFor(row),
     live,
     stateLabel,
+    competition: tournament?.name ?? null,
+    category,
+    startsAt: row.match?.scheduled_at ?? null,
     locksAt: row.locks_at,
     volumeGuacas: num(row.volume_guacas),
     monogram: names.monogram,
@@ -535,6 +578,13 @@ export function describeMarket(
     subjectPair: subjectPairOf(row),
   }
 }
+
+/**
+ * `market_templates.seed_source` for a market that carries its own constant
+ * opening price instead of reading one off the match. Mirrors
+ * FIXED_SEED_SOURCE in padelgod/src/lib/market-gates.ts.
+ */
+const FIXED_SEED_SOURCE = 'fixed'
 
 /**
  * The model's current probability for the side the question asks about.
@@ -550,8 +600,16 @@ export function describeMarket(
  *
  * Falls back to the frozen `seed_prob` when the match carries no live
  * prediction, and for tournament-horizon markets which have no match at all.
+ *
+ * NULL for a `seed_source='fixed'` market, and that early return is
+ * load-bearing: those markets sit on ordinary matches that DO carry a
+ * pred_pair1_prob, so without it a bagel market would report the favourite's
+ * chance of winning under a "model" label — a real number answering a question
+ * nobody asked. See baselineProbFor for what those markets show instead.
  */
 function modelProbFor(row: MarketRow): number | null {
+  if (editorialKind(row.resolver_key) || row.seed_source === FIXED_SEED_SOURCE) return null
+
   const seed = num(row.seed_prob, NaN)
   const raw = row.match?.pred_pair1_prob
   if (raw === null || raw === undefined) {
@@ -560,6 +618,19 @@ function modelProbFor(row: MarketRow): number | null {
   const p = num(raw, NaN)
   if (!Number.isFinite(p)) return Number.isFinite(seed) ? seed : null
   return subjectPairOf(row) === 2 ? 1 - p : p
+}
+
+/**
+ * The historical base rate a fixed-seed market opened at, or null.
+ *
+ * Read from the market's OWN frozen `seed_prob` rather than from the template's
+ * current params: a template's measured rate can be re-measured and edited, and
+ * a market must keep showing the number it actually opened at.
+ */
+function baselineProbFor(row: MarketRow): number | null {
+  if (editorialKind(row.resolver_key) || row.seed_source !== FIXED_SEED_SOURCE) return null
+  const seed = num(row.seed_prob, NaN)
+  return Number.isFinite(seed) ? seed : null
 }
 
 // ── Season + balance bootstrap ─────────────────────────────────────────
@@ -687,11 +758,9 @@ export async function ensureBalance(
 /**
  * Market statuses whose positions are still live exposure.
  *
- * `settled` and `void` are excluded everywhere a position is valued: paying
- * those out and zeroing the shares is the settlement worker's job, and that
- * worker does not exist yet. Marking a settled position to the last traded
- * price here would show a net worth that the payout then contradicts, and
- * would double-count the moment clearing does land.
+ * Settled/void positions retain their shares for correction history, but
+ * their payouts are already cash. A held market with settled_at also has
+ * a prior payout and must not be valued again (result withdrawn for review).
  */
 export const UNSETTLED_MARKET_STATUSES = ['open', 'locked', 'proposed', 'held'] as const
 
