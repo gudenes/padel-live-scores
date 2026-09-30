@@ -1,6 +1,7 @@
 // Fixed campaign dates: never restart the countdown when a visitor reloads.
 export const BETA_STARTS_AT = '2026-10-10T00:00:00+02:00'
-export const BETA_SIGNUPS_CLOSE_AT = '2026-10-02T09:43:57Z'
+// Extended from 2026-10-02 to the end of October 7 (Europe/Madrid, CEST = UTC+2).
+export const BETA_SIGNUPS_CLOSE_AT = '2026-10-07T23:59:59+02:00'
 
 export function betaSignupsClosed(now = Date.now()) {
   return now >= Date.parse(BETA_SIGNUPS_CLOSE_AT)

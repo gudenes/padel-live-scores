@@ -75,7 +75,7 @@ describe('beta invitation', () => {
     expect(state.seen).toBe(true)
   })
   it('does not appear after the signup deadline', () => {
-    vi.setSystemTime(new Date('2026-10-03T00:00:00Z'))
+    vi.setSystemTime(new Date('2026-10-08T00:00:00Z'))
     render(<BetaInvitation />)
     tick()
     expect(state.seen).toBe(false)
