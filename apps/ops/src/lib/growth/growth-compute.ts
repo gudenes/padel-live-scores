@@ -94,3 +94,9 @@ export function weightedRetention(matrix: RetentionCohort[], n: number): number 
   }
   return total > 0 ? Math.round((retained / total) * 100) : null
 }
+
+/** Whole days (rounded up) until `closeIso`, or 0 once it has passed. */
+export function daysUntil(closeIso: string, nowMs: number): number {
+  const ms = Date.parse(closeIso) - nowMs
+  return ms <= 0 ? 0 : Math.ceil(ms / 86_400_000)
+}

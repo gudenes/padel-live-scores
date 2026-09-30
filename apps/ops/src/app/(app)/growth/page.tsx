@@ -15,10 +15,13 @@ import {
   getDailySignups, getTotalUsers, getSignupLocales, getPushStats,
   getLatestPosthogSnapshot, getDauSeries,
 } from '@/lib/growth/growth-queries'
-import { fillDaily, splitWindows, pct, buildRetentionMatrix, weightedRetention } from '@/lib/growth/growth-compute'
+import { fillDaily, daysUntil, splitWindows, pct, buildRetentionMatrix, weightedRetention } from '@/lib/growth/growth-compute'
 import { SignupsChart } from './_components/SignupsChart'
 import { PosthogPanels } from './_components/PosthogPanels'
 import { NotificationsPanel } from './_components/NotificationsPanel'
+import { BetaSignupsPanel } from './_components/BetaSignupsPanel'
+import { getBetaSignupStats } from '@/lib/growth/beta-signups'
+import { BETA_SIGNUPS_CLOSE_AT } from '../../../../../../src/lib/beta-schedule'
 import { fetchNotificationCatalog, fetchRecentSends } from '@/lib/growth/notifications-source'
 import { summarizeCatalog, sortCatalog, recentRealSends } from '@/lib/growth/notifications-compute'
 
@@ -28,6 +31,7 @@ export const metadata = { title: 'Growth & Adoption · PadelNachos Admin' }
 const WINDOW_DAYS = 30
 
 const isoDaysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10)
+const betaDaysLeft = () => daysUntil(BETA_SIGNUPS_CLOSE_AT, Date.now())
 const isoHoursAgo = (n: number) => new Date(Date.now() - n * 3_600_000).toISOString()
 const inRange = (r: SnapshotRow, from: string, to: string) => r.day >= from && r.day <= to
 
@@ -48,7 +52,7 @@ function KpiWithDelta({ label, value, delta, tone }: { label: string; value: str
 }
 
 export default async function Page() {
-  const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows, catalogRaw, allSends] = await Promise.all([
+  const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows, catalogRaw, allSends, beta] = await Promise.all([
     getDailySignups(WINDOW_DAYS * 2),
     getTotalUsers(),
     getSignupLocales(WINDOW_DAYS),
@@ -59,6 +63,7 @@ export default async function Page() {
     getDauSeries(WINDOW_DAYS),
     fetchNotificationCatalog(),
     fetchRecentSends(),
+    getBetaSignupStats(WINDOW_DAYS),
   ])
   const topQueries = latestIngest ? await getTopQueries(latestIngest.day, 8) : []
 
@@ -96,6 +101,15 @@ export default async function Page() {
         <KpiWithDelta label="New push opt-ins · 30d" tone="warn" value={push.newCurrent.toLocaleString()} delta={pushDelta} />
         <KpiWithDelta label="Organic clicks · 7d" tone="neutral" value={cur.clicks.toLocaleString()} delta={clicksDelta} />
       </KpiStrip>
+
+      <div style={{ marginTop: 14 }}>
+        <BetaSignupsPanel
+          stats={beta}
+          closesAt={BETA_SIGNUPS_CLOSE_AT}
+          daysLeft={betaDaysLeft()}
+          days={fillDaily(beta?.byDay ?? [], isoDaysAgo(0), WINDOW_DAYS)}
+        />
+      </div>
 
       {notif && (
         <KpiStrip cols={4}>
