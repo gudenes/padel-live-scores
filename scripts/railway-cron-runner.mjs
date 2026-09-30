@@ -9,6 +9,12 @@ import { CronJob } from 'cron'
 const BASE = (process.env.CRON_BASE_URL || process.env.AUTH_URL || '').replace(/\/$/, '')
 const SECRET = process.env.CRON_SECRET
 
+// Second origin: the admin app (apps/ops). Jobs marked `target: 'admin'` call it
+// instead of the web app. Point ADMIN_BASE_URL at the *.up.railway.app host, not
+// admin.padelnachos.com, so cron traffic skips Cloudflare (100s origin cap).
+const ADMIN_BASE = (process.env.ADMIN_BASE_URL || '').replace(/\/$/, '')
+const baseFor = job => (job.target === 'admin' ? ADMIN_BASE : BASE)
+
 if (!BASE) {
   console.error('[cron-runner] CRON_BASE_URL or AUTH_URL required')
   process.exit(1)
@@ -36,10 +42,17 @@ const JOBS = [
   { path: '/api/cron/resolve-predictions', cron: '*/5 * * * *' },
   { path: '/api/cron/recompute-earnings', cron: '0 6 * * 1' },
   { path: '/api/cron/reconcile-match-category', cron: '25 * * * *' },
+  // Admin app (apps/ops) — was apps/ops/vercel.json, same schedules. A job whose
+  // base is unset is skipped with one log line instead of hitting a bad URL.
+  { path: '/api/internal/seo-snapshot', cron: '0 9 * * *', target: 'admin' },
+  { path: '/api/internal/sitemap-crawl', cron: '15 9 * * *', target: 'admin' },
+  { path: '/api/internal/seo-digest', cron: '30 9 * * *', target: 'admin' },
+  // PostHog growth metrics for the last complete UTC day; needs POSTHOG_* on the admin.
+  { path: '/api/internal/growth-snapshot', cron: '45 9 * * *', target: 'admin' },
 ]
 
-async function fire(path) {
-  const url = `${BASE}${path}`
+async function fire(path, base) {
+  const url = `${base}${path}`
   const started = Date.now()
   try {
     const res = await fetch(url, {
@@ -53,9 +66,14 @@ async function fire(path) {
 }
 
 for (const job of JOBS) {
+  const base = baseFor(job)
+  if (!base) {
+    console.log(JSON.stringify({ msg: 'skipped', path: job.path, reason: 'ADMIN_BASE_URL unset' }))
+    continue
+  }
   CronJob.from({
     cronTime: job.cron,
-    onTick: () => fire(job.path),
+    onTick: () => fire(job.path, base),
     start: true,
     timeZone: 'UTC',
   })
