@@ -10,13 +10,13 @@ import { getRecentSnapshots, getLatestIngestDay, getTopQueries } from '@/lib/seo
 import { sumWindow, windowDelta } from '@/lib/seo/seo-compute'
 import type { SnapshotRow, WindowDelta } from '@/lib/seo/seo-compute'
 import { TopQueriesTable } from '../system/seo/_components/TopQueriesTable'
-import { Sparkline } from '../system/seo/_components/Sparkline'
 import {
   getDailySignups, getTotalUsers, getSignupLocales, getPushStats,
   getLatestPosthogSnapshot, getDauSeries,
 } from '@/lib/growth/growth-queries'
 import { fillDaily, daysUntil, splitWindows, pct, buildRetentionMatrix, weightedRetention } from '@/lib/growth/growth-compute'
 import { SignupsChart } from './_components/SignupsChart'
+import { ClicksChart } from './_components/ClicksChart'
 import { PosthogPanels } from './_components/PosthogPanels'
 import { NotificationsPanel } from './_components/NotificationsPanel'
 import { BetaSignupsPanel } from './_components/BetaSignupsPanel'
@@ -78,7 +78,7 @@ export default async function Page() {
   const cur = sumWindow(totalRows.filter(r => inRange(r, isoDaysAgo(9), isoDaysAgo(3))))
   const prior = sumWindow(totalRows.filter(r => inRange(r, isoDaysAgo(16), isoDaysAgo(10))))
   const clicksDelta = windowDelta(cur.clicks, prior.clicks)
-  const clickSpark = totalRows.slice(-90).map(r => r.clicks)
+  const clickSeries = totalRows.slice(-90).map(r => ({ day: r.day, clicks: r.clicks }))
 
   // Notifications — same sources as the Notifications + Broadcast tabs
   const notif = catalogRaw ? summarizeCatalog(catalogRaw) : null
@@ -171,7 +171,7 @@ export default async function Page() {
         </Panel>
 
         <Panel title="Organic search clicks · 90 days">
-          <Sparkline data={clickSpark} width={420} height={56} />
+          <ClicksChart data={clickSeries} />
           <div style={{ fontSize: 12, color: 'var(--text-4)', marginTop: 6 }}>Source: Search Console</div>
         </Panel>
       </div>
