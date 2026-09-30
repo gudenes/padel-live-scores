@@ -44,8 +44,9 @@ If the consent wording changes, also update the API's `consent_version`.
 
 ## Campaign dates
 
-The beta starts October 10, 2026 (Europe/Madrid). Signups close October 2,
-2026 at 09:43:57 UTC, seven days after the campaign countdown was requested.
+The beta starts October 10, 2026 (Europe/Madrid). Signups close October 7,
+2026 at 23:59:59 Europe/Madrid (21:59:59 UTC); the campaign was extended from
+October 2.
 Both the countdown and API use `src/lib/beta-schedule.ts`. At the deadline,
 the form switches to a closed state and the API refuses new submissions.
 The market image is the supplied design reference, labelled as sample data.

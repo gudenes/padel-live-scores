@@ -33,6 +33,7 @@ describe('beta signup', () => {
     expect((await send(valid)).status).toBe(200)
   })
   it('counts down seven days and clamps expired values to zero', () => {
+    vi.setSystemTime(Date.parse(BETA_SIGNUPS_CLOSE_AT) - 7 * 86_400_000)
     expect(betaTimeRemaining(Date.now())).toEqual({ days: 7, hours: 0, minutes: 0, seconds: 0 })
     expect(betaTimeRemaining(Date.parse(BETA_SIGNUPS_CLOSE_AT) + 1000)).toEqual({ days: 0, hours: 0, minutes: 0, seconds: 0 })
   })
