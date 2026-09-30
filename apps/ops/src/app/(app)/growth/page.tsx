@@ -18,6 +18,9 @@ import {
 import { fillDaily, splitWindows, pct, buildRetentionMatrix, weightedRetention } from '@/lib/growth/growth-compute'
 import { SignupsChart } from './_components/SignupsChart'
 import { PosthogPanels } from './_components/PosthogPanels'
+import { NotificationsPanel } from './_components/NotificationsPanel'
+import { fetchNotificationCatalog, fetchRecentSends } from '@/lib/growth/notifications-source'
+import { summarizeCatalog, sortCatalog, recentRealSends } from '@/lib/growth/notifications-compute'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Growth & Adoption · PadelNachos Admin' }
@@ -25,6 +28,7 @@ export const metadata = { title: 'Growth & Adoption · PadelNachos Admin' }
 const WINDOW_DAYS = 30
 
 const isoDaysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10)
+const isoHoursAgo = (n: number) => new Date(Date.now() - n * 3_600_000).toISOString()
 const inRange = (r: SnapshotRow, from: string, to: string) => r.day >= from && r.day <= to
 
 function DeltaText({ d, unit = '%' }: { d: WindowDelta; unit?: string }) {
@@ -44,7 +48,7 @@ function KpiWithDelta({ label, value, delta, tone }: { label: string; value: str
 }
 
 export default async function Page() {
-  const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows] = await Promise.all([
+  const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows, catalogRaw, allSends] = await Promise.all([
     getDailySignups(WINDOW_DAYS * 2),
     getTotalUsers(),
     getSignupLocales(WINDOW_DAYS),
@@ -53,6 +57,8 @@ export default async function Page() {
     getLatestIngestDay(),
     getLatestPosthogSnapshot(),
     getDauSeries(WINDOW_DAYS),
+    fetchNotificationCatalog(),
+    fetchRecentSends(),
   ])
   const topQueries = latestIngest ? await getTopQueries(latestIngest.day, 8) : []
 
@@ -68,6 +74,11 @@ export default async function Page() {
   const prior = sumWindow(totalRows.filter(r => inRange(r, isoDaysAgo(16), isoDaysAgo(10))))
   const clicksDelta = windowDelta(cur.clicks, prior.clicks)
   const clickSpark = totalRows.slice(-90).map(r => r.clicks)
+
+  // Notifications — same sources as the Notifications + Broadcast tabs
+  const notif = catalogRaw ? summarizeCatalog(catalogRaw) : null
+  const catalog = catalogRaw ? sortCatalog(catalogRaw) : null
+  const sends = recentRealSends(allSends, isoHoursAgo(36), 25)
 
   const localeTotal = locales.reduce((a, l) => a + l.n, 0)
 
@@ -85,6 +96,15 @@ export default async function Page() {
         <KpiWithDelta label="New push opt-ins · 30d" tone="warn" value={push.newCurrent.toLocaleString()} delta={pushDelta} />
         <KpiWithDelta label="Organic clicks · 7d" tone="neutral" value={cur.clicks.toLocaleString()} delta={clicksDelta} />
       </KpiStrip>
+
+      {notif && (
+        <KpiStrip cols={4}>
+          <Kpi label="Pushes sent · 7d" tone="lime" value={notif.sends7d.toLocaleString()} />
+          <Kpi label="Recipients · 7d" tone="lime" value={notif.recipients7d.toLocaleString()} />
+          <Kpi label="Failed · 7d" tone={notif.failed7d > 0 ? 'warn' : 'neutral'} value={notif.failed7d.toLocaleString()} />
+          <Kpi label="Live notification types" tone="neutral" value={notif.liveCategories.toLocaleString()} />
+        </KpiStrip>
+      )}
 
       {ph && (() => {
         const v = (m: string) => ph.rows.find(r => r.metric === m)?.value ?? 0
@@ -158,6 +178,8 @@ export default async function Page() {
           </Panel>
         </div>
       )}
+
+      <NotificationsPanel catalog={catalog} sends={sends} />
 
       <div className="growth-grid" style={{ marginTop: 14 }}>
         <Panel title="App installs">
