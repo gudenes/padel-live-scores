@@ -67,3 +67,52 @@ export async function getPushStats(days: number): Promise<PushStats> {
   const r = rows[0]
   return { usersWithPush: r?.total ?? 0, newCurrent: r?.cur ?? 0, newPrior: r?.prior ?? 0 }
 }
+
+export interface SnapshotMetricRow { day: string; metric: string; dimension: string; value: number }
+
+/** All rows for the most recent snapshot day of a metric, plus that day. */
+export async function getLatestPosthogSnapshot(): Promise<{
+  day: string
+  fetchedAt: string
+  rows: SnapshotMetricRow[]
+} | null> {
+  const pool = pgPool()
+  const latest = await pool.query<{ day: string; fetched_at: string }>(
+    `select day::text as day, max(fetched_at)::text as fetched_at
+       from public.growth_snapshots where metric = 'mau'
+      group by day order by day desc limit 1`,
+  )
+  const head = latest.rows[0]
+  if (!head) return null
+  const { rows } = await pool.query<SnapshotMetricRow>(
+    `select day::text as day, metric, dimension, value::float as value
+       from public.growth_snapshots
+      where day = $1::date and metric <> 'dau'`,
+    [head.day],
+  )
+  return { day: head.day, fetchedAt: head.fetched_at, rows }
+}
+
+/** Daily active persons for the last `days` days (oldest → newest, sparse). */
+export async function getDauSeries(days: number): Promise<DayCount[]> {
+  const { rows } = await pgPool().query<DayCount>(
+    `select day::text as day, value::int as n
+       from public.growth_snapshots
+      where metric = 'dau' and day > current_date - $1::int
+      order by day`,
+    [days],
+  )
+  return rows
+}
+
+/** wau/mau history (one point per snapshot day) for the stickiness trend. */
+export async function getActiveHistory(days: number): Promise<Array<{ day: string; metric: string; value: number }>> {
+  const { rows } = await pgPool().query<{ day: string; metric: string; value: number }>(
+    `select day::text as day, metric, value::float as value
+       from public.growth_snapshots
+      where metric in ('wau','mau') and day > current_date - $1::int
+      order by day`,
+    [days],
+  )
+  return rows
+}

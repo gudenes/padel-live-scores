@@ -13,9 +13,11 @@ import { TopQueriesTable } from '../system/seo/_components/TopQueriesTable'
 import { Sparkline } from '../system/seo/_components/Sparkline'
 import {
   getDailySignups, getTotalUsers, getSignupLocales, getPushStats,
+  getLatestPosthogSnapshot, getDauSeries,
 } from '@/lib/growth/growth-queries'
-import { fillDaily, splitWindows, pct } from '@/lib/growth/growth-compute'
+import { fillDaily, splitWindows, pct, buildRetentionMatrix, weightedRetention } from '@/lib/growth/growth-compute'
 import { SignupsChart } from './_components/SignupsChart'
+import { PosthogPanels } from './_components/PosthogPanels'
 
 export const dynamic = 'force-dynamic'
 export const metadata = { title: 'Growth & Adoption · PadelNachos Admin' }
@@ -42,13 +44,15 @@ function KpiWithDelta({ label, value, delta, tone }: { label: string; value: str
 }
 
 export default async function Page() {
-  const [signupRows, totalUsers, locales, push, snapshots, latestIngest] = await Promise.all([
+  const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows] = await Promise.all([
     getDailySignups(WINDOW_DAYS * 2),
     getTotalUsers(),
     getSignupLocales(WINDOW_DAYS),
     getPushStats(WINDOW_DAYS),
     getRecentSnapshots(120),
     getLatestIngestDay(),
+    getLatestPosthogSnapshot(),
+    getDauSeries(WINDOW_DAYS),
   ])
   const topQueries = latestIngest ? await getTopQueries(latestIngest.day, 8) : []
 
@@ -81,6 +85,20 @@ export default async function Page() {
         <KpiWithDelta label="New push opt-ins · 30d" tone="warn" value={push.newCurrent.toLocaleString()} delta={pushDelta} />
         <KpiWithDelta label="Organic clicks · 7d" tone="neutral" value={cur.clicks.toLocaleString()} delta={clicksDelta} />
       </KpiStrip>
+
+      {ph && (() => {
+        const v = (m: string) => ph.rows.find(r => r.metric === m)?.value ?? 0
+        const dauLatest = dauRows.length ? dauRows[dauRows.length - 1].n : 0
+        const wk1 = weightedRetention(buildRetentionMatrix(ph.rows, ph.day), 1)
+        return (
+          <KpiStrip cols={4}>
+            <Kpi label="Monthly active" tone="lime" value={v('mau').toLocaleString()} />
+            <Kpi label="Weekly active" tone="lime" value={v('wau').toLocaleString()} />
+            <Kpi label="Stickiness (DAU/MAU)" tone="warn" value={`${pct(dauLatest, v('mau'))}%`} />
+            <Kpi label="Week-1 retention" tone="neutral" value={wk1 == null ? '—' : `${wk1}%`} />
+          </KpiStrip>
+        )
+      })()}
 
       <div className="growth-grid">
         <Panel title="Daily signups · last 30 days">
@@ -128,13 +146,20 @@ export default async function Page() {
         <TopQueriesTable queries={topQueries} />
       </div>
 
+      {ph ? (
+        <PosthogPanels day={ph.day} rows={ph.rows} dau={fillDaily(dauRows, ph.day, WINDOW_DAYS)} />
+      ) : (
+        <div style={{ marginTop: 14 }}>
+          <Panel title="Active users, funnel & retention">
+            <EmptyState
+              title="No PostHog snapshot yet"
+              hint="Set POSTHOG_PERSONAL_API_KEY + POSTHOG_PROJECT_ID, apply the growth_snapshots migration, then POST /api/internal/growth-snapshot with the CRON_SECRET bearer."
+            />
+          </Panel>
+        </div>
+      )}
+
       <div className="growth-grid" style={{ marginTop: 14 }}>
-        <Panel title="Active users, funnel & retention">
-          <EmptyState
-            title="Coming next: PostHog"
-            hint="DAU / WAU / MAU, stickiness, acquisition funnel and weekly retention cohorts. Needs a read-only PostHog API key."
-          />
-        </Panel>
         <Panel title="App installs">
           <EmptyState
             title="Not connected"
