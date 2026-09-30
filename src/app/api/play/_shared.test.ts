@@ -61,6 +61,13 @@ function mkMarket(over: Partial<MarketRow> = {}): MarketRow {
 }
 
 describe('describeMarket', () => {
+  it('localizes the context line (category + round) for every app locale', () => {
+    expect(describeMarket(mkMarket(), 'es').context).toBe('Madrid P1 · Masculino · Semifinal')
+    expect(describeMarket(mkMarket(), 'pt').context).toBe('Madrid P1 · Masculino · Semifinal')
+    expect(describeMarket(mkMarket(), 'it').context).toBe('Madrid P1 · Maschile · Semifinale')
+    expect(describeMarket(mkMarket(), 'fr').context).toBe('Madrid P1 · Hommes · Demi-finale')
+  })
+
   it('renders question, context, subtitle, monogram from joined players', () => {
     const v = describeMarket(mkMarket(), 'en')
     expect(v.question).toBe('Will Coello / Tapia win this match?')

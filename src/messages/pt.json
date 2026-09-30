@@ -2089,7 +2089,11 @@
       "sourceUnavailable": "Fonte indisponível",
       "estimateNote": "É a estimativa na abertura, não uma previsão em direto. Os preços mudam com as operações.",
       "rankingQuestion": "{names} chegará ao top {target}?",
-      "titlesQuestion": "{names} vencerão {target} títulos?"
+      "titlesQuestion": "{names} vencerão {target} títulos?",
+      "roundName": {
+        "SF": "Semifinais",
+        "F": "Final"
+      }
     },
     "matchNavigation": {
       "followLive": "Acompanhar ao vivo",
@@ -2100,6 +2104,16 @@
       "predict": "Fazer um palpite",
       "liveEmpty": "Sem jogadas ao vivo agora",
       "liveEmptyBody": "Os teus palpites aparecerão aqui quando os jogos começarem."
+    },
+    "notice": {
+      "settledTitle": "Previsão resolvida",
+      "correctedTitle": "Resultado da previsão corrigido",
+      "body": "Resultado: {outcome}. Saldo {delta} G.",
+      "outcome": {
+        "yes": "SIM",
+        "no": "NÃO",
+        "void": "Anulada — reembolsada"
+      }
     }
   },
   "playerProfile": {

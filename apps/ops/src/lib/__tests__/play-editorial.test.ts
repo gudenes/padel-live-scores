@@ -27,6 +27,17 @@ describe('editorial authoring contract',()=>{
   expect(editorialCopy(config,['A','B'],['Rotterdam']).rules.en).toContain('walkover')
   expect(editorialCopy(config,['A','B'],['Rotterdam']).question.es).toContain('semifinales')
  })
+ it('writes question and rules in every app locale, so pt/it/fr players never read English',()=>{
+  for (const family of ['round','other_champion','titles','ranking'] as const) {
+   const copy=editorialCopy({...config,family},['A','B'],['Rotterdam'])
+   for (const l of ['en','es','pt','it','fr'] as const) {
+    expect(copy.question[l],`${family} question ${l}`).toMatch(/\S/)
+    expect(copy.rules[l],`${family} rules ${l}`).toMatch(/\S/)
+   }
+  }
+  expect(editorialCopy(config,['A','B'],['Rotterdam']).question.pt).toContain('semifinais')
+  expect(editorialCopy(config,['A','B'],['Rotterdam']).question.fr).toContain('demi-finales')
+ })
 })
 describe('publication preview',()=>{
  it('binds the next match and current model instead of client supplied prices',async()=>{

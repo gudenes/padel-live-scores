@@ -34,7 +34,7 @@ export default function EditorialMarketHero({ data }: { data: EditorialView }) {
       <strong>{data.kind === 'titles' && data.target ? t('titlesTarget',{count:data.target}) : t(data.kind)}</strong>
       {data.kind === 'titles' && data.completed != null && data.target && <progress aria-label={t('titles')} value={data.completed} max={data.target} />}
       {data.kind === 'titles' && data.completed != null && data.target && <b>{data.completed} / {data.target}</b>}
-      {data.kind === 'round' && data.round && <b>{data.round}</b>}
+      {data.kind === 'round' && data.round && <b>{data.round === 'SF' || data.round === 'F' ? t(`roundName.${data.round}`) : data.round}</b>}
       {data.endsAt && <span>{t('until',{date:new Intl.DateTimeFormat(locale,{day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(data.endsAt))})}</span>}
     </div>
     {data.scope && <p className={styles.scope} title={data.scope}>{data.scope}</p>}

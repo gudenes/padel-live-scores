@@ -2089,7 +2089,11 @@
       "sourceUnavailable": "Source indisponible",
       "estimateNote": "Estimation à l’ouverture, pas une prévision en direct. Les prix évoluent avec les échanges.",
       "rankingQuestion": "{names} atteindra-t-il le top {target} ?",
-      "titlesQuestion": "{names} remporteront-ils {target} titres ?"
+      "titlesQuestion": "{names} remporteront-ils {target} titres ?",
+      "roundName": {
+        "SF": "Demi-finales",
+        "F": "Finale"
+      }
     },
     "matchNavigation": {
       "followLive": "Suivre en direct",
@@ -2100,6 +2104,16 @@
       "predict": "Faire un pronostic",
       "liveEmpty": "Aucun pronostic en direct",
       "liveEmptyBody": "Vos pronostics apparaîtront ici au début des matchs."
+    },
+    "notice": {
+      "settledTitle": "Pronostic réglé",
+      "correctedTitle": "Résultat du pronostic corrigé",
+      "body": "Résultat : {outcome}. Solde {delta} G.",
+      "outcome": {
+        "yes": "OUI",
+        "no": "NON",
+        "void": "Annulé — remboursé"
+      }
     }
   },
   "playerProfile": {

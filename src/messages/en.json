@@ -2121,7 +2121,11 @@
       "sourceUnavailable": "Source unavailable",
       "estimateNote": "This is the estimate at opening, not a live forecast. Buy prices change with trading.",
       "rankingQuestion": "Will {names} reach the top {target}?",
-      "titlesQuestion": "Will {names} win {target} titles?"
+      "titlesQuestion": "Will {names} win {target} titles?",
+      "roundName": {
+        "SF": "Semifinals",
+        "F": "Final"
+      }
     },
     "matchNavigation": {
       "followLive": "Follow live",
@@ -2132,6 +2136,16 @@
       "predict": "Make a prediction",
       "liveEmpty": "No live plays right now",
       "liveEmptyBody": "Your live predictions will appear here when their matches start."
+    },
+    "notice": {
+      "settledTitle": "Prediction settled",
+      "correctedTitle": "Prediction result corrected",
+      "body": "Result: {outcome}. Balance {delta} G.",
+      "outcome": {
+        "yes": "YES",
+        "no": "NO",
+        "void": "Void — refunded"
+      }
     }
   },
   "playerProfile": {

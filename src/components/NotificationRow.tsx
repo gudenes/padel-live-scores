@@ -8,7 +8,8 @@
 
 import { useRouter } from '@/i18n/navigation'
 import type { CSSProperties } from 'react'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
+import { parsePlayResultNotice } from '@/lib/play-result-notice'
 
 const CHUNKY_TILE = 'polygon(12% 4%, 88% 0%, 100% 88%, 4% 100%)'
 
@@ -75,6 +76,17 @@ export default function NotificationRow({
 }) {
   const router = useRouter()
   const format = useFormatter()
+  const tNotice = useTranslations('play.notice')
+  // play_result rows are written in English by the settlement SQL; re-render
+  // them in the viewer's locale. Every other category keeps its stored text.
+  const notice = parsePlayResultNotice(row)
+  const title = notice ? tNotice(notice.corrected ? 'correctedTitle' : 'settledTitle') : row.title
+  const body = notice
+    ? tNotice('body', {
+        outcome: tNotice(`outcome.${notice.outcome}`),
+        delta: `${notice.delta > 0 ? '+' : ''}${format.number(notice.delta)}`,
+      })
+    : row.body
   const visual = CATEGORY_VISUAL[row.category as Category] ?? { color: '#888', icon: 'bell' as const }
   const isUnread = !row.read_at
   const rel = relativeTime(row.created_at)
@@ -103,7 +115,7 @@ export default function NotificationRow({
     <button
       type="button"
       onClick={handleClick}
-      aria-label={isUnread ? `${row.title} — unread` : row.title}
+      aria-label={isUnread ? `${title} — unread` : title}
       style={buttonStyle}
     >
       <span style={{
@@ -117,7 +129,7 @@ export default function NotificationRow({
       </span>
       <span style={{ flex: 1, minWidth: 0 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', flex: 1 }}>{row.title}</span>
+          <span style={{ fontSize: 14, fontWeight: 600, color: '#fff', flex: 1 }}>{title}</span>
           {isUnread && (
             <span style={{
               width: 6, height: 6,
@@ -127,7 +139,7 @@ export default function NotificationRow({
             }} />
           )}
         </span>
-        {row.body && (
+        {body && (
           <span style={{
             display: '-webkit-box',
             WebkitBoxOrient: 'vertical',
@@ -138,7 +150,7 @@ export default function NotificationRow({
             color: 'rgba(255,255,255,0.55)',
             marginTop: 2,
           }}>
-            {row.body}
+            {body}
           </span>
         )}
       </span>

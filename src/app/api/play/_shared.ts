@@ -25,7 +25,7 @@
 import type { EditorialView } from '../../../../shared/play-editorial-view'
 import { editorialKind } from './_editorial'
 import { priceYes } from '@/lib/lmsr'
-import { roundLabel } from '@/lib/match-quality'
+import { roundKey, type RoundKey } from '@/lib/match-quality'
 import { lastName } from '@/lib/player-name'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
@@ -389,7 +389,35 @@ function derivePlayers(
 
 // ── Question rendering ─────────────────────────────────────────────────
 
-const CATEGORY_LABEL: Record<string, string> = { men: 'Men', women: 'Women' }
+/**
+ * The context line ("Madrid P1 · Women · Semifinal") is built here, server-side,
+ * so it must be localized here — the client renders it verbatim on the card,
+ * the trade sheet and the positions list.
+ */
+const CATEGORY_LABEL: Record<PlayLocale, Record<string, string>> = {
+  en: { men: 'Men', women: 'Women' },
+  es: { men: 'Masculino', women: 'Femenino' },
+  pt: { men: 'Masculino', women: 'Feminino' },
+  it: { men: 'Maschile', women: 'Femminile' },
+  fr: { men: 'Hommes', women: 'Femmes' },
+}
+
+/** '' for an unrecognised round — a placeholder is not information. */
+const ROUND_LABEL: Record<PlayLocale, Record<RoundKey, string>> = {
+  en: { final: 'Final', sf: 'Semifinal', qf: 'Quarterfinal', r16: 'R16', r32: 'R32', r64: 'R64', r128: 'R128', q: 'Qualifying', unknown: '' },
+  es: { final: 'Final', sf: 'Semifinal', qf: 'Cuartos de final', r16: 'Octavos', r32: 'Dieciseisavos', r64: 'R64', r128: 'R128', q: 'Previa', unknown: '' },
+  pt: { final: 'Final', sf: 'Semifinal', qf: 'Quartas de final', r16: 'Oitavas', r32: 'R32', r64: 'R64', r128: 'R128', q: 'Qualifying', unknown: '' },
+  it: { final: 'Finale', sf: 'Semifinale', qf: 'Quarti di finale', r16: 'Ottavi', r32: 'Sedicesimi', r64: 'R64', r128: 'R128', q: 'Qualificazioni', unknown: '' },
+  fr: { final: 'Finale', sf: 'Demi-finale', qf: 'Quart de finale', r16: 'Huitièmes', r32: 'Seizièmes', r64: 'R64', r128: 'R128', q: 'Qualifications', unknown: '' },
+}
+
+export function categoryLabel(category: string, locale: PlayLocale): string {
+  return CATEGORY_LABEL[locale][category] ?? CATEGORY_LABEL.en[category] ?? category
+}
+
+export function playRoundLabel(raw: string | null | undefined, locale: PlayLocale): string {
+  return raw ? ROUND_LABEL[locale][roundKey(raw)] : ''
+}
 
 /**
  * Substitute `{token}` placeholders in a template question.
@@ -527,13 +555,11 @@ export function describeMarket(
   })
 
   const category = row.category ?? row.match?.category ?? null
-  const round = row.match?.round ? roundLabel(row.match.round) : ''
+  const round = playRoundLabel(row.match?.round, locale)
   const context = [
     tournament?.name ?? '',
-    category ? (CATEGORY_LABEL[category] ?? category) : '',
-    // roundLabel returns '—' for an unrecognised round; that is a placeholder,
-    // not information, so it is dropped from the context line.
-    round && round !== '—' ? round : '',
+    category ? categoryLabel(category, locale) : '',
+    round,
   ]
     .filter(Boolean)
     .join(' · ')

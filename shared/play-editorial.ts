@@ -53,22 +53,87 @@ export function editorialParams(c: EditorialConfig): Record<string, unknown> {
   if (c.family === 'titles') return { ...pair, tournamentIds: c.tournamentIds, titles: c.target, minimumStarts: c.minimumStarts, endsAt: c.endsAt }
   return pair
 }
-export function editorialCopy(c: EditorialConfig, players: string[], events: string[]) {
+/** Every app locale. The copy below is the contract text a market is judged by,
+ *  frozen into `question_snapshot` / `rules_snapshot` — so it must exist in all
+ *  of them, or pt/it/fr players read English. en/es are unchanged from the
+ *  original two-language version so published contracts keep their wording. */
+export const EDITORIAL_LOCALES = ['en', 'es', 'pt', 'it', 'fr'] as const
+export type EditorialLocale = (typeof EDITORIAL_LOCALES)[number]
+type Copy = Record<EditorialLocale, string>
+
+export function editorialCopy(c: EditorialConfig, players: string[], events: string[]): { question: Copy; rules: Copy } {
   const pair = players.join(' / '), scope = events.join(', ')
   const date = c.endsAt.slice(0,10), until = c.voidAfter
-  const question = c.family === 'round'
-    ? { en: `Will ${pair} reach the ${c.round === 'SF' ? 'semifinals' : 'final'} in ${scope}?`, es: `¿Llegará ${pair} a ${c.round === 'SF' ? 'semifinales' : 'la final'} en ${scope}?` }
+  const sf = c.round === 'SF'
+  const question: Copy = c.family === 'round'
+    ? {
+        en: `Will ${pair} reach the ${sf ? 'semifinals' : 'final'} in ${scope}?`,
+        es: `¿Llegará ${pair} a ${sf ? 'semifinales' : 'la final'} en ${scope}?`,
+        pt: `A dupla ${pair} vai chegar ${sf ? 'às semifinais' : 'à final'} em ${scope}?`,
+        it: `La coppia ${pair} arriverà ${sf ? 'in semifinale' : 'in finale'} a ${scope}?`,
+        fr: `La paire ${pair} atteindra-t-elle ${sf ? 'les demi-finales' : 'la finale'} à ${scope} ?`,
+      }
     : c.family === 'other_champion'
-      ? { en: `Will a pair other than ${pair} win ${scope}?`, es: `¿Ganará ${scope} una pareja distinta de ${pair}?` }
+      ? {
+          en: `Will a pair other than ${pair} win ${scope}?`,
+          es: `¿Ganará ${scope} una pareja distinta de ${pair}?`,
+          pt: `Uma dupla diferente de ${pair} vai vencer ${scope}?`,
+          it: `Una coppia diversa da ${pair} vincerà ${scope}?`,
+          fr: `Une autre paire que ${pair} remportera-t-elle ${scope} ?`,
+        }
       : c.family === 'titles'
-        ? { en: `Will ${pair} win at least ${c.target} title(s) across ${scope}?`, es: `¿Ganará ${pair} al menos ${c.target} título(s) entre ${scope}?` }
-        : { en: `Will ${pair} reach official No. ${c.target} or better by ${date}?`, es: `¿Alcanzará ${pair} el puesto ${c.target} o mejor del ranking oficial antes de finalizar el ${date}?` }
-  const rules = c.family === 'round'
-    ? { en: 'YES once this exact pair starts playing in the target round or a later round. NO after a confirmed defeat in an earlier main-draw round. A scheduled slot or walkover alone is not participation.', es: 'SÍ cuando esta pareja exacta empiece a jugar la ronda indicada o una posterior. NO tras una derrota confirmada en una ronda anterior del cuadro principal. Una plaza programada o un pase por incomparecencia no bastan.' }
+        ? {
+            en: `Will ${pair} win at least ${c.target} title(s) across ${scope}?`,
+            es: `¿Ganará ${pair} al menos ${c.target} título(s) entre ${scope}?`,
+            pt: `A dupla ${pair} vai conquistar pelo menos ${c.target} título(s) entre ${scope}?`,
+            it: `La coppia ${pair} vincerà almeno ${c.target} titolo/i tra ${scope}?`,
+            fr: `La paire ${pair} remportera-t-elle au moins ${c.target} titre(s) parmi ${scope} ?`,
+          }
+        : {
+            en: `Will ${pair} reach official No. ${c.target} or better by ${date}?`,
+            es: `¿Alcanzará ${pair} el puesto ${c.target} o mejor del ranking oficial antes de finalizar el ${date}?`,
+            pt: `${pair} vai alcançar o n.º ${c.target} ou melhor do ranking oficial até ${date}?`,
+            it: `${pair} raggiungerà il n. ${c.target} o meglio nel ranking ufficiale entro il ${date}?`,
+            fr: `${pair} atteindra-t-il la ${c.target}e place ou mieux au classement officiel d'ici le ${date} ?`,
+          }
+  const rules: Copy = c.family === 'round'
+    ? {
+        en: 'YES once this exact pair starts playing in the target round or a later round. NO after a confirmed defeat in an earlier main-draw round. A scheduled slot or walkover alone is not participation.',
+        es: 'SÍ cuando esta pareja exacta empiece a jugar la ronda indicada o una posterior. NO tras una derrota confirmada en una ronda anterior del cuadro principal. Una plaza programada o un pase por incomparecencia no bastan.',
+        pt: 'SIM quando esta dupla exata começar a jogar a ronda indicada ou uma posterior. NÃO após uma derrota confirmada numa ronda anterior do quadro principal. Uma vaga agendada ou um W.O. não contam como participação.',
+        it: 'SÌ quando questa esatta coppia inizia a giocare il turno indicato o uno successivo. NO dopo una sconfitta confermata in un turno precedente del tabellone principale. Un posto in calendario o un walkover da soli non contano come partecipazione.',
+        fr: "OUI dès que cette paire exacte commence à jouer le tour visé ou un tour suivant. NON après une défaite confirmée lors d'un tour antérieur du tableau principal. Une place programmée ou un forfait ne valent pas participation.",
+      }
     : c.family === 'other_champion'
-      ? { en: 'YES if the confirmed final winner is another pair. NO if this exact pair wins. A retirement with an official final winner counts. An unplayed final without a confirmed played result remains unresolved.', es: 'SÍ si otra pareja gana la final confirmada. NO si gana esta pareja exacta. Cuenta una retirada con ganador oficial. Una final no disputada sin resultado confirmado queda pendiente.' }
+      ? {
+          en: 'YES if the confirmed final winner is another pair. NO if this exact pair wins. A retirement with an official final winner counts. An unplayed final without a confirmed played result remains unresolved.',
+          es: 'SÍ si otra pareja gana la final confirmada. NO si gana esta pareja exacta. Cuenta una retirada con ganador oficial. Una final no disputada sin resultado confirmado queda pendiente.',
+          pt: 'SIM se outra dupla vencer a final confirmada. NÃO se esta dupla exata vencer. Conta uma desistência com vencedor oficial. Uma final não disputada sem resultado confirmado fica pendente.',
+          it: 'SÌ se la finale confermata la vince un\'altra coppia. NO se vince questa esatta coppia. Un ritiro con vincitore ufficiale conta. Una finale non disputata senza risultato confermato resta in sospeso.',
+          fr: "OUI si une autre paire remporte la finale confirmée. NON si cette paire exacte gagne. Un abandon avec vainqueur officiel compte. Une finale non jouée sans résultat confirmé reste en suspens.",
+        }
       : c.family === 'titles'
-        ? { en: `YES after ${c.target} confirmed titles for this exact pair in the listed events. NO only after ${c.endsAt}, with every final confirmed and at least ${c.minimumStarts} events played by the pair. Substitutes, qualifying and walkovers do not establish participation.`, es: `SÍ tras ${c.target} títulos confirmados de esta pareja exacta en los eventos indicados. NO solo después de ${c.endsAt}, con todas las finales confirmadas y al menos ${c.minimumStarts} eventos disputados. Suplentes, previa y pases por incomparecencia no acreditan participación.` }
-        : { en: `Official FIP ranking only, from ${c.startsAt} through ${c.endsAt}. YES on any recorded rank of ${c.target} or better. NO requires every weekly Monday-labelled snapshot in the window.`, es: `Solo ranking oficial FIP, desde ${c.startsAt} hasta ${c.endsAt}. SÍ con cualquier puesto registrado ${c.target} o mejor. NO requiere todas las clasificaciones semanales del período, fechadas en lunes.` }
-  return { question, rules: { en: `${rules.en} Missing/conflicting evidence is reviewed until ${until}; if still unresolved, all positions are refunded.`, es: `${rules.es} Los datos ausentes o contradictorios se revisan hasta ${until}; si no se resuelven, se reembolsan todas las posiciones.` } }
+        ? {
+            en: `YES after ${c.target} confirmed titles for this exact pair in the listed events. NO only after ${c.endsAt}, with every final confirmed and at least ${c.minimumStarts} events played by the pair. Substitutes, qualifying and walkovers do not establish participation.`,
+            es: `SÍ tras ${c.target} títulos confirmados de esta pareja exacta en los eventos indicados. NO solo después de ${c.endsAt}, con todas las finales confirmadas y al menos ${c.minimumStarts} eventos disputados. Suplentes, previa y pases por incomparecencia no acreditan participación.`,
+            pt: `SIM após ${c.target} títulos confirmados desta dupla exata nos eventos indicados. NÃO só depois de ${c.endsAt}, com todas as finais confirmadas e pelo menos ${c.minimumStarts} eventos disputados pela dupla. Substitutos, qualifying e W.O. não contam como participação.`,
+            it: `SÌ dopo ${c.target} titoli confermati di questa esatta coppia negli eventi indicati. NO solo dopo il ${c.endsAt}, con tutte le finali confermate e almeno ${c.minimumStarts} eventi giocati dalla coppia. Sostituti, qualificazioni e walkover non valgono come partecipazione.`,
+            fr: `OUI après ${c.target} titres confirmés pour cette paire exacte dans les tournois listés. NON seulement après le ${c.endsAt}, toutes les finales confirmées et au moins ${c.minimumStarts} tournois joués par la paire. Remplaçants, qualifications et forfaits ne valent pas participation.`,
+          }
+        : {
+            en: `Official FIP ranking only, from ${c.startsAt} through ${c.endsAt}. YES on any recorded rank of ${c.target} or better. NO requires every weekly Monday-labelled snapshot in the window.`,
+            es: `Solo ranking oficial FIP, desde ${c.startsAt} hasta ${c.endsAt}. SÍ con cualquier puesto registrado ${c.target} o mejor. NO requiere todas las clasificaciones semanales del período, fechadas en lunes.`,
+            pt: `Apenas o ranking oficial FIP, de ${c.startsAt} a ${c.endsAt}. SIM com qualquer posição registada de ${c.target} ou melhor. NÃO exige todas as classificações semanais do período, datadas à segunda-feira.`,
+            it: `Solo ranking ufficiale FIP, dal ${c.startsAt} al ${c.endsAt}. SÌ con qualsiasi posizione registrata di ${c.target} o migliore. NO richiede tutte le classifiche settimanali del periodo, datate al lunedì.`,
+            fr: `Classement officiel FIP uniquement, du ${c.startsAt} au ${c.endsAt}. OUI dès qu'une place de ${c.target} ou mieux est enregistrée. NON exige tous les classements hebdomadaires de la période, datés du lundi.`,
+          }
+  const suffix: Copy = {
+    en: `Missing/conflicting evidence is reviewed until ${until}; if still unresolved, all positions are refunded.`,
+    es: `Los datos ausentes o contradictorios se revisan hasta ${until}; si no se resuelven, se reembolsan todas las posiciones.`,
+    pt: `Dados em falta ou contraditórios são revistos até ${until}; se continuarem por resolver, todas as posições são reembolsadas.`,
+    it: `Dati mancanti o contraddittori vengono esaminati fino al ${until}; se restano irrisolti, tutte le posizioni vengono rimborsate.`,
+    fr: `Les données manquantes ou contradictoires sont examinées jusqu'au ${until} ; si rien n'est résolu, toutes les positions sont remboursées.`,
+  }
+  const withSuffix = Object.fromEntries(EDITORIAL_LOCALES.map(l => [l, `${rules[l]} ${suffix[l]}`])) as Copy
+  return { question, rules: withSuffix }
 }
