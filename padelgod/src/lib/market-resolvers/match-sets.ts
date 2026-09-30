@@ -89,9 +89,17 @@ export async function loadSets(ctx: ResolverContext, resolverKey: string): Promi
     .order('set_number', { ascending: true })
 
   if (error) throw new Error(`${resolverKey}: ${error.message}`)
+  return toSetViews((data ?? []) as Record<string, unknown>[])
+}
 
+/**
+ * Raw `sets` rows → SetViews, ordered by set number. Shared by `loadSets` and
+ * by resolvers that embed `sets` in a wider matches query, so every set-shape
+ * resolver reads a scoreline by the same set_score-first rule.
+ */
+export function toSetViews(rows: Record<string, unknown>[]): SetView[] {
   const out: SetView[] = []
-  for (const raw of (data ?? []) as Record<string, unknown>[]) {
+  for (const raw of rows) {
     const setNumber = games(raw.set_number)
     if (setNumber === null || setNumber < 1) continue
 
@@ -107,7 +115,7 @@ export async function loadSets(ctx: ResolverContext, resolverKey: string): Promi
 
     out.push({ setNumber, pair1Games, pair2Games })
   }
-  return out
+  return out.sort((a, b) => a.setNumber - b.setNumber)
 }
 
 /** The two game counts high-first, or null when either side is unknown. */

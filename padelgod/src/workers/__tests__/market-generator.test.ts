@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   buildMarketRow,
+  tallyExisting,
+  type ExistingMarket,
   ACTIVE_TOURNAMENT_STATUS_FILTER,
   TOURNAMENT_STATUSES,
 } from '../market-generator.js'
@@ -220,5 +222,76 @@ describe('template → candidate → gate → row', () => {
     )
     expect(passesGates(cand, { rounds: ['R16'], competitiveness: [0.35, 0.65] }))
       .toEqual({ ok: false, reason: 'outside competitiveness band' })
+  })
+})
+
+describe('tallyExisting', () => {
+  const start = new Date('2026-09-30T00:00:00Z')
+  const mk = (over: Partial<ExistingMarket>): ExistingMarket => ({
+    template_id: 'tpl', match_id: null, tournament_id: null, category: 'men',
+    status: 'open', created_at: '2026-09-30T10:21:00Z', lmsr_b: 17312.34, ...over,
+  })
+
+  it('charges a match market to its tournament through the match (Rotterdam P2, 2026-09-30)', () => {
+    // Match markets store tournament_id = NULL. Counting only that column told
+    // the generator Rotterdam had used 0 of 8 while the DB guard saw 8/8.
+    const existing = Array.from({ length: 8 }, (_, i) => mk({ match_id: `m${i}` }))
+    const owners = new Map(existing.map(m => [m.match_id as string, 'rotterdam']))
+    const t = tallyExisting(existing, owners, start)
+    expect(t.createdPerTournamentToday).toEqual({ rotterdam: 8 })
+  })
+
+  it('still charges a tournament-scoped market by its own column', () => {
+    const t = tallyExisting([mk({ tournament_id: 't9' })], new Map(), start)
+    expect(t.createdPerTournamentToday).toEqual({ t9: 1 })
+  })
+
+  it('does not charge markets created before today', () => {
+    const t = tallyExisting([mk({ match_id: 'm1', created_at: '2026-09-29T23:59:00Z' })], new Map([['m1', 'x']]), start)
+    expect(t.createdToday).toBe(0)
+    expect(t.createdPerTournamentToday).toEqual({})
+    expect(t.existingPerMatch).toEqual({ m1: 1 })
+  })
+
+  it('counts open markets and committed subsidy', () => {
+    const t = tallyExisting([mk({}), mk({ status: 'locked' })], new Map(), start)
+    expect(t.currentOpen).toBe(1)
+    expect(Math.round(t.subsidyUsedToday)).toBe(24000)
+  })
+})
+
+describe('buildMarketRow · tournament bagel line', () => {
+  const LINE_TEMPLATE = {
+    id: 'tpl-line', key: 'tournament.bagel_line', resolver_key: 'tournament.bagel_count_at_least_v1',
+    params: { lines: { p2: { men: { line: 2, seedProb: 0.412 } } } },
+    max_loss_guacas: 12000, seed_source: 'fixed', lock_rule: 'round_first_ball' as const,
+  }
+  const cand = {
+    ...CANDIDATE, key: 'tournament.bagel_line:t1:men', matchId: null, tournamentId: 't1',
+    round: null, bestRanking: null, modelProb: null, seedSource: 'fixed', seedProb: 0.412,
+  }
+  const extra = {
+    resolverParams: { line: 2 }, tokens: { line: '2', tournament: 'Rotterdam' }, boundMatchId: 'first-md',
+    question: { en: 'q-en', es: 'q-es', pt: 'q-pt', it: 'q-it', fr: 'q-fr' },
+    rules: { en: 'r-en', es: 'r-es', pt: 'r-pt', it: 'r-it', fr: 'r-fr' },
+  }
+  const row = buildMarketRow(LINE_TEMPLATE, cand, 'season-1', extra)
+
+  it('scopes the market to the tournament, not a match', () => {
+    expect(row.match_id).toBeNull()
+    expect(row.tournament_id).toBe('t1')
+  })
+  it('freezes this market\'s own line, not the whole calibration table', () => {
+    expect(row.resolver_params).toEqual({ line: 2 })
+  })
+  it('binds to the first main-draw match so the DB trigger locks it on first ball', () => {
+    expect(row.bound_match_id).toBe('first-md')
+  })
+  it('writes the rendered copy in every locale', () => {
+    expect(Object.keys(row.question_snapshot!).sort()).toEqual(['en', 'es', 'fr', 'it', 'pt'])
+    expect(Object.keys(row.rules_snapshot!).sort()).toEqual(['en', 'es', 'fr', 'it', 'pt'])
+  })
+  it('opens at the calibrated line price', () => {
+    expect(row.seed_prob).toBeCloseTo(0.412)
   })
 })

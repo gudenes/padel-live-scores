@@ -8,9 +8,16 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Logger } from 'pino'
 import { bFromMaxLoss, seedShares } from '../lib/lmsr.js'
-import { applyCaps, passesGates, type Candidate, type Gates } from '../lib/market-gates.js'
+import { applyCaps, FIXED_SEED_SOURCE, passesGates, type Candidate, type Gates } from '../lib/market-gates.js'
 import { matchRowToCandidate, seedSpecForTemplate, type MatchRow } from '../lib/market-candidates.js'
 import { isPremierTier } from './match-stats-fetcher.js'
+import {
+  BAGEL_LINE_RESOLVER,
+  bagelLineCopy,
+  planBagelLineMarkets,
+  type DrawMatchRow,
+  type Localized,
+} from '../lib/bagel-line.js'
 
 /** Never seed at a probability the CHECK constraint would reject. */
 const SEED_MIN = 0.02
@@ -60,12 +67,29 @@ export interface MarketRow {
   q_no: number
   status: 'open'
   locks_at: string
+  bound_match_id?: string
+  question_snapshot?: Localized
+  rules_snapshot?: Localized
+}
+
+/**
+ * Per-market overrides for a template whose markets are not all alike. The
+ * bagel line market is one template but each market carries its own line,
+ * bound match and fully-rendered copy.
+ */
+export interface MarketRowExtra {
+  resolverParams: Record<string, unknown>
+  tokens: Record<string, unknown>
+  boundMatchId: string
+  question: Localized
+  rules: Localized
 }
 
 export function buildMarketRow(
   template: GeneratorTemplate,
   candidate: Candidate,
   seasonId: string,
+  extra?: MarketRowExtra,
 ): MarketRow {
   // `seedProb` is the resolved anchor — the model probability for an elo
   // template, the template's own constant for a fixed one. Reading modelProb
@@ -87,7 +111,7 @@ export function buildMarketRow(
   const b = bFromMaxLoss(template.max_loss_guacas)
   const { qYes, qNo } = seedShares(p, b)
 
-  return {
+  const row: MarketRow = {
     season_id: seasonId,
     template_id: template.id,
     match_id: candidate.matchId,
@@ -104,6 +128,68 @@ export function buildMarketRow(
     status: 'open',
     locks_at: candidate.scheduledAt.toISOString(),
   }
+  if (extra) {
+    row.resolver_params = extra.resolverParams
+    row.tokens = extra.tokens
+    row.bound_match_id = extra.boundMatchId
+    row.question_snapshot = extra.question
+    row.rules_snapshot = extra.rules
+  }
+  return row
+}
+
+export interface ExistingMarket {
+  template_id: string
+  match_id: string | null
+  tournament_id: string | null
+  category: string | null
+  status: string
+  created_at: string
+  lmsr_b: number | string
+}
+
+export interface ExistingTally {
+  currentOpen: number
+  createdToday: number
+  subsidyUsedToday: number
+  existingPerMatch: Record<string, number>
+  createdPerTournamentToday: Record<string, number>
+}
+
+/**
+ * Cap inputs from the markets that already exist.
+ *
+ * A match market stores `tournament_id = NULL` (the scope CHECK allows exactly
+ * one of match/tournament), so its tournament must come from the match. The DB
+ * guard `play_guard_market_insert` already counts that way; counting only
+ * `markets.tournament_id` here made the generator believe a tournament had
+ * used 0 of its daily cap, attempt every insert, and log one
+ * `tournament_daily_limit` error per candidate per hour (Rotterdam P2,
+ * 2026-09-30).
+ */
+export function tallyExisting(
+  existing: ExistingMarket[],
+  matchTournament: Map<string, string>,
+  startOfDay: Date,
+): ExistingTally {
+  const t: ExistingTally = {
+    currentOpen: 0, createdToday: 0, subsidyUsedToday: 0,
+    existingPerMatch: {}, createdPerTournamentToday: {},
+  }
+  for (const m of existing) {
+    if (m.status === 'open') t.currentOpen += 1
+    if (m.match_id) t.existingPerMatch[m.match_id] = (t.existingPerMatch[m.match_id] ?? 0) + 1
+    if (new Date(m.created_at) >= startOfDay) {
+      t.createdToday += 1
+      // Real committed subsidy, not an assumed constant: lmsr_b · ln2 is
+      // exactly the max_loss_guacas frozen onto the market at creation.
+      // PostgREST returns numeric as a string, hence Number().
+      t.subsidyUsedToday += Number(m.lmsr_b) * Math.LN2
+      const owner = m.tournament_id ?? (m.match_id ? matchTournament.get(m.match_id) : undefined)
+      if (owner) t.createdPerTournamentToday[owner] = (t.createdPerTournamentToday[owner] ?? 0) + 1
+    }
+  }
+  return t
 }
 
 export interface MarketGeneratorDeps {
@@ -169,16 +255,21 @@ export async function runMarketGenerator(
       .from('market_templates')
       .select('id, key, resolver_key, params, gates, max_loss_guacas, seed_source, lock_rule, horizon')
       .eq('enabled', true)
-      .eq('horizon', 'pre-match'),
+      .in('horizon', ['pre-match', 'tournament']),
     'templates',
-  ) as unknown as (GeneratorTemplate & { gates: Gates })[]
+  ) as unknown as (GeneratorTemplate & { gates: Gates; horizon: string })[]
 
-  result.templatesConsidered = templates.length
-  if (templates.length === 0) return finish()
+  // Explicit split: other tournament-horizon templates (editorial.*, published
+  // by an operator; tournament.outright) are NOT generated here.
+  const matchTemplates = templates.filter(t => t.horizon === 'pre-match')
+  const lineTemplates = templates.filter(t => t.horizon === 'tournament' && t.resolver_key === BAGEL_LINE_RESOLVER)
+
+  result.templatesConsidered = matchTemplates.length + lineTemplates.length
+  if (result.templatesConsidered === 0) return finish()
 
   const tours = unwrap(
     await deps.supabase
-      .from('tournaments').select('id, level')
+      .from('tournaments').select('id, level, name')
       // `tournaments.status` only ever holds null / 'pending' / 'finished' /
       // 'live' — there is no 'ongoing' or 'upcoming' in this schema, and null
       // is by far the most common (643 of 756 rows). An allow-list of
@@ -187,9 +278,10 @@ export async function runMarketGenerator(
       // Verified against production 2026-09-23.
       .or(ACTIVE_TOURNAMENT_STATUS_FILTER),
     'tournaments',
-  ) as { id: string; level: string | null }[]
+  ) as { id: string; level: string | null; name: string | null }[]
 
-  const premierIds = tours.filter(t => isPremierTier(t.level)).map(t => t.id)
+  const premierTours = tours.filter(t => isPremierTier(t.level))
+  const premierIds = premierTours.map(t => t.id)
   if (premierIds.length === 0) return finish()
 
   const rows = unwrap(
@@ -223,45 +315,43 @@ export async function runMarketGenerator(
   // Existing markets, for dedup and for the caps.
   const existing = unwrap(
     await deps.supabase
-      .from('markets').select('template_id, match_id, tournament_id, status, created_at, lmsr_b')
+      .from('markets').select('template_id, match_id, tournament_id, category, status, created_at, lmsr_b')
       .eq('season_id', season.id),
     'existing markets',
-  ) as { template_id: string; match_id: string | null; tournament_id: string | null; status: string; created_at: string; lmsr_b: number | string }[]
+  ) as ExistingMarket[]
 
   const startOfDay = new Date(now)
   startOfDay.setUTCHours(0, 0, 0, 0)
 
+  // Owning tournament of today's match markets — bounded by max_new_per_day.
+  const todayMatchIds = [...new Set(existing
+    .filter(m => m.match_id && new Date(m.created_at) >= startOfDay)
+    .map(m => m.match_id as string))]
+  const matchTournament = new Map<string, string>()
+  if (todayMatchIds.length > 0) {
+    const owners = unwrap(
+      await deps.supabase.from('matches').select('id, tournament_id').in('id', todayMatchIds),
+      'market match owners',
+    ) as { id: string; tournament_id: string | null }[]
+    for (const o of owners) if (o.tournament_id) matchTournament.set(o.id, o.tournament_id)
+  }
+
   const existingKeys = new Set(
     existing.filter(m => m.match_id).map(m => `${m.template_id}:${m.match_id}`),
   )
-  const existingPerMatch: Record<string, number> = {}
-  const createdPerTournamentToday: Record<string, number> = {}
-  let createdToday = 0
-  let subsidyUsedToday = 0
-  let currentOpen = 0
-
-  for (const m of existing) {
-    if (m.status === 'open') currentOpen += 1
-    if (m.match_id) existingPerMatch[m.match_id] = (existingPerMatch[m.match_id] ?? 0) + 1
-    if (new Date(m.created_at) >= startOfDay) {
-      createdToday += 1
-      // Real committed subsidy, not an assumed constant: lmsr_b · ln2 is
-      // exactly the max_loss_guacas frozen onto the market at creation.
-      // PostgREST returns numeric as a string, hence Number().
-      subsidyUsedToday += Number(m.lmsr_b) * Math.LN2
-      if (m.tournament_id) {
-        createdPerTournamentToday[m.tournament_id] = (createdPerTournamentToday[m.tournament_id] ?? 0) + 1
-      }
-    }
-  }
+  const existingTournamentKeys = new Set(
+    existing.filter(m => m.tournament_id).map(m => `${m.template_id}:${m.tournament_id}:${m.category}`),
+  )
+  const { currentOpen, createdToday, subsidyUsedToday, existingPerMatch, createdPerTournamentToday } =
+    tallyExisting(existing, matchTournament, startOfDay)
 
   const gateDrops = new Map<string, number>()
-  const survivors: { template: GeneratorTemplate; candidate: Candidate }[] = []
+  const survivors: { template: GeneratorTemplate; candidate: Candidate; extra?: MarketRowExtra }[] = []
   // applyCaps does not dedup by key, and a candidate with both ids null would
   // bypass the per-match and per-tournament caps entirely. Dedup here.
   const seenKeys = new Set<string>()
 
-  for (const t of templates) {
+  for (const t of matchTemplates) {
     const gates = (t.gates ?? {}) as Gates
     // Resolved once per template, not per row: for a fixed-seed template this
     // reads the constant out of `params` and every candidate opens at it.
@@ -280,6 +370,56 @@ export async function runMarketGenerator(
       survivors.push({ template: t, candidate: cand })
     }
   }
+
+  // Tournament bagel line markets. Draws are read in full (every status) only
+  // for events that still have a future scheduled match — a started draw must
+  // be SEEN as started, which the scheduled-only `rows` query cannot show.
+  if (lineTemplates.length > 0) {
+    const liveIds = [...new Set(rows.map(r => r.tournament_id).filter((id): id is string => !!id))]
+    const drawRows = liveIds.length === 0 ? [] : unwrap(
+      await deps.supabase
+        .from('matches')
+        .select('id, tournament_id, category, round_canonical, status, scheduled_at')
+        .in('tournament_id', liveIds),
+      'draw matches',
+    ) as DrawMatchRow[]
+    const lineTours = premierTours.filter(t => liveIds.includes(t.id))
+
+    for (const t of lineTemplates) {
+      for (const plan of planBagelLineMarkets(t.params, lineTours, drawRows, now)) {
+        if (existingTournamentKeys.has(`${t.id}:${plan.tournamentId}:${plan.category}`)) continue
+        const cand: Candidate = {
+          key: `${t.key}:${plan.tournamentId}:${plan.category}`,
+          matchId: null,
+          tournamentId: plan.tournamentId,
+          category: plan.category,
+          round: null,
+          bestRanking: null,
+          modelProb: null,
+          seedSource: FIXED_SEED_SOURCE,
+          seedProb: plan.seedProb,
+          scheduledAt: plan.locksAt,
+          subsidyGuacas: t.max_loss_guacas,
+        }
+        if (seenKeys.has(cand.key)) continue
+        seenKeys.add(cand.key)
+        result.candidates += 1
+        const copy = bagelLineCopy({ tournamentName: plan.tournamentName, category: plan.category, line: plan.line })
+        survivors.push({
+          template: t,
+          candidate: cand,
+          extra: {
+            resolverParams: { line: plan.line },
+            tokens: { line: String(plan.line), tournament: plan.tournamentName },
+            boundMatchId: plan.boundMatchId,
+            question: copy.question,
+            rules: copy.rules,
+          },
+        })
+      }
+    }
+  }
+
   result.gateDrops = [...gateDrops.entries()].map(([reason, count]) => ({ reason, count }))
 
   const caps = applyCaps(survivors.map(s => s.candidate), {
@@ -311,8 +451,8 @@ export async function runMarketGenerator(
     return finish()
   }
 
-  for (const { template, candidate } of toCreate) {
-    const row = buildMarketRow(template, candidate, season.id as string)
+  for (const { template, candidate, extra } of toCreate) {
+    const row = buildMarketRow(template, candidate, season.id as string, extra)
     const { error } = await deps.supabase.from('markets').insert(row)
     if (error) {
       // 23505 = the partial unique index caught a concurrent run. Benign.

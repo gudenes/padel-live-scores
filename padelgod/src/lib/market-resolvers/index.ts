@@ -13,6 +13,7 @@ import { matchWinnerIsPair } from './match-winner.js'
 import { tournamentChampionIsPair } from './tournament-champion.js'
 import { matchAnySetBagel } from './any-set-bagel.js'
 import { matchWentToThreeSets } from './went-to-three-sets.js'
+import { tournamentBagelCountAtLeast } from './bagel-count.js'
 
 export type { Resolver, ResolverContext, ResolverResult } from './types.js'
 
@@ -27,6 +28,8 @@ export const RESOLVERS: Record<string, Resolver> = {
   // rule — see market-resolvers/match-sets.ts.
   'match.any_set_bagel': matchAnySetBagel,
   'match.went_to_three_sets': matchWentToThreeSets,
+  // Line market over a whole main draw — see market-resolvers/bagel-count.ts.
+  'tournament.bagel_count_at_least_v1': tournamentBagelCountAtLeast,
 }
 
 export function listResolverKeys(): string[] {
