@@ -8,11 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'
 import type { AdBanner } from '@/lib/ad-banner-resolver'
 
-/** Pull a usable banner id from ?id=. Returns null when absent / blank. */
-export function parsePreviewId(raw: string | null): string | null {
-  const id = (raw ?? '').trim()
-  return id || null
-}
+import { parsePreviewId } from './preview-id'
 
 export async function GET(req: NextRequest) {
   const id = parsePreviewId(req.nextUrl.searchParams.get('id'))

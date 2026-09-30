@@ -1,8 +1,8 @@
 'use client'
 // Match rating card — star/number picker shown after a match finishes.
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { spawnConfetti } from '@/lib/confetti'
+import motion from '@/components/GameMotion.module.css'
 import { GREEN, BG_CARD, MUTED, BORDER, CHUNKY } from './lib/constants'
 
 // Private hook — only used by MatchRatingCard
@@ -22,26 +22,23 @@ export function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   const [justRated, setJustRated] = useState<number | null>(null)
   const [collapsed, setCollapsed] = useState(rating != null)
   const [showPoints, setShowPoints] = useState(false)
-  const badgeRef = useRef<HTMLDivElement>(null)
+
+  const timers=useRef<ReturnType<typeof setTimeout>[]>([])
+  useEffect(()=>()=>timers.current.forEach(clearTimeout),[])
 
   const handleRate = (n: number) => {
     setRating(n)
     setJustRated(n)
     setShowPoints(true)
 
-    // Fire confetti from the widget
-    setTimeout(() => {
-      if (badgeRef.current) spawnConfetti(badgeRef.current)
-    }, 150)
-
     // Hide points floater
-    setTimeout(() => { setShowPoints(false) }, 1400)
+    timers.current.push(setTimeout(() => { setShowPoints(false) }, 1867))
 
     // Collapse after celebration
-    setTimeout(() => {
+    timers.current.push(setTimeout(() => {
       setCollapsed(true)
       setJustRated(null)
-    }, 2500)
+    }, 3000))
   }
 
   // Already rated on a previous visit — show compact immediately
@@ -73,38 +70,20 @@ export function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
   if (justRated != null) {
     return (
       <div style={{ padding: '20px 16px', borderBottom: `0.5px solid ${BORDER}`, background: BG_CARD, textAlign: 'center', position: 'relative', overflow: 'visible' }}>
-        <style>{`
-          @keyframes pn-scale-up {
-            0% { transform: scale(0.8); }
-            50% { transform: scale(1.5); }
-            100% { transform: scale(1.3); }
-          }
-          @keyframes pn-fade-in {
-            0% { opacity: 0; transform: translateY(6px); }
-            100% { opacity: 1; transform: translateY(0); }
-          }
-          @keyframes pn-pts-float {
-            0%   { opacity: 0; transform: translateY(0) scale(0.5); }
-            20%  { opacity: 1; transform: translateY(-10px) scale(1); }
-            70%  { opacity: 1; transform: translateY(-35px) scale(1); }
-            100% { opacity: 0; transform: translateY(-55px) scale(0.8); }
-          }
-        `}</style>
-        <div ref={badgeRef} style={{ position: 'relative', display: 'inline-block' }}>
+
+        <div key={justRated} className={motion.stamp} style={{ position: 'relative', display: 'inline-block' }}>
           {/* Badge */}
           <div style={{
             width: 48, height: 48, clipPath: CHUNKY.badge, background: GREEN,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            animation: 'pn-scale-up 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
           }}>
             <span style={{ fontSize: 20, fontWeight: 900, color: '#000' }}>{justRated}</span>
           </div>
           {/* +10 pts floater */}
           {showPoints && (
-            <div style={{
+            <div className={motion.points} style={{
               position: 'absolute', top: -8, left: '50%',
               transform: 'translateX(-50%)',
-              animation: 'pn-pts-float 1.4s ease-out forwards',
               pointerEvents: 'none', zIndex: 10,
             }}>
               <div style={{
@@ -118,9 +97,8 @@ export function MatchRatingCard({ rating, setRating, avgRating, ratingCount }: {
             </div>
           )}
         </div>
-        <div style={{
+        <div className={motion.enter} style={{
           fontSize: 14, fontWeight: 900, color: GREEN, marginTop: 10,
-          animation: 'pn-fade-in 0.3s ease 0.15s both',
         }}>
           {REACTION_LABELS[justRated]}
         </div>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Avatar style comparison · Padel Nachos</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #181a17; color: #f3f1e9; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: clamp(20px, 4vw, 48px); }
+    main { max-width: 1000px; margin: auto; }
+    h1 { margin: 0 0 8px; font-size: clamp(25px, 4vw, 38px); letter-spacing: -.04em; }
+    p { margin: 0 0 28px; color: #b9bdad; line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(10px, 2vw, 24px); }
+    .card { overflow: hidden; border: 1px solid #454b38; background: #22251f; }
+    .card img { display: block; width: 100%; aspect-ratio: 2 / 3; object-fit: contain; background: #1f211f; }
+    .label { padding: 14px 16px 18px; }
+    .label strong { display: block; font-size: 16px; }
+    .label span { display: block; margin-top: 3px; color: #b9bdad; font-size: 13px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: none; grid-auto-columns: minmax(220px, 74vw); grid-auto-flow: column; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 12px; } .card { scroll-snap-align: start; } }
+    @media (max-width: 480px) { body { padding: 12px; } .label { padding: 11px; } .label strong { font-size: 14px; } .label span { font-size: 12px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Which avatar feels right?</h1>
+    <p>Four avatar styles based on the same team player's photo, shown at the same size.</p>
+    <div class="grid">
+      <section class="card" aria-label="Playful avatar">
+        <img src="/play/avatars/concepts/team-player-playful-v1.png" alt="Team player in the playful padel avatar style" width="1024" height="1536">
+        <div class="label"><strong>Playful</strong><span>Current avatar style · real player features</span></div>
+      </section>
+      <section class="card" aria-label="Athletic avatar">
+        <img src="/play/avatars/concepts/team-player-athletic-v1.png" alt="Same team player in the athletic padel avatar style" width="1024" height="1536">
+        <div class="label"><strong>Athletic</strong><span>More natural adult face and proportions</span></div>
+      </section>
+      <section class="card" aria-label="Illustrated avatar">
+        <img src="/play/avatars/concepts/team-player-anime-v1.png" alt="Same team player in an anime-inspired illustrated padel avatar style" width="1024" height="1536">
+        <div class="label"><strong>Illustrated</strong><span>Anime-influenced game character art</span></div>
+      </section>
+      <section class="card" aria-label="Court hero avatar">
+        <img src="/play/avatars/concepts/court-hero-v2.png" alt="Illustrated fantasy-game padel hero with silver hair and a white-and-orange kit" width="1024" height="1536">
+        <div class="label"><strong>Court Hero</strong><span>Player traits · fantasy-game treatment</span></div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

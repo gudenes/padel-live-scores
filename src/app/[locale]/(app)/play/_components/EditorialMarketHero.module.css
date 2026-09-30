@@ -1,0 +1,28 @@
+.hero{position:relative;z-index:1;padding:4px 18px 10px;flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;color:#f1efde}
+.people{display:flex;justify-content:center;gap:10px;min-height:0}
+.person{display:flex;flex-direction:column;align-items:center;flex:1;min-width:0;max-width:190px}
+.portrait{position:relative;width:100%;height:clamp(145px,25dvh,220px);overflow:hidden;mask-image:linear-gradient(#000 85%,transparent)}
+.portrait img{object-fit:cover;object-position:center top}
+.portrait>span{height:100%;display:grid;place-items:center;font-size:40px;color:#ff893f}
+.person strong{font-size:13px;text-align:center;line-height:1.2;margin-top:3px;text-shadow:0 2px 4px #000}
+.ranking .portrait{height:clamp(145px,25dvh,220px)}
+.ranking .portrait img{object-position:center top;object-fit:cover}
+.target{display:grid;align-content:center;gap:2px;min-width:110px}
+.target span{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:#b6b9a9}
+.target b{font-size:30px;line-height:1.1}
+.target .goal{color:#ff893f;font-size:25px;margin-top:1px}
+.summary{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:5px 12px;margin-top:12px;text-align:center;font-size:12px}
+.summary strong{color:#ffae73}.summary span{color:#c7ccb9}
+.scope{font-size:11px;line-height:1.3;text-align:center;color:#b6b9a9;margin:5px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.estimate{font-size:12px;margin:12px 0;padding:12px;border:1px solid #424736;color:#c7ccb9;overflow-wrap:anywhere}
+.estimate summary{cursor:pointer;color:#f1efde}.estimate p{line-height:1.5;margin-top:8px}
+@media(max-height:740px){.portrait{height:150px}.ranking .portrait{height:170px}.target b{font-size:24px}.summary{margin-top:6px}.hero{padding-bottom:5px}.person strong{font-size:11px}}
+
+.summary progress{accent-color:#ff893f;width:60px;height:5px}
+
+.pair .people{gap:0;isolation:isolate}
+.pair .person{position:relative;flex:0 0 59%;max-width:none}
+.pair .person + .person{margin-left:-18%;z-index:1}
+.pair .portrait{height:clamp(180px,28dvh,240px)}
+.pairNames{display:grid;grid-template-columns:1fr 1fr;text-align:center;gap:6px;font-size:12px;line-height:1.2;margin-top:3px;text-shadow:0 2px 4px #000}
+@media(max-height:740px){.pair .portrait{height:180px}}

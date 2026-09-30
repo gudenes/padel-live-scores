@@ -82,3 +82,38 @@
 /* ---- Chip (filter pill toggle) ---- */
 .ui-chip { padding:4px 11px; border-radius:999px; border:1px solid var(--border-strong); background:transparent; color:var(--text-2); font-size:12px; cursor:pointer; font-family:var(--font); }
 .ui-chip[data-on="true"] { background:var(--lime-bg); border-color:var(--lime-border); color:var(--lime-text); }
+
+/* ---- Switch (boolean state, at-a-glance) ----
+   A button labelled "Enabled" reads as an action ("click to enable"), not a
+   state. A switch shows the current value and only secondarily invites a
+   change, which is what an operator scanning a list actually needs. */
+.ui-switch { display:inline-flex; align-items:center; gap:9px; background:none; border:0; padding:0;
+  cursor:pointer; font-family:var(--font); font-size:12.5px; color:var(--text-2); }
+.ui-switch:disabled { opacity:.5; cursor:not-allowed; }
+.ui-switch-track { width:38px; height:21px; border-radius:999px; background:var(--track);
+  position:relative; flex-shrink:0; transition:background var(--t-fast); }
+.ui-switch-track::after { content:""; position:absolute; top:2.5px; left:2.5px; width:16px; height:16px;
+  border-radius:50%; background:var(--bg-card); box-shadow:var(--shadow-sm);
+  transition:transform var(--t-fast); }
+.ui-switch[data-on="true"] .ui-switch-track { background:var(--lime); }
+.ui-switch[data-on="true"] .ui-switch-track::after { transform:translateX(17px); }
+.ui-switch[data-on="true"] { color:var(--text-1); font-weight:600; }
+
+/* ---- Drawer (slide-over detail) ----
+   Used instead of a split column so list tables keep full width. */
+.ui-drawer-scrim { position:fixed; inset:0; background:rgba(0,0,0,.45); opacity:0; pointer-events:none;
+  transition:opacity var(--t); z-index:90; }
+.ui-drawer-scrim[data-on="true"] { opacity:1; pointer-events:auto; }
+.ui-drawer { position:fixed; top:0; right:0; height:100vh; width:min(460px,94vw);
+  background:var(--bg-surface); border-left:1px solid var(--border-strong); box-shadow:var(--shadow-lg);
+  z-index:100; transform:translateX(100%); transition:transform var(--t);
+  display:flex; flex-direction:column; }
+.ui-drawer[data-on="true"] { transform:translateX(0); }
+.ui-drawer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  padding:16px 18px; border-bottom:1px solid var(--border-inner); flex-shrink:0; }
+.ui-drawer-title { font-family:var(--display); font-size:16px; font-weight:700; margin:0; color:var(--text-1); }
+.ui-drawer-body { padding:16px 18px 28px; overflow-y:auto; min-height:0; display:flex;
+  flex-direction:column; gap:16px; }
+.ui-dl { display:grid; grid-template-columns:132px 1fr; gap:7px 12px; font-size:12.5px; align-items:baseline; }
+.ui-dl dt { color:var(--text-3); font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; }
+.ui-dl dd { margin:0; color:var(--text-1); }

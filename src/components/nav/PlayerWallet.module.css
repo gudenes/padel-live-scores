@@ -1,0 +1,10 @@
+.wallet { display:flex; align-items:center; gap:7px; flex-shrink:0; }
+.balance { display:flex; align-items:center; justify-content:center; gap:4px; min-height:44px; min-width:44px; padding:0 2px; border:0; background:transparent; color:#eee7d2; cursor:pointer; font:inherit; font-weight:850; font-size:14px; font-variant-numeric:tabular-nums; }
+.balance:hover { color:#a4dd65; }
+.balance:active { transform:translateY(1px); }
+.balance:focus-visible { outline:2px solid #9fdbec; outline-offset:1px; border-radius:3px; }
+.avatar { position:relative; flex-shrink:0; }
+.coin { display:flex; flex-shrink:0; }
+.amount { animation:credit-in .8s ease-out; }
+@keyframes credit-in { from { color:#a4dd65; } to { color:#eee7d2; } }
+@media(prefers-reduced-motion:reduce) { .amount { animation:none; } }

@@ -1,0 +1,5 @@
+.portrait{display:block;flex-shrink:0;border-radius:50%;overflow:hidden;background:#242520}
+.full{display:block;width:min(100%,320px);height:min(52dvh,460px);margin:auto}
+.full>div{height:100%;width:100%}.full svg{height:100%;width:100%;object-fit:contain}
+.button{border:0;background:transparent;color:inherit;padding:0;cursor:pointer;flex-shrink:0;border-radius:50%}.button:focus-visible{outline:2px solid #7ed321;outline-offset:3px}
+.dialog{background:#242520;color:#eee9d7;border:1px solid #56643c;max-width:400px;width:calc(100% - 32px);max-height:90dvh;padding:18px;margin:auto;overflow:auto}.dialog::backdrop{background:#000b}.dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px}.dialog h2{font-size:20px;margin:0}.dialog header button{background:none;border:0;color:inherit;font-size:28px;cursor:pointer}

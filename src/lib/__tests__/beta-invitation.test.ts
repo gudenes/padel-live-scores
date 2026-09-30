@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// @ts-expect-error jsdom is installed without its separate type package here.
 import { JSDOM } from 'jsdom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 beforeEach(() => {

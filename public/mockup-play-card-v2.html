@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play the Next · cartão v2 — identidade e decisão</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   Cartão v2 — avatares + sinais de decisão
+   Tokens: src/app/globals.css (Forge Dark v2 + lime)
+   TODOS os dados deste mockup são reais, lidos da base de produção
+   em 2026-09-25: mercado "Rufo / Castello vai ganhar este jogo?",
+   QF feminino do FIP Platinum Lyon, fecha às 10:00 UTC.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg-base:#1A1A1A; --bg-card:#1F1F1F; --bg-subtle:#1E1E1E;
+  --border-base:#2A2A2A; --border-card:#2E2E2E; --border-strong:#383838;
+  --text-primary:#EEE4CE; --text-secondary:#9AAEC4; --text-muted:#6889A5;
+  --text-dim:#4A6F8E; --text-faint:#365A78;
+  --color-live:#FF4655; --color-accent:#38C8FF; --color-accent-bg:rgba(56,200,255,.08);
+  --color-accent-border:rgba(56,200,255,.25); --color-women:#F472B6;
+  --lime:#7ED321; --lime-skirt:#558D14; --lime-bg:rgba(126,211,33,.10); --lime-border:rgba(126,211,33,.30);
+  --no:#FF4655; --no-skirt:#99131D; --no-bg:rgba(255,70,85,.10); --no-border:rgba(255,70,85,.30);
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --clip-card:polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+  --clip-tag:polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  --clip-chunky:polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#0A0A0A;color:var(--text-primary);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1100px 620px at 18% -10%, rgba(126,211,33,.06), transparent 62%);}
+.head{max-width:1280px;margin:0 auto;padding:30px 22px 6px}
+.head h1{margin:0;font-size:15px;letter-spacing:5px;font-weight:900;text-transform:uppercase}
+.head p{margin:8px 0 0;font-size:12.5px;color:var(--text-secondary);line-height:1.6;max-width:740px}
+.head .real{display:inline-block;margin-top:10px;font-size:9px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--lime);background:var(--lime-bg);border:1px solid var(--lime-border);padding:4px 9px;clip-path:var(--clip-tag)}
+.row{max-width:1280px;margin:0 auto;padding:22px;display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.col{width:375px;flex:none}
+.col > .cap{margin:0 0 10px;font-size:10px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted)}
+.col > .cap b{color:var(--lime)}
+.col > .why{margin:9px 2px 0;font-size:11.5px;line-height:1.6;color:var(--text-dim)}
+
+.phone{width:375px;height:760px;background:#0A0A0A;border:1px solid var(--border-strong);border-radius:32px;
+  box-shadow:0 30px 70px rgba(0,0,0,.7), inset 0 0 0 6px #000;overflow:hidden;display:flex;flex-direction:column}
+.sub{flex:none;display:flex;gap:6px;padding:10px 12px 11px;border-bottom:1px solid var(--border-base)}
+.sub button{flex:1;background:var(--bg-subtle);border:1px solid var(--border-base);color:var(--text-muted);font-family:inherit;
+  font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;padding:8px 0;clip-path:var(--clip-tag)}
+.sub button.on{background:var(--lime);border-color:var(--lime);color:#0a0a0a}
+.sub .bal{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:0 10px;background:var(--bg-card);
+  border-color:var(--border-card);color:var(--text-primary);font-size:12px;letter-spacing:0;text-transform:none}
+.coin{width:17px;height:17px;border-radius:50%;background:var(--lime);color:#0a0a0a;display:grid;place-items:center;
+  font-size:10px;font-weight:900;flex:none}
+
+.wrap{flex:1;min-height:0;padding:14px 14px 0;position:relative}
+.card{position:absolute;inset:14px 14px 0;background:var(--bg-card);border:1px solid var(--border-card);
+  clip-path:var(--clip-card);overflow:hidden;display:flex;flex-direction:column}
+
+/* ── Herói: arte de court + 4 avatares ── */
+.hero{position:relative;height:196px;flex:none;overflow:hidden;background:#140d12}
+.hero > svg{position:absolute;inset:0;width:100%;height:100%}
+.hero::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(10,10,10,.05) 0%,rgba(10,10,10,.40) 52%,var(--bg-card) 99%)}
+.chips{position:absolute;top:11px;left:11px;right:11px;z-index:4;display:flex;gap:6px;align-items:center}
+.tag{font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:4px 8px;clip-path:var(--clip-tag)}
+.tag.h{background:rgba(10,10,10,.72);color:var(--color-women);border:1px solid rgba(244,114,182,.30)}
+.tag.c{background:rgba(10,10,10,.72);color:var(--text-muted);border:1px solid var(--border-base)}
+.tag.t{background:rgba(10,10,10,.72);color:var(--text-secondary);border:1px solid var(--border-strong);margin-left:auto}
+
+.faces{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;gap:10px;padding-top:16px}
+.side{display:flex;flex-direction:column;align-items:center;gap:7px;width:132px}
+.duo{display:flex;gap:-10px}
+.av{width:58px;height:58px;border-radius:50%;overflow:hidden;background:#20262b;flex:none;
+  box-shadow:0 0 0 2px rgba(10,10,10,.85), 0 4px 14px rgba(0,0,0,.6)}
+.av:nth-child(2){margin-left:-14px}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.side.win .av{box-shadow:0 0 0 2px var(--lime), 0 4px 14px rgba(0,0,0,.6)}
+.nm{text-align:center;line-height:1.25}
+.nm .n1{font-size:12.5px;font-weight:900;letter-spacing:-.2px}
+.nm .rk{margin-top:3px;font-size:9.5px;font-weight:800;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.flag{font-size:10px;margin-right:3px}
+.vs{font-size:12px;font-weight:900;color:var(--text-faint);letter-spacing:1px;padding-bottom:26px}
+
+.body{flex:1;min-height:0;padding:0 16px 13px;display:flex;flex-direction:column;position:relative;z-index:2;margin-top:-26px}
+.q{font-size:19.5px;font-weight:900;line-height:1.18;letter-spacing:-.4px;margin:0 0 10px}
+
+/* ── A linha de decisão (o que está em teste) ── */
+.signal{display:flex;align-items:center;gap:8px;background:var(--bg-subtle);border:1px solid var(--border-base);
+  padding:9px 11px;clip-path:var(--clip-tag);margin-bottom:11px}
+.signal .ico{width:19px;height:19px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--lime-bg);border:1px solid var(--lime-border);color:var(--lime);font-size:10px;font-weight:900}
+.signal .tx{font-size:11.5px;line-height:1.45;color:var(--text-secondary)}
+.signal .tx b{color:var(--text-primary);font-weight:900}
+.streak{display:inline-flex;gap:2px;margin-left:2px;vertical-align:-1px}
+.streak i{width:12px;height:12px;border-radius:2px;display:inline-grid;place-items:center;font-style:normal;
+  font-size:8px;font-weight:900;color:#0a0a0a}
+.streak i.v{background:var(--lime)} .streak i.d{background:#3a3f45;color:var(--text-dim)}
+
+.spark{margin-top:2px}
+.spark .lg{display:flex;justify-content:space-between;margin-bottom:5px;font-size:8.5px;font-weight:900;
+  letter-spacing:1px;text-transform:uppercase;color:var(--text-faint)}
+.spark .lg i{width:13px;border-top:2px solid var(--lime);display:inline-block;vertical-align:3px;margin-right:5px}
+.spark .lg i.dash{border-top:2px dashed var(--color-accent)}
+.spark svg{display:block;width:100%;height:40px}
+
+.odds{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:auto}
+.odd{padding:10px;text-align:center;clip-path:var(--clip-tag);border:1px solid}
+.odd .l{font-size:9.5px;font-weight:900;letter-spacing:1.4px}
+.odd .p{font-size:25px;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums}
+.odd.y{background:var(--lime-bg);border-color:var(--lime-border)} .odd.y .l,.odd.y .p{color:var(--lime)}
+.odd.n{background:var(--no-bg);border-color:var(--no-border)} .odd.n .l,.odd.n .p{color:var(--no)}
+.model{margin-top:8px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:10px;
+  font-weight:800;color:var(--text-muted)}
+.ai{display:inline-flex;align-items:center;gap:4px;background:var(--color-accent-bg);border:1px solid var(--color-accent-border);
+  color:var(--color-accent);padding:3px 7px;clip-path:var(--clip-tag);font-size:9px;font-weight:900;letter-spacing:.9px}
+.tapme{text-align:center;font-size:9px;font-weight:800;letter-spacing:1.1px;text-transform:uppercase;
+  color:var(--text-faint);padding:9px 0 2px}
+
+.acts{flex:none;padding:10px 22px 4px;display:flex;align-items:center;justify-content:center;gap:26px}
+.rb{width:58px;height:58px;border-radius:999px;border:0;display:grid;place-items:center;cursor:pointer;position:relative}
+.rb span{position:absolute;inset:0;border-radius:999px;transform:translateY(5px)}
+.rb em{position:relative;width:100%;height:100%;border-radius:999px;display:grid;place-items:center;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.rb.no span{background:var(--no-skirt)} .rb.no em{background:var(--no)}
+.rb.yes span{background:var(--lime-skirt)} .rb.yes em{background:var(--lime)}
+.rb svg{width:24px;height:24px;fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.rb.no svg{stroke:#fff} .rb.yes svg{stroke:#0a0a0a}
+
+/* ── Painel de detalhe ── */
+.sheet{position:absolute;inset:0;background:rgba(6,6,6,.82);display:flex;flex-direction:column;justify-content:flex-end;z-index:20}
+.panel{background:var(--bg-card);border-top:1px solid var(--border-card);padding:16px 16px 20px;
+  clip-path:polygon(0% 2%, 100% 0%, 100% 100%, 0% 100%);max-height:88%;overflow-y:auto}
+.panel h3{margin:0 0 3px;font-size:17px;font-weight:900;letter-spacing:-.3px}
+.panel .sm{margin:0 0 14px;font-size:11px;color:var(--text-dim)}
+.sec{font-size:9px;font-weight:900;letter-spacing:1.3px;text-transform:uppercase;color:var(--text-muted);
+  margin:15px 0 8px;padding-top:12px;border-top:1px solid var(--border-base)}
+.sec:first-of-type{border-top:0;padding-top:0;margin-top:4px}
+.prow{display:flex;align-items:center;gap:10px;padding:7px 0}
+.prow .av{width:34px;height:34px}
+.prow .pn{flex:1;min-width:0}
+.prow .pn .a{font-size:12px;font-weight:900;line-height:1.3}
+.prow .pn .b{font-size:9.5px;color:var(--text-dim);margin-top:2px}
+.prow .st{flex:none;text-align:right;font-size:10px;color:var(--text-muted);font-weight:800;line-height:1.5}
+.prow .st b{color:var(--text-primary);display:block;font-size:12px}
+.h2h{display:flex;align-items:center;justify-content:space-between;background:var(--bg-subtle);
+  border:1px solid var(--border-base);padding:9px 11px;clip-path:var(--clip-tag);margin-bottom:6px;font-size:11px}
+.h2h .who{color:var(--text-secondary)}
+.h2h .sc{font-weight:900;font-variant-numeric:tabular-nums}
+.h2h .sc.dom{color:var(--lime)}
+.h2h .sc.even{color:var(--text-muted)}
+.none{font-size:11px;color:var(--text-dim);font-style:italic;padding:4px 0}
+.tot{margin-top:9px;font-size:11.5px;color:var(--text-secondary);line-height:1.55;background:var(--lime-bg);
+  border:1px solid var(--lime-border);padding:10px 12px;clip-path:var(--clip-tag)}
+.tot b{color:var(--lime);font-weight:900}
+.close{width:100%;margin-top:14px;background:transparent;border:0;padding:0;cursor:pointer;position:relative;display:block}
+.close span{position:absolute;inset:0;background:#0A0A0A;clip-path:var(--clip-chunky);transform:translateY(5px)}
+.close em{position:relative;display:block;background:#2A2A2A;color:#fff;clip-path:var(--clip-chunky);
+  padding:12px 0;font-style:normal;font-weight:900;font-size:12px;letter-spacing:.4px;text-transform:uppercase;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.note{max-width:1280px;margin:0 auto;padding:6px 22px 60px;font-size:11.5px;color:var(--text-dim);line-height:1.75}
+.note b{color:var(--text-secondary)}
+.note code{color:var(--lime);font-family:ui-monospace,monospace;font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>Cartão v2 — identidade e decisão</h1>
+  <p>Mesma pergunta, três versões. A diferença está na <b>linha de sinal</b> logo abaixo da pergunta: é o
+     único espaço onde cabe um argumento, por isso importa escolher qual.</p>
+  <div class="real">todos os números são reais · lidos da produção a 25 set 2026</div>
+</div>
+
+<div class="row">
+
+  <!-- ─────────── A · linha de FORMA ─────────── -->
+  <div class="col">
+    <div class="cap">A · sinal de <b>forma recente</b></div>
+    <div class="phone">
+      <div class="sub">
+        <button class="on">Mercados</button><button>Atividade</button><button>Líderes</button>
+        <button class="bal"><span class="coin">G</span>9.400</button>
+      </div>
+      <div class="wrap"><div class="card">
+        <div class="hero">
+          <svg viewBox="0 0 345 196" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs><radialGradient id="g1" cx="50%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#F472B6" stop-opacity=".22"/>
+              <stop offset="100%" stop-color="#140d12" stop-opacity="0"/></radialGradient></defs>
+            <rect width="345" height="196" fill="#140d12"/><rect width="345" height="196" fill="url(#g1)"/>
+            <g stroke="#F472B6" stroke-opacity=".15" fill="none" stroke-width="1.1">
+              <path d="M80 196 L140 44 L205 44 L265 196"/><path d="M48 196 L120 22 L225 22 L297 196"/>
+              <path d="M96 146 L249 146"/><path d="M110 96 L235 96"/><path d="M172.5 146 L172.5 44"/>
+            </g>
+          </svg>
+          <div class="chips">
+            <span class="tag h">Partida</span>
+            <span class="tag c">Lyon · Feminino · QF</span>
+            <span class="tag t">Fecha 10:00</span>
+          </div>
+          <div class="faces">
+            <div class="side win">
+              <div class="duo">
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/52077418-5dfd-4b44-a9d8-11973ba2486e.png" alt=""></div>
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/901e70a4-058d-4472-a92a-456c0a0fca38.png" alt=""></div>
+              </div>
+              <div class="nm"><div class="n1">Rufo / Castello</div>
+                <div class="rk"><span class="flag">🇪🇸</span>#28 · #29</div></div>
+            </div>
+            <div class="vs">VS</div>
+            <div class="side">
+              <div class="duo">
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/fea2f312-85a7-421e-a6d3-e1360ac7ded0.png" alt=""></div>
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/c5774a06-2fc2-4ae2-8ccf-ec7e2ecc149f.png" alt=""></div>
+              </div>
+              <div class="nm"><div class="n1">Fassio / Perez</div>
+                <div class="rk"><span class="flag">🇦🇷</span>#25 · <span class="flag">🇪🇸</span>#42</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p class="q">Rufo / Castello vai ganhar este jogo?</p>
+          <div class="signal">
+            <div class="ico">↗</div>
+            <div class="tx"><b>Rufo / Castello</b> ganharam 4 dos últimos 5
+              <span class="streak"><i class="v">V</i><i class="d">D</i><i class="v">V</i><i class="v">V</i><i class="v">V</i></span>
+            </div>
+          </div>
+          <div class="spark">
+            <div class="lg"><span><i></i>Preço do público</span><span><i class="dash"></i>Nosso modelo</span></div>
+            <svg viewBox="0 0 300 40" preserveAspectRatio="none">
+              <defs><linearGradient id="f1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#7ED321" stop-opacity=".26"/>
+                <stop offset="100%" stop-color="#7ED321" stop-opacity="0"/></linearGradient></defs>
+              <polygon points="0,40 0,20 60,18 120,21 180,16 240,14 300,12 300,40" fill="url(#f1)"/>
+              <polyline points="0,20 60,18 120,21 180,16 240,14 300,12" fill="none" stroke="#7ED321" stroke-width="2"/>
+              <line x1="0" y1="17" x2="300" y2="17" stroke="#38C8FF" stroke-width="1.6" stroke-dasharray="5 4"/>
+              <circle cx="300" cy="12" r="3" fill="#7ED321"/>
+            </svg>
+          </div>
+          <div class="odds">
+            <div class="odd y"><div class="l">SIM</div><div class="p">60%</div></div>
+            <div class="odd n"><div class="l">NÃO</div><div class="p">40%</div></div>
+          </div>
+          <div class="model"><span class="ai">IA 59%</span><span>o público está 1 pt acima</span></div>
+          <div class="tapme">Toca no cartão para ver o duelo ›</div>
+        </div>
+      </div></div>
+      <div class="acts">
+        <button class="rb no"><span></span><em><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></em></button>
+        <button class="rb yes"><span></span><em><svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.2L20 7"/></svg></em></button>
+      </div>
+    </div>
+    <p class="why">Sempre disponível — qualquer jogadora com 3+ jogos tem forma.
+       Mas é um sinal fraco aqui: <b>ambas as duplas</b> vêm de 4 e 3 vitórias em 5. Quase não separa.</p>
+  </div>
+
+  <!-- ─────────── B · linha de CONFRONTO ─────────── -->
+  <div class="col">
+    <div class="cap">B · sinal de <b>confronto direto</b></div>
+    <div class="phone">
+      <div class="sub">
+        <button class="on">Mercados</button><button>Atividade</button><button>Líderes</button>
+        <button class="bal"><span class="coin">G</span>9.400</button>
+      </div>
+      <div class="wrap"><div class="card">
+        <div class="hero">
+          <svg viewBox="0 0 345 196" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <rect width="345" height="196" fill="#140d12"/><rect width="345" height="196" fill="url(#g1)"/>
+            <g stroke="#F472B6" stroke-opacity=".15" fill="none" stroke-width="1.1">
+              <path d="M80 196 L140 44 L205 44 L265 196"/><path d="M48 196 L120 22 L225 22 L297 196"/>
+              <path d="M96 146 L249 146"/><path d="M110 96 L235 96"/><path d="M172.5 146 L172.5 44"/>
+            </g>
+          </svg>
+          <div class="chips">
+            <span class="tag h">Partida</span>
+            <span class="tag c">Lyon · Feminino · QF</span>
+            <span class="tag t">Fecha 10:00</span>
+          </div>
+          <div class="faces">
+            <div class="side win">
+              <div class="duo">
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/52077418-5dfd-4b44-a9d8-11973ba2486e.png" alt=""></div>
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/901e70a4-058d-4472-a92a-456c0a0fca38.png" alt=""></div>
+              </div>
+              <div class="nm"><div class="n1">Rufo / Castello</div>
+                <div class="rk"><span class="flag">🇪🇸</span>#28 · #29</div></div>
+            </div>
+            <div class="vs">VS</div>
+            <div class="side">
+              <div class="duo">
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/fea2f312-85a7-421e-a6d3-e1360ac7ded0.png" alt=""></div>
+                <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/c5774a06-2fc2-4ae2-8ccf-ec7e2ecc149f.png" alt=""></div>
+              </div>
+              <div class="nm"><div class="n1">Fassio / Perez</div>
+                <div class="rk"><span class="flag">🇦🇷</span>#25 · <span class="flag">🇪🇸</span>#42</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="body">
+          <p class="q">Rufo / Castello vai ganhar este jogo?</p>
+          <div class="signal">
+            <div class="ico">⚔</div>
+            <div class="tx"><b>Castello nunca perdeu</b> com Perez — 7 encontros, 7 vitórias</div>
+          </div>
+          <div class="spark">
+            <div class="lg"><span><i></i>Preço do público</span><span><i class="dash"></i>Nosso modelo</span></div>
+            <svg viewBox="0 0 300 40" preserveAspectRatio="none">
+              <polygon points="0,40 0,20 60,18 120,21 180,16 240,14 300,12 300,40" fill="url(#f1)"/>
+              <polyline points="0,20 60,18 120,21 180,16 240,14 300,12" fill="none" stroke="#7ED321" stroke-width="2"/>
+              <line x1="0" y1="17" x2="300" y2="17" stroke="#38C8FF" stroke-width="1.6" stroke-dasharray="5 4"/>
+              <circle cx="300" cy="12" r="3" fill="#7ED321"/>
+            </svg>
+          </div>
+          <div class="odds">
+            <div class="odd y"><div class="l">SIM</div><div class="p">60%</div></div>
+            <div class="odd n"><div class="l">NÃO</div><div class="p">40%</div></div>
+          </div>
+          <div class="model"><span class="ai">IA 59%</span><span>o público está 1 pt acima</span></div>
+          <div class="tapme">Toca no cartão para ver o duelo ›</div>
+        </div>
+      </div></div>
+      <div class="acts">
+        <button class="rb no"><span></span><em><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></em></button>
+        <button class="rb yes"><span></span><em><svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.2L20 7"/></svg></em></button>
+      </div>
+    </div>
+    <p class="why">Muito mais decisivo — <b>7–0</b> é um argumento, "4 em 5" não é.
+       Risco: nem sempre existe. Se as jogadoras nunca se cruzaram, a linha cai para a forma.</p>
+  </div>
+
+  <!-- ─────────── C · painel de detalhe ─────────── -->
+  <div class="col">
+    <div class="cap">C · detalhe <b>ao toque</b></div>
+    <div class="phone">
+      <div class="sub">
+        <button class="on">Mercados</button><button>Atividade</button><button>Líderes</button>
+        <button class="bal"><span class="coin">G</span>9.400</button>
+      </div>
+      <div class="wrap">
+        <div class="card"></div>
+        <div class="sheet"><div class="panel">
+          <h3>Rufo / Castello vs Fassio / Perez</h3>
+          <p class="sm">FIP Platinum Lyon · Quartos de final · feminino</p>
+
+          <div class="sec">As jogadoras</div>
+          <div class="prow">
+            <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/52077418-5dfd-4b44-a9d8-11973ba2486e.png" alt=""></div>
+            <div class="pn"><div class="a">Lorena Rufo</div><div class="b">🇪🇸 #28 · race #26</div></div>
+            <div class="st"><b>48%</b>107 jogos</div>
+          </div>
+          <div class="prow">
+            <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/901e70a4-058d-4472-a92a-456c0a0fca38.png" alt=""></div>
+            <div class="pn"><div class="a">Jessica Castello</div><div class="b">🇪🇸 #29 · race #29 · 1 título</div></div>
+            <div class="st"><b>61%</b>142 jogos</div>
+          </div>
+          <div class="prow">
+            <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/fea2f312-85a7-421e-a6d3-e1360ac7ded0.png" alt=""></div>
+            <div class="pn"><div class="a">Martina Fassio</div><div class="b">🇦🇷 #25 · race #31 · 1 título</div></div>
+            <div class="st"><b>47%</b>88 jogos</div>
+          </div>
+          <div class="prow">
+            <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/c5774a06-2fc2-4ae2-8ccf-ec7e2ecc149f.png" alt=""></div>
+            <div class="pn"><div class="a">Agueda Perez</div><div class="b">🇪🇸 #42 · race #41</div></div>
+            <div class="st">—</div>
+          </div>
+
+          <div class="sec">Confrontos diretos</div>
+          <div class="h2h"><span class="who">Castello vs Perez</span><span class="sc dom">7 – 0</span></div>
+          <div class="h2h"><span class="who">Rufo vs Perez</span><span class="sc dom">4 – 0</span></div>
+          <div class="h2h"><span class="who">Castello vs Fassio</span><span class="sc even">3 – 3</span></div>
+          <div class="h2h"><span class="who">Rufo vs Fassio</span><span class="sc even">2 – 2</span></div>
+          <div class="tot">No total, <b>16 vitórias em 21</b> encontros para o lado de Rufo / Castello.
+            Como duplas exatas, porém, <b>nunca se defrontaram</b>.</div>
+
+          <div class="sec">Público vs modelo</div>
+          <div class="h2h"><span class="who">Preço do público</span><span class="sc">60%</span></div>
+          <div class="h2h"><span class="who">Nosso modelo (Elo)</span><span class="sc">59%</span></div>
+
+          <button class="close"><span></span><em>Fechar</em></button>
+        </div></div>
+      </div>
+      <div class="acts">
+        <button class="rb no"><span></span><em><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></em></button>
+        <button class="rb yes"><span></span><em><svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.2L20 7"/></svg></em></button>
+      </div>
+    </div>
+    <p class="why">Tudo o que não cabe no cartão. Repara que a Agueda Perez aparece com <b>—</b>:
+       não temos <code>win_rate</code> dela. Mostrar "0%" seria mentira.</p>
+  </div>
+
+</div>
+
+<div class="note">
+  <p><b>Onde os dados batem certo.</b> Avatares, bandeiras, rankings, % de vitórias e títulos vêm da tabela
+     <code>players</code>. A forma sai das <code>matches</code> ordenadas por <code>finished_at</code> —
+     <b>nunca por <code>scheduled_at</code></b>, que está a NULL em 1.191 jogos terminados e cujo máximo é uma data
+     de dezembro num jogo já acabado. Ordenar mal punha um jogo futuro no topo dos "últimos 5" e dava sequências
+     iguais a adversárias, o que é impossível.</p>
+  <p><b>O confronto dupla-vs-dupla é quase sempre zero.</b> Estas duas duplas exatas nunca se defrontaram — no
+     padel os pares mudam de época a época. Por isso o painel mostra o confronto <b>jogadora a jogadora</b>, que
+     aqui dá 21 encontros em vez de 0.</p>
+  <p><b>O que não existe:</b> estatísticas de saque e resposta. O <code>match_stats</code> só cobre tier Premier e
+     Lyon é <code>fip_platinum</code> — por isso não há um espaço reservado para isso que ficaria vazio na maioria
+     dos cartões.</p>
+</div>
+
+</body>
+</html>

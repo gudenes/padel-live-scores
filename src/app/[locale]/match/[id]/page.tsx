@@ -26,6 +26,7 @@ import { shouldShowRecap, defaultFinishedTab, matchDetailTabKeys } from './recap
 import { isPresenceOnlyLive, hasLivePointByPoint } from '@/lib/tournament-tier'
 import PresenceOnlyHint from '@/components/PresenceOnlyHint'
 import ShareButton from '@/components/ShareButton'
+import MatchPlayNavigation from '@/components/player/MatchPlayNavigation'
 
 import { WinnerBanner } from './WinnerBanner'
 import { PredictionSection, PredictionResult } from './PredictionSection'
@@ -969,6 +970,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           />
         </>
       )}
+
+      <MatchPlayNavigation matchId={id}/>
 
       {/* ── SCHEDULED: prediction + countdown + info ─────────────────── */}
       {isScheduled && (() => {

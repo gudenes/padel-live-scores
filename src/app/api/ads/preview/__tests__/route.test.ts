@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parsePreviewId } from '../route'
+import { parsePreviewId } from '../preview-id'
 
 describe('parsePreviewId', () => {
   it('returns the trimmed id', () => {

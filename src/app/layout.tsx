@@ -145,10 +145,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       />
     </head>
     <body>
-      {/* Splash overlay paints first so the WebView's initial frame
-          shows our branded logo + lime arc spinner. CSS-only hide
-          (no DOM mutation) — see SplashOverlay component for the
-          history of the DOM-corruption bug that the v1 hit. */}
+      {/* The logo renders with the initial HTML and fades after hydration.
+          Keep its node mounted so error recovery can reconcile safely. */}
       <SplashOverlay />
       {/* Corrects the iOS cold-launch viewport-zoom race (Capacitor
           remote-URL mode). No-op on web/Safari — gated to native iOS. */}

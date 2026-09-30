@@ -1,0 +1,147 @@
+{
+  "en": {
+    "first-pick": {
+      "name": "First Pick"
+    },
+    "king-of-predict": {
+      "name": "King of Predict"
+    },
+    "on-fire": {
+      "name": "On Fire"
+    },
+    "tournament-brain": {
+      "name": "Tournament Brain"
+    },
+    "scout": {
+      "name": "Scout"
+    },
+    "match-tracker": {
+      "name": "Match Tracker"
+    },
+    "match-critic": {
+      "name": "Match Critic"
+    },
+    "founding-member": {
+      "name": "Founding Member"
+    },
+    "ambassador": {
+      "name": "Ambassador"
+    }
+  },
+  "es": {
+    "first-pick": {
+      "name": "Primer pronóstico"
+    },
+    "king-of-predict": {
+      "name": "Rey del pronóstico"
+    },
+    "on-fire": {
+      "name": "En racha"
+    },
+    "tournament-brain": {
+      "name": "Mente de torneo"
+    },
+    "scout": {
+      "name": "Ojeador"
+    },
+    "match-tracker": {
+      "name": "Cazapartidos"
+    },
+    "match-critic": {
+      "name": "Crítico de partidos"
+    },
+    "founding-member": {
+      "name": "Miembro fundador"
+    },
+    "ambassador": {
+      "name": "Embajador"
+    }
+  },
+  "pt": {
+    "first-pick": {
+      "name": "Primeiro palpite"
+    },
+    "king-of-predict": {
+      "name": "Rei dos palpites"
+    },
+    "on-fire": {
+      "name": "Em alta"
+    },
+    "tournament-brain": {
+      "name": "Mente de torneio"
+    },
+    "scout": {
+      "name": "Olheiro"
+    },
+    "match-tracker": {
+      "name": "Caçador de partidas"
+    },
+    "match-critic": {
+      "name": "Crítico de partidas"
+    },
+    "founding-member": {
+      "name": "Membro fundador"
+    },
+    "ambassador": {
+      "name": "Embaixador"
+    }
+  },
+  "fr": {
+    "first-pick": {
+      "name": "Premier pronostic"
+    },
+    "king-of-predict": {
+      "name": "Roi des pronostics"
+    },
+    "on-fire": {
+      "name": "En pleine forme"
+    },
+    "tournament-brain": {
+      "name": "Stratège du tournoi"
+    },
+    "scout": {
+      "name": "Dénicheur de talents"
+    },
+    "match-tracker": {
+      "name": "Suivi des matchs"
+    },
+    "match-critic": {
+      "name": "Critique de matchs"
+    },
+    "founding-member": {
+      "name": "Membre fondateur"
+    },
+    "ambassador": {
+      "name": "Ambassadeur"
+    }
+  },
+  "it": {
+    "first-pick": {
+      "name": "Primo pronostico"
+    },
+    "king-of-predict": {
+      "name": "Re dei pronostici"
+    },
+    "on-fire": {
+      "name": "Inarrestabile"
+    },
+    "tournament-brain": {
+      "name": "Mente del torneo"
+    },
+    "scout": {
+      "name": "Talent scout"
+    },
+    "match-tracker": {
+      "name": "Cacciatore di partite"
+    },
+    "match-critic": {
+      "name": "Critico di partite"
+    },
+    "founding-member": {
+      "name": "Membro fondatore"
+    },
+    "ambassador": {
+      "name": "Ambasciatore"
+    }
+  }
+}

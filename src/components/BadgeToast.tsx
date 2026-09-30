@@ -6,9 +6,13 @@
 // via the BadgeToastContext or via the pn-badge-unlock DOM event.
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { BadgeIcon } from '@/components/BadgeIcon'
 import { BADGE_MAP, TIER_META, type TierNumber } from '@/lib/badges'
-import { spawnConfetti } from '@/lib/confetti'
+import motion from './GameMotion.module.css'
+import {useAuth} from './AuthProvider'
+import {useApiResource} from '@/app/[locale]/(app)/play/_components/usePlayData'
+import {BadgeToastItem as LegacyToastItem} from './legacy/BadgeToast'
 const BADGE_UNLOCK_EVENT = 'pn-badge-unlock'
 
 interface ToastData {
@@ -29,37 +33,19 @@ export function useBadgeToast() {
 
 let toastCounter = 0
 
-const TIER_CONFETTI_COLORS: Record<number, string[]> = {
-  1: ['#7ED321', '#fff', '#7ED321', '#fff'],
-  2: ['#F5A623', '#fff', '#F5A623', '#FFD166'],
-  3: ['#FF6B2B', '#fff', '#FF6B2B', '#F5A623'],
-  4: ['#FFD166', '#fff', '#FFD166', '#F5A623'],
-}
-
 interface BadgeToastItemProps {
   toast: ToastData
 }
 
 function BadgeToastItem({ toast }: BadgeToastItemProps) {
+  const t = useTranslations('badgeCollection')
   const badge = BADGE_MAP[toast.badgeId]
   const tierMeta = TIER_META[toast.tier]
-  const iconRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (iconRef.current) {
-        spawnConfetti(iconRef.current, {
-          colors: TIER_CONFETTI_COLORS[toast.tier] ?? TIER_CONFETTI_COLORS[1],
-        })
-      }
-    }, 200)
-    return () => clearTimeout(timer)
-  }, [toast.tier])
-
   if (!badge) return null
 
   return (
     <div
+      className={`${motion.enter} ${motion.sweep}`}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -69,25 +55,24 @@ function BadgeToastItem({ toast }: BadgeToastItemProps) {
         clipPath: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
         padding: '10px 14px',
         boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 10px ${tierMeta.color}20`,
-        animation: 'badge-toast-slide 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        borderRadius: 14,
         pointerEvents: 'auto',
       }}
     >
       <div
-        ref={iconRef}
-        style={{ animation: 'badge-icon-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+        className={motion.stamp}
       >
-        <BadgeIcon svgIcon={badge.svgIcon} tier={toast.tier} size={40} />
+        <BadgeIcon svgIcon={badge.svgIcon} tier={toast.tier} size={52} />
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 800, color: '#fff' }}>
           <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke={tierMeta.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
           </svg>
-          Badge Unlocked
+          {t('unlocked')}
         </div>
         <div style={{ fontSize: 12, fontWeight: 700, color: tierMeta.color, marginTop: 2 }}>
-          {badge.name} · {tierMeta.label}
+          {t.has(`items.${badge.id}.name`) ? t(`items.${badge.id}.name`) : badge.name}{badge.tiers.length>1 ? ` · ${t('tier',{tier:toast.tier})}` : ''}
         </div>
       </div>
     </div>
@@ -95,14 +80,22 @@ function BadgeToastItem({ toast }: BadgeToastItemProps) {
 }
 
 export function BadgeToastProvider({ children }: { children: ReactNode }) {
+  const {user}=useAuth()
+  const access=useApiResource(`/api/play/access?account=${encodeURIComponent(user?.id??'')}`,(p:unknown)=>(p as {allowed?:boolean}).allowed===true,!!user)
   const [toasts, setToasts] = useState<ToastData[]>([])
 
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  useEffect(() => { const active=timers.current; return () => { active.forEach(clearTimeout); active.clear() } }, [])
+
   const show = useCallback((badgeId: string, tier: TierNumber) => {
+    if (!BADGE_MAP[badgeId] || ![1,2,3,4].includes(tier)) return
     const id = ++toastCounter
     setToasts(prev => [...prev, { badgeId, tier, id }])
-    setTimeout(() => {
+    const timer=setTimeout(() => {
+      timers.current.delete(timer)
       setToasts(prev => prev.filter(t => t.id !== id))
-    }, 4000)
+    }, 5500)
+    timers.current.add(timer)
   }, [])
 
   useEffect(() => {
@@ -120,7 +113,7 @@ export function BadgeToastProvider({ children }: { children: ReactNode }) {
     <BadgeToastContext.Provider value={{ show }}>
       {children}
       {/* Toast container */}
-      <div style={{
+      <div role="status" aria-live="polite" aria-atomic="true" style={{
         position: 'fixed',
         bottom: 80, // above bottom nav
         left: '50%',
@@ -134,20 +127,10 @@ export function BadgeToastProvider({ children }: { children: ReactNode }) {
         pointerEvents: 'none',
       }}>
         {toasts.map(toast => (
-          <BadgeToastItem key={toast.id} toast={toast} />
+          access.data===true ? <BadgeToastItem key={toast.id} toast={toast} /> : <LegacyToastItem key={toast.id} toast={toast} />
         ))}
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes badge-toast-slide {
-          0% { transform: translateY(100%); opacity: 0; }
-          100% { transform: translateY(0); opacity: 1; }
-        }
-        @keyframes badge-icon-pop {
-          0% { transform: scale(0); }
-          70% { transform: scale(1.2); }
-          100% { transform: scale(1); }
-        }
-      `}} />
+
     </BadgeToastContext.Provider>
   )
 }

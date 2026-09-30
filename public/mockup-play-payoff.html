@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play the Next · tornar o prémio óbvio</title>
+<style>
+/* ══════════════════════════════════════════════════════════════════
+   O problema: o cartão diz "SIM 60%" e nunca diz quanto ganhas.
+   60% é a probabilidade, não o prémio. Três formas de o resolver.
+   Dados reais da produção, 25 set 2026. Preço 0,60 -> multiplicador
+   1/0,60 = 1,67x.  Saldo real do Gustavo: 9.400 G.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --bg-base:#1A1A1A; --bg-card:#1F1F1F; --bg-subtle:#1E1E1E;
+  --border-base:#2A2A2A; --border-card:#2E2E2E; --border-strong:#383838;
+  --text-primary:#EEE4CE; --text-secondary:#9AAEC4; --text-muted:#6889A5;
+  --text-dim:#4A6F8E; --text-faint:#365A78;
+  --color-accent:#38C8FF; --color-accent-bg:rgba(56,200,255,.08); --color-accent-border:rgba(56,200,255,.25);
+  --color-women:#F472B6;
+  --lime:#7ED321; --lime-skirt:#558D14; --lime-bg:rgba(126,211,33,.10); --lime-border:rgba(126,211,33,.30);
+  --no:#FF4655; --no-skirt:#99131D; --no-bg:rgba(255,70,85,.10); --no-border:rgba(255,70,85,.30);
+  --gold:#EAB308; --gold-bg:rgba(234,179,8,.10); --gold-border:rgba(234,179,8,.32);
+  --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --clip-card:polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
+  --clip-tag:polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
+  --clip-chunky:polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%);
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:#0A0A0A;color:var(--text-primary);font-family:var(--font-sans);-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1100px 620px at 18% -10%, rgba(234,179,8,.05), transparent 62%)}
+.head{max-width:1300px;margin:0 auto;padding:30px 22px 4px}
+.head h1{margin:0;font-size:15px;letter-spacing:5px;font-weight:900;text-transform:uppercase}
+.head .lead{margin:9px 0 0;font-size:13px;color:var(--text-secondary);line-height:1.65;max-width:760px}
+.head .lead b{color:var(--text-primary)}
+.row{max-width:1300px;margin:0 auto;padding:20px 22px;display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.col{width:375px;flex:none}
+.cap{margin:0 0 10px;font-size:10px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted)}
+.cap b{color:var(--gold)}
+.why{margin:10px 2px 0;font-size:11.5px;line-height:1.6;color:var(--text-dim)}
+.why b{color:var(--text-secondary)}
+
+.phone{width:375px;height:720px;background:#0A0A0A;border:1px solid var(--border-strong);border-radius:32px;
+  box-shadow:0 30px 70px rgba(0,0,0,.7), inset 0 0 0 6px #000;overflow:hidden;display:flex;flex-direction:column}
+.sub{flex:none;display:flex;gap:6px;padding:10px 12px 11px;border-bottom:1px solid var(--border-base)}
+.sub button{flex:1;background:var(--bg-subtle);border:1px solid var(--border-base);color:var(--text-muted);font-family:inherit;
+  font-size:10px;font-weight:900;letter-spacing:.7px;text-transform:uppercase;padding:8px 0;clip-path:var(--clip-tag)}
+.sub button.on{background:var(--lime);border-color:var(--lime);color:#0a0a0a}
+.sub .bal{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:0 10px;background:var(--bg-card);
+  border-color:var(--border-card);color:var(--text-primary);font-size:12px;letter-spacing:0;text-transform:none}
+.coin{width:17px;height:17px;border-radius:50%;background:var(--lime);color:#0a0a0a;display:grid;place-items:center;
+  font-size:10px;font-weight:900;flex:none}
+.wrap{flex:1;min-height:0;padding:14px 14px 0;position:relative}
+.card{position:absolute;inset:14px 14px 0;background:var(--bg-card);border:1px solid var(--border-card);
+  clip-path:var(--clip-card);overflow:hidden;display:flex;flex-direction:column}
+
+.hero{position:relative;height:150px;flex:none;overflow:hidden;background:#140d12}
+.hero > svg{position:absolute;inset:0;width:100%;height:100%}
+.hero::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(10,10,10,.05) 0%,rgba(10,10,10,.42) 52%,var(--bg-card) 99%)}
+.chips{position:absolute;top:10px;left:10px;right:10px;z-index:4;display:flex;gap:6px;align-items:center}
+.tag{font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;padding:4px 8px;clip-path:var(--clip-tag)}
+.tag.h{background:rgba(10,10,10,.72);color:var(--color-women);border:1px solid rgba(244,114,182,.30)}
+.tag.t{background:rgba(10,10,10,.72);color:var(--text-secondary);border:1px solid var(--border-strong);margin-left:auto}
+.faces{position:absolute;inset:0;z-index:3;display:flex;align-items:center;justify-content:center;gap:8px;padding-top:12px}
+.side{display:flex;flex-direction:column;align-items:center;gap:6px;width:130px}
+.duo{display:flex}
+.av{width:48px;height:48px;border-radius:50%;overflow:hidden;background:#20262b;flex:none;
+  box-shadow:0 0 0 2px rgba(10,10,10,.85)}
+.av:nth-child(2){margin-left:-12px}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.side.win .av{box-shadow:0 0 0 2px var(--lime)}
+.nm{text-align:center;line-height:1.25}
+.nm .n1{font-size:12px;font-weight:900}
+.nm .rk{margin-top:2px;font-size:9px;font-weight:800;color:var(--text-dim)}
+.vs{font-size:11px;font-weight:900;color:var(--text-faint);padding-bottom:22px}
+.body{flex:1;min-height:0;padding:0 15px 12px;display:flex;flex-direction:column;position:relative;z-index:2;margin-top:-22px}
+.q{font-size:18.5px;font-weight:900;line-height:1.2;letter-spacing:-.4px;margin:0 0 9px}
+.signal{display:flex;align-items:center;gap:8px;background:var(--bg-subtle);border:1px solid var(--border-base);
+  padding:8px 10px;clip-path:var(--clip-tag);margin-bottom:10px}
+.signal .ico{width:18px;height:18px;flex:none;border-radius:50%;display:grid;place-items:center;
+  background:var(--lime-bg);border:1px solid var(--lime-border);color:var(--lime);font-size:9px;font-weight:900}
+.signal .tx{font-size:11px;line-height:1.45;color:var(--text-secondary)}
+.signal .tx b{color:var(--text-primary);font-weight:900}
+
+/* ── A · multiplicador dentro do bloco ── */
+.odds{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:auto}
+.odd{padding:10px 8px;text-align:center;clip-path:var(--clip-tag);border:1px solid}
+.odd .l{font-size:9.5px;font-weight:900;letter-spacing:1.4px}
+.odd .p{font-size:23px;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums}
+.odd .mult{margin-top:5px;padding-top:5px;border-top:1px dashed rgba(255,255,255,.12);
+  font-size:13px;font-weight:900;font-variant-numeric:tabular-nums}
+.odd .mult small{display:block;font-size:8px;font-weight:800;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--text-faint);margin-top:2px}
+.odd.y{background:var(--lime-bg);border-color:var(--lime-border)} .odd.y .l,.odd.y .p{color:var(--lime)}
+.odd.y .mult{color:var(--lime)}
+.odd.n{background:var(--no-bg);border-color:var(--no-border)} .odd.n .l,.odd.n .p{color:var(--no)}
+.odd.n .mult{color:var(--no)}
+
+/* ── B · pré-visualização em Guacas ── */
+.preview{background:var(--gold-bg);border:1px solid var(--gold-border);padding:10px 12px;clip-path:var(--clip-tag);
+  margin-top:auto;margin-bottom:9px}
+.preview .k{font-size:8.5px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+.preview .flow{display:flex;align-items:center;gap:9px}
+.preview .box{flex:1;text-align:center}
+.preview .box .v{font-size:17px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.15}
+.preview .box .s{font-size:8.5px;font-weight:800;color:var(--text-dim);letter-spacing:.5px;margin-top:2px}
+.preview .arw{color:var(--gold);font-size:15px;font-weight:900;flex:none}
+.preview .box.win .v{color:var(--lime)} .preview .box.lose .v{color:var(--no)}
+.stakepick{display:flex;gap:5px;margin-top:9px}
+.stakepick button{flex:1;background:rgba(10,10,10,.4);border:1px solid var(--border-base);color:var(--text-muted);
+  font-family:inherit;font-size:10.5px;font-weight:900;padding:6px 0;clip-path:var(--clip-tag);font-variant-numeric:tabular-nums}
+.stakepick button.on{background:var(--gold);border-color:var(--gold);color:#1A1A1A}
+
+/* ── C · balança risco/prémio ── */
+.scale{margin-top:auto;margin-bottom:9px}
+.scale .hdr{display:flex;justify-content:space-between;font-size:8.5px;font-weight:900;letter-spacing:1.1px;
+  text-transform:uppercase;margin-bottom:6px}
+.scale .hdr .a{color:var(--lime)} .scale .hdr .b{color:var(--no)}
+.bar{display:flex;height:46px;clip-path:var(--clip-tag);overflow:hidden;border:1px solid var(--border-base)}
+.bar .seg{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+.bar .seg .big{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.bar .seg .sml{font-size:8px;font-weight:800;letter-spacing:.6px}
+.bar .y{background:var(--lime-bg);border-right:1px solid var(--border-base);color:var(--lime)}
+.bar .n{background:var(--no-bg);color:var(--no)}
+.scale .foot{margin-top:7px;font-size:10px;color:var(--text-dim);line-height:1.5;text-align:center}
+.scale .foot b{color:var(--text-secondary)}
+
+.model{margin-top:7px;display:flex;align-items:center;justify-content:center;gap:7px;font-size:9.5px;
+  font-weight:800;color:var(--text-muted)}
+.ai{display:inline-flex;align-items:center;gap:4px;background:var(--color-accent-bg);border:1px solid var(--color-accent-border);
+  color:var(--color-accent);padding:3px 6px;clip-path:var(--clip-tag);font-size:8.5px;font-weight:900}
+.whenpay{margin-top:7px;text-align:center;font-size:9px;font-weight:800;letter-spacing:.6px;color:var(--text-faint)}
+
+.acts{flex:none;padding:10px 22px 4px;display:flex;align-items:center;justify-content:center;gap:26px}
+.rb{width:56px;height:56px;border-radius:999px;border:0;display:grid;place-items:center;position:relative;cursor:pointer}
+.rb span{position:absolute;inset:0;border-radius:999px;transform:translateY(5px)}
+.rb em{position:relative;width:100%;height:100%;border-radius:999px;display:grid;place-items:center;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22)}
+.rb.no span{background:var(--no-skirt)} .rb.no em{background:var(--no)}
+.rb.yes span{background:var(--lime-skirt)} .rb.yes em{background:var(--lime)}
+.rb svg{width:23px;height:23px;fill:none;stroke-width:3.2;stroke-linecap:round;stroke-linejoin:round}
+.rb.no svg{stroke:#fff} .rb.yes svg{stroke:#0a0a0a}
+.note{max-width:1300px;margin:0 auto;padding:4px 22px 60px;font-size:12px;color:var(--text-dim);line-height:1.75}
+.note b{color:var(--text-secondary)} .note code{color:var(--lime);font-family:ui-monospace,monospace;font-size:11px}
+.warn{margin-top:14px;border:1px solid var(--no-border);background:var(--no-bg);padding:13px 15px;clip-path:var(--clip-card)}
+.warn h3{margin:0 0 6px;font-size:10.5px;letter-spacing:1.5px;font-weight:900;text-transform:uppercase;color:var(--no)}
+.warn p{margin:0;font-size:12px;line-height:1.7;color:var(--text-secondary)}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>Tornar o prémio óbvio</h1>
+  <p class="lead">O cartão diz <b>"SIM 60%"</b> — isso é a probabilidade, não o prémio. Em nenhum sítio aparece
+     <b>quanto ganhas</b> nem <b>quando recebes</b>. Três abordagens, da mais leve à mais explícita.
+     Preço 0,60 → cada Guaca apostada devolve <b>1,67</b>.</p>
+</div>
+
+<div class="row">
+
+  <!-- ══════ A · multiplicador ══════ -->
+  <div class="col">
+    <div class="cap">A · <b>multiplicador</b> no bloco</div>
+    <div class="phone">
+      <div class="sub"><button class="on">Mercados</button><button>Atividade</button><button>Líderes</button>
+        <button class="bal"><span class="coin">G</span>9.400</button></div>
+      <div class="wrap"><div class="card">
+        <div class="hero">
+          <svg viewBox="0 0 345 150" preserveAspectRatio="xMidYMid slice"><defs>
+            <radialGradient id="g" cx="50%" cy="30%" r="70%"><stop offset="0%" stop-color="#F472B6" stop-opacity=".2"/>
+            <stop offset="100%" stop-color="#140d12" stop-opacity="0"/></radialGradient></defs>
+            <rect width="345" height="150" fill="#140d12"/><rect width="345" height="150" fill="url(#g)"/>
+            <g stroke="#F472B6" stroke-opacity=".14" fill="none" stroke-width="1.1">
+              <path d="M80 150 L140 34 L205 34 L265 150"/><path d="M96 112 L249 112"/><path d="M172.5 112 L172.5 34"/></g>
+          </svg>
+          <div class="chips"><span class="tag h">Partida</span><span class="tag t">Fecha 10:00</span></div>
+          <div class="faces">
+            <div class="side win"><div class="duo">
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/52077418-5dfd-4b44-a9d8-11973ba2486e.png" alt=""></div>
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/901e70a4-058d-4472-a92a-456c0a0fca38.png" alt=""></div></div>
+              <div class="nm"><div class="n1">Rufo / Castello</div><div class="rk">🇪🇸 #28 · #29</div></div></div>
+            <div class="vs">VS</div>
+            <div class="side"><div class="duo">
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/fea2f312-85a7-421e-a6d3-e1360ac7ded0.png" alt=""></div>
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/c5774a06-2fc2-4ae2-8ccf-ec7e2ecc149f.png" alt=""></div></div>
+              <div class="nm"><div class="n1">Fassio / Perez</div><div class="rk">🇦🇷#25 · 🇪🇸#42</div></div></div>
+          </div>
+        </div>
+        <div class="body">
+          <p class="q">Rufo / Castello vai ganhar este jogo?</p>
+          <div class="signal"><div class="ico">⚔</div>
+            <div class="tx"><b>Castello nunca perdeu</b> com Perez — 7 em 7</div></div>
+          <div class="odds">
+            <div class="odd y"><div class="l">SIM</div><div class="p">60%</div>
+              <div class="mult">×1,67<small>se acertares</small></div></div>
+            <div class="odd n"><div class="l">NÃO</div><div class="p">40%</div>
+              <div class="mult">×2,50<small>se acertares</small></div></div>
+          </div>
+          <div class="model"><span class="ai">IA 59%</span><span>público 1 pt acima</span></div>
+          <div class="whenpay">Paga quando o jogo terminar</div>
+        </div>
+      </div></div>
+      <div class="acts">
+        <button class="rb no"><span></span><em><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></em></button>
+        <button class="rb yes"><span></span><em><svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.2L20 7"/></svg></em></button>
+      </div>
+    </div>
+    <p class="why">Uma linha por bloco. <b>Mostra logo que o NÃO paga mais</b> — o lado impopular vale 2,5×,
+       e é isso que faz o mercado funcionar. Muito barato de construir. Mas "×2,50" ainda é abstrato
+       para quem nunca apostou.</p>
+  </div>
+
+  <!-- ══════ B · Guacas concretos ══════ -->
+  <div class="col">
+    <div class="cap">B · <b>em Guacas</b>, com aposta escolhida</div>
+    <div class="phone">
+      <div class="sub"><button class="on">Mercados</button><button>Atividade</button><button>Líderes</button>
+        <button class="bal"><span class="coin">G</span>9.400</button></div>
+      <div class="wrap"><div class="card">
+        <div class="hero">
+          <svg viewBox="0 0 345 150" preserveAspectRatio="xMidYMid slice">
+            <rect width="345" height="150" fill="#140d12"/><rect width="345" height="150" fill="url(#g)"/>
+            <g stroke="#F472B6" stroke-opacity=".14" fill="none" stroke-width="1.1">
+              <path d="M80 150 L140 34 L205 34 L265 150"/><path d="M96 112 L249 112"/><path d="M172.5 112 L172.5 34"/></g>
+          </svg>
+          <div class="chips"><span class="tag h">Partida</span><span class="tag t">Fecha 10:00</span></div>
+          <div class="faces">
+            <div class="side win"><div class="duo">
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/52077418-5dfd-4b44-a9d8-11973ba2486e.png" alt=""></div>
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/901e70a4-058d-4472-a92a-456c0a0fca38.png" alt=""></div></div>
+              <div class="nm"><div class="n1">Rufo / Castello</div><div class="rk">🇪🇸 #28 · #29</div></div></div>
+            <div class="vs">VS</div>
+            <div class="side"><div class="duo">
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/fea2f312-85a7-421e-a6d3-e1360ac7ded0.png" alt=""></div>
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/c5774a06-2fc2-4ae2-8ccf-ec7e2ecc149f.png" alt=""></div></div>
+              <div class="nm"><div class="n1">Fassio / Perez</div><div class="rk">🇦🇷#25 · 🇪🇸#42</div></div></div>
+          </div>
+        </div>
+        <div class="body">
+          <p class="q">Rufo / Castello vai ganhar este jogo?</p>
+          <div class="signal"><div class="ico">⚔</div>
+            <div class="tx"><b>Castello nunca perdeu</b> com Perez — 7 em 7</div></div>
+          <div class="preview">
+            <div class="k">Se apostares no SIM</div>
+            <div class="flow">
+              <div class="box"><div class="v">250 G</div><div class="s">ARRISCAS</div></div>
+              <div class="arw">→</div>
+              <div class="box win"><div class="v">417 G</div><div class="s">SE ACERTARES</div></div>
+              <div class="arw">→</div>
+              <div class="box lose"><div class="v">0 G</div><div class="s">SE ERRARES</div></div>
+            </div>
+            <div class="stakepick">
+              <button>100</button><button class="on">250</button><button>500</button><button>1.000</button>
+            </div>
+          </div>
+          <div class="odds">
+            <div class="odd y"><div class="l">SIM</div><div class="p">60%</div></div>
+            <div class="odd n"><div class="l">NÃO</div><div class="p">40%</div></div>
+          </div>
+          <div class="whenpay">Paga quando o jogo terminar</div>
+        </div>
+      </div></div>
+      <div class="acts">
+        <button class="rb no"><span></span><em><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></em></button>
+        <button class="rb yes"><span></span><em><svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.2L20 7"/></svg></em></button>
+      </div>
+    </div>
+    <p class="why">Números concretos, sem matemática. <b>Escolhes a aposta antes de deslizar</b>, o que
+       corta um ecrã inteiro do fluxo. Ocupa mais espaço e mostra só um dos lados de cada vez —
+       tens de imaginar o NÃO.</p>
+  </div>
+
+  <!-- ══════ C · balança ══════ -->
+  <div class="col">
+    <div class="cap">C · <b>balança</b> risco vs prémio</div>
+    <div class="phone">
+      <div class="sub"><button class="on">Mercados</button><button>Atividade</button><button>Líderes</button>
+        <button class="bal"><span class="coin">G</span>9.400</button></div>
+      <div class="wrap"><div class="card">
+        <div class="hero">
+          <svg viewBox="0 0 345 150" preserveAspectRatio="xMidYMid slice">
+            <rect width="345" height="150" fill="#140d12"/><rect width="345" height="150" fill="url(#g)"/>
+            <g stroke="#F472B6" stroke-opacity=".14" fill="none" stroke-width="1.1">
+              <path d="M80 150 L140 34 L205 34 L265 150"/><path d="M96 112 L249 112"/><path d="M172.5 112 L172.5 34"/></g>
+          </svg>
+          <div class="chips"><span class="tag h">Partida</span><span class="tag t">Fecha 10:00</span></div>
+          <div class="faces">
+            <div class="side win"><div class="duo">
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/52077418-5dfd-4b44-a9d8-11973ba2486e.png" alt=""></div>
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/901e70a4-058d-4472-a92a-456c0a0fca38.png" alt=""></div></div>
+              <div class="nm"><div class="n1">Rufo / Castello</div><div class="rk">🇪🇸 #28 · #29</div></div></div>
+            <div class="vs">VS</div>
+            <div class="side"><div class="duo">
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/fea2f312-85a7-421e-a6d3-e1360ac7ded0.png" alt=""></div>
+              <div class="av"><img src="https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/avatars/c5774a06-2fc2-4ae2-8ccf-ec7e2ecc149f.png" alt=""></div></div>
+              <div class="nm"><div class="n1">Fassio / Perez</div><div class="rk">🇦🇷#25 · 🇪🇸#42</div></div></div>
+          </div>
+        </div>
+        <div class="body">
+          <p class="q">Rufo / Castello vai ganhar este jogo?</p>
+          <div class="signal"><div class="ico">⚔</div>
+            <div class="tx"><b>Castello nunca perdeu</b> com Perez — 7 em 7</div></div>
+          <div class="scale">
+            <div class="hdr"><span class="a">← Deslizar SIM</span><span class="b">Deslizar NÃO →</span></div>
+            <div class="bar">
+              <div class="seg y" style="flex:0 0 60%">
+                <div class="big">167 G</div><div class="sml">POR CADA 100</div></div>
+              <div class="seg n" style="flex:0 0 40%">
+                <div class="big">250 G</div><div class="sml">POR CADA 100</div></div>
+            </div>
+            <div class="foot">A largura é a probabilidade. <b>O lado estreito paga mais.</b></div>
+          </div>
+          <div class="model"><span class="ai">IA 59%</span><span>público 1 pt acima</span></div>
+          <div class="whenpay">Paga quando o jogo terminar</div>
+        </div>
+      </div></div>
+      <div class="acts">
+        <button class="rb no"><span></span><em><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></em></button>
+        <button class="rb yes"><span></span><em><svg viewBox="0 0 24 24"><path d="M4 12.5l5.2 5.2L20 7"/></svg></em></button>
+      </div>
+    </div>
+    <p class="why">Substitui os blocos SIM/NÃO por <b>uma só barra</b>: a largura é a probabilidade, o número
+       é o prémio. Ensina a ideia central — <b>quanto menos provável, mais paga</b> — sem uma linha de
+       explicação. É a mais arriscada: ninguém viu isto antes.</p>
+  </div>
+
+</div>
+
+<div class="note">
+  <p><b>Porque é que faltava.</b> "60%" responde a <i>qual é a probabilidade</i>. O jogador quer saber
+     <i>quanto levo</i>. São a mesma informação, mas só uma delas é um prémio — e é sempre
+     <code>1 ÷ preço</code>: a 0,60 dá 1,67×, a 0,40 dá 2,50×.</p>
+  <p><b>O "quando".</b> Os três trazem a mesma microcópia — <b>"Paga quando o jogo terminar"</b>. Sem isso,
+     não há nada no ecrã que diga que o dinheiro não volta já. E a posição pode ser vendida antes disso,
+     o que também merece uma linha no painel de detalhe.</p>
+
+  <div class="warn">
+    <h3>Aviso honesto</h3>
+    <p>Qualquer destes três desenhos promete um pagamento que <b>o sistema hoje não faz</b>. Os 7 mercados
+       liquidados ontem não creditaram ninguém, e as tuas duas posições não têm caminho para receber.
+       Tornar o prémio óbvio no ecrã aumenta a promessa — por isso o worker de pagamento devia entrar
+       <b>antes</b> ou ao mesmo tempo que isto, não depois.</p>
+  </div>
+</div>
+
+</body>
+</html>

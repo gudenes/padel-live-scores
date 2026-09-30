@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validatePutInput } from '../route'
+import { validatePutInput } from '../validation'
 
 describe('validatePutInput', () => {
   it('accepts a non-empty content string', () => {

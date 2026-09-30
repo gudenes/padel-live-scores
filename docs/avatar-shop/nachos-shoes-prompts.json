@@ -1,0 +1,55 @@
+{
+  "tool": "built-in image_gen",
+  "prompts": [
+    {
+      "kind": "product",
+      "collection": "starter",
+      "prompt": "Precise object edit of attached 3x2 equipment catalogue atlas. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Preserve all six cell positions and every non-shoe item exactly."
+    },
+    {
+      "kind": "product",
+      "collection": "club",
+      "prompt": "Precise object edit of attached 3x2 equipment catalogue atlas. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Preserve all six cell positions and every non-shoe item exactly."
+    },
+    {
+      "kind": "product",
+      "collection": "cobalt",
+      "prompt": "Precise object edit of attached 3x2 equipment catalogue atlas. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Preserve all six cell positions and every non-shoe item exactly."
+    },
+    {
+      "kind": "product",
+      "collection": "sunset",
+      "prompt": "Precise object edit of attached 3x2 equipment catalogue atlas. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Preserve all six cell positions and every non-shoe item exactly."
+    },
+    {
+      "kind": "product",
+      "collection": "champion",
+      "prompt": "Precise object edit of attached 3x2 equipment catalogue atlas. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Preserve all six cell positions and every non-shoe item exactly."
+    },
+    {
+      "kind": "figure",
+      "collection": "starter",
+      "prompt": "Precise object edit of attached registered avatar artwork. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Shoe soles, feet, socks and legs must stay at the EXACT original coordinates so this can be layered on the original. Do not change the character."
+    },
+    {
+      "kind": "figure",
+      "collection": "club",
+      "prompt": "Precise object edit of attached registered avatar artwork. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Shoe soles, feet, socks and legs must stay at the EXACT original coordinates so this can be layered on the original. Do not change the character."
+    },
+    {
+      "kind": "figure",
+      "collection": "cobalt",
+      "prompt": "Precise object edit of attached registered avatar artwork. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Shoe soles, feet, socks and legs must stay at the EXACT original coordinates so this can be layered on the original. Do not change the character."
+    },
+    {
+      "kind": "figure",
+      "collection": "sunset",
+      "prompt": "Precise object edit of attached registered avatar artwork. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Shoe soles, feet, socks and legs must stay at the EXACT original coordinates so this can be layered on the original. Do not change the character."
+    },
+    {
+      "kind": "figure",
+      "collection": "champion",
+      "prompt": "Precise object edit of attached registered avatar artwork. Change ONLY the shoe side panels: remove every Nike swoosh/checkmark or recognizable sports-brand logo from BOTH shoes, replace with one small simple filled equilateral triangular fabric patch with no tail, in the same accent color. A triangle inspired by a nacho chip. Do NOT create a swoosh, checkmark, curved tail, stripes or text. Preserve exact dimensions, every object position, pose, shape, color, background and other clothing. Shoe soles, feet, socks and legs must stay at the EXACT original coordinates so this can be layered on the original. Do not change the character."
+    }
+  ]
+}

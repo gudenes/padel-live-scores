@@ -6,7 +6,9 @@
 // visit to /achievements.
 
 import { useState, useEffect, useRef } from 'react'
+import { PlayerAvatar, usePlayerOutfit } from '@/components/PlayerAvatar'
 import Avatar from '@/components/Avatar'
+import { ShopProfileAvatar } from '@/components/player/shop/AvatarShop'
 import { useAuth } from '@/components/AuthProvider'
 import { supabase } from '@/lib/supabase'
 import ProfileMenu from '@/components/ProfileMenu'
@@ -26,8 +28,9 @@ function highestMilestoneReached(streak: number): number {
   return best
 }
 
-export default function ProfileButton() {
+export default function ProfileButton({ size = 34, onProfileClick, label }: { size?: number; onProfileClick?: () => void; label?: string }) {
   const { user, profile, loading } = useAuth()
+  const { outfit } = usePlayerOutfit(user?.id)
   const [hasNotification, setHasNotification] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -101,15 +104,44 @@ export default function ProfileButton() {
   // Show generic icon while loading to avoid flash
   const isLoggedIn = !loading && !!user
 
+  const accountAvatar = isLoggedIn && outfit ? <PlayerAvatar outfit={outfit} size={size - 4} /> : isLoggedIn && profile?.avatar_url ? (
+          <Avatar
+            src={profile.avatar_url}
+            alt=""
+            size={size}
+            style={{ width: '100%', height: '100%' }}
+          />
+        ) : isLoggedIn && profile?.display_name && /^[a-zA-Z]/.test(profile.display_name) ? (
+          // Only render the initial when the first char is an alpha letter.
+          // Digits, punctuation, or email-shaped names (which can happen with
+          // Apple Hide My Email private-relay accounts) fall through to the
+          // generic silhouette so we never show "7" or "@" as an avatar.
+          <span style={{
+            fontSize: 14, fontWeight: 700,
+            color: '#fff',
+            background: 'linear-gradient(135deg, #667eea, #764ba2)',
+            width: '100%', height: '100%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {profile.display_name.charAt(0).toUpperCase()}
+          </span>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        )
+
   return (
     <div style={{ position: 'relative' }}>
       <button
         ref={triggerRef}
-        onClick={handleClick}
+        onClick={isLoggedIn && onProfileClick ? onProfileClick : handleClick}
+        aria-label={label}
         suppressHydrationWarning
         style={{
           position: 'relative',
-          width: 34, height: 34, borderRadius: '50%',
+          width: size, height: size, borderRadius: '50%',
           border: isLoggedIn ? '2px solid #F5A623' : '1.5px solid rgba(126,211,33,0.5)',
           cursor: 'pointer',
           background: isLoggedIn ? 'transparent' : 'rgba(126,211,33,0.08)',
@@ -141,33 +173,10 @@ export default function ProfileButton() {
           overflow: 'hidden',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-        {isLoggedIn && profile?.avatar_url ? (
-          <Avatar
-            src={profile.avatar_url}
-            alt=""
-            size={34}
-            style={{ width: '100%', height: '100%' }}
-          />
-        ) : isLoggedIn && profile?.display_name && /^[a-zA-Z]/.test(profile.display_name) ? (
-          // Only render the initial when the first char is an alpha letter.
-          // Digits, punctuation, or email-shaped names (which can happen with
-          // Apple Hide My Email private-relay accounts) fall through to the
-          // generic silhouette so we never show "7" or "@" as an avatar.
-          <span style={{
-            fontSize: 14, fontWeight: 700,
-            color: '#fff',
-            background: 'linear-gradient(135deg, #667eea, #764ba2)',
-            width: '100%', height: '100%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            {profile.display_name.charAt(0).toUpperCase()}
-          </span>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
-        )}
+        {isLoggedIn
+          ? <ShopProfileAvatar size={size - 4} fallback={accountAvatar} />
+          : accountAvatar}
+
         </div>
       </button>
       <ProfileMenu open={menuOpen} onClose={() => setMenuOpen(false)} triggerRef={triggerRef} />

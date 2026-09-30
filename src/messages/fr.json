@@ -3,6 +3,7 @@
     "home": "Accueil",
     "matches": "Matchs",
     "following": "Suivis",
+    "play": "Jouer",
     "feed": "Actualités",
     "tournaments": "Événements",
     "ranking": "Classement",
@@ -1283,6 +1284,10 @@
       "description": "Projections du championnat en direct pour {name} : le parcours vers le titre de chaque paire et les probabilités tour par tour.",
       "pairTitle": "{pair} — La Route vers le Titre à {name} | Padel Nachos",
       "pairDescription": "Le parcours projeté de {pair} vers le titre de {name} : adversaires tour par tour et probabilités de victoire."
+    },
+    "play": {
+      "title": "Play the Next",
+      "description": "Prédisez la suite dans le padel. Choisissez un camp sur les marchés en direct, échangez avec des Guacas et grimpez au classement. Argent fictif uniquement : rien à acheter, rien à encaisser."
     }
   },
   "search": {
@@ -1806,6 +1811,408 @@
     "body": "La page que vous recherchez a peut-être été supprimée, renommée ou n'a jamais existé.",
     "cta": "Retour à PadelNachos"
   },
+  "play": {
+    "results": {
+      "netWin": "Gain net",
+      "netLoss": "Perte nette",
+      "netResult": "Résultat net",
+      "totalPaid": "Total reçu",
+      "invested": "{amount} G engagés",
+      "won": "Gagnée",
+      "lost": "Perdue",
+      "refunded": "Remboursée",
+      "pending": "En attente du règlement",
+      "closed": "Marché fermé",
+      "corrected": "Résultat corrigé",
+      "adjustment": "Solde ajusté de {amount} G.",
+      "owed": "La correction dépasse votre solde. Les prochains crédits couvriront la différence avant de rejouer."
+    },
+    "ticker": {
+      "title": "Derniers pronostics",
+      "pause": "Pause",
+      "resume": "Reprendre",
+      "open": "Voir l’activité de tous les marchés",
+      "empty": "Aucun pronostic pour le moment."
+    },
+    "courtside": {
+      "title": "Au bord du court",
+      "all": "Tout voir",
+      "you": "Vous",
+      "simulated": "Simulation",
+      "loading": "Chargement…",
+      "error": "Actualisation impossible",
+      "empty": "Aucun pronostic sur ce marché.",
+      "noOwn": "Vous n’avez pas encore de pronostic sur ce marché.",
+      "simulationNote": "Les pronostics simulés sont exclus des prix."
+    },
+    "live": "En direct",
+    "horizon": {
+      "live": "En match",
+      "match": "Match",
+      "tourn": "Tournoi",
+      "season": "Saison"
+    },
+    "subnav": {
+      "label": "Sections Play",
+      "markets": "Marchés ouverts",
+      "activity": "Activité",
+      "leaders": "Classement",
+      "myPositions": "Mes positions",
+      "mine": "Mes pronostics"
+    },
+    "deck": {
+      "yes": "Oui",
+      "no": "Non",
+      "navHint": "Balayez vers le haut pour le marché suivant",
+      "crowdPrice": "Prix du public",
+      "ourModel": "Notre modèle",
+      "aiPct": "IA {pct}%",
+      "historicalPct": "historique {pct}%",
+      "volumeTraded": "{amount} G échangés",
+      "noTradesYet": "Aucune transaction",
+      "empty": {
+        "title": "Aucun marché ouvert",
+        "body": "De nouveaux marchés ouvrent dès que les prochains matchs sont programmés. Revenez bientôt."
+      },
+      "error": {
+        "title": "Marchés indisponibles",
+        "body": "Impossible de charger les marchés pour le moment."
+      },
+      "stateLiveNow": "En direct",
+      "stateStartingSoon": "Commence bientôt",
+      "vs": "vs",
+      "formLine": "{name} a gagné {wins} de ses {of} derniers matchs",
+      "oddsUnit": "Retour pour 1 G · mise incluse"
+    },
+    "trade": {
+      "title": "Combien de Guacas ?",
+      "close": "Fermer",
+      "pricePerShare": "Prix par part",
+      "sharesEstimate": "≈ <b>{shares}</b> parts",
+      "balance": "Solde",
+      "confirm": "Confirmer la transaction",
+      "submitting": "Envoi…",
+      "sellAnytime": "Vous pouvez vendre votre position à tout moment avant la résolution du marché.",
+      "insufficient": "Vous n'avez pas assez de Guacas pour ce montant.",
+      "locked": "Ce marché est déjà fermé.",
+      "failed": "La transaction n'a pas abouti. Réessayez.",
+      "stakeLimit": "Vous avez atteint la limite de mise sur ce marché."
+    },
+    "done": {
+      "title": "Position ajoutée !",
+      "deal": "Vous avez acheté <side>{sideLabel}</side> · <b>{amount}</b> Guacas à <b>{price}</b>",
+      "approx": "≈ {shares} parts · {question}",
+      "viewPositions": "Voir mes positions",
+      "next": "Prédiction suivante",
+      "upNext": "À suivre",
+      "yourPick": "Ton choix",
+      "placed": "Montant engagé",
+      "ifWin": "Si tu gagnes, tu reçois",
+      "includesStake": "Mise incluse",
+      "keepExploring": "Continuer à explorer"
+    },
+    "positions": {
+      "title": "Mes positions",
+      "netWorth": "Patrimoine",
+      "open": "Ouvertes",
+      "resolved": "Résolues",
+      "history": "Historique",
+      "stake": "{amount} G à {price}",
+      "explore": "Explorer d'autres marchés",
+      "empty": {
+        "open": {
+          "title": "Aucune position ouverte",
+          "body": "Balayez un marché et choisissez un camp — vos positions s'affichent ici."
+        },
+        "resolved": {
+          "title": "Rien de résolu pour l'instant",
+          "body": "Quand un marché sur lequel vous avez misé se résout, il apparaît ici avec votre résultat."
+        },
+        "history": {
+          "title": "Aucune transaction",
+          "body": "Tout ce que vous échangez — ouvert ou résolu — est listé ici."
+        }
+      },
+      "yourPosition": "Ta position",
+      "expandMarket": "Voir le marché",
+      "collapseMarket": "Réduire le marché",
+      "investedAmount": "{amount} G engagés"
+    },
+    "activity": {
+      "latest": "Dernières transactions",
+      "bought": "a acheté",
+      "sold": "a vendu",
+      "at": "à",
+      "big": "Gros",
+      "someone": "Quelqu'un",
+      "empty": {
+        "all": {
+          "title": "Aucune transaction",
+          "body": "Soyez le premier — choisissez un camp sur un marché et votre transaction apparaîtra ici."
+        }
+      }
+    },
+    "leaders": {
+      "weeklyCount": "{count} participants · 7 derniers jours",
+      "playerCount": "{count} participants",
+      "seeEveryone": "Voir tout le monde",
+      "findMe": "Ma place",
+      "openPlayer": "Voir {name}, rang {rank}",
+      "player": "Joueur",
+      "myProfile": "Mon profil",
+      "simulationNote": "Inclut des joueurs simulés. Leurs soldes appartiennent à la simulation ; ils sont exclus des prix.",
+      "humanRank": "Nº {rank} parmi les joueurs",
+      "title": "Classement",
+      "week": "Semaine",
+      "season": "Saison",
+      "all": "Global",
+      "champion": "Champion",
+      "accuracy": "{pct}% de réussite",
+      "streak": "série de {n}",
+      "you": "Vous",
+      "note": "Classés par patrimoine — solde plus la valeur actuelle des positions ouvertes.",
+      "empty": {
+        "title": "Le classement est vide",
+        "body": "Il se remplit dès que les gens commencent à échanger."
+      },
+      "yourPosition": "Ta position",
+      "netWorth": "Patrimoine",
+      "standings": "Classement"
+    },
+    "time": {
+      "now": "maintenant",
+      "seconds": "{n}s",
+      "minutes": "{n}min",
+      "hours": "{n}h",
+      "days": "{n}j"
+    },
+    "error": {
+      "title": "Une erreur est survenue",
+      "body": "Impossible de charger ce contenu pour le moment.",
+      "retry": "Réessayer"
+    },
+    "detail": {
+      "title": "Détails",
+      "open": "Ouvrir les détails du marché",
+      "openShort": "Détails",
+      "close": "Fermer",
+      "headToHead": "Face à face",
+      "neverMet": "Aucune confrontation précédente",
+      "rank": "Classement #{n}",
+      "race": "Race #{n}",
+      "titles": "{n, plural, =0 {Aucun titre} one {# titre} other {# titres}}",
+      "winRate": "{pct}% de victoires",
+      "winRateOf": "{pct}% de victoires sur {n}",
+      "formLast": "{of} derniers",
+      "win": "V",
+      "loss": "D",
+      "noStats": "Pas encore de statistiques",
+      "crowdVsModel": "Le public vs notre modèle",
+      "crowdVsBaseline": "Public vs historique",
+      "baseRate": "Taux historique",
+      "yesNote": "Les deux chiffres sont la probabilité de Oui.",
+      "baseRateNote": "Nous n'avons pas de prédiction du modèle pour cette question. Le second chiffre est la fréquence à laquelle cela s'est produit lors des matchs des 12 derniers mois : une moyenne, pas une prédiction sur ce match."
+    },
+    "explore": {
+      "all": "Tous",
+      "today": "Aujourd’hui",
+      "weeks": "Prochaines semaines",
+      "long": "Long terme",
+      "title": "Quel est votre pronostic ?",
+      "search": "Rechercher joueur ou tournoi",
+      "type": "Tous les types",
+      "matches": "Matchs",
+      "tournaments": "Tournois",
+      "season": "Saison",
+      "returnWith": "Retour pour",
+      "markets": "{count, plural, one {# marché} other {# marchés}}",
+      "includes": "Total estimé si vous gagnez · inclut vos {amount} G",
+      "timeLabel": "Échéance du marché",
+      "timeHint": "Par clôture des achats · long terme inclut la saison",
+      "live": "En direct",
+      "closes": "Clôture : {date}",
+      "choose": "Choisir",
+      "details": "Voir les détails",
+      "empty": "Aucun marché pour ces filtres",
+      "emptyBody": "Essayez une autre période ou modifiez la recherche.",
+      "reset": "Effacer les filtres",
+      "estimate": "Estimation au prix actuel. Le retour peut changer avant confirmation.",
+      "validAmount": "Saisissez un montant entier valide pour voir le retour.",
+      "prediction": "Votre pronostic",
+      "outcome": "Résultat",
+      "amount": "Montant",
+      "available": "Disponible :",
+      "ifWin": "Si vous gagnez, vous recevez",
+      "gain": "Inclut {stake} · Gain {gain}",
+      "ifLose": "Si vous perdez, vous perdez",
+      "balanceAfter": "Solde après",
+      "filters": "Filtres",
+      "feed": "Fil de pronostics",
+      "shortReturn": "Total estimé si correct · mise incluse",
+      "next": "Marché suivant",
+      "showMarkets": "Voir les marchés ({count})",
+      "estimatedReturn": "Retour estimé si tu gagnes",
+      "operationDetails": "Détails de l’opération"
+    },
+    "filters": {
+      "label": "Filtres des marchés",
+      "all": "Tous",
+      "today": "Aujourd’hui",
+      "tourn": "Tournois",
+      "season": "Saison",
+      "empty": "Aucun marché pour le moment",
+      "emptyBody": "Essaie une autre catégorie pour continuer.",
+      "showAll": "Voir tout",
+      "allMarkets": "Tous les marchés",
+      "more": "Filtres",
+      "when": "Quand jouer",
+      "competition": "Compétition",
+      "allCompetitions": "Toutes les compétitions",
+      "category": "Catégorie",
+      "allCategories": "Toutes les catégories",
+      "men": "Hommes",
+      "women": "Femmes",
+      "apply": "Appliquer les filtres",
+      "reset": "Réinitialiser",
+      "match": "Matchs"
+    },
+    "editorial": {
+      "ranking": "Objectif de classement",
+      "titles": "Objectif de titres",
+      "round": "Objectif de tour",
+      "other_champion": "Une autre paire gagne",
+      "current": "Actuel",
+      "target": "Objectif",
+      "titlesTarget": "{count} titres · même paire",
+      "until": "Jusqu’au {date}",
+      "opening": "Estimation initiale",
+      "sourceUnavailable": "Source indisponible",
+      "estimateNote": "Estimation à l’ouverture, pas une prévision en direct. Les prix évoluent avec les échanges.",
+      "rankingQuestion": "{names} atteindra-t-il le top {target} ?",
+      "titlesQuestion": "{names} remporteront-ils {target} titres ?",
+      "roundName": {
+        "SF": "Demi-finales",
+        "F": "Finale"
+      }
+    },
+    "matchNavigation": {
+      "followLive": "Suivre en direct",
+      "viewMatch": "Voir le match",
+      "liveCount": "En direct · {count}",
+      "yourPlay": "Votre pronostic",
+      "viewPlays": "Voir mes pronostics",
+      "predict": "Faire un pronostic",
+      "liveEmpty": "Aucun pronostic en direct",
+      "liveEmptyBody": "Vos pronostics apparaîtront ici au début des matchs."
+    },
+    "notice": {
+      "settledTitle": "Pronostic réglé",
+      "correctedTitle": "Résultat du pronostic corrigé",
+      "body": "Résultat : {outcome}. Solde {delta} G.",
+      "outcome": {
+        "yes": "OUI",
+        "no": "NON",
+        "void": "Annulé — remboursé"
+      }
+    }
+  },
+  "playerProfile": {
+    "yourPlayer": "Ton joueur",
+    "yourStyle": "Ton jeu. Ton style.",
+    "wardrobe": "Mon joueur",
+    "characterAlt": "Ton joueur de padel",
+    "saved": "Tenue enregistrée sur cet appareil.",
+    "saveError": "Enregistrement impossible. Autorise le stockage du navigateur et réessaie.",
+    "predictor": "Tes pronostics",
+    "leaderboard": "Classement",
+    "loading": "Chargement de tes pronostics…",
+    "loadError": "Impossible de charger tes pronostics.",
+    "retry": "Réessayer",
+    "available": "Guacas disponibles",
+    "invested": "Investi",
+    "markets": "Marchés actifs",
+    "seasonRank": "Rang de la saison",
+    "yes": "Oui",
+    "no": "Non",
+    "empty": "Ton premier pronostic commence ici.",
+    "explore": "Explorer les marchés",
+    "allPositions": "Tous mes pronostics",
+    "close": "Fermer le vestiaire",
+    "avatarPreview": "Aperçu de l’avatar",
+    "outfitsLabel": "Choisis une tenue",
+    "equipped": "Équipé",
+    "localNote": "Choisissez le visage et la tenue séparément · enregistrés ensemble sur cet appareil.",
+    "creator": {
+      "compatibility": "Ce personnage conserve sa tenue originale. Essayez Rafa pour découvrir la première garde-robe personnalisable.",
+      "tryRafa": "Personnaliser Rafa",
+      "ready": "3 tenues",
+      "whole": "Avatar complet · enregistré sur cet appareil. D’autres personnages personnalisables arriveront."
+    },
+    "equip": "Utiliser cet avatar",
+    "restore": "Utiliser ma photo de profil",
+    "restored": "Photo de profil restaurée.",
+    "outfits": {
+      "starter": "Starter",
+      "court-club": "Court Club",
+      "night-match": "Night Match"
+    },
+    "faces": {
+      "face-01": "Brisa",
+      "face-02": "Nilo",
+      "face-03": "Dara",
+      "face-04": "Tano",
+      "face-05": "Vera",
+      "face-06": "Beltrán",
+      "face-07": "Alexis",
+      "face-08": "Ciro",
+      "face-09": "Mika",
+      "face-10": "Rocco"
+    },
+    "chooseStyle": "Choisis ton personnage",
+    "customFace": "Mon avatar",
+    "previewReady": "Ton avatar est prêt. Vérifie-le avant de l’utiliser.",
+    "tabs": {
+      "faces": "Visages",
+      "looks": "Tenues",
+      "photo": "Avec ma photo"
+    },
+    "photo": {
+      "intro": "Crée un joueur qui te ressemble. Choisis une photo nette de face où tu es seul.",
+      "checking": "Vérification de la disponibilité…",
+      "unavailable": "La création depuis une photo est indisponible.",
+      "retry": "Réessayer",
+      "not_configured": "La création à partir d’une photo n’est pas encore activée.",
+      "takePhoto": "Prendre une photo",
+      "uploadPhoto": "Choisir une photo",
+      "selectedPhoto": "Ta photo sélectionnée",
+      "fileHelp": "JPG, PNG ou WebP · jusqu’à 20 Mo",
+      "consent": "Envoyer cette photo à un modèle LLM pour créer mon avatar. Je suis autorisé à utiliser cette photo.",
+      "generate": "Créer mon avatar",
+      "generating": "Création de ton joueur…",
+      "waiting": "Cela peut prendre quelques minutes. Ton avatar actuel reste en place.",
+      "retention": "Nous ne conservons pas la photo originale. L’avatar généré est stocké de manière privée. Jusqu’à 5 essais par jour.",
+      "invalid_photo": "Choisis une photo JPG, PNG ou WebP valide.",
+      "photo_too_large": "Choisis une photo de moins de 20 Mo.",
+      "daily_limit": "Tu as atteint les 5 tentatives du jour. Réessaie demain.",
+      "generation_busy": "Un avatar est déjà en cours de création. Patiente.",
+      "provider_busy": "Le modèle LLM est occupé. Réessaie plus tard.",
+      "generation_failed": "Impossible de créer cet avatar. Essaie une autre photo nette.",
+      "generation_unavailable": "Impossible de joindre le service. Réessaie plus tard.",
+      "cameraPreview": "Aperçu de la caméra",
+      "cameraStarting": "Ouverture de la caméra…",
+      "cameraDenied": "Accès à la caméra refusé. Autorise-le dans ton navigateur ou ferme cet aperçu et choisis une photo.",
+      "cameraUnavailable": "Caméra indisponible. Ferme cet aperçu et choisis une photo.",
+      "cameraCancel": "Fermer la caméra",
+      "cameraCapture": "Prendre une photo",
+      "cameraTimeout": "La caméra ne s’est pas ouverte. Vérifie son autorisation dans les réglages du navigateur ou de l’app. Tu peux choisir une photo ci-dessous ou ouvrir le site dans Safari ou Chrome. L’app installée peut nécessiter une mise à jour.",
+      "upload_connection": "La connexion d’envoi a été interrompue. Garde l’app ouverte et réessaie avec une connexion stable.",
+      "upload_timeout": "La demande a expiré. Attends un instant avant de réessayer.",
+      "upload_session": "Ta session n’a pas pu être vérifiée. Reconnecte-toi et réessaie."
+    },
+    "shopTitle": "Vestiaire",
+    "shopBrowse": "Voir la boutique",
+    "shopEntry": "Personnaliser votre joueur et découvrir la boutique"
+  },
   "ppl": {
     "title": "Pro Padel League",
     "scopeOverall": "Général",
@@ -1836,5 +2243,123 @@
     "playerRecord": "{games} · {wins}–{losses}",
     "noGames": "n a pas joué",
     "lineupTbd": "composition à confirmer"
+  },
+  "badgeCollection": {
+    "title": "Badges",
+    "collection": "Votre collection",
+    "earned": "Obtenu",
+    "locked": "À débloquer",
+    "legacy": "Héritage",
+    "all": "Tous",
+    "prediction": "Pronostics",
+    "following": "Suivi",
+    "engagement": "Participation",
+    "getting_started": "Communauté",
+    "close": "Fermer",
+    "back": "Retour",
+    "collected": "{count} sur {total} obtenus",
+    "target": "Atteignez {target} pour débloquer",
+    "progress": "Progression",
+    "loading": "Chargement…",
+    "error": "Progression indisponible. Réessayez.",
+    "retry": "Réessayer",
+    "max": "Niveau maximal atteint",
+    "legacyNote": "Vous conservez vos anciens badges. Ils ne sont plus attribués.",
+    "tier": "Niveau {tier}",
+    "unlocked": "Badge obtenu",
+    "predictionNote": "La progression utilise les résultats actuels. Une victoire rapporte plus de Guacas que votre mise. Chaque marché compte une fois. Les badges obtenus restent acquis après une correction.",
+    "items": {
+      "first_pick": {
+        "name": "Premier pronostic",
+        "description": "Terminez votre premier pronostic résolu. Les marchés annulés ne comptent pas."
+      },
+      "king_of_predict": {
+        "name": "Roi des pronostics",
+        "description": "Terminez 25 marchés avec un bénéfice en Guacas."
+      },
+      "on_fire": {
+        "name": "En pleine forme",
+        "description": "Terminez 5 marchés consécutifs avec un bénéfice, dans l’ordre de résolution. Les annulations sont ignorées."
+      },
+      "tournament_brain": {
+        "name": "Stratège du tournoi",
+        "description": "Terminez 10 marchés du même tournoi avec un bénéfice en Guacas."
+      },
+      "follow_players": {
+        "name": "Dénicheur de talents",
+        "description": "Suivez vos joueurs préférés. Paliers : 1, 5 et 15 joueurs."
+      },
+      "follow_matches": {
+        "name": "Suivi des matchs",
+        "description": "Enregistrez des matchs pour les suivre. Paliers : 1, 10 et 50 matchs."
+      },
+      "rate_matches": {
+        "name": "Critique de matchs",
+        "description": "Évaluez des matchs pour aider les autres fans. Paliers : 1, 10 et 50 évaluations."
+      },
+      "early_adopter": {
+        "name": "Membre fondateur",
+        "description": "Inscription avant le 15 mai 2026, pendant la période initiale des membres fondateurs."
+      },
+      "ambassador": {
+        "name": "Ambassadeur",
+        "description": "Invitez des amis qui s’inscrivent avec votre lien. Paliers : 1, 5, 15 et 50 inscriptions."
+      },
+      "profile_complete": {
+        "name": "Bienvenue",
+        "description": "Création d’un compte Padel Nachos."
+      },
+      "genius_insider": {
+        "name": "Genius Insider",
+        "description": "Inscription à l’accès anticipé de PadelGenius."
+      },
+      "push_enabled": {
+        "name": "Toujours connecté",
+        "description": "Activation des notifications push."
+      },
+      "follow_tournaments": {
+        "name": "Globe-trotter",
+        "description": "Suivi de tournois du monde entier."
+      },
+      "read_articles": {
+        "name": "Au courant",
+        "description": "Lecture d’actualités et d’articles de padel."
+      },
+      "watch_videos": {
+        "name": "Temps forts",
+        "description": "Visionnage de vidéos de padel."
+      },
+      "share_app": {
+        "name": "Mégaphone",
+        "description": "Partage de Padel Nachos avec des amis."
+      },
+      "login_streak": {
+        "name": "Fidèle au poste",
+        "description": "Visites de l’app plusieurs jours consécutifs."
+      },
+      "longest_streak": {
+        "name": "Série légendaire",
+        "description": "Meilleure série personnelle de visites quotidiennes."
+      }
+    }
+  },
+  "avatarSharing": {
+    "title": "Partager l’avatar",
+    "close": "Fermer",
+    "preparing": "Préparation de votre avatar…",
+    "preview": "Aperçu de l’avatar à partager",
+    "error": "Impossible de préparer ou partager l’image. Réessayez.",
+    "retry": "Réessayer",
+    "chooseWhatsApp": "Choisissez WhatsApp dans le menu de partage.",
+    "downloadHint": "Téléchargez l’image, puis joignez-la dans WhatsApp.",
+    "share": "Partager l’image",
+    "download": "Télécharger l’image"
+  },
+  "profileTabs": {
+    "player": "Joueur",
+    "badges": "Badges",
+    "navigation": "Sections du profil",
+    "new": "Nouveaux",
+    "newCount": "{count} nouveaux badges"
   }
 }

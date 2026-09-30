@@ -79,6 +79,9 @@ if (
 // In dev (HTTP localhost) we fall back to defaults; Apple Sign In
 // can't be tested locally anyway because Apple validates the return
 // URL against the registered Service ID.
+// Empty environment values must not override the default sender.
+const authEmailFrom = process.env.AUTH_EMAIL_FROM?.trim() || 'PadelNachos <hello@padelnachos.com>'
+
 const isProd = process.env.NODE_ENV === 'production'
 const crossSiteCookieOptions = isProd
   ? { httpOnly: true, sameSite: 'none' as const, path: '/', secure: true }
@@ -108,12 +111,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...(appleProvider ? [appleProvider] : []),
     Resend({
       apiKey: process.env.RESEND_API_KEY!,
-      from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos <hello@padelnachos.com>',
+      from: authEmailFrom,
       async sendVerificationRequest({ identifier: email, url }) {
         const { Resend: ResendClient } = await import('resend')
         const resend = new ResendClient(process.env.RESEND_API_KEY!)
-        await resend.emails.send({
-          from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos <hello@padelnachos.com>',
+        const { error } = await resend.emails.send({
+          from: authEmailFrom,
           to: email,
           subject: 'Sign in to PadelNachos',
           html: `
@@ -138,6 +141,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             </div>
           `,
         })
+        if (error) {
+          throw new Error(`Sign-in email failed: ${error.name}: ${error.message}`)
+        }
       },
     }),
   ],

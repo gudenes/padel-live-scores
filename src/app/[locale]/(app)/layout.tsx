@@ -14,7 +14,7 @@ import { ForYouOverlay } from '@/components/feed/foryou/ForYouOverlay'
 // app's bottom nav. The picker uses its own sticky Continue/Skip CTA at
 // the bottom of the viewport — overlaying the nav would intercept the
 // CTA's clicks.
-const FULLSCREEN_ROUTES = new Set(['/welcome', '/scratch-foryou'])
+const FULLSCREEN_ROUTES = new Set(['/welcome', '/scratch-foryou', '/avatar-shop'])
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -45,7 +45,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       {/* NotificationNudgeProvider moved UP to [locale]/layout.tsx so it
           also covers /match/[id] and /player/[id] (those routes live
           outside this (app) group but still need the nudge context). */}
-      <div style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
+      <div data-avatar-shop-shell={pathname === '/avatar-shop' ? '' : undefined} style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
       {!hideNav && <BottomNavV3 />}
       {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
           shells. Self-gated for mobile/tablet via CSS media query. Skipped

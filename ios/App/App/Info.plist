@@ -48,6 +48,8 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Padel Nachos uses your camera when you take a photo to create your player avatar.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Padel Nachos uses your local network to detect display devices when sharing scores.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

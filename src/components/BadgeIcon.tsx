@@ -5,6 +5,7 @@
 // Tier determines the gradient background, border, and stroke color.
 // Locked badges render at 15% opacity with white strokes.
 
+import { BadgeSticker, STICKER_ICONS, COLLECTION_ICONS } from './BadgeSticker'
 import type { JSX } from 'react'
 import { TIER_META, type TierNumber } from '@/lib/badges'
 
@@ -115,6 +116,7 @@ const ICON_PATHS: Record<string, (color: string, size: number) => JSX.Element> =
 }
 
 export function BadgeIcon({ svgIcon, tier, size = 48, isPremium }: BadgeIconProps) {
+  if (svgIcon in STICKER_ICONS || COLLECTION_ICONS.includes(svgIcon)) return <BadgeSticker icon={svgIcon} tier={tier} size={size} />
   const isLocked = tier === null
   const tierMeta = tier ? TIER_META[tier] : null
 
