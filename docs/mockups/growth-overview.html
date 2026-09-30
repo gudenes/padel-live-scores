@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Growth & Adoption · PadelNachos Admin (mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Tokens mirror apps/ops/src/app/globals.css so the real port is 1:1 */
+:root{
+  --font:"Inter Tight",system-ui,sans-serif;--display:"Bricolage Grotesque",var(--font);--mono:"JetBrains Mono",ui-monospace,monospace;
+  --bg-app:#101010;--bg-surface:#181818;--bg-card:#1E1E1E;--bg-sunken:#151515;--bg-hover:#242424;
+  --border:#282828;--border-card:#2E2E2E;--border-inner:#222;
+  --text-1:#EEE4CE;--text-2:#B4AC9C;--text-3:#857F72;--text-4:#5C574E;
+  --lime:#6ABF3A;--lime-text:#8FD867;--lime-bg:rgba(106,191,58,.13);--lime-border:rgba(106,191,58,.36);
+  --live:#FF4655;--live-text:#FF6B77;--live-bg:rgba(255,70,85,.13);
+  --orange:#F29321;--orange-text:#F4A93F;--orange-bg:rgba(242,147,33,.13);
+  --blue:#5BA8FF;--pink:#F472B6;--track:#2C2C2C;
+  --r-md:10px;--r-lg:12px;--r-full:9999px;
+}
+:root[data-theme="light"]{
+  --bg-app:#F4F1EA;--bg-surface:#FBF9F4;--bg-card:#FFFFFF;--bg-sunken:#EFEBE1;--bg-hover:#F1EDE2;
+  --border:#E2DCCD;--border-card:#E2DCCD;--border-inner:#ECE7DA;
+  --text-1:#1F1C15;--text-2:#5A5445;--text-3:#8A8372;--text-4:#B2AB99;
+  --lime:#5AA72F;--lime-text:#3F7F1C;--lime-bg:rgba(90,167,47,.12);--lime-border:rgba(90,167,47,.4);
+  --live:#E0394A;--live-text:#C92D3E;--live-bg:rgba(224,57,74,.1);
+  --orange:#D9790C;--orange-text:#B5620A;--orange-bg:rgba(217,121,12,.12);
+  --blue:#2F7FD6;--pink:#D6408F;--track:#E6E0D0;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg-app);color:var(--text-1);font-family:var(--font);font-size:14px;line-height:1.45}
+.shell{display:grid;grid-template-columns:200px 1fr;min-height:100vh}
+.rail{background:#121212;border-right:1px solid #242424;padding:16px 12px;position:sticky;top:0;height:100vh;color:#B4AC9C}
+.rail b{display:block;font-family:var(--display);font-size:16px;color:#EEE4CE;margin:0 6px 18px}
+.rail a{display:block;padding:7px 10px;border-radius:8px;font-size:13px;color:#B4AC9C;margin-bottom:2px}
+.rail a.on{background:rgba(106,191,58,.13);color:#8FD867}
+.rail small{display:block;margin:16px 10px 6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:#5C574E}
+main{padding:24px 28px 60px;max-width:1240px;width:100%}
+.ph{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-family:var(--display);font-size:26px;margin:0;letter-spacing:-.01em}
+.sub{color:var(--text-3);font-size:13px;margin-top:2px}
+.ctrls{display:flex;gap:8px;flex-wrap:wrap}
+.seg{display:flex;background:var(--bg-sunken);border:1px solid var(--border);border-radius:var(--r-md);padding:2px}
+.seg button{all:unset;cursor:pointer;padding:5px 11px;border-radius:8px;font-size:12px;color:var(--text-2)}
+.seg button.on{background:var(--bg-card);color:var(--text-1);box-shadow:0 0 0 1px var(--border-card)}
+.theme{all:unset;cursor:pointer;border:1px solid var(--border);border-radius:var(--r-md);padding:6px 11px;font-size:12px;color:var(--text-2);background:var(--bg-sunken)}
+/* source status */
+.sources{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.src{display:flex;align-items:center;gap:7px;padding:5px 10px;border:1px solid var(--border-card);background:var(--bg-card);border-radius:var(--r-full);font-size:11.5px;color:var(--text-2)}
+.dot{width:7px;height:7px;border-radius:50%}
+.ok{background:var(--lime)}.warn{background:var(--orange)}.off{background:var(--text-4)}
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px}
+.kpi{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--r-lg);padding:12px 14px}
+.kpi .l{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;display:flex;gap:6px;align-items:center}
+.kpi .v{font-family:var(--display);font-size:26px;font-weight:700;margin:4px 0 2px;letter-spacing:-.02em}
+.kpi .d{font-size:12px;font-family:var(--mono)}
+.up{color:var(--lime-text)}.down{color:var(--live-text)}.flat{color:var(--text-3)}
+.kpi svg{display:block;margin-top:6px}
+/* panels */
+.grid{display:grid;gap:12px;margin-bottom:12px}
+.g-2-1{grid-template-columns:2fr 1fr}.g-1-1{grid-template-columns:1fr 1fr}.g-3{grid-template-columns:repeat(3,1fr)}
+.panel{background:var(--bg-card);border:1px solid var(--border-card);border-radius:var(--r-lg);padding:16px}
+.panel h2{font-size:13px;font-weight:600;margin:0;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.panel .hint{font-size:12px;color:var(--text-3);margin:2px 0 12px;font-weight:400}
+.tag{font-size:10px;padding:2px 7px;border-radius:var(--r-full);border:1px solid var(--border-card);color:var(--text-3);font-weight:500;white-space:nowrap}
+.tag.ph-{color:var(--lime-text);border-color:var(--lime-border);background:var(--lime-bg)}
+.tag.gsc{color:var(--blue);border-color:var(--blue)}
+.tag.todo{color:var(--orange-text);border-color:var(--orange);background:var(--orange-bg)}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--text-2);margin-bottom:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+svg text{fill:var(--text-3);font-size:10.5px;font-family:var(--font)}
+/* funnel */
+.fun{display:grid;gap:8px}
+.fun .row{display:grid;grid-template-columns:130px 1fr 92px;gap:10px;align-items:center;font-size:12.5px}
+.fun .bar{height:22px;background:var(--track);border-radius:6px;overflow:hidden}
+.fun .bar i{display:block;height:100%;background:var(--lime);border-radius:6px}
+.fun .n{font-family:var(--mono);font-size:12px;text-align:right}
+.fun .n small{color:var(--text-3)}
+/* cohort */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{font-weight:500;color:var(--text-3);text-align:center;padding:4px 2px;font-size:11px}
+th:first-child,td:first-child{text-align:left;padding-left:0;white-space:nowrap}
+td{padding:2px}
+td.c{text-align:center;border-radius:5px;font-family:var(--mono);font-size:11px;height:28px;min-width:44px}
+td.e{color:var(--text-4)}
+/* splits */
+.split{display:flex;height:12px;border-radius:6px;overflow:hidden;margin:8px 0 12px;gap:2px}
+.split i{display:block}
+.list{display:grid;gap:7px;font-size:12.5px}
+.list .r{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.list .r span:first-child{display:flex;align-items:center;gap:7px;min-width:0}
+.list .r em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--text-2)}
+.q{font-family:var(--mono);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px;display:block}
+.note{font-size:12px;color:var(--text-3);border-top:1px dashed var(--border);margin-top:12px;padding-top:10px}
+.mock{background:var(--orange-bg);border:1px solid var(--orange);color:var(--orange-text);border-radius:var(--r-md);padding:8px 12px;font-size:12px;margin-bottom:16px}
+@media(max-width:1000px){.shell{grid-template-columns:1fr}.rail{display:none}.kpis{grid-template-columns:repeat(2,1fr)}.g-2-1,.g-1-1,.g-3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="rail">
+    <b>PadelNachos</b>
+    <a>Today</a><a>Live Odds</a>
+    <small>Product</small>
+    <a class="on">Growth &amp; Adoption</a>
+    <a>Announcements</a><a>Ad Banners</a>
+    <small>System</small>
+    <a>Integration Health</a><a>SEO</a>
+  </nav>
+  <main>
+    <div class="ph">
+      <div>
+        <h1>Growth &amp; Adoption</h1>
+        <div class="sub">Are we acquiring users, and do they come back? · updated 09:12 UTC</div>
+      </div>
+      <div class="ctrls">
+        <div class="seg" data-seg="range"><button>7d</button><button class="on">30d</button><button>90d</button></div>
+        <div class="seg" data-seg="plat"><button class="on">All</button><button>Web</button><button>Android</button><button>iOS</button></div>
+        <button class="theme" id="theme">◐ Theme</button>
+      </div>
+    </div>
+
+    <div class="mock">Mockup — all numbers are sample data for layout review only. Badges show where each panel's real data would come from.</div>
+
+    <div class="sources">
+      <span class="src"><i class="dot ok"></i>PostHog (EU) · ready via HogQL API</span>
+      <span class="src"><i class="dot ok"></i>Search Console · already ingested (seo_snapshots)</span>
+      <span class="src"><i class="dot warn"></i>Supabase · signups, push opt-ins (queryable now)</span>
+      <span class="src"><i class="dot off"></i>Play Console / App Store Connect · not connected</span>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid g-2-1">
+      <div class="panel">
+        <h2>Active users <span class="tag ph-">PostHog</span></h2>
+        <div class="hint">DAU / WAU / MAU with new signups per day. Stickiness = DAU ÷ MAU.</div>
+        <div class="legend"><span><i style="background:var(--lime)"></i>DAU</span><span><i style="background:var(--blue)"></i>WAU</span><span><i style="background:var(--pink)"></i>MAU</span><span><i style="background:var(--track)"></i>New signups</span></div>
+        <div id="chart-active"></div>
+      </div>
+      <div class="panel">
+        <h2>Acquisition funnel <span class="tag ph-">PostHog + Supabase</span></h2>
+        <div class="hint">Last 30d, first-time visitors</div>
+        <div class="fun" id="funnel"></div>
+        <div class="note">Biggest leak: <b style="color:var(--text-1)">visit → signup</b>. Follow a player is the strongest predictor of D7 return.</div>
+      </div>
+    </div>
+
+    <div class="grid g-2-1">
+      <div class="panel">
+        <h2>Weekly retention cohorts <span class="tag ph-">PostHog</span></h2>
+        <div class="hint">% of each signup-week cohort still active N weeks later. Web + installed PWA only — native iOS/Android runs PostHog in memory mode, so it can't be tracked across sessions.</div>
+        <div id="cohort"></div>
+      </div>
+      <div class="panel">
+        <h2>App installs <span class="tag todo">needs setup</span></h2>
+        <div class="hint">Cumulative installs by channel</div>
+        <div class="split" id="installSplit"></div>
+        <div class="list" id="installList"></div>
+        <div class="note">Android/iOS installs come from Play Console + App Store Connect APIs (not wired yet). PWA installs can be tracked now via an <code>appinstalled</code> event — <code>pwa_install_nudge_*</code> exists, but not the completed install.</div>
+      </div>
+    </div>
+
+    <div class="grid g-3">
+      <div class="panel">
+        <h2>Organic search <span class="tag gsc">Search Console</span></h2>
+        <div class="hint">Clicks · last 28d vs prior</div>
+        <div id="seoSpark"></div>
+        <div class="list" style="margin-top:10px" id="seoLocales"></div>
+      </div>
+      <div class="panel">
+        <h2>Top search queries <span class="tag gsc">Search Console</span></h2>
+        <div class="hint">By clicks · avg position</div>
+        <div class="list" id="seoQueries"></div>
+        <div class="note">Full detail stays on <u>System → SEO</u>.</div>
+      </div>
+      <div class="panel">
+        <h2>Traffic by channel <span class="tag ph-">PostHog</span></h2>
+        <div class="hint">New visitors, 30d</div>
+        <div class="split" id="chanSplit"></div>
+        <div class="list" id="chanList"></div>
+      </div>
+    </div>
+
+    <div class="grid g-1-1">
+      <div class="panel">
+        <h2>Feature adoption <span class="tag ph-">PostHog + Supabase</span></h2>
+        <div class="hint">% of signed-in MAU who used it in the last 30d</div>
+        <div class="fun" id="adoption"></div>
+      </div>
+      <div class="panel">
+        <h2>Audience by locale &amp; country <span class="tag ph-">PostHog</span></h2>
+        <div class="hint">Active users, 30d — tells us which of the 5 locales deserve SEO + content investment</div>
+        <div class="list" id="geo"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// Segmented controls + theme (visual only in the mockup)
+document.querySelectorAll('.seg').forEach(s => s.addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') return;
+  s.querySelectorAll('button').forEach(b => b.classList.remove('on')); e.target.classList.add('on');
+}));
+$('theme').onclick = () => { const r = document.documentElement; r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark'; draw(); };
+
+// Deterministic sample data
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const days = 30;
+const dau = Array.from({length: days}, (_, i) => Math.round(820 + i*14 + Math.sin(i/2.2)*70 + rnd()*50));
+const wau = dau.map((v, i) => Math.round(v*3.1 + i*8));
+const mau = dau.map((v, i) => Math.round(v*6.4 + i*20));
+const signups = Array.from({length: days}, (_, i) => Math.round(28 + i*0.6 + rnd()*14 + (i%7>4?8:0)));
+
+function spark(data, color, w = 120, h = 26) {
+  const mn = Math.min(...data), mx = Math.max(...data);
+  const pts = data.map((v, i) => `${(i/(data.length-1))*w},${h-2-((v-mn)/(mx-mn||1))*(h-4)}`).join(' ');
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polyline fill="none" stroke="${color}" stroke-width="1.8" stroke-linejoin="round" points="${pts}"/></svg>`;
+}
+const fmt = n => n >= 1000 ? (n/1000).toFixed(1) + 'k' : n;
+
+function kpis() {
+  const k = [
+    ['Active users (MAU)', fmt(mau[days-1]), '+12.4%', 'up', mau, 'var(--lime)'],
+    ['New signups (30d)', fmt(signups.reduce((a,b)=>a+b,0)), '+8.1%', 'up', signups, 'var(--blue)'],
+    ['App installs (30d)', '1.2k', '+21%', 'up', [40,44,39,52,60,58,71,66,80], 'var(--pink)'],
+    ['Stickiness DAU/MAU', '19.7%', '−0.8 pt', 'down', dau.map((d,i)=>d/mau[i]), 'var(--orange)'],
+    ['D7 retention', '23%', '+1.5 pt', 'up', [19,20,21,21,22,22,23,23], 'var(--lime)'],
+    ['Organic clicks (28d)', '18.4k', '+34%', 'up', [9,10,11,12,14,15,17,18], 'var(--blue)'],
+  ];
+  $('kpis').innerHTML = k.map(([l,v,d,c,s,col]) =>
+    `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="d ${c}">${d} <span class="flat">vs prior</span></div>${spark(s,col)}</div>`).join('');
+}
+
+function activeChart() {
+  const W = 760, H = 240, p = {l:38, r:8, t:8, b:22};
+  const iw = W-p.l-p.r, ih = H-p.t-p.b, mx = Math.max(...mau)*1.05;
+  const x = i => p.l + (i/(days-1))*iw, y = v => p.t + ih - (v/mx)*ih;
+  let g = '';
+  for (let t = 0; t <= 4; t++) { const v = mx*t/4, yy = y(v);
+    g += `<line x1="${p.l}" x2="${W-p.r}" y1="${yy}" y2="${yy}" stroke="${css('--border-inner')}"/><text x="${p.l-6}" y="${yy+3}" text-anchor="end">${fmt(Math.round(v))}</text>`; }
+  const bw = iw/days*0.6, smx = Math.max(...signups)*4.5;
+  const bars = signups.map((v,i)=>`<rect x="${x(i)-bw/2}" y="${p.t+ih-(v/smx)*ih*0.9}" width="${bw}" height="${(v/smx)*ih*0.9}" fill="${css('--track')}" rx="2"/>`).join('');
+  const line = (d,c,w) => `<polyline fill="none" stroke="${c}" stroke-width="${w}" stroke-linejoin="round" points="${d.map((v,i)=>`${x(i)},${y(v)}`).join(' ')}"/>`;
+  const xl = [0,7,14,21,29].map(i=>`<text x="${x(i)}" y="${H-6}" text-anchor="${i===29?'end':i===0?'start':'middle'}">${i===29?'today':'-'+(29-i)+'d'}</text>`).join('');
+  $('chart-active').innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%">${g}${bars}${line(mau,css('--pink'),2)}${line(wau,css('--blue'),2)}${line(dau,css('--lime'),2.4)}${xl}</svg>`;
+}
+
+function funnel() {
+  const s = [['Visitors',12400],['Signed up',980],['Followed a player',610],['Enabled push',340],['Returned D7',225]];
+  $('funnel').innerHTML = s.map(([l,v],i)=>`<div class="row"><span>${l}</span><div class="bar"><i style="width:${Math.max(v/s[0][1]*100,3)}%;opacity:${1-i*0.12}"></i></div><span class="n">${v.toLocaleString()} <small>${i?((v/s[i-1][1])*100).toFixed(0)+'%':''}</small></span></div>`).join('');
+}
+
+function cohort() {
+  const rows = [['Aug 4',212,[100,41,31,26,23,21,19,18]],['Aug 11',248,[100,44,33,28,25,22,20]],['Aug 18',231,[100,39,30,25,22,21]],['Aug 25',296,[100,46,35,29,26]],['Sep 1',340,[100,48,37,31]],['Sep 8',402,[100,45,34]],['Sep 15',388,[100,47]],['Sep 22',365,[100]]];
+  let h = '<table><tr><th>Cohort</th><th>Users</th>' + Array.from({length:8},(_,i)=>`<th>W${i}</th>`).join('') + '</tr>';
+  rows.forEach(([l,n,v]) => { h += `<tr><td>${l}</td><td style="color:var(--text-3);font-family:var(--mono)">${n}</td>`;
+    for (let i=0;i<8;i++) { if (v[i]==null) { h += '<td class="c e">·</td>'; continue; }
+      const a = v[i]/100; h += `<td class="c" style="background:rgba(106,191,58,${(0.08+a*0.75).toFixed(2)});color:${a>.5?'var(--lime-ink,#08160A)':'var(--text-1)'}">${v[i]}%</td>`; }
+    h += '</tr>'; });
+  $('cohort').innerHTML = h + '</table>';
+}
+
+function row(color, label, val) { return `<div class="r"><span><i class="dot" style="background:${color}"></i>${label}</span><em>${val}</em></div>`; }
+function splitBar(el, items) { $(el).innerHTML = items.map(([c,v])=>`<i style="background:${c};flex:${v}"></i>`).join(''); }
+
+function panels() {
+  const inst = [[css('--lime'),'Android (Play)',2140],[css('--blue'),'iOS (App Store)',1310],[css('--pink'),'PWA (home screen)',860]];
+  splitBar('installSplit', inst.map(([c,,v])=>[c,v]));
+  $('installList').innerHTML = inst.map(([c,l,v])=>row(c,l,v.toLocaleString())).join('') + row(css('--text-4'),'Total',(4310).toLocaleString());
+
+  $('seoSpark').innerHTML = `<div style="font-family:var(--display);font-size:24px;font-weight:700">18.4k <span class="up" style="font-size:13px;font-family:var(--mono)">+34%</span></div>` + spark([9,10,9,11,12,13,12,14,15,17,16,18].map(v=>v+rnd()),css('--blue'),280,48);
+  $('seoLocales').innerHTML = [['en',7200,'+22%'],['es',6100,'+41%'],['pt',2400,'+55%'],['it',1700,'+18%'],['fr',1000,'+9%']].map(([l,v,d])=>row(css('--blue'),l.toUpperCase(),`${v.toLocaleString()} · ${d}`)).join('');
+  $('seoQueries').innerHTML = [['padel live scores',1840,'3.2'],['premier padel resultados',1210,'4.1'],['ranking fip padel',960,'6.8'],['paris major padel 2026',720,'2.4'],['padel en vivo',640,'5.5'],['classifica padel',410,'7.9']].map(([q,c,p])=>`<div class="r"><span class="q">${q}</span><em>${c} · pos ${p}</em></div>`).join('');
+
+  const ch = [[css('--lime'),'Organic search',48],[css('--blue'),'Direct / PWA',26],[css('--pink'),'Social (IG, TikTok)',15],[css('--orange'),'Referral / other',11]];
+  splitBar('chanSplit', ch.map(([c,,v])=>[c,v]));
+  $('chanList').innerHTML = ch.map(([c,l,v])=>row(c,l,v+'%')).join('');
+
+  const ad = [['Follow a player',38],['Bookmark a match',27],['Push notifications on',22],['Viewed match stats tab',31],['Read news feed',44]];
+  $('adoption').innerHTML = ad.map(([l,v])=>`<div class="row" style="grid-template-columns:150px 1fr 50px"><span>${l}</span><div class="bar"><i style="width:${v*2}%"></i></div><span class="n">${v}%</span></div>`).join('');
+  $('geo').innerHTML = [['🇪🇸 Spain · es',34],['🇦🇷 Argentina · es',18],['🇮🇹 Italy · it',12],['🇧🇷 Brazil · pt',10],['🇫🇷 France · fr',9],['🇬🇧 UK · en',7],['Other',10]].map(([l,v])=>row(css('--lime'),l,v+'%')).join('');
+}
+
+function draw() { kpis(); activeChart(); funnel(); cohort(); panels(); }
+draw();
+</script>
+</body>
+</html>
