@@ -136,6 +136,11 @@ const TIER_WEIGHT_TABLE: Record<string, number> = {
   fip_gold: 0.75,
   fip_silver: 0.70,
   fip_bronze: 0.65,
+  // Team leagues score below every circuit tier so they never outrank a
+  // real circuit match for a highlight slot. Explicit rather than falling
+  // through to TIER_UNKNOWN_WEIGHT (0.70 — equal to fip_silver).
+  ppl: 0.30,
+  ppl_ii: 0.20,
 }
 const TIER_UNKNOWN_WEIGHT = 0.70
 export function tierWeight(level: string | null | undefined): number {

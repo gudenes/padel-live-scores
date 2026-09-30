@@ -1,6 +1,8 @@
 'use client'
 
 import { useRef, useState, useEffect, type ReactNode } from 'react'
+import { isLeagueLevel } from '@/lib/league-levels'
+import { titleCase } from '@/lib/title-case'
 import Avatar from '@/components/Avatar'
 import { useFormatter, useTranslations } from 'next-intl'
 import { DATE_SHORT, DATE_WITH_YEAR } from '@/lib/format-patterns'
@@ -136,23 +138,9 @@ function ChevronRightIcon({ size = 14, color = AMBER }: { size?: number; color?:
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-const KEEP_UPPER = new Set(['FIP', 'P1', 'P2', 'WPT', 'APT', 'A1', 'BNL'])
-// Roman numerals must survive title-casing — FIP names events like
-// "XX MEDITERRANEAN GAMES", and "Xx Mediterranean Games" reads as a typo.
-// Enumerating II/III/IV (the old approach) missed everything else, so match
-// the grammar instead. Deliberately strict, and deliberately without M/D, so
-// ordinary words built from numeral letters aren't shouted: LIVE, CIVIL and
-// MIX are all rejected; I, IV, IX, VIII and XX match.
-const ROMAN_NUMERAL = /^C{0,3}(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/
-function titleCase(name: string): string {
-  return name.split(' ').map(word => {
-    const upper = word.toUpperCase()
-    if (KEEP_UPPER.has(upper)) return upper
-    if (upper.length > 0 && ROMAN_NUMERAL.test(upper)) return upper
-    if (word.length <= 1) return word.toUpperCase()
-    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  }).join(' ')
-}
+// titleCase lives in @/lib/title-case — it was copied into this file and
+// into TournamentSpotlightHero, and each copy carried its own acronym list.
+// Adding 'PPL' to one left the others rendering 'Ppl'.
 
 // levelLabel imported at the top from @/lib/tournament-labels — covers
 // all FIP tiers including Beyond / Promises / Hexagon / etc.
@@ -319,6 +307,7 @@ export default function TournamentSpotlightHero({
               src={tournament.cover_image_url}
               alt={tournament.name}
               variant="hero"
+              focal={isLeagueLevel(tournament.level) ? 'center' : 'top'}
               sizes="(max-width: 480px) 100vw, 480px"
             />
             <div

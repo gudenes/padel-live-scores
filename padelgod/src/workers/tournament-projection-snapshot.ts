@@ -116,6 +116,98 @@ export function computeProjectedFinish(
   return deepest;
 }
 
+/** Synthetic pair keys for qualifier stand-ins. Prefixed so they can never
+ *  collide with a real `uuid::uuid` pair key and are trivially filtered out
+ *  before anything is written to `tournament_projections`. */
+const QUALIFIER_STANDIN_PREFIX = '__qualifier__'
+
+export function isQualifierStandIn(pairKey: string): boolean {
+  return pairKey.startsWith(QUALIFIER_STANDIN_PREFIX)
+}
+
+/** Mirror of the bracket-builder's private heap parser. Kept local so this
+ *  worker doesn't force a signature change on a module the Next app mirrors. */
+function heapNumberOf(w: string | null | undefined): number | null {
+  if (!w) return null
+  const hit = /[MW]D(\d+)$/.exec(w)
+  if (!hit?.[1]) return null
+  const n = parseInt(hit[1], 10)
+  return Number.isFinite(n) ? n : null
+}
+
+const FIRST_ROUND_SLOTS: Record<'R64' | 'R32' | 'R16', number> = { R64: 32, R32: 16, R16: 8 }
+
+/**
+ * Replace the empty side of a first-round "pair vs qualifier" cell with a
+ * stand-in entrant, so the simulation makes that pair actually win a match
+ * instead of walking through a phantom bye.
+ *
+ * Only cells backed by a REAL first-round row with exactly one populated side
+ * qualify. A true bye has no first-round row at all — the seed is lifted into
+ * the leaves from the next-round cell — so it keeps its free pass, correctly.
+ *
+ * Stand-in strength is the mean team Elo of the qualifying field for this
+ * tournament + category (they are, by construction, the pairs who might fill
+ * the slot), falling back to the main-draw mean and then to the rating-less
+ * prior. Mutates `leaves` in place; returns how many slots were filled.
+ */
+export function fillQualifierSlots(
+  leaves: (FrontierEntrant | null)[],
+  rows: Array<FrontierMatchRow & { round: string | null; round_canonical: string | null }>,
+  elo: Map<string, number>,
+  players: Map<string, PlayerLite>,
+): number {
+  const roundOf = (m: { round: string | null; round_canonical: string | null }) =>
+    canonRound(m.round_canonical ?? m.round)
+  const present = new Set(rows.map(roundOf).filter(Boolean) as string[])
+  const firstRound: 'R64' | 'R32' | 'R16' = present.has('R64')
+    ? 'R64'
+    : present.has('R32')
+      ? 'R32'
+      : 'R16'
+  const slotCount = FIRST_ROUND_SLOTS[firstRound]
+  if (leaves.length !== slotCount * 2) return 0
+
+  // Qualifying-field strength: pairs appearing in any Q round.
+  const qElos: number[] = []
+  for (const m of rows) {
+    const r = m.round_canonical ?? m.round ?? ''
+    if (!/^Q/i.test(r)) continue
+    if (m.pair1_player1_id && m.pair1_player2_id)
+      qElos.push(teamElo(m.pair1_player1_id, m.pair1_player2_id, elo, players))
+    if (m.pair2_player1_id && m.pair2_player2_id)
+      qElos.push(teamElo(m.pair2_player1_id, m.pair2_player2_id, elo, players))
+  }
+  const mainElos = leaves.filter(Boolean).map((l) => l!.teamElo)
+  const pool = qElos.length > 0 ? qElos : mainElos
+  const standInElo =
+    pool.length > 0 ? pool.reduce((a, b) => a + b, 0) / pool.length : fipPriorElo(null)
+
+  let filled = 0
+  for (const m of rows) {
+    if (roundOf(m) !== firstRound) continue
+    const num = heapNumberOf(m.widget_id_composite)
+    if (num == null) continue
+    const pos = num - slotCount
+    if (pos < 0 || pos >= slotCount) continue
+    const hasP1 = Boolean(m.pair1_player1_id && m.pair1_player2_id)
+    const hasP2 = Boolean(m.pair2_player1_id && m.pair2_player2_id)
+    if (hasP1 === hasP2) continue // both known, or nothing known — not a qualifier slot
+    const emptyIdx = hasP1 ? 2 * pos + 1 : 2 * pos
+    const filledIdx = hasP1 ? 2 * pos : 2 * pos + 1
+    // Only substitute when the builder really did leave that side empty and
+    // placed the known pair where we expect it.
+    if (leaves[emptyIdx] != null || leaves[filledIdx] == null) continue
+    leaves[emptyIdx] = {
+      pairKey: `${QUALIFIER_STANDIN_PREFIX}${m.id}`,
+      playerIds: [`${QUALIFIER_STANDIN_PREFIX}a`, `${QUALIFIER_STANDIN_PREFIX}b`] as [string, string],
+      teamElo: standInElo,
+    }
+    filled += 1
+  }
+  return filled
+}
+
 function canonRound(r: string | null | undefined): ProjRound | null {
   if (!r) return null;
   const x = r.toLowerCase();
@@ -328,10 +420,23 @@ export async function runTournamentProjectionSnapshot(
         })
         const leaves = buildFirstRoundLeaves(rows, (a, b) => mkEntrant(a, b))
         let activeProjections = new Map<string, PairProjection>()
+        // Gate on REAL entrants only — synthetic qualifier stand-ins below
+        // must not inflate "how much of this draw do we actually know".
         if (leaves.filter(Boolean).length >= leaves.length / 2) {
+          // A `null` leaf means "bye OR not-yet-known", and the simulator
+          // advances it for free. That is correct for a true bye, and wrong
+          // for a pair waiting on a qualifier — it hands them a free round.
+          // Substitute a stand-in at the qualifying field's strength so the
+          // match has to be won. See the 2026-09-27 qualifier-cells spec.
+          fillQualifierSlots(leaves, rows, train.elo, players)
           const entrants = collapseToFrontier(leaves, buildResultByMatchup(rows))
           if (entrants.filter(Boolean).length >= 2) {
             activeProjections = projectPairs({ entrants, runs: MC_RUNS })
+            // Drop the stand-ins — they are simulation scaffolding, never
+            // rows in `tournament_projections`.
+            for (const k of [...activeProjections.keys()]) {
+              if (isQualifierStandIn(k)) activeProjections.delete(k)
+            }
           }
         }
 

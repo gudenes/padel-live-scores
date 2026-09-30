@@ -3,6 +3,8 @@
 // All math is shared between scripts/simulate-elo-tournaments.ts and the
 // padelgod workers (model-prediction-snapshot, prediction-scorer).
 
+import { isLeagueLevel } from './league-levels.js';
+
 export const MODEL_VERSION = 'v0-td180-fip-prior';
 
 // ─── Cold-start prior ────────────────────────────────────────────────────────
@@ -162,6 +164,17 @@ export function trainElo(
       !m.pair2_player1_id || !m.pair2_player2_id ||
       (m.winner_pair !== 1 && m.winner_pair !== 2)
     ) {
+      continue;
+    }
+    // Team-league results (PPL) never move circuit Elo. Gating here rather
+    // than at the call sites covers every caller at once: model-prediction-
+    // snapshot, tournament-projection-snapshot, and simulate-elo-tournaments
+    // — all three build `tournamentLevels` from an unfiltered
+    // `tournaments.select('id, level')` and read the training corpus with no
+    // level filter of their own. The backtest harness (elo-backtest.ts, on
+    // feat/elo-backtest-harness) has the same shape and is covered the
+    // moment that branch merges.
+    if (isLeagueLevel(tournamentLevels.get(m.tournament_id ?? ''))) {
       continue;
     }
     const matchMs = new Date(m.scheduled_at ?? m.finished_at ?? asOfIso).getTime();

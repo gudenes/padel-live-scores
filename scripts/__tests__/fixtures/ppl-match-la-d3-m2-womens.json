@@ -1,0 +1,100 @@
+{
+ "url": "https://propadelleague.com/tournament/los-angeles-2026/match/los-angeles-2026-d3-m2-womens/",
+ "duration": "01:33:47",
+ "finalLabel": "FINAL",
+ "meta": "PPL|WOMEN'S|GROUP STAGE|·|LOS ANGELES",
+ "setPills": [
+  "7-6",
+  "0-6",
+  "7-10"
+ ],
+ "statRows": [
+  "43%|POINTS WON|57%",
+  "46%|SERVES WON|60%",
+  "40%|BREAK PTS CONVERTED|54%",
+  "67%|GOLDEN POINTS WON|33%",
+  "48%|LONG RALLIES WON|52%"
+ ],
+ "scoreRows": [
+  {
+   "team": "Toronto Polar Bears",
+   "winner": false,
+   "loser": true,
+   "players": [
+    "NOEMI AGUILAR",
+    "JANA MONTES CABRUJA"
+   ],
+   "cells": [
+    {
+     "v": "7",
+     "game": false
+    },
+    {
+     "v": "0",
+     "game": false
+    },
+    {
+     "v": "7",
+     "game": false
+    },
+    {
+     "v": "L",
+     "game": true
+    }
+   ]
+  },
+  {
+   "team": "San Diego Stingrays",
+   "winner": true,
+   "loser": false,
+   "players": [
+    "LETIZIA MANQUILLO",
+    "LUCIA SAINZ"
+   ],
+   "cells": [
+    {
+     "v": "6",
+     "game": false
+    },
+    {
+     "v": "6",
+     "game": false
+    },
+    {
+     "v": "10",
+     "game": false
+    },
+    {
+     "v": "W",
+     "game": true
+    }
+   ]
+  }
+ ],
+ "playerCards": [
+  {
+   "team": "San Diego Stingrays",
+   "slug": "letizia-manquillo",
+   "name": "Letizia Manquillo",
+   "text": "SAN DIEGO STINGRAYS|LETIZIA MANQUILLO|SPAIN|VIEW PROFILE|SERVE|1ST IN|97%|ACES|0|DF|0|POINTS|SMASH|11|BANDEJA|0|VOLLEY|6|VIBORA|1|GROUND|0|LOB|0|OTHER|1"
+  },
+  {
+   "team": "San Diego Stingrays",
+   "slug": "lucia-sainz",
+   "name": "Lucia Sainz",
+   "text": "SAN DIEGO STINGRAYS|LUCIA SAINZ|SPAIN|VIEW PROFILE|SERVE|1ST IN|85%|ACES|0|DF|0|POINTS|SMASH|6|BANDEJA|0|VOLLEY|5|VIBORA|0|GROUND|2|LOB|0|OTHER|1"
+  },
+  {
+   "team": "Toronto Polar Bears",
+   "slug": "noemi-aguilar",
+   "name": "Noemi Aguilar",
+   "text": "TORONTO POLAR BEARS|NOEMI AGUILAR|SPAIN|VIEW PROFILE|SERVE|1ST IN|92%|ACES|0|DF|0|POINTS|SMASH|3|BANDEJA|0|VOLLEY|3|VIBORA|0|GROUND|0|LOB|0|OTHER|0"
+  },
+  {
+   "team": "Toronto Polar Bears",
+   "slug": "jana-montes-cabruja",
+   "name": "Jana Montes Cabruja",
+   "text": "TORONTO POLAR BEARS|JANA MONTES CABRUJA|SPAIN|VIEW PROFILE|SERVE|1ST IN|88%|ACES|0|DF|0|POINTS|SMASH|8|BANDEJA|0|VOLLEY|2|VIBORA|0|GROUND|2|LOB|0|OTHER|0"
+  }
+ ]
+}

@@ -117,3 +117,44 @@ describe('parseEntryListText — PR marker handling', () => {
     expect(next, 'the team after a contaminated block should still parse').toBeDefined();
   });
 });
+
+// Rotterdam P2 2026. FIP prints the lucky-loser marker inline in the name
+// column — `LLi <entry-ranking> <name> <CC>`. The uppercase-only marker group
+// never matched the mixed-case `LLi`, so the stored player name was literally
+// "LLi 10 Claudia Jensen". That resolves against nothing, so the pair is
+// dropped and its main-draw cell never reaches `matches`.
+describe('parseEntryListText — inline entry markers', () => {
+  const HEADER = 'Pos Ranking \tPlayer \tRanking \tPlayer \tTeam Points';
+  const team = (p1: string) =>
+    [HEADER, [
+      `1 \t${p1}`,
+      '1000 points \t55 Some Partner ESP',
+      '1000 points \t2000',
+    ].join('\n')].join('\n');
+  const p1of = (t: string) => parseEntryListText(team(t)).teams[0]?.player1;
+
+  it('strips the LLi marker and recovers the ranking', () => {
+    const p = p1of('LLi 10 Claudia Jensen ARG');
+    expect(p, 'team should parse').toBeDefined();
+    expect(p!.name).toBe('Claudia Jensen');
+    expect(p!.ranking).toBe(10);
+    expect(p!.country).toBe('ARG');
+  });
+
+  it('strips LL and Alt the same way', () => {
+    expect(p1of('LL 70 Ana Dominguez Gracia ESP')!.name).toBe('Ana Dominguez Gracia');
+    expect(p1of('Alt 12 Some Player ITA')!.name).toBe('Some Player');
+  });
+
+  it('leaves ordinary ranked names alone', () => {
+    const p = p1of('111 Rodrigo Coello Manso ESP');
+    expect(p!.name).toBe('Rodrigo Coello Manso');
+    expect(p!.ranking).toBe(111);
+  });
+
+  // The (?=\d) rail: a name that merely starts with short capitalised tokens
+  // must never be truncated.
+  it('does not eat names lacking a following ranking digit', () => {
+    expect(p1of('Ann Lei SGP')!.name).toBe('Ann Lei');
+  });
+})

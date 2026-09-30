@@ -21,6 +21,8 @@ export function levelLabel(level: string | null): string {
     fip_hexagon: 'Hexagon Cup',
     fip_championship: 'FIP Championship',
     fip_other: 'FIP Tour',
+    ppl: 'PPL',
+    ppl_ii: 'PPL II',
   }
   return level ? (map[level] ?? level) : ''
 }
@@ -77,6 +79,11 @@ export function levelTierWeight(level: string | null): number {
     fip_promises: 20,
     fip_beyond: 22,
     fip_other: 25,
+    // Team leagues sort below every circuit tier — they are a separate
+    // competition, not a rung on the FIP/Premier ladder. Explicit rather
+    // than falling through to `?? 50`, so the ordering is intentional.
+    ppl: 30,
+    ppl_ii: 31,
   }
   return map[level] ?? 50
 }

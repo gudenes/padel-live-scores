@@ -9,8 +9,9 @@
 //   - TournamentSpotlightHero
 //
 // Keys match production `tournaments.level` values (Premier tiers are bare,
-// FIP tiers carry the `fip_` prefix). All 17 known levels are mapped here;
-// unknown values fall back to FALLBACK_GRADIENT / FALLBACK_PILL.
+// FIP tiers carry the `fip_` prefix, team leagues use `ppl` / `ppl_ii`).
+// All known levels are mapped here; unknown values fall back to
+// FALLBACK_GRADIENT / FALLBACK_PILL.
 
 const PREMIER_GRADIENT = 'linear-gradient(135deg, #6B46C1, #9333EA)'
 const GOLD_GRADIENT    = 'linear-gradient(135deg, #92750E, #EAB308)'
@@ -18,6 +19,7 @@ const SILVER_GRADIENT  = 'linear-gradient(135deg, #475569, #94A3B8)'
 const BRONZE_GRADIENT  = 'linear-gradient(135deg, #92400E, #D97706)'
 const CYAN_GRADIENT    = 'linear-gradient(135deg, #155E75, #06B6D4)'
 const SLATE_GRADIENT   = 'linear-gradient(135deg, #334155, #64748B)'
+const LEAGUE_GRADIENT  = 'linear-gradient(135deg, #0C4A6E, #38C8FF)'
 
 export const FALLBACK_GRADIENT = 'linear-gradient(135deg, #2A2A2A, #1A1A1A)'
 export const FALLBACK_PILL: TierPillStyle = { background: '#444', color: '#fff' }
@@ -45,6 +47,8 @@ export const TIER_GRADIENT: Record<string, string> = {
   fip_promises:     SLATE_GRADIENT,
   fip_beyond:       SLATE_GRADIENT,
   fip_other:        SLATE_GRADIENT,
+  ppl:              LEAGUE_GRADIENT,
+  ppl_ii:           LEAGUE_GRADIENT,
 }
 
 export const TIER_PILL: Record<string, TierPillStyle> = {
@@ -65,6 +69,8 @@ export const TIER_PILL: Record<string, TierPillStyle> = {
   fip_promises:     { background: SLATE_GRADIENT,   color: '#fff' },
   fip_beyond:       { background: SLATE_GRADIENT,   color: '#fff' },
   fip_other:        { background: SLATE_GRADIENT,   color: '#fff' },
+  ppl:              { background: LEAGUE_GRADIENT, color: '#fff' },
+  ppl_ii:           { background: LEAGUE_GRADIENT, color: '#fff' },
 }
 
 /** Convenience getters that always return a value (defaults applied). */

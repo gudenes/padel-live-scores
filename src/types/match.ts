@@ -316,6 +316,11 @@ export function toShortName(name: string): string {
 // paternal-surname heuristic in toShortName.
 export function pairName(p1: Player | null, p2: Player | null): string {
   if (!p1 && !p2) return 'TBD'
+  // A franchise stand-in is printed verbatim: the surname heuristic below
+  // would render "Mexico Waves" as "M. Waves". See thin-match-player.ts for
+  // why a team-league fixture carries one of these before its line-up is
+  // published.
+  if (p1 && (p1 as { is_team?: boolean }).is_team && !p2) return p1.name ?? 'TBD'
   const n1 = p1 ? (p1.display_name?.trim() || p1.name) : 'TBD'
   const n2 = p2 ? (p2.display_name?.trim() || p2.name) : null
   if (!n2) return toShortName(n1)

@@ -238,6 +238,7 @@ export default function MatchesFilterSheet({
                 { value: 'all', label: t('league.all') },
                 { value: 'premier', label: t('league.premier') },
                 { value: 'fip', label: t('league.fip') },
+                { value: 'ppl', label: t('league.ppl') },
               ]}
               value={filters.league}
               onChange={(v) => setLeague(v as LeagueFilter)}

@@ -130,8 +130,10 @@ export default function MatchesFilterClient({
       let hidden = false
       const league = group.getAttribute('data-league') ?? ''
 
-      if (filters.league === 'premier' && league !== 'premier') hidden = true
-      if (filters.league === 'fip' && league !== 'fip') hidden = true
+      // Exact match rather than a premier/not-premier pair: a team league is
+      // neither, and folding it into 'fip' put PPL events under the FIP Tour
+      // filter, where they do not belong and cannot be isolated.
+      if (filters.league !== 'all' && league !== filters.league) hidden = true
 
       if (!hidden) {
         const visibleInGroup = group.querySelectorAll<HTMLElement>('[data-match]')

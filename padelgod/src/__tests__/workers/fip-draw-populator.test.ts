@@ -17,6 +17,9 @@ import {
   type BracketOverlay,
   // NEW from Task 4:
   type Tier,
+  // 2026-09-27 — bye vs qualifier-slot discriminator:
+  isQualifierSlotRow,
+  parentWidgetId,
 } from '../../workers/fip-draw-populator.js';
 
 // Matches the production Isla de la Palma shape minus fields the
@@ -144,6 +147,13 @@ interface Options {
    *  Tournaments not in this map are returned with level=null when
    *  the populator queries for levels. */
   tournamentLevels?: Record<string, string | null>;
+  /** Make the sidecar `matches ... .in('id', …)` read fail when the requested
+   *  ids include any of these. Scoped per-id so ONE tournament can fail while
+   *  the next stays healthy — which is the whole point of the regression.
+   *  Models the production incident of 2026-09-23: a transient
+   *  `TypeError: fetch failed` on the FIRST of 43 tournaments aborted the
+   *  entire hourly run and silently starved the other 42. */
+  failSidecarMatchesReadForIds?: string[];
 }
 
 function fakeSupabase(opts: Options) {
@@ -206,6 +216,15 @@ function fakeSupabase(opts: Options) {
       in: (col: string, values: string[]) => {
         if (col !== 'id')
           throw new Error(`unexpected matches IN filter: ${col}`);
+        const boom = opts.failSidecarMatchesReadForIds ?? [];
+        if (boom.length > 0 && values.some((v) => boom.includes(v))) {
+          // Shape mirrors supabase-js on a network failure: no data, an error
+          // object the worker turns into `throw new Error(...)`.
+          return Promise.resolve({
+            data: null,
+            error: { message: 'TypeError: fetch failed' },
+          });
+        }
         const data = existingState.filter((m) => values.includes(m.id));
         return Promise.resolve({ data, error: null });
       },
@@ -521,6 +540,93 @@ const realMatchDraw: DrawSeed = {
   captured_at: '2026-04-24T08:00:00Z',
 };
 
+describe('runFipDrawPopulator — one bad tournament must not starve the rest', () => {
+  // Production incident 2026-09-23. The per-tournament loop had no try/catch,
+  // so a transient `TypeError: fetch failed` reading the sidecar for
+  // FIP-2026-3803 (position 1 of 43) threw straight out of
+  // runFipDrawPopulator. All 42 later tournaments — including FIP Platinum
+  // Lyon at position 16 — were never processed, and because the function threw
+  // the `run complete` counters never logged, so the loss was silent.
+  const BAD = 't-explodes';
+  // Reuse the baseline tournament id for the healthy case — the entryList /
+  // rosterPlayers fixtures are scoped to it, so player resolution behaves
+  // exactly as in the passing INSERT test above. Only the ORDER matters here.
+  const GOOD = TOURNAMENT_ID;
+
+  function twoTournaments() {
+    return fakeSupabase({
+      tournaments: [
+        // Order matters: the failing one is FIRST, exactly as in production.
+        { tournament_id: BAD, tournament_name: 'Explodes', slug: 'explodes-2026' },
+        { tournament_id: GOOD, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [BAD]: 'FIP-2026-3803', [GOOD]: TOURNAMENT_WIDGET },
+      draws: [
+        { ...realMatchDraw, tournament_id: BAD, match_widget_id: 'MD001' },
+        { ...realMatchDraw, tournament_id: GOOD },
+      ],
+      entryList,
+      players: rosterPlayers,
+      // The bad tournament owns a sidecar-mapped match; reading it blows up.
+      sidecarMappings: [{ entity_id: 'sidecar-boom', external_id: 'FIP-2026-3803:MD001' }],
+      failSidecarMatchesReadForIds: ['sidecar-boom'],
+    });
+  }
+
+  it('does not throw out of the worker when one tournament fails', async () => {
+    await expect(
+      runFipDrawPopulator({ supabase: twoTournaments() as any, dryRun: false }),
+    ).resolves.toBeDefined();
+  });
+
+  it('still processes the healthy tournament that comes after the failure', async () => {
+    const supabase = twoTournaments();
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    // The whole point: the second tournament's match must still be written.
+    expect(result.inserted).toBeGreaterThanOrEqual(1);
+    expect(
+      supabase.inserted.some((r: any) =>
+        String(r.widget_id_composite ?? '').startsWith(TOURNAMENT_WIDGET),
+      ),
+    ).toBe(true);
+  });
+
+  it('reports the failure in a counter instead of failing silently', async () => {
+    const result = await runFipDrawPopulator({
+      supabase: twoTournaments() as any,
+      dryRun: false,
+    });
+    expect(result.tournamentsFailed).toBe(1);
+  });
+
+  it('logs the failing tournament so it can be traced', async () => {
+    const warn = vi.fn();
+    await runFipDrawPopulator({
+      supabase: twoTournaments() as any,
+      dryRun: false,
+      logger: { info: vi.fn(), warn, error: vi.fn(), debug: vi.fn() } as any,
+    });
+    const said = warn.mock.calls.some(
+      (c) => JSON.stringify(c).includes(BAD) || JSON.stringify(c).includes('FIP-2026-3803'),
+    );
+    expect(said).toBe(true);
+  });
+
+  it('keeps a clean run at zero failures', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw],
+      entryList,
+      players: rosterPlayers,
+    });
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    expect(result.tournamentsFailed).toBe(0);
+  });
+});
+
 describe('runFipDrawPopulator', () => {
   it('INSERTs a new match with real widget composite when none exists (non-dry-run)', async () => {
     const supabase = fakeSupabase({
@@ -710,6 +816,157 @@ describe('runFipDrawPopulator', () => {
 
     expect(result.skippedBye).toBe(1);
     expect(result.inserted).toBe(0);
+  });
+
+  // 2026-09-27, Rotterdam P2 women's draw. FIP renders "pair waiting on a
+  // qualifier" with EXACTLY the same shape as a bye — one side named, other
+  // blank, status='walkover'. The blanket bye-skip therefore dropped 4 of the
+  // 8 real R32 cells, taking 4 known pairs out of the app entirely and
+  // leaving the projection blank. The discriminator is the parent cell: a
+  // true bye's pair has already advanced into it; a qualifier slot has not.
+  it('INSERTs a walkover-shaped first-round cell whose pair has NOT advanced (qualifier slot, not a bye)', async () => {
+    const qualifierSlot: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD018',
+      round_label: 'R32',
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team2_fip_id: '1900641629', // numeric placeholder, same as a bye
+      team2_seed: null,
+      status: 'walkover',
+    };
+    // Parent R16 cell exists and does NOT contain the MD018 pair — they are
+    // still waiting on the qualifier, so nobody has advanced into it yet.
+    const parentCell: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD009',
+      round_label: 'R16',
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: 'Some Otherseed',
+      team2_player2_name: 'Another Otherseed',
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [qualifierSlot, parentCell],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedBye).toBe(0);
+    expect(result.qualifierSlots).toBe(1);
+    const md018 = supabase.inserted.find(
+      (r: any) => r.widget_id_composite === 'FIP-2026-1706:MD018',
+    );
+    expect(md018).toBeDefined();
+    // Known side populated, qualifier side left unset (NULL in the row).
+    expect(md018.pair1_player1_id).toBeTruthy();
+    expect(md018.pair2_player1_id ?? null).toBeNull();
+    expect(md018.pair2_player2_id ?? null).toBeNull();
+  });
+
+  // An EMPTY parent proves the pair did NOT advance — and a bye *is*
+  // advancement, which FIP fills in the moment the draw is published. So an
+  // empty parent is a qualifier slot, not a bye. Rotterdam men's MD028
+  // (Stupaczuk/Sanz, seed 5, vs a qualifier) feeds MD014, empty on both
+  // sides; an earlier cut called that a bye and silently dropped a top-5
+  // seed from the draw.
+  it('treats a walkover-shaped cell with an EMPTY parent as a qualifier slot', async () => {
+    const qualifierSlot: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD028',
+      round_label: 'R32',
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team2_fip_id: '1900641629',
+      status: 'walkover',
+    };
+    const emptyParent: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD014',
+      round_label: 'R16',
+      team1_player1_name: null,
+      team1_player2_name: null,
+      team2_player1_name: null,
+      team2_player2_name: null,
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [qualifierSlot, emptyParent],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.qualifierSlots).toBe(1);
+    expect(result.skippedBye).toBe(0);
+    expect(
+      supabase.inserted.find(
+        (r: any) => r.widget_id_composite === 'FIP-2026-1706:MD028',
+      ),
+    ).toBeDefined();
+  });
+
+  it('still skips a walkover-shaped first-round cell whose pair HAS advanced into the parent (true bye)', async () => {
+    const trueBye: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD016',
+      round_label: 'R32',
+      team2_player1_name: null,
+      team2_player2_name: null,
+      team2_fip_id: '1855266380',
+      status: 'walkover',
+    };
+    // Parent R16 cell already carries the MD016 pair — they advanced unopposed.
+    const parentCell: DrawSeed = {
+      ...realMatchDraw,
+      match_widget_id: 'MD008',
+      round_label: 'R16',
+      team1_player1_name: realMatchDraw.team1_player1_name,
+      team1_player2_name: realMatchDraw.team1_player2_name,
+      team2_player1_name: null,
+      team2_player2_name: null,
+      status: 'scheduled',
+    };
+    const supabase = fakeSupabase({
+      tournaments: [
+        { tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG },
+      ],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [trueBye, parentCell],
+      entryList,
+      players: rosterPlayers,
+    });
+
+    const result = await runFipDrawPopulator({
+      supabase: supabase as any,
+      dryRun: false,
+    });
+
+    expect(result.skippedBye).toBe(1);
+    expect(result.qualifierSlots).toBe(0);
+    expect(
+      supabase.inserted.find(
+        (r: any) => r.widget_id_composite === 'FIP-2026-1706:MD016',
+      ),
+    ).toBeUndefined();
   });
 
   it('INSERTs real walkovers (both sides have names, status=walkover — match was played but one side withdrew)', async () => {
@@ -3916,5 +4173,52 @@ describe('runFipDrawPopulator — draw_released coalescing', () => {
     await runFipDrawPopulator({ supabase: supabase as any, dryRun: false, notify: deps as any, eventsEnabled: true });
 
     expect(posts.filter((p) => p.body.category === 'draw_released')).toHaveLength(1);
+  });
+});
+
+describe('isQualifierSlotRow — bye vs qualifier discriminator', () => {
+  const cell = (id: string, a1: string | null, a2: string | null, b1: string | null = null, b2: string | null = null) => ({
+    match_widget_id: id,
+    team1_player1_name: a1, team1_player2_name: a2,
+    team2_player1_name: b1, team2_player2_name: b2,
+  });
+
+  it('derives the parent cell from the widget heap', () => {
+    expect(parentWidgetId('WD018')).toBe('WD009');
+    expect(parentWidgetId('MD031')).toBe('MD015');
+    expect(parentWidgetId('MD001')).toBeNull(); // root
+    expect(parentWidgetId(null)).toBeNull();
+  });
+
+  it('calls it a BYE when the pair has advanced into the parent', () => {
+    const child = cell('WD016', 'Gemma Triay Pons', 'Delfina Brea Senesi');
+    const parent = cell('WD008', 'Gemma Triay Pons', 'Delfina Brea Senesi', 'Eugenia Guimet', 'Anastasiia Ryzhova');
+    expect(isQualifierSlotRow(child, new Map([['WD008', parent]]))).toBe(false);
+  });
+
+  // The 2026-09-27 false-positive cause: OOP abbreviates first names where
+  // the bracket spells them out. Any residual dialect mismatch must fail
+  // toward BYE — the pre-existing behaviour — never conjure a match.
+  it('still calls it a BYE when the parent abbreviates first names', () => {
+    const child = cell('WD016', 'Alejandra Salazar Bengoechea', 'Aranzazu Osoro Ulrich');
+    const parent = cell('WD008', 'A. Salazar Bengoechea', 'A. Osoro Ulrich', 'E. Guimet', 'A. Ryzhova');
+    expect(isQualifierSlotRow(child, new Map([['WD008', parent]]))).toBe(false);
+  });
+
+  it('calls it a QUALIFIER SLOT when the parent names somebody else entirely', () => {
+    const child = cell('WD018', 'Marta Barrera De La Fuente', 'Jana Montes Cabruja');
+    const parent = cell('WD009', null, null, 'Alejandra Salazar Bengoechea', 'Aranzazu Osoro Ulrich');
+    expect(isQualifierSlotRow(child, new Map([['WD009', parent]]))).toBe(true);
+  });
+
+  it('calls it a QUALIFIER SLOT when the parent is empty (nobody advanced)', () => {
+    const child = cell('MD028', 'Franco Stupaczuk', 'Jon Sanz');
+    const parent = cell('MD014', null, null, null, null);
+    expect(isQualifierSlotRow(child, new Map([['MD014', parent]]))).toBe(true);
+  });
+
+  it('falls back to BYE when the parent row is absent entirely (unverifiable)', () => {
+    const child = cell('MD028', 'Franco Stupaczuk', 'Jon Sanz');
+    expect(isQualifierSlotRow(child, new Map())).toBe(false);
   });
 });
