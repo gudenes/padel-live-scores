@@ -125,12 +125,19 @@ export default async function Page() {
         const dauLatest = dauRows.length ? dauRows[dauRows.length - 1].n : 0
         const wk1 = weightedRetention(buildRetentionMatrix(ph.rows, ph.day), 1)
         return (
+          <>
           <KpiStrip cols={4}>
-            <Kpi label="Monthly active" tone="lime" value={v('mau').toLocaleString()} />
-            <Kpi label="Weekly active" tone="lime" value={v('wau').toLocaleString()} />
-            <Kpi label="Stickiness (DAU/MAU)" tone="warn" value={`${pct(dauLatest, v('mau'))}%`} />
-            <Kpi label="Week-1 retention" tone="neutral" value={wk1 == null ? '—' : `${wk1}%`} />
+            <Kpi label="Monthly visitors" tone="lime" value={v('mau').toLocaleString()} />
+            <Kpi label="Weekly visitors" tone="lime" value={v('wau').toLocaleString()} />
+            <Kpi label="Stickiness · visitors (DAU/MAU)" tone="warn" value={`${pct(dauLatest, v('mau'))}%`} />
+            <Kpi label="Visitor retention · W1 (anonymous)" tone="neutral" value={wk1 == null ? '—' : `${wk1}%`} />
           </KpiStrip>
+          <KpiStrip cols={3}>
+            <Kpi label="Logged-in users · 30d" tone="lime" value={v('logged_in_active').toLocaleString()} />
+            <Kpi label="Returned on 2+ days" tone="lime" value={<>{v('logged_in_returning').toLocaleString()} <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}>· {pct(v('logged_in_returning'), v('logged_in_active'))}%</span></>} />
+            <Kpi label="Accounts seen logged in" tone="neutral" value={<>{pct(v('logged_in_active'), totalUsers)}% <span style={{ fontSize: 13, color: 'var(--text-3)', fontWeight: 400 }}>· of {totalUsers.toLocaleString()}</span></>} />
+          </KpiStrip>
+          </>
         )
       })()}
 

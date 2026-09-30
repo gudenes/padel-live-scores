@@ -22,6 +22,13 @@ export interface SnapshotRow {
  */
 export const ACTIVE_PATH_REGEX = '^/((en|es|pt|it|fr)/)?(matches|match|tournaments|ranking|player|feed)'
 
+/**
+ * Logged-in users: after posthog.identify the distinct_id is the Supabase account id
+ * (UUIDv4). PostHog's own anonymous browser ids are UUIDv7, so the version digit
+ * (first char of the 3rd group) separates the two.
+ */
+export const ACCOUNT_ID_REGEX = '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 const assertDay = (d: string) => {
   if (!DAY_RE.test(d)) throw new Error(`invalid day: ${d}`)
@@ -94,6 +101,18 @@ export const q = {
      group by cohort, n
      order by cohort, n`,
 
+  /** Logged-in users seen in the 30 days ending `day`, and how many came back on 2+ days. */
+  loggedIn: (day: string) => `
+    select count() as users, countIf(days >= 2) as returning from (
+      select distinct_id, count(distinct toDate(timestamp)) as days
+        from events
+       where ${PV}
+         and match(distinct_id, '${ACCOUNT_ID_REGEX}')
+         and toDate(timestamp) > toDate('${assertDay(day)}') - 30
+         and toDate(timestamp) <= toDate('${day}')
+       group by distinct_id
+    )`,
+
   cohortSizes: (day: string, lookbackDays = 84) => `
     select toString(cohort) as cohort, count() as size from (
       select person_id, toStartOfWeek(min(timestamp), 1) as cohort
@@ -146,9 +165,17 @@ export function parseRetention(day: string, sizes: unknown[][], cells: unknown[]
   ]
 }
 
+export function parseLoggedIn(day: string, rows: unknown[][]): SnapshotRow[] {
+  const r = (rows[0] ?? []) as unknown[]
+  return [
+    { day, metric: 'logged_in_active', dimension: '', value: num(r[0]) },
+    { day, metric: 'logged_in_returning', dimension: '', value: num(r[1]) },
+  ]
+}
+
 /** Runs every PostHog query for `day` (a complete UTC day) and returns rows to upsert. */
 export async function collectPosthogRows(run: HogqlRunner, day: string): Promise<SnapshotRow[]> {
-  const [dauRows, wauRows, mauRows, refRows, ctryRows, retRows, sizeRows] = await Promise.all([
+  const [dauRows, wauRows, mauRows, refRows, ctryRows, retRows, sizeRows, loggedInRows] = await Promise.all([
     run(q.dauSeries(day)),
     run(q.trailingActive(day, 7)),
     run(q.trailingActive(day, 30)),
@@ -156,6 +183,7 @@ export async function collectPosthogRows(run: HogqlRunner, day: string): Promise
     run(q.countries(day)),
     run(q.retention(day)),
     run(q.cohortSizes(day)),
+    run(q.loggedIn(day)),
   ])
   return [
     ...parseDauSeries(dauRows as unknown[][]),
@@ -164,5 +192,6 @@ export async function collectPosthogRows(run: HogqlRunner, day: string): Promise
     ...parseChannels(day, refRows as unknown[][]),
     ...parseCountries(day, ctryRows as unknown[][]),
     ...parseRetention(day, sizeRows as unknown[][], retRows as unknown[][]),
+    ...parseLoggedIn(day, loggedInRows as unknown[][]),
   ]
 }

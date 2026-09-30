@@ -57,7 +57,7 @@ export function PosthogPanels({
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <Panel title="Weekly retention cohorts">
+        <Panel title="Weekly retention cohorts · anonymous visitors">
           {matrix.length === 0 ? (
             <EmptyState title="No cohorts yet." hint="Retention needs a few weeks of snapshots to fill in." />
           ) : (
@@ -100,7 +100,8 @@ export function PosthogPanels({
           )}
           <div style={card}>
             Active = a pageview on matches, tournaments, rankings, players or the feed. Web + PWA only; native
-            iOS/Android can&apos;t be tracked across sessions. The oldest cohort includes returning users.
+            iOS/Android can&apos;t be tracked across sessions. The oldest cohort includes returning users. About 99% of
+            anonymous visitors are seen on a single day, so this is low by nature; logged-in users (tiles above) return far more.
           </div>
         </Panel>
       </div>

@@ -1,7 +1,7 @@
 // apps/ops/tests/growth-posthog-metrics.test.ts
 import { describe, it, expect, vi } from 'vitest'
 import {
-  classifyChannel, parseChannels, parseRetention, parseDauSeries, collectPosthogRows, q,
+  classifyChannel, parseChannels, parseRetention, parseDauSeries, collectPosthogRows, parseLoggedIn, q,
 } from '../src/lib/growth/posthog-metrics'
 import { buildRetentionMatrix, weightedRetention } from '../src/lib/growth/growth-compute'
 
@@ -65,6 +65,23 @@ describe('retention matrix', () => {
   })
 })
 
+describe('logged-in users', () => {
+  it('parses the users/returning row', () => {
+    expect(parseLoggedIn('2026-09-29', [[11, 6]])).toEqual([
+      { day: '2026-09-29', metric: 'logged_in_active', dimension: '', value: 11 },
+      { day: '2026-09-29', metric: 'logged_in_returning', dimension: '', value: 6 },
+    ])
+  })
+  it('emits zeros when PostHog returns nothing', () => {
+    expect(parseLoggedIn('2026-09-29', []).map(r => r.value)).toEqual([0, 0])
+  })
+  it('selects UUIDv4 account ids only and rejects bad days', () => {
+    const sql = q.loggedIn('2026-09-29')
+    expect(sql).toContain('-4[0-9a-f]{3}-')
+    expect(() => q.loggedIn("2026-09-29'; drop")).toThrow()
+  })
+})
+
 describe('collectPosthogRows', () => {
   it('runs all queries and emits wau/mau rows', async () => {
     const run = vi.fn(async (query: string) => {
@@ -74,8 +91,9 @@ describe('collectPosthogRows', () => {
       return []
     })
     const rows = await collectPosthogRows(run, '2026-09-29')
-    expect(run).toHaveBeenCalledTimes(7)
+    expect(run).toHaveBeenCalledTimes(8)
     expect(rows.find(r => r.metric === 'wau')?.value).toBe(70)
     expect(rows.find(r => r.metric === 'mau')?.value).toBe(300)
+    expect(rows.find(r => r.metric === 'logged_in_active')).toBeDefined()
   })
 })
