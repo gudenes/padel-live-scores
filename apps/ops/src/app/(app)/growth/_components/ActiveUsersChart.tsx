@@ -27,7 +27,7 @@ export function ActiveUsersChart({ data }: { data: ActivePoint[] }) {
             labelStyle={{ color: 'var(--text-3)' }}
             formatter={(v) => [v as number, 'Daily active']}
           />
-          <Line type="monotone" dataKey="n" stroke="var(--lime)" strokeWidth={2.2} dot={false} />
+          <Line type="monotone" dataKey="n" stroke="var(--lime)" strokeWidth={2.2} dot={false} isAnimationActive={false} />
         </LineChart>
       </ResponsiveContainer>
     </div>

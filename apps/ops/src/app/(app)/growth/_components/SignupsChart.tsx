@@ -42,7 +42,7 @@ export function SignupsChart({ data }: { data: SignupPoint[] }) {
             labelStyle={{ color: 'var(--text-3)' }}
             formatter={(v) => [v as number, 'Signups']}
           />
-          <Bar dataKey="n" fill="var(--lime)" radius={[3, 3, 0, 0]} />
+          <Bar dataKey="n" fill="var(--lime)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>
