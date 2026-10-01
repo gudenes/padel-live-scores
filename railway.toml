@@ -1,9 +1,13 @@
+# One config file, two services. Both the web app (`padelnachos`) and the
+# admin (`padelnachos-admin`, apps/ops) are `railway up`-ed from the REPO ROOT
+# and read this file, so the build/start must branch on the service name.
+# Dropping the admin branch makes the next admin deploy build the web app.
 [build]
 builder = "RAILPACK"
-buildCommand = "npm run build -- --webpack"
+buildCommand = "if [ \"$RAILWAY_SERVICE_NAME\" = \"padelnachos-admin\" ]; then npm ci --prefix apps/ops && npm run build --prefix apps/ops; else npm run build -- --webpack; fi"
 
 [deploy]
-startCommand = "node scripts/start-web.mjs"
+startCommand = "if [ \"$RAILWAY_SERVICE_NAME\" = \"padelnachos-admin\" ]; then cd apps/ops; npx next start -p ${PORT:-3000}; else node scripts/start-web.mjs; fi"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
