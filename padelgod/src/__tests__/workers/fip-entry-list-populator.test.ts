@@ -265,6 +265,42 @@ describe('runFipEntryListPopulator', () => {
     expect(supabase.inserted[0]).not.toHaveProperty('source');
   });
 
+  // Momo González (P000011) conflation guard: a snapshot whose fip_id points
+  // at an established record but whose parsed name is a DIFFERENT person
+  // (shares only a surname) must NOT overwrite the canonical name. name is
+  // FIP-primary per source-priority — entry-list PDF text never owns it when
+  // the names are incompatible.
+  it('does NOT overwrite an established name with an incompatible snapshot name', async () => {
+    const supabase = fakeSupabase({
+      snapshots: [snap('P000011', 'Juan Pereiro González', 'ES')],
+      existingPlayers: [
+        { id: 'momo', fip_id: 'P000011', name: 'Jeronimo Gonzalez', country: 'ES', category: 'men' },
+      ],
+    });
+
+    const result = await runFipEntryListPopulator({ supabase: supabase as any, dryRun: false });
+
+    expect(result.playersUpdated).toBe(0);
+    expect(result.playersSkippedNoChange).toBe(1);
+    for (const u of supabase.updated) expect(u.patch).not.toHaveProperty('name');
+  });
+
+  // The complementary case: a fuller form of the SAME person (subset, ≥2
+  // shared tokens) is a legitimate enrichment and DOES update.
+  it('still enriches a name when the snapshot is a compatible fuller form', async () => {
+    const supabase = fakeSupabase({
+      snapshots: [snap('P200001', 'Juan Lebron Bermejo', 'ES')],
+      existingPlayers: [
+        { id: 'lebron', fip_id: 'P200001', name: 'Juan Lebron', country: 'ES', category: 'men' },
+      ],
+    });
+
+    const result = await runFipEntryListPopulator({ supabase: supabase as any, dryRun: false });
+
+    expect(result.playersUpdated).toBe(1);
+    expect(supabase.updated[0].patch).toMatchObject({ name: 'Juan Lebron Bermejo' });
+  });
+
   it('updates only fields that changed (NULL-only update)', async () => {
     const supabase = fakeSupabase({
       snapshots: [

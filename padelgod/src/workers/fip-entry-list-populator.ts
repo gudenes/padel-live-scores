@@ -115,6 +115,43 @@ interface ExistingPlayerRow {
   points: number | null;
 }
 
+/**
+ * True when `snapshot` is the same name as `existing` or a fuller form of it
+ * — i.e. every token of the existing name is covered by a snapshot token
+ * (exact match, or an initial like "A" expanded to "Ale"). Used to gate name
+ * overwrites in the fip_id-matched update path.
+ *
+ * Allows legitimate enrichment ("Juan Lebron" → "Juan Lebron Bermejo",
+ * "A. Galan" → "Ale Galan") but blocks the entry-list name-clobber that glued
+ * a foreign person's name onto an established record when the snapshot's
+ * fip_id was wrong ("Jeronimo Gonzalez" ✗→ "Juan Pereiro González", the Momo
+ * González P000011 incident). `name` is FIP-primary per source-priority, so a
+ * conflicting parsed PDF name never owns it.
+ */
+function nameCompatible(snapshot: string, existing: string): boolean {
+  const toks = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim()
+      .split(' ')
+      .filter(Boolean);
+  const snapTokens = toks(snapshot);
+  const existingTokens = toks(existing);
+  if (snapTokens.length === 0 || existingTokens.length === 0) return false;
+  // Every existing token must be covered by a snapshot token.
+  return existingTokens.every((e) =>
+    snapTokens.some(
+      (s) =>
+        s === e ||
+        (e.length === 1 && s.startsWith(e)) ||
+        (s.length === 1 && e.startsWith(s)),
+    ),
+  );
+}
+
 export async function runFipEntryListPopulator(
   deps: FipEntryListPopulatorDeps,
 ): Promise<FipEntryListPopulatorResult> {
@@ -313,7 +350,13 @@ export async function runFipEntryListPopulator(
       // the snapshot has a non-null value to write — never overwrite a
       // populated field with null. The category check is whole-row (no
       // null-skip) because category is required on every snapshot row.
-      const nameDiffers = snap.name != null && snap.name !== match.name;
+      // Only overwrite name when it's empty or the snapshot is a compatible
+      // (same-person) variant — never let an incompatible parsed name clobber
+      // an established FIP name. See nameCompatible().
+      const nameDiffers =
+        snap.name != null &&
+        snap.name !== match.name &&
+        (!match.name || nameCompatible(snap.name, match.name));
       const countryDiffers =
         snap.country != null && snap.country !== match.country;
       const categoryDiffers = snap.category !== match.category;

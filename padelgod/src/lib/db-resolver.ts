@@ -212,8 +212,19 @@ export function resolvePlayerByName(
   const norm = normalizeName(input.name);
   if (!norm) return null;
 
-  // 1. Alias hit. Refuse to cross category boundaries: if the aliased player
-  //    isn't in this category-scoped dbIndex, treat as miss.
+  // 1. Exact normalized name. Checked BEFORE the alias index so a poisoned
+  //    alias (a past bad fuzzy match that points this name string at the
+  //    wrong player) can never override a record whose canonical name IS
+  //    the input. See the Momo González (P000011) conflation incident.
+  const exactCandidates = dbIndex.get(norm);
+  if (exactCandidates && exactCandidates.length > 0) {
+    const pick = pickByCountryAndRanking(exactCandidates, input);
+    if (pick) return { playerId: pick.id, fipId: pick.fip_id, matchType: 'exact' };
+  }
+
+  // 2. Alias hit (a known name variant). Refuse to cross category boundaries:
+  //    if the aliased player isn't in this category-scoped dbIndex, treat as
+  //    a miss and continue through the rest of the chain.
   const aliasPlayerId = aliasIndex.get(norm);
   if (aliasPlayerId) {
     for (const rows of dbIndex.values()) {
@@ -223,25 +234,26 @@ export function resolvePlayerByName(
         }
       }
     }
-    // Alias points to a player not in this category — silent miss; continue
-    // through the rest of the chain so we don't lose a legitimate exact hit.
-  }
-
-  // 2. Exact normalized name
-  const exactCandidates = dbIndex.get(norm);
-  if (exactCandidates && exactCandidates.length > 0) {
-    const pick = pickByCountryAndRanking(exactCandidates, input);
-    if (pick) return { playerId: pick.id, fipId: pick.fip_id, matchType: 'exact' };
   }
 
   // Country narrow shared by both fuzzy steps below.
   const wantCountry = normalizeCountry(input.country);
+
+  // Fuzzy guard: require the SHORTER side to carry ≥2 discriminating tokens.
+  // A lone surname or single-initial entry ("J Gonzalez" → {gonzalez}) would
+  // otherwise subset-match any same-surname player at score 1.0 (min-denom)
+  // and glue unrelated entries onto an established record. With ≥2 tokens on
+  // the shorter side, the SUBSET/TYPO thresholds guarantee ≥2 shared tokens.
+  const inputTokenCount = tokens(input.name).length;
+  const enoughTokens = (c: DbPlayerRow) =>
+    Math.min(inputTokenCount, tokens(c.name).length) >= 2;
 
   // 3. Subset fuzzy — every shorter-side token appears in the longer side
   let bestSubset: { row: DbPlayerRow; score: number } | null = null;
   for (const candidates of dbIndex.values()) {
     for (const c of candidates) {
       if (wantCountry && c.country && normalizeCountry(c.country) !== wantCountry) continue;
+      if (!enoughTokens(c)) continue;
       const score = subsetSimilarity(input.name, c.name);
       if (score >= SUBSET_THRESHOLD && (!bestSubset || score > bestSubset.score)) {
         bestSubset = { row: c, score };
@@ -261,6 +273,7 @@ export function resolvePlayerByName(
   for (const candidates of dbIndex.values()) {
     for (const c of candidates) {
       if (wantCountry && c.country && normalizeCountry(c.country) !== wantCountry) continue;
+      if (!enoughTokens(c)) continue;
       const score = typoTolerantSimilarity(input.name, c.name);
       if (score >= TYPO_THRESHOLD && (!bestTypo || score > bestTypo.score)) {
         bestTypo = { row: c, score };

@@ -187,6 +187,35 @@ describe('resolvePlayerByName', () => {
     expect(r).toBeNull();
   });
 
+  // ── Conflation guards (Momo González P000011 incident, 2026-06) ──────────
+  // A lone surname (or single-initial entry like "J Gonzalez" → {gonzalez})
+  // used to subset-match ANY same-surname/same-country player at score 1.0,
+  // gluing unrelated entries onto an established record. Require ≥2 shared
+  // discriminating tokens before any fuzzy step may fire.
+  it('does NOT subset-match a lone surname to a same-surname player', () => {
+    const { dbIndex, aliasIndex } = buildIndexes([
+      { id: 'u-momo', fip_id: 'P000011', name: 'Jeronimo Gonzalez', country: 'ES', ranking: 14 },
+    ]);
+    const r = resolvePlayerByName({ name: 'J Gonzalez', country: 'ES', ranking: 0 }, dbIndex, aliasIndex);
+    expect(r).toBeNull();
+  });
+
+  // An exact canonical-name record must win over an alias that (wrongly)
+  // points the same name string at a different player. Alias is checked
+  // AFTER exact so a poisoned alias can't override a real record.
+  it('prefers an exact canonical match over an alias pointing elsewhere', () => {
+    const { dbIndex, aliasIndex } = buildIndexes(
+      [
+        { id: 'u-momo', fip_id: 'P000011', name: 'Jeronimo Gonzalez', country: 'ES', ranking: 14 },
+        { id: 'u-jp', fip_id: 'P201895', name: 'Juan Pereiro Gonzalez', country: 'ES', ranking: 0 },
+      ],
+      [{ playerId: 'u-momo', alias: 'Juan Pereiro Gonzalez' }],
+    );
+    const r = resolvePlayerByName({ name: 'Juan Pereiro Gonzalez', country: 'ES', ranking: 0 }, dbIndex, aliasIndex);
+    expect(r?.playerId).toBe('u-jp');
+    expect(r?.matchType).toBe('exact');
+  });
+
   it('falls through to typo-tolerant fuzzy for transliteration variants', () => {
     const { dbIndex, aliasIndex } = buildIndexes([
       { id: 'u-lopez', fip_id: 'P999', name: 'Gianina Lopez', country: 'AR', ranking: 50 },
