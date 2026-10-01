@@ -11,8 +11,15 @@
 /.obsidian
 /.superpowers
 /.claude
-/apps
-/padelgod
+# The admin (padelnachos-admin) is uploaded from the repo root too and builds
+# apps/ops (see railway.toml), which also imports padelgod/src/lib and reads
+# apps/ocr-worker/calibrations at prebuild. Excluding these wholesale made the
+# admin build fail: `npm ci` found no apps/ops/package-lock.json.
+/apps/*
+!/apps/ops
+!/apps/ocr-worker
+/padelgod/*
+!/padelgod/src
 /relay
 /docs
 /public/padelNachos - Branding
