@@ -9,6 +9,9 @@ import { useEffect, useState, useCallback, type ChangeEvent, type CSSProperties 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { PageHeader, Panel, DataTable, Field, Pill, Button, Skeleton, EmptyState } from '@/components/ui'
+import { generateSlug } from '@/lib/news-slug'
+
+const PUBLIC_SITE = 'https://padelnachos.com'
 
 const NON_EN: ('es' | 'pt' | 'it' | 'fr')[] = ['es', 'pt', 'it', 'fr']
 
@@ -126,7 +129,9 @@ export default function NewsTab() {
                     >Edit</Button>
                     {p.status === 'published' && (
                       <a
-                        href={`/news/${p.slug}`}
+                        // The admin is its own domain; posts live on the public site.
+                        // This list shows EN originals, which have no locale prefix.
+                        href={`${PUBLIC_SITE}/news/${p.slug}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="ui-btn"
@@ -182,13 +187,7 @@ function Editor({ postId, onClose }: EditorProps) {
     const newTitle = e.target.value
     setTitle(newTitle)
     if (!postId && !slugLocked) {
-      const auto = newTitle
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-      setSlug(auto)
+      setSlug(generateSlug(newTitle))
     }
   }
 

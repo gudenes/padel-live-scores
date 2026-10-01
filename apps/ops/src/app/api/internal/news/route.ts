@@ -94,7 +94,10 @@ export async function POST(req: Request) {
     return Response.json({ error: `category must be one of ${ALLOWED_CATEGORIES.join(', ')}` }, { status: 400 })
   }
   const status = body.status === 'published' ? 'published' : 'draft'
-  const slug = (body.slug && body.slug.trim()) || generateSlug(body.title)
+  // Always normalise through generateSlug, even when the client sent one: it
+  // makes the slug URL-safe and caps it at 80 chars. A trusted client slug once
+  // stored a 1,890-char slug (an AI draft pasted into the title) that 404s.
+  const slug = generateSlug((body.slug && body.slug.trim()) || body.title)
 
   if (!slug) {
     return Response.json({ error: 'slug could not be generated from title' }, { status: 400 })
