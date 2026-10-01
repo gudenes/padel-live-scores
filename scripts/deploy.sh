@@ -120,17 +120,64 @@ restore() {
   railway variables --service "$SERVICE" "${PREV[@]}" --skip-deploys >/dev/null \
     || echo "WARNING: could not restore the stamp; fix ${STAMP_KEYS[*]} on $SERVICE by hand." >&2
 }
+# Cron has no HTTP listener or healthcheck, so `railway up --ci` never returns for
+# it (seen 2026-10-01: the deploy succeeded at 07:30, the CLI was still attached at
+# 09:50). Upload detached, then follow the deployment itself. Builders can queue for
+# 30 min, so wait up to 45 min. A build that fails leaves the old runner serving, so
+# the stamp is restored; a timeout leaves it alone and says so.
+deployment_field() {  # <deployment id> <field>
+  railway deployment list --service "$SERVICE" --json 2>/dev/null | python3 -c "import sys,json
+try: d=json.load(sys.stdin)
+except Exception: d=[]
+print(next((x.get('$2') or '' for x in d if x.get('id')=='$1'), ''))" 2>/dev/null || true
+}
+cron_deploy() {
+  local before out id status
+  before="$(railway deployment list --service "$SERVICE" --json 2>/dev/null | python3 -c "import sys,json
+try: print(json.load(sys.stdin)[0]['id'])
+except Exception: print('')" 2>/dev/null || true)"
+  if ! out="$(cd "$UPLOAD_DIR" && railway up --service "$SERVICE" --detach --json)"; then
+    restore; fail "railway up failed; the previous deployment is still serving."
+  fi
+  id="$(printf '%s' "$out" | python3 -c "import sys,json,re
+t=sys.stdin.read()
+try: d=json.loads(t); print(d.get('deploymentId') or d.get('id') or '')
+except Exception:
+  m=re.search(r'[?&]id=([0-9a-f-]{36})', t); print(m.group(1) if m else '')" 2>/dev/null || true)"
+  if [[ -z "$id" ]]; then  # fall back to the newest deployment, if it is new
+    id="$(railway deployment list --service "$SERVICE" --json 2>/dev/null | python3 -c "import sys,json
+try: print(json.load(sys.stdin)[0]['id'])
+except Exception: print('')" 2>/dev/null || true)"
+    [[ "$id" != "$before" ]] || id=""
+  fi
+  [[ -n "$id" ]] || { echo "uploaded, but could not find the new deployment id. Check: railway deployment list --service $SERVICE" >&2; exit 1; }
+  echo "==> deployment $id — waiting for it (builders can queue for a while)"
+  for _ in $(seq 1 540); do
+    status="$(deployment_field "$id" status)"
+    case "$status" in
+      SUCCESS)
+        if railway logs "$id" --service "$SERVICE" --lines 2000 2>/dev/null | grep 'cron-runner-up' | grep -q "$SHA"; then
+          echo "OK — $SERVICE runner started on $SHORT"; exit 0
+        fi ;;
+      FAILED|CRASHED|REMOVED|SKIPPED)
+        restore; fail "deployment $id ended $status; the previous runner is still serving." ;;
+    esac
+    sleep 5
+  done
+  echo "deployment $id still not confirmed after 45 min (status: ${status:-unknown}). The stamp says $SHORT; check: railway deployment list --service $SERVICE" >&2
+  exit 1
+}
+
 # `railway up .` fails with "prefix not found" (CLI 5.63), so never pass a path:
 # run the CLI from inside the upload directory instead.
+if [[ "$KEY" == "cron" ]]; then
+  cron_deploy  # exits
+fi
 if ! (cd "$UPLOAD_DIR" && railway up --service "$SERVICE" --ci); then restore; fail "railway up failed; the previous deployment is still serving."; fi
 
 echo "==> verifying"
 for _ in $(seq 1 60); do
-  if [[ -n "$VERIFY_URL" ]]; then
-    if curl -fsS --max-time 10 "$VERIFY_URL" 2>/dev/null | grep -q "\"sha\":\"$SHA\""; then echo "OK — $SERVICE is serving $SHORT"; exit 0; fi
-  else
-    if railway logs --service "$SERVICE" --lines 80 2>/dev/null | grep 'cron-runner-up' | grep -q "$SHORT\|$SHA"; then echo "OK — $SERVICE runner started on $SHORT"; exit 0; fi
-  fi
+  if curl -fsS --max-time 10 "$VERIFY_URL" 2>/dev/null | grep -q "\"sha\":\"$SHA\""; then echo "OK — $SERVICE is serving $SHORT"; exit 0; fi
   sleep 5
 done
 echo "could not confirm $SHORT is serving. Check: railway logs --service $SERVICE" >&2
