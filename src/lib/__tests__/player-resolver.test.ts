@@ -239,6 +239,7 @@ function seededClient(
         const node: Record<string, unknown> = {
           select: () => node,
           eq: () => node,
+          neq: () => node,
           range: (start: number) =>
             Promise.resolve({ data: start === 0 ? players : [], error: null }),
           update: () => ({ eq: () => Promise.resolve({ data: null, error: null }) }),
