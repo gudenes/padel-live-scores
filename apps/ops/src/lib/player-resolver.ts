@@ -323,16 +323,10 @@ export class PlayerResolver {
       existing = this.byExternalId.get(input.externalId) ?? null
     }
 
-    // 2.5. Alias lookup (stored name variants from previous fuzzy matches)
-    if (!existing) {
-      const norm = normalize(input.name)
-      const aliasMatch = this.byAlias.get(norm)
-      if (aliasMatch) {
-        existing = aliasMatch
-      }
-    }
-
-    // 3. Exact normalized name match (prefer same category, disambiguate by ranking/points)
+    // 3. Exact normalized name match (prefer same category, disambiguate by
+    //    ranking/points). Checked BEFORE the alias index so a poisoned alias
+    //    (a past bad fuzzy match) can never override a record whose canonical
+    //    name IS the input. See the Momo González (P000011) conflation.
     if (!existing) {
       const norm = normalize(input.name)
       const candidates = this.byNormalizedName.get(norm)
@@ -371,13 +365,28 @@ export class PlayerResolver {
       }
     }
 
+    // 3.5. Alias lookup (a known name variant from a past fuzzy match).
+    //      After exact so a poisoned alias can't override a real record.
+    if (!existing) {
+      const norm = normalize(input.name)
+      const aliasMatch = this.byAlias.get(norm)
+      if (aliasMatch) {
+        existing = aliasMatch
+      }
+    }
+
     // 4. Fuzzy name match (token overlap ≥ 0.7, same category)
     let fuzzyMatched = false
     if (!existing && input.category) {
+      // Require ≥2 discriminating tokens on the shorter side: a lone surname
+      // ("J Gonzalez" → {gonzalez}) must never fuzzy-match a same-surname
+      // player and glue onto their record.
+      const inputTokens = tokens(input.name).size
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
         for (const p of players) {
           if (p.category !== input.category) continue
+          if (Math.min(inputTokens, tokens(p.name).size) < 2) continue
           const sim = tokenSimilarity(input.name, p.name)
           if (sim >= 0.7 && sim > bestScore) {
             // Extra check: if both have country, they must match
@@ -569,17 +578,9 @@ export class PlayerResolver {
       if (existing) matchType = 'exact'
     }
 
-    // 2.5. Alias lookup
-    if (!existing) {
-      const norm = normalize(input.name)
-      const aliasMatch = this.byAlias.get(norm)
-      if (aliasMatch) {
-        existing = aliasMatch
-        matchType = 'exact' // alias is a known variant — treat as exact
-      }
-    }
-
-    // 3. Exact normalized name match (prefer same category, disambiguate by ranking/points)
+    // 3. Exact normalized name match (prefer same category, disambiguate by
+    //    ranking/points). Before the alias index so a poisoned alias can't
+    //    override a record whose canonical name IS the input.
     if (!existing) {
       const norm = normalize(input.name)
       const candidates = this.byNormalizedName.get(norm)
@@ -617,6 +618,17 @@ export class PlayerResolver {
       }
     }
 
+    // 3.5. Alias lookup (a known name variant). After exact so a poisoned
+    //      alias can't override a real record.
+    if (!existing) {
+      const norm = normalize(input.name)
+      const aliasMatch = this.byAlias.get(norm)
+      if (aliasMatch) {
+        existing = aliasMatch
+        matchType = 'exact' // alias is a known variant — treat as exact
+      }
+    }
+
     // 4. Fuzzy name match
     //    Strict:  tokenSimilarity >= 0.7, exact country match (both must match char-for-char)
     //    Lenient: typoTolerantSimilarity >= 0.9, country compared after normalizeCountry
@@ -624,10 +636,16 @@ export class PlayerResolver {
     if (!existing && input.category) {
       const scoreFn = lenient ? typoTolerantSimilarity : tokenSimilarity
       const threshold = lenient ? 0.9 : 0.7
+      // Require ≥2 discriminating tokens on the shorter side — a lone surname
+      // ("J Gonzalez" → {gonzalez}) must never fuzzy-match a same-surname
+      // player (subset/typo score 1.0 on a single token would otherwise glue
+      // unrelated entries onto an established record).
+      const inputTokens = tokens(input.name).size
       let bestScore = 0
       for (const [, players] of this.byNormalizedName) {
         for (const p of players) {
           if (p.category !== input.category) continue
+          if (Math.min(inputTokens, tokens(p.name).size) < 2) continue
           // Country mismatch blocks the match when both sides have a country.
           // In lenient mode, normalize candidate country so 3-letter FIP codes
           // compare equal to our 2-letter ISO codes.
