@@ -7,8 +7,22 @@ import admin from 'firebase-admin'
 
 let app: admin.app.App | null = null
 
-function getApp(): admin.app.App {
+/**
+ * The firebase-admin default app is process-wide. On Railway the web server
+ * is one long-lived process, so /api/auth/native-signin may have initialised
+ * it before the first push. Calling initializeApp() again then throws
+ * `Firebase app named "[DEFAULT]" already exists`, `app` stays null, and
+ * every app push fails until the next restart (2026-10-01: 85 of 85 failed).
+ * Reuse the existing app, exactly as native-signin does.
+ *
+ * Exported for tests only.
+ */
+export function getApp(): admin.app.App {
   if (app) return app
+  if (admin.apps.length > 0) {
+    app = admin.apps[0] as admin.app.App
+    return app
+  }
   const json = process.env.FCM_SERVICE_ACCOUNT_JSON
   if (!json) throw new Error('FCM_SERVICE_ACCOUNT_JSON env var missing')
   const credentials = JSON.parse(json)
