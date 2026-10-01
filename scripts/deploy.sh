@@ -48,6 +48,8 @@ fail() { echo "refusing to deploy: $*" >&2; exit 1; }
 # 2. pushed, and on main
 git fetch origin --quiet
 SHA="$(git rev-parse HEAD)"; SHORT="$(git rev-parse --short HEAD)"; BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+# A detached checkout of origin/main reports "HEAD"; record the branch it really is.
+[[ "$BRANCH" != "HEAD" ]] || ! git merge-base --is-ancestor "$SHA" origin/main || BRANCH=main
 [[ -n "$(git branch -r --contains "$SHA" 2>/dev/null)" ]] || fail "commit $SHORT is not pushed to origin. Push it first, so it can be found later."
 BEHIND="$(git rev-list --count HEAD..origin/main)"
 if ! git merge-base --is-ancestor "$SHA" origin/main; then
@@ -102,19 +104,25 @@ if [[ $YES -ne 1 ]]; then
   [[ "$ANSWER" == "$WANT" ]] || fail "not confirmed."
 fi
 
-# 5. stamp, upload, verify (restore the previous stamp if the upload fails)
-PREV_BRANCH="$(var_of RELEASE_BRANCH)"; PREV_AT="$(var_of RELEASE_AT)"
+# 5. stamp, upload, verify (put every stamped variable back if the upload fails)
+STAMP_KEYS=(RELEASE_SHA RELEASE_BRANCH RELEASE_AT)
+[[ "$KEY" != "web" ]] || STAMP_KEYS+=(NEXT_PUBLIC_SENTRY_RELEASE SENTRY_RELEASE)
+PREV=()
+for k in "${STAMP_KEYS[@]}"; do PREV+=(--set "$k=$(var_of "$k")"); done
 STAMP=(--set "RELEASE_SHA=$SHA" --set "RELEASE_BRANCH=$BRANCH" --set "RELEASE_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)")
-[[ "$KEY" == "web" ]] && STAMP+=(--set "NEXT_PUBLIC_SENTRY_RELEASE=$SHA" --set "SENTRY_RELEASE=$SHA")
+[[ "$KEY" != "web" ]] || STAMP+=(--set "NEXT_PUBLIC_SENTRY_RELEASE=$SHA" --set "SENTRY_RELEASE=$SHA")
 railway variables --service "$SERVICE" "${STAMP[@]}" --skip-deploys >/dev/null
 
 restore() {
+  # Previous values, verbatim. An unset key comes back as "" — release-info treats
+  # an empty RELEASE_SHA as absent, so /api/version never claims a SHA that isn't serving.
   echo "upload failed — restoring the previous stamp." >&2
-  if [[ -n "$CURRENT" ]]; then
-    railway variables --service "$SERVICE" --set "RELEASE_SHA=$CURRENT" --set "RELEASE_BRANCH=$PREV_BRANCH" --set "RELEASE_AT=$PREV_AT" --skip-deploys >/dev/null || true
-  fi
+  railway variables --service "$SERVICE" "${PREV[@]}" --skip-deploys >/dev/null \
+    || echo "WARNING: could not restore the stamp; fix ${STAMP_KEYS[*]} on $SERVICE by hand." >&2
 }
-if ! railway up "$UPLOAD_DIR" --service "$SERVICE" --ci; then restore; fail "railway up failed; the previous deployment is still serving."; fi
+# `railway up .` fails with "prefix not found" (CLI 5.63), so never pass a path:
+# run the CLI from inside the upload directory instead.
+if ! (cd "$UPLOAD_DIR" && railway up --service "$SERVICE" --ci); then restore; fail "railway up failed; the previous deployment is still serving."; fi
 
 echo "==> verifying"
 for _ in $(seq 1 60); do
