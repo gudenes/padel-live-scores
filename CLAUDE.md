@@ -140,6 +140,21 @@ Same tournament can exist under multiple sources with different IDs/names. Match
 
 Script: `scripts/merge-tournament-duplicates.ts` (supports `--dry-run`, pre-flight FK check). Prevention is built into `padelgod/src/workers/tournament-discovery.ts` — it does a name-token + year lookup against padelapi-only rows before inserting a new FIP row.
 
+## Deploying (Railway) — read before any `railway up`
+
+**Only Padel God deploys from GitHub.** `padelnachos` (web), `padelnachos-admin` and `padelnachos-cron` are uploaded from a local directory, so Railway records no commit for them and a merge to `main` ships nothing. Use the script, not a bare `railway up`:
+
+```bash
+./scripts/deploy.sh <web|admin|cron> [--dry-run]     # run --dry-run first
+```
+
+It refuses a dirty tree, an unpushed commit, or a commit that is not on `origin/main` (override: `--allow-unmerged`), and it refuses to **drop commits prod is running** (override: `--allow-rollback`). It stamps `RELEASE_SHA` / `RELEASE_BRANCH` / `RELEASE_AT` on the service, uploads from the right directory, and verifies the new SHA is serving.
+
+- **What is prod running?** `curl https://padelnachos.com/api/version` or `https://admin.padelnachos.com/api/version` → `{ sha, branch, releasedAt, source }`; compare with `git rev-parse origin/main`. Cron: the `cron-runner-up` startup log carries `release`. `source: "unknown"` means it was uploaded without the script.
+- **Start of a session:** `git fetch --all --prune && git status -sb && git log --oneline origin/main..HEAD && git worktree list`, then check the version endpoints. Prod has run unmerged branches before (see "Prod vs `main`" below), so "latest" means *what prod runs*, not only *what `main` has*.
+- **Prod vs `main`:** on 2026-09-30 web and admin ran the unmerged `codex/beta-whatsapp-downloads` branch. Resolved 2026-10-01: those branches were merged (#619/#620) and web, admin and Padel God were redeployed from `main` (`d6b22d681`). If prod ever drifts again, merge the branch into `main` rather than deploying around it. The admin uploads from the repo **root** (root `railway.toml` builds `apps/ops` when `RAILWAY_SERVICE_NAME=padelnachos-admin`); the script detects this.
+- The cron service installs with `npm install --omit=dev` (see `railway.cron.toml`) because the root lockfile has drifted from `package.json` under npm 10 and `npm ci` fails.
+
 ## Scheduled Jobs (Vercel — `vercel.json`)
 
 | Route | Schedule | Purpose |

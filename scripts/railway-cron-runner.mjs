@@ -80,4 +80,4 @@ for (const job of JOBS) {
   console.log(JSON.stringify({ msg: 'scheduled', path: job.path, cron: job.cron }))
 }
 
-console.log(JSON.stringify({ msg: 'cron-runner-up', base: BASE, jobs: JOBS.length }))
+console.log(JSON.stringify({ msg: 'cron-runner-up', base: BASE, jobs: JOBS.length, release: process.env.RELEASE_SHA || null }))
