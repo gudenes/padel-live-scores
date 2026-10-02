@@ -670,6 +670,7 @@
     "ageYrs": "{count} anni",
     "height": "Altezza",
     "heightCm": "{count} cm",
+    "coachesLabel": "{count, plural, one {Allenatore} other {Allenatori}}",
     "plays": "Gioca",
     "leftHanded": "Mancino",
     "rightHanded": "Destro",

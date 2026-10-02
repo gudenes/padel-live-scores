@@ -670,6 +670,7 @@
     "ageYrs": "{count} años",
     "height": "Altura",
     "heightCm": "{count} cm",
+    "coachesLabel": "{count, plural, one {Entrenador} other {Entrenadores}}",
     "plays": "Mano",
     "leftHanded": "Zurdo",
     "rightHanded": "Diestro",

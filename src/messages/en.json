@@ -701,6 +701,7 @@
     "ageYrs": "{count} yrs",
     "height": "Height",
     "heightCm": "{count} cm",
+    "coachesLabel": "{count, plural, one {Coach} other {Coaches}}",
     "plays": "Plays",
     "leftHanded": "Left-handed",
     "rightHanded": "Right-handed",

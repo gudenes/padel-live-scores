@@ -670,6 +670,7 @@
     "ageYrs": "{count} ans",
     "height": "Taille",
     "heightCm": "{count} cm",
+    "coachesLabel": "{count, plural, one {Entraîneur} other {Entraîneurs}}",
     "plays": "Joue",
     "leftHanded": "Gaucher(ère)",
     "rightHanded": "Droitier(ère)",
