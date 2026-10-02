@@ -1,16 +1,15 @@
 'use client'
-// Coaches tab of /rankings: Overall / Men / Women chips, 50 rows + "Show more".
+// Coaches tab of /rankings: rows mirror the player rows; the Overall/Men/Women filter lives in page.tsx.
 // Reuses the /coaches data layer (fetchCoachesIndex) with the browser anon client.
 
 import { useCallback, useEffect, useState } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
-import { CoachTopAvatars } from '@/components/CoachTopAvatars'
-import { fetchCoachesIndex, initials, type CoachIndexRow, type CoachTab } from '@/lib/coach-page-data'
-import { GREEN, GREEN_DIM, ORANGE, MUTED, BORDER, CHUNKY } from '@/components/home/shared-constants'
-
-const TABS: CoachTab[] = ['overall', 'men', 'women']
+import { RankBadge } from '@/components/RankBadge'
+import { countryName, countryFlagUrl } from '@/lib/country-display'
+import { fetchCoachesIndex, type CoachIndexRow, type CoachTab } from '@/lib/coach-page-data'
+import { GREEN, GREEN_DIM, MUTED, BORDER, CHUNKY, BG_CARD, MEN_BLUE, WOMEN_PURPLE } from '@/components/home/shared-constants'
 
 const rankFor = (r: CoachIndexRow, tab: CoachTab) =>
   tab === 'men' ? r.rank_men : tab === 'women' ? r.rank_women : r.rank_overall
@@ -19,11 +18,9 @@ const pointsFor = (r: CoachIndexRow, tab: CoachTab) =>
 
 interface State { tab: CoachTab; rows: CoachIndexRow[]; page: number; hasMore: boolean; failed: boolean }
 
-export default function CoachRankingList() {
+export default function CoachRankingList({ tab }: { tab: CoachTab }) {
   const t = useTranslations('coach')
   const tr = useTranslations('rankings')
-  const locale = useLocale()
-  const [tab, setTab] = useState<CoachTab>('overall')
   const [state, setState] = useState<State | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
 
@@ -60,36 +57,12 @@ export default function CoachRankingList() {
     }
   }, [state, loadingMore])
 
-  const labels: Record<CoachTab, string> = { overall: t('tabOverall'), men: t('tabMen'), women: t('tabWomen') }
+  const accent = tab === 'men' ? MEN_BLUE : tab === 'women' ? WOMEN_PURPLE : GREEN
   const loading = !state || state.tab !== tab
   const rows = loading ? [] : state.rows
 
   return (
     <div>
-      <div role="tablist" style={{ display: 'flex', gap: 6, padding: '12px 16px 8px' }}>
-        {TABS.map((tb) => {
-          const active = tb === tab
-          return (
-            <button
-              key={tb}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setTab(tb)}
-              style={{
-                padding: '6px 16px', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                fontWeight: 800, fontSize: 12, letterSpacing: '0.04em', textTransform: 'uppercase',
-                clipPath: CHUNKY.button,
-                background: active ? GREEN : 'rgba(255,255,255,0.05)',
-                color: active ? '#000' : MUTED,
-              }}
-            >
-              {labels[tb]}
-            </button>
-          )
-        })}
-      </div>
-
       {loading ? (
         <div style={{ padding: '80px 20px', textAlign: 'center' }}>
           <div style={{
@@ -125,40 +98,53 @@ export default function CoachRankingList() {
         rows.map((r, i) => {
           const rank = rankFor(r, tab) ?? i + 1
           const top3 = rank <= 3
+          const flagUrl = countryFlagUrl(r.country)
+          const topText = `${r.top.names.join(', ')}${r.top.more ? ` +${r.top.more}` : ''}`
+          const idle = top3 ? 'rgba(245,166,35,0.04)' : 'transparent'
           return (
             <Link
               key={r.coach_id}
               href={`/coach/${r.slug}`}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '9px 16px',
-                borderBottom: `1px solid ${BORDER}`, textDecoration: 'none', color: 'inherit',
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '12px 16px', cursor: 'pointer',
+                background: idle, borderBottom: `1px solid ${BORDER}`,
+                transition: 'background 0.15s', textDecoration: 'none', color: 'inherit',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = GREEN_DIM)}
+              onMouseLeave={(e) => (e.currentTarget.style.background = idle)}
             >
-              <span style={{ width: 36, textAlign: 'right', fontSize: 13, fontWeight: 800, color: top3 ? ORANGE : MUTED }}>
-                {rank}
-              </span>
+              <div style={{ width: 36, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
+                <RankBadge rank={rank} />
+              </div>
               <div aria-hidden="true" style={{
-                width: 40, height: 40, borderRadius: '50%', background: top3 ? ORANGE : '#555', color: '#000',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, flexShrink: 0,
+                width: 40, height: 40, borderRadius: '50%', background: BG_CARD, border: `2px solid ${accent}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 40 * 0.32, fontWeight: 700, color: accent, flexShrink: 0,
               }}>
-                {initials(r.display_name)}
+                {r.display_name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {r.display_name}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3, minWidth: 0 }}>
-                  <CoachTopAvatars players={r.top.players} />
-                  <span style={{ fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {r.top.names.join(', ')}{r.top.more ? ` +${r.top.more}` : ''}
-                  </span>
+                <div style={{ fontSize: 12, color: MUTED, marginTop: 2, display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}>
+                  {flagUrl && (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={flagUrl} alt={r.country ?? ''} style={{ width: 16, height: 12, objectFit: 'cover', flexShrink: 0 }} />
+                      <span style={{ flexShrink: 0 }}>{countryName(r.country)}</span>
+                      {topText && <span style={{ flexShrink: 0 }}>·</span>}
+                    </>
+                  )}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{topText}</span>
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 14, fontWeight: 800, color: GREEN }}>
-                  {Math.round(pointsFor(r, tab)).toLocaleString(locale)}
+                <div style={{ fontWeight: 800, fontSize: 14, color: GREEN, fontVariantNumeric: 'tabular-nums' }}>
+                  {Math.round(pointsFor(r, tab))}
                 </div>
-                <div style={{ fontSize: 10, color: MUTED }}>{t('playersCount', { count: r.tab_player_count })}</div>
+                <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>{t('playersCount', { count: r.tab_player_count })}</div>
               </div>
             </Link>
           )

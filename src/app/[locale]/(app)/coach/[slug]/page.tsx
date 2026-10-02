@@ -12,6 +12,7 @@ import {
 } from '@/lib/coach-page-data'
 import { Link, permanentRedirect } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
+import { countryName } from '@/lib/country-display'
 import PlayerAvatar from '@/components/Avatar'
 import { Widget } from '../../../player/[id]/Widget'
 import {
@@ -177,6 +178,12 @@ export default async function CoachPage({ params }: Props) {
           <h1 style={{ fontSize: 19, fontWeight: 800, color: '#E2E8F0', margin: 0, letterSpacing: '-0.01em' }}>
             {coach.display_name}
           </h1>
+          {coach.country && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: MUTED, marginTop: 2 }}>
+              <FlagImage country={coach.country} size={16} />
+              <span>{countryName(coach.country)}</span>
+            </div>
+          )}
           <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
             {t('subtitle', { players: listedPlayers, titles: titles.length, year })}
           </div>

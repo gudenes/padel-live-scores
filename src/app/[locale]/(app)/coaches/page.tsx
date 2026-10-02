@@ -8,6 +8,8 @@ import { createAnonServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
 import { fetchCoachesIndex, initials, type CoachTab, type CoachIndexRow } from '@/lib/coach-page-data'
 import { Link } from '@/i18n/navigation'
+import { FlagImage } from '@/components/FlagImage'
+import { countryName } from '@/lib/country-display'
 import { Widget } from '../../player/[id]/Widget'
 import { GREEN, ORANGE, MUTED, BG_BASE } from '@/components/home/shared-constants'
 
@@ -103,6 +105,12 @@ export default async function CoachesPage({ params, searchParams }: Props) {
                   {r.display_name}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, minWidth: 0 }}>
+                  {r.country && (
+                    <>
+                      <FlagImage country={r.country} size={16} />
+                      <span style={{ fontSize: 10, color: MUTED, flexShrink: 0 }}>{countryName(r.country)} ·</span>
+                    </>
+                  )}
                   <CoachTopAvatars players={r.top.players} />
                   <span style={{ fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {r.top.names.join(', ')}{r.top.more ? ` +${r.top.more}` : ''}
@@ -111,7 +119,7 @@ export default async function CoachesPage({ params, searchParams }: Props) {
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, color: GREEN }}>
-                  {Math.round(pointsFor(r, tab)).toLocaleString(locale)}
+                  {Math.round(pointsFor(r, tab))}
                 </div>
                 <div style={{ fontSize: 10, color: MUTED }}>{t('playersCount', { count: r.tab_player_count })}</div>
               </div>

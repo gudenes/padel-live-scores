@@ -14,6 +14,9 @@ import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
 import { formatYearWeek } from '@/lib/iso-year-week'
 import { formatPointsMove } from '@/lib/points-move'
 import CoachRankingList from './CoachRankingList'
+import { RankBadge } from '@/components/RankBadge'
+import { countryName, countryFlagUrl } from '@/lib/country-display'
+import type { CoachTab } from '@/lib/coach-page-data'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { fetchMoneyLeaderboard, type RankedMoneyRow } from '@/lib/money-leaderboard'
 import { MoneyExplainSheet } from '@/components/MoneyExplainSheet'
@@ -35,40 +38,6 @@ const CHUNKY = {
   badge: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)',
   card: 'polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%)',
   button: 'polygon(1% 4%, 99% 0%, 100% 96%, 0% 100%)',
-}
-
-// ── Country code → full name ───────────────────────────────────
-const COUNTRY_NAMES: Record<string, string> = {
-  ES: 'Spain', AR: 'Argentina', BR: 'Brazil', PT: 'Portugal',
-  FR: 'France', IT: 'Italy', BE: 'Belgium', NL: 'Netherlands',
-  DE: 'Germany', GB: 'Great Britain', DK: 'Denmark', SE: 'Sweden',
-  UY: 'Uruguay', PY: 'Paraguay', CL: 'Chile', MX: 'Mexico',
-  US: 'United States', AU: 'Australia', QA: 'Qatar',
-  ESP: 'Spain', ARG: 'Argentina', BRA: 'Brazil', POR: 'Portugal',
-  FRA: 'France', ITA: 'Italy', BEL: 'Belgium', NLD: 'Netherlands',
-  GER: 'Germany', GBR: 'Great Britain', DEN: 'Denmark', SWE: 'Sweden',
-  URU: 'Uruguay', PAR: 'Paraguay', CHI: 'Chile', MEX: 'Mexico',
-  USA: 'United States', AUS: 'Australia',
-}
-
-// ISO-2 mapping for flags (3-letter codes → 2-letter)
-const ISO3_TO_2: Record<string, string> = {
-  ESP: 'es', ARG: 'ar', BRA: 'br', POR: 'pt', FRA: 'fr', ITA: 'it',
-  BEL: 'be', NLD: 'nl', GER: 'de', GBR: 'gb', DEN: 'dk', SWE: 'se',
-  URU: 'uy', PAR: 'py', CHI: 'cl', MEX: 'mx', USA: 'us', AUS: 'au',
-}
-
-function countryName(code: string | null): string {
-  if (!code) return 'Unknown'
-  return COUNTRY_NAMES[code.toUpperCase()] ?? code
-}
-
-function countryFlagUrl(code: string | null): string | null {
-  if (!code) return null
-  const upper = code.toUpperCase()
-  const iso2 = ISO3_TO_2[upper] ?? (upper.length === 2 ? upper.toLowerCase() : null)
-  if (!iso2) return null
-  return `/flags/${iso2}.png`
 }
 
 // ── Types ─────────────────────────────────────────────────────
@@ -94,22 +63,6 @@ interface Player {
 }
 
 // ── Sub-components ────────────────────────────────────────────
-
-function RankBadge({ rank }: { rank: number | null }) {
-  if (!rank) return <span style={{ color: MUTED, fontSize: 14 }}>--</span>
-  const isTop3 = rank <= 3
-  const color = rank === 1 ? '#F5A623' : rank === 2 ? '#94A3B8' : rank === 3 ? '#CD7F32' : GREEN
-  return (
-    <span style={{
-      fontWeight: 800, fontSize: isTop3 ? 17 : 15,
-      color,
-      display: 'block', textAlign: 'right',
-      fontVariantNumeric: 'tabular-nums',
-    }}>
-      {rank}
-    </span>
-  )
-}
 
 function DeltaChip({ delta }: { delta: number }) {
   if (delta === 0) return (
@@ -321,6 +274,7 @@ function MoneyRow({
 
 export default function V3RankingPage() {
   const t = useTranslations('rankings')
+  const tc = useTranslations('coach')
   const format = useFormatter()
   const router = useRouter()
   const pathname = usePathname()
@@ -337,6 +291,9 @@ export default function V3RankingPage() {
 
   const [rankType, setRankType] = useState<RankType>(initialType)
   const [gender, setGender] = useState<Gender>(initialGender)
+  const [coachGender, setCoachGender] = useState<CoachTab>(
+    searchParams.get('coach') === 'men' ? 'men' : searchParams.get('coach') === 'women' ? 'women' : 'overall',
+  )
 
   // Swipe between Official / Race tabs
   const RANK_KEYS = useMemo(() => ['official', 'race', 'money', 'coaches'] as const, [])
@@ -364,12 +321,13 @@ export default function V3RankingPage() {
     const sp = new URLSearchParams(window.location.search)
     if (gender === 'men') sp.delete('gender'); else sp.set('gender', gender)
     if (rankType === 'official') sp.delete('type'); else sp.set('type', rankType)
+    if (rankType === 'coaches' && coachGender !== 'overall') sp.set('coach', coachGender); else sp.delete('coach')
     const qs = sp.toString()
     // Use next-intl's locale-stripped pathname; window.location.pathname includes the locale prefix
     // and the next-intl router would prepend it again (e.g. /es/rankings → /es/es/rankings).
     const next = qs ? `${pathname}?${qs}` : pathname
     router.replace(next as Parameters<typeof router.replace>[0], { scroll: false })
-  }, [gender, rankType, router, pathname])
+  }, [gender, coachGender, rankType, router, pathname])
 
   const [players, setPlayers] = useState<Player[]>([])
   const [moneyRows, setMoneyRows] = useState<RankedMoneyRow[] | null>(null)
@@ -663,19 +621,22 @@ export default function V3RankingPage() {
         </div>
       )}
 
-      {/* ── Gender toggle + updated date (coaches tab has its own chips) ── */}
-      {rankType !== 'coaches' && (
+      {/* ── Gender toggle + updated date (coaches tab adds an Overall option) ── */}
       <div style={{ padding: '14px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Gender pill toggle */}
           <div style={{ display: 'flex', gap: 6 }}>
-            {(['men', 'women'] as Gender[]).map(g => {
-              const active = gender === g
-              const accent = g === 'women' ? WOMEN_PURPLE : MEN_BLUE
+            {(rankType === 'coaches' ? ['overall', 'men', 'women'] as CoachTab[] : ['men', 'women'] as CoachTab[]).map(g => {
+              const isCoaches = rankType === 'coaches'
+              const active = (isCoaches ? coachGender : gender) === g
+              const accent = g === 'overall' ? GREEN : g === 'women' ? WOMEN_PURPLE : MEN_BLUE
               return (
                 <button
                   key={g}
-                  onClick={() => { setGender(g); setQuery(''); setVisibleCount(50); setMoneyRows(null) }}
+                  onClick={() => {
+                    if (isCoaches) setCoachGender(g)
+                    else { setGender(g as Gender); setQuery(''); setVisibleCount(50); setMoneyRows(null) }
+                  }}
                   style={{
                     padding: '6px 18px',
                     border: 'none', cursor: 'pointer',
@@ -687,20 +648,19 @@ export default function V3RankingPage() {
                     transition: 'all 0.2s',
                   }}
                 >
-                  {g === 'men' ? t('men') : t('women')}
+                  {g === 'overall' ? tc('tabOverall') : g === 'men' ? t('men') : t('women')}
                 </button>
               )
             })}
           </div>
 
-          {formattedDate && rankType !== 'money' && (
+          {formattedDate && rankType !== 'money' && rankType !== 'coaches' && (
             <span style={{ fontSize: 10, color: MUTED, fontWeight: 500 }}>
               {formattedDate}
             </span>
           )}
         </div>
       </div>
-      )}
 
       {/* ── Official / Race tabs ──────────────────────────── */}
       <SlidingInkTabs<RankType>
@@ -748,7 +708,7 @@ export default function V3RankingPage() {
       )}
 
       {rankType === 'coaches' ? (
-        <CoachRankingList />
+        <CoachRankingList tab={coachGender} />
       ) : (
       <>
       {/* ── Column labels ─────────────────────────────────── */}
