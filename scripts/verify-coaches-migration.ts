@@ -87,7 +87,7 @@ async function main() {
       playerCoachesDeduped: pcRows === 1 && pcSrc === 0,
       rejectedLinkCarried: linkCarried?.status === 'rejected' && linkSrcLeft === 0,
       selfMergeRejected: await expectError(`select merge_coaches($1, $1)`, [b], 'same coach'),
-      differentPlayersRejected: await expectError(`select merge_coaches($1, $2)`, [d, e], 'different players'),
+      differentPlayersRejected: await expectError(`select merge_coaches($1, $2)`, [e, t2], 'different players'), // d was merged into t2 above; t2 now holds p1
     }
     console.log(checks)
     if (!Object.values(checks).every(Boolean)) process.exitCode = 1
