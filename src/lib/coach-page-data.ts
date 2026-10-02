@@ -13,6 +13,7 @@ export interface CoachRankingRow {
   coach_id: string; display_name: string; slug: string; player_count: number
   men_points: number; women_points: number; total_points: number
   rank_overall: number; rank_men: number; rank_women: number
+  country: string | null
 }
 
 export interface CoachPlayer {
