@@ -52,10 +52,11 @@ export function generateMergeSuggestions(
     for (let j = i + 1; j < pool.length; j++) {
       const x = pool[i]
       const y = pool[j]
+      if (!x || !y) continue
       if (onlyIds && !onlyIds.has(x.id) && !onlyIds.has(y.id)) continue
       const key = pairKey(x.id, y.id)
       if (existingPairs.has(key)) continue
-      const [coach_a, coach_b] = key.split('|')
+      const [coach_a = '', coach_b = ''] = key.split('|')
       if (subsetSimilarity(x.normalized_name, y.normalized_name) === 1) {
         out.push({ coach_a, coach_b, score: 1, reason: 'subset' })
         continue
