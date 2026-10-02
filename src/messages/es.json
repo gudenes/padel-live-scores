@@ -650,7 +650,6 @@
     "womenPoints": "Pts fem.",
     "playersCount": "{count, plural, one {# jugador} other {# jugadores}}",
     "nextMatches": "Próximos partidos",
-    "live": "En directo",
     "players": "Jugadores",
     "men": "Masculino",
     "women": "Femenino",
@@ -667,9 +666,9 @@
     "metaDescription": "{name} entrena a {players}. Rankings, títulos y próximos partidos de cada jugador.",
     "indexMetaTitle": "Ranking de entrenadores de pádel",
     "indexMetaDescription": "Los mejores entrenadores de pádel, ordenados por los puntos FIP de sus jugadores.",
-    "rankingsLink": "Entrenadores",
-    "vs": "vs",
     "indexEmpty": "Todavía no hay entrenadores.",
+    "indexError": "No se pudieron cargar los entrenadores.",
+    "retry": "Reintentar",
     "previous": "Anterior"
   },
   "player": {

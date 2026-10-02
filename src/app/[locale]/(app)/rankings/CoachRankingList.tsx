@@ -21,13 +21,18 @@ interface State { tab: CoachTab; rows: CoachIndexRow[]; page: number; hasMore: b
 
 export default function CoachRankingList() {
   const t = useTranslations('coach')
+  const tr = useTranslations('rankings')
   const locale = useLocale()
   const [tab, setTab] = useState<CoachTab>('overall')
   const [state, setState] = useState<State | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
 
+  const [reloadKey, setReloadKey] = useState(0)
+
   useEffect(() => {
     let cancelled = false
+    // Filter changed (or retry): drop any in-flight load-more so the button never stays disabled.
+    setLoadingMore(false)
     fetchCoachesIndex(supabase, tab, 1)
       .then(({ rows, hasMore }) => { if (!cancelled) setState({ tab, rows, page: 1, hasMore, failed: false }) })
       .catch((e) => {
@@ -35,7 +40,9 @@ export default function CoachRankingList() {
         if (!cancelled) setState({ tab, rows: [], page: 1, hasMore: false, failed: true })
       })
     return () => { cancelled = true }
-  }, [tab])
+  }, [tab, reloadKey])
+
+  const retry = () => { setState(null); setReloadKey((k) => k + 1) }
 
   const loadMore = useCallback(async () => {
     if (!state || loadingMore) return
@@ -48,6 +55,7 @@ export default function CoachRankingList() {
     } catch (e) {
       console.error('[rankings] coaches load-more error:', e)
     } finally {
+      // Only clear for the filter this request belongs to; a tab switch already reset it.
       setLoadingMore(false)
     }
   }, [state, loadingMore])
@@ -83,7 +91,32 @@ export default function CoachRankingList() {
       </div>
 
       {loading ? (
-        <div style={{ padding: '60px 20px', textAlign: 'center', color: MUTED, fontSize: 13, fontWeight: 600 }}>…</div>
+        <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+          <div style={{
+            width: 32, height: 32, margin: '0 auto 16px',
+            border: `3px solid ${BORDER}`,
+            borderTopColor: GREEN,
+            borderRadius: '50%',
+            animation: 'v3-rank-spin 0.8s linear infinite',
+          }} />
+          <div style={{ color: MUTED, fontSize: 13, fontWeight: 600 }}>{tr('loadingRankings')}</div>
+          <style dangerouslySetInnerHTML={{ __html: `@keyframes v3-rank-spin { to { transform: rotate(360deg); } }` }} />
+        </div>
+      ) : state.failed ? (
+        <div style={{ padding: '60px 20px', textAlign: 'center', color: MUTED, fontSize: 13, fontWeight: 600 }}>
+          <div>{t('indexError')}</div>
+          <button
+            type="button"
+            onClick={retry}
+            style={{
+              marginTop: 14, background: GREEN_DIM, border: '1px solid rgba(126,211,33,0.25)', clipPath: CHUNKY.button,
+              padding: '9px 24px', color: GREEN, fontWeight: 800, fontSize: 12, cursor: 'pointer',
+              fontFamily: 'inherit', letterSpacing: '0.04em', textTransform: 'uppercase',
+            }}
+          >
+            {t('retry')}
+          </button>
+        </div>
       ) : rows.length === 0 ? (
         <div style={{ padding: '60px 20px', textAlign: 'center', color: MUTED, fontSize: 13, fontWeight: 600 }}>
           {t('indexEmpty')}

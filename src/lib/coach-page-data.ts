@@ -160,8 +160,14 @@ const involving = (ids: string[]) => {
 }
 const pairOf = (a: PairPlayer | null, b: PairPlayer | null) => [a, b].filter((x): x is PairPlayer => !!x)
 
+// MATCH_FETCH_SELECT also carries category + the tournament join, which the Match type omits.
+export type CoachMatch = Match & {
+  category?: string | null
+  tournament?: { level?: string | null; name?: string | null } | null
+}
+
 export type CoachPageResult =
-  | { kind: 'ok'; coach: CoachRankingRow; players: CoachPlayer[]; titles: CoachTitle[]; next: Match[]; year: number }
+  | { kind: 'ok'; coach: CoachRankingRow; players: CoachPlayer[]; titles: CoachTitle[]; next: CoachMatch[]; year: number }
   | { kind: 'redirect'; slug: string }
   | { kind: 'not_found' }
 
@@ -184,7 +190,7 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
 
   const year = now.getUTCFullYear()
   let titles: CoachTitle[] = []
-  let next: Match[] = []
+  let next: CoachMatch[] = []
   if (ids.length) {
     const [finals, liveRes, schedRes] = await Promise.all([
       sb.from('matches')
@@ -195,11 +201,11 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
         .or(involving(ids))
         .limit(200),
       // Live rows are filtered by players + status only; stale ones are dropped in pickNextMatches.
-      sb.from('matches').select(MATCH_FETCH_SELECT)
+      sb.from('matches').select('id, status, scheduled_at')
         .in('status', ['live', 'on_court'])
         .or(involving(ids))
         .limit(20),
-      sb.from('matches').select(MATCH_FETCH_SELECT)
+      sb.from('matches').select('id, status, scheduled_at')
         .eq('status', 'scheduled')
         .gte('scheduled_at', new Date(now.getTime() - 3 * 3600_000).toISOString())
         .or(involving(ids))
@@ -217,9 +223,18 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
     }
     if (liveRes.error || schedRes.error) console.warn('[coach] next matches query failed', (liveRes.error ?? schedRes.error)!.message)
     else {
-      const rows = [...(liveRes.data as unknown as FetchedMatchRow[]), ...(schedRes.data as unknown as FetchedMatchRow[])]
-        .map(normalizeFetchedMatch)
-      next = pickNextMatches(rows, now)
+      type Thin = { id: string; status: string; scheduled_at: string | null }
+      const thin = [...(liveRes.data as unknown as Thin[]), ...(schedRes.data as unknown as Thin[])]
+      const pickedIds = pickNextMatches(thin, now).map((r) => r.id)
+      if (pickedIds.length) {
+        // Heavy select (sets/games/players) only for the <=3 matches actually shown.
+        const { data: full, error: fullErr } = await sb.from('matches').select(MATCH_FETCH_SELECT).in('id', pickedIds)
+        if (fullErr) console.warn('[coach] next matches fetch failed', fullErr.message)
+        else {
+          const byId = new Map(((full ?? []) as unknown as FetchedMatchRow[]).map((r) => [r.id as string, normalizeFetchedMatch(r)]))
+          next = pickedIds.map((id) => byId.get(id)).filter((m): m is Match => !!m) as CoachMatch[]
+        }
+      }
     }
   }
 

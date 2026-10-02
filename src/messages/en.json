@@ -681,7 +681,6 @@
     "womenPoints": "Women pts",
     "playersCount": "{count, plural, one {# player} other {# players}}",
     "nextMatches": "Next matches",
-    "live": "Live",
     "players": "Players",
     "men": "Men",
     "women": "Women",
@@ -698,9 +697,9 @@
     "metaDescription": "{name} coaches {players}. Rankings, titles and next matches of every player.",
     "indexMetaTitle": "Padel coaches ranking",
     "indexMetaDescription": "The top padel coaches, ranked by their players' FIP points.",
-    "rankingsLink": "Coaches",
-    "vs": "vs",
     "indexEmpty": "No coaches here yet.",
+    "indexError": "Couldn't load coaches.",
+    "retry": "Retry",
     "previous": "Previous"
   },
   "player": {

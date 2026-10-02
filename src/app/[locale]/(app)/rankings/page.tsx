@@ -389,6 +389,12 @@ export default function V3RankingPage() {
     setQuery('')
   }, [])
 
+  // Coaches tab has no player search: close it on every path into the tab
+  // (chip click, swipe via handleTabChange, URL) since all of them set rankType.
+  useEffect(() => {
+    if (rankType === 'coaches') closeSearch()
+  }, [rankType, closeSearch])
+
   // Close search on Escape only — don't close on outside click because
   // the player rows sit outside the search box and clicking them would
   // fire closeSearch() before the row's onClick, resetting the query
@@ -590,6 +596,7 @@ export default function V3RankingPage() {
         </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {rankType !== 'coaches' && (
         <button
           onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
           style={{
@@ -602,11 +609,12 @@ export default function V3RankingPage() {
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
         </button>
+        )}
         </div>
       </div>
 
       {/* ── Search bar (inline below header) ────────────── */}
-      {searchOpen && (
+      {searchOpen && rankType !== 'coaches' && (
         <div
           ref={searchBoxRef}
           style={{

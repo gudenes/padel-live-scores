@@ -20,8 +20,9 @@ interface AvatarProps {
 
 export default function Avatar({ src, alt, size, fallback, style, className, unoptimized }: AvatarProps) {
   // A broken/expired image URL falls back to initials instead of a broken-image icon.
-  const [failed, setFailed] = useState(false)
-  if (!src || failed) {
+  // Track the URL that failed (not a boolean) so a new src gets a fresh attempt.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  if (!src || failedSrc === src) {
     // Fallback: colored circle with initials. `fallback` may carry up to 2
     // characters (e.g. "GP"); without it, the first letter of `alt`.
     const initial = (fallback ? fallback.slice(0, 2) : (alt ?? '?')[0] ?? '?').toUpperCase()
@@ -57,7 +58,7 @@ export default function Avatar({ src, alt, size, fallback, style, className, uno
       className={className}
       unoptimized={unoptimized}
       referrerPolicy="no-referrer"
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
       style={{
         borderRadius: '50%',
         objectFit: 'cover',
