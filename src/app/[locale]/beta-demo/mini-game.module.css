@@ -20,14 +20,14 @@
 .tournament { background: #121714d9; color: #9db6c6; font-size: 8px; letter-spacing: 1.5px; font-weight: 800; padding: 8px; }
 .players { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; margin: 24px 0 12px; }
 .players > div { text-align: center; color: #97d835; }
-.players > div[data-side=yes] { color: #ff7835; }
+.players > div[data-side=team_a] { color: #ff7835; }
 .players img { width: 100%; max-width: 66px; height: auto; aspect-ratio: 1; object-fit: cover; object-position: top; border: 2px solid currentColor; border-radius: 50%; background: #171d19; margin: auto; }
 .players strong { display: block; font-size: 10px; margin-top: 5px; }
 .vs { text-align: center; color: #c5ceba; font-size: 9px; margin-bottom: 22px; }
 .vs span { margin: 0 5px; color: #89a36f; }
 .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .choices button { min-height: 68px; display: grid; align-content: center; gap: 1px; background: #87d319; color: #102006; cursor: pointer; box-shadow: 0 4px 0 #0005; }
-.choices button[data-side=yes] { background: #ff722a; color: #261105; }
+.choices button[data-side=team_a] { background: #ff722a; color: #261105; }
 .choices span { font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 1px; }
 .choices strong { font-size: 28px; font-weight: 950; line-height: 1.1; }
 .amountPanel { text-align: center; padding: 12px 0; }
@@ -113,3 +113,8 @@
   .primary { min-height:44px; padding:10px 12px; font-size:13px; }
   .footer > p:last-child { font-size:8px; margin-top:5px; }
 }
+
+/* Pair names remain legible on narrow phones and in the prediction ticket. */
+.choices span { font-size:12px; text-transform:none; letter-spacing:0; line-height:1.25; padding-inline:5px; }
+.ticket dd { font-size:14px; text-align:right; flex-wrap:wrap; justify-content:flex-end; }
+.ticket dt { flex-shrink:0; }
