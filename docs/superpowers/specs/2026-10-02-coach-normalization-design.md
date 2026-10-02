@@ -90,7 +90,7 @@ create table public.coach_merge_suggestions (
   coach_a uuid not null references public.coaches(id),
   coach_b uuid not null references public.coaches(id),
   score numeric not null,
-  reason text not null check (reason in ('subset','typo')),
+  reason text not null check (reason in ('subset','typo','manual')),
   status text not null default 'pending'
     check (status in ('pending','merged','rejected')),
   decided_at timestamptz,
@@ -110,7 +110,7 @@ create table public.coach_player_link_suggestions (
 );
 ```
 
-Plus a read view `coach_stats` (coach_id, player_count, pro_points_sum, men_points_sum, women_points_sum, top player ids) — sums `players.points` over **distinct** players, `coalesce(tier,'pro')='pro'`, excludes `junk`/`merged` coaches. Men/women split kept from day one because summing the two ranking scales is misleading.
+Plus a read view `coach_stats` (coach_id, player_count, pro_points_sum, men_points_sum, women_points_sum, top player ids) — sums `players.points` over **distinct** players, `coalesce(tier,'pro')='pro'`, excludes `merged` coaches; `junk` rows stay in the view (with their status) and the admin hides them by default. Men/women split kept from day one because summing the two ranking scales is misleading.
 
 RLS enabled on all five tables; no anon policy in Phase 1 (service key only). Phase 2 adds the public read policy.
 
@@ -132,7 +132,7 @@ Applied via pg + `DATABASE_URL` (per repo practice), not `supabase db push`.
 
 ## Merge semantics (admin action, one Postgres function `merge_coaches(source, target)`)
 
-Atomically: re-point `coach_aliases` (source → target, source='merge'), re-point `player_coaches` (dedupe on PK), set source `status='merged'`, `merged_into=target`, mark the suggestion `merged`, re-point other pending suggestions involving source to target (drop self-pairs and duplicates). Target keeps its display_name unless the operator chose the source's name in the dialog.
+Atomically: re-point `coach_aliases` (source → target, source='merge'), re-point `player_coaches` (dedupe on PK), set source `status='merged'`, `merged_into=target`, mark the suggestion `merged`, carry the source's `rejected` decisions over to the target (so they are never re-suggested), and delete the source's remaining pending suggestions — the next linker run regenerates them against the target. Target keeps its display_name unless the operator chose the source's name in the dialog.
 
 Reject = set suggestion `rejected` + `decided_at`. Unmerge is out of scope for Phase 1 (rare; can be done by SQL).
 
@@ -166,7 +166,7 @@ API routes under `apps/ops/src/app/api/internal/coaches/*` (list, detail GET/PAT
 ## Error handling
 
 - Linker: per-batch transactions; a failing batch is logged and skipped, other batches continue (lesson from the draw-populator whole-batch abort). Counted in result as `batchErrors`.
-- Unique violation on `coaches_normalized_name_active` (race with a concurrent run) → re-read and use the existing coach.
+- Unique violation on `coaches_normalized_name_active` (race with a concurrent run) → that chunk is counted in `batchErrors`; the next run re-plans from DB state and self-heals.
 - Merge function validates source ≠ target, neither already merged; returns a clear error to the UI.
 
 ## Testing
