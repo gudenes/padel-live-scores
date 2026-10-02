@@ -364,7 +364,7 @@ export function normalizeCoachName(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(APOSTROPHES, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
@@ -730,7 +730,7 @@ describe('planCoachLinks', () => {
 
   it('rewrites a link whose raw spelling or position changed', () => {
     const input = empty()
-    input.coaches = [{ id: 'c1', normalized_name: 'iñigo lopez'.normalize('NFD').replace(/[̀-ͯ]/g, ''), display_name: 'Iñigo Lopez', slug: 'inigo-lopez', status: 'unreviewed', merged_into: null }]
+    input.coaches = [{ id: 'c1', normalized_name: 'inigo lopez', display_name: 'Iñigo Lopez', slug: 'inigo-lopez', status: 'unreviewed', merged_into: null }]
     input.aliases = [{ normalized_alias: 'inigo lopez', coach_id: 'c1' }]
     input.existingLinks = [{ player_id: 'p1', coach_id: 'c1', raw_name: 'Iñigo Lopez', position: 0 }]
     input.players = [{ id: 'p1', coaches: ['Iñigo López'] }]
