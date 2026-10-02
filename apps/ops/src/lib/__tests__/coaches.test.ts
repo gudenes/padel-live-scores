@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { validateCoachPatch, sortByImpact } from '../coaches'
+import { validateCoachPatch, isUuid, normalizeCoachName, escapeLike } from '../coaches'
 
 describe('validateCoachPatch', () => {
   it('accepts allow-listed fields and trims strings', () => {
@@ -28,12 +28,28 @@ describe('validateCoachPatch', () => {
   })
 })
 
-describe('sortByImpact', () => {
-  it('sorts by combined total points, descending', () => {
-    const rows = [
-      { id: 'a', a: { total_points: 10 }, b: { total_points: 5 } },
-      { id: 'b', a: { total_points: 100 }, b: { total_points: 0 } },
-    ]
-    expect(sortByImpact(rows).map((r) => r.id)).toEqual(['b', 'a'])
+describe('isUuid', () => {
+  it('accepts uuids only', () => {
+    expect(isUuid('6f1c2b0e-8d1a-4c47-9a53-2f4f4b1b1c11')).toBe(true)
+    expect(isUuid('nope')).toBe(false)
+    expect(isUuid(null)).toBe(false)
+    expect(isUuid(5)).toBe(false)
+  })
+})
+
+describe('normalizeCoachName', () => {
+  it('strips diacritics and apostrophes', () => {
+    expect(normalizeCoachName('Martín D’antonio')).toBe('martin dantonio')
+    expect(normalizeCoachName("Martin D'Antonio")).toBe('martin dantonio')
+  })
+  it('collapses punctuation and trims', () => {
+    expect(normalizeCoachName('  Juan-Carlos  Gómez. ')).toBe('juan carlos gomez')
+  })
+})
+
+describe('escapeLike', () => {
+  it('escapes backslash, percent and underscore', () => {
+    expect(escapeLike('a%b_c\\d')).toBe('a\\%b\\_c\\\\d')
+    expect(escapeLike('plain')).toBe('plain')
   })
 })

@@ -4,8 +4,10 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import { escapeLike, normalizeCoachName } from '@/lib/coaches'
 
 const PER_PAGE = 50
+const STATUSES = ['active', 'unreviewed', 'verified', 'junk', 'all']
 
 export async function GET(request: Request) {
   const session = await auth()
@@ -14,12 +16,14 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const q = url.searchParams.get('q')?.trim() ?? ''
   const status = url.searchParams.get('status') ?? 'active'
+  if (!STATUSES.includes(status)) return NextResponse.json({ error: 'invalid status' }, { status: 400 })
   const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1)
   const from = (page - 1) * PER_PAGE
 
   const supabase = serviceClient()
   let query = supabase.from('coach_stats').select('*', { count: 'exact' })
-  if (q) query = query.ilike('display_name', `%${q}%`)
+  const nq = normalizeCoachName(q)
+  if (nq) query = query.ilike('normalized_name', `%${escapeLike(nq)}%`)
   if (status === 'active') query = query.neq('status', 'junk')
   else if (status !== 'all') query = query.eq('status', status)
 
@@ -31,35 +35,14 @@ export async function GET(request: Request) {
 
   const head = { count: 'exact' as const, head: true }
   const [all, unreviewed, junk, pendingMerges, pendingLinks] = await Promise.all([
-    supabase.from('coaches').select('id', head).neq('status', 'merged'),
+    supabase.from('coaches').select('id', head).not('status', 'in', '(junk,merged)'),
     supabase.from('coaches').select('id', head).eq('status', 'unreviewed'),
     supabase.from('coaches').select('id', head).eq('status', 'junk'),
-    supabase.from('coach_merge_suggestions').select('coach_a, coach_b').eq('status', 'pending').limit(2000),
-    supabase
-      .from('coach_player_link_suggestions')
-      .select('coach_id, coach:coaches(status)')
-      .eq('status', 'pending')
-      .limit(2000),
+    supabase.from('coach_merge_queue').select('id', head),
+    supabase.from('coach_link_queue').select('coach_id', head),
   ])
-
-  // Pending = suggestions that are still actionable, i.e. no merged coach involved.
-  const mergeRows = pendingMerges.data ?? []
-  const ids = [...new Set(mergeRows.flatMap((m) => [m.coach_a, m.coach_b]))]
-  const merged = new Set<string>()
-  for (let i = 0; i < ids.length; i += 200) {
-    const { data: rows } = await supabase
-      .from('coaches')
-      .select('id')
-      .eq('status', 'merged')
-      .in('id', ids.slice(i, i + 200))
-    for (const r of rows ?? []) merged.add(r.id)
-  }
-  const pendingMergeCount = mergeRows.filter((m) => !merged.has(m.coach_a) && !merged.has(m.coach_b)).length
-  const pendingLinkCount = ((pendingLinks.data ?? []) as unknown as { coach: { status: string } | { status: string }[] | null }[])
-    .filter((l) => {
-      const c = Array.isArray(l.coach) ? l.coach[0] : l.coach
-      return c?.status !== 'merged'
-    }).length
+  const kpiError = [all, unreviewed, junk, pendingMerges, pendingLinks].find((r) => r.error)
+  if (kpiError?.error) return NextResponse.json({ error: kpiError.error.message }, { status: 500 })
 
   return NextResponse.json({
     coaches: data ?? [],
@@ -70,7 +53,7 @@ export async function GET(request: Request) {
       total: all.count ?? 0,
       unreviewed: unreviewed.count ?? 0,
       junk: junk.count ?? 0,
-      pending: pendingMergeCount + pendingLinkCount,
+      pending: (pendingMerges.count ?? 0) + (pendingLinks.count ?? 0),
     },
   })
 }

@@ -79,6 +79,7 @@ create or replace view public.coach_stats with (security_invoker = true) as
 select
   c.id as coach_id,
   c.display_name,
+  c.normalized_name,
   c.slug,
   c.status,
   c.player_id,
@@ -93,6 +94,43 @@ left join public.players p on p.id = pc.player_id and coalesce(p.tier, 'pro') = 
 where c.status <> 'merged'
 group by c.id;
 comment on column public.coach_stats.player_count is 'Counts pro-tier players only (coalesce(tier, ''pro'') = ''pro'').';
+
+-- Actionable merge suggestions: pending, both coaches live (coach_stats excludes merged; junk filtered here).
+-- impact = combined pro points, used to rank the review queue.
+create or replace view public.coach_merge_queue with (security_invoker = true) as
+select
+  s.id,
+  s.score,
+  s.reason,
+  s.coach_a,
+  s.coach_b,
+  a.display_name as a_name,
+  b.display_name as b_name,
+  a.total_points as a_points,
+  b.total_points as b_points,
+  a.player_count as a_players,
+  b.player_count as b_players,
+  (a.total_points + b.total_points) as impact
+from public.coach_merge_suggestions s
+join public.coach_stats a on a.coach_id = s.coach_a and a.status not in ('merged','junk')
+join public.coach_stats b on b.coach_id = s.coach_b and b.status not in ('merged','junk')
+where s.status = 'pending';
+
+-- Actionable coach<->player link suggestions: pending, coach still live.
+create or replace view public.coach_link_queue with (security_invoker = true) as
+select
+  l.coach_id,
+  l.player_id,
+  c.display_name as coach_name,
+  p.name as player_name,
+  p.country as player_country,
+  p.tier as player_tier,
+  p.ranking as player_ranking,
+  p.category as player_category
+from public.coach_player_link_suggestions l
+join public.coaches c on c.id = l.coach_id and c.status not in ('merged','junk')
+join public.players p on p.id = l.player_id
+where l.status = 'pending';
 
 -- Atomic merge: everything of p_source moves onto p_target.
 create or replace function public.merge_coaches(
@@ -195,5 +233,7 @@ begin
   assert exists (select 1 from information_schema.tables where table_schema='public' and table_name='coach_merge_suggestions'), 'coach_merge_suggestions missing';
   assert exists (select 1 from information_schema.tables where table_schema='public' and table_name='coach_player_link_suggestions'), 'coach_player_link_suggestions missing';
   assert exists (select 1 from information_schema.views where table_schema='public' and table_name='coach_stats'), 'coach_stats missing';
+  assert exists (select 1 from information_schema.views where table_schema='public' and table_name='coach_merge_queue'), 'coach_merge_queue missing';
+  assert exists (select 1 from information_schema.views where table_schema='public' and table_name='coach_link_queue'), 'coach_link_queue missing';
   assert exists (select 1 from pg_proc where proname='merge_coaches'), 'merge_coaches missing';
 end $$;

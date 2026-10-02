@@ -42,6 +42,23 @@ export interface CoachPatch {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+export const isUuid = (v: unknown): v is string => typeof v === 'string' && UUID.test(v)
+
+// Must stay identical to padelgod/src/lib/coach-normalize.ts (normalizeCoachName).
+const APOSTROPHES = /['’‘`´]/g
+export function normalizeCoachName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(APOSTROPHES, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+/** Escapes LIKE/ILIKE wildcards (\, %, _) so user input matches literally. */
+export const escapeLike = (s: string): string => s.replace(/[\\%_]/g, (c) => '\\' + c)
+
 const nullableText = (v: unknown): string | null => {
   if (typeof v !== 'string') return null
   const t = v.trim()
@@ -69,17 +86,13 @@ export function validateCoachPatch(
   if ('avatar_url' in body) update.avatar_url = nullableText(body.avatar_url)
   if ('notes' in body) update.notes = nullableText(body.notes)
   if ('player_id' in body) {
-    if (body.player_id !== null && !(typeof body.player_id === 'string' && UUID.test(body.player_id))) {
+    if (body.player_id !== null && !isUuid(body.player_id)) {
       return { ok: false, error: 'invalid player_id' }
     }
     update.player_id = body.player_id as string | null
   }
   if (Object.keys(update).length === 0) return { ok: false, error: 'nothing to update' }
   return { ok: true, update }
-}
-
-export function sortByImpact<T extends { a: { total_points: number }; b: { total_points: number } }>(rows: T[]): T[] {
-  return [...rows].sort((x, y) => y.a.total_points + y.b.total_points - (x.a.total_points + x.b.total_points))
 }
 
 export const fmtPoints = (n: number) => Math.round(n).toLocaleString('en-US')
