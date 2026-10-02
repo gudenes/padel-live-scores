@@ -16,15 +16,12 @@ export function CoachesCard({ coaches }: { coaches: ProfileCoach[] }) {
   if (coaches.length === 0) return null
   return (
     <Widget wide label={t('coachesLabel', { count: coaches.length })}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {coaches.map((c) => (
-          <div
-            key={c.coach_id}
-            data-testid="coach-name"
-            style={{ fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-          >
-            {c.display_name}
-          </div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.4 }}>
+        {coaches.map((c, i) => (
+          <span key={c.coach_id}>
+            {i > 0 && ', '}
+            <span data-testid="coach-name">{c.display_name}</span>
+          </span>
         ))}
       </div>
     </Widget>

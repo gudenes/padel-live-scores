@@ -35,6 +35,21 @@ export interface PlaysWithLegacy {
   brand_logo?: string
 }
 
+
+// padel_rackets.balance mixes two vocabularies (head-heavy/balanced/head-light
+// and high/medium/low — "high" balance is head-heavy in padel). Map both onto
+// the translated keys; anything unknown is shown raw instead of throwing a
+// missing-translation error.
+const BALANCE_KEYS: Record<string, 'head-heavy' | 'balanced' | 'head-light'> = {
+  'head-heavy': 'head-heavy', high: 'head-heavy',
+  balanced: 'balanced', medium: 'balanced',
+  'head-light': 'head-light', low: 'head-light',
+}
+
+export function racketBalanceKey(balance: string): 'head-heavy' | 'balanced' | 'head-light' | null {
+  return BALANCE_KEYS[balance.trim().toLowerCase()] ?? null
+}
+
 export function PlaysWithCard({
   racket,
   legacy,
@@ -139,7 +154,7 @@ export function PlaysWithCard({
               {racketBalance && (
                 <div style={specRowStyle}>
                   <span>{t('balance')}</span>
-                  <span style={specValueStyle}>{t(`balance_${racketBalance}`)}</span>
+                  <span style={specValueStyle}>{(() => { const k = racketBalanceKey(racketBalance); return k ? t(`balance_${k}`) : racketBalance })()}</span>
                 </div>
               )}
             </div>
