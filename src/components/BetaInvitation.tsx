@@ -27,7 +27,7 @@ export function BetaInvitation() {
 
   useEffect(() => {
     // Keep signup, onboarding and legal/support flows interruption-free.
-    const excluded = /^\/(beta|welcome|privacy|terms|support|delete-account)(\/|$)/.test(pathname)
+    const excluded = /^\/(beta|beta-demo|welcome|privacy|terms|support|delete-account)(\/|$)/.test(pathname)
     const dialog = dialogRef.current
     if (!dialog || excluded || loginOpen || betaSignupsClosed()) return
     if (!hasDecided && !Capacitor.isNativePlatform()) return
