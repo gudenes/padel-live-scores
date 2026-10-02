@@ -95,6 +95,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'One or both players not found' }, { status: 404 })
     }
 
+    // Guard before any write: two players linked to different coaches can't be merged
+    // without silently losing one link.
+    const hasCoaches = await tableExists(client, 'coaches')
+    if (hasCoaches) {
+      const linked = await client.query('SELECT DISTINCT player_id FROM coaches WHERE player_id = ANY($1::uuid[])', [[keepId, deleteId]])
+      if (linked.rowCount === 2) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'both players are linked to different coaches — unlink one coach first' }, { status: 409 })
+      }
+    }
+
     // 1. Apply the operator's per-field picks onto the survivor (allowlisted).
     if (mergedFields && typeof mergedFields === 'object') {
       const cols = Object.keys(mergedFields).filter(k => (MERGE_FIELDS as readonly string[]).includes(k))
@@ -155,6 +166,29 @@ export async function POST(request: Request) {
         [deleteId],
       )
     }
+
+    // 7b. Coaches. coaches.player_id is ON DELETE SET NULL and
+    //     coach_player_link_suggestions cascades — deleting the loser would drop
+    //     a confirmed coach↔player link. Repoint it when only the loser is linked
+    //     (the both-linked case is rejected up front with a 409).
+    //     (player_coaches cascading is fine: the coach-linker rebuilds it.)
+    if (hasCoaches) {
+      await client.query('UPDATE coaches SET player_id = $1 WHERE player_id = $2', [keepId, deleteId])
+    }
+    //     Keep the loser's decided status on the survivor's pending row for the same coach.
+    if (await tableExists(client, 'coach_player_link_suggestions')) {
+      await client.query(
+        `UPDATE coach_player_link_suggestions s
+            SET status = l.status, decided_at = l.decided_at
+           FROM coach_player_link_suggestions l
+          WHERE s.player_id = $1 AND l.player_id = $2
+            AND s.coach_id = l.coach_id
+            AND s.status = 'pending' AND l.status IN ('rejected','linked')`,
+        [keepId, deleteId],
+      )
+    }
+    //     Move suggestion decisions to the survivor, skipping (coach_id, survivor) pairs that exist.
+    await reassignUnique(client, 'coach_player_link_suggestions', 'player_id', ['coach_id'], keepId, deleteId, false)
 
     // 8. Remove the duplicate. Remaining ON DELETE CASCADE FKs (ranking-snapshot
     //    leftovers, player-dedup/content-tag tables) clean themselves up.

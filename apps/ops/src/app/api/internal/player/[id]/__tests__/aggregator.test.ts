@@ -26,6 +26,9 @@ beforeEach(() => {
   authMock.mockReset()
   serviceClientMock.mockReset()
   tableHandlers.clear()
+  // Coach tables are queried on every GET; default to empty unless a test overrides.
+  tableHandlers.set('player_coaches', () => buildQueryStub({ data: [], error: null }))
+  tableHandlers.set('coaches', () => buildQueryStub({ data: null, error: null }))
   // Default Supabase client: dispatches .from(table) to a per-test handler.
   serviceClientMock.mockReturnValue({
     from: (table: string) => {

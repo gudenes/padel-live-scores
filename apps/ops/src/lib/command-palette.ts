@@ -46,7 +46,7 @@ export function filterPages(query: string): PageCommand[] {
   )
 }
 
-export interface EntityHit { kind: 'player' | 'tournament' | 'match'; id: string; label: string; sub?: string; href: string }
+export interface EntityHit { kind: 'player' | 'tournament' | 'match' | 'coach'; id: string; label: string; sub?: string; href: string }
 
 /** Best-effort entity search. Returns [] on empty query or any error (never throws into the UI). */
 export async function searchEntities(query: string, signal?: AbortSignal): Promise<EntityHit[]> {

@@ -188,6 +188,8 @@ async function main() {
       padeldevLiveDryRun: env.PADELDEV_LIVE_DRY_RUN,
       enableTournamentStartNotifier: env.ENABLE_TOURNAMENT_START_NOTIFIER,
       enableProjectionReadyNotifier: env.ENABLE_PROJECTION_READY_NOTIFIER,
+      enableCoachLinker: env.ENABLE_COACH_LINKER,
+      coachLinkerDryRun: env.COACH_LINKER_DRY_RUN,
     });
     // Build the notify config for live-poller-manager. Both env vars must be
     // present — otherwise we pass `undefined` and the hook inside

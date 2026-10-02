@@ -1,12 +1,21 @@
 'use client'
 // apps/ops/src/app/(app)/players/[id]/_components/CoachesSection.tsx
-// Read-only list of coach names. Editing happens in ProfileSection above —
-// this section just surfaces the saved value for at-a-glance scanning.
+// Coaches OF this player. Linked coaches link to their coach record; raw
+// strings not yet linked by coach-linker are shown as plain text. Editing the
+// raw list happens in ProfileSection above (next linker run picks it up).
 
-import { Panel } from '@/components/ui'
+import Link from 'next/link'
+import { Panel, Pill } from '@/components/ui'
 
-export default function CoachesSection({ coaches }: { coaches: string[] | null }) {
-  if (!coaches || coaches.length === 0) {
+export interface CoachLink {
+  raw_name: string
+  position: number
+  coach: { id: string; display_name: string; status: string } | null
+}
+
+export default function CoachesSection({ coaches, links }: { coaches: string[] | null; links: CoachLink[] }) {
+  const raw = coaches ?? []
+  if (raw.length === 0 && links.length === 0) {
     return (
       <Panel title="Coaches">
         <div className="text-xs" style={{ color: 'var(--text-3)' }}>
@@ -15,15 +24,19 @@ export default function CoachesSection({ coaches }: { coaches: string[] | null }
       </Panel>
     )
   }
-
+  const linkedRaw = new Set(links.map((l) => l.raw_name))
   return (
     <Panel title="Coaches">
-      <ul
-        className="list-disc list-inside text-xs space-y-0.5"
-        style={{ color: 'var(--text-2)' }}
-      >
-        {coaches.map((name) => (
-          <li key={name}>{name}</li>
+      <ul className="list-disc list-inside text-xs space-y-0.5" style={{ color: 'var(--text-2)' }}>
+        {links.map((l) => l.coach && (
+          <li key={l.coach.id}>
+            <Link href={`/players/coaches/${l.coach.id}`}>{l.coach.display_name}</Link>
+            {l.coach.display_name !== l.raw_name && <span style={{ color: 'var(--text-4)' }}> (FIP: {l.raw_name})</span>}
+            {l.coach.status === 'junk' && <> <Pill tone="neutral">junk</Pill></>}
+          </li>
+        ))}
+        {raw.filter((r) => !linkedRaw.has(r)).map((r) => (
+          <li key={r}>{r} <span style={{ color: 'var(--text-4)' }}>(not linked yet)</span></li>
         ))}
       </ul>
     </Panel>

@@ -190,12 +190,28 @@ export async function GET(
     return NextResponse.json({ error: earningsErr.message }, { status: 500 })
   }
 
+  // Coach data is best-effort: errors are logged but ignored so the profile still
+  // renders if the coach tables are missing or broken.
+  const [{ data: coachLinks, error: coachLinksErr }, { data: coachRecord, error: coachRecordErr }] = await Promise.all([
+    supabase
+      .from('player_coaches')
+      .select('raw_name, position, coach:coaches(id, display_name, status)')
+      .eq('player_id', id)
+      .order('position'),
+    supabase.from('coaches').select('id, display_name').eq('player_id', id).maybeSingle(),
+  ])
+
+  if (coachLinksErr) console.warn('[player/:id] coach links query failed', coachLinksErr)
+  if (coachRecordErr) console.warn('[player/:id] coach record query failed', coachRecordErr)
+
   return NextResponse.json({
     player,
     equipment: equipment ?? [],
     recentMatches,
     teamCourtHistory,
     earnings: earnings ?? [],
+    coachLinks: coachLinks ?? [],
+    coachRecord: coachRecord ?? null,
   })
 }
 
