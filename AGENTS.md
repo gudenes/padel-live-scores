@@ -50,3 +50,11 @@ Diagnosis ≠ permission to ship.
 - **Slow connection?** `export RAILWAY_HTTP_TIMEOUT=600` before `deploy.sh`. An HTTP `524` on upload is Railway's ~100 s edge limit, so just retry. A failed upload is safe: the script restores the version stamp, and the previous build keeps serving.
 - **What is running now?** `curl https://padelnachos.com/api/version` (or `admin.padelnachos.com/api/version`) → `{ sha, branch, releasedAt, source }`. Cron logs `cron-runner-up … release=<sha>` at startup. Or just run `./scripts/session-check.sh`.
 - Deploying is outward-facing: only deploy when Gustavo asked for it.
+
+
+## Approved button design
+
+- `public/mockup-buttons.html` is the approved button design reference.
+- For all new or modified app buttons, use a documented variant and its existing implementation. Do not invent button colours, shapes, depth, or interaction styles at call sites.
+- Padel Predict must follow the existing reference (chunky tilted shape, approved intent colours and size scale). Do not treat new app styling as approved by adding it to the reference.
+- Keep the reference and implementation in sync. New variants must be shown in this document and explicitly approved by the user before application use.

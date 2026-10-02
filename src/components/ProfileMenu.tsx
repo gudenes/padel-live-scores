@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { useInvite } from '@/hooks/useInvite'
 import { useMyPlayer } from '@/hooks/useMyPlayer'
 import Avatar from '@/components/Avatar'
+import {ShopProfileAvatar} from '@/components/player/shop/AvatarShop'
 import { readAllPredictions } from '@/hooks/useMatchPrediction'
 import { useLoginSheet } from '@/components/LoginSheetProvider'
 import { FLAG_BY_LOCALE } from '@/components/icons/FlagIcons'
@@ -167,6 +168,7 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ position: 'relative', width: 40, height: 40, flexShrink: 0 }}>
+                <ShopProfileAvatar size={40} fallback={
                 <div style={{
                   width: 40,
                   height: 40,
@@ -193,6 +195,8 @@ export default function ProfileMenu({ open, onClose, triggerRef }: ProfileMenuPr
                     </svg>
                   )}
                 </div>
+                }/>
+
                 {tier && (
                   <div style={{
                     position: 'absolute',

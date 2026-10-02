@@ -1896,6 +1896,9 @@
       "mine": "As minhas jogadas"
     },
     "deck": {
+      "volumeWithSimulation": "{amount} G negociados · incl. jogadas simuladas",
+      "scheduledTime": "Agendado · {time}",
+      "secondPlay": "2ª jogada",
       "yes": "Sim",
       "no": "Não",
       "navHint": "Deslize para cima para o próximo mercado",
@@ -1903,6 +1906,7 @@
       "ourModel": "Nosso modelo",
       "aiPct": "IA {pct}%",
       "historicalPct": "histórico {pct}%",
+      "volumeActivity": "+{amount} G em novas jogadas",
       "volumeTraded": "{amount} G negociados",
       "noTradesYet": "Ainda sem negociações",
       "empty": {
@@ -1947,10 +1951,36 @@
       "keepExploring": "Continuar a explorar"
     },
     "positions": {
+      "today": "Hoje",
+      "yesterday": "Ontem",
+      "earlierResults": "Resultados anteriores",
+      "ifCorrect": "Se acertares, recebes",
+      "includesPlayed": "Inclui os Guacas jogados",
+      "resolution": {
+        "match": "Após o jogo",
+        "window": "Quando o resultado for confirmado",
+        "tournament": "Quando o resultado do torneio for confirmado",
+        "unknown": "A aguardar confirmação"
+      },
+      "matchStarts": "O jogo começa · {date}",
+      "targetDate": "Fim do período · {date}",
+      "dateUnconfirmed": "Data por confirmar",
+      "simpleTitle": "Os teus palpites",
+      "intro": "As tuas escolhas, Guacas jogados e resultados finais.",
+      "filters": {
+        "open": "Pendentes",
+        "resolved": "Resultados",
+        "history": "Todos"
+      },
+      "registered": "Palpite guardado",
+      "awaitingResult": "A aguardar resultado",
+      "played": "Guacas jogados",
+      "received": "Recebidos",
       "title": "Minhas posições",
       "netWorth": "Património",
       "open": "Abertas",
-      "resolved": "Resolvidas",
+      "viewResults": "Ver resultados · {count}",
+      "resolved": "Resultados",
       "history": "Histórico",
       "stake": "{amount} G a {price}",
       "explore": "Explorar mais mercados",
@@ -1988,6 +2018,10 @@
       }
     },
     "leaders": {
+      "summaryTitle": "O teu desempenho",
+      "available": "Disponíveis",
+      "nextRank": "{amount} G para alcançar #{rank}",
+      "weekScope": "De segunda a domingo, hora de Madrid.",
       "weeklyCount": "{count} participantes · últimos 7 dias",
       "playerCount": "{count} participantes",
       "seeEveryone": "Ver todos",
@@ -2005,14 +2039,28 @@
       "accuracy": "{pct}% de acerto",
       "streak": "sequência de {n}",
       "you": "Você",
-      "note": "Classificados por património — saldo mais o valor atual das posições abertas.",
+      "note": "Classificação por prémios menos o custo das jogadas resolvidas. Jogadas pendentes, reembolsos e compras de roupa não afetam a pontuação.",
       "empty": {
         "title": "A classificação está vazia",
-        "body": "Enche-se assim que as pessoas começarem a negociar."
+        "body": "A tua primeira jogada resolvida coloca-te na classificação."
       },
       "yourPosition": "A tua posição",
       "netWorth": "Património",
-      "standings": "Classificação"
+      "standings": "Classificação",
+      "netWinnings": "Ganhos líquidos",
+      "history": "Semanas anteriores",
+      "previousWeek": "Semana anterior",
+      "nextWeek": "Próxima semana",
+      "thisWeek": "Esta semana",
+      "follow": "Seguir",
+      "followed": "A seguir",
+      "following": "A seguir",
+      "followers": "Seguidores",
+      "followError": "Não foi possível carregar ou guardar. Tenta novamente.",
+      "noFollowing": "Segue um jogador no perfil para o veres aqui.",
+      "noFollowedResults": "Os jogadores que segues não têm jogadas resolvidas neste período.",
+      "showFollowing": "Ver jogadores seguidos",
+      "showEveryone": "Ver todos os jogadores"
     },
     "time": {
       "now": "agora",

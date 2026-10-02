@@ -39,3 +39,27 @@
 .scope { flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; margin:0 16px 9px; color:#b7bdaf; font-size:11px; }
 .scope button { border:0; background:transparent; color:#b9dd8e; font:inherit; font-weight:700; padding:8px 0 8px 8px; cursor:pointer; }
 .scope button:focus-visible { outline:2px solid #9fdbec; outline-offset:2px; }
+
+.summary{flex:none;margin:0 16px 14px;padding:12px;background:#18211a;border:1px solid #7ed32188;box-shadow:0 3px 0 #10170c;clip-path:polygon(0 4px,100% 0,100% calc(100% - 4px),0 100%)}
+.summaryHead{display:flex;align-items:center;gap:8px;font-size:11px}.summaryHead>strong{flex:1}.summaryHead button{font-size:9px}
+.summaryStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #ffffff19}.summaryStats strong{font-size:18px;display:flex;align-items:center;gap:4px;font-variant-numeric:tabular-nums}.summaryStats>div:nth-child(2) strong{color:#a5ed48}.summaryStats span{display:block;margin-top:5px;font-size:10px;color:#b9c8bb}
+.gap{font-size:11px;color:#cce6b6;border-top:1px solid #ffffff19;padding-top:10px;margin:12px 0 0}
+.columns{display:grid;grid-template-columns:29px 1fr auto;gap:9px;margin:0 16px;padding:6px 8px;background:#1a2324;color:#9fb8c3;font-size:10px}
+.list{gap:0!important}.list .row,.list .row[data-tone],.list .row[data-podium]{background:#171e1d;border:0;border-bottom:1px solid #ffffff10;box-shadow:none;clip-path:none;min-height:40px;padding:6px 8px;gap:8px}.list .row:global(.pl-me){background:#294719;border:1px solid #7ed321;box-shadow:inset 3px 0 #7ed321}.list :global(.pl-r){width:22px;font-size:12px}.list :global(.pl-n2){font-size:12px}.list :global(.pl-v2){font-size:13px}.list :global(.pl-s2){font-size:9px}
+.scope strong{font-size:14px;color:#eee7d2}.omitted{text-align:center;padding:3px;color:#b9c8bb;font-size:16px}
+@media(max-width:360px){.summaryStats strong{font-size:15px}.summary{padding:10px}.summaryHead{flex-wrap:wrap}.scope strong{font-size:12px}}
+.list .row :global(.pl-r){width:30px;flex-shrink:0;font-size:14px}.summaryHead button{min-height:30px}.list>button:last-child{margin-top:8px}
+
+.summaryStats strong[data-loss="true"],.list .row :global(.pl-v2)[data-loss="true"],.stats strong[data-loss="true"]{color:#ff6976}
+.summaryStats>div:nth-child(2) strong[data-loss="true"]{color:#ff6976}
+
+/* Center each personal statistic within its equal-width column. */
+.summaryStats>div{text-align:center;min-width:0}.summaryStats strong{justify-content:center}.summaryStats span{text-align:center}
+.weekHistory{flex:none;margin:0 16px 12px;color:#b9c8bb;font-size:11px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}.weekHistory>div{display:flex;gap:6px;align-items:center}
+.socialCounts{display:grid;grid-template-columns:1fr 1fr;text-align:center;margin:0 0 16px}.socialCounts>div+div{border-left:1px solid #ffffff20}.socialCounts strong{display:block;font-size:20px;color:#eee7d2}.socialCounts span{font-size:12px;color:#b9c8bb}.followError,.followEmpty{margin:8px 16px;color:#b9c8bb;font-size:12px;line-height:1.5}.followError{color:#ff8790}.preview :global(.pl-sheet-head){gap:10px}.preview :global(.pl-sheet-head) h2{margin-right:auto;min-width:0;overflow-wrap:anywhere}.preview :global(.pl-sheet-head) .pn-press{flex-shrink:0}
+
+.scope .followFilter{padding:0;font-size:11px}.followFilter :global(.pn-press-face){padding:5px 9px;font-size:11px}.followFilterContent{display:flex;align-items:center;justify-content:center;gap:5px;min-width:26px}
+
+/* Explicit contrast: the scope text color must not bleed into the active face. */
+.scope .followFilter[aria-pressed="true"] :global(.pn-press-face){background:#7ED321;color:#0a0a0a;box-shadow:inset 0 1px 0 #ffffff38}
+.scope .followFilter[aria-pressed="false"] :global(.pn-press-face){background:#171e1d;color:#7ED321}

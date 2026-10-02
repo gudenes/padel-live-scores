@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import MarketCard from './MarketCard'
+import MatchMarketCard from './MatchMarketCard'
+import { groupMarkets } from './group-markets'
 import type { PlayMarket, PlayPosition, Side } from './types'
 
 export default function MarketFeed({ markets, positions, onViewPositions, onChoose, onDetail }: {
@@ -15,7 +17,10 @@ export default function MarketFeed({ markets, positions, onViewPositions, onChoo
   const t = useTranslations('play')
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   return <div className="pl-natural-feed" role="region" aria-label={t('subnav.markets')} tabIndex={0}>
-    {markets.map(market => {
+    {groupMarkets(markets, positions).map(group => {
+      const market = group.questions[0]
+      if (market.matchId && !market.editorial) return <MatchMarketCard key={group.id} markets={group.questions} positions={positions} onChoose={onChoose} onDetail={onDetail} onViewPositions={onViewPositions}/>
+
       const held = positions.filter(position => position.marketId === market.id && position.shares > 0)
       const collapsed = held.length > 0 && !expanded.has(market.id)
       return <div className="pl-market-group" key={market.id}><article className={`pl-mcard${collapsed ? ' pl-card-collapsed' : ''}`} key={market.id} aria-label={market.question}>

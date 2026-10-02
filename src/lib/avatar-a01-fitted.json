@@ -1,0 +1,21 @@
+{
+  "face-05": {
+    "backwards": "face-05-backwards-fitted-v5.png"
+  },
+  "face-06": {
+    "club": "face-06-club-fitted-study-v1.png",
+    "backwards": "face-06-backwards-fitted-v2.png",
+    "champion": "face-06-champion-fitted-v3.png",
+    "cobalt": "face-06-cobalt-fitted-v3.png",
+    "sunset": "face-06-sunset-fitted-v3.png",
+    "bandana": "face-06-bandana-fitted-v3.png"
+  },
+  "face-01": {
+    "club": "face-01-club-fitted-v2.png",
+    "champion": "face-01-champion-fitted-v3.png",
+    "cobalt": "face-01-cobalt-fitted-v3.png",
+    "sunset": "face-01-sunset-fitted-v3.png",
+    "bandana": "face-01-bandana-fitted-v3.png",
+    "backwards": "face-01-backwards-fitted-v3.png"
+  }
+}

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { localMarketActivity } from '../local-market-activity'
+import { localMarketActivity, simulationVolumes } from '../local-market-activity'
 
 let directory: string | undefined
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); if (directory) rmSync(directory, { recursive: true, force: true }); directory = undefined })
@@ -27,4 +27,16 @@ it('returns only persisted trades for the requested source market, explicitly la
   expect(result).toHaveLength(1)
   expect(result[0]).toMatchObject({ id:'sim:t1', marketId:'source-a', isSimulation:true, isMe:false, guacas:100, displayName:'Chispa' })
   expect(localMarketActivity(new Request('http://localhost:3012/api/play/activity'), 'unknown')).toEqual([])
+})
+
+it('sums all persisted simulation trades rather than only the latest activity page', async () => {
+ directory = mkdtempSync(path.join(tmpdir(), 'volume-test-'))
+ mkdirSync(path.join(directory, '.local/play-simulation'), {recursive:true})
+ const db = new DatabaseSync(path.join(directory, '.local/play-simulation/simulation.sqlite'))
+ db.exec("CREATE TABLE markets(id TEXT,source_market_id TEXT); CREATE TABLE trades(market_id TEXT,cost INTEGER); INSERT INTO markets VALUES('a','source-a'),('b','source-b');")
+ for(let i=0;i<35;i++) db.prepare('INSERT INTO trades VALUES(?,?)').run('a',100)
+ db.prepare('INSERT INTO trades VALUES(?,?)').run('b',50)
+ db.close()
+ vi.stubEnv('NODE_ENV','development');vi.spyOn(process,'cwd').mockReturnValue(directory)
+ expect(await simulationVolumes(new Request('http://localhost:3012/api/play/markets'), {} as any, ['source-a'])).toEqual({'source-a':3500})
 })

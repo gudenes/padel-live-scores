@@ -1928,6 +1928,9 @@
       "mine": "My plays"
     },
     "deck": {
+      "volumeWithSimulation": "{amount} G traded · incl. simulated plays",
+      "scheduledTime": "Scheduled · {time}",
+      "secondPlay": "2nd play",
       "yes": "Yes",
       "no": "No",
       "navHint": "Swipe up for the next market",
@@ -1935,6 +1938,7 @@
       "ourModel": "Our model",
       "aiPct": "AI {pct}%",
       "historicalPct": "historical {pct}%",
+      "volumeActivity": "+{amount} G just played",
       "volumeTraded": "{amount} G traded",
       "noTradesYet": "No trades yet",
       "empty": {
@@ -1979,10 +1983,36 @@
       "keepExploring": "Keep exploring"
     },
     "positions": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "earlierResults": "Earlier results",
+      "ifCorrect": "If correct, you receive",
+      "includesPlayed": "Includes Guacas played",
+      "resolution": {
+        "match": "After the match",
+        "window": "When the result is confirmed",
+        "tournament": "When the tournament result is confirmed",
+        "unknown": "Awaiting confirmation"
+      },
+      "matchStarts": "Match starts · {date}",
+      "targetDate": "Result window ends · {date}",
+      "dateUnconfirmed": "Date to be confirmed",
+      "simpleTitle": "Your predictions",
+      "intro": "Your choices, Guacas played and final results.",
+      "filters": {
+        "open": "Pending",
+        "resolved": "Results",
+        "history": "All"
+      },
+      "registered": "Prediction saved",
+      "awaitingResult": "Awaiting result",
+      "played": "Guacas played",
+      "received": "Received",
       "title": "My positions",
       "netWorth": "Net worth",
       "open": "Open",
-      "resolved": "Resolved",
+      "viewResults": "View results · {count}",
+      "resolved": "Results",
       "history": "History",
       "stake": "{amount} G @ {price}",
       "explore": "Explore more markets",
@@ -2020,6 +2050,10 @@
       }
     },
     "leaders": {
+      "summaryTitle": "Your performance",
+      "available": "Available",
+      "nextRank": "{amount} G to reach #{rank}",
+      "weekScope": "Weeks run Monday to Sunday, Madrid time.",
       "weeklyCount": "{count} participants · last 7 days",
       "playerCount": "{count} participants",
       "seeEveryone": "See everyone",
@@ -2037,14 +2071,28 @@
       "accuracy": "{pct}% accurate",
       "streak": "{n} streak",
       "you": "You",
-      "note": "Ranked by net worth — balance plus the live value of open positions.",
+      "note": "Ranked by payouts minus the cost of settled plays. Pending plays, refunds and wardrobe purchases do not affect your score.",
       "empty": {
         "title": "The leaderboard is empty",
-        "body": "It fills up once people start trading."
+        "body": "Your first settled play will enter you in the ranking."
       },
       "yourPosition": "Your position",
       "netWorth": "Net worth",
-      "standings": "Standings"
+      "standings": "Standings",
+      "netWinnings": "Net winnings",
+      "history": "Previous weeks",
+      "previousWeek": "Previous week",
+      "nextWeek": "Next week",
+      "thisWeek": "This week",
+      "follow": "Follow",
+      "followed": "Following",
+      "following": "Following",
+      "followers": "Followers",
+      "followError": "Could not load or save follows. Try again.",
+      "noFollowing": "Follow a player from their profile to see them here.",
+      "noFollowedResults": "No settled plays from the players you follow in this period.",
+      "showFollowing": "Show followed players",
+      "showEveryone": "Show all players"
     },
     "time": {
       "now": "now",

@@ -35,7 +35,7 @@
 .portrait,.portrait svg{display:block;width:100%;height:100%}
 
 /* Scale decorations with the rendered character, including compact previews. */
-.wornSticker{width:26%;height:auto;max-height:30%;bottom:9%;right:2%;object-fit:contain}
+.wornSticker{width:31%;height:auto;max-height:34%;top:5%;bottom:auto;right:2%;object-fit:contain}
 
 /* Restrained game feedback, tuned to the approved 0.75x playback. */
 .shop button{transition:transform 160ms ease,border-color 160ms ease,background 267ms ease}
@@ -146,3 +146,5 @@
  .shop>.items{grid-column:2;grid-row:3;min-height:0}
  .shop>.purchase{grid-column:2;grid-row:4;min-height:0}
 }
+/* A01 assets already have alpha; preserve dark hair and cap fabric. */
+.figure>svg[data-avatar-renderer="a01"],.portrait>svg[data-avatar-renderer="a01"]{mix-blend-mode:normal;mask-image:none}

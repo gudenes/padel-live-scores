@@ -1,3 +1,4 @@
+import { simulationVolumes } from '@/lib/local-market-activity'
 // src/app/api/play/markets/route.ts
 // GET /api/play/markets?locale=en
 //
@@ -64,7 +65,16 @@ export async function GET(req: Request) {
     fetchHeadToHead(supabase, rows),
   ])
 
+  const matchIds = [...new Set(rows.map(r => r.match_id).filter(Boolean))]
+  const {data: related, error: volumeError} = matchIds.length
+    ? await supabase.from('markets').select('id,match_id,volume_guacas').in('match_id', matchIds)
+    : {data: [], error: null}
+  if (volumeError) return Response.json({error:'query_failed'}, {status:500})
+  const volumeRows = [...new Map([...rows, ...(related ?? [])].map(r => [r.id,r])).values()]
+  const simulated = await simulationVolumes(req, supabase, volumeRows.map(r => r.id))
+  const matchVolumes: Record<string,number> = {}
+  for (const r of volumeRows) if(r.match_id) matchVolumes[r.match_id]=(matchVolumes[r.match_id] ?? 0)+Number(r.volume_guacas || 0)+(simulated[r.id] ?? 0)
   return Response.json({
-    markets: rows.map((r) => ({ ...describeMarket(r, locale, now, { form, h2h, editorial }), book: { qYes: Number(r.q_yes), qNo: Number(r.q_no), b: Number(r.lmsr_b) } })),
+    markets: rows.map((r) => ({ ...describeMarket(r, locale, now, { form, h2h, editorial }), volumeGuacas: Number(r.volume_guacas || 0)+(simulated[r.id] ?? 0), matchVolumeGuacas: r.match_id ? matchVolumes[r.match_id] : null, book: { qYes: Number(r.q_yes), qNo: Number(r.q_no), b: Number(r.lmsr_b) } })),
   })
 }

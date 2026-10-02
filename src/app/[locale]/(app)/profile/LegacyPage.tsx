@@ -45,6 +45,7 @@ const V3 = {
 
 export default function ProfilePage() {
   const t = useTranslations('profile')
+  const navigation = useTranslations('about')
   const { user, profile, loading: authLoading } = useAuth()
   const router = useRouter()
   const { badges: earnedBadges, loading: badgesLoading } = useBadges()
@@ -169,8 +170,9 @@ export default function ProfilePage() {
       }}>
         <button
           type="button"
-          aria-label="Back"
-          onClick={() => { if (window.history.length > 1) router.back(); else router.push('/home') }}
+          aria-label={navigation('back')}
+          // Profile is the parent of wardrobe/settings; history can point back to either.
+          onClick={() => router.replace('/home')}
           style={{
             width: 36, height: 36, border: 'none', cursor: 'pointer',
             background: 'transparent', display: 'flex',

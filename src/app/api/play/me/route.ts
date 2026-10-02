@@ -20,6 +20,10 @@ import {
 export const dynamic = 'force-dynamic'
 
 interface PositionView {
+  settledAt: string | null
+  matchLabel: string | null
+  resolutionAt: string | null
+  resolutionKind: 'match' | 'window' | 'tournament' | null
   matchId: string | null
   marketId: string
   publicId: string
@@ -137,8 +141,14 @@ export async function GET(req: Request) {
           : market.outcome === (s.side === 'yes') ? 'won' : 'lost'
           : market.status !== 'open' ? 'pending' : null
         views.push({
+          resolutionAt: market.match_id ? market.match?.scheduled_at ?? null
+            : typeof market.resolver_params?.endsAt === 'string' ? market.resolver_params.endsAt
+            : market.tournament?.ends_at ?? null,
+          resolutionKind: market.match_id ? 'match' : typeof market.resolver_params?.endsAt === 'string' ? 'window' : market.tournament_id ? 'tournament' : null,
+          settledAt: market.settled_at ?? null,
           marketId: market.id,
           matchId: market.match_id,
+          matchLabel: market.match_id ? view.subtitle : null,
           publicId: market.public_id,
           question: view.question,
           context: view.context,

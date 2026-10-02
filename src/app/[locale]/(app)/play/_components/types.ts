@@ -70,6 +70,9 @@ export interface PlayHeadToHead {
 
 /** One card in the deck. `GET /api/play/markets`. */
 export interface PlayMarket {
+  roundLabel?: string | null
+  categoryLabel?: string | null
+  resolverKey?: string | null
   editorial?: EditorialView | null
   book?: { qYes: number; qNo: number; b: number } | null
   id: string
@@ -110,6 +113,7 @@ export interface PlayMarket {
   category?: string | null
   startsAt?: string | null
   locksAt: string | null
+  matchVolumeGuacas?: number | null
   volumeGuacas: number
   monogram: { a: string; b: string }
   /**
@@ -138,6 +142,10 @@ export interface PlayMarket {
 
 /** One row of `GET /api/play/me` → `positions`. */
 export interface PlayPosition {
+  settledAt?: string | null
+  matchLabel?: string | null
+  resolutionAt?: string | null
+  resolutionKind?: 'match' | 'window' | 'tournament' | null
   result?: 'won' | 'lost' | 'refunded' | 'pending' | null
   corrected?: boolean
   marketId: string
@@ -204,7 +212,7 @@ export interface PlayLeader {
   rank: number
   userId: string | null
   displayName: string
-  netWorth: number
+  netWinnings: number
   /** Percent, 0..100. Null when the user has no resolved markets yet. */
   accuracy: number | null
   streak: number | null
@@ -416,10 +424,14 @@ export function parseMarkets(payload: unknown): PlayMarket[] {
       tournamentImage: asString(r.tournamentImage) || null,
       live: pick(r, 'live') === true,
       stateLabel: asString(pick(r, 'stateLabel', 'state_label')),
+      roundLabel: asString(r.roundLabel) || null,
+      categoryLabel: asString(r.categoryLabel) || null,
+      resolverKey: asString(r.resolverKey) || null,
       competition: asString(pick(r, 'competition')) || null,
       category: asString(pick(r, 'category')) || null,
       startsAt: asString(pick(r, 'startsAt')) || null,
       locksAt: asString(pick(r, 'locksAt', 'locks_at')) || null,
+      matchVolumeGuacas: asNumber(r.matchVolumeGuacas),
       volumeGuacas: asNumber(pick(r, 'volumeGuacas', 'volume_guacas')) ?? 0,
       monogram: { a: asString(mono.a), b: asString(mono.b) },
       players: asPlayers(pick(r, 'players')),
@@ -447,10 +459,14 @@ export function parseMe(payload: unknown): PlayMe {
         marketId,
         result: ['won', 'lost', 'refunded', 'pending'].includes(String(p.result)) ? p.result as PlayPosition['result'] : null,
         corrected: p.corrected === true,
+        settledAt: asString(p.settledAt) || null,
+        resolutionAt: asString(p.resolutionAt) || null,
+        resolutionKind: ['match','window','tournament'].includes(String(p.resolutionKind)) ? p.resolutionKind as PlayPosition['resolutionKind'] : null,
         publicId: asString(pick(p, 'publicId', 'public_id'), marketId),
         question: asString(pick(p, 'question')),
         context: asString(pick(p, 'context')),
         matchId: asString(p.matchId) || null,
+        matchLabel: asString(p.matchLabel) || null,
         live: pick(p, 'live') === true,
         status: asString(pick(p, 'status'), 'open'),
         side: asSide(pick(p, 'side')),
@@ -517,7 +533,7 @@ export function parseLeaderboard(payload: unknown): PlayLeaderboard {
       userId: asString(pick(l, 'userId', 'user_id')) || null,
       displayName: asString(pick(l, 'displayName', 'display_name')),
       avatarUrl: asString(pick(l, 'avatarUrl', 'avatar_url')) || null,
-      netWorth: asNumber(pick(l, 'netWorth', 'net_worth')) ?? 0,
+      netWinnings: asNumber(pick(l, 'netWinnings', 'net_winnings')) ?? 0,
       accuracy: asNumber(pick(l, 'accuracy')),
       streak: asNumber(pick(l, 'streak')),
       move: asNumber(pick(l, 'move')),

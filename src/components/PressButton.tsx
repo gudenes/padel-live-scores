@@ -72,6 +72,24 @@ export interface PressPreset {
 }
 
 export const PRESS_PRESETS = {
+  // Approved team-one colour; same silhouette and press as chunkyTilted.
+  chunkyTeamOrange: {
+    clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
+    accent: '#FF6B2B',
+    skirt: '#AD481D',
+    textColor: '#0a0a0a',
+    depth: 5,
+  } satisfies PressPreset,
+
+  // Approved in public/mockup-buttons.html: intent-gold / chunkyGold.
+  chunkyGold: {
+    clipPath: 'polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%)',
+    accent: '#EAB308',
+    skirt: '#8A6A00',
+    textColor: '#1A1A1A',
+    depth: 5,
+  } satisfies PressPreset,
+
   /**
    * Default for primary CTAs across the app. Symmetric parallelogram
    * tilt on the vertical edges with a 5px skirt — the user-picked

@@ -129,6 +129,7 @@
   .shape-pill .pn-press-face,
   .shape-pill .pn-press-skirt { border-radius: 999px; }
 
+  .intent-team-orange .pn-press-face { background:#FF6B2B; color:#0a0a0a; } .intent-team-orange .pn-press-skirt { background:#AD481D; }
   .intent-primary  .pn-press-face { background: #7ED321; } .intent-primary  .pn-press-skirt { background: #558D14; }
   .intent-live     .pn-press-face { background: #FF4655; color: #fff; } .intent-live    .pn-press-skirt { background: #99131D; }
   .intent-gold     .pn-press-face { background: #EAB308; color: #1A1A1A; } .intent-gold .pn-press-skirt { background: #8A6A00; }
@@ -231,6 +232,7 @@
   .howto b { color: var(--green); }
   .howto .row-of-pills { margin-top: 10px; }
   .howto code { background: rgba(0,0,0,.45); padding: 1.5px 7px; font-family: ui-monospace, monospace; font-size: 12px; color: #C3E88D; }
+
 </style>
 </head>
 <body>
@@ -303,6 +305,7 @@
 
     <div class="toc-group">
       <h4>Reference</h4>
+      <a href="#market-team-buttons">Team-colour market buttons</a>
       <a href="#code-api">Code API</a>
       <a href="#presets">All presets</a>
     </div>
@@ -312,6 +315,7 @@
   <main class="main">
 
     <h1>Buttons — style reference</h1>
+    <p class="lead"><b>Approval rule:</b> Use only button variants documented here. Reuse their implementation and reference ID. Propose any new shape, colour or interaction in this document for approval before using it in the app.</p>
     <p class="lead">Canonical reference for every PressButton variant. Built on the production <code>&lt;PressButton&gt;</code> face/skirt mechanism (<code>src/components/PressButton.tsx</code>) — every variant here translates 1-to-1 to a real button you can ship. Click any button to feel the press.</p>
 
     <div class="howto">
@@ -325,6 +329,22 @@
     <!-- =================================================== -->
     <!-- INTENT PICKER                                        -->
     <!-- =================================================== -->
+
+<section class="block" id="market-team-buttons">
+<header><span class="num">PLAY</span><h2>Team-colour market buttons</h2><p>Approved chunky tilted buttons, using the exact team colours: orange #FF6B2B and lime #7ED321. Yes matches the team named in the question; No matches the opposing team. Swap colours when the question names the green team. Keep the existing shape and press effect.</p></header>
+<p>Will the orange team win?</p>
+<div style="display:flex;gap:14px;flex-wrap:wrap;margin:16px 0 26px">
+<button id="market-team-orange" class="pn-press shape-chunky-tilted intent-team-orange size-md"><span class="pn-press-skirt"></span><span class="pn-press-face">Yes</span></button>
+<button id="market-team-green" class="pn-press shape-chunky-tilted intent-primary size-md"><span class="pn-press-skirt"></span><span class="pn-press-face">No</span></button>
+</div>
+<p>2nd play — Will this match go to 3 sets? Use size-sm. Here orange/green distinguish Yes/No; neither answer represents a team.</p>
+<div style="display:flex;gap:14px;margin:16px 0 26px">
+<button class="pn-press shape-chunky-tilted intent-team-orange size-sm"><span class="pn-press-skirt"></span><span class="pn-press-face">Yes</span></button>
+<button class="pn-press shape-chunky-tilted intent-primary size-sm"><span class="pn-press-skirt"></span><span class="pn-press-face">No</span></button>
+</div>
+<table class="qref"><thead><tr><th>Preset</th><th>Face / skirt</th><th>Reference</th></tr></thead><tbody><tr><td>chunkyTeamOrange</td><td>#FF6B2B / #AD481D</td><td>#market-team-orange</td></tr><tr><td>chunkyTilted</td><td>#7ED321 / #558D14</td><td>#market-team-green</td></tr></tbody></table>
+</section>
+
     <section class="block" id="intent-picker">
       <header>
         <span class="num">REF</span>

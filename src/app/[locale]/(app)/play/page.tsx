@@ -16,7 +16,8 @@ import MarketFeed from './_components/MarketFeed'
 import ActivityBanner from './_components/ActivityBanner'
 import TradeSheet from './_components/TradeSheet'
 import MarketDetailSheet from './_components/MarketDetailSheet'
-import ConfirmScreen, { type ConfirmedTrade } from './_components/ConfirmScreen'
+import { type ConfirmedTrade } from './_components/ConfirmScreen'
+import QuickTradeConfirmation from './_components/QuickTradeConfirmation'
 import PositionsScreen from './_components/PositionsScreen'
 import ActivityScreen from './_components/ActivityScreen'
 import LeadersScreen from './_components/LeadersScreen'
@@ -56,7 +57,6 @@ export default function PlayPage() {
 
   const [linkedMatch, setLinkedMatch] = useState<string | null>(null)
   const [screen, setScreen] = useState<Screen>('deck')
-  const [deckIndex, setDeckIndex] = useState(0)
   const [pending, setPending] = useState<{ market: PlayMarket; side: Side; stake: number } | null>(null)
   // The detail sheet is an OVERLAY, not a screen: `screen` stays on 'deck' and
   // the deck index does not move, so closing it returns the card untouched.
@@ -66,6 +66,7 @@ export default function PlayPage() {
   const [tradeError, setTradeError] = useState<string | null>(null)
   // The trade response knows the new balance before /api/play/me is refetched.
   const [balanceAfterTrade, setBalanceAfterTrade] = useState<number | null>(null)
+  const [leaderWeek,setLeaderWeek]=useState(0)
   const [leaderPeriod, setLeaderPeriod] = useState<LeaderPeriod>('week')
   const [leadersOpened, setLeadersOpened] = useState(false)
   useEffect(() => {
@@ -90,7 +91,7 @@ export default function PlayPage() {
   // The leaderboard is the one screen most users never open; don't spend a
   // request on it until they do.
   const leaders = useApiResource(
-    `/api/play/leaderboard?period=${leaderPeriod}`,
+    `/api/play/leaderboard?period=${leaderPeriod}&week=${leaderWeek}`,
     parseLeaderboard,
     leadersOpened,
   )
@@ -109,7 +110,6 @@ export default function PlayPage() {
   // every render and churn the deck's layout effects.
   const list = useMemo(() => unplayedFirst(filterMarkets(markets.data ?? [], marketFilter, new Date(), facets), me.data?.positions ?? []), [markets.data, marketFilter, facets, me.data?.positions])
 
-  const advance = useCallback(() => setDeckIndex((i) => i + 1), [])
 
   // ── Screen switching ──────────────────────────────────────────
   const goto = useCallback((key: SubNavKey) => {
@@ -120,9 +120,10 @@ export default function PlayPage() {
     setScreen(key === 'markets' ? 'deck' : key)
   }, [])
 
+  const dismissConfirmation = useCallback(() => setConfirmed(null), [])
+
   // ── Trade flow ────────────────────────────────────────────────
   const onCommit = useCallback((market: PlayMarket, side: Side, stake: number) => {
-    setDeckIndex(Math.max(0, list.findIndex(item => item.id === market.id)))
     setPending({ market, side, stake })
     setTradeError(null)
     setScreen('trade')
@@ -188,21 +189,17 @@ export default function PlayPage() {
         // The trade moved the price — the deck's copy of it is now stale.
         markets.reload()
         me.reload()
-        advance()
-        setScreen('done')
+        setScreen('deck')
       } catch {
         setTradeError(t('trade.failed'))
       } finally {
         setSubmitting(false)
       }
     },
-    [pending, submitting, t, tradeErrors, markets, me, advance],
+    [pending, submitting, t, tradeErrors, markets, me],
   )
 
-  const upNext = useMemo(
-    () => (list.length ? (list[deckIndex % list.length] ?? null) : null),
-    [list, deckIndex],
-  )
+
 
   const subnavKey = SUBNAV_FOR[screen]
 
@@ -216,15 +213,15 @@ export default function PlayPage() {
       )}
 
       {(screen === 'mine' || screen === 'activity') && <div className="pl-time-nav pl-personal-tabs">
-        <button type="button" aria-pressed={screen === 'mine'} onClick={() => goto('mine')}>{t('subnav.myPositions')}</button>
+        <button type="button" aria-pressed={screen === 'mine'} onClick={() => goto('mine')}>{t('positions.simpleTitle')}</button>
         <button type="button" aria-pressed={screen === 'activity'} onClick={() => goto('activity')}>{t('subnav.activity')}</button>
       </div>}
       <div className="pl-screens">
         {/* ── Deck ────────────────────────────────────────────── */}
         <section hidden={screen !== 'deck' && screen !== 'trade'} className={`pl-screen${screen === 'deck' || screen === 'trade' ? ' pl-on' : ''}`}>
           <MarketToolbar markets={markets.data ?? []} filter={marketFilter} facets={facets}
-            onFilter={filter => { setMarketFilter(filter); setDeckIndex(0) }}
-            onFacets={next => { setFacets(next); setDeckIndex(0) }} />
+            onFilter={filter => { setMarketFilter(filter) }}
+            onFacets={next => { setFacets(next) }} />
           <ActivityBanner active={screen === 'deck'} onOpen={() => { activity.reload(); goto('activity') }} />
           {markets.status === 'loading' && (
             <div style={{ paddingTop: 16 }}>
@@ -246,7 +243,7 @@ export default function PlayPage() {
           {markets.status === 'ready' && list.length === 0 && (
             <Blank icon="deck" title={t(marketFilter === 'all' && !facets.competition && !facets.category ? 'deck.empty.title' : 'filters.empty')}
               body={t(marketFilter === 'all' && !facets.competition && !facets.category ? 'deck.empty.body' : 'filters.emptyBody')}
-              action={linkedMatch || marketFilter !== 'all' || facets.competition || facets.category ? <Press size="size-sm" onClick={() => { setLinkedMatch(null); setMarketFilter('all'); setFacets(EMPTY_FACETS); setDeckIndex(0) }}>{t('filters.showAll')}</Press> : undefined} />
+              action={linkedMatch || marketFilter !== 'all' || facets.competition || facets.category ? <Press size="size-sm" onClick={() => { setLinkedMatch(null); setMarketFilter('all'); setFacets(EMPTY_FACETS) }}>{t('filters.showAll')}</Press> : undefined} />
           )}
           {markets.status === 'ready' && list.length > 0 && (
             <> {linkedMatch && <Press size="size-sm" intent="intent-ghost" onClick={() => setLinkedMatch(null)}>{t('filters.showAll')}</Press>}<MarketFeed
@@ -282,26 +279,19 @@ export default function PlayPage() {
         {/* ── Leaders ─────────────────────────────────────────── */}
         <section hidden={screen !== 'leaders'} className={`pl-screen${screen === 'leaders' ? ' pl-on' : ''}`}>
           <LeadersScreen
+            available={balanceAfterTrade ?? me.data?.balance ?? null}
             active={screen === 'leaders'}
             board={leaders.data}
             status={leaders.status}
+            weekOffset={leaderWeek}
+            onWeek={setLeaderWeek}
             period={leaderPeriod}
             onPeriod={setLeaderPeriod}
             onRetry={leaders.reload}
           />
         </section>
 
-        {/* ── Confirmation ────────────────────────────────────── */}
-        <section hidden={screen !== 'done'} className={`pl-screen${screen === 'done' ? ' pl-on' : ''}`}>
-          {confirmed && (
-            <ConfirmScreen
-              trade={confirmed}
-              upNext={upNext}
-              onViewPositions={() => goto('mine')}
-              onNext={() => goto('markets')}
-            />
-          )}
-        </section>
+        {confirmed && <QuickTradeConfirmation trade={confirmed} onDone={dismissConfirmation}/>}
 
         {/* ── Detail sheet ────────────────────────────────────── */}
         {detail && screen === 'deck' && (

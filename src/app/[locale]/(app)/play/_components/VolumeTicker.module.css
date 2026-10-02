@@ -1,0 +1,7 @@
+.ticker{display:flex;align-items:center;flex-wrap:wrap;gap:6px 8px;min-height:32px;font-size:11px;color:#c3cdbb;position:relative;z-index:2}
+.dot{width:6px;height:6px;border-radius:50%;background:#7ed321;flex:none}
+.total{font-variant-numeric:tabular-nums;font-weight:750;white-space:nowrap}
+.activity{margin-left:auto;min-height:16px;color:#b4ef7a;font-size:10px}
+.arrival{display:inline-block;animation:arrival 3.2s both}
+@keyframes arrival{0%{opacity:0;transform:translateY(6px)}10%,85%{opacity:1;transform:translateY(0)}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.arrival{animation:none}}

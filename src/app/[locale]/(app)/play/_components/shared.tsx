@@ -29,6 +29,7 @@ export interface PressProps {
   block?: boolean
   disabled?: boolean
   onClick?: () => void
+  ariaPressed?: boolean
   ariaExpanded?: boolean
   ariaHasPopup?: "dialog"
   ariaLabel?: string
@@ -45,6 +46,7 @@ export function Press({
   disabled = false,
   onClick,
   ariaLabel,
+  ariaPressed,
   ariaExpanded,
   ariaHasPopup,
   className,
@@ -60,6 +62,7 @@ export function Press({
       disabled={disabled}
       onClick={onClick}
       aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       aria-expanded={ariaExpanded}
       aria-haspopup={ariaHasPopup}
     >
