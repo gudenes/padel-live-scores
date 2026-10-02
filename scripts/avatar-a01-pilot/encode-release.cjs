@@ -1,0 +1,3 @@
+// Encode approved PNG masters for web delivery, preserving dimensions and alpha.
+const fs=require('node:fs/promises'),path=require('node:path'),sharp=require('sharp');
+(async()=>{const root=path.resolve(__dirname,'../../public/play/avatars/a01-local/characters');let before=0,after=0;for(const file of await fs.readdir(root)){if(!file.endsWith('.png'))continue;const input=path.join(root,file),output=input.replace(/\.png$/,'.webp');before+=(await fs.stat(input)).size;await sharp(input).webp({quality:88,alphaQuality:100,effort:5}).toFile(output);after+=(await fs.stat(output)).size;}console.log(JSON.stringify({beforeBytes:before,afterBytes:after,savedPercent:Math.round((1-after/before)*100)}));})().catch(e=>{console.error(e);process.exit(1)});

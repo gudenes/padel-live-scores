@@ -39,7 +39,7 @@ export function normalize(input={}) {return Object.fromEntries([...slots,'hat','
 export function renderAvatar({avatar='face-06',outfit={},id='a01',base='../',portrait=false,debug=false,images={}}={}) {
  if(!profiles[avatar]) throw new Error('Unknown A01 character');
  const p=profiles[avatar],o=normalize(outfit),prefix=id.replace(/[^a-zA-Z0-9_-]/g,'');
- const src=path=>xml(images[path]??base+path);
+ const src=path=>{const asset=path.startsWith('characters/')?path.replace(/\.png$/,'.webp'):path;return xml(images[asset]??base+asset)};
 
  const fittedSource=fittedSources[avatar]?.[o.hat];
  const fitted=Boolean(fittedSource);

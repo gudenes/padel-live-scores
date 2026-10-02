@@ -61,7 +61,7 @@ export default function PlayerProfile({ userId, name }: { userId: string; name: 
         </a> : <button className={styles.primary} onClick={openWardrobe}>{t('wardrobe')} <span aria-hidden>↗</span></button>}
       </div>
       <div data-avatar-art style={{display:'contents'}}>
-      {access.data === true ? <ShopProfileFigure className={styles.character} fallback={<PlayerFigure className={styles.character} outfit={shown} label={t('characterAlt')} />}/> : <PlayerFigure className={styles.character} outfit={shown} label={t('characterAlt')} />}
+      {access.data === true ? <ShopProfileFigure className={styles.character} fallback={<PlayerFigure approvedArtwork={access.data === true} className={styles.character} outfit={shown} label={t('characterAlt')} />}/> : <PlayerFigure approvedArtwork={access.data === true} className={styles.character} outfit={shown} label={t('characterAlt')} />}
       </div>
       <span className={styles.outfitName}>{access.data === true ? '' : <>{label(equipped.face)}{canCustomizePlayer(shown) || equipped.face === 'starter' ? ` · ${label(equipped.clothes)}` : ''}</>}</span>
       </div>
@@ -81,14 +81,14 @@ export default function PlayerProfile({ userId, name }: { userId: string; name: 
       <div className={styles.wardrobe}>
         <div className={styles.row}><h2>{t('wardrobe')}</h2><button className={styles.close} aria-label={t('close')} onClick={() => dialog.current?.close()}>×</button></div>
         {wardrobeTab !== 'photo' && <div className={styles.preview}>
-          <PlayerFigure className={styles.figurePreview} outfit={draft} label={label(selected.face)} />
-          <div className={styles.portrait}><PlayerAvatar outfit={draft} size={60} /><span>{t('avatarPreview')}</span></div>
+          <PlayerFigure approvedArtwork={access.data === true} className={styles.figurePreview} outfit={draft} label={label(selected.face)} />
+          <div className={styles.portrait}><PlayerAvatar approvedArtwork={access.data === true} outfit={draft} size={60} /><span>{t('avatarPreview')}</span></div>
         </div>}
         {wardrobeTab !== 'photo' && <>
           <div className={styles.selectionHeading}><strong>{label(selected.face)}</strong><span>{t('tabs.faces')}</span></div>
           <div className={styles.faceRail} role="group" aria-label={t('tabs.faces')}>
             {[...PLAYER_FACES, ...(generated ? [generated] : equipped.face.startsWith('custom:') ? [equipped.face] : [])].map(item => <button key={item} aria-label={label(item)} aria-pressed={selected.face === item} data-face-selected={selected.face === item} className={styles.faceChoice} onClick={() => setDraft(withPlayerFace(draft, item))}>
-              <PlayerAvatar outfit={withPlayerFace(draft, item)} size={54} /><span>{label(item)}</span>
+              <PlayerAvatar approvedArtwork={access.data === true} outfit={withPlayerFace(draft, item)} size={54} /><span>{label(item)}</span>
             </button>)}
           </div>
           {canCustomizePlayer(draft) && <div className={styles.swatches} role="group" aria-label={t('tabs.looks')}>

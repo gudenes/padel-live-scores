@@ -31,10 +31,10 @@ export function usePlayerOutfit(userId?: string) {
   return { outfit, save }
 }
 /** All layers use artwork coordinates, so resizing cannot detach the neck. */
-export function PlayerFigure({ outfit, className, label = '', portrait = false }: { outfit: PlayerOutfit; className?: string; label?: string; portrait?: boolean }) {
+export function PlayerFigure({ outfit, className, label = '', portrait = false, approvedArtwork = process.env.NODE_ENV === 'development' }: { outfit: PlayerOutfit; className?: string; label?: string; portrait?: boolean; approvedArtwork?: boolean }) {
   const id = useId().replace(/:/g, '')
   const look=splitPlayerLook(outfit)
-  if(usesA01Artwork(look.face))return <span className={className} style={{display:'block',width:'100%',height:'100%'}} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:look.face,id:`portrait-${id}`,portrait,base:'/play/avatars/a01-local/',outfit:look.clothes==='starter'?{}:{shirt:look.clothes==='court-club'?'club':'cobalt',shorts:look.clothes==='court-club'?'club':'cobalt'}}).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ')}}/>
+  if(approvedArtwork && usesA01Artwork(look.face))return <span className={className} style={{display:'block',width:'100%',height:'100%'}} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:look.face,id:`portrait-${id}`,portrait,base:'/play/avatars/a01-local/',outfit:look.clothes==='starter'?{}:{shirt:look.clothes==='court-club'?'club':'cobalt',shorts:look.clothes==='court-club'?'club':'cobalt'}}).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ')}}/>
   const artwork = playerArtwork(outfit)
   return <svg className={className} role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : true} viewBox={portrait ? '200 20 620 650' : `0 0 ${PLAYER_RIG.width} ${PLAYER_RIG.height}`} style={{ display: 'block', width: '100%', height: '100%' }} preserveAspectRatio="xMidYMid meet">
     {artwork.kind === 'whole' ? <image href={artwork.image} width="1024" height="1536" /> : <>
@@ -47,8 +47,8 @@ export function PlayerFigure({ outfit, className, label = '', portrait = false }
     </>}
   </svg>
 }
-export function PlayerAvatar({ outfit, size = 44 }: { outfit: PlayerOutfit; size?: number }) {
+export function PlayerAvatar({ outfit, size = 44, approvedArtwork }: { outfit: PlayerOutfit; size?: number; approvedArtwork?: boolean }) {
   return <span style={{ width: size, height: size, display: 'inline-block', overflow: 'hidden', borderRadius: '50%', background: '#20211e', position: 'relative', flexShrink: 0 }}>
-    <PlayerFigure outfit={outfit} portrait />
+    <PlayerFigure outfit={outfit} portrait approvedArtwork={approvedArtwork} />
   </span>
 }

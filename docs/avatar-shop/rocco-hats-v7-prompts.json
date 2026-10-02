@@ -1,0 +1,27 @@
+{
+  "tool": "built-in image_gen",
+  "base": "public/play/avatars/a01-local/characters/face-10.png",
+  "instructions": "Add only specified hat; preserve identity, pose, full-body pixel registration, all colours. Transparent background. 1024x1536.",
+  "variants": [
+    {
+      "hat": "cobalt",
+      "prompt": "a navy blue open-crown sports visor with vivid cobalt blue edge piping and curved bill. Hair remains visible above the band."
+    },
+    {
+      "hat": "sunset",
+      "prompt": "a coral-orange open-crown sports visor with pale peach edge piping and curved bill. Hair remains visible above the band."
+    },
+    {
+      "hat": "champion",
+      "prompt": "a charcoal black forward-facing baseball cap with a small gold seam and gold bill edge. No logo."
+    },
+    {
+      "hat": "backwards",
+      "prompt": "a charcoal black backwards baseball cap with fine lime green stitching, a rear adjustment opening and metal buckle visible above his forehead, bill pointing behind his head."
+    },
+    {
+      "hat": "bandana",
+      "prompt": "a narrow orange fabric sports bandana wrapped snugly across the forehead, small tied knot and short tails beside his right temple (left side of image), silver hair visible above it."
+    }
+  ]
+}

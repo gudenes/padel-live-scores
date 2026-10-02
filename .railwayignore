@@ -138,5 +138,6 @@
 /public/play/avatars/shop/shoes/champion-nachos.png
 /public/play/avatars/shop/shoes/cobalt-nachos.png
 
-# A01 artwork is a development-only review until the roster is complete.
-/public/play/avatars/a01-local
+# Keep PNG masters out of production; the renderer serves optimized WebP sprites.
+/public/play/avatars/a01-local/characters/*.png
+/public/play/avatars/a01-local/wardrobe
