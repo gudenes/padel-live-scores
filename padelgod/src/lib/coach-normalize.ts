@@ -11,7 +11,7 @@ export function normalizeCoachName(s: string): string {
   return s
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .replace(APOSTROPHES, '')
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
