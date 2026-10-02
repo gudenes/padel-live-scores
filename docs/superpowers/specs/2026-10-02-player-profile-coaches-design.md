@@ -10,7 +10,7 @@ Show a player's coaches on the public player profile (`src/app/[locale]/player/[
 
 ## Decisions (2026-10-02)
 
-1. **Placement: a "Coaches" card on the Overview tab** (option B), right after the Current Partner card. When there is no current partner it sits right after Road to Trophy. Full width (`<Widget wide>`), same look as Current Partner / Plays With.
+1. **Placement: a "Coaches" card on the Overview tab** (option B), right after the Current Partner card. When there is no current partner it follows whatever precedes that slot (Road to Trophy / the earnings tiles). Full width (`<Widget wide>`), same look as Current Partner / Plays With.
 2. **Names only.** One line per coach, in FIP list order (`player_coaches.position`). No "also coaches …" and no other players — that belongs on the coach page (Phase 2).
 3. **No links yet.** Names are plain text; they become links to `/coach/[slug]` when coach pages ship.
 4. **Label:** "Coach" for one coach, "Coaches" for two or more. Localised in all 5 locales.
@@ -34,7 +34,7 @@ grant select on public.player_coaches_public to anon, authenticated;
 
 - **Owner-rights view (not `security_invoker`)** on purpose: it reads the RLS-locked tables as the view owner, and only these 5 columns ever leave. `notes`, `avatar_url`, `country`, `normalized_name`, aliases and both suggestion tables stay private. Supabase's advisor flags owner-rights views; this one is intentional and documented in the migration comment.
 - Status filter excludes `junk` and `merged`. A merged coach has no `player_coaches` rows anyway (merge moves them), so this is belt-and-braces.
-- No write grants. Tables stay exactly as locked as before.
+- Writes are explicitly revoked from anon/authenticated (Supabase default privileges would otherwise grant ALL); only SELECT is granted. The view is `security_barrier`. Tables stay exactly as locked as before.
 - Unreviewed coaches are shown: they are real FIP coach names, just not yet human-checked. Junk is the only thing hidden.
 
 ## UI

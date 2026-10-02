@@ -20,6 +20,18 @@ async function main() {
     )).rows[0].id as string
     await c.query(`insert into player_coaches (player_id, coach_id, raw_name, position) values ($1, $2, 'Zz Junk', 9)`, [player, junk])
 
+    // Owner-side counts: the "still locked" checks are only meaningful if the
+    // tables actually hold rows the owner can see.
+    const ownerAliases = (await c.query(`select count(*)::int n from coach_aliases`)).rows[0].n as number
+    const ownerSuggs = (await c.query(`select count(*)::int n from coach_merge_suggestions`)).rows[0].n as number
+    console.log({ ownerAliases, ownerSuggs })
+    const privs = (await c.query(
+      `select has_table_privilege('anon','public.player_coaches_public','INSERT') as ins,
+              has_table_privilege('anon','public.player_coaches_public','UPDATE') as upd,
+              has_table_privilege('anon','public.player_coaches_public','DELETE') as del,
+              has_table_privilege('anon','public.player_coaches_public','SELECT') as sel`,
+    )).rows[0] as { ins: boolean; upd: boolean; del: boolean; sel: boolean }
+
     await c.query('set local role anon')
     const cols = (await c.query(`select * from player_coaches_public limit 1`)).fields.map((f) => f.name).sort()
     const viewRows = (await c.query(`select count(*)::int n from player_coaches_public`)).rows[0].n as number
@@ -28,15 +40,25 @@ async function main() {
     const aliasRows = (await c.query(`select count(*)::int n from coach_aliases`)).rows[0].n as number
     const suggRows = (await c.query(`select count(*)::int n from coach_merge_suggestions`)).rows[0].n as number
 
+    const pcRows = (await c.query(`select count(*)::int n from player_coaches`)).rows[0].n as number
+    const linkSuggRows = (await c.query(`select count(*)::int n from coach_player_link_suggestions`)).rows[0].n as number
+
     const checks = {
       exactlyFiveColumns: JSON.stringify(cols) === JSON.stringify(['coach_id', 'display_name', 'player_id', 'position', 'slug']),
       anonCanReadView: viewRows > 0,
       junkHidden: junkLeak === 0,
       coachesStillLocked: coachesRows === 0,
-      aliasesStillLocked: aliasRows === 0,
-      suggestionsStillLocked: suggRows === 0,
+      aliasesStillLocked: ownerAliases > 0 && aliasRows === 0, // fails (meaninglessly locked) when the owner sees 0 rows
+      suggestionsStillLocked: ownerSuggs > 0 && suggRows === 0, // fails when ownerSuggs is 0: check is meaningless
+      playerCoachesStillLocked: pcRows === 0,
+      linkSuggestionsStillLocked: linkSuggRows === 0,
+      anonNoInsert: privs.ins === false,
+      anonNoUpdate: privs.upd === false,
+      anonNoDelete: privs.del === false,
+      anonCanSelectPriv: privs.sel === true,
     }
-    console.log({ cols, viewRows, ...checks })
+    console.log({ cols, viewRows, ownerAliases, ownerSuggs, ...checks })
+    if (ownerAliases === 0 || ownerSuggs === 0) console.error('NOTE: owner sees 0 rows in coach_aliases or coach_merge_suggestions; the corresponding lock check cannot pass')
     if (!Object.values(checks).every(Boolean)) process.exitCode = 1
   } finally {
     await c.query('rollback').catch(() => {})

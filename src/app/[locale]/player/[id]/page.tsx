@@ -348,13 +348,22 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 
         // Canonical coaches (public view; junk/merged excluded). Best-effort:
         // a failure must never break the profile — just no card.
-        const { data: coachRows, error: coachErr } = await supabase
+        supabase
           .from('player_coaches_public')
           .select('coach_id, display_name, position')
           .eq('player_id', id)
           .order('position')
-        if (coachErr) console.warn('[player] coaches load failed', coachErr.message)
-        if (!cancelled) setCoaches((coachRows ?? []) as ProfileCoach[])
+          .then(({ data, error }) => {
+            if (error) console.warn('[player] coaches load failed', error.message)
+            if (!cancelled) {
+              setCoaches(
+                ((data ?? []) as { coach_id: string; display_name: string; position: number }[]).map((r) => ({
+                  coach_id: r.coach_id,
+                  display_name: r.display_name,
+                })),
+              )
+            }
+          })
 
         // Fetch ALL career matches. Supabase's default range cap is 1000
         // rows, which comfortably covers every player in the DB today
