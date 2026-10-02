@@ -31,6 +31,21 @@ describe('generateMergeSuggestions', () => {
     const out = generateMergeSuggestions([c('1', 'juan gutierrez'), c('2', 'juan jose gutierrez')], new Set())
     expect(out).toEqual([{ coach_a: '1', coach_b: '2', score: 1, reason: 'subset' }])
   })
+  it('compares every absorbed spelling (Crosetti/Crossetti/Crosseti)', () => {
+    const out = generateMergeSuggestions(
+      [c('1', 'pablo crosetti', { names: ['pablo crosetti', 'pablo crossetti'] }), c('2', 'pablo crosseti')],
+      new Set(),
+    )
+    expect(out).toHaveLength(1)
+    expect(out[0].reason).toBe('typo')
+  })
+  it('ignores single-token absorbed spellings', () => {
+    const out = generateMergeSuggestions(
+      [c('1', 'juan restivo', { names: ['manuel'] }), c('2', 'manuel zamora aguilar'), c('3', 'manuel perez')],
+      new Set(),
+    )
+    expect(out).toEqual([])
+  })
   it('never pairs single-token names', () => {
     const out = generateMergeSuggestions(
       [c('1', 'manual'), c('2', 'manuel zamora aguilar'), c('3', 'juan'), c('4', 'juan restivo')],

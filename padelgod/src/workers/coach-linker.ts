@@ -105,9 +105,16 @@ export async function runCoachLinker(deps: CoachLinkerDeps): Promise<CoachLinker
   const plan = planCoachLinks({ players: plannerPlayers, coaches, aliases, existingLinks }, randomUUID)
 
   // Suggestions run over the post-plan coach set.
+  // Every spelling a coach has absorbed (merge_coaches repoints aliases to the target).
+  const namesByCoach = new Map<string, string[]>()
+  for (const a of [...aliases, ...plan.newAliases]) {
+    const list = namesByCoach.get(a.coach_id)
+    if (list) list.push(a.normalized_alias)
+    else namesByCoach.set(a.coach_id, [a.normalized_alias])
+  }
   const allCoaches: SuggestionCoach[] = [
-    ...coaches.map((c) => ({ id: c.id, normalized_name: c.normalized_name, status: c.status, player_id: c.player_id })),
-    ...plan.newCoaches.map((c) => ({ id: c.id, normalized_name: c.normalized_name, status: 'unreviewed' as const, player_id: null })),
+    ...coaches.map((c) => ({ id: c.id, normalized_name: c.normalized_name, status: c.status, player_id: c.player_id, names: namesByCoach.get(c.id) })),
+    ...plan.newCoaches.map((c) => ({ id: c.id, normalized_name: c.normalized_name, status: 'unreviewed' as const, player_id: null, names: namesByCoach.get(c.id) })),
   ]
   // Full pairwise pass every run (~2.7s for ~860 coaches) so suggestions stay
   // correct after merges / status changes.

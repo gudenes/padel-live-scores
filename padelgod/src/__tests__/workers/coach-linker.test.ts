@@ -115,4 +115,20 @@ describe('runCoachLinker', () => {
     expect(f.t.player_coaches).toHaveLength(0)
     expect(f.writes.filter((w) => w.table === 'coach_aliases' || w.table === 'player_coaches')).toEqual([])
   })
+
+  it('suggests a merge via an absorbed alias spelling, not just normalized_name', async () => {
+    const mk = (id: string, n: string) => ({ id, normalized_name: n, display_name: n, slug: id, status: 'unreviewed', merged_into: null, player_id: null })
+    const f = makeFake({
+      players: [],
+      coaches: [mk('c1', 'pablo crosetti'), mk('c2', 'pablo crosseti')],
+      coach_aliases: [
+        { normalized_alias: 'pablo crosetti', coach_id: 'c1' },
+        { normalized_alias: 'pablo crossetti', coach_id: 'c1' },
+        { normalized_alias: 'pablo crosseti', coach_id: 'c2' },
+      ],
+    })
+    const r = await runCoachLinker({ supabase: f.supabase, logger: quietLogger, dryRun: false })
+    expect(r.suggestionsCreated).toBe(1)
+    expect(f.t.coach_merge_suggestions).toHaveLength(1)
+  })
 })

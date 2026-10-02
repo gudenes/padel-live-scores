@@ -13,6 +13,8 @@ export interface SuggestionCoach {
   normalized_name: string
   status: 'unreviewed' | 'verified' | 'junk' | 'merged'
   player_id: string | null
+  /** Extra normalized spellings (coach_aliases) the coach has absorbed. */
+  names?: string[]
 }
 
 export interface MergeSuggestion {
@@ -37,14 +39,24 @@ function eligible(c: SuggestionCoach): boolean {
   return c.status !== 'junk' && c.status !== 'merged' && coachTokens(c.normalized_name).length >= 2
 }
 
+/** Unique spellings (normalized_name + absorbed names) with >=2 tokens. */
+function spellings(c: SuggestionCoach): string[] {
+  return [...new Set([c.normalized_name, ...(c.names ?? [])])].filter((n) => coachTokens(n).length >= 2)
+}
+
 /**
+ * Compares every spelling each coach has (normalized_name + absorbed aliases),
+ * so a merge that deletes a source's suggestions doesn't hide its spellings.
  * @param existingPairs pairKey() of every coach_merge_suggestions row, any status
  */
 export function generateMergeSuggestions(
   coaches: SuggestionCoach[],
   existingPairs: Set<string>,
 ): MergeSuggestion[] {
-  const pool = coaches.filter(eligible)
+  const pool = coaches
+    .filter((c) => c.status !== 'junk' && c.status !== 'merged')
+    .map((c) => ({ id: c.id, names: spellings(c) }))
+    .filter((c) => c.names.length > 0)
   const out: MergeSuggestion[] = []
   for (let i = 0; i < pool.length; i++) {
     for (let j = i + 1; j < pool.length; j++) {
@@ -54,12 +66,16 @@ export function generateMergeSuggestions(
       const key = pairKey(x.id, y.id)
       if (existingPairs.has(key)) continue
       const [coach_a = '', coach_b = ''] = key.split('|')
-      if (subsetSimilarity(x.normalized_name, y.normalized_name) === 1) {
-        out.push({ coach_a, coach_b, score: 1, reason: 'subset' })
-        continue
+      let subset = false
+      let best = 0
+      for (const nx of x.names) {
+        for (const ny of y.names) {
+          if (subsetSimilarity(nx, ny) === 1) subset = true
+          else if (!subset) best = Math.max(best, typoTolerantSimilarity(nx, ny))
+        }
       }
-      const typo = typoTolerantSimilarity(x.normalized_name, y.normalized_name)
-      if (typo >= TYPO_THRESHOLD) out.push({ coach_a, coach_b, score: Number(typo.toFixed(3)), reason: 'typo' })
+      if (subset) out.push({ coach_a, coach_b, score: 1, reason: 'subset' })
+      else if (best >= TYPO_THRESHOLD) out.push({ coach_a, coach_b, score: Number(best.toFixed(3)), reason: 'typo' })
     }
   }
   return out
