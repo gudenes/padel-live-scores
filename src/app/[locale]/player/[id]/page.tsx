@@ -1144,7 +1144,7 @@ function OverviewTab({
         const cpTotal = derived.cpWins + derived.cpLosses
         const cpWr = cpTotal > 0 ? Math.round((derived.cpWins / cpTotal) * 100) : 0
         return (
-          <Widget wide label="Current Partner">
+          <Widget wide label={t('currentPartner')}>
             <div
               onClick={() => router.push(`/player/${derived.currentPartner!.id}`)}
               style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
@@ -1161,12 +1161,12 @@ function OverviewTab({
                 </div>
                 {cpTotal > 0 && (
                   <div style={{ fontSize: 10, color: MUTED, marginTop: 2 }}>
-                    {cpTotal} {cpTotal === 1 ? 'match' : 'matches'} · {derived.cpWins}-{derived.cpLosses} · Last {derived.lastPartneredIso ? formatDate(derived.lastPartneredIso, format) : '—'}
+                    {t('partnerMatchesLine', { count: cpTotal, wins: derived.cpWins, losses: derived.cpLosses, date: derived.lastPartneredIso ? formatDate(derived.lastPartneredIso, format) : '—' })}
                   </div>
                 )}
                 {derived.firstPartneredIso && (
                   <div style={{ fontSize: 9, color: MUTED, marginTop: 1 }}>
-                    First match together {formatDate(derived.firstPartneredIso, format)}
+                    {t('firstMatchTogether', { date: formatDate(derived.firstPartneredIso, format) })}
                   </div>
                 )}
               </div>
