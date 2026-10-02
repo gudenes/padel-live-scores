@@ -39,6 +39,7 @@ it('uses the plural label and keeps FIP order for two coaches', () => {
   expect(screen.getByText('Coaches')).toBeTruthy()
   const names = screen.getAllByTestId('coach-name').map((n) => n.textContent)
   expect(names).toEqual(['Gustavo Pratto', 'Martin Canali'])
+  expect(screen.getAllByTestId('coach-name')[0].parentElement!.parentElement!.textContent).toBe('Gustavo Pratto, Martin Canali')
 })
 
 const labels: Record<string, [string, string]> = {
