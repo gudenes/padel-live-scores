@@ -72,6 +72,11 @@
     "sunset": "face-04-sunset-fitted-v6.png"
   },
   "face-10": {
-    "club": "face-10-club-fitted-v6.png"
+    "club": "face-10-club-fitted-v6.png",
+    "cobalt": "face-10-cobalt-fitted-v7.png",
+    "sunset": "face-10-sunset-fitted-v7.png",
+    "champion": "face-10-champion-fitted-v7.png",
+    "backwards": "face-10-backwards-fitted-v7.png",
+    "bandana": "face-10-bandana-fitted-v7.png"
   }
 }
