@@ -2,6 +2,8 @@
 -- players.coaches (TEXT[]) stays the raw FIP field. Everything here is derived
 -- from it by padelgod's coach-linker worker, plus operator decisions.
 
+set local lock_timeout = '5s';  -- FKs to the hot public.players table take a lock; fail fast instead of queueing
+
 create table if not exists public.coaches (
   id uuid primary key default gen_random_uuid(),
   display_name text not null,
@@ -16,7 +18,8 @@ create table if not exists public.coaches (
   player_id uuid references public.players(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check ((status = 'merged') = (merged_into is not null))
+  check ((status = 'merged') = (merged_into is not null)),
+  check (merged_into is null or merged_into <> id)
 );
 create unique index if not exists coaches_normalized_name_active
   on public.coaches(normalized_name) where status <> 'merged';
@@ -89,6 +92,7 @@ left join public.player_coaches pc on pc.coach_id = c.id
 left join public.players p on p.id = pc.player_id and coalesce(p.tier, 'pro') = 'pro'
 where c.status <> 'merged'
 group by c.id;
+comment on column public.coach_stats.player_count is 'Counts pro-tier players only (coalesce(tier, ''pro'') = ''pro'').';
 
 -- Atomic merge: everything of p_source moves onto p_target.
 create or replace function public.merge_coaches(
@@ -97,7 +101,7 @@ create or replace function public.merge_coaches(
   p_keep_source_name boolean default false
 ) returns void
 language plpgsql
-security definer
+security invoker
 set search_path = public
 as $$
 declare
@@ -107,13 +111,19 @@ begin
   if p_source = p_target then
     raise exception 'merge_coaches: source and target are the same coach';
   end if;
-  select * into s from public.coaches where id = p_source for update;
-  select * into t from public.coaches where id = p_target for update;
+
+  -- Lock both rows in id order so concurrent opposite-direction merges cannot deadlock.
+  perform 1 from public.coaches where id in (p_source, p_target) order by id for update;
+  select * into s from public.coaches where id = p_source;
+  select * into t from public.coaches where id = p_target;
   if s.id is null or t.id is null then
     raise exception 'merge_coaches: coach not found';
   end if;
   if s.status = 'merged' or t.status = 'merged' then
     raise exception 'merge_coaches: coach already merged';
+  end if;
+  if s.player_id is not null and t.player_id is not null and s.player_id <> t.player_id then
+    raise exception 'merge_coaches: both coaches are linked to different players — unlink one first';
   end if;
 
   update public.coach_aliases set coach_id = p_target, source = 'merge' where coach_id = p_source;
@@ -129,6 +139,7 @@ begin
     on conflict (coach_a, coach_b) do update set status = 'merged', decided_at = now();
 
   -- Carry "not the same person" decisions over to the target so they are never re-suggested.
+  -- Never overwrite a 'merged' history row, and skip coaches that are themselves merged.
   insert into public.coach_merge_suggestions (coach_a, coach_b, score, reason, status, decided_at)
     select least(p_target, x.other), greatest(p_target, x.other), x.score, x.reason, 'rejected', x.decided_at
     from (
@@ -136,17 +147,32 @@ begin
       from public.coach_merge_suggestions
       where status = 'rejected' and (coach_a = p_source or coach_b = p_source)
     ) x
+    join public.coaches oc on oc.id = x.other and oc.status <> 'merged'
     where x.other <> p_target
-    on conflict (coach_a, coach_b) do update set status = 'rejected', decided_at = excluded.decided_at;
+    on conflict (coach_a, coach_b) do update set status = 'rejected', decided_at = excluded.decided_at
+      where coach_merge_suggestions.status = 'pending';
 
   -- Drop the source's remaining pending/rejected rows; the linker regenerates pending ones against the target.
   delete from public.coach_merge_suggestions
     where status in ('pending','rejected') and (coach_a = p_source or coach_b = p_source);
-  delete from public.coach_player_link_suggestions where coach_id = p_source and status = 'pending';
 
+  -- Carry rejected coach<->player link decisions, then drop the source's pending/rejected rows
+  -- (linked history is kept).
+  insert into public.coach_player_link_suggestions (coach_id, player_id, status, decided_at)
+    select p_target, player_id, 'rejected', decided_at
+    from public.coach_player_link_suggestions where coach_id = p_source and status = 'rejected'
+    on conflict (coach_id, player_id) do update set status = 'rejected', decided_at = excluded.decided_at
+      where coach_player_link_suggestions.status = 'pending';
+  delete from public.coach_player_link_suggestions
+    where coach_id = p_source and status in ('pending','rejected');
+
+  -- Mark source merged (clearing player_id first so the unique index never sees a duplicate).
   update public.coaches
     set status = 'merged', merged_into = p_target, player_id = null, updated_at = now()
     where id = p_source;
+
+  -- Flatten merge chains: anything previously merged into the source now points at the target.
+  update public.coaches set merged_into = p_target, updated_at = now() where merged_into = p_source;
 
   update public.coaches
     set display_name = case when p_keep_source_name then s.display_name else display_name end,
@@ -155,6 +181,9 @@ begin
     where id = p_target;
 end;
 $$;
+
+comment on function public.merge_coaches(uuid, uuid, boolean) is
+  'Moves everything from source coach onto target. p_keep_source_name changes display_name only: normalized_name and slug stay the target''s (slugs are stable for Phase-2 public pages).';
 
 revoke all on function public.merge_coaches(uuid, uuid, boolean) from public, anon, authenticated;
 
