@@ -670,6 +670,7 @@
     "ageYrs": "{count} anos",
     "height": "Altura",
     "heightCm": "{count} cm",
+    "coachesLabel": "{count, plural, one {Treinador} other {Treinadores}}",
     "plays": "Joga",
     "leftHanded": "Canhoto",
     "rightHanded": "Destro",
