@@ -65,3 +65,10 @@ Preserved approved chunky filter buttons rather than the reference's rounded but
 - Avatar artwork waits for all unique image layers before fading in, with a fixed-size neutral placeholder and reduced-motion support. Requests time out rather than remaining pending indefinitely.
 - Five regression checks passed for request reuse/account separation, refresh failures, own/other avatars and shared image readiness. TypeScript and targeted lint passed. No production latency claim; local preview suffered server/network delays during visual review.
 - Final loading guard tolerates failed accessory images and bounds the wait to 8 seconds; a missing layer cannot permanently hide the character. Added failure regression coverage (six focused tests passed). Member appearance requests retry once after a transient failure and preserve cached data. Confirmed own avatar across header/summary/row and self inclusion under Following. Another member remained on the neutral placeholder during local API delays; complete remote-avatar visual verification remains outstanding. Proof: output/market-group-review/28-avatar-loading-following.png.
+
+## Production release preparation — 2 October
+- Based on current origin/main bb8552edd, preserving current web/coach/beta pages.
+- Play, shop, shared avatars and follows continue to require server-side Play access. No whitelist or feature flag changes.
+- Keep A01 art development-only: face-10 has five incomplete fitted headwear variants. Registered the existing finished v6 files for the other avatars. Production keeps its current artwork while receiving the UI/cache changes.
+- Keep ordinary non-Play account photos on explicit access denial; transient wardrobe failures retain a neutral placeholder or cached wardrobe.
+- Updated obsolete live-filter test to reflect the approved removal of that control.

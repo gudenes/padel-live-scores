@@ -20,10 +20,9 @@ it('does not invent a match destination for season markets',()=>{
 it('preserves match ids in API parsing',()=>{
  expect(parseMarkets({markets:[{id:'market',matchId:'match',priceYes:.5} ]})[0].matchId).toBe('match')
 })
-it('filters to live plays and counts each match once',()=>{
+it('keeps pending plays together without the removed live filter',()=>{
  const positions=[{marketId:'a',matchId:'match-1',question:'Live yes',side:'yes',avgPrice:.5,currentPrice:.5,shares:10,status:'locked',live:true},{marketId:'a',matchId:'match-1',question:'Live no',side:'no',avgPrice:.5,currentPrice:.5,shares:10,status:'locked',live:true},{marketId:'b',matchId:'match-2',question:'Scheduled pick',side:'yes',avgPrice:.5,currentPrice:.5,shares:10,status:'open',live:false}]
  const me=parseMe({positions,balance:100,netWorth:100})
  render(wrap(<PositionsScreen me={me} status="ready" onExplore={()=>{}} onRetry={()=>{}}/>))
- fireEvent.click(screen.getByRole('button',{name:'Live now · 1'}));expect(screen.queryByText('Scheduled pick')).toBeNull();expect(screen.getByText('Live yes')).toBeTruthy();expect(screen.getAllByRole('link',{name:/Follow live/})).toHaveLength(2)
- fireEvent.click(screen.getByRole('button',{name:'Live now · 1'}));expect(screen.getByText('Scheduled pick')).toBeTruthy()
+ expect(screen.queryByRole('button',{name:/Live now/})).toBeNull();expect(screen.getByText('Scheduled pick')).toBeTruthy();expect(screen.getByText('Live yes')).toBeTruthy();expect(screen.getAllByRole('link',{name:/Follow live/})).toHaveLength(2)
 })

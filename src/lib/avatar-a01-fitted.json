@@ -1,6 +1,11 @@
 {
   "face-05": {
-    "backwards": "face-05-backwards-fitted-v5.png"
+    "backwards": "face-05-backwards-fitted-v5.png",
+    "sunset": "face-05-sunset-fitted-v6.png",
+    "club": "face-05-club-fitted-v6.png",
+    "champion": "face-05-champion-fitted-v6.png",
+    "bandana": "face-05-bandana-fitted-v6.png",
+    "cobalt": "face-05-cobalt-fitted-v6.png"
   },
   "face-06": {
     "club": "face-06-club-fitted-study-v1.png",
@@ -17,5 +22,56 @@
     "sunset": "face-01-sunset-fitted-v3.png",
     "bandana": "face-01-bandana-fitted-v3.png",
     "backwards": "face-01-backwards-fitted-v3.png"
+  },
+  "face-02": {
+    "club": "face-02-club-fitted-v6.png",
+    "sunset": "face-02-sunset-fitted-v6.png",
+    "bandana": "face-02-bandana-fitted-v6.png",
+    "cobalt": "face-02-cobalt-fitted-v6.png",
+    "backwards": "face-02-backwards-fitted-v6.png",
+    "champion": "face-02-champion-fitted-v6.png"
+  },
+  "face-03": {
+    "backwards": "face-03-backwards-fitted-v6.png",
+    "cobalt": "face-03-cobalt-fitted-v6.png",
+    "sunset": "face-03-sunset-fitted-v6.png",
+    "champion": "face-03-champion-fitted-v6.png",
+    "bandana": "face-03-bandana-fitted-v6.png",
+    "club": "face-03-club-fitted-v6.png"
+  },
+  "face-07": {
+    "sunset": "face-07-sunset-fitted-v6.png",
+    "backwards": "face-07-backwards-fitted-v6.png",
+    "club": "face-07-club-fitted-v6.png",
+    "cobalt": "face-07-cobalt-fitted-v6.png",
+    "bandana": "face-07-bandana-fitted-v6.png",
+    "champion": "face-07-champion-fitted-v6.png"
+  },
+  "face-08": {
+    "sunset": "face-08-sunset-fitted-v6.png",
+    "backwards": "face-08-backwards-fitted-v6.png",
+    "cobalt": "face-08-cobalt-fitted-v6.png",
+    "bandana": "face-08-bandana-fitted-v6.png",
+    "club": "face-08-club-fitted-v6.png",
+    "champion": "face-08-champion-fitted-v6.png"
+  },
+  "face-09": {
+    "cobalt": "face-09-cobalt-fitted-v6.png",
+    "sunset": "face-09-sunset-fitted-v6.png",
+    "club": "face-09-club-fitted-v6.png",
+    "backwards": "face-09-backwards-fitted-v6.png",
+    "champion": "face-09-champion-fitted-v6.png",
+    "bandana": "face-09-bandana-fitted-v6.png"
+  },
+  "face-04": {
+    "bandana": "face-04-bandana-fitted-v6.png",
+    "backwards": "face-04-backwards-fitted-v6.png",
+    "club": "face-04-club-fitted-v6.png",
+    "cobalt": "face-04-cobalt-fitted-v6.png",
+    "champion": "face-04-champion-fitted-v6.png",
+    "sunset": "face-04-sunset-fitted-v6.png"
+  },
+  "face-10": {
+    "club": "face-10-club-fitted-v6.png"
   }
 }

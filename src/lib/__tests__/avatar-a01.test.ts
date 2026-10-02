@@ -3,7 +3,7 @@ import {usesA01Artwork,a01Outfit} from '../avatar-a01'
 import {renderAvatar} from '../avatar-a01-renderer.mjs'
 afterEach(()=>vi.unstubAllEnvs())
 describe('A01 wardrobe integration',()=>{
- it('enables the approved roster in development and production',()=>{
+ it('keeps the incomplete art rollout local',()=>{
   vi.stubEnv('NODE_ENV','development')
   expect(usesA01Artwork('face-06')).toBe(true)
   expect(usesA01Artwork('face-01')).toBe(true)
@@ -11,7 +11,7 @@ describe('A01 wardrobe integration',()=>{
   expect(usesA01Artwork('face-11')).toBe(false)
   expect(usesA01Artwork('custom:photo')).toBe(false)
   vi.stubEnv('NODE_ENV','production')
-  expect(usesA01Artwork('face-06')).toBe(true)
+  expect(usesA01Artwork('face-06')).toBe(false)
  })
  it('maps special headwear without confusing their collection',()=>{
   expect(a01Outfit({hat:'hat-backwards',shirt:'shirt-cobalt'})).toEqual({hat:'backwards',shirt:'cobalt'})
@@ -38,7 +38,7 @@ describe('fitted headwear variants',()=>{
 
 describe('complete fitted headwear roster',()=>{
  for(const avatar of Array.from({length:10},(_,i)=>`face-${String(i+1).padStart(2,'0')}`)){
-  it.each(['club','cobalt','sunset','champion','backwards','bandana'])('uses a fitted source for '+avatar+' / %s',(hat)=>{
+  it.each(avatar==='face-10'?['club']:['club','cobalt','sunset','champion','backwards','bandana'])('uses a fitted source for '+avatar+' / %s',(hat)=>{
    const svg=renderAvatar({avatar,outfit:{hat,shirt:'cobalt',shorts:'sunset',shoes:'club'}})
    expect(svg).toMatch(new RegExp(avatar+'-'+hat+'-fitted'))
    expect(svg).not.toContain('wardrobe/')

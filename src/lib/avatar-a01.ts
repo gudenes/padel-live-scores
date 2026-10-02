@@ -1,7 +1,7 @@
 import {SHOP_ITEMS, type ShopState} from './avatar-shop'
-/** A01 artwork for saved Play wardrobes; access remains enforced by the Play routes. */
+/** Local art rollout; keep production artwork until every fitted combination is ready. */
 export function usesA01Artwork(avatar:string) {
- return /^face-(0[1-9]|10)$/.test(avatar)
+ return process.env.NODE_ENV==='development' && /^face-(0[1-9]|10)$/.test(avatar)
 }
 export function a01Outfit(equipped:ShopState['equipped']):Record<string,string> {
  return Object.fromEntries(Object.entries(equipped).flatMap(([slot,id])=>{
