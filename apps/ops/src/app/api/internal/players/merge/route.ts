@@ -156,12 +156,33 @@ export async function POST(request: Request) {
       )
     }
 
+    // 7b. Coaches. coaches.player_id is ON DELETE SET NULL and
+    //     coach_player_link_suggestions cascades — deleting the loser would drop
+    //     a confirmed coach↔player link and any "not the same person" decisions.
+    //     (player_coaches cascading is fine: the coach-linker rebuilds it.)
+    const notes: string[] = []
+    if (await tableExists(client, 'coaches')) {
+      const loserCoach = await client.query('SELECT id FROM coaches WHERE player_id = $1', [deleteId])
+      if (loserCoach.rowCount) {
+        const keepCoach = await client.query('SELECT id FROM coaches WHERE player_id = $1', [keepId])
+        if (!keepCoach.rowCount) {
+          await client.query('UPDATE coaches SET player_id = $1 WHERE player_id = $2', [keepId, deleteId])
+        } else {
+          const note = `coach link lost: losing player was linked to coach ${loserCoach.rows[0].id}, survivor keeps coach ${keepCoach.rows[0].id}`
+          console.warn(`[players/merge] ${note}`)
+          notes.push(note)
+        }
+      }
+    }
+    //     Move suggestion decisions to the survivor, skipping (coach_id, survivor) pairs that exist.
+    await reassignUnique(client, 'coach_player_link_suggestions', 'player_id', ['coach_id'], keepId, deleteId, false)
+
     // 8. Remove the duplicate. Remaining ON DELETE CASCADE FKs (ranking-snapshot
     //    leftovers, player-dedup/content-tag tables) clean themselves up.
     await client.query('DELETE FROM players WHERE id = $1', [deleteId])
 
     await client.query('COMMIT')
-    return NextResponse.json({ matchesUpdated, drawsUpdated, deleted: true })
+    return NextResponse.json({ matchesUpdated, drawsUpdated, deleted: true, ...(notes.length ? { notes } : {}) })
   } catch (e: unknown) {
     await client.query('ROLLBACK').catch(() => {})
     const message = e instanceof Error ? e.message : String(e)
