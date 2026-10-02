@@ -15,3 +15,13 @@ it('fetches each layer once and reuses rendering across formats and repeated ope
 it('invalidates the cache when the equipped artwork changes',async()=>{const svg=avatar();const first=await avatarShareFile(svg);svg.querySelector('image')!.setAttribute('href','/play/new.webp');expect(await avatarShareFile(svg)).not.toBe(first);expect(fetchImage).toHaveBeenCalledTimes(3)})
 it('allows a retry after a failed layer download',async()=>{const svg=avatar();fetchImage.mockResolvedValueOnce({ok:false});await expect(avatarShareFile(svg)).rejects.toThrow();await expect(avatarShareFile(svg)).resolves.toHaveProperty('name','padel-nachos-full.png')})
 it('caches court and transparent exports separately without refetching the avatar',async()=>{const svg=avatar();const court=await avatarShareFile(svg,'full','court');const transparent=await avatarShareFile(svg,'full','transparent');expect(transparent).not.toBe(court);expect(await avatarShareFile(svg,'full','court')).toBe(court);expect(fetchImage).toHaveBeenCalledTimes(1)})
+it('preserves A01 alpha and uses its head coordinates for portrait export',async()=>{
+ const calls:unknown[][]=[]
+ const fill=vi.fn(),pixels=vi.fn()
+ vi.mocked(HTMLCanvasElement.prototype.getContext).mockImplementation((()=>({fillRect:fill,drawImage:(...args:unknown[])=>calls.push(args),getImageData:pixels,putImageData:vi.fn()})) as never)
+ const svg=avatar();svg.dataset.avatarRenderer='a01';svg.dataset.portraitCrop='310 45 430 445'
+ await avatarShareFile(svg,'portrait','transparent')
+ expect(fill).not.toHaveBeenCalled()
+ expect(pixels).not.toHaveBeenCalled()
+ expect(calls.some(call=>call[1]===310*720/1024&&call[2]===45*720/1024&&call[3]===430*720/1024&&call[4]===445*720/1024)).toBe(true)
+})

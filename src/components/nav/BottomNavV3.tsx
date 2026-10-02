@@ -361,7 +361,7 @@ export default function BottomNavV3() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [feedLastVisit])
 
-  if (pathname === '/avatar-shop') return null
+  if (pathname === '/avatar-shop' || pathname === '/avatar-preview') return null
 
   return (
     <>

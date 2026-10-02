@@ -1168,4 +1168,18 @@ body:has(.pl-root) .v3-nav-tab { flex:1; min-width:0; padding-left:4px !importan
 .pl-seg button,.pl-subnav button { transition:background 267ms ease,color 267ms ease,border-color 267ms ease; }
 @keyframes pl-screen-arrive { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @media(prefers-reduced-motion:reduce) { .pl-screen.pl-on,.pl-tick { animation:none; } .pl-seg button,.pl-subnav button { transition:none; } }
+
+.pl-quick-confirm{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;gap:12px}
+.pl-quick-check{display:grid;place-items:center;width:64px;height:64px;background:var(--lime);color:#0a0a0a;clip-path:var(--clip-tag);font-size:38px;font-weight:900}
+.pl-quick-confirm h2{font-size:24px;margin:0}
+.pl-quick-confirm p{color:var(--text-secondary);font-size:15px;margin:0}
+
+.pl-quick-confirm{position:fixed;z-index:250;bottom:calc(var(--pl-navh) + 12px);left:50%;transform:translateX(-50%);width:min(400px,calc(100% - 32px));box-sizing:border-box;display:grid;grid-template-columns:36px 1fr;gap:5px 12px;padding:16px 18px;background:#202b20;border:1px solid #7ed321;box-shadow:0 8px 28px #0008;text-align:left;pointer-events:none;animation:pl-toast-in .25s ease-out both}
+.pl-quick-confirm .pl-quick-check{grid-row:1/4;width:34px;height:34px;font-size:23px}
+.pl-quick-confirm h2{font-size:16px}.pl-quick-confirm p{font-size:12px;grid-column:2}
+.pl-quick-confirm .pl-toast-question{color:#eee9d7;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pl-toast-closing{animation:pl-toast-out .3s ease-in both}
+@keyframes pl-toast-in{from{opacity:0;transform:translate(-50%,28px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes pl-toast-out{to{opacity:0;transform:translate(-50%,20px)}}
+@media(prefers-reduced-motion:reduce){.pl-quick-confirm{animation:none}.pl-toast-closing{opacity:0}}
 `

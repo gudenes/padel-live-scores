@@ -138,6 +138,8 @@ export default function ProfileButton({ size = 34, onProfileClick, label }: { si
         ref={triggerRef}
         onClick={isLoggedIn && onProfileClick ? onProfileClick : handleClick}
         aria-label={label}
+        aria-haspopup={isLoggedIn && onProfileClick ? undefined : 'menu'}
+        aria-expanded={isLoggedIn && onProfileClick ? undefined : menuOpen}
         suppressHydrationWarning
         style={{
           position: 'relative',

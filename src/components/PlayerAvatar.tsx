@@ -1,8 +1,10 @@
 'use client'
 
 import { useSyncExternalStore, useCallback, useId } from 'react'
-import { outfitStorageKey, parseOutfit, type PlayerOutfit } from '@/lib/player-outfit'
+import { outfitStorageKey, parseOutfit, splitPlayerLook, type PlayerOutfit } from '@/lib/player-outfit'
 
+import {usesA01Artwork} from '@/lib/avatar-a01'
+import {renderAvatar} from '@/lib/avatar-a01-renderer.mjs'
 import { PLAYER_RIG, playerArtwork } from '@/lib/player-rig'
 
 const event = 'pn-outfit-change'
@@ -31,6 +33,8 @@ export function usePlayerOutfit(userId?: string) {
 /** All layers use artwork coordinates, so resizing cannot detach the neck. */
 export function PlayerFigure({ outfit, className, label = '', portrait = false }: { outfit: PlayerOutfit; className?: string; label?: string; portrait?: boolean }) {
   const id = useId().replace(/:/g, '')
+  const look=splitPlayerLook(outfit)
+  if(usesA01Artwork(look.face))return <span className={className} style={{display:'block',width:'100%',height:'100%'}} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:look.face,id:`portrait-${id}`,portrait,base:'/play/avatars/a01-local/',outfit:look.clothes==='starter'?{}:{shirt:look.clothes==='court-club'?'club':'cobalt',shorts:look.clothes==='court-club'?'club':'cobalt'}}).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ')}}/>
   const artwork = playerArtwork(outfit)
   return <svg className={className} role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : true} viewBox={portrait ? '200 20 620 650' : `0 0 ${PLAYER_RIG.width} ${PLAYER_RIG.height}`} style={{ display: 'block', width: '100%', height: '100%' }} preserveAspectRatio="xMidYMid meet">
     {artwork.kind === 'whole' ? <image href={artwork.image} width="1024" height="1536" /> : <>

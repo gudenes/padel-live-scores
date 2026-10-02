@@ -92,6 +92,7 @@ export interface PlayerJoin {
 }
 
 export interface TournamentJoin {
+  ends_at?: string | null
   cover_image_url?: string | null
   name: string | null
   level: string | null
@@ -130,6 +131,7 @@ export interface TemplateJoin {
 }
 
 export interface MarketRow {
+  settled_at?: string | null
   resolver_key?: string
   id: string
   public_id: string
@@ -194,7 +196,7 @@ const PLAYER_FIELDS =
 export const MARKET_SELECT = `
   id, public_id, season_id, template_id, match_id, tournament_id, category,
   tokens, question_snapshot, rules_snapshot, resolver_key, resolver_params, lmsr_b, seed_prob, seed_source, q_yes, q_no,
-  volume_guacas, position_count, status, locks_at, outcome,
+  volume_guacas, position_count, status, locks_at, outcome, settled_at,
   template:market_templates!markets_template_id_fkey(question_i18n, horizon),
   match:matches!markets_match_id_fkey(
     id, status, round, scheduled_at, category, pred_pair1_prob,
@@ -206,7 +208,7 @@ export const MARKET_SELECT = `
     pair2_player2:players!matches_pair2_player2_id_fkey(${PLAYER_FIELDS}),
     tournament:tournaments(name, level)
   ),
-  tournament:tournaments!markets_tournament_id_fkey(name, level, cover_image_url)
+  tournament:tournaments!markets_tournament_id_fkey(name, level, cover_image_url, ends_at)
 `.replace(/\s+/g, ' ').trim()
 
 /** The four player slots of a match, in `(pair, index)` order. */
@@ -448,6 +450,9 @@ function renderQuestion(
 // ── Market presentation ────────────────────────────────────────────────
 
 export interface MarketView {
+  roundLabel?: string | null
+  categoryLabel?: string | null
+  resolverKey?: string | null
   editorial?: EditorialView | null
   id: string
   publicId: string
@@ -593,6 +598,9 @@ export function describeMarket(
     baselineProb: baselineProbFor(row),
     live,
     stateLabel,
+    roundLabel: round || null,
+    categoryLabel: category ? categoryLabel(category, locale) : null,
+    resolverKey: row.resolver_key ?? null,
     competition: tournament?.name ?? null,
     category,
     startsAt: row.match?.scheduled_at ?? null,

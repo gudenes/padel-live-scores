@@ -49,3 +49,30 @@ export async function productionMarketActivity(supabase: import('@supabase/supab
     }
   })
 }
+
+/** Cumulative simulated volume, independent of the activity feed's 30-row limit. */
+export async function simulationVolumes(req: Request, supabase: import('@supabase/supabase-js').SupabaseClient, ids: string[]) {
+  const totals: Record<string, number> = {}
+  if (!ids.length) return totals
+  if (process.env.NODE_ENV !== 'production') {
+    const file = simulationStoragePath(req)
+    if (!file || !existsSync(file)) return totals
+    const db = new DatabaseSync(file, {readOnly:true})
+    try {
+      const rows = db.prepare(`SELECT m.source_market_id AS id, SUM(t.cost) AS volume FROM trades t JOIN markets m ON m.id=t.market_id WHERE m.source_market_id IN (${ids.map(()=>'?').join(',')}) GROUP BY m.source_market_id`).all(...ids)
+      for (const row of rows) totals[String(row.id)] = Number(row.volume)
+    } finally { db.close() }
+    return totals
+  }
+  if (process.env.PLAY_SIMULATION_ENABLED !== 'true') return totals
+  for (let offset=0;;offset+=1000) {
+    const {data,error}=await supabase.from('play_sim_trades').select('id,cost,play_sim_markets!inner(source_market_id)').in('play_sim_markets.source_market_id',ids).order('id').range(offset,offset+999)
+    if(error) throw new Error('Could not load simulation volume')
+    for(const row of data ?? []) {
+      const id=(row.play_sim_markets as unknown as {source_market_id:string}).source_market_id
+      totals[id]=(totals[id] ?? 0)+Number(row.cost)
+    }
+    if(!data || data.length<1000) break
+  }
+  return totals
+}

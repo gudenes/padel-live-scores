@@ -1,7 +1,6 @@
 'use client'
 
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
 import ProfileButton from '@/components/ProfileButton'
 import GuacaCoin from '@/components/GuacaCoin'
 
@@ -11,7 +10,6 @@ export default function PlayerWallet({ balance, onPositions }: { balance: number
   const locale = useLocale()
   const t = useTranslations('playerProfile')
   const play = useTranslations('play')
-  const router = useRouter()
   const amount = balance === null ? '—' : new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(balance)
   const compact = balance === null ? '—' : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(balance)
   return <div className={styles.wallet}>
@@ -20,7 +18,7 @@ export default function PlayerWallet({ balance, onPositions }: { balance: number
       <span key={amount} className={styles.amount}>{compact}</span>
     </button>
     <div className={styles.avatar}>
-      <ProfileButton size={46} onProfileClick={() => router.push('/profile')} label={play('leaders.myProfile')} />
+      <ProfileButton size={46} label={play('leaders.myProfile')} />
     </div>
   </div>
 }

@@ -1,4 +1,5 @@
 'use client'
+import {AvatarReady,AvatarPlaceholder} from '../AvatarReady'
 import {Figure} from './WardrobeFigure'
 import AvatarShare from '../AvatarShare'
 
@@ -151,8 +152,8 @@ export function ShopProfileFigure({className,fallback}:{className:string;fallbac
  const local=useMemo(()=>parseShopState(raw),[raw])
  const remote=useShopWardrobe(process.env.NODE_ENV==='production')
  const state=process.env.NODE_ENV==='production'?remote.data:raw?local:null
- if(!state)return <>{fallback}</>
- return <div className={className}><Figure state={state} preview={null} original/></div>
+ if(!state)return process.env.NODE_ENV==='production'&&!remote.denied?<div className={className}><AvatarPlaceholder/></div>:<>{fallback}</>
+ return <div className={className}><AvatarReady identity={JSON.stringify([state.avatar,state.equipped])}><Figure state={state} preview={null} original/></AvatarReady></div>
 }
 
 /** Header portrait follows the same saved selection as the local wardrobe/profile. */
@@ -161,6 +162,6 @@ export function ShopProfileAvatar({fallback,size}:{fallback:React.ReactNode;size
  const local=useMemo(()=>parseShopState(raw),[raw])
  const remote=useShopWardrobe(process.env.NODE_ENV==='production')
  const state=process.env.NODE_ENV==='production'?remote.data:raw?local:null
- if(!state)return <>{fallback}</>
- return <span style={{width:size,height:size,display:'block',overflow:'hidden',borderRadius:'50%',background:'#242520'}}><Figure state={state} preview={null} original portrait/></span>
+ if(!state)return process.env.NODE_ENV==='production'&&!remote.denied?<span style={{width:size,height:size,display:'block',borderRadius:'50%',overflow:'hidden'}}><AvatarPlaceholder/></span>:<>{fallback}</>
+ return <span style={{width:size,height:size,display:'block',overflow:'hidden',borderRadius:'50%',background:'#242520'}}><AvatarReady identity={JSON.stringify([state.avatar,state.equipped])}><Figure state={state} preview={null} original portrait/></AvatarReady></span>
 }

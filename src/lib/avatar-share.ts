@@ -57,6 +57,7 @@ async function renderArtwork(svg:SVGSVGElement):Promise<HTMLCanvasElement> {
     const artwork=document.createElement('canvas');artwork.width=720;artwork.height=1080
     const art=artwork.getContext('2d',{willReadFrequently:true})
     if(!art)throw new Error('Image export unavailable')
+    if(svg.dataset.avatarRenderer==='a01'){art.drawImage(image,0,0,720,1080);return artwork}
     art.fillStyle='#242520';art.fillRect(0,0,720,1080);art.globalCompositeOperation='lighten';art.drawImage(image,0,0,720,1080)
     const pixels=art.getImageData(0,0,720,1080);clearAvatarBackdrop(pixels.data,720,1080);art.putImageData(pixels,0,0)
     return artwork
@@ -72,12 +73,12 @@ function loadCourt(){
   if(!courtPromise)courtPromise=(async()=>{const image=new Image();image.src='/play/avatars/backgrounds/sage-court-v1.png';await image.decode();return image})().catch(error=>{courtPromise=undefined;throw error})
   return courtPromise
 }
-async function composeFile(artworkPromise:Promise<HTMLCanvasElement>,format:AvatarShareFormat,background:AvatarShareBackground){
+async function composeFile(artworkPromise:Promise<HTMLCanvasElement>,format:AvatarShareFormat,background:AvatarShareBackground,portraitCrop?:number[]){
   const [artwork,logo]=await Promise.all([artworkPromise,loadLogo()])
   const canvas=document.createElement('canvas');canvas.width=1080;canvas.height=format==='portrait'?1080:1440
   const ctx=canvas.getContext('2d');if(!ctx)throw new Error('Image export unavailable')
   if(background==='court'){const court=await loadCourt();ctx.drawImage(court,0,0,1080,canvas.height)}
-  if(format==='portrait')ctx.drawImage(artwork,190,30,410,440,225,100,630,676)
+  if(format==='portrait'){const [x,y,w,h]=portraitCrop??[190,30,410,440];ctx.drawImage(artwork,x,y,w,h,225,100,630,676)}
   else ctx.drawImage(artwork,120,20,840,1260)
   const width=152,height=width*914/1846,x=format==='portrait'?770:884,bottom=format==='portrait'?780:1200
   ctx.drawImage(logo,56,244,1846,914,x,bottom-height,width,height)
@@ -94,7 +95,9 @@ export function avatarShareFile(svg:SVGSVGElement,format:AvatarShareFormat='full
   const key=`${format}:${background}`
   const cached=entry.files.get(key);if(cached)return cached
   const current=entry
-  const file=composeFile(entry.artwork,format,background).catch(error=>{if(exportsByAvatar.get(svg)===current)exportsByAvatar.delete(svg);throw error})
+  const crop=svg.dataset.avatarRenderer==='a01'?svg.dataset.portraitCrop?.split(' ').map(Number):undefined
+  const scaledCrop=crop?.length===4&&crop.every(Number.isFinite)?crop.map(n=>n*720/1024):undefined
+  const file=composeFile(entry.artwork,format,background,scaledCrop).catch(error=>{if(exportsByAvatar.get(svg)===current)exportsByAvatar.delete(svg);throw error})
   entry.files.set(key,file)
   return file
 }
