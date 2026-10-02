@@ -39,12 +39,10 @@ function eligible(c: SuggestionCoach): boolean {
 
 /**
  * @param existingPairs pairKey() of every coach_merge_suggestions row, any status
- * @param onlyIds when set, only pairs where at least one side is in this set are compared
  */
 export function generateMergeSuggestions(
   coaches: SuggestionCoach[],
   existingPairs: Set<string>,
-  onlyIds?: Set<string>,
 ): MergeSuggestion[] {
   const pool = coaches.filter(eligible)
   const out: MergeSuggestion[] = []
@@ -53,7 +51,6 @@ export function generateMergeSuggestions(
       const x = pool[i]
       const y = pool[j]
       if (!x || !y) continue
-      if (onlyIds && !onlyIds.has(x.id) && !onlyIds.has(y.id)) continue
       const key = pairKey(x.id, y.id)
       if (existingPairs.has(key)) continue
       const [coach_a = '', coach_b = ''] = key.split('|')
@@ -70,6 +67,8 @@ export function generateMergeSuggestions(
 
 /**
  * Exact normalized-name match between an unlinked coach and a player.
+ * @param players normalized_name MUST be computed with normalizeCoachName(name), NOT the DB
+ *   column players.normalized_name (trigger-built; it handles apostrophes differently).
  * @param existingPairs `${coach_id}|${player_id}` of every coach_player_link_suggestions row, any status
  * @param linkedPlayerIds players already set as some coach's player_id
  */

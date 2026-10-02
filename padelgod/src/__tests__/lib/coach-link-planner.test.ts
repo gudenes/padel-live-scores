@@ -138,4 +138,77 @@ describe('planCoachLinks', () => {
     expect(plan.newCoaches).toEqual([])
     expect(plan.linksToUpsert).toEqual([])
   })
+
+  const mc = (id: string, name: string, status: 'merged' | 'unreviewed' | 'verified', merged_into: string | null, slug = id) => ({
+    id, normalized_name: name, display_name: name, slug, status, merged_into,
+  })
+
+  it('falls back to a merged coach by normalized name (no alias) and follows the chain', () => {
+    const input = empty()
+    input.coaches = [mc('m', 'bob dylan', 'merged', 't'), mc('t', 'robert dylan', 'verified', null)]
+    input.players = [{ id: 'p1', coaches: ['Bob Dylan'] }]
+    const plan = planCoachLinks(input, ids())
+    expect(plan.newCoaches).toEqual([])
+    expect(plan.linksToUpsert).toEqual([{ player_id: 'p1', coach_id: 't', raw_name: 'Bob Dylan', position: 0 }])
+    expect(plan.newAliases).toEqual([{ normalized_alias: 'bob dylan', coach_id: 't', example_raw: 'Bob Dylan', source: 'auto' }])
+  })
+
+  it('follows a multi-hop alias chain A->B->C', () => {
+    const input = empty()
+    input.coaches = [mc('a', 'aa bb', 'merged', 'b'), mc('b', 'bb cc', 'merged', 'c'), mc('c', 'cc dd', 'verified', null)]
+    input.aliases = [{ normalized_alias: 'aa bb', coach_id: 'a' }]
+    input.players = [{ id: 'p1', coaches: ['Aa Bb'] }]
+    const plan = planCoachLinks(input, ids())
+    expect(plan.linksToUpsert.map((l) => l.coach_id)).toEqual(['c'])
+    expect(plan.counts.unresolvable).toBe(0)
+  })
+
+  it('skips raw strings whose merge chain does not end on a live coach', () => {
+    const input = empty()
+    input.coaches = [mc('a', 'aa bb', 'merged', 'ghost')]
+    input.aliases = [{ normalized_alias: 'aa bb', coach_id: 'a' }]
+    input.players = [{ id: 'p1', coaches: ['Aa Bb'] }]
+    const plan = planCoachLinks(input, ids())
+    expect(plan.linksToUpsert).toEqual([])
+    expect(plan.newCoaches).toEqual([])
+    expect(plan.counts.unresolvable).toBe(1)
+  })
+
+  it('skips merge cycles', () => {
+    const input = empty()
+    input.coaches = [mc('a', 'aa bb', 'merged', 'b'), mc('b', 'bb cc', 'merged', 'a')]
+    input.aliases = [{ normalized_alias: 'aa bb', coach_id: 'a' }]
+    input.players = [{ id: 'p1', coaches: ['Aa Bb'] }]
+    const plan = planCoachLinks(input, ids())
+    expect(plan.linksToUpsert).toEqual([])
+    expect(plan.counts.unresolvable).toBe(1)
+  })
+
+  it('aliasHits ignores aliases created earlier in the same run', () => {
+    const input = empty()
+    input.players = [
+      { id: 'p1', coaches: ['New Coach'] },
+      { id: 'p2', coaches: ['New Coach'] },
+    ]
+    const plan = planCoachLinks(input, ids())
+    expect(plan.newCoaches).toHaveLength(1)
+    expect(plan.counts.aliasHits).toBe(0)
+    expect(plan.counts.rawStrings).toBe(2)
+  })
+
+  it('collapses internal whitespace in example_raw but not in link raw_name', () => {
+    const input = empty()
+    input.players = [{ id: 'p1', coaches: ['  Juan   Perez '] }]
+    const plan = planCoachLinks(input, ids())
+    expect(plan.newAliases[0]?.example_raw).toBe('Juan Perez')
+    expect(plan.linksToUpsert[0]?.raw_name).toBe('  Juan   Perez ')
+  })
+
+  it('suffixes the slug when it collides with a merged coach slug', () => {
+    const input = empty()
+    input.coaches = [mc('m', 'other name', 'merged', null, 'juan-perez')]
+    input.players = [{ id: 'p1', coaches: ['Juan Perez'] }]
+    const plan = planCoachLinks(input, ids())
+    expect(plan.newCoaches[0]?.slug).toBe('juan-perez-2')
+  })
 })

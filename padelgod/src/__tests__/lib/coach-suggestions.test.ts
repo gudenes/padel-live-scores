@@ -49,10 +49,9 @@ describe('generateMergeSuggestions', () => {
     )
     expect(out).toEqual([])
   })
-  it('with onlyIds, compares only pairs touching those ids', () => {
-    const coaches = [c('1', 'borja lopez'), c('2', 'borja lopez vidal'), c('3', 'adrian espinosa'), c('4', 'adrian espinosa cruz')]
-    const out = generateMergeSuggestions(coaches, new Set(), new Set(['4']))
-    expect(out.map((s) => pairKey(s.coach_a, s.coach_b))).toEqual(['3|4'])
+  it('does not suggest a 1-char typo on a short (<4 char) token', () => {
+    const out = generateMergeSuggestions([c('1', 'ana lopez'), c('2', 'ena lopez')], new Set())
+    expect(out).toEqual([])
   })
 })
 
