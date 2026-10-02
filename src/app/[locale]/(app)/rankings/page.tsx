@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
-import { useRouter, usePathname, Link } from '@/i18n/navigation'
+import { useRouter, usePathname } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
@@ -13,6 +13,7 @@ import { useSwipeTabs } from '@/hooks/useSwipeTabs'
 import { markRankingsVisited } from '@/hooks/useRankingsLastVisit'
 import { formatYearWeek } from '@/lib/iso-year-week'
 import { formatPointsMove } from '@/lib/points-move'
+import CoachRankingList from './CoachRankingList'
 import SlidingInkTabs from '@/components/SlidingInkTabs'
 import { fetchMoneyLeaderboard, type RankedMoneyRow } from '@/lib/money-leaderboard'
 import { MoneyExplainSheet } from '@/components/MoneyExplainSheet'
@@ -71,7 +72,7 @@ function countryFlagUrl(code: string | null): string | null {
 }
 
 // ── Types ─────────────────────────────────────────────────────
-type RankType = 'official' | 'race' | 'money'
+type RankType = 'official' | 'race' | 'money' | 'coaches'
 type Gender = 'men' | 'women'
 
 interface Player {
@@ -320,7 +321,6 @@ function MoneyRow({
 
 export default function V3RankingPage() {
   const t = useTranslations('rankings')
-  const tCoach = useTranslations('coach')
   const format = useFormatter()
   const router = useRouter()
   const pathname = usePathname()
@@ -331,6 +331,7 @@ export default function V3RankingPage() {
   const initialType: RankType =
     searchParams.get('type') === 'race' ? 'race'
     : searchParams.get('type') === 'money' ? 'money'
+    : searchParams.get('type') === 'coaches' ? 'coaches'
     : 'official'
   const highlight = searchParams.get('highlight')
 
@@ -338,7 +339,7 @@ export default function V3RankingPage() {
   const [gender, setGender] = useState<Gender>(initialGender)
 
   // Swipe between Official / Race tabs
-  const RANK_KEYS = useMemo(() => ['official', 'race', 'money'] as const, [])
+  const RANK_KEYS = useMemo(() => ['official', 'race', 'money', 'coaches'] as const, [])
   const rankIndex = RANK_KEYS.indexOf(rankType)
   // Memoised so useSwipeTabs returns a stable goTo — without this, the
   // hook's inline onTabChange is a fresh closure on every render,
@@ -351,7 +352,7 @@ export default function V3RankingPage() {
     setMoneyRows(null)
   }, [RANK_KEYS])
   const { goTo: swipeGoTo, handlers: swipeHandlers } = useSwipeTabs({
-    count: 3,
+    count: 4,
     initial: rankIndex,
     onTabChange: handleTabChange,
   })
@@ -429,6 +430,11 @@ export default function V3RankingPage() {
   const load = useCallback(async (rt: RankType, g: Gender) => {
     setLoading(true)
     try {
+      if (rt === 'coaches') {
+        // CoachRankingList owns its own fetching.
+        setLoading(false)
+        return
+      }
       if (rt === 'money') {
         try {
           const year = new Date().getUTCFullYear()
@@ -584,15 +590,6 @@ export default function V3RankingPage() {
         </h1>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Link
-          href="/coaches"
-          style={{
-            color: MUTED, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
-            textTransform: 'uppercase', textDecoration: 'none',
-          }}
-        >
-          {tCoach('rankingsLink')}
-        </Link>
         <button
           onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
           style={{
@@ -658,7 +655,8 @@ export default function V3RankingPage() {
         </div>
       )}
 
-      {/* ── Gender toggle + updated date ──────────────────── */}
+      {/* ── Gender toggle + updated date (coaches tab has its own chips) ── */}
+      {rankType !== 'coaches' && (
       <div style={{ padding: '14px 16px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {/* Gender pill toggle */}
@@ -694,6 +692,7 @@ export default function V3RankingPage() {
           )}
         </div>
       </div>
+      )}
 
       {/* ── Official / Race tabs ──────────────────────────── */}
       <SlidingInkTabs<RankType>
@@ -701,6 +700,7 @@ export default function V3RankingPage() {
           { key: 'official', label: t('official') },
           { key: 'race', label: t('race') },
           { key: 'money', label: t('money') },
+          { key: 'coaches', label: t('coachesTab') },
         ]}
         activeKey={rankType}
         onChange={(rt) => {
@@ -739,6 +739,10 @@ export default function V3RankingPage() {
         </button>
       )}
 
+      {rankType === 'coaches' ? (
+        <CoachRankingList />
+      ) : (
+      <>
       {/* ── Column labels ─────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center',
@@ -839,6 +843,8 @@ export default function V3RankingPage() {
             </div>
           )}
         </>
+      )}
+      </>
       )}
       </div>{/* end swipeable content area */}
 

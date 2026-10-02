@@ -332,6 +332,7 @@
     "men": "Uomini",
     "women": "Donne",
     "money": "Montepremi",
+    "coachesTab": "Allenatori",
     "moneyCaption": "Montepremi stimato",
     "moneySeason": "stagione {year}",
     "prizeColumn": "Premio €",
