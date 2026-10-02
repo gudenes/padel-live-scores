@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
-import { useRouter, usePathname } from '@/i18n/navigation'
+import { useRouter, usePathname, Link } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import FollowButton from '@/components/FollowButton'
@@ -320,6 +320,7 @@ function MoneyRow({
 
 export default function V3RankingPage() {
   const t = useTranslations('rankings')
+  const tCoach = useTranslations('coach')
   const format = useFormatter()
   const router = useRouter()
   const pathname = usePathname()
@@ -582,6 +583,16 @@ export default function V3RankingPage() {
           {t('rankings')}
         </h1>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Link
+          href="/coaches"
+          style={{
+            color: MUTED, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+            textTransform: 'uppercase', textDecoration: 'none',
+          }}
+        >
+          {tCoach('rankingsLink')}
+        </Link>
         <button
           onClick={() => { setSearchOpen(true); setTimeout(() => inputRef.current?.focus(), 50) }}
           style={{
@@ -594,6 +605,7 @@ export default function V3RankingPage() {
             <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
           </svg>
         </button>
+        </div>
       </div>
 
       {/* ── Search bar (inline below header) ────────────── */}
