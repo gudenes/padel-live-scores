@@ -34,6 +34,9 @@ Lesson carried over from `d59a7206c` (Momo González conflation): **fuzzy matche
 3. **Rejections are durable.** A "not the same person" decision is stored and never re-suggested.
 4. **Junk is a status, not a deletion.** A junk coach keeps its aliases (so the string keeps resolving to it) but is excluded from stats and future pages.
 5. **Linking runs in padelgod** (where the raw data is written), as a new idempotent worker.
+6. **Coaches are a separate table, not rows in `players`.** `players` feeds the PlayerResolver, rankings, search, sitemap, Elo and projection; coach rows there would need a "skip coaches" filter everywhere and one miss leaks a coach into a draw or ranking.
+7. **…but the admin UI is shared: coaches live inside the Players tab** (decided 2026-10-02), so a player who becomes a coach is one click away.
+8. **Player ↔ coach link is optional and operator-confirmed.** `coaches.player_id` links a coach to their playing record. The linker may *suggest* the link on an exact normalized-name match; it never links automatically (same name ≠ same person).
 
 ## Coach normalizer
 
@@ -55,11 +58,14 @@ create table public.coaches (
   country text,                             -- nullable, operator-set
   avatar_url text,                          -- nullable, operator-set
   notes text,
+  player_id uuid references public.players(id) on delete set null,  -- player-turned-coach; operator-confirmed only
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create unique index coaches_normalized_name_active
   on public.coaches(normalized_name) where status <> 'merged';
+create unique index coaches_player_id_unique
+  on public.coaches(player_id) where player_id is not null;
 
 create table public.coach_aliases (
   normalized_alias text primary key,        -- normalizeCoachName(raw)
@@ -92,11 +98,21 @@ create table public.coach_merge_suggestions (
   check (coach_a < coach_b),
   unique (coach_a, coach_b)
 );
+
+create table public.coach_player_link_suggestions (
+  coach_id uuid not null references public.coaches(id),
+  player_id uuid not null references public.players(id) on delete cascade,
+  status text not null default 'pending'
+    check (status in ('pending','linked','rejected')),
+  decided_at timestamptz,
+  created_at timestamptz not null default now(),
+  primary key (coach_id, player_id)
+);
 ```
 
 Plus a read view `coach_stats` (coach_id, player_count, pro_points_sum, men_points_sum, women_points_sum, top player ids) — sums `players.points` over **distinct** players, `coalesce(tier,'pro')='pro'`, excludes `junk`/`merged` coaches. Men/women split kept from day one because summing the two ranking scales is misleading.
 
-RLS enabled on all four tables; no anon policy in Phase 1 (service key only). Phase 2 adds the public read policy.
+RLS enabled on all five tables; no anon policy in Phase 1 (service key only). Phase 2 adds the public read policy.
 
 Applied via pg + `DATABASE_URL` (per repo practice), not `supabase db push`.
 
@@ -109,7 +125,8 @@ Applied via pg + `DATABASE_URL` (per repo practice), not `supabase db push`.
   3. Rebuild `player_coaches` for each touched player (delete + insert in one transaction per batch) so coach changes on FIP propagate. A coach with zero players is kept (history), not deleted.
   4. Suggestion pass: for every pair of non-merged, non-junk coaches with ≥2 tokens each, compute subset/typo scores; upsert `pending` suggestions when the pair has no existing row. **Existing `rejected`/`merged` rows are never touched.**
   5. Flag likely junk: a coach whose normalized name is a single token gets a `notes` hint ("single-token name — check if junk"); status stays `unreviewed` (operator decides).
-- Result shape: `{ playersScanned, rawStrings, aliasHits, autoAliases, coachesCreated, playerLinksWritten, suggestionsCreated }`.
+  6. Player-link pass: for each non-merged, non-junk coach with no `player_id` and ≥2 tokens, look for players whose `normalized_name` equals the coach's normalized name (any tier). Insert a `pending` `coach_player_link_suggestions` row when none exists for the pair. Never writes `coaches.player_id`; existing `linked`/`rejected` rows are never touched.
+- Result shape: `{ playersScanned, rawStrings, aliasHits, autoAliases, coachesCreated, playerLinksWritten, suggestionsCreated, playerLinkSuggestionsCreated }`.
 - Idempotent: a second run with no FIP change writes nothing new.
 - Pair count is ~860² / 2 ≈ 370k comparisons on token sets — fine in-process; only new coaches need comparing after the first run (compare new × all).
 
@@ -127,21 +144,24 @@ After the first linker run, a one-shot script `scripts/seed-coach-decisions.ts` 
 
 Runs only on Gustavo's go-ahead (prod data write).
 
-## Admin UI (`apps/ops`)
+## Admin UI (`apps/ops`) — inside the Players tab
 
-New rail entry **Coaches** next to Players. Uses the existing design-system primitives (`PageHeader`, `Panel`, `KpiStrip`, `DataTable`, `Pill`, `Button`) inside `ui-page`; token-driven, both themes.
+No new rail entry. Coaches live in the existing Players tab (`apps/ops/src/app/(app)/players/`), using the same design-system primitives (`PageHeader`, `Panel`, `KpiStrip`, `DataTable`, `Pill`, `Button`, `FilterChips`) inside `ui-page`; token-driven, both themes.
 
-1. **`/coaches` — list** (tabs: All · Review queue)
+1. **Players tab gets a view switch: Players · Coaches · Review queue.** Players view is unchanged except for tags (below). Selected view is in the URL (`/players?view=coaches`) so it's linkable.
+2. **Coaches view** — the coach list.
    - KPIs: total coaches, unreviewed, pending suggestions, junk.
-   - Table: name, status pill, variants count, players, men pts, women pts. Search by name (normalized), filter chips by status. Default sort: pro points desc (this *is* the internal coach ranking).
-2. **Review queue tab** — pending suggestions sorted by combined points of both coaches (high-impact first). Each row: both names with their raw variants + top players, score + reason, buttons **Merge → (pick surviving name)** and **Not the same person**.
-3. **`/coaches/[id]` — detail**
-   - Header: display name (editable), status selector (unreviewed / verified / junk), country, avatar URL, notes.
-   - Panels: Aliases (raw spellings + source), Players (linked, with rank/points, link to player page), Pending suggestions for this coach, "Merge into…" picker (search other coaches).
-4. **Player detail** — existing `CoachesSection` shows linked coaches as links to `/coaches/[id]`, falling back to the raw string when not yet linked. Manual coach editing in `ProfileSection` stays as is (it edits the raw field; the next linker run picks it up).
-5. ⌘K palette: add coaches to `/api/internal/search` results.
+   - Table: name, status pill, **Player** tag when `player_id` is set (links to the player), variants count, players coached, men pts, women pts. Search by name (normalized), status filter chips. Default sort: pro points desc (this *is* the internal coach ranking).
+3. **Review queue view** — two sections:
+   - **Merge suggestions** sorted by combined points of both coaches (high-impact first). Each row: both names with raw variants + top players, score + reason, **Merge → (pick surviving name)** and **Not the same person**.
+   - **Player-link suggestions** ("Coach *X* might be player *Y*"): coach name + players coached, player name + country/tier/last ranking, **Link** and **Not the same person**.
+4. **Coach detail `/players/coaches/[id]`** — mirrors the player detail layout.
+   - Header: display name (editable), status selector (unreviewed / verified / junk), country, avatar URL, notes, **Is player…** picker (search players → sets `player_id`; clear to unlink).
+   - Panels: Aliases (raw spellings + source), Players coached (rank/points, link to player page), pending suggestions for this coach, "Merge into…" picker.
+5. **Player tags.** In the Players table and on player detail, a **Coach** tag appears when a coach record has `player_id` = this player; it links to the coach detail. The existing `CoachesSection` (coaches *of* this player) shows linked coaches as links to their coach detail, falling back to the raw string when not yet linked. Manual coach editing in `ProfileSection` stays as is (it edits the raw field; the next linker run picks it up).
+6. ⌘K palette: add coaches to `/api/internal/search` results (labelled "Coach").
 
-API routes under `apps/ops/src/app/api/internal/coaches/*` (list, detail GET/PATCH, merge POST, suggestion reject POST), same auth as the existing internal routes.
+API routes under `apps/ops/src/app/api/internal/coaches/*` (list, detail GET/PATCH incl. `player_id`, merge POST, merge-suggestion reject POST, player-link accept/reject POST), same auth as the existing internal routes.
 
 ## Error handling
 
@@ -151,10 +171,10 @@ API routes under `apps/ops/src/app/api/internal/coaches/*` (list, detail GET/PAT
 
 ## Testing
 
-- **Unit (padelgod, vitest):** `normalizeCoachName` and the suggestion generator against a fixture of real strings: `D’antonio`/`Dantonio` exact-merge; `Fábio Faísca` variants exact-merge; `Juan Gutierrez`/`Juan Jose Gutierrez` → suggestion (never auto); single-token `Manual` never pairs with multi-token names; rejected pair not re-suggested.
+- **Unit (padelgod, vitest):** `normalizeCoachName` and the suggestion generator against a fixture of real strings: `D’antonio`/`Dantonio` exact-merge; `Fábio Faísca` variants exact-merge; `Juan Gutierrez`/`Juan Jose Gutierrez` → suggestion (never auto); single-token `Manual` never pairs with multi-token names; rejected pair not re-suggested; player-link suggestion created on exact normalized match only and never auto-applied.
 - **Worker test:** fake Supabase, assert idempotence (2nd run writes nothing), player coach change rewrites `player_coaches`, junk coach still resolves.
 - **SQL:** migration ends with `ASSERT` blocks (repo convention); `merge_coaches` tested on a scratch transaction (rollback).
-- **Admin:** run locally, verify list, review queue merge/reject, detail edit, both themes.
+- **Admin:** run locally, verify the Players/Coaches/Review switch, merge/reject, player-link accept/reject + Coach/Player tags both directions, detail edit, both themes.
 
 ## Rollout
 
