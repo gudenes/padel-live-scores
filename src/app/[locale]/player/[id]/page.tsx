@@ -29,6 +29,7 @@ import { Widget, WidgetIcon, Last10SparkBar } from './Widget'
 import { PlaysWithCard } from './PlaysWithCard'
 import RoadToTrophyCard from './RoadToTrophyCard'
 import AmateurProfile from './AmateurProfile'
+import { CoachesCard, type ProfileCoach } from './CoachesCard'
 import { isAmateurTier } from '@/lib/player-tier'
 import { partitionLeagueMatches } from '@/lib/league-levels'
 import ShareButton from '@/components/ShareButton'
@@ -289,6 +290,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
       brand: { name: string; logo_url: string | null } | null
     } | null
   } | null>(null)
+  const [coaches, setCoaches] = useState<ProfileCoach[]>([])
   const [earnings, setEarnings] = useState<{ ytdEur: number; allTimeEur: number } | null>(null)
   const [enrollment, setEnrollment] = useState<{
     tournamentId: string
@@ -343,6 +345,16 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           .limit(1)
           .maybeSingle()
         if (!cancelled) setCurrentEquipment(eqData as { racket: { id: string; model: string | null; year: number | null; shape: string | null; weight_grams: number | null; balance: string | null; image_url: string | null; product_url: string | null; brand: { name: string; logo_url: string | null } | null } | null } | null)
+
+        // Canonical coaches (public view; junk/merged excluded). Best-effort:
+        // a failure must never break the profile — just no card.
+        const { data: coachRows, error: coachErr } = await supabase
+          .from('player_coaches_public')
+          .select('coach_id, display_name, position')
+          .eq('player_id', id)
+          .order('position')
+        if (coachErr) console.warn('[player] coaches load failed', coachErr.message)
+        if (!cancelled) setCoaches((coachRows ?? []) as ProfileCoach[])
 
         // Fetch ALL career matches. Supabase's default range cap is 1000
         // rows, which comfortably covers every player in the DB today
@@ -955,6 +967,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
             setActiveTab={setActiveTab}
             setSelectedYear={setSelectedYear}
             currentEquipment={currentEquipment}
+            coaches={coaches}
             earnings={earnings}
           />
         )}
@@ -993,7 +1006,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
 //  OVERVIEW TAB — Widget grid (from Concept C)
 // ═══════════════════════════════════════════════════════════════
 function OverviewTab({
-  player, matches, derived, playerId, router, setActiveTab, setSelectedYear, currentEquipment, earnings,
+  player, matches, derived, playerId, router, setActiveTab, setSelectedYear, currentEquipment, coaches, earnings,
 }: {
   player: PlayerRow
   matches: MatchRow[]
@@ -1015,6 +1028,7 @@ function OverviewTab({
       brand: { name: string; logo_url: string | null } | null
     } | null
   } | null
+  coaches: ProfileCoach[]
   earnings: { ytdEur: number; allTimeEur: number } | null
 }) {
   const t = useTranslations('player')
@@ -1161,6 +1175,9 @@ function OverviewTab({
           </Widget>
         )
       })()}
+
+      {/* Coaches — wide, names only (links come with coach pages) */}
+      <CoachesCard coaches={coaches} />
 
       {/* Last 10 — sparkline (clickable, newest on the right) */}
       {derived.last10Matches.length > 0 && (() => {
