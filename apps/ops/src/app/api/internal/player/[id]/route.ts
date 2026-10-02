@@ -190,12 +190,23 @@ export async function GET(
     return NextResponse.json({ error: earningsErr.message }, { status: 500 })
   }
 
+  const [{ data: coachLinks }, { data: coachRecord }] = await Promise.all([
+    supabase
+      .from('player_coaches')
+      .select('raw_name, position, coach:coaches(id, display_name, status)')
+      .eq('player_id', id)
+      .order('position'),
+    supabase.from('coaches').select('id, display_name').eq('player_id', id).maybeSingle(),
+  ])
+
   return NextResponse.json({
     player,
     equipment: equipment ?? [],
     recentMatches,
     teamCourtHistory,
     earnings: earnings ?? [],
+    coachLinks: coachLinks ?? [],
+    coachRecord: coachRecord ?? null,
   })
 }
 

@@ -233,6 +233,15 @@ export default function PlayersTable({
                         <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
                           {player.display_name || player.name}
                         </span>
+                        {player.coach_record?.[0] && (
+                          <Link
+                            href={`/players/coaches/${player.coach_record[0].id}`}
+                            title="Also a coach"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Pill tone="lime">Coach</Pill>
+                          </Link>
+                        )}
                         <Link
                           href={`/players/${player.id}`}
                           title="Open full profile"

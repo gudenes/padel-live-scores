@@ -21,7 +21,7 @@ import AmateurCourtHistorySection, {
 import EarningsSection, { type Earning } from './EarningsSection'
 import CoachesSection from './CoachesSection'
 import EquipmentTab from '../../_components/EquipmentTab'
-import { PageHeader, Panel, Skeleton } from '@/components/ui'
+import { PageHeader, Panel, Pill, Skeleton } from '@/components/ui'
 
 // Shape of the aggregator response. The interface is the union of fields read
 // by the sections rendered so far — ProfileHeader, Identity + Profile, Match
@@ -38,6 +38,8 @@ interface AggregatorResponse {
   recentMatches: MatchHistoryRow[]
   teamCourtHistory: AmateurCourtHistoryRow[]
   earnings: Earning[]
+  coachLinks: import('./CoachesSection').CoachLink[]
+  coachRecord: { id: string; display_name: string } | null
 }
 
 type LoadState =
@@ -108,6 +110,11 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
               title={state.data.player.display_name ?? state.data.player.name}
             />
             <ProfileHeader player={state.data.player} />
+            {state.data.coachRecord && (
+              <Link href={`/players/coaches/${state.data.coachRecord.id}`} title="Also a coach">
+                <Pill tone="lime">Coach</Pill>
+              </Link>
+            )}
           </div>
 
           {/* Identity + Profile side-by-side on lg, stacked on mobile. */}
@@ -171,7 +178,7 @@ export default function PlayerProfile({ playerId }: { playerId: string }) {
             }}
           >
             <EarningsSection earnings={state.data.earnings} />
-            <CoachesSection coaches={state.data.player.coaches} />
+            <CoachesSection coaches={state.data.player.coaches} links={state.data.coachLinks ?? []} />
           </div>
 
           {/* Activity placeholder — audit log not wired yet. */}

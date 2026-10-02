@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
 import type { EntityHit } from '@/lib/command-palette'
+import { escapeLike, normalizeCoachName } from '@/lib/coaches'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -76,6 +77,31 @@ export async function GET(request: Request) {
           href: `/tournament-explorer?tournament=${r.id}`,
         })
       }
+    }
+
+    // Coach hits are best-effort: a failure here must never drop player/tournament hits.
+    try {
+      const nq = normalizeCoachName(q)
+      if (nq) {
+        const { data: coachRows } = await supabase
+          .from('coach_stats')
+          .select('coach_id, display_name, player_count')
+          .ilike('normalized_name', `%${escapeLike(nq)}%`)
+          .neq('status', 'junk')
+          .order('total_points', { ascending: false })
+          .limit(5)
+        for (const c of coachRows ?? []) {
+          hits.push({
+            kind: 'coach',
+            id: c.coach_id,
+            label: c.display_name,
+            sub: `Coach · ${c.player_count} players`,
+            href: `/players/coaches/${c.coach_id}`,
+          })
+        }
+      }
+    } catch {
+      // ignore — coaches are optional in the palette
     }
 
     return NextResponse.json({ hits })

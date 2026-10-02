@@ -11,6 +11,8 @@ export interface PlayerSummary {
   avatar_url: string | null
   fip_id: string | null
   equipment: { brand: string; model: string; year: number | null } | null
+  /** Set when this player is also a coach (coaches.player_id). PostgREST returns an array. */
+  coach_record?: { id: string }[] | null
 }
 
 export interface PlayerDetail {
