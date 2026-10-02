@@ -1,4 +1,4 @@
-// Verifies supabase/migrations/20261002_coaches.sql inside a transaction that is
+// Verifies supabase/migrations/20261002120000_coaches.sql inside a transaction that is
 // ALWAYS rolled back, so nothing is committed. It does briefly take a lock on
 // public.players (FKs) — run it off-peak. Because the migration uses
 // `if not exists`, a second run against a DB where the migration is already applied
@@ -14,7 +14,7 @@ async function main() {
     await c.connect()
     await c.query('begin')
     began = true
-    await c.query(readFileSync('supabase/migrations/20261002_coaches.sql', 'utf8'))
+    await c.query(readFileSync('supabase/migrations/20261002120000_coaches.sql', 'utf8'))
 
     const ins = async (name: string, playerId: string | null = null) =>
       (await c.query(
@@ -64,7 +64,21 @@ async function main() {
     const linkCarried = (await c.query(`select status from coach_player_link_suggestions where coach_id = $1 and player_id = $2`, [b, p2])).rows[0]
     const linkSrcLeft = (await c.query(`select count(*)::int as n from coach_player_link_suggestions where coach_id = $1 and status in ('pending','rejected')`, [a])).rows[0].n
 
+    // Junk target must be refused.
+    const junk = await ins('Junk Target')
+    await c.query(`update coaches set status = 'junk' where id = $1`, [junk])
+    const junkRejected = await expectError(`select merge_coaches($1, $2)`, [x, junk], 'junk coach')
+    // Target takes source's player_id -> its other pending link suggestions become rejected.
+    const t2 = await ins('Unlinked Target')
+    await c.query(`insert into coach_player_link_suggestions (coach_id, player_id, status) values ($1, $2, 'pending')`, [t2, p2])
+    await c.query(`select merge_coaches($1, $2, false)`, [d, t2])
+    const t2Row = (await c.query(`select player_id from coaches where id = $1`, [t2])).rows[0]
+    const t2Sugg = (await c.query(`select status from coach_player_link_suggestions where coach_id = $1 and player_id = $2`, [t2, p2])).rows[0]
+
     const checks: Record<string, boolean> = {
+      mergeIntoJunkRejected: junkRejected,
+      targetTookPlayer: t2Row.player_id === p1,
+      otherPendingLinksRejected: t2Sugg?.status === 'rejected',
       aliasMoved: alias.coach_id === b && alias.source === 'merge',
       sourceMerged: src.status === 'merged' && src.merged_into === b,
       chainFlattened: chained.status === 'merged' && chained.merged_into === b,

@@ -50,7 +50,7 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
     const t = setTimeout(() => {
       fetch(`/api/internal/coaches?status=all&q=${encodeURIComponent(mergeQ.trim())}`, { signal: ctrl.signal })
         .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(await errMsg(r)))))
-        .then((x) => setMergeHits(((x.coaches ?? []) as CoachStatsRow[]).filter((c) => c.coach_id !== coachId && c.status !== 'merged').slice(0, 8)))
+        .then((x) => setMergeHits(((x.coaches ?? []) as CoachStatsRow[]).filter((c) => c.coach_id !== coachId && c.status !== 'merged' && c.status !== 'junk').slice(0, 8)))
         .catch((e: Error) => { if (e.name !== 'AbortError') setError(e.message) })
     }, 250)
     return () => { clearTimeout(t); ctrl.abort() }

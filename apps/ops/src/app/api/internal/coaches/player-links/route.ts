@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   const supabase = serviceClient()
   const result =
     decision === 'link'
-      ? await linkCoachToPlayer(supabase, coachId, playerId)
+      ? await linkCoachToPlayer(supabase, coachId, playerId, { onlyIfUnlinked: true })
       : await rejectCoachPlayerLink(supabase, coachId, playerId)
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
   return NextResponse.json({ ok: true })

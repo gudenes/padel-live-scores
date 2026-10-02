@@ -26,7 +26,7 @@ export async function GET(request: Request) {
 
   let query = supabase
     .from('players')
-    .select('id, name, display_name, country, ranking, points, category, avatar_url, photo_url, fip_id, coach_record:coaches!coaches_player_id_fkey(id)', { count: 'exact' })
+    .select('id, name, display_name, country, ranking, points, category, avatar_url, photo_url, fip_id', { count: 'exact' })
 
   if (q) {
     query = query.ilike('name', `%${q}%`)
@@ -78,8 +78,21 @@ export async function GET(request: Request) {
     }
   }
 
+  // Best-effort coach tag: coach tables may not exist yet / schema cache stale —
+  // this must never break the Players list.
+  const coachByPlayer: Record<string, string> = {}
+  if (playerIds.length > 0) {
+    const { data: coachData, error: coachErr } = await supabase
+      .from('coaches')
+      .select('id, player_id')
+      .in('player_id', playerIds)
+    if (coachErr) console.warn('[Search Players] coach lookup skipped:', coachErr.message)
+    for (const c of coachData ?? []) if (c.player_id) coachByPlayer[c.player_id] = c.id
+  }
+
   let players = (data ?? []).map(p => ({
     ...p,
+    coach_record: coachByPlayer[p.id] ? [{ id: coachByPlayer[p.id] }] : [],
     equipment: equipmentMap[p.id] ?? null,
   }))
 

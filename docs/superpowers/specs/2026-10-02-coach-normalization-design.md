@@ -44,7 +44,7 @@ Lesson carried over from `d59a7206c` (Momo González conflation): **fuzzy matche
 
 Lives in `padelgod/src/lib/coach-resolver.ts` with the pure suggestion logic; imports `subsetSimilarity` / `typoTolerantSimilarity` directly from `db-resolver.ts` (already exported — no copy-paste).
 
-## Data model (migration `supabase/migrations/20261002_coaches.sql`)
+## Data model (migration `supabase/migrations/20261002120000_coaches.sql`)
 
 ```sql
 create table public.coaches (

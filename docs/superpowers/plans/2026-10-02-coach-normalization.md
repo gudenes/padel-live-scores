@@ -23,7 +23,7 @@
 
 | File | Responsibility |
 |---|---|
-| `supabase/migrations/20261002_coaches.sql` | 5 tables, `coach_stats` view, `merge_coaches()` function, RLS, ASSERTs |
+| `supabase/migrations/20261002120000_coaches.sql` | 5 tables, `coach_stats` view, `merge_coaches()` function, RLS, ASSERTs |
 | `padelgod/src/lib/coach-normalize.ts` | Pure: `normalizeCoachName`, `coachTokens`, `slugifyCoach`, `uniqueSlug` |
 | `padelgod/src/lib/coach-suggestions.ts` | Pure: merge-suggestion + player-link-suggestion generators |
 | `padelgod/src/lib/coach-link-planner.ts` | Pure: given DB state, compute coaches/aliases/links to write |
@@ -45,7 +45,7 @@
 ### Task 1: Migration
 
 **Files:**
-- Create: `supabase/migrations/20261002_coaches.sql`
+- Create: `supabase/migrations/20261002120000_coaches.sql`
 
 - [ ] **Step 1: Write the migration**
 
@@ -227,7 +227,7 @@ end $$;
 Create `scripts/verify-coaches-migration.ts`. It runs the migration + a merge scenario inside one transaction and **always rolls back**, so it is safe against prod (it never commits).
 
 ```ts
-// Verifies supabase/migrations/20261002_coaches.sql inside a transaction that is
+// Verifies supabase/migrations/20261002120000_coaches.sql inside a transaction that is
 // ALWAYS rolled back. Safe to run against prod: nothing is committed.
 //   npx tsx scripts/verify-coaches-migration.ts
 import { readFileSync } from 'node:fs'
@@ -238,7 +238,7 @@ async function main() {
   await c.connect()
   try {
     await c.query('begin')
-    await c.query(readFileSync('supabase/migrations/20261002_coaches.sql', 'utf8'))
+    await c.query(readFileSync('supabase/migrations/20261002120000_coaches.sql', 'utf8'))
     const ins = async (name: string) =>
       (await c.query(
         `insert into coaches (display_name, normalized_name, slug) values ($1, $2, $3) returning id`,
@@ -281,7 +281,7 @@ Expected: `{ ..., ok: true }` and `{ selfMergeRejected: true }`, exit code 0. If
 - [ ] **Step 4: Commit**
 
 ```bash
-git add supabase/migrations/20261002_coaches.sql scripts/verify-coaches-migration.ts
+git add supabase/migrations/20261002120000_coaches.sql scripts/verify-coaches-migration.ts
 git commit -m "feat(coaches): coaches schema, coach_stats view, merge_coaches()"
 ```
 
@@ -2585,10 +2585,10 @@ Expected: all green. Report counts.
 
 - [ ] **Step 2: Ask Gustavo → apply migration**
 
-Ask: "Apply `20261002_coaches.sql` to prod?" On yes, apply with pg + DATABASE_URL (repo practice; not `supabase db push`):
+Ask: "Apply `20261002120000_coaches.sql` to prod?" On yes, apply with pg + DATABASE_URL (repo practice; not `supabase db push`):
 
 ```bash
-set -a; source .env.local; set +a; node -e "const{Client}=require('pg');const fs=require('fs');(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();await c.query(fs.readFileSync('supabase/migrations/20261002_coaches.sql','utf8'));console.log('applied');await c.end()})()"
+set -a; source .env.local; set +a; node -e "const{Client}=require('pg');const fs=require('fs');(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();await c.query(fs.readFileSync('supabase/migrations/20261002120000_coaches.sql','utf8'));console.log('applied');await c.end()})()"
 ```
 Expected: `applied` (the ASSERT block would raise otherwise).
 

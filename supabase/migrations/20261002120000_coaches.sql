@@ -128,9 +128,10 @@ select
   p.ranking as player_ranking,
   p.category as player_category
 from public.coach_player_link_suggestions l
-join public.coaches c on c.id = l.coach_id and c.status not in ('merged','junk')
+join public.coaches c on c.id = l.coach_id and c.status not in ('merged','junk') and c.player_id is null
 join public.players p on p.id = l.player_id
-where l.status = 'pending';
+where l.status = 'pending'
+  and not exists (select 1 from public.coaches c2 where c2.player_id = l.player_id);
 
 -- Atomic merge: everything of p_source moves onto p_target.
 create or replace function public.merge_coaches(
@@ -159,6 +160,9 @@ begin
   end if;
   if s.status = 'merged' or t.status = 'merged' then
     raise exception 'merge_coaches: coach already merged';
+  end if;
+  if t.status = 'junk' then
+    raise exception 'merge_coaches: cannot merge into a junk coach';
   end if;
   if s.player_id is not null and t.player_id is not null and s.player_id <> t.player_id then
     raise exception 'merge_coaches: both coaches are linked to different players — unlink one first';
@@ -217,6 +221,13 @@ begin
         player_id = coalesce(player_id, s.player_id),
         updated_at = now()
     where id = p_target;
+
+  -- If the target now has a player, its other pending link suggestions are moot.
+  update public.coach_player_link_suggestions
+    set status = 'rejected', decided_at = now()
+    where coach_id = p_target and status = 'pending'
+      and player_id is distinct from (select player_id from public.coaches where id = p_target)
+      and exists (select 1 from public.coaches where id = p_target and player_id is not null);
 end;
 $$;
 
@@ -237,3 +248,5 @@ begin
   assert exists (select 1 from information_schema.views where table_schema='public' and table_name='coach_link_queue'), 'coach_link_queue missing';
   assert exists (select 1 from pg_proc where proname='merge_coaches'), 'merge_coaches missing';
 end $$;
+
+notify pgrst, 'reload schema';

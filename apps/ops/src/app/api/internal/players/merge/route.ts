@@ -175,6 +175,18 @@ export async function POST(request: Request) {
     if (hasCoaches) {
       await client.query('UPDATE coaches SET player_id = $1 WHERE player_id = $2', [keepId, deleteId])
     }
+    //     Keep the loser's decided status on the survivor's pending row for the same coach.
+    if (await tableExists(client, 'coach_player_link_suggestions')) {
+      await client.query(
+        `UPDATE coach_player_link_suggestions s
+            SET status = l.status, decided_at = l.decided_at
+           FROM coach_player_link_suggestions l
+          WHERE s.player_id = $1 AND l.player_id = $2
+            AND s.coach_id = l.coach_id
+            AND s.status = 'pending' AND l.status IN ('rejected','linked')`,
+        [keepId, deleteId],
+      )
+    }
     //     Move suggestion decisions to the survivor, skipping (coach_id, survivor) pairs that exist.
     await reassignUnique(client, 'coach_player_link_suggestions', 'player_id', ['coach_id'], keepId, deleteId, false)
 

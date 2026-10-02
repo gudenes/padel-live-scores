@@ -1,5 +1,6 @@
 // Shared coach <-> player link/reject logic for PATCH /coaches/[id] and POST /coaches/player-links.
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isUuid } from '@/lib/coaches'
 
 export type LinkResult = { ok: true } | { ok: false; status: number; error: string }
 
@@ -9,21 +10,31 @@ export async function linkCoachToPlayer(
   supabase: SupabaseClient,
   coachId: string,
   playerId: string,
+  opts: { onlyIfUnlinked?: boolean } = {},
 ): Promise<LinkResult> {
+  if (!isUuid(playerId)) return { ok: false, status: 400, error: 'invalid id' }
   const now = new Date().toISOString()
-  const { data, error } = await supabase
+  let upd = supabase
     .from('coaches')
     .update({ player_id: playerId, updated_at: now })
     .eq('id', coachId)
     .neq('status', 'merged')
-    .select('id')
-    .maybeSingle()
+  if (opts.onlyIfUnlinked) upd = upd.or(`player_id.is.null,player_id.eq.${playerId}`)
+  const { data, error } = await upd.select('id').maybeSingle()
   if (error) {
     if (error.code === '23505') return { ok: false, status: 409, error: 'that player is already linked to another coach' }
     if (error.code === '23503') return { ok: false, status: 400, error: 'player not found' }
     return { ok: false, status: 500, error: error.message }
   }
-  if (!data) return { ok: false, status: 404, error: 'Coach not found or already merged' }
+  if (!data) {
+    if (opts.onlyIfUnlinked) {
+      const { data: cur } = await supabase.from('coaches').select('status, player_id').eq('id', coachId).maybeSingle()
+      if (cur && cur.status !== 'merged' && cur.player_id && cur.player_id !== playerId) {
+        return { ok: false, status: 409, error: 'coach is already linked to a different player' }
+      }
+    }
+    return { ok: false, status: 404, error: 'Coach not found or already merged' }
+  }
 
   const marked = await supabase
     .from('coach_player_link_suggestions')
