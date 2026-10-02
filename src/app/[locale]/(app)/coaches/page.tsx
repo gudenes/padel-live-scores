@@ -1,6 +1,7 @@
 // Coaches index: ranked by the FIP points of the players each coach works with.
 // Server-rendered; tabs and pagination are plain links.
 
+import { CoachTopAvatars } from '@/components/CoachTopAvatars'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import { createAnonServerClient } from '@/lib/supabase'
@@ -101,8 +102,11 @@ export default async function CoachesPage({ params, searchParams }: Props) {
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.display_name}
                 </div>
-                <div style={{ fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {r.top.names.join(', ')}{r.top.more ? ` +${r.top.more}` : ''}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, minWidth: 0 }}>
+                  <CoachTopAvatars players={r.top.players} />
+                  <span style={{ fontSize: 10, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {r.top.names.join(', ')}{r.top.more ? ` +${r.top.more}` : ''}
+                  </span>
                 </div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>

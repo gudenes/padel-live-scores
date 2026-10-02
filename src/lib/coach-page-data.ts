@@ -229,7 +229,7 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
 export const INDEX_PAGE_SIZE = 50
 
 export interface CoachIndexRow extends CoachRankingRow {
-  top: { names: string[]; more: number }
+  top: ReturnType<typeof topPlayerNames>
   /** Players actually counted for the active tab (men/women/all), after tier filtering. */
   tab_player_count: number
 }
