@@ -17,6 +17,7 @@ import { Widget } from '../../../player/[id]/Widget'
 import {
   GREEN, ORANGE, MUTED, BG_BASE, MEN_BLUE, WOMEN_PURPLE, CHUNKY,
 } from '@/components/home/shared-constants'
+import { CoachHeader } from './CoachHeader'
 import { ExpandableList } from './ExpandableList'
 import { CoachNextMatches } from './CoachNextMatches'
 
@@ -159,8 +160,10 @@ export default async function CoachPage({ params }: Props) {
   )
 
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh', padding: 12 }}>
+    <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      <CoachHeader />
+      <div style={{ padding: 12 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 4px 16px' }}>
         <Avatar name={coach.display_name} bg={ORANGE} size={58} />
@@ -208,6 +211,7 @@ export default async function CoachPage({ params }: Props) {
             <div style={{ fontSize: 9, color: MUTED, marginTop: 8 }}>{t('titlesFootnote')}</div>
           </Widget>
         )}
+      </div>
       </div>
     </div>
   )

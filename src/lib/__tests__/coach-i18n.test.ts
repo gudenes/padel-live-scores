@@ -10,6 +10,7 @@ const locales = { en, es, pt, it: it_, fr } as const
 
 const samples: Record<string, Record<string, string | number>> = {
   pageLabel: {},
+  back: {},
   rankChip: { rank: 1 },
   subtitle: { players: 9, titles: 2, year: 2026 },
   menPoints: {},
