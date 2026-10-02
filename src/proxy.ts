@@ -176,10 +176,14 @@ export default function proxy(request: NextRequest) {
   // shared links for first-time visitors (who have no cookie yet — URL
   // prefix still wins for them) and for search engines (Googlebot
   // never sends cookies, so URL prefix is authoritative for indexing).
+  // Campaign links must honor their advertised language, even for returning visitors.
+  const betaCampaign = pathname.match(/^\/(?:(en|es|pt)\/)?beta(?:-demo)?\/?$/)
+  const campaignLocale = betaCampaign ? betaCampaign[1] || 'en' : null
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value
   const urlPrefixMatch = pathname.match(/^\/(es|pt|it|fr)(\/|$)/)
   const urlLocale = urlPrefixMatch ? urlPrefixMatch[1] : 'en'
   if (
+    !campaignLocale &&
     cookieLocale &&
     (['en', 'es', 'pt', 'it', 'fr'] as const).includes(cookieLocale as 'en' | 'es' | 'pt' | 'it' | 'fr') &&
     cookieLocale !== urlLocale
@@ -198,7 +202,11 @@ export default function proxy(request: NextRequest) {
   }
 
   // ── Run next-intl locale routing ───────────────────────────────
+  if (campaignLocale) request.cookies.set('NEXT_LOCALE', campaignLocale)
   const response = handleI18nRouting(request)
+  if (campaignLocale) {
+    response.cookies.set('NEXT_LOCALE', campaignLocale, { path: '/', sameSite: 'lax', maxAge: 31536000 })
+  }
   // The guarded local server binds to 127.0.0.1. A rewrite to localhost
   // is treated as an external request in development, re-running this proxy
   // on /en/* and redirecting back to the original unprefixed URL forever.
