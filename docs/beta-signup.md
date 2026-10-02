@@ -73,3 +73,17 @@ not add or replace a number. WhatsApp messages are handled by the team separatel
 The signup card and confirmation state include links to the existing iOS and
 Android apps. Downloading the app is optional; beta access instructions still
 arrive by email.
+
+## Campaign attribution
+
+Apply `20261002000000_prediction_beta_attribution.sql` before deploying web or
+admin. The form saves allowlisted UTM parameters from its URL with new signups.
+The demo forwards these parameters to signup, and form language changes retain
+them. No advertising pixel or browser storage is added. Attribution describes
+the signup link, not cross-session first-touch attribution. Duplicate submissions
+never overwrite the original attribution. Historical rows remain unknown.
+
+The Growth widget shows all-time registrations by Meta, Reddit, Other and
+Unknown, crossed with campaign language. Language is derived only from an
+`_es`, `_en`, `_pt` or `_it` campaign suffix (case insensitive); interview language
+remains separate. These counts do not measure conversion rates without visit totals.

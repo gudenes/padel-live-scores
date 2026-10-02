@@ -34,8 +34,10 @@ describe('getBetaSignupStats', () => {
       .mockResolvedValueOnce({ rows: [{ total: 14, last24h: 2, with_whatsapp: 5 }] })
       .mockResolvedValueOnce({ rows: [{ day: '2026-09-30', n: 2 }] })
       .mockResolvedValueOnce({ rows: [{ language: 'es', n: 8 }] })
+      .mockResolvedValueOnce({ rows: [{ source: 'Meta', campaign_language: 'en', n: 3 }] })
     expect(await getBetaSignupStats(30)).toEqual({
       total: 14, last24h: 2, withWhatsapp: 5,
+      byCampaign: [{ source: 'Meta', campaign_language: 'en', n: 3 }],
       byDay: [{ day: '2026-09-30', n: 2 }], byLanguage: [{ language: 'es', n: 8 }],
     })
     for (const call of queryMock.mock.calls) expect(String(call[0])).not.toMatch(/\b(email|name|whatsapp\s*,|select\s+whatsapp)\b/i)

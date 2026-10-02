@@ -6,6 +6,7 @@ import { pgPool } from '@/lib/db'
 import type { DayCount } from './growth-compute'
 
 export interface BetaSignupStats {
+  byCampaign: Array<{ source: string; campaign_language: string; n: number }>
   total: number
   last24h: number
   withWhatsapp: number
@@ -17,7 +18,7 @@ export interface BetaSignupStats {
 export async function getBetaSignupStats(days: number): Promise<BetaSignupStats | null> {
   const pool = pgPool()
   try {
-    const [head, byDay, byLanguage] = await Promise.all([
+    const [head, byDay, byLanguage, byCampaign] = await Promise.all([
       pool.query<{ total: number; last24h: number; with_whatsapp: number }>(
         `select count(*)::int as total,
                 count(*) filter (where created_at > now() - interval '24 hours')::int as last24h,
@@ -36,6 +37,17 @@ export async function getBetaSignupStats(days: number): Promise<BetaSignupStats 
            from public.prediction_beta_signups
           group by 1 order by 2 desc`,
       ),
+      pool.query<{ source: string; campaign_language: string; n: number }>(
+        `select case lower(attribution->>'utm_source')
+                  when 'meta' then 'Meta' when 'facebook' then 'Meta' when 'instagram' then 'Meta'
+                  when 'reddit' then 'Reddit'
+                  else case when coalesce(attribution->>'utm_source', '') = '' then 'Unknown' else 'Other' end
+                end as source,
+                coalesce(substring(lower(attribution->>'utm_campaign') from '_(en|es|pt|it)$'), 'unknown') as campaign_language,
+                count(*)::int as n
+           from public.prediction_beta_signups
+          group by 1, 2 order by 1, 2`,
+      ),
     ])
     const h = head.rows[0]
     return {
@@ -44,6 +56,7 @@ export async function getBetaSignupStats(days: number): Promise<BetaSignupStats 
       withWhatsapp: h?.with_whatsapp ?? 0,
       byDay: byDay.rows,
       byLanguage: byLanguage.rows,
+      byCampaign: byCampaign.rows,
     }
   } catch (err) {
     if ((err as { code?: string })?.code === '42P01') return null

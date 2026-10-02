@@ -48,6 +48,7 @@ export function BetaSignupsPanel({
               ))}
             </div>
             <div style={{ ...cap, display: 'flex', gap: 10 }}>
+              <span>Interview language:</span>
               {stats.byLanguage.map(l => (
                 <span key={l.language}>{l.language.toUpperCase()} {l.n}</span>
               ))}
@@ -58,6 +59,20 @@ export function BetaSignupsPanel({
             <Pill tone={closed ? 'neutral' : 'lime'} dot={!closed}>{closed ? 'Signups closed' : `Closes in ${daysLeft}d`}</Pill>
             <div style={cap}>{new Date(closesAt).toISOString().slice(5, 16).replace('T', ' ')} UTC · play Oct 10</div>
           </div>
+          <section style={{ flexBasis: '100%', overflowX: 'auto' }} aria-label="Signups by campaign source and language">
+            <h3 style={{ fontSize: 14, margin: '0 0 8px' }}>Source × campaign language · all time</h3>
+            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead><tr>{['Source', 'Spanish', 'English', 'Portuguese', 'Italian', 'Unknown', 'Total'].map(label => <th key={label} scope="col" style={{ padding: '8px 10px', borderBottom: '1px solid var(--track)' }}>{label}</th>)}</tr></thead>
+              <tbody>{['Meta', 'Reddit', 'Other', 'Unknown'].map(source => {
+                const rows = stats.byCampaign.filter(row => row.source === source)
+                return <tr key={source}><th scope="row" style={{ padding: '8px 10px' }}>{source}</th>
+                  {['es', 'en', 'pt', 'it', 'unknown'].map(language => <td key={language} style={{ padding: '8px 10px' }}>{rows.filter(row => row.campaign_language === language).reduce((sum, row) => sum + row.n, 0)}</td>)}
+                  <td style={{ padding: '8px 10px', fontWeight: 700 }}>{rows.reduce((sum, row) => sum + row.n, 0)}</td>
+                </tr>
+              })}</tbody>
+            </table>
+            <p style={cap}>Campaign language comes from the tracking link. Unknown includes older signups and visits without tracking. Counts are registrations, not conversion rates.</p>
+          </section>
         </div>
       )}
     </DismissiblePanel>
