@@ -41,7 +41,7 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
   useEffect(load, [load])
 
   useEffect(() => {
-    if (mergeQ.trim().length < 2) { setMergeHits([]); return }
+    if (mergeQ.trim().length < 2) return
     const ctrl = new AbortController()
     const t = setTimeout(() => {
       fetch(`/api/internal/coaches?status=all&q=${encodeURIComponent(mergeQ.trim())}`, { signal: ctrl.signal })
@@ -162,7 +162,7 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
 
         <Panel title="Merge into another coach">
           <input className="ui-input" placeholder="Search coach…" value={mergeQ} onChange={(e) => setMergeQ(e.target.value)} style={{ width: '100%' }} />
-          {mergeHits.map((h) => (
+          {(mergeQ.trim().length < 2 ? [] : mergeHits).map((h) => (
             <div key={h.coach_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
               <span>{h.display_name} <span style={{ color: 'var(--text-3)', fontSize: 11 }}>{fmtPoints(h.total_points)} pts</span></span>
               <Button size="sm" onClick={() => mergeInto(h.coach_id, h.display_name)}>Merge into</Button>
