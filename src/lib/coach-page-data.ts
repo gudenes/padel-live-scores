@@ -2,6 +2,8 @@
 // Data for /coach/[slug] and /coaches (spec 2026-10-02-coach-pages-design.md).
 // Pure shaping functions on top; fetchers (anon server client) below.
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 export type CoachTab = 'overall' | 'men' | 'women'
 
 export interface CoachRankingRow {
@@ -100,4 +102,128 @@ export function isIndexable(row: { total_points: number }): boolean {
 export function topPlayerNames(players: CoachPlayer[]): { names: string[]; more: number } {
   const sorted = [...players].sort((a, b) => Number(b.points ?? 0) - Number(a.points ?? 0))
   return { names: sorted.slice(0, 2).map(shortPlayerName), more: Math.max(0, sorted.length - 2) }
+}
+
+const PLAYER_COLS = 'id, name, display_name, country, category, ranking, points, avatar_url'
+const PAIR_EMBED =
+  'pair1_player1:players!matches_pair1_player1_id_fkey(id, name, display_name),' +
+  'pair1_player2:players!matches_pair1_player2_id_fkey(id, name, display_name),' +
+  'pair2_player1:players!matches_pair2_player1_id_fkey(id, name, display_name),' +
+  'pair2_player2:players!matches_pair2_player2_id_fkey(id, name, display_name)'
+
+type MatchWithPairs = {
+  id: string; status: string; scheduled_at: string | null; round: string | null; category: string | null; winner_pair: number | null
+  tournament: FinalRow['tournament'] | null
+  pair1_player1: PairPlayer | null; pair1_player2: PairPlayer | null; pair2_player1: PairPlayer | null; pair2_player2: PairPlayer | null
+}
+
+const involving = (ids: string[]) => {
+  const list = ids.join(',')
+  return `pair1_player1_id.in.(${list}),pair1_player2_id.in.(${list}),pair2_player1_id.in.(${list}),pair2_player2_id.in.(${list})`
+}
+const pairOf = (a: PairPlayer | null, b: PairPlayer | null) => [a, b].filter((x): x is PairPlayer => !!x)
+
+export type CoachPageResult =
+  | { kind: 'ok'; coach: CoachRankingRow; players: CoachPlayer[]; titles: CoachTitle[]; next: UpcomingRow[]; year: number }
+  | { kind: 'redirect'; slug: string }
+  | { kind: 'not_found' }
+
+export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date = new Date()): Promise<CoachPageResult> {
+  const { data: coach, error } = await sb.from('coach_rankings_public').select('*').eq('slug', slug).maybeSingle()
+  if (error) throw new Error(`coach_rankings_public: ${error.message}`)
+  if (!coach) {
+    const { data: r } = await sb.from('coach_slug_redirects').select('new_slug').eq('old_slug', slug).maybeSingle()
+    return r?.new_slug ? { kind: 'redirect', slug: r.new_slug } : { kind: 'not_found' }
+  }
+
+  const { data: links, error: linkErr } = await sb.from('player_coaches_public').select('player_id').eq('coach_id', coach.coach_id)
+  if (linkErr) throw new Error(`player_coaches_public: ${linkErr.message}`)
+  const ids = (links ?? []).map((l) => l.player_id as string)
+  const { data: players, error: pErr } = ids.length
+    ? await sb.from('players').select(PLAYER_COLS).in('id', ids)
+    : { data: [], error: null }
+  if (pErr) throw new Error(`players: ${pErr.message}`)
+
+  const year = now.getUTCFullYear()
+  let titles: CoachTitle[] = []
+  let next: UpcomingRow[] = []
+  if (ids.length) {
+    const [finals, upcoming] = await Promise.all([
+      sb.from('matches')
+        .select(`id, status, scheduled_at, round, category, winner_pair, tournament:tournaments!inner(id, name, level, starts_at, ends_at), ${PAIR_EMBED}`)
+        .in('round', ['Final', 'Finals'])
+        .eq('status', 'finished')
+        .gte('tournament.starts_at', `${year}-01-01`)
+        .or(involving(ids))
+        .limit(200),
+      sb.from('matches')
+        .select(`id, status, scheduled_at, round, category, winner_pair, tournament:tournaments(id, name, level, starts_at, ends_at), ${PAIR_EMBED}`)
+        .in('status', ['live', 'on_court', 'scheduled'])
+        .gte('scheduled_at', new Date(now.getTime() - 3 * 3600_000).toISOString())
+        .or(involving(ids))
+        .order('scheduled_at')
+        .limit(20),
+    ])
+    if (finals.error) console.warn('[coach] titles query failed', finals.error.message)
+    else {
+      const rows = (finals.data as unknown as MatchWithPairs[]).filter((m) => m.tournament).map((m): FinalRow => ({
+        match_id: m.id, category: m.category, winner_pair: m.winner_pair,
+        pair1: pairOf(m.pair1_player1, m.pair1_player2), pair2: pairOf(m.pair2_player1, m.pair2_player2),
+        tournament: m.tournament!,
+      }))
+      titles = shapeTitles(rows, new Set(ids), year)
+    }
+    if (upcoming.error) console.warn('[coach] next matches query failed', upcoming.error.message)
+    else {
+      const rows = (upcoming.data as unknown as MatchWithPairs[]).map((m): UpcomingRow => ({
+        match_id: m.id, status: m.status, scheduled_at: m.scheduled_at, round: m.round,
+        tournament_name: m.tournament?.name ?? '',
+        pair1: pairOf(m.pair1_player1, m.pair1_player2).map(shortPlayerName).join(' / '),
+        pair2: pairOf(m.pair2_player1, m.pair2_player2).map(shortPlayerName).join(' / '),
+      }))
+      next = pickNextMatches(rows, now)
+    }
+  }
+
+  return { kind: 'ok', coach: coach as CoachRankingRow, players: (players ?? []) as CoachPlayer[], titles, next, year }
+}
+
+export const INDEX_PAGE_SIZE = 50
+
+export interface CoachIndexRow extends CoachRankingRow { top: { names: string[]; more: number } }
+
+export async function fetchCoachesIndex(
+  sb: SupabaseClient, tab: CoachTab, page: number,
+): Promise<{ rows: CoachIndexRow[]; hasMore: boolean }> {
+  const col = tab === 'men' ? 'men_points' : tab === 'women' ? 'women_points' : 'total_points'
+  const from = (page - 1) * INDEX_PAGE_SIZE
+  let q = sb.from('coach_rankings_public').select('*')
+  if (tab !== 'overall') q = q.gt(col, 0)
+  const { data, error } = await q.order(col, { ascending: false }).order('display_name').range(from, from + INDEX_PAGE_SIZE)
+  if (error) throw new Error(`coach_rankings_public: ${error.message}`)
+  const all = (data ?? []) as CoachRankingRow[]
+  const rows = all.slice(0, INDEX_PAGE_SIZE)
+
+  const coachIds = rows.map((r) => r.coach_id)
+  const byCoach = new Map<string, CoachPlayer[]>()
+  if (coachIds.length) {
+    const { data: links } = await sb.from('player_coaches_public').select('coach_id, player_id').in('coach_id', coachIds)
+    const playerIds = [...new Set((links ?? []).map((l) => l.player_id as string))]
+    const players = new Map<string, CoachPlayer>()
+    for (let i = 0; i < playerIds.length; i += 200) {
+      const { data: ps } = await sb.from('players').select(PLAYER_COLS).in('id', playerIds.slice(i, i + 200))
+      for (const p of (ps ?? []) as CoachPlayer[]) players.set(p.id, p)
+    }
+    for (const l of links ?? []) {
+      const p = players.get(l.player_id as string)
+      if (!p) continue
+      if (tab === 'men' && p.category === 'women') continue
+      if (tab === 'women' && p.category !== 'women') continue
+      byCoach.set(l.coach_id as string, [...(byCoach.get(l.coach_id as string) ?? []), p])
+    }
+  }
+  return {
+    rows: rows.map((r) => ({ ...r, top: topPlayerNames(byCoach.get(r.coach_id) ?? []) })),
+    hasMore: all.length > INDEX_PAGE_SIZE,
+  }
 }
