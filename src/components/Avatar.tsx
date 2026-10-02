@@ -3,6 +3,7 @@
 // Reusable avatar component using next/image for automatic optimization
 // (WebP conversion, srcSet generation, lazy loading).
 
+import { useState } from 'react'
 import Image from 'next/image'
 
 interface AvatarProps {
@@ -18,9 +19,12 @@ interface AvatarProps {
 }
 
 export default function Avatar({ src, alt, size, fallback, style, className, unoptimized }: AvatarProps) {
-  if (!src) {
-    // Fallback: colored circle with initial
-    const initial = (fallback ?? alt ?? '?')[0]?.toUpperCase() ?? '?'
+  // A broken/expired image URL falls back to initials instead of a broken-image icon.
+  const [failed, setFailed] = useState(false)
+  if (!src || failed) {
+    // Fallback: colored circle with initials. `fallback` may carry up to 2
+    // characters (e.g. "GP"); without it, the first letter of `alt`.
+    const initial = (fallback ? fallback.slice(0, 2) : (alt ?? '?')[0] ?? '?').toUpperCase()
     return (
       <div
         className={className}
@@ -53,6 +57,7 @@ export default function Avatar({ src, alt, size, fallback, style, className, uno
       className={className}
       unoptimized={unoptimized}
       referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
       style={{
         borderRadius: '50%',
         objectFit: 'cover',
