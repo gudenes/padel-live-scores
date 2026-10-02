@@ -38,6 +38,7 @@ import { runWebtugaLiveFetcher } from './workers/webtuga-live-fetcher.js';
 import { runPadeldevLiveFetcher } from './workers/padeldev-live-fetcher.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
 import { runProjectionReadyNotifier } from './workers/projection-ready-notifier.js';
+import { runCoachLinker } from './workers/coach-linker.js';
 import { runMarketGenerator } from './workers/market-generator.js';
 import { runMarketResolver } from './workers/market-resolver.js';
 
@@ -153,6 +154,9 @@ export interface SchedulerFlags {
    *  (tournament, category) when projection pairs land. Atomic claim on
    *  `projection_ready_notifications`; no dry-run needed. Default OFF. */
   enableProjectionReadyNotifier: boolean;
+  /** coach-linker — hourly :50, after player-profile (:30). Default OFF. */
+  enableCoachLinker: boolean;
+  coachLinkerDryRun: boolean;
 }
 
 export interface SchedulerDeps {
@@ -226,6 +230,7 @@ export type WorkerName =
   | 'padeldev-live-fetcher'
   | 'tournament-start-notifier'
   | 'projection-ready-notifier'
+  | 'coach-linker'
   | 'market-generator'
   | 'market-resolver';
 
@@ -268,6 +273,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'padeldev-live-fetcher',
   'tournament-start-notifier',
   'projection-ready-notifier',
+  'coach-linker',
   'market-generator',
   'market-resolver',
 ];
@@ -445,6 +451,12 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
         logger: deps.logger,
         notify: deps.notify,
       });
+    case 'coach-linker': return (deps) => runCoachLinker({
+      supabase: deps.supabase,
+      logger: deps.logger,
+      // Admin-trigger is always dry-run-safe; the cron threads the real flag.
+      dryRun: true,
+    });
     case 'projection-ready-notifier':
       return (deps) => runProjectionReadyNotifier({
         supabase: deps.supabase,
@@ -980,6 +992,15 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       // claim; hourly is plenty for a projection_ready fan-out.
       cron: '20 * * * *',
       run: getWorkerRunner('projection-ready-notifier')!,
+    });
+  }
+  if (flags.enableCoachLinker) {
+    entries.push({
+      name: 'coach-linker',
+      // :50 — trails player-profile (:30) so fresh coach lists are linked the
+      // same hour. DB-only; no HTTP.
+      cron: '50 * * * *',
+      run: async (d) => runCoachLinker({ supabase: d.supabase, logger: d.logger, dryRun: flags.coachLinkerDryRun }),
     });
   }
   return entries;

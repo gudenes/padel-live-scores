@@ -203,4 +203,16 @@ describe('buildSchedule', () => {
     const sched = buildSchedule({ ...ALL_ENABLED, enableWebtugaLive: false } as any);
     expect(sched.map((e) => e.name)).not.toContain('webtuga-live-fetcher');
   });
+
+  it('schedules coach-linker hourly at :50 when enabled', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableCoachLinker: true, coachLinkerDryRun: true } as any);
+    const entry = sched.find((s) => s.name === 'coach-linker');
+    expect(entry).toBeDefined();
+    expect(entry!.cron).toBe('50 * * * *');
+  });
+
+  it('omits coach-linker when flag is off', () => {
+    const sched = buildSchedule({ ...ALL_ENABLED, enableCoachLinker: false } as any);
+    expect(sched.map((s) => s.name)).not.toContain('coach-linker');
+  });
 });

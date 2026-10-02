@@ -244,6 +244,11 @@ const EnvSchema = z.object({
   ENABLE_TOURNAMENT_START_NOTIFIER: boolEnv(false),
   // projection_ready notifier (premium notifications Plan 2C) — default off.
   ENABLE_PROJECTION_READY_NOTIFIER: boolEnv(false),
+  // coach-linker — maps players.coaches raw strings onto canonical coaches
+  // (spec 2026-10-02-coach-normalization-design.md). Default OFF + dry-run ON:
+  // enable, inspect the dry-run log, then set COACH_LINKER_DRY_RUN=false.
+  ENABLE_COACH_LINKER: boolEnv(false),
+  COACH_LINKER_DRY_RUN: boolEnv(true),
   // Web push notification hook — set to the padelnachos.com origin to fire
   // `/api/push/notify` whenever padelgod flips a match out of `scheduled`.
   // Both vars optional: if either is unset, notify is skipped silently (so
