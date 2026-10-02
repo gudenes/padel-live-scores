@@ -44,7 +44,7 @@ grant select on public.player_coaches_public to anon, authenticated;
   `supabase.from('player_coaches_public').select('coach_id, display_name, position').eq('player_id', id).order('position')`.
   Failure is best-effort: on error, log and render no card — never break the profile.
 - Insert `<CoachesCard>` in the Overview grid after the Current Partner block.
-- i18n: `player.coach` / `player.coaches` keys in `src/messages/{en,es,pt,it,fr}.json` (en "Coach"/"Coaches", es "Entrenador"/"Entrenadores", pt "Treinador"/"Treinadores", it "Allenatore"/"Allenatori", fr "Entraîneur"/"Entraîneurs").
+- i18n: one ICU plural key `player.coachesLabel` (`{count, plural, one {…} other {…}}`) in `src/messages/{en,es,pt,it,fr}.json` (en "Coach"/"Coaches", es "Entrenador"/"Entrenadores", pt "Treinador"/"Treinadores", it "Allenatore"/"Allenatori", fr "Entraîneur"/"Entraîneurs").
 
 ## Testing
 
