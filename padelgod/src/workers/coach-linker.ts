@@ -56,7 +56,7 @@ export function isMassDelete(deleteCount: number, existingCount: number): boolea
 }
 
 const CHUNK = 200
-const PAGE = 5000
+const PAGE = 1000
 
 function chunks<T>(rows: T[], size = CHUNK): T[][] {
   const out: T[][] = []
@@ -66,12 +66,15 @@ function chunks<T>(rows: T[], size = CHUNK): T[][] {
 
 export async function runCoachLinker(deps: CoachLinkerDeps): Promise<CoachLinkerResult> {
   const { supabase, logger, dryRun } = deps
-  const log = logger.child({ worker: 'coach-linker' })
+  const log = logger
 
-  const players = await paginatedSelect<{ id: string; name: string; coaches: string[] | null }>(
+  const rawPlayers = await paginatedSelect<{ id: string; name: string; coaches: string[] | null }>(
     (s, e) => supabase.from('players').select('id, name, coaches').order('id').range(s, e),
     { what: 'players (coach-linker)', pageSize: PAGE },
   )
+  // Offset paging can return a boundary row twice if rows are inserted mid-read;
+  // dedupe by id. (A player deleted mid-read just has its links re-added next run.)
+  const players = [...new Map(rawPlayers.map((p) => [p.id, p])).values()]
   const coaches = await paginatedSelect<PlannerCoach & { player_id: string | null }>(
     (s, e) => supabase.from('coaches').select('id, normalized_name, display_name, slug, status, merged_into, player_id').order('id').range(s, e),
     { what: 'coaches', pageSize: PAGE },
@@ -93,10 +96,10 @@ export async function runCoachLinker(deps: CoachLinkerDeps): Promise<CoachLinker
     { what: 'coach_player_link_suggestions', pageSize: PAGE },
   )
 
-  const linkedPlayerIds = new Set(existingLinks.map((l) => l.player_id))
-  // The planner assumes unique player ids (paginated select ordered by id guarantees it).
+  const playersWithLinks = new Set(existingLinks.map((l) => l.player_id))
+  // The planner assumes unique player ids (deduped above).
   const plannerPlayers = players
-    .filter((p) => (p.coaches?.length ?? 0) > 0 || linkedPlayerIds.has(p.id))
+    .filter((p) => (p.coaches?.length ?? 0) > 0 || playersWithLinks.has(p.id))
     .map((p) => ({ id: p.id, coaches: p.coaches ?? [] }))
 
   const plan = planCoachLinks({ players: plannerPlayers, coaches, aliases, existingLinks }, randomUUID)
@@ -147,34 +150,75 @@ export async function runCoachLinker(deps: CoachLinkerDeps): Promise<CoachLinker
     return result
   }
 
-  const write = async (what: string, rows: unknown[], op: (chunk: any[]) => PromiseLike<{ error: { message: string } | null }>) => {
+  const failedCoachIds = new Set<string>()
+  const write = async (what: string, rows: unknown[], op: (chunk: any[]) => PromiseLike<{ error: { message: string } | null }>, onFail?: (chunk: any[]) => void) => {
     for (const chunk of chunks(rows)) {
       const { error } = await op(chunk)
       if (error) {
         result.batchErrors++
+        onFail?.(chunk)
         log.warn({ what, size: chunk.length, error: error.message }, 'coach-linker chunk failed')
       }
     }
   }
 
   // Order matters for FKs: coaches → aliases → links → suggestions.
-  await write('coaches', plan.newCoaches, (c) => supabase.from('coaches').insert(c))
-  await write('coach_aliases', plan.newAliases, (c) =>
+  await write('coaches', plan.newCoaches, (c) => supabase.from('coaches').insert(c),
+    (chunk) => chunk.forEach((c) => failedCoachIds.add(c.id)))
+  // Anything referencing a coach whose insert failed would violate the FK; the next run re-plans.
+  const aliasRows = plan.newAliases.filter((a) => !failedCoachIds.has(a.coach_id))
+  const upsertRows = plan.linksToUpsert.filter((l) => !failedCoachIds.has(l.coach_id))
+  await write('coach_aliases', aliasRows, (c) =>
     supabase.from('coach_aliases').upsert(c, { onConflict: 'normalized_alias', ignoreDuplicates: true }))
-  await write('player_coaches upsert', plan.linksToUpsert, (c) =>
+  await write('player_coaches upsert', upsertRows, (c) =>
     supabase.from('player_coaches').upsert(c, { onConflict: 'player_id,coach_id' }))
+
+  // Deletes grouped per player: one statement per player.
+  const deletesByPlayer = new Map<string, string[]>()
   for (const l of plan.linksToDelete) {
-    const { error } = await supabase.from('player_coaches').delete().eq('player_id', l.player_id).eq('coach_id', l.coach_id)
+    const ids = deletesByPlayer.get(l.player_id)
+    if (ids) ids.push(l.coach_id)
+    else deletesByPlayer.set(l.player_id, [l.coach_id])
+  }
+  let deleteFailures = 0
+  for (const [playerId, coachIds] of deletesByPlayer) {
+    const { error } = await supabase.from('player_coaches').delete().eq('player_id', playerId).in('coach_id', coachIds)
     if (error) {
       result.batchErrors++
-      log.warn({ link: l, error: error.message }, 'coach-linker link delete failed')
+      deleteFailures++
+      if (deleteFailures <= 5) log.warn({ playerId, coachIds, error: error.message }, 'coach-linker link delete failed')
     }
   }
-  await write('coach_merge_suggestions', mergeSuggestions, (c) =>
+  if (deleteFailures > 5) log.warn({ deleteFailures }, 'coach-linker link deletes failed (first 5 logged individually)')
+
+  // Drop suggestions touching failed coaches, then re-read status so a merge the
+  // operator performed since our read doesn't get a stale suggestion.
+  let mergeOut = mergeSuggestions.filter((m) => !failedCoachIds.has(m.coach_a) && !failedCoachIds.has(m.coach_b))
+  let linkOut = linkSuggestions.filter((l) => !failedCoachIds.has(l.coach_id))
+  const refIds = [...new Set([...mergeOut.flatMap((m) => [m.coach_a, m.coach_b]), ...linkOut.map((l) => l.coach_id)])]
+  const mergedNow = new Set<string>()
+  let statusReadOk = true
+  for (const ids of chunks(refIds)) {
+    const { data, error } = await supabase.from('coaches').select('id, status').in('id', ids)
+    if (error) {
+      statusReadOk = false
+      result.batchErrors++
+      log.warn({ error: error.message }, 'coach-linker status re-read failed; skipping suggestions this run')
+      break
+    }
+    for (const r of (data ?? []) as { id: string; status: string }[]) if (r.status === 'merged') mergedNow.add(r.id)
+  }
+  if (!statusReadOk) {
+    mergeOut = []
+    linkOut = []
+  } else {
+    mergeOut = mergeOut.filter((m) => !mergedNow.has(m.coach_a) && !mergedNow.has(m.coach_b))
+    linkOut = linkOut.filter((l) => !mergedNow.has(l.coach_id))
+  }
+  await write('coach_merge_suggestions', mergeOut, (c) =>
     supabase.from('coach_merge_suggestions').upsert(c, { onConflict: 'coach_a,coach_b', ignoreDuplicates: true }))
-  await write('coach_player_link_suggestions', linkSuggestions, (c) =>
+  await write('coach_player_link_suggestions', linkOut, (c) =>
     supabase.from('coach_player_link_suggestions').upsert(c, { onConflict: 'coach_id,player_id', ignoreDuplicates: true }))
 
-  log.info({ result }, 'coach-linker done')
   return result
 }

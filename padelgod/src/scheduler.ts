@@ -998,7 +998,8 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
     entries.push({
       name: 'coach-linker',
       // :50 — trails player-profile (:30) so fresh coach lists are linked the
-      // same hour. DB-only; no HTTP.
+      // same hour. DB-only; no HTTP. Shares :50 with fip-draw-reconciler
+      // (also DB-only, different tables).
       cron: '50 * * * *',
       run: async (d) => runCoachLinker({ supabase: d.supabase, logger: d.logger, dryRun: flags.coachLinkerDryRun }),
     });

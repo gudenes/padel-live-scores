@@ -1,5 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { buildSchedule } from '../scheduler.js';
+import { describe, it, expect, vi } from 'vitest';
+import { buildSchedule, getWorkerRunner, ALL_WORKERS } from '../scheduler.js';
+import { runCoachLinker } from '../workers/coach-linker.js';
+
+vi.mock('../workers/coach-linker.js', () => ({
+  runCoachLinker: vi.fn(async () => ({})),
+}));
 
 const ALL_ENABLED = {
   enableTournamentDiscovery: true,
@@ -26,6 +31,8 @@ const ALL_ENABLED = {
   marketGeneratorDryRun: true,
   enableMarketResolver: true,
   marketResolverDryRun: true,
+  enableCoachLinker: true,
+  coachLinkerDryRun: true,
 };
 
 describe('buildSchedule', () => {
@@ -214,5 +221,14 @@ describe('buildSchedule', () => {
   it('omits coach-linker when flag is off', () => {
     const sched = buildSchedule({ ...ALL_ENABLED, enableCoachLinker: false } as any);
     expect(sched.map((s) => s.name)).not.toContain('coach-linker');
+  });
+
+  it('registers a coach-linker admin runner that forces dryRun', async () => {
+    expect(ALL_WORKERS).toContain('coach-linker');
+    const runner = getWorkerRunner('coach-linker');
+    expect(runner).not.toBeNull();
+    const deps = { supabase: {}, logger: {} } as any;
+    await runner!(deps);
+    expect(runCoachLinker).toHaveBeenCalledWith(expect.objectContaining({ dryRun: true }));
   });
 });
