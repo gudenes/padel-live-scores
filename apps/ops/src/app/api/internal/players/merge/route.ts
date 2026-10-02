@@ -95,6 +95,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'One or both players not found' }, { status: 404 })
     }
 
+    // Guard before any write: two players linked to different coaches can't be merged
+    // without silently losing one link.
+    const hasCoaches = await tableExists(client, 'coaches')
+    if (hasCoaches) {
+      const linked = await client.query('SELECT DISTINCT player_id FROM coaches WHERE player_id = ANY($1::uuid[])', [[keepId, deleteId]])
+      if (linked.rowCount === 2) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'both players are linked to different coaches — unlink one coach first' }, { status: 409 })
+      }
+    }
+
     // 1. Apply the operator's per-field picks onto the survivor (allowlisted).
     if (mergedFields && typeof mergedFields === 'object') {
       const cols = Object.keys(mergedFields).filter(k => (MERGE_FIELDS as readonly string[]).includes(k))
@@ -158,21 +169,11 @@ export async function POST(request: Request) {
 
     // 7b. Coaches. coaches.player_id is ON DELETE SET NULL and
     //     coach_player_link_suggestions cascades — deleting the loser would drop
-    //     a confirmed coach↔player link and any "not the same person" decisions.
+    //     a confirmed coach↔player link. Repoint it when only the loser is linked
+    //     (the both-linked case is rejected up front with a 409).
     //     (player_coaches cascading is fine: the coach-linker rebuilds it.)
-    const notes: string[] = []
-    if (await tableExists(client, 'coaches')) {
-      const loserCoach = await client.query('SELECT id FROM coaches WHERE player_id = $1', [deleteId])
-      if (loserCoach.rowCount) {
-        const keepCoach = await client.query('SELECT id FROM coaches WHERE player_id = $1', [keepId])
-        if (!keepCoach.rowCount) {
-          await client.query('UPDATE coaches SET player_id = $1 WHERE player_id = $2', [keepId, deleteId])
-        } else {
-          const note = `coach link lost: losing player was linked to coach ${loserCoach.rows[0].id}, survivor keeps coach ${keepCoach.rows[0].id}`
-          console.warn(`[players/merge] ${note}`)
-          notes.push(note)
-        }
-      }
+    if (hasCoaches) {
+      await client.query('UPDATE coaches SET player_id = $1 WHERE player_id = $2', [keepId, deleteId])
     }
     //     Move suggestion decisions to the survivor, skipping (coach_id, survivor) pairs that exist.
     await reassignUnique(client, 'coach_player_link_suggestions', 'player_id', ['coach_id'], keepId, deleteId, false)
@@ -182,7 +183,7 @@ export async function POST(request: Request) {
     await client.query('DELETE FROM players WHERE id = $1', [deleteId])
 
     await client.query('COMMIT')
-    return NextResponse.json({ matchesUpdated, drawsUpdated, deleted: true, ...(notes.length ? { notes } : {}) })
+    return NextResponse.json({ matchesUpdated, drawsUpdated, deleted: true })
   } catch (e: unknown) {
     await client.query('ROLLBACK').catch(() => {})
     const message = e instanceof Error ? e.message : String(e)

@@ -29,16 +29,20 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
   const router = useRouter()
   const [d, setD] = useState<Detail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [rev, setRev] = useState(0)
   const [mergeQ, setMergeQ] = useState('')
   const [mergeHits, setMergeHits] = useState<CoachStatsRow[]>([])
 
+  // load() never clears `error`: a failed action's message must survive the reload.
+  // `rev` bumps on every successful load so inputs remount to the saved value.
   const load = useCallback(() => {
-    fetch(`/api/internal/coaches/${coachId}`)
+    return fetch(`/api/internal/coaches/${coachId}`)
       .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error(await errMsg(r)))))
-      .then((x: Detail) => { setD(x); setError(null) })
+      .then((x: Detail) => { setD(x); setRev((n) => n + 1) })
       .catch((e: Error) => setError(e.message))
   }, [coachId])
-  useEffect(load, [load])
+  useEffect(() => { load() }, [load])
 
   useEffect(() => {
     if (mergeQ.trim().length < 2) return
@@ -53,22 +57,39 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
   }, [mergeQ, coachId])
 
   const patch = async (body: Record<string, unknown>) => {
-    const r = await fetch(`/api/internal/coaches/${coachId}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    })
-    if (!r.ok) { setError(await errMsg(r)); load(); return }
+    if (busy) return
+    setBusy(true)
     setError(null)
-    load()
+    try {
+      const r = await fetch(`/api/internal/coaches/${coachId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      })
+      if (!r.ok) { setError(await errMsg(r)); setRev((n) => n + 1); return }
+      await load()
+    } catch (e) {
+      setError((e as Error).message)
+      setRev((n) => n + 1)
+    } finally {
+      setBusy(false)
+    }
   }
 
   const mergeInto = async (targetId: string, targetName: string) => {
     if (!confirm(`Merge "${d?.coach.display_name}" into "${targetName}"? Aliases and players move to ${targetName}.`)) return
-    const r = await fetch('/api/internal/coaches/merge', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sourceId: coachId, targetId }),
-    })
-    if (!r.ok) { setError(await errMsg(r)); return }
-    router.push(`/players/coaches/${targetId}`)
+    if (busy) return
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await fetch('/api/internal/coaches/merge', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceId: coachId, targetId }),
+      })
+      if (!r.ok) { setError(await errMsg(r)); setBusy(false); return }
+      router.push(`/players/coaches/${targetId}`)
+    } catch (e) {
+      setError((e as Error).message)
+      setBusy(false)
+    }
   }
 
   if (error && !d) return <div className="ui-page"><EmptyState title="Failed to load coach" hint={error} /></div>
@@ -110,24 +131,24 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
         <Panel title="Profile">
           <Field label="Display name">
-            <input key={c.display_name} className="ui-input" defaultValue={c.display_name} onBlur={textBlur('display_name', c.display_name)} />
+            <input key={`${rev}:${c.display_name}`} className="ui-input" defaultValue={c.display_name} onBlur={textBlur('display_name', c.display_name)} />
           </Field>
           <div style={{ margin: '12px 0' }}>
             <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>Status</div>
             <div style={{ display: 'flex', gap: 6 }}>
               {EDITABLE_STATUSES.map((s) => (
-                <Button key={s} size="sm" variant={c.status === s ? 'primary' : 'default'} onClick={() => c.status !== s && patch({ status: s })}>{s}</Button>
+                <Button key={s} size="sm" disabled={busy} variant={c.status === s ? 'primary' : 'default'} onClick={() => c.status !== s && patch({ status: s })}>{s}</Button>
               ))}
             </div>
           </div>
           <Field label="Country (ISO-2)">
-            <input key={c.country ?? ''} className="ui-input" defaultValue={c.country ?? ''} onBlur={textBlur('country', c.country)} />
+            <input key={`${rev}:${c.country ?? ''}`} className="ui-input" defaultValue={c.country ?? ''} onBlur={textBlur('country', c.country)} />
           </Field>
           <Field label="Avatar URL">
-            <input key={c.avatar_url ?? ''} className="ui-input" defaultValue={c.avatar_url ?? ''} onBlur={textBlur('avatar_url', c.avatar_url)} />
+            <input key={`${rev}:${c.avatar_url ?? ''}`} className="ui-input" defaultValue={c.avatar_url ?? ''} onBlur={textBlur('avatar_url', c.avatar_url)} />
           </Field>
           <Field label="Notes">
-            <textarea key={c.notes ?? ''} className="ui-input" defaultValue={c.notes ?? ''} onBlur={textBlur('notes', c.notes)} />
+            <textarea key={`${rev}:${c.notes ?? ''}`} className="ui-input" defaultValue={c.notes ?? ''} onBlur={textBlur('notes', c.notes)} />
           </Field>
         </Panel>
 
@@ -135,10 +156,10 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
           {d.linkedPlayer ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <Link href={`/players/${d.linkedPlayer.id}`}>{d.linkedPlayer.display_name || d.linkedPlayer.name}</Link>
-              <Button size="sm" variant="ghost" onClick={() => patch({ player_id: null })}>Unlink</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => patch({ player_id: null })}>Unlink</Button>
             </div>
           ) : (
-            <PlayerPicker value={null} onChange={(p) => { if (p) patch({ player_id: p.id }) }} />
+            <PlayerPicker value={null} disabled={busy} onChange={(p) => { if (p) patch({ player_id: p.id }) }} />
           )}
           {d.linkSuggestions.length > 0 && (
             <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-3)' }}>
@@ -165,7 +186,7 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
           {(mergeQ.trim().length < 2 ? [] : mergeHits).map((h) => (
             <div key={h.coach_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
               <span>{h.display_name} <span style={{ color: 'var(--text-3)', fontSize: 11 }}>{fmtPoints(h.total_points)} pts</span></span>
-              <Button size="sm" onClick={() => mergeInto(h.coach_id, h.display_name)}>Merge into</Button>
+              <Button size="sm" disabled={busy} onClick={() => mergeInto(h.coach_id, h.display_name)}>Merge into</Button>
             </div>
           ))}
           {d.mergeSuggestions.length > 0 && (

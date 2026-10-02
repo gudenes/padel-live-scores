@@ -55,16 +55,16 @@ export default function CoachReviewQueue() {
   const [busy, setBusy] = useState<string | null>(null)
 
   const load = useCallback(() => {
-    fetch('/api/internal/coaches/suggestions')
+    return fetch('/api/internal/coaches/suggestions')
       .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error((await r.json().catch(() => ({}))).error ?? r.statusText))))
       .then((d: QueueResponse) => { setData(d); setError(null) })
       .catch((e: Error) => setError(e.message))
   }, [])
-  useEffect(load, [load])
+  useEffect(() => { load() }, [load])
 
   const act = async (key: string, fn: () => Promise<void>) => {
     setBusy(key)
-    try { await fn(); setError(null); load() } catch (e) { setError((e as Error).message) } finally { setBusy(null) }
+    try { await fn(); setError(null); await load() } catch (e) { setError((e as Error).message) } finally { setBusy(null) }
   }
 
   const merge = (m: MergeRow, keep: Side, drop: Side) =>

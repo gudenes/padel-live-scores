@@ -39,7 +39,11 @@ export default function CoachesView() {
       if (q.trim()) params.set('q', q.trim())
       fetch(`/api/internal/coaches?${params}`, { signal: ctrl.signal })
         .then(async (r) => (r.ok ? r.json() : Promise.reject(new Error((await r.json().catch(() => ({}))).error ?? r.statusText))))
-        .then((d: ListResponse) => { setData(d); setError(null) })
+        .then((d: ListResponse) => {
+          setData(d); setError(null)
+          const last = Math.max(1, Math.ceil(d.total / d.per_page))
+          if (page > last) setPage(last)
+        })
         .catch((e: Error) => { if (e.name !== 'AbortError') setError(e.message) })
     }, 250)
     return () => { clearTimeout(t); ctrl.abort() }
