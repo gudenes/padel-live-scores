@@ -7,10 +7,12 @@ import type { BetaLocale } from '@/lib/beta-copy'
 import styles from './mini-game.module.css'
 
 const words = {
-  es: { demo: 'DEMO · SIN DINERO REAL', balance: 'Guacas de demo', skip: 'Inscribirme', step: 'Paso', back: 'Volver', question: '¿Habrá un tercer set?', context: 'Partido de ejemplo', pick: 'Tu primera jugada. El juego lo construimos contigo.', yes: 'Sí', no: 'No', amount: 'Pon tus Guacas en juego.', amountHint: 'Elige una cantidad virtual para esta demo.', selection: 'Tu predicción', stake: 'Guacas elegidas', possible: 'Retorno si aciertas', review: 'Tu jugada está lista.', reviewHint: 'Ahora descubre cómo sería el resultado.', reveal: 'Ver resultado de ejemplo', won: '¡Has acertado!', lost: 'Esta vez no ha sido.', outcome: 'Resultado de ejemplo: el partido llegó al tercer set.', resultNote: 'Es una simulación. No se guarda ninguna jugada ni se entregan premios.', board: 'Así se vería la clasificación', sample: 'Clasificación de ejemplo', you: 'Tú · demo', join: 'Quiero ayudar a crear el juego', invite: 'Tu opinión cuenta. Juega 3 semanas desde el 10 de octubre y cuéntanos qué mejorar en una charla de 15 minutos.', footer: 'Partido, saldo y multiplicadores de ejemplo.', next: 'Conoce las Guacas', coinHelp: 'Las Guacas son la moneda virtual de Padel Predict.', total: 'Tu saldo de demo', restart: 'Volver a probar' },
-  en: { demo: 'DEMO · NO REAL MONEY', balance: 'Demo Guacas', skip: 'Sign up', step: 'Step', back: 'Back', question: 'Will there be a third set?', context: 'Sample match', pick: 'Your first prediction. Help us shape what comes next.', yes: 'Yes', no: 'No', amount: 'Put your Guacas in play.', amountHint: 'Pick a virtual amount for this demo.', selection: 'Your prediction', stake: 'Guacas selected', possible: 'Return if correct', review: 'Your prediction is ready.', reviewHint: 'Discover what the result could look like.', reveal: 'Reveal example result', won: 'You got it right!', lost: 'Not this time.', outcome: 'Example result: the match went to a third set.', resultNote: 'This is a simulation. No plays are saved and no prizes are awarded.', board: 'See your place on the board', sample: 'Sample leaderboard', you: 'You · demo', join: 'Help shape the game', invite: 'Your feedback matters. Play for 3 weeks from October 10, then help us improve the game in a 15-minute chat.', footer: 'Sample match, balance and multipliers.', next: 'Meet Guacas', coinHelp: 'Guacas are the virtual currency in Padel Predict.', total: 'Your demo balance', restart: 'Try again' },
-  pt: { demo: 'DEMO · SEM DINHEIRO REAL', balance: 'Guacas de demo', skip: 'Inscrever-me', step: 'Passo', back: 'Voltar', question: 'Haverá um terceiro set?', context: 'Partida de exemplo', pick: 'A tua primeira jogada. Vamos criar o jogo contigo.', yes: 'Sim', no: 'Não', amount: 'Põe as tuas Guacas em jogo.', amountHint: 'Escolhe uma quantia virtual para esta demo.', selection: 'A tua previsão', stake: 'Guacas escolhidas', possible: 'Retorno se acertares', review: 'A tua jogada está pronta.', reviewHint: 'Descobre como seria o resultado.', reveal: 'Ver resultado de exemplo', won: 'Acertaste!', lost: 'Não foi desta vez.', outcome: 'Resultado de exemplo: a partida chegou ao terceiro set.', resultNote: 'É uma simulação. Nenhuma jogada é guardada e não há prémios.', board: 'Vê o teu lugar na classificação', sample: 'Classificação de exemplo', you: 'Tu · demo', join: 'Quero ajudar a criar o jogo', invite: 'A tua opinião conta. Joga 3 semanas a partir de 10 de outubro e ajuda-nos a melhorar numa conversa de 15 minutos.', footer: 'Partida, saldo e multiplicadores de exemplo.', next: 'Conhece as Guacas', coinHelp: 'As Guacas são a moeda virtual do Padel Predict.', total: 'O teu saldo de demo', restart: 'Experimentar novamente' },
+  es: { demo: 'DEMO · SIN DINERO REAL', balance: 'Guacas de demo', skip: 'Inscribirme', step: 'Paso', back: 'Volver', question: '¿Quién ganará este partido?', context: 'Partido de ejemplo', pick: 'Tu primera jugada. El juego lo construimos contigo.', amount: 'Pon tus Guacas en juego.', amountHint: 'Elige una cantidad virtual para esta demo.', selection: 'Tu predicción', stake: 'Guacas elegidas', possible: 'Retorno si aciertas', review: 'Tu jugada está lista.', reviewHint: 'Ahora descubre cómo sería el resultado.', reveal: 'Ver resultado de ejemplo', won: '¡Has acertado!', lost: 'Esta vez no ha sido.', outcome: 'Resultado de ejemplo: Tapia / Coello ganan 6–4, 6–3.', resultNote: 'Es una simulación. No se guarda ninguna jugada ni se entregan premios.', board: 'Así se vería la clasificación', sample: 'Clasificación de ejemplo', you: 'Tú · demo', join: 'Quiero ayudar a crear el juego', invite: 'Tu opinión cuenta. Juega 3 semanas desde el 10 de octubre y cuéntanos qué mejorar en una charla de 15 minutos.', footer: 'Partido, saldo y multiplicadores de ejemplo.', next: 'Conoce las Guacas', coinHelp: 'Las Guacas son la moneda virtual de Padel Predict.', total: 'Tu saldo de demo', restart: 'Volver a probar' },
+  en: { demo: 'DEMO · NO REAL MONEY', balance: 'Demo Guacas', skip: 'Sign up', step: 'Step', back: 'Back', question: 'Who will win this match?', context: 'Sample match', pick: 'Your first prediction. Help us shape what comes next.', amount: 'Put your Guacas in play.', amountHint: 'Pick a virtual amount for this demo.', selection: 'Your prediction', stake: 'Guacas selected', possible: 'Return if correct', review: 'Your prediction is ready.', reviewHint: 'Discover what the result could look like.', reveal: 'Reveal example result', won: 'You got it right!', lost: 'Not this time.', outcome: 'Example result: Tapia / Coello win 6–4, 6–3.', resultNote: 'This is a simulation. No plays are saved and no prizes are awarded.', board: 'See your place on the board', sample: 'Sample leaderboard', you: 'You · demo', join: 'Help shape the game', invite: 'Your feedback matters. Play for 3 weeks from October 10, then help us improve the game in a 15-minute chat.', footer: 'Sample match, balance and multipliers.', next: 'Meet Guacas', coinHelp: 'Guacas are the virtual currency in Padel Predict.', total: 'Your demo balance', restart: 'Try again' },
+  pt: { demo: 'DEMO · SEM DINHEIRO REAL', balance: 'Guacas de demo', skip: 'Inscrever-me', step: 'Passo', back: 'Voltar', question: 'Quem vai ganhar esta partida?', context: 'Partida de exemplo', pick: 'A tua primeira jogada. Vamos criar o jogo contigo.', amount: 'Põe as tuas Guacas em jogo.', amountHint: 'Escolhe uma quantia virtual para esta demo.', selection: 'A tua previsão', stake: 'Guacas escolhidas', possible: 'Retorno se acertares', review: 'A tua jogada está pronta.', reviewHint: 'Descobre como seria o resultado.', reveal: 'Ver resultado de exemplo', won: 'Acertaste!', lost: 'Não foi desta vez.', outcome: 'Resultado de exemplo: Tapia / Coello vencem 6–4, 6–3.', resultNote: 'É uma simulação. Nenhuma jogada é guardada e não há prémios.', board: 'Vê o teu lugar na classificação', sample: 'Classificação de exemplo', you: 'Tu · demo', join: 'Quero ajudar a criar o jogo', invite: 'A tua opinião conta. Joga 3 semanas a partir de 10 de outubro e ajuda-nos a melhorar numa conversa de 15 minutos.', footer: 'Partida, saldo e multiplicadores de exemplo.', next: 'Conhece as Guacas', coinHelp: 'As Guacas são a moeda virtual do Padel Predict.', total: 'O teu saldo de demo', restart: 'Experimentar novamente' },
 } as const
+
+const teams = { team_a: 'Tapia / Coello', team_b: 'Galán / Chingotto' } as const
 
 const players = [ ['Tapia', 'Agustin_Tapia_4.png'], ['Coello', 'Arturo_Coello_6.png'], ['Galán', 'Alejandro_Galan_7.png'], ['Chingotto', 'Federico_Chingotto_4.png'] ]
 
@@ -22,15 +24,16 @@ export default function MiniGame({ locale: initialLocale, signupHref = '/beta#be
   const [locale, setLocale] = useState(initialLocale)
   const text = words[locale]
   const [step, setStep] = useState(0)
-  const [side, setSide] = useState<'yes' | 'no'>('yes')
+  const [side, setSide] = useState<'team_a' | 'team_b'>('team_a')
   const [stake, setStake] = useState(100)
   const [leaving, setLeaving] = useState(false)
   const transition = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (transition.current) clearTimeout(transition.current) }, [])
   const title = useRef<HTMLHeadingElement>(null)
   const number = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value)
-  const odds = side === 'yes' ? 4.88 : 1.26
-  const balance = step === 3 ? 1000 - stake + (side === 'yes' ? stake * odds : 0) : 1000
+  const multiplier = (value: number) => new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
+  const odds = side === 'team_a' ? 1.80 : 2.10
+  const balance = step === 3 ? 1000 - stake + (side === 'team_a' ? stake * odds : 0) : 1000
   function advance(next: number) {
     if (transition.current) return
     setLeaving(true)
@@ -41,7 +44,7 @@ export default function MiniGame({ locale: initialLocale, signupHref = '/beta#be
       requestAnimationFrame(() => title.current?.focus())
     }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 140)
   }
-  const titles = [text.question, text.amount, text.review, side === 'yes' ? text.won : text.lost]
+  const titles = [text.question, text.amount, text.review, side === 'team_a' ? text.won : text.lost]
 
   return <main className={styles.screen} lang={locale}>
     <header className={styles.header}>
@@ -60,19 +63,19 @@ export default function MiniGame({ locale: initialLocale, signupHref = '/beta#be
       </div>
       {step === 0 && <div className={styles.match}>
         <p className={styles.tournament}>PADEL PREDICT · DEMO</p>
-        <div className={styles.players}>{players.map(([name,image], i) => <div key={name} data-side={i < 2 ? 'yes' : 'no'}><Image src={`/beta/demo/${image}`} alt={name} width={100} height={100} /><strong>{name}</strong></div>)}</div>
+        <div className={styles.players}>{players.map(([name,image], i) => <div key={name} data-side={i < 2 ? 'team_a' : 'team_b'}><Image src={`/beta/demo/${image}`} alt={name} width={100} height={100} /><strong>{name}</strong></div>)}</div>
         <p className={styles.vs}>Tapia / Coello <span>vs</span> Galán / Chingotto</p>
-        <div className={styles.choices}>{(['yes','no'] as const).map(value => <button key={value} type="button" data-side={value} onClick={() => {setSide(value);advance(1)}}><span>{text[value]}</span><strong>{number(value === 'yes' ? 4.88 : 1.26)}×</strong></button>)}</div>
+        <div className={styles.choices}>{(['team_a','team_b'] as const).map(value => <button key={value} type="button" data-side={value} onClick={() => {setSide(value);advance(1)}}><span>{teams[value]}</span><strong>{multiplier(value === 'team_a' ? 1.80 : 2.10)}×</strong></button>)}</div>
       </div>}
       {step === 1 && <div className={styles.amountPanel}>
         <Image className={styles.bigCoin} src="/beta/demo/guaca.webp" alt="Guaca" width={110} height={110} />
         <p>{text.coinHelp}</p>
-        <div className={styles.chosen}>{text.selection}: <strong>{text[side]} · {number(odds)}×</strong></div>
+        <div className={styles.chosen}>{text.selection}: <strong>{teams[side]} · {multiplier(odds)}×</strong></div>
         <div className={styles.amounts}>{[50,100,200].map(amount => <button key={amount} type="button" onClick={() => {setStake(amount);advance(2)}}><Coin /><strong>{amount}</strong></button>)}</div>
       </div>}
       {step === 2 && <div className={styles.ticket}>
         <Image className={styles.avatar} src="/beta/demo/face-01.webp" alt="" width={80} height={80} />
-        <dl><div><dt>{text.selection}</dt><dd>{text[side]} · {number(odds)}×</dd></div><div><dt>{text.stake}</dt><dd><Coin />{stake}</dd></div><div><dt>{text.possible}</dt><dd><Coin />{number(stake * odds)}</dd></div></dl>
+        <dl><div><dt>{text.selection}</dt><dd>{teams[side]} · {multiplier(odds)}×</dd></div><div><dt>{text.stake}</dt><dd><Coin />{stake}</dd></div><div><dt>{text.possible}</dt><dd><Coin />{number(stake * odds)}</dd></div></dl>
       </div>}
       {step === 3 && <div className={styles.result}>
         <div className={styles.resultBalance}><span>{text.total}</span><strong><Coin size={34}/>{number(balance)}</strong></div>
