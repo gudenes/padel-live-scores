@@ -643,6 +643,7 @@
     "metaDescription": "{team} no {competition}, temporada {season}: {tiesWon} de {tiesPlayed} eliminatórias ganhas, {courtsWon}–{courtsLost} em pista."
   },
   "coach": {
+    "back": "Voltar",
     "pageLabel": "Treinador",
     "rankChip": "#{rank} treinador",
     "subtitle": "Treinador · {players, plural, one {# jogador} other {# jogadores}} · {titles, plural, =0 {sem títulos em {year}} one {# título em {year}} other {# títulos em {year}}}",

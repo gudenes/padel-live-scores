@@ -674,6 +674,7 @@
     "metaDescription": "{team} in {competition}, season {season}: {tiesWon} of {tiesPlayed} ties won, {courtsWon}–{courtsLost} on court."
   },
   "coach": {
+    "back": "Back",
     "pageLabel": "Coach",
     "rankChip": "#{rank} coach",
     "subtitle": "Coach · {players, plural, one {# player} other {# players}} · {titles, plural, =0 {no titles in {year}} one {# title in {year}} other {# titles in {year}}}",

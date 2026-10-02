@@ -643,6 +643,7 @@
     "metaDescription": "{team} en {competition}, saison {season} : {tiesWon} rencontres gagnées sur {tiesPlayed}, {courtsWon}–{courtsLost} sur terrain."
   },
   "coach": {
+    "back": "Retour",
     "pageLabel": "Entraîneur",
     "rankChip": "#{rank} entraîneur",
     "subtitle": "Entraîneur · {players, plural, one {# joueur} other {# joueurs}} · {titles, plural, =0 {aucun titre en {year}} one {# titre en {year}} other {# titres en {year}}}",
