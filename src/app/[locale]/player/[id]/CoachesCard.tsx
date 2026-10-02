@@ -1,14 +1,16 @@
 'use client'
 
 // Coaches card on the player Overview tab. Names only, in FIP list order.
-// Names become links once coach pages exist (spec 2026-10-02-player-profile-coaches).
+// Each name links to its coach page.
 
 import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 import { Widget } from './Widget'
 
 export interface ProfileCoach {
   coach_id: string
   display_name: string
+  slug: string
 }
 
 export function CoachesCard({ coaches }: { coaches: ProfileCoach[] }) {
@@ -20,7 +22,9 @@ export function CoachesCard({ coaches }: { coaches: ProfileCoach[] }) {
         {coaches.map((c, i) => (
           <span key={c.coach_id}>
             {i > 0 && ', '}
-            <span data-testid="coach-name">{c.display_name}</span>
+            <Link href={`/coach/${c.slug}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+              <span data-testid="coach-name">{c.display_name}</span>
+            </Link>
           </span>
         ))}
       </div>

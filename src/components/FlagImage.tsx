@@ -1,3 +1,5 @@
+'use client'
+
 // src/components/FlagImage.tsx
 // Shared country-flag renderer with local-first + flagcdn.com fallback.
 //

@@ -350,16 +350,17 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
         // a failure must never break the profile — just no card.
         supabase
           .from('player_coaches_public')
-          .select('coach_id, display_name, position')
+          .select('coach_id, display_name, slug, position')
           .eq('player_id', id)
           .order('position')
           .then(({ data, error }) => {
             if (error) console.warn('[player] coaches load failed', error.message)
             if (!cancelled) {
               setCoaches(
-                ((data ?? []) as { coach_id: string; display_name: string; position: number }[]).map((r) => ({
+                ((data ?? []) as { coach_id: string; display_name: string; slug: string; position: number }[]).map((r) => ({
                   coach_id: r.coach_id,
                   display_name: r.display_name,
+                  slug: r.slug,
                 })),
               )
             }
