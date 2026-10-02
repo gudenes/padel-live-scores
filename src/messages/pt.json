@@ -332,6 +332,7 @@
     "men": "Masculino",
     "women": "Feminino",
     "money": "Dinheiro",
+    "coachesTab": "Treinadores",
     "moneyCaption": "Prémios estimados",
     "moneySeason": "época {year}",
     "prizeColumn": "Prémio €",
@@ -649,7 +650,6 @@
     "womenPoints": "Pts fem.",
     "playersCount": "{count, plural, one {# jogador} other {# jogadores}}",
     "nextMatches": "Próximos jogos",
-    "live": "Ao vivo",
     "players": "Jogadores",
     "men": "Masculino",
     "women": "Feminino",
@@ -666,9 +666,9 @@
     "metaDescription": "{name} treina {players}. Rankings, títulos e próximos jogos de cada jogador.",
     "indexMetaTitle": "Ranking de treinadores de padel",
     "indexMetaDescription": "Os melhores treinadores de padel, ordenados pelos pontos FIP dos seus jogadores.",
-    "rankingsLink": "Treinadores",
-    "vs": "vs",
     "indexEmpty": "Ainda não há treinadores.",
+    "indexError": "Não foi possível carregar os treinadores.",
+    "retry": "Tentar de novo",
     "previous": "Anterior"
   },
   "player": {

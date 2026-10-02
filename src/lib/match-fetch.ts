@@ -37,6 +37,40 @@ export const MATCH_FETCH_SELECT = `
   sets(*, games(*))
 `
 
+// Joined Supabase result has nested set/game/tournament shapes that
+// the generated row type can't express; cast through unknown is the
+// codebase pattern.
+export type FetchedMatchRow = {
+  sets?: Array<{
+    set_number: number | null
+    games?: Array<{ game_number: number | null }>
+  } & Record<string, unknown>>
+} & Record<string, unknown>
+
+/**
+ * Normalise a row loaded with MATCH_FETCH_SELECT: sort sets by set_number,
+ * games by game_number, and hydrate thin player slots from the
+ * pair*_player*_name fallback columns. Shared by every consumer of the
+ * canonical projection.
+ */
+export function normalizeFetchedMatch(row: FetchedMatchRow): Match {
+  const sorted = {
+    ...row,
+    sets: (row.sets ?? [])
+      .slice()
+      .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
+      .map((set) => ({
+        ...set,
+        games: (set.games ?? [])
+          .slice()
+          .sort((a, b) => (a.game_number ?? 0) - (b.game_number ?? 0)),
+      })),
+  }
+  // hydrateThinPlayers expects a more specific row shape; cast through
+  // unknown — same pattern the other call sites use.
+  return hydrateThinPlayers(sorted as unknown as Parameters<typeof hydrateThinPlayers>[0]) as unknown as Match
+}
+
 export interface FetchMatchOptions {
   /** Timeout in ms. Defaults to 10s — same as match detail page. */
   timeoutMs?: number
@@ -56,43 +90,18 @@ export async function fetchMatchById(
   opts: FetchMatchOptions = {},
 ): Promise<Match | null> {
   const { timeoutMs = 10_000, label = 'match:fetch' } = opts
-  // Joined Supabase result has nested set/game/tournament shapes that
-  // the generated row type can't express; cast through unknown is the
-  // codebase pattern.
-  type MatchRow = {
-    sets?: Array<{
-      set_number: number | null
-      games?: Array<{ game_number: number | null }>
-    } & Record<string, unknown>>
-  } & Record<string, unknown>
-
   try {
-    const { data, error } = await withTimeout<{ data: MatchRow | null; error: unknown }>(
+    const { data, error } = await withTimeout<{ data: FetchedMatchRow | null; error: unknown }>(
       supabase
         .from('matches')
         .select(MATCH_FETCH_SELECT)
         .eq('id', id)
-        .single() as unknown as Promise<{ data: MatchRow | null; error: unknown }>,
+        .single() as unknown as Promise<{ data: FetchedMatchRow | null; error: unknown }>,
       timeoutMs,
       label,
     )
     if (error || !data) return null
-    const sorted = {
-      ...data,
-      sets: (data.sets ?? [])
-        .slice()
-        .sort((a, b) => (a.set_number ?? 0) - (b.set_number ?? 0))
-        .map((set) => ({
-          ...set,
-          games: (set.games ?? [])
-            .slice()
-            .sort((a, b) => (a.game_number ?? 0) - (b.game_number ?? 0)),
-        })),
-    }
-    // hydrateThinPlayers expects a more specific row shape; cast
-    // through unknown — same pattern the call sites in fetch-matches-day
-    // and the match-detail page use.
-    return hydrateThinPlayers(sorted as unknown as Parameters<typeof hydrateThinPlayers>[0]) as unknown as Match
+    return normalizeFetchedMatch(data)
   } catch (e) {
     console.error('[fetchMatchById] exception:', e)
     return null

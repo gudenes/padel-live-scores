@@ -8,15 +8,17 @@ import { createAnonServerClient } from '@/lib/supabase'
 import { buildAlternates } from '@/lib/seo-helpers'
 import {
   fetchCoachPage, splitPlayers, initials, shortPlayerName, isIndexable, formatTournamentName,
-  type CoachPlayer, type CoachTitle, type UpcomingRow,
+  type CoachPlayer, type CoachTitle,
 } from '@/lib/coach-page-data'
 import { Link, permanentRedirect } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
+import PlayerAvatar from '@/components/Avatar'
 import { Widget } from '../../../player/[id]/Widget'
 import {
-  GREEN, ORANGE, MUTED, BG_BASE, MEN_BLUE, WOMEN_PURPLE, LIVE_RED, CHUNKY,
+  GREEN, ORANGE, MUTED, BG_BASE, MEN_BLUE, WOMEN_PURPLE, CHUNKY,
 } from '@/components/home/shared-constants'
 import { ExpandableList } from './ExpandableList'
+import { CoachNextMatches } from './CoachNextMatches'
 
 const BASE_URL = 'https://padelnachos.com'
 
@@ -92,7 +94,13 @@ export default async function CoachPage({ params }: Props) {
       href={`/player/${p.id}`}
       style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', textDecoration: 'none', color: 'inherit' }}
     >
-      <Avatar name={p.display_name || p.name} bg={bg} size={30} />
+      <PlayerAvatar
+        src={p.avatar_url}
+        alt={p.display_name || p.name}
+        size={30}
+        fallback={initials(p.display_name || p.name)}
+        style={{ border: `2px solid ${bg}`, boxSizing: 'border-box' }}
+      />
       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {p.display_name || p.name}
@@ -116,38 +124,6 @@ export default async function CoachPage({ params }: Props) {
   ]
   const PLAYERS_INITIAL = 6
   const listedPlayers = men.length + women.length
-
-  const nextRow = (m: UpcomingRow) => {
-    const isLive = m.status === 'live' || m.status === 'on_court'
-    const chip = isLive
-      ? t('live')
-      : m.scheduled_at
-        ? format.dateTime(new Date(m.scheduled_at), { weekday: 'short', hour: '2-digit', minute: '2-digit' })
-        : ''
-    return (
-      <Link
-        key={m.match_id}
-        href={`/match/${m.match_id}`}
-        style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', textDecoration: 'none', color: 'inherit' }}
-      >
-        <span style={{
-          background: isLive ? LIVE_RED : '#2A2A2A', color: isLive ? '#fff' : '#E2E8F0',
-          fontSize: 10, fontWeight: 800, padding: '3px 7px', whiteSpace: 'nowrap',
-          clipPath: CHUNKY.badge, textTransform: 'uppercase',
-        }}>
-          {chip}
-        </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 10, color: MUTED }}>
-            {[m.round, m.tournament_name].filter(Boolean).join(' · ')}
-          </div>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {m.pair1} {t('vs')} {m.pair2}
-          </div>
-        </div>
-      </Link>
-    )
-  }
 
   const titleRow = (ti: CoachTitle) => (
     <Link
@@ -210,7 +186,7 @@ export default async function CoachPage({ params }: Props) {
 
         {next.length > 0 && (
           <Widget wide label={t('nextMatches')}>
-            {next.map(nextRow)}
+            <CoachNextMatches matches={next} />
           </Widget>
         )}
 

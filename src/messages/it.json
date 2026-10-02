@@ -332,6 +332,7 @@
     "men": "Uomini",
     "women": "Donne",
     "money": "Montepremi",
+    "coachesTab": "Allenatori",
     "moneyCaption": "Montepremi stimato",
     "moneySeason": "stagione {year}",
     "prizeColumn": "Premio €",
@@ -649,7 +650,6 @@
     "womenPoints": "Pti femminili",
     "playersCount": "{count, plural, one {# giocatore} other {# giocatori}}",
     "nextMatches": "Prossime partite",
-    "live": "Live",
     "players": "Giocatori",
     "men": "Maschile",
     "women": "Femminile",
@@ -666,9 +666,9 @@
     "metaDescription": "{name} allena {players}. Ranking, titoli e prossime partite di ogni giocatore.",
     "indexMetaTitle": "Classifica allenatori di padel",
     "indexMetaDescription": "I migliori allenatori di padel, ordinati per i punti FIP dei loro giocatori.",
-    "rankingsLink": "Allenatori",
-    "vs": "vs",
     "indexEmpty": "Ancora nessun allenatore.",
+    "indexError": "Impossibile caricare gli allenatori.",
+    "retry": "Riprova",
     "previous": "Precedenti"
   },
   "player": {

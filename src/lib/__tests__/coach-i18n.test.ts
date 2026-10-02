@@ -16,7 +16,6 @@ const samples: Record<string, Record<string, string | number>> = {
   womenPoints: {},
   playersCount: { count: 3 },
   nextMatches: {},
-  live: {},
   players: {},
   men: {},
   women: {},
@@ -33,9 +32,9 @@ const samples: Record<string, Record<string, string | number>> = {
   metaDescription: { name: 'Gustavo Pratto', players: 'Tapia, Coello' },
   indexMetaTitle: {},
   indexMetaDescription: {},
-  rankingsLink: {},
-  vs: {},
   indexEmpty: {},
+  indexError: {},
+  retry: {},
   previous: {},
 }
 
