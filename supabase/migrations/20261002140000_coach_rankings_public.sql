@@ -1,22 +1,39 @@
 -- Public projections for the coach pages (spec 2026-10-02-coach-pages-design.md).
 -- Owner-rights views on purpose (no security_invoker): coaches/player_coaches keep
--- RLS with no anon policy and coach_stats is security_invoker, so these views are
--- the only anon path, exposing only the listed columns. Supabase's advisor flags
--- owner-rights views; these are intentional. Writes are explicitly revoked because
--- Supabase's default privileges grant ALL on new public relations to anon.
+-- RLS with no anon policy, so these views are the only anon path, exposing only the
+-- listed columns. coach_rankings_public deliberately reads the BASE tables, NOT
+-- coach_stats: coach_stats is security_invoker, and Postgres checks a security_invoker
+-- view with the CURRENT user's permissions even when reached from an owner-rights
+-- view, so anon would get zero rows. Supabase's advisor flags owner-rights views;
+-- these are intentional. Writes are explicitly revoked because Supabase's default
+-- privileges grant ALL on new public relations to anon.
 
 set local lock_timeout = '5s';
 
 create or replace view public.coach_rankings_public with (security_barrier = true) as
+with agg as (
+  select
+    c.id as coach_id, c.display_name, c.slug,
+    count(p.id)::int as player_count,
+    coalesce(sum(p.points) filter (where p.category = 'men'), 0)::bigint as men_points,
+    coalesce(sum(p.points) filter (where p.category = 'women'), 0)::bigint as women_points,
+    coalesce(sum(p.points), 0)::bigint as total_points
+  from public.coaches c
+  join public.player_coaches pc on pc.coach_id = c.id
+  join public.players p on p.id = pc.player_id and coalesce(p.tier, 'pro') = 'pro'
+  where c.status in ('unreviewed', 'verified')
+  group by c.id
+)
 select
-  s.coach_id, s.display_name, s.slug,
-  s.player_count,
-  s.men_points, s.women_points, s.total_points,
-  rank() over (order by s.total_points desc) as rank_overall,
-  rank() over (order by s.men_points desc)   as rank_men,
-  rank() over (order by s.women_points desc) as rank_women
-from public.coach_stats s
-where s.status in ('unreviewed', 'verified') and s.player_count > 0;
+  a.coach_id, a.display_name, a.slug, a.player_count,
+  a.men_points, a.women_points, a.total_points,
+  rank() over (order by a.total_points desc) as rank_overall,
+  case when a.men_points > 0
+    then rank() over (partition by (a.men_points > 0) order by a.men_points desc) end as rank_men,
+  case when a.women_points > 0
+    then rank() over (partition by (a.women_points > 0) order by a.women_points desc) end as rank_women
+from agg a
+where a.player_count > 0;
 
 create or replace view public.coach_slug_redirects with (security_barrier = true) as
 select m.slug as old_slug, t.slug as new_slug

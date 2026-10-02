@@ -29,15 +29,29 @@ Anon (server) client only. One new owner-rights view, same pattern and safeguard
 ```sql
 -- supabase/migrations/20261002140000_coach_rankings_public.sql
 create or replace view public.coach_rankings_public with (security_barrier = true) as
+with agg as (
+  select
+    c.id as coach_id, c.display_name, c.slug,
+    count(p.id)::int as player_count,
+    coalesce(sum(p.points) filter (where p.category = 'men'), 0)::bigint as men_points,
+    coalesce(sum(p.points) filter (where p.category = 'women'), 0)::bigint as women_points,
+    coalesce(sum(p.points), 0)::bigint as total_points
+  from public.coaches c
+  join public.player_coaches pc on pc.coach_id = c.id
+  join public.players p on p.id = pc.player_id and coalesce(p.tier, 'pro') = 'pro'
+  where c.status in ('unreviewed', 'verified')
+  group by c.id
+)
 select
-  s.coach_id, s.display_name, s.slug,
-  s.player_count,
-  s.men_points, s.women_points, s.total_points,
-  rank() over (order by s.total_points desc) as rank_overall,
-  rank() over (order by s.men_points desc)   as rank_men,
-  rank() over (order by s.women_points desc) as rank_women
-from public.coach_stats s
-where s.status in ('unreviewed', 'verified') and s.player_count > 0;
+  a.coach_id, a.display_name, a.slug, a.player_count,
+  a.men_points, a.women_points, a.total_points,
+  rank() over (order by a.total_points desc) as rank_overall,
+  case when a.men_points > 0
+    then rank() over (partition by (a.men_points > 0) order by a.men_points desc) end as rank_men,
+  case when a.women_points > 0
+    then rank() over (partition by (a.women_points > 0) order by a.women_points desc) end as rank_women
+from agg a
+where a.player_count > 0;
 
 -- merged slug → surviving slug, for redirects
 create or replace view public.coach_slug_redirects with (security_barrier = true) as
@@ -49,7 +63,7 @@ revoke all on public.coach_rankings_public, public.coach_slug_redirects from pub
 grant select on public.coach_rankings_public, public.coach_slug_redirects to anon, authenticated, service_role;
 ```
 
-`coach_stats` is `security_invoker` over RLS-locked tables, so the owner-rights wrapper is what makes it readable to anon — and only these columns. Men/Women tab rows with 0 points in that category are filtered out in the query (`men_points > 0` / `women_points > 0`).
+`coach_rankings_public` reads the base tables (`coaches`, `player_coaches`, `players`) directly, NOT `coach_stats`: `coach_stats` is `security_invoker`, and Postgres checks a security_invoker view with the current user's permissions even when reached from an owner-rights view, so anon would get zero rows. The owner-rights view exposes only these columns. Men/Women ranks are NULL when the coach has 0 points in that category, and those rows are also filtered out in the query (`men_points > 0` / `women_points > 0`).
 
 Everything else is already public:
 - **Players:** `player_coaches_public` (coach → player ids, position) + `players` (name, display_name, country, category, ranking, points, avatar_url, tier).

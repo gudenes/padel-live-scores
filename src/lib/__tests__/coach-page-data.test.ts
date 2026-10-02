@@ -16,6 +16,7 @@ describe('initials / shortPlayerName', () => {
   })
   it('short name prefers display_name, else surname', () => {
     expect(shortPlayerName(p({ id: '1', name: 'Agustin Tapia' }))).toBe('Tapia')
+    expect(shortPlayerName(p({ id: '3', name: 'Alejandro Galan Romo' }))).toBe('Galan')
     expect(shortPlayerName(p({ id: '2', name: 'Beatriz Caldera Sanchez', display_name: 'Bea Caldera' }))).toBe('Bea Caldera')
   })
 })
@@ -31,6 +32,11 @@ describe('splitPlayers', () => {
     ])
     expect(r.men.map((x) => x.id)).toEqual(['m1', 'm39', 'm-unr'])
     expect(r.women.map((x) => x.id)).toEqual(['w1', 'w2'])
+  })
+  it('drops players with null/other category', () => {
+    const r = splitPlayers([p({ id: 'n', category: null }), p({ id: 'x', category: 'mixed' }), p({ id: 'm', category: 'men' })])
+    expect(r.men.map((x) => x.id)).toEqual(['m'])
+    expect(r.women).toEqual([])
   })
 })
 
@@ -76,6 +82,14 @@ describe('pickNextMatches', () => {
       m('soon2', 'scheduled', '2026-10-02T14:00:00Z'),
     ], now)
     expect(r.map((x) => x.match_id)).toEqual(['live', 'soon', 'soon2'])
+  })
+  it('drops stuck-live rows older than 18h, keeps live with null scheduled_at', () => {
+    const r = pickNextMatches([
+      m('stuck', 'live', '2026-10-01T10:00:00Z'),
+      m('nodate', 'on_court', null),
+      m('fresh', 'live', '2026-10-02T08:00:00Z'),
+    ], now)
+    expect(r.map((x) => x.match_id)).toEqual(['nodate', 'fresh'])
   })
 })
 
