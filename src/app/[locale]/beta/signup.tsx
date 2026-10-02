@@ -6,6 +6,7 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { betaCopy, type BetaLocale } from '@/lib/beta-copy'
 import styles from './signup.module.css'
 import { IOS_APP_URL, ANDROID_APP_URL } from '@/lib/app-redirect'
+import { betaAttributionFromSearch } from '@/lib/beta-attribution'
 import { markBetaSignupComplete } from '@/lib/beta-invitation'
 import { BETA_STARTS_AT, BETA_SIGNUPS_CLOSE_AT, betaSignupsClosed, betaTimeRemaining } from '@/lib/beta-schedule'
 
@@ -45,6 +46,7 @@ export default function BetaSignup({ locale }: { locale: BetaLocale }) {
         body: JSON.stringify({
           name: data.get('name'), email: data.get('email'), whatsapp: data.get('whatsapp'),
           language: data.get('language'), locale,
+          attribution: betaAttributionFromSearch(window.location.search),
           commitment: data.get('commitment') === 'on',
           contactConsent: data.get('contactConsent') === 'on',
           website: data.get('website'),
@@ -76,7 +78,7 @@ export default function BetaSignup({ locale }: { locale: BetaLocale }) {
             <button key={language} type="button" aria-pressed={locale === language}
               lang={language} disabled={status === 'pending'} onClick={() => {
                 persistLocale(language)
-                router.replace('/beta', { locale: language, scroll: false })
+                router.replace(`/beta${window.location.search}${window.location.hash}`, { locale: language, scroll: false })
               }}>{languages[language]}</button>
           ))}
         </nav>

@@ -1,3 +1,4 @@
+import { normalizeBetaAttribution } from '@/lib/beta-attribution'
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { sendBetaConfirmationEmail } from '@/lib/email/beta-confirmation'
@@ -54,6 +55,7 @@ export async function POST(request: Request) {
     const { error } = await createServiceClient().from('prediction_beta_signups').insert({
       name, email, whatsapp: whatsapp || null, language: input.language, locale: input.locale,
       commitment: true, contact_consent: true, consent_version: '2026-09-29',
+      attribution: normalizeBetaAttribution(input.attribution),
     })
     // Identical responses prevent revealing whether an email is already signed up.
     if (error && error.code !== '23505') {

@@ -41,8 +41,14 @@ describe('beta signup', () => {
     expect((await send(valid)).status).toBe(200)
     expect(insert).toHaveBeenCalledWith({
       name: 'Padel Fan', email: 'fan@example.com', whatsapp: null, language: 'es', locale: 'en',
-      commitment: true, contact_consent: true, consent_version: '2026-09-29',
+      commitment: true, contact_consent: true, consent_version: '2026-09-29', attribution: {},
     })
+  })
+  it('saves campaign metadata without using the interview language for attribution', async () => {
+    expect((await send({ ...valid, attribution: { utm_source: 'meta', utm_campaign: 'closed_beta_oct2026_en', fbclid: 'discard' } })).status).toBe(200)
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      language: 'es', attribution: { utm_source: 'meta', utm_campaign: 'closed_beta_oct2026_en' },
+    }))
   })
   it.each(['+34 612 345 678', '+34 (612) 345-678'])('normalizes an international WhatsApp number: %s', async whatsapp => {
     expect((await send({ ...valid, whatsapp })).status).toBe(200)
