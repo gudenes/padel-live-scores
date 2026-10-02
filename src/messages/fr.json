@@ -666,7 +666,10 @@
     "metaDescription": "{name} entraîne {players}. Classements, titres et prochains matchs de chaque joueur.",
     "indexMetaTitle": "Classement des entraîneurs de padel | Padel Nachos",
     "indexMetaDescription": "Les meilleurs entraîneurs de padel, classés selon les points FIP de leurs joueurs.",
-    "rankingsLink": "Entraîneurs"
+    "rankingsLink": "Entraîneurs",
+    "vs": "vs",
+    "indexEmpty": "Aucun entraîneur pour le moment.",
+    "previous": "Précédent"
   },
   "player": {
     "playerProfile": "Profil du joueur",

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  visibleGroups, formatTournamentName,
   initials, shortPlayerName, splitPlayers, shapeTitles, pickNextMatches, isIndexable, topPlayerNames,
   type CoachPlayer, type FinalRow, type UpcomingRow,
 } from '../coach-page-data'
@@ -102,5 +103,40 @@ describe('isIndexable / topPlayerNames', () => {
     expect(topPlayerNames([
       p({ id: '1', name: 'A One', points: 5 }), p({ id: '2', name: 'B Two', points: 50 }), p({ id: '3', name: 'C Three', points: 20 }),
     ])).toEqual({ names: ['Two', 'Three'], more: 1 })
+  })
+})
+
+describe('visibleGroups', () => {
+  const mk = (men: number, women: number) => [
+    { key: 'men', heading: 'H-men', rows: Array.from({ length: men }, (_, i) => `m${i}`) },
+    { key: 'women', heading: 'H-women', rows: Array.from({ length: women }, (_, i) => `w${i}`) },
+  ]
+  it('4 men + 3 women -> 4 men + 2 women', () => {
+    const r = visibleGroups(mk(4, 3), 6)
+    expect(r.groups.map((g) => g.rows.length)).toEqual([4, 2])
+    expect(r.hidden).toBe(1)
+  })
+  it('does not show an empty heading', () => {
+    const r = visibleGroups(mk(6, 3), 6)
+    expect(r.groups.map((g) => g.key)).toEqual(['men'])
+    expect(r.hidden).toBe(3)
+  })
+  it('5 men + 3 women -> hidden 2', () => {
+    expect(visibleGroups(mk(5, 3), 6).hidden).toBe(2)
+  })
+  it('<= 6 total -> nothing hidden', () => {
+    const r = visibleGroups(mk(4, 2), 6)
+    expect(r.hidden).toBe(0)
+    expect(r.groups.map((g) => g.rows.length)).toEqual([4, 2])
+  })
+})
+
+describe('formatTournamentName', () => {
+  it('keeps mixed-case names as stored', () => {
+    expect(formatTournamentName('Madrid Premier Padel P1')).toBe('Madrid Premier Padel P1')
+  })
+  it('title-cases all-caps names, keeping acronyms', () => {
+    expect(formatTournamentName('FIP GOLD LISBON P1')).toBe('FIP Gold Lisbon P1')
+    expect(formatTournamentName('BNL ITALIA MAJOR')).toBe('BNL Italia Major')
   })
 })

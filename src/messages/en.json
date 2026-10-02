@@ -697,7 +697,10 @@
     "metaDescription": "{name} coaches {players}. Rankings, titles and next matches of every player.",
     "indexMetaTitle": "Padel coaches ranking | Padel Nachos",
     "indexMetaDescription": "The top padel coaches, ranked by their players' FIP points.",
-    "rankingsLink": "Coaches"
+    "rankingsLink": "Coaches",
+    "vs": "vs",
+    "indexEmpty": "No coaches here yet.",
+    "previous": "Previous"
   },
   "player": {
     "playerProfile": "Player Profile",

@@ -1,12 +1,13 @@
 // Public coach page. Server-rendered: only the "+N more" lists are client islands.
 
-import { cache, type ReactNode } from 'react'
+import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getFormatter, getTranslations } from 'next-intl/server'
 import { createAnonServerClient } from '@/lib/supabase'
+import { buildAlternates } from '@/lib/seo-helpers'
 import {
-  fetchCoachPage, splitPlayers, initials, shortPlayerName, isIndexable,
+  fetchCoachPage, splitPlayers, initials, shortPlayerName, isIndexable, formatTournamentName,
   type CoachPlayer, type CoachTitle, type UpcomingRow,
 } from '@/lib/coach-page-data'
 import { Link, permanentRedirect } from '@/i18n/navigation'
@@ -18,17 +19,14 @@ import {
 import { ExpandableList } from './ExpandableList'
 
 const BASE_URL = 'https://padelnachos.com'
-const LOCALES = ['en', 'es', 'pt', 'it', 'fr']
 
 type Props = { params: Promise<{ locale: string; slug: string }> }
 
+// Note: these pages render dynamically (i18n reads cookies), so there is no ISR caching;
+// `revalidate` is kept only as a harmless hint.
 export const revalidate = 3600
 
 const getCoach = cache((slug: string) => fetchCoachPage(createAnonServerClient(), slug))
-
-function titleCase(s: string) {
-  return s.toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase())
-}
 
 function levelColor(level: string | null): string {
   const l = (level ?? '').toLowerCase()
@@ -39,7 +37,7 @@ function levelColor(level: string | null): string {
 
 function Avatar({ name, bg, size = 32 }: { name: string; bg: string; size?: number }) {
   return (
-    <div style={{
+    <div aria-hidden="true" style={{
       width: size, height: size, borderRadius: '50%', background: bg, color: '#000',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: Math.round(size * 0.36), fontWeight: 800, flexShrink: 0,
@@ -52,9 +50,9 @@ function Avatar({ name, bg, size = 32 }: { name: string; bg: string; size?: numb
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params
   const result = await getCoach(slug)
-  if (result.kind !== 'ok') return { title: 'Coach' }
-  const { coach, players } = result
   const t = await getTranslations({ locale, namespace: 'coach' })
+  if (result.kind !== 'ok') return { title: t('pageLabel') }
+  const { coach, players } = result
   const title = t('metaTitle', { name: coach.display_name })
   const description = t('metaDescription', {
     name: coach.display_name,
@@ -63,10 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: {
-      canonical: `${BASE_URL}/${locale}/coach/${slug}`,
-      languages: Object.fromEntries(LOCALES.map((l) => [l, `${BASE_URL}/${l}/coach/${slug}`])),
-    },
+    ...buildAlternates(`/coach/${slug}`, locale),
     robots: isIndexable(coach) ? undefined : { index: false, follow: true },
     openGraph: { title, description, type: 'profile' },
   }
@@ -88,7 +83,7 @@ export default async function CoachPage({ params }: Props) {
     '@type': 'Person',
     name: coach.display_name,
     jobTitle: 'Padel coach',
-    url: `${BASE_URL}/${locale}/coach/${slug}`,
+    url: locale === 'en' ? `${BASE_URL}/coach/${slug}` : `${BASE_URL}/${locale}/coach/${slug}`,
   }
 
   const playerRow = (p: CoachPlayer, bg: string) => (
@@ -115,11 +110,12 @@ export default async function CoachPage({ params }: Props) {
       {label}
     </div>
   )
-  const playerItems: ReactNode[] = [
-    ...(men.length ? [heading('h-men', t('men')), ...men.map((p) => playerRow(p, MEN_BLUE))] : []),
-    ...(women.length ? [heading('h-women', t('women')), ...women.map((p) => playerRow(p, WOMEN_PURPLE))] : []),
+  const playerGroups = [
+    ...(men.length ? [{ key: 'men', heading: heading('h-men', t('men')), rows: men.map((p) => playerRow(p, MEN_BLUE)) }] : []),
+    ...(women.length ? [{ key: 'women', heading: heading('h-women', t('women')), rows: women.map((p) => playerRow(p, WOMEN_PURPLE)) }] : []),
   ]
   const PLAYERS_INITIAL = 6
+  const listedPlayers = men.length + women.length
 
   const nextRow = (m: UpcomingRow) => {
     const isLive = m.status === 'live' || m.status === 'on_court'
@@ -146,7 +142,7 @@ export default async function CoachPage({ params }: Props) {
             {[m.round, m.tournament_name].filter(Boolean).join(' · ')}
           </div>
           <div style={{ fontSize: 12, fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {m.pair1} vs {m.pair2}
+            {m.pair1} {t('vs')} {m.pair2}
           </div>
         </div>
       </Link>
@@ -167,11 +163,11 @@ export default async function CoachPage({ params }: Props) {
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {titleCase(ti.tournamentName)}
+          {formatTournamentName(ti.tournamentName)}
         </div>
         <div style={{ fontSize: 10, color: MUTED }}>
           {ti.pair}
-          {ti.date ? ` · ${format.dateTime(new Date(ti.date), { day: 'numeric', month: 'short' })}` : ''}
+          {ti.date ? ` · ${format.dateTime(new Date(ti.date), { day: 'numeric', month: 'short', timeZone: 'UTC' })}` : ''}
         </div>
       </div>
     </Link>
@@ -188,7 +184,7 @@ export default async function CoachPage({ params }: Props) {
 
   return (
     <div style={{ maxWidth: 500, margin: '0 auto', background: BG_BASE, minHeight: '100vh', padding: 12 }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 4px 16px' }}>
         <Avatar name={coach.display_name} bg={ORANGE} size={58} />
@@ -203,7 +199,7 @@ export default async function CoachPage({ params }: Props) {
             {coach.display_name}
           </h1>
           <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
-            {t('subtitle', { players: coach.player_count, titles: titles.length, year })}
+            {t('subtitle', { players: listedPlayers, titles: titles.length, year })}
           </div>
         </div>
       </div>
@@ -220,17 +216,17 @@ export default async function CoachPage({ params }: Props) {
 
         <Widget wide label={t('players')}>
           <ExpandableList
-            items={playerItems}
-            initial={PLAYERS_INITIAL}
-            moreLabel={t('showMore', { count: Math.max(0, playerItems.length - PLAYERS_INITIAL) })}
+            groups={playerGroups}
+            initialRows={PLAYERS_INITIAL}
+            moreLabel={t('showMore', { count: Math.max(0, listedPlayers - PLAYERS_INITIAL) })}
           />
         </Widget>
 
         {titles.length > 0 && (
           <Widget wide label={t('titles', { year })}>
             <ExpandableList
-              items={titles.map(titleRow)}
-              initial={4}
+              groups={[{ key: 'titles', heading: null, rows: titles.map(titleRow) }]}
+              initialRows={4}
               moreLabel={t('showMore', { count: Math.max(0, titles.length - 4) })}
             />
             <div style={{ fontSize: 9, color: MUTED, marginTop: 8 }}>{t('titlesFootnote')}</div>

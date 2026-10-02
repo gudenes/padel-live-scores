@@ -97,6 +97,37 @@ export function pickNextMatches(rows: UpcomingRow[], now: Date = new Date()): Up
   return [...live, ...scheduled].slice(0, 3)
 }
 
+const KEEP_UPPER = new Set(['FIP', 'BNL', 'ITF', 'WPT', 'UK', 'USA', 'UAE'])
+
+/** Title-case a tournament name only when it is stored entirely upper-case; keep known acronyms. */
+export function formatTournamentName(name: string): string {
+  if (name !== name.toUpperCase() || name === name.toLowerCase()) return name
+  return name
+    .toLowerCase()
+    .replace(/\p{L}[\p{L}\p{N}']*/gu, (w) => {
+      const up = w.toUpperCase()
+      if (KEEP_UPPER.has(up) || (w.length <= 3 && /\d/.test(w))) return up
+      return w[0]!.toUpperCase() + w.slice(1)
+    })
+}
+
+export interface ListGroup<T> { key: string; heading: T; rows: T[] }
+
+/** Slice grouped rows by ROW count (headings are free). Hidden count = hidden rows. */
+export function visibleGroups<T>(groups: ListGroup<T>[], initialRows: number): { groups: ListGroup<T>[]; hidden: number } {
+  let left = initialRows
+  let total = 0
+  const out: ListGroup<T>[] = []
+  for (const g of groups) {
+    total += g.rows.length
+    if (left <= 0) continue
+    const rows = g.rows.slice(0, left)
+    left -= rows.length
+    if (rows.length) out.push({ ...g, rows })
+  }
+  return { groups: out, hidden: Math.max(0, total - initialRows) }
+}
+
 export function isIndexable(row: { total_points: number }): boolean {
   return Number(row.total_points) > 0
 }
@@ -198,7 +229,11 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
 
 export const INDEX_PAGE_SIZE = 50
 
-export interface CoachIndexRow extends CoachRankingRow { top: { names: string[]; more: number } }
+export interface CoachIndexRow extends CoachRankingRow {
+  top: { names: string[]; more: number }
+  /** Players actually counted for the active tab (men/women/all), after tier filtering. */
+  tab_player_count: number
+}
 
 export async function fetchCoachesIndex(
   sb: SupabaseClient, tab: CoachTab, page: number,
@@ -234,7 +269,10 @@ export async function fetchCoachesIndex(
     }
   }
   return {
-    rows: rows.map((r) => ({ ...r, top: topPlayerNames(byCoach.get(r.coach_id) ?? []) })),
+    rows: rows.map((r) => {
+      const ps = byCoach.get(r.coach_id) ?? []
+      return { ...r, top: topPlayerNames(ps), tab_player_count: ps.length }
+    }),
     hasMore: all.length > INDEX_PAGE_SIZE,
   }
 }

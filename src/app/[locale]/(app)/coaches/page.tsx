@@ -4,13 +4,12 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import { createAnonServerClient } from '@/lib/supabase'
+import { buildAlternates } from '@/lib/seo-helpers'
 import { fetchCoachesIndex, initials, type CoachTab, type CoachIndexRow } from '@/lib/coach-page-data'
 import { Link } from '@/i18n/navigation'
 import { Widget } from '../../player/[id]/Widget'
 import { GREEN, ORANGE, MUTED, BG_BASE } from '@/components/home/shared-constants'
 
-const BASE_URL = 'https://padelnachos.com'
-const LOCALES = ['en', 'es', 'pt', 'it', 'fr']
 const TABS: CoachTab[] = ['overall', 'men', 'women']
 
 type Props = {
@@ -18,6 +17,7 @@ type Props = {
   searchParams: Promise<{ tab?: string; page?: string }>
 }
 
+// Renders dynamically (i18n reads cookies; tabs/pages use searchParams) — no ISR caching.
 export const revalidate = 3600
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -28,10 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: {
-      canonical: `${BASE_URL}/${locale}/coaches`,
-      languages: Object.fromEntries(LOCALES.map((l) => [l, `${BASE_URL}/${l}/coaches`])),
-    },
+    ...buildAlternates('/coaches', locale),
     openGraph: { title, description, type: 'website' },
   }
 }
@@ -65,6 +62,7 @@ export default async function CoachesPage({ params, searchParams }: Props) {
         {TABS.map((tb) => (
           <Link
             key={tb}
+            aria-current={tb === tab ? 'page' : undefined}
             href={{ pathname: '/coaches', query: { tab: tb } }}
             style={{
               fontSize: 12, fontWeight: 700, textDecoration: 'none', padding: '6px 0',
@@ -78,6 +76,9 @@ export default async function CoachesPage({ params, searchParams }: Props) {
       </nav>
 
       <Widget wide label={tabLabel[tab]}>
+        {rows.length === 0 && (
+          <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: MUTED }}>{t('indexEmpty')}</div>
+        )}
         {rows.map((r, i) => {
           const rank = rankFor(r, tab) ?? (page - 1) * 50 + i + 1
           const top3 = rank <= 3
@@ -90,7 +91,7 @@ export default async function CoachesPage({ params, searchParams }: Props) {
               <span style={{ width: 24, textAlign: 'center', fontSize: 13, fontWeight: 800, color: top3 ? ORANGE : MUTED }}>
                 {rank}
               </span>
-              <div style={{
+              <div aria-hidden="true" style={{
                 width: 34, height: 34, borderRadius: '50%', background: top3 ? ORANGE : '#555', color: '#000',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0,
               }}>
@@ -108,18 +109,30 @@ export default async function CoachesPage({ params, searchParams }: Props) {
                 <div style={{ fontSize: 14, fontWeight: 800, color: GREEN }}>
                   {Math.round(pointsFor(r, tab)).toLocaleString(locale)}
                 </div>
-                <div style={{ fontSize: 10, color: MUTED }}>{t('playersCount', { count: r.player_count })}</div>
+                <div style={{ fontSize: 10, color: MUTED }}>{t('playersCount', { count: r.tab_player_count })}</div>
               </div>
             </Link>
           )
         })}
-        {hasMore && (
+        {(page > 1 || hasMore) && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+            {page > 1 && (
+              <Link
+                href={{ pathname: '/coaches', query: page - 1 > 1 ? { tab, page: page - 1 } : { tab } }}
+                style={{ display: 'block', textAlign: 'center', marginTop: 6, padding: 8, fontSize: 12, fontWeight: 700, color: MUTED, textDecoration: 'none' }}
+              >
+                {t('previous')}
+              </Link>
+            )}
+            {hasMore && (
           <Link
             href={{ pathname: '/coaches', query: { tab, page: page + 1 } }}
             style={{ display: 'block', textAlign: 'center', marginTop: 6, padding: 8, fontSize: 12, fontWeight: 700, color: MUTED, textDecoration: 'none' }}
           >
             {t('loadMore')}
           </Link>
+            )}
+          </div>
         )}
       </Widget>
     </div>

@@ -34,6 +34,9 @@ const samples: Record<string, Record<string, string | number>> = {
   indexMetaTitle: {},
   indexMetaDescription: {},
   rankingsLink: {},
+  vs: {},
+  indexEmpty: {},
+  previous: {},
 }
 
 describe('coach i18n namespace', () => {
