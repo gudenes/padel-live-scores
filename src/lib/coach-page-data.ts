@@ -4,6 +4,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { playerShortName } from '@/lib/player-short-name'
+import { MATCH_FETCH_SELECT, normalizeFetchedMatch, type FetchedMatchRow } from '@/lib/match-fetch'
+import type { Match } from '@/types/match'
 
 export type CoachTab = 'overall' | 'men' | 'women'
 
@@ -29,11 +31,6 @@ export interface FinalRow {
 export interface CoachTitle {
   key: string; tournamentId: string; tournamentName: string; level: string | null
   category: string | null; pair: string; date: string | null
-}
-
-export interface UpcomingRow {
-  match_id: string; status: string; scheduled_at: string | null; round: string | null
-  tournament_name: string; pair1: string; pair2: string
 }
 
 const TEAM_LEAGUE_LEVELS = new Set(['ppl', 'ppl_ii'])
@@ -85,7 +82,7 @@ export function shapeTitles(rows: FinalRow[], coachedIds: Set<string>, year: num
   return out.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
 }
 
-export function pickNextMatches(rows: UpcomingRow[], now: Date = new Date()): UpcomingRow[] {
+export function pickNextMatches<T extends { status: string; scheduled_at: string | null }>(rows: T[], now: Date = new Date()): T[] {
   const cutoff = now.getTime() - STALE_SCHEDULED_MS
   const liveCutoff = now.getTime() - STUCK_LIVE_MS
   // Stuck-live guard: a "live" row scheduled >18h ago is a stale row, not a live match.
@@ -132,9 +129,16 @@ export function isIndexable(row: { total_points: number }): boolean {
   return Number(row.total_points) > 0
 }
 
-export function topPlayerNames(players: CoachPlayer[]): { names: string[]; more: number } {
+export interface TopPlayer { id: string; name: string; avatar_url: string | null }
+
+export function topPlayerNames(players: CoachPlayer[]): { names: string[]; players: TopPlayer[]; more: number } {
   const sorted = [...players].sort((a, b) => Number(b.points ?? 0) - Number(a.points ?? 0))
-  return { names: sorted.slice(0, 2).map(shortPlayerName), more: Math.max(0, sorted.length - 2) }
+  const top = sorted.slice(0, 2)
+  return {
+    names: top.map(shortPlayerName),
+    players: top.map((p) => ({ id: p.id, name: p.name, avatar_url: p.avatar_url })),
+    more: Math.max(0, sorted.length - 2),
+  }
 }
 
 const PLAYER_COLS = 'id, name, display_name, country, category, ranking, points, avatar_url, tier'
@@ -157,7 +161,7 @@ const involving = (ids: string[]) => {
 const pairOf = (a: PairPlayer | null, b: PairPlayer | null) => [a, b].filter((x): x is PairPlayer => !!x)
 
 export type CoachPageResult =
-  | { kind: 'ok'; coach: CoachRankingRow; players: CoachPlayer[]; titles: CoachTitle[]; next: UpcomingRow[]; year: number }
+  | { kind: 'ok'; coach: CoachRankingRow; players: CoachPlayer[]; titles: CoachTitle[]; next: Match[]; year: number }
   | { kind: 'redirect'; slug: string }
   | { kind: 'not_found' }
 
@@ -180,9 +184,8 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
 
   const year = now.getUTCFullYear()
   let titles: CoachTitle[] = []
-  let next: UpcomingRow[] = []
+  let next: Match[] = []
   if (ids.length) {
-    const matchCols = `id, status, scheduled_at, round, category, winner_pair, tournament:tournaments(id, name, level, starts_at, ends_at), ${PAIR_EMBED}`
     const [finals, liveRes, schedRes] = await Promise.all([
       sb.from('matches')
         .select(`id, status, scheduled_at, round, category, winner_pair, tournament:tournaments!inner(id, name, level, starts_at, ends_at), ${PAIR_EMBED}`)
@@ -192,11 +195,11 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
         .or(involving(ids))
         .limit(200),
       // Live rows are filtered by players + status only; stale ones are dropped in pickNextMatches.
-      sb.from('matches').select(matchCols)
+      sb.from('matches').select(MATCH_FETCH_SELECT)
         .in('status', ['live', 'on_court'])
         .or(involving(ids))
         .limit(20),
-      sb.from('matches').select(matchCols)
+      sb.from('matches').select(MATCH_FETCH_SELECT)
         .eq('status', 'scheduled')
         .gte('scheduled_at', new Date(now.getTime() - 3 * 3600_000).toISOString())
         .or(involving(ids))
@@ -214,12 +217,8 @@ export async function fetchCoachPage(sb: SupabaseClient, slug: string, now: Date
     }
     if (liveRes.error || schedRes.error) console.warn('[coach] next matches query failed', (liveRes.error ?? schedRes.error)!.message)
     else {
-      const rows = [...(liveRes.data as unknown as MatchWithPairs[]), ...(schedRes.data as unknown as MatchWithPairs[])].map((m): UpcomingRow => ({
-        match_id: m.id, status: m.status, scheduled_at: m.scheduled_at, round: m.round,
-        tournament_name: m.tournament?.name ?? '',
-        pair1: pairOf(m.pair1_player1, m.pair1_player2).map(shortPlayerName).join(' / '),
-        pair2: pairOf(m.pair2_player1, m.pair2_player2).map(shortPlayerName).join(' / '),
-      }))
+      const rows = [...(liveRes.data as unknown as FetchedMatchRow[]), ...(schedRes.data as unknown as FetchedMatchRow[])]
+        .map(normalizeFetchedMatch)
       next = pickNextMatches(rows, now)
     }
   }

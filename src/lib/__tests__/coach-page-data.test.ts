@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   visibleGroups, formatTournamentName,
   initials, shortPlayerName, splitPlayers, shapeTitles, pickNextMatches, isIndexable, topPlayerNames,
-  type CoachPlayer, type FinalRow, type UpcomingRow,
+  type CoachPlayer, type FinalRow,
 } from '../coach-page-data'
 
 const p = (o: Partial<CoachPlayer> & { id: string }): CoachPlayer => ({
@@ -71,9 +71,7 @@ describe('shapeTitles', () => {
 
 describe('pickNextMatches', () => {
   const now = new Date('2026-10-02T12:00:00Z')
-  const m = (id: string, status: string, at: string | null): UpcomingRow => ({
-    match_id: id, status, scheduled_at: at, round: 'QF', tournament_name: 'T', pair1: 'A / B', pair2: 'C / D',
-  })
+  const m = (id: string, status: string, at: string | null) => ({ match_id: id, status, scheduled_at: at })
   it('live first, then soonest scheduled, drops stale scheduled, max 3', () => {
     const r = pickNextMatches([
       m('later', 'scheduled', '2026-10-03T10:00:00Z'),
@@ -102,7 +100,11 @@ describe('isIndexable / topPlayerNames', () => {
   it('top two by points with remainder count', () => {
     expect(topPlayerNames([
       p({ id: '1', name: 'A One', points: 5 }), p({ id: '2', name: 'B Two', points: 50 }), p({ id: '3', name: 'C Three', points: 20 }),
-    ])).toEqual({ names: ['Two', 'Three'], more: 1 })
+    ])).toEqual({
+      names: ['Two', 'Three'],
+      players: [{ id: '2', name: 'B Two', avatar_url: null }, { id: '3', name: 'C Three', avatar_url: null }],
+      more: 1,
+    })
   })
 })
 
