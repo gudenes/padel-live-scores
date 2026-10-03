@@ -17,6 +17,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext) {
 
   const { level } = await ctx.params
   if (!level) return Response.json({ error: 'missing_level' }, { status: 400 })
+  if (!/^[a-z0-9_]+$/.test(level)) return Response.json({ error: 'invalid_level' }, { status: 400 })
 
   let body: { show_on_matches?: unknown; label?: unknown }
   try {

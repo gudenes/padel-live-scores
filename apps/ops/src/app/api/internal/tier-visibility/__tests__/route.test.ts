@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { NextRequest } from 'next/server'
 
 const mocks = vi.hoisted(() => ({
   auth: vi.fn(),
   stats: { data: [] as unknown[], error: null as { message: string } | null },
   config: { data: [] as unknown[], error: null as { message: string } | null },
-  upserts: [] as unknown[],
+  upserts: [] as Array<{ row: unknown; opts: unknown }>,
 }))
 
 vi.mock('@/lib/auth', () => ({ auth: mocks.auth }))
@@ -13,8 +14,8 @@ vi.mock('@/lib/supabase', () => ({
     rpc: async () => mocks.stats,
     from: () => ({
       select: () => Promise.resolve(mocks.config),
-      upsert: (row: unknown) => {
-        mocks.upserts.push(row)
+      upsert: (row: unknown, opts: unknown) => {
+        mocks.upserts.push({ row, opts })
         return {
           select: () => ({ single: async () => ({ data: { ...(row as object), updated_at: 'now' }, error: null }) }),
         }
@@ -31,7 +32,7 @@ const patch = (level: string, body: unknown) =>
     new Request(`http://x/api/internal/tier-visibility/${level}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
-    }) as any,
+    }) as unknown as NextRequest,
     { params: Promise.resolve({ level }) },
   )
 
@@ -58,11 +59,11 @@ describe('GET /api/internal/tier-visibility', () => {
       { level: 'fip_bronze', label: 'FIP Bronze', show_on_matches: true, sort_order: 12, updated_at: 't', updated_by: null },
       { level: 'fip_promises', label: 'FIP Promises', show_on_matches: false, sort_order: 20, updated_at: 't', updated_by: 'ops' },
     ]
-    const json = await (await GET()).json()
-    expect(json.tiers.map((t: any) => t.level)).toEqual(['fip_bronze', 'fip_promises', 'fip_new_thing'])
-    const fresh = json.tiers.find((t: any) => t.level === 'fip_new_thing')
+    const json = (await (await GET()).json()) as { tiers: Array<Record<string, unknown>> }
+    expect(json.tiers.map((t) => t.level)).toEqual(['fip_bronze', 'fip_promises', 'fip_new_thing'])
+    const fresh = json.tiers.find((t) => t.level === 'fip_new_thing')
     expect(fresh).toMatchObject({ configured: false, show_on_matches: true, label: 'fip_new_thing', matches_90d: 3 })
-    const promises = json.tiers.find((t: any) => t.level === 'fip_promises')
+    const promises = json.tiers.find((t) => t.level === 'fip_promises')
     expect(promises).toMatchObject({ configured: true, show_on_matches: false, tournaments: 0 })
   })
 
@@ -78,6 +79,12 @@ describe('PATCH /api/internal/tier-visibility/[level]', () => {
     expect((await patch('fip_promises', { show_on_matches: true })).status).toBe(401)
   })
 
+  it('rejects a malformed level without writing', async () => {
+    const res = await patch('Bad-Level', { show_on_matches: true })
+    expect(res.status).toBe(400)
+    expect(mocks.upserts).toHaveLength(0)
+  })
+
   it('rejects a non-boolean', async () => {
     expect((await patch('fip_promises', { show_on_matches: 'yes' })).status).toBe(400)
   })
@@ -85,13 +92,14 @@ describe('PATCH /api/internal/tier-visibility/[level]', () => {
   it('upserts, keeping label from the body or falling back to the level code', async () => {
     const res = await patch('fip_new_thing', { show_on_matches: false })
     expect(res.status).toBe(200)
-    expect(mocks.upserts[0]).toEqual({
+    expect(mocks.upserts[0].opts).toEqual({ onConflict: 'level' })
+    expect(mocks.upserts[0].row).toEqual({
       level: 'fip_new_thing',
       label: 'fip_new_thing',
       show_on_matches: false,
       updated_by: 'ops',
     })
     await patch('fip_beyond', { show_on_matches: true, label: 'FIP Beyond' })
-    expect(mocks.upserts[1]).toMatchObject({ label: 'FIP Beyond', show_on_matches: true })
+    expect(mocks.upserts[1].row).toMatchObject({ label: 'FIP Beyond', show_on_matches: true })
   })
 })

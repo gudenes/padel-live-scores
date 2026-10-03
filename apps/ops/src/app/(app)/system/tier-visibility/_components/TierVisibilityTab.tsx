@@ -41,7 +41,9 @@ export default function TierVisibilityTab() {
     }
   }
 
-  useEffect(() => { refresh() }, [])
+  // Mount-time data load; state is set after the async fetch resolves.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { void refresh() }, [])
 
   const toggle = async (tier: Tier, next: boolean) => {
     setPending(tier.level)
