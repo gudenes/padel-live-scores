@@ -140,4 +140,13 @@
 
 # Keep PNG masters out of production; the renderer serves optimized WebP sprites.
 /public/play/avatars/a01-local/characters/*.png
-/public/play/avatars/a01-local/wardrobe
+# Custom photo avatars need these overlays; roster avatars use fitted sprites.
+/public/play/avatars/a01-local/wardrobe/*
+!/public/play/avatars/a01-local/wardrobe/club.png
+!/public/play/avatars/a01-local/wardrobe/champion.png
+!/public/play/avatars/a01-local/wardrobe/visor-three-quarter-v2.png
+!/public/play/avatars/a01-local/wardrobe/reverse-three-quarter-v2.png
+!/public/play/avatars/a01-local/wardrobe/special-headwear.png
+
+# Local provider keys and private generated test avatars never ship.
+/.local
