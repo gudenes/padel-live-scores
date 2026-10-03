@@ -5,6 +5,7 @@ import { readAvatarSettings } from '@/lib/local-avatar-settings'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import sharp from 'sharp'
+import {markA01Avatar} from '@/lib/avatar-art-version'
 import { AVATAR_UPLOAD_MAX_BYTES, AVATAR_UPLOAD_MAX_PIXELS } from '@/lib/avatar-upload'
 import { requirePlayAccess } from '@/lib/play-access'
 import { AVATAR_REFERENCE_PATH, AVATAR_REGISTRATION_PATH, AvatarGenerationError, generateAvatar, isLocalAvatarRequest } from '@/lib/avatar-generation'
@@ -67,9 +68,12 @@ export async function POST(req: Request) {
       readFile(path.join(process.cwd(), AVATAR_REGISTRATION_PATH)),
     ])
     stage = 'generation'
-    const bytes = await generateAvatar(new Blob([new Uint8Array(clean)], { type: 'image/jpeg' }), new Blob([new Uint8Array(reference)], { type: 'image/webp' }), new Blob([new Uint8Array(registration)], { type: 'image/png' }), key)
+    const bytes = await generateAvatar(new Blob([new Uint8Array(clean)], { type: 'image/jpeg' }), new Blob([new Uint8Array(reference)], { type: 'image/webp' }), new Blob([new Uint8Array(registration)], { type: 'image/webp' }), key)
+    // Decode provider output before stamping the renderer version.
+    const normalized = await sharp(bytes, {limitInputPixels: 1024 * 1536 * 2}).resize(1024,1536,{fit:'fill'}).png().toBuffer()
+    const artwork = markA01Avatar(normalized)
     stage = 'storage'
-    const id = await (process.env.NODE_ENV === 'production' ? saveProductionAvatar(access.supabase, access.userId, bytes) : saveLocalAvatar(access.userId, bytes))
+    const id = await (process.env.NODE_ENV === 'production' ? saveProductionAvatar(access.supabase, access.userId, artwork) : saveLocalAvatar(access.userId, artwork))
     return json({ outfit: `custom:${id}` })
   } catch (error) {
     console.warn('[avatar] request failed', { stage, elapsedMs: Date.now() - started, code: error instanceof AvatarGenerationError ? error.code : 'request_failed' })

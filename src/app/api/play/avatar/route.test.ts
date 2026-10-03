@@ -1,5 +1,6 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import sharp from 'sharp'
+import {avatarArtVersion} from '@/lib/avatar-art-version'
 import {readFile} from 'node:fs/promises'
 import {AVATAR_REFERENCE_PATH, AVATAR_REGISTRATION_PATH} from '@/lib/avatar-generation'
 const mocks = vi.hoisted(() => ({ access: vi.fn(), generate: vi.fn(), reserve: vi.fn(), save: vi.fn(), release: vi.fn(), settings: vi.fn(), productionSettings: vi.fn(), productionReserve: vi.fn(), productionSave: vi.fn() }))
@@ -15,7 +16,7 @@ function request(form = new FormData(), origin = 'http://localhost:3012') { retu
 beforeEach(() => {
   vi.stubEnv('NODE_ENV', 'development'); vi.stubEnv('OPENAI_API_KEY', 'test-key')
   vi.clearAllMocks(); mocks.settings.mockResolvedValue({enabled:true,apiKey:'test-key'}); mocks.access.mockResolvedValue({ userId: 'alice' }); mocks.reserve.mockResolvedValue(mocks.release)
-  mocks.generate.mockResolvedValue(new Uint8Array([137,80,78,71,13,10,26,10]))
+  mocks.generate.mockImplementation(()=>sharp({create:{width:1024,height:1536,channels:4,background:{r:0,g:0,b:0,alpha:0}}}).png().toBuffer())
   mocks.save.mockResolvedValue('20fca730-15c5-4e54-ab12-b2e34e2fd913')
 })
 afterEach(() => vi.unstubAllEnvs())
@@ -52,6 +53,7 @@ describe('private local photo route', () => {
     expect(Buffer.from(await style.arrayBuffer())).toEqual(await readFile(AVATAR_REFERENCE_PATH))
     expect(Buffer.from(await registration.arrayBuffer())).toEqual(await readFile(AVATAR_REGISTRATION_PATH))
     expect(mocks.save.mock.calls[0][0]).toBe('alice')
+    expect(avatarArtVersion(mocks.save.mock.calls[0][1])).toBe('a01-v1')
     expect(mocks.release).toHaveBeenCalledOnce()
   })
   it('releases the lock on provider failure', async () => {

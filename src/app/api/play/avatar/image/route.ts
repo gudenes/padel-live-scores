@@ -1,3 +1,4 @@
+import {avatarArtVersion} from '@/lib/avatar-art-version'
 import { readProductionAvatar } from '@/lib/production-avatar-store'
 import { requirePlayAccess } from '@/lib/play-access'
 import { readLocalAvatar } from '@/lib/avatar-local-store'
@@ -11,6 +12,7 @@ export async function GET(req: Request) {
   try {
     const id = new URL(req.url).searchParams.get('id') ?? ''
     const bytes = process.env.NODE_ENV === 'production' ? await readProductionAvatar(access.supabase, access.userId, id) : await readLocalAvatar(access.userId, id)
+    if(new URL(req.url).searchParams.get('metadata')==='1')return Response.json({artVersion:avatarArtVersion(bytes)},{headers:{'Cache-Control':'private, no-store'}})
     return new Response(new Uint8Array(bytes), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } })
   } catch { return new Response(null, { status: 404 }) }
 }

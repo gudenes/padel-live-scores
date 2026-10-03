@@ -1,10 +1,11 @@
 'use client'
 
 import { useSyncExternalStore, useCallback, useId } from 'react'
-import { outfitStorageKey, parseOutfit, splitPlayerLook, type PlayerOutfit } from '@/lib/player-outfit'
+import { outfitStorageKey, parseOutfit, splitPlayerLook, type PlayerOutfit, playerImageSrc } from '@/lib/player-outfit'
 
 import {usesA01Artwork} from '@/lib/avatar-a01'
 import {renderAvatar} from '@/lib/avatar-a01-renderer.mjs'
+import {useAvatarArtVersion} from '@/hooks/useAvatarArtVersion'
 import { PLAYER_RIG, playerArtwork } from '@/lib/player-rig'
 
 const event = 'pn-outfit-change'
@@ -34,7 +35,11 @@ export function usePlayerOutfit(userId?: string) {
 export function PlayerFigure({ outfit, className, label = '', portrait = false, approvedArtwork = process.env.NODE_ENV === 'development' }: { outfit: PlayerOutfit; className?: string; label?: string; portrait?: boolean; approvedArtwork?: boolean }) {
   const id = useId().replace(/:/g, '')
   const look=splitPlayerLook(outfit)
-  if(approvedArtwork && usesA01Artwork(look.face))return <span className={className} style={{display:'block',width:'100%',height:'100%'}} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:look.face,id:`portrait-${id}`,portrait,base:'/play/avatars/a01-local/',outfit:look.clothes==='starter'?{}:{shirt:look.clothes==='court-club'?'club':'cobalt',shorts:look.clothes==='court-club'?'club':'cobalt'}}).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ')}}/>
+  const custom=look.face.startsWith('custom:')
+  const source=custom?playerImageSrc(look.face):null
+  const artVersion=useAvatarArtVersion(source)
+  if(custom&&(artVersion==='loading'||artVersion==='error'))return <span className={className} role="status" aria-label={artVersion==='loading'?'Loading avatar':'Avatar unavailable'}/>
+  if((approvedArtwork && usesA01Artwork(look.face))||artVersion==='a01-v1')return <span className={className} style={{display:'block',width:'100%',height:'100%'}} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:custom?'face-06':look.face,customSource:source??undefined,id:`portrait-${id}`,portrait,base:'/play/avatars/a01-local/',outfit:look.clothes==='starter'?{}:{shirt:look.clothes==='court-club'?'club':'cobalt',shorts:look.clothes==='court-club'?'club':'cobalt'}}).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ')}}/>
   const artwork = playerArtwork(outfit)
   return <svg className={className} role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : true} viewBox={portrait ? '200 20 620 650' : `0 0 ${PLAYER_RIG.width} ${PLAYER_RIG.height}`} style={{ display: 'block', width: '100%', height: '100%' }} preserveAspectRatio="xMidYMid meet">
     {artwork.kind === 'whole' ? <image href={artwork.image} width="1024" height="1536" /> : <>

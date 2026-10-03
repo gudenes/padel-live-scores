@@ -1,5 +1,6 @@
 'use client'
 import Image from 'next/image'
+import {useAvatarArtVersion} from '@/hooks/useAvatarArtVersion'
 import wristClips from '@/lib/legacy-wrist-clips.json'
 import {renderAvatar} from '@/lib/avatar-a01-renderer.mjs'
 import {usesA01Artwork,a01Outfit} from '@/lib/avatar-a01'
@@ -19,9 +20,11 @@ export function Figure({state,preview,original,portrait=false,imageUrl}:{state:S
  const hat=hatItem?.collection??'starter'
  const hairEnvelope=capHairEnvelope(hatItem?.id)
  const headSource=imageUrl??gearArtwork(state.avatar,'starter')
+ const artVersion=useAvatarArtVersion(custom?headSource:null)
  const hairMask=hairEnvelope?`url(#${id}-cap-hair)`:undefined
  const outfitKey=JSON.stringify(outfit)
- const a01Markup=useMemo(()=>usesA01Artwork(state.avatar)?renderAvatar({avatar:state.avatar,outfit:a01Outfit(JSON.parse(outfitKey)),id:`a01-${id}`,base:'/play/avatars/a01-local/',portrait}):null,[state.avatar,outfitKey,id,portrait])
+ const a01Markup=useMemo(()=>(usesA01Artwork(state.avatar)||artVersion==='a01-v1')?renderAvatar({avatar:custom?'face-06':state.avatar,customSource:custom?headSource:undefined,outfit:a01Outfit(JSON.parse(outfitKey)),id:`a01-${id}`,base:'/play/avatars/a01-local/',portrait}):null,[state.avatar,outfitKey,id,portrait,artVersion,custom,headSource])
+ if(custom&&(artVersion==='loading'||artVersion==='error'))return <div className={portrait?styles.portrait:styles.figure} role="status" aria-label={artVersion==='loading'?'Loading avatar':'Avatar unavailable'}/>
  if(a01Markup)return <div className={portrait?styles.portrait:styles.figure} dangerouslySetInnerHTML={{__html:a01Markup}}/>
  const wristClip=(wristClips as Record<string,string>)[body]
  const wristCollection=SHOP_ITEMS.find(i=>i.id===outfit.wrist)?.collection??'starter'
