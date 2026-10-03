@@ -55,7 +55,6 @@ export default function AvatarShop(){
  const exportStage=useRef<HTMLDivElement>(null)
  const [slot,setSlot]=useState<ShopSlot>('hat')
  const [selected,setSelected]=useState<string|null>(null)
- const [compare,setCompare]=useState(false)
  const wins=process.env.NODE_ENV==='production'?(remote.data?.wins??0):0
  const [picker,setPicker]=useState<'characters'|'photo'|null>(null)
  const [savedAvatars,setSavedAvatars]=useState<ShopState['avatar'][]>([])
@@ -82,8 +81,8 @@ export default function AvatarShop(){
  const visible=SHOP_ITEMS.filter(i=>i.slot===slot)
  const enough=state.balance>=item.price
  async function persist(next:ShopState){try{if(process.env.NODE_ENV==='production'){if(next.avatar!==state.avatar)await remote.update('avatar',undefined,next.avatar);else{const change=SHOP_SLOTS.find(slot=>next.equipped[slot.id]!==state.equipped[slot.id]);if(change)await remote.update(change.id==='sticker'&&!next.equipped.sticker?'remove_sticker':'equip',next.equipped[change.id]);}return true}localStorage.setItem(KEY,JSON.stringify(next));window.dispatchEvent(new Event(EVENT));return true}catch{setNotice(es?'No se pudo guardar. Inténtalo de nuevo.':'Could not save. Please try again.');return false}}
- function pick(next:ShopItem){setSelected(next.id);setCompare(false)}
- function category(next:ShopSlot){setSlot(next);setSelected(null);setCompare(false)}
+ function pick(next:ShopItem){setSelected(next.id)}
+ function category(next:ShopSlot){setSlot(next);setSelected(null)}
  useEffect(()=>{if(selected!==null)return;const tile=rail.current?.querySelector<HTMLElement>('[aria-pressed="true"]');if(tile)rail.current?.scrollTo?.({left:Math.max(0,tile.offsetLeft-rail.current.offsetLeft-8),behavior:'auto'})},[slot,item.id,selected])
 
  function closePurchase(){if(purchaseLock.current)return;dialog.current?.close();setPending(null);setPurchased(null);setPurchaseError('')}
@@ -105,14 +104,13 @@ export default function AvatarShop(){
  const empty=visible.length===0
  if(process.env.NODE_ENV==='production'&&!remote.data)return <main data-avatar-shop className={styles.shop}><p role="status">{remote.failed?(es?'No se pudo cargar el vestuario.':'Could not load your wardrobe.'):(es?'Cargando tu vestuario…':'Loading your wardrobe…')}</p>{remote.failed&&<button onClick={remote.reload}>{es?'Reintentar':'Try again'}</button>}</main>
  return <main data-avatar-shop className={styles.shop}>
- <header className={styles.header}><Link href="/profile" aria-label={es?'Volver al perfil':'Back to profile'}>‹</Link><div className={styles.editorIdentity}><small>{es?'TU JUGADOR':'YOUR PLAYER'}</small><h1>{displayName}</h1><button className={styles.editName} onClick={()=>{setNameDraft(displayName);setNameError('');nameDialog.current?.showModal()}}>{es?'Editar nombre':'Edit name'}</button></div><div key={state.balance} className={`${styles.wallet} ${celebration?gameMotion.pulse:''}`}><GuacaCoin size={25}/><strong>{state.balance.toLocaleString('en-US')}</strong></div></header>
+ <header className={styles.header}><Link href="/profile" aria-label={es?'Volver al perfil':'Back to profile'}>‹</Link><div className={styles.editorIdentity}><h1>{displayName}</h1><button className={styles.editName} aria-label={es?'Editar nombre':'Edit name'} title={es?'Editar nombre':'Edit name'} onClick={()=>{setNameDraft(displayName);setNameError('');nameDialog.current?.showModal()}}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 15 16 3a2.1 2.1 0 0 1 5 5L9 20l-6 1z"/></svg></button></div><div key={state.balance} className={`${styles.wallet} ${celebration?gameMotion.pulse:''}`}><GuacaCoin size={25}/><strong>{state.balance.toLocaleString('en-US')}</strong></div></header>
  <div className={styles.editorActions}><button onClick={()=>{setPicker('characters');chooser.current?.showModal()}}><PlayerAvatar approvedArtwork outfit={state.avatar} size={28}/><span>{es?'Cambiar personaje':'Change character'} <small>{es?'Ver los 10':'See all 10'}</small></span><span aria-hidden>⌄</span></button><button onClick={()=>{setPicker('photo');chooser.current?.showModal()}}>{es?'Crear con una foto':'Create from a photo'} <span aria-hidden>＋</span></button></div>
  <div hidden ref={exportStage}><div data-avatar-art><Figure state={state} preview={null} original={false}/></div></div>
  <div className={styles.stage}>
  <AvatarShare stage={exportStage} compact/>
  {celebration>0&&<span key={celebration} className={styles.equipHalo} aria-hidden="true"/>}
- <div className={styles.tryOn}><Figure state={state} preview={empty||selected===null?null:item} original={compare}/></div>
- <button className={styles.compare} aria-pressed={compare} onClick={()=>setCompare(!compare)}>{compare?(es?'Ver artículo':'Preview item'):(es?'Comparar':'Compare')}</button>
+ <div className={styles.tryOn}><Figure state={state} preview={empty||selected===null?null:item} original={false}/></div>
  </div>
  <div className={styles.categories} role="group" aria-label="Item categories">{SHOP_SLOTS.map(s=><button key={s.id} aria-pressed={slot===s.id} onClick={()=>category(s.id)}><span className={styles.categoryArt}><Picture item={SHOP_ITEMS.find(i=>i.slot===s.id&&(i.collection==='club'||s.id==='sticker'))!}/></span>{es?slotLabels[s.id]:s.name}</button>)}</div>
  <div key={slot} className={`${styles.items} ${gameMotion.enter}`} ref={rail} role="group" aria-label={`${slot} items`}>
@@ -124,7 +122,7 @@ export default function AvatarShop(){
  {!empty&&<div className={styles.purchase}>
  {locked&&<div className={styles.progress}><span>{Math.min(wins,item.wins)} / {item.wins} {es?'pronósticos acertados':'correct predictions'}</span><progress value={Math.min(wins,item.wins)} max={item.wins}/><small>{es?'Alcanza este objetivo para poder comprarlo.':'Reach this milestone to unlock purchasing.'}</small></div>}
  <button className={styles.primary} disabled={locked||(owned&&worn)||(!owned&&!enough)} onClick={action}>{locked?(es?'Requiere un logro':'Performance locked'):owned?worn?(es?'Equipado ✓':'Equipped ✓'):(es?'Equipar':'Wear this'):!enough?(es?'Guacas insuficientes':'Not enough Guacas'):<>{es?'Comprar':'Unlock'} · {item.price} <GuacaCoin size={23}/></>}</button>
- <p>{compare||selected===null?(es?'Tu conjunto guardado':'Your saved outfit'):`${es?'Vista previa:':'Previewing'} ${item.name}`}</p>
+ <p>{selected===null?(es?'Tu conjunto guardado':'Your saved outfit'):`${es?'Vista previa:':'Previewing'} ${item.name}`}</p>
  {slot==='sticker'&&state.equipped.sticker&&<button className={styles.textButton} onClick={async()=>{const equipped={...state.equipped};delete equipped.sticker;if(await persist({...state,equipped}))setNotice(es?'Pegatina retirada.':'Sticker removed.')}}>{es?'Quitar pegatina':'Remove equipped sticker'}</button>}
  </div>}
  <div className={styles.toastRegion} role="status" aria-live="polite" aria-atomic="true">{notice&&<div className={styles.toast} key={notice}><>{noticeItem&&notice.startsWith(`${noticeItem.name} ·`)&&<span className={styles.toastPicture}><Picture item={noticeItem}/></span>}</><span>{notice}</span><button aria-label={es?'Cerrar aviso':'Dismiss notification'} onClick={()=>setNotice('')}>×</button></div>}</div>

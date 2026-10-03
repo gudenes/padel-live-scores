@@ -116,8 +116,7 @@
 .shop .categories button[aria-pressed=true]::after{background:var(--shop-accent)}
 .categories .categoryArt{background:transparent;isolation:auto}
 @media(prefers-reduced-motion:reduce){.shop .categories button{transition:none}}
-/* Leave a small action row below the figure, so controls never cover its face. */
-.shop>.stage .tryOn{height:calc(100% - 42px)}
+
 @media(max-height:620px){
  .shop>.header{height:44px;min-height:44px}
  .shop>.editorActions{padding:3px 0 5px;height:46px}
@@ -151,5 +150,17 @@
 
 /* Keep the action above the home indicator, with breathing room on every device. */
 .shop{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
-.shop>.stage .tryOn{height:calc(100% - 42px)}
+.shop>.stage .tryOn{height:100%}
 @media(max-height:620px){.shop{padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
+
+/* Compact identity and larger, legible wardrobe categories. */
+.editorIdentity{display:flex;align-items:center;gap:4px}
+.header .editorIdentity h1{min-width:0}
+.shop .editName{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;text-decoration:none}
+.shop .categories button{flex:1 0 48px;font-size:10px}
+.categories .categoryArt{height:38px;margin-bottom:4px}
+.categories .categoryArt svg,.categories .categoryArt img{width:38px;height:38px;margin:auto}
+@media(max-height:620px){
+ .categories .categoryArt{height:28px;margin-bottom:2px}
+ .categories .categoryArt svg,.categories .categoryArt img{width:28px;height:28px}
+}
