@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { CoachesCard } from '../CoachesCard'
 import en from '@/messages/en.json'
@@ -19,7 +19,7 @@ vi.mock('@/i18n/navigation', () => ({
 afterEach(cleanup)
 
 const locales = { en, es, pt, it: it_, fr } as Record<string, Record<string, unknown>>
-const renderCard = (coaches: { coach_id: string; display_name: string; slug: string }[], locale = 'en') =>
+const renderCard = (coaches: { coach_id: string; display_name: string; slug: string; avatar_url?: string | null }[], locale = 'en') =>
   render(
     <NextIntlClientProvider locale={locale} messages={locales[locale]}>
       <CoachesCard coaches={coaches} />
@@ -46,7 +46,6 @@ it('uses the plural label and keeps FIP order for two coaches', () => {
   const names = screen.getAllByTestId('coach-name').map((n) => n.textContent)
   expect(names).toEqual(['Gustavo Pratto', 'Martin Canali'])
   expect(screen.getAllByTestId('coach-name')[0].closest('a')!.getAttribute('href')).toMatch(/\/coach\/gustavo-pratto$/)
-  expect(screen.getAllByTestId('coach-name')[0].closest('div')!.textContent).toBe('Gustavo Pratto, Martin Canali')
 })
 
 const labels: Record<string, [string, string]> = {
@@ -65,3 +64,13 @@ for (const [loc, [one, many]] of Object.entries(labels)) {
     expect(screen.getByText(many)).toBeTruthy()
   })
 }
+
+it('shows the saved coach photo and falls back when it cannot load', () => {
+  renderCard([{ coach_id: 'c1', display_name: 'Jorge Martinez', slug: 'jorge-martinez', avatar_url: 'https://jwqaesjjoghzobngxejn.supabase.co/storage/v1/object/public/coach-avatars/photo.webp' }])
+  const photo = screen.getByRole('img', { name: 'Jorge Martinez' })
+  expect(photo.getAttribute('src')).toContain('photo.webp')
+  expect(photo.closest('a')!.getAttribute('href')).toMatch(/coach\/jorge-martinez$/)
+  fireEvent.error(photo)
+  expect(screen.queryByRole('img', { name: 'Jorge Martinez' })).toBeNull()
+  expect(screen.getByTestId('coach-name').textContent).toBe('Jorge Martinez')
+})
