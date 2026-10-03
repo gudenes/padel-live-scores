@@ -174,6 +174,7 @@ export interface PlayPosition {
 
 /** `GET /api/play/me`. */
 export interface PlayMe {
+  walletKey?: string
   notices?: Array<{ id: number; market_id: string; delta: number; corrected: boolean; reason: string; question?: string }>
   balance: number
   locked: number
@@ -480,6 +481,7 @@ export function parseMe(payload: unknown): PlayMe {
     }
   }
   return {
+    walletKey: typeof r.walletKey === 'string' ? r.walletKey : undefined,
     balance: asNumber(pick(r, 'balance')) ?? 0,
     locked: asNumber(pick(r, 'locked')) ?? 0,
     netWorth: asNumber(pick(r, 'netWorth', 'net_worth')) ?? 0,

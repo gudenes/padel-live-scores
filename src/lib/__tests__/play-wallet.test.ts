@@ -16,7 +16,7 @@ it('scopes the balance to the authenticated user and active season', async () =>
   query.select.mockReturnValue(query); query.eq.mockReturnValue(query)
   mock.access.mockResolvedValue({ userId: 'current-user', supabase: { from: vi.fn().mockReturnValue(query) } })
   mock.season.mockResolvedValue({ id: 'current-season' })
-  expect(await (await GET()).json()).toEqual({ allowed: true, balance: 8684 })
+  expect(await (await GET()).json()).toEqual({ allowed: true, walletKey: 'current-user:current-season', balance: 8684 })
   expect(query.eq.mock.calls).toEqual([['user_id', 'current-user'], ['season_id', 'current-season']])
 })
 it('does not invent a balance when no season exists', async () => {

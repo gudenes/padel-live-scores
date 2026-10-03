@@ -14,5 +14,5 @@ export async function GET() {
   const { data, error } = await access.supabase.from('user_guaca_balance')
     .select('balance').eq('user_id', access.userId).eq('season_id', season.id).maybeSingle()
   if (error) return Response.json({ error: 'wallet_unavailable' }, { status: 503, headers })
-  return Response.json({ allowed: true, balance: data?.balance ?? null }, { headers })
+  return Response.json({ allowed: true, walletKey: `${access.userId}:${season.id}`, balance: data?.balance ?? null }, { headers })
 }

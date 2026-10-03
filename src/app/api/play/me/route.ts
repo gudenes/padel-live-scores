@@ -172,6 +172,7 @@ export async function GET(req: Request) {
   views.sort((a, b) => b.valueNow - a.valueNow)
 
   return Response.json({
+    walletKey: `${userId}:${wallet.seasonId}`,
     balance: wallet.balance,
     // `locked` is always 0 today: this version debits a buy immediately rather
     // than escrowing. The column exists for a future pending/limit-order flow.

@@ -206,7 +206,7 @@ export default function PlayPage() {
   return (
     <div className={`pl-root${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
       <style dangerouslySetInnerHTML={{ __html: PLAY_STYLES }} />
-      <GlobalHeader playerWallet={<PlayerWallet balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} />
+      <GlobalHeader playerWallet={<PlayerWallet walletKey={me.data?.walletKey} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} />
 
       {subnavKey && (
         <SubNav myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data ?? []).filter(m => m.live).length} />
