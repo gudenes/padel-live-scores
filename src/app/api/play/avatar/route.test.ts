@@ -1,5 +1,7 @@
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest'
 import sharp from 'sharp'
+import {readFile} from 'node:fs/promises'
+import {AVATAR_REFERENCE_PATH, AVATAR_REGISTRATION_PATH} from '@/lib/avatar-generation'
 const mocks = vi.hoisted(() => ({ access: vi.fn(), generate: vi.fn(), reserve: vi.fn(), save: vi.fn(), release: vi.fn(), settings: vi.fn(), productionSettings: vi.fn(), productionReserve: vi.fn(), productionSave: vi.fn() }))
 vi.mock('@/lib/local-avatar-settings', () => ({ readAvatarSettings: mocks.settings }))
 vi.mock('@/lib/play-access', () => ({ requirePlayAccess: mocks.access }))
@@ -45,6 +47,10 @@ describe('private local photo route', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({outfit:'custom:20fca730-15c5-4e54-ab12-b2e34e2fd913'})
     expect(mocks.generate.mock.calls[0][0].type).toBe('image/jpeg')
+    const [,style,registration] = mocks.generate.mock.calls[0] as Blob[]
+    expect(style.type).toBe('image/webp')
+    expect(Buffer.from(await style.arrayBuffer())).toEqual(await readFile(AVATAR_REFERENCE_PATH))
+    expect(Buffer.from(await registration.arrayBuffer())).toEqual(await readFile(AVATAR_REGISTRATION_PATH))
     expect(mocks.save.mock.calls[0][0]).toBe('alice')
     expect(mocks.release).toHaveBeenCalledOnce()
   })

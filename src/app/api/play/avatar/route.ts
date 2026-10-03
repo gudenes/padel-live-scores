@@ -7,7 +7,7 @@ import path from 'node:path'
 import sharp from 'sharp'
 import { AVATAR_UPLOAD_MAX_BYTES, AVATAR_UPLOAD_MAX_PIXELS } from '@/lib/avatar-upload'
 import { requirePlayAccess } from '@/lib/play-access'
-import { AVATAR_REFERENCE_PATH, AvatarGenerationError, generateAvatar, isLocalAvatarRequest } from '@/lib/avatar-generation'
+import { AVATAR_REFERENCE_PATH, AVATAR_REGISTRATION_PATH, AvatarGenerationError, generateAvatar, isLocalAvatarRequest } from '@/lib/avatar-generation'
 import { reserveAvatarGeneration, saveLocalAvatar } from '@/lib/avatar-local-store'
 
 export const runtime = 'nodejs'
@@ -62,9 +62,12 @@ export async function POST(req: Request) {
     stage = 'quota'
     release = await (process.env.NODE_ENV === 'production' ? reserveProductionAvatar(access.supabase, access.userId) : reserveAvatarGeneration(access.userId))
     stage = 'reference'
-    const reference = await readFile(path.join(process.cwd(), AVATAR_REFERENCE_PATH))
+    const [reference, registration] = await Promise.all([
+      readFile(path.join(process.cwd(), AVATAR_REFERENCE_PATH)),
+      readFile(path.join(process.cwd(), AVATAR_REGISTRATION_PATH)),
+    ])
     stage = 'generation'
-    const bytes = await generateAvatar(new Blob([new Uint8Array(clean)], { type: 'image/jpeg' }), new Blob([new Uint8Array(reference)], { type: 'image/png' }), key)
+    const bytes = await generateAvatar(new Blob([new Uint8Array(clean)], { type: 'image/jpeg' }), new Blob([new Uint8Array(reference)], { type: 'image/webp' }), new Blob([new Uint8Array(registration)], { type: 'image/png' }), key)
     stage = 'storage'
     const id = await (process.env.NODE_ENV === 'production' ? saveProductionAvatar(access.supabase, access.userId, bytes) : saveLocalAvatar(access.userId, bytes))
     return json({ outfit: `custom:${id}` })
