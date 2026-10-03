@@ -5,7 +5,7 @@ import {ShopProfileFigure} from './shop/AvatarShop'
 import GuacaCoin from '@/components/GuacaCoin'
 import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { PlayerAvatar, PlayerFigure, usePlayerOutfit } from '@/components/PlayerAvatar'
 import { canCustomizePlayer } from '@/lib/player-rig'
 import PhotoAvatarCreator from './PhotoAvatarCreator'
@@ -55,10 +55,10 @@ export default function PlayerProfile({ userId, name }: { userId: string; name: 
           {me.data ? <><strong><GuacaCoin size={30} />{number(me.data.balance)}</strong><span>{t('available')}</span></> : <p role="status">{t(me.status === 'error' ? 'loadError' : 'loading')}</p>}
           {me.status === 'error' && <button className={styles.textButton} onClick={me.reload}>{t('retry')}</button>}
         </div> : <p>{t('yourStyle')}</p>}
-        {access.data === true ? <a className={styles.shopShortcut} href={`/${locale}/avatar-shop`} aria-label={t('shopEntry')}>
+        {access.data === true ? <Link className={styles.shopShortcut} href="/avatar-shop" aria-label={t('shopEntry')}>
           <span className={styles.shopSymbol} aria-hidden="true"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 6a2 2 0 1 1 3 1.7c-.7.4-1 .8-1 1.8v1L3 16a1.4 1.4 0 0 0 .7 2.6h16.6A1.4 1.4 0 0 0 21 16l-9-5.5"/><path d="m18 3 .6 1.4L20 5l-1.4.6L18 7l-.6-1.4L16 5l1.4-.6L18 3Z"/></svg></span>
           <span className={styles.shopCopy}><strong>{t('shopTitle')}</strong><span>{t('shopBrowse')} <span aria-hidden="true">↗</span></span></span>
-        </a> : <button className={styles.primary} onClick={openWardrobe}>{t('wardrobe')} <span aria-hidden>↗</span></button>}
+        </Link> : <button className={styles.primary} onClick={openWardrobe}>{t('wardrobe')} <span aria-hidden>↗</span></button>}
       </div>
       <div data-avatar-art style={{display:'contents'}}>
       {access.data === true ? <ShopProfileFigure className={styles.character} fallback={<PlayerFigure approvedArtwork={access.data === true} className={styles.character} outfit={shown} label={t('characterAlt')} />}/> : <PlayerFigure approvedArtwork={access.data === true} className={styles.character} outfit={shown} label={t('characterAlt')} />}

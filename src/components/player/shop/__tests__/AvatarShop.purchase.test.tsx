@@ -3,6 +3,8 @@ import React from 'react'
 import {act, cleanup, fireEvent, render, screen} from '@testing-library/react'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import AvatarShop from '../AvatarShop'
+import {initialShopState} from '@/lib/avatar-shop'
+vi.mock('@/i18n/navigation',()=>({Link:({children,...props}:any)=><a {...props}>{children}</a>}))
 vi.mock('next/image',()=>({default:()=>null}))
 vi.mock('next-intl',()=>({useLocale:()=> 'es'}))
 const auth=vi.hoisted(()=>({user:null as {id:string}|null,profile:{id:'test',display_name:'Test'},loading:false}))
@@ -22,7 +24,7 @@ beforeEach(()=>{
  HTMLDialogElement.prototype.close=function(){this.removeAttribute('open')}
 })
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();vi.useRealTimers()})
-async function openCheckout(){await act(async()=>{render(<AvatarShop/>)});fireEvent.click(screen.getByRole('button',{name:/Comprar · 350/}));}
+async function openCheckout(){await act(async()=>{render(<AvatarShop/>)});fireEvent.click(screen.getByRole('button',{name:'Club Cap'}));fireEvent.click(screen.getByRole('button',{name:/Comprar · 350/}));}
 describe('shop purchase feedback',()=>{
  it('commits once after confirmation, then reveals the saved item',async()=>{
   await openCheckout()
@@ -72,4 +74,16 @@ it('explains expired sessions and keeps the draft',async()=>{
  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Guardar nombre'}))})
  expect(screen.getByText('Tu sesión ha caducado. Inicia sesión de nuevo para guardar tu nombre.')).toBeTruthy()
  expect((screen.getByLabelText('Nombre visible') as HTMLInputElement).value).toBe('Bulle7 Bull')
+})
+
+it('opens on equipped items and keeps the saved outfit when changing categories',async()=>{
+ const state=initialShopState();state.owned.push('hat-backwards','shirt-cobalt');state.equipped.hat='hat-backwards';state.equipped.shirt='shirt-cobalt'
+ localStorage.setItem(KEY,JSON.stringify(state))
+ await act(async()=>{render(<AvatarShop/>)})
+ expect(screen.getByRole('button',{name:'Reverse Rally'}).getAttribute('aria-pressed')).toBe('true')
+ expect(screen.getByRole('button',{name:'Equipado ✓'}).hasAttribute('disabled')).toBe(true)
+ fireEvent.click(screen.getByRole('button',{name:'Camiseta'}))
+ expect(screen.getByText('Tu conjunto guardado')).toBeTruthy()
+ expect(screen.getByRole('button',{name:'Equipado ✓'}).hasAttribute('disabled')).toBe(true)
+ expect(fetch).not.toHaveBeenCalledWith('/api/play/avatar/saved')
 })

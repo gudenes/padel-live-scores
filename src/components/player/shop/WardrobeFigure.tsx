@@ -3,7 +3,7 @@ import Image from 'next/image'
 import wristClips from '@/lib/legacy-wrist-clips.json'
 import {renderAvatar} from '@/lib/avatar-a01-renderer.mjs'
 import {usesA01Artwork,a01Outfit} from '@/lib/avatar-a01'
-import {useId} from 'react'
+import {useId,useMemo} from 'react'
 import {SHOP_AVATARS,SHOP_SLOTS,SHOP_ITEMS,PHOTO_HAT_PATHS,gearArtwork,wardrobeBody,type ShopItem,type ShopState} from '@/lib/avatar-shop'
 import {AVATAR_HEAD_PATH,PRESET_HEAD_PATH,AVATAR_FACE_PATH,capHairEnvelope} from '@/lib/avatar-layers'
 import styles from './AvatarShop.module.css'
@@ -20,7 +20,9 @@ export function Figure({state,preview,original,portrait=false,imageUrl}:{state:S
  const hairEnvelope=capHairEnvelope(hatItem?.id)
  const headSource=imageUrl??gearArtwork(state.avatar,'starter')
  const hairMask=hairEnvelope?`url(#${id}-cap-hair)`:undefined
- if(usesA01Artwork(state.avatar))return <div className={portrait?styles.portrait:styles.figure} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:state.avatar,outfit:a01Outfit(outfit),id:`a01-${id}`,base:'/play/avatars/a01-local/',portrait})}}/>
+ const outfitKey=JSON.stringify(outfit)
+ const a01Markup=useMemo(()=>usesA01Artwork(state.avatar)?renderAvatar({avatar:state.avatar,outfit:a01Outfit(JSON.parse(outfitKey)),id:`a01-${id}`,base:'/play/avatars/a01-local/',portrait}):null,[state.avatar,outfitKey,id,portrait])
+ if(a01Markup)return <div className={portrait?styles.portrait:styles.figure} dangerouslySetInnerHTML={{__html:a01Markup}}/>
  const wristClip=(wristClips as Record<string,string>)[body]
  const wristCollection=SHOP_ITEMS.find(i=>i.id===outfit.wrist)?.collection??'starter'
  const wristRgb=({club:[.58,.86,.16],cobalt:[.08,.24,.95],sunset:[.95,.18,.16],champion:[.9,.67,.25],starter:[0,0,0]}[wristCollection])

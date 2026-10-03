@@ -1,5 +1,6 @@
 'use client'
 import Image from 'next/image'
+import PressButton,{PRESS_PRESETS} from '@/components/PressButton'
 import {Capacitor} from '@capacitor/core'
 import {shareAvatarFile,isAvatarShareCancelled,AvatarShareUpdateRequired} from '@/lib/share-avatar-file'
 import {useRef,useState,useEffect,type FormEvent,type RefObject} from 'react'
@@ -28,16 +29,6 @@ export default function AvatarShare({stage,compact=false}:{stage:RefObject<HTMLD
   const generation=useRef(0)
   useEffect(()=>()=>{generation.current++},[])
   useEffect(()=>()=>{if(url)URL.revokeObjectURL(url)},[url])
-  useEffect(()=>{
-    const root=stage.current
-    if(!root)return
-    let timer:ReturnType<typeof setTimeout>
-    const warm=()=>{clearTimeout(timer);timer=setTimeout(()=>{const svg=root.querySelector<SVGSVGElement>('[data-avatar-art] svg');if(svg)void avatarShareFile(svg,'full').catch(()=>{})},700)}
-    const observer=new MutationObserver(warm)
-    observer.observe(root,{subtree:true,childList:true,attributes:true,attributeFilter:['href','viewBox','transform','d']})
-    warm()
-    return()=>{clearTimeout(timer);observer.disconnect()}
-  },[stage])
   async function prepare(nextFormat:AvatarShareFormat=format,nextBackground:AvatarShareBackground=background){
     setBackground(nextBackground)
     setFormat(nextFormat);setDownloadRequested(false);setSaved(false);setCopied(false);setShareUnavailable(false)
@@ -78,7 +69,7 @@ export default function AvatarShare({stage,compact=false}:{stage:RefObject<HTMLD
     try{await navigator.clipboard.write([new ClipboardItem({'image/png':file})]);setCopied(true)}catch{setError(true)}
   }
   return <>
-    <button type="button" className={`${styles.avatarShareButton} ${compact?styles.compactShareButton:''}`} aria-label={t('title')} title={t('title')} onClick={()=>void prepare('full','court')}><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg><span>{t('title')}</span></button>
+    <PressButton {...PRESS_PRESETS.chunkyTilted} type="button" className={`${styles.approvedShare} ${compact?styles.compactApprovedShare:''}`} aria-label={t('title')} title={t('title')} onClick={()=>void prepare('full','court')}><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>{!compact&&<span>{t('title')}</span>}</PressButton>
     <dialog ref={dialog} className={`${styles.dialog} ${styles.shareDialog}`} style={{pointerEvents:'auto'}} aria-label={t('title')}>
       <div className={styles.shareContent}>
         <div className={styles.row}><h2>{t('title')}</h2><button className={styles.close} aria-label={t('close')} onClick={()=>dialog.current?.close()}>×</button></div>

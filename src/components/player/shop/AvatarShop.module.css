@@ -148,3 +148,8 @@
 }
 /* A01 assets already have alpha; preserve dark hair and cap fabric. */
 .figure>svg[data-avatar-renderer="a01"],.portrait>svg[data-avatar-renderer="a01"]{mix-blend-mode:normal;mask-image:none}
+
+/* Keep the action above the home indicator, with breathing room on every device. */
+.shop{padding-bottom:calc(24px + env(safe-area-inset-bottom,0px))}
+.shop>.stage .tryOn{height:calc(100% - 42px)}
+@media(max-height:620px){.shop{padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
