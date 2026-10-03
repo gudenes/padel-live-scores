@@ -78,3 +78,10 @@
 
 .shareActions .downloadAvatar{width:100%;border:0;cursor:pointer;font:inherit;font-size:13px;font-weight:800;text-align:center}
 .compactShareButton{top:auto;bottom:2px;left:0;right:auto;min-height:38px;font-size:10px!important;padding:7px 9px!important}
+
+/* Approved chunky share control; compact wardrobe trigger stays in the upper corner. */
+.approvedShare{width:100%;font-size:12px;font-weight:800}
+.approvedShare:global(.pn-press){background:transparent;border:0;padding:0}
+.approvedShare> :global(.pn-press-face){min-height:44px;padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:8px}
+.compactApprovedShare{position:absolute!important;top:8px;right:8px;bottom:auto;left:auto;width:44px;z-index:4}
+.compactApprovedShare> :global(.pn-press-face){padding:10px;min-height:44px}

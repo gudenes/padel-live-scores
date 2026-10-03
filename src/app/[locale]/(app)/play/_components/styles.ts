@@ -953,6 +953,7 @@ export const PLAY_STYLES = `
 .pl-root.pl-immersive { --pl-chrome:calc(62px + 50px + var(--pl-navh) + env(safe-area-inset-top,0px)); }
 .pl-screens { min-height:0; }
 .pl-main-tabs { gap:7px; }
+.pl-market-total { display:inline-block; margin-left:5px; font-size:10px; font-weight:850; font-variant-numeric:tabular-nums; opacity:.85; }
 .pl-main-tabs button { min-height:40px; font-size:12px; letter-spacing:0; text-transform:none; }
 .pl-market-filters {
  margin:10px 14px 0; padding:3px; gap:3px; overflow-x:auto;

@@ -5,6 +5,11 @@
 .balance:focus-visible { outline:2px solid #9fdbec; outline-offset:1px; border-radius:3px; }
 .avatar { position:relative; flex-shrink:0; }
 .coin { display:flex; flex-shrink:0; }
-.amount { animation:credit-in .8s ease-out; }
-@keyframes credit-in { from { color:#a4dd65; } to { color:#eee7d2; } }
-@media(prefers-reduced-motion:reduce) { .amount { animation:none; } }
+.amount { min-width:3.5ch; text-align:left; }
+.balance { position:relative; }
+.trail { position:absolute; left:2px; top:calc(50% - 10px); width:20px; height:20px; pointer-events:none; z-index:3; }
+.flying { position:absolute; left:0; top:0; opacity:0; animation:coin-arrive 760ms cubic-bezier(.2,.7,.25,1) both; filter:drop-shadow(0 2px 3px #0005); }
+.trail[data-direction=decrease] .flying { animation-name:coin-depart; animation-duration:450ms; }
+@keyframes coin-arrive { 0% { opacity:0; transform:translate(-95px,95px) scale(.65) rotate(-25deg); } 40% { opacity:1; transform:translate(-55px,30px) scale(1) rotate(-15deg); } 85% { opacity:1; } 100% { opacity:0; transform:translate(0,0) scale(.4); } }
+@keyframes coin-depart { 0% { opacity:0; transform:translate(0,0) scale(.7); } 20% { opacity:.7; } 100% { opacity:0; transform:translate(-35px,48px) scale(.4); } }
+@media(prefers-reduced-motion:reduce) { .trail { display:none; } }

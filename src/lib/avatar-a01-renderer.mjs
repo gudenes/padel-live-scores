@@ -36,15 +36,15 @@ const palette={
 };
 const xml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function normalize(input={}) {return Object.fromEntries([...slots,'hat','sticker'].map(slot=>[slot,(slot==='hat'?hats:slot==='sticker'?['none','king','dejadas']:collections).includes(input[slot])?input[slot]:slot==='sticker'?'none':'starter']));}
-export function renderAvatar({avatar='face-06',outfit={},id='a01',base='../',portrait=false,debug=false,images={}}={}) {
+export function renderAvatar({avatar='face-06',outfit={},id='a01',base='../',portrait=false,debug=false,images={},customSource}={}) {
  if(!profiles[avatar]) throw new Error('Unknown A01 character');
  const p=profiles[avatar],o=normalize(outfit),prefix=id.replace(/[^a-zA-Z0-9_-]/g,'');
  const src=path=>{const asset=path.startsWith('characters/')?path.replace(/\.png$/,'.webp'):path;return xml(images[asset]??base+asset)};
 
- const fittedSource=fittedSources[avatar]?.[o.hat];
+ const fittedSource=customSource?null:fittedSources[avatar]?.[o.hat];
  const fitted=Boolean(fittedSource);
  const sourcePath='characters/'+(fittedSource||avatar+'.png');
- const image=(attributes='')=>`<image href="${src(sourcePath)}" width="1024" height="1536" ${attributes}/>`;
+ const image=(attributes='')=>`<image href="${(customSource?xml(customSource):src(sourcePath))}" width="1024" height="1536" ${attributes}/>`;
  const closedCap=!fitted&&avatar==='face-06'&&['club','champion','backwards'].includes(o.hat);
  const crownPath=avatar==='face-06'?'M370 0H675V135 Q630 108 535 115 Q440 117 378 166Z':'M426 0H698V133 Q620 107 539 113 Q478 115 423 147Z';
  const crownMask=`<mask id="${prefix}-crown-mask"><rect width="1024" height="1536" fill="white"/><path d="${crownPath}" fill="black"/></mask>`;

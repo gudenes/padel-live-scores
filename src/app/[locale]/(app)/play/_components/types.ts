@@ -174,6 +174,7 @@ export interface PlayPosition {
 
 /** `GET /api/play/me`. */
 export interface PlayMe {
+  walletKey?: string
   notices?: Array<{ id: number; market_id: string; delta: number; corrected: boolean; reason: string; question?: string }>
   balance: number
   locked: number
@@ -389,6 +390,12 @@ function asBook(value: unknown): PlayMarket['book'] {
   return qYes !== null && qNo !== null && b !== null && b > 0 ? { qYes, qNo, b } : null
 }
 
+export function parseMarketOverview(payload: unknown) {
+  const markets = parseMarkets(payload)
+  const count = (payload as { totalAvailable?: unknown })?.totalAvailable
+  return { markets, totalAvailable: typeof count === 'number' && Number.isInteger(count) && count >= 0 ? count : markets.length }
+}
+
 export function parseMarkets(payload: unknown): PlayMarket[] {
   const raw = (payload as { markets?: unknown })?.markets
   if (!Array.isArray(raw)) return []
@@ -480,6 +487,7 @@ export function parseMe(payload: unknown): PlayMe {
     }
   }
   return {
+    walletKey: typeof r.walletKey === 'string' ? r.walletKey : undefined,
     balance: asNumber(pick(r, 'balance')) ?? 0,
     locked: asNumber(pick(r, 'locked')) ?? 0,
     netWorth: asNumber(pick(r, 'netWorth', 'net_worth')) ?? 0,

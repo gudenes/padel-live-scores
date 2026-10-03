@@ -1,3 +1,4 @@
+import {avatarArtVersion} from '@/lib/avatar-art-version'
 import {requirePlayAccess} from '@/lib/play-access'
 import {readProductionAvatar} from '@/lib/production-avatar-store'
 import {SHOP_AVATARS,SHOP_ITEMS} from '@/lib/avatar-shop'
@@ -23,7 +24,7 @@ export async function GET(req:Request){
  if(url.searchParams.get('image')==='1'){
   if(!custom)return empty()
   // Never accept an asset ID from the caller: only the target's equipped image.
-  try {const bytes=await readProductionAvatar(access.supabase,userId,avatar.slice(7));return new Response(new Uint8Array(bytes),{headers:{...headers,'Content-Type':'image/png'}})}
+  try {const bytes=await readProductionAvatar(access.supabase,userId,avatar.slice(7));if(url.searchParams.get('metadata')==='1')return Response.json({artVersion:avatarArtVersion(bytes)},{headers});return new Response(new Uint8Array(bytes),{headers:{...headers,'Content-Type':'image/png'}})}
   catch{return empty()}
  }
  const equipped=Object.fromEntries(Object.entries(wardrobe.data.equipped??{}).filter(([slot,id])=>SHOP_ITEMS.some(item=>item.id===id&&item.slot===slot)))

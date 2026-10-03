@@ -6,7 +6,7 @@ import ProfileButton from '@/components/ProfileButton'
 import { useRouter, usePathname } from '@/i18n/navigation'
 import PlayerWallet from './PlayerWallet'
 
-type Wallet = { userId: string; allowed: boolean; balance: number | null }
+type Wallet = { walletKey?: string; userId: string; allowed: boolean; balance: number | null }
 
 export default function HeaderAccount() {
   const { user, loading } = useAuth()
@@ -25,7 +25,7 @@ export default function HeaderAccount() {
         const response = await fetch('/api/play/wallet', { cache: 'no-store', signal: controller.signal })
         if (!response.ok) throw new Error('Wallet unavailable')
         const data = await response.json()
-        if (!controller.signal.aborted) setWallet({ userId, allowed: data.allowed === true,
+        if (!controller.signal.aborted) setWallet({ userId, walletKey: typeof data.walletKey === 'string' ? data.walletKey : undefined, allowed: data.allowed === true,
           balance: typeof data.balance === 'number' && Number.isFinite(data.balance) ? data.balance : null })
       } catch {
         if (!controller.signal.aborted) setWallet(null)
@@ -46,5 +46,5 @@ export default function HeaderAccount() {
   }, [userId, loading, pathname])
   // Account-bound state prevents a previous user's wallet flashing after sign-out.
   if (loading || !userId || wallet?.userId !== userId || !wallet.allowed) return <ProfileButton />
-  return <PlayerWallet balance={wallet.balance} onPositions={() => router.push('/play?view=mine')} />
+  return <PlayerWallet walletKey={wallet.walletKey} balance={wallet.balance} onPositions={() => router.push('/play?view=mine')} />
 }

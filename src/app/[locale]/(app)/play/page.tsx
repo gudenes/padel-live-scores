@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import MarketToolbar from './_components/MarketToolbar'
-import { unplayedFirst, filterMarkets, EMPTY_FACETS, type MarketFacets, type MarketFilter } from './_components/market-filters'
+import { unplayedFirst, filterMarkets, type MarketFilter } from './_components/market-filters'
 import GlobalHeader from '@/components/nav/GlobalHeader'
 import PlayerWallet from './_components/PlayerWallet'
 import { PLAY_STYLES } from './_components/styles'
@@ -26,7 +26,7 @@ import { useApiResource } from './_components/usePlayData'
 import {
   parseActivity,
   parseLeaderboard,
-  parseMarkets,
+  parseMarketOverview,
   parseMe,
   type LeaderPeriod,
   type PlayMarket,
@@ -79,13 +79,12 @@ export default function PlayPage() {
       if (view === 'leaders') setLeadersOpened(true)
     }
   }, [])
-  const [facets, setFacets] = useState<MarketFacets>(EMPTY_FACETS)
   const [marketFilter, setMarketFilter] = useState<MarketFilter>('all')
 
   // ── Data ──────────────────────────────────────────────────────
   // `locale` is forwarded because the market question, its context line and
   // the pair names are localised server-side from market_templates.question_i18n.
-  const markets = useApiResource(`/api/play/markets?locale=${locale}${linkedMatch ? `&matchId=${linkedMatch}` : ''}`, parseMarkets, true, 30_000)
+  const markets = useApiResource(`/api/play/markets?locale=${locale}${linkedMatch ? `&matchId=${linkedMatch}` : ''}`, parseMarketOverview, true, 30_000)
   const me = useApiResource(`/api/play/me?locale=${locale}`, parseMe, true, 30_000)
   const activity = useApiResource(`/api/play/activity?locale=${locale}`, parseActivity, screen === 'activity')
   // The leaderboard is the one screen most users never open; don't spend a
@@ -108,7 +107,7 @@ export default function PlayPage() {
   const balance = balanceAfterTrade ?? me.data?.balance ?? 0
   // Memoised so the `?? []` fallback doesn't produce a new array identity on
   // every render and churn the deck's layout effects.
-  const list = useMemo(() => unplayedFirst(filterMarkets(markets.data ?? [], marketFilter, new Date(), facets), me.data?.positions ?? []), [markets.data, marketFilter, facets, me.data?.positions])
+  const list = useMemo(() => unplayedFirst(filterMarkets(markets.data?.markets ?? [], marketFilter, new Date()), me.data?.positions ?? []), [markets.data, marketFilter, me.data?.positions])
 
 
   // ── Screen switching ──────────────────────────────────────────
@@ -206,10 +205,10 @@ export default function PlayPage() {
   return (
     <div className={`pl-root${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
       <style dangerouslySetInnerHTML={{ __html: PLAY_STYLES }} />
-      <GlobalHeader playerWallet={<PlayerWallet balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} />
+      <GlobalHeader playerWallet={<PlayerWallet walletKey={me.data?.walletKey} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} />
 
       {subnavKey && (
-        <SubNav myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data ?? []).filter(m => m.live).length} />
+        <SubNav availableCount={markets.data?.totalAvailable} myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data?.markets ?? []).filter(m => m.live).length} />
       )}
 
       {(screen === 'mine' || screen === 'activity') && <div className="pl-time-nav pl-personal-tabs">
@@ -219,9 +218,9 @@ export default function PlayPage() {
       <div className="pl-screens">
         {/* ── Deck ────────────────────────────────────────────── */}
         <section hidden={screen !== 'deck' && screen !== 'trade'} className={`pl-screen${screen === 'deck' || screen === 'trade' ? ' pl-on' : ''}`}>
-          <MarketToolbar markets={markets.data ?? []} filter={marketFilter} facets={facets}
+          <MarketToolbar markets={markets.data?.markets ?? []} filter={marketFilter}
             onFilter={filter => { setMarketFilter(filter) }}
-            onFacets={next => { setFacets(next) }} />
+            />
           <ActivityBanner active={screen === 'deck'} onOpen={() => { activity.reload(); goto('activity') }} />
           {markets.status === 'loading' && (
             <div style={{ paddingTop: 16 }}>
@@ -241,13 +240,13 @@ export default function PlayPage() {
             />
           )}
           {markets.status === 'ready' && list.length === 0 && (
-            <Blank icon="deck" title={t(marketFilter === 'all' && !facets.competition && !facets.category ? 'deck.empty.title' : 'filters.empty')}
-              body={t(marketFilter === 'all' && !facets.competition && !facets.category ? 'deck.empty.body' : 'filters.emptyBody')}
-              action={linkedMatch || marketFilter !== 'all' || facets.competition || facets.category ? <Press size="size-sm" onClick={() => { setLinkedMatch(null); setMarketFilter('all'); setFacets(EMPTY_FACETS) }}>{t('filters.showAll')}</Press> : undefined} />
+            <Blank icon="deck" title={t(marketFilter === 'all' ? 'deck.empty.title' : 'filters.empty')}
+              body={t(marketFilter === 'all' ? 'deck.empty.body' : 'filters.emptyBody')}
+              action={linkedMatch || marketFilter !== 'all' ? <Press size="size-sm" onClick={() => { setLinkedMatch(null); setMarketFilter('all') }}>{t('filters.showAll')}</Press> : undefined} />
           )}
           {markets.status === 'ready' && list.length > 0 && (
             <> {linkedMatch && <Press size="size-sm" intent="intent-ghost" onClick={() => setLinkedMatch(null)}>{t('filters.showAll')}</Press>}<MarketFeed
-              key={JSON.stringify([marketFilter, facets])}
+              key={marketFilter}
               markets={list}
               positions={me.data?.positions ?? []}
               onViewPositions={() => goto('mine')}
