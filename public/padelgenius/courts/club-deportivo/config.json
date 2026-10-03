@@ -1,0 +1,43 @@
+{
+  "name": "Club Deportivo",
+  "active": true,
+  "imageUrl": "/padelgenius/courts/club-deportivo/court.png?v=1778689006098",
+  "bounds": {
+    "backGlassY": 0.25,
+    "backServiceY": 0.32,
+    "netY": 0.555,
+    "nearServiceY": 0.83,
+    "nearGlassY": 0.98,
+    "farLeftX": 0.253,
+    "farRightX": 0.74,
+    "nearLeftX": 0.045,
+    "nearRightX": 0.965
+  },
+  "zones": {
+    "attackDepth": 10,
+    "transitionDepth": 18
+  },
+  "visualSystem": {
+    "playerBaseSize": 80,
+    "scaleCurveMin": 0.85,
+    "scaleCurveMax": 1.2,
+    "letterRadius": 12,
+    "progressBarTilt": -11
+  },
+  "branding": {
+    "backWall": null,
+    "sideGlassLeft": null,
+    "sideGlassRight": null,
+    "netBand": null,
+    "floorCenter": null
+  },
+  "trajectoryAssets": {},
+  "trajectoryOverrides": {
+    "flat": {
+      "strokeWidth": 1.5,
+      "dashed": true,
+      "showDecorations": true,
+      "color": "#bae51f"
+    }
+  }
+}
