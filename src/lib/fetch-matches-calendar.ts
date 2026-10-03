@@ -30,6 +30,7 @@ import {
   formatIsoInTz,
   getLocaleTodayIso,
 } from './locale-time'
+import { fetchMatchesHiddenTiers, tierExclusionFilter } from './tier-visibility'
 
 /** How far ahead we look for "next match" data. 30 days covers any
  *  realistic upcoming Premier event without pulling unbounded rows. */
@@ -85,18 +86,30 @@ export async function fetchMatchesCalendar(
   // of in-play matches for the LIVE pill's tap-or-toast decision. The
   // count uses `head:true` so PostgREST returns only the row count, not
   // the rows themselves.
+  // Operator-hidden tiers (tier_visibility.show_on_matches = false) must
+  // not light up a day pill or the LIVE pill over a list that won't show
+  // them. The inner join is only added when something is hidden.
+  const tierFilter = tierExclusionFilter(await fetchMatchesHiddenTiers(supabase))
+  const tierJoin = tierFilter ? ', tournament:tournaments!inner(level)' : ''
+
+  let windowQuery = supabase
+    .from('matches')
+    .select(`scheduled_at${tierJoin}`)
+    .not('scheduled_at', 'is', null)
+    .gte('scheduled_at', todayStartUtc.toISOString())
+    .lt('scheduled_at', horizonStartUtc.toISOString())
+  let liveQuery = supabase
+    .from('matches')
+    .select(`id${tierJoin}`, { count: 'exact', head: true })
+    .in('status', ['live', 'on_court'])
+  if (tierFilter) {
+    windowQuery = windowQuery.or(tierFilter, { referencedTable: 'tournament' })
+    liveQuery = liveQuery.or(tierFilter, { referencedTable: 'tournament' })
+  }
+
   const [windowRes, liveRes] = await Promise.all([
-    supabase
-      .from('matches')
-      .select('scheduled_at')
-      .not('scheduled_at', 'is', null)
-      .gte('scheduled_at', todayStartUtc.toISOString())
-      .lt('scheduled_at', horizonStartUtc.toISOString())
-      .limit(SELECT_LIMIT),
-    supabase
-      .from('matches')
-      .select('id', { count: 'exact', head: true })
-      .in('status', ['live', 'on_court']),
+    windowQuery.limit(SELECT_LIMIT),
+    liveQuery,
   ])
 
   if (windowRes.error) {
@@ -111,7 +124,7 @@ export async function fetchMatchesCalendar(
 
   // Bucket scheduled_at instants into local-tz day strings.
   const seen = new Set<string>()
-  for (const row of (windowRes.data ?? []) as Array<{ scheduled_at: string | null }>) {
+  for (const row of (windowRes.data ?? []) as unknown as Array<{ scheduled_at: string | null }>) {
     if (!row.scheduled_at) continue
     const day = formatIsoInTz(new Date(row.scheduled_at), tz)
     seen.add(day)

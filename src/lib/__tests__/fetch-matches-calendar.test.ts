@@ -1,8 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   fetchMatchesCalendar,
   nextDayWithMatches,
 } from '../fetch-matches-calendar'
+
+const hidden = vi.hoisted(() => ({ value: [] as string[] }))
+vi.mock('../tier-visibility', async (orig) => {
+  const actual = await orig<typeof import('../tier-visibility')>()
+  return { ...actual, fetchMatchesHiddenTiers: async () => hidden.value }
+})
 
 // ── nextDayWithMatches ─────────────────────────────────────────────
 //
@@ -60,10 +66,19 @@ function makeFakeSupabase(scheduledAtRows: Array<string | null>, error: string |
   }
 
   const builder: any = {
-    select: (cols: string) => {
-      captured.filters.push(['select', cols])
+    select: (cols: string, opts?: unknown) => {
+      captured.filters.push(['select', cols, opts])
       return builder
     },
+    or: (f: string, opts?: unknown) => {
+      captured.filters.push(['or', f, opts])
+      return builder
+    },
+    in: (col: string, vals: unknown) => {
+      captured.filters.push(['in', col, vals])
+      return builder
+    },
+    then: (resolve: (v: unknown) => void) => resolve({ count: 0, error: null }),
     not: (col: string, op: string, val: unknown) => {
       captured.filters.push(['not', col, op, val])
       return builder
@@ -100,6 +115,8 @@ describe('fetchMatchesCalendar', () => {
   // Pin "now" so window calc is deterministic. 12:00 UTC on 2026-04-28
   // — comfortably inside both Europe/Madrid (UTC+2) and UTC days.
   const NOW = new Date('2026-04-28T12:00:00Z')
+
+  beforeEach(() => { hidden.value = [] })
 
   it('queries [today, today+30) in matches.scheduled_at', async () => {
     const { client, capturedQuery } = makeFakeSupabase([])
@@ -181,5 +198,30 @@ describe('fetchMatchesCalendar', () => {
       NOW,
     )
     expect(result.daysWithMatches).toEqual(['2026-04-29'])
+  })
+
+  it('applies the tier exclusion to the window query and the live count', async () => {
+    hidden.value = ['fip_promises']
+    const { client, capturedQuery } = makeFakeSupabase([])
+    await fetchMatchesCalendar(client, 'en', 'UTC', NOW)
+
+    const selects = capturedQuery.filters.filter((f) => f[0] === 'select')
+    expect(selects).toHaveLength(2)
+    for (const s of selects) expect(s[1]).toContain('tournament:tournaments!inner(level)')
+
+    const ors = capturedQuery.filters.filter((f) => f[0] === 'or')
+    expect(ors).toHaveLength(2)
+    for (const o of ors) {
+      expect(o[1]).toBe('level.is.null,level.not.in.(fip_promises)')
+      expect(o[2]).toEqual({ referencedTable: 'tournament' })
+    }
+  })
+
+  it('leaves both queries unjoined when nothing is hidden', async () => {
+    const { client, capturedQuery } = makeFakeSupabase([])
+    await fetchMatchesCalendar(client, 'en', 'UTC', NOW)
+    const selects = capturedQuery.filters.filter((f) => f[0] === 'select')
+    for (const s of selects) expect(s[1]).not.toContain('!inner')
+    expect(capturedQuery.filters.filter((f) => f[0] === 'or')).toHaveLength(0)
   })
 })
