@@ -14,6 +14,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const TTL_MS = 60_000
+// Short negative cache so a missing table (pre-migration) doesn't query+warn per request.
+const ERROR_TTL_MS = 10_000
 
 let cache: { value: string[]; expiresAt: number } | null = null
 
@@ -40,6 +42,7 @@ export async function fetchMatchesHiddenTiers(
 
   if (error) {
     console.warn('[tier-visibility] read failed, hiding nothing:', error.message)
+    cache = { value: [], expiresAt: now + ERROR_TTL_MS }
     return []
   }
 
@@ -57,6 +60,7 @@ export async function fetchMatchesHiddenTiers(
  * filter AND the `!inner` join entirely (`not.in.()` is a 400).
  */
 export function tierExclusionFilter(hiddenLevels: readonly string[]): string | null {
-  if (hiddenLevels.length === 0) return null
-  return `level.is.null,level.not.in.(${hiddenLevels.join(',')})`
+  const valid = hiddenLevels.filter((l) => /^[a-z0-9_]+$/.test(l))
+  if (valid.length === 0) return null
+  return `level.is.null,level.not.in.(${valid.join(',')})`
 }
