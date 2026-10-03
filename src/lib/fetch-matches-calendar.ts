@@ -90,6 +90,8 @@ export async function fetchMatchesCalendar(
   // not light up a day pill or the LIVE pill over a list that won't show
   // them. The inner join is only added when something is hidden.
   const tierFilter = tierExclusionFilter(await fetchMatchesHiddenTiers(supabase))
+  // Note: with a tier hidden, the inner join also drops matches with a null
+  // tournament_id — intended; the day list always drops them too.
   const tierJoin = tierFilter ? ', tournament:tournaments!inner(level)' : ''
 
   let windowQuery = supabase

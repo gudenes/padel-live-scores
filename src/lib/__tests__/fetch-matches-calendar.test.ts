@@ -58,7 +58,7 @@ interface FakeQuery {
   resolveWith: { data: unknown[] | null; error: { message: string } | null }
 }
 
-function makeFakeSupabase(scheduledAtRows: Array<string | null>, error: string | null = null): { client: any; capturedQuery: FakeQuery } {
+function makeFakeSupabase(scheduledAtRows: Array<string | null>, error: string | null = null, liveCount = 0): { client: any; capturedQuery: FakeQuery } {
   const captured: FakeQuery = {
     table: '',
     filters: [],
@@ -78,7 +78,8 @@ function makeFakeSupabase(scheduledAtRows: Array<string | null>, error: string |
       captured.filters.push(['in', col, vals])
       return builder
     },
-    then: (resolve: (v: unknown) => void) => resolve({ count: 0, error: null }),
+    then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
+      Promise.resolve({ count: liveCount, error: null }).then(res, rej),
     not: (col: string, op: string, val: unknown) => {
       captured.filters.push(['not', col, op, val])
       return builder
@@ -223,5 +224,11 @@ describe('fetchMatchesCalendar', () => {
     const selects = capturedQuery.filters.filter((f) => f[0] === 'select')
     for (const s of selects) expect(s[1]).not.toContain('!inner')
     expect(capturedQuery.filters.filter((f) => f[0] === 'or')).toHaveLength(0)
+  })
+
+  it('reports hasLiveNow=true when the live count is > 0', async () => {
+    const { client } = makeFakeSupabase([], null, 1)
+    const result = await fetchMatchesCalendar(client, 'en', 'UTC', NOW)
+    expect(result.hasLiveNow).toBe(true)
   })
 })
