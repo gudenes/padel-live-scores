@@ -40,17 +40,26 @@ export async function GET(req: Request) {
   // `markets_status_locks_idx` index serves.
   let query = supabase
     .from('markets')
-    .select(MARKET_SELECT)
+    .select(MARKET_SELECT, { count: 'exact' })
     .eq('status', 'open')
     .gt('locks_at', nowIso)
     .order('locks_at', { ascending: true })
     .limit(LIMIT)
   if (matchId) query = query.eq('match_id', matchId)
-  const {data, error} = await query
+  const {data, error, count} = await query
 
   if (error) {
     console.error('[play/markets] query failed:', error.message)
     return Response.json({ error: 'query_failed' }, { status: 500 })
+  }
+
+  // Keep the main tab's total global even when arriving through a match link.
+  let totalAvailable = count ?? data?.length ?? 0
+  if (matchId) {
+    const total = await supabase.from('markets').select('id', { count: 'exact', head: true })
+      .eq('status', 'open').gt('locks_at', nowIso)
+    if (total.error) return Response.json({ error: 'query_failed' }, { status: 500 })
+    totalAvailable = total.count ?? 0
   }
 
   const rows = (data ?? []) as unknown as MarketRow[]
@@ -75,6 +84,7 @@ export async function GET(req: Request) {
   const matchVolumes: Record<string,number> = {}
   for (const r of volumeRows) if(r.match_id) matchVolumes[r.match_id]=(matchVolumes[r.match_id] ?? 0)+Number(r.volume_guacas || 0)+(simulated[r.id] ?? 0)
   return Response.json({
+    totalAvailable,
     markets: rows.map((r) => ({ ...describeMarket(r, locale, now, { form, h2h, editorial }), volumeGuacas: Number(r.volume_guacas || 0)+(simulated[r.id] ?? 0), matchVolumeGuacas: r.match_id ? matchVolumes[r.match_id] : null, book: { qYes: Number(r.q_yes), qNo: Number(r.q_no), b: Number(r.lmsr_b) } })),
   })
 }

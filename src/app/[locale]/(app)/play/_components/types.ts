@@ -390,6 +390,12 @@ function asBook(value: unknown): PlayMarket['book'] {
   return qYes !== null && qNo !== null && b !== null && b > 0 ? { qYes, qNo, b } : null
 }
 
+export function parseMarketOverview(payload: unknown) {
+  const markets = parseMarkets(payload)
+  const count = (payload as { totalAvailable?: unknown })?.totalAvailable
+  return { markets, totalAvailable: typeof count === 'number' && Number.isInteger(count) && count >= 0 ? count : markets.length }
+}
+
 export function parseMarkets(payload: unknown): PlayMarket[] {
   const raw = (payload as { markets?: unknown })?.markets
   if (!Array.isArray(raw)) return []
