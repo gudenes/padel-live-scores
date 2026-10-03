@@ -195,7 +195,7 @@ export async function GET(
   const [{ data: coachLinks, error: coachLinksErr }, { data: coachRecord, error: coachRecordErr }] = await Promise.all([
     supabase
       .from('player_coaches')
-      .select('raw_name, position, coach:coaches(id, display_name, status)')
+      .select('raw_name, position, coach:coaches(id, display_name, status, avatar_url)')
       .eq('player_id', id)
       .order('position'),
     supabase.from('coaches').select('id, display_name').eq('player_id', id).maybeSingle(),

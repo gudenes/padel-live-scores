@@ -230,9 +230,10 @@ export default function PlayersTable({
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)' }}>
+                        <Link href={`/players/${player.id}`} onClick={(e) => e.stopPropagation()}
+                          style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-1)', textDecoration: 'underline', textUnderlineOffset: 3 }}>
                           {player.display_name || player.name}
-                        </span>
+                        </Link>
                         {player.coach_record?.[0] && (
                           <Link
                             href={`/players/coaches/${player.coach_record[0].id}`}

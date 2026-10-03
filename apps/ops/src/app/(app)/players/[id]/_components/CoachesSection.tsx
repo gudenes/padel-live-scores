@@ -5,12 +5,27 @@
 // raw list happens in ProfileSection above (next linker run picks it up).
 
 import Link from 'next/link'
+import { useState } from 'react'
+import CoachPhotoUpload from '@/components/CoachPhotoUpload'
 import { Panel, Pill } from '@/components/ui'
 
 export interface CoachLink {
   raw_name: string
   position: number
-  coach: { id: string; display_name: string; status: string } | null
+  coach: { id: string; display_name: string; status: string; avatar_url?: string | null } | null
+}
+
+function LinkedCoach({ link }: { link: CoachLink }) {
+  const coach = link.coach!
+  const [photo, setPhoto] = useState<string | null | undefined>(undefined)
+  return (
+    <li className="py-2">
+      <Link href={`/players/coaches/${coach.id}`} className="underline underline-offset-2">{coach.display_name}</Link>
+      {coach.display_name !== link.raw_name && <span style={{ color: 'var(--text-4)' }}> (FIP: {link.raw_name})</span>}
+      {coach.status === 'junk' && <> <Pill tone="neutral">junk</Pill></>}
+      <CoachPhotoUpload coachId={coach.id} name={coach.display_name} url={photo === undefined ? coach.avatar_url ?? null : photo} onSaved={setPhoto} />
+    </li>
+  )
 }
 
 export default function CoachesSection({ coaches, links }: { coaches: string[] | null; links: CoachLink[] }) {
@@ -24,17 +39,11 @@ export default function CoachesSection({ coaches, links }: { coaches: string[] |
       </Panel>
     )
   }
-  const linkedRaw = new Set(links.map((l) => l.raw_name))
+  const linkedRaw = new Set(links.filter((l) => l.coach).map((l) => l.raw_name))
   return (
     <Panel title="Coaches">
-      <ul className="list-disc list-inside text-xs space-y-0.5" style={{ color: 'var(--text-2)' }}>
-        {links.map((l) => l.coach && (
-          <li key={l.coach.id}>
-            <Link href={`/players/coaches/${l.coach.id}`}>{l.coach.display_name}</Link>
-            {l.coach.display_name !== l.raw_name && <span style={{ color: 'var(--text-4)' }}> (FIP: {l.raw_name})</span>}
-            {l.coach.status === 'junk' && <> <Pill tone="neutral">junk</Pill></>}
-          </li>
-        ))}
+      <ul className="text-xs space-y-2" style={{ color: 'var(--text-2)' }}>
+        {links.map((l) => l.coach && <LinkedCoach key={l.coach.id} link={l} />)}
         {raw.filter((r) => !linkedRaw.has(r)).map((r) => (
           <li key={r}>{r} <span style={{ color: 'var(--text-4)' }}>(not linked yet)</span></li>
         ))}
