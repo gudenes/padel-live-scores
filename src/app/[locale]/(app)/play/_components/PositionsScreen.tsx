@@ -131,8 +131,10 @@ export default function PositionsScreen({ me, status, onExplore, onRetry }: Posi
             return <Fragment key={`${p.marketId}-${p.side}`}>
               {showGroup && <h3 className={resultStyles.dayHeading}>{groupLabel}</h3>}
               <article className={resolved ? resultStyles.resultRow : resultStyles.pendingCard} aria-label={p.question}>
-                <div className={resultStyles.badge} data-tone={resolved ? p.result : p.side}>
-                  <span>{resolved ? outcome : t(`deck.${p.side}`)}</span>
+                <div className={resultStyles.badge} data-tone={resolved ? p.result : p.side} role={resolved ? 'img' : undefined} aria-label={resolved ? outcome : undefined} title={resolved ? outcome : undefined}>
+                  <span>{resolved ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    {p.result === 'won' ? <path d="m5 12 4 4L19 6" /> : p.result === 'lost' ? <path d="m6 6 12 12M18 6 6 18" /> : <path d="M4 10h10a6 6 0 0 1 0 12M4 10l5-5M4 10l5 5" />}
+                  </svg> : t(`deck.${p.side}`)}</span>
                 </div>
                 <div className={resultStyles.body}>
                   {!resolved && <div className={resultStyles.topline}>
