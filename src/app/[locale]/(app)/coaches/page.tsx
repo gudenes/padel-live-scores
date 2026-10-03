@@ -1,6 +1,7 @@
 // Coaches index: ranked by the FIP points of the players each coach works with.
 // Server-rendered; tabs and pagination are plain links.
 
+import Avatar from '@/components/Avatar'
 import { CoachTopAvatars } from '@/components/CoachTopAvatars'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
@@ -94,12 +95,8 @@ export default async function CoachesPage({ params, searchParams }: Props) {
               <span style={{ width: 24, textAlign: 'center', fontSize: 13, fontWeight: 800, color: top3 ? ORANGE : MUTED }}>
                 {rank}
               </span>
-              <div aria-hidden="true" style={{
-                width: 34, height: 34, borderRadius: '50%', background: top3 ? ORANGE : '#555', color: '#000',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flexShrink: 0,
-              }}>
-                {initials(r.display_name)}
-              </div>
+              <Avatar src={r.avatar_url} alt={r.display_name} size={34} fallback={initials(r.display_name)}
+                style={{ background: top3 ? ORANGE : '#555', color: '#000' }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {r.display_name}

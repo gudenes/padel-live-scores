@@ -39,18 +39,6 @@ function levelColor(level: string | null): string {
   return GREEN
 }
 
-function Avatar({ name, bg, size = 32 }: { name: string; bg: string; size?: number }) {
-  return (
-    <div aria-hidden="true" style={{
-      width: size, height: size, borderRadius: '50%', background: bg, color: '#000',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: Math.round(size * 0.36), fontWeight: 800, flexShrink: 0,
-    }}>
-      {initials(name)}
-    </div>
-  )
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params
   const result = await getCoach(slug)
@@ -167,7 +155,7 @@ export default async function CoachPage({ params }: Props) {
       <div style={{ padding: 12 }}>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 4px 16px' }}>
-        <Avatar name={coach.display_name} bg={ORANGE} size={58} />
+        <PlayerAvatar src={coach.avatar_url} alt={coach.display_name} fallback={initials(coach.display_name)} size={58} style={{ background: ORANGE, color: '#000' }} />
         <div style={{ minWidth: 0 }}>
           <span style={{
             display: 'inline-block', background: GREEN, color: '#000', fontSize: 11, fontWeight: 800,

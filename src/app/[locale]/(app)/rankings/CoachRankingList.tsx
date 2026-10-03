@@ -6,10 +6,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { supabase } from '@/lib/supabase'
+import Avatar from '@/components/Avatar'
 import { RankBadge } from '@/components/RankBadge'
 import { countryName, countryFlagUrl } from '@/lib/country-display'
 import { fetchCoachesIndex, type CoachIndexRow, type CoachTab } from '@/lib/coach-page-data'
-import { GREEN, GREEN_DIM, MUTED, BORDER, CHUNKY, BG_CARD, MEN_BLUE, WOMEN_PURPLE } from '@/components/home/shared-constants'
+import { GREEN, GREEN_DIM, MUTED, BORDER, CHUNKY, MEN_BLUE, WOMEN_PURPLE } from '@/components/home/shared-constants'
 
 const rankFor = (r: CoachIndexRow, tab: CoachTab) =>
   tab === 'men' ? r.rank_men : tab === 'women' ? r.rank_women : r.rank_overall
@@ -117,13 +118,9 @@ export default function CoachRankingList({ tab }: { tab: CoachTab }) {
               <div style={{ width: 36, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0 }}>
                 <RankBadge rank={rank} />
               </div>
-              <div aria-hidden="true" style={{
-                width: 40, height: 40, borderRadius: '50%', background: BG_CARD, border: `2px solid ${accent}`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 40 * 0.32, fontWeight: 700, color: accent, flexShrink: 0,
-              }}>
-                {r.display_name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()}
-              </div>
+              <Avatar src={r.avatar_url} alt={r.display_name} size={40}
+                fallback={r.display_name.split(' ').map((p) => p[0]).slice(0, 2).join('')}
+                style={{ border: `2px solid ${accent}`, boxSizing: 'border-box', color: accent }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {r.display_name}

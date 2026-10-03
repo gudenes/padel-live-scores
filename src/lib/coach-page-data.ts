@@ -14,6 +14,7 @@ export interface CoachRankingRow {
   men_points: number; women_points: number; total_points: number
   rank_overall: number; rank_men: number; rank_women: number
   country: string | null
+  avatar_url?: string | null
 }
 
 export interface CoachPlayer {
