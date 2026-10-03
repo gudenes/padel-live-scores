@@ -16,6 +16,7 @@ export interface CoachStatsRow {
   women_points: number
   total_points: number
   variant_count: number
+  avatar_url?: string | null
 }
 
 export interface CoachRow {

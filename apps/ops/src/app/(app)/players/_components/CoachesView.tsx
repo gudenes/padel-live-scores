@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PageHeader, Panel, KpiStrip, Kpi, DataTable, Pill, Button, EmptyState, Skeleton } from '@/components/ui'
+import CoachAvatar from '@/components/CoachAvatar'
 import { fmtPoints, type CoachStatsRow } from '@/lib/coaches'
 
 const STATUS_FILTERS = [
@@ -94,7 +95,10 @@ export default function CoachesView() {
                   <td>
                     <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}>
                       <Link href={`/players/coaches/${c.coach_id}`} style={{ color: 'var(--text-1)', fontWeight: 500 }}>
-                        {c.display_name}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+                          <CoachAvatar src={c.avatar_url} name={c.display_name} />
+                          {c.display_name}
+                        </span>
                       </Link>
                       {c.player_id && (
                         <Link href={`/players/${c.player_id}`} title="Also a player">
