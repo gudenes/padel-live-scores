@@ -1,6 +1,7 @@
 'use client'
 
 import AvatarShare from './AvatarShare'
+import ProfileWalletBalance from '@/components/nav/ProfileWalletBalance'
 import {ShopProfileFigure} from './shop/AvatarShop'
 import GuacaCoin from '@/components/GuacaCoin'
 import { useEffect, useRef, useState } from 'react'
@@ -52,7 +53,7 @@ export default function PlayerProfile({ userId, name }: { userId: string; name: 
         <span className={styles.eyebrow}>{t('yourPlayer')}</span>
         <h1>{name}</h1>
         {access.data === true ? <div className={styles.balance}>
-          {me.data ? <><strong><GuacaCoin size={30} />{number(me.data.balance)}</strong><span>{t('available')}</span></> : <p role="status">{t(me.status === 'error' ? 'loadError' : 'loading')}</p>}
+          {me.data ? <><ProfileWalletBalance walletKey={me.data.walletKey} balance={me.data.balance} locale={locale}/><span>{t('available')}</span></> : <p role="status">{t(me.status === 'error' ? 'loadError' : 'loading')}</p>}
           {me.status === 'error' && <button className={styles.textButton} onClick={me.reload}>{t('retry')}</button>}
         </div> : <p>{t('yourStyle')}</p>}
         {access.data === true ? <Link className={styles.shopShortcut} href="/avatar-shop" aria-label={t('shopEntry')}>

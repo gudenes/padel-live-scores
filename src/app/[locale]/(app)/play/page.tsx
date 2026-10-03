@@ -4,7 +4,7 @@
 // Market browsing, positions and trade confirmation share one local route.
 // Access is gated server-side in layout.tsx. Lists use real API data.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import MarketToolbar from './_components/MarketToolbar'
 import { unplayedFirst, filterMarkets, type MarketFilter } from './_components/market-filters'
@@ -200,20 +200,23 @@ export default function PlayPage() {
 
 
 
+  const [compactHeader,setCompactHeader]=useState(false)
+  const lastScroll=useRef(0)
+  useEffect(()=>{setCompactHeader(false);lastScroll.current=0},[screen])
   const subnavKey = SUBNAV_FOR[screen]
 
   return (
-    <div className={`pl-root${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
+    <div onScrollCapture={event=>{if(screen!=='deck')return;const target=event.target as HTMLElement;if(!target.matches('.pl-natural-feed,.pl-reel-feed,.pl-market-scroll'))return;const top=Math.max(0,target.scrollTop);const delta=top-lastScroll.current;if(top<12||delta < -8)setCompactHeader(false);else if(top>64&&delta>8)setCompactHeader(true);if(Math.abs(delta)>8||top<12)lastScroll.current=top}} className={`pl-root${compactHeader&&screen==='deck'?' pl-header-compact':''}${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
       <style dangerouslySetInnerHTML={{ __html: PLAY_STYLES }} />
-      <GlobalHeader playerWallet={<PlayerWallet walletKey={me.data?.walletKey} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} />
+      <div className="pl-brand-header" inert={compactHeader&&screen==='deck'}><GlobalHeader playerWallet={<PlayerWallet walletKey={me.data?.walletKey} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} /></div>
 
       {subnavKey && (
         <SubNav availableCount={markets.data?.totalAvailable} myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data?.markets ?? []).filter(m => m.live).length} />
       )}
 
-      {(screen === 'mine' || screen === 'activity') && <div className="pl-time-nav pl-personal-tabs">
-        <button type="button" aria-pressed={screen === 'mine'} onClick={() => goto('mine')}>{t('positions.simpleTitle')}</button>
-        <button type="button" aria-pressed={screen === 'activity'} onClick={() => goto('activity')}>{t('subnav.activity')}</button>
+      {(screen === 'mine' || screen === 'activity') && <div className="pl-personal-heading">
+        <h2>{screen==='mine'?t('positions.simpleTitle'):t('subnav.activity')}</h2>
+        <Press intent="intent-ghost" size="size-sm" onClick={()=>goto(screen==='mine'?'activity':'mine')}>{screen==='mine'?t('subnav.activity'):t('positions.simpleTitle')} ↗</Press>
       </div>}
       <div className="pl-screens">
         {/* ── Deck ────────────────────────────────────────────── */}

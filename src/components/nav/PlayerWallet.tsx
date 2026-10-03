@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from 'next-intl'
 import ProfileButton from '@/components/ProfileButton'
 import GuacaCoin from '@/components/GuacaCoin'
 
-import { useWalletMotion } from './useWalletMotion'
+import { useVisibleWalletMotion } from './useVisibleWalletMotion'
 
 import styles from './PlayerWallet.module.css'
 
@@ -12,12 +12,12 @@ export default function PlayerWallet({ balance, walletKey, onPositions }: { bala
   const locale = useLocale()
   const t = useTranslations('playerProfile')
   const play = useTranslations('play')
-  const motion = useWalletMotion(walletKey, balance)
+  const motion = useVisibleWalletMotion(walletKey, balance)
   const amount = balance === null ? '—' : new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(balance)
   const compact = motion.amount === null ? '—' : motion.direction
     ? new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(motion.amount)
     : new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(motion.amount)
-  return <div className={styles.wallet}>
+  return <div ref={motion.ref} className={styles.wallet}>
     <button className={styles.balance} onClick={onPositions} aria-label={`${t('available')}: ${amount}. ${play('subnav.myPositions')}`} title={`${t('available')}: ${amount}`}>
       <span className={styles.coin} aria-hidden="true"><GuacaCoin size={20} /></span>
       <span className={styles.amount} aria-hidden="true">{compact}</span>

@@ -1183,4 +1183,14 @@ body:has(.pl-root) .v3-nav-tab { flex:1; min-width:0; padding-left:4px !importan
 @keyframes pl-toast-in{from{opacity:0;transform:translate(-50%,28px)}to{opacity:1;transform:translate(-50%,0)}}
 @keyframes pl-toast-out{to{opacity:0;transform:translate(-50%,20px)}}
 @media(prefers-reduced-motion:reduce){.pl-quick-confirm{animation:none}.pl-toast-closing{opacity:0}}
+
+/* Collapse branding only; the main navigation remains outside the scroll feed. */
+.pl-brand-header{height:62px;flex:none;transition:height 180ms ease;position:relative;z-index:100}
+.pl-header-compact .pl-brand-header{height:0;overflow:hidden;visibility:hidden}
+.pl-root.pl-header-compact.pl-immersive{--pl-chrome:calc(50px + var(--pl-navh) + env(safe-area-inset-top,0px))}
+.pl-root .pl-main-tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:99;background:var(--bg-base);flex:none}
+.pl-personal-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 14px;min-height:48px;box-sizing:border-box;flex:none}
+.pl-personal-heading h2{font-size:15px;margin:0}
+.pl-root:has(.pl-personal-heading) .pl-screens{height:calc(100dvh - var(--pl-chrome) - 48px)}
+@media(prefers-reduced-motion:reduce){.pl-brand-header{transition:none}}
 `
