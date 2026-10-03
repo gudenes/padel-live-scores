@@ -11,10 +11,12 @@
 //
 // Shape stays JSON-serialisable so the API route can return it verbatim
 // and the client cache can hydrate without reprocessing.
+// Hidden tiers: see ./tier-visibility (admin /system/tier-visibility).
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { localDayRangeUtc, isIsoDate, formatIsoInTz } from './locale-time'
 import { hydrateThinPlayers } from './thin-match-player'
+import { fetchMatchesHiddenTiers, tierExclusionFilter } from './tier-visibility'
 import {
   isPremierLevel,
   levelTierWeight,
@@ -126,7 +128,7 @@ const MATCH_SELECT = `
   pred_pair1_prob, pred_model_version, pred_computed_at,
   pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
   pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
-  tournament:tournaments(id, name, level, country, timezone, starts_at, ends_at, status),
+  tournament:tournaments__JOIN__(id, name, level, country, timezone, starts_at, ends_at, status),
   tie:league_ties(
     home:team_seasons!league_ties_home_team_season_id_fkey(team:teams(name)),
     away:team_seasons!league_ties_away_team_season_id_fkey(team:teams(name))
@@ -178,9 +180,15 @@ export async function fetchMatchesDay(
   // `effectiveFinishedAt` clamp pulls those rows back to their
   // tournament's ends_at so they show up on the correct day. See SSR
   // page comments for the full story.
-  const { data: rawMatches, error } = await supabase
+  // Operator-hidden tiers (tier_visibility.show_on_matches = false) are
+  // excluded DB-side so they don't eat the 400-row budget on busy days.
+  // With nothing hidden the embed stays a plain left join.
+  const tierFilter = tierExclusionFilter(await fetchMatchesHiddenTiers(supabase))
+  const select: string = MATCH_SELECT.replace('__JOIN__', tierFilter ? '!inner' : '')
+
+  let query = supabase
     .from('matches')
-    .select(MATCH_SELECT)
+    .select(select)
     .or(
       `and(scheduled_at.gte.${startIso},scheduled_at.lt.${endIso}),` +
         `and(finished_at.gte.${startIso},finished_at.lt.${new Date(
@@ -188,6 +196,9 @@ export async function fetchMatchesDay(
         ).toISOString()})` +
         (isToday ? `,status.in.(live,on_court)` : ''),
     )
+  if (tierFilter) query = query.or(tierFilter, { referencedTable: 'tournament' })
+
+  const { data: rawMatches, error } = await query
     .order('scheduled_at', { ascending: true })
     .limit(400)
 

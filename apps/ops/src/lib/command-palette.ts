@@ -33,6 +33,7 @@ export const PAGE_COMMANDS: PageCommand[] = [
   { href: '/system/shadow-mode', label: 'Shadow Mode', group: 'System' },
   { href: '/system/coverage-matrix', label: 'Coverage Matrix', group: 'System' },
   { href: '/system/feature-flags', label: 'Feature Flags', group: 'System' },
+  { href: '/system/tier-visibility', label: 'Tier Visibility', group: 'System' },
   { href: '/system/ocr-health', label: 'OCR Health', group: 'System' },
   { href: '/system/seo', label: 'SEO', group: 'System' },
   { href: '/system/architecture', label: 'Architecture', group: 'System' },
