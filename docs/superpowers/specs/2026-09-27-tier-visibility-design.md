@@ -3,7 +3,7 @@
 **Date:** 2026-09-27 (re-scoped 2026-10-03)
 **Branch:** `feat/tier-visibility`
 **Worktree:** `/Volumes/Crucial/dev/padel-tier-visibility`
-**Status:** design approved, not implemented
+**Status:** implemented on `feat/tier-visibility` (2026-10-03); migration NOT applied, not deployed
 
 ## Re-scope note (2026-10-03)
 
@@ -91,8 +91,13 @@ export async function fetchMatchesHiddenTiers(supabase: SupabaseClient): Promise
 - Module-level 60s TTL cache (`{ value, expiresAt }`) — `/matches/[date]` is
   `force-dynamic`, so no extra query per request. Plain cache, not
   `unstable_cache`.
-- **Fail-open:** on query error, log and return `[]` (hide nothing). The page
-  must never go blank because of this table.
+- **Fail-open:** on query error, log and return `[]` (hide nothing), caching
+  that `[]` for 10s so a missing table doesn't query + warn on every request.
+  The page must never go blank because of this table.
+- Levels not matching `/^[a-z0-9_]+$/` are dropped from the filter (they
+  could break the PostgREST filter string); the admin PATCH rejects them
+  with `invalid_level` so the UI can't show "Hidden" for a tier /matches
+  would ignore.
 
 ### 3. Enforcement — two choke points
 
@@ -102,7 +107,7 @@ All callers of these two helpers are /matches surfaces
 
 | Site | Change |
 |---|---|
-| `src/lib/fetch-matches-day.ts` | Filter **DB-side**: switch the embed to `tournaments!inner(...)` and add `or(level.is.null,level.not.in.(…))` on the referenced table. Covers the SSR page, `/api/matches/by-date` and the `SportsEvent` JSON-LD |
+| `src/lib/fetch-matches-day.ts` | Filter **DB-side**: switch the embed to `tournament:tournaments!inner(...)` (alias needed for `referencedTable: 'tournament'`) and add `or(level.is.null,level.not.in.(…))` on the referenced table. Covers the SSR page, `/api/matches/by-date` and the `SportsEvent` JSON-LD |
 | `src/lib/fetch-matches-calendar.ts` | Same predicate on both queries: the window query (day-pill dots) and the live head-count (LIVE-pill gate), via `tournaments!inner(level)` in the select string |
 
 Why DB-side rather than a JS `.filter()`: the day query has `.limit(400)`.
@@ -115,6 +120,9 @@ push visible matches off a busy day.
 - Rail + command-palette entries beside Feature Flags
   (`apps/ops/src/components/shell/Rail.tsx:59`,
   `apps/ops/src/lib/command-palette.ts:35`)
+- Stats come from `tier_visibility_stats()` (SQL function in the same
+  migration, `EXECUTE` granted to `service_role` only). Its `matches_90d`
+  has no upper bound, hence the "+ upcoming" wording.
 - API: `GET /api/internal/tier-visibility`,
   `PATCH /api/internal/tier-visibility/[level]` — mirroring
   `apps/ops/src/app/api/internal/feature-flags/`. PATCH upserts, so a tier with
@@ -122,7 +130,7 @@ push visible matches off a busy day.
 - Built from existing `ui/` primitives (`PageHeader`, `Panel`, `Button`,
   `EmptyState`), token-driven for both themes.
 
-Each row: **label · raw `level` · tournaments · matches last 90d · live now**,
+Each row: **label · raw `level` · tournaments · matches (last 90d + upcoming) · live now**,
 then one switch, **"Show on /matches"**. The tier list is
 `distinct tournaments.level` unioned with config rows, so a new tier shows up
 automatically (with a "not configured — shown by default" hint).
@@ -169,6 +177,8 @@ Header copy states the propagation delay: **up to ~2 minutes** (60s TTL +
 
 ## Notes
 
+- The admin page needs the migration applied first; before that its GET
+  returns 500 (the /matches side fails open and is unaffected).
 - Merging to `main` does not deploy. The web app and the admin (`apps/ops`)
   each need their deploy; padelgod is untouched.
 - Migration applies via the pg driver + `DATABASE_URL`, not `supabase db push`.
