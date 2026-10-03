@@ -106,6 +106,54 @@ export function roundDateFor(
   return schedule[round.toLowerCase()] ?? null
 }
 
+/** Canonical `round_schedule` key ('r64'|'r32'|'r16'|'qf'|'sf'|'f') for a raw
+ *  match round label (handles both 'R32' and FIP's 'Round of 32'). Null for
+ *  qualifying/unknown rounds. Mirrors the projection worker's canonRound. */
+function roundScheduleKey(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const x = raw.toLowerCase()
+  if (x.includes('round of 64') || x === 'r64') return 'r64'
+  if (x.includes('round of 32') || x === 'r32') return 'r32'
+  if (x.includes('round of 16') || x === 'r16') return 'r16'
+  if (x === 'qf' || x.includes('quarter')) return 'qf'
+  if (x === 'sf' || x.includes('semi')) return 'sf'
+  if (x === 'f' || x.includes('final')) return 'f'
+  return null
+}
+
+export interface ScheduleMatchLite {
+  round?: string | null
+  round_canonical?: string | null
+  scheduled_at?: string | null
+}
+
+/**
+ * The authoritative per-round date map for the projected road, derived from the
+ * actual `matches` (earliest `scheduled_at` per round), falling back to the
+ * FIP-scraped `tournaments.round_schedule` only for rounds with no dated match.
+ *
+ * Actual match dates WIN over the FIP fallback: the FIP "Play Order" scrape is
+ * coarse and drifts — e.g. Malaga P1's fallback had r32=Jul16 while every real
+ * R32 match was Jul14, and r16 was missing entirely. Sourcing from `matches`
+ * (the same rows the projection is built from) keeps the road date consistent
+ * with the match the user actually sees.
+ */
+export function buildRoundScheduleFromMatches(
+  matches: ScheduleMatchLite[],
+  fallback: Record<string, string> | null | undefined,
+): Record<string, string> {
+  const out: Record<string, string> = { ...(fallback ?? {}) }
+  const earliest = new Map<string, string>()
+  for (const m of matches) {
+    const key = roundScheduleKey(m.round_canonical ?? m.round)
+    if (!key || !m.scheduled_at) continue
+    const prev = earliest.get(key)
+    if (!prev || m.scheduled_at < prev) earliest.set(key, m.scheduled_at)
+  }
+  for (const [k, v] of earliest) out[k] = v
+  return out
+}
+
 export function pickDefaultProjectionPair(
   rows: ProjectionRow[],
   bookmarkedPlayerIds: string[],

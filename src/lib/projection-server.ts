@@ -7,6 +7,7 @@ import { cache } from 'react'
 import { createServerClient } from '@/lib/supabase'
 import { fetchFeatureFlag, resolveFlag, FLAG_KEYS } from '@/lib/feature-flags'
 import type { ProjectionRow } from '@/lib/projection-types'
+import { buildRoundScheduleFromMatches, type ScheduleMatchLite } from '@/lib/projection-view'
 
 export type ProjectionCategory = 'men' | 'women'
 
@@ -96,6 +97,29 @@ export async function fetchPlayerNames(playerIds: string[]): Promise<Map<string,
   }
   return map
 }
+
+/**
+ * Corrected per-round date map for the SSR projection routes: earliest actual
+ * match `scheduled_at` per round, with the FIP-scraped `round_schedule` as a
+ * per-round fallback. The routes pass `matches={[]}` to ProjectionTab, so they
+ * can't self-correct client-side the way the in-page tab does — this recreates
+ * that authoritative schedule server-side. See buildRoundScheduleFromMatches.
+ */
+export const fetchRoundSchedule = cache(async (
+  tournamentId: string,
+  category: ProjectionCategory,
+  fallback: Record<string, string> | null,
+): Promise<Record<string, string> | null> => {
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('matches')
+    .select('round, round_canonical, scheduled_at')
+    .eq('tournament_id', tournamentId)
+    .eq('category', category)
+  if (error || !data) return fallback
+  const merged = buildRoundScheduleFromMatches(data as ScheduleMatchLite[], fallback)
+  return Object.keys(merged).length > 0 ? merged : null
+})
 
 /** Tournament meta for the projection header + metadata. Null when not found. */
 export const fetchProjectionTournamentMeta = cache(async (
