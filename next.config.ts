@@ -35,7 +35,8 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/ingest/static/:path*',
-        destination: 'https://eu-assets.i.posthog.com/static/:path*',
+        // Fetch assets without forwarding Cloudflare proxy headers upstream.
+        destination: '/api/posthog-assets/:path*',
       },
       {
         source: '/ingest/:path*',
