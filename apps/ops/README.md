@@ -317,3 +317,16 @@ useRegisterDrawerCallbacks({
 Surfaces that don't own a list (Matches, Draws, OOP, Entry Lists) simply skip the registration — the drawer's prev/next buttons no-op and nothing fires on save.
 
 The legacy `?drawer=<id>` URL pattern is preserved: `PlayersTab` mirrors `openPlayerId` to the query string so deep links from the full profile page (`/players/<id>` → "Open in drawer") still work.
+
+## Coach photo uploads
+
+Upload or replace a coach photo from **Players → Coaches → coach profile**,
+or from the Coaches section of a player profile. JPG, PNG and WebP files up to
+2 MB are decoded, resized and saved to the existing `coaches.avatar_url` field.
+The photo follows the coach's stable ID across name edits and aliases. The
+operator-only endpoint is `POST /api/internal/upload-coach-avatar`.
+
+Apply `supabase/migrations/20261003000000_coach_avatar_storage.sql` before
+shipping: it creates the public image bucket, with writes restricted to the
+service role. Player names open full player profiles; coach names open their
+coach profiles, where coached players link back to player profiles.

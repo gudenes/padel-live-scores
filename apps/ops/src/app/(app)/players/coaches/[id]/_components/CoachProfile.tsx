@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { PageHeader, Panel, Pill, Button, DataTable, Field, EmptyState, Skeleton } from '@/components/ui'
 import { EDITABLE_STATUSES, fmtPoints, type CoachRow, type CoachStatsRow } from '@/lib/coaches'
 import PlayerPicker from '../../../_components/PlayerPicker'
+import CoachPhotoUpload from '@/components/CoachPhotoUpload'
 
 interface Detail {
   coach: CoachRow
@@ -130,6 +131,8 @@ export default function CoachProfile({ coachId }: { coachId: string }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 16 }}>
         <Panel title="Profile">
+          <CoachPhotoUpload coachId={c.id} name={c.display_name} url={c.avatar_url} disabled={busy}
+            onSaved={(avatar_url) => setD((current) => current ? { ...current, coach: { ...current.coach, avatar_url } } : current)} />
           <Field label="Display name">
             <input key={`${rev}:${c.display_name}`} className="ui-input" defaultValue={c.display_name} onBlur={textBlur('display_name', c.display_name)} />
           </Field>
