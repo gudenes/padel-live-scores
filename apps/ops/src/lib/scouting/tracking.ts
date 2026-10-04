@@ -20,7 +20,7 @@ export function createTracking(){
   let hasPlay=false,nextService=false
   function closeTurn(s:MatchState,at:string){data.turns.push({player:player(s),startedAt:data.serviceStartedAt,endedAt:at,durationMs:duration(data.serviceStartedAt,at)});data.serviceStartedAt=null}
   return {data,handle(e:Event,before:MatchState,after:MatchState,winner?:TeamId){
-    if(data.rally&&['start','game_start','score','server'].includes(e.kind))throw Error('Finish the rally or undo its start before changing the scoreboard or server.')
+    if(data.rally&&['start','game_start','score'].includes(e.kind))throw Error('Finish the rally or undo its start before changing the scoreboard.')
     if(e.kind==='rally_start'){
       if(data.rally)throw Error('A rally is already in progress.')
       if(!data.startedAt){data.startedAt=e.at;data.scope=hasPlay?'observation':'match'}
@@ -54,8 +54,17 @@ export function createTracking(){
       data.endedAt=null;return
     }
     if(e.kind==='server'&&player(before)!==player(after)){
-      // A correction is not a known first-serve timestamp for the replacement.
-      data.serviceStartedAt=null;data.gameServer=player(after);return
+      // Correct only the active rally; completed points keep their recorded server.
+      // Its observed first serve and any first fault still belong to this rally.
+      if(data.rally){
+        if(data.serviceStartedAt&&data.serviceStartedAt<data.rally.startedAt)closeTurn(before,data.rally.startedAt)
+        data.rally.server=player(after)
+        data.serviceStartedAt=data.rally.startedAt;nextService=false
+      }else{
+        // Between rallies, the replacement's first-serve time is not yet known.
+        data.serviceStartedAt=null
+      }
+      data.gameServer=player(after);return
     }
     if(e.kind==='smash'){hasPlay=true;if(!data.gameStartedAt)data.gamePartial=true;return}
     if(!winner)return

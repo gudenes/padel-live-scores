@@ -66,3 +66,21 @@ it('restores saved arrivals after a reload without exposing the live court',asyn
  expect(screen.getByRole('button',{name:'Mark pair B on court'})).toBeTruthy()
  expect(screen.queryByRole('button',{name:'Start rally Space'})).toBeNull()
 })
+
+it('changes server directly on the court during a second serve and supports undo',async()=>{
+ let revision=1
+ vi.stubGlobal('fetch',vi.fn(async(_url:unknown,opts?:RequestInit)=>Response.json(opts?.method==='POST'?{revision:++revision}:{players,session:{revision,document:freshDoc()}})))
+ render(createElement(Scout,{matchId:'change-server'}))
+ await screen.findByRole('button',{name:'Start rally Space'})
+ fireEvent.keyDown(window,{code:'Space',key:' '})
+ fireEvent.click(screen.getByRole('button',{name:'First-serve fault'}))
+ expect((screen.getByLabelText('Server') as HTMLSelectElement).disabled).toBe(false)
+ fireEvent.click(screen.getByRole('button',{name:'Set Three as server'}))
+ expect(screen.getByText('Three · Second serve')).toBeTruthy()
+ expect((screen.getByRole('button',{name:'Rally in progress'}) as HTMLButtonElement).disabled).toBe(true)
+ expect(screen.getByText('Server changed to Three · current rally kept')).toBeTruthy()
+ expect((screen.getByRole('button',{name:'Double fault'}) as HTMLButtonElement).disabled).toBe(false)
+ fireEvent.click(screen.getByRole('button',{name:'Undo last action'}))
+ expect(screen.getByText('One · Second serve')).toBeTruthy()
+ await waitFor(()=>expect(screen.getByText('Saved')).toBeTruthy())
+})
