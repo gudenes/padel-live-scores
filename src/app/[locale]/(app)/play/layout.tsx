@@ -1,17 +1,13 @@
-// src/app/[locale]/(app)/play/layout.tsx
-//
-// The real gate for "Play the Next". Server component — runs before any of
-// the client screens are sent, and 404s for anyone without access.
-//
-// notFound() rather than a 403 on purpose: a 403 advertises that the feature
-// exists and that this account is merely not invited. requirePlayAccess()
-// already collapses logged-out / flag-off / not-whitelisted into one null;
-// this keeps that collapse visible to the user too.
+// The signup surface is public while Play is enabled. All game data and
+// account setup remain behind requirePlayAccess and the existing whitelist.
 
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { buildPageMetadata } from '@/lib/seo-metadata'
-import { requirePlayAccess } from '@/lib/play-access'
+import {auth} from '@/auth'
+import {createServiceClient} from '@/lib/supabase'
+import PlayWelcome from './_components/PlayWelcome'
+import { isPlayEnabled, requirePlayAccess } from '@/lib/play-access'
 
 type Props = {
   params: Promise<{ locale: string }>
@@ -39,6 +35,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PlayLayout({ children }: Props) {
   const grant = await requirePlayAccess()
-  if (!grant) notFound()
+  if (!grant) {
+    const session = await auth()
+    if (!session?.user?.id && await isPlayEnabled(createServiceClient())) return <PlayWelcome/>
+    notFound()
+  }
   return <>{children}</>
 }

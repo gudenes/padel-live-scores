@@ -40,6 +40,8 @@ const CLIP = {
 }
 
 interface LoginSheetProps {
+  embedded?: boolean
+  callbackUrl?: string
   open: boolean
   onClose: () => void
 }
@@ -50,9 +52,10 @@ interface PendingReferral {
   inviterAvatar: string | null
 }
 
-export default function LoginSheet({ open, onClose }: LoginSheetProps) {
+export default function LoginSheet({ open, onClose, embedded=false, callbackUrl="/home" }: LoginSheetProps) {
   const t = useTranslations('login')
   const [email, setEmail] = useState('')
+  const [showEmail,setShowEmail]=useState(false)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -127,7 +130,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
       const data = await res.json().catch(() => null)
       throw new Error(data?.error || `native sign-in failed (${res.status})`)
     }
-    window.location.href = '/home'
+    window.location.href = callbackUrl
   }
 
   // Native plugin errors come from heterogeneous origins (Apple
@@ -187,7 +190,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         console.warn('native Google sign-in failed, falling back to web OAuth', e)
       }
     }
-    await signIn('google', { callbackUrl: '/home' })
+    await signIn('google', { callbackUrl })
   }
 
   const handleApple = async () => {
@@ -209,7 +212,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     // Android + web: fall through to web OAuth. On native Android this
     // opens a Chrome Custom Tab; the App Link in AndroidManifest catches
     // the callback URL and returns the session cookie via the WebView.
-    await signIn('apple', { callbackUrl: '/home' })
+    await signIn('apple', { callbackUrl })
   }
 
   const handleMagicLink = async () => {
@@ -217,7 +220,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     setSending(true)
     setError(null)
     try {
-      const result = await signIn('resend', { email: email.trim(), redirect: false })
+      const result = await signIn('resend', { email: email.trim(), redirect: false, callbackUrl })
       if (!result || result.error || !result.ok) {
         setError(t('errorSendLink'))
       } else {
@@ -229,30 +232,31 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
     setSending(false)
   }
 
-  return createPortal(
+  const content = (
     <div
-      onClick={onClose}
+      onClick={embedded ? undefined : onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 100,
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        position: embedded ? 'relative' : 'fixed', inset: 0, zIndex: embedded ? undefined : 100,
+        background: embedded ? 'transparent' : 'rgba(0,0,0,0.7)', backdropFilter: embedded ? undefined : 'blur(8px)',
+        WebkitBackdropFilter: embedded ? undefined : 'blur(8px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
-        {...swipe.bind}
+        {...(embedded ? {} : swipe.bind)}
         style={{
           width: '100%', maxWidth: 500,
-          background: BG_CARD,
-          clipPath: 'polygon(0% 3%, 100% 0%, 100% 100%, 0% 100%)',
-          padding: '32px 20px 100px',
-          borderTop: `2px solid ${GREEN}`,
-          animation: 'loginSlideUp 0.3s ease-out',
+          background: embedded ? 'transparent' : BG_CARD,
+          clipPath: embedded ? undefined : 'polygon(0% 3%, 100% 0%, 100% 100%, 0% 100%)',
+          padding: embedded ? 0 : '32px 20px 100px',
+          borderTop: embedded ? undefined : `2px solid ${GREEN}`,
+          animation: embedded ? undefined : 'loginSlideUp 0.3s ease-out',
           position: 'relative',
-          ...swipe.style,
+          ...(embedded ? {} : swipe.style),
         }}
       >
+        {!embedded && <>
         {/* Drag handle */}
         <div style={{
           width: 36, height: 4, background: 'rgba(255,255,255,0.12)',
@@ -264,6 +268,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           <LocaleSwitcher size={28} direction="down" />
         </div>
 
+        </>}
         {/* Pending referral invite — shown when user arrived via ref link */}
         {pendingRef && (
           <div style={{
@@ -303,6 +308,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           </div>
         )}
 
+        {!embedded && <>
         <div style={{ textAlign: 'center', color: '#fff', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
           {pendingRef ? t('headingReferral') : t('heading')}
         </div>
@@ -310,6 +316,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           {pendingRef ? t('subtitleReferral') : t('subtitle')}
         </div>
 
+        </>}
         {sent ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0' }}>
             <div style={{
@@ -334,16 +341,9 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
         ) : (
           <>
             {/* Google button */}
-            <button
-              onClick={handleGoogle}
-              style={{
-                width: '100%', background: '#fff', color: '#1a1a1a',
-                clipPath: CLIP.button,
-                padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', border: 'none',
-                fontFamily: 'inherit',
-              }}
-            >
+            <button type="button" onClick={handleGoogle} className="pn-press shape-chunky-tilted intent-neutral size-lg" style={{width:'100%',marginTop:0}}>
+              <span className="pn-press-skirt"/>
+              <span className="pn-press-face" style={{background:"#fff",color:"#202124"}}>
               <svg width="18" height="18" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                 <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -351,27 +351,23 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                 <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
               </svg>
               {t('continueGoogle')}
+
+              </span>
             </button>
 
             {/* Apple button — App Store Guideline 4.8 requires us to offer
                 Sign in with Apple when we also offer Google sign-in. Apple
                 Human Interface Guidelines spec: black background, white
                 logo + text, equal vertical rhythm to other sign-in CTAs. */}
-            <button
-              onClick={handleApple}
-              style={{
-                width: '100%', background: '#000', color: '#fff',
-                clipPath: CLIP.button,
-                padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                gap: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', border: 'none',
-                fontFamily: 'inherit',
-                marginTop: 10,
-              }}
-            >
+            <button type="button" onClick={handleApple} className="pn-press shape-chunky-tilted intent-neutral size-lg" style={{width:'100%',marginTop:10}}>
+              <span className="pn-press-skirt"/>
+              <span className="pn-press-face">
               <svg width="16" height="16" viewBox="0 0 384 512" aria-hidden="true">
                 <path fill="#fff" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
               </svg>
               {t('continueApple')}
+
+              </span>
             </button>
 
             {/* Magic link block — hidden on native iOS because the email
@@ -379,7 +375,8 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
                 outside the WebView. Universal Links wiring is the v1.0.5
                 fix (see docs/superpowers/plans/handoff-2026-05-21.md if/
                 when we add one). On Android + web, this stays available. */}
-            {!isNativeIos && (
+            {embedded&&!isNativeIos&&!showEmail&&<button type="button" onClick={()=>setShowEmail(true)} style={{display:'block',margin:'16px auto',background:'none',border:0,color:'#c7d6bb',textDecoration:'underline',fontSize:13,cursor:'pointer'}}>{t('continueEmail')}</button>}
+            {!isNativeIos && (!embedded||showEmail) && (
               <>
                 {/* Divider */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
@@ -441,7 +438,7 @@ export default function LoginSheet({ open, onClose }: LoginSheetProps) {
           to { transform: translateY(0); }
         }
       `}</style>
-    </div>,
-    document.body
+    </div>
   )
+  return embedded ? content : createPortal(content, document.body)
 }

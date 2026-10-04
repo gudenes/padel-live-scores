@@ -873,7 +873,7 @@
     "deleteModal": {
       "title": "Eliminar a tua conta?",
       "body": "Isto remove permanentemente o teu perfil, favoritos, emblemas, avaliações e métodos de início de sessão. Não é reversível.",
-      "continue": "Continuar",
+      "continue": "Fazer o primeiro palpite",
       "cancel": "Cancelar",
       "confirmPrompt": "Escreve ELIMINAR para confirmar",
       "confirmWord": "ELIMINAR",
@@ -1000,6 +1000,7 @@
     "continueGoogle": "Continuar com Google",
     "continueApple": "Continuar com a Apple",
     "or": "ou",
+    "continueEmail": "Continuar com email",
     "emailPlaceholder": "Endereço de e-mail",
     "sending": "Enviando...",
     "sendLink": "Enviar link",
@@ -1056,7 +1057,7 @@
     "subtitle": "Escolha pelo menos um jogador para personalizar pontuações, notícias e notificações",
     "search": "Procurar jogador",
     "skip": "Pular",
-    "continue": "Continuar",
+    "continue": "Fazer o primeiro palpite",
     "topInCountry": "Melhores em {country}",
     "topWorldwide": "Melhores jogadores",
     "errorLoading": "Não foi possível carregar sugestões. Tente de novo.",
@@ -2200,6 +2201,44 @@
         "no": "NÃO",
         "void": "Anulada — reembolsada"
       }
+    },
+    "onboarding": {
+      "identityTitle": "É assim que te vão ver em campo",
+      "identityBody": "Escolhe o teu rosto e nome público.",
+      "publicName": "Nome público",
+      "nameSuggestions": "Escolhe um nome",
+      "nameHelp": "2–24 caracteres. Não uses o teu email.",
+      "chooseFace": "Escolhe o teu rosto",
+      "start": "Vamos jogar",
+      "saving": "A guardar…",
+      "saveError": "Não foi possível guardar. Tenta novamente.",
+      "walletTitle": "Os teus Guacas: {balance}",
+      "walletBody": "Usa Guacas nos teus palpites e no teu avatar.",
+      "predictionTitle": "O que achas?",
+      "predictionBody": "Toca em Sim ou Não. Depois escolhes quantos Guacas usar.",
+      "amountTitle": "Escolhe as tuas Guacas",
+      "amountBody": "Escolhe os Guacas, revê o palpite e confirma.",
+      "successTitle": "Palpite adicionado!",
+      "successBody": "Segue-o em As minhas jogadas.",
+      "emptyTitle": "Não há previsões abertas agora",
+      "emptyBody": "Explora a app e volta quando houver novas perguntas.",
+      "guideLabel": "Primeiros passos",
+      "continue": "Fazer o primeiro palpite",
+      "skip": "Saltar guia",
+      "viewPlays": "Ver as minhas jogadas",
+      "done": "Entendido",
+      "preview": "Pré-visualização · o teu perfil não muda",
+      "previewTrade": "Pré-visualização: não serão gastas Guacas.",
+      "welcomeTitle": "Quanto sabes de padel?",
+      "welcomeBody": "Faz os teus palpites. Ganha Guacas. Veste o teu avatar.",
+      "community": "Joga com outros fãs de padel",
+      "communityBody": "A seguir, escolhe o teu nome e avatar.",
+      "browse": "Ver jogos",
+      "loading": "A preparar o teu jogador…",
+      "loadError": "Não foi possível carregar o teu jogador. Tenta novamente.",
+      "showLogin": "Ver acesso",
+      "loginPreview": "Pré-visualização do acesso",
+      "trySetup": "Testar configuração"
     }
   },
   "playerProfile": {
@@ -2455,5 +2494,17 @@
     "loading": "A carregar resultados…",
     "unavailable": "Resultados indisponíveis",
     "shortLabel": "Acertos"
+  },
+  "shopGuide": {
+    "label": "O teu guarda-roupa",
+    "step1Title": "Encontra o teu estilo",
+    "step1Body": "Escolhe uma categoria: raquetes, roupa, bonés ou autocolantes.",
+    "step2Title": "Experimenta",
+    "step2Body": "Toca num artigo para o veres no avatar. Experimentar é grátis e não altera o conjunto guardado.",
+    "step3Title": "Torna-o teu",
+    "step3Body": "Equipa grátis os artigos que tens. Os novos custam Guacas e pedem confirmação. Alguns desbloqueiam-se com palpites certos.",
+    "next": "Seguinte",
+    "done": "Entendido",
+    "skip": "Saltar guia"
   }
 }

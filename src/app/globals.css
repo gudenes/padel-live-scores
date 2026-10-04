@@ -902,3 +902,10 @@ html:has(dialog[open]), body:has(dialog[open]) { overflow:hidden; overscroll-beh
 .app-screen:has(dialog[open]) { overflow:hidden!important; overscroll-behavior:none; }
 dialog { overscroll-behavior:contain; }
 @media(min-width:1100px){.app-screen:has([data-avatar-shop]){height:100%;}}
+
+/* Focused Play entry uses the full device screen, without navigation overlap. */
+html:has([data-play-onboarding-screen]),body:has([data-play-onboarding-screen]){overflow:hidden;overscroll-behavior:none}
+.app-screen:has([data-play-onboarding-screen]){overflow:hidden!important}
+[data-app-route-shell]:has([data-play-onboarding-screen]){padding-bottom:0!important}
+.app-screen:has([data-play-onboarding-screen]) nav:not([aria-label]),
+[data-app-route-shell]:has([data-play-onboarding-screen])~nav{display:none!important}

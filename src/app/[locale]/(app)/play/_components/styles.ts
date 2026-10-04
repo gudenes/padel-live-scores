@@ -15,6 +15,8 @@
 // --clip-*, Forge Dark v2). Nothing is redefined here.
 
 export const PLAY_STYLES = `
+.pl-guide-context{display:none}[data-onboarding="prediction"] .pl-guide-context{display:block;margin:8px 12px;color:#eee9d9;font-size:14px;font-weight:700}.pl-guide-context small{display:block;font-size:11px;font-weight:400;margin-top:4px}
+
 .pl-market-group { flex:none; min-width:0; }
 /* ── Frame ─────────────────────────────────────────────────────── */
 .pl-root {
