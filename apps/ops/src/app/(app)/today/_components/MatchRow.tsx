@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { Match, Pair } from '../_lib/types'
 import { OddsBar } from './OddsBar'
+import Link from 'next/link'
 
 function genderTag(gender: Pair['gender']) {
   return gender === 'women'
@@ -130,6 +131,7 @@ export function MatchRow({ match, selected, onSelect }: { match: Match; selected
   const emph1 = match.status === 'finished' ? match.winnerPair === 1 : match.winProb1 >= 0.5
   const emph2 = match.status === 'finished' ? match.winnerPair === 2 : match.winProb1 < 0.5
   function handleKey(e: KeyboardEvent<HTMLTableRowElement>) {
+    if (e.target !== e.currentTarget) return
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       onSelect(match.id)
@@ -171,6 +173,7 @@ export function MatchRow({ match, selected, onSelect }: { match: Match; selected
       <td>
         <ConfidenceMeter confidence={match.confidence} />
       </td>
+      <td><Link className="ui-btn" data-size="sm" href={`/scouting/${match.id}`} onClick={e=>e.stopPropagation()} aria-label={`Scout ${match.pair1.name} versus ${match.pair2.name}`}>Scout</Link></td>
       <td className="sb-r sb-upd">
         {match.status === 'finished' && match.prematch?.correct != null ? (
           <span
