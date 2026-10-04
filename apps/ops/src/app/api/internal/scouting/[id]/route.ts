@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
+import {historyJson} from '@/lib/scouting/history'
 import { validateDoc } from '@/lib/scouting/model'
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -41,7 +42,7 @@ export async function POST(req:Request,ctx:{params:Promise<{id:string}>}){
     if((old.data?.revision??0)!==body.revision)return json({error:'This session changed in another window. Download your local copy, then reload to resume.'},409)
     if(old.data){
       const prior=old.data.document
-      if(JSON.stringify({...prior,events:[]})!==JSON.stringify({...doc,events:[]})||JSON.stringify(doc.events.slice(0,prior.events.length))!==JSON.stringify(prior.events))return json({error:'Session history must be appended. Use Undo to correct a point.'},400)
+      if(historyJson({...prior,events:[]})!==historyJson({...doc,events:[]})||historyJson(doc.events.slice(0,prior.events.length))!==historyJson(prior.events))return json({error:'Session history must be appended. Use Undo to correct a point.'},400)
     }
     const players=old.data?.players??await roster(id)
     if(!players)return json({error:'Match not found.'},404)
