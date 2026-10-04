@@ -1,0 +1,15 @@
+# Operator match scouting
+
+In admin, open Today, choose Scout beside a match, confirm its four players, scoring rule, initial server for each pair and near end, then Start scouting. Press Space at each first serve. Winner/error controls finish the active point. First-serve fault enables Double fault; a double fault is a separate counter and awards the receiving pair one point. Space is inactive in Insights and editable fields. Enter retains normal button operation.
+
+Match, game and rally clocks start from explicit observations. A rally duration includes the interval between first and second serves. Missing starts remain unknown. Use Score setup to join a match already underway; imported scores do not fabricate statistics. Court ends and serving order rotate automatically, with camera-flip and positional overrides. Undo replays the active event history, including clocks and statistics.
+
+Insights offers observed pair point lead and individual winners minus forced errors, unforced errors and double faults. This equal-weight descriptive count is not a weighted performance rating. The point explorer updates player snapshots and set bars. Smash conversion means direct smash winners divided by attempts. Assists, shot placement, serve-in events, lets, ball-in-play duration, retirement and alternate match formats are not implemented.
+
+JSON export contains all original events (including undo/corrections), active event IDs, roster, scoring configuration, per-point pre/post scores, timings and derived statistics. CSV contains active completed points. Missing observations are null/blank, not guessed.
+
+## Persistence and release
+
+Apply `supabase/migrations/20261004130000_operator_scouting.sql` before admin deployment. Storage is isolated in `operator_scouting_sessions`; no official match scores are written. API reads/writes require an operator, same-origin writes and optimistic revision checks. Concurrent edits stop recording until the operator downloads local data or reloads the server version. Browser recovery stores the roster and pending document and retries on reconnect. Export before switching browsers or clearing browser storage.
+
+The initial release supports best-of-three sets, regular set tie-breaks, and Star Point / Golden Point / Advantage selection. Confirm the event's actual scoring rule before the first point.
