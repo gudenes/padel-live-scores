@@ -1,3 +1,4 @@
+import {shots,type Shot,type ShotSide} from './shots'
 import { apply, createInitialState, type DeuceRule, type MatchState, type PlayerIndex } from './scoring'
 
 import {createTracking} from './tracking'
@@ -9,7 +10,7 @@ export type Outcome = 'winner' | 'forced' | 'unforced'
 export interface ScoreSeed { sets:{a:number;b:number}[]; game:{a:number|'Adv';b:number|'Adv'}; phase:'playing'|'tiebreak'; returns:number; server:Player }
 export type CourtSetup = Pick<ScoutDoc,'rule'|'firstServer'|'otherServer'|'near'>
 export type Event = { id:string; at:string } & (
-  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean}
+  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean; smashAttemptId?:string; shot?:Shot; side?:ShotSide; assistBy?:Player; recovery?:boolean}
   | {kind:'smash'; player:Player}
   | {kind:'unclassified'; team:'a'|'b'}
   | {kind:'flip'} | {kind:'swap'; team:'a'|'b'}
@@ -40,6 +41,13 @@ export function validateDoc(raw:unknown):ScoutDoc {
     if(e.kind==='start'&&!['match','observation'].includes(e.scope))throw Error('Invalid clock scope.')
     if(e.kind==='score')validateSeed(e.seed)
     if(e.kind==='court_setup'){const c=e.settings;if(!c||!['star-point','golden-point','advantage'].includes(c.rule)||!player(c.firstServer)||!player(c.otherServer)||teamOf(c.firstServer)===teamOf(c.otherServer)||!['a','b'].includes(c.near))throw Error('Invalid court setup.')}
+    if(e.kind==='point'){
+      if(e.shot!==undefined&&(!Object.hasOwn(shots,e.shot)||(e.shot==='smash')!==e.smash))throw Error('Invalid shot type.')
+      if(e.side!==undefined&&!['forehand','backhand'].includes(e.side))throw Error('Invalid shot side.')
+      if(e.assistBy!==undefined&&(!player(e.assistBy)||e.outcome!=='winner'||e.assistBy!==(e.player^1)))throw Error('Assists must credit the winning player’s teammate.')
+      if(e.recovery!==undefined&&(typeof e.recovery!=='boolean'||(e.recovery&&e.outcome!=='winner')))throw Error('Recovery is only available for winners.')
+    }
+    if(e.kind==='point'&&e.smashAttemptId!==undefined&&(typeof e.smashAttemptId!=='string'||!e.smash))throw Error('Invalid smash attempt link.')
     if(e.kind==='point'&&(!['winner','forced','unforced'].includes(e.outcome)||typeof e.smash!=='boolean'))throw Error('Invalid point outcome.')
     if((e.kind==='swap'||e.kind==='unclassified'||e.kind==='pair_arrived')&&!['a','b'].includes(e.team))throw Error('Invalid pair.')
   }
@@ -69,26 +77,35 @@ export function replay(doc:ScoutDoc){
   score={...score,servingPlayer:f,servingTeam:teamOf(settings.firstServer),servingOrder:[f,o,((f+2)%4) as PlayerIndex,((o+2)%4) as PlayerIndex]}
   let near=settings.near
   const swapped={a:false,b:false}
-  const stats=Array.from({length:4},()=>({winners:0,forced:0,unforced:0,smashes:0,smashWinners:0,smashErrors:0}))
+  const stats=Array.from({length:4},()=>({winners:0,forced:0,unforced:0,smashes:0,smashWinners:0,smashErrors:0,assists:0,recoveryWinners:0,shots:{} as Partial<Record<Shot|'unrecorded',{winners:number;unforced:number;forced:number}>>}))
   const tracking=createTracking()
   let points=0,unclassified=0
+  const rallySmashes=new Map<string,Player>()
   for(const e of events){
     if(e.kind==='pair_arrived'||e.kind==='court_setup')continue
+    if(e.kind==='rally_start'||e.kind==='score')rallySmashes.clear()
     if(e.kind==='start'||e.kind==='game_start'||e.kind==='rally_start'||e.kind==='first_fault'){if(score.phase==='finished')throw Error('Match has finished.');tracking.handle(e,score,score);continue}
     if(e.kind==='score'){const before=score;const v=e.seed;score={...score,sets:v.sets,currentGame:v.game as MatchState['currentGame'],phase:v.phase,advantageReturns:v.returns,winner:null,endReason:null};score=apply(score,{kind:'set_server',team:teamOf(v.server),player:(v.server%2) as 0|1});tracking.handle(e,before,score);continue}
     if(e.kind==='flip'){near=near==='a'?'b':'a';continue}
     if(e.kind==='swap'){swapped[e.team]=!swapped[e.team];continue}
     if(e.kind==='server'){const before=score;score=apply(score,{kind:'set_server',team:teamOf(e.player),player:(e.player%2) as 0|1});tracking.handle(e,before,score);continue}
     if(score.phase==='finished')throw Error('Match has finished. Undo the last action to correct it.')
-    if(e.kind==='smash'){stats[e.player].smashes++;tracking.handle(e,score,score);continue}
+    if(e.kind==='smash'){rallySmashes.set(e.id,e.player);stats[e.player].smashes++;tracking.handle(e,score,score);continue}
     if(e.kind!=='point'&&e.kind!=='unclassified'&&e.kind!=='double_fault')continue
     let winningTeam:'a'|'b'
     if(e.kind==='point'){
       const s=stats[e.player]
       if(e.outcome==='winner')s.winners++;else s[e.outcome]++
-      if(e.smash){s.smashes++;if(e.outcome==='winner')s.smashWinners++;else s.smashErrors++}
+      if(e.assistBy!==undefined)stats[e.assistBy].assists++
+      if(e.recovery)s.recoveryWinners++
+      const shot=e.shot??(e.smash?'smash':'unrecorded')
+      const shotStats=s.shots[shot]??(s.shots[shot]={winners:0,unforced:0,forced:0})
+      if(e.outcome==='winner')shotStats.winners++;else shotStats[e.outcome]++
+      if(e.smashAttemptId!==undefined&&(!e.smash||rallySmashes.get(e.smashAttemptId)!==e.player))throw Error('Choose a smash attempt by this player in the current rally.')
+      if(e.smash){if(!e.smashAttemptId)s.smashes++;if(e.outcome==='winner')s.smashWinners++;else s.smashErrors++}
       winningTeam=e.outcome==='winner'?teamOf(e.player):teamOf(e.player)==='a'?'b':'a'
     }else if(e.kind==='double_fault'){winningTeam=score.servingTeam==='a'?'b':'a'}else{winningTeam=e.team;unclassified++}
+    rallySmashes.clear()
     const before=score
     score=apply(score,{kind:'point_for',team:winningTeam});points++;tracking.handle(e,before,score,winningTeam)
     if(changesEnds(before,score))near=near==='a'?'b':'a'
