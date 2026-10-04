@@ -1,4 +1,6 @@
 'use client'
+
+import PredictionRate from '@/components/player/PredictionRate'
 // src/app/[locale]/(app)/play/_components/LeadersScreen.tsx
 //
 // Rank by settled net winnings; purchases do not affect scores.
@@ -197,6 +199,7 @@ function PlayerPreview({ follows, leader, name, period, onClose, onProfile }: {
 }) {
   const t = useTranslations('play')
   const locale = useLocale()
+  const rateText = useTranslations('predictionRate')
   const [counts,setCounts]=useState<{followers:number;following:number}|null>(null)
   const [countVersion,setCountVersion]=useState(0)
   useEffect(()=>{
@@ -221,7 +224,7 @@ function PlayerPreview({ follows, leader, name, period, onClose, onProfile }: {
       <div className={styles.playerHero}>{leader.isSimulation ? <div className={styles.figure}><PlayerFigure outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} /></div> : leader.userId ? <MemberAvatar userId={leader.userId} full fallback={<LeaderAvatar leader={leader} size={112}/>}/> : <LeaderAvatar leader={leader} size={112} />}<span>{leader.isMe ? t('leaders.you') : t('leaders.player')}</span></div>
       {follows.error&&<p role="alert" className={styles.followError}>{t('leaders.followError')}</p>}
       {!leader.isSimulation&&<div className={styles.socialCounts}><div><strong>{counts?.followers??'—'}</strong><span>{t('leaders.followers')}</span></div><div><strong>{counts?.following??'—'}</strong><span>{t('leaders.following')}</span></div></div>}
-      <div className={styles.stats}><div><span>{t(`leaders.${period}`)}</span><strong>#{leader.rank}</strong></div><div><span>{t('leaders.netWinnings')}</span><strong data-loss={leader.netWinnings < 0}>{formatGuacas(leader.netWinnings, locale)} <GuacaCoin size={24} /></strong></div></div>
+      <div className={styles.stats}><div><span>{t(`leaders.${period}`)}</span><strong>#{leader.rank}</strong></div>{!leader.isSimulation && leader.userId && <div className={styles.accuracy}><span>{rateText('shortLabel')}</span><PredictionRate userId={leader.userId} metric/></div>}<div><span>{t('leaders.netWinnings')}</span><strong data-loss={leader.netWinnings < 0}>{formatGuacas(leader.netWinnings, locale)} <GuacaCoin size={24} /></strong></div></div>
       {leader.isMe && <Press onClick={onProfile}>{t('leaders.myProfile')} ↗</Press>}
     </div>
   </dialog>

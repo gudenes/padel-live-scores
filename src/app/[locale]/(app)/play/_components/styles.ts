@@ -1190,7 +1190,7 @@ body:has(.pl-root) .v3-nav-tab { flex:1; min-width:0; padding-left:4px !importan
 .pl-root.pl-header-compact.pl-immersive{--pl-chrome:calc(50px + var(--pl-navh) + env(safe-area-inset-top,0px))}
 .pl-root .pl-main-tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:99;background:var(--bg-base);flex:none}
 .pl-personal-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 14px;min-height:48px;box-sizing:border-box;flex:none}
-.pl-personal-heading h2{font-size:15px;margin:0}
+.pl-personal-heading h2{margin:0;font-size:20px;font-weight:900;line-height:1.15;letter-spacing:-.3px;color:var(--text-primary);text-wrap:balance}
 .pl-root:has(.pl-personal-heading) .pl-screens{height:calc(100dvh - var(--pl-chrome) - 48px)}
 @media(prefers-reduced-motion:reduce){.pl-brand-header{transition:none}}
 `

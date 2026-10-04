@@ -2444,5 +2444,13 @@
     "navigation": "Secções do perfil",
     "new": "Novas",
     "newCount": "{count} novas insígnias"
+  },
+  "predictionRate": {
+    "label": "Acertos · Desde o início",
+    "count": "{correct} de {total} corretos",
+    "empty": "Ainda sem palpites resolvidos",
+    "loading": "A carregar resultados…",
+    "unavailable": "Resultados indisponíveis",
+    "shortLabel": "Acertos"
   }
 }

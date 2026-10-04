@@ -2444,5 +2444,13 @@
     "navigation": "Secciones del perfil",
     "new": "Nuevas",
     "newCount": "{count} insignias nuevas"
+  },
+  "predictionRate": {
+    "label": "Aciertos · Histórico",
+    "count": "{correct} de {total} correctos",
+    "empty": "Aún no hay pronósticos resueltos",
+    "loading": "Cargando resultados…",
+    "unavailable": "Resultados no disponibles",
+    "shortLabel": "Aciertos"
   }
 }

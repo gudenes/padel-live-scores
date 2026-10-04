@@ -1,6 +1,7 @@
 'use client'
 
 import AvatarShare from './AvatarShare'
+import PredictionRate from './PredictionRate'
 import ProfileWalletBalance from '@/components/nav/ProfileWalletBalance'
 import {ShopProfileFigure} from './shop/AvatarShop'
 import GuacaCoin from '@/components/GuacaCoin'
@@ -17,6 +18,7 @@ import styles from './PlayerProfile.module.css'
 
 export default function PlayerProfile({ userId, name }: { userId: string; name: string }) {
   const t = useTranslations('playerProfile')
+  const rateText = useTranslations('predictionRate')
   const locale = useLocale()
   const router = useRouter()
   const { outfit, save } = usePlayerOutfit(userId)
@@ -70,8 +72,9 @@ export default function PlayerProfile({ userId, name }: { userId: string; name: 
       {access.data === true && me.data && <>
         <div className={styles.summaryMetrics}>
           <div><strong>{number(activePositions.reduce((total, position) => total + position.costBasis, 0))} <GuacaCoin size={18} /></strong><span>{t('invested')}</span></div>
-          <button onClick={() => router.push('/play?view=mine')}><strong>{new Set(activePositions.map(p => p.marketId)).size}</strong><span>{t('markets')} ↗</span></button>
-          <button onClick={() => router.push('/play?view=leaders')}><strong>{leaders.data?.me ? `#${leaders.data.me.humanRank ?? leaders.data.me.rank}` : '—'}</strong><span>{t('leaderboard')} ↗</span></button>
+          <button onClick={() => router.push('/play?view=mine')}><strong>{new Set(activePositions.map(p => p.marketId)).size}</strong><span>{t('markets')}</span></button>
+          <div className={styles.accuracyMetric}><PredictionRate userId={userId} metric/><span>{rateText('shortLabel')}</span></div>
+          <button onClick={() => router.push('/play?view=leaders')}><strong>{leaders.data?.me ? `#${leaders.data.me.humanRank ?? leaders.data.me.rank}` : '—'}</strong><span>{t('leaderboard')}</span></button>
         </div>
         <button className={styles.summaryLink} onClick={() => router.push(activePositions.length ? '/play?view=mine' : '/play')}>{t(activePositions.length ? 'allPositions' : 'explore')} <span aria-hidden>→</span></button>
       </>}

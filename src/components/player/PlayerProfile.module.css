@@ -30,7 +30,7 @@
 .heroVisual .balance span{font-size:10px;line-height:1.4}
 .heroVisual .character{width:58%!important;height:290px!important;right:-24px;bottom:0;pointer-events:none}
 .heroVisual .outfitName{display:none}
-.summaryMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #71804855;margin:0 16px;padding:18px 0 16px;gap:0}
+.summaryMetrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #71804855;margin:0 16px;padding:18px 0 16px;gap:0}
 .summaryMetrics>div,.summaryMetrics>button{min-width:0;text-align:center;padding:0 5px;background:none;border:0;color:inherit;font:inherit}
 .summaryMetrics>button{cursor:pointer;border-left:1px solid #71804844}
 .summaryMetrics strong{display:flex;align-items:center;justify-content:center;gap:4px;font-size:22px;line-height:1.2;overflow-wrap:anywhere}
@@ -85,3 +85,13 @@
 .approvedShare> :global(.pn-press-face){min-height:44px;padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:8px}
 .compactApprovedShare{position:absolute!important;top:8px;right:8px;bottom:auto;left:auto;width:44px;z-index:4}
 .compactApprovedShare> :global(.pn-press-face){padding:10px;min-height:44px}
+
+.summaryMetrics .accuracyMetric{border-left:1px solid #71804844}.summaryMetrics .accuracyMetric strong{color:#8bdf20}.summaryMetrics strong{font-size:20px}@media(max-width:360px){.summaryMetrics strong{font-size:18px}.summaryMetrics span{font-size:9px}}
+
+/* Equal baselines and compact labels for the four profile statistics. */
+.summaryMetrics{padding:14px 0;align-items:stretch}
+.summaryMetrics>div,.summaryMetrics>button{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:0 3px;gap:5px}
+.summaryMetrics strong{font-size:18px;line-height:24px;min-height:24px;white-space:nowrap;overflow-wrap:normal;gap:3px;font-variant-numeric:tabular-nums}
+.summaryMetrics strong svg,.summaryMetrics strong img{width:14px;height:14px}
+.summaryMetrics span{font-size:9px;line-height:12px;margin:0;max-width:100%;text-wrap:balance}
+@media(max-width:360px){.summaryMetrics strong{font-size:16px}.summaryMetrics span{font-size:8px}}
