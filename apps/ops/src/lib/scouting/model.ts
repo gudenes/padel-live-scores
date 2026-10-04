@@ -7,6 +7,7 @@ import {createTracking} from './tracking'
 export type Player = 0 | 1 | 2 | 3
 export type Outcome = 'winner' | 'forced' | 'unforced'
 export interface ScoreSeed { sets:{a:number;b:number}[]; game:{a:number|'Adv';b:number|'Adv'}; phase:'playing'|'tiebreak'; returns:number; server:Player }
+export type CourtSetup = Pick<ScoutDoc,'rule'|'firstServer'|'otherServer'|'near'>
 export type Event = { id:string; at:string } & (
   | {kind:'point'; player:Player; outcome:Outcome; smash:boolean}
   | {kind:'smash'; player:Player}
@@ -16,9 +17,11 @@ export type Event = { id:string; at:string } & (
   | {kind:'score'; seed:ScoreSeed}
   | {kind:'start'; scope:'match'|'observation'} | {kind:'game_start'}
   | {kind:'rally_start'} | {kind:'first_fault'} | {kind:'double_fault'}
+  | {kind:'pair_arrived'; team:'a'|'b'}
+  | {kind:'court_setup'; settings:CourtSetup}
   | {kind:'undo'}
 )
-export interface ScoutDoc { version:1; rule:DeuceRule; firstServer:Player; otherServer:Player; near:'a'|'b'; events:Event[] }
+export interface ScoutDoc { version:1; preparation?:true; rule:DeuceRule; firstServer:Player; otherServer:Player; near:'a'|'b'; events:Event[] }
 export const teamOf = (p:Player) => p < 2 ? 'a' as const : 'b' as const
 const slot = (p:Player):PlayerIndex => ([0,2,1,3] as const)[p]
 export function freshDoc():ScoutDoc { return {version:1,rule:'star-point',firstServer:0,otherServer:2,near:'a',events:[]} }
@@ -26,17 +29,19 @@ export function validateDoc(raw:unknown):ScoutDoc {
   if (!raw || typeof raw!=='object') throw Error('Invalid scouting session.')
   const d=raw as ScoutDoc
   const player=(p:unknown)=>Number.isInteger(p)&&Number(p)>=0&&Number(p)<=3
+  if(d.preparation!==undefined&&d.preparation!==true)throw Error('Invalid preparation mode.')
   if(d.version!==1||!['star-point','golden-point','advantage'].includes(d.rule)||!player(d.firstServer)||!player(d.otherServer)||teamOf(d.firstServer)===teamOf(d.otherServer)||!['a','b'].includes(d.near)||!Array.isArray(d.events)||d.events.length>5000)throw Error('Invalid session settings.')
   const ids=new Set<string>()
   for(const e of d.events){
     if(!e||typeof e!=='object'||typeof e.id!=='string'||e.id.length>80||ids.has(e.id)||!Number.isFinite(Date.parse(e.at)))throw Error('Invalid scouting event.')
     ids.add(e.id)
-    if(!['point','smash','unclassified','flip','swap','server','score','start','game_start','rally_start','first_fault','double_fault','undo'].includes(e.kind))throw Error('Unknown scouting action.')
+    if(!['point','smash','unclassified','flip','swap','server','score','start','game_start','rally_start','first_fault','double_fault','pair_arrived','court_setup','undo'].includes(e.kind))throw Error('Unknown scouting action.')
     if(['point','smash','server'].includes(e.kind)&&!player((e as {player:unknown}).player))throw Error('Invalid player.')
     if(e.kind==='start'&&!['match','observation'].includes(e.scope))throw Error('Invalid clock scope.')
     if(e.kind==='score')validateSeed(e.seed)
+    if(e.kind==='court_setup'){const c=e.settings;if(!c||!['star-point','golden-point','advantage'].includes(c.rule)||!player(c.firstServer)||!player(c.otherServer)||teamOf(c.firstServer)===teamOf(c.otherServer)||!['a','b'].includes(c.near))throw Error('Invalid court setup.')}
     if(e.kind==='point'&&(!['winner','forced','unforced'].includes(e.outcome)||typeof e.smash!=='boolean'))throw Error('Invalid point outcome.')
-    if((e.kind==='swap'||e.kind==='unclassified')&&!['a','b'].includes(e.team))throw Error('Invalid pair.')
+    if((e.kind==='swap'||e.kind==='unclassified'||e.kind==='pair_arrived')&&!['a','b'].includes(e.team))throw Error('Invalid pair.')
   }
   replay(d)
   return d
@@ -47,15 +52,28 @@ export function activeEvents(doc:ScoutDoc){
   return active
 }
 export function replay(doc:ScoutDoc){
-  let score=createInitialState({format:'bo3',goldenPoint:doc.rule==='golden-point',deuceRule:doc.rule,superTiebreak:false,setTiebreakAt:6})
-  const f=slot(doc.firstServer),o=slot(doc.otherServer)
-  score={...score,servingPlayer:f,servingTeam:teamOf(doc.firstServer),servingOrder:[f,o,((f+2)%4) as PlayerIndex,((o+2)%4) as PlayerIndex]}
-  let near=doc.near
+  const events=activeEvents(doc),arrivals:{a:string|null;b:string|null}={a:null,b:null}
+  let ready=!doc.preparation
+  let settings:CourtSetup={rule:doc.rule,firstServer:doc.firstServer,otherServer:doc.otherServer,near:doc.near}
+  for(const e of events){
+    if(e.kind==='pair_arrived'){
+      if(ready||arrivals[e.team])throw Error('Pair arrival is already recorded or setup is complete.')
+      arrivals[e.team]=e.at
+    }else if(e.kind==='court_setup'){
+      if(ready||!arrivals.a||!arrivals.b)throw Error('Mark both pairs on court before confirming setup.')
+      settings=e.settings;ready=true
+    }else if(!ready)throw Error('Confirm court setup before starting scouting.')
+  }
+  let score=createInitialState({format:'bo3',goldenPoint:settings.rule==='golden-point',deuceRule:settings.rule,superTiebreak:false,setTiebreakAt:6})
+  const f=slot(settings.firstServer),o=slot(settings.otherServer)
+  score={...score,servingPlayer:f,servingTeam:teamOf(settings.firstServer),servingOrder:[f,o,((f+2)%4) as PlayerIndex,((o+2)%4) as PlayerIndex]}
+  let near=settings.near
   const swapped={a:false,b:false}
   const stats=Array.from({length:4},()=>({winners:0,forced:0,unforced:0,smashes:0,smashWinners:0,smashErrors:0}))
   const tracking=createTracking()
   let points=0,unclassified=0
-  for(const e of activeEvents(doc)){
+  for(const e of events){
+    if(e.kind==='pair_arrived'||e.kind==='court_setup')continue
     if(e.kind==='start'||e.kind==='game_start'||e.kind==='rally_start'||e.kind==='first_fault'){if(score.phase==='finished')throw Error('Match has finished.');tracking.handle(e,score,score);continue}
     if(e.kind==='score'){const before=score;const v=e.seed;score={...score,sets:v.sets,currentGame:v.game as MatchState['currentGame'],phase:v.phase,advantageReturns:v.returns,winner:null,endReason:null};score=apply(score,{kind:'set_server',team:teamOf(v.server),player:(v.server%2) as 0|1});tracking.handle(e,before,score);continue}
     if(e.kind==='flip'){near=near==='a'?'b':'a';continue}
@@ -75,7 +93,7 @@ export function replay(doc:ScoutDoc){
     score=apply(score,{kind:'point_for',team:winningTeam});points++;tracking.handle(e,before,score,winningTeam)
     if(changesEnds(before,score))near=near==='a'?'b':'a'
   }
-  return {score,near,swapped,stats,points,unclassified,tracking:tracking.data,server:([0,2,1,3] as const)[score.servingPlayer] as Player}
+  return {ready,arrivals,settings,score,near,swapped,stats,points,unclassified,tracking:tracking.data,server:([0,2,1,3] as const)[score.servingPlayer] as Player}
 }
 export function changesEnds(before:MatchState,after:MatchState){
   if(before.phase==='tiebreak'||before.phase==='super-tiebreak'){
