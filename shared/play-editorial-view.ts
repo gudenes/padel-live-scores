@@ -1,6 +1,6 @@
 /** Presentation data only; settlement remains owned by the resolver. */
 export interface EditorialView {
-  kind: 'ranking' | 'titles' | 'round' | 'other_champion'
+  kind: 'ranking' | 'titles' | 'round' | 'other_champion' | 'champion'
   players: { id: string; name: string; avatarUrl: string | null; photoUrl: string | null; ranking: number | null }[]
   completed?: number | null
   target: number | null
@@ -13,7 +13,7 @@ export interface EditorialView {
 export function parseEditorialView(raw: unknown): EditorialView | null {
   if (!raw || typeof raw !== 'object') return null
   const v = raw as EditorialView
-  if (!['ranking','titles','round','other_champion'].includes(v.kind) || !Array.isArray(v.players)) return null
+  if (!['ranking','titles','round','other_champion','champion'].includes(v.kind) || !Array.isArray(v.players)) return null
   if (!v.players.every(p => p && typeof p.id === 'string' && typeof p.name === 'string')) return null
   return {
     kind: v.kind, players: v.players.slice(0,2).map(p => ({id:p.id,name:p.name,

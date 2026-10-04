@@ -14,6 +14,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': new URL('./src', import.meta.url).pathname,
+      // Testing Library lives at the repository root; share its React instance.
+      'react': new URL('../../node_modules/react', import.meta.url).pathname,
+      'react-dom': new URL('../../node_modules/react-dom', import.meta.url).pathname,
     },
   },
 })

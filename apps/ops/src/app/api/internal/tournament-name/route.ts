@@ -27,7 +27,7 @@ type ValidationResult =
 
 const MAX_NAME_LEN = 200
 
-export function validatePatchInput(body: unknown): ValidationResult {
+function validatePatchInput(body: unknown): ValidationResult {
   if (body == null || typeof body !== 'object') {
     return { ok: false, reason: 'body must be a JSON object' }
   }

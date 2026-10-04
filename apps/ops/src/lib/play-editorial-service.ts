@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { EDITORIAL_FAMILIES, validateEditorialConfig, editorialBindingErrors, editorialParams, editorialCopy } from '../../../../shared/play-editorial'
 import type { ResolverContext } from '../../../../padelgod/src/lib/market-resolvers/types'
-import { pairReachesRound, otherPairWinsTournament, pairTitleCount, playerReachesRanking } from '../../../../padelgod/src/lib/market-resolvers/selected-beta'
+import { pairWinsTournament, pairReachesRound, otherPairWinsTournament, pairTitleCount, playerReachesRanking } from '../../../../padelgod/src/lib/market-resolvers/selected-beta'
 
 // Import the shared implementations directly: the worker registry uses Node's
 // emitted .js paths, which the Next.js source bundler cannot resolve.
-const editorialResolvers = { round: pairReachesRound, other_champion: otherPairWinsTournament, titles: pairTitleCount, ranking: playerReachesRanking }
+const editorialResolvers = { champion: pairWinsTournament, round: pairReachesRound, other_champion: otherPairWinsTournament, titles: pairTitleCount, ranking: playerReachesRanking }
 
 export interface EditorialPreview {
   errors: string[]; fingerprint: string; templateKey: string; seasonId: string | null;
@@ -37,7 +37,7 @@ export async function previewEditorial(db: SupabaseClient, raw: unknown, now = n
   const params = editorialParams(c)
   let locksAt = c.locksAt, boundMatchId: string | null = null, probability = c.probability
   let priceSource = c.probabilitySource
-  const tournamentScoped = c.family === 'round' || c.family === 'other_champion'
+  const tournamentScoped = c.family === 'champion' || c.family === 'round' || c.family === 'other_champion'
   const evidence: Record<string, unknown> = {}
   if (tournamentScoped && c.tournamentIds.length === 1 && c.playerIds.length === 2) {
     const result = await db.from('matches').select('id,status,winner_pair,scheduled_at,round_canonical,pair1_player1_id,pair1_player2_id,pair2_player1_id,pair2_player2_id')
@@ -59,7 +59,7 @@ export async function previewEditorial(db: SupabaseClient, raw: unknown, now = n
     probability = null
     if (!projection || !Number.isFinite(Date.parse(projection.computed_at)) || Date.parse(projection.computed_at) > now.getTime() || now.getTime()-Date.parse(projection.computed_at)>6*3600000) errors.push('A unique tournament projection less than six hours old is required.')
     else {
-      const rawProb = c.family === 'other_champion' ? projection.champion_prob : c.round === 'SF' ? projection.semifinal_prob : projection.finalist_prob
+      const rawProb = (c.family === 'champion' || c.family === 'other_champion') ? projection.champion_prob : c.round === 'SF' ? projection.semifinal_prob : projection.finalist_prob
       const p = rawProb === null ? NaN : Number(rawProb)
       probability = c.family === 'other_champion' ? 1-p : p
       priceSource = `${projection.model_version}, computed ${projection.computed_at}${c.family === 'other_champion' ? '; 1 minus champion probability' : ''}`

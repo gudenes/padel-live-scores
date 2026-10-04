@@ -18,7 +18,7 @@ type ValidationResult =
   | { ok: true; value: PutInput }
   | { ok: false; reason: string }
 
-export function validatePutInput(body: unknown): ValidationResult {
+function validatePutInput(body: unknown): ValidationResult {
   if (body == null || typeof body !== 'object' || Array.isArray(body)) {
     return { ok: false, reason: 'body must be a JSON object' }
   }

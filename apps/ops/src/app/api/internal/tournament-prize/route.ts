@@ -22,7 +22,7 @@ type ValidationResult =
   | { ok: true; value: PatchInput }
   | { ok: false; reason: string }
 
-export function validatePatchInput(body: unknown): ValidationResult {
+function validatePatchInput(body: unknown): ValidationResult {
   if (body == null || typeof body !== 'object') {
     return { ok: false, reason: 'body must be a JSON object' }
   }
