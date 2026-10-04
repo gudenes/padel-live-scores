@@ -35,3 +35,16 @@ it('records shot details, partner assists and recovery winners without extra poi
  expect(()=>validateDoc({...doc,events:[{...winner,outcome:'forced'}]})).toThrow()
  expect(()=>validateDoc({...doc,events:[{...winner,shot:'smash'}]})).toThrow(/shot type/)
 })
+
+it('tracks recovery types and net luck independently',()=>{
+ const winner=evt({kind:'point',player:0,outcome:'winner',smash:false,recovery:true,smashRecovery:true,netCord:'lucky'})
+ const error=evt({kind:'point',player:2,outcome:'unforced',smash:false,netCord:'unlucky'})
+ const doc={...freshDoc(),events:[winner,error]};validateDoc(doc)
+ const m=replay(doc)
+ expect(m.stats[0]).toMatchObject({recoveryWinners:1,smashRecoveryWinners:1,luckyNetCords:1,smashes:0})
+ expect(m.stats[2].unluckyNetCords).toBe(1)
+ expect(m.tracking.timeline[0]).toMatchObject({recovery:true,smashRecovery:true,netCord:'lucky'})
+ expect(replay({...doc,events:[...doc.events,evt({kind:'undo'})]}).stats[2].unluckyNetCords).toBe(0)
+ expect(()=>validateDoc({...doc,events:[{...error,smashRecovery:true}]})).toThrow(/recovery/)
+ expect(()=>validateDoc({...doc,events:[{...error,netCord:'invalid'}]})).toThrow(/net cord/)
+})

@@ -7,10 +7,10 @@ it('exports all events and detailed points with timing and score',()=>{const out
 it('keeps undo history but removes undone graph and CSV points',()=>{const d={...freshDoc(),events:[...events,{kind:'undo',id:'4',at:'2026-10-04T12:00:13Z'} as Event]},out=sessionExport('match',players,8,d);expect(out.document.events).toHaveLength(4);expect(out.summary.tracking.timeline).toHaveLength(0);expect(out.activeEventIds).toEqual(['1','2']);expect(pointsCsv(players,d).split('\r\n')).toHaveLength(1)})
 it('does not invent observed points from imported scores',()=>{const seed:Event={kind:'score',id:'0',at:'2026-10-04T11:59:00Z',seed:{sets:[{a:4,b:2}],game:{a:0,b:0},phase:'playing',returns:0,server:0}};const p=replay({...freshDoc(),events:[seed,...events]}).tracking.timeline[0];expect(p.lead).toBe(-1);expect(p.before.sets).toEqual([{a:4,b:2}])})
 it('includes shot, side, assist and recovery in JSON and CSV',()=>{
- const doc={...freshDoc(),events:[{id:'tagged',at:'2026-10-04T12:00:00Z',kind:'point',player:0,outcome:'winner',smash:false,shot:'volley',side:'backhand',assistBy:1,recovery:true} as Event]}
+ const doc={...freshDoc(),events:[{id:'tagged',at:'2026-10-04T12:00:00Z',kind:'point',player:0,outcome:'winner',smash:false,shot:'volley',side:'backhand',assistBy:1,recovery:true,smashRecovery:true,netCord:'lucky'} as Event]}
  const json=sessionExport('test',players,1,doc)
  expect(json.summary.stats[1].assists).toBe(1)
- expect(json.summary.tracking.timeline[0]).toMatchObject({shot:'volley',assistBy:1,recovery:true})
+ expect(json.summary.tracking.timeline[0]).toMatchObject({shot:'volley',assistBy:1,recovery:true,smashRecovery:true,netCord:'lucky'})
  const csv=pointsCsv(players,doc)
- expect(csv).toContain('"outside_court_recovery"');expect(csv).toContain('"volley","backhand","1","Tapia","true"')
+ expect(csv).toContain('"smash_recovery","net_cord"');expect(csv).toContain('"true","true","lucky"');expect(csv).toContain('"outside_court_recovery"');expect(csv).toContain('"volley","backhand","1","Tapia","true"')
 })
