@@ -63,3 +63,5 @@
 /* Explicit contrast: the scope text color must not bleed into the active face. */
 .scope .followFilter[aria-pressed="true"] :global(.pn-press-face){background:#7ED321;color:#0a0a0a;box-shadow:inset 0 1px 0 #ffffff38}
 .scope .followFilter[aria-pressed="false"] :global(.pn-press-face){background:#171e1d;color:#7ED321}
+
+.stats .accuracy{text-align:center}.stats .accuracy strong{color:#8bdf20;white-space:nowrap}

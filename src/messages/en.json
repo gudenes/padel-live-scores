@@ -2476,5 +2476,13 @@
     "navigation": "Profile sections",
     "new": "New",
     "newCount": "{count} new badges"
+  },
+  "predictionRate": {
+    "label": "Prediction accuracy · All time",
+    "count": "{correct} of {total} correct",
+    "empty": "No settled predictions yet",
+    "loading": "Loading results…",
+    "unavailable": "Results unavailable",
+    "shortLabel": "Accuracy"
   }
 }

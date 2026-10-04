@@ -2444,5 +2444,13 @@
     "navigation": "Sections du profil",
     "new": "Nouveaux",
     "newCount": "{count} nouveaux badges"
+  },
+  "predictionRate": {
+    "label": "Précision · Depuis le début",
+    "count": "{correct} sur {total} corrects",
+    "empty": "Aucun pronostic terminé",
+    "loading": "Chargement des résultats…",
+    "unavailable": "Résultats indisponibles",
+    "shortLabel": "Précision"
   }
 }

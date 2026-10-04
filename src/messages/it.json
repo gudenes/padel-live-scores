@@ -2444,5 +2444,13 @@
     "navigation": "Sezioni del profilo",
     "new": "Nuovi",
     "newCount": "{count} nuovi distintivi"
+  },
+  "predictionRate": {
+    "label": "Precisione · Totale",
+    "count": "{correct} su {total} corretti",
+    "empty": "Nessun pronostico concluso",
+    "loading": "Caricamento risultati…",
+    "unavailable": "Risultati non disponibili",
+    "shortLabel": "Precisione"
   }
 }
