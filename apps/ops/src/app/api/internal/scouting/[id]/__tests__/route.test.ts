@@ -17,3 +17,11 @@ it('rejects stale revisions without writing',async()=>{mock.queue.push({data:{re
 it('rejects history replacement; correction must append an undo',async()=>{mock.queue.push({data:{revision:1,document:{...doc,events:[start]},players}});expect((await POST(request(),ctx)).status).toBe(400);expect(mock.writes).not.toHaveBeenCalled()})
 it('returns conflict if another operator wins the atomic update',async()=>{mock.queue.push({data:{revision:1,document:doc,players}},{data:null,error:null});expect((await POST(request({...doc,events:[start]}),ctx)).status).toBe(409)})
 it('creates an isolated session with four confirmed players',async()=>{mock.queue.push({data:null},{data:{id,pair1_player1_id:'0',pair1_player2_id:'1',pair2_player1_id:'2',pair2_player2_id:'3'}},{data:players},{data:{revision:1}});const r=await POST(request(doc,0),ctx);expect(r.status).toBe(200);expect(mock.writes).toHaveBeenCalledWith(expect.objectContaining({match_id:id,revision:1,players}));expect(mock.from.mock.calls.filter(([t])=>t==='matches')).toHaveLength(1)})
+it('persists arrival preparation then appends server confirmation without replacing history',async()=>{
+ const arrivals=[{kind:'pair_arrived',team:'a',id:'a',at:start.at},{kind:'pair_arrived',team:'b',id:'b',at:start.at}]
+ const prior={...doc,preparation:true,events:arrivals}
+ const next={...prior,events:[...arrivals,{kind:'court_setup',id:'setup',at:start.at,settings:{rule:'advantage',firstServer:3,otherServer:1,near:'b'}}]}
+ mock.queue.push({data:{revision:2,document:prior,players}},{data:{revision:3}})
+ expect((await POST(request(next,2),ctx)).status).toBe(200)
+ expect(mock.writes).toHaveBeenCalledWith(expect.objectContaining({document:next,revision:3}))
+})
