@@ -96,7 +96,7 @@ export default function MarketCard({ market, onDetail, onChoose, positions = [],
 
       </div>}
 
-      {!positions.some(position => position.shares > 0) && <div className="pl-odds pl-pair-choices">
+      {!positions.some(position => position.shares > 0) && <div data-onboarding-choice="editorial"><p className="pl-guide-context">{title}<small>{market.context}</small></p><div className="pl-odds pl-pair-choices">
         {(players && market.subjectPair === 2 ? ['no', 'yes'] as const : ['yes', 'no'] as const).map(side => (
           <Press key={side} className={`pl-choice-press pl-${side}`} size="size-lg" intent="intent-neutral" disabled={!onChoose}
             onClick={() => onChoose?.(side)} ariaLabel={`${t(`deck.${side}`)} · ${odds(side)}`}>
@@ -104,7 +104,7 @@ export default function MarketCard({ market, onDetail, onChoose, positions = [],
             <span className="pl-pct">{odds(side)}</span>
           </Press>
         ))}
-      </div>}
+      </div></div>}
 
       {editorial?.openingProbability != null && <p style={{position:'relative',zIndex:1,textAlign:'center',fontSize:11,color:'#c7ccb9',margin:'8px 12px 0'}}>
         {t('editorial.opening')} · {new Intl.NumberFormat(locale,{style:'percent',maximumFractionDigits:0}).format(editorial.openingProbability)}

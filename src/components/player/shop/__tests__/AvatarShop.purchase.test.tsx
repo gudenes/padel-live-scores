@@ -6,7 +6,7 @@ import AvatarShop from '../AvatarShop'
 import {initialShopState} from '@/lib/avatar-shop'
 vi.mock('@/i18n/navigation',()=>({Link:({children,...props}:any)=><a {...props}>{children}</a>}))
 vi.mock('next/image',()=>({default:()=>null}))
-vi.mock('next-intl',()=>({useLocale:()=> 'es'}))
+vi.mock('next-intl',()=>({useLocale:()=> 'es',useTranslations:()=> (key:string)=>key}))
 const auth=vi.hoisted(()=>({user:null as {id:string}|null,profile:{id:'test',display_name:'Test'},loading:false}))
 vi.mock('@/components/AuthProvider',()=>({useAuth:()=>auth}))
 vi.mock('@/components/PlayerAvatar',()=>({PlayerAvatar:()=>null}))

@@ -8,6 +8,8 @@ import { previewBuy } from './market-preview'
 import type { PlayMarket, Side } from './types'
 
 export interface TradeSheetProps {
+  onboarding?: boolean
+  previewOnly?: boolean
   market: PlayMarket
   side: Side
   initialStake: number
@@ -18,9 +20,10 @@ export interface TradeSheetProps {
   onClose: () => void
 }
 
-export default function TradeSheet({ market, side, initialStake, balance, submitting, error, onConfirm, onClose }: TradeSheetProps) {
+export default function TradeSheet({ onboarding=false, previewOnly=false, market, side, initialStake, balance, submitting, error, onConfirm, onClose }: TradeSheetProps) {
   const t = useTranslations('play')
   const locale = useLocale()
+  const guideT=useTranslations('play.onboarding')
   const dialog = useRef<HTMLDialogElement>(null)
   const [closing, setClosing] = useState(false)
   const requestClose = () => {
@@ -47,6 +50,8 @@ export default function TradeSheet({ market, side, initialStake, balance, submit
   return <dialog ref={dialog} className={`pl-trade-dialog pl-amount-dialog pl-simple-trade${closing ? ' pl-closing' : ''}`} aria-labelledby="pl-trade-title" onAnimationEnd={e => { if (closing && e.target === e.currentTarget) onClose() }} onCancel={e => { e.preventDefault(); requestClose() }}>
     <div className="pl-trade-content">
       <div className="pl-sheet-head"><h2 id="pl-trade-title">{t('explore.prediction')}</h2><button type="button" className="pl-x" disabled={submitting} onClick={requestClose} aria-label={t('trade.close')}>×</button></div>
+      {onboarding&&<p className="pl-helper">{guideT('amountBody')}</p>}
+      {previewOnly&&<p className="pl-helper">{guideT('previewTrade')}</p>}
       <h3 className="pl-trade-question">{market.question}</h3>
       <div className="pl-choice-toggle" aria-label={t('explore.outcome')}>
         {(['yes','no'] as const).map(option => <button type="button" key={option} className={`pl-${option}`} aria-pressed={chosenSide === option} disabled={submitting} onClick={() => setChosenSide(option)}>{t(`deck.${option}`)}</button>)}
@@ -54,7 +59,7 @@ export default function TradeSheet({ market, side, initialStake, balance, submit
       <label className="pl-stake-label" htmlFor="pl-stake">{t('explore.amount')}</label>
       <div className="pl-stake-input"><input id="pl-stake" type="number" inputMode="numeric" min="1" step="1" max={balance} value={amount} disabled={submitting} onChange={e => setAmount(e.target.value)} aria-describedby="pl-amount-help" /><GuacaCoin size={30} /></div>
       <p className="pl-available" id="pl-amount-help">{t('explore.available')} <b>{money(balance)}</b></p>
-      <div className="pl-amounts">{[100,250,500,1000].map(value => <button key={value} type="button" className={`pl-amt${stake === value ? ' pl-on' : ''}`} disabled={submitting || value > balance} onClick={() => setAmount(String(value))}>{formatGuacas(value, locale)}</button>)}</div>
+      <div className="pl-amounts">{(onboarding?[25,50,100]:[100,250,500,1000]).map(value => <button key={value} type="button" className={`pl-amt${stake === value ? ' pl-on' : ''}`} disabled={submitting || value > balance} onClick={() => setAmount(String(value))}>{formatGuacas(value, locale)}</button>)}</div>
       <div className="pl-return-summary" aria-live="polite">
         <div><span>{t('explore.estimatedReturn')}</span><p>{t('done.includesStake')}</p></div>
         <strong>{quote ? <>{formatGuacas(quote.payout, locale)} <GuacaCoin size={30} /></> : '—'}</strong>

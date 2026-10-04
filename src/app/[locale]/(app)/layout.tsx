@@ -45,7 +45,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
       {/* NotificationNudgeProvider moved UP to [locale]/layout.tsx so it
           also covers /match/[id] and /player/[id] (those routes live
           outside this (app) group but still need the nudge context). */}
-      <div data-avatar-shop-shell={(pathname === '/avatar-shop' || pathname === '/avatar-preview') ? '' : undefined} style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
+      <div data-app-route-shell data-avatar-shop-shell={(pathname === '/avatar-shop' || pathname === '/avatar-preview') ? '' : undefined} style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
       {!hideNav && <BottomNavV3 />}
       {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
           shells. Self-gated for mobile/tablet via CSS media query. Skipped

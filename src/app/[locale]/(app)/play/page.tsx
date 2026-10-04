@@ -5,6 +5,11 @@
 // Access is gated server-side in layout.tsx. Lists use real API data.
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
+import {previewBuy} from './_components/market-preview'
+import PlayWelcome from './_components/PlayWelcome'
+import {useAuth} from '@/components/AuthProvider'
+import {IdentitySetup,OnboardingGuide,useOnboarding} from './_components/PlayOnboarding'
+import onboardingStyles from './_components/PlayOnboarding.module.css'
 import { useLocale, useTranslations } from 'next-intl'
 import MarketToolbar from './_components/MarketToolbar'
 import { unplayedFirst, filterMarkets, type MarketFilter } from './_components/market-filters'
@@ -54,6 +59,12 @@ const SUBNAV_FOR: Partial<Record<Screen, SubNavKey>> = {
 export default function PlayPage() {
   const t = useTranslations('play')
   const locale = useLocale()
+  const {user}=useAuth()
+  const onboarding=useOnboarding(user?.id)
+  const [loginPreview,setLoginPreview]=useState(false)
+  useEffect(()=>{setLoginPreview(process.env.NODE_ENV!=='production'&&new URLSearchParams(window.location.search).get('onboarding')==='login')},[])
+  const [firstSuccess,setFirstSuccess]=useState(false)
+  const onboardT=useTranslations('play.onboarding')
 
   const [linkedMatch, setLinkedMatch] = useState<string | null>(null)
   const [screen, setScreen] = useState<Screen>('deck')
@@ -149,6 +160,13 @@ export default function PlayPage() {
   const confirmTrade = useCallback(
     async (guacas: number, side: Side) => {
       if (!pending || submitting) return
+      if(onboarding.preview){
+        const quote=previewBuy(pending.market,side,guacas)
+        if(!quote)return
+        setConfirmed({market:pending.market,side,question:pending.market.question,cost:quote.cost,shares:quote.shares,avgPrice:quote.cost/quote.shares})
+        setBalanceAfterTrade(balance-guacas);setPending(null);setScreen('deck');setFirstSuccess(true)
+        void onboarding.advance('done');return
+      }
       setSubmitting(true)
       setTradeError(null)
       try {
@@ -175,6 +193,7 @@ export default function PlayPage() {
           return
         }
 
+        if(onboarding.progress?.step==='prediction'){setFirstSuccess(true);void onboarding.advance('done').catch(()=>{})}
         setConfirmed({
           market: pending.market,
           side,
@@ -195,7 +214,7 @@ export default function PlayPage() {
         setSubmitting(false)
       }
     },
-    [pending, submitting, t, tradeErrors, markets, me],
+    [pending, submitting, t, tradeErrors, markets, me, onboarding, balance],
   )
 
 
@@ -205,10 +224,18 @@ export default function PlayPage() {
   useEffect(()=>{setCompactHeader(false);lastScroll.current=0},[screen])
   const subnavKey = SUBNAV_FOR[screen]
 
+  if(loginPreview)return <PlayWelcome/>
+  if(onboarding.loading)return <div className={onboardingStyles.loading} role="status">{onboardT('loading')}</div>
+  if(!onboarding.progress&&onboarding.error)return <div className={onboardingStyles.loading}><p role="alert">{onboardT('loadError')}</p><Press onClick={onboarding.retry}>{t('error.retry')}</Press></div>
+  if(onboarding.progress?.step==='identity')return <IdentitySetup initial={onboarding.progress} onSave={onboarding.identity} preview={onboarding.preview}/>
+  const guideStep=firstSuccess?'success':onboarding.progress?.step
+  const showGuide=guideStep&&guideStep!=='done'
+  const finishGuide=()=>{void onboarding.advance('done').then(()=>setFirstSuccess(false)).catch(()=>{})}
+
   return (
-    <div onScrollCapture={event=>{if(screen!=='deck')return;const target=event.target as HTMLElement;if(!target.matches('.pl-natural-feed,.pl-reel-feed,.pl-market-scroll'))return;const top=Math.max(0,target.scrollTop);const delta=top-lastScroll.current;if(top<12||delta < -8)setCompactHeader(false);else if(top>64&&delta>8)setCompactHeader(true);if(Math.abs(delta)>8||top<12)lastScroll.current=top}} className={`pl-root${compactHeader&&screen==='deck'?' pl-header-compact':''}${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
+    <div data-onboarding={showGuide?guideStep:undefined} onScrollCapture={event=>{if(screen!=='deck')return;const target=event.target as HTMLElement;if(!target.matches('.pl-natural-feed,.pl-reel-feed,.pl-market-scroll'))return;const top=Math.max(0,target.scrollTop);const delta=top-lastScroll.current;if(top<12||delta < -8)setCompactHeader(false);else if(top>64&&delta>8)setCompactHeader(true);if(Math.abs(delta)>8||top<12)lastScroll.current=top}} className={`pl-root${compactHeader&&!showGuide&&screen==='deck'?' pl-header-compact':''}${screen === 'deck' || screen === 'trade' ? ' pl-immersive' : ''}${subnavKey ? '' : ' pl-nosub'}`}>
       <style dangerouslySetInnerHTML={{ __html: PLAY_STYLES }} />
-      <div className="pl-brand-header" inert={compactHeader&&screen==='deck'}><GlobalHeader playerWallet={<PlayerWallet walletKey={me.data?.walletKey} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} /></div>
+      <div className="pl-brand-header" inert={compactHeader&&!showGuide&&screen==='deck'}><GlobalHeader playerWallet={<PlayerWallet walletKey={onboarding.preview?undefined:me.data?.walletKey} previewAvatar={onboarding.preview?onboarding.progress?.avatar:undefined} welcome={guideStep==='wallet'} balance={balanceAfterTrade ?? me.data?.balance ?? null} onPositions={() => goto('mine')} />} /></div>
 
       {subnavKey && (
         <SubNav availableCount={markets.data?.totalAvailable} myLiveCount={new Set((me.data?.positions ?? []).filter(p => p.live && p.matchId).map(p => p.matchId)).size} active={subnavKey} onSelect={goto} liveCount={(markets.data?.markets ?? []).filter(m => m.live).length} />
@@ -221,6 +248,8 @@ export default function PlayPage() {
       <div className="pl-screens">
         {/* ── Deck ────────────────────────────────────────────── */}
         <section hidden={screen !== 'deck' && screen !== 'trade'} className={`pl-screen${screen === 'deck' || screen === 'trade' ? ' pl-on' : ''}`}>
+          {showGuide&&<OnboardingGuide step={guideStep} balance={me.data?.balance??null} hasMarkets={list.length>0} trading={screen==='trade'} error={onboarding.error} onSkip={finishGuide} onAdvance={()=>{if(firstSuccess){void onboarding.advance('done').then(()=>{setFirstSuccess(false);goto('mine')}).catch(()=>{});}else void onboarding.advance('prediction').catch(()=>{})}}/>}
+          {onboarding.preview&&<p className={onboardingStyles.preview} style={{padding:'4px 16px'}}>{onboardT('preview')}</p>}
           <MarketToolbar markets={markets.data?.markets ?? []} filter={marketFilter}
             onFilter={filter => { setMarketFilter(filter) }}
             />
@@ -251,9 +280,9 @@ export default function PlayPage() {
             <> {linkedMatch && <Press size="size-sm" intent="intent-ghost" onClick={() => setLinkedMatch(null)}>{t('filters.showAll')}</Press>}<MarketFeed
               key={marketFilter}
               markets={list}
-              positions={me.data?.positions ?? []}
+              positions={onboarding.preview?[]:me.data?.positions ?? []}
               onViewPositions={() => goto('mine')}
-              onChoose={(market, side) => onCommit(market, side, DEFAULT_STAKE)}
+              onChoose={(market, side) => onCommit(market, side, onboarding.progress?.step==='prediction'?Math.min(50,balance):DEFAULT_STAKE)}
               onDetail={openDetail}
             /></>
           )}
@@ -316,6 +345,8 @@ export default function PlayPage() {
             market={pending.market}
             side={pending.side}
             initialStake={pending.stake}
+            onboarding={onboarding.progress?.step==='prediction'}
+            previewOnly={onboarding.preview}
             balance={balance}
             submitting={submitting}
             error={tradeError}

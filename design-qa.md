@@ -1,3 +1,25 @@
+# Play onboarding — 2026-10-04
+
+final result: local visual refinement verified; external provider sign-in still requires user testing
+
+## Implementation
+
+Real A01 avatars, court imagery and Guaca asset. Existing approved chunky button styles for setup, guide and provider sign-in. Login preview at `/play?onboarding=login`; setup preview at `/play?onboarding=preview`. Both preview switches are development-only. Game data remains whitelist-gated.
+
+The guide now spotlights the wallet, actionable prediction and My plays, with the rest darkened and softly blurred. Target scrolling prevents setup scroll position from hiding the wallet. Guide is hidden while the existing trade dialog is open.
+
+## Verification
+
+- 15 focused onboarding tests pass (identity, account-scoped persistence, rejected access, failed saves, avatar selection, empty-market escape).
+- TypeScript passes.
+- Browser inspected login, identity, wallet and prediction spotlight. Login fits Google, Apple and email options within the phone frame.
+- Screenshots: `/tmp/padel-onboarding-login.png`, `/tmp/padel-onboarding-spotlight.png`, `/tmp/padel-onboarding-prediction.png`.
+- Provider authentication was not completed with a real Google or Apple account during this visual pass. Native iOS authentication remains unverified.
+- Progress migration was previously validated in a rollback transaction and applied; existing balances were unchanged.
+
+
+---
+
 # Connected Play and matches
 
 final result: partial — match panel verified; live-state visual check outstanding

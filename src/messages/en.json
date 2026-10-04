@@ -904,7 +904,7 @@
     "deleteModal": {
       "title": "Delete your account?",
       "body": "This permanently removes your profile, bookmarks, badges, ratings, and sign-in methods. This cannot be undone.",
-      "continue": "Continue",
+      "continue": "Make my first prediction",
       "cancel": "Cancel",
       "confirmPrompt": "Type DELETE to confirm",
       "confirmWord": "DELETE",
@@ -1032,6 +1032,7 @@
     "continueGoogle": "Continue with Google",
     "continueApple": "Continue with Apple",
     "or": "or",
+    "continueEmail": "Continue with email",
     "emailPlaceholder": "Email address",
     "sending": "Sending...",
     "sendLink": "Send link",
@@ -1088,7 +1089,7 @@
     "subtitle": "Pick at least one player to personalize your scores, news, and notifications",
     "search": "Search for a player",
     "skip": "Skip",
-    "continue": "Continue",
+    "continue": "Make my first prediction",
     "topInCountry": "Top in {country}",
     "topWorldwide": "Top players",
     "errorLoading": "Couldn't load suggestions. Try again.",
@@ -2232,6 +2233,44 @@
         "no": "NO",
         "void": "Void — refunded"
       }
+    },
+    "onboarding": {
+      "identityTitle": "This is how the court will see you",
+      "identityBody": "Choose your face and public name.",
+      "publicName": "Public name",
+      "nameSuggestions": "Try a player name",
+      "nameHelp": "2–24 characters. Do not use your email.",
+      "chooseFace": "Choose your face",
+      "start": "Let’s play",
+      "saving": "Saving…",
+      "saveError": "Could not save. Please try again.",
+      "walletTitle": "Your Guacas: {balance}",
+      "walletBody": "Use Guacas for predictions and avatar items.",
+      "predictionTitle": "What do you think?",
+      "predictionBody": "Tap Yes or No. You’ll choose your Guacas next.",
+      "amountTitle": "Choose your Guacas",
+      "amountBody": "Choose your Guacas, review your prediction, then confirm.",
+      "successTitle": "Prediction added!",
+      "successBody": "Follow it in My plays.",
+      "emptyTitle": "No predictions open right now",
+      "emptyBody": "Explore the app and come back when new questions open.",
+      "guideLabel": "Getting started",
+      "continue": "Make my first prediction",
+      "skip": "Skip guide",
+      "viewPlays": "View my plays",
+      "done": "Done",
+      "preview": "Preview · your profile stays unchanged",
+      "previewTrade": "Preview: no Guacas will be spent.",
+      "welcomeTitle": "Think you know padel?",
+      "welcomeBody": "Predict matches. Earn Guacas. Style your avatar.",
+      "community": "Play with other padel fans",
+      "communityBody": "Next: choose your name and avatar.",
+      "browse": "Browse matches",
+      "loading": "Getting your player ready…",
+      "loadError": "Could not load your player. Please try again.",
+      "showLogin": "View login",
+      "loginPreview": "Login preview",
+      "trySetup": "Try setup"
     }
   },
   "playerProfile": {
@@ -2487,5 +2526,17 @@
     "loading": "Loading results…",
     "unavailable": "Results unavailable",
     "shortLabel": "Accuracy"
+  },
+  "shopGuide": {
+    "label": "Your wardrobe",
+    "step1Title": "Find your style",
+    "step1Body": "Choose a category: rackets, clothing, hats or stickers.",
+    "step2Title": "Try it on",
+    "step2Body": "Tap an item to preview it on your avatar. Trying items is free; your saved outfit stays unchanged.",
+    "step3Title": "Make it yours",
+    "step3Body": "Equip items you own for free. New items cost Guacas and ask for confirmation. Some unlock with correct predictions.",
+    "next": "Next",
+    "done": "Got it",
+    "skip": "Skip guide"
   }
 }

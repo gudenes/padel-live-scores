@@ -39,9 +39,9 @@ export default function MatchMarketCard({ markets, positions, onChoose, onDetail
   const startLabel = start && timeZone && Number.isFinite(start.getTime()) ? new Intl.DateTimeFormat(locale, {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit', hour12:false, timeZone}).format(start) : null
   const live = markets.some(m => m.live)
   const formatter = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return <article className={styles.card} aria-label={match.subtitle || match.question}>
+  return <article data-onboarding-market className={styles.card} aria-label={match.subtitle || match.question}>
       <Image src="/play/background-compare/outdoor.png" alt="" fill sizes="(max-width: 500px) 100vw, 420px" className={styles.background}/>
-    <header className={styles.header}>
+    <header data-onboarding-context className={styles.header}>
     <div className={styles.chips}>
       {live && <span className={styles.live}>{t('live')}</span>}
       {[shortTournament, match.categoryLabel, round].filter(Boolean).map((label, i) => <span key={i}>{label}</span>)}
@@ -59,7 +59,7 @@ export default function MatchMarketCard({ markets, positions, onChoose, onDetail
         const winner = market.resolverKey === 'match.winner_is_pair'
         const secondary = market.resolverKey === 'match.went_to_three_sets'
         const heading = `${id}-${index}`
-        return <section className={styles.question} data-secondary={secondary || undefined} key={market.id} aria-labelledby={heading}>
+        return <section data-onboarding-choice className={styles.question} data-secondary={secondary || undefined} key={market.id} aria-labelledby={heading}>
           <div className={styles.questionHeading}>
           <h2 id={heading}>{market.question}</h2>
           <button className={styles.details} type="button" onClick={() => onDetail(market)} aria-label={`${t('detail.openShort')} · ${market.question}`}>{t('detail.openShort')}</button>

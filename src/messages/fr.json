@@ -873,7 +873,7 @@
     "deleteModal": {
       "title": "Supprimer votre compte ?",
       "body": "Cela supprime définitivement votre profil, favoris, badges, notes et méthodes de connexion. Action irréversible.",
-      "continue": "Continuer",
+      "continue": "Faire mon premier pronostic",
       "cancel": "Annuler",
       "confirmPrompt": "Tapez SUPPRIMER pour confirmer",
       "confirmWord": "SUPPRIMER",
@@ -1000,6 +1000,7 @@
     "continueGoogle": "Continuer avec Google",
     "continueApple": "Continuer avec Apple",
     "or": "ou",
+    "continueEmail": "Continuer avec un e-mail",
     "emailPlaceholder": "Adresse e-mail",
     "sending": "Envoi...",
     "sendLink": "Envoyer le lien",
@@ -1056,7 +1057,7 @@
     "subtitle": "Choisissez au moins un joueur pour personnaliser scores, actualités et notifications",
     "search": "Rechercher un joueur",
     "skip": "Passer",
-    "continue": "Continuer",
+    "continue": "Faire mon premier pronostic",
     "topInCountry": "Meilleurs en {country}",
     "topWorldwide": "Meilleurs joueurs",
     "errorLoading": "Impossible de charger les suggestions. Réessayez.",
@@ -2200,6 +2201,44 @@
         "no": "NON",
         "void": "Annulé — remboursé"
       }
+    },
+    "onboarding": {
+      "identityTitle": "Voici comment on te verra sur le terrain",
+      "identityBody": "Choisis ton visage et ton nom public.",
+      "publicName": "Nom public",
+      "nameSuggestions": "Choisis un nom",
+      "nameHelp": "2 à 24 caractères. N’utilise pas ton email.",
+      "chooseFace": "Choisis ton visage",
+      "start": "C’est parti",
+      "saving": "Enregistrement…",
+      "saveError": "Impossible d’enregistrer. Réessaie.",
+      "walletTitle": "Tes Guacas : {balance}",
+      "walletBody": "Utilise tes Guacas pour tes pronostics et ton avatar.",
+      "predictionTitle": "Qu’en penses-tu ?",
+      "predictionBody": "Choisis Oui ou Non. Tu choisiras ensuite tes Guacas.",
+      "amountTitle": "Choisis tes Guacas",
+      "amountBody": "Choisis tes Guacas, vérifie ton pronostic, puis confirme.",
+      "successTitle": "Pronostic ajouté !",
+      "successBody": "Retrouve-le dans Mes pronostics.",
+      "emptyTitle": "Aucun pronostic ouvert pour le moment",
+      "emptyBody": "Explore l’app et reviens pour de nouvelles questions.",
+      "guideLabel": "Premiers pas",
+      "continue": "Faire mon premier pronostic",
+      "skip": "Passer le guide",
+      "viewPlays": "Voir mes pronostics",
+      "done": "Compris",
+      "preview": "Aperçu · ton profil reste inchangé",
+      "previewTrade": "Aperçu : aucune Guaca ne sera utilisée.",
+      "welcomeTitle": "Tu connais le padel ?",
+      "welcomeBody": "Pronostique les matchs. Gagne des Guacas. Habille ton avatar.",
+      "community": "Joue avec d’autres fans de padel",
+      "communityBody": "Ensuite, choisis ton nom et ton avatar.",
+      "browse": "Voir les matchs",
+      "loading": "Préparation de ton joueur…",
+      "loadError": "Impossible de charger ton joueur. Réessaie.",
+      "showLogin": "Voir la connexion",
+      "loginPreview": "Aperçu de connexion",
+      "trySetup": "Essayer la configuration"
     }
   },
   "playerProfile": {
@@ -2455,5 +2494,17 @@
     "loading": "Chargement des résultats…",
     "unavailable": "Résultats indisponibles",
     "shortLabel": "Précision"
+  },
+  "shopGuide": {
+    "label": "Ton vestiaire",
+    "step1Title": "Trouve ton style",
+    "step1Body": "Choisis une catégorie : raquettes, vêtements, casquettes ou autocollants.",
+    "step2Title": "Essaie-le",
+    "step2Body": "Touche un article pour le voir sur ton avatar. L’essayage est gratuit et ne modifie pas ta tenue enregistrée.",
+    "step3Title": "Fais-le tien",
+    "step3Body": "Équipe gratuitement tes articles. Les nouveaux coûtent des Guacas et demandent confirmation. Certains se débloquent avec des pronostics corrects.",
+    "next": "Suivant",
+    "done": "Compris",
+    "skip": "Passer le guide"
   }
 }

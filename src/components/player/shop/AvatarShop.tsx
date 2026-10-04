@@ -2,6 +2,7 @@
 import {AvatarReady,AvatarPlaceholder} from '../AvatarReady'
 import {Figure} from './WardrobeFigure'
 import AvatarShare from '../AvatarShare'
+import ShopGuide from './ShopGuide'
 
 import Image from 'next/image'
 import {Link} from '@/i18n/navigation'
@@ -31,7 +32,7 @@ function Picture({item}: {item:ShopItem}) {
 }
 export {Figure} from './WardrobeFigure'
 
-export default function AvatarShop(){
+export default function AvatarShop({guidePreview=false}:{guidePreview?:boolean}){
  const {profile,user,loading:authLoading}=useAuth()
  const locale=useLocale()
  const es=locale==='es'
@@ -112,19 +113,20 @@ export default function AvatarShop(){
  {celebration>0&&<span key={celebration} className={styles.equipHalo} aria-hidden="true"/>}
  <div className={styles.tryOn}><Figure state={state} preview={empty||selected===null?null:item} original={false}/></div>
  </div>
- <div className={styles.categories} role="group" aria-label="Item categories">{SHOP_SLOTS.map(s=><button key={s.id} aria-pressed={slot===s.id} onClick={()=>category(s.id)}><span className={styles.categoryArt}><Picture item={SHOP_ITEMS.find(i=>i.slot===s.id&&(i.collection==='club'||s.id==='sticker'))!}/></span>{es?slotLabels[s.id]:s.name}</button>)}</div>
- <div key={slot} className={`${styles.items} ${gameMotion.enter}`} ref={rail} role="group" aria-label={`${slot} items`}>
+ <div data-shop-categories className={styles.categories} role="group" aria-label="Item categories">{SHOP_SLOTS.map(s=><button key={s.id} aria-pressed={slot===s.id} onClick={()=>category(s.id)}><span className={styles.categoryArt}><Picture item={SHOP_ITEMS.find(i=>i.slot===s.id&&(i.collection==='club'||s.id==='sticker'))!}/></span>{es?slotLabels[s.id]:s.name}</button>)}</div>
+ <div data-shop-items key={slot} className={`${styles.items} ${gameMotion.enter}`} ref={rail} role="group" aria-label={`${slot} items`}>
  {visible.map(i=><button key={i.id} aria-label={`${i.name}${!state.owned.includes(i.id)&&wins<i.wins?' · locked':''}`} aria-pressed={(selected??equippedId)===i.id} onClick={()=>pick(i)} className={styles.tile}>
  <Picture item={i}/><strong>{i.name}</strong><span>{state.owned.includes(i.id)?(state.equipped[i.slot]??`${i.slot}-starter`)===i.id?(es?'Equipado':'Equipped'):(es?'En propiedad':'Owned'):<><GuacaCoin size={18}/>{i.price}</>}</span>{!state.owned.includes(i.id)&&i.wins>0&&<small>{wins>=i.wins?(es?'Objetivo alcanzado':'Milestone reached'):`${i.wins} ${es?'pronósticos acertados':'correct picks'}`}</small>}
  </button>)}
 
  </div>
- {!empty&&<div className={styles.purchase}>
+ {!empty&&<div data-shop-action className={styles.purchase}>
  {locked&&<div className={styles.progress}><span>{Math.min(wins,item.wins)} / {item.wins} {es?'pronósticos acertados':'correct predictions'}</span><progress value={Math.min(wins,item.wins)} max={item.wins}/><small>{es?'Alcanza este objetivo para poder comprarlo.':'Reach this milestone to unlock purchasing.'}</small></div>}
  <button className={styles.primary} disabled={locked||(owned&&worn)||(!owned&&!enough)} onClick={action}>{locked?(es?'Requiere un logro':'Performance locked'):owned?worn?(es?'Equipado ✓':'Equipped ✓'):(es?'Equipar':'Wear this'):!enough?(es?'Guacas insuficientes':'Not enough Guacas'):<>{es?'Comprar':'Unlock'} · {item.price} <GuacaCoin size={23}/></>}</button>
  <p>{selected===null?(es?'Tu conjunto guardado':'Your saved outfit'):`${es?'Vista previa:':'Previewing'} ${item.name}`}</p>
  {slot==='sticker'&&state.equipped.sticker&&<button className={styles.textButton} onClick={async()=>{const equipped={...state.equipped};delete equipped.sticker;if(await persist({...state,equipped}))setNotice(es?'Pegatina retirada.':'Sticker removed.')}}>{es?'Quitar pegatina':'Remove equipped sticker'}</button>}
  </div>}
+ <ShopGuide userId={user?.id} ready={process.env.NODE_ENV!=='production'||!!remote.data} paused={!!picker||!!pending||!!purchased} preview={process.env.NODE_ENV!=='production'&&guidePreview}/>
  <div className={styles.toastRegion} role="status" aria-live="polite" aria-atomic="true">{notice&&<div className={styles.toast} key={notice}><>{noticeItem&&notice.startsWith(`${noticeItem.name} ·`)&&<span className={styles.toastPicture}><Picture item={noticeItem}/></span>}</><span>{notice}</span><button aria-label={es?'Cerrar aviso':'Dismiss notification'} onClick={()=>setNotice('')}>×</button></div>}</div>
  <dialog ref={nameDialog} className={styles.dialog} aria-label={es?'Editar nombre':'Edit name'} onCancel={e=>{if(savingName)e.preventDefault()}}>
  <form onSubmit={saveName} className={styles.nameForm}><h2>{es?'Tu nombre':'Your name'}</h2><label htmlFor="player-display-name">{es?'Nombre visible':'Display name'}</label><input id="player-display-name" autoFocus maxLength={40} value={nameDraft} onChange={e=>setNameDraft(e.target.value)} disabled={savingName}/><p>{authLoading?(es?'Comprobando tu sesión…':'Checking your session…'):!user?(es?'Inicia sesión para guardar el nombre en tu perfil.':'Sign in to save the name to your profile.'):(es?'Se actualizará también en tu perfil.':'This also updates your profile.')}</p>{!authLoading&&!user&&<a className={styles.sessionLink} href={`/${locale}/profile`}>{es?'Ir al perfil e iniciar sesión':'Go to profile and sign in'}</a>}{nameError&&<p role="alert">{nameError}</p>}<button className={styles.primary} disabled={savingName||authLoading||!user||!nameDraft.trim()||nameDraft.trim()===displayName}>{savingName?(es?'Guardando…':'Saving…'):(es?'Guardar nombre':'Save name')}</button><button type="button" className={styles.cancel} disabled={savingName} onClick={()=>nameDialog.current?.close()}>{es?'Cancelar':'Cancel'}</button></form>
