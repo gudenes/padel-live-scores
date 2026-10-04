@@ -2218,7 +2218,9 @@
       "viewPlays": "View my plays",
       "predict": "Make a prediction",
       "liveEmpty": "No live plays right now",
-      "liveEmptyBody": "Your live predictions will appear here when their matches start."
+      "liveEmptyBody": "Your live predictions will appear here when their matches start.",
+      "yourPlays": "Your plays",
+      "set": "Set {number}"
     },
     "notice": {
       "settledTitle": "Prediction settled",

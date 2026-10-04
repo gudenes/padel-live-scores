@@ -1,3 +1,4 @@
+import { parseSetScore, parseSetFromGames } from '@/types/match'
 // src/app/api/play/_shared.ts
 //
 // Shared plumbing for the /api/play/* user-facing routes: row shapes, the
@@ -99,6 +100,7 @@ export interface TournamentJoin {
 }
 
 export interface MatchJoin {
+  sets?: Array<{set_number:number;set_score:string|null;pair1_games:number|null;pair2_games:number|null;is_current:boolean}>
   id: string
   status: string | null
   round: string | null
@@ -200,6 +202,7 @@ export const MARKET_SELECT = `
   template:market_templates!markets_template_id_fkey(question_i18n, horizon),
   match:matches!markets_match_id_fkey(
     id, status, round, scheduled_at, category, pred_pair1_prob,
+    sets(set_number, set_score, pair1_games, pair2_games, is_current),
     pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id,
     pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
     pair1_player1:players!matches_pair1_player1_id_fkey(${PLAYER_FIELDS}),
@@ -480,6 +483,7 @@ export interface MarketView {
   tournamentImage: string | null
   matchId: string | null
   live: boolean
+  liveScore: {set:number;pair1:number;pair2:number} | null
   stateLabel: string | null
   competition: string | null
   category: string | null
@@ -572,6 +576,9 @@ export function describeMarket(
   const subtitle = row.match ? `${names.pair1} vs ${names.pair2}` : String(row.tokens?.subject ?? tournament?.name ?? '')
 
   const live = LIVE_STATUSES.has(row.match?.status ?? '')
+  const currentSet = row.match?.sets?.filter(set => set.is_current).sort((a,b) => b.set_number-a.set_number)[0]
+  const games = currentSet ? parseSetScore(currentSet.set_score) ?? parseSetFromGames(currentSet.pair1_games,currentSet.pair2_games) : null
+  const liveScore = live && currentSet && games ? {set:currentSet.set_number,pair1:games.p1,pair2:games.p2} : null
 
   // `stateLabel` deliberately carries a signal `live` does not: an imminent
   // lock. If it only mirrored `live` it would be a redundant field.
@@ -597,6 +604,7 @@ export function describeMarket(
     modelProb: modelProbFor(row),
     baselineProb: baselineProbFor(row),
     live,
+    liveScore,
     stateLabel,
     roundLabel: round || null,
     categoryLabel: category ? categoryLabel(category, locale) : null,

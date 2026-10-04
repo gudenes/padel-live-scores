@@ -2186,7 +2186,9 @@
       "viewPlays": "Voir mes pronostics",
       "predict": "Faire un pronostic",
       "liveEmpty": "Aucun pronostic en direct",
-      "liveEmptyBody": "Vos pronostics apparaîtront ici au début des matchs."
+      "liveEmptyBody": "Vos pronostics apparaîtront ici au début des matchs.",
+      "yourPlays": "Vos pronostics",
+      "set": "Set {number}"
     },
     "notice": {
       "settledTitle": "Pronostic réglé",
