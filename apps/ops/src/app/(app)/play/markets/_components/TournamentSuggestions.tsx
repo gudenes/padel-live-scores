@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pill } from '@/components/ui'
-import PressButton, { PRESS_PRESETS } from '../../../../../../../../src/components/PressButton'
+import { Button, Pill } from '@/components/ui'
 import type { TournamentSuggestion, TournamentSuggestions as SuggestionData } from '@/lib/play-tournament-suggestions'
 import type { EditorialPreview } from '@/lib/play-editorial-service'
 import styles from './TournamentSuggestions.module.css'
@@ -79,18 +78,19 @@ export default function TournamentSuggestions({ onPublished }: { onPublished: ()
   const items = data?.suggestions.filter(s=>draw==='all'||s.config.category===draw) ?? []
   const ready = data?.suggestions.filter(s=>!s.existingMarketId&&!s.preview.errors.length).length ?? 0
   const expired = !!review && (Date.parse(review.preview_expires_at) <= now || Date.parse(review.preview.locksAt) <= now)
-  return <section className={styles.panel} aria-labelledby="tournament-suggestions-title">
-    <header className={styles.header}>
-      <div><span className={styles.eyebrow}>YOUR NEXT MARKETS</span><h2 id="tournament-suggestions-title">Tournament suggestions</h2><p>Picked from the draw. Review a card, then approve to publish.</p></div>
+  return <section className={`ui-panel ${styles.panel}`} aria-labelledby="tournament-suggestions-title">
+    <header className="ui-panel-head">
+      <div><h2 className="ui-panel-title" id="tournament-suggestions-title">Tournament suggestions</h2><p className={styles.subtitle}>Review suggested markets before publishing.</p></div>
       <Pill tone={ready ? 'lime' : 'neutral'}>{ready} ready</Pill>
     </header>
+    <div className="ui-panel-pad">
     <div className={styles.toolbar}>
       <label>Tournament<select className="ui-select" value={eventId || data?.tournamentId || ''} disabled={loading || busy} onChange={e=>{setLoading(true);setEventId(e.target.value);setMessage('')}}>
         {!data?.events.length&&<option value="">Upcoming tournaments</option>}
         {data?.events.map(t=><option key={t.id} value={t.id}>{t.name} · {t.starts_at.slice(0,10)}</option>)}
       </select></label>
       <label>Draw<select className="ui-select" value={draw} onChange={e=>setDraw(e.target.value)}><option value="all">Both draws</option><option value="men">Men</option><option value="women">Women</option></select></label>
-      <PressButton {...PRESS_PRESETS.chunkyTilted} className={styles.action} disabled={loading || busy} onClick={reload}>Refresh</PressButton>
+      <Button type="button" size="sm" disabled={loading || busy} onClick={reload}>Refresh suggestions</Button>
     </div>
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {message && <p role="status" className={styles.success}>{message}</p>}
@@ -104,15 +104,16 @@ export default function TournamentSuggestions({ onPublished }: { onPublished: ()
             <h3>{p.question.en}</h3><p className={styles.reason}>{item.reason}</p>
             <div className={styles.cardBottom}><div className={styles.pricing}><div><span>Opening YES</span><strong>{percent(p.probability)}</strong></div><div><span>Closes</span><b>{date(p.locksAt)}</b></div></div>
               {blocked&&!published&&<p className={styles.blocker} title={p.errors.join(' ')}>{p.errors[0]}{p.errors.length>1?` (+${p.errors.length-1} more)`:''}</p>}
-              <PressButton {...PRESS_PRESETS.chunkyTilted} className={styles.action} disabled={busy||published} onClick={()=>void prepare(item)}>{published?'Already published':blocked?'View requirements':'Review & approve'}</PressButton>
+              <Button type="button" size="sm" disabled={busy||published} onClick={()=>void prepare(item)}>{published?'Already published':blocked?'View requirements':'Review & approve'}</Button>
             </div>
           </article>
         })}</div>}
         <p className={styles.footnote}>Up to four picks per draw · 5,000 Guacas maximum subsidy each · Nothing publishes automatically.</p>
       </>}
+    </div>
     <dialog ref={dialog} className={styles.dialog} onCancel={e=>{e.preventDefault();close()}} onClose={()=>{if(!inFlight.current)setSelected(null)}} aria-labelledby="suggestion-review-title">
       {selected&&<div className={styles.review}>
-        <div className={styles.header}><div><span className={styles.eyebrow}>REVIEW BEFORE PUBLISHING</span><h2 id="suggestion-review-title">{review?.preview.question.en ?? selected.preview.question.en}</h2></div></div>
+        <div className={styles.reviewHeader}><div><h2 id="suggestion-review-title">{review?.preview.question.en ?? selected.preview.question.en}</h2></div></div>
         {busy&&!review&&<p role="status">Checking the latest price, match time and result evidence…</p>}
         {review&&<>
           <div className={styles.reviewStats}><div><span>Opening YES</span><strong>{percent(review.preview.probability)}</strong></div><div><span>Trading closes</span><b>{date(review.preview.locksAt)}</b></div><div><span>Max. subsidy</span><b>{review.preview.maxLoss.toLocaleString()} G</b></div></div>
@@ -125,9 +126,9 @@ export default function TournamentSuggestions({ onPublished }: { onPublished: ()
         </>}
         {reviewError&&<p role="alert" className={styles.error}>{reviewError}</p>}
         <div className={styles.reviewActions}>
-          <PressButton {...PRESS_PRESETS.chunkyTilted} className={styles.action} disabled={busy} onClick={close}>Close</PressButton>
-          {review&&<PressButton {...PRESS_PRESETS.chunkyTilted} className={styles.action} disabled={busy} onClick={()=>void prepare(selected,review)}>Refresh preview</PressButton>}
-          <PressButton {...PRESS_PRESETS.chunkyTilted} className={styles.action} disabled={busy||!review||expired||!!review.preview.errors.length||!data?.publishingEnabled} onClick={()=>void approve()}>{busy?'Checking…':'Approve & publish'}</PressButton>
+          <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={close}>Close</Button>
+          {review&&<Button type="button" size="sm" disabled={busy} onClick={()=>void prepare(selected,review)}>Refresh preview</Button>}
+          <Button type="button" size="sm" variant="primary" disabled={busy||!review||expired||!!review.preview.errors.length||!data?.publishingEnabled} onClick={()=>void approve()}>{busy?'Checking…':'Approve & publish'}</Button>
         </div>
       </div>}
     </dialog>
