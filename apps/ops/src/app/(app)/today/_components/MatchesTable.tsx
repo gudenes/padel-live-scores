@@ -132,6 +132,7 @@ export function MatchesTable({
                 <th>Win probability</th>
                 <th className="sb-r">15m</th>
                 <th>Conf.</th>
+                <th>Scouting</th>
                 <th className="sb-r">Upd</th>
               </tr>
             </thead>
