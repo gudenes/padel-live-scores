@@ -108,6 +108,7 @@ export interface PlayMarket {
   matchId?: string | null
   live: boolean
   /** e.g. "Set 1 · 4–4". Free text from the API. */
+  liveScore?: {set:number;pair1:number;pair2:number} | null
   stateLabel: string
   competition?: string | null
   category?: string | null
@@ -430,6 +431,7 @@ export function parseMarkets(payload: unknown): PlayMarket[] {
       matchId: asString(r.matchId) || null,
       tournamentImage: asString(r.tournamentImage) || null,
       live: pick(r, 'live') === true,
+      liveScore: r.live === true && r.liveScore && typeof r.liveScore === 'object' && ['set','pair1','pair2'].every(key => Number.isInteger((r.liveScore as Record<string,unknown>)[key]) && Number((r.liveScore as Record<string,unknown>)[key]) >= 0) ? r.liveScore as PlayMarket['liveScore'] : null,
       stateLabel: asString(pick(r, 'stateLabel', 'state_label')),
       roundLabel: asString(r.roundLabel) || null,
       categoryLabel: asString(r.categoryLabel) || null,

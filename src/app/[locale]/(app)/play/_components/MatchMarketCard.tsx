@@ -51,7 +51,7 @@ export default function MatchMarketCard({ markets, positions, onChoose, onDetail
     </header>
     {!live && startLabel && <time className={styles.schedule} dateTime={match.startsAt!}>{t('deck.scheduledTime', {time: startLabel})}</time>}
     <div className={styles.hero}>
-      {match.players ? <VersusIdentity pair1={match.players.pair1} pair2={match.players.pair2} subjectPair={1} vsLabel={t('deck.vs')}/> : <h2>{match.subtitle}</h2>}
+      {match.players ? <VersusIdentity pair1={match.players.pair1} pair2={match.players.pair2} subjectPair={1} vsLabel={t('deck.vs')} center={live && match.liveScore ? <span className={styles.liveScore}><strong>{match.liveScore.pair1}–{match.liveScore.pair2}</strong><small>{t('matchNavigation.set', {number:match.liveScore.set})}</small></span> : undefined}/> : <h2>{match.subtitle}</h2>}
     </div>
     <div className={styles.questions}>
       {orderedMarkets.map((market, index) => {

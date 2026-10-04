@@ -251,6 +251,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
   const pathname = usePathname()
   const tPlayer = useTranslations('player')
   const tCommon = useTranslations('common')
+  const tMatches = useTranslations('matches')
   const format = useFormatter()
   const locale = useLocale()
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
@@ -802,6 +803,7 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
           {/* Next match / tournament strip */}
           {(derived.nextScheduled || derived.nextTournament) && (() => {
             if (derived.nextScheduled) {
+              const matchIsLive = ['live','on_court'].includes(derived.nextScheduled.status)
               const roles = resolveMatchRoles(derived.nextScheduled, id)
               const oppNames = [roles.opp1, roles.opp2]
                 .filter(Boolean)
@@ -834,14 +836,14 @@ export default function PlayerPage({ params }: { params: Promise<{ id: string }>
                   }}
                 >
                   <div style={{ fontSize: 7, fontWeight: 700, color: ORANGE, textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 0 }}>
-                    {tPlayer('nextMatch')}
+                    {matchIsLive ? <span style={{background:'#FF4655',color:'#fff',padding:'4px 6px',clipPath:CHUNKY.badge}}>{tMatches('live')}</span> : tPlayer('nextMatch')}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {matchTitle}
                     </div>
                     <div style={{ fontSize: 8, color: MUTED, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {[tournName, whenStr].filter(Boolean).join(' · ')}
+                      {[tournName, matchIsLive ? null : whenStr].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   {derived.nextScheduled.tournament?.level && (

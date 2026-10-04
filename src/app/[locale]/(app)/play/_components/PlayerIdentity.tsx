@@ -13,7 +13,8 @@
 
 import Image from 'next/image'
 import { FlagImage } from '@/components/FlagImage'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { Link } from '@/i18n/navigation'
 import type { PlayPlayer } from './types'
 
 /**
@@ -36,8 +37,7 @@ function Face({ player, size }: { player: PlayPlayer; size: number }) {
 
 /** Avatar + flag + ranking for one player. */
 function PlayerChip({ player, size }: { player: PlayPlayer; size: number }) {
-  return (
-    <div className="pl-pchip">
+  const content = <>
       <Face player={player} size={size} />
       <div className="pl-pmeta">
         <span className="pl-pname">{player.surname}</span>
@@ -46,8 +46,8 @@ function PlayerChip({ player, size }: { player: PlayPlayer; size: number }) {
           {player.ranking !== null && <i>#{player.ranking}</i>}
         </span>
       </div>
-    </div>
-  )
+    </>
+  return player.id ? <Link href={`/player/${player.id}`} prefetch={false} className="pl-pchip" style={{textDecoration:'none',color:'inherit'}} aria-label={player.name}>{content}</Link> : <div className="pl-pchip">{content}</div>
 }
 
 /**
@@ -104,20 +104,22 @@ export function VersusIdentity({
   pair1,
   pair2,
   vsLabel,
+  center,
   subjectPair,
   size = 66,
 }: {
   pair1: PlayPlayer[]
   pair2: PlayPlayer[]
   vsLabel: string
+  center?: ReactNode
   subjectPair: 1 | 2
   size?: number
 }) {
   return (
     <div className="pl-vs">
       <PairIdentity players={pair1} accent={subjectPair === 1 ? 'subject' : 'other'} size={size} />
-      <span className="pl-vs-sep" aria-hidden>
-        {vsLabel}
+      <span className="pl-vs-sep">
+        {center ?? vsLabel}
       </span>
       <PairIdentity players={pair2} accent={subjectPair === 2 ? 'subject' : 'other'} size={size} />
     </div>

@@ -368,3 +368,10 @@ describe('frozen editorial definitions',()=>{
     expect(view.question).toBe('Pregunta publicada');expect(view.rules).toBe('Reglas publicadas')
   })
 })
+
+it('only exposes the current observed set while the match is live',()=>{
+ const row=mkMarket();row.match!.status='live';row.match!.sets=[{set_number:1,set_score:'6-4',pair1_games:6,pair2_games:4,is_current:false},{set_number:2,set_score:'3-2',pair1_games:3,pair2_games:2,is_current:true}]
+ expect(describeMarket(row,'en').liveScore).toEqual({set:2,pair1:3,pair2:2});
+ row.match!.status='finished';expect(describeMarket(row,'en').liveScore).toBeNull();
+ row.match!.status='live';row.match!.sets=[];expect(describeMarket(row,'en').liveScore).toBeNull();
+})

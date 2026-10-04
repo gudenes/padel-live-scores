@@ -46,3 +46,6 @@
 .schedule{display:block;padding:4px 12px 0;color:#d2d6cb;font-size:10px;letter-spacing:.2px;text-shadow:0 1px 3px #000}
 
 .volume{position:relative;z-index:2;padding:9px 4px 4px;margin:0 12px 4px;border-top:1px solid #ffffff20;color:#c1c9bc;font-size:10px;line-height:1.4;font-variant-numeric:tabular-nums}
+
+.liveScore{display:flex;flex-direction:column;align-items:center;gap:4px;color:#fff;font-variant-numeric:tabular-nums}.liveScore strong{font-size:22px;white-space:nowrap}.liveScore small{font-size:10px;font-weight:600;white-space:nowrap}
+.hero :global(a.pl-pchip:focus-visible){outline:2px solid #90e21a;outline-offset:3px}

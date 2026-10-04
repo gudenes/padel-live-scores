@@ -2186,7 +2186,9 @@
       "viewPlays": "Vedi i miei pronostici",
       "predict": "Fai un pronostico",
       "liveEmpty": "Nessun pronostico in diretta",
-      "liveEmptyBody": "I tuoi pronostici appariranno qui quando inizieranno le partite."
+      "liveEmptyBody": "I tuoi pronostici appariranno qui quando inizieranno le partite.",
+      "yourPlays": "Le tue giocate",
+      "set": "Set {number}"
     },
     "notice": {
       "settledTitle": "Pronostico risolto",

@@ -2186,7 +2186,9 @@
       "viewPlays": "Ver minhas jogadas",
       "predict": "Fazer um palpite",
       "liveEmpty": "Sem jogadas ao vivo agora",
-      "liveEmptyBody": "Os teus palpites aparecerão aqui quando os jogos começarem."
+      "liveEmptyBody": "Os teus palpites aparecerão aqui quando os jogos começarem.",
+      "yourPlays": "As tuas jogadas",
+      "set": "Set {number}"
     },
     "notice": {
       "settledTitle": "Previsão resolvida",
