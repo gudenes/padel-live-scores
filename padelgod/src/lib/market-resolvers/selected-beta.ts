@@ -84,6 +84,15 @@ export const otherPairWinsTournament: Resolver = async (ctx, p) => {
   return decided(winner(f) !== side(f, ids), { final_match_id: f.id, winner_pair: winner(f), excluded_pair: ids })
 }
 
+/** Positive champion contract with the same evidence/refund rules as its complement. */
+export const pairWinsTournament: Resolver = async (ctx, p) => {
+  const result = await otherPairWinsTournament(ctx, p)
+  if (result.state !== 'decided') return result
+  return { ...result, outcome: !result.outcome,
+    evidence: { final_match_id: result.evidence.final_match_id,
+      winner_pair: result.evidence.winner_pair, asked_pair: pair(p) } }
+}
+
 /** The creator freezes the complete eligible event list, never a mutable calendar query. */
 export const pairTitleCount: Resolver = async (ctx, p) => {
   const ids = pair(p), threshold = positive(p, 'titles'), minimumStarts = positive(p, 'minimumStarts')

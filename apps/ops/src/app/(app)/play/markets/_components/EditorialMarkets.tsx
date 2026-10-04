@@ -26,7 +26,7 @@ export default function EditorialMarkets({onPublished}:{onPublished:()=>void}) {
     else setMessage(action==='save'?'Draft saved. No market has been opened.':'Preview refreshed. Review the question, rules, price and deadline below.')
     await load()
   }catch(e){setError(e instanceof Error?e.message:'Operation failed.')}finally{setBusy(false)}}
-  const tournament=config.family==='round'||config.family==='other_champion', published=selected?.status==='published'
+  const tournament=config.family==='champion'||config.family==='round'||config.family==='other_champion', published=selected?.status==='published'
   const preview=!dirty?selected?.preview:null
   return <Panel>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}><h2 style={{margin:0,fontSize:18}}>Create a market</h2><Pill tone="neutral">Saved drafts</Pill></div>

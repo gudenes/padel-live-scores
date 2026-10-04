@@ -1,0 +1,53 @@
+.panel { padding:20px; border:1px solid var(--border-card); border-radius:var(--r-lg); background:var(--bg-card); margin-bottom:18px; }
+.header { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.eyebrow { font-size:10px; letter-spacing:.13em; font-weight:800; color:var(--text-3); }
+.header h2 { margin:5px 0 6px; font-size:21px; line-height:1.25; color:var(--text-1); }
+.header p { margin:0; font-size:12px; color:var(--text-3); }
+.toolbar { display:flex; gap:12px; align-items:end; flex-wrap:wrap; margin:20px 0 16px; }
+.toolbar label { display:grid; gap:5px; font-size:11px; font-weight:600; color:var(--text-3); }
+.toolbar label:first-child { flex:1; min-width:200px; }
+.toolbar select { max-width:100%; width:100%; }
+.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr)); gap:12px; }
+.card { min-height:320px; min-width:0; padding:16px; display:flex; flex-direction:column; border:1px solid var(--border-card); border-top:3px solid var(--lime-border); border-radius:var(--r-md); background:var(--bg-card-2); }
+.card[data-state='waiting'] { border-top-color:var(--border); }
+.card[data-state='published'] { border-top-color:var(--border); opacity:.72; }
+.cardTop { display:flex; justify-content:space-between; align-items:center; gap:6px; }
+.kind { font-size:9px; letter-spacing:.06em; font-weight:800; color:var(--text-3); }
+.card h3 { margin:16px 0 8px; font-size:17px; line-height:1.35; overflow-wrap:anywhere; letter-spacing:-.025em; }
+.reason { margin:0 0 10px; font-size:11px; line-height:1.5; color:var(--text-3); }
+.cardBottom { margin-top:auto; }
+.pricing { display:flex; justify-content:space-between; align-items:end; gap:8px; padding:12px 0; border-top:1px solid var(--border-inner); }
+.pricing div,.reviewStats div { display:grid; gap:5px; }
+.pricing span,.reviewStats span { font-size:10px; color:var(--text-3); }
+.pricing strong { font-size:25px; font-variant-numeric:tabular-nums; line-height:1; }
+.pricing b { max-width:112px; font-size:11px; line-height:1.5; text-align:right; }
+.pricing div:last-child { text-align:right; }
+.action { margin-bottom:5px; font-size:12px; font-weight:750; min-height:36px; }
+.action :global(.pn-press-face) { padding:9px 14px !important; transition:transform 100ms ease; }
+.action:active:not(:disabled) :global(.pn-press-face) { transform:translateY(var(--pn-press-depth,5px)); }
+.action:focus-visible { outline:2px solid var(--text-1); outline-offset:5px; }
+.action:disabled { opacity:.5; }
+.cardBottom .action { width:100%; }
+.blocker { margin:0 0 10px; font-size:11px; line-height:1.5; color:var(--text-2); }
+.footnote { font-size:11px; color:var(--text-3); line-height:1.6; margin:16px 0 0; }
+.error { color:var(--live-text); font-size:12px; line-height:1.6; }
+.success { color:var(--text-1); background:var(--lime-bg); padding:12px; border-radius:var(--r-sm); font-size:12px; }
+.empty { padding:36px 16px; text-align:center; color:var(--text-3); }
+.empty h3 { color:var(--text-1); font-size:16px; }
+.empty p { max-width:480px; margin:10px auto; font-size:13px; line-height:1.6; }
+.skeleton { border-top-color:var(--border); justify-content:center; align-items:center; color:var(--text-3); font-size:12px; }
+.dialog { padding:0; width:min(600px,calc(100vw - 32px)); max-height:calc(100dvh - 40px); overflow:auto; border:1px solid var(--border-card); border-radius:var(--r-lg); color:var(--text-1); background:var(--bg-card); margin:auto; }
+.dialog::backdrop { background:rgb(0 0 0 / .55); }
+.review { padding:24px; }
+.review h3 { font-size:13px; margin:20px 0 8px; }
+.reviewStats { display:flex; flex-wrap:wrap; gap:24px; padding:20px 0; margin-top:8px; border-bottom:1px solid var(--border-inner); }
+.reviewStats strong { font-size:28px; }
+.reviewStats b { font-size:13px; }
+.rules { font-size:12px; line-height:1.8; color:var(--text-2); }
+.review details { font-size:12px; line-height:1.7; }
+.review summary { cursor:pointer; }
+.requirements { padding:0 14px 12px; margin-top:16px; border:1px solid var(--border); border-radius:var(--r-sm); }
+.requirements ul { font-size:12px; padding-left:18px; line-height:1.7; }
+.reviewActions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:10px; margin-top:24px; }
+@media(max-width:600px) { .panel { padding:14px; } .header { align-items:start; } .header h2 { font-size:19px; } .card { aspect-ratio:auto; min-height:290px; } .review { padding:18px; } }
+@media(prefers-reduced-motion:reduce) { .action :global(.pn-press-face) { transition:none; } }

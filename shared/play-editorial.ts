@@ -1,5 +1,6 @@
 /** Shared, versioned authoring contract. Resolver parameters are derived, never raw UI JSON. */
 export const EDITORIAL_FAMILIES = {
+  champion: { label: 'Tournament champion', resolver: 'tournament.pair_champion_v1', horizon: 'tournament' },
   round: { label: 'Reach a round', resolver: 'tournament.pair_reaches_round_v1', horizon: 'tournament' },
   other_champion: { label: 'Another pair wins', resolver: 'tournament.other_pair_wins_v1', horizon: 'tournament' },
   titles: { label: 'Win a number of titles', resolver: 'season.pair_title_count_v1', horizon: 'season' },
@@ -36,7 +37,7 @@ export function validateEditorialConfig(raw: unknown): EditorialConfig {
 }
 export function editorialBindingErrors(c: EditorialConfig, now: Date): string[] {
   const errors: string[] = []
-  const tournament = c.family === 'round' || c.family === 'other_champion'
+  const tournament = c.family === 'champion' || c.family === 'round' || c.family === 'other_champion'
   if (c.playerIds.length !== (c.family === 'ranking' ? 1 : 2)) errors.push('Select every player.')
   if ((tournament && c.tournamentIds.length !== 1) || (c.family === 'titles' && !c.tournamentIds.length) || (c.family === 'ranking' && c.tournamentIds.length)) errors.push('Select the events required by this template.')
   if (c.family === 'titles' && (c.target > c.tournamentIds.length || c.minimumStarts > c.tournamentIds.length)) errors.push('Title/participation targets exceed the selected events.')
@@ -65,7 +66,15 @@ export function editorialCopy(c: EditorialConfig, players: string[], events: str
   const pair = players.join(' / '), scope = events.join(', ')
   const date = c.endsAt.slice(0,10), until = c.voidAfter
   const sf = c.round === 'SF'
-  const question: Copy = c.family === 'round'
+  const question: Copy = c.family === 'champion'
+    ? {
+        en: `Will ${pair} win ${scope}?`,
+        es: `¿Ganará ${pair} ${scope}?`,
+        pt: `A dupla ${pair} vai vencer ${scope}?`,
+        it: `La coppia ${pair} vincerà ${scope}?`,
+        fr: `La paire ${pair} remportera-t-elle ${scope} ?`,
+      }
+    : c.family === 'round'
     ? {
         en: `Will ${pair} reach the ${sf ? 'semifinals' : 'final'} in ${scope}?`,
         es: `¿Llegará ${pair} a ${sf ? 'semifinales' : 'la final'} en ${scope}?`,
@@ -96,7 +105,15 @@ export function editorialCopy(c: EditorialConfig, players: string[], events: str
             it: `${pair} raggiungerà il n. ${c.target} o meglio nel ranking ufficiale entro il ${date}?`,
             fr: `${pair} atteindra-t-il la ${c.target}e place ou mieux au classement officiel d'ici le ${date} ?`,
           }
-  const rules: Copy = c.family === 'round'
+  const rules: Copy = c.family === 'champion'
+    ? {
+        en: 'YES if this exact pair is the confirmed final winner. NO if another pair wins the final. A retirement with an official final winner counts. An unplayed final without a confirmed played result remains unresolved.',
+        es: 'SÍ si esta pareja exacta gana la final confirmada. NO si gana otra pareja. Cuenta una retirada con ganador oficial. Una final no disputada sin resultado confirmado queda pendiente.',
+        pt: 'SIM se esta dupla exata vencer a final confirmada. NÃO se outra dupla vencer. Conta uma desistência com vencedor oficial. Uma final não disputada sem resultado confirmado fica pendente.',
+        it: 'SÌ se questa esatta coppia vince la finale confermata. NO se vince un’altra coppia. Un ritiro con vincitore ufficiale conta. Una finale non disputata senza risultato confermato resta in sospeso.',
+        fr: 'OUI si cette paire exacte remporte la finale confirmée. NON si une autre paire gagne. Un abandon avec vainqueur officiel compte. Une finale non jouée sans résultat confirmé reste en suspens.',
+      }
+    : c.family === 'round'
     ? {
         en: 'YES once this exact pair starts playing in the target round or a later round. NO after a confirmed defeat in an earlier main-draw round. A scheduled slot or walkover alone is not participation.',
         es: 'SÍ cuando esta pareja exacta empiece a jugar la ronda indicada o una posterior. NO tras una derrota confirmada en una ronda anterior del cuadro principal. Una plaza programada o un pase por incomparecencia no bastan.',

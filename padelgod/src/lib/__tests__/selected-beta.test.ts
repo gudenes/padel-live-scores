@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { pairReachesRound, otherPairWinsTournament, pairTitleCount, playerReachesRanking } from '../market-resolvers/selected-beta.js'
+import { pairWinsTournament, pairReachesRound, otherPairWinsTournament, pairTitleCount, playerReachesRanking } from '../market-resolvers/selected-beta.js'
 import type { ResolverContext } from '../market-resolvers/types.js'
 const p = { player1Id: 'a', player2Id: 'b', voidAfter: '2026-12-08T00:00:00Z' }
 const final = { id: 'f', tournament_id: 't1', round_canonical: 'F', status: 'finished', winner_pair: 1,
@@ -12,6 +12,17 @@ function ctx(rows: object[], now = '2026-12-01T00:00:00Z', error: string | null 
     tournamentId: 't1', category: 'men', tokens: {}, now: new Date(now) }
 }
 describe('selected beta settlement', () => {
+  it('settles champion from the final, including retirement and reversed membership', async () => {
+    expect(await pairWinsTournament(ctx([final]),p)).toMatchObject({state:'decided',outcome:true,evidence:{asked_pair:['a','b']}})
+    expect(await pairWinsTournament(ctx([{...final,status:'retired',winner_pair:2}]),p)).toMatchObject({state:'decided',outcome:false})
+  })
+  it('keeps incomplete, walkover and duplicate champion evidence unresolved, then refunds', async () => {
+    for (const rows of [[],[{...final,status:'walkover'}],[{...final,pair1_player1_id:null}],[final,{...final,id:'duplicate'}]]) {
+      expect(await pairWinsTournament(ctx(rows),p)).toEqual({state:'undecided'})
+      expect(await pairWinsTournament(ctx(rows,'2026-12-09T00:00:00Z'),p)).toMatchObject({state:'void'})
+    }
+  })
+
   it('does not treat a scheduled semifinal or walkover as participation', async () => {
     for (const status of ['scheduled', 'walkover']) expect(await pairReachesRound(ctx([{ ...final, round_canonical: 'SF', status }]), { ...p, round: 'SF' })).toEqual({ state: 'undecided' })
   })

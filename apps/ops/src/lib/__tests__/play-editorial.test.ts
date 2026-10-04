@@ -28,7 +28,7 @@ describe('editorial authoring contract',()=>{
   expect(editorialCopy(config,['A','B'],['Rotterdam']).question.es).toContain('semifinales')
  })
  it('writes question and rules in every app locale, so pt/it/fr players never read English',()=>{
-  for (const family of ['round','other_champion','titles','ranking'] as const) {
+  for (const family of ['champion','round','other_champion','titles','ranking'] as const) {
    const copy=editorialCopy({...config,family},['A','B'],['Rotterdam'])
    for (const l of ['en','es','pt','it','fr'] as const) {
     expect(copy.question[l],`${family} question ${l}`).toMatch(/\S/)
@@ -40,6 +40,17 @@ describe('editorial authoring contract',()=>{
  })
 })
 describe('publication preview',()=>{
+ it('prices a champion directly from the model and binds its next match',async()=>{
+  const result=await previewEditorial(database(),{...config,family:'champion',probability:.95},now)
+  expect(result.errors).toEqual([])
+  expect(result.probability).toBe(.5)
+  expect(result.templateKey).toBe('editorial.champion.v1')
+  expect(result.resolverKey).toBe('tournament.pair_champion_v1')
+  expect(result.question.en).toBe('Will Player 0 / Player 1 win Rotterdam?')
+  expect(result.rules.en).toContain('all positions are refunded')
+  expect(result.boundMatchId).toBeTruthy()
+ })
+
  it('binds the next match and current model instead of client supplied prices',async()=>{
   const p=await previewEditorial(database(),{...config,probability:.2},now)
   expect(p.errors).toEqual([]);expect(p.probability).toBe(.6);expect(p.locksAt).toBe('2026-09-29T15:00:00Z');expect(p.boundMatchId).toBeTruthy()

@@ -5,6 +5,7 @@
 
 import SettlementControl from './SettlementControl'
 import EditorialMarkets from './EditorialMarkets'
+import TournamentSuggestions from './TournamentSuggestions'
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader, Panel, Pill, DataTable, EmptyState, Skeleton } from '@/components/ui'
 
@@ -98,7 +99,11 @@ export default function PlayMarketsTab() {
         }
       />
 
-      <EditorialMarkets onPublished={() => void load()} /><div style={{ height: 18 }} />
+      <TournamentSuggestions onPublished={() => void load()} />
+      <details style={{ marginBottom: 18 }}>
+        <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--text-2)', padding: '8px 0' }}>Manual market editor & saved drafts</summary>
+        <EditorialMarkets onPublished={() => void load()} />
+      </details>
 
       {held > 0 ? (
         <>

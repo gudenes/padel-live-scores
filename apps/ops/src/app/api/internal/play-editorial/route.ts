@@ -5,7 +5,7 @@ import { validateEditorialConfig } from '../../../../../../../shared/play-editor
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 const json = (value: unknown, status=200) => Response.json(value,{status,headers:{'Cache-Control':'no-store'}})
-export function sameOrigin(req: Request) {
+function sameOrigin(req: Request) {
   try { const url=new URL(req.url); return req.headers.get('origin') === `${url.protocol}//${req.headers.get('host') ?? url.host}` } catch { return false }
 }
 export async function GET() {

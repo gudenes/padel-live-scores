@@ -12,6 +12,7 @@ describe('resolver registry', () => {
       'tournament.bagel_count_at_least_v1',
       'tournament.champion_is_pair',
       'tournament.other_pair_wins_v1',
+      'tournament.pair_champion_v1',
       'tournament.pair_reaches_round_v1',
     ])
   })
