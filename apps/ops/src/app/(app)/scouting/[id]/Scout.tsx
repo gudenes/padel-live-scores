@@ -7,6 +7,7 @@ import {formatDuration,pressure} from '@/lib/scouting/tracking'
 import {isStarPoint} from '@/lib/scouting/scoring'
 import styles from './scout.module.css'
 import Insights from './Insights'
+import {historyJson} from '@/lib/scouting/history'
 import {sessionExport,pointsCsv,type ScoutPerson} from '@/lib/scouting/export'
 type Person=ScoutPerson
 type Action=Event extends infer E?E extends Event?Omit<E,'id'|'at'>:never:never
@@ -26,12 +27,12 @@ export default function Scout({matchId}:{matchId:string}){
     if(saving.current||blocked.current||!current.current)return
     saving.current=true
     try{
-      while(current.current&&saved.current!==JSON.stringify(current.current)){
+      while(current.current&&saved.current!==historyJson(current.current)){
         const snapshot=current.current;setSync('Saving…')
         const response=await fetch(`/api/internal/scouting/${matchId}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:revision.current,document:snapshot})})
         const result=await response.json()
         if(!response.ok){if(response.status===409){blocked.current=true;setConflict(true)}throw Error(result.error??'Could not save.')}
-        revision.current=result.revision;saved.current=JSON.stringify(snapshot);cache(current.current)
+        revision.current=result.revision;saved.current=historyJson(snapshot);cache(current.current)
       }
       if(mounted.current){setSync('Saved');setError('')}
     }catch(e){if(mounted.current){setSync('Not synced');setError(e instanceof Error?e.message:'Connection lost. Local copy retained; retry when online.')}}
@@ -44,19 +45,19 @@ export default function Scout({matchId}:{matchId:string}){
       if(controller.signal.aborted)return
       rosterRef.current=data.players;setPlayers(data.players);revision.current=data.session?.revision??0
       const remote=data.session?.document as ScoutDoc|null
-      saved.current=remote?JSON.stringify(remote):''
-      let chosen=remote
+      saved.current=remote?historyJson(remote):''
+      let chosen=remote,localReadable=true
       try{
         const raw=localStorage.getItem(key)
         if(raw){const local=validateDoc(JSON.parse(raw).document)
-          if(!remote||JSON.stringify(local)===JSON.stringify(remote))chosen=local
-          else if(JSON.stringify({...local,events:[]})===JSON.stringify({...remote,events:[]})&&JSON.stringify(local.events.slice(0,remote.events.length))===JSON.stringify(remote.events))chosen=local
-          else if(JSON.stringify({...local,events:[]})===JSON.stringify({...remote,events:[]})&&JSON.stringify(remote.events.slice(0,local.events.length))===JSON.stringify(local.events))chosen=remote
+          if(!remote||historyJson(local)===historyJson(remote))chosen=local
+          else if(historyJson({...local,events:[]})===historyJson({...remote,events:[]})&&historyJson(local.events.slice(0,remote.events.length))===historyJson(remote.events))chosen=local
+          else if(historyJson({...local,events:[]})===historyJson({...remote,events:[]})&&historyJson(remote.events.slice(0,local.events.length))===historyJson(local.events))chosen=remote
           else{chosen=local;blocked.current=true;setConflict(true);setError('Local and server sessions differ. Download your local copy before loading the server session.')}
         }
-      }catch{setError('The local recovery copy could not be read. The saved server session is loaded.')}
+      }catch{localReadable=false;setError('The local recovery copy could not be read. The saved server session is loaded.')}
       current.current=chosen;setDoc(chosen);setLoading(false);setSync(chosen?'Saved':'')
-      if(chosen&&!blocked.current)void save()
+      if(chosen&&!blocked.current){if(localReadable)cache(chosen);void save()}
     }).catch(e=>{if(!controller.signal.aborted){
       try{
         const raw=localStorage.getItem(key),local=raw?JSON.parse(raw):null
@@ -68,7 +69,7 @@ export default function Scout({matchId}:{matchId:string}){
       }catch{/* Leave an unreadable copy untouched for recovery. */}
       setError(e.message);setLoading(false)
     }})
-    const online=()=>void save(),leave=(e:BeforeUnloadEvent)=>{if(current.current&&saved.current!==JSON.stringify(current.current)){e.preventDefault();e.returnValue=''}}
+    const online=()=>void save(),leave=(e:BeforeUnloadEvent)=>{if(current.current&&saved.current!==historyJson(current.current)){e.preventDefault();e.returnValue=''}}
     window.addEventListener('online',online);window.addEventListener('beforeunload',leave)
     return()=>{mounted.current=false;controller.abort();window.removeEventListener('online',online);window.removeEventListener('beforeunload',leave)}
   // Match identity owns the session; refs keep fast consecutive taps ordered.

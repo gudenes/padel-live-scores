@@ -84,3 +84,46 @@ it('changes server directly on the court during a second serve and supports undo
  expect(screen.getByText('One · Second serve')).toBeTruthy()
  await waitFor(()=>expect(screen.getByText('Saved')).toBeTruthy())
 })
+const reordered=(value:unknown):any=>Array.isArray(value)?value.map(reordered):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).sort(([a],[b])=>b.localeCompare(a)).map(([k,v])=>[k,reordered(v)])):value
+const rallyStart={kind:'rally_start' as const,id:'rally',at:'2026-10-04T12:00:00Z'}
+it('resumes an identical saved rally after reload despite reordered database keys',async()=>{
+ const document={...freshDoc(),events:[rallyStart]}
+ localStorage.setItem('pn-scout-v1:ordered',JSON.stringify({revision:2,players,document}))
+ const fetch=vi.fn(async()=>Response.json({players,session:{revision:2,document:reordered(document)}}))
+ vi.stubGlobal('fetch',fetch);render(createElement(Scout,{matchId:'ordered'}))
+ await screen.findByRole('button',{name:'Rally in progress'})
+ expect(screen.queryByText(/Local and server sessions differ/)).toBeNull()
+ expect(fetch).toHaveBeenCalledTimes(1)
+})
+it('recovers and syncs unsaved local points after a reload with reordered server history',async()=>{
+ const remote={...freshDoc(),events:[rallyStart]}
+ const local={...remote,events:[...remote.events,{kind:'point' as const,player:0 as const,outcome:'winner' as const,smash:false,id:'winner',at:'2026-10-04T12:00:12Z'}]}
+ localStorage.setItem('pn-scout-v1:pending',JSON.stringify({revision:1,players,document:local}))
+ const fetch=vi.fn(async(_url:unknown,opts?:RequestInit)=>Response.json(opts?.method==='POST'?{revision:3}:{players,session:{revision:2,document:reordered(remote)}}))
+ vi.stubGlobal('fetch',fetch);render(createElement(Scout,{matchId:'pending'}))
+ await screen.findByRole('button',{name:'Start rally Space'})
+ await waitFor(()=>expect(fetch).toHaveBeenCalledTimes(2))
+ const payload=JSON.parse(fetch.mock.calls[1][1]!.body as string)
+ expect(payload).toEqual({revision:2,document:local})
+ await waitFor(()=>expect(screen.getByText('Saved')).toBeTruthy())
+ expect(screen.queryByText(/Local and server sessions differ/)).toBeNull()
+ expect(JSON.parse(localStorage.getItem('pn-scout-v1:pending')!).document.events).toHaveLength(2)
+})
+it('chooses a longer server history without overwriting it after reload',async()=>{
+ const local=freshDoc(),remote={...local,events:[rallyStart]}
+ localStorage.setItem('pn-scout-v1:remote-ahead',JSON.stringify({revision:1,players,document:local}))
+ const fetch=vi.fn(async()=>Response.json({players,session:{revision:2,document:reordered(remote)}}))
+ vi.stubGlobal('fetch',fetch);render(createElement(Scout,{matchId:'remote-ahead'}))
+ await screen.findByRole('button',{name:'Rally in progress'})
+ expect(fetch).toHaveBeenCalledTimes(1)
+ expect(JSON.parse(localStorage.getItem('pn-scout-v1:remote-ahead')!).document.events).toEqual([rallyStart])
+ expect(screen.queryByText(/Local and server sessions differ/)).toBeNull()
+})
+it('still blocks genuinely divergent local and server histories',async()=>{
+ localStorage.setItem('pn-scout-v1:diverged',JSON.stringify({revision:1,players,document:{...freshDoc(),events:[rallyStart]}}))
+ const fetch=vi.fn(async()=>Response.json({players,session:{revision:2,document:reordered({...freshDoc(),events:[{...rallyStart,id:'other-rally'}]})}}))
+ vi.stubGlobal('fetch',fetch);render(createElement(Scout,{matchId:'diverged'}))
+ await screen.findByText(/Local and server sessions differ/)
+ expect(fetch).toHaveBeenCalledTimes(1)
+ expect(screen.getByRole('button',{name:'Download local copy'})).toBeTruthy()
+})

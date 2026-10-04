@@ -25,3 +25,21 @@ it('persists arrival preparation then appends server confirmation without replac
  expect((await POST(request(next,2),ctx)).status).toBe(200)
  expect(mock.writes).toHaveBeenCalledWith(expect.objectContaining({document:next,revision:3}))
 })
+// Match PostgreSQL JSONB's reordered keys, including nested score fields.
+const reorder=(value:unknown):any=>Array.isArray(value)?value.map(reorder):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).sort(([a],[b])=>b.localeCompare(a)).map(([k,v])=>[k,reorder(v)])):value
+it('accepts successive appends against JSONB-reordered session records',async()=>{
+ const first={...doc,events:[start]}
+ mock.queue.push({data:{revision:1,document:reorder(doc),players}},{data:{revision:2}})
+ expect((await POST(request(first,1),ctx)).status).toBe(200)
+ const second={...first,events:[...first.events,{kind:'first_fault',id:'fault',at:'2026-10-04T12:00:02Z'}]}
+ mock.queue.push({data:{revision:2,document:reorder(first),players}},{data:{revision:3}})
+ expect((await POST(request(second,2),ctx)).status).toBe(200)
+ expect(mock.writes).toHaveBeenLastCalledWith(expect.objectContaining({document:second,revision:3}))
+})
+it('still rejects edits to existing events or settings when keys are reordered',async()=>{
+ for(const changed of [{...doc,rule:'advantage',events:[start]},{...doc,events:[{...start,at:'2026-10-04T12:00:03Z'}]}]){
+  mock.queue.push({data:{revision:1,document:reorder({...doc,events:[start]}),players}})
+  expect((await POST(request(changed,1),ctx)).status).toBe(400)
+ }
+ expect(mock.writes).not.toHaveBeenCalled()
+})
