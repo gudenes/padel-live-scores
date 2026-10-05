@@ -4,15 +4,15 @@ Local review: `/es/invite-review`, then “Ver la pantalla de tu amigo”. Revie
 
 Player entry points: Leaders → Invite friends, and the profile menu on Play → Invite friends. Existing general app referrals are retained elsewhere.
 
-## Launch configuration (not enabled by this change)
+## Configuration
 
 - `PLAY_INVITES_ENABLED=true`
 - `PLAY_INVITES_START_AT`: explicit ISO timestamp with time zone, agreed with Gustavo before deployment.
 - Existing `AUTH_SECRET` signs tokens; never use a public key variable.
 
-The window ends exactly 21 days after the configured start. This closes new invitation redemption; it does not revoke access from people who joined. It does not automatically open the game publicly afterward. That release is a separate decision.
+Invitations remain enabled after the configured start until `PLAY_INVITES_ENABLED=false`. Disabling invitations stops issuing and redeeming links; it does not revoke existing members. Previously issued signed links remain valid while invitations are enabled, including links carrying the original three-week expiry.
 
-Only current Play members can create invitations. Links are reusable, expire at the window end, and bind to the issuing origin. Local links do not work in production. Acceptance requires login, a valid signature, an active window, the Play master switch, a still-whitelisted inviter, and a same-origin JSON request. Access is inserted idempotently into existing `play_access`; the inviter is recorded in `granted_by`. Existing grants are not overwritten. Apply migration `20261005140000_play_invitation_connections.sql` before enabling invitations. No wallet rewards.
+Only current Play members can create invitations. Links are reusable, have no automatic expiry, and bind to the issuing origin. Local links do not work in production. Acceptance requires login, a valid signature, an active window, the Play master switch, a still-whitelisted inviter, and a same-origin JSON request. Access is inserted idempotently into existing `play_access`; the inviter is recorded in `granted_by`. Existing grants are not overwritten. Apply migration `20261005140000_play_invitation_connections.sql` before enabling invitations. No wallet rewards.
 
 The link is retained in the Google/Apple/email callback URL. After acceptance, full navigation to Play refreshes server access and invokes the existing name/avatar/first-prediction onboarding. OAuth must be tested with a callback origin registered with the provider before launch.
 

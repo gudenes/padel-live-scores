@@ -11,6 +11,6 @@ export async function POST(req: Request) {
  try {
   const origin = req.headers.get('origin')!
   const token = signInvitation(access.userId, origin, window.end)
-  return Response.json({token,expiresAt:new Date(window.end).toISOString()},{headers:{'Cache-Control':'private, no-store'}})
+  return Response.json({token,expiresAt:null},{headers:{'Cache-Control':'private, no-store'}})
  } catch {return Response.json({error:'unavailable'},{status:503})}
 }

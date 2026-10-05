@@ -2046,8 +2046,8 @@
     },
     "leaders": {
       "rankingInfo": "Come funziona la classifica",
-      "quietWeekTitle": "Ancora nessun risultato questa settimana",
-      "quietWeekBody": "La classifica inizia quando si risolvono i primi pronostici. Intanto, fai un pronostico o consulta la settimana precedente.",
+      "quietWeekTitle": "Ancora nessun pronostico questa settimana",
+      "quietWeekBody": "Fai un pronostico per entrare nella classifica di questa settimana o consulta quella precedente.",
       "exploreMarkets": "Mercati aperti",
       "searchToggle": "Cerca giocatori",
       "searchPlaceholder": "Cerca per nome",
@@ -2076,7 +2076,7 @@
       "accuracy": "{pct}% di precisione",
       "streak": "serie da {n}",
       "you": "Tu",
-      "note": "Classifica per premi meno il costo delle giocate risolte. Giocate in sospeso, rimborsi e acquisti di abbigliamento non influiscono sul punteggio.",
+      "note": "La classifica usa i premi meno il costo dei pronostici risolti. Compari questa settimana dal tuo primo pronostico. Pronostici in attesa, rimborsi e acquisti nel guardaroba non cambiano il punteggio.",
       "empty": {
         "title": "La classifica è vuota",
         "body": "La tua prima giocata risolta ti farà entrare in classifica."

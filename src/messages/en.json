@@ -2078,8 +2078,8 @@
     },
     "leaders": {
       "rankingInfo": "How ranking works",
-      "quietWeekTitle": "No results this week yet",
-      "quietWeekBody": "The ranking starts when the first plays settle. In the meantime, make your next prediction or review last week.",
+      "quietWeekTitle": "No predictions this week yet",
+      "quietWeekBody": "Make a prediction to join this week’s ranking, or review last week.",
       "exploreMarkets": "Open markets",
       "searchToggle": "Search players",
       "searchPlaceholder": "Search by player name",
@@ -2108,7 +2108,7 @@
       "accuracy": "{pct}% accurate",
       "streak": "{n} streak",
       "you": "You",
-      "note": "Ranked by payouts minus the cost of settled plays. Pending plays, refunds and wardrobe purchases do not affect your score.",
+      "note": "Ranked by payouts minus the cost of settled plays. This week’s players appear from their first prediction. Pending plays, refunds and wardrobe purchases do not affect your score.",
       "empty": {
         "title": "The leaderboard is empty",
         "body": "Your first settled play will enter you in the ranking."
