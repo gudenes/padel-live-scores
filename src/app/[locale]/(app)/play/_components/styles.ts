@@ -1195,4 +1195,14 @@ body:has(.pl-root) .v3-nav-tab { flex:1; min-width:0; padding-left:4px !importan
 .pl-personal-heading h2{margin:0;font-size:20px;font-weight:900;line-height:1.15;letter-spacing:-.3px;color:var(--text-primary);text-wrap:balance}
 .pl-root:has(.pl-personal-heading) .pl-screens{height:calc(100dvh - var(--pl-chrome) - 48px)}
 @media(prefers-reduced-motion:reduce){.pl-brand-header{transition:none}}
+
+/* Portal anchors to the actual nav on mobile and inside the desktop phone. */
+.pl-invite-float { position:absolute; right:16px; bottom:calc(100% + 12px); z-index:110; }
+.pl-invite-float button:focus-visible { outline:2px solid var(--lime); outline-offset:3px; }
+.pl-invite-float .pn-press { width:52px; height:52px; min-width:52px; min-height:52px; }
+.pl-invite-float .pn-press-face { width:52px; height:52px; box-sizing:border-box; padding:8px 10px; display:flex; align-items:center; justify-content:center; }
+.pl-invite-float .pn-press-face img { display:block; width:32px; height:32px; max-width:none; flex:none; }
+.app-screen:has(.pl-invite-float) .pl-pos-list,
+.app-screen:has(.pl-invite-float) .pl-lb-list,
+.app-screen:has(.pl-invite-float) .pl-natural-feed { padding-bottom:76px; }
 `

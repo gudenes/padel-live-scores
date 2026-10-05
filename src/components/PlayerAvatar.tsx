@@ -32,14 +32,14 @@ export function usePlayerOutfit(userId?: string) {
   return { outfit, save }
 }
 /** All layers use artwork coordinates, so resizing cannot detach the neck. */
-export function PlayerFigure({ outfit, className, label = '', portrait = false, approvedArtwork = process.env.NODE_ENV === 'development' }: { outfit: PlayerOutfit; className?: string; label?: string; portrait?: boolean; approvedArtwork?: boolean }) {
+export function PlayerFigure({ outfit, className, label = '', portrait = false, approvedArtwork = process.env.NODE_ENV === 'development', wardrobe }: { outfit: PlayerOutfit; className?: string; label?: string; portrait?: boolean; approvedArtwork?: boolean; wardrobe?: Record<string,string> }) {
   const id = useId().replace(/:/g, '')
   const look=splitPlayerLook(outfit)
   const custom=look.face.startsWith('custom:')
   const source=custom?playerImageSrc(look.face):null
   const artVersion=useAvatarArtVersion(source)
   if(custom&&(artVersion==='loading'||artVersion==='error'))return <span className={className} role="status" aria-label={artVersion==='loading'?'Loading avatar':'Avatar unavailable'}/>
-  if((approvedArtwork && usesA01Artwork(look.face))||artVersion==='a01-v1')return <span className={className} style={{display:'block',width:'100%',height:'100%'}} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:custom?'face-06':look.face,customSource:source??undefined,id:`portrait-${id}`,portrait,base:'/play/avatars/a01-local/',outfit:look.clothes==='starter'?{}:{shirt:look.clothes==='court-club'?'club':'cobalt',shorts:look.clothes==='court-club'?'club':'cobalt'}}).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ')}}/>
+  if((approvedArtwork && usesA01Artwork(look.face))||artVersion==='a01-v1')return <span className={className} style={{display:'block',width:'100%',height:'100%'}} dangerouslySetInnerHTML={{__html:renderAvatar({avatar:custom?'face-06':look.face,customSource:source??undefined,id:`portrait-${id}`,portrait,base:'/play/avatars/a01-local/',outfit:wardrobe ?? (look.clothes==='starter'?{}:{shirt:look.clothes==='court-club'?'club':'cobalt',shorts:look.clothes==='court-club'?'club':'cobalt'})}).replace('<svg ', '<svg style="width:100%;height:100%;display:block" ')}}/>
   const artwork = playerArtwork(outfit)
   return <svg className={className} role={label ? 'img' : undefined} aria-label={label || undefined} aria-hidden={label ? undefined : true} viewBox={portrait ? '200 20 620 650' : `0 0 ${PLAYER_RIG.width} ${PLAYER_RIG.height}`} style={{ display: 'block', width: '100%', height: '100%' }} preserveAspectRatio="xMidYMid meet">
     {artwork.kind === 'whole' ? <image href={artwork.image} width="1024" height="1536" /> : <>
@@ -52,8 +52,8 @@ export function PlayerFigure({ outfit, className, label = '', portrait = false, 
     </>}
   </svg>
 }
-export function PlayerAvatar({ outfit, size = 44, approvedArtwork }: { outfit: PlayerOutfit; size?: number; approvedArtwork?: boolean }) {
+export function PlayerAvatar({ outfit, size = 44, approvedArtwork, wardrobe }: { outfit: PlayerOutfit; size?: number; approvedArtwork?: boolean; wardrobe?: Record<string,string> }) {
   return <span style={{ width: size, height: size, display: 'inline-block', overflow: 'hidden', borderRadius: '50%', background: '#20211e', position: 'relative', flexShrink: 0 }}>
-    <PlayerFigure outfit={outfit} portrait approvedArtwork={approvedArtwork} />
+    <PlayerFigure outfit={outfit} portrait approvedArtwork={approvedArtwork} wardrobe={wardrobe} />
   </span>
 }

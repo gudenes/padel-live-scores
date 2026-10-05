@@ -13,7 +13,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import {MemberAvatar} from '@/components/player/MemberAvatar'
 import GuacaCoin from '@/components/GuacaCoin'
 import { useLocale, useTranslations } from 'next-intl'
-import { simulationPlayerLook } from '@/lib/player-outfit'
+import { simulationPlayerLook, simulationPlayerWardrobe } from '@/lib/player-outfit'
 import Avatar from '@/components/Avatar'
 import { PlayerAvatar, PlayerFigure } from '@/components/PlayerAvatar'
 import { useRouter } from '@/i18n/navigation'
@@ -39,7 +39,7 @@ function Move({ move }: { move: number | null }) {
 /** Member appearances come from their saved wardrobe on every device. */
 function LeaderAvatar({ leader, size = 44 }: { leader: PlayLeader; size?: number }) {
   const fallback = leader.avatarUrl ? <Avatar src={leader.avatarUrl} alt="" size={size} unoptimized /> : <PlayerAvatar outfit="starter" size={size} />
-  if (leader.isSimulation) return <PlayerAvatar outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} size={size} />
+  if (leader.isSimulation) return <PlayerAvatar outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} wardrobe={simulationPlayerWardrobe(leader.avatarSeed || leader.displayName)} approvedArtwork size={size} />
   return leader.userId ? <MemberAvatar userId={leader.userId} size={size} fallback={fallback}/> : fallback
 }
 
@@ -52,7 +52,6 @@ export interface LeadersScreenProps {
   status: LoadStatus
   period: LeaderPeriod
   onPeriod: (p: LeaderPeriod) => void
-  onInvite?: () => void
   onOpenMarkets?: () => void
   onRetry: () => void
 }
@@ -68,7 +67,6 @@ export default function LeadersScreen({
   onPeriod,
   onRetry,
   onOpenMarkets,
-  onInvite,
 }: LeadersScreenProps) {
   const t = useTranslations('play')
   const locale = useLocale()
@@ -184,7 +182,7 @@ export default function LeadersScreen({
         {board.me.move != null && <Move move={board.me.move}/>}
       </section>}
       {!searchOpen && status === 'ready' && rows.length > 0 && <>
-        <div className={styles.scope}><strong>{t('leaders.title')} · {t(`leaders.${period}`)}</strong></div>
+        <div className={styles.scope}><strong>{t('leaders.title')} · {t(`leaders.${period}`)}</strong><RankingInfo weekly={period==='week'}/></div>
         <div className={styles.columns}><span>#</span><span>{t('leaders.player')}</span><span>{t('leaders.netWinnings')}</span></div>
       </>}
 
@@ -223,7 +221,6 @@ export default function LeadersScreen({
         {!l.isMe&&!l.isSimulation&&l.userId&&<Press size="size-sm" intent={follows.ids.includes(l.userId)?'intent-ghost':'intent-primary'} disabled={follows.busy||!follows.ready} onClick={()=>void follows.toggle(l.userId!)}>{t(follows.ids.includes(l.userId)?'leaders.followed':'leaders.follow')}</Press>}
        </div>)}
       </section>}
-      {!searchOpen && <div className={styles.inviteEntry}><Press size="size-sm" intent="intent-ghost" onClick={() => onInvite ? onInvite() : router.push('/invite-play')}>{t('invite.inviteFriends')}</Press><RankingInfo weekly={period==='week'}/></div>}
       {selected && <PlayerPreview follows={follows} leader={selected} name={nameOf(selected)} period={period} onClose={() => setSelected(null)} onProfile={() => router.push('/profile')} />}
 
     </>
@@ -257,7 +254,7 @@ function PlayerPreview({ follows, leader, name, period, onClose, onProfile }: {
       <div className="pl-sheet-head"><h2 id="leader-player-title">{name}</h2>
       {!leader.isMe&&!leader.isSimulation&&leader.userId&&<Press size="size-sm" intent={followed?'intent-primary':'intent-ghost'} disabled={follows.busy||!follows.ready} onClick={async()=>{if(await follows.toggle(leader.userId!))setCountVersion(n=>n+1)}}>{t(followed?'leaders.followed':'leaders.follow')}</Press>}
       <button className="pl-x" onClick={onClose} aria-label={t('detail.close')}>×</button></div>
-      <div className={styles.playerHero}>{leader.isSimulation ? <div className={styles.figure}><PlayerFigure outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} /></div> : leader.userId ? <MemberAvatar userId={leader.userId} full fallback={<LeaderAvatar leader={leader} size={112}/>}/> : <LeaderAvatar leader={leader} size={112} />}<span>{leader.isMe ? t('leaders.you') : t('leaders.player')}</span></div>
+      <div className={styles.playerHero}>{leader.isSimulation ? <div className={styles.figure}><PlayerFigure outfit={simulationPlayerLook(leader.avatarSeed || leader.displayName)} wardrobe={simulationPlayerWardrobe(leader.avatarSeed || leader.displayName)} approvedArtwork /></div> : leader.userId ? <MemberAvatar userId={leader.userId} full fallback={<LeaderAvatar leader={leader} size={112}/>}/> : <LeaderAvatar leader={leader} size={112} />}<span>{leader.isMe ? t('leaders.you') : t('leaders.player')}</span></div>
       {follows.error&&<p role="alert" className={styles.followError}>{t('leaders.followError')}</p>}
       {!leader.isSimulation&&<div className={styles.socialCounts}><div><strong>{counts?.followers??'—'}</strong><span>{t('leaders.followers')}</span></div><div><strong>{counts?.following??'—'}</strong><span>{t('leaders.following')}</span></div></div>}
       <div className={styles.stats}><div><span>{t(`leaders.${period}`)}</span><strong>#{leader.rank}</strong></div>{!leader.isSimulation && leader.userId && <div className={styles.accuracy}><span>{rateText('shortLabel')}</span><PredictionRate userId={leader.userId} metric/></div>}<div><span>{t('leaders.netWinnings')}</span><strong data-loss={leader.netWinnings < 0}>{formatGuacas(leader.netWinnings, locale)} <GuacaCoin size={24} /></strong></div></div>

@@ -15,12 +15,19 @@ interface Result { id:string; status:string; outcome:boolean|null; settled_at:st
  * Ignore wallet grants, open holdings and stale local resolution copies. */
 export async function localSimulationLeaders(req: Request, supabase: SupabaseClient, period: string, seasonId: string | null = null, weekOffset=0): Promise<SimulationLeader[]> {
   let bots: Bot[], holdings: Holding[]
+  let participants: {bot_id:string}[] = []
+  const week=leaderboardWeek(weekOffset)
   if (process.env.NODE_ENV === 'production' && process.env.PLAY_SIMULATION_ENABLED === 'true') {
     const [botRows, positionRows, marketRows] = await Promise.all([
       paginatedSelect<Bot>((a,b)=>supabase.from('play_sim_bots').select('id,name').eq('prize_eligible',0).order('id').range(a,b),{what:'simulation players'}),
       paginatedSelect<{bot_id:string;market_id:string;side:string;shares:number;cost:number}>((a,b)=>supabase.from('play_sim_positions').select('bot_id,market_id,side,shares,cost').order('bot_id').order('market_id').order('side').range(a,b),{what:'simulation positions'}),
       paginatedSelect<{id:string;source_market_id:string|null}>((a,b)=>supabase.from('play_sim_markets').select('id,source_market_id').order('id').range(a,b),{what:'simulation markets'}),
     ])
+    if (period === 'week') participants = await paginatedSelect<{bot_id:string}>(
+      (a,b)=>supabase.from('play_sim_trades').select('bot_id,play_sim_markets!inner(source_market_id)')
+        .not('play_sim_markets.source_market_id','is',null)
+        .gte('created_at',Date.parse(week.start)).lt('created_at',Date.parse(week.end))
+        .order('id').range(a,b),{what:'weekly simulation participants'})
     bots=botRows
     const sources=new Map(marketRows.map(m=>[m.id,m.source_market_id]))
     holdings=positionRows.map(p=>({...p,source_market_id:sources.get(p.market_id)??null}))
@@ -29,6 +36,7 @@ export async function localSimulationLeaders(req: Request, supabase: SupabaseCli
     if (!file || !existsSync(file)) return []
     const db=new DatabaseSync(file,{readOnly:true})
     try {
+      if(period==='week') participants=db.prepare(`SELECT DISTINCT t.bot_id FROM trades t JOIN markets m ON m.id=t.market_id WHERE m.source_market_id IS NOT NULL AND t.created_at>=? AND t.created_at<?`).all(Date.parse(week.start),Date.parse(week.end)) as unknown as {bot_id:string}[]
       bots=db.prepare('SELECT id,name FROM bots WHERE prize_eligible=0').all() as unknown as Bot[]
       holdings=db.prepare(`SELECT p.bot_id,p.side,p.shares,p.cost,m.source_market_id
         FROM positions p JOIN markets m ON m.id=p.market_id`).all() as unknown as Holding[]
@@ -42,6 +50,12 @@ export async function localSimulationLeaders(req: Request, supabase: SupabaseCli
     results.push(...(data??[]) as Result[])
   }
   const scores=simulationNetWinnings(holdings,results,period,seasonId,Date.now(),weekOffset)
+  if(period==='week') {
+    for(const {bot_id} of participants) if(!scores.has(bot_id)) scores.set(bot_id,0)
+  } else {
+    const eligible=new Set(results.filter(m=>period==='all'||m.season_id===seasonId).map(m=>m.id))
+    for(const h of holdings) if(h.source_market_id && eligible.has(h.source_market_id) && !scores.has(h.bot_id)) scores.set(h.bot_id,0)
+  }
   return bots.filter(b=>scores.has(b.id)).map(b=>({userId:`sim:${b.id}`,displayName:simulationDisplayName(b.name),avatarSeed:b.id,
     netWinnings:scores.get(b.id)!,isSimulation:true,prizeEligible:false}))
 }

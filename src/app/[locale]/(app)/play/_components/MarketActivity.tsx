@@ -6,13 +6,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { PlayerAvatar } from '@/components/PlayerAvatar'
 import Avatar from '@/components/Avatar'
-import { simulationPlayerLook } from '@/lib/player-outfit'
+import { simulationPlayerLook, simulationPlayerWardrobe } from '@/lib/player-outfit'
 import { formatGuacas, relativeShort } from './shared'
 import { parseActivity, type PlayMarket, type PlayTrade } from './types'
 import styles from './MarketActivity.module.css'
 
 export function TradeAvatar({ trade, size = 42, interactive = true }: { trade: PlayTrade; size?: number; interactive?: boolean }) {
-  const fallback=trade.avatarUrl ? <Avatar src={trade.avatarUrl} alt="" size={size}/> : <PlayerAvatar outfit={trade.isSimulation ? simulationPlayerLook(trade.avatarSeed || trade.displayName) : 'starter'} size={size}/>
+  const fallback=trade.avatarUrl ? <Avatar src={trade.avatarUrl} alt="" size={size}/> : <PlayerAvatar outfit={trade.isSimulation ? simulationPlayerLook(trade.avatarSeed || trade.displayName) : 'starter'} wardrobe={trade.isSimulation ? simulationPlayerWardrobe(trade.avatarSeed || trade.displayName) : undefined} approvedArtwork={trade.isSimulation ? true : undefined} size={size}/>
   if (!trade.isSimulation && trade.userId && !interactive) return <MemberAvatar userId={trade.userId} size={size} fallback={fallback}/>
   return !trade.isSimulation && trade.userId ? <MemberAvatarButton userId={trade.userId} name={trade.displayName || ''} size={size} fallback={fallback}/> : fallback
 }
