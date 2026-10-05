@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl'
 // ── Extracted section components ──────────────────────────────
 import {
   BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PREMIER_LEVELS, PAGE_STYLES, SectionTitle,
-  Tournament, Highlight, RankedPlayer, NewsItem, isHiddenLevel,
+  Tournament, Highlight, RankedPlayer, NewsItem, isHiddenLevel, HIDDEN_TOURNAMENT_LEVELS,
 } from '@/components/home/shared'
 import LiveMatchCard from '@/components/home/LiveMatchCard'
 import UpcomingMatchCard from '@/components/home/UpcomingMatchCard'
@@ -336,7 +336,16 @@ function V3HomePageInner() {
             // whose final finished yesterday or the day before still
             // surfaces with its champion treatment.
             .gte('ends_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
-            .limit(40) as any,
+            // Drop hidden tiers in the DB, not after the limit — otherwise
+            // they eat rows and push real events out of the window. NULL
+            // level is kept explicitly (NOT IN would drop it).
+            .or(`level.is.null,level.not.in.(${(HIDDEN_TOURNAMENT_LEVELS.length ? HIDDEN_TOURNAMENT_LEVELS : ['__none__']).join(',')})`)
+            // Deterministic order + headroom. Unordered .limit(40) let
+            // Postgres pick which rows survived; on 2026-10-05 a busy
+            // Bronze week (43 in window) cut all three Premier events.
+            .order('starts_at', { ascending: true })
+            .order('id', { ascending: true })
+            .limit(100) as any,
           'home:carousel-window',
         ),
         wrap(
