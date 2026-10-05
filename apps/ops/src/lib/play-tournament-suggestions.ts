@@ -20,7 +20,7 @@ const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i
 const probability = (value: number | string | null) => value === null ? NaN : Number(value)
 
 /** Small balanced shortlist, built only from real pairs in the tournament model. */
-export function suggestTournamentConfigs(event: SuggestionEvent, projections: ProjectionPair[]) {
+export function suggestTournamentConfigs(event: SuggestionEvent, projections: ProjectionPair[], locksAt = '') {
   if (!Number.isFinite(Date.parse(event.ends_at))) return []
   const endsAt = new Date(`${event.ends_at.slice(0, 10)}T23:59:59Z`).toISOString()
   const candidates: { id: string; config: EditorialConfig; reason: string }[] = []
@@ -40,7 +40,7 @@ export function suggestTournamentConfigs(event: SuggestionEvent, projections: Pr
       used.add(key)
       candidates.push({ id: `${event.id}:${category}:${family}:${family === 'round' ? round : ''}:${key}`, reason,
         config: { family, category, playerIds, tournamentIds: [event.id], round, target: 1, minimumStarts: 1,
-          startsAt: '', endsAt, locksAt: '', voidAfter: new Date(Date.parse(endsAt) + 7 * DAY).toISOString(),
+          startsAt: '', endsAt, locksAt, voidAfter: new Date(Date.parse(endsAt) + 7 * DAY).toISOString(),
           probability: null, probabilitySource: '', maxLoss: 5000 } })
     }
     const contenders = unique.filter(p => probability(p.champion_prob) >= .02 && probability(p.champion_prob) <= .98)
@@ -69,7 +69,7 @@ export function matchingTournamentMarket(config: EditorialConfig, markets: Exist
   })?.id ?? null
 }
 
-export async function loadTournamentSuggestions(db: SupabaseClient, tournamentId: string | null, now = new Date()): Promise<TournamentSuggestions> {
+export async function loadTournamentSuggestions(db: SupabaseClient, tournamentId: string | null, now = new Date(), locksAt = ''): Promise<TournamentSuggestions> {
   if (tournamentId && !UUID.test(tournamentId)) throw new Error('Invalid tournament ID.')
   const eventsResult = await db.from('tournaments').select('id,name,starts_at,ends_at,level')
     .in('level',['p1','p2','major']).gte('ends_at', now.toISOString().slice(0,10))
@@ -89,7 +89,7 @@ export async function loadTournamentSuggestions(db: SupabaseClient, tournamentId
   ])
   if (projections.error || markets.error) throw new Error(projections.error?.message ?? markets.error?.message)
   if ((projections.data?.length ?? 0) >= 256 || (markets.data?.length ?? 0) >= 500) throw new Error('Tournament data may be incomplete. Review coverage before suggesting markets.')
-  const candidates = suggestTournamentConfigs(event, (projections.data ?? []) as ProjectionPair[])
+  const candidates = suggestTournamentConfigs(event, (projections.data ?? []) as ProjectionPair[], locksAt)
   const suggestions: TournamentSuggestion[] = []
   // Four pairs per draw at most; bound query concurrency to avoid flooding Supabase.
   for (let i = 0; i < candidates.length; i += 2) {

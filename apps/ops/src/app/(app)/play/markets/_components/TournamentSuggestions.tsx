@@ -21,6 +21,8 @@ async function editorialAction(body: Record<string, unknown>) {
 export default function TournamentSuggestions({ onPublished }: { onPublished: () => void }) {
   const [data,setData] = useState<SuggestionData | null>(null)
   const [eventId,setEventId] = useState('')
+  const [deadline,setDeadline] = useState('')
+  const [appliedDeadline,setAppliedDeadline] = useState('')
   const [draw,setDraw] = useState('all')
   const [loading,setLoading] = useState(true)
   const [error,setError] = useState('')
@@ -37,12 +39,12 @@ export default function TournamentSuggestions({ onPublished }: { onPublished: ()
 
   useEffect(() => {
     const controller = new AbortController()
-    fetch(`/api/internal/play-suggestions${eventId ? `?tournament=${encodeURIComponent(eventId)}` : ''}`, {cache:'no-store',signal:controller.signal})
+    fetch(`/api/internal/play-suggestions?${new URLSearchParams({...eventId ? {tournament:eventId} : {},...appliedDeadline ? {locksAt:appliedDeadline} : {}})}`, {cache:'no-store',signal:controller.signal})
       .then(async r => { const result = await r.json(); if (!r.ok) throw new Error(result.error); return result })
       .then(result => { setData(result); setError(''); setLoading(false) })
       .catch(e => { if (!controller.signal.aborted) { setError(e.message); setLoading(false) } })
     return () => controller.abort()
-  }, [eventId,refresh])
+  }, [eventId,refresh,appliedDeadline])
   useEffect(() => { const timer=setInterval(()=>setNow(Date.now()),15000); return ()=>clearInterval(timer) }, [])
   useEffect(() => { if (selected) dialog.current?.showModal(); else dialog.current?.close() }, [selected])
   const reload = useCallback(() => { setLoading(true); setError(''); setRefresh(n=>n+1) }, [])
@@ -85,13 +87,18 @@ export default function TournamentSuggestions({ onPublished }: { onPublished: ()
     </header>
     <div className="ui-panel-pad">
     <div className={styles.toolbar}>
-      <label>Tournament<select className="ui-select" value={eventId || data?.tournamentId || ''} disabled={loading || busy} onChange={e=>{setLoading(true);setEventId(e.target.value);setMessage('')}}>
+      <label>Tournament<select className="ui-select" value={eventId || data?.tournamentId || ''} disabled={loading || busy} onChange={e=>{setLoading(true);setEventId(e.target.value);setDeadline('');setAppliedDeadline('');setMessage('')}}>
         {!data?.events.length&&<option value="">Upcoming tournaments</option>}
         {data?.events.map(t=><option key={t.id} value={t.id}>{t.name} · {t.starts_at.slice(0,10)}</option>)}
       </select></label>
       <label>Draw<select className="ui-select" value={draw} onChange={e=>setDraw(e.target.value)}><option value="all">Both draws</option><option value="men">Men</option><option value="women">Women</option></select></label>
       <Button type="button" size="sm" disabled={loading || busy} onClick={reload}>Refresh suggestions</Button>
     </div>
+    <div className={styles.toolbar}>
+      <label>Pre-draw closing deadline (UTC)<input className="ui-input" type="datetime-local" value={deadline} disabled={loading||busy} onChange={e=>setDeadline(e.target.value)} /></label>
+      <Button type="button" size="sm" disabled={loading||busy||!deadline} onClick={()=>{const value=Date.parse(deadline+'Z');if(!Number.isFinite(value)||value<=Date.now()){setError('Choose a future closing deadline in UTC.');return;}setLoading(true);setAppliedDeadline(new Date(value).toISOString());setRefresh(n=>n+1)}}>Apply deadline</Button>
+    </div>
+    <p className={styles.footnote}>Open from the draw before match times are available. Choose a deadline before expected play; these markets close earlier if any main-draw match starts or is scheduled earlier. Applying a deadline does not publish anything.</p>
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {message && <p role="status" className={styles.success}>{message}</p>}
     {loading ? <div className={styles.grid} aria-busy="true" aria-label="Loading tournament suggestions">{Array.from({length:4},(_,i)=><div key={i} className={`${styles.card} ${styles.skeleton}`}><span>Checking the draw…</span></div>)}</div>
@@ -114,9 +121,10 @@ export default function TournamentSuggestions({ onPublished }: { onPublished: ()
     <dialog ref={dialog} className={styles.dialog} onCancel={e=>{e.preventDefault();close()}} onClose={()=>{if(!inFlight.current)setSelected(null)}} aria-labelledby="suggestion-review-title">
       {selected&&<div className={styles.review}>
         <div className={styles.reviewHeader}><div><h2 id="suggestion-review-title">{review?.preview.question.en ?? selected.preview.question.en}</h2></div></div>
-        {busy&&!review&&<p role="status">Checking the latest price, match time and result evidence…</p>}
+        {busy&&!review&&<p role="status">Checking the latest price, closing deadline and result evidence…</p>}
         {review&&<>
           <div className={styles.reviewStats}><div><span>Opening YES</span><strong>{percent(review.preview.probability)}</strong></div><div><span>Trading closes</span><b>{date(review.preview.locksAt)}</b></div><div><span>Max. subsidy</span><b>{review.preview.maxLoss.toLocaleString()} G</b></div></div>
+          {review.preview.evidence?.closingPolicy && <p className={styles.footnote}>Pre-draw market: closes at the reviewed deadline or earlier when the main draw starts. Later schedule changes cannot extend trading.</p>}
           <h3>How this settles</h3><p className={styles.rules}>{review.preview.rules.en}</p>
           <details><summary>Price source and translated question</summary><p className={styles.rules}>{review.preview.priceSource || 'A current projection is required.'}</p><p>{review.preview.question.es}</p></details>
           {!!review.preview.errors.length&&<div className={styles.requirements}><h3>Needed before approval</h3><ul>{review.preview.errors.map(e=><li key={e}>{e}</li>)}</ul></div>}

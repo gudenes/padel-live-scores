@@ -50,8 +50,26 @@ export async function previewEditorial(db: SupabaseClient, raw: unknown, now = n
     if (pairMatches.some(m => ['finished','retired'].includes(String(m.status)) && [1,2].includes(Number(m.winner_pair)) && ![m[`pair${m.winner_pair}_player1_id`],m[`pair${m.winner_pair}_player2_id`]].every(id=>c.playerIds.includes(String(id))))) errors.push('This pair has already been eliminated; do not open a new market.')
     const upcoming = pairMatches.filter(m => m.status === 'scheduled').sort((a,b) => String(a.scheduled_at ?? '').localeCompare(String(b.scheduled_at ?? '')))
     const next = upcoming[0]
-    if (!next?.scheduled_at || Date.parse(String(next.scheduled_at)) <= now.getTime()) errors.push('The pair needs a future confirmed next-match start.')
-    else { boundMatchId = String(next.id); locksAt = String(next.scheduled_at); evidence.nextMatch = { id: next.id, startsAt: next.scheduled_at } }
+    const nextTime = Date.parse(String(next?.scheduled_at ?? ''))
+    if (Number.isFinite(nextTime) && nextTime > now.getTime()) {
+      boundMatchId = String(next.id)
+      locksAt = c.locksAt && Date.parse(c.locksAt) < nextTime ? c.locksAt : String(next.scheduled_at)
+      evidence.nextMatch = { id: next.id, startsAt: next.scheduled_at }
+    } else {
+      // Draw-based opening is pre-play only. It closes for the whole draw's
+      // first ball, even if the selected pair has a bye or no match row yet.
+      if (matches.some(m => ['live','on_court','finished','retired','walkover','cancelled'].includes(String(m.status))
+        || (m.scheduled_at && Date.parse(String(m.scheduled_at)) <= now.getTime()))) {
+        errors.push('This main draw has started or has an overdue match. A future confirmed next-match start is required now.')
+      }
+      const firstStart = matches.filter(m=>m.status === 'scheduled' && Number.isFinite(Date.parse(String(m.scheduled_at))))
+        .map(m=>Date.parse(String(m.scheduled_at))).sort((a,b)=>a-b)[0]
+      const deadline = Math.min(c.locksAt ? Date.parse(c.locksAt) : Infinity, firstStart ?? Infinity)
+      locksAt = Number.isFinite(deadline) ? new Date(deadline).toISOString() : ''
+      if (!locksAt) errors.push('Set a pre-draw closing deadline; individual match times are not required.')
+      evidence.closingPolicy = { mode:'draw_first_ball', operatorDeadline:c.locksAt || null,
+        firstScheduledStart:Number.isFinite(firstStart) ? new Date(firstStart).toISOString() : null }
+    }
     const projections = await db.from('tournament_projections').select('pair_player_ids,champion_prob,finalist_prob,semifinal_prob,computed_at,model_version,status')
       .eq('tournament_id',c.tournamentIds[0]).eq('category',c.category).contains('pair_player_ids',c.playerIds).limit(2)
     if (projections.error) throw new Error(projections.error.message)
@@ -59,6 +77,7 @@ export async function previewEditorial(db: SupabaseClient, raw: unknown, now = n
     probability = null
     if (!projection || !Number.isFinite(Date.parse(projection.computed_at)) || Date.parse(projection.computed_at) > now.getTime() || now.getTime()-Date.parse(projection.computed_at)>6*3600000) errors.push('A unique tournament projection less than six hours old is required.')
     else {
+      if (projection.status === 'eliminated') errors.push('This pair has already been eliminated; do not open a new market.')
       const rawProb = (c.family === 'champion' || c.family === 'other_champion') ? projection.champion_prob : c.round === 'SF' ? projection.semifinal_prob : projection.finalist_prob
       const p = rawProb === null ? NaN : Number(rawProb)
       probability = c.family === 'other_champion' ? 1-p : p
