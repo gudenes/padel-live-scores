@@ -14,7 +14,7 @@ import { ForYouOverlay } from '@/components/feed/foryou/ForYouOverlay'
 // app's bottom nav. The picker uses its own sticky Continue/Skip CTA at
 // the bottom of the viewport — overlaying the nav would intercept the
 // CTA's clicks.
-const FULLSCREEN_ROUTES = new Set(['/welcome', '/scratch-foryou', '/avatar-shop', '/avatar-preview'])
+const FULLSCREEN_ROUTES = new Set(['/welcome', '/scratch-foryou', '/avatar-shop', '/avatar-preview', '/invite-play', '/join-play', '/invite-review'])
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (

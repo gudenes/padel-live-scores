@@ -1,0 +1,23 @@
+.screen{height:100dvh;min-height:620px;box-sizing:border-box;background:#111b17;color:#eee9d9;display:flex;flex-direction:column;max-width:500px;margin:auto;padding-bottom:max(18px,env(safe-area-inset-bottom));font-family:inherit;isolation:isolate;overflow-y:auto}
+.header{position:relative;z-index:2;display:flex;flex:none;align-items:center;justify-content:space-between;padding:16px 22px 8px}.header img{object-fit:contain}.close{width:44px;min-height:44px;display:block;color:inherit}.close :global(.pn-press-face){height:44px;display:flex;align-items:center;justify-content:center;padding:8px}
+.intro{position:relative;z-index:2;text-align:center;padding:8px 24px 0;flex:none}.intro h1{font-size:clamp(28px,7vw,34px);line-height:1.1;letter-spacing:-.8px;margin:0 auto 10px;font-weight:900;max-width:350px}.intro p{font-size:14px;line-height:1.5;color:#c0cabc;margin:0 auto;max-width:310px}
+/* Feather the existing illustration into the same forest surface used by login. */
+.hero{position:relative;width:100%;flex:1 1 300px;min-height:210px;max-height:390px;margin:-8px 0 -24px;z-index:0;overflow:hidden;mask-image:linear-gradient(to bottom,transparent 0%,#000 16%,#000 76%,transparent 100%)}
+.hero img{width:100%;height:100%;object-fit:cover;object-position:50% 48%;display:block}
+.actions{position:relative;z-index:1;padding:0 24px;display:flex;flex:none;flex-direction:column;gap:12px;margin-top:auto}.eyebrow{text-align:center;font-size:10px;letter-spacing:1.8px;font-weight:800;margin:0 0 2px;color:#b9c7a7}.note{text-align:center;font-size:12px;line-height:1.5;color:#b2bcad;margin:0;min-height:18px}.actions>button{width:100%;min-height:46px}.error{font-size:13px;line-height:1.5;color:#ffc59b;margin:0}.preview{display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:10px;padding-top:2px;color:#a6b19b}.preview a{color:#b7e784;text-underline-offset:3px}.actions input{box-sizing:border-box;background:#252924;color:#eee7d2;border:1px solid #62734e;padding:10px;width:100%}.close:focus-visible,.preview a:focus-visible{outline:2px solid #7ed321;outline-offset:3px}
+@media(min-width:1100px){.screen{height:min(872px,calc(100dvh - 88px));min-height:560px}}
+@media(max-height:720px){.header{padding-top:10px}.header img{height:42px;width:auto}.intro h1{font-size:27px}.intro p{font-size:13px}.hero{min-height:180px}.actions{gap:9px}.actions>button{min-height:42px}}
+@media(prefers-reduced-motion:no-preference){.hero{animation:appear .25s ease-out}@keyframes appear{from{opacity:0}to{opacity:1}}}
+
+.screen[data-sign-in="true"]{height:auto;min-height:100dvh}
+.screen[data-sign-in="true"] .hero{flex:none;height:230px;min-height:0}
+.screen[data-sign-in="true"] .actions{margin-top:0}
+@media(min-width:1100px){.screen[data-sign-in="true"]{min-height:calc(100dvh - 88px)}}
+@media(max-height:720px){.screen[data-sign-in="true"] .hero{height:180px}}
+
+.screen[data-drawer="true"]{height:auto;min-height:0;overflow:visible;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+.screen[data-drawer="true"] .header{padding-top:6px}
+.screen[data-drawer="true"] .header img{height:38px;width:auto}
+.screen[data-drawer="true"] .intro h1{font-size:28px}
+.screen[data-drawer="true"] .hero{flex:none;height:clamp(180px,29dvh,270px);min-height:0}
+.screen[data-drawer="true"] .actions{margin-top:0}
