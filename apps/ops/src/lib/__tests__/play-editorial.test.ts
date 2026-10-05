@@ -59,7 +59,7 @@ describe('publication preview',()=>{
   const p=await previewEditorial(database({tournament_projections:[]}),config,now)
   expect(p.errors.join(' ')).toContain('projection')
   const r=await previewEditorial(database({matches:[]}),config,now)
-  expect(r.errors.join(' ')).toContain('future confirmed')
+  expect(r.errors.join(' ')).toContain('pre-draw closing deadline')
  })
  it('changes the fingerprint when the market price changes',async()=>{
   const a=await previewEditorial(database(),config,now)
@@ -69,5 +69,32 @@ describe('publication preview',()=>{
  it('does not reopen an eliminated pair or permit the wrong draw',async()=>{
   const p=await previewEditorial(database({players:ids.map(id=>({id,name:'Player',category:'women'}))}),config,now)
   expect(p.errors.join(' ')).toContain('selected draw')
+ })
+})
+
+describe('pre-draw publication',()=>{
+ const deadline='2026-09-29T12:00:00Z'
+ it('allows a projected draw pair without match rows using an explicit deadline',async()=>{
+  const p=await previewEditorial(database({matches:[]}),{...config,locksAt:deadline},now)
+  expect(p.errors).toEqual([]);expect(p.boundMatchId).toBeNull();expect(p.locksAt).toBe('2026-09-29T12:00:00.000Z')
+  expect(p.evidence.closingPolicy).toMatchObject({mode:'draw_first_ball'})
+ })
+ it('allows an unscheduled match but rejects an expired deadline',async()=>{
+  const m={id:'x',status:'scheduled',scheduled_at:null,round_canonical:'R16',pair1_player1_id:ids[0],pair1_player2_id:ids[1]}
+  expect((await previewEditorial(database({matches:[m]}),{...config,locksAt:deadline},now)).errors).toEqual([])
+  expect((await previewEditorial(database({matches:[m]}),{...config,locksAt:'2026-09-29T09:00:00Z'},now)).errors.join(' ')).toContain('future')
+ })
+ it('uses an earlier main-draw schedule even for another pair',async()=>{
+  const m={id:'x',status:'scheduled',scheduled_at:'2026-09-29T11:00:00Z',round_canonical:'R16'}
+  const p=await previewEditorial(database({matches:[m]}),{...config,locksAt:deadline},now)
+  expect(p.errors).toEqual([]);expect(p.locksAt).toBe('2026-09-29T11:00:00.000Z')
+ })
+ it('blocks unbound publication after main-draw play starts',async()=>{
+  const p=await previewEditorial(database({matches:[{id:'x',status:'live',round_canonical:'R16'}]}),{...config,locksAt:deadline},now)
+  expect(p.errors.join(' ')).toContain('main draw has started')
+ })
+ it('never extends the operator deadline to a later match start',async()=>{
+  const p=await previewEditorial(database(),{...config,locksAt:deadline},now)
+  expect(p.errors).toEqual([]);expect(p.locksAt).toBe('2026-09-29T12:00:00.000Z');expect(p.boundMatchId).toBeTruthy()
  })
 })

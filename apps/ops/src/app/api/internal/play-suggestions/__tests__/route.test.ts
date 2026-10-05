@@ -18,7 +18,18 @@ describe('suggestion access',()=>{
  it('returns fresh suggestions without writing or publishing',async()=>{
   const response=await GET(new Request('https://admin.test/api/internal/play-suggestions'))
   expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('no-store')
-  expect(mocks.load).toHaveBeenCalledWith(undefined,null)
+  expect(mocks.load).toHaveBeenCalledWith(undefined,null,expect.any(Date),'')
+ })
+ it('passes the operator closing deadline into fresh suggestions',async()=>{
+  const locksAt='2026-10-06T07:00:00.000Z'
+  const response=await GET(new Request('https://admin.test/api/internal/play-suggestions?locksAt='+encodeURIComponent(locksAt)))
+  expect(response.status).toBe(200)
+  expect(mocks.load).toHaveBeenCalledWith(undefined,null,expect.any(Date),locksAt)
+ })
+ it('rejects malformed closing deadlines before loading suggestions',async()=>{
+  const response=await GET(new Request('https://admin.test/api/internal/play-suggestions?locksAt=tomorrow'))
+  expect(response.status).toBe(400)
+  expect(mocks.load).not.toHaveBeenCalled()
  })
  it('fails closed without leaking database error details',async()=>{
   mocks.load.mockRejectedValue(new Error('database unavailable'))
