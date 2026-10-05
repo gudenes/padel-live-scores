@@ -2239,6 +2239,35 @@
       "showLogin": "Ver acesso",
       "loginPreview": "Pré-visualização do acesso",
       "trySetup": "Testar configuração"
+    },
+    "resultPanel": {
+      "eyebrow": "RESULTADO DO TEU PALPITE",
+      "title": {
+        "won": "Boa leitura!",
+        "lost": "Desta vez não deu",
+        "refunded": "Guacas devolvidas",
+        "corrected": "Resultado atualizado",
+        "mixed": "O teu resultado chegou"
+      },
+      "close": "Fechar resultado",
+      "yourPick": "A tua resposta:",
+      "side": {
+        "yes": "Sim",
+        "no": "Não",
+        "both": "Sim e Não"
+      },
+      "adjustment": "Guacas de ajuste",
+      "played": "Guacas utilizadas",
+      "returned": "Guacas devolvidas",
+      "received": "Guacas recebidas",
+      "noDeduction": "Estas Guacas foram utilizadas ao fazer o palpite.",
+      "correction": "Este resultado substitui o anterior. É mostrado apenas o ajuste do saldo.",
+      "breakdown": "{cost} utilizadas · {net} líquidas",
+      "view": "VER RESULTADO",
+      "saved": "Guardado nas tuas notificações",
+      "batchTitle": "{count} novos resultados",
+      "batchIncludes": "Inclui prémios e Guacas devolvidas.",
+      "viewAll": "VER RESULTADOS"
     }
   },
   "playerProfile": {

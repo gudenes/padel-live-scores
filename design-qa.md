@@ -1,48 +1,41 @@
-# Play onboarding — 2026-10-04
+# Settlement result panel — visual QA
 
-final result: local visual refinement verified; external provider sign-in still requires user testing
+final result: passed
 
-## Implementation
+## Target and evidence
 
-Real A01 avatars, court imagery and Guaca asset. Existing approved chunky button styles for setup, guide and provider sign-in. Login preview at `/play?onboarding=login`; setup preview at `/play?onboarding=preview`. Both preview switches are development-only. Game data remains whitelist-gated.
+- Selected direction: second displayed concept, `exec-012598c9-03b4-436e-a5e1-d5aa185b52b7.png` in the thread's generated_images folder.
+- Local review: http://localhost:3016/result-review
+- Desktop evidence: /tmp/result-panel-final.png
+- Phone evidence: /tmp/result-panel-phone-final.png
+- Compared the source and phone capture together; inspected the actual panel, amount, artwork, and button at readable resolution. Source is Spanish; captured app follows the browser's English locale. The review backdrop is sample data, not a reproduction of the production position list.
 
-The guide now spotlights the wallet, actionable prediction and My plays, with the rest darkened and softly blurred. Target scrolling prevents setup scroll position from hiding the wallet. Guide is hidden while the existing trade dialog is open.
+## Findings and repairs
 
-## Verification
+- Fixed P2: shared result badge styles overrode absolute placement and font size. Added scoped placement and typography rules; final capture shows the large chunky check beside the avatar.
+- Fixed P2: avatar initially appeared too small; increased the actual roster artwork to a torso crop, retaining room for the Guaca coins.
+- Investigated mobile screenshot clipping: viewport-only capture was clipped by browser zoom/capture; full-page capture and DOM bounds show both close and primary controls inside the viewport. The final phone capture contains the whole panel.
 
-- 15 focused onboarding tests pass (identity, account-scoped persistence, rejected access, failed saves, avatar selection, empty-market escape).
-- TypeScript passes.
-- Browser inspected login, identity, wallet and prediction spotlight. Login fits Google, Apple and email options within the phone frame.
-- Screenshots: `/tmp/padel-onboarding-login.png`, `/tmp/padel-onboarding-spotlight.png`, `/tmp/padel-onboarding-prediction.png`.
-- Provider authentication was not completed with a real Google or Apple account during this visual pass. Native iOS authentication remains unverified.
-- Progress migration was previously validated in a rollback transaction and applied; existing balances were unchanged.
+## Fidelity surfaces
 
+- Typography: uses the app's existing bold heading and sans-serif copy; amount is the main numerical emphasis.
+- Spacing: preserves heading → avatar/result hero → match/question → payout → primary action hierarchy; adapts to short screens with a reduced hero and a scrollable dialog.
+- Colors: existing charcoal, cream, lime and muted blue; approved Press button and result badge styles reused.
+- Images: real Guaca artwork and court backdrop. Preview uses a roster avatar; live mode uses ShopProfileFigure, preserving the user's equipped items. The reference's fixed celebratory pose is deliberately replaced with the equipped avatar to support every player without generating incompatible wardrobe artwork.
+- Copy: five locales; separate received amount and net gain; no second loss deduction; corrections show the actual signed adjustment.
 
----
+## Interaction and access
 
-# Connected Play and matches
+- Verified preview CTA opens selected result, Close dismisses, Escape dismisses and restores focus. Inspected loss and refund states.
+- Native modal dialog supplies focus containment; reduced-motion disables entrance motion.
+- Whitelist checked on both result API methods; writes scoped to the signed-in user and settlement category, with origin check.
+- Automated tests cover settlement amounts, correction handling, dual-sided positions, access, origin validation, deduplication, server errors and panel controls.
+- Production settlement delivery has not been exercised end-to-end; no production deployment or data mutation was made.
 
-final result: partial — match panel verified; live-state visual check outstanding
+## Remaining polish
 
-## Target
-Selected revised option 2: exec-41134177-4fc7-48a4-86ce-7ecdf781f5f7.png. Retain existing Play and match pages; add player links, observed live set scores, match-specific held positions, and a live-only indicator in the existing player match strip. No additional player return CTA.
+- Optional P3: a dedicated celebration pose for every equipped avatar would require a separate asset workflow. Current artwork preserves appearance consistently.
 
-## Implemented
-- Player portraits and names link to existing profiles, with initials retained for missing photos.
-- Markets API carries current observed set games only for live/on-court matches; missing scores remain absent.
-- Match details replace the generic Play link with a collapsible list of this user's held predictions for this match.
-- Existing membership-enforced endpoints are retained. No production changes or data writes.
-- Player strip uses translated live label and hides scheduled time while live.
+## Grouped drawer follow-up
 
-## Evidence
-- 42 targeted tests passed: market contract and access, identity/navigation, match-only positions and access denial.
-- TypeScript check and git whitespace check passed.
-- Local Play at localhost:3015 rendered actual positions and all four athlete links in browser inspection.
-- The local preview initially restarted at its 1.5GiB heap threshold while compiling match details. Restarted with a 3GiB limit.
-- Browser automation subsequently timed out on the match view and then reported the in-app browser unavailable. No valid screenshot comparison of the completed match/profile/live layouts was possible.
-
-## Remaining verification
-Capture Play, match panel (expanded/collapsed), and professional player strip at mobile width. Verify actual live state using fixture tests or local-only visual fixtures, without changing shared match data. Compare to selected reference and correct any layout issues. Verify back navigation and retained scroll/filter state. Do not treat this report as visual approval or deployment readiness.
-
-## Follow-up verification
-The browser recovered on October 4. The user reviewed and approved the running match page. The polished match panel was then captured at /tmp/match-plays-polished.png: Pending uses the same translation as My plays; borderless section aligns to page gutters; two held predictions show chunky side badges and right-aligned Guacas. User subsequently requested production deployment. Live-state layout and back-scroll restoration have not been visually verified; no claim of that verification is made.
+Multiple unread settlements now share one drawer. The condensed hero leaves space for individual match/question rows and chunky result badges. The received total includes payouts and refunds; corrections are separately labelled, never counted twice. CTA opens Results and dismissal submits only displayed notification IDs. Added mixed-outcome total and batch-scoping tests; 9 targeted tests pass. Single-result presentation is retained. Preview defaults to three results and has controls for each individual state.

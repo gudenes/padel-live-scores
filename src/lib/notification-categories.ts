@@ -149,14 +149,15 @@ export function resolveAllPrefs(
 /** Filter pill → list of categories. 'all' returns null (= no filter). */
 export function categoryFilter(
   filter: 'all' | 'matches' | 'updates' | string,
-): NotificationCategory[] | null {
+): string[] | null {
   switch (filter) {
     case 'all':
       return null
     case 'matches':
       return KNOWN_CATEGORIES.filter((c) => CATEGORY_META[c].group === 'matches')
     case 'updates':
-      return KNOWN_CATEGORIES.filter((c) => CATEGORY_META[c].group !== 'matches')
+      // Settlement notices are in-app only; do not expose a push preference.
+      return [...KNOWN_CATEGORIES.filter((c) => CATEGORY_META[c].group !== 'matches'), 'play_result']
     default:
       return []
   }

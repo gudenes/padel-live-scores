@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import {previewBuy} from './_components/market-preview'
 import PlayWelcome from './_components/PlayWelcome'
+import SettlementResults from '@/components/play-results/SettlementResults'
 import {useAuth} from '@/components/AuthProvider'
 import {IdentitySetup,OnboardingGuide,useOnboarding} from './_components/PlayOnboarding'
 import onboardingStyles from './_components/PlayOnboarding.module.css'
@@ -66,6 +67,7 @@ export default function PlayPage() {
   const [firstSuccess,setFirstSuccess]=useState(false)
   const onboardT=useTranslations('play.onboarding')
 
+  const [resultMarket,setResultMarket]=useState<string|null>(null)
   const [linkedMatch, setLinkedMatch] = useState<string | null>(null)
   const [screen, setScreen] = useState<Screen>('deck')
   const [pending, setPending] = useState<{ market: PlayMarket; side: Side; stake: number } | null>(null)
@@ -84,6 +86,7 @@ export default function PlayPage() {
     const params = new URLSearchParams(window.location.search)
     const match = params.get('match')
     if (match && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(match)) setLinkedMatch(match)
+    const result=params.get('result');if(result&&(result==='all'||/^[a-f0-9-]{36}$/i.test(result)))setResultMarket(result)
     const view = params.get('view')
     if (view === 'mine' || view === 'leaders') {
       setScreen(view)
@@ -292,6 +295,7 @@ export default function PlayPage() {
         <section hidden={screen !== 'mine'} className={`pl-screen${screen === 'mine' ? ' pl-on' : ''}`}>
           <PositionsScreen
             me={me.data}
+            focusMarket={resultMarket}
             status={me.status}
             onExplore={() => goto('markets')}
             onRetry={me.reload}
@@ -322,6 +326,7 @@ export default function PlayPage() {
           />
         </section>
 
+        <SettlementResults key={user?.id} me={me.data} enabled={!showGuide&&!onboarding.preview&&!detail&&!confirmed&&screen!=='trade'} onView={id=>{setResultMarket(id);goto('mine');window.history.replaceState(null,'',`?view=mine&result=${encodeURIComponent(id)}`)}}/>
         {confirmed && <QuickTradeConfirmation trade={confirmed} onDone={dismissConfirmation}/>}
 
         {/* ── Detail sheet ────────────────────────────────────── */}

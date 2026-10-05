@@ -108,7 +108,9 @@ export default function NotificationRow({
 
   const handleClick = () => {
     if (isUnread) onMarkRead(row.id)
-    if (row.url) router.push(row.url as string & Parameters<typeof router.push>[0])
+    const marketId=row.category==='play_result'?row.metadata?.market_id:null
+    const url=typeof marketId==='string'&&/^[a-f0-9-]{36}$/i.test(marketId)?`/play?view=mine&result=${encodeURIComponent(marketId)}`:row.url
+    if (url) router.push(url as string & Parameters<typeof router.push>[0])
   }
 
   return (
