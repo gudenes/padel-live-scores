@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import {previewBuy} from './_components/market-preview'
 import PlayWelcome from './_components/PlayWelcome'
+import FloatingInvite from './_components/FloatingInvite'
 import InviteDrawer from '@/components/play-invite/InviteDrawer'
 import {useInvitePrompt} from '@/components/play-invite/useInvitePrompt'
 import SettlementResults from '@/components/play-results/SettlementResults'
@@ -326,11 +327,12 @@ export default function PlayPage() {
             onWeek={setLeaderWeek}
             period={leaderPeriod}
             onPeriod={setLeaderPeriod}
-            onInvite={invite.show}
             onOpenMarkets={() => goto('markets')}
             onRetry={leaders.reload}
           />
         </section>
+
+        {!showGuide&&!invite.open&&!detail&&!confirmed&&screen!=='trade'&&<FloatingInvite label={t('invite.inviteFriends')} onClick={invite.show}/>}
 
         <SettlementResults key={user?.id} me={me.data} enabled={!invite.open&&!showGuide&&!onboarding.preview&&!detail&&!confirmed&&screen!=='trade'} onView={id=>{setResultMarket(id);goto('mine');window.history.replaceState(null,'',`?view=mine&result=${encodeURIComponent(id)}`)}}/>
         {invite.open&&<InviteDrawer onClose={invite.close} preview={onboarding.preview||process.env.NODE_ENV!=='production'}/> }

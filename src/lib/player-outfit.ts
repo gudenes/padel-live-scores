@@ -40,3 +40,14 @@ export function simulationPlayerLook(identity: string): PlayerOutfit {
   const seed = [...identity].reduce((sum, char) => (sum * 31 + char.charCodeAt(0)) >>> 0, 0)
   return withPlayerClothes(PLAYER_FACES[seed % PLAYER_FACES.length], OUTFITS[Math.floor(seed / PLAYER_FACES.length) % OUTFITS.length])
 }
+
+/** Coordinated wardrobe variations. Identity remains stable across every surface. */
+export function simulationPlayerWardrobe(identity: string): Record<string,string> {
+  const seed=[...identity].reduce((sum,char)=>(sum*31+char.charCodeAt(0))>>>0,0)
+  const collections=['club','cobalt','sunset','champion','starter']
+  const main=collections[Math.floor(seed/10)%collections.length]
+  const accent=collections[Math.floor(seed/50)%collections.length]
+  const hats=['starter','club','cobalt','sunset','champion','backwards','bandana']
+  return {shirt:main,shorts:seed%3===0?main:'starter',shoes:accent,wrist:accent,
+    racket:main,hat:hats[Math.floor(seed/7)%hats.length],sticker:'none'}
+}

@@ -34,3 +34,19 @@ it('keeps a custom face through outfit changes and storage reloads', () => {
  expect(parseOutfit('look:face-01|../../secret')).toBeNull()
  expect(parseOutfit('look:bad|starter')).toBeNull()
 })
+
+import {simulationPlayerLook,simulationPlayerWardrobe} from '../player-outfit'
+import {renderAvatar} from '../avatar-a01-renderer.mjs'
+import {existsSync} from 'node:fs'
+it('renders varied stable bot wardrobes with existing fitted artwork',()=>{
+ const looks=new Set<string>(),shirts=new Set<string>(),hats=new Set<string>()
+ for(let i=1;i<=150;i++){
+  const identity=`bot-${i}`,wardrobe=simulationPlayerWardrobe(identity)
+  expect(wardrobe).toEqual(simulationPlayerWardrobe(identity))
+  const face=splitPlayerLook(simulationPlayerLook(identity)).face
+  const svg=renderAvatar({avatar:face,outfit:wardrobe,base:'/play/avatars/a01-local/'})
+  for(const match of svg.matchAll(/href="([^"]+)"/g)) expect(existsSync(`public${match[1]}`)).toBe(true)
+  shirts.add(wardrobe.shirt);hats.add(wardrobe.hat);looks.add(JSON.stringify(wardrobe))
+ }
+ expect(shirts.size).toBe(5);expect(hats.size).toBe(7);expect(looks.size).toBeGreaterThan(20)
+})

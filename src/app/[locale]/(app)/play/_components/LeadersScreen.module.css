@@ -98,3 +98,10 @@
 .rankingInfo>button:hover,.rankingInfo>button:focus-visible,.rankingInfo>button[aria-expanded="true"]{opacity:1}
 .rankingInfo :global(.pn-press-face){padding:8px 10px;font-size:13px;text-transform:none}
 .rankingTooltip{position:absolute;bottom:calc(100% + 8px);right:0;z-index:50;width:min(290px,100%);box-sizing:border-box;background:#222622;border:1px solid #424941;padding:10px 12px;color:#ccd2c8;font-size:12px;line-height:1.55;text-align:left;box-shadow:0 3px 10px #0003}
+
+/* The wrapper supplies the focus ring; suppress the shared input ring inside it. */
+.toolbar .searchBox input:focus,
+.toolbar .searchBox input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}

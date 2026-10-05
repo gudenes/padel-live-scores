@@ -20,3 +20,25 @@ it('ranks confirmed results by profit using result time, seasons and corrections
  expect(simulationNetWinnings(holdings,[result],'all',null,now).get('a')).toBe(53)
  expect(simulationNetWinnings(holdings,[{...result,outcome:false}],'all',null,now).get('a')).toBe(-100)
 })
+it('includes weekly bot trades before settlement without resetting losses',async()=>{
+ vi.stubEnv('NODE_ENV','production');vi.stubEnv('PLAY_SIMULATION_ENABLED','true')
+ const now=new Date().toISOString()
+ const calls:unknown[][]=[]
+ const rows:Record<string,unknown[]>={
+  play_sim_bots:[{id:'new',name:'Bot 1'},{id:'lost',name:'Bot 2'},{id:'inactive',name:'Bot 3'}],
+  play_sim_positions:[{bot_id:'lost',market_id:'sim-m',side:'no',shares:50,cost:100}],
+  play_sim_markets:[{id:'sim-m',source_market_id:'m'}],
+  play_sim_trades:[{bot_id:'new'},{bot_id:'new'},{bot_id:'lost'}],
+  markets:[{id:'m',status:'settled',outcome:true,settled_at:now,season_id:'s'}],
+ }
+ const from=(table:string)=>{
+  const q:Record<string,unknown>={then:(resolve:(x:unknown)=>unknown)=>Promise.resolve({data:rows[table],error:null}).then(resolve)}
+  for(const method of ['select','eq','order','range','not','gte','lt','in'])q[method]=(...args:unknown[])=>{calls.push([table,method,...args]);return q}
+  return q
+ }
+ const leaders=await localSimulationLeaders(new Request('https://padelnachos.com'),{from} as unknown as SupabaseClient,'week','s')
+ expect(leaders.map(x=>[x.userId,x.netWinnings])).toEqual([['sim:new',0],['sim:lost',-100]])
+ expect(leaders.every(x=>!x.prizeEligible)).toBe(true)
+ expect(calls.some(x=>x[0]==='play_sim_trades'&&x[1]==='gte'&&x[2]==='created_at'&&typeof x[3]==='number')).toBe(true)
+ expect(calls.some(x=>x[0]==='play_sim_trades'&&x[1]==='lt'&&x[2]==='created_at')).toBe(true)
+})
