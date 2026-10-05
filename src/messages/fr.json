@@ -2046,8 +2046,8 @@
     },
     "leaders": {
       "rankingInfo": "Comment fonctionne le classement",
-      "quietWeekTitle": "Pas encore de résultats cette semaine",
-      "quietWeekBody": "Le classement commence dès que les premières prédictions sont résolues. En attendant, faites un pronostic ou consultez la semaine précédente.",
+      "quietWeekTitle": "Aucun pronostic cette semaine",
+      "quietWeekBody": "Fais un pronostic pour rejoindre le classement de cette semaine ou consulte la semaine précédente.",
       "exploreMarkets": "Marchés ouverts",
       "searchToggle": "Rechercher des joueurs",
       "searchPlaceholder": "Rechercher par nom",
@@ -2076,7 +2076,7 @@
       "accuracy": "{pct}% de réussite",
       "streak": "série de {n}",
       "you": "Vous",
-      "note": "Classement selon les gains moins le coût des pronostics réglés. Les pronostics en attente, remboursements et achats de vêtements ne modifient pas le score.",
+      "note": "Le classement utilise les gains moins le coût des pronostics réglés. Tu apparais cette semaine dès ton premier pronostic. Les pronostics en attente, remboursements et achats de tenues ne changent pas ton score.",
       "empty": {
         "title": "Le classement est vide",
         "body": "Ton premier pronostic réglé te fera entrer dans le classement."

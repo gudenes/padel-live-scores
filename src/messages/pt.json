@@ -2046,8 +2046,8 @@
     },
     "leaders": {
       "rankingInfo": "Como funciona a classificação",
-      "quietWeekTitle": "Ainda sem resultados esta semana",
-      "quietWeekBody": "A classificação começa quando os primeiros palpites são resolvidos. Entretanto, faz um palpite ou consulta a semana anterior.",
+      "quietWeekTitle": "Ainda não há palpites esta semana",
+      "quietWeekBody": "Faz um palpite para entrar na classificação desta semana ou consulta a semana anterior.",
       "exploreMarkets": "Mercados abertos",
       "searchToggle": "Pesquisar jogadores",
       "searchPlaceholder": "Pesquisar por nome",
@@ -2076,7 +2076,7 @@
       "accuracy": "{pct}% de acerto",
       "streak": "sequência de {n}",
       "you": "Você",
-      "note": "Classificação por prémios menos o custo das jogadas resolvidas. Jogadas pendentes, reembolsos e compras de roupa não afetam a pontuação.",
+      "note": "A classificação usa os prémios menos o custo dos palpites resolvidos. Apareces esta semana desde o teu primeiro palpite. Palpites pendentes, reembolsos e compras de roupa não afetam a pontuação.",
       "empty": {
         "title": "A classificação está vazia",
         "body": "A tua primeira jogada resolvida coloca-te na classificação."

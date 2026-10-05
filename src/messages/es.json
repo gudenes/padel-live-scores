@@ -2046,8 +2046,8 @@
     },
     "leaders": {
       "rankingInfo": "Cómo funciona la clasificación",
-      "quietWeekTitle": "Aún no hay resultados esta semana",
-      "quietWeekBody": "La clasificación empieza cuando se resuelven las primeras jugadas. Mientras tanto, haz tu próximo pronóstico o revisa la semana anterior.",
+      "quietWeekTitle": "Aún no hay pronósticos esta semana",
+      "quietWeekBody": "Haz un pronóstico para entrar en la clasificación de esta semana o consulta la semana anterior.",
       "exploreMarkets": "Mercados abiertos",
       "searchToggle": "Buscar jugadores",
       "searchPlaceholder": "Buscar por nombre",
@@ -2076,7 +2076,7 @@
       "accuracy": "{pct}% de acierto",
       "streak": "racha de {n}",
       "you": "Tú",
-      "note": "Clasificación por premios menos el coste de las jugadas resueltas. Las jugadas pendientes, los reembolsos y las compras de ropa no afectan a tu puntuación.",
+      "note": "La clasificación usa los premios menos el coste de las jugadas resueltas. Apareces esta semana desde tu primer pronóstico. Las jugadas pendientes, los reembolsos y las compras de vestuario no afectan a tu puntuación.",
       "empty": {
         "title": "La clasificación está vacía",
         "body": "Tu primera jugada resuelta te incluirá en la clasificación."

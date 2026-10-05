@@ -72,6 +72,17 @@ export async function GET(req: Request) {
       winnings.set(id,(winnings.get(id)??0)+score)
     }
   }
+  // Weekly participation starts with the first buy, even before settlement.
+  // Keep result-time scoring so older predictions settling this week still count.
+  if (period === 'week') {
+    const participants = await paginatedSelect<{user_id:string}>(
+      (start,end) => supabase.from('market_trades').select('user_id')
+        .eq('direction','buy').gte('created_at',week.start).lt('created_at',week.end)
+        .order('id').range(start,end), {what:'weekly leaderboard participants'})
+    for (const {user_id} of participants) {
+      if (!winnings.has(user_id)) winnings.set(user_id,0)
+    }
+  }
   const humanRanked = [...winnings].map(([userId,netWinnings])=>({userId,netWinnings}))
     .sort((a,b)=>b.netWinnings-a.netWinnings || a.userId.localeCompare(b.userId))
 
