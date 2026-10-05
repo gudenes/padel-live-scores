@@ -7,6 +7,8 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import {previewBuy} from './_components/market-preview'
 import PlayWelcome from './_components/PlayWelcome'
+import InviteDrawer from '@/components/play-invite/InviteDrawer'
+import {useInvitePrompt} from '@/components/play-invite/useInvitePrompt'
 import SettlementResults from '@/components/play-results/SettlementResults'
 import {useAuth} from '@/components/AuthProvider'
 import {IdentitySetup,OnboardingGuide,useOnboarding} from './_components/PlayOnboarding'
@@ -75,6 +77,7 @@ export default function PlayPage() {
   // the deck index does not move, so closing it returns the card untouched.
   const [detail, setDetail] = useState<PlayMarket | null>(null)
   const [confirmed, setConfirmed] = useState<ConfirmedTrade | null>(null)
+  const invite=useInvitePrompt(user?.id,!!confirmed||!!detail||screen==='trade'||firstSuccess||!!onboarding.progress&&onboarding.progress.step!=='done',onboarding.preview)
   const [submitting, setSubmitting] = useState(false)
   const [tradeError, setTradeError] = useState<string | null>(null)
   // The trade response knows the new balance before /api/play/me is refetched.
@@ -168,7 +171,7 @@ export default function PlayPage() {
         if(!quote)return
         setConfirmed({market:pending.market,side,question:pending.market.question,cost:quote.cost,shares:quote.shares,avgPrice:quote.cost/quote.shares})
         setBalanceAfterTrade(balance-guacas);setPending(null);setScreen('deck');setFirstSuccess(true)
-        void onboarding.advance('done');return
+        void onboarding.advance('done');void invite.afterPrediction();return
       }
       setSubmitting(true)
       setTradeError(null)
@@ -196,6 +199,7 @@ export default function PlayPage() {
           return
         }
 
+        void invite.afterPrediction()
         if(onboarding.progress?.step==='prediction'){setFirstSuccess(true);void onboarding.advance('done').catch(()=>{})}
         setConfirmed({
           market: pending.market,
@@ -217,7 +221,7 @@ export default function PlayPage() {
         setSubmitting(false)
       }
     },
-    [pending, submitting, t, tradeErrors, markets, me, onboarding, balance],
+    [pending, submitting, t, tradeErrors, markets, me, onboarding, balance, invite.afterPrediction],
   )
 
 
@@ -322,11 +326,14 @@ export default function PlayPage() {
             onWeek={setLeaderWeek}
             period={leaderPeriod}
             onPeriod={setLeaderPeriod}
+            onInvite={invite.show}
+            onOpenMarkets={() => goto('markets')}
             onRetry={leaders.reload}
           />
         </section>
 
-        <SettlementResults key={user?.id} me={me.data} enabled={!showGuide&&!onboarding.preview&&!detail&&!confirmed&&screen!=='trade'} onView={id=>{setResultMarket(id);goto('mine');window.history.replaceState(null,'',`?view=mine&result=${encodeURIComponent(id)}`)}}/>
+        <SettlementResults key={user?.id} me={me.data} enabled={!invite.open&&!showGuide&&!onboarding.preview&&!detail&&!confirmed&&screen!=='trade'} onView={id=>{setResultMarket(id);goto('mine');window.history.replaceState(null,'',`?view=mine&result=${encodeURIComponent(id)}`)}}/>
+        {invite.open&&<InviteDrawer onClose={invite.close} preview={onboarding.preview||process.env.NODE_ENV!=='production'}/> }
         {confirmed && <QuickTradeConfirmation trade={confirmed} onDone={dismissConfirmation}/>}
 
         {/* ── Detail sheet ────────────────────────────────────── */}
