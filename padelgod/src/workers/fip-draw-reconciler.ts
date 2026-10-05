@@ -65,6 +65,7 @@ import {
   resolveDrawNamesLongForm,
   type ResolvedFour,
 } from '../lib/draw-resolver.js';
+import { isQualifierSlotRow } from './fip-draw-populator.js';
 
 // ── Public types ───────────────────────────────────────────────────────
 
@@ -136,6 +137,10 @@ function isBye(
   const t2 = teamHasNames(draw.team2_player1_name, draw.team2_player2_name);
   // BYE = walkover with exactly one side named (other is the "BYE" feeder)
   if (t1 === t2) return false;
+  // Qualifier slot: same shape, but the pair has a match to play. The
+  // orchestrator sets this from the parent cell (empty parent = the pair
+  // did not advance). Mirrors the populator's guard from #615.
+  if (ctx?.qualifierSlot) return false;
   // First-round-of-MD guard. FIP renders TWO cell shapes identically:
   //
   //   (a) a real R32 BYE for a top seed (status='walkover', one side empty)
@@ -173,6 +178,17 @@ export interface ReconcileContext {
    *  for a 16-pair WD). When undefined, the first-round-of-MD guard is
    *  disabled. */
   firstMdRoundCanonical?: string | null;
+  /** Resolved player ids that sat on the now-EMPTY side of this cell in the
+   *  most recent snapshot where BOTH sides were named. Present only when the
+   *  latest snapshot is walkover-with-one-side-empty AND such a prior
+   *  snapshot exists. Its presence means the slot was vacated by a
+   *  withdrawal (a lucky loser / alternate is pending), NOT a real BYE — a
+   *  BYE cell never had an opponent. See `computePendingReplacementPatch`. */
+  priorVacated?: { p1: string | null; p2: string | null } | null;
+  /** True when this walkover+one-empty first-round cell is a qualifier
+   *  slot rather than a BYE (its parent cell does not contain the named
+   *  pair). Computed with the populator's `isQualifierSlotRow`. */
+  qualifierSlot?: boolean;
 }
 
 /** Same SET of resolved UUIDs (intra-pair slot order ignored). */
@@ -317,19 +333,27 @@ function computeNonByePatch(
     const setMatches = pairSetEquals(existingP1, existingP2, m.r1, m.r2);
 
     if (!setMatches) {
-      if (m.r1 !== null && m.r1 !== existingP1) {
+      let write1 = m.r1 !== null && m.r1 !== existingP1;
+      let write2 = m.r2 !== null && m.r2 !== existingP2;
+      // Never leave the same player in both slots. When one draw name is
+      // unresolved and the pair is listed in the opposite slot order, the
+      // resolved player would otherwise be written next to themselves
+      // (Pakistan WD007: Mafalda/Mafalda). Drop the write that causes it.
+      const final1 = write1 ? m.r1 : existingP1;
+      const final2 = write2 ? m.r2 : existingP2;
+      if (final1 !== null && final1 === final2) {
+        if (write2) write2 = false;
+        else write1 = false;
+      }
+      if (write1) {
         patch[`pair${pairNum}_player1_id`] = m.r1;
         patch[`pair${pairNum}_player1_name`] = null;
         patch[`pair${pairNum}_player1_country`] = null;
-      } else if (m.r1 === null && m.drawN1 && existingP1 !== null) {
-        // slot-level skip
       }
-      if (m.r2 !== null && m.r2 !== existingP2) {
+      if (write2) {
         patch[`pair${pairNum}_player2_id`] = m.r2;
         patch[`pair${pairNum}_player2_name`] = null;
         patch[`pair${pairNum}_player2_country`] = null;
-      } else if (m.r2 === null && m.drawN2 && existingP2 !== null) {
-        // slot-level skip
       }
     }
 
@@ -483,8 +507,59 @@ export function computeReconciliationPatch(
     return drift;
   }
 
+  // Withdrawal awaiting a replacement. Same DOM shape as a BYE (walkover,
+  // one side empty) but the cell previously had both teams named. Clearing
+  // the withdrawn pair is the whole job: the lucky loser lands later via
+  // the populator's NULL-only fill or the normal team-swap path below.
+  // Never fall through to the bye patch from here — that would hand the
+  // remaining pair a free pass and let fip-winner-propagator advance them.
+  if (ctx?.priorVacated && isWalkoverOneSideEmpty(draw)) {
+    return computePendingReplacementPatch(existing, ctx.priorVacated);
+  }
+
   if (drawIsBye) return computeByePatch(draw, existing, resolved);
   return computeNonByePatch(draw, existing, resolved);
+}
+
+function isWalkoverOneSideEmpty(
+  draw: Pick<
+    DrawForReconcile,
+    'status' | 'team1_player1_name' | 'team1_player2_name' | 'team2_player1_name' | 'team2_player2_name'
+  >,
+): boolean {
+  if (draw.status !== 'walkover') return false;
+  const t1 = teamHasNames(draw.team1_player1_name, draw.team1_player2_name);
+  const t2 = teamHasNames(draw.team2_player1_name, draw.team2_player2_name);
+  return t1 !== t2;
+}
+
+function computePendingReplacementPatch(
+  existing: ExistingForReconcile,
+  prior: { p1: string | null; p2: string | null },
+): Record<string, unknown> | null {
+  // Only a still-scheduled row. on_court/bye/walkover belong to other
+  // writers (or to the unbye reversal once the draw settles).
+  if (existing.status !== 'scheduled') return null;
+  const withdrawn = new Set([prior.p1, prior.p2].filter((x): x is string => !!x));
+  if (withdrawn.size === 0) return null;
+
+  for (const pairNum of [1, 2] as const) {
+    const p1 = pairFkAt(existing, pairNum, 1);
+    const p2 = pairFkAt(existing, pairNum, 2);
+    if ((p1 && withdrawn.has(p1)) || (p2 && withdrawn.has(p2))) {
+      return {
+        [`pair${pairNum}_player1_id`]: null,
+        [`pair${pairNum}_player2_id`]: null,
+        [`pair${pairNum}_player1_name`]: null,
+        [`pair${pairNum}_player2_name`]: null,
+        [`pair${pairNum}_player1_country`]: null,
+        [`pair${pairNum}_player2_country`]: null,
+        // The withdrawn pair's seed does not transfer to the replacement.
+        [`pair${pairNum}_seed`]: null,
+      };
+    }
+  }
+  return null;
 }
 
 // ── Orchestrator ───────────────────────────────────────────────────────
@@ -590,9 +665,25 @@ export async function runFipDrawReconciler(
     const tournamentWidgetId = await getActiveWidgetIdCode(supabase, t.tournament_id);
     if (!tournamentWidgetId) continue;
 
-    // Latest fip_event_page draw snapshot per widget
-    const latestDraw = await loadLatestFipDrawSnapshots(supabase, t.tournament_id);
+    // Latest fip_event_page draw snapshot per widget, plus the most recent
+    // snapshot where both sides were named (withdrawal detection).
+    const { latest: latestDraw, lastTwoTeam } = await loadLatestFipDrawSnapshots(
+      supabase,
+      t.tournament_id,
+    );
     if (latestDraw.size === 0) continue;
+
+    // Names that sat on a now-empty side before it was vacated. Resolved
+    // below alongside the current names so priorVacated carries player ids.
+    const vacatedNames = new Map<string, { n1: string | null; n2: string | null }>();
+    for (const [widget, d] of latestDraw) {
+      const prior = lastTwoTeam.get(widget);
+      if (!prior || prior === d || !isWalkoverOneSideEmpty(d)) continue;
+      const side1Empty = !teamHasNames(d.team1_player1_name, d.team1_player2_name);
+      vacatedNames.set(widget, side1Empty
+        ? { n1: prior.team1_player1_name, n2: prior.team1_player2_name }
+        : { n1: prior.team2_player1_name, n2: prior.team2_player2_name });
+    }
 
     // Existing public.matches for the tournament, keyed by widget_id_composite suffix
     const existingByWidget = await loadExistingMatchesByPrefix(
@@ -605,6 +696,13 @@ export async function runFipDrawReconciler(
     const wantedFipIds = new Set<string>();
     for (const d of latestDraw.values()) {
       for (const n of [d.team1_player1_name, d.team1_player2_name, d.team2_player1_name, d.team2_player2_name]) {
+        if (!n) continue;
+        const fipId = nameToFipId.get(normalizeForLookup(n));
+        if (fipId) wantedFipIds.add(fipId);
+      }
+    }
+    for (const v of vacatedNames.values()) {
+      for (const n of [v.n1, v.n2]) {
         if (!n) continue;
         const fipId = nameToFipId.get(normalizeForLookup(n));
         if (fipId) wantedFipIds.add(fipId);
@@ -673,15 +771,34 @@ export async function runFipDrawReconciler(
         team2_player2_name: draw.team2_player2_name,
       };
 
+      const vacated = vacatedNames.get(drawWidget!);
+      const priorVacated = vacated
+        ? (() => {
+            const r = resolveDrawNamesLongForm(
+              {
+                team1_player1_name: vacated.n1,
+                team1_player2_name: vacated.n2,
+                team2_player1_name: null,
+                team2_player2_name: null,
+              },
+              nameToFipId,
+              fipIdToPlayerId,
+            );
+            return { p1: r.p1p1, p2: r.p1p2 };
+          })()
+        : null;
+
       const ctx: ReconcileContext = {
         firstMdRoundCanonical: draw.category
           ? firstMdRoundByCategory.get(draw.category) ?? null
           : null,
+        priorVacated,
+        qualifierSlot: isQualifierSlotRow(draw, latestDraw),
       };
       const patch = computeReconciliationPatch(drawForReconcile, existing, resolved, ctx);
       if (!patch) { result.matchesUnchanged += 1; continue; }
 
-      const bye = isBye(drawForReconcile, ctx);
+      const bye = !priorVacated && isBye(drawForReconcile, ctx);
       if (dryRun) {
         logger?.info(
           { matchId: existing.id, widget, patch, bye },
@@ -743,7 +860,11 @@ async function getActiveWidgetIdCode(
 async function loadLatestFipDrawSnapshots(
   supabase: SupabaseClient,
   tournamentId: string,
-): Promise<Map<string, DrawSnapshotRow>> {
+): Promise<{
+  latest: Map<string, DrawSnapshotRow>;
+  /** Most recent snapshot per widget with BOTH sides named. */
+  lastTwoTeam: Map<string, DrawSnapshotRow>;
+}> {
   const rows = await paginatedSelect<DrawSnapshotRow>(
     (start, end) =>
       supabase
@@ -761,12 +882,20 @@ async function loadLatestFipDrawSnapshots(
   );
 
   const latest = new Map<string, DrawSnapshotRow>();
+  const lastTwoTeam = new Map<string, DrawSnapshotRow>();
   for (const r of rows) {
     if (!r.match_widget_id) continue;
     const prev = latest.get(r.match_widget_id);
     if (!prev || r.captured_at > prev.captured_at) latest.set(r.match_widget_id, r);
+    const bothNamed =
+      teamHasNames(r.team1_player1_name, r.team1_player2_name) &&
+      teamHasNames(r.team2_player1_name, r.team2_player2_name);
+    if (bothNamed) {
+      const prevTwo = lastTwoTeam.get(r.match_widget_id);
+      if (!prevTwo || r.captured_at > prevTwo.captured_at) lastTwoTeam.set(r.match_widget_id, r);
+    }
   }
-  return latest;
+  return { latest, lastTwoTeam };
 }
 
 async function loadExistingMatchesByPrefix(

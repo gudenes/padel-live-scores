@@ -514,3 +514,185 @@ describe('computeReconciliationPatch — unbye reversal', () => {
     })).toBeNull();
   });
 });
+
+// ── Withdrawal awaiting a replacement (Germany P2 MD028, 2026-10-05) ─────
+// Yanguas/Nieto (seed 6) withdrew from R32 vs Bautista/Bergamini. FIP blanked
+// their side and flipped the cell to status='walkover' while the lucky loser
+// was still unnamed. That is the exact DOM shape of a first-round BYE, so
+// without history the reconciler would mark the match 'bye' and hand
+// Bautista/Bergamini a free pass. ctx.priorVacated (the resolved names that
+// sat on the now-empty side in the most recent two-team snapshot) is the
+// signal that this is a vacated slot, not a bye.
+const YANGUAS = '58e401cc-a2a8-4555-8ba1-9c53db083455';
+const NIETO = 'b7166116-0e19-410a-9fc4-59a9581a5bec';
+const BAUTISTA = '5be575ff-1d0b-4438-bbec-753a7d06d99b';
+
+describe('computeReconciliationPatch — withdrawal awaiting replacement', () => {
+  const vacatedDraw = () => baseDraw({
+    match_widget_id: 'MD028',
+    round_label: 'R32',
+    status: 'walkover',
+    team2_player1_name: 'Lucas Bergamini',
+    team2_player2_name: 'Jairo Bautista',
+  });
+  const resolvedNamedSide = baseResolved({ p2p1: BERGAMINI, p2p2: BAUTISTA });
+
+  it('clears the withdrawn pair + its seed instead of bye-patching', () => {
+    const existing = baseExisting({
+      pair1_player1_id: YANGUAS, pair1_player2_id: NIETO, pair1_seed: 6,
+      pair2_player1_id: BAUTISTA, pair2_player2_id: BERGAMINI,
+    });
+    const patch = computeReconciliationPatch(vacatedDraw(), existing, resolvedNamedSide, {
+      firstMdRoundCanonical: 'R32',
+      priorVacated: { p1: YANGUAS, p2: NIETO },
+    });
+    expect(patch).toEqual({
+      pair1_player1_id: null,
+      pair1_player2_id: null,
+      pair1_player1_name: null,
+      pair1_player2_name: null,
+      pair1_player1_country: null,
+      pair1_player2_country: null,
+      pair1_seed: null,
+    });
+  });
+
+  it('clears pair2 when the withdrawn pair sits on pair2 in our row (orientation flip)', () => {
+    const existing = baseExisting({
+      pair1_player1_id: BAUTISTA, pair1_player2_id: BERGAMINI,
+      pair2_player1_id: YANGUAS, pair2_player2_id: NIETO, pair2_seed: 6,
+    });
+    const patch = computeReconciliationPatch(vacatedDraw(), existing, resolvedNamedSide, {
+      firstMdRoundCanonical: 'R32',
+      priorVacated: { p1: YANGUAS, p2: NIETO },
+    });
+    expect(patch).toMatchObject({ pair2_player1_id: null, pair2_player2_id: null, pair2_seed: null });
+    expect(patch).not.toHaveProperty('pair1_player1_id');
+    expect(patch).not.toHaveProperty('status');
+    expect(patch).not.toHaveProperty('winner_pair');
+  });
+
+  it('is a no-op once the slot is already cleared (never falls through to bye)', () => {
+    const existing = baseExisting({
+      pair2_player1_id: BAUTISTA, pair2_player2_id: BERGAMINI,
+    });
+    const patch = computeReconciliationPatch(vacatedDraw(), existing, resolvedNamedSide, {
+      firstMdRoundCanonical: 'R32',
+      priorVacated: { p1: YANGUAS, p2: NIETO },
+    });
+    expect(patch).toBeNull();
+  });
+
+  it('leaves the row alone when our row does not hold the withdrawn pair', () => {
+    const existing = baseExisting({
+      pair1_player1_id: GARRIDO, pair1_player2_id: COLLADO,
+      pair2_player1_id: BAUTISTA, pair2_player2_id: BERGAMINI,
+    });
+    const patch = computeReconciliationPatch(vacatedDraw(), existing, resolvedNamedSide, {
+      firstMdRoundCanonical: 'R32',
+      priorVacated: { p1: YANGUAS, p2: NIETO },
+    });
+    expect(patch).toBeNull();
+  });
+
+  it('does not touch a row that is past scheduled (on_court)', () => {
+    const existing = baseExisting({
+      status: 'on_court',
+      pair1_player1_id: YANGUAS, pair1_player2_id: NIETO, pair1_seed: 6,
+      pair2_player1_id: BAUTISTA, pair2_player2_id: BERGAMINI,
+    });
+    const patch = computeReconciliationPatch(vacatedDraw(), existing, resolvedNamedSide, {
+      firstMdRoundCanonical: 'R32',
+      priorVacated: { p1: YANGUAS, p2: NIETO },
+    });
+    expect(patch).toBeNull();
+  });
+
+  it('fills in the lucky loser once FIP names them (normal team-swap path)', () => {
+    const LL1 = 'll-player-1';
+    const LL2 = 'll-player-2';
+    const draw = baseDraw({
+      match_widget_id: 'MD028',
+      round_label: 'R32',
+      status: 'scheduled',
+      team1_player1_name: 'Lucky Loser One', team1_player2_name: 'Lucky Loser Two',
+      team2_player1_name: 'Lucas Bergamini', team2_player2_name: 'Jairo Bautista',
+    });
+    const existing = baseExisting({
+      pair2_player1_id: BAUTISTA, pair2_player2_id: BERGAMINI,
+    });
+    const resolved = baseResolved({ p1p1: LL1, p1p2: LL2, p2p1: BERGAMINI, p2p2: BAUTISTA });
+    const patch = computeReconciliationPatch(draw, existing, resolved, {
+      firstMdRoundCanonical: 'R32',
+    });
+    expect(patch).toMatchObject({ pair1_player1_id: LL1, pair1_player2_id: LL2 });
+    expect(patch).not.toHaveProperty('status');
+  });
+});
+
+// ── Qualifier slot is not a bye (Germany P2, 2026-10-05) ─────────────────
+// A first-round cell waiting on a qualifier renders exactly like a bye
+// (walkover, one side empty). The orchestrator flags it via
+// ctx.qualifierSlot (empty parent cell — see isQualifierSlotRow in the
+// populator). Bye-patching it would mark Lindmeyer/Wunner as advanced
+// before they have played.
+describe('computeReconciliationPatch — qualifier slot guard', () => {
+  it('does NOT bye-patch a first-round walkover+one-empty cell flagged as a qualifier slot', () => {
+    const draw = baseDraw({
+      match_widget_id: 'MD025',
+      round_label: 'R32',
+      status: 'walkover',
+      team1_player1_name: 'Javier Garrido',
+      team1_player2_name: 'Lucas Bergamini',
+    });
+    const existing = baseExisting({
+      pair1_player1_id: GARRIDO, pair1_player2_id: BERGAMINI,
+    });
+    const resolved = baseResolved({ p1p1: GARRIDO, p1p2: BERGAMINI });
+    const patch = computeReconciliationPatch(draw, existing, resolved, {
+      firstMdRoundCanonical: 'R32',
+      qualifierSlot: true,
+    });
+    expect(patch).toBeNull();
+  });
+});
+
+// ── Never duplicate a player inside a pair (Pakistan WD007, 2026-10-05) ──
+// Draw lists the pair in the opposite slot order and one name does not
+// resolve. Writing the resolved player into "its" draw slot would put the
+// same person in both slots (Mafalda/Mafalda).
+describe('computeReconciliationPatch — no duplicate player in a pair', () => {
+  it('skips a slot write when that player already occupies the other slot', () => {
+    const draw = baseDraw({
+      round_label: 'QF',
+      team1_player1_name: 'Barahona', team1_player2_name: 'Alfonso',
+      team2_player1_name: 'Unresolvable Name', team2_player2_name: 'Lucas Bergamini',
+    });
+    const existing = baseExisting({
+      round: 'QF', round_canonical: 'QF',
+      pair1_player1_id: BARAHONA, pair1_player2_id: ALFONSO,
+      pair2_player1_id: BERGAMINI, pair2_player2_id: GARRIDO,
+    });
+    const resolved = baseResolved({ p1p1: BARAHONA, p1p2: ALFONSO, p2p1: null, p2p2: BERGAMINI });
+    expect(computeReconciliationPatch(draw, existing, resolved)).toBeNull();
+  });
+
+  it('still repairs an existing duplicate (Sheeza/Sheeza → Sheeza/Zoha)', () => {
+    const draw = baseDraw({
+      round_label: 'R16',
+      team1_player1_name: 'Lucas Bergamini', team1_player2_name: 'Javier Garrido',
+      team2_player1_name: 'Barahona', team2_player2_name: 'Alfonso',
+    });
+    const existing = baseExisting({
+      round: 'R16', round_canonical: 'R16',
+      pair1_player1_id: BERGAMINI, pair1_player2_id: BERGAMINI,
+      pair2_player1_id: BARAHONA, pair2_player2_id: ALFONSO,
+    });
+    const resolved = baseResolved({ p1p1: BERGAMINI, p1p2: GARRIDO, p2p1: BARAHONA, p2p2: ALFONSO });
+    expect(computeReconciliationPatch(draw, existing, resolved)).toEqual({
+      pair1_player2_id: GARRIDO,
+      pair1_player2_name: null,
+      pair1_player2_country: null,
+    });
+  });
+});
