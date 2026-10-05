@@ -50,23 +50,24 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   const userId = session?.user?.id ?? null
 
-  // Fire-and-forget: insert click row with resolution context.
-  void supabase
-    .from('racket_clicks')
-    .insert({
+  // Supabase queries are lazy — they only run when awaited. Record the click
+  // and bump the counter in parallel; a tracking failure never blocks the redirect.
+  const [clickInsert, countUpdate] = await Promise.all([
+    supabase.from('racket_clicks').insert({
       racket_id: racketId,
       player_id: playerId ?? null,
       user_id: userId,
       country_code: country,
       partner_id: resolved.partnerId,
       resolved_url: resolved.url,
-    })
-
-  // Fire-and-forget: increment click_count on the racket.
-  void supabase
-    .from('padel_rackets')
-    .update({ click_count: (racket.click_count ?? 0) + 1 })
-    .eq('id', racketId)
+    }),
+    supabase
+      .from('padel_rackets')
+      .update({ click_count: (racket.click_count ?? 0) + 1 })
+      .eq('id', racketId),
+  ])
+  if (clickInsert.error) console.error('[racket-click] insert failed', clickInsert.error)
+  if (countUpdate.error) console.error('[racket-click] click_count update failed', countUpdate.error)
 
   return NextResponse.json({ url: resolved.url })
 }
