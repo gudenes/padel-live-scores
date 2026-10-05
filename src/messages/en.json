@@ -2271,6 +2271,35 @@
       "showLogin": "View login",
       "loginPreview": "Login preview",
       "trySetup": "Try setup"
+    },
+    "resultPanel": {
+      "eyebrow": "YOUR PREDICTION RESULT",
+      "title": {
+        "won": "Well played!",
+        "lost": "Not this time",
+        "refunded": "Guacas returned",
+        "corrected": "Result updated",
+        "mixed": "Your result is in"
+      },
+      "close": "Close result",
+      "yourPick": "Your answer:",
+      "side": {
+        "yes": "Yes",
+        "no": "No",
+        "both": "Yes and No"
+      },
+      "adjustment": "Guacas adjustment",
+      "played": "Guacas played",
+      "returned": "Guacas returned",
+      "received": "Guacas received",
+      "noDeduction": "Your Guacas were used when you made this prediction.",
+      "correction": "This replaces the previous result. Only the balance adjustment is shown.",
+      "breakdown": "{cost} played · {net} net",
+      "view": "VIEW RESULT",
+      "saved": "Saved in your notifications",
+      "batchTitle": "{count} new results",
+      "batchIncludes": "Includes payouts and returned Guacas.",
+      "viewAll": "VIEW RESULTS"
     }
   },
   "playerProfile": {

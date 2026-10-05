@@ -2239,6 +2239,35 @@
       "showLogin": "Voir la connexion",
       "loginPreview": "Aperçu de connexion",
       "trySetup": "Essayer la configuration"
+    },
+    "resultPanel": {
+      "eyebrow": "RÉSULTAT DE TON PRONOSTIC",
+      "title": {
+        "won": "Bien joué !",
+        "lost": "Pas cette fois",
+        "refunded": "Guacas remboursées",
+        "corrected": "Résultat mis à jour",
+        "mixed": "Ton résultat est arrivé"
+      },
+      "close": "Fermer le résultat",
+      "yourPick": "Ta réponse :",
+      "side": {
+        "yes": "Oui",
+        "no": "Non",
+        "both": "Oui et Non"
+      },
+      "adjustment": "Guacas ajustées",
+      "played": "Guacas jouées",
+      "returned": "Guacas remboursées",
+      "received": "Guacas reçues",
+      "noDeduction": "Ces Guacas ont été utilisées lors de ton pronostic.",
+      "correction": "Ce résultat remplace le précédent. Seul l’ajustement du solde est affiché.",
+      "breakdown": "{cost} jouées · {net} nettes",
+      "view": "VOIR LE RÉSULTAT",
+      "saved": "Enregistré dans tes notifications",
+      "batchTitle": "{count} nouveaux résultats",
+      "batchIncludes": "Inclut les gains et les Guacas remboursées.",
+      "viewAll": "VOIR LES RÉSULTATS"
     }
   },
   "playerProfile": {

@@ -25,6 +25,7 @@ if (!SECRET) {
 }
 
 const JOBS = [
+  { path: '/api/cron/play-result-push', cron: '* * * * *' },
   { path: '/api/cron/process-factsheets', cron: '8 */2 * * *' },
   { path: '/api/cron/sync-highlights', cron: '20 */1 * * *' },
   { path: '/api/cron/youtube-channels-discover', cron: '*/5 * * * *' },

@@ -31,13 +31,14 @@ function bucket(position: PlayPosition, filter: PositionFilter): boolean {
 }
 
 export interface PositionsScreenProps {
+  focusMarket?: string | null
   me: PlayMe | null
   status: LoadStatus
   onExplore: () => void
   onRetry: () => void
 }
 
-export default function PositionsScreen({ me, status, onExplore, onRetry }: PositionsScreenProps) {
+export default function PositionsScreen({ me, focusMarket, status, onExplore, onRetry }: PositionsScreenProps) {
   const t = useTranslations('play')
   const locale = useLocale()
   const [timeZone, setTimeZone] = useState<string | null>(null)
@@ -51,6 +52,8 @@ export default function PositionsScreen({ me, status, onExplore, onRetry }: Posi
     } catch { setTimeZone(browserZone) }
   }, [locale])
   const [filter, setFilter] = useState<PositionFilter>('open')
+  useEffect(()=>{if(focusMarket)setFilter('resolved')},[focusMarket])
+  useEffect(()=>{if(focusMarket&&filter==='resolved'){const timer=setTimeout(()=>document.getElementById(`result-${focusMarket}`)?.scrollIntoView({block:'center'}),50);return()=>clearTimeout(timer)}},[focusMarket,filter,me])
   const counts = Object.fromEntries(FILTERS.map(f => [f, (me?.positions ?? []).filter(p => bucket(p, f)).length]))
 
   const rows = useMemo(
@@ -130,7 +133,7 @@ export default function PositionsScreen({ me, status, onExplore, onRetry }: Posi
             const timingTitle = `${t(`positions.resolution.${p.resolutionKind ?? 'unknown'}`)}${dateLabel ? ` · ${t(p.resolutionKind === 'match' ? 'positions.matchStarts' : 'positions.targetDate', {date:dateLabel})}` : ''}`
             return <Fragment key={`${p.marketId}-${p.side}`}>
               {showGroup && <h3 className={resultStyles.dayHeading}>{groupLabel}</h3>}
-              <article className={resolved ? resultStyles.resultRow : resultStyles.pendingCard} aria-label={p.question}>
+              <article id={`result-${p.marketId}`} style={focusMarket===p.marketId?{outline:'2px solid #7ed321',outlineOffset:4}:undefined} className={resolved ? resultStyles.resultRow : resultStyles.pendingCard} aria-label={p.question}>
                 <div className={resultStyles.badge} data-tone={resolved ? p.result : p.side} role={resolved ? 'img' : undefined} aria-label={resolved ? outcome : undefined} title={resolved ? outcome : undefined}>
                   <span>{resolved ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     {p.result === 'won' ? <path d="m5 12 4 4L19 6" /> : p.result === 'lost' ? <path d="m6 6 12 12M18 6 6 18" /> : <path d="M4 10h10a6 6 0 0 1 0 12M4 10l5-5M4 10l5 5" />}
