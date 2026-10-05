@@ -4,7 +4,7 @@
 .portrait{position:relative;width:100%;height:clamp(145px,25dvh,220px);overflow:hidden;mask-image:linear-gradient(#000 85%,transparent)}
 .portrait img{object-fit:cover;object-position:center top}
 .portrait>span{height:100%;display:grid;place-items:center;font-size:40px;color:#ff893f}
-.person strong{font-size:13px;text-align:center;line-height:1.2;margin-top:3px;text-shadow:0 2px 4px #000}
+.person strong,.person > .playerName{font-size:13px;text-align:center;line-height:1.2;margin-top:3px;text-shadow:0 2px 4px #000}
 .ranking .portrait{height:clamp(145px,25dvh,220px)}
 .ranking .portrait img{object-position:center top;object-fit:cover}
 .target{display:grid;align-content:center;gap:2px;min-width:110px}
@@ -16,7 +16,7 @@
 .scope{font-size:11px;line-height:1.3;text-align:center;color:#b6b9a9;margin:5px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .estimate{font-size:12px;margin:12px 0;padding:12px;border:1px solid #424736;color:#c7ccb9;overflow-wrap:anywhere}
 .estimate summary{cursor:pointer;color:#f1efde}.estimate p{line-height:1.5;margin-top:8px}
-@media(max-height:740px){.portrait{height:150px}.ranking .portrait{height:170px}.target b{font-size:24px}.summary{margin-top:6px}.hero{padding-bottom:5px}.person strong{font-size:11px}}
+@media(max-height:740px){.portrait{height:150px}.ranking .portrait{height:170px}.target b{font-size:24px}.summary{margin-top:6px}.hero{padding-bottom:5px}.person strong,.person > .playerName{font-size:11px}}
 
 .summary progress{accent-color:#ff893f;width:60px;height:5px}
 
@@ -26,3 +26,14 @@
 .pair .portrait{height:clamp(180px,28dvh,240px)}
 .pairNames{display:grid;grid-template-columns:1fr 1fr;text-align:center;gap:6px;font-size:12px;line-height:1.2;margin-top:3px;text-shadow:0 2px 4px #000}
 @media(max-height:740px){.pair .portrait{height:180px}}
+
+/* Tournament feed cards keep room for prices and navigation on small screens. */
+.playerLink{display:block;width:100%;color:inherit;text-decoration:none;border-radius:6px}
+.playerName{color:inherit;text-decoration:underline;text-decoration-color:rgba(241,239,222,.35);text-underline-offset:3px;font-weight:700}
+.playerLink:focus-visible,.playerName:focus-visible{outline:2px solid var(--lime,#7ed321);outline-offset:3px}
+.playerLink:hover,.playerName:hover{filter:brightness(1.12)}
+.compact{flex:0 0 auto;padding:0 14px 6px}
+.compact.pair .portrait{height:140px}
+.compact .summary{margin-top:5px;font-size:11px}
+.compact .pairNames{font-size:11px;margin-top:0}
+@media(max-width:390px){.compact.pair .portrait{height:122px}}

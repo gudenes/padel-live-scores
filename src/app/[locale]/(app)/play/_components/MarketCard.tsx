@@ -63,13 +63,16 @@ export default function MarketCard({ market, onDetail, onChoose, positions = [],
           <span className={`pl-tag pl-horizon${horizonClass}`}>
             {t(`horizon.${market.horizon}`)}
           </span>
-          {market.editorial && <span className="pl-tag pl-ctx">{t(`editorial.${market.editorial.kind}`)}</span>}
-          {market.context && <span className="pl-tag pl-ctx">{market.context}</span>}
+          {market.editorial && market.horizon !== 'tourn' && <span className="pl-tag pl-ctx">{t(`editorial.${market.editorial.kind}`)}</span>}
+          {market.horizon === 'tourn' ? <>
+            {(market.competition || editorial?.scope) && <span className="pl-tag pl-ctx">{market.competition || editorial?.scope}</span>}
+            {market.categoryLabel && <span className="pl-tag pl-ctx">{market.categoryLabel}</span>}
+          </> : market.context && <span className="pl-tag pl-ctx">{market.context}</span>}
         </div>
       <h2 className="pl-q pl-card-title">{title}</h2>
       {onViewPositions && <PositionNudge positions={positions} onOpen={collapsed ? undefined : onViewPositions} />}
       {!collapsed && <>
-      {market.editorial ? <EditorialMarketHero data={market.editorial} /> : <div className="pl-hero">
+      {market.editorial ? <EditorialMarketHero data={market.editorial} compact={market.horizon === 'tourn'} /> : <div className="pl-hero">
         {players ? (
           // Real player portraits sit over the shared arena backdrop.
           <VersusIdentity
@@ -114,11 +117,13 @@ export default function MarketCard({ market, onDetail, onChoose, positions = [],
       <div className="pl-stamp pl-s-yes">{t('deck.yes')}</div>
       <div className="pl-stamp pl-s-no">{t('deck.no')}</div>
       </>}
-      <VolumeTicker key={market.id} volume={market.volumeGuacas} className={navigationStyles.volume}/>
+      <div className={navigationStyles.cardFooter}>
+      <VolumeTicker key={market.id} volume={market.volumeGuacas} className={navigationStyles.footerVolume}/>
       <div className={navigationStyles.actions}>
 
         {onDetail && <button type="button" className="pl-details-nudge" onClick={() => onDetail(market)}>{t('detail.openShort')}</button>}
         <MatchLink matchId={market.matchId} live={market.live} iconOnly/>
+      </div>
       </div>
       {collapsed && onToggleExpanded && <button type="button" className="pl-card-open"
         aria-expanded={false} aria-label={`${t('positions.expandMarket')} · ${market.question}`}
