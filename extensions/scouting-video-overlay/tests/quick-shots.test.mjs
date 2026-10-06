@@ -8,7 +8,7 @@ import {defaults} from '../match.mjs';
 import {quickShots} from '../shot-shortcuts.mjs';
 import {shots} from '../generated/shots.mjs';
 import {mediaShortcuts} from '../media-shortcuts.mjs';
-test('gaming shot keys quick-save the canonical shot; detail mode waits for save and inputs ignore shot keys',()=>{
+test('gaming shot keys select then Enter saves the canonical shot; detail mode waits for save and inputs ignore shot keys',()=>{
  const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8'),{url:'https://example.test'});
  globalThis.document=dom.window.document;globalThis.Option=dom.window.Option;Object.defineProperty(globalThis,'localStorage',{value:dom.window.localStorage,configurable:true});
  dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};
@@ -18,19 +18,29 @@ test('gaming shot keys quick-save the canonical shot; detail mode waits for save
  const render=scoutingUI({$,act:msg=>actions.push(msg),getState:()=>state});
  try{
   render(state,{time:110,paused:false},false,true);
+  assert.equal($('score').querySelector('strong').getAttribute('aria-label'),'Player A1, serving');
+  const pressNoShot=new dom.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});$('shot-options').querySelector('button').dispatchEvent(pressNoShot);assert.equal(actions.length,0);assert.match($('shot-error').textContent,/Choose a shot/);
+  const initial=state;
+  state={...state,setup:{...state.setup,startingScore:{completed:[{a:6,b:4}],games:{a:5,b:4},points:{a:40,b:40},server:0,near:'a',advantageReturns:2}}};render(state,{time:110},false,true);
+  assert.match($('pressure').textContent,/Star Point/);assert.match($('pressure').textContent,/Break point/);assert.match($('pressure').textContent,/Match point/);
+  const rows=$('score').querySelectorAll('tr');assert.equal(rows[1].querySelector('strong').textContent,'Player A1');assert.doesNotMatch(rows[2].textContent,/Break point/);
+  state={...state,setup:{...state.setup,startingScore:{...state.setup.startingScore,completed:[],points:{a:40,b:0},advantageReturns:0}}};render(state,{time:110},false,true);assert.match($('pressure').textContent,/Set point/);assert.doesNotMatch($('pressure').textContent,/Match point/);
+  state=initial;render(state,{time:110},false,true);
   assert.equal($('shot-options').querySelector('[aria-label="Common shots"]').children.length,9);
   assert.deepEqual(quickShots.map(([key])=>key),['q','w','e','a','s','d','1','2','3']);
   assert.equal(new Set([...$('shot-options').querySelectorAll('button')].map(b=>b.dataset.shot)).size,Object.keys(shots).length);
   const press=(target,key,options={})=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
   for(const [key,shot] of quickShots){
-   state.pending.id='rally-'+key;render(state,{time:110},false,true);press($('shot-form'),key);
-   assert.deepEqual(actions.at(-1),{type:'score',details:{shot}});
+   state.pending.id='rally-'+key;render(state,{time:110},false,true);const before=actions.length;press($('shot-form'),key);assert.equal(actions.length,before);assert.equal($('shot-options').querySelector(`[data-shot="${shot}"]`).getAttribute('aria-pressed'),'true');if(shot==='smash')press($('shot-form'),'z');press($('shot-options').querySelector('button'),'Enter');
+   assert.deepEqual(actions.at(-1),{type:'score',details:{shot,...(shot==='smash'?{smashType:'power'}:{})}});
   }
+  $('quick-save').checked=true;$('quick-save').dispatchEvent(new dom.window.Event('change'));$('shot-options').querySelector('[data-shot="volley"]').click();assert.equal(actions.at(-1).details.shot,'volley');
   $('quick-save').checked=false;$('quick-save').dispatchEvent(new dom.window.Event('change'));const before=actions.length;
   press($('shot-form'),'s');assert.equal(actions.length,before);
   $('assist').checked=true;press($('shot-form'),'Enter',{ctrlKey:true});assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'groundstroke',assistBy:1}});
-  const saved=actions.length;press($('shot-side'),'q');press($('shot-form'),'w',{repeat:true});assert.equal(actions.length,saved);
+  const saved=actions.length;press($('shot-form'),'Enter',{repeat:true});press($('shot-side'),'q');press($('shot-form'),'w',{repeat:true});assert.equal(actions.length,saved);
   render(state,{time:110},true,true);press($('shot-form'),'Enter',{ctrlKey:true});assert.equal(actions.length,saved);
+  state.pending.id='typed-flow';state.pending.attempts=[{player:0,smashType:'power',snapshot:{time:105}}];render(state,{time:110},false,true);const typedBefore=actions.length;press($('shot-form'),'q');press($('shot-form'),'Enter');assert.equal(actions.length,typedBefore);assert.match($('shot-error').textContent,/smash type/);press($('shot-form'),'z');assert.match($('shot-summary').textContent,/Attempt already counted/);press($('shot-form'),'4');press($('shot-form'),'Enter');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'power',x4:true,smashAlreadyCounted:true,smashAttemptIndex:0}});press($('shot-form'),'x');assert.equal($('x4').checked,false);assert.match($('shot-summary').textContent,/Adds one attempt/);
  }finally{dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}
 });
 test('media shortcuts dispatch once, respect disabled controls and ignore typing',()=>{

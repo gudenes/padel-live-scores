@@ -17,3 +17,11 @@ test('unavailable API and expired login are visible, never falsely reported as s
  const r=await run(env,{matchId:id,method:'GET'});assert.equal(r.ok,false);assert.equal(r.status,401);assert.match(r.error,/Sign in/);
  env.fetch=async()=>({ok:false,status:404,json:async()=>{throw Error('HTML');}});assert.equal((await run(env,{matchId:id,method:'GET'})).ok,false);
 });
+
+test('typed smash records wait for a capable server instead of silently losing their fields',async()=>{
+ const calls=[],request={matchId:id,method:'POST',document:{rallies:[{point:{shot:'smash',smashType:'power',x4:true}}]}};
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({session:null})};}};
+ const blocked=await run(env,request);assert.equal(blocked.ok,false);assert.match(blocked.error,/server update/);assert.deepEqual(calls,['GET']);
+ calls.length=0;env.fetch=async(p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>o.method==='POST'?{revision:1}:{features:['smash-types-v1']}};};
+ assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
+});

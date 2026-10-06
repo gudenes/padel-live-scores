@@ -1,88 +1,44 @@
-# Floating invite button — independent visual QA
+# Scouting direct controls design QA
 
 final result: passed
 
-## Evidence and state
+## Evidence
 
-- Source visual truth: `/Volumes/Crucial/Apps/codex/home/generated_images/01a0ddb4-d548-7453-8f2c-b3ca5bb8615d/exec-5fb62db5-ad2c-477f-8a7e-22f0f6a86e1b.png` (1366 × 1152 px).
-- Implementation: `http://localhost:3017/play?view=leaders`, authenticated leaderboard.
-- Initial screenshot: `/tmp/invite-button-qa.png`.
-- Scrolled screenshot: `/tmp/invite-button-qa-scroll.png` (1580 × 889 px).
-- Drawer screenshot: `/tmp/invite-button-qa-drawer.png`.
-- Focused source + implementation comparison: `/tmp/invite-button-comparison.png`. Source and screenshot crops normalized to approximately equal displayed size for icon/silhouette comparison; not a pixel-difference assertion.
-- Browser viewport: 1422 × 800 CSS px; reported devicePixelRatio 0.9. Browser capture has a different output density; measurements below are CSS DOM measurements.
-- Full-view comparison: reference shows lower leaderboard and nav only, implementation shows full phone and site background. Compared lower phone content and nav; surrounding site, mock framing and density differences are not defects.
+Source visual: `/Volumes/Crucial/Apps/codex/home/visualizations/2026/10/06/01a1102e-efe0-79f2-9415-f4298ad0ea0e/scouting-focus-preview.html`, rendered at http://127.0.0.1:8777/.
+Implementation: http://127.0.0.1:8779/panel.html?demo&focus.
+Source capture: `output/scouting-source.png`.
+Implementation capture: `output/scouting-coral-lime.png`.
+Combined, aligned comparison: `output/design-comparison.png`.
+Both captures: 1265 × 712 pixels; default desktop browser, approximately 1280 × 720 CSS viewport. Same density, no rescaling. Comparison crops align the 415/435-pixel panel content at native resolution.
+State: set 2, 5–4 games, 30–40 points, Coello serving; active rally; all four players; zero attempts/winners. Reference feedback says last action undone after resetting its demo counts; implementation says ready to record.
 
-## Initial findings (resolved in iteration 3)
+## Findings and comparison history
 
-- [P2] Invite control moves away from bottom navigation during outer scrolling.
-  - Initial capture places the control above navigation. After scrolling the phone content, the control moves upward with `.pl-root`, rather than remaining directly above the persistent nav.
-  - Evidence: `.pl-root` top -36, bottom 593; `.pl-invite-float` bottom 577; `.v3-nav` top 665, leaving approximately 88 CSS px to navigation (expected 16).
-  - Fix: anchor the control to the persistent phone viewport/nav context outside the scrolling root, or use an equivalent sticky fixed-position wrapper. Resolved by portal anchoring; see iteration 3.
-- Initial last row partially overlaps the control, but scrolling the standings to the end clears it thanks to bottom padding. No permanently inaccessible row established.
+Earlier implementation inspection found persistent save status below the fold (P2). Removed duplicate timing/baseline text from the recording workspace, placed starting-score notes in setup, compacted player actions, and moved setup below the workspace after match selection. DOM reading order now follows the visible order. Latest combined comparison confirms all four players, Undo and server status are visible at the captured viewport.
+
+No actionable P0/P1/P2 findings remain in the final combined comparison.
 
 ## Required fidelity surfaces
 
-- Typography: control has no visible label; accessible name is “Invite friends.” Existing page typography unchanged.
-- Spacing/layout: 52 × 52 CSS px face, 4px skirt, 32 × 32px icon and 10px face padding confirmed. Right gap is 16px within root. Initial scroll anchoring issue resolved in iteration 3.
-- Colors: lime face computed rgb(126,211,33), black filled group-plus icon, dark green skirt; aligned with approved product tokens. No screenshot color sampling claims due density/color differences.
-- Asset quality: official filled group-add icon preserves selected two-person-plus direction. Raster screenshot looks soft because of capture scaling, while DOM asset is SVG; no asset-resolution defect established. Square approved Press shape intentionally differs from rounded generated mockup.
-- Copy: no new visible copy; button announces Invite friends. Drawer copy preserved.
+- Typography: matching system sans-serif, compact readable hierarchy and full player names; only the serving player is bold. Full names in scoreboard intentionally replace abbreviated mock labels.
+- Layout: scoreboard, pressure footer, timing row, rally control, two player pairs separated by Switch ends, feedback and Undo retain the reference hierarchy. Setup and advanced tools remain collapsed below.
+- Colors: user-approved coral #FF8A7A recording actions and lime #C7EF63 rally/selection actions replace reference green. Neutral surfaces preserve the reference contrast and hierarchy.
+- Images/assets: reference is native text/forms without raster imagery or decorative assets; implementation retains native controls.
+- Copy: live Match/Game/Video values replace illustrative times. Unknown partial-game duration is explicitly shown. Actual save acknowledgement replaces the mock’s always-saved text. Pressure uses canonical admin scoring, including Star Point.
 
-## Interaction and diagnostics
+## Interaction verification
 
-- Clicking Invite friends opens existing invitation drawer.
-- Clicking NOT NOW closes it and returns to leaderboard.
-- No invitation sent/copied and no account data changed.
-- Console: existing React missing-key warning from PressButton children supplied by MatchMarketCard; unrelated to invite control.
+Browser: Power attempt, winner, Q → Z → 4 → Enter, matching-attempt reuse, score update, and Undo restoring 30–40 without double-counting the attempt. Automated tests cover X3, Power, X4, keyboard saving, undo, starting scores and server validation. Browser warning/error log was empty.
 
-## Comparison history
+## Follow-up polish / test gaps
 
-1. Initial and scrolled captures: icon/face size confirmed, identified P2 scroll anchor mismatch. No pass yet.
+A requested narrow viewport override did not change the native in-app browser dimensions; narrow-width behavior was not independently verified. Capture covers the actual compact desktop extension-width content. Physical Chrome keyboard assignments and the installed extension were not changed during this demo verification. Production server saves require deployment of the new server capability before extension activation.
 
 ## Implementation checklist
 
-- [x] Correct persistent bottom anchoring.
-- [x] Re-capture full context and focused button comparison after scrolling.
-- [x] Initial drawer open/close verified.
-
-## Follow-up polish
-
-- None required beyond the scroll placement issue.
-
-## Iteration 2 — fix applied, browser disconnected
-
-The implementation agent moved the button into the persistent `.app-screen > nav` context through `FloatingInvite.tsx`, with a portal and positioning intended to retain the 16px rendered gap. This addresses the identified cause in code, but rendered verification is still required.
-
-On resuming QA, browser ID 1 returned “Browser is not available: 1.” Current `cua.getState()` returned `browsers: []`, and creating a fresh in-app tab returned “Browser is not available: iab.” No other browser or automation route was used. Post-fix screenshots and interaction checks could not be captured. Earlier screenshots represent the pre-fix build only.
-
-Historical result: blocked
-
-Remaining blocker at that time: in-app browser unavailable for post-fix screenshot comparison, not a confirmed remaining visual defect.
-
-
-## Iteration 3 — independent review of root-captured post-fix evidence
-
-The root agent regained browser access and captured the revised implementation through CUA. This reviewer independently opened both screenshots, created combined source/implementation comparisons, and inspected them.
-
-- Post-fix initial: `/tmp/invite-button-final-top.png`.
-- Post-fix scrolled: `/tmp/invite-button-final-scroll.png`.
-- Both capture dimensions: 1339 × 1176 px. No density-equal pixel-difference claim; cropped content is normalized by width for full composition, and focused controls by approximate face size.
-- Combined full-view comparison: `/tmp/invite-button-final-comparison.png`.
-- Combined focused comparison: `/tmp/invite-button-final-detail.png`.
-- Root DOM measurements: nav top824.9479, button top758.0729/bottom814.0625, width51.9965/height55.9896. Identical before and after app-screen scrollTop80.
-
-The P2 anchor issue is resolved: the control remains in the same position directly above navigation while content scrolls. No row obstruction appears in the revised captures. Icon, depth, lime color, placement and accessible action remain aligned with the selected direction. Fonts/copy unchanged. The approved square Press control and official Material icon are intentional design-system adaptations of the generated reference.
-
-P3 only: the measured bottom gap is approximately10.9 CSSpx rather than the intended16; it is visually clear and does not block the nav or content. Optional adjustment can be deferred.
-
-No remaining actionable P0/P1/P2 visual findings. Earlier blocked entries describe historical states only. Initial drawer open/close passed; post-portal retest passed (see below).
-
-final result: passed
-
-
-## Final interaction verification
-
-Root CUA retest confirmed keyboard Enter opens the drawer, pointer activation opens it, and NOT NOW closes it. Post-fix drawer evidence: `/tmp/invite-button-final-drawer.png`, independently opened by this reviewer. Tooling coordinate offset was corrected during pointer testing; it was not an application hit-target defect. No invitations were sent. Typecheck and diff-check also passed per implementation agent.
-
-final result: passed
+- [x] Approved direct controls and coral/lime palette
+- [x] Serving bold, pressure below score
+- [x] All four players and Undo visible
+- [x] Typed smash tracking and matching-attempt reuse
+- [x] Honest local/pending/server-confirmed save status
+- [x] Final rendered comparison and core interactions checked

@@ -1,5 +1,5 @@
 // Shared by the extension and the operator API. No browser APIs or credentials.
-import {validateSetup,validatePoint,match} from './match.mjs';
+import {validateSetup,validatePoint,match,validateSmashType} from './match.mjs';
 import {finishRally} from './core.mjs';
 const string=(v,max=160)=>{if(typeof v!=='string'||v.length>max)throw Error('Invalid scouting text.');return v;};
 const at=v=>{string(v,40);if(!Number.isFinite(Date.parse(v)))throw Error('Invalid scouting timestamp.');return v;};
@@ -18,7 +18,7 @@ function rally(raw){
  if(!raw||typeof raw!=='object')throw Error('Invalid rally.');
  const result={id:string(raw.id,80),label:string(raw.label??''),start:snapshot(raw.start)};
  if(raw.firstFault)result.firstFault=snapshot(raw.firstFault);
- if(raw.attempts){if(!Array.isArray(raw.attempts)||raw.attempts.length>100)throw Error('Too many smash attempts.');result.attempts=raw.attempts.map(a=>({player:player(a.player),snapshot:snapshot(a.snapshot)}));}
+ if(raw.attempts){if(!Array.isArray(raw.attempts)||raw.attempts.length>100)throw Error('Too many smash attempts.');result.attempts=raw.attempts.map(a=>({player:player(a.player),snapshot:snapshot(a.snapshot),...(a.smashType!==undefined?{smashType:validateSmashType(a.smashType)}:{})}));}
  for(const s of [result.firstFault,...(result.attempts??[]).map(a=>a.snapshot)].filter(Boolean))finishRally(result,s);
  if(raw.end){const end=snapshot(raw.end);Object.assign(result,finishRally(result,end));}
  if(raw.undone){result.undone=true;result.undoneAt=at(raw.undoneAt);}

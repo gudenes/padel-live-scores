@@ -13,6 +13,10 @@ function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Mat
 function render(){
   if(!state)return;
   const connection=state.connection;
+  $('match-identity').textContent=state.selectedMatch?[state.selectedMatch.tournamentName,state.selectedMatch.category,state.selectedMatch.round].filter(Boolean).join(' · '):'Select a match to begin';
+  $('save-settings').dataset.sync=cloud.status;
+  const recent=state.history?.at(-1),lastPoint=state.rallies.findLast(r=>r.point&&!r.undone),attempt=state.pending?.attempts?.at(-1);
+  $('last-action').textContent=recent?.type==='smash'&&attempt?`${state.setup.names[attempt.player]} · ${attempt.smashType==='x3'?'X3':attempt.smashType==='power'?'Power':'Smash'} attempt recorded`:lastPoint?`${state.setup.names[lastPoint.point.player]} · ${lastPoint.point.outcome.replace('_',' ')}${lastPoint.point.shot?' · '+lastPoint.point.shot:''}${lastPoint.point.smashType?' '+lastPoint.point.smashType:''}${lastPoint.point.x4?' · X4 winner':''}`:'Ready to record';
   $('cloud-status').textContent=({local:'Local copy',pending:'Waiting to save',saved:'Saved to server',error:'Local copy · retry needed',conflict:'Needs attention'})[cloud.status]??'Local copy';
   $('cloud-message').textContent=cloud.error||(!state.selectedMatch?'Choose a match to enable server saves.':cloud.status==='saved'?`Last server save: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Keep admin signed in and connected. Changes stay on this device until the server confirms.');
   $('export-backup').disabled=busy||!state.selectedMatch;
@@ -44,12 +48,15 @@ function render(){
     else $('rallies').replaceChildren(...state.rallies.slice().reverse().map((r,i)=>{
       const li=document.createElement('li'),info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small'),button=document.createElement('button');
       title.textContent=`${r.undone?'Undone · ':''}Rally ${state.rallies.length-i} · ${r.videoSeconds.toFixed(1)}s`;if(r.point)title.textContent+=` · ${state.setup.names[r.point.player]} ${r.point.outcome.replace('_',' ')}`;
-      meta.textContent=`${time(r.start.time)} → ${time(r.end.time)}${r.label?` · ${r.label}`:''}`;
+      meta.textContent=`${r.point?.shot?`${r.point.shot}${r.point.smashType?' '+r.point.smashType:''}${r.point.x4?' · X4 winner':''} · `:''}${time(r.start.time)} → ${time(r.end.time)}${r.label?` · ${r.label}`:''}`;
       button.className='ui-btn';button.dataset.size='sm';button.textContent='Replay';button.disabled=busy||!!state.pending||!healthy;
       button.addEventListener('click',()=>act({type:'replay',id:r.id}));
       info.append(title,meta);li.append(info,button);return li;
     }));
   }
+  const workspace=$('scouting-workspace'),setup=$('connection-settings');
+  if(state.selectedMatch&&workspace.nextElementSibling!==setup)workspace.after(setup);
+  else if(!state.selectedMatch&&setup.previousElementSibling)setup.parentElement.prepend(setup);
   document.body.classList.toggle('scouting',!!state.selectedMatch);
   renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);
 }
@@ -63,7 +70,7 @@ async function refresh(){
 }
 async function act(message){
   if(busy)return;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
-  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match')$('catalog-feedback').textContent='Previous match saved on this device. Choose another match below.';if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Open admin, click the extension icon there, then Load tournaments.';if(message.type==='connect')$('connection-feedback').textContent='Video connected. The clock below follows playback.';$('message').textContent=['end','score','double-fault'].includes(message.type)?'Point and video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':'';}
+  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match')$('catalog-feedback').textContent='Previous match saved on this device. Choose another match below.';if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Open admin, click the extension icon there, then Load tournaments.';if(message.type==='connect')$('connection-feedback').textContent='Video connected. The clock below follows playback.';$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
   catch(error){$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{busy=false;render();await refresh();}
 }
@@ -88,7 +95,7 @@ document.addEventListener('keydown',event=>{
   if(event.code!=='Space'||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.isComposing||event.target.closest('input,textarea,select,button,summary,[contenteditable="true"]'))return;
   event.preventDefault();if(!$('rally').disabled)$('rally').click();
 });
-if(demo){$('demo-controls').hidden=false;$('demo-pause').onclick=async()=>{await transport({type:'demo-pause'});await refresh();$('demo-pause').textContent=sample?.paused?'Resume demo video':'Pause demo video';};$('demo-rewind').onclick=async()=>{await transport({type:'demo-rewind'});await refresh();};document.body.classList.add('demo');document.querySelector('.eyebrow span').textContent='SIMULATED PREVIEW';}
+if(demo){$('demo-controls').hidden=false;$('demo-pause').onclick=async()=>{await transport({type:'demo-pause'});await refresh();$('demo-pause').textContent=sample?.paused?'Resume demo video':'Pause demo video';};$('demo-rewind').onclick=async()=>{await transport({type:'demo-rewind'});await refresh();};document.body.classList.add('demo');document.querySelector('h1').textContent='Match scouting · Demo';document.querySelector('.eyebrow span').textContent='SIMULATED PREVIEW';}
 try{state=(await call({type:'state'})).state;render();await refresh();}catch(error){$('message').textContent=error.message;}
 setInterval(refresh,1500);
 

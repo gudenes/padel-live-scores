@@ -1,7 +1,7 @@
 import {validateVideoState,videoPayload} from './server-model.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference} from './core.mjs';
-import {defaults,match,validateSetup,validatePoint} from './match.mjs';
+import {defaults,match,validateSetup,validatePoint,validateSmashType} from './match.mjs';
 export function engine({read,write,discover,capture,seek,uuid,catalog,playback}){
   // All panels share this queue in the worker, preventing duplicate or lost writes.
   let queue=Promise.resolve();
@@ -136,7 +136,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(!state.pending||!state.connection||state.pending.finish)throw Error('Start a rally before counting attempts.');
           if(!Number.isInteger(message.player)||message.player<0||message.player>3)throw Error('Choose a player.');
           const snapshot=await capture(state.connection);finishRally(state.pending,snapshot);
-          (state.pending.attempts??=[]).push({player:message.player,snapshot});return save();
+          (state.pending.attempts??=[]).push({player:message.player,snapshot,...(message.smashType!==undefined?{smashType:validateSmashType(message.smashType)}:{})});return save();
         }
         case 'undo':{
           if(state.pending)throw Error('Cancel the open rally before undoing a point.');
