@@ -33,3 +33,10 @@ test('VAR records wait for VAR support even when smash support is already deploy
  env.fetch=async(p,o)=>({ok:true,status:200,json:async()=>({features:['smash-types-v1','var-review-v1']})});
  assert.equal((await run(env,request)).ok,true);
 });
+test('shot taps cannot upload to an older server that would discard them',async()=>{
+ const calls=[],request={matchId:id,method:'POST',document:{pending:{touches:[{player:0}]}}};
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['smash-types-v1','var-review-v1']})};}};
+ assert.equal((await run(env,request)).ok,false);assert.deepEqual(calls,['GET']);
+ calls.length=0;env.fetch=async(p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['rally-touches-v1']})};};
+ assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
+});

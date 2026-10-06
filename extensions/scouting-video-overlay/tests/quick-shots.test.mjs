@@ -39,6 +39,7 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
    state.pending.id='rally-'+key;render(state,{time:110},false,true);const before=actions.length;press($('shot-form'),key);assert.equal(actions.length,before);assert.equal($('shot-options').querySelector(`[data-shot="${shot}"]`).getAttribute('aria-pressed'),'true');if(shot==='smash')press($('shot-form'),'z');press($('shot-options').querySelector('button'),'Enter');
    assert.deepEqual(actions.at(-1),{type:'score',details:{shot,...(shot==='smash'?{smashType:'power'}:{})}});
   }
+  state.pending.id='space-flow';render(state,{time:110},false,true);press($('shot-form'),'w');const beforeSpace=actions.length;press($('shot-options').querySelector('button'),' ');assert.equal(actions.length,beforeSpace+1);assert.equal(actions.at(-1).details.shot,'volley');press($('shot-form'),' ',{repeat:true});assert.equal(actions.length,beforeSpace+1);
   $('quick-save').checked=true;$('quick-save').dispatchEvent(new dom.window.Event('change'));$('shot-options').querySelector('[data-shot="volley"]').click();assert.equal(actions.at(-1).details.shot,'volley');
   $('quick-save').checked=false;$('quick-save').dispatchEvent(new dom.window.Event('change'));const before=actions.length;
   press($('shot-form'),'s');assert.equal(actions.length,before);

@@ -1,7 +1,7 @@
 import {validateVideoState,videoPayload} from './server-model.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference} from './core.mjs';
-import {defaults,match,validateSetup,validatePoint,validateSmashType} from './match.mjs';
+import {defaults,match,validateSetup,validatePoint,validateSmashType,courtPlayers} from './match.mjs';
 export function engine({read,write,discover,capture,seek,uuid,catalog,playback}){
   // All panels share this queue in the worker, preventing duplicate or lost writes.
   let queue=Promise.resolve();
@@ -9,7 +9,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const undoable=new Set(['var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','undo','label','start','end','cancel']);
+      const undoable=new Set(['var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async()=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
@@ -137,6 +137,13 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(!state.pending||!state.connection||state.pending.finish)throw Error('Start a rally first.');
           const point=validatePoint({player:match(state).server,outcome:'double_fault'},state.pending,match(state).server);
           state.rallies.push({...finishRally(state.pending,await capture(state.connection)),point});state.pending=null;return save();
+        }
+        case 'touch':{
+          if(!state.pending||!state.connection||state.pending.finish)throw Error('Start a rally before tapping shots.');
+          if(!Number.isInteger(message.player)||message.player<0||message.player>3)throw Error('Choose a player.');
+          if((state.pending.touches?.length??0)>=500)throw Error('This rally already has 500 shots.');
+          const snapshot=await capture(state.connection);finishRally(state.pending,snapshot);
+          (state.pending.touches??=[]).push({player:message.player,order:courtPlayers(state),snapshot});return save();
         }
         case 'smash':{
           if(!state.pending||!state.connection||state.pending.finish)throw Error('Start a rally before counting attempts.');

@@ -13,7 +13,7 @@ After starting a rally, click the player’s Winner / Unforced / Forced outcome 
 | A · Bandeja | S · Groundstroke | D · Lob |
 | 1 · Chiquita | 2 · Wall return | 3 · Return |
 
-Press a stroke key to select the shot, then Enter to save it. Keyboard selection always waits for Enter. With Quick save enabled, clicking a non-smash shot saves immediately; smashes still wait for a type selection and Enter. Turn it off to select by click and save later. Opening Add details turns Quick save off so you can record side, assist, recovery, net cord or already-counted smash details. The preference persists on this device. More shots contains all remaining canonical shots. Ctrl/Cmd Enter also saves after a shot is selected. Shot shortcuts only apply while the picker is open and are ignored in input fields. Undo last action is available in the side panel.
+Press a stroke key to select the shot, then Space to save it. Keyboard selection always waits for Space or Enter. With Quick save enabled, clicking a non-smash shot saves immediately; smashes still wait for a type selection and Space. Turn it off to select by click and save later. Opening Add details turns Quick save off so you can record side, assist, recovery, net cord or already-counted smash details. The preference persists on this device. More shots contains all remaining canonical shots. Ctrl/Cmd Enter also saves after a shot is selected. Shot shortcuts only apply while the picker is open and are ignored in input fields. Undo last action is available in the side panel.
 
 ## Catalogue and video connection
 
@@ -50,3 +50,20 @@ VAR review flags the current rally without awarding a point or changing the vide
 Switch ends rotates the camera-facing player order diagonally. A player keeps their left/right playing role. Automatic game and tie-break changeovers use the same mapping; pair position overrides and Undo are preserved.
 
 First fault, Double fault and VAR review are always visible directly beneath the rally button. Start a rally to enable First fault/VAR; Double fault enables after First fault.
+
+
+## One-hand shot tracking
+In the side panel, tap Q/W for far-left/far-right or A/S for near-left/near-right on each observed shot. Labels stay attached to court quadrants as players change ends. A short key press records on release; held-key repeats do not add shots. Hold a player key for 2 seconds to select that player instead, then Up for winner, Left for unforced error, or Right for forced error. Select the finishing stroke and press Space (Enter still works). These shortcuts apply in the side panel, not on the YouTube page.
+
+Each tap stores the hitter, video timestamp and four-player court order. Consecutive opposite-pair hitters with unchanged court order infer cross-court or down-the-line. Same-pair sequences, position changes and the last tap remain unknown. Taps never award points; one scored point is one rally. Undo removes the last tap or restores the last scored point and its shot sequence. Finished reports show shot counts and inferred directions only for tracked, non-undone rallies. Old points retain their existing records and do not gain fabricated taps.
+
+The admin API must advertise `rally-touches-v1` before tapped records upload; older servers are blocked with a visible pending-update message. Deploy admin and web from the merged release before updating the installed extension. No database migration is required: sequences live in the existing session document.
+
+## Finish and verify
+1. Save the last finishing stroke. Confirm the scoreboard says **Match finished** and the sets are correct.
+2. Keep admin signed in. If needed, open admin, click the extension icon there and **Load tournaments** to reconnect.
+3. Open **Server saves**, press **Sync now**, and wait for **Saved to server** with a recent save time. Retry or conflict means the save is incomplete; keep the local copy.
+4. Choose **Export local backup**.
+5. Open the related match on Padel Nachos and check the scouting report. A mid-match starting score contributes to the score; statistics cover only observed points. Direction counts are inferred estimates.
+
+The panel includes this checklist and opens it automatically when the scouting score finishes. Its completion message requires both a finished score and acknowledgement of the current session save.
