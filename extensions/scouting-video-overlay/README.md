@@ -2,7 +2,7 @@
 
 Scout players and save points in the side panel. The on-video overlay is now a compact, draggable playback remote. This uses the existing Corner overlay extension and its saved sessions; it does not migrate or overwrite the separate Video companion extension’s sessions.
 
-Reload Corner overlay at chrome://extensions, refresh the video page, reopen its side panel and Connect video. Show video remote displays playback controls without the four player overlays. Keyboard shortcuts work while the video page or side panel has focus: F9 back 10 seconds, F10 play/pause, F11 forward 30 seconds. On a Mac you may need Fn with the function keys. The remote’s extra controls provide ±5, +10 and −30 seconds. Skips are disabled during an open rally; pausing does not end or score it. Close hides the remote; show it again from the side panel.
+Reload Corner overlay at chrome://extensions, refresh the video page, reopen its side panel and Connect video. Show video remote displays playback controls without the four player overlays. Keyboard shortcuts work while the video page or side panel has focus: J back 10 seconds, K play/pause, L forward 30 seconds, left arrow back 5 seconds and right arrow forward 5 seconds. The remote shows ±5-second controls directly. Extra controls provide +10 and −30 seconds. Skips are disabled during an open rally; pausing does not end or score it. Close hides the remote; show it again from the side panel.
 
 ## Fast shot entry
 
@@ -28,3 +28,5 @@ The remote uses an isolated script and Shadow DOM. Use theatre mode if native vi
 Server rollout requires the operator_video_scouting_sessions migration and the admin video-scouting API release before the extension can save remotely.
 
 Local simulated previews: serve this directory and open panel.html?demo for scouting or preview.html for the remote. These use in-memory sample data. Tests: node --test extensions/scouting-video-overlay/tests/*.test.mjs (UI tests use the repository’s jsdom dependency).
+
+Open Video keyboard shortcuts in the side panel to assign each action: click its field, then press your key or key combination. Duplicate shortcuts are rejected. Backspace clears a binding; Reset shortcuts restores the defaults. Changes are saved on this device and update the video remote automatically. Typing in input fields does not trigger media shortcuts; the shot picker retains its letter and number keys.

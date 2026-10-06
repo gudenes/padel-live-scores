@@ -16,6 +16,7 @@ test('disconnected overlay disables skips, offers reconnect and clears the conne
   return {ok:true,state,view,sample:connected?{time:100,paused:false,seeking:false}:null};
  }}};
  try{
+  dom.window.eval(readFileSync(new URL('../shortcut-keys.js',import.meta.url),'utf8'));
   dom.window.eval(readFileSync(new URL('../overlay.js',import.meta.url),'utf8'));
   const root=dom.window.document.querySelector('div').shadowRoot;
   const button=text=>[...root.querySelectorAll('button')].find(b=>b.firstChild?.textContent===text);
@@ -26,7 +27,7 @@ test('disconnected overlay disables skips, offers reconnect and clears the conne
   button('Reconnect video').click();await new Promise(resolve=>setImmediate(resolve));
   assert.equal(button('Reconnect video').hidden,true);assert.equal(button('+30s').disabled,false);assert.equal(root.querySelector('.notice').textContent,'');
   assert.equal(root.querySelectorAll('article,[role=dialog]').length,0);
-  for(const key of ['F9','F10','F11']){dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));await new Promise(resolve=>setImmediate(resolve));}
-  assert.deepEqual(JSON.parse(JSON.stringify(messages.filter(m=>m.type==='skip'||m.type==='playback'))),[{type:'skip',seconds:-10},{type:'playback'},{type:'skip',seconds:30}]);
+  for(const key of ['j','k','l','ArrowLeft','ArrowRight']){dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));await new Promise(resolve=>setImmediate(resolve));}
+  assert.deepEqual(JSON.parse(JSON.stringify(messages.filter(m=>m.type==='skip'||m.type==='playback'))),[{type:'skip',seconds:-10},{type:'playback'},{type:'skip',seconds:30},{type:'skip',seconds:-5},{type:'skip',seconds:5}]);
  }finally{dom.window.close();}
 });

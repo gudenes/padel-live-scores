@@ -29,3 +29,5 @@ body.demo{max-width:400px;margin:24px auto;background:#EEF0E8;border:1px solid #
 .catalog-body{display:grid;gap:10px;min-width:0}
 
 #shot-dialog{width:min(420px,96vw)}#shot-options .shot-grid{grid-template-columns:repeat(3,minmax(0,1fr))}#shot-options .shot-grid button{display:grid;gap:4px;min-height:56px}#shot-options kbd{font:11px var(--font);opacity:.7}#shot-details[open]{display:grid;gap:10px}#shot-options details>summary{margin:12px 0}#video-playback{width:100%;margin-top:8px}
+
+#shortcut-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}#shortcut-fields input{cursor:pointer;text-align:center}#shortcut-settings>summary{font-weight:650}

@@ -1,3 +1,4 @@
+import './shortcut-keys.js';
 import {videoPayload} from './server-model.mjs';
 import {cloudSync,adminVideoSync} from './cloud.mjs';
 import {match} from './match.mjs';
@@ -70,13 +71,16 @@ const dispatch=engine({
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
  if(sender.id!==chrome.runtime.id)return;
  const panel=sender.url?.startsWith(chrome.runtime.getURL('panel.html'));
- const allowed=new Set(['state','sample','reconnect','start','prepare','score','clear-outcome','first-fault','double-fault','smash','undo','cancel','server','ends','skip','positions','playback','overlay-layout']);
+ const allowed=new Set(['state','sample','get-shortcuts','reconnect','start','prepare','score','clear-outcome','first-fault','double-fault','smash','undo','cancel','server','ends','skip','positions','playback','overlay-layout']);
  const run=async()=>{
   if(!panel){
    const {overlayTab}=await chrome.storage.session.get('overlayTab');
    const state=(await chrome.storage.local.get('scoutingVideo')).scoutingVideo;
-   if(sender.tab?.id!==overlayTab||sender.tab?.id!==state?.connection?.tabId||sender.frameId!==0||!allowed.has(message.type))throw Error('Reconnect the overlay from its setup panel.');
+   const connectedTab=state?.connection?.tabId??overlayTab;
+   if(!Number.isInteger(connectedTab)||sender.tab?.id!==connectedTab||sender.frameId!==0||!allowed.has(message.type))throw Error('Connect this video in the side panel, then show the video remote again.');
   }
+  if(message.type==='get-shortcuts'){const stored=await chrome.storage.local.get('videoMediaShortcuts');return {bindings:globalThis.__pnMediaKeys.normalize(stored.videoMediaShortcuts)};}
+  if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await chrome.storage.local.set({videoMediaShortcuts:bindings});return {bindings};}
   if(message.type==='cloud-backup'){
    const {state}=await dispatch({type:'state'});
    const {videoScoutingBackups}=await chrome.storage.local.get('videoScoutingBackups');
@@ -96,18 +100,20 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
    previous[id]={at:new Date().toISOString(),selectedMatch:state.selectedMatch,document:videoPayload(state)};await chrome.storage.local.set({videoScoutingBackups:previous});
    const result=await dispatch({type:'restore-cloud',matchId:id,document:remote.payload,expectedHash:JSON.stringify(videoPayload(state))});
    await sync.acknowledge(id,remote);await sync.track(result.state);scheduleSync();
-   return {...result,sync:await sync.status(id)};
+   const shortcuts=(await chrome.storage.local.get('videoMediaShortcuts')).videoMediaShortcuts;
+  return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:await sync.status(id)};
   }
   if(message.type==='restore-cloud')throw Error('Load the saved server copy through the side panel.');
   if(message.type==='show-overlay'){
    const {state}=await dispatch({type:'state'});
    if(!state.selectedMatch||!state.connection)throw Error('Select a match and connect the video first.');
    await chrome.storage.session.set({overlayTab:state.connection.tabId});
-   await chrome.scripting.executeScript({target:{tabId:state.connection.tabId},files:['overlay.js']});
+   await chrome.scripting.executeScript({target:{tabId:state.connection.tabId},files:['shortcut-keys.js','overlay.js']});
    return {state};
   }
   const result=await dispatch(message),m=match(result.state);
-  return {...result,sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{...m,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
+  const shortcuts=(await chrome.storage.local.get('videoMediaShortcuts')).videoMediaShortcuts;
+  return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{...m,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
  };
  run().then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message||'Overlay unavailable.'}));
  return true;

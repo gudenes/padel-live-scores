@@ -1,3 +1,4 @@
+import {shortcutSettings} from './shortcut-settings.mjs';
 import {mediaShortcuts} from './media-shortcuts.mjs';
 import {catalogUI} from './catalog-ui.mjs';
 import {scoutingUI} from './scout-ui.mjs';
@@ -70,7 +71,8 @@ $('export-backup').onclick=async()=>{try{const {backup}=await call({type:'cloud-
 $('sync-server').onclick=()=>act({type:'sync-server'});
 $('load-server').onclick=()=>act({type:'load-server'});
 $('video-playback').onclick=()=>act({type:'playback'});
-mediaShortcuts({target:document,back:$('skip--10'),pause:$('video-playback'),forward:$('skip-30')});
+const getBindings=shortcutSettings({$,send:transport,onChange:()=>{}});
+mediaShortcuts({target:document,back:$('skip--10'),pause:$('video-playback'),forward:$('skip-30'),back5:$('skip--5'),forward5:$('skip-5'),getBindings});
 $('connect').addEventListener('click',()=>act({type:'connect'}));
 $('player').addEventListener('change',()=>act({type:'select',videoId:$('player').value}));
 $('rally').addEventListener('click',()=>act({type:'start'}));

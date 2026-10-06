@@ -67,7 +67,7 @@ export function scoutingUI({$,act,getState}){
   if(sk!==serverKey){serverKey=sk;$('current-server').replaceChildren(...setup.names.map((n,i)=>new Option(n,i)));$('current-server').value=m.server;}
   for(const id of ['current-server','apply-server','swap-ends'])$(id).disabled=busy||!!state.pending||!state.selectedMatch||m.score.phase==='finished';
   $('video-playback').disabled=busy||!healthy||!!sample?.seeking;
-  $('video-playback').textContent=`${sample?.paused?'Play':'Pause'} · F10`;
+  $('video-playback').textContent=sample?.paused?'Play':'Pause';
   for(const seconds of [-30,-10,-5,5,10,30])$(`skip-${seconds}`).disabled=busy||!!state.pending||!healthy||!!sample?.seeking;
   $('court-ends').textContent=`Far end: Pair ${m.near==='a'?'B':'A'} · Near end: Pair ${m.near.toUpperCase()} · automatic changeovers`;
   const next=JSON.stringify([setup.names,m.server,m.stats,m.near]);
