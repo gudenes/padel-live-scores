@@ -13,7 +13,7 @@ After starting a rally, click the player’s Winner / Unforced / Forced outcome 
 | A · Bandeja | S · Groundstroke | D · Lob |
 | 1 · Chiquita | 2 · Wall return | 3 · Return |
 
-With Quick save enabled, one shot click or key saves the point. Turn Quick save off to select a shot first and save later. Opening Add details turns Quick save off so you can record side, assist, recovery, net cord or already-counted smash details. The preference persists on this device. More shots contains all remaining canonical shots. Ctrl/Cmd Enter saves manually, including without a shot type. Shot shortcuts only apply while the picker is open and are ignored in input fields. Undo point is available in the side panel.
+Press a stroke key to select the shot, then Enter to save it. Keyboard selection always waits for Enter. With Quick save enabled, clicking a non-smash shot saves immediately; smashes still wait for a type selection and Enter. Turn it off to select by click and save later. Opening Add details turns Quick save off so you can record side, assist, recovery, net cord or already-counted smash details. The preference persists on this device. More shots contains all remaining canonical shots. Ctrl/Cmd Enter also saves after a shot is selected. Shot shortcuts only apply while the picker is open and are ignored in input fields. Undo last action is available in the side panel.
 
 ## Catalogue and video connection
 
@@ -36,3 +36,11 @@ Use Switch match to archive the current local session and choose another match. 
 Start partway through the match: select the match, open the starting-score card, enter completed sets, current games/points and the server/near pair at the first rally you will scout, then Apply starting score. Earlier sets contribute to the scoreboard but never to shot statistics. The baseline is locked after the first recorded point, persists per session, and remains when undoing a scouting point.
 
 Scoreboard now labels individual sets and includes the starting baseline. Match/game time follows video timestamps; seeded sessions show observation time unless earlier elapsed minutes are entered. Serve/pressure statistics reuse generated admin model/tracking code, including breaks, chances saved, holds, Star/set/match points and serve faults. Court controls flip near/far or swap each pair left/right. Undo last action restores up to 50 recent scouting edits per match, including baseline, side controls, faults and rally actions; legacy sessions can still undo a scored point.
+
+The scoreboard marks the serving player and the pair with a break, set or match point. Star Point, tie-break and pressure moments appear below its rows. The serving player’s name is bold. These flags use the same admin pressure calculation as the statistics.
+
+## Compact Direct controls
+
+Coral buttons record points; lime starts rallies and marks active selections. Match/video setup, playback and detailed statistics stay in collapsible sections. The four player cards, timing, last saved event, Undo and server acknowledgement stay in the working area. Power and X3 attempts are separate: Q selects Smash, Z selects Power, X selects X3, 4 flags an X4 winner, and Enter saves. Clicking a stroke waits for Save by default. A finishing smash can reuse the last matching attempt in that rally, avoiding a second count; clear the reuse checkbox for a distinct attempt. Legacy untyped smashes remain unclassified.
+
+The admin release must support `smash-types-v1` before typed records upload. Until then the durable local outbox retains all details and reports the pending server update. Deploy admin and web together when rolling out the new typed statistics. Review the isolated demo at panel.html?demo&focus.

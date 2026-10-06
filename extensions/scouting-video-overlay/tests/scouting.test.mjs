@@ -109,3 +109,19 @@ test('quadrant layout survives end changes and match changes',async()=>{
  assert.deepEqual(f.get().overlayLayout['near-left'],{x:.1,y:.8});
  await assert.rejects(f.dispatch({type:'overlay-layout',corner:'near-left',x:2,y:0}),/Invalid/);
 });
+
+test('typed smash attempts link by subtype, survive server validation and undo without counting twice',async()=>{
+ const {videoPayload,videoSummary}=await import('../server-model.mjs');
+ const f=fixture();await f.choose();await f.dispatch({type:'start'});
+ await f.dispatch({type:'smash',player:0,smashType:'power'});await f.dispatch({type:'smash',player:0,smashType:'x3'});
+ await f.dispatch({type:'prepare',player:0,outcome:'winner'});
+ await assert.rejects(f.dispatch({type:'score',details:{shot:'smash',smashType:'power',smashAlreadyCounted:true,smashAttemptIndex:1}}),/matching attempt/);
+ await f.dispatch({type:'score',details:{shot:'smash',smashType:'power',x4:true,smashAlreadyCounted:true,smashAttemptIndex:0}});
+ const payload=videoPayload(f.get()),summary=videoSummary(payload);assert.equal(summary.stats[0].smashes,2);assert.equal(summary.stats[0].powerSmashes,1);assert.equal(summary.stats[0].x3Smashes,1);assert.equal(summary.stats[0].x4Winners,1);assert.equal(summary.score.currentGame.a,15);
+ await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).points,0);assert.equal(match(f.get()).stats[0].smashes,2);assert.equal(match(f.get()).stats[0].x4Winners,0);
+ await assert.rejects(f.dispatch({type:'score',details:{shot:'smash',smashType:'x3',x4:true}}),/Power smash winner/);
+ await assert.rejects(f.dispatch({type:'score',details:{shot:'volley',smashType:'power'}}),/only to smashes/);
+});
+test('legacy smash records stay unclassified rather than gaining invented types',async()=>{
+ const f=fixture();await f.choose();await f.point(0,'winner',{shot:'smash'});const s=match(f.get()).stats[0];assert.equal(s.smashes,1);assert.equal(s.powerSmashes,0);assert.equal(s.x3Smashes,0);
+});
