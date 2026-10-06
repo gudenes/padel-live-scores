@@ -1,4 +1,4 @@
-// Generated from admin scouting. Run node extensions/scouting-video-companion/sync-scoring.cjs
+// Generated from admin scouting. Run node extensions/scouting-video-overlay/sync-scoring.cjs
 import { getDeuceRule } from './scoring.mjs';
 export function scoreLabel(state, team) {
     const point = state.currentGame[team];

@@ -1,4 +1,4 @@
-// Generated from admin scouting. Run node extensions/scouting-video-companion/sync-scoring.cjs
+// Generated from admin scouting. Run node extensions/scouting-video-overlay/sync-scoring.cjs
 // src/lib/padel-scoring.ts — Pure scoring engine for padel.
 export const DEUCE_RULES = [
     { id: "star-point" },

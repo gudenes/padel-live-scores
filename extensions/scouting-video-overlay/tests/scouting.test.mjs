@@ -58,7 +58,7 @@ test('server corrections persist, rotate, and stay isolated per match',async()=>
 test('court ends change at odd games, restore on undo and allow manual alignment',async()=>{
  const f=fixture();await f.choose();assert.equal(match(f.get()).near,'a');for(let i=0;i<4;i++)await f.point();assert.equal(match(f.get()).near,'b');
  await f.dispatch({type:'undo'});assert.equal(match(f.get()).near,'a');await f.dispatch({type:'ends'});assert.equal(match(f.get()).near,'b');
- await f.dispatch({type:'start'});await assert.rejects(f.dispatch({type:'ends'}),/Finish or cancel/);await assert.rejects(f.dispatch({type:'server',player:2}),/Finish or cancel/);
+ await f.dispatch({type:'start'});await f.dispatch({type:'ends'});assert.equal(match(f.get()).near,'a');await assert.rejects(f.dispatch({type:'server',player:2}),/Finish or cancel/);
 });
 test('skip advances video without changing score or paused state and blocks during rallies',async()=>{
  const f=fixture();await f.choose();f.pause();await f.dispatch({type:'skip',seconds:30});const s=await f.dispatch({type:'sample'});assert.equal(s.sample.time,130);assert.equal(s.sample.paused,true);assert.equal(match(f.get()).points,0);
@@ -80,7 +80,7 @@ test('Premier default includes P1 P2 Majors and Finals but excludes FIP events',
 test('left/right alignment persists per match without changing scores or servers',async()=>{
  const f=fixture();await f.choose();await f.dispatch({type:'positions',pair:'a'});assert.equal(f.get().setup.positions.a,true);assert.equal(match(f.get()).server,0);assert.equal(match(f.get()).points,0);
  await f.dispatch({type:'select-match',tournamentId:'t',matchId:'two'});assert.equal(f.get().setup.positions,undefined);
- await f.dispatch({type:'select-match',tournamentId:'t',matchId:'one'});assert.equal(f.get().setup.positions.a,true);await f.dispatch({type:'connect'});await f.dispatch({type:'start'});await assert.rejects(f.dispatch({type:'positions',pair:'a'}),/Finish or cancel/);
+ await f.dispatch({type:'select-match',tournamentId:'t',matchId:'one'});assert.equal(f.get().setup.positions.a,true);await f.dispatch({type:'connect'});await f.dispatch({type:'start'});await f.dispatch({type:'positions',pair:'a'});assert.equal(match(f.get()).swapped.a,false);
 });
 
 test('rewind supports all three steps, clamps at the start and preserves playback and score',async()=>{

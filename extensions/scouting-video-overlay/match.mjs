@@ -1,3 +1,5 @@
+import {replay} from './generated/model.mjs';
+import {pressure} from './generated/tracking.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {createInitialState,apply} from './generated/scoring.mjs';
 import {shots} from './generated/shots.mjs';
@@ -10,32 +12,29 @@ export function validateSetup(setup){
  if(!['star-point','golden-point','advantage'].includes(setup.rule))throw Error('Choose a supported scoring rule.');
  return {...setup,names:setup.names.map(n=>n.trim()),...(setup.startingScore?{startingScore:validateStartingScore(setup.startingScore)}:{})};
 }
+export const videoAt=s=>new Date(Math.max(0,s.time)*1000).toISOString();
 export function match(state){
- const setup=state.setup??defaults();
- let score=createInitialState({format:'bo3',goldenPoint:false,deuceRule:setup.rule,superTiebreak:false,setTiebreakAt:6});
- const first=slots[setup.firstServer],other=slots[setup.otherServer];
- score={...score,servingTeam:pair(setup.firstServer),servingPlayer:first,servingOrder:[first,other,(first+2)%4,(other+2)%4]};
- let near=setup.near??'a';
- if(setup.startingScore){const seed=validateStartingScore(setup.startingScore);score={...score,sets:[...seed.completed.map(s=>({...s})),{...seed.games}],currentGame:{...seed.points},phase:seed.games.a===6&&seed.games.b===6?'tiebreak':'playing',advantageReturns:seed.advantageReturns};score=apply(score,{kind:'set_server',team:pair(seed.server),player:seed.server%2});near=seed.near;}
- const adjust=afterId=>{for(const a of setup.adjustments??[]){if(a.afterId!==afterId)continue;if(a.type==='server')score=apply(score,{kind:'set_server',team:pair(a.player),player:a.player%2});else if(a.type==='ends')near=near==='a'?'b':'a';}};
- adjust(null);
- const stats=setup.names.map(()=>({winners:0,unforced:0,forced:0,doubleFaults:0,smashes:0,smashWinners:0,assists:0}));
- for(const rally of state.rallies){
-  if(!rally.point||rally.undone){adjust(rally.id);continue;}
-  const p=rally.point,s=stats[p.player];
-  if(p.outcome==='double_fault')s.doubleFaults++;else if(p.outcome==='winner')s.winners++;else s[p.outcome]++;
-  for(const attempt of rally.attempts??[])stats[attempt.player].smashes++;
-  if(p.shot==='smash'){
-   if(!p.smashAlreadyCounted)s.smashes++;
-   if(p.outcome==='winner')s.smashWinners++;
-  }
-  if(p.assistBy!==undefined)stats[p.assistBy].assists++;
-  const before=score;
-  score=apply(score,{kind:'point_for',team:p.outcome==='winner'?pair(p.player):pair(p.player)==='a'?'b':'a'});
-  if(changesEnds(before,score))near=near==='a'?'b':'a';
-  adjust(rally.id);
- }
- return {score,stats,near,server:slots[score.servingPlayer],points:state.rallies.filter(r=>r.point&&!r.undone).length};
+ const setup=state.setup??defaults(),seed=setup.startingScore?validateStartingScore(setup.startingScore):null,events=[];
+ const push=(id,kind,at,extra={})=>events.push({id,kind,at,...extra});
+ const firstAt=videoAt(state.rallies.find(r=>r.point&&!r.undone)?.start??state.pending?.start??{time:0});
+ if(seed)push('baseline','score',firstAt,{seed:{sets:[...seed.completed,seed.games],game:seed.points,phase:seed.games.a===6&&seed.games.b===6?'tiebreak':'playing',returns:seed.advantageReturns,server:seed.server}});
+ for(const team of ['a','b'])if(setup.positions?.[team])push('position-'+team,'swap',firstAt,{team});
+ const adjust=(afterId,at)=>{for(const [i,a] of (setup.adjustments??[]).entries())if(a.afterId===afterId)push('adjust-'+i,a.type==='server'?'server':'flip',at,a.type==='server'?{player:a.player}:{});};
+ adjust(null,firstAt);
+ const addRally=(r,complete)=>{
+  const at=videoAt(r.start);push(r.id+'-start','rally_start',at);
+  if(r.firstFault)push(r.id+'-fault','first_fault',videoAt(r.firstFault));
+  for(const [i,a] of (r.attempts??[]).entries())push(r.id+'-smash-'+i,'smash',videoAt(a.snapshot),{player:a.player});
+  if(!complete)return;
+  const p=r.point,end=videoAt(r.end);
+  if(p.outcome==='double_fault')push(r.id,'double_fault',end);
+  else {const attempt=(r.attempts??[]).findLastIndex(a=>a.player===p.player);push(r.id,'point',end,{...p,smash:p.shot==='smash',...(p.smashAlreadyCounted?{smashAttemptId:r.id+'-smash-'+attempt}:{})});}
+ };
+ for(const r of state.rallies){if(r.point&&!r.undone)addRally(r,true);adjust(r.id,videoAt(r.end??r.start));}
+ if(state.pending)addRally(state.pending,false);
+ const m=replay({version:1,rule:setup.rule,firstServer:setup.firstServer,otherServer:setup.otherServer,near:seed?.near??setup.near??'a',events});
+ const stats=m.stats.map((s,i)=>({...s,doubleFaults:m.tracking.service[i].doubleFaults}));
+ return {...m,stats,situation:pressure(m.score),timeOffset:seed?.elapsedSeconds??null};
 }
 export function validatePoint(raw,pending,server){
  const p={player:raw.player,outcome:raw.outcome};

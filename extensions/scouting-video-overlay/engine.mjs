@@ -9,9 +9,21 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const save=async()=>{await write(state,{type:message.type});return {state};};
+      const undoable=new Set(['starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','undo','label','start','end','cancel']);
+      const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
+      const save=async()=>{
+        if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
+        await write(state,{type:message.type});return {state};
+      };
       switch(message.type){
         case 'state':return {state};
+        case 'undo-last':{
+          const last=state.history?.pop();
+          if(!last){if(state.pending)throw Error('No recent action to undo. Cancel the open rally first.');const r=state.rallies.findLast(r=>r.point&&!r.undone);if(!r)throw Error('No action to undo.');r.undone=true;r.undoneAt=new Date().toISOString();return save();}
+          Object.assign(state,{setup:last.setup,label:last.label,pending:last.pending});
+          for(const key of ['rallies','cancelled']){state[key].length=last[key+'Length'];for(const change of last[key])state[key][change.index]=change.value;}
+          return save();
+        }
         case 'playback':{
           if(!state.connection||!playback)throw Error('Connect a video first.');
           const current=await capture(state.connection);
@@ -29,9 +41,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(state.pending)throw Error('Finish or cancel the current rally before switching matches.');
           if(state.selectedMatch){
             state.sessions??={};
-            state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch};
+            state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[]};
           }
-          Object.assign(state,{setup:defaults(),label:'',rallies:[],cancelled:[],selectedMatch:null,connection:null,pending:null});return save();
+          Object.assign(state,{setup:defaults(),label:'',rallies:[],cancelled:[],selectedMatch:null,connection:null,pending:null,history:[]});return save();
         }
         case 'load-tournaments':{
           if(!catalog)throw Error('Admin catalogue is unavailable.');
@@ -51,9 +63,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(state.selectedMatch?.id===selected.id)return {state};
           const setup=validateSetup({...defaults(),names:selected.names});
           state.sessions??={};
-          state.sessions[state.selectedMatch?.id??'unassigned']={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch??null};
+          state.sessions[state.selectedMatch?.id??'unassigned']={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch??null,history:state.history??[]};
           const saved=state.sessions[selected.id];
-          Object.assign(state,saved??{setup,label:`${tournament.name} · ${selected.round??selected.category??'Match'}`,rallies:[],cancelled:[]});
+          Object.assign(state,saved??{setup,label:`${tournament.name} · ${selected.round??selected.category??'Match'}`,rallies:[],cancelled:[],history:[]});
           state.selectedMatch={...selected,tournamentName:tournament.name};state.connection=null;state.pending=null;return save();
         }
         case 'restore-cloud':{
@@ -62,7 +74,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(JSON.stringify(videoPayload(state))!==message.expectedHash)throw Error('Local scouting changed while loading. Your local copy is retained; try again.');
           const restored=validateVideoState(message.document);
           if(restored.pending){restored.cancelled.push({...restored.pending,cancelledAt:new Date().toISOString()});restored.pending=null;}
-          Object.assign(state,restored);state.connection=null;return save();
+          Object.assign(state,restored);state.history=[];state.connection=null;return save();
         }
         case 'starting-score':{
           if(!state.selectedMatch)throw Error('Select a match first.');
@@ -74,12 +86,12 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           state.setup=validateSetup({...state.setup,...message.setup});return save();
         }
         case 'positions':{
-          if(state.pending)throw Error('Finish or cancel the rally before moving players.');
+
           if(!['a','b'].includes(message.pair))throw Error('Choose a pair.');
           state.setup.positions??={a:false,b:false};state.setup.positions[message.pair]=!state.setup.positions[message.pair];return save();
         }
         case 'server':case 'ends':{
-          if(state.pending)throw Error('Finish or cancel the rally before changing server or ends.');
+          if(state.pending&&message.type==='server')throw Error('Finish or cancel the rally before changing server.');
           if(!state.selectedMatch||match(state).score.phase==='finished')throw Error('Select an unfinished match.');
           if(message.type==='server'&&(!Number.isInteger(message.player)||message.player<0||message.player>3))throw Error('Choose one of the four players.');
           (state.setup.adjustments??=[]).push({type:message.type,player:message.player,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()});return save();

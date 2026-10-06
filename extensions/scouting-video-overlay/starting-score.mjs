@@ -12,5 +12,6 @@ export function validateStartingScore(raw){
  if(!Number.isInteger(raw.server)||raw.server<0||raw.server>3)throw Error('Choose the player serving at your starting point.');
  if(!['a','b'].includes(raw.near))throw Error('Choose the pair at the near end.');
  const advantageReturns=raw.advantageReturns??0;if(!Number.isInteger(advantageReturns)||advantageReturns<0||advantageReturns>2)throw Error('Choose 0, 1 or 2 deuce returns.');
- return {completed,games:current,points,server:raw.server,near:raw.near,advantageReturns:tiebreak?0:advantageReturns};
+ const elapsedSeconds=raw.elapsedSeconds??null;if(elapsedSeconds!==null&&(!Number.isFinite(elapsedSeconds)||elapsedSeconds<0||elapsedSeconds>86400))throw Error('Earlier match time must be between 0 and 1440 minutes.');
+ return {completed,games:current,points,server:raw.server,near:raw.near,advantageReturns:tiebreak?0:advantageReturns,...(elapsedSeconds!==null?{elapsedSeconds}:{})};
 }

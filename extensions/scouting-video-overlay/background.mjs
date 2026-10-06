@@ -113,7 +113,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   }
   const result=await dispatch(message),m=match(result.state);
   const shortcuts=(await chrome.storage.local.get('videoMediaShortcuts')).videoMediaShortcuts;
-  return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{...m,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
+  return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
  };
  run().then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message||'Overlay unavailable.'}));
  return true;
