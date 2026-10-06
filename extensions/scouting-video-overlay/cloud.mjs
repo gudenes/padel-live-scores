@@ -51,6 +51,8 @@ export function cloudSync({read,write,request,uuid}){
 }
 // Runs in the connected admin tab; credentials never enter the extension.
 export async function adminVideoSync(request){
+ // A string preserves null fields across Chrome’s executeScript argument bridge.
+ if(typeof request==='string')request=JSON.parse(request);
  if(location.origin!=='https://admin.padelnachos.com')return {ok:false,error:'Open admin in Chrome, sign in and load tournaments to enable server saves.'};
  if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(request.matchId??'')||!['GET','POST'].includes(request.method))throw Error('Invalid server sync request.');
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);

@@ -40,3 +40,15 @@ test('shot taps cannot upload to an older server that would discard them',async(
  calls.length=0;env.fetch=async(p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['rally-touches-v1']})};};
  assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
 });
+test('serialized bridge request preserves null correction anchors, pending and zero values',async()=>{
+ const {videoPayload,validateVideoState}=await import('../server-model.mjs');
+ const {defaults}=await import('../match.mjs');
+ const document=videoPayload({version:1,label:'Match',setup:{...defaults(),adjustments:[{type:'ends',afterId:null,at:'2026-10-06T12:00:00Z'}]},rallies:[],cancelled:[],pending:null});
+ let sent;
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(_p,o)=>{sent=JSON.parse(o.body);return {ok:true,status:200,json:async()=>({revision:1})};}};
+ const request=JSON.stringify({matchId:id,method:'POST',revision:0,writeId:id,document});
+ assert.equal((await run(env,request)).ok,true);
+ assert.equal(sent.document.setup.adjustments[0].afterId,null);assert.equal(sent.document.pending,null);assert.equal(sent.revision,0);assert.equal(sent.document.setup.firstServer,0);
+ assert.deepEqual(validateVideoState(sent.document),document);
+ await assert.rejects(run(env,'{broken'),/JSON|property|position/);
+});
