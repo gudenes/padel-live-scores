@@ -44,3 +44,7 @@ The scoreboard marks the serving player and the pair with a break, set or match 
 Coral buttons record points; lime starts rallies and marks active selections. Match/video setup, playback and detailed statistics stay in collapsible sections. The four player cards, timing, last saved event, Undo and server acknowledgement stay in the working area. Power and X3 attempts are separate: Q selects Smash, Z selects Power, X selects X3, 4 flags an X4 winner, and Enter saves. Clicking a stroke waits for Save by default. A finishing smash can reuse the last matching attempt in that rally, avoiding a second count; clear the reuse checkbox for a distinct attempt. Legacy untyped smashes remain unclassified.
 
 The admin release must support `smash-types-v1` before typed records upload. Until then the durable local outbox retains all details and reports the pending server update. Deploy admin and web together when rolling out the new typed statistics. Review the isolated demo at panel.html?demo&focus.
+
+VAR review flags the current rally without awarding a point or changing the video. You can toggle it in the workspace or finishing-shot dialog; it is saved with the rally, shown in bookmarks, and included in the completed public report. Undo restores the flag. Server uploads require `var-review-v1`.
+
+Switch ends rotates the camera-facing player order diagonally. A player keeps their left/right playing role. Automatic game and tie-break changeovers use the same mapping; pair position overrides and Undo are preserved.

@@ -16,7 +16,7 @@ function render(){
   $('match-identity').textContent=state.selectedMatch?[state.selectedMatch.tournamentName,state.selectedMatch.category,state.selectedMatch.round].filter(Boolean).join(' · '):'Select a match to begin';
   $('save-settings').dataset.sync=cloud.status;
   const recent=state.history?.at(-1),lastPoint=state.rallies.findLast(r=>r.point&&!r.undone),attempt=state.pending?.attempts?.at(-1);
-  $('last-action').textContent=recent?.type==='smash'&&attempt?`${state.setup.names[attempt.player]} · ${attempt.smashType==='x3'?'X3':attempt.smashType==='power'?'Power':'Smash'} attempt recorded`:lastPoint?`${state.setup.names[lastPoint.point.player]} · ${lastPoint.point.outcome.replace('_',' ')}${lastPoint.point.shot?' · '+lastPoint.point.shot:''}${lastPoint.point.smashType?' '+lastPoint.point.smashType:''}${lastPoint.point.x4?' · X4 winner':''}`:'Ready to record';
+  $('last-action').textContent=state.pending?.varReviewed?'VAR review · current point':recent?.type==='smash'&&attempt?`${state.setup.names[attempt.player]} · ${attempt.smashType==='x3'?'X3':attempt.smashType==='power'?'Power':'Smash'} attempt recorded`:lastPoint?`${state.setup.names[lastPoint.point.player]} · ${lastPoint.point.outcome.replace('_',' ')}${lastPoint.point.shot?' · '+lastPoint.point.shot:''}${lastPoint.point.smashType?' '+lastPoint.point.smashType:''}${lastPoint.point.x4?' · X4 winner':''}${lastPoint.varReviewed?' · VAR reviewed':''}`:'Ready to record';
   $('cloud-status').textContent=({local:'Local copy',pending:'Waiting to save',saved:'Saved to server',error:'Local copy · retry needed',conflict:'Needs attention'})[cloud.status]??'Local copy';
   $('cloud-message').textContent=cloud.error||(!state.selectedMatch?'Choose a match to enable server saves.':cloud.status==='saved'?`Last server save: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Keep admin signed in and connected. Changes stay on this device until the server confirms.');
   $('export-backup').disabled=busy||!state.selectedMatch;
@@ -48,7 +48,7 @@ function render(){
     else $('rallies').replaceChildren(...state.rallies.slice().reverse().map((r,i)=>{
       const li=document.createElement('li'),info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small'),button=document.createElement('button');
       title.textContent=`${r.undone?'Undone · ':''}Rally ${state.rallies.length-i} · ${r.videoSeconds.toFixed(1)}s`;if(r.point)title.textContent+=` · ${state.setup.names[r.point.player]} ${r.point.outcome.replace('_',' ')}`;
-      meta.textContent=`${r.point?.shot?`${r.point.shot}${r.point.smashType?' '+r.point.smashType:''}${r.point.x4?' · X4 winner':''} · `:''}${time(r.start.time)} → ${time(r.end.time)}${r.label?` · ${r.label}`:''}`;
+      meta.textContent=`${r.point?.shot?`${r.point.shot}${r.point.smashType?' '+r.point.smashType:''}${r.point.x4?' · X4 winner':''} · `:''}${r.varReviewed?'VAR reviewed · ':''}${time(r.start.time)} → ${time(r.end.time)}${r.label?` · ${r.label}`:''}`;
       button.className='ui-btn';button.dataset.size='sm';button.textContent='Replay';button.disabled=busy||!!state.pending||!healthy;
       button.addEventListener('click',()=>act({type:'replay',id:r.id}));
       info.append(title,meta);li.append(info,button);return li;

@@ -1,4 +1,4 @@
-import {match,defaults} from './match.mjs';
+import {match,defaults,courtPlayers} from './match.mjs';
 import {scoreLabel} from './generated/score-label.mjs';
 import {shots} from './generated/shots.mjs';
 import {quickShots} from './shot-shortcuts.mjs';
@@ -16,6 +16,8 @@ export function scoutingUI({$,act,getState}){
  const names=$('names');
  for(let i=0;i<4;i++){const label=document.createElement('label'),input=document.createElement('input');label.textContent=`${i<2?'Pair A':'Pair B'} · player ${i%2+1}`;input.id=`name-${i}`;input.required=true;input.maxLength=80;label.append(input);names.append(label);}
  $('setup-form').addEventListener('submit',e=>{e.preventDefault();act({type:'setup',setup:{names:[0,1,2,3].map(i=>$(`name-${i}`).value),firstServer:Number($('first-server').value),otherServer:Number($('other-server').value),rule:$('rule').value}})});
+ $('var-review').onclick=()=>act({type:'var-review',reviewed:!getState()?.pending?.varReviewed});
+ $('shot-var').onchange=()=>act({type:'var-review',reviewed:$('shot-var').checked});
  $('undo').onclick=()=>act({type:'undo-last'});
  for(const type of ['first-fault','double-fault'])$(type).addEventListener('click',()=>act({type}));
  let quickSave=globalThis.localStorage?.getItem('pn-quick-save')==='true';
@@ -112,20 +114,22 @@ export function scoutingUI({$,act,getState}){
   const table=(headers,rows)=>{const t=document.createElement('table'),head=document.createElement('tr');for(const h of headers){const cell=document.createElement('th');cell.textContent=h;head.append(cell);}t.append(head);for(const row of rows){const tr=document.createElement('tr');for(const text of row){const cell=document.createElement('td');cell.textContent=text;tr.append(cell);}t.append(tr);}return t;};
   $('pressure-stats').replaceChildren(table(['Pair','Breaks / chances','Saved / faced','Holds','Star won / played','Set points won / chances','Match points won / chances'],['a','b'].map(t=>{const s=clock.pairs[t];return [t.toUpperCase(),`${s.breaks} / ${s.breakPoints}`,`${s.breakPointsSaved} / ${s.breakPointsFaced}`,s.holds,`${s.starPointsWon} / ${s.starPoints}`,`${s.setPointsWon} / ${s.setPoints}`,`${s.matchPointsWon} / ${s.matchPoints}`];})));
   $('service-stats').replaceChildren(table(['Server','Won / points','First faults','Double faults'],setup.names.map((n,i)=>{const s=clock.service[i];return [n,`${s.won} / ${s.points}`,s.firstFaults,s.doubleFaults];})));
-  const next=JSON.stringify([setup.names,m.server,m.score.phase,m.stats,m.near,m.swapped]);
+  const next=JSON.stringify([setup.names,m.server,m.score.phase,m.stats,m.near,m.swapped,courtPlayers(state,m)]);
   if(next!==playerKey){playerKey=next;const cards=setup.names.map((name,i)=>{
    const card=document.createElement('article'),h=document.createElement('h3'),stats=document.createElement('small');card.className=`player-card${i===m.server&&m.score.phase!=='finished'?' serving':''}`;card.dataset.player=i;card.setAttribute('aria-label',name);h.textContent=name;const st=m.stats[i];stats.textContent=`W ${st.winners} · X3 ${st.x3Smashes} · Power ${st.powerSmashes}${st.x4Winners?' · X4 '+st.x4Winners:''}`;stats.setAttribute('aria-label',`${st.winners} winners, ${st.unforced} unforced errors, ${st.forced} forced errors, ${st.smashes} smash attempts, ${st.x4Winners} X4 winners`);card.append(h,stats);
    const errors=document.createElement('div');errors.className='errors';
    for(const [outcome,label] of [['winner','Winner'],['unforced','Unforced'],['forced','Forced']]){const b=document.createElement('button');b.className='ui-btn';b.dataset.variant=outcome==='winner'?'record':'default';b.textContent=label;b.setAttribute('aria-label',name+' '+outcome);b.addEventListener('click',()=>act({type:'prepare',player:i,outcome}));(outcome==='winner'?card:errors).append(b);}card.append(errors);
    const attempts=document.createElement('div');attempts.className='attempts';for(const [type,label] of [['x3','X3 +1'],['power','Power +1']]){const b=document.createElement('button');b.className='ui-btn';b.textContent=label;b.setAttribute('aria-label',name+' '+type+' smash attempt');b.onclick=()=>act({type:'smash',player:i,smashType:type});attempts.append(b);}card.append(attempts);return card;
   });
-  const pairCards=team=>cards.filter((_,i)=>(i<2?'a':'b')===team).sort((a,b)=>((Number(a.dataset.player)%2)^(m.swapped[team]?1:0))-((Number(b.dataset.player)%2)^(m.swapped[team]?1:0)));
+  const order=courtPlayers(state,m);
   const divider=document.createElement('div');divider.className='court-divider';divider.append('Far end · Net · Near end');const flip=document.createElement('button');flip.className='ui-btn';flip.dataset.variant='ghost';flip.dataset.ends='true';flip.textContent='Switch ends';flip.onclick=()=>act({type:'ends'});divider.append(flip);
-  $('players').replaceChildren(...pairCards(m.near==='a'?'b':'a'),divider,...pairCards(m.near));}
+  $('players').replaceChildren(...order.slice(0,2).map(i=>cards[i]),divider,...order.slice(2).map(i=>cards[i]));}
   for(const b of $('players').querySelectorAll('button'))b.disabled=b.dataset.ends?busy||!state.selectedMatch||m.score.phase==='finished':!enabled;
   const pending=state.pending,finish=pending?.finish;
+  $('var-review').disabled=busy||!pending;$('var-review').setAttribute('aria-pressed',String(!!pending?.varReviewed));$('var-review').textContent=pending?.varReviewed?'VAR flagged':'VAR review';
   if(finish){
    if(openId!==pending.id){openId=pending.id;shot=undefined;smashType=undefined;$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=true;$('shot-details').open=false;more.open=false;syncShot();$('shot-error').textContent='';}
+   $('shot-var').checked=!!pending.varReviewed;$('shot-var').disabled=busy;
    syncShot();for(const b of $('smash-options').querySelectorAll('button,input'))b.disabled=busy;
    $('shot-title').textContent=`${setup.names[finish.player]} · ${finish.outcome.replace('_',' ')}`;$('winner-tags').hidden=finish.outcome!=='winner';$('save-point').disabled=busy;$('dismiss-shot').disabled=busy;
    for(const b of $('shot-options').querySelectorAll('button'))b.disabled=busy;

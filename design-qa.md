@@ -42,3 +42,7 @@ A requested narrow viewport override did not change the native in-app browser di
 - [x] Typed smash tracking and matching-attempt reuse
 - [x] Honest local/pending/server-confirmed save status
 - [x] Final rendered comparison and core interactions checked
+
+## VAR and diagonal-position follow-up
+
+The user requested a current-point VAR flag and diagonal player movements on end changes. Latest follow-up capture: `output/var-diagonal.png`, same native desktop viewport, rendered at http://127.0.0.1:8780/panel.html?demo&focus. Browser verified initial order Stupaczuk/Sanz above Coello/Tapia becomes Tapia/Coello above Sanz/Stupaczuk, then a VAR-marked volley winner saves with the review label. All four cards, VAR, Undo and server status still fit. Automated checks cover manual, automatic odd-game and tie-break end changes, pair overrides, Undo, VAR persistence and server capability. No console warnings/errors. No new substantive visual issues in this follow-up inspection.

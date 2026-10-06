@@ -68,3 +68,11 @@ export function changesEnds(before,after){
  const i=before.sets.length-1,prev=before.sets[i],next=after.sets[i];
  return next.a+next.b!==prev.a+prev.b&&(next.a+next.b)%2===1;
 }
+
+// Camera-facing order reverses at each end change; playing roles stay fixed.
+export function courtPlayers(state,m=match(state)){
+ const initialNear=state.setup?.startingScore?.near??state.setup?.near??'a';
+ const flipped=m.near!==initialNear;
+ const order=team=>{const first=team==='a'?0:2,reverse=!!m.swapped[team]!==flipped;return reverse?[first+1,first]:[first,first+1];};
+ return [...order(m.near==='a'?'b':'a'),...order(m.near)];
+}

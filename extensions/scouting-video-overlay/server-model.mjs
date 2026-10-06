@@ -17,6 +17,7 @@ function snapshot(raw){
 function rally(raw){
  if(!raw||typeof raw!=='object')throw Error('Invalid rally.');
  const result={id:string(raw.id,80),label:string(raw.label??''),start:snapshot(raw.start)};
+ if(raw.varReviewed!==undefined){if(typeof raw.varReviewed!=='boolean')throw Error('Invalid VAR review flag.');if(raw.varReviewed)result.varReviewed=true;}
  if(raw.firstFault)result.firstFault=snapshot(raw.firstFault);
  if(raw.attempts){if(!Array.isArray(raw.attempts)||raw.attempts.length>100)throw Error('Too many smash attempts.');result.attempts=raw.attempts.map(a=>({player:player(a.player),snapshot:snapshot(a.snapshot),...(a.smashType!==undefined?{smashType:validateSmashType(a.smashType)}:{})}));}
  for(const s of [result.firstFault,...(result.attempts??[]).map(a=>a.snapshot)].filter(Boolean))finishRally(result,s);

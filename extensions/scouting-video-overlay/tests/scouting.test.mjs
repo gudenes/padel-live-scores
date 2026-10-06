@@ -125,3 +125,28 @@ test('typed smash attempts link by subtype, survive server validation and undo w
 test('legacy smash records stay unclassified rather than gaining invented types',async()=>{
  const f=fixture();await f.choose();await f.point(0,'winner',{shot:'smash'});const s=match(f.get()).stats[0];assert.equal(s.smashes,1);assert.equal(s.powerSmashes,0);assert.equal(s.x3Smashes,0);
 });
+
+test('VAR marking survives save and validation without awarding a point; undo restores it',async()=>{
+ const {videoPayload}=await import('../server-model.mjs'),f=fixture();await f.choose();
+ await assert.rejects(f.dispatch({type:'var-review',reviewed:true}),/Start a rally/);
+ await f.dispatch({type:'start'});await f.dispatch({type:'var-review',reviewed:true});
+ assert.equal(match(f.get()).points,0);assert.equal(videoPayload(f.get()).pending.varReviewed,true);
+ await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.varReviewed,undefined);
+ await f.dispatch({type:'prepare',player:0,outcome:'winner'});await f.dispatch({type:'var-review',reviewed:true});
+ await f.dispatch({type:'score',details:{shot:'volley'}});assert.equal(videoPayload(f.get()).rallies[0].varReviewed,true);assert.equal(match(f.get()).points,1);
+ await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.varReviewed,true);assert.equal(match(f.get()).points,0);
+ await f.dispatch({type:'var-review',reviewed:false});assert.equal(f.get().pending.varReviewed,undefined);
+ await assert.rejects(f.dispatch({type:'var-review',reviewed:'yes'}),/whether/);
+});
+test('manual and automatic end changes rotate all players diagonally and preserve pair overrides',async()=>{
+ const {courtPlayers}=await import('../match.mjs'),f=fixture();await f.choose();
+ assert.deepEqual(courtPlayers(f.get()),[2,3,0,1]);
+ await f.dispatch({type:'ends'});assert.deepEqual(courtPlayers(f.get()),[1,0,3,2]);
+ await f.dispatch({type:'undo-last'});assert.deepEqual(courtPlayers(f.get()),[2,3,0,1]);
+ for(let i=0;i<4;i++)await f.point();assert.deepEqual(courtPlayers(f.get()),[1,0,3,2]);
+ await f.dispatch({type:'positions',pair:'a'});assert.deepEqual(courtPlayers(f.get()),[0,1,3,2]);
+ await f.dispatch({type:'ends'});assert.deepEqual(courtPlayers(f.get()),[2,3,1,0]);
+ await f.choose('two');await f.dispatch({type:'starting-score',score:{completed:[],games:{a:6,b:6},points:{a:0,b:0},server:0,near:'b',advantageReturns:0}});
+ const initial=courtPlayers(f.get());for(let i=0;i<6;i++)await f.point(i%2?2:0);
+ assert.deepEqual(courtPlayers(f.get()),initial.slice().reverse());
+});

@@ -18,6 +18,9 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
  const render=scoutingUI({$,act:msg=>actions.push(msg),getState:()=>state});
  try{
   render(state,{time:110,paused:false},false,true);
+  $('var-review').click();assert.deepEqual(actions.pop(),{type:'var-review',reviewed:true});
+  state.pending.varReviewed=true;render(state,{time:110},false,true);assert.equal($('shot-var').checked,true);assert.equal($('var-review').getAttribute('aria-pressed'),'true');
+  $('shot-var').checked=false;$('shot-var').dispatchEvent(new dom.window.Event('change'));assert.deepEqual(actions.pop(),{type:'var-review',reviewed:false});delete state.pending.varReviewed;render(state,{time:110},false,true);
   assert.equal($('score').querySelector('strong').getAttribute('aria-label'),'Player A1, serving');
   const pressNoShot=new dom.window.KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true});$('shot-options').querySelector('button').dispatchEvent(pressNoShot);assert.equal(actions.length,0);assert.match($('shot-error').textContent,/Choose a shot/);
   const initial=state;
