@@ -9,7 +9,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const undoable=new Set(['starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','undo','label','start','end','cancel']);
+      const undoable=new Set(['var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async()=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
@@ -111,6 +111,12 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           const point=validatePoint(message,state.pending,match(state).server);
           const end=await capture(state.connection);finishRally(state.pending,end);
           state.pending.finish={end,player:point.player,outcome:point.outcome};return save();
+        }
+        case 'var-review':{
+          if(!state.pending)throw Error('Start a rally before flagging a VAR review.');
+          if(typeof message.reviewed!=='boolean')throw Error('Choose whether this point was reviewed.');
+          if(message.reviewed)state.pending.varReviewed=true;else delete state.pending.varReviewed;
+          return save();
         }
         case 'clear-outcome':{if(state.pending)delete state.pending.finish;return save();}
         case 'score':{

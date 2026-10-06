@@ -56,11 +56,13 @@ export async function adminVideoSync(request){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
  try{
   const typed=r=>r?.attempts?.some(a=>a.smashType)||r?.point?.smashType||r?.point?.x4;
-  if(request.method==='POST'&&[...(request.document?.rallies??[]),...(request.document?.cancelled??[]),request.document?.pending].some(typed)){
+  const records=[...(request.document?.rallies??[]),...(request.document?.cancelled??[]),request.document?.pending];
+  const required=[...(records.some(typed)?['smash-types-v1']:[]),...(records.some(r=>r?.varReviewed)?['var-review-v1']:[])];
+  if(request.method==='POST'&&required.length){
    const check=await fetch('/api/internal/video-scouting/'+encodeURIComponent(request.matchId),{credentials:'same-origin',cache:'no-store',signal:controller.signal});
    const support=await check.json();
    if(!check.ok)return {ok:false,status:check.status,error:support.error??'Sign in to admin again. Your local copy is retained.'};
-   if(!support.features?.includes('smash-types-v1'))return {ok:false,error:'The server update for X3, Power and X4 is pending. Your full local record is retained and will retry after the update.'};
+   if(!required.every(f=>support.features?.includes(f)))return {ok:false,error:'The server update for X3, Power, X4 or VAR is pending. Your full local record is retained and will retry after the update.'};
   }
   const response=await fetch('/api/internal/video-scouting/'+encodeURIComponent(request.matchId),{method:request.method,credentials:'same-origin',cache:'no-store',signal:controller.signal,...(request.method==='POST'?{headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:request.revision,writeId:request.writeId,document:request.document})}:{})});
   let data;try{data=await response.json();}catch{return {ok:false,status:response.status,error:'Server sync is not available yet. Your local copy is retained.'};}
