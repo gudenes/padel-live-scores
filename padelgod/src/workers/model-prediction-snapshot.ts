@@ -44,6 +44,8 @@ export interface ModelPredictionSnapshotDeps {
   supabase: SupabaseClient;
   logger?: Logger;
   dryRun?: boolean;
+  /** Restrict the fast recovery pass to changed matches. */
+  onlyMatchIds?: string[];
   /** Override "now" for tests. Defaults to new Date(). */
   now?: () => Date;
 }
@@ -216,6 +218,7 @@ async function loadSurvivingPairs(
 }
 
 interface UpcomingMatchRow {
+  lineup_fingerprint: string | null;
   id: string;
   round: string | null;
   round_canonical: string | null;
@@ -244,6 +247,7 @@ interface TournamentPredictionRow {
 }
 
 interface MatchPredictionRow {
+  lineup_fingerprint: string;
   match_id: string;
   pair1_prob: string;
   pair2_prob: string;
@@ -265,6 +269,13 @@ export async function runModelPredictionSnapshot(
   const startMs = Date.now();
   const nowIso = now().toISOString();
   const horizonIso = new Date(now().getTime() + UPCOMING_HORIZON_DAYS * 86_400_000).toISOString();
+
+  let targetTournaments: Set<string> | undefined;
+  if (deps.onlyMatchIds) {
+    const {data,error}=await supabase.from('matches').select('tournament_id').in('id',deps.onlyMatchIds);
+    if(error)throw error;
+    targetTournaments=new Set((data??[]).map(m=>m.tournament_id as string));
+  }
 
   // 1. Load players + tournament levels
   const playerRows = await paginatedSelect<PlayerSnapshot>(
@@ -290,7 +301,7 @@ export async function runModelPredictionSnapshot(
     level: string | null;
     starts_at: string | null;
   }>)
-    .filter((t) => isInScopeTier(t.level) && t.starts_at)
+    .filter((t) => isInScopeTier(t.level) && t.starts_at && (!targetTournaments || targetTournaments.has(t.id)))
     .map((t) => ({ id: t.id, level: t.level!, starts_at: t.starts_at! }));
 
   logger?.info({ count: inScope.length }, 'in-scope tournaments identified');
@@ -342,53 +353,57 @@ export async function runModelPredictionSnapshot(
       }
 
       for (const category of ['men', 'women'] as const) {
-        const { pairs, entryRound } = await loadSurvivingPairs(
-          supabase,
-          t.id,
-          category,
-          players,
-          train,
-        );
-        if (pairs.length < 2) continue;
+        if (!deps.onlyMatchIds) {
+          const { pairs, entryRound } = await loadSurvivingPairs(
+            supabase,
+            t.id,
+            category,
+            players,
+            train,
+          );
+          if (pairs.length < 2) continue;
 
-        // Tournament-level MC
-        const tally = monteCarlo(pairs, MC_RUNS);
-        const tournRows: TournamentPredictionRow[] = pairs.map((p) => ({
-          tournament_id: t.id,
-          category,
-          pair_player1_id: p.player_ids[0],
-          pair_player2_id: p.player_ids[1],
-          pair_seed: p.seed,
-          champ_prob: (tally.get(p.pair_id)!.champ / MC_RUNS).toFixed(4),
-          finalist_prob: (tally.get(p.pair_id)!.finalist / MC_RUNS).toFixed(4),
-          semi_prob: (tally.get(p.pair_id)!.semi / MC_RUNS).toFixed(4),
-          team_elo: p.team_elo.toFixed(2),
-          team_form: p.team_form.toFixed(2),
-          entry_round: entryRound,
-          model_version: MODEL_VERSION,
-          mc_runs: MC_RUNS,
-          halflife_days: HALFLIFE_DAYS,
-        }));
-        if (!dryRun && tournRows.length > 0) {
-          const { error } = await supabase.from('model_tournament_predictions').insert(tournRows);
-          if (error) throw error;
+          // Tournament-level MC
+          const tally = monteCarlo(pairs, MC_RUNS);
+          const tournRows: TournamentPredictionRow[] = pairs.map((p) => ({
+            tournament_id: t.id,
+            category,
+            pair_player1_id: p.player_ids[0],
+            pair_player2_id: p.player_ids[1],
+            pair_seed: p.seed,
+            champ_prob: (tally.get(p.pair_id)!.champ / MC_RUNS).toFixed(4),
+            finalist_prob: (tally.get(p.pair_id)!.finalist / MC_RUNS).toFixed(4),
+            semi_prob: (tally.get(p.pair_id)!.semi / MC_RUNS).toFixed(4),
+            team_elo: p.team_elo.toFixed(2),
+            team_form: p.team_form.toFixed(2),
+            entry_round: entryRound,
+            model_version: MODEL_VERSION,
+            mc_runs: MC_RUNS,
+            halflife_days: HALFLIFE_DAYS,
+          }));
+          if (!dryRun && tournRows.length > 0) {
+            const { error } = await supabase.from('model_tournament_predictions').insert(tournRows);
+            if (error) throw error;
+          }
+          tournWritten += tournRows.length;
         }
-        tournWritten += tournRows.length;
 
         // Per-match snapshots for upcoming main-draw matches
-        const { data: upcoming } = await supabase
+        const { data: upcoming, error: upcomingError } = await supabase
           .from('matches')
           .select(
-            'id, round, round_canonical, scheduled_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id',
+            'id, lineup_fingerprint, round, round_canonical, scheduled_at, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id',
           )
           .eq('tournament_id', t.id)
           .eq('category', category)
-          .in('status', ['scheduled', 'live'])
+          .eq('status', 'scheduled')
           .gte('scheduled_at', nowIso)
           .lte('scheduled_at', horizonIso);
 
+        if (upcomingError) throw upcomingError;
         const matchRows: MatchPredictionRow[] = [];
         for (const m of (upcoming ?? []) as UpcomingMatchRow[]) {
+          if (!m.lineup_fingerprint || (deps.onlyMatchIds && !deps.onlyMatchIds.includes(m.id))) continue;
           if (!isMainDrawRound(m.round_canonical ?? m.round)) continue;
           if (
             !m.pair1_player1_id ||
@@ -425,6 +440,7 @@ export async function runModelPredictionSnapshot(
 
           matchRows.push({
             match_id: m.id,
+            lineup_fingerprint: m.lineup_fingerprint,
             pair1_prob: p1.toFixed(4),
             pair2_prob: p2.toFixed(4),
             pair1_decimal_odds: Math.min(999.999, toDecimal(p1)).toFixed(3),
@@ -451,10 +467,15 @@ export async function runModelPredictionSnapshot(
                 .from('matches')
                 .update({
                   pred_pair1_prob: r.pair1_prob,
+                  pred_lineup_fingerprint: r.lineup_fingerprint,
+                  lineup_prediction_pending: false,
                   pred_model_version: r.model_version,
                   pred_computed_at: nowIso,
                 })
-                .eq('id', r.match_id),
+                .eq('id', r.match_id)
+                .eq('status', 'scheduled')
+                .eq('lineup_fingerprint', r.lineup_fingerprint)
+                .then(({error}) => { if(error) throw error; }),
             ),
           );
         }

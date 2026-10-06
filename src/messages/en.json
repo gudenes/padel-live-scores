@@ -150,6 +150,7 @@
     }
   },
   "matchDetail": {
+    "awaitingConfirmedOpponents": "Awaiting confirmed opponents",
     "matchDetail": "Match Detail",
     "round": "Round",
     "court": "Court",

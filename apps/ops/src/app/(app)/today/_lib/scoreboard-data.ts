@@ -288,6 +288,7 @@ export async function getScoreboardSnapshot(dateIso: string): Promise<LiveOddsSn
     const { data: preRows } = await supabase
       .from('model_predictions')
       .select('match_id,pair1_prob,created_at')
+    .eq('lineup_valid', true)
       .in('match_id', preIds)
       .order('created_at', { ascending: false })
     for (const p of preRows ?? []) {
@@ -534,6 +535,7 @@ export async function getMatchScoreboard(matchId: string): Promise<Match | null>
     supabase
       .from('model_predictions')
       .select('pair1_prob')
+    .eq('lineup_valid', true)
       .eq('match_id', matchId)
       .order('created_at', { ascending: false })
       .limit(1),

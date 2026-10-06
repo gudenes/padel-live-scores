@@ -144,6 +144,7 @@
     }
   },
   "matchDetail": {
+    "awaitingConfirmedOpponents": "En attente de confirmation des adversaires",
     "matchDetail": "Détail du match",
     "round": "Tour",
     "court": "Terrain",

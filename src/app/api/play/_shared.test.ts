@@ -61,6 +61,16 @@ function mkMarket(over: Partial<MarketRow> = {}): MarketRow {
 }
 
 describe('describeMarket', () => {
+  it('keeps the chosen players on cancelled history without showing replacement probabilities', () => {
+    const original=mkMarket().match!
+    const row=mkMarket({status:'void',lineup_snapshot:{pair1_player1:original.pair1_player1,pair1_player2:original.pair1_player2},
+      match:{...original,status:'live',pair1_player1:{name:'New Opponent',display_name:null},pred_pair1_prob:.9}})
+    const view=describeMarket(row,'en')
+    expect(view.question).toBe('Will Coello / Tapia win this match?')
+    expect(view.subtitle).toBe('Coello / Tapia vs Galan / Chingotto')
+    expect(view.modelProb).toBeNull()
+    expect(view.live).toBe(false)
+  })
   it('localizes the context line (category + round) for every app locale', () => {
     expect(describeMarket(mkMarket(), 'es').context).toBe('Madrid P1 · Masculino · Semifinal')
     expect(describeMarket(mkMarket(), 'pt').context).toBe('Madrid P1 · Masculino · Semifinal')

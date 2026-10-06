@@ -133,6 +133,7 @@ export interface TemplateJoin {
 }
 
 export interface MarketRow {
+  lineup_snapshot?: Partial<MatchJoin> | null;
   settled_at?: string | null
   resolver_key?: string
   id: string
@@ -197,7 +198,7 @@ const PLAYER_FIELDS =
 
 export const MARKET_SELECT = `
   id, public_id, season_id, template_id, match_id, tournament_id, category,
-  tokens, question_snapshot, rules_snapshot, resolver_key, resolver_params, lmsr_b, seed_prob, seed_source, q_yes, q_no,
+  tokens, lineup_snapshot, question_snapshot, rules_snapshot, resolver_key, resolver_params, lmsr_b, seed_prob, seed_source, q_yes, q_no,
   volume_guacas, position_count, status, locks_at, outcome, settled_at,
   template:market_templates!markets_template_id_fkey(question_i18n, horizon),
   match:matches!markets_match_id_fkey(
@@ -546,6 +547,10 @@ export function describeMarket(
   now: number = Date.now(),
   enrich?: MarketEnrichment,
 ): MarketView {
+  // Preserve who the player chose even after a draw slot gets replacement players.
+  if (row.lineup_snapshot && row.match && ['held','void'].includes(row.status)) {
+    row={...row,match:{...row.match,...row.lineup_snapshot,pred_pair1_prob:null,sets:[]}}
+  }
   const b = num(row.lmsr_b, 1)
   const pYes = priceYes(num(row.q_yes), num(row.q_no), b)
 
@@ -575,7 +580,7 @@ export function describeMarket(
 
   const subtitle = row.match ? `${names.pair1} vs ${names.pair2}` : String(row.tokens?.subject ?? tournament?.name ?? '')
 
-  const live = LIVE_STATUSES.has(row.match?.status ?? '')
+  const live = !['held','void'].includes(row.status) && LIVE_STATUSES.has(row.match?.status ?? '')
   const currentSet = row.match?.sets?.filter(set => set.is_current).sort((a,b) => b.set_number-a.set_number)[0]
   const games = currentSet ? parseSetScore(currentSet.set_score) ?? parseSetFromGames(currentSet.pair1_games,currentSet.pair2_games) : null
   const liveScore = live && currentSet && games ? {set:currentSet.set_number,pair1:games.p1,pair2:games.p2} : null
@@ -650,6 +655,7 @@ const FIXED_SEED_SOURCE = 'fixed'
  * nobody asked. See baselineProbFor for what those markets show instead.
  */
 function modelProbFor(row: MarketRow): number | null {
+  if (['held','void'].includes(row.status)) return null
   if (editorialKind(row.resolver_key) || row.seed_source === FIXED_SEED_SOURCE) return null
 
   const seed = num(row.seed_prob, NaN)
