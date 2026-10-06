@@ -67,3 +67,5 @@ The admin API must advertise `rally-touches-v1` before tapped records upload; ol
 5. Open the related match on Padel Nachos and check the scouting report. A mid-match starting score contributes to the score; statistics cover only observed points. Direction counts are inferred estimates.
 
 The panel includes this checklist and opens it automatically when the scouting score finishes. Its completion message requires both a finished score and acknowledgement of the current session save.
+
+During an active rally, press **1** for the first serve fault, then **2** for a double fault. Double fault records the point for the receiving pair. These keys ignore typing and held-key repeats, and retain their shot choices inside the finishing-stroke dialog.

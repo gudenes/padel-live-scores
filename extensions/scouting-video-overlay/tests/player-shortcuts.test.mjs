@@ -21,3 +21,11 @@ test('player plus Z/X counts one typed attempt without a tap or outcome',()=>{
  key('keydown','w');key('keydown','z');key('keydown','z',true);key('keyup','w');assert.deepEqual(calls,[[3,'power']]);assert.equal(timer,null);
  key('keydown','a');key('keydown','x');key('keyup','a');assert.deepEqual(calls,[[3,'power'],[0,'x3']]);dom.window.close();
 });
+test('fault keys require an active rally, respect first fault and ignore repeats, typing and shot mode',()=>{
+ const dom=new JSDOM('<input>'),doc=dom.window.document,c={enabled:false,token:'r',order:[2,3,0,1],firstFault:false},calls=[];
+ const controls=playerShortcuts({target:doc,context:()=>c,select:()=>{},prepare:()=>{},fault:type=>{calls.push(type);if(type==='first-fault')c.firstFault=true;else c.enabled=false;}});controls.update();
+ const key=(key,options={},target=doc)=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
+ key('1');assert.equal(calls.length,0);c.enabled=true;key('2');assert.equal(calls.length,0);key('1',{},doc.querySelector('input'));key('1',{ctrlKey:true});key('1',{repeat:true});assert.equal(calls.length,0);
+ key('1');key('1');key('2',{repeat:true});assert.deepEqual(calls,['first-fault']);key('2');assert.deepEqual(calls,['first-fault','double-fault']);
+ const strokeKey=new dom.window.KeyboardEvent('keydown',{key:'1',bubbles:true,cancelable:true});doc.dispatchEvent(strokeKey);assert.equal(strokeKey.defaultPrevented,false);assert.equal(calls.length,2);dom.window.close();
+});

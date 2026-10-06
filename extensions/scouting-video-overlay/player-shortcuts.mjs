@@ -1,7 +1,7 @@
 export const positionKeys=['q','w','a','s'];
 export const outcomeKeys={w:'winner',a:'unforced',d:'forced'};
 export const holdDuration=1300;
-export function playerShortcuts({target,context,select,prepare,tap=()=>{},smash=()=>{},hold=()=>{},setTimer=setTimeout,clearTimer=clearTimeout}){
+export function playerShortcuts({target,context,select,prepare,tap=()=>{},smash=()=>{},hold=()=>{},fault=()=>{},setTimer=setTimeout,clearTimer=clearTimeout}){
  let held=null,timer=null,selected=null,token='',completed=false;
  const cancelHold=()=>{if(timer!==null)clearTimer(timer);timer=null;held=null;completed=false;hold(null);};
  function reset(){cancelHold();selected=null;select(null);}
@@ -10,6 +10,7 @@ export function playerShortcuts({target,context,select,prepare,tap=()=>{},smash=
  const down=e=>{
   const c=update();if(!c.enabled||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||e.target.closest?.('input,select,textarea,[contenteditable]'))return;
   const key=e.key.toLowerCase();
+  if(key==='1'||key==='2'){consume(e);if(!e.repeat&&((key==='1'&&!c.firstFault)||(key==='2'&&c.firstFault))){reset();fault(key==='1'?'first-fault':'double-fault');}return;}
   if(selected!==null&&held===null&&outcomeKeys[key]){consume(e);if(!e.repeat){const player=selected;reset();prepare(player,outcomeKeys[key]);}return;}
   if(held!==null&&['z','x'].includes(key)){consume(e);if(!e.repeat&&!completed){const player=c.order[positionKeys.indexOf(held)];if(timer!==null)clearTimer(timer);timer=null;completed=true;hold(null);selected=null;select(null);smash(player,key==='z'?'power':'x3');}return;}
   if(key==='escape'){reset();return;}
