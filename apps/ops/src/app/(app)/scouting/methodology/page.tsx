@@ -1,0 +1,54 @@
+import Link from 'next/link'
+import styles from './methodology.module.css'
+
+export const metadata={title:'Scouting methodology V1 · PadelNachos Admin'}
+
+const reference=[
+ {name:'Montiel',w:26,ue:15,fe:14,smash:'15 / 23',efficiency:'65.2%',base:'+4.00',adjustment:'+3.00',impact:'+7.00',normalized:'+3.66'},
+ {name:'Santigosa',w:17,ue:8,fe:5,smash:'8 / 13',efficiency:'61.5%',base:'+6.50',adjustment:'0.00',impact:'+6.50',normalized:'+3.40'},
+ {name:'Bautista',w:29,ue:15,fe:15,smash:'11 / 17',efficiency:'64.7%',base:'+6.50',adjustment:'+0.25',impact:'+6.75',normalized:'+3.53'},
+ {name:'Bergamini',w:10,ue:12,fe:4,smash:'5 / 5',efficiency:'100%',base:'−4.00',adjustment:'0.00',impact:'−4.00',normalized:'−2.09'},
+]
+
+export default function Methodology(){
+ return <main className={styles.page}>
+  <header><Link href="/tournament-explorer">← Tournament Explorer</Link><p className={styles.version}>V1 reference · Player Impact v0.1 · 6 October 2026</p><h1>Scouting calculation methodology</h1><p>A fixed baseline for comparing the next scouted matches. Measures recorded rally-ending actions; it is not a rating out of 10.</p></header>
+  <nav aria-label="Methodology sections"><a href="#impact">Impact rules</a><a href="#metrics">Match statistics</a><a href="#reference">Reference match</a><a href="#next-match">Next-match review</a></nav>
+
+  <section className="ui-panel"><h2>What the current admin report calculates</h2><p>The report’s <strong>Net actions</strong> curve uses winners − unforced errors − forced errors − double faults, with equal weights. It is a descriptive count.</p><p>The pressure-weighted <strong>Player Impact v0.1</strong> below is the method used in the V1 match analysis. Documenting it here does not switch the report’s existing curve to that formula. Keep these two measures separate when reviewing results.</p></section>
+
+  <section className="ui-panel" id="impact"><h2>Player Impact v0.1</h2><p>Use active, classified observations only. A point is attributed to the player whose winner or error ended the rally. Undo removes that action and its contribution.</p>
+   <div className={styles.tables}>
+    <table><caption>Rally-ending action values</caption><thead><tr><th>Action</th><th>Value</th></tr></thead><tbody><tr><td>Winner</td><td>+1</td></tr><tr><td>Unforced error</td><td>−1</td></tr><tr><td>Forced error</td><td>−0.5</td></tr></tbody></table>
+    <table><caption>Pressure before the point</caption><thead><tr><th>Context</th><th>Multiplier</th></tr></thead><tbody><tr><td>Regular point</td><td>×1</td></tr><tr><td>Break point, Star Point or tiebreak</td><td>×1.5</td></tr><tr><td>Set point</td><td>×2</td></tr><tr><td>Match point</td><td>×2.5</td></tr></tbody></table>
+   </div>
+   <p><strong>Use the highest applicable multiplier when contexts overlap.</strong> A match point in a tiebreak uses ×2.5, not the sum or product of both categories.</p>
+   <p className={styles.formula}>Player Impact = sum of (action value × highest pre-point pressure multiplier)</p>
+   <p className={styles.formula}>Base impact = winners − unforced errors − 0.5 × forced errors</p>
+   <p>Pressure adjustment = final impact − base impact. A match-point winner adds 2.5; a match-point forced error subtracts 1.25. Positive and negative actions use the same multiplier.</p>
+   <p>The −0.5 penalty is a chosen modelling weight, not an established universal value. The penalty belongs to the player making the error. V1 gives no positive impact credit to the opponent who forced it.</p>
+   <p>A smash winner already counts as a winner and receives no extra efficiency bonus. The supplied V1 method did not specify a separate double-fault weight; record double faults separately and explicitly version any future impact rule for them.</p>
+  </section>
+
+  <section className="ui-panel" id="metrics"><h2>Match statistics and coverage</h2><dl>
+   <div><dt>Smash efficiency</dt><dd>Smash winners ÷ recorded smash attempts × 100. Show both counts. With no attempts, show no percentage. Reusing a recorded attempt must not add a second attempt.</dd></div>
+   <div><dt>Break conversion</dt><dd>Breaks converted ÷ break-point opportunities × 100. Opportunities use the score before the rally; count a break when the receiving pair wins the game.</dd></div>
+   <div><dt>Key points</dt><dd>Any break, set, match, Star or tiebreak point. Count each observed point once in the combined total. Category totals overlap and must not be added together.</dd></div>
+   <div><dt>Contribution curve</dt><dd>For V1 impact, start each player at zero and accumulate weighted rally-ending actions. Points attributed to other players leave their curve unchanged. The current admin Net actions curve uses its separate equal-weight rule.</dd></div>
+   <div><dt>Partial scouting</dt><dd>Imported earlier sets and scores appear on the scoreboard but create no player statistics. Report how many points and rallies were observed.</dd></div>
+   <div><dt>Shot directions</dt><dd>Inferred from consecutive taps and court positions. Final taps, same-pair sequences and position changes remain unknown. Direction is an estimate, not a manually confirmed trajectory.</dd></div>
+  </dl><h3>Optional length adjustment</h3><p className={styles.formula}>Impact per 100 weighted points = player impact ÷ sum of observed point pressure weights × 100</p><p>The denominator is shared across all four players. Normalization adjusts for observation length; it does not make matches perfectly comparable. The V1 contribution artwork used raw impact.</p></section>
+
+  <section className="ui-panel" id="reference"><h2>V1 reference match</h2><p>Montiel / Santigosa defeated Bautista / Bergamini <strong>7–5, 7–6 (9–7 tiebreak)</strong>. The supplied scouting analysis contains 170 active, classified points. These figures are a fixed historical reference, not a live recalculation.</p>
+   <div className={styles.scroll}><table><caption>Rally-ending actions and smash conversion</caption><thead><tr><th>Player</th><th>Winners</th><th>Unforced</th><th>Forced</th><th>Smash winners / attempts</th><th>Efficiency</th></tr></thead><tbody>{reference.map(p=><tr key={p.name}><th>{p.name}</th><td>{p.w}</td><td>{p.ue}</td><td>{p.fe}</td><td>{p.smash}</td><td>{p.efficiency}</td></tr>)}</tbody></table></div>
+   <div className={styles.scroll}><table><caption>Impact calculation</caption><thead><tr><th>Player</th><th>Base</th><th>Pressure adjustment</th><th>Final impact</th><th>Per 100 weighted points</th></tr></thead><tbody>{reference.map(p=><tr key={p.name}><th>{p.name}</th><td>{p.base}</td><td>{p.adjustment}</td><td><strong>{p.impact}</strong></td><td>{p.normalized}</td></tr>)}</tbody></table></div>
+   <p>Montiel’s base: 26 − 15 − (14 × 0.5) = +4.00; pressure adds +3.00, giving +7.00.</p><p>The 32 unique key points split 19–13 between the pairs. Category counts: 15 break points, 7 set points, 3 match points and 16 tiebreak points; no Star Points recorded. Total pressure weight: 138 × 1 + 25 × 1.5 + 4 × 2 + 3 × 2.5 = <strong>191</strong>.</p>
+   <p>Pair points: 89–81. Break conversion: Montiel / Santigosa 3 / 7 (42.9%); Bautista / Bergamini 2 / 8 (25%). Bergamini’s 100% smash efficiency comes from five attempts, so volume matters.</p>
+   <p>Only 22 rallies had detailed taps, and only two assists were recorded. Rally participation and partner support were not comprehensively measured.</p>
+  </section>
+
+  <section className="ui-panel"><h2>Additional tags collected for the next version</h2><p>Assists, manually credited forced errors, smash-recovery winners, X4 winners, net touches and VAR reviews are recorded as separate observations. They do not add an extra bonus or penalty to V1 impact.</p><p>Manual forced-error attribution can be left unknown; do not automatically credit an opponent from incomplete taps. New net-touch records describe the ball touching the net, without assigning lucky/unlucky intent. Historical lucky/unlucky labels remain intact.</p></section>
+
+  <section className="ui-panel" id="next-match"><h2>Review after the next match</h2><ol><li>Verify player identities, final score and the starting-score baseline, if observation began mid-match.</li><li>Wait for “Saved to server”, check the latest save time, and retain the JSON backup.</li><li>Disclose observed points, tapped rallies, unknown directions and missing manual attribution.</li><li>Compare raw outcomes and smash counts before reviewing impact. Keep the V1 weights and highest-multiplier rule fixed.</li><li>Compare the impact ranking with an independent scout assessment and note which assists or pressure actions the model misses.</li><li>Write proposed changes as V2, with reasons and before/after comparisons. Retain this V1 reference for reproducibility.</li></ol><p>The ranking is sensitive to the forced-error penalty: in the reference analysis, −0.25 puts Bautista first; −0.5 puts Montiel narrowly first; −1 puts Santigosa first. More matches and independent assessments are needed before treating impact as a standardized rating.</p></section>
+ </main>
+}

@@ -34,7 +34,7 @@ export default function SavedScoutingReport({matchId}:{matchId:string}){
  const video=report?.videoReport
  return <main className={layout.page}>
   <header className={layout.header}><div><Link href="/tournament-explorer">← Tournament Explorer</Link><h1>Scouting report & insights</h1></div>
-   <div className={styles.tools}><Button size="sm" onClick={()=>setAttempt(n=>n+1)} disabled={loading}>Refresh server copy</Button>
+   <div className={styles.tools}><Link href="/scouting/methodology">Calculation methodology · V1</Link><Button size="sm" onClick={()=>setAttempt(n=>n+1)} disabled={loading}>Refresh server copy</Button>
    {report&&<><Button size="sm" onClick={()=>download(JSON.stringify({...sessionExport(matchId,report.players,report.revision,report.doc),source:report.source,timestampBasis:report.source==='video'?'Video position encoded as UTC from the Unix epoch; not wall-clock match time.':'Recorded wall-clock time.',originalDocument:report.original,videoReport:video},null,2),'json')}>Export all data (JSON)</Button><Button size="sm" onClick={()=>download(pointsCsv(report.players,report.doc),'csv')}>Export points (CSV)</Button></>}</div>
   </header>
   {loading?<p role="status">Loading saved match data…</p>:error?<p role="alert">{error}</p>:!report?<section className={`ui-panel ${styles.chartPanel}`}><h2>No saved scouting for this match</h2><p>In the extension, select this match and use Sync now. Wait for “Saved to server”, then refresh this report.</p><Link className="ui-btn" href={`/scouting/${matchId}`}>Open admin scouting</Link></section>:<>
