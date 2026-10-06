@@ -21,6 +21,17 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(!['near-left','near-right','far-left','far-right'].includes(corner)||![x,y].every(n=>Number.isFinite(n)&&n>=0&&n<=1))throw Error('Invalid overlay position.');
           state.overlayLayout={...state.overlayLayout,[corner]:{x,y}};return save();
         }
+        case 'clear-catalog':{
+          state.catalog={tournaments:[],matchesByTournament:{}};return save();
+        }
+        case 'leave-match':{
+          if(state.pending)throw Error('Finish or cancel the current rally before switching matches.');
+          if(state.selectedMatch){
+            state.sessions??={};
+            state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch};
+          }
+          Object.assign(state,{setup:defaults(),label:'',rallies:[],cancelled:[],selectedMatch:null,connection:null,pending:null});return save();
+        }
         case 'load-tournaments':{
           if(!catalog)throw Error('Admin catalogue is unavailable.');
           const result=await catalog({kind:'tournaments',year:message.year});

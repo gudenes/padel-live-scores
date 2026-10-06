@@ -14,6 +14,9 @@ export function catalogUI({$, act}) {
  for (const id of ['tournament-search', 'match-search', 'premier-only', 'match-category', 'match-round']) {
   $(id).addEventListener(['tournament-search', 'match-search'].includes(id) ? 'input' : 'change', () => { if (lastState) render(lastState, lastBusy); });
  }
+ $('clear-catalog').onclick = () => { for (const id of ['tournament-search', 'match-search']) $(id).value = ''; $('tournament').value = ''; $('match-select').value = ''; act({type:'clear-catalog'}); };
+ $('reload-matches').onclick = () => act({type:'load-matches',tournamentId:$('tournament').value});
+ $('switch-match').onclick = () => act({type:'leave-match'});
  $('load-tournaments').onclick = () => act({type: 'load-tournaments', year: $('catalog-year').value});
  const chooseTournament = id => {
   $('tournament').value = id;
@@ -36,6 +39,8 @@ export function catalogUI({$, act}) {
  function render(state, busy) {
   lastState = state; lastBusy = busy;
   if (state.selectedMatch?.id && state.selectedMatch.id !== activeId) { activeId = state.selectedMatch.id; $('catalog-panel').open = false; $('video-panel').open = true; }
+  if (!state.selectedMatch && activeId) { activeId = ''; $('connection-settings').open = true; $('catalog-panel').open = true; }
+  $('switch-match').disabled = busy || !!state.pending || !state.selectedMatch;
   const disabled = busy || !!state.pending;
   const all = state.catalog?.tournaments ?? [];
   const oldTournament = $('tournament').value || state.selectedMatch?.tournamentId;
@@ -72,6 +77,7 @@ export function catalogUI({$, act}) {
   $('match-count').textContent = !id ? 'Choose a tournament to see its matches.' : loaded === undefined ? (busy ? 'Loading matches…' : 'Matches unavailable. Select the tournament to retry.') : !available.length ? 'No linked matches available for this tournament.' : !matches.length ? 'No matches found. Try fewer names or change the draw / round filters.' : `${matches.length} of ${available.length} matches · select one below`;
   for (const control of ['load-tournaments', 'catalog-year', 'tournament', 'match-select', 'tournament-search', 'premier-only']) $(control).disabled = disabled;
   for (const control of ['match-search', 'match-category', 'match-round']) $(control).disabled = disabled || !id;
+  $('clear-catalog').disabled = busy; $('reload-matches').disabled = disabled || !id;
   $('select-match').disabled = disabled || !$('match-select').value;
   $('selected-match').textContent = state.selectedMatch ? `Scouting: ${state.selectedMatch.tournamentName} · ${state.selectedMatch.names.slice(0, 2).join(' / ')} vs ${state.selectedMatch.names.slice(2).join(' / ')}` : 'No match selected';
  }

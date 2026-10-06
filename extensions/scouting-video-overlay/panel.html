@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Padel Nachos · Corner overlay</title><link rel="stylesheet" href="panel.css"></head>
 <body>
 <header><div class="eyebrow">PADEL NACHOS <span>LOCAL BETA</span></div><h1>Corner overlay</h1><p>Keep every rally linked to the moment you watched.</p></header>
-<main><button class="ui-btn" data-variant="primary" id="show-overlay">Show video remote</button><p class="hint">Scout in this side panel. Use the video remote for playback controls and your keyboard shortcuts.</p>
+<main><button class="ui-btn" data-variant="primary" id="show-overlay">Show video remote</button><button class="ui-btn" id="switch-match">Switch match</button><p class="hint">Scout in this side panel. Use the video remote for playback controls and your keyboard shortcuts.</p>
 <details class="card" id="shortcut-settings"><summary>Video keyboard shortcuts</summary><p class="hint">Click an action’s field, then press the key combination you want. Home / Inicio, Insert / Ins, Page Up and Page Down also work. Backspace clears it. After saving, the field stops listening. Shortcuts work while the video or this panel has focus.</p><div id="shortcut-fields"></div><button class="ui-btn" id="reset-shortcuts">Reset shortcuts</button><p id="shortcut-error" class="hint" role="status"></p></details>
 <details id="connection-settings" open><summary>Match & video setup</summary>
 <details class="card" aria-label="Select match" id="catalog-panel" open>
@@ -10,7 +10,7 @@
 <div class="catalog-body">
 <p class="hint">Open admin in Chrome, sign in and click this extension’s icon there. Choose a year and load tournaments.</p>
 <div class="catalog-filters"><label>Period<select id="catalog-year"><option value="">Recent & upcoming</option></select></label><button class="ui-btn" id="load-tournaments">Load tournaments</button></div>
-<label class="checkbox-label"><input type="checkbox" id="premier-only" checked> Premier Padel only</label>
+<button class="ui-btn" id="clear-catalog">Clear search cache</button><p class="hint">Clears tournament and match lists. Recorded points and shortcuts stay saved.</p><p id="catalog-feedback" class="hint" role="status"></p><label class="checkbox-label"><input type="checkbox" id="premier-only" checked> Premier Padel only</label>
 <label>Find tournament<input type="search" id="tournament-search" placeholder="City, country, name or level…" autocomplete="off"></label>
 <p id="tournament-count" class="hint" role="status"></p>
 <div id="tournament-results" class="catalog-results" role="group" aria-label="Tournament results"></div>
@@ -19,7 +19,7 @@
 <label>Find match<input type="search" id="match-search" placeholder="Player names, e.g. Tapia Coello…" autocomplete="off"></label>
 <div class="catalog-filters"><label>Draw<select id="match-category"><option value="">All draws</option><option value="men">Men</option><option value="women">Women</option></select></label><label>Round<select id="match-round"><option value="">All rounds</option></select></label></div>
 <p id="match-count" class="hint" role="status"></p>
-<div id="match-results" class="catalog-results" role="group" aria-label="Match results"></div>
+<button class="ui-btn" id="reload-matches">Reload matches</button><div id="match-results" class="catalog-results" role="group" aria-label="Match results"></div>
 <select id="match-select" aria-label="Selected match" hidden><option value="">Choose match</option></select>
 <button class="ui-btn" data-variant="primary" id="select-match" disabled>Scout selected match</button>
 <p id="selected-match" class="hint">No match selected</p>

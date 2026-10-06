@@ -26,3 +26,15 @@ test('filtering and browsing never switches sessions; selection is explicit and 
  $('catalog-year').value='2025';$('load-tournaments').click();assert.equal(actions.at(-1).year,'2025');
  dom.window.close();delete globalThis.document;delete globalThis.Option;
 });
+test('search reset and switching are explicit actions with a retry control',()=>{
+ const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8'));globalThis.document=dom.window.document;globalThis.Option=dom.window.Option;
+ try{
+  const $=id=>document.getElementById(id),actions=[];
+  const state={selectedMatch:{id:'m',tournamentId:'t',tournamentName:'Rotterdam',names:['A','B','C','D']},catalog:{tournaments:[{id:'t',name:'Rotterdam P2'},{id:'u',name:'Germany P2'}],matchesByTournament:{}}};
+  const render=catalogUI({$,act:m=>actions.push(m)});render(state,false);
+  $('tournament-results').children[1].click();render(state,false);$('reload-matches').click();assert.deepEqual(actions.at(-1),{type:'load-matches',tournamentId:'u'});
+  $('switch-match').click();assert.equal(actions.at(-1).type,'leave-match');
+  render({...state,selectedMatch:null},false);assert.equal($('catalog-panel').open,true);assert.equal($('connection-settings').open,true);
+  $('tournament-search').value='ge';$('clear-catalog').click();assert.equal(actions.at(-1).type,'clear-catalog');assert.equal($('tournament-search').value,'');
+ }finally{dom.window.close();delete globalThis.document;delete globalThis.Option;}
+});
