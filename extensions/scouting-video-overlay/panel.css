@@ -81,3 +81,4 @@ body.scouting #scouting-workspace{order:0}body.scouting #connection-settings{ord
 .net-touch-toggle input{appearance:none;width:36px;height:22px;border-radius:20px;background:var(--border-strong);position:relative;flex-shrink:0;margin:0;padding:0}
 .net-touch-toggle input:before{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:var(--text-2)}
 .net-touch-toggle input:checked{background:var(--lime)}.net-touch-toggle input:checked:before{left:17px;background:var(--lime-ink)}
+.plugin-brand{display:flex;justify-content:flex-end;padding:0 16px 12px}.plugin-brand img{display:block;width:84px;height:auto;max-width:100%;object-fit:contain}
