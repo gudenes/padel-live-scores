@@ -2,6 +2,7 @@
 // Ports the mockup's "SELECTED MATCH" panel (docs/superpowers/mockups/live-odds-admin.html `.detail`).
 'use client'
 
+import Link from 'next/link'
 import type { Match } from '../_lib/types'
 import { WinProbChart } from './WinProbChart'
 
@@ -39,6 +40,7 @@ export function DetailPanel({ match }: { match: Match | null }) {
           {match.pair1.name} vs {match.pair2.name}
         </div>
         <small className="sb-dhead-meta">{meta}</small>
+        <Link className="ui-btn" data-size="sm" href={`/scouting/${match.id}/report`} style={{marginTop:12}}>Scouting report & insights</Link>
       </div>
 
       <div className="sb-dbody">

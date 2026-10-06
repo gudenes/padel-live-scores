@@ -201,7 +201,7 @@ it('saves optional winner tags and classifies errors without winner-only tags',a
 
  fireEvent.click(screen.getByRole('switch',{name:/Outside-court recovery/}))
  fireEvent.click(screen.getByRole('switch',{name:'Smash recovery'}))
- fireEvent.click(screen.getByRole('button',{name:'Lucky',exact:true}))
+ fireEvent.click(screen.getByRole('button',{name:'Lucky'}))
  fireEvent.keyDown(screen.getByRole('button',{name:'Save winner'}),{key:'Enter',ctrlKey:true})
  const doc=()=>JSON.parse(localStorage.getItem('pn-scout-v1:shot-tags')!).document
  expect(doc().events.at(-1)).toMatchObject({shot:'volley',side:'backhand',assistBy:1,recovery:true,smashRecovery:true,netCord:'lucky'})
@@ -209,7 +209,7 @@ it('saves optional winner tags and classifies errors without winner-only tags',a
  fireEvent.click(within(screen.getByRole('article',{name:'Three'})).getByRole('button',{name:'Unforced error'}))
  expect(screen.queryByRole('checkbox',{name:/Teammate assist/})).toBeNull()
  fireEvent.click(screen.getByRole('button',{name:'Gancho'}))
- fireEvent.click(screen.getByRole('button',{name:'Unlucky',exact:true}))
+ fireEvent.click(screen.getByRole('button',{name:'Unlucky'}))
  fireEvent.click(screen.getByRole('button',{name:'Save unforced error'}))
  expect(doc().events.at(-1)).toMatchObject({outcome:'unforced',shot:'gancho',smash:false,netCord:'unlucky'})
  expect(doc().events.at(-1).assistBy).toBeUndefined()
