@@ -28,7 +28,7 @@ const sync=cloudSync({
  request:async request=>{
   const {adminTab}=await chrome.storage.session.get('adminTab');
   if(!Number.isInteger(adminTab))return {ok:false,error:'Open admin, sign in and load tournaments to enable server saves.'};
-  try{const results=await chrome.scripting.executeScript({target:{tabId:adminTab},func:adminVideoSync,args:[request]});return results[0]?.result??{ok:false,error:'Admin tab unavailable. Your local copy is retained.'};}
+  try{const results=await chrome.scripting.executeScript({target:{tabId:adminTab},func:adminVideoSync,args:[JSON.stringify(request)]});return results[0]?.result??{ok:false,error:'Admin tab unavailable. Your local copy is retained.'};}
   catch{return {ok:false,error:'Reopen admin and load tournaments to reconnect server saves. Your local copy is retained.'};}
  }
 });
