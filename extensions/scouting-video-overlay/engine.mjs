@@ -1,4 +1,5 @@
 import {validateVideoState,videoPayload} from './server-model.mjs';
+import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference} from './core.mjs';
 import {defaults,match,validateSetup,validatePoint} from './match.mjs';
 export function engine({read,write,discover,capture,seek,uuid,catalog,playback}){
@@ -63,9 +64,14 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(restored.pending){restored.cancelled.push({...restored.pending,cancelledAt:new Date().toISOString()});restored.pending=null;}
           Object.assign(state,restored);state.connection=null;return save();
         }
+        case 'starting-score':{
+          if(!state.selectedMatch)throw Error('Select a match first.');
+          if(state.pending||state.rallies.some(r=>r.point))throw Error('Set the starting score before recording your first point.');
+          state.setup.startingScore=validateStartingScore(message.score);state.setup.adjustments=[];return save();
+        }
         case 'setup':{
           if(state.pending||state.rallies.some(r=>r.point))throw Error('Match setup is locked after scouting starts.');
-          state.setup=validateSetup(message.setup);return save();
+          state.setup=validateSetup({...state.setup,...message.setup});return save();
         }
         case 'positions':{
           if(state.pending)throw Error('Finish or cancel the rally before moving players.');

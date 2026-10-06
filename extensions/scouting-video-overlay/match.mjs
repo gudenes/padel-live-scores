@@ -1,3 +1,4 @@
+import {validateStartingScore} from './starting-score.mjs';
 import {createInitialState,apply} from './generated/scoring.mjs';
 import {shots} from './generated/shots.mjs';
 export const defaults=()=>({names:['Player A1','Player A2','Player B1','Player B2'],firstServer:0,otherServer:2,rule:'star-point'});
@@ -7,7 +8,7 @@ export function validateSetup(setup){
  if(!Array.isArray(setup.names)||setup.names.length!==4||setup.names.some(n=>typeof n!=='string'||!n.trim()||n.length>80))throw Error('Enter four player names (up to 80 characters).');
  if(!Number.isInteger(setup.firstServer)||setup.firstServer<0||setup.firstServer>3||!Number.isInteger(setup.otherServer)||setup.otherServer<0||setup.otherServer>3||pair(setup.firstServer)===pair(setup.otherServer))throw Error('Choose the first server and a server from the other pair.');
  if(!['star-point','golden-point','advantage'].includes(setup.rule))throw Error('Choose a supported scoring rule.');
- return {...setup,names:setup.names.map(n=>n.trim())};
+ return {...setup,names:setup.names.map(n=>n.trim()),...(setup.startingScore?{startingScore:validateStartingScore(setup.startingScore)}:{})};
 }
 export function match(state){
  const setup=state.setup??defaults();
@@ -15,6 +16,7 @@ export function match(state){
  const first=slots[setup.firstServer],other=slots[setup.otherServer];
  score={...score,servingTeam:pair(setup.firstServer),servingPlayer:first,servingOrder:[first,other,(first+2)%4,(other+2)%4]};
  let near=setup.near??'a';
+ if(setup.startingScore){const seed=validateStartingScore(setup.startingScore);score={...score,sets:[...seed.completed.map(s=>({...s})),{...seed.games}],currentGame:{...seed.points},phase:seed.games.a===6&&seed.games.b===6?'tiebreak':'playing',advantageReturns:seed.advantageReturns};score=apply(score,{kind:'set_server',team:pair(seed.server),player:seed.server%2});near=seed.near;}
  const adjust=afterId=>{for(const a of setup.adjustments??[]){if(a.afterId!==afterId)continue;if(a.type==='server')score=apply(score,{kind:'set_server',team:pair(a.player),player:a.player%2});else if(a.type==='ends')near=near==='a'?'b':'a';}};
  adjust(null);
  const stats=setup.names.map(()=>({winners:0,unforced:0,forced:0,doubleFaults:0,smashes:0,smashWinners:0,assists:0}));

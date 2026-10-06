@@ -30,7 +30,7 @@ export function validateVideoState(raw){
  if(!raw||typeof raw!=='object'||raw.version!==1)throw Error('Invalid video scouting session.');
  if(!Array.isArray(raw.rallies)||raw.rallies.length>2000||!Array.isArray(raw.cancelled)||raw.cancelled.length>2000)throw Error('Session is too large.');
  const settings=raw.setup??{};
- const setup=validateSetup({names:settings.names,firstServer:settings.firstServer,otherServer:settings.otherServer,rule:settings.rule});
+ const setup=validateSetup({names:settings.names,firstServer:settings.firstServer,otherServer:settings.otherServer,rule:settings.rule,startingScore:settings.startingScore});
  if(settings.near!==undefined){if(!['a','b'].includes(settings.near))throw Error('Invalid court end.');setup.near=settings.near;}
  if(settings.positions){if(typeof settings.positions.a!=='boolean'||typeof settings.positions.b!=='boolean')throw Error('Invalid court positions.');setup.positions={a:settings.positions.a,b:settings.positions.b};}
  const ids=new Set();const rallies=raw.rallies.map(r=>{const next=rally(r);if(ids.has(next.id))throw Error('Duplicate rally.');ids.add(next.id);if(!next.end||next.finish)throw Error('A saved rally requires an end.');return next;});
