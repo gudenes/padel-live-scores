@@ -1,4 +1,5 @@
 'use client'
+import { VideoScoutingReport } from '@/components/VideoScoutingReport'
 // src/app/match/[id]/page.tsx
 // V3 Match Detail — orchestrator, hero, score grid. Chunky clip-path brand language, no border-radius except circles.
 
@@ -1091,6 +1092,8 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           }}
         />
       )}
+
+      <VideoScoutingReport key={match.id} matchId={match.id} />
 
       {/* ── Sub-tabs: scheduled shows Players + H2H, live/finished shows all ──
           Score Recap (stats) and Live Feed (point-by-point) only make
