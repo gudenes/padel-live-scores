@@ -69,3 +69,15 @@ The admin API must advertise `rally-touches-v1` before tapped records upload; ol
 The panel includes this checklist and opens it automatically when the scouting score finishes. Its completion message requires both a finished score and acknowledgement of the current session save.
 
 During an active rally, press **1** for the first serve fault, then **2** for a double fault. Double fault records the point for the receiving pair. These keys ignore typing and held-key repeats, and retain their shot choices inside the finishing-stroke dialog.
+
+## Point tags V2
+Winner quick tags stay visible: **F** credits the teammate assist, **R** flags smash recovery, and **4** flags an X4 winner. X4 selects Power smash automatically; choose Space to save. A matching Power attempt can be reused, so it is not counted twice.
+
+For a forced error, first choose the opponent with the **Q/W/A/S key shown for their current court position**, or select Not recorded to continue without credit. After attribution, letter keys select the finishing stroke as usual. Clicking an opponent lets you correct the credit. End changes update these player keys. No opponent credit is inferred automatically from taps.
+
+**Ball touched the net** is a single toggle available for winners and errors. New points save the observed net touch without calling it lucky or unlucky. Historical lucky/unlucky records keep their original labels and also contribute to the net-touch total.
+
+The live summary and admin insights show assists, forced errors created, smash-recovery winners and net touches. Point details, server documents and JSON/CSV exports preserve the attribution. Undo removes their counts with the point. These fields do not change V1 impact weights. Server uploads containing manual credits or net touches require **point-tags-v2** support; the local outbox retains them until that admin release is available. No database migration is required.
+
+## Scouting progress
+The slim top bar shows finishing-stroke coverage. Click it to expand recording details, forced-error attribution, rallies with shot taps and the current server acknowledgement. Double faults need no finishing stroke. Imported scores, unfinished rallies and undone points do not inflate observed coverage. Missing opponent attribution remains valid and does not lower the stroke-coverage bar. Milestones acknowledge 20, 50 or 100 observed points, the first observed set ending, and match completion; only a server-confirmed finished match says completed and synced. These are completeness indicators, not an accuracy rating, and Undo recalculates them.

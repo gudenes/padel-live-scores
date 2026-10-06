@@ -1,0 +1,44 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {JSDOM} from 'jsdom';
+import {scoutingUI} from '../scout-ui.mjs';
+import {fresh} from '../core.mjs';
+import {defaults,match,courtPlayers,validatePoint} from '../match.mjs';
+import {videoPayload,validateVideoState,videoSummary} from '../server-model.mjs';
+const snapshot=time=>({tabId:1,documentId:'doc',videoId:'v',mediaId:'m',time,seekEpoch:0,readyState:4,paused:false,seeking:false,ended:false,at:'2026-10-06T00:00:00Z'});
+test('manual attribution and net touches survive server validation and replay, with no inferred credit',()=>{
+ const state={...fresh(),setup:defaults(),rallies:[{id:'error',start:snapshot(100),end:snapshot(110),point:{player:0,outcome:'forced',shot:'volley',forcedBy:2,netTouch:true}}]};
+ const payload=videoPayload(state),restored=validateVideoState(JSON.parse(JSON.stringify(payload))),summary=videoSummary(restored);
+ assert.deepEqual(restored.rallies[0].point,state.rallies[0].point);
+ assert.equal(summary.stats[2].forcedErrorsCreated,1);assert.equal(summary.stats[0].forced,1);assert.equal(summary.stats[0].netTouches,1);
+ assert.equal(match(restored).tracking.timeline[0].forcedBy,2);assert.equal(match(restored).tracking.timeline[0].netTouch,true);
+ delete state.rallies[0].point.forcedBy;assert.equal(videoSummary(videoPayload(state)).stats[2].forcedErrorsCreated,0);
+ state.rallies[0].undone=true;state.rallies[0].undoneAt='2026-10-06T00:00:01Z';assert.equal(videoSummary(videoPayload(state)).stats[0].netTouches,0);
+ for(const raw of [{player:0,outcome:'forced',forcedBy:1},{player:0,outcome:'winner',forcedBy:2},{player:0,outcome:'forced',forcedBy:4},{player:0,outcome:'forced',netTouch:'yes'}])assert.throws(()=>validatePoint(raw,{},0));
+});
+test('quick tags, independent X4 and position-based opponent keys save once and change with court ends',()=>{
+ const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8'),{url:'https://example.test'});
+ globalThis.document=dom.window.document;globalThis.Option=dom.window.Option;Object.defineProperty(globalThis,'localStorage',{value:dom.window.localStorage,configurable:true});
+ dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
+ const $=id=>document.getElementById(id),actions=[];
+ const state={...fresh(),setup:defaults(),selectedMatch:{id:'match'},pending:{id:'winner',start:snapshot(100),finish:{player:0,outcome:'winner',end:snapshot(110)},attempts:[{player:0,smashType:'power',snapshot:snapshot(105)}]}};
+ const render=scoutingUI({$,act:msg=>actions.push(msg),getState:()=>state});
+ const press=key=>$('shot-form').dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
+ try{
+  render(state,snapshot(110),false,true);assert.equal($('assist').closest('details'),null);assert.equal($('smash-recovery').closest('details'),null);
+  press('f');press('r');press('4');assert.equal(document.activeElement,$('save-point'));$('net-touch').click();assert.equal(document.activeElement,$('save-point'));assert.equal($('shot-options').hidden,true);press(' ');
+  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'power',x4:true,assistBy:1,smashRecovery:true,netTouch:true,smashAlreadyCounted:true,smashAttemptIndex:0}});
+  state.pending.id='forced';state.pending.finish.outcome='forced';render(state,snapshot(110),false,true);
+  assert.equal($('winner-tags').hidden,true);assert.equal($('net-touch').checked,false);
+  assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[2,'q'],[3,'w']]);
+  const opponent=$('forced-opponents').firstElementChild;opponent.focus();render(state,snapshot(111),false,true);assert.equal($('forced-opponents').firstElementChild,opponent);assert.equal(document.activeElement,opponent);
+  press('w');assert.equal($('forced-opponents').querySelector('[aria-pressed=true]').dataset.player,'3');assert.match($('shot-summary').textContent,/Forced by Player B2/);
+  press('w');press(' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',forcedBy:3}});
+  state.setup.adjustments=[{type:'ends',afterId:null,at:'2026-10-06T00:00:00Z'}];state.pending.id='flipped';render(state,snapshot(110),false,true);
+  const order=courtPlayers(state);assert.deepEqual(order,[1,0,3,2]);assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[3,'a'],[2,'s']]);
+  press('s');press('w');$('net-touch').click();press(' ');assert.equal(actions.at(-1).details.forcedBy,2);assert.equal(actions.at(-1).details.netTouch,true);
+  state.pending.id='unknown';render(state,snapshot(110),false,true);$('forced-unknown').click();press('w');press(' ');assert.equal(actions.at(-1).details.forcedBy,undefined);
+  const count=actions.length;render(state,snapshot(110),true,true);press('f');press('4');press(' ');assert.equal(actions.length,count);
+ }finally{dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}
+});

@@ -60,6 +60,8 @@ export function validatePoint(raw,pending,server){
  if(raw.side!==undefined){if(!['forehand','backhand'].includes(raw.side))throw Error('Invalid shot side.');p.side=raw.side;}
  for(const tag of ['recovery','smashRecovery'])if(raw[tag]){if(p.outcome!=='winner')throw Error('Recovery tags apply to winners.');p[tag]=true;}
  if(raw.assistBy!==undefined){if(p.outcome!=='winner'||raw.assistBy!==(p.player^1))throw Error('Assist must credit the winner’s partner.');p.assistBy=raw.assistBy;}
+ if(raw.forcedBy!==undefined){if(!Number.isInteger(raw.forcedBy)||raw.forcedBy<0||raw.forcedBy>3||p.outcome!=='forced'||pair(raw.forcedBy)===pair(p.player))throw Error('Forced-error credit must name an opponent of the player making the forced error.');p.forcedBy=raw.forcedBy;}
+ if(raw.netTouch!==undefined){if(typeof raw.netTouch!=='boolean')throw Error('Invalid net touch tag.');if(raw.netTouch)p.netTouch=true;}
  if(raw.netCord!==undefined){if(!['lucky','unlucky'].includes(raw.netCord))throw Error('Invalid net cord tag.');p.netCord=raw.netCord;}
  if(raw.smashAlreadyCounted){if(p.shot!=='smash'||!pending.attempts?.some(a=>a.player===p.player))throw Error('No smash attempt to link for this player.');p.smashAlreadyCounted=true;}
  if(raw.smashAttemptIndex!==undefined){const a=pending.attempts?.[raw.smashAttemptIndex];if(!Number.isInteger(raw.smashAttemptIndex)||!p.smashAlreadyCounted||!a||a.player!==p.player||p.smashType&&a.smashType!==p.smashType)throw Error('Choose a matching attempt in this rally.');p.smashAttemptIndex=raw.smashAttemptIndex;}

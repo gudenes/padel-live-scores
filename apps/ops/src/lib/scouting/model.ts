@@ -10,7 +10,7 @@ export type Outcome = 'winner' | 'forced' | 'unforced'
 export interface ScoreSeed { sets:{a:number;b:number}[]; game:{a:number|'Adv';b:number|'Adv'}; phase:'playing'|'tiebreak'; returns:number; server:Player }
 export type CourtSetup = Pick<ScoutDoc,'rule'|'firstServer'|'otherServer'|'near'>
 export type Event = { id:string; at:string } & (
-  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean; smashAttemptId?:string; shot?:Shot; side?:ShotSide; assistBy?:Player; recovery?:boolean;smashRecovery?:boolean;netCord?:'lucky'|'unlucky'}
+  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean; smashAttemptId?:string; shot?:Shot; side?:ShotSide; assistBy?:Player; forcedBy?:Player;netTouch?:boolean; recovery?:boolean;smashRecovery?:boolean;netCord?:'lucky'|'unlucky'}
   | {kind:'smash'; player:Player}
   | {kind:'unclassified'; team:'a'|'b'}
   | {kind:'flip'} | {kind:'swap'; team:'a'|'b'}
@@ -45,6 +45,8 @@ export function validateDoc(raw:unknown):ScoutDoc {
       if(e.shot!==undefined&&(!Object.hasOwn(shots,e.shot)||(e.shot==='smash')!==e.smash))throw Error('Invalid shot type.')
       if(e.side!==undefined&&!['forehand','backhand'].includes(e.side))throw Error('Invalid shot side.')
       if(e.assistBy!==undefined&&(!player(e.assistBy)||e.outcome!=='winner'||e.assistBy!==(e.player^1)))throw Error('Assists must credit the winning player’s teammate.')
+      if(e.forcedBy!==undefined&&(!player(e.forcedBy)||e.outcome!=='forced'||teamOf(e.forcedBy)===teamOf(e.player)))throw Error('Forced-error credit must name an opponent.')
+      if(e.netTouch!==undefined&&typeof e.netTouch!=='boolean')throw Error('Invalid net touch tag.')
       if(e.smashRecovery!==undefined&&(typeof e.smashRecovery!=='boolean'||(e.smashRecovery&&e.outcome!=='winner')))throw Error('Smash recovery is only available for winners.')
       if(e.netCord!==undefined&&!['lucky','unlucky'].includes(e.netCord))throw Error('Invalid net cord tag.')
       if(e.recovery!==undefined&&(typeof e.recovery!=='boolean'||(e.recovery&&e.outcome!=='winner')))throw Error('Recovery is only available for winners.')
@@ -79,7 +81,7 @@ export function replay(doc:ScoutDoc){
   score={...score,servingPlayer:f,servingTeam:teamOf(settings.firstServer),servingOrder:[f,o,((f+2)%4) as PlayerIndex,((o+2)%4) as PlayerIndex]}
   let near=settings.near
   const swapped={a:false,b:false}
-  const stats=Array.from({length:4},()=>({winners:0,forced:0,unforced:0,smashes:0,smashWinners:0,smashErrors:0,assists:0,recoveryWinners:0,smashRecoveryWinners:0,luckyNetCords:0,unluckyNetCords:0,shots:{} as Partial<Record<Shot|'unrecorded',{winners:number;unforced:number;forced:number}>>}))
+  const stats=Array.from({length:4},()=>({winners:0,forced:0,unforced:0,smashes:0,smashWinners:0,smashErrors:0,assists:0,forcedErrorsCreated:0,netTouches:0,recoveryWinners:0,smashRecoveryWinners:0,luckyNetCords:0,unluckyNetCords:0,shots:{} as Partial<Record<Shot|'unrecorded',{winners:number;unforced:number;forced:number}>>}))
   const tracking=createTracking()
   let points=0,unclassified=0
   const rallySmashes=new Map<string,Player>()
@@ -99,6 +101,8 @@ export function replay(doc:ScoutDoc){
       const s=stats[e.player]
       if(e.outcome==='winner')s.winners++;else s[e.outcome]++
       if(e.assistBy!==undefined)stats[e.assistBy].assists++
+      if(e.forcedBy!==undefined)stats[e.forcedBy].forcedErrorsCreated++
+      if(e.netTouch||e.netCord)s.netTouches++
       if(e.recovery)s.recoveryWinners++
       if(e.smashRecovery)s.smashRecoveryWinners++
       if(e.netCord==='lucky')s.luckyNetCords++
