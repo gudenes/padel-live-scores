@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Padel Nachos \u00b7 Corner overlay",
+  "description": "Local match scouting, scoring and video-linked rally replay.",
+  "version": "0.1.0",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "sidePanel",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.mjs",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Padel Nachos \u00b7 Corner overlay setup"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  }
+}
