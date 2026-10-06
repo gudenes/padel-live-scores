@@ -4,10 +4,15 @@ import {shots} from './generated/shots.mjs';
 import {playerShortcuts,positionKeys} from './player-shortcuts.mjs';
 import {quickShots} from './shot-shortcuts.mjs';
 import {formatDuration} from './generated/tracking.mjs';
+import {touchInsights,touchDirections} from './touch-insights.mjs';
 import {finishRally} from './core.mjs';
 export function scoutingUI({$,act,getState}){
  let keyboardContext={enabled:false,token:'',order:[]};
- const keyboard=playerShortcuts({target:document,context:()=>keyboardContext,select:player=>{for(const card of $('players').querySelectorAll('[data-player]')){card.classList.toggle('keyboard-selected',Number(card.dataset.player)===player);}},tap:player=>act({type:'touch',player}),prepare:(player,outcome)=>act({type:'prepare',player,outcome})});
+ let selectedPlayer=null,holdingPlayer=null;
+ const feedback=new Map();
+ function paintFeedback(){for(const card of $('players').querySelectorAll('[data-player]')){const player=Number(card.dataset.player),f=feedback.get(player);card.classList.toggle('keyboard-selected',player===selectedPlayer);card.classList.toggle('holding',player===holdingPlayer);card.dataset.feedback=f?.phase??'';let status=card.querySelector('.tap-feedback');if(!status){status=document.createElement('span');status.className='tap-feedback';status.setAttribute('role','status');card.append(status);}status.textContent=f?.label??(player===holdingPlayer?'Hold 1.3s to select…':player===selectedPlayer?'W Winner · A Unforced · D Forced':'');}}
+ async function record(player,message,label){const f={phase:'recording',label:'Recording '+label+'…'};feedback.set(player,f);paintFeedback();const result=await act(message);if(feedback.get(player)!==f)return;f.phase=result?.ok?'recorded':'error';f.label=result?.ok?'✓ '+label+' saved locally':result?.error??'Could not record. Try again.';paintFeedback();setTimeout(()=>{if(feedback.get(player)===f){feedback.delete(player);paintFeedback();}},result?.ok?1000:3500);}
+ const keyboard=playerShortcuts({target:document,context:()=>keyboardContext,select:player=>{selectedPlayer=player;paintFeedback();},hold:player=>{holdingPlayer=player;paintFeedback();},tap:player=>record(player,{type:'touch',player},'Shot'),smash:(player,smashType)=>record(player,{type:'smash',player,smashType},smashType==='x3'?'X3 attempt':'Power attempt'),prepare:(player,outcome)=>act({type:'prepare',player,outcome})});
  let setupKey='',playerKey='',openId='',shot,smashType,serverKey='',seedKey='';
  $('apply-server').onclick=()=>act({type:'server',player:Number($('current-server').value)});
  for(const team of ['a','b'])$('swap-pair-'+team).onclick=()=>act({type:'positions',pair:team});
@@ -123,14 +128,18 @@ export function scoutingUI({$,act,getState}){
    const card=document.createElement('article'),h=document.createElement('h3'),stats=document.createElement('small');card.className=`player-card${i===m.server&&m.score.phase!=='finished'?' serving':''}`;card.dataset.player=i;card.setAttribute('aria-label',name);h.textContent=name;const st=m.stats[i];stats.textContent=`W ${st.winners} · X3 ${st.x3Smashes} · Power ${st.powerSmashes}${st.x4Winners?' · X4 '+st.x4Winners:''}`;stats.setAttribute('aria-label',`${st.winners} winners, ${st.unforced} unforced errors, ${st.forced} forced errors, ${st.smashes} smash attempts, ${st.x4Winners} X4 winners`);card.append(h,stats);
    const errors=document.createElement('div');errors.className='errors';
    for(const [outcome,label] of [['winner','Winner'],['unforced','Unforced'],['forced','Forced']]){const b=document.createElement('button');b.className='ui-btn';b.dataset.variant=outcome==='winner'?'record':'default';b.textContent=label;b.setAttribute('aria-label',name+' '+outcome);b.addEventListener('click',()=>act({type:'prepare',player:i,outcome}));(outcome==='winner'?card:errors).append(b);}card.append(errors);
-   const attempts=document.createElement('div');attempts.className='attempts';for(const [type,label] of [['x3','X3 +1'],['power','Power +1']]){const b=document.createElement('button');b.className='ui-btn';b.textContent=label;b.setAttribute('aria-label',name+' '+type+' smash attempt');b.onclick=()=>act({type:'smash',player:i,smashType:type});attempts.append(b);}card.append(attempts);return card;
+   const attempts=document.createElement('div');attempts.className='attempts';for(const [type,label] of [['x3','X3 +1'],['power','Power +1']]){const b=document.createElement('button');b.className='ui-btn';b.textContent=label;b.setAttribute('aria-label',name+' '+type+' smash attempt');b.onclick=()=>record(i,{type:'smash',player:i,smashType:type},type==='x3'?'X3 attempt':'Power attempt');attempts.append(b);}card.append(attempts);return card;
   });
   const order=courtPlayers(state,m);
-  order.forEach((player,slot)=>{const badge=document.createElement('kbd');badge.textContent=positionKeys[slot].toUpperCase();badge.title='Tap to record a shot; hold 2 seconds to select outcome';cards[player].querySelector('h3').prepend(badge,' ');});
+  order.forEach((player,slot)=>{const badge=document.createElement('kbd');badge.textContent=positionKeys[slot].toUpperCase();badge.title='Tap to record a shot; hold 1.3 seconds to select outcome';cards[player].querySelector('h3').prepend(badge,' ');});
   const divider=document.createElement('div');divider.className='court-divider';divider.append('Far end · Net · Near end');const flip=document.createElement('button');flip.className='ui-btn';flip.dataset.variant='ghost';flip.dataset.ends='true';flip.textContent='Switch ends';flip.onclick=()=>act({type:'ends'});divider.append(flip);
   $('players').replaceChildren(...order.slice(0,2).map(i=>cards[i]),divider,...order.slice(2).map(i=>cards[i]));}
   for(const b of $('players').querySelectorAll('button'))b.disabled=b.dataset.ends?busy||!state.selectedMatch||m.score.phase==='finished':!enabled;
-  keyboardContext={enabled,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();
+  keyboardContext={enabled,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();paintFeedback();
+  const insights=touchInsights(state.rallies);for(const t of touchDirections(state.pending?.touches)){const p=insights.players[t.player];p.shots++;p[t.direction==='cross-court'?'crossCourt':t.direction==='down-the-line'?'downTheLine':'unknown']++;}
+  $('live-stats').replaceChildren(table(['Player','Shots','W','UE','FE'],setup.names.map((name,i)=>[name,insights.players[i].shots,m.stats[i].winners,m.stats[i].unforced,m.stats[i].forced])));
+  const detail=document.createElement('div');detail.className='stats-detail';for(const [i,name] of setup.names.entries()){const row=document.createElement('p'),p=insights.players[i],st=m.stats[i];row.textContent=`${name}: Power ${st.powerSmashes} · X3 ${st.x3Smashes} · X4 ${st.x4Winners} | Cross ${p.crossCourt} · Line ${p.downTheLine} · Unknown ${p.unknown}`;detail.append(row);}$('live-stats').append(detail);
+  const sequence=state.pending?.touches??[];$('rally-sequence').textContent=sequence.length?sequence.slice(-12).map(t=>setup.names[t.player]).join(' → '):'No shots tapped in this rally';
   const pending=state.pending,finish=pending?.finish;
   $('var-review').disabled=busy||!pending;$('var-review').setAttribute('aria-pressed',String(!!pending?.varReviewed));$('var-review').textContent=pending?.varReviewed?'VAR flagged':'VAR review';
   if(finish){
