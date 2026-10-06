@@ -48,3 +48,5 @@ The admin release must support `smash-types-v1` before typed records upload. Unt
 VAR review flags the current rally without awarding a point or changing the video. You can toggle it in the workspace or finishing-shot dialog; it is saved with the rally, shown in bookmarks, and included in the completed public report. Undo restores the flag. Server uploads require `var-review-v1`.
 
 Switch ends rotates the camera-facing player order diagonally. A player keeps their left/right playing role. Automatic game and tie-break changeovers use the same mapping; pair position overrides and Undo are preserved.
+
+First fault, Double fault and VAR review are always visible directly beneath the rally button. Start a rally to enable First fault/VAR; Double fault enables after First fault.
