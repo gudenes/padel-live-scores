@@ -35,7 +35,7 @@ export function cloudSync({read,write,request,uuid}){
      const result=await request({matchId:id,method:'POST',revision:sending.revision,writeId:sending.writeId,document:sending.payload});
      if(!result.ok)throw Object.assign(Error(result.error),{status:result.status});
      await mutate(store=>{const current=store.entries[id];current.revision=result.revision;current.ackHash=sending.hash;current.savedAt=result.savedAt;current.error='';delete current.flight;current.status=current.hash===sending.hash?'saved':'pending';});
-    }catch(error){await mutate(store=>{const current=store.entries[id];current.status=error.status===409?'conflict':'error';current.error=error.message||'Server unavailable. Your local copy is retained.';});}
+    }catch(error){await mutate(store=>{const current=store.entries[id];if([400,413].includes(error.status)&&current.flight){const rejected=current.flight;current.rejectedFlights=[...(current.rejectedFlights??[]),{...rejected,error:error.message}].slice(-5);delete current.flight;current.writeId=uuid();current.status=current.hash!==rejected.hash?'pending':'error';}else current.status=error.status===409?'conflict':'error';current.error=error.message||'Server unavailable. Your local copy is retained.';});}
    }
   await queue;const remaining=(await read())?.entries??{};if(Object.values(remaining).some(e=>e.status==='pending'))await drain();
  }

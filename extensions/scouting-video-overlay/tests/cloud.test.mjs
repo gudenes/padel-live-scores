@@ -55,3 +55,14 @@ test('a lost acknowledgement is retried unchanged even when a newer local edit e
  await f.sync.track(base());await f.sync.flush();await f.sync.track(scored());await f.sync.flush();
  assert.equal(writes.length,3);assert.equal(writes[0].writeId,writes[1].writeId);assert.equal(writes[1].document.rallies.length,0);assert.equal(writes[2].revision,1);assert.equal(writes[2].document.rallies.length,1);assert.equal((await f.sync.status('match')).status,'saved');
 });
+test('explicitly rejected stale saves retain a recovery copy and send the newer local document',async()=>{
+ const writes=[];let reject=true;
+ const f=fixture(async r=>{if(r.method==='GET')return {ok:true,session:null};writes.push(r);return reject?{ok:false,status:400,error:'Invalid score correction'}:{ok:true,revision:1,savedAt:'now'};});
+ await f.sync.track(base());await f.sync.flush();assert.equal(writes.length,1);assert.equal(f.disk().entries.match.flight,undefined);assert.equal(f.disk().entries.match.rejectedFlights.length,1);
+ reject=false;await f.sync.track(scored());await f.sync.flush();assert.notEqual(writes[0].writeId,writes[1].writeId);assert.equal(writes[1].document.rallies.length,1);assert.equal((await f.sync.status('match')).status,'saved');
+});
+test('a stale flight rejected during a newer edit is replaced immediately without looping',async()=>{
+ const writes=[];let reject=false;
+ const f=fixture(async r=>{if(r.method==='GET')return {ok:true,session:null};writes.push(r);return writes.length===1?{ok:false,error:'Offline'}:reject&&writes.length===2?{ok:false,status:400,error:'Invalid score correction'}:{ok:true,revision:1,savedAt:'now'};});
+ await f.sync.track(base());await f.sync.flush();await f.sync.track(scored());reject=true;await f.sync.flush();assert.equal(writes.length,3);assert.equal(writes[2].document.rallies.length,1);assert.equal(f.disk().entries.match.rejectedFlights.length,1);assert.equal((await f.sync.status('match')).status,'saved');
+});

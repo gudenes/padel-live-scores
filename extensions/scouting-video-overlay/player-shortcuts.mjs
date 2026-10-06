@@ -1,20 +1,25 @@
 export const positionKeys=['q','w','a','s'];
-export const outcomeKeys={ArrowUp:'winner',ArrowLeft:'unforced',ArrowRight:'forced'};
-export function playerShortcuts({target,context,select,prepare,tap=()=>{},setTimer=setTimeout,clearTimer=clearTimeout}){
+export const outcomeKeys={w:'winner',a:'unforced',d:'forced'};
+export const holdDuration=1300;
+export function playerShortcuts({target,context,select,prepare,tap=()=>{},smash=()=>{},hold=()=>{},setTimer=setTimeout,clearTimer=clearTimeout}){
  let held=null,timer=null,selected=null,token='',completed=false;
- const cancelHold=()=>{if(timer!==null)clearTimer(timer);timer=null;held=null;completed=false;};
+ const cancelHold=()=>{if(timer!==null)clearTimer(timer);timer=null;held=null;completed=false;hold(null);};
  function reset(){cancelHold();selected=null;select(null);}
  function update(){const c=context();if(c.token!==token||!c.enabled){token=c.token;reset();}return c;}
+ const consume=e=>{e.preventDefault();e.stopImmediatePropagation();};
  const down=e=>{
   const c=update();if(!c.enabled||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||e.target.closest?.('input,select,textarea,[contenteditable]'))return;
-  const key=e.key.toLowerCase(),slot=positionKeys.indexOf(key);
-  if(slot>=0){e.preventDefault();e.stopImmediatePropagation();if(e.repeat||held===key)return;cancelHold();selected=null;select(null);held=key;
+  const key=e.key.toLowerCase();
+  if(selected!==null&&held===null&&outcomeKeys[key]){consume(e);if(!e.repeat){const player=selected;reset();prepare(player,outcomeKeys[key]);}return;}
+  if(held!==null&&['z','x'].includes(key)){consume(e);if(!e.repeat&&!completed){const player=c.order[positionKeys.indexOf(held)];if(timer!==null)clearTimer(timer);timer=null;completed=true;hold(null);selected=null;select(null);smash(player,key==='z'?'power':'x3');}return;}
+  if(key==='escape'){reset();return;}
+  const slot=positionKeys.indexOf(key);
+  if(slot>=0){consume(e);if(e.repeat||held===key)return;cancelHold();selected=null;select(null);held=key;hold(c.order[slot]);
    const started=c.token;
-   timer=setTimer(()=>{timer=null;const now=context();if(held!==key||!now.enabled||now.token!==started)return;completed=true;selected=now.order[slot];select(selected);},2000);return;
+   timer=setTimer(()=>{timer=null;const now=context();if(held!==key||!now.enabled||now.token!==started)return;completed=true;hold(null);selected=now.order[slot];select(selected);},holdDuration);
   }
-  if(selected!==null&&outcomeKeys[e.key]){e.preventDefault();e.stopImmediatePropagation();if(!e.repeat){const player=selected;reset();prepare(player,outcomeKeys[e.key]);}}
  };
- const up=e=>{if(e.key.toLowerCase()!==held)return;const c=context(),player=c.order[positionKeys.indexOf(held)],short=!completed&&c.enabled&&c.token===token;cancelHold();if(short)tap(player);};
+ const up=e=>{if(e.key.toLowerCase()!==held)return;consume(e);const c=context(),player=c.order[positionKeys.indexOf(held)],short=!completed&&c.enabled&&c.token===token;cancelHold();if(short)tap(player);};
  target.addEventListener('keydown',down,true);target.addEventListener('keyup',up,true);
  target.defaultView?.addEventListener('blur',reset);
  return {update,reset};
