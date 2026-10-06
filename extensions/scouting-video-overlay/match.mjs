@@ -14,7 +14,7 @@ export function validateSetup(setup){
  return {...setup,names:setup.names.map(n=>n.trim()),...(setup.startingScore?{startingScore:validateStartingScore(setup.startingScore)}:{})};
 }
 export const videoAt=s=>new Date(Math.max(0,s.time)*1000).toISOString();
-export function match(state){
+export function scoutingDocument(state){
  const setup=state.setup??defaults(),seed=setup.startingScore?validateStartingScore(setup.startingScore):null,events=[];
  const push=(id,kind,at,extra={})=>events.push({id,kind,at,...extra});
  const firstAt=videoAt(state.rallies.find(r=>r.point&&!r.undone)?.start??state.pending?.start??{time:0});
@@ -33,7 +33,11 @@ export function match(state){
  };
  for(const r of state.rallies){if(r.point&&!r.undone)addRally(r,true);adjust(r.id,videoAt(r.end??r.start));}
  if(state.pending)addRally(state.pending,false);
- const m=replay({version:1,rule:setup.rule,firstServer:setup.firstServer,otherServer:setup.otherServer,near:seed?.near??setup.near??'a',events});
+ return {version:1,rule:setup.rule,firstServer:setup.firstServer,otherServer:setup.otherServer,near:seed?.near??setup.near??'a',events};
+}
+export function match(state){
+ const seed=state.setup?.startingScore?validateStartingScore(state.setup.startingScore):null;
+ const m=replay(scoutingDocument(state));
  const types=Array.from({length:4},()=>({powerSmashes:0,x3Smashes:0,x4Winners:0}));
  for(const r of [...state.rallies.filter(r=>!r.undone&&r.point),...(state.pending?[state.pending]:[])]){
   for(const a of r.attempts??[])if(a.smashType)types[a.player][a.smashType==='x3'?'x3Smashes':'powerSmashes']++;
