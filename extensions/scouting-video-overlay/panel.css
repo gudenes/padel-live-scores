@@ -63,3 +63,5 @@ body.scouting header .eyebrow{display:none}body.scouting header{padding-top:9px}
 body.scouting #scouting-workspace{order:0}body.scouting #connection-settings{order:1}body.scouting #scouting-tools,body.scouting #bookmark-settings,body.scouting #demo-controls,body.scouting main>details:last-child{order:2}
 
 .feedback-actions{display:flex;gap:4px;flex-shrink:0}.feedback-actions .ui-btn{padding:6px 7px}.feedback-strip span{min-width:0}
+
+.point-controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}.point-controls .ui-btn{font-size:12px;padding:5px 3px;min-height:30px}body.scouting .player-card{gap:2px;padding:6px}@media(pointer:coarse){.point-controls .ui-btn{min-height:44px}}
