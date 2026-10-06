@@ -13,7 +13,7 @@ it('opens the saved extension insights without posting or creating admin scoutin
  const fetch=vi.fn(async(_url:unknown,_options?:RequestInit)=>Response.json({session:row}));vi.stubGlobal('fetch',fetch)
  render(createElement(SavedScoutingReport,{matchId:'match'}))
  await screen.findByText('Match finished');expect(screen.getByText(/1 points observed/)).toBeTruthy()
- expect(screen.getByRole('link',{name:'View public match report'}).getAttribute('href')).toContain('/match/match')
+ expect(screen.queryByRole('link',{name:'View public match report'})).toBeNull()
  expect(screen.getByRole('button',{name:/VAR review/})).toBeTruthy()
  const smash=screen.getByRole('region',{name:'Smashes and shot directions'})
  expect(within(smash).getByText('X4 winners')).toBeTruthy();expect(screen.getByRole('slider',{name:'Explore match point'})).toBeTruthy()
