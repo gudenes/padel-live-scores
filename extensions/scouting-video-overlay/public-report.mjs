@@ -1,3 +1,4 @@
+import {touchInsights} from './touch-insights.mjs';
 import {validateVideoState} from './server-model.mjs';
 import {match} from './match.mjs';
 // Publish only computed completed-match observations, never operator identity or raw video records.
@@ -6,5 +7,5 @@ export function publicReport(row){
  const document=validateVideoState(row.document),m=match(document);
  if(m.score.phase!=='finished')return null;
  const seed=document.setup.startingScore;
- return {sets:m.score.sets,partial:!!seed,points:m.points,varReviews:document.rallies.filter(r=>r.point&&!r.undone&&r.varReviewed).length,players:row.players.map((p,i)=>({id:p.id,name:p.name,stats:m.stats[i]})),pairs:m.tracking.pairs,service:m.tracking.service,updatedAt:row.updated_at};
+ return {shotTracking:touchInsights(document.rallies),sets:m.score.sets,partial:!!seed,points:m.points,varReviews:document.rallies.filter(r=>r.point&&!r.undone&&r.varReviewed).length,players:row.players.map((p,i)=>({id:p.id,name:p.name,stats:m.stats[i]})),pairs:m.tracking.pairs,service:m.tracking.service,updatedAt:row.updated_at};
 }

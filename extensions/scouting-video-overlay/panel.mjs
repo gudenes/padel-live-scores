@@ -2,6 +2,7 @@ import {shortcutSettings} from './shortcut-settings.mjs';
 import {mediaShortcuts} from './media-shortcuts.mjs';
 import {catalogUI} from './catalog-ui.mjs';
 import {scoutingUI} from './scout-ui.mjs';
+import {match} from './match.mjs';
 import {exported} from './core.mjs';
 const $=id=>document.getElementById(id);
 const demo=new URL(location.href).searchParams.has('demo')&&!globalThis.chrome?.runtime?.id;
@@ -18,6 +19,9 @@ function render(){
   const recent=state.history?.at(-1),lastPoint=state.rallies.findLast(r=>r.point&&!r.undone),attempt=state.pending?.attempts?.at(-1);
   $('last-action').textContent=state.pending?.varReviewed?'VAR review · current point':recent?.type==='smash'&&attempt?`${state.setup.names[attempt.player]} · ${attempt.smashType==='x3'?'X3':attempt.smashType==='power'?'Power':'Smash'} attempt recorded`:lastPoint?`${state.setup.names[lastPoint.point.player]} · ${lastPoint.point.outcome.replace('_',' ')}${lastPoint.point.shot?' · '+lastPoint.point.shot:''}${lastPoint.point.smashType?' '+lastPoint.point.smashType:''}${lastPoint.point.x4?' · X4 winner':''}${lastPoint.varReviewed?' · VAR reviewed':''}`:'Ready to record';
   $('cloud-status').textContent=({local:'Local copy',pending:'Waiting to save',saved:'Saved to server',error:'Local copy · retry needed',conflict:'Needs attention'})[cloud.status]??'Local copy';
+  const finished=match(state).score.phase==='finished';
+  $('finish-status').textContent=finished?(cloud.status==='saved'?'Match finished · all current scouting records saved to server.':'Match finished · server confirmation still pending. Follow the steps below.'):'Still scouting · save every point through the end of the match.';
+  if(finished)$('finish-guide').open=true;
   $('cloud-message').textContent=cloud.error||(!state.selectedMatch?'Choose a match to enable server saves.':cloud.status==='saved'?`Last server save: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Keep admin signed in and connected. Changes stay on this device until the server confirms.');
   $('export-backup').disabled=busy||!state.selectedMatch;
   $('sync-server').disabled=busy||!state.selectedMatch;$('load-server').disabled=busy||!state.selectedMatch||!!state.pending;

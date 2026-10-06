@@ -22,7 +22,7 @@
    if(!isActive()||event.repeat||event.isComposing)return;
    const focused=event.composedPath()[0];if(focused?.matches?.('input,textarea,select,[contenteditable]')||focused?.isContentEditable)return;
    // Keep letter/number shot shortcuts available inside the scoring dialog.
-   if(target.querySelector?.('dialog[open]')&&/^[a-z0-9]$/i.test(event.key)&&!event.ctrlKey&&!event.altKey&&!event.metaKey)return;
+   if(target.querySelector?.('dialog[open]')&&(/^[a-z0-9]$/i.test(event.key)||[' ','Enter'].includes(event.key))&&!event.ctrlKey&&!event.altKey&&!event.metaKey)return;
    const action=Object.keys(controls).find(name=>matches(event,getBindings()[name]));
    if(!action)return;event.preventDefault();event.stopImmediatePropagation();if(!controls[action].disabled)controls[action].click();
   };

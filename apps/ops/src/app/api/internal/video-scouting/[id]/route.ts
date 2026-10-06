@@ -23,7 +23,7 @@ export async function GET(_req:Request,ctx:{params:Promise<{id:string}>}){
  try{
   const result=await serviceClient().from(table).select('revision,document,score,stats,players,updated_at').eq('match_id',id).maybeSingle()
   if(result.error)throw Error('Video scouting storage is unavailable.')
-  return json({session:result.data,features:['smash-types-v1','var-review-v1']})
+  return json({session:result.data,features:['smash-types-v1','var-review-v1','rally-touches-v1']})
  }catch(e){return json({error:e instanceof Error?e.message:'Scouting unavailable.'},503)}
 }
 export async function POST(req:Request,ctx:{params:Promise<{id:string}>}){

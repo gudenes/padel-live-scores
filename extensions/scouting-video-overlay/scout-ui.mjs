@@ -1,10 +1,13 @@
 import {match,defaults,courtPlayers} from './match.mjs';
 import {scoreLabel} from './generated/score-label.mjs';
 import {shots} from './generated/shots.mjs';
+import {playerShortcuts,positionKeys} from './player-shortcuts.mjs';
 import {quickShots} from './shot-shortcuts.mjs';
 import {formatDuration} from './generated/tracking.mjs';
 import {finishRally} from './core.mjs';
 export function scoutingUI({$,act,getState}){
+ let keyboardContext={enabled:false,token:'',order:[]};
+ const keyboard=playerShortcuts({target:document,context:()=>keyboardContext,select:player=>{for(const card of $('players').querySelectorAll('[data-player]')){card.classList.toggle('keyboard-selected',Number(card.dataset.player)===player);}},tap:player=>act({type:'touch',player}),prepare:(player,outcome)=>act({type:'prepare',player,outcome})});
  let setupKey='',playerKey='',openId='',shot,smashType,serverKey='',seedKey='';
  $('apply-server').onclick=()=>act({type:'server',player:Number($('current-server').value)});
  for(const team of ['a','b'])$('swap-pair-'+team).onclick=()=>act({type:'positions',pair:team});
@@ -59,13 +62,13 @@ export function scoutingUI({$,act,getState}){
  $('dismiss-shot').addEventListener('click',cancel);
  $('shot-dialog').addEventListener('cancel',e=>{e.preventDefault();cancel()});
  function savePoint(){
-  const p=getState()?.pending?.finish;if(!p||$('save-point').disabled)return;if(!shot||shot==='smash'&&!smashType){$('shot-error').textContent='Choose a shot'+(shot==='smash'?' and smash type':'')+', then press Enter to save.';return;}
+  const p=getState()?.pending?.finish;if(!p||$('save-point').disabled)return;if(!shot||shot==='smash'&&!smashType){$('shot-error').textContent='Choose a shot'+(shot==='smash'?' and smash type':'')+', then press Space to save.';return;}
   act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net').value?{netCord:$('net').value}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
  }
  $('shot-form').addEventListener('submit',e=>{e.preventDefault();savePoint();});
  $('shot-form').addEventListener('keydown',e=>{
-  if(e.repeat){if(e.key==='Enter')e.preventDefault();return;}if(e.isComposing||e.altKey)return;
-  if(e.key==='Enter'&&!e.target.closest('select,textarea,[contenteditable]')){e.preventDefault();if(shot||e.ctrlKey||e.metaKey)savePoint();else $('shot-error').textContent='Choose a shot, then press Enter to save.';return;}
+  if(e.repeat){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();}return;}if(e.isComposing||e.altKey)return;
+  if((e.key==='Enter'||e.key===' ')&&!e.target.closest('input,select,textarea,[contenteditable]')){e.preventDefault();e.stopPropagation();if(shot||e.ctrlKey||e.metaKey)savePoint();else $('shot-error').textContent='Choose a shot, then press Space to save.';return;}
   if(e.ctrlKey||e.metaKey||e.target.closest('input,select,textarea,[contenteditable]'))return;
   if(shot==='smash'&&['z','x'].includes(e.key.toLowerCase())){e.preventDefault();chooseType(e.key.toLowerCase()==='z'?'power':'x3');return;}if(shot==='smash'&&e.key==='4'&&getState()?.pending?.finish?.outcome==='winner'){e.preventDefault();$('x4').checked=!$('x4').checked;if($('x4').checked)smashType='power';syncShot();return;}
   const choice=[...$('shot-options').querySelectorAll('button')].find(b=>b.dataset.shortcut===e.key.toLowerCase());
@@ -93,7 +96,8 @@ export function scoutingUI({$,act,getState}){
   const enabled=!!state.pending&&!state.pending.finish&&!busy&&healthy&&!sample?.seeking&&!issue;
   $('rally').textContent=m.score.phase==='finished'?'Match complete':state.pending?sample?.paused?'Rally paused with video':'Rally in progress':m.points?'Start next rally':'Start rally';
   $('rally').disabled=busy||!healthy||!state.selectedMatch||!!state.pending||sample?.paused||sample?.seeking||m.score.phase==='finished';
-  $('rally-status').textContent=issue|| (state.pending?state.pending.finish?'Outcome selected · save the shot details':`${Math.max(0,(sample?.time??state.pending.start.time)-state.pending.start.time).toFixed(1)}s video time · ${sample?.paused?'paused':'recording'}`:'Start at the first serve');
+  $('touch-status').textContent=state.pending?.touches?.length?`${state.pending.touches.length} shot${state.pending.touches.length===1?'':'s'} tapped · last: ${setup.names[state.pending.touches.at(-1).player]}`:'Tap each shot during the rally';
+  $('rally-status').textContent=issue|| (state.pending?state.pending.finish?'Outcome selected · save the shot details':`${Math.max(0,(sample?.time??state.pending.start.time)-state.pending.start.time).toFixed(1)}s video time · ${sample?.paused?'paused':'recording'}`:m.score.phase==='finished'?'Review the score and sync below':'Start at the first serve');
   $('first-fault').disabled=!enabled||!!state.pending?.firstFault;$('double-fault').disabled=!enabled||!state.pending?.firstFault;$('undo').disabled=busy||(!state.history?.length&&(!m.points||!!state.pending));
   const sk=JSON.stringify([setup.names,m.server]);
   if(sk!==serverKey){serverKey=sk;$('current-server').replaceChildren(...setup.names.map((n,i)=>new Option(n,i)));$('current-server').value=m.server;}
@@ -122,9 +126,11 @@ export function scoutingUI({$,act,getState}){
    const attempts=document.createElement('div');attempts.className='attempts';for(const [type,label] of [['x3','X3 +1'],['power','Power +1']]){const b=document.createElement('button');b.className='ui-btn';b.textContent=label;b.setAttribute('aria-label',name+' '+type+' smash attempt');b.onclick=()=>act({type:'smash',player:i,smashType:type});attempts.append(b);}card.append(attempts);return card;
   });
   const order=courtPlayers(state,m);
+  order.forEach((player,slot)=>{const badge=document.createElement('kbd');badge.textContent=positionKeys[slot].toUpperCase();badge.title='Tap to record a shot; hold 2 seconds to select outcome';cards[player].querySelector('h3').prepend(badge,' ');});
   const divider=document.createElement('div');divider.className='court-divider';divider.append('Far end · Net · Near end');const flip=document.createElement('button');flip.className='ui-btn';flip.dataset.variant='ghost';flip.dataset.ends='true';flip.textContent='Switch ends';flip.onclick=()=>act({type:'ends'});divider.append(flip);
   $('players').replaceChildren(...order.slice(0,2).map(i=>cards[i]),divider,...order.slice(2).map(i=>cards[i]));}
   for(const b of $('players').querySelectorAll('button'))b.disabled=b.dataset.ends?busy||!state.selectedMatch||m.score.phase==='finished':!enabled;
+  keyboardContext={enabled,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();
   const pending=state.pending,finish=pending?.finish;
   $('var-review').disabled=busy||!pending;$('var-review').setAttribute('aria-pressed',String(!!pending?.varReviewed));$('var-review').textContent=pending?.varReviewed?'VAR flagged':'VAR review';
   if(finish){

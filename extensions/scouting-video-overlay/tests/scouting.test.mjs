@@ -150,3 +150,15 @@ test('manual and automatic end changes rotate all players diagonally and preserv
  const initial=courtPlayers(f.get());for(let i=0;i<6;i++)await f.point(i%2?2:0);
  assert.deepEqual(courtPlayers(f.get()),initial.slice().reverse());
 });
+
+test('tapped shot sequence survives scoring, export, undo and server validation',async()=>{
+ const {videoPayload}=await import('../server-model.mjs');const {touchInsights}=await import('../touch-insights.mjs');
+ const f=fixture();await f.choose();await f.dispatch({type:'start'});
+ for(const [t,player] of [[101,0],[102,2],[103,1]]){f.set(t);await f.dispatch({type:'touch',player});}
+ assert.equal(f.get().pending.touches.length,3);assert.equal(match(f.get()).points,0);
+ await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.touches.length,2);
+ f.set(104);await f.dispatch({type:'prepare',player:0,outcome:'winner'});await f.dispatch({type:'score',details:{shot:'volley'}});
+ const payload=videoPayload(f.get());assert.equal(payload.rallies[0].touches.length,2);assert.equal(exported(f.get()).rallies[0].touches.length,2);assert.equal(touchInsights(payload.rallies).shots,2);
+ await assert.rejects(f.dispatch({type:'touch',player:1}),/Start a rally/);
+ await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.touches.length,2);
+});

@@ -21,6 +21,16 @@ function rally(raw){
  if(raw.firstFault)result.firstFault=snapshot(raw.firstFault);
  if(raw.attempts){if(!Array.isArray(raw.attempts)||raw.attempts.length>100)throw Error('Too many smash attempts.');result.attempts=raw.attempts.map(a=>({player:player(a.player),snapshot:snapshot(a.snapshot),...(a.smashType!==undefined?{smashType:validateSmashType(a.smashType)}:{})}));}
  for(const s of [result.firstFault,...(result.attempts??[]).map(a=>a.snapshot)].filter(Boolean))finishRally(result,s);
+ if(raw.touches!==undefined){
+  if(!Array.isArray(raw.touches)||raw.touches.length>500)throw Error('Too many rally shots.');
+  let previous=result.start.time;
+  result.touches=raw.touches.map(t=>{
+   if(!Array.isArray(t.order)||t.order.length!==4||new Set(t.order.map(player)).size!==4)throw Error('Invalid shot court positions.');
+   const s=snapshot(t.snapshot);finishRally(result,s);
+   if(s.time<previous||raw.end&&s.time>raw.end.time||raw.finish&&s.time>raw.finish.end.time)throw Error('Invalid shot sequence.');previous=s.time;
+   return {player:player(t.player),order:[...t.order],snapshot:s};
+  });
+ }
  if(raw.end){const end=snapshot(raw.end);Object.assign(result,finishRally(result,end));}
  if(raw.undone){result.undone=true;result.undoneAt=at(raw.undoneAt);}
  if(raw.cancelledAt)result.cancelledAt=at(raw.cancelledAt);
