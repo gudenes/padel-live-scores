@@ -52,3 +52,10 @@ test('serialized bridge request preserves null correction anchors, pending and z
  assert.deepEqual(validateVideoState(sent.document),document);
  await assert.rejects(run(env,'{broken'),/JSON|property|position/);
 });
+test('manual forced credit and net-touch records wait for point-tags support',async()=>{
+ const calls=[],request={matchId:id,method:'POST',document:{rallies:[{point:{player:0,outcome:'forced',forcedBy:2,netTouch:true}}]}};
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:[]})};}};
+ assert.equal((await run(env,request)).ok,false);assert.deepEqual(calls,['GET']);
+ calls.length=0;env.fetch=async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['point-tags-v2']})};};
+ assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
+});

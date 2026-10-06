@@ -13,7 +13,7 @@ export function scoutingUI({$,act,getState}){
  function paintFeedback(){for(const card of $('players').querySelectorAll('[data-player]')){const player=Number(card.dataset.player),f=feedback.get(player);card.classList.toggle('keyboard-selected',player===selectedPlayer);for(const button of card.querySelectorAll('[data-outcome-key]')){if(player===selectedPlayer)button.setAttribute('aria-keyshortcuts',button.dataset.outcomeKey.toUpperCase());else button.removeAttribute('aria-keyshortcuts');}card.classList.toggle('holding',player===holdingPlayer);card.dataset.feedback=f?.phase??'';let status=card.querySelector('.tap-feedback');if(!status){status=document.createElement('span');status.className='tap-feedback';status.setAttribute('role','status');card.append(status);}status.textContent=player===selectedPlayer?'Choose outcome · W / A / D':f?.label??(player===holdingPlayer?'Hold 1.3s to select…':'');}}
  async function record(player,message,label){const f={phase:'recording',label:'Recording '+label+'…'};feedback.set(player,f);paintFeedback();const result=await act(message);if(feedback.get(player)!==f)return;f.phase=result?.ok?'recorded':'error';f.label=result?.ok?'✓ '+label+' saved locally':result?.error??'Could not record. Try again.';paintFeedback();setTimeout(()=>{if(feedback.get(player)===f){feedback.delete(player);paintFeedback();}},result?.ok?1000:3500);}
  const keyboard=playerShortcuts({target:document,context:()=>keyboardContext,select:player=>{selectedPlayer=player;paintFeedback();},hold:player=>{holdingPlayer=player;paintFeedback();},fault:type=>act({type}),tap:player=>record(player,{type:'touch',player},'Shot'),smash:(player,smashType)=>record(player,{type:'smash',player,smashType},smashType==='x3'?'X3 attempt':'Power attempt'),prepare:(player,outcome)=>act({type:'prepare',player,outcome})});
- let setupKey='',playerKey='',openId='',shot,smashType,serverKey='',seedKey='';
+ let setupKey='',playerKey='',openId='',shot,smashType,serverKey='',seedKey='',forcedBy,attributionReady=false,attributionKey='';
  $('apply-server').onclick=()=>act({type:'server',player:Number($('current-server').value)});
  for(const team of ['a','b'])$('swap-pair-'+team).onclick=()=>act({type:'positions',pair:team});
  $('swap-ends').onclick=()=>act({type:'ends'});
@@ -33,7 +33,7 @@ export function scoutingUI({$,act,getState}){
  function setQuick(value){quickSave=value;$('quick-save').checked=value;globalThis.localStorage?.setItem('pn-quick-save',String(value));}
  $('quick-save').addEventListener('change',()=>setQuick($('quick-save').checked));
  $('shot-details').addEventListener('toggle',()=>{if($('shot-details').open)setQuick(false)});
- function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;shot=key;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
+ function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
  function shotButton(key,shortcut){
   const b=document.createElement('button');b.type='button';b.className='ui-btn';b.textContent=key==='bajada'?'Bajada de pared':shots[key];b.dataset.shot=key;b.setAttribute('aria-pressed','false');
   if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcut.toUpperCase();b.append(kbd);}
@@ -54,28 +54,40 @@ export function scoutingUI({$,act,getState}){
  function syncShot(){
   for(const b of $('shot-options').querySelectorAll('button')){b.setAttribute('aria-pressed',String(b.dataset.shot===shot));b.dataset.variant=b.dataset.shot===shot?'primary':'default';}
   const p=getState()?.pending,smash=shot==='smash',canLink=smash&&!!smashType&&matchingAttempt()>=0;
-  $('smash-options').hidden=!smash;$('x4-label').hidden=p?.finish?.outcome!=='winner';
+  const x4=p?.finish?.outcome==='winner'&&$('x4').checked;
+  $('smash-options').hidden=!smash;$('x4-label').hidden=p?.finish?.outcome!=='winner';$('shot-options').hidden=x4;$('x4-action').hidden=!x4;$('smash-type-picker').hidden=x4;
+  $('forced-credit').hidden=p?.finish?.outcome!=='forced';
+  $('shot-instruction').textContent=p?.finish?.outcome==='forced'&&!attributionReady?'Tap the opponent’s player key, or continue without credit. Then choose the stroke and Space.':'Choose the stroke, then Space to save.';
+  for(const b of $('forced-opponents').querySelectorAll('button')){b.setAttribute('aria-pressed',String(Number(b.dataset.player)===forcedBy));b.disabled=$('save-point').disabled;}
+  $('forced-unknown').textContent=forcedBy===undefined?'Not recorded · continue':'Clear attribution';
   for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.setAttribute('aria-pressed',String(b.dataset.smashType===smashType));
   $('counted-label').hidden=!canLink;
   const label=!shot?'Choose a stroke':smash&&!smashType?'Choose Power or X3 before saving':`${getState()?.setup?.names[p?.finish?.player]??'Player'} · ${p?.finish?.outcome??''} · ${shots[shot]}${smash?' '+(smashType==='x3'?'X3':'Power'):''}${smash&&$('x4').checked?' · X4 winner':''}${smash&&smashType?' · '+(canLink&&$('counted').checked?'Attempt already counted':'Adds one attempt'):''}`;
-  $('shot-summary').textContent=label;
+  $('shot-summary').textContent=label+(forcedBy!==undefined?' · Forced by '+getState().setup.names[forcedBy]:'')+($('assist').checked?' · Assist: '+getState().setup.names[p.finish.player^1]:'')+($('smash-recovery').checked?' · Smash recovery':'')+($('net-touch').checked?' · Net touch':'');
+  for(const input of ['assist','smash-recovery','x4'])$(input).closest('label').classList.toggle('selected',$(input).checked);
  }
  function chooseType(type){smashType=type;if(type==='x3')$('x4').checked=false;syncShot();}
  for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.onclick=()=>chooseType(b.dataset.smashType);
- $('x4').onchange=()=>{if($('x4').checked)smashType='power';syncShot();};$('counted').onchange=syncShot;
+ $('x4').onchange=()=>{if($('x4').checked){shot='smash';smashType='power';}syncShot();$('save-point').focus();};$('counted').onchange=syncShot;
+ for(const id of ['assist','smash-recovery','net-touch'])$(id).onchange=()=>{syncShot();$('save-point').focus();};
+ function credit(player){forcedBy=player;attributionReady=true;syncShot();common.querySelector('button')?.focus();}
+ $('forced-unknown').onclick=()=>credit(undefined);
  const cancel=()=>act({type:'clear-outcome'});
  $('dismiss-shot').addEventListener('click',cancel);
  $('shot-dialog').addEventListener('cancel',e=>{e.preventDefault();cancel()});
  function savePoint(){
   const p=getState()?.pending?.finish;if(!p||$('save-point').disabled)return;if(!shot||shot==='smash'&&!smashType){$('shot-error').textContent='Choose a shot'+(shot==='smash'?' and smash type':'')+', then press Space to save.';return;}
-  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net').value?{netCord:$('net').value}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
+  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...(p.outcome==='forced'&&forcedBy!==undefined?{forcedBy}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
  }
  $('shot-form').addEventListener('submit',e=>{e.preventDefault();savePoint();});
  $('shot-form').addEventListener('keydown',e=>{
   if(e.repeat){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();}return;}if(e.isComposing||e.altKey)return;
   if((e.key==='Enter'||e.key===' ')&&!e.target.closest('input,select,textarea,[contenteditable]')){e.preventDefault();e.stopPropagation();if(shot||e.ctrlKey||e.metaKey)savePoint();else $('shot-error').textContent='Choose a shot, then press Space to save.';return;}
   if(e.ctrlKey||e.metaKey||e.target.closest('input,select,textarea,[contenteditable]'))return;
-  if(shot==='smash'&&['z','x'].includes(e.key.toLowerCase())){e.preventDefault();chooseType(e.key.toLowerCase()==='z'?'power':'x3');return;}if(shot==='smash'&&e.key==='4'&&getState()?.pending?.finish?.outcome==='winner'){e.preventDefault();$('x4').checked=!$('x4').checked;if($('x4').checked)smashType='power';syncShot();return;}
+  const key=e.key.toLowerCase(),finish=getState()?.pending?.finish;if($('save-point').disabled)return;
+  if(finish?.outcome==='forced'&&(!attributionReady||e.target.closest('#forced-credit'))){const b=[...$('forced-opponents').querySelectorAll('button')].find(b=>b.dataset.shortcut===key);if(b){e.preventDefault();credit(Number(b.dataset.player));return;}}
+  if(finish?.outcome==='winner'&&['f','r','4'].includes(key)){e.preventDefault();const id={f:'assist',r:'smash-recovery',4:'x4'}[key];$(id).checked=!$(id).checked;$(id).onchange();return;}
+  if(shot==='smash'&&['z','x'].includes(key)){e.preventDefault();chooseType(key==='z'?'power':'x3');return;}
   const choice=[...$('shot-options').querySelectorAll('button')].find(b=>b.dataset.shortcut===e.key.toLowerCase());
   if(choice){e.preventDefault();if(!choice.disabled)chooseShot(choice.dataset.shot,true);}
  });
@@ -138,17 +150,20 @@ export function scoutingUI({$,act,getState}){
   keyboardContext={enabled,firstFault:!!state.pending?.firstFault,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();paintFeedback();
   const insights=touchInsights(state.rallies);for(const t of touchDirections(state.pending?.touches)){const p=insights.players[t.player];p.shots++;p[t.direction==='cross-court'?'crossCourt':t.direction==='down-the-line'?'downTheLine':'unknown']++;}
   $('live-stats').replaceChildren(table(['Player','Shots','W','UE','FE'],setup.names.map((name,i)=>[name,insights.players[i].shots,m.stats[i].winners,m.stats[i].unforced,m.stats[i].forced])));
-  const detail=document.createElement('div');detail.className='stats-detail';for(const [i,name] of setup.names.entries()){const row=document.createElement('p'),p=insights.players[i],st=m.stats[i];row.textContent=`${name}: Power ${st.powerSmashes} · X3 ${st.x3Smashes} · X4 ${st.x4Winners} | Cross ${p.crossCourt} · Line ${p.downTheLine} · Unknown ${p.unknown}`;detail.append(row);}$('live-stats').append(detail);
+  const detail=document.createElement('div');detail.className='stats-detail';for(const [i,name] of setup.names.entries()){const row=document.createElement('p'),p=insights.players[i],st=m.stats[i];row.textContent=`${name}: Power ${st.powerSmashes} · X3 ${st.x3Smashes} · X4 ${st.x4Winners} | Assist ${st.assists} · Forced errors created ${st.forcedErrorsCreated} · Smash recovery ${st.smashRecoveryWinners} · Net touch ${st.netTouches} | Cross ${p.crossCourt} · Line ${p.downTheLine} · Unknown ${p.unknown}`;detail.append(row);}$('live-stats').append(detail);
   const sequence=state.pending?.touches??[];$('rally-sequence').textContent=sequence.length?sequence.slice(-12).map(t=>setup.names[t.player]).join(' → '):'No shots tapped in this rally';
   const pending=state.pending,finish=pending?.finish;
   $('var-review').disabled=busy||!pending;$('var-review').setAttribute('aria-pressed',String(!!pending?.varReviewed));$('var-review').textContent=pending?.varReviewed?'VAR flagged':'VAR review';
   if(finish){
-   if(openId!==pending.id){openId=pending.id;shot=undefined;smashType=undefined;$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=true;$('shot-details').open=false;more.open=false;syncShot();$('shot-error').textContent='';}
+   if(openId!==pending.id){openId=pending.id;shot=undefined;smashType=undefined;forcedBy=undefined;attributionReady=finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=true;$('shot-details').open=false;more.open=false;syncShot();$('shot-error').textContent='';}
+   const order=courtPlayers(state,m),creditKey=JSON.stringify([pending.id,finish.player,order,setup.names]);if(creditKey!==attributionKey){attributionKey=creditKey;$('forced-opponents').replaceChildren(...order.filter(player=>(player<2)!==(finish.player<2)).map(player=>{const b=document.createElement('button'),kbd=document.createElement('kbd');b.type='button';b.className='ui-btn';b.dataset.player=player;b.dataset.shortcut=positionKeys[order.indexOf(player)];b.setAttribute('aria-keyshortcuts',b.dataset.shortcut.toUpperCase());b.append(setup.names[player]+' ');kbd.textContent=b.dataset.shortcut.toUpperCase();b.append(kbd);b.onclick=()=>credit(player);return b;}));}
+   $('assist-name').textContent='By '+setup.names[finish.player^1];$('recovery-name').textContent='By '+setup.names[finish.player];$('outside-label').hidden=finish.outcome!=='winner';
    $('shot-var').checked=!!pending.varReviewed;$('shot-var').disabled=busy;
-   syncShot();for(const b of $('smash-options').querySelectorAll('button,input'))b.disabled=busy;
+   $('save-point').disabled=busy;syncShot();for(const b of $('smash-options').querySelectorAll('button,input'))b.disabled=busy;
+   for(const id of ['assist','smash-recovery','x4','net-touch','forced-unknown'])$(id).disabled=busy;
    $('shot-title').textContent=`${setup.names[finish.player]} · ${finish.outcome.replace('_',' ')}`;$('winner-tags').hidden=finish.outcome!=='winner';$('save-point').disabled=busy;$('dismiss-shot').disabled=busy;
    for(const b of $('shot-options').querySelectorAll('button'))b.disabled=busy;
-   if(!$('shot-dialog').open){$('shot-dialog').showModal();common.querySelector('button')?.focus();}
+   if(!$('shot-dialog').open){$('shot-dialog').showModal();(finish.outcome==='forced'?$('forced-opponents'):common).querySelector('button')?.focus();}
   }else{openId='';if($('shot-dialog').open)$('shot-dialog').close();}
  };
 }

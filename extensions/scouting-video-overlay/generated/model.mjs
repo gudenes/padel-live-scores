@@ -39,6 +39,10 @@ export function validateDoc(raw) {
                 throw Error('Invalid shot side.');
             if (e.assistBy !== undefined && (!player(e.assistBy) || e.outcome !== 'winner' || e.assistBy !== (e.player ^ 1)))
                 throw Error('Assists must credit the winning player’s teammate.');
+            if (e.forcedBy !== undefined && (!player(e.forcedBy) || e.outcome !== 'forced' || teamOf(e.forcedBy) === teamOf(e.player)))
+                throw Error('Forced-error credit must name an opponent.');
+            if (e.netTouch !== undefined && typeof e.netTouch !== 'boolean')
+                throw Error('Invalid net touch tag.');
             if (e.smashRecovery !== undefined && (typeof e.smashRecovery !== 'boolean' || (e.smashRecovery && e.outcome !== 'winner')))
                 throw Error('Smash recovery is only available for winners.');
             if (e.netCord !== undefined && !['lucky', 'unlucky'].includes(e.netCord))
@@ -90,7 +94,7 @@ export function replay(doc) {
     score = { ...score, servingPlayer: f, servingTeam: teamOf(settings.firstServer), servingOrder: [f, o, ((f + 2) % 4), ((o + 2) % 4)] };
     let near = settings.near;
     const swapped = { a: false, b: false };
-    const stats = Array.from({ length: 4 }, () => ({ winners: 0, forced: 0, unforced: 0, smashes: 0, smashWinners: 0, smashErrors: 0, assists: 0, recoveryWinners: 0, smashRecoveryWinners: 0, luckyNetCords: 0, unluckyNetCords: 0, shots: {} }));
+    const stats = Array.from({ length: 4 }, () => ({ winners: 0, forced: 0, unforced: 0, smashes: 0, smashWinners: 0, smashErrors: 0, assists: 0, forcedErrorsCreated: 0, netTouches: 0, recoveryWinners: 0, smashRecoveryWinners: 0, luckyNetCords: 0, unluckyNetCords: 0, shots: {} }));
     const tracking = createTracking();
     let points = 0, unclassified = 0;
     const rallySmashes = new Map();
@@ -146,6 +150,10 @@ export function replay(doc) {
                 s[e.outcome]++;
             if (e.assistBy !== undefined)
                 stats[e.assistBy].assists++;
+            if (e.forcedBy !== undefined)
+                stats[e.forcedBy].forcedErrorsCreated++;
+            if (e.netTouch || e.netCord)
+                s.netTouches++;
             if (e.recovery)
                 s.recoveryWinners++;
             if (e.smashRecovery)
