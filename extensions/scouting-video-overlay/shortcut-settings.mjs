@@ -4,8 +4,8 @@ export function shortcutSettings({$,send,onChange}){
  let bindings=keys.defaults,saving=false;
  const inputs={};
  const show=()=>{for(const [action,input] of Object.entries(inputs))input.value=keys.label(bindings[action]);onChange(bindings);};
- async function save(next){if(saving)return;saving=true;$('shortcut-error').textContent='Saving shortcuts…';
-  try{const valid=keys.normalize(next);const result=await send({type:'set-shortcuts',bindings:valid});if(!result?.ok)throw Error(result?.error||'Could not save shortcuts.');bindings=keys.normalize(result.bindings);show();$('shortcut-error').textContent='Shortcuts saved on this device.';}
+ async function save(next,input){if(saving)return;saving=true;$('shortcut-error').textContent='Saving shortcuts…';
+  try{const valid=keys.normalize(next);const result=await send({type:'set-shortcuts',bindings:valid});if(!result?.ok)throw Error(result?.error||'Could not save shortcuts.');bindings=keys.normalize(result.bindings);show();$('shortcut-error').textContent='Shortcuts saved on this device. Ready to use.';if(document.activeElement===input)input.blur();}
   catch(error){$('shortcut-error').textContent=error.message;show();}finally{saving=false;}
  }
  for(const [action,name] of Object.entries(keys.actions)){
@@ -15,7 +15,7 @@ export function shortcutSettings({$,send,onChange}){
    if(event.key==='Tab')return;event.preventDefault();event.stopImmediatePropagation();if(event.repeat||event.isComposing||saving)return;
    if(event.key==='Escape'){show();input.blur();return;}
    if(['Control','Meta','Alt','Shift'].includes(event.key))return;
-   save({...bindings,[action]:['Backspace','Delete'].includes(event.key)?null:{key:event.key,ctrl:event.ctrlKey,alt:event.altKey,shift:event.shiftKey,meta:event.metaKey}});
+   save({...bindings,[action]:['Backspace','Delete'].includes(event.key)?null:{key:event.key,ctrl:event.ctrlKey,alt:event.altKey,shift:event.shiftKey,meta:event.metaKey}},input);
   });
   label.append(input);$('shortcut-fields').append(label);
  }
