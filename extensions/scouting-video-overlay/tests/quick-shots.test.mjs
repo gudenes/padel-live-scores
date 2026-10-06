@@ -33,6 +33,9 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
   state=initial;render(state,{time:110},false,true);
   assert.equal($('shot-options').querySelector('[aria-label="Common shots"]').children.length,9);
   assert.deepEqual(quickShots.map(([key])=>key),['q','w','e','a','s','d','1','2','3']);
+  assert.deepEqual(quickShots.slice(-2),[['2','block'],['3','bajada']]);
+  assert.equal($('shot-options').querySelector('[data-shot=wall]').dataset.shortcut,undefined);
+  assert.equal($('shot-options').querySelector('[data-shot=return]').dataset.shortcut,undefined);
   assert.equal(new Set([...$('shot-options').querySelectorAll('button')].map(b=>b.dataset.shot)).size,Object.keys(shots).length);
   const press=(target,key,options={})=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
   for(const [key,shot] of quickShots){

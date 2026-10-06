@@ -11,7 +11,7 @@ After starting a rally, click the player’s Winner / Unforced / Forced outcome 
 | Q · Smash | W · Volley | E · Víbora |
 | --- | --- | --- |
 | A · Bandeja | S · Groundstroke | D · Lob |
-| 1 · Chiquita | 2 · Wall return | 3 · Return |
+| 1 · Chiquita | 2 · Block | 3 · Bajada de pared |
 
 Press a stroke key to select the shot, then Space to save it. Keyboard selection always waits for Space or Enter. With Quick save enabled, clicking a non-smash shot saves immediately; smashes still wait for a type selection and Space. Turn it off to select by click and save later. Opening Add details turns Quick save off so you can record side, assist, recovery, net cord or already-counted smash details. The preference persists on this device. More shots contains all remaining canonical shots. Ctrl/Cmd Enter also saves after a shot is selected. Shot shortcuts only apply while the picker is open and are ignored in input fields. Undo last action is available in the side panel.
 
