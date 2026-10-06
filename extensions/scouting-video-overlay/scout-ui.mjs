@@ -35,7 +35,7 @@ export function scoutingUI({$,act,getState}){
  $('shot-details').addEventListener('toggle',()=>{if($('shot-details').open)setQuick(false)});
  function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;shot=key;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
  function shotButton(key,shortcut){
-  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.textContent=shots[key];b.dataset.shot=key;b.setAttribute('aria-pressed','false');
+  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.textContent=key==='bajada'?'Bajada de pared':shots[key];b.dataset.shot=key;b.setAttribute('aria-pressed','false');
   if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcut.toUpperCase();b.append(kbd);}
   b.addEventListener('click',()=>chooseShot(key));return b;
  }
@@ -43,7 +43,7 @@ export function scoutingUI({$,act,getState}){
  for(const [shortcut,key] of quickShots)common.append(shotButton(key,shortcut));
  const more=document.createElement('details'),summary=document.createElement('summary');summary.textContent='More shots';more.append(summary);
  const commonKeys=new Set(quickShots.map(([,key])=>key));
- const groups={'Overheads':['bajada','rulo','gancho'],'Net':['drop','block','half_volley'],'Ground & defence':['contrapared'],'Serve & other':['serve','other']};
+ const groups={'Overheads':['bajada','rulo','gancho'],'Net':['drop','block','half_volley'],'Ground & defence':['wall','return','contrapared'],'Serve & other':['serve','other']};
  for(const [name,keys] of Object.entries(groups)){
   const section=document.createElement('section'),heading=document.createElement('h3'),grid=document.createElement('div');heading.textContent=name;grid.className='shot-grid';
   for(const key of keys.filter(key=>!commonKeys.has(key)))grid.append(shotButton(key));
