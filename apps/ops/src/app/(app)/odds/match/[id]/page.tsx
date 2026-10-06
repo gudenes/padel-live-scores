@@ -72,6 +72,7 @@ export default async function MatchOddsPage({ params }: PageProps) {
   const { data: latestPred } = await supabase
     .from('model_predictions')
     .select('*')
+    .eq('lineup_valid', true)
     .eq('match_id', id)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -107,6 +108,7 @@ export default async function MatchOddsPage({ params }: PageProps) {
   const { data: history } = await supabase
     .from('model_predictions')
     .select('created_at, pair1_prob, pair2_prob')
+    .eq('lineup_valid', true)
     .eq('match_id', id)
     .order('created_at', { ascending: true })
 

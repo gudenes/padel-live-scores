@@ -808,6 +808,9 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           </div>
         )}
 
+        {isScheduled && (!match.pair1_player1 || !match.pair1_player2 || !match.pair2_player1 || !match.pair2_player2) && (
+          <p role="status" style={{color:MUTED,fontSize:13,textAlign:'center',margin:'0 0 16px'}}>{tMatch('awaitingConfirmedOpponents')}</p>
+        )}
         {/* Pair 1 row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, ...(!isLive && !isScheduled ? { borderBottom: `0.5px solid ${BORDER}` } : {}) }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>

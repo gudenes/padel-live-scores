@@ -30,6 +30,7 @@ import { runShadowDiffOcr } from './workers/shadow-diff-ocr.js';
 import { runCloseStaleLiveSweeper } from './workers/close-stale-live-sweeper.js';
 import { runFipEventPageEnricher } from './workers/fip-event-page-enricher.js';
 import { runPlayerProfileBatch } from './workers/player-profile.js';
+import { runLineupMarketRefresh } from './workers/lineup-market-refresh.js';
 import { runModelPredictionSnapshot } from './workers/model-prediction-snapshot.js';
 import { runTournamentProjectionSnapshot } from './workers/tournament-projection-snapshot.js';
 import { runPredictionScorer } from './workers/prediction-scorer.js';
@@ -222,6 +223,7 @@ export type WorkerName =
   | 'fip-cms-orphan-prune'
   | 'raw-payloads-prune'
   | 'schedule-hints-writer'
+  | 'lineup-market-refresh'
   | 'model-prediction-snapshot'
   | 'tournament-projection-snapshot'
   | 'prediction-scorer'
@@ -265,6 +267,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'fip-cms-orphan-prune',
   'raw-payloads-prune',
   'schedule-hints-writer',
+  'lineup-market-refresh',
   'model-prediction-snapshot',
   'tournament-projection-snapshot',
   'prediction-scorer',
@@ -419,6 +422,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       dryRun: true,
       expectedDurationMinutes: 90, // matches env default
     });
+    case 'lineup-market-refresh': return (deps) => runLineupMarketRefresh({...deps,dryRun:true,generateMarkets:false,generatorDryRun:true});
     case 'model-prediction-snapshot': return (deps) => runModelPredictionSnapshot({
       supabase: deps.supabase,
       logger: deps.logger,
@@ -875,6 +879,10 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
     });
   }
   if (flags.enableModelPredictionSnapshot) {
+    entries.push({name:'lineup-market-refresh',cron:'*/5 * * * *',run:(d)=>runLineupMarketRefresh({
+      supabase:d.supabase,logger:d.logger,dryRun:flags.modelPredictionSnapshotDryRun,
+      generateMarkets:flags.enableMarketGenerator,generatorDryRun:flags.marketGeneratorDryRun,
+    })});
     entries.push({
       name: 'model-prediction-snapshot',
       cron: '25 * * * *', // hourly at :25

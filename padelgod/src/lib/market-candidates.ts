@@ -3,6 +3,8 @@
 import { FIXED_SEED_SOURCE, type Candidate } from './market-gates.js'
 
 export interface MatchRow {
+  lineup_fingerprint?: string | null;
+  pred_lineup_fingerprint?: string | null;
   id: string
   tournament_id: string | null
   category: string | null
@@ -96,6 +98,7 @@ export function matchRowToCandidate(
 
   return {
     key: `${templateKey}:${row.id}`,
+    lineupFingerprint: row.lineup_fingerprint,
     matchId: row.id,
     tournamentId: row.tournament_id,
     category: row.category === 'women' ? 'women' : row.category === 'men' ? 'men' : null,

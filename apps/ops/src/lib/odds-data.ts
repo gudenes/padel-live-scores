@@ -82,6 +82,7 @@ export async function getMatchOddsForDay(dateIso: string) {
   const { data: preds } = await supabase
     .from('model_predictions')
     .select('*')
+    .eq('lineup_valid', true)
     .in('match_id', matchIds)
     .order('created_at', { ascending: false })
     .limit(Math.min(9999, matchIds.length * 24))
@@ -192,6 +193,7 @@ export async function getModelFreshness() {
   const { data: latestSnapshot } = await supabase
     .from('model_predictions')
     .select('created_at, training_match_count, model_version')
+    .eq('lineup_valid', true)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()

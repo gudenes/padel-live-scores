@@ -548,6 +548,7 @@ function computePendingReplacementPatch(
     const p2 = pairFkAt(existing, pairNum, 2);
     if ((p1 && withdrawn.has(p1)) || (p2 && withdrawn.has(p2))) {
       return {
+        lineup_withdrawal_confirmed: true,
         [`pair${pairNum}_player1_id`]: null,
         [`pair${pairNum}_player2_id`]: null,
         [`pair${pairNum}_player1_name`]: null,

@@ -17,6 +17,7 @@
 export const FIXED_SEED_SOURCE = 'fixed'
 
 export interface Candidate {
+  lineupFingerprint?: string | null;
   /** Stable identity for dedup/logging, e.g. `${templateKey}:${matchId}`. */
   key: string
   matchId: string | null

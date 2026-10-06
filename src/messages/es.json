@@ -144,6 +144,7 @@
     }
   },
   "matchDetail": {
+    "awaitingConfirmedOpponents": "Pendiente de confirmar los rivales",
     "matchDetail": "Detalle del partido",
     "round": "Ronda",
     "court": "Pista",

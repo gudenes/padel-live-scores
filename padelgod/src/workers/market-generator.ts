@@ -52,6 +52,7 @@ export interface GeneratorTemplate {
 }
 
 export interface MarketRow {
+  lineup_fingerprint?: string | null;
   season_id: string
   template_id: string
   match_id: string | null
@@ -112,6 +113,7 @@ export function buildMarketRow(
   const { qYes, qNo } = seedShares(p, b)
 
   const row: MarketRow = {
+    lineup_fingerprint: candidate.lineupFingerprint,
     season_id: seasonId,
     template_id: template.id,
     match_id: candidate.matchId,
@@ -139,6 +141,7 @@ export function buildMarketRow(
 }
 
 export interface ExistingMarket {
+  lineup_fingerprint?: string | null;
   template_id: string
   match_id: string | null
   tournament_id: string | null
@@ -178,7 +181,7 @@ export function tallyExisting(
   }
   for (const m of existing) {
     if (m.status === 'open') t.currentOpen += 1
-    if (m.match_id) t.existingPerMatch[m.match_id] = (t.existingPerMatch[m.match_id] ?? 0) + 1
+    if (m.match_id && m.status !== 'void') t.existingPerMatch[m.match_id] = (t.existingPerMatch[m.match_id] ?? 0) + 1
     if (new Date(m.created_at) >= startOfDay) {
       t.createdToday += 1
       // Real committed subsidy, not an assumed constant: lmsr_b · ln2 is
@@ -197,6 +200,7 @@ export interface MarketGeneratorDeps {
   logger?: Logger
   dryRun: boolean
   now?: () => Date
+  onlyMatchIds?: string[]
 }
 
 export interface MarketGeneratorResult {
@@ -287,7 +291,7 @@ export async function runMarketGenerator(
   const rows = unwrap(
     await deps.supabase
       .from('matches')
-      .select('id, tournament_id, category, round, round_canonical, scheduled_at, pred_pair1_prob, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
+      .select('id, lineup_fingerprint, pred_lineup_fingerprint, tournament_id, category, round, round_canonical, scheduled_at, pred_pair1_prob, pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
       .in('tournament_id', premierIds)
       .eq('status', 'scheduled')
       .gt('scheduled_at', now.toISOString()),
@@ -315,7 +319,7 @@ export async function runMarketGenerator(
   // Existing markets, for dedup and for the caps.
   const existing = unwrap(
     await deps.supabase
-      .from('markets').select('template_id, match_id, tournament_id, category, status, created_at, lmsr_b')
+      .from('markets').select('template_id, match_id, tournament_id, category, status, created_at, lmsr_b, lineup_fingerprint')
       .eq('season_id', season.id),
     'existing markets',
   ) as ExistingMarket[]
@@ -337,7 +341,7 @@ export async function runMarketGenerator(
   }
 
   const existingKeys = new Set(
-    existing.filter(m => m.match_id).map(m => `${m.template_id}:${m.match_id}`),
+    existing.filter(m => m.match_id).map(m => `${m.template_id}:${m.match_id}:${m.lineup_fingerprint}`),
   )
   const existingTournamentKeys = new Set(
     existing.filter(m => m.tournament_id).map(m => `${m.template_id}:${m.tournament_id}:${m.category}`),
@@ -357,7 +361,9 @@ export async function runMarketGenerator(
     // reads the constant out of `params` and every candidate opens at it.
     const seed = seedSpecForTemplate(t)
     for (const row of rows) {
-      if (existingKeys.has(`${t.id}:${row.id}`)) continue
+      if (!row.lineup_fingerprint || (deps.onlyMatchIds && !deps.onlyMatchIds.includes(row.id))) continue
+      if (t.seed_source === 'elo' && row.pred_lineup_fingerprint !== row.lineup_fingerprint) continue
+      if (existingKeys.has(`${t.id}:${row.id}:${row.lineup_fingerprint}`)) continue
       const cand = matchRowToCandidate(row, ranks, t.key, t.max_loss_guacas, seed)
       if (seenKeys.has(cand.key)) continue
       seenKeys.add(cand.key)
@@ -385,7 +391,7 @@ export async function runMarketGenerator(
     ) as DrawMatchRow[]
     const lineTours = premierTours.filter(t => liveIds.includes(t.id))
 
-    for (const t of lineTemplates) {
+    for (const t of (deps.onlyMatchIds ? [] : lineTemplates)) {
       for (const plan of planBagelLineMarkets(t.params, lineTours, drawRows, now)) {
         if (existingTournamentKeys.has(`${t.id}:${plan.tournamentId}:${plan.category}`)) continue
         const cand: Candidate = {

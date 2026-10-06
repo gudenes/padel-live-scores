@@ -547,6 +547,7 @@ describe('computeReconciliationPatch — withdrawal awaiting replacement', () =>
       priorVacated: { p1: YANGUAS, p2: NIETO },
     });
     expect(patch).toEqual({
+      lineup_withdrawal_confirmed: true,
       pair1_player1_id: null,
       pair1_player2_id: null,
       pair1_player1_name: null,

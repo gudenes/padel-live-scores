@@ -90,6 +90,12 @@ export async function runMarketResolver(
     held: 0, voided: 0, undecided: 0, errors: 0, durationMs: 0,
   }
 
+  if (!deps.dryRun) {
+    const reconciled = await deps.supabase.rpc('play_reconcile_lineup_markets')
+    if (reconciled.error) throw new Error(reconciled.error.message)
+    if (reconciled.data?.errors) log?.error(reconciled.data, 'lineup reconciliation requires retry')
+  }
+
   // Pass A — lock markets whose time has come.
   const { data: due } = await deps.supabase
     .from('markets').select('id')

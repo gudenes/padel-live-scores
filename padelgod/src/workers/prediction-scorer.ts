@@ -121,6 +121,7 @@ export async function runPredictionScorer(
         .from('model_predictions')
         .select('id, pair1_prob, pair2_prob, model_version')
         .eq('match_id', m.id)
+        .eq('lineup_valid', true)
         .lt('created_at', m.scheduled_at)
         .order('created_at', { ascending: false })
         .limit(1)
