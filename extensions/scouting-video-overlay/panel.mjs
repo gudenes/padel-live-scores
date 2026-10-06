@@ -78,7 +78,7 @@ async function act(message){
   catch(error){$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{busy=false;render();await refresh();}
 }
-$('export-backup').onclick=async()=>{try{const {backup}=await call({type:'cloud-backup'});const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='scouting-local-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}};
+$('export-backup').onclick=async()=>{try{const {state:current}=await call({type:'state'});const backup=exported(current);const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='scouting-local-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}};
 $('sync-server').onclick=()=>act({type:'sync-server'});
 $('load-server').onclick=()=>act({type:'load-server'});
 $('video-playback').onclick=()=>act({type:'playback'});
