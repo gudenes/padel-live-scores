@@ -53,7 +53,10 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
         case 'load-matches':{
           if(!state.catalog?.tournaments.some(t=>t.id===message.tournamentId))throw Error('Choose a tournament from the catalogue.');
           const result=await catalog({kind:'matches',tournamentId:message.tournamentId});
-          state.catalog.matchesByTournament={...state.catalog.matchesByTournament,[message.tournamentId]:result.matches};return save();
+          state.catalog.matchesByTournament={...state.catalog.matchesByTournament,[message.tournamentId]:result.matches};
+          const active=result.matches.find(m=>m.id===state.selectedMatch?.id);
+          if(active&&JSON.stringify(active.playerIds)===JSON.stringify(state.selectedMatch.playerIds)&&JSON.stringify(active.names)===JSON.stringify(state.selectedMatch.names))state.selectedMatch.players=active.players;
+          return save();
         }
         case 'select-match':{
           if(state.pending)throw Error('Finish or cancel the current rally before switching matches.');

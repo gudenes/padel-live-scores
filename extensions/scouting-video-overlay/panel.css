@@ -100,3 +100,5 @@ body.scouting #scouting-workspace{order:0}body.scouting #connection-settings{ord
 #shot-options .shot-grid button{min-height:38px;grid-template-columns:minmax(0,1fr) auto;align-items:center;text-align:left;gap:4px}#shot-options kbd{font-size:11px;font-weight:400;white-space:nowrap}#shot-options .shot-grid button[data-shot="bajada"]{font-size:11px}
 
 @media(pointer:coarse){#shot-options .shot-grid button{min-height:44px}}
+
+.player-card h3{display:flex;align-items:flex-start;gap:4px}.player-identity{display:inline-flex;align-items:center;gap:5px;min-width:0;flex:1}.player-name{min-width:0;overflow-wrap:anywhere}.player-flag{flex-shrink:0;font-size:14px;line-height:1.2}.player-ranking{flex-shrink:0;margin-left:auto;background:#EEF0E8;border-radius:4px;padding:2px 4px;color:#59664a;font-size:10px;font-weight:500;white-space:nowrap}.live-summary td:first-child .player-identity{display:flex}.live-summary td:first-child{min-width:125px}.player-card.serving .player-ranking{font-weight:500}

@@ -97,3 +97,5 @@ Tap Q/W/A/S to record a shot, then Z (Power), X (X3) or C (Soft) to classify tha
 
 ### Complete finishing-stroke keyboard
 Every finishing stroke has a key in the shot dialog. Existing Q/W/E, A/S/D and 1/2/3 stay unchanged. Additional strokes: T Rulo, G Gancho, V Drop shot, B Half-volley, Shift+A Wall return, Shift+S Return, Shift+D Contrapared, 5 Serve, 6 Other. All keys stay on the left side of the keyboard. Small shortcut hints sit beside labels; all strokes remain visible. These keys apply only after an outcome is selected; player taps and winner/assist/recovery/fault keys retain their existing contexts. Space saves.
+
+Player cards and the Live stats player column show country flags and rankings from the admin catalogue. The scoreboard stays unchanged. Missing country/ranking values are omitted. Reload a tournament’s matches to refresh profile data for an existing session; scoring and recorded points are retained. Demo rankings are illustrative.
