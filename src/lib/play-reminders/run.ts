@@ -16,6 +16,7 @@ import {
   appBase,
   type ReminderLocale,
 } from './copy'
+import { hasRecentAppActivity } from './activity'
 import { buildReminderEmail } from './email'
 
 type Preference = {
@@ -90,7 +91,7 @@ export async function runPlayReminders(
       (!pref.push_enabled && clock.minutes < 540)
     )
       continue
-    const [access, profile, user] = await Promise.all([
+    const [access, profile, user, activity] = await Promise.all([
       db
         .from('play_access')
         .select('user_id')
@@ -102,6 +103,13 @@ export async function runPlayReminders(
         .eq('id', pref.user_id)
         .maybeSingle(),
       db.from('users').select('email').eq('id', pref.user_id).maybeSingle(),
+      pref.push_enabled
+        ? db
+            .from('user_app_activity')
+            .select('last_seen_at')
+            .eq('user_id', pref.user_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
     ])
     if (access.error || profile.error || user.error) {
       stats.failed++
@@ -118,7 +126,10 @@ export async function runPlayReminders(
     for (const channel of ['email', 'push'] as ReminderChannel[]) {
       if (
         !pref[`${channel}_enabled`] ||
-        (channel === 'email' && !user.data?.email)
+        (channel === 'email' && !user.data?.email) ||
+        (channel === 'push' &&
+          (activity.error ||
+            hasRecentAppActivity(activity.data?.last_seen_at, now)))
       )
         continue
       const matches = planReminder({
@@ -225,6 +236,15 @@ export async function runPlayReminders(
           channel,
           now: dispatchNow,
         })
+        const latestActivity =
+          channel === 'push'
+            ? await db
+                .from('user_app_activity')
+                .select('last_seen_at')
+                .eq('user_id', pref.user_id)
+                .maybeSingle()
+            : { data: null, error: null }
+        if (latestActivity.error) throw Error('activity_recheck_failed')
         const validMatches = new Map(valid.map((m) => [m.matchId, m]))
         const scheduleChanged = delivery.payload.matches.some((m) => {
           const current = validMatches.get(m.matchId)
@@ -246,6 +266,11 @@ export async function runPlayReminders(
           fresh.data.timezone !== delivery.payload.timezone ||
           freshMute === 'forever' ||
           (freshMute && Date.parse(freshMute) > dispatchNow) ||
+          (channel === 'push' &&
+            hasRecentAppActivity(
+              latestActivity.data?.last_seen_at,
+              dispatchNow
+            )) ||
           scheduleChanged ||
           originalIds.some((id) => !validIds.has(id))
         ) {

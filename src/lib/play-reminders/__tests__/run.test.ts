@@ -35,7 +35,14 @@ const pref = {
   unsubscribe_token: 'token',
 }
 function fakeDb(
-  options: { access?: boolean; consent?: boolean; flag?: boolean } = {}
+  options: {
+    access?: boolean
+    consent?: boolean
+    flag?: boolean
+    lastSeen?: string | null
+    openedBeforeSend?: string | null
+    activityError?: boolean
+  } = {}
 ) {
   const writes: Record<string, unknown>[] = [],
     rpc = vi.fn().mockImplementation(async (_name, args) => ({
@@ -47,6 +54,7 @@ function fakeDb(
       },
       error: null,
     }))
+  let activityReads = 0
   const from = vi.fn((table: string) => {
     let update: unknown,
       selection = '',
@@ -86,6 +94,20 @@ function fakeDb(
           data = { locale: 'en', notification_mute_until: null }
         if (table === 'users') data = { email: 'test@example.com' }
         if (table === 'play_reminder_deliveries') data = []
+        if (table === 'user_app_activity') {
+          activityReads++
+          data = {
+            last_seen_at:
+              activityReads > 1
+                ? options.openedBeforeSend ?? options.lastSeen ?? null
+                : options.lastSeen ?? null,
+          }
+          if (options.activityError)
+            return Promise.resolve({
+              data: null,
+              error: { message: 'offline' },
+            }).then(resolve)
+        }
         return Promise.resolve({ data, error: null }).then(resolve)
       },
     }
@@ -98,6 +120,8 @@ const transport = (): ReminderTransport => ({
   push: vi.fn().mockResolvedValue(true),
 })
 beforeEach(() => {
+  pref.email_enabled = true
+  pref.push_enabled = false
   mocked.markets.mockReset().mockResolvedValue([m])
   mocked.choices.mockReset().mockResolvedValue({
     answered: new Set(),
@@ -198,4 +222,61 @@ it('rescheduling a match before dispatch prevents an email with the old time', a
     { skipped: 1 }
   )
   expect(t.email).not.toHaveBeenCalled()
+})
+
+function configurePush() {
+  pref.email_enabled = false
+  pref.push_enabled = true
+  mocked.markets.mockResolvedValue([
+    { ...m, startsAt: '2026-10-07T08:25:00Z', locksAt: '2026-10-07T08:25:00Z' },
+  ])
+  mocked.choices.mockResolvedValue({
+    answered: new Set(),
+    followed: new Set(['a']),
+    bookmarked: new Set(),
+  })
+}
+it('recent app use suppresses only mobile, not daily email', async () => {
+  configurePush()
+  const f = fakeDb({ lastSeen: '2026-10-07T07:45:00Z' }),
+    t = transport()
+  await runPlayReminders(f.db, t, { dryRun: false, now })
+  expect(t.push).not.toHaveBeenCalled()
+  expect(f.rpc).not.toHaveBeenCalled()
+  pref.email_enabled = true
+  pref.push_enabled = false
+  mocked.markets.mockResolvedValue([m])
+  const e = fakeDb({ lastSeen: '2026-10-07T07:45:00Z' }),
+    et = transport()
+  expect(
+    await runPlayReminders(e.db, et, { dryRun: false, now })
+  ).toMatchObject({ emailSent: 1 })
+})
+it('opening the app after selection cancels the claimed push', async () => {
+  configurePush()
+  const f = fakeDb({
+      lastSeen: '2026-10-06T19:00:00Z',
+      openedBeforeSend: '2026-10-07T07:59:00Z',
+    }),
+    t = transport()
+  expect(await runPlayReminders(f.db, t, { dryRun: false, now })).toMatchObject(
+    { skipped: 1, pushSent: 0 }
+  )
+  expect(t.push).not.toHaveBeenCalled()
+})
+it('users inactive for over 12 hours can receive a followed-player reminder', async () => {
+  configurePush()
+  const f = fakeDb({ lastSeen: '2026-10-06T19:59:00Z' }),
+    t = transport()
+  expect(await runPlayReminders(f.db, t, { dryRun: false, now })).toMatchObject(
+    { pushSent: 1, failed: 0 }
+  )
+  expect(t.push).toHaveBeenCalledTimes(1)
+})
+it('activity lookup failures suppress mobile delivery', async () => {
+  configurePush()
+  const f = fakeDb({ activityError: true }),
+    t = transport()
+  await runPlayReminders(f.db, t, { dryRun: false, now })
+  expect(t.push).not.toHaveBeenCalled()
 })
