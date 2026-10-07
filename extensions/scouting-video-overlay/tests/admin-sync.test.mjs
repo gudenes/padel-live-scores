@@ -59,3 +59,12 @@ test('manual forced credit and net-touch records wait for point-tags support',as
  calls.length=0;env.fetch=async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['point-tags-v2']})};};
  assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
 });
+test('soft and linked attempts wait for compatible server instead of losing classification links',async()=>{
+ for(const attempt of [{player:0,smashType:'soft'},{player:0,smashType:'power',touchIndex:0}]){
+  const calls=[],request={matchId:id,method:'POST',document:{pending:{attempts:[attempt]}}};
+  const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['smash-types-v1']})};}};
+  assert.equal((await run(env,request)).ok,false);assert.deepEqual(calls,['GET']);
+  calls.length=0;env.fetch=async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['smash-types-v1','soft-smash-v1']})};};
+  assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
+ }
+});

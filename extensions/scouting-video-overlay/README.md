@@ -81,3 +81,19 @@ The live summary and admin insights show assists, forced errors created, smash-r
 
 ## Scouting progress
 The slim top bar shows finishing-stroke coverage. Click it to expand recording details, forced-error attribution, rallies with shot taps and the current server acknowledgement. Double faults need no finishing stroke. Imported scores, unfinished rallies and undone points do not inflate observed coverage. Missing opponent attribution remains valid and does not lower the stroke-coverage bar. Milestones acknowledge 20, 50 or 100 observed points, the first observed set ending, and match completion; only a server-confirmed finished match says completed and synced. These are completeness indicators, not an accuracy rating, and Undo recalculates them.
+
+## Court check-in and serving
+Tick **On court** on each player card once. After all four confirmations, the check-in section and card checkboxes disappear. Completion survives reopening the panel, stays per match and follows each player through end changes. **Undo check-in** in Video, serving & scouting tools restores the last confirmation without undoing any scored point. The checklist stays on this device and does not affect statistics or block scouting. **Change** beside the serving name, below the timer, opens server selection between rallies. It uses the existing server correction, score replay, cloud save and score Undo. The serving player's name remains bold. Long instructional paragraphs have been removed from the active workspace; button shortcuts remain visible.
+
+Each smash button displays that player's current court key: hold **player key + X** for X3, or **player key + Z** for Power. Count these during an open rally. Labels update when ends change.
+
+For a smash-recovery winner, press **R**, then **Space**. No finishing stroke is required, and no smash attempt is added unless explicitly tagged X4. Recovery winners are excluded from the finishing-stroke coverage denominator. Untick recovery to choose a regular stroke.
+
+## Recovery after moving the video
+If an open rally becomes invalid after a seek, the workspace shows **Restart rally here**. Position the same video at the first serve, then restart, even while paused. It archives the unfinished attempt and opens a fresh rally at the new video position without changing recorded points or the score. Taps, faults and smash attempts from the discarded attempt are kept in the backup, not carried into the new observation. Undo restores the prior pending rally and removes the archive entry. Video replacement or an ended video still requires cancelling and reconnecting.
+
+### Soft smash and sequential attempt keys
+Tap Q/W/A/S to record a shot, then Z (Power), X (X3) or C (Soft) to classify that same latest shot. Repeating or correcting its type updates the one linked attempt and never adds another touch. Hold-player + Z/X/C and the card buttons still record standalone attempts when you are not tracking every shot. Hold 1.3 seconds → W/A/D still selects outcomes; in the finishing smash picker, Z/X/C selects the type and Space saves. Soft attempts and soft smash winners appear separately in live details and the saved admin report. Undo restores the prior classification. Server sync of Soft or linked attempts requires `soft-smash-v1`; older servers retain the local outbox until updated. No database migration is needed.
+
+### Complete finishing-stroke keyboard
+Every finishing stroke has a key in the shot dialog. Existing Q/W/E, A/S/D and 1/2/3 stay unchanged. Additional strokes: T Rulo, G Gancho, V Drop shot, B Half-volley, Shift+A Wall return, Shift+S Return, Shift+D Contrapared, 5 Serve, 6 Other. All keys stay on the left side of the keyboard. Small shortcut hints sit beside labels; all strokes remain visible. These keys apply only after an outcome is selected; player taps and winner/assist/recovery/fault keys retain their existing contexts. Space saves.
