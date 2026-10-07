@@ -10,6 +10,7 @@ test('coverage uses active observations, excludes double faults from stroke cove
  state.rallies[1].undone=true;
  assert.deepEqual(scoutingProgress(state),{points:3,eligible:2,detailed:1,percent:50,forced:1,attributed:0,tracked:0});
  assert.equal(scoutingProgress({rallies:[point('double_fault')]}).percent,0);
+ assert.deepEqual(scoutingProgress({rallies:[point('winner',{smashRecovery:true}),point('winner',{shot:'volley'})]}),{points:2,eligible:1,detailed:1,percent:100,forced:0,attributed:0,tracked:0});
 });
 test('disclosure keeps its state, uses actual server status and recalculates milestones after Undo',()=>{
  const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8')),$=id=>dom.window.document.getElementById(id),render=progressUI($);

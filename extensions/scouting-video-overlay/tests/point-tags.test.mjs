@@ -40,5 +40,12 @@ test('quick tags, independent X4 and position-based opponent keys save once and 
   press('s');press('w');$('net-touch').click();press(' ');assert.equal(actions.at(-1).details.forcedBy,2);assert.equal(actions.at(-1).details.netTouch,true);
   state.pending.id='unknown';render(state,snapshot(110),false,true);$('forced-unknown').click();press('w');press(' ');assert.equal(actions.at(-1).details.forcedBy,undefined);
   const count=actions.length;render(state,snapshot(110),true,true);press('f');press('4');press(' ');assert.equal(actions.length,count);
+  state.pending.id='recovery-only';state.pending.finish.outcome='winner';render(state,snapshot(110),false,true);
+  press('r');assert.equal($('shot-options').hidden,true);assert.match($('shot-instruction').textContent,/No stroke needed/);press(' ');
+  assert.deepEqual(actions.at(-1),{type:'score',details:{smashRecovery:true}});
+  const recovered=validatePoint({player:0,outcome:'winner',...actions.at(-1).details},{},0);
+  const saved=validateVideoState(videoPayload({...fresh(),setup:defaults(),rallies:[{id:'recovery-only',start:snapshot(100),end:snapshot(110),point:recovered}]}));
+  assert.equal(videoSummary(saved).stats[0].smashRecoveryWinners,1);assert.equal(videoSummary(saved).stats[0].smashes,0);assert.equal(saved.rallies[0].point.shot,undefined);
+  press('r');assert.equal($('shot-options').hidden,false);const before=actions.length;press(' ');assert.equal(actions.length,before);
  }finally{dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}
 });

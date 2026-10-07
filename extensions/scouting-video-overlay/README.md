@@ -86,3 +86,5 @@ The slim top bar shows finishing-stroke coverage. Click it to expand recording d
 Above the player cards, Court check-in shows how many players are confirmed and the current server. Tick **On court** on each card; the checklist is stored on this device per match and player identity and follows players through end changes. It does not add match statistics or block scouting. Click **Set server** on a player's card between rallies to use the existing server correction, score replay, cloud save and Undo. The serving player's name remains bold.
 
 Each smash button displays that player's current court key: hold **player key + X** for X3, or **player key + Z** for Power. Count these during an open rally. Labels update when ends change.
+
+For a smash-recovery winner, press **R**, then **Space**. No finishing stroke is required, and no smash attempt is added unless explicitly tagged X4. Recovery winners are excluded from the finishing-stroke coverage denominator. Untick recovery to choose a regular stroke.
