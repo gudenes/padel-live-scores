@@ -27,7 +27,7 @@ test('disconnected overlay disables skips, offers reconnect and clears the conne
   button('Reconnect video').click();await new Promise(resolve=>setImmediate(resolve));
   assert.equal(button('Reconnect video').hidden,true);assert.equal(button('+30s').disabled,false);assert.equal(root.querySelector('.notice').textContent,'');
   assert.equal(root.querySelectorAll('article,[role=dialog]').length,0);
-  for(const key of ['j','k','l','ArrowLeft','ArrowRight']){dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));await new Promise(resolve=>setImmediate(resolve));}
+  for(const key of ['j','Home','l','Insert','PageUp']){dom.window.document.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));await new Promise(resolve=>setImmediate(resolve));}
   assert.deepEqual(JSON.parse(JSON.stringify(messages.filter(m=>m.type==='skip'||m.type==='playback'))),[{type:'skip',seconds:-10},{type:'playback'},{type:'skip',seconds:30},{type:'skip',seconds:-5},{type:'skip',seconds:5}]);
  }finally{dom.window.close();}
 });

@@ -65,13 +65,21 @@ const dispatch=engine({
     return {tabId:tab.id,url:tab.url,videos};
   },
   capture:connection=>invoke(connection,{kind:'read'}),
+  setRate:(connection,current,rate)=>invoke(connection,{kind:'speed',mediaId:current.mediaId,rate}),
   playback:(connection,current,paused)=>invoke(connection,{kind:'playback',mediaId:current.mediaId,paused}),
   seek:(connection,current,time)=>invoke(connection,{kind:'seek',mediaId:current.mediaId,time})
 });
+let bindingsQueue=Promise.resolve();
+function savedBindings(){
+ const read=async()=>{const stored=await chrome.storage.local.get(['videoMediaShortcuts','videoFastKeysV1']);
+  const bindings=stored.videoFastKeysV1?globalThis.__pnMediaKeys.normalize(stored.videoMediaShortcuts):globalThis.__pnMediaKeys.upgradeFastBindings(stored.videoMediaShortcuts);
+  if(!stored.videoFastKeysV1)await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return bindings;};
+ const result=bindingsQueue.then(read);bindingsQueue=result.catch(()=>{});return result;
+}
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
  if(sender.id!==chrome.runtime.id)return;
  const panel=sender.url?.startsWith(chrome.runtime.getURL('panel.html'));
- const allowed=new Set(['state','sample','get-shortcuts','reconnect','start','prepare','score','clear-outcome','first-fault','double-fault','smash','undo','cancel','server','ends','skip','positions','playback','overlay-layout']);
+ const allowed=new Set(['state','sample','get-shortcuts','reconnect','start','prepare','score','clear-outcome','first-fault','double-fault','smash','undo','cancel','server','ends','skip','positions','playback','overlay-layout','speed','cycle-speed']);
  const run=async()=>{
   if(!panel){
    const {overlayTab}=await chrome.storage.session.get('overlayTab');
@@ -79,8 +87,8 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
    const connectedTab=state?.connection?.tabId??overlayTab;
    if(!Number.isInteger(connectedTab)||sender.tab?.id!==connectedTab||sender.frameId!==0||!allowed.has(message.type))throw Error('Connect this video in the side panel, then show the video remote again.');
   }
-  if(message.type==='get-shortcuts'){const stored=await chrome.storage.local.get('videoMediaShortcuts');return {bindings:globalThis.__pnMediaKeys.normalize(stored.videoMediaShortcuts)};}
-  if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await chrome.storage.local.set({videoMediaShortcuts:bindings});return {bindings};}
+  if(message.type==='get-shortcuts'){return {bindings:await savedBindings()};}
+  if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await savedBindings();await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return {bindings};}
   if(message.type==='cloud-backup'){
    const {state}=await dispatch({type:'state'});
    const {videoScoutingBackups}=await chrome.storage.local.get('videoScoutingBackups');
@@ -100,7 +108,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
    previous[id]={at:new Date().toISOString(),selectedMatch:state.selectedMatch,document:videoPayload(state)};await chrome.storage.local.set({videoScoutingBackups:previous});
    const result=await dispatch({type:'restore-cloud',matchId:id,document:remote.payload,expectedHash:JSON.stringify(videoPayload(state))});
    await sync.acknowledge(id,remote);await sync.track(result.state);scheduleSync();
-   const shortcuts=(await chrome.storage.local.get('videoMediaShortcuts')).videoMediaShortcuts;
+   const shortcuts=await savedBindings();
   return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:await sync.status(id)};
   }
   if(message.type==='restore-cloud')throw Error('Load the saved server copy through the side panel.');
@@ -112,7 +120,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
    return {state};
   }
   const result=await dispatch(message),m=match(result.state);
-  const shortcuts=(await chrome.storage.local.get('videoMediaShortcuts')).videoMediaShortcuts;
+  const shortcuts=await savedBindings();
   return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
  };
  run().then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message||'Overlay unavailable.'}));

@@ -2,7 +2,7 @@ import {validateVideoState,videoPayload} from './server-model.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference,usable,sameMedia} from './core.mjs';
 import {defaults,match,validateSetup,validatePoint,validateSmashType,courtPlayers} from './match.mjs';
-export function engine({read,write,discover,capture,seek,uuid,catalog,playback}){
+export function engine({read,write,discover,capture,seek,uuid,catalog,playback,setRate}){
   // All panels share this queue in the worker, preventing duplicate or lost writes.
   let queue=Promise.resolve();
   return message=>{
@@ -23,6 +23,16 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           Object.assign(state,{setup:last.setup,label:last.label,pending:last.pending});
           for(const key of ['rallies','cancelled']){state[key].length=last[key+'Length'];for(const change of last[key])state[key][change.index]=change.value;}
           return save();
+        }
+        case 'speed':case 'cycle-speed':{
+          if(!state.connection||!setRate)throw Error('Connect a video first.');
+          if(state.pending)throw Error('Playback speed can only change between rallies.');
+          const current=await capture(state.connection);usable(current);
+          const rate=message.type==='cycle-speed'?({1:2,2:4,4:1}[current.rate]??1):message.rate;
+          if(![1,2,4].includes(rate))throw Error('Choose 1×, 2× or 4×.');
+          const updated=await setRate(state.connection,current,rate);
+          if(updated.rate!==rate)throw Error('This player could not apply that speed.');
+          return {state,sample:updated};
         }
         case 'playback':{
           if(!state.connection||!playback)throw Error('Connect a video first.');
@@ -53,7 +63,10 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
         case 'load-matches':{
           if(!state.catalog?.tournaments.some(t=>t.id===message.tournamentId))throw Error('Choose a tournament from the catalogue.');
           const result=await catalog({kind:'matches',tournamentId:message.tournamentId});
-          state.catalog.matchesByTournament={...state.catalog.matchesByTournament,[message.tournamentId]:result.matches};return save();
+          state.catalog.matchesByTournament={...state.catalog.matchesByTournament,[message.tournamentId]:result.matches};
+          const active=result.matches.find(m=>m.id===state.selectedMatch?.id);
+          if(active&&JSON.stringify(active.playerIds)===JSON.stringify(state.selectedMatch.playerIds)&&JSON.stringify(active.names)===JSON.stringify(state.selectedMatch.names))state.selectedMatch.players=active.players;
+          return save();
         }
         case 'select-match':{
           if(state.pending)throw Error('Finish or cancel the current rally before switching matches.');
@@ -191,14 +204,26 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(match(state).score.phase==='finished')throw Error('The match is finished.');
           if(!state.connection)throw Error('Connect to the video first.');
           if(typeof message.label==='string')state.label=message.label.trim().slice(0,160);
-          state.pending=startRally(await capture(state.connection),state.label,uuid());
+          let current=await capture(state.connection);startRally(current,state.label,'check');
+          if(current.rate!==undefined&&current.rate!==1){
+            if(!setRate)throw Error('Return the video to 1× before starting a rally.');
+            const normal=await setRate(state.connection,current,1);
+            if(normal.rate!==1||!sameMedia(current,normal)||normal.seekEpoch!==current.seekEpoch)throw Error('Could not restore normal playback. Reconnect before starting.');
+            current=normal;
+          }
+          state.pending=startRally(current,state.label,uuid());
           return save();
         }
         case 'restart-rally':{
           if(!state.pending||!state.connection)throw Error('Start a rally and connect its video first.');
           if(state.pending.finish)throw Error('Save or clear the selected outcome before restarting.');
-          const sample=await capture(state.connection);usable(sample);
+          let sample=await capture(state.connection);usable(sample);
           if(sample.ended||!sameMedia(state.pending.start,sample))throw Error('The video changed or ended. Cancel the rally and reconnect.');
+          if(sample.rate!==undefined&&sample.rate!==1){
+            if(!setRate)throw Error('Return the video to 1× before restarting a rally.');
+            const normal=await setRate(state.connection,sample,1);
+            if(normal.rate!==1||!sameMedia(sample,normal)||sample.seekEpoch!==normal.seekEpoch)throw Error('Could not restore normal playback. Reconnect before restarting.');sample=normal;
+          }
           const next={id:uuid(),label:state.label,start:sample};
           state.cancelled.push({...state.pending,cancelledAt:new Date().toISOString()});
           state.pending=next;return save();

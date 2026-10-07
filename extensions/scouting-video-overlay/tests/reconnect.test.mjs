@@ -8,7 +8,7 @@ test('expired document reports recovery; overlay reconnect targets its own tab a
  let disk={...fresh(),connection:{tabId:7,page:'https://www.youtube.com/watch',candidates:[],selected:{documentId:'old-document',videoId:'old-video'}}};
  globalThis.chrome={
   action:{onClicked:{addListener(){}}},sidePanel:{},
-  storage:{local:{get:async()=>({scoutingVideo:structuredClone(disk)}),set:async value=>{disk=value.scoutingVideo;}},session:{get:async()=>({})}},
+  storage:{local:{get:async()=>({scoutingVideo:structuredClone(disk)}),set:async value=>{if(value.scoutingVideo)disk=value.scoutingVideo;}},session:{get:async()=>({})}},
   tabs:{query:async()=>{queried=true;throw Error('Must not use an unrelated active tab');},get:async id=>{assert.equal(id,7);return {id,url:'https://www.youtube.com/watch?v=replay'};}},
   scripting:{executeScript:async args=>{
    assert.equal(args.target.tabId,7);

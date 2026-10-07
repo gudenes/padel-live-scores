@@ -60,7 +60,7 @@ test('media shortcuts dispatch once, respect disabled controls and ignore typing
  buttons.forEach((button,i)=>button.onclick=()=>calls.push(i));
  const remove=mediaShortcuts({target:document,back:buttons[0],pause:buttons[1],forward:buttons[2]});
  const press=(target,key,options={})=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
- for(const key of ['j','k','l'])press(document,key);assert.deepEqual(calls,[0,1,2]);
+ for(const key of ['j','Home','l'])press(document,key);assert.deepEqual(calls,[0,1,2]);
  buttons[2].disabled=true;press(document,'l');press(document,'j',{repeat:true});press(document.querySelector('input'),'k');assert.equal(calls.length,3);
  remove();press(document,'j');assert.equal(calls.length,3);dom.window.close();
 });
