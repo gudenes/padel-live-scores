@@ -135,10 +135,15 @@ describe('branded grouped email', () => {
       unsubscribeUrl: 'https://padelnachos.com/unsubscribe?token=x',
     })
     expect(e.html).not.toContain('<script>')
-    expect(e.html).toContain('&lt;script&gt;')
-    expect(e.html).toContain('/play?match=match1')
+    expect(e.html).toContain('A &amp; B')
+    expect(e.html).toContain('href="https://padelnachos.com/play"')
+    expect(e.html.match(/data-reminder-cta="primary"/g)).toHaveLength(1)
+    expect(
+      e.html.match(/href="https:\/\/padelnachos.com\/play"/g)
+    ).toHaveLength(1)
+    expect(e.html).not.toContain('/play?match=')
     expect(e.html).toContain('padelnachos-logo-v2.png')
-    expect(e.html).toContain('guaca-game-v1.png')
+    expect(e.html).toContain('match-day-hero-v1.jpg')
     expect(e.text).toContain('Unsubscribe:')
     expect(e.html).not.toContain('priceYes')
   })

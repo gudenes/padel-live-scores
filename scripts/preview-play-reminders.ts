@@ -1,5 +1,5 @@
 // Render previews only. No delivery claims, preference writes or outbound sends.
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, writeFile, copyFile } from 'node:fs/promises'
 import { createServiceClient } from '../src/lib/supabase'
 import { loadReminderMarkets } from '../src/lib/play-reminders/data'
 import {
@@ -26,6 +26,10 @@ async function main() {
   const now = Date.parse(`${date}T07:00:00Z`)
   const out = 'output/play-reminder-email'
   await mkdir(out, { recursive: true })
+  await copyFile(
+    'public/play/email/match-day-hero-v1.jpg',
+    `${out}/match-day-hero-v1.jpg`
+  )
   for (const locale of ['en', 'es', 'pt', 'fr', 'it'] as const) {
     const rows = await loadReminderMarkets(db, locale, Date.now())
     const matches = planReminder({
@@ -42,6 +46,7 @@ async function main() {
       matches,
       locale,
       timezone,
+      heroUrl: 'http://127.0.0.1:3041/match-day-hero-v1.jpg',
       unsubscribeUrl: 'https://padelnachos.com/profile/settings/notifications',
     })
     await writeFile(`${out}/${locale}.html`, e.html)
