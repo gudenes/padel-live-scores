@@ -2,7 +2,7 @@ import {match,defaults,courtPlayers} from './match.mjs';
 import {scoreLabel} from './generated/score-label.mjs';
 import {shots} from './generated/shots.mjs';
 import {playerShortcuts,positionKeys} from './player-shortcuts.mjs';
-import {quickShots} from './shot-shortcuts.mjs';
+import {quickShots,extraShots,shotShortcut,shortcutLabel} from './shot-shortcuts.mjs';
 import {formatDuration} from './generated/tracking.mjs';
 import {touchInsights,touchDirections} from './touch-insights.mjs';
 import {finishRally} from './core.mjs';
@@ -39,20 +39,16 @@ export function scoutingUI({$,act,getState}){
  $('shot-details').addEventListener('toggle',()=>{if($('shot-details').open)setQuick(false)});
  function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
  function shotButton(key,shortcut){
-  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.textContent=key==='bajada'?'Bajada de pared':shots[key];b.dataset.shot=key;b.setAttribute('aria-pressed','false');
-  if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcut.toUpperCase();b.append(kbd);}
+  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.dataset.size='sm';b.textContent=key==='bajada'?'Bajada de pared':shots[key];b.dataset.shot=key;b.setAttribute('aria-pressed','false');
+  if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);b.title=(key==='bajada'?'Bajada de pared':shots[key])+' · '+shortcutLabel(shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcutLabel(shortcut);b.append(kbd);}
   b.addEventListener('click',()=>chooseShot(key));return b;
  }
  const common=document.createElement('div');common.className='shot-grid';common.setAttribute('aria-label','Common shots');
  for(const [shortcut,key] of quickShots)common.append(shotButton(key,shortcut));
- const more=document.createElement('details'),summary=document.createElement('summary');summary.textContent='More shots';more.append(summary);
- const commonKeys=new Set(quickShots.map(([,key])=>key));
- const groups={'Overheads':['bajada','rulo','gancho'],'Net':['drop','block','half_volley'],'Ground & defence':['wall','return','contrapared'],'Serve & other':['serve','other']};
- for(const [name,keys] of Object.entries(groups)){
-  const section=document.createElement('section'),heading=document.createElement('h3'),grid=document.createElement('div');heading.textContent=name;grid.className='shot-grid';
-  for(const key of keys.filter(key=>!commonKeys.has(key)))grid.append(shotButton(key));
-  section.append(heading,grid);more.append(section);
- }
+ const more=document.createElement('section'),heading=document.createElement('h3'),extra=document.createElement('div');
+ heading.textContent='Other strokes';extra.className='shot-grid';extra.setAttribute('aria-label','Other strokes');
+ for(const [shortcut,key] of extraShots)extra.append(shotButton(key,shortcut));
+ more.append(heading,extra);
  $('shot-options').append(common,more);
  function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player&&a.smashType===smashType)??-1;}
  function syncShot(){
@@ -90,11 +86,11 @@ export function scoutingUI({$,act,getState}){
   if((e.key==='Enter'||e.key===' ')&&!e.target.closest('input,select,textarea,[contenteditable]')){e.preventDefault();e.stopPropagation();if(shot||getState()?.pending?.finish?.outcome==='winner'&&$('smash-recovery').checked||e.ctrlKey||e.metaKey)savePoint();else $('shot-error').textContent='Choose a shot, then press Space to save.';return;}
   if(e.ctrlKey||e.metaKey||e.target.closest('input,select,textarea,[contenteditable]'))return;
   const key=e.key.toLowerCase(),finish=getState()?.pending?.finish;if($('save-point').disabled)return;
-  if(finish?.outcome==='forced'&&(!attributionReady||e.target.closest('#forced-credit'))){const b=[...$('forced-opponents').querySelectorAll('button')].find(b=>b.dataset.shortcut===key);if(b){e.preventDefault();credit(Number(b.dataset.player));return;}}
-  if(finish?.outcome==='winner'&&['f','r','4'].includes(key)){e.preventDefault();const id={f:'assist',r:'smash-recovery',4:'x4'}[key];$(id).checked=!$(id).checked;$(id).onchange();return;}
+  if(!e.shiftKey&&finish?.outcome==='forced'&&(!attributionReady||e.target.closest('#forced-credit'))){const b=[...$('forced-opponents').querySelectorAll('button')].find(b=>b.dataset.shortcut===key);if(b){e.preventDefault();credit(Number(b.dataset.player));return;}}
+  if(!e.shiftKey&&finish?.outcome==='winner'&&['f','r','4'].includes(key)){e.preventDefault();const id={f:'assist',r:'smash-recovery',4:'x4'}[key];$(id).checked=!$(id).checked;$(id).onchange();return;}
   if(finish?.outcome==='winner'&&$('smash-recovery').checked&&!$('x4').checked)return;
-  if(shot==='smash'&&['z','x','c'].includes(key)){e.preventDefault();chooseType(key==='z'?'power':key==='x'?'x3':'soft');return;}
-  const choice=[...$('shot-options').querySelectorAll('button')].find(b=>b.dataset.shortcut===e.key.toLowerCase());
+  if(!e.shiftKey&&shot==='smash'&&['z','x','c'].includes(key)){e.preventDefault();chooseType(key==='z'?'power':key==='x'?'x3':'soft');return;}
+  const choice=[...$('shot-options').querySelectorAll('button')].find(b=>b.dataset.shortcut===shotShortcut(e));
   if(choice){e.preventDefault();if(!choice.disabled)chooseShot(choice.dataset.shot,true);}
  });
  return function render(state,sample,busy,healthy){

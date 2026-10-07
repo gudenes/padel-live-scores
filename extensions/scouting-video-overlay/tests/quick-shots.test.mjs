@@ -5,7 +5,7 @@ import {JSDOM} from 'jsdom';
 import {scoutingUI} from '../scout-ui.mjs';
 import {fresh} from '../core.mjs';
 import {defaults} from '../match.mjs';
-import {quickShots} from '../shot-shortcuts.mjs';
+import {quickShots,allShotShortcuts} from '../shot-shortcuts.mjs';
 import {shots} from '../generated/shots.mjs';
 import {mediaShortcuts} from '../media-shortcuts.mjs';
 test('gaming shot keys select then Enter saves the canonical shot; detail mode waits for save and inputs ignore shot keys',()=>{
@@ -34,12 +34,13 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
   assert.equal($('shot-options').querySelector('[aria-label="Common shots"]').children.length,9);
   assert.deepEqual(quickShots.map(([key])=>key),['q','w','e','a','s','d','1','2','3']);
   assert.deepEqual(quickShots.slice(-2),[['2','block'],['3','bajada']]);
-  assert.equal($('shot-options').querySelector('[data-shot=wall]').dataset.shortcut,undefined);
-  assert.equal($('shot-options').querySelector('[data-shot=return]').dataset.shortcut,undefined);
+  assert.equal($('shot-options').querySelector('[data-shot=wall]').dataset.shortcut,'shift+a');
+  assert.equal($('shot-options').querySelector('[data-shot=return]').dataset.shortcut,'shift+s');
   assert.equal(new Set([...$('shot-options').querySelectorAll('button')].map(b=>b.dataset.shot)).size,Object.keys(shots).length);
   const press=(target,key,options={})=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
-  for(const [key,shot] of quickShots){
-   state.pending.id='rally-'+key;render(state,{time:110},false,true);const before=actions.length;press($('shot-form'),key);assert.equal(actions.length,before);assert.equal($('shot-options').querySelector(`[data-shot="${shot}"]`).getAttribute('aria-pressed'),'true');if(shot==='smash')press($('shot-form'),'z');press($('shot-options').querySelector('button'),'Enter');
+  assert.equal(allShotShortcuts.length,Object.keys(shots).length);assert.equal(new Set(allShotShortcuts.map(([key])=>key)).size,allShotShortcuts.length);
+  for(const [key,shot] of allShotShortcuts){
+   state.pending.id='rally-'+key;render(state,{time:110},false,true);const before=actions.length;press($('shot-form'),key.replace('shift+',''),{shiftKey:key.startsWith('shift+')});assert.equal(actions.length,before);assert.equal($('shot-options').querySelector(`[data-shot="${shot}"]`).getAttribute('aria-pressed'),'true');if(shot==='smash')press($('shot-form'),'z');press($('shot-options').querySelector('button'),'Enter');
    assert.deepEqual(actions.at(-1),{type:'score',details:{shot,...(shot==='smash'?{smashType:'power'}:{})}});
   }
   state.pending.id='soft-flow';render(state,{time:110},false,true);press($('shot-form'),'q');press($('shot-form'),'c');press($('shot-form'),' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'soft'}});

@@ -96,3 +96,7 @@ body.scouting #scouting-workspace{order:0}body.scouting #connection-settings{ord
 .serving-tools{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:11px}.serving-tools>.ui-btn{font-size:11px;padding:3px 6px;min-height:28px}#quick-server-picker{width:100%;display:flex;align-items:end;gap:6px}#quick-server-picker label{flex:1}.court-controls[hidden],#quick-server-picker[hidden],.serving-tools[hidden]{display:none}
 
 .tool-buttons{flex-wrap:wrap}#touch-status:empty{display:none}
+
+#shot-options .shot-grid button{min-height:38px;grid-template-columns:minmax(0,1fr) auto;align-items:center;text-align:left;gap:4px}#shot-options kbd{font-size:11px;font-weight:400;white-space:nowrap}#shot-options .shot-grid button[data-shot="bajada"]{font-size:11px}
+
+@media(pointer:coarse){#shot-options .shot-grid button{min-height:44px}}
