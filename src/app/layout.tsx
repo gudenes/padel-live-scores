@@ -8,6 +8,7 @@ import { getLocale } from "next-intl/server";
 // <PostHogIdentify />) remains our product-analytics source of truth, and
 // consent gating is unchanged — see GatedGoogleAds + useConsent.
 import { GatedGoogleAds } from "@/components/GatedGoogleAds";
+import { AppActivityTracker } from '@/components/AppActivityTracker';
 import { AuthProvider } from "@/components/AuthProvider";
 import { PostHogIdentify } from "@/components/PostHogIdentify";
 import SplashOverlay from "@/components/SplashOverlay";
@@ -178,6 +179,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <div className="app-frame">
           <div className="app-screen" style={{ maxWidth: 500, margin: '0 auto', minHeight: '100dvh', background: 'var(--bg-base)', borderLeft: '0.5px solid var(--border-base)', borderRight: '0.5px solid var(--border-base)' }}>
             <AuthProvider>
+              <AppActivityTracker />
               {children}
               <PostHogIdentify />
             </AuthProvider>
