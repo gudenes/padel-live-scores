@@ -29,3 +29,14 @@ test('fault keys require an active rally, respect first fault and ignore repeats
  key('1');key('1');key('2',{repeat:true});assert.deepEqual(calls,['first-fault']);key('2');assert.deepEqual(calls,['first-fault','double-fault']);
  const strokeKey=new dom.window.KeyboardEvent('keydown',{key:'1',bubbles:true,cancelable:true});doc.dispatchEvent(strokeKey);assert.equal(strokeKey.defaultPrevented,false);assert.equal(calls.length,2);dom.window.close();
 });
+test('tap then Z/X/C classifies the latest player shot; resets on blur, rally and outcome selection',()=>{
+ const dom=new JSDOM(''),doc=dom.window.document;let c={enabled:true,token:'r',order:[2,3,0,1]},timer;const taps=[],attempts=[];
+ const controls=playerShortcuts({target:doc,context:()=>c,select:()=>{},prepare:()=>{},tap:p=>taps.push(p),smash:(...args)=>attempts.push(args),setTimer:fn=>(timer=fn,1),clearTimer:()=>timer=null});controls.update();
+ const key=(type,key,repeat=false)=>doc.dispatchEvent(new dom.window.KeyboardEvent(type,{key,repeat,bubbles:true}));
+ key('keydown','c');assert.equal(attempts.length,0);
+ key('keydown','w');key('keyup','w');c={...c,enabled:false,recording:true};controls.update();key('keydown','c');key('keydown','c',true);c={...c,enabled:true,recording:false};controls.update();key('keydown','z');assert.deepEqual(taps,[3]);assert.deepEqual(attempts,[[3,'soft',true],[3,'power',true]]);
+ doc.defaultView.dispatchEvent(new dom.window.Event('blur'));key('keydown','x');assert.equal(attempts.length,2);
+ key('keydown','q');key('keyup','q');c={...c,token:'next'};controls.update();key('keydown','x');assert.equal(attempts.length,2);
+ key('keydown','a');timer();key('keyup','a');key('keydown','c');assert.equal(attempts.length,2);
+ dom.window.close();
+});

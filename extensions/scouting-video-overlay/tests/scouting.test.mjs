@@ -171,3 +171,21 @@ test('tapped shot sequence survives scoring, export, undo and server validation'
  await assert.rejects(f.dispatch({type:'touch',player:1}),/Start a rally/);
  await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.touches.length,2);
 });
+test('sequential smash classification preserves one shot, corrects one attempt, round-trips and undoes',async()=>{
+ const {videoPayload,validateVideoState,videoSummary}=await import('../server-model.mjs');
+ const f=fixture();await f.choose();await f.dispatch({type:'start'});
+ await assert.rejects(f.dispatch({type:'smash',player:0,smashType:'soft',latestTouch:true}),/Tap this player/);
+ await f.dispatch({type:'touch',player:0});
+ await f.dispatch({type:'smash',player:0,smashType:'power',latestTouch:true});
+ await f.dispatch({type:'smash',player:0,smashType:'soft',latestTouch:true});
+ assert.equal(f.get().pending.touches.length,1);assert.equal(f.get().pending.attempts.length,1);assert.equal(match(f.get()).stats[0].softSmashes,1);assert.equal(match(f.get()).stats[0].powerSmashes,0);
+ await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).stats[0].powerSmashes,1);
+ await f.dispatch({type:'smash',player:0,smashType:'soft',latestTouch:true});
+ await f.dispatch({type:'smash',player:0,smashType:'soft',latestTouch:true});assert.equal(f.get().pending.attempts.length,1);
+ f.set(108);await f.dispatch({type:'prepare',player:0,outcome:'winner'});await f.dispatch({type:'score',details:{shot:'smash',smashType:'soft',smashAlreadyCounted:true,smashAttemptIndex:0}});
+ const payload=videoPayload(f.get()),copy=validateVideoState(JSON.parse(JSON.stringify(payload))),stats=videoSummary(copy).stats[0];
+ assert.equal(copy.rallies[0].attempts[0].touchIndex,0);assert.equal(copy.rallies[0].touches.length,1);assert.equal(stats.smashes,1);assert.equal(stats.softSmashes,1);assert.equal(stats.softSmashWinners,1);
+ const bad=structuredClone(payload);bad.rallies[0].attempts[0].touchIndex=9;assert.throws(()=>validateVideoState(bad),/Invalid smash shot link/);
+ await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).stats[0].softSmashWinners,0);
+ await f.dispatch({type:'clear-outcome'});await f.dispatch({type:'touch',player:2});await assert.rejects(f.dispatch({type:'smash',player:0,smashType:'soft',latestTouch:true}),/Tap this player/);
+});

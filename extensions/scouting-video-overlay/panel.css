@@ -91,7 +91,7 @@ body.scouting #scouting-workspace{order:0}body.scouting #connection-settings{ord
 
 #court-checkin{background:white;border:1px solid #D8DCCD;border-radius:9px;padding:9px;font-size:12px}#court-checkin>div{display:flex;justify-content:space-between;gap:8px}#court-checkin p{margin:5px 0;font-weight:650}#court-checkin small{font-size:11px;color:#59664a}.court-controls{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-bottom:4px}.court-controls label{display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer}.court-controls input{width:16px;height:16px;margin:0;accent-color:#56752B}.player-card .court-controls .ui-btn{font-size:10px;padding:3px 5px;min-height:28px}.attempts .ui-btn kbd{display:block;font-size:10px;font-weight:500;opacity:.8;margin-top:2px}@media(pointer:coarse){.player-card .court-controls .ui-btn{min-height:44px}.court-controls label{min-height:44px}}
 
-.player-card .attempts .ui-btn{flex-direction:column;gap:0;white-space:nowrap}.player-card .attempts .ui-btn kbd{white-space:nowrap}
+.player-card .attempts{grid-template-columns:repeat(3,minmax(0,1fr))}.player-card .attempts .ui-btn{flex-direction:column;gap:0;white-space:nowrap}.player-card .attempts .ui-btn kbd{white-space:nowrap}
 
 .serving-tools{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:11px}.serving-tools>.ui-btn{font-size:11px;padding:3px 6px;min-height:28px}#quick-server-picker{width:100%;display:flex;align-items:end;gap:6px}#quick-server-picker label{flex:1}.court-controls[hidden],#quick-server-picker[hidden],.serving-tools[hidden]{display:none}
 

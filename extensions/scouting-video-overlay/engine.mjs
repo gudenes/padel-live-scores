@@ -149,7 +149,15 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(!state.pending||!state.connection||state.pending.finish)throw Error('Start a rally before counting attempts.');
           if(!Number.isInteger(message.player)||message.player<0||message.player>3)throw Error('Choose a player.');
           const snapshot=await capture(state.connection);finishRally(state.pending,snapshot);
-          (state.pending.attempts??=[]).push({player:message.player,snapshot,...(message.smashType!==undefined?{smashType:validateSmashType(message.smashType)}:{})});return save();
+          const smashType=message.smashType!==undefined?validateSmashType(message.smashType):undefined;
+          if(message.latestTouch){
+            const touchIndex=(state.pending.touches?.length??0)-1,touch=state.pending.touches?.[touchIndex];
+            if(!touch||touch.player!==message.player)throw Error('Tap this player’s shot first.');
+            const existing=(state.pending.attempts??=[]).find(a=>a.touchIndex===touchIndex);
+            if(existing){existing.smashType=smashType;return save();}
+            state.pending.attempts.push({player:message.player,snapshot:touch.snapshot,touchIndex,...(smashType?{smashType}:{})});
+          }else (state.pending.attempts??=[]).push({player:message.player,snapshot,...(smashType?{smashType}:{})});
+          return save();
         }
         case 'undo':{
           if(state.pending)throw Error('Cancel the open rally before undoing a point.');

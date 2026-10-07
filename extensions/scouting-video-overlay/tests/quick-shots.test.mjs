@@ -42,6 +42,7 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
    state.pending.id='rally-'+key;render(state,{time:110},false,true);const before=actions.length;press($('shot-form'),key);assert.equal(actions.length,before);assert.equal($('shot-options').querySelector(`[data-shot="${shot}"]`).getAttribute('aria-pressed'),'true');if(shot==='smash')press($('shot-form'),'z');press($('shot-options').querySelector('button'),'Enter');
    assert.deepEqual(actions.at(-1),{type:'score',details:{shot,...(shot==='smash'?{smashType:'power'}:{})}});
   }
+  state.pending.id='soft-flow';render(state,{time:110},false,true);press($('shot-form'),'q');press($('shot-form'),'c');press($('shot-form'),' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'soft'}});
   state.pending.id='space-flow';render(state,{time:110},false,true);press($('shot-form'),'w');const beforeSpace=actions.length;press($('shot-options').querySelector('button'),' ');assert.equal(actions.length,beforeSpace+1);assert.equal(actions.at(-1).details.shot,'volley');press($('shot-form'),' ',{repeat:true});assert.equal(actions.length,beforeSpace+1);
   $('quick-save').checked=true;$('quick-save').dispatchEvent(new dom.window.Event('change'));$('shot-options').querySelector('[data-shot="volley"]').click();assert.equal(actions.at(-1).details.shot,'volley');
   $('quick-save').checked=false;$('quick-save').dispatchEvent(new dom.window.Event('change'));const before=actions.length;
@@ -61,4 +62,17 @@ test('media shortcuts dispatch once, respect disabled controls and ignore typing
  for(const key of ['j','k','l'])press(document,key);assert.deepEqual(calls,[0,1,2]);
  buttons[2].disabled=true;press(document,'l');press(document,'j',{repeat:true});press(document.querySelector('input'),'k');assert.equal(calls.length,3);
  remove();press(document,'j');assert.equal(calls.length,3);dom.window.close();
+});
+test('rapid tap then C queues classification behind the in-flight shot save',async()=>{
+ const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8'),{url:'https://example.test'});
+ globalThis.document=dom.window.document;globalThis.Option=dom.window.Option;Object.defineProperty(globalThis,'localStorage',{value:dom.window.localStorage,configurable:true});
+ const $=id=>document.getElementById(id),state={...fresh(),setup:defaults(),selectedMatch:{id:'match'},pending:{id:'r',start:{time:100}}},calls=[];let release;
+ const render=scoutingUI({$,getState:()=>state,act:async msg=>{calls.push(msg);if(msg.type==='touch'){render(state,{time:101},true,true);await new Promise(resolve=>release=resolve);}render(state,{time:101},false,true);return {ok:true};}});
+ try{
+  render(state,{time:101},false,true);
+  const key=(type,key)=>document.dispatchEvent(new dom.window.KeyboardEvent(type,{key,bubbles:true,cancelable:true}));
+  key('keydown','w');key('keyup','w');await new Promise(resolve=>setImmediate(resolve));
+  key('keydown','c');assert.equal(calls.length,1);release();await new Promise(resolve=>setImmediate(resolve));
+  assert.deepEqual(calls,[{type:'touch',player:3},{type:'smash',player:3,smashType:'soft',latestTouch:true}]);
+ }finally{await new Promise(resolve=>setTimeout(resolve,1100));dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}
 });

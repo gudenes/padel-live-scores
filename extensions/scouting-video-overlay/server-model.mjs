@@ -19,7 +19,7 @@ function rally(raw){
  const result={id:string(raw.id,80),label:string(raw.label??''),start:snapshot(raw.start)};
  if(raw.varReviewed!==undefined){if(typeof raw.varReviewed!=='boolean')throw Error('Invalid VAR review flag.');if(raw.varReviewed)result.varReviewed=true;}
  if(raw.firstFault)result.firstFault=snapshot(raw.firstFault);
- if(raw.attempts){if(!Array.isArray(raw.attempts)||raw.attempts.length>100)throw Error('Too many smash attempts.');result.attempts=raw.attempts.map(a=>({player:player(a.player),snapshot:snapshot(a.snapshot),...(a.smashType!==undefined?{smashType:validateSmashType(a.smashType)}:{})}));}
+ if(raw.attempts){if(!Array.isArray(raw.attempts)||raw.attempts.length>100)throw Error('Too many smash attempts.');result.attempts=raw.attempts.map(a=>({player:player(a.player),snapshot:snapshot(a.snapshot),...(a.touchIndex!==undefined?{touchIndex:a.touchIndex}:{}),...(a.smashType!==undefined?{smashType:validateSmashType(a.smashType)}:{})}));}
  for(const s of [result.firstFault,...(result.attempts??[]).map(a=>a.snapshot)].filter(Boolean))finishRally(result,s);
  if(raw.touches!==undefined){
   if(!Array.isArray(raw.touches)||raw.touches.length>500)throw Error('Too many rally shots.');
@@ -30,6 +30,12 @@ function rally(raw){
    if(s.time<previous||raw.end&&s.time>raw.end.time||raw.finish&&s.time>raw.finish.end.time)throw Error('Invalid shot sequence.');previous=s.time;
    return {player:player(t.player),order:[...t.order],snapshot:s};
   });
+ }
+ const linked=new Set();
+ for(const a of result.attempts??[])if(a.touchIndex!==undefined){
+  const t=result.touches?.[a.touchIndex];
+  if(!Number.isInteger(a.touchIndex)||a.touchIndex<0||!t||t.player!==a.player||JSON.stringify(t.snapshot)!==JSON.stringify(a.snapshot)||linked.has(a.touchIndex))throw Error('Invalid smash shot link.');
+  linked.add(a.touchIndex);
  }
  if(raw.end){const end=snapshot(raw.end);Object.assign(result,finishRally(result,end));}
  if(raw.undone){result.undone=true;result.undoneAt=at(raw.undoneAt);}
