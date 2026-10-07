@@ -119,7 +119,7 @@ export function scoutingUI({$,act,getState}){
   const enabled=!!state.pending&&!state.pending.finish&&!busy&&healthy&&!sample?.seeking&&!issue;
   $('rally').textContent=m.score.phase==='finished'?'Match complete':state.pending?sample?.paused?'Rally paused with video':'Rally in progress':m.points?'Start next rally':'Start rally';
   $('rally').disabled=busy||!healthy||!state.selectedMatch||!!state.pending||sample?.paused||sample?.seeking||m.score.phase==='finished';
-  $('touch-status').textContent=state.pending?.touches?.length?`${state.pending.touches.length} shot${state.pending.touches.length===1?'':'s'} tapped · last: ${setup.names[state.pending.touches.at(-1).player]}`:'Tap each shot during the rally';
+  $('touch-status').textContent=state.pending?.touches?.length?`${state.pending.touches.length} shot${state.pending.touches.length===1?'':'s'} tapped · last: ${setup.names[state.pending.touches.at(-1).player]}`:'';
   $('rally-status').textContent=issue|| (state.pending?state.pending.finish?'Outcome selected · save the shot details':`${Math.max(0,(sample?.time??state.pending.start.time)-state.pending.start.time).toFixed(1)}s video time · ${sample?.paused?'paused':'recording'}`:m.score.phase==='finished'?'Review the score and sync below':'Start at the first serve');
   $('first-fault').disabled=!enabled||!!state.pending?.firstFault;$('double-fault').disabled=!enabled||!state.pending?.firstFault;$('undo').disabled=busy||(!state.history?.length&&(!m.points||!!state.pending));
   const sk=JSON.stringify([setup.names,m.server]);
