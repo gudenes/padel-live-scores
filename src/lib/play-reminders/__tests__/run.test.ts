@@ -255,7 +255,7 @@ it('recent app use suppresses only mobile, not daily email', async () => {
 it('opening the app after selection cancels the claimed push', async () => {
   configurePush()
   const f = fakeDb({
-      lastSeen: '2026-10-07T07:00:00Z',
+      lastSeen: '2026-10-06T19:00:00Z',
       openedBeforeSend: '2026-10-07T07:59:00Z',
     }),
     t = transport()
@@ -264,9 +264,9 @@ it('opening the app after selection cancels the claimed push', async () => {
   )
   expect(t.push).not.toHaveBeenCalled()
 })
-it('users inactive for over 30 minutes can receive a followed-player reminder', async () => {
+it('users inactive for over 12 hours can receive a followed-player reminder', async () => {
   configurePush()
-  const f = fakeDb({ lastSeen: '2026-10-07T07:29:00Z' }),
+  const f = fakeDb({ lastSeen: '2026-10-06T19:59:00Z' }),
     t = transport()
   expect(await runPlayReminders(f.db, t, { dryRun: false, now })).toMatchObject(
     { pushSent: 1, failed: 0 }

@@ -1,5 +1,5 @@
 /** Recent foreground use suppresses promotional mobile reminders only. */
-export const RECENT_APP_WINDOW_MS = 30 * 60 * 1000
+export const RECENT_APP_WINDOW_MS = 12 * 60 * 60 * 1000
 export function hasRecentAppActivity(
   lastSeen: string | null | undefined,
   now: number
