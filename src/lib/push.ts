@@ -41,7 +41,8 @@ interface PushSubscription {
  */
 export async function sendPush(
   subscription: PushSubscription,
-  payload: PushPayload
+  payload: PushPayload,
+  options: { ttlSeconds?: number } = {},
 ): Promise<boolean> {
   try {
     await webpush.sendNotification(
@@ -50,7 +51,7 @@ export async function sendPush(
         keys: subscription.keys,
       },
       JSON.stringify(payload),
-      { TTL: 3600 }
+      { TTL: Math.max(0, Math.min(3600, options.ttlSeconds ?? 3600)) }
     )
     return true
   } catch (err: any) {

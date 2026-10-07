@@ -22,6 +22,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { usePushNotifications, type SubscribeError } from '@/hooks/usePushNotifications'
 import { CATEGORY_META, type NotificationCategory, type ChannelPrefs, type CategoryGroup } from '@/lib/notification-categories'
+import { PlayReminderPreferences } from '@/components/PlayReminderPreferences'
 import { IconSlider } from '@/components/IconSlider'
 import { SaveStateSlot, type SaveState } from '@/components/SaveStateSlot'
 import { MuteDurationSheet } from '@/components/MuteDurationSheet'
@@ -322,6 +323,8 @@ export default function NotificationPrefsPage() {
             <SaveStateSlot state={masterSaveState} onSavedFlashEnd={() => setMasterSaveState('idle')} />
           </div>
         </div>
+
+        <PlayReminderPreferences pushEnabled={pushEnabled} />
 
         {/* Category groups — 4 groups, locked Pro rows for free users */}
         {prefs && GROUPS.map(group => (

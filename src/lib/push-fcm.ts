@@ -34,6 +34,8 @@ export function getApp(): admin.app.App {
 }
 
 export interface FcmPayload {
+  /** Expiry for time-sensitive reminders; defaults preserve existing notifications. */
+  ttlSeconds?: number
   title: string
   body: string
   url?: string
@@ -101,9 +103,10 @@ export async function sendPushToFcmTokens(
     },
     android: {
       priority: 'high',
+      ...(payload.ttlSeconds !== undefined ? { ttl: Math.max(0,payload.ttlSeconds)*1000 } : {}),
     },
     apns: {
-      headers: { 'apns-priority': '10' },
+      headers: { 'apns-priority': '10', ...(payload.ttlSeconds !== undefined ? { 'apns-expiration': String(Math.floor(Date.now()/1000)+Math.max(0,payload.ttlSeconds)) } : {}) },
       payload: {
         aps: {
           alert: {
