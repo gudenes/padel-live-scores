@@ -14,9 +14,9 @@ test('shortcut editor saves key combinations, rejects duplicates, clears a bindi
   const field=name=>document.querySelector(`[aria-label="${name} shortcut"]`);
   const press=(input,key,options={})=>input.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
   press(field('Play / pause'),'p',{ctrlKey:true});await new Promise(resolve=>setImmediate(resolve));assert.equal(get().pause.key,'p');assert.equal(get().pause.ctrl,true);assert.equal(field('Play / pause').value,'Ctrl+P');
-  press(field('Forward 5 seconds'),'j');await new Promise(resolve=>setImmediate(resolve));assert.match($('shortcut-error').textContent,/already assigned/);assert.equal(get().forward5.key,'ArrowRight');
+  press(field('Forward 5 seconds'),'j');await new Promise(resolve=>setImmediate(resolve));assert.match($('shortcut-error').textContent,/already assigned/);assert.equal(get().forward5.key,'PageUp');
   press(field('Play / pause'),'Backspace');await new Promise(resolve=>setImmediate(resolve));assert.equal(get().pause,null);
-  $('reset-shortcuts').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(get().pause.key,'k');
+  $('reset-shortcuts').click();await new Promise(resolve=>setImmediate(resolve));assert.equal(get().pause.key,'Home');
  }finally{dom.window.close();delete globalThis.document;}
 });
 test('remote uses the saved pause key and exposes both five-second controls',async()=>{
@@ -33,8 +33,8 @@ test('remote uses the saved pause key and exposes both five-second controls',asy
 });
 test('saving navigation keys releases the assignment field and controls the video on the next press',async()=>{
  const dom=new JSDOM('<div id="shortcut-fields"></div><button id="reset-shortcuts"></button><p id="shortcut-error"></p><dialog open></dialog>');globalThis.document=dom.window.document;
- const mapping={back10:'Home',pause:'Insert',forward30:'PageDown',back5:'PageUp',forward5:'End'};
- let stored=keys.defaults;const $=id=>document.getElementById(id),calls=[];
+ const mapping={back10:'F9',pause:'Insert',forward30:'PageDown',back5:'PageUp',forward5:'End'};
+ let stored=Object.fromEntries(Object.keys(keys.actions).map(action=>[action,null]));const $=id=>document.getElementById(id),calls=[];
  try{
   const get=shortcutSettings({$,send:async m=>{if(m.type==='set-shortcuts')stored=m.bindings;return {ok:true,bindings:stored};},onChange:()=>{}});
   const controls=Object.fromEntries(Object.keys(mapping).map(action=>[action,{click:()=>calls.push(action)}]));

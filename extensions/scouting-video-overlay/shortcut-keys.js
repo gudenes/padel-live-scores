@@ -1,8 +1,8 @@
 // Shared by the panel, worker and isolated video remote.
 (()=>{
  if(globalThis.__pnMediaKeys)return;
- const defaults={back10:{key:'j'},pause:{key:'k'},forward30:{key:'l'},back5:{key:'ArrowLeft'},forward5:{key:'ArrowRight'}};
- const actions={back10:'Back 10 seconds',pause:'Play / pause',forward30:'Forward 30 seconds',back5:'Back 5 seconds',forward5:'Forward 5 seconds'};
+ const defaults={back10:{key:'j'},pause:{key:'Home'},forward30:{key:'l'},back5:{key:'Insert'},forward5:{key:'PageUp'},forward10:{key:'l',shift:true},speed:{key:'k',shift:true}};
+ const actions={back10:'Back 10 seconds',pause:'Play / pause',forward30:'Forward 30 seconds',back5:'Back 5 seconds',forward5:'Forward 5 seconds',forward10:'Forward 10 seconds',speed:'Cycle playback speed'};
  function normalize(raw){
   const out={};
   for(const action of Object.keys(actions)){
@@ -11,9 +11,16 @@
    if(!value||typeof value.key!=='string'||!value.key.length||value.key.length>32||['Control','Meta','Alt','Shift','Tab','Escape','Backspace','Delete','Dead','Unidentified'].includes(value.key))throw Error('Choose a letter, number, arrow, navigation or function key.');
    out[action]={key:value.key.length===1?value.key.toLowerCase():value.key,ctrl:!!value.ctrl,alt:!!value.alt,shift:!!value.shift,meta:!!value.meta};
   }
+  // Adding new actions must not steal an existing custom combination.
+  if(raw)for(const action of ['forward10','speed'])if(raw[action]===undefined&&out[action]&&Object.entries(out).some(([other,b])=>other!==action&&b&&JSON.stringify(b)===JSON.stringify(out[action])))out[action]=null;
   const keys=Object.values(out).filter(Boolean).map(b=>JSON.stringify(b));
   if(new Set(keys).size!==keys.length)throw Error('That shortcut is already assigned to another action.');
   return out;
+ }
+ function upgradeFastBindings(raw){
+  const out=normalize(raw),requested={back5:{key:'Insert'},pause:{key:'Home'},forward5:{key:'PageUp'}};
+  for(const action of Object.keys(out))if(!(action in requested)&&Object.values(requested).some(b=>out[action]?.key===b.key&&!out[action].ctrl&&!out[action].alt&&!out[action].shift&&!out[action].meta))out[action]=null;
+  return normalize({...out,...requested});
  }
  function label(binding){if(!binding)return 'Unassigned';return [binding.ctrl?'Ctrl':null,binding.alt?'Alt':null,binding.shift?'Shift':null,binding.meta?'⌘':null,binding.key===' '?'Space':binding.key==='ArrowLeft'?'←':binding.key==='ArrowRight'?'→':binding.key.length===1?binding.key.toUpperCase():binding.key].filter(Boolean).join('+');}
  function matches(event,binding){return !!binding&&(event.key.length===1?event.key.toLowerCase():event.key)===binding.key&&!!event.ctrlKey===!!binding.ctrl&&!!event.altKey===!!binding.alt&&!!event.shiftKey===!!binding.shift&&!!event.metaKey===!!binding.meta;}
@@ -28,5 +35,5 @@
   };
   target.addEventListener('keydown',handler,true);return ()=>target.removeEventListener('keydown',handler,true);
  }
- globalThis.__pnMediaKeys={defaults:normalize(defaults),actions,normalize,label,attach};
+ globalThis.__pnMediaKeys={defaults:normalize(defaults),actions,normalize,upgradeFastBindings,label,attach};
 })();

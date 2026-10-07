@@ -13,19 +13,23 @@
  const forward=button('+30s',()=>act({type:'skip',seconds:30}),'L');
  const back5=button('−5s',()=>act({type:'skip',seconds:-5}),'←');
  const forward5=button('+5s',()=>act({type:'skip',seconds:5}),'→');
- const controls={back10:back,pause:playback,forward30:forward,back5,forward5};
+ const forward10=button('+10s',()=>act({type:'skip',seconds:10}),'Shift+L');
+ const speed=button('1×',()=>act({type:'cycle-speed'}),'Shift+K');speed.setAttribute('aria-label','Cycle playback speed');
+ const controls={back10:back,pause:playback,forward30:forward,back5,forward5,forward10,speed};
  const extra=el('div',null,'extra');extra.hidden=true;
  const more=button('⋯',()=>{extra.hidden=!extra.hidden;more.setAttribute('aria-expanded',String(!extra.hidden));});more.setAttribute('aria-label','More video controls');more.setAttribute('aria-expanded','false');
- const skips=[back,forward,back5,forward5,...[-30,10].map(seconds=>{const b=button(`${seconds>0?'+':'−'}${Math.abs(seconds)}s`,()=>act({type:'skip',seconds}));extra.append(b);return b;})];
+ const skips=[back,forward,back5,forward5,forward10,...[-30].map(seconds=>{const b=button(`${seconds>0?'+':'−'}${Math.abs(seconds)}s`,()=>act({type:'skip',seconds}));extra.append(b);return b;})];
  const reconnect=button('Reconnect video',()=>act({type:'reconnect'}),null,'primary');
  const close=button('×',()=>{host.hidden=true;});close.setAttribute('aria-label','Hide video remote');
  extra.append(el('span','Skipping is available between rallies.','hint'));
- bar.append(grip,clock,back,back5,playback,forward5,forward,more,close,reconnect,extra,notice);root.append(bar);
+ extra.append(back);
+ bar.append(grip,clock,back5,playback,forward5,forward10,forward,speed,more,close,reconnect,extra,notice);root.append(bar);
  function render(){
   for(const [action,b] of Object.entries(controls)){const key=globalThis.__pnMediaKeys.label(bindings[action]);b.querySelector('kbd').textContent=key==='Unassigned'?'':key;if(bindings[action])b.setAttribute('aria-keyshortcuts',key);else b.removeAttribute('aria-keyshortcuts');}
   clock.textContent=sample?`${Math.floor(sample.time/60)}:${String(Math.floor(sample.time%60)).padStart(2,'0')}`:'—:—';
   playback.firstChild.textContent=sample?.paused?'Play':'Pause';playback.disabled=busy||!sample||sample.seeking;
   for(const b of skips)b.disabled=busy||!!state?.pending||!sample||sample.seeking;
+  speed.firstChild.textContent=`${sample?.rate??1}×`;speed.disabled=busy||!!state?.pending||!sample||sample.seeking;
   reconnect.hidden=!!sample;reconnect.disabled=busy||!!state?.pending;
  }
  async function send(message){const r=await chrome.runtime.sendMessage(message);if(!r?.ok)throw Error(r?.error||'Reopen the video remote from the side panel.');return r;}

@@ -38,6 +38,11 @@ export async function videoProbe(command={kind:'list'}){
     if(meta(video).mediaId!==command.mediaId)throw Error('The video source changed. Reconnect first.');
     if(command.paused)video.pause();else await video.play();
   }
+  if(command.kind==='speed'){
+    if(meta(video).mediaId!==command.mediaId)throw Error('The video source changed. Reconnect first.');
+    if(![1,2,4].includes(command.rate))throw Error('Choose 1×, 2× or 4×.');
+    video.playbackRate=command.rate;
+  }
   if(command.kind==='seek'){
     const current=snapshot(video);
     if(current.mediaId!==command.mediaId)throw Error('The video source changed. Reconnect before replaying.');

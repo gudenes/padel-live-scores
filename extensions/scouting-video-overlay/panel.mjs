@@ -32,6 +32,9 @@ function render(){
   $('status').textContent=healthy?'Connected':connection?'Check connection':'Not connected';
   $('source').textContent=connection?.page??'Open the match video in Chrome, then click this extension’s toolbar icon.';
   $('clock').textContent=time(sample?.time);
+  $('video-speed').disabled=busy||!!state.pending||!healthy||!!sample?.seeking;
+  const rate=sample?.rate??1;let custom=$('video-speed').querySelector('[data-custom-rate]');if(![1,2,4].includes(rate)){if(!custom){custom=document.createElement('option');custom.dataset.customRate='true';$('video-speed').append(custom)}custom.value=rate;custom.textContent=rate+'×';}else custom?.remove();$('video-speed').value=String(rate);
+  $('speed-note').textContent=state.pending?`Rally active · ${sample?.rate??1}×`:sample?.rate>1?`Playing at ${sample.rate}× · Start rally returns to 1×`:'Start rally returns to 1×';
   $('playback').textContent=sample?`${sample.seeking?'Seeking':sample.paused?'Paused':'Playing'} · ${sample.rate}× · ${sample.duration===null?'live / duration unknown':'video'}`:'Waiting for the video';
   $('rally-status').textContent=state.pending?`Rally started at ${time(state.pending.start.time)}`:'Ready when you are';
   $('rally').textContent=state.pending?'End rally & save':'Start rally';
@@ -86,8 +89,11 @@ $('export-backup').onclick=async()=>{try{const {state:current}=await call({type:
 $('sync-server').onclick=()=>act({type:'sync-server'});
 $('load-server').onclick=()=>act({type:'load-server'});
 $('video-playback').onclick=()=>act({type:'playback'});
-const getBindings=shortcutSettings({$,send:transport,onChange:()=>{}});
-mediaShortcuts({target:document,back:$('skip--10'),pause:$('video-playback'),forward:$('skip-30'),back5:$('skip--5'),forward5:$('skip-5'),getBindings});
+function paintMediaKeys(bindings){for(const badge of document.querySelectorAll('[data-media-key]')){const binding=bindings[badge.dataset.mediaKey];badge.textContent=globalThis.__pnMediaKeys.label(binding);const control=badge.closest('button, label');control.title=globalThis.__pnMediaKeys.actions[badge.dataset.mediaKey]+' · '+badge.textContent;if(binding)control.setAttribute('aria-keyshortcuts',badge.textContent);else control.removeAttribute('aria-keyshortcuts');}}
+const getBindings=shortcutSettings({$,send:transport,onChange:paintMediaKeys});
+$('video-speed').onchange=()=>act({type:'speed',rate:Number($('video-speed').value)});
+const cycleSpeed={get disabled(){return $('video-speed').disabled},click:()=>act({type:'cycle-speed'})};
+mediaShortcuts({target:document,back:$('skip--10'),pause:$('video-playback'),forward:$('skip-30'),back5:$('skip--5'),forward5:$('skip-5'),forward10:$('skip-10'),speed:cycleSpeed,getBindings});
 $('connect').addEventListener('click',()=>act({type:'connect'}));
 $('player').addEventListener('change',()=>act({type:'select',videoId:$('player').value}));
 $('rally').addEventListener('click',()=>act({type:'start'}));
