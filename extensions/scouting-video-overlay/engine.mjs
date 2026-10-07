@@ -1,6 +1,6 @@
 import {validateVideoState,videoPayload} from './server-model.mjs';
 import {validateStartingScore} from './starting-score.mjs';
-import {fresh,startRally,finishRally,replayTarget,pageReference} from './core.mjs';
+import {fresh,startRally,finishRally,replayTarget,pageReference,usable,sameMedia} from './core.mjs';
 import {defaults,match,validateSetup,validatePoint,validateSmashType,courtPlayers} from './match.mjs';
 export function engine({read,write,discover,capture,seek,uuid,catalog,playback}){
   // All panels share this queue in the worker, preventing duplicate or lost writes.
@@ -9,7 +9,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const undoable=new Set(['var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
+      const undoable=new Set(['restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async()=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
@@ -185,6 +185,15 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback})
           if(typeof message.label==='string')state.label=message.label.trim().slice(0,160);
           state.pending=startRally(await capture(state.connection),state.label,uuid());
           return save();
+        }
+        case 'restart-rally':{
+          if(!state.pending||!state.connection)throw Error('Start a rally and connect its video first.');
+          if(state.pending.finish)throw Error('Save or clear the selected outcome before restarting.');
+          const sample=await capture(state.connection);usable(sample);
+          if(sample.ended||!sameMedia(state.pending.start,sample))throw Error('The video changed or ended. Cancel the rally and reconnect.');
+          const next={id:uuid(),label:state.label,start:sample};
+          state.cancelled.push({...state.pending,cancelledAt:new Date().toISOString()});
+          state.pending=next;return save();
         }
         case 'end':{
           if(!state.pending||!state.connection)throw Error('Start a rally first.');

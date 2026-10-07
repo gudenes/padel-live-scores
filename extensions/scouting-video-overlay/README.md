@@ -88,3 +88,6 @@ Above the player cards, Court check-in shows how many players are confirmed and 
 Each smash button displays that player's current court key: hold **player key + X** for X3, or **player key + Z** for Power. Count these during an open rally. Labels update when ends change.
 
 For a smash-recovery winner, press **R**, then **Space**. No finishing stroke is required, and no smash attempt is added unless explicitly tagged X4. Recovery winners are excluded from the finishing-stroke coverage denominator. Untick recovery to choose a regular stroke.
+
+## Recovery after moving the video
+If an open rally becomes invalid after a seek, the workspace shows **Restart rally here**. Position the same video at the first serve, then restart, even while paused. It archives the unfinished attempt and opens a fresh rally at the new video position without changing recorded points or the score. Taps, faults and smash attempts from the discarded attempt are kept in the backup, not carried into the new observation. Undo restores the prior pending rally and removes the archive entry. Video replacement or an ended video still requires cancelling and reconnecting.

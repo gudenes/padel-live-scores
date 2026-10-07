@@ -17,6 +17,7 @@ export function scoutingUI({$,act,getState}){
  const keyboard=playerShortcuts({target:document,context:()=>keyboardContext,select:player=>{selectedPlayer=player;paintFeedback();},hold:player=>{holdingPlayer=player;paintFeedback();},fault:type=>act({type}),tap:player=>record(player,{type:'touch',player},'Shot'),smash:(player,smashType)=>record(player,{type:'smash',player,smashType},smashType==='x3'?'X3 attempt':'Power attempt'),prepare:(player,outcome)=>act({type:'prepare',player,outcome})});
  let setupKey='',playerKey='',openId='',shot,smashType,serverKey='',seedKey='',forcedBy,attributionReady=false,attributionKey='';
  $('apply-server').onclick=()=>act({type:'server',player:Number($('current-server').value)});
+ $('restart-rally').onclick=()=>act({type:'restart-rally'});
  for(const team of ['a','b'])$('swap-pair-'+team).onclick=()=>act({type:'positions',pair:team});
  $('swap-ends').onclick=()=>act({type:'ends'});
  for(const seconds of [-30,-10,-5,5,10,30])$(`skip-${seconds}`).onclick=()=>act({type:'skip',seconds});
@@ -114,6 +115,7 @@ export function scoutingUI({$,act,getState}){
   $('score-baseline').textContent=setup.startingScore?`Starting score included · scouting from set ${setup.startingScore.completed.length+1}`:'';
   $('server').textContent=m.score.phase==='finished'?`Match finished · Pair ${m.score.winner.toUpperCase()} wins`:`Serving: ${setup.names[m.server]} · ${m.points} points recorded`;
   let issue='';if(state.pending&&sample&&!state.pending.finish){try{finishRally(state.pending,sample)}catch(e){issue=e.message;}}
+  $('rally-recovery').hidden=!issue;$('restart-rally').disabled=busy||!healthy||!!sample?.seeking||!!sample?.ended;
   const enabled=!!state.pending&&!state.pending.finish&&!busy&&healthy&&!sample?.seeking&&!issue;
   $('rally').textContent=m.score.phase==='finished'?'Match complete':state.pending?sample?.paused?'Rally paused with video':'Rally in progress':m.points?'Start next rally':'Start rally';
   $('rally').disabled=busy||!healthy||!state.selectedMatch||!!state.pending||sample?.paused||sample?.seeking||m.score.phase==='finished';

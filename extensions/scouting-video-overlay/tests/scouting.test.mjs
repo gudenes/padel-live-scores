@@ -30,6 +30,15 @@ test('can log an outcome while paused and does not start a new rally until playb
 test('seeking blocks scoring until cancelled and preserves the cancelled start',async()=>{
  const f=fixture();await f.choose();await f.dispatch({type:'start'});f.rewind();await assert.rejects(f.dispatch({type:'prepare',player:0,outcome:'winner'}),/moved/);assert.equal(match(f.get()).points,0);await f.dispatch({type:'cancel'});assert.equal(f.get().cancelled.length,1);
 });
+test('restart after rewind is atomic, works paused, preserves scored points and pending attempts, and is undoable',async()=>{
+ const f=fixture();await f.choose();await f.point();const score=match(f.get()).score;
+ await f.dispatch({type:'start'});await f.dispatch({type:'smash',player:0,smashType:'power'});const original=structuredClone(f.get().pending);
+ f.rewind();f.pause();await f.dispatch({type:'restart-rally'});
+ assert.deepEqual(match(f.get()).score,score);assert.equal(f.get().rallies.length,1);assert.equal(f.get().cancelled[0].attempts.length,1);assert.equal(f.get().cancelled[0].id,original.id);assert.equal(f.get().pending.start.paused,true);assert.equal(f.get().pending.start.time,103);assert.equal(f.get().pending.attempts,undefined);
+ await f.dispatch({type:'undo-last'});assert.deepEqual(f.get().pending,original);assert.equal(f.get().cancelled.length,0);
+ await f.dispatch({type:'restart-rally'});f.resume();f.set(112);await f.dispatch({type:'prepare',player:2,outcome:'winner'});await f.dispatch({type:'score',details:{shot:'volley'}});
+ assert.equal(f.get().rallies.length,2);assert.equal(match(f.get()).points,2);assert.equal(f.get().rallies[1].videoSeconds,9);
+});
 test('faults, smash attempts, undo and server rotation use the admin scoring engine',async()=>{
  const f=fixture();await f.choose();await f.dispatch({type:'start'});await assert.rejects(f.dispatch({type:'double-fault'}),/first fault/);await f.dispatch({type:'first-fault'});await f.dispatch({type:'double-fault'});assert.equal(match(f.get()).score.currentGame.b,15);assert.equal(match(f.get()).stats[0].doubleFaults,1);
  await f.dispatch({type:'undo'});assert.equal(match(f.get()).score.currentGame.b,0);
