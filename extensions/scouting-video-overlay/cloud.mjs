@@ -49,11 +49,11 @@ export function cloudSync({read,write,request,uuid}){
  const status=async id=>{await queue;const entry=(await read())?.entries?.[id];return entry?{status:entry.status,error:entry.error,savedAt:entry.savedAt,revision:entry.revision}:{status:'local',error:''};};
  return {track,flush,load,acknowledge,status};
 }
-// Runs in the connected admin tab; credentials never enter the extension.
-export async function adminVideoSync(request){
+// Uses the browser-managed operator session; no password or session cookie is copied.
+export async function adminVideoSync(request,connection=null){
  // A string preserves null fields across Chrome’s executeScript argument bridge.
  if(typeof request==='string')request=JSON.parse(request);
- if(location.origin!=='https://admin.padelnachos.com')return {ok:false,error:'Open admin in Chrome, sign in and load tournaments to enable server saves.'};
+ if(!connection&&location.origin!=='https://admin.padelnachos.com')return {ok:false,error:'Open admin in Chrome, sign in and load tournaments to enable server saves.'};
  if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(request.matchId??'')||!['GET','POST'].includes(request.method))throw Error('Invalid server sync request.');
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
  try{
@@ -61,12 +61,12 @@ export async function adminVideoSync(request){
   const records=[...(request.document?.rallies??[]),...(request.document?.cancelled??[]),request.document?.pending];
   const required=[...(records.some(typed)?['smash-types-v1']:[]),...(records.some(r=>r?.point?.smashType==='soft'||r?.attempts?.some(a=>a.smashType==='soft'||a.touchIndex!==undefined))?['soft-smash-v1']:[]),...(records.some(r=>r?.varReviewed)?['var-review-v1']:[]),...(records.some(r=>r?.touches?.length)?['rally-touches-v1']:[]),...(records.some(r=>r?.point?.forcedBy!==undefined||r?.point?.netTouch)?['point-tags-v2']:[])];
   if(request.method==='POST'&&required.length){
-   const check=await fetch('/api/internal/video-scouting/'+encodeURIComponent(request.matchId),{credentials:'same-origin',cache:'no-store',signal:controller.signal});
+   const check=await fetch((connection?.origin??'')+'/api/internal/video-scouting/'+encodeURIComponent(request.matchId),{credentials:connection?'include':'same-origin',cache:'no-store',signal:controller.signal});
    const support=await check.json();
    if(!check.ok)return {ok:false,status:check.status,error:support.error??'Sign in to admin again. Your local copy is retained.'};
    if(!required.every(f=>support.features?.includes(f)))return {ok:false,error:'The server update for point tags, shot tracking, X3, Power, Soft smash, X4 or VAR is pending. Your full local record is retained and will retry after the update.'};
   }
-  const response=await fetch('/api/internal/video-scouting/'+encodeURIComponent(request.matchId),{method:request.method,credentials:'same-origin',cache:'no-store',signal:controller.signal,...(request.method==='POST'?{headers:{'Content-Type':'application/json'},body:JSON.stringify({revision:request.revision,writeId:request.writeId,document:request.document})}:{})});
+  const response=await fetch((connection?.origin??'')+'/api/internal/video-scouting/'+encodeURIComponent(request.matchId),{method:request.method,credentials:connection?'include':'same-origin',cache:'no-store',signal:controller.signal,...(request.method==='POST'?{headers:{'Content-Type':'application/json',...(connection?{'X-Scouting-Authorization':connection.token}:{})},body:JSON.stringify({revision:request.revision,writeId:request.writeId,document:request.document})}:{})});
   let data;try{data=await response.json();}catch{return {ok:false,status:response.status,error:'Server sync is not available yet. Your local copy is retained.'};}
   return {...data,ok:response.ok,status:response.status};
  }catch{return {ok:false,error:'Could not reach the server. Your local copy is retained.'};}finally{clearTimeout(timer);}

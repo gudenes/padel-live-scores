@@ -1,7 +1,7 @@
-// Runs inside the explicitly connected admin tab, using its existing operator login.
+// Uses the operator session directly from the worker; legacy injection remains testable.
 // Only these two read-only, same-origin endpoints are allowed.
-export async function readAdminCatalog(request){
- if(location.origin!=='https://admin.padelnachos.com')throw Error('Open admin.padelnachos.com in Chrome, sign in, then click the extension icon there.');
+export async function readAdminCatalog(request, connection=null){
+ if(!connection&&location.origin!=='https://admin.padelnachos.com')throw Error('Open admin.padelnachos.com in Chrome, sign in, then click the extension icon there.');
  let path='/api/internal/tournament-explorer';
  if(request.kind==='matches'){
   if(!/^[0-9a-f-]{36}$/i.test(request.tournamentId??''))throw Error('Invalid tournament ID.');
@@ -11,7 +11,7 @@ export async function readAdminCatalog(request){
   if(!/^20\d{2}$/.test(String(request.year)))throw Error('Choose a valid year.');
   path+='?from='+request.year+'-01-01&to='+request.year+'-12-31';
  }
- const response=await fetch(path,{credentials:'same-origin',cache:'no-store'});
+ const response=await fetch((connection?.origin??'')+path,{credentials:connection?'include':'same-origin',cache:'no-store'});
  if(!response.ok)throw Error(response.status===401?'Sign in to admin as an operator, then load tournaments again.':'Admin could not load the catalogue. Try again.');
  const data=await response.json();
  if(request.kind==='tournaments')return {tournaments:(data.tournaments??[]).map(t=>({id:t.id,name:t.name,level:t.level,country:t.country,location:t.location,startsAt:t.starts_at,endsAt:t.ends_at})),loadedAt:new Date().toISOString()};

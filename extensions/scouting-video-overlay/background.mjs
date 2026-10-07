@@ -1,4 +1,6 @@
 import './shortcut-keys.js';
+import {extensionAccount,ADMIN_ORIGIN} from './account.mjs';
+const account=extensionAccount({extensionId:chrome.runtime.id});
 import {videoPayload} from './server-model.mjs';
 import {cloudSync,adminVideoSync} from './cloud.mjs';
 import {match} from './match.mjs';
@@ -26,10 +28,8 @@ const sync=cloudSync({
  write:store=>chrome.storage.local.set({videoScoutingCloud:store}),
  uuid:()=>crypto.randomUUID(),
  request:async request=>{
-  const {adminTab}=await chrome.storage.session.get('adminTab');
-  if(!Number.isInteger(adminTab))return {ok:false,error:'Open admin, sign in and load tournaments to enable server saves.'};
-  try{const results=await chrome.scripting.executeScript({target:{tabId:adminTab},func:adminVideoSync,args:[JSON.stringify(request)]});return results[0]?.result??{ok:false,error:'Admin tab unavailable. Your local copy is retained.'};}
-  catch{return {ok:false,error:'Reopen admin and load tournaments to reconnect server saves. Your local copy is retained.'};}
+  try{const result=await adminVideoSync(request,await account.connection());account.invalidate(result.status);return result;}
+  catch(error){return {ok:false,error:error.message};}
  }
 });
 function scheduleSync(){
@@ -45,13 +45,8 @@ const dispatch=engine({
   },
   uuid:()=>crypto.randomUUID(),
   catalog:async request=>{
-    const stored=await chrome.storage.session.get(['candidateTab','adminTab']);
-    const tabId=request.kind==='tournaments'?stored.candidateTab:stored.adminTab;
-    if(!Number.isInteger(tabId))throw Error('Open admin in Chrome and click the extension icon there first.');
-    const result=await chrome.scripting.executeScript({target:{tabId},func:readAdminCatalog,args:[request]});
-    if(!result[0]?.result)throw Error('Cannot read admin. Sign in and click the extension icon on the admin tab again.');
-    if(request.kind==='tournaments')await chrome.storage.session.set({adminTab:tabId});
-    return result[0].result;
+    await account.connection();
+    return readAdminCatalog(request,{origin:ADMIN_ORIGIN});
   },
   discover:async tabId=>{
     // Resolve the tab at Connect time, not the last toolbar click (which may be admin).
@@ -87,6 +82,8 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
    const connectedTab=state?.connection?.tabId??overlayTab;
    if(!Number.isInteger(connectedTab)||sender.tab?.id!==connectedTab||sender.frameId!==0||!allowed.has(message.type))throw Error('Connect this video in the side panel, then show the video remote again.');
   }
+  if(message.type==='account-status'){const auth=await account.check(true);if(auth.status==='connected')scheduleSync();return {auth};}
+  if(message.type==='sign-in'){await chrome.tabs.create({url:ADMIN_ORIGIN+'/login'});return {auth:{status:'signing-in'}};}
   if(message.type==='get-shortcuts'){return {bindings:await savedBindings()};}
   if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await savedBindings();await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return {bindings};}
   if(message.type==='cloud-backup'){
@@ -121,8 +118,11 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   }
   const result=await dispatch(message),m=match(result.state);
   const shortcuts=await savedBindings();
-  return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
+  return {...result,auth:account.status(),bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
  };
  run().then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message||'Overlay unavailable.'}));
  return true;
 });
+
+// Retry the durable outbox after browser/extension restarts; no admin tab is required.
+scheduleSync();

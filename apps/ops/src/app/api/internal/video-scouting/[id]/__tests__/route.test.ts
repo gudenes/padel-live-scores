@@ -57,3 +57,21 @@ it('stores soft smash shot links and computes one attempt and one soft winner',a
  expect((await POST(request(log,1),ctx)).status).toBe(200);
  const row=mock.writes.mock.calls.at(-1)![0];expect(row.stats[0]).toMatchObject({smashes:1,softSmashes:1,softSmashWinners:1,powerSmashes:0});expect(row.document.rallies[0].attempts[0].touchIndex).toBe(0);
 });
+
+it('accepts extension writes only with a matching operator session and signed origin proof',async()=>{
+ vi.stubEnv('AUTH_SECRET','extension-test-secret')
+ try{
+  const {issueScoutingProof}=await import('@/lib/scouting-extension-auth')
+  const origin='chrome-extension://'+'a'.repeat(32)
+  mock.auth.mockResolvedValue({user:{id:'operator',isOperator:true,email:'operator@test'}})
+  const {token}=issueScoutingProof('operator',origin)
+  const req=request(document,0,origin);req.headers.set('x-scouting-authorization',token)
+  mock.queue.push({data:null},{data:{id,pair1_player1_id:'0',pair1_player2_id:'1',pair2_player1_id:'2',pair2_player2_id:'3'}},{data:players},{data:{revision:1}})
+  expect((await POST(req,ctx)).status).toBe(200)
+  expect((await POST(request(document,0,origin),ctx)).status).toBe(403)
+  const wrong=request(document,0,origin);wrong.headers.set('x-scouting-authorization',issueScoutingProof('other-operator',origin).token)
+  expect((await POST(wrong,ctx)).status).toBe(403)
+  mock.auth.mockResolvedValue(null)
+  expect((await POST(req,ctx)).status).toBe(401)
+ }finally{vi.unstubAllEnvs()}
+})

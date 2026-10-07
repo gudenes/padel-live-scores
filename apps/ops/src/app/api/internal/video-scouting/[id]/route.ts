@@ -1,4 +1,5 @@
 import {auth} from '@/lib/auth'
+import {verifyScoutingProof} from '@/lib/scouting-extension-auth'
 import {serviceClient} from '@/lib/supabase'
 import {historyJson} from '@/lib/scouting/history'
 import {validateVideoState,videoSummary} from '../../../../../../../../extensions/scouting-video-overlay/server-model.mjs'
@@ -29,7 +30,7 @@ export async function GET(_req:Request,ctx:{params:Promise<{id:string}>}){
 export async function POST(req:Request,ctx:{params:Promise<{id:string}>}){
  const user=(await auth())?.user;if(!user?.isOperator)return json({error:'Sign in to admin as an operator.'},401)
  const url=new URL(req.url)
- if(req.headers.get('origin')!==`${url.protocol}//${req.headers.get('host')??url.host}`)return json({error:'Invalid origin.'},403)
+ if(req.headers.get('origin')!==`${url.protocol}//${req.headers.get('host')??url.host}`&&!verifyScoutingProof(req.headers.get('x-scouting-authorization'),user.id,req.headers.get('origin')))return json({error:'Invalid origin or expired extension connection. Sign in again; your local copy is retained.'},403)
  const {id}=await ctx.params;if(!uuid.test(id))return json({error:'Invalid match.'},400)
  let body,document
  try{

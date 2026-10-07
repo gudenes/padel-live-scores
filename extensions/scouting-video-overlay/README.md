@@ -17,13 +17,13 @@ Press a stroke key to select the shot, then Space to save it. Keyboard selection
 
 ## Catalogue and video connection
 
-On signed-in admin, click this extension’s toolbar icon. Choose Recent & upcoming or a calendar year (2020 onward), then Load tournaments. Search by name, city, country, level or date; disable Premier Padel only for FIP events. Select a tournament to load matches; search player names in any order, with or without accents, and narrow by draw and round. Select a match card, then Scout selected match. Only canonical linked matches with all four player names are available. Search filters do not switch the active session.
+Use Sign in to Padel Nachos in the extension account row. Choose Recent & upcoming or a calendar year (2020 onward), then Load tournaments. Search by name, city, country, level or date; disable Premier Padel only for FIP events. Select a tournament to load matches; search player names in any order, with or without accents, and narrow by draw and round. Select a match card, then Scout selected match. Only canonical linked matches with all four player names are available. Search filters do not switch the active session.
 
 Open the replay tab, click the extension icon and Connect video. If the page reloads or replaces its player, Reconnect video rediscovers the player in the same tab. Finish or cancel an open rally first. Saved scores and rallies remain intact. Earlier bookmarks require their original playback session; their timestamps remain in exports.
 
 Points, corrections and timestamps stay in this Chrome profile. Selecting another match restores its saved local session and requires connecting its video. New sessions start at 0–0 rather than the official score. Export JSON before uninstalling.
 
-The remote uses an isolated script and Shadow DOM. Use theatre mode if native video-only fullscreen hides it. Scoring setup, server corrections, court-end changes, faults, undo and exports remain in the side panel. Server saves upload video-scouting sessions and calculated scores through the signed-in admin tab. Keep admin open and signed in after loading tournaments. The side panel only shows Saved to server after the API confirms the save. Offline changes stay in a durable outbox and retry when admin is available. Sync now also queues previously saved local matches. Conflicting server revisions are never overwritten automatically. Load server copy restores a selected match, retains an exportable local backup and requires reconnecting its video; any unfinished remote rally is retained as cancelled. Official live scores remain separate.
+The remote uses an isolated script and Shadow DOM. Use theatre mode if native video-only fullscreen hides it. Scoring setup, server corrections, court-end changes, faults, undo and exports remain in the side panel. Server saves upload video-scouting sessions and calculated scores directly using the browser-managed operator session. No admin tab needs to stay open. The side panel only shows Saved to server after the API confirms the save. Offline changes stay in a durable outbox and retry when the connection is available. Sync now also queues previously saved local matches. Conflicting server revisions are never overwritten automatically. Load server copy restores a selected match, retains an exportable local backup and requires reconnecting its video; any unfinished remote rally is retained as cancelled. Official live scores remain separate.
 
 Server rollout requires the operator_video_scouting_sessions migration and the admin video-scouting API release before the extension can save remotely.
 
@@ -31,7 +31,7 @@ Local simulated previews: serve this directory and open panel.html?demo for scou
 
 Open Video keyboard shortcuts in the side panel to assign each action: click its field, then press your key or key combination. Home (Inicio), Insert (Ins), Page Up and Page Down are supported. The field releases focus after a successful save so the next key press controls the video. Duplicate shortcuts are rejected. Backspace clears a binding; Reset shortcuts restores the defaults. Changes are saved on this device and update the video remote automatically. Typing in input fields does not trigger media shortcuts; the shot picker retains its letter and number keys.
 
-Use Switch match to archive the current local session and choose another match. Selecting the same match later restores its records. Clear search cache removes only tournament/match lists. Reload matches fetches a fresh list for the chosen tournament. If admin access has expired or Chrome restarted, open admin.padelnachos.com, click the Corner overlay icon there, then Load tournaments again. Catalogue errors appear beside the search controls.
+Use Switch match to archive the current local session and choose another match. Selecting the same match later restores its records. Clear search cache removes only tournament/match lists. Reload matches fetches a fresh list for the chosen tournament. If your login expired, use Sign in to Padel Nachos. Closing admin or restarting Chrome does not require loading tournaments again. Catalogue errors appear beside the search controls.
 
 Start partway through the match: select the match, open the starting-score card, enter completed sets, current games/points and the server/near pair at the first rally you will scout, then Apply starting score. Earlier sets contribute to the scoreboard but never to shot statistics. The baseline is locked after the first recorded point, persists per session, and remains when undoing a scouting point.
 
@@ -61,7 +61,7 @@ The admin API must advertise `rally-touches-v1` before tapped records upload; ol
 
 ## Finish and verify
 1. Save the last finishing stroke. Confirm the scoreboard says **Match finished** and the sets are correct.
-2. Keep admin signed in. If needed, open admin, click the extension icon there and **Load tournaments** to reconnect.
+2. Check the account row. If asked, use **Sign in to Padel Nachos**. Waiting saves retry automatically.
 3. Open **Server saves**, press **Sync now**, and wait for **Saved to server** with a recent save time. Retry or conflict means the save is incomplete; keep the local copy.
 4. Choose **Export local backup**.
 5. Open the related match on Padel Nachos and check the scouting report. A mid-match starting score contributes to the score; statistics cover only observed points. Direction counts are inferred estimates.
@@ -104,3 +104,10 @@ Player cards and the Live stats player column show country flags and rankings fr
 The main scouting workspace exposes −5s, play/pause, +5s, +10s and +30s in one row with visible shortcut badges and a 1× / 2× / 4× selector. Insert rewinds 5s, Home (Inicio) toggles playback, and Page Up advances 5s. Shift+L advances 10s, L advances 30s, and Shift+K cycles speed. Existing shortcut settings remain editable; a one-time update applies the three requested navigation keys and clears conflicting older assignments. Other custom bindings are retained.
 
 Skipping and speed changes work between rallies; pause remains available during a rally. Starting or restarting a rally restores 1× and confirms that the player applied it before recording. Timing uses video timestamps: skipped waiting time remains in match/game duration, while each rally keeps its own start/end duration. Replays and live buffers remain limited to the broadcaster’s available seek window.
+
+
+## Extension account and direct sync
+
+Use **Sign in to Padel Nachos** in the account row. Login opens the existing secure admin login in Chrome; Google, email link and password remain handled by admin. The extension reuses the HttpOnly operator session through host-permitted requests, never copies passwords or session cookies into its storage, and does not need an admin tab for catalogue reads or saves. Closing admin, browser restart and extension reload reconnect from that session; expiration requires signing in again. Account connectivity is separate from the server acknowledgement shown in Server saves.
+
+Deploy admin with `/api/internal/scouting-extension/session` before installing this extension build. It issues a short-lived CSRF proof bound to the session user and requesting extension origin; saves still check a live operator session, server feature support and revision conflicts. Same-origin admin writes keep their existing protections. `AUTH_SECRET` is required (already used by admin Auth.js). No database migration or new credentials are needed. The extension requests host access only to `https://admin.padelnachos.com/*`. The durable local scouting records and outbox are preserved and retry after reconnecting; server conflicts still require review. Test real Chrome login, saving with all admin tabs closed, reload/restart, sign-out and offline recovery before rollout.

@@ -8,7 +8,7 @@ import {progressUI} from './scouting-progress.mjs';
 const $=id=>document.getElementById(id);
 const demo=new URL(location.href).searchParams.has('demo')&&!globalThis.chrome?.runtime?.id;
 const transport=demo?(await import('./preview.mjs')).send:message=>chrome.runtime.sendMessage(message);
-let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',polling=false,revision=0,videoKey='',cloud={status:'local'};
+let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',polling=false,revision=0,videoKey='',cloud={status:'local'},account={status:demo?'demo':'checking'},accountPoll=0,accountChecking=false;
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 const renderScouting=scoutingUI({$,act,getState:()=>state});
 const renderProgress=progressUI($);
@@ -16,6 +16,10 @@ function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Mat
 function render(){
   if(!state)return;
   const connection=state.connection;
+  $('account-status').textContent=({checking:'Checking account…',connected:account.email?'Connected · '+account.email:'Connected',offline:'Offline · saved locally','signed-out':'Sign in again · changes saved locally','not-authorized':'Operator account required','update-required':'Admin sign-in update required','signing-in':'Complete sign-in in the opened tab',demo:'Demo account'})[account.status]??'Sign in to Padel Nachos';
+  $('sign-in').hidden=['connected','demo'].includes(account.status);
+  $('sign-in').disabled=busy;
+
   $('match-identity').textContent=state.selectedMatch?[state.selectedMatch.tournamentName,state.selectedMatch.category,state.selectedMatch.round].filter(Boolean).join(' · '):'Select a match to begin';
   $('save-settings').dataset.sync=cloud.status;
   const recent=state.history?.at(-1),lastPoint=state.rallies.findLast(r=>r.point&&!r.undone),attempt=state.pending?.attempts?.at(-1);
@@ -25,7 +29,7 @@ function render(){
   renderProgress(state,cloud,model);
   $('finish-status').textContent=finished?(cloud.status==='saved'?'Match finished · all current scouting records saved to server.':'Match finished · server confirmation still pending. Follow the steps below.'):'Still scouting · save every point through the end of the match.';
   if(finished)$('finish-guide').open=true;
-  $('cloud-message').textContent=cloud.error||(!state.selectedMatch?'Choose a match to enable server saves.':cloud.status==='saved'?`Last server save: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Keep admin signed in and connected. Changes stay on this device until the server confirms.');
+  $('cloud-message').textContent=cloud.error||(!state.selectedMatch?'Choose a match to enable server saves.':cloud.status==='saved'?`Last server save: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Changes stay on this device until the server confirms. Reconnection retries automatically.');
   $('export-backup').disabled=busy||!state.selectedMatch;
   $('sync-server').disabled=busy||!state.selectedMatch;$('load-server').disabled=busy||!state.selectedMatch||!!state.pending;
   const connectedKey=connection?.selected?.videoId??'';if(healthy&&connectedKey&&connectedKey!==videoKey){videoKey=connectedKey;$('video-panel').open=false;$('connection-settings').open=false;}
@@ -74,18 +78,20 @@ async function call(message){const result=await transport(message);if(!result?.o
 async function refresh(){
   if(busy||polling)return;
   polling=true;const before=revision;
+  if(!demo&&!accountChecking&&Date.now()-accountPoll>30000){accountPoll=Date.now();accountChecking=true;call({type:'account-status'}).then(result=>{account=result.auth??account;},()=>{account={status:'offline'};}).finally(()=>{accountChecking=false;render();});}
   try{const result=await call({type:'sample'});if(before!==revision||busy)return;state=result.state;cloud=result.sync??cloud;sample=result.sample;healthy=!!sample;}
   catch(error){if(before!==revision||busy)return;healthy=false;sample=null;$('message').textContent=error.message;}
   finally{polling=false;render();}
 }
 async function act(message){
   if(busy)return {ok:false,error:'Another action is being saved. Try again.'};let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
-  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match')$('catalog-feedback').textContent='Previous match saved on this device. Choose another match below.';if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Open admin, click the extension icon there, then Load tournaments.';if(message.type==='connect')$('connection-feedback').textContent='Video connected. The clock below follows playback.';$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
+  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match')$('catalog-feedback').textContent='Previous match saved on this device. Choose another match below.';if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect')$('connection-feedback').textContent='Video connected. The clock below follows playback.';$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
   catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{busy=false;render();await refresh();}
   return actionResult;
 }
 $('export-backup').onclick=async()=>{try{const {state:current}=await call({type:'state'});const backup=exported(current);const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='scouting-local-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}};
+$('sign-in').onclick=async()=>{try{const result=await call({type:'sign-in'});account=result.auth;accountPoll=0;render();}catch(error){$('message').textContent=error.message;}};
 $('sync-server').onclick=()=>act({type:'sync-server'});
 $('load-server').onclick=()=>act({type:'load-server'});
 $('video-playback').onclick=()=>act({type:'playback'});
