@@ -7,6 +7,7 @@ import {formatDuration,pressure} from '@/lib/scouting/tracking'
 import {scoreLabel} from '@/lib/scouting/score-label'
 import {isStarPoint} from '@/lib/scouting/scoring'
 import styles from './scout.module.css'
+import {DEFAULT_METHODOLOGY,type MethodologyId} from '@/lib/scouting/methodology'
 import Insights from './Insights'
 import ShotPicker,{type ShotDetails} from './ShotPicker'
 import {scoutingEventId} from '@/lib/scouting/event-id'
@@ -15,6 +16,7 @@ import {sessionExport,pointsCsv,type ScoutPerson} from '@/lib/scouting/export'
 type Person=ScoutPerson
 type Action=Event extends infer E?E extends Event?Omit<E,'id'|'at'>:never:never
 export default function Scout({matchId,landscapeOnly=false}:{matchId:string;landscapeOnly?:boolean}){
+  const [methodology,setMethodology]=useState<MethodologyId>(DEFAULT_METHODOLOGY)
   const [chosenOutcome,setChosenOutcome]=useState<Outcome>('winner')
   const [winnerAt,setWinnerAt]=useState<string|null>(null)
   const [focus,setFocus]=useState(true)
@@ -109,7 +111,7 @@ export default function Scout({matchId,landscapeOnly=false}:{matchId:string;land
     return()=>window.removeEventListener('keydown',startRallyShortcut,true)
   })
   function download(data:string,type:string,extension:string){const url=URL.createObjectURL(new Blob([data],{type}));const a=document.createElement('a');a.href=url;a.download=`scouting-${matchId}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-  function exportSession(){if(current.current)download(JSON.stringify(sessionExport(matchId,players,revision.current,current.current),null,2),'application/json','json')}
+  function exportSession(){if(current.current)download(JSON.stringify(sessionExport(matchId,players,revision.current,current.current,methodology),null,2),'application/json','json')}
   function exportPoints(){if(current.current)download(pointsCsv(players,current.current),'text/csv;charset=utf-8','csv')}
 
   function loadServer(){localStorage.removeItem(key);window.location.reload()}
@@ -155,7 +157,7 @@ function chooseOutcome(p:Player,outcome:Outcome){setWinnerChoice(p);setChosenOut
       </div>
     </header>}
     {error&&<div className={styles.notice} role="alert"><p>{error}</p>{conflict?<><Button onClick={exportSession}>Download local copy</Button> <Button onClick={loadServer}>Load server session</Button></>:<Button onClick={()=>doc?void save():window.location.reload()}>Retry</Button>}</div>}
-    {view==='insights'&&model&&<Insights model={model} players={players} doc={doc!}/>}
+    {view==='insights'&&model&&<Insights model={model} players={players} doc={doc!} methodology={methodology} onMethodologyChange={setMethodology}/>}
     <div hidden={view==='insights'}>
     {loading?<p>Loading match and saved scouting…</p>:!players.length?<p>Scouting requires four confirmed players.</p>:!model?.ready?<section className={`ui-panel ${styles.setup}`}>
       <p className={styles.steps}>1 · Pairs on court <span>→</span> 2 · Servers & positions</p>

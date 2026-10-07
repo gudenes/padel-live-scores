@@ -1,7 +1,8 @@
 import Link from 'next/link'
+import {methodologies} from '@/lib/scouting/methodology'
 import styles from './methodology.module.css'
 
-export const metadata={title:'Scouting methodology V1 · PadelNachos Admin'}
+export const metadata={title:'Scouting methodologies · PadelNachos Admin'}
 
 const reference=[
  {name:'Montiel',w:26,ue:15,fe:14,smash:'15 / 23',efficiency:'65.2%',base:'+4.00',adjustment:'+3.00',impact:'+7.00',normalized:'+3.66'},
@@ -12,10 +13,10 @@ const reference=[
 
 export default function Methodology(){
  return <main className={styles.page}>
-  <header><Link href="/tournament-explorer">← Tournament Explorer</Link><p className={styles.version}>V1 reference · Player Impact v0.1 · 6 October 2026</p><h1>Scouting calculation methodology</h1><p>A fixed baseline for comparing the next scouted matches. Measures recorded rally-ending actions; it is not a rating out of 10.</p></header>
+  <header><Link href="/tournament-explorer">← Tournament Explorer</Link><p className={styles.version}>Current: Player Impact v0.3 · Historical v0.1 reference retained</p><h1>Scouting calculation methodology</h1><p>Select a version in Insights to compare accumulated impact and the experimental Player Score. Raw observed statistics are unchanged.</p></header>
   <nav aria-label="Methodology sections"><a href="#impact">Impact rules</a><a href="#metrics">Match statistics</a><a href="#reference">Reference match</a><a href="#next-match">Next-match review</a></nav>
 
-  <section className="ui-panel"><h2>What the current admin report calculates</h2><p>The report’s <strong>Net actions</strong> curve uses winners − unforced errors − forced errors − double faults, with equal weights. It is a descriptive count.</p><p>The pressure-weighted <strong>Player Impact v0.1</strong> below is the method used in the V1 match analysis. Documenting it here does not switch the report’s existing curve to that formula. Keep these two measures separate when reviewing results.</p></section>
+  <section className="ui-panel"><h2>Available methodologies</h2>{methodologies.map(m=><div key={m.id}><h3>{m.label}</h3><p>{m.description}</p></div>)}<p>v0.3 is the default. Every weighted version uses winner +1, unforced error −1 and forced error suffered −0.5. Double faults are treated as one −1 action, with no extra duplicate error penalty.</p><p>Pressure is evaluated before each point. Use the highest multiplier: regular ×1; break, Star Point or tiebreak ×1.5; set ×2; match ×2.5. Forced-error creation credit uses the same multiplier. The +0.05 shared bonus is flat and goes to both members of the point-winning pair, including observed points without individual attribution.</p><p>Credit forced errors created only when an opposing player is identified. Missing creators receive no credit; report attribution coverage when comparing sessions. Assists and smash efficiency do not add a separate bonus.</p><p className={styles.formula}>Player Score = clamp(6 + 0.25 × impact per 100 weighted observed points, 1, 10)</p><p>Round to one decimal. Zero impact maps to 6.0, a chosen neutral balance, not a calibrated average. With no observed points, show no score. The score is experimental, describes recorded outcomes and shared point wins, and is not win probability. Older versions can use this same display conversion for comparison; it was introduced with v0.3.</p><p>Insights recalculates through the selected point using that range’s denominator. The graph shows accumulated raw impact, not the 1–10 score. The methodology selected in the report is included in its JSON export; the original equal-weight playerEvolution field is preserved separately.</p></section>
 
   <section className="ui-panel" id="impact"><h2>Player Impact v0.1</h2><p>Use active, classified observations only. A point is attributed to the player whose winner or error ended the rally. Undo removes that action and its contribution.</p>
    <div className={styles.tables}>
@@ -27,14 +28,14 @@ export default function Methodology(){
    <p className={styles.formula}>Base impact = winners − unforced errors − 0.5 × forced errors</p>
    <p>Pressure adjustment = final impact − base impact. A match-point winner adds 2.5; a match-point forced error subtracts 1.25. Positive and negative actions use the same multiplier.</p>
    <p>The −0.5 penalty is a chosen modelling weight, not an established universal value. The penalty belongs to the player making the error. V1 gives no positive impact credit to the opponent who forced it.</p>
-   <p>A smash winner already counts as a winner and receives no extra efficiency bonus. The supplied V1 method did not specify a separate double-fault weight; record double faults separately and explicitly version any future impact rule for them.</p>
+   <p>A smash winner already counts as a winner and receives no extra efficiency bonus. The historical match had no double faults. The admin implementation explicitly treats each double fault as one −1 action in weighted versions, multiplied by point pressure.</p>
   </section>
 
   <section className="ui-panel" id="metrics"><h2>Match statistics and coverage</h2><dl>
    <div><dt>Smash efficiency</dt><dd>Smash winners ÷ recorded smash attempts × 100. Show both counts. With no attempts, show no percentage. Reusing a recorded attempt must not add a second attempt.</dd></div>
    <div><dt>Break conversion</dt><dd>Breaks converted ÷ break-point opportunities × 100. Opportunities use the score before the rally; count a break when the receiving pair wins the game.</dd></div>
    <div><dt>Key points</dt><dd>Any break, set, match, Star or tiebreak point. Count each observed point once in the combined total. Category totals overlap and must not be added together.</dd></div>
-   <div><dt>Contribution curve</dt><dd>For V1 impact, start each player at zero and accumulate weighted rally-ending actions. Points attributed to other players leave their curve unchanged. The current admin Net actions curve uses its separate equal-weight rule.</dd></div>
+   <div><dt>Contribution curve</dt><dd>For V1 impact, start each player at zero and accumulate weighted rally-ending actions. Points attributed to other players leave their curve unchanged. Select Original · Net actions to view the separate equal-weight curve. In v0.2, a credited creator can move too; v0.3 also moves both players on each winning pair by +0.05.</dd></div>
    <div><dt>Partial scouting</dt><dd>Imported earlier sets and scores appear on the scoreboard but create no player statistics. Report how many points and rallies were observed.</dd></div>
    <div><dt>Shot directions</dt><dd>Inferred from consecutive taps and court positions. Final taps, same-pair sequences and position changes remain unknown. Direction is an estimate, not a manually confirmed trajectory.</dd></div>
   </dl><h3>Optional length adjustment</h3><p className={styles.formula}>Impact per 100 weighted points = player impact ÷ sum of observed point pressure weights × 100</p><p>The denominator is shared across all four players. Normalization adjusts for observation length; it does not make matches perfectly comparable. The V1 contribution artwork used raw impact.</p></section>
