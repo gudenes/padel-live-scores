@@ -6,7 +6,7 @@ import {shots} from './generated/shots.mjs';
 export const defaults=()=>({names:['Player A1','Player A2','Player B1','Player B2'],firstServer:0,otherServer:2,rule:'star-point'});
 const slots=[0,2,1,3];
 export const pair=p=>p<2?'a':'b';
-export function validateSmashType(type){if(!['power','x3'].includes(type))throw Error('Choose Power or X3.');return type;}
+export function validateSmashType(type){if(!['power','x3','soft'].includes(type))throw Error('Choose Power, X3 or Soft smash.');return type;}
 export function validateSetup(setup){
  if(!Array.isArray(setup.names)||setup.names.length!==4||setup.names.some(n=>typeof n!=='string'||!n.trim()||n.length>80))throw Error('Enter four player names (up to 80 characters).');
  if(!Number.isInteger(setup.firstServer)||setup.firstServer<0||setup.firstServer>3||!Number.isInteger(setup.otherServer)||setup.otherServer<0||setup.otherServer>3||pair(setup.firstServer)===pair(setup.otherServer))throw Error('Choose the first server and a server from the other pair.');
@@ -38,10 +38,11 @@ export function scoutingDocument(state){
 export function match(state){
  const seed=state.setup?.startingScore?validateStartingScore(state.setup.startingScore):null;
  const m=replay(scoutingDocument(state));
- const types=Array.from({length:4},()=>({powerSmashes:0,x3Smashes:0,x4Winners:0}));
+ const types=Array.from({length:4},()=>({powerSmashes:0,x3Smashes:0,softSmashes:0,softSmashWinners:0,x4Winners:0}));
  for(const r of [...state.rallies.filter(r=>!r.undone&&r.point),...(state.pending?[state.pending]:[])]){
-  for(const a of r.attempts??[])if(a.smashType)types[a.player][a.smashType==='x3'?'x3Smashes':'powerSmashes']++;
-  if(r.point?.shot==='smash'&&r.point.smashType&&!r.point.smashAlreadyCounted)types[r.point.player][r.point.smashType==='x3'?'x3Smashes':'powerSmashes']++;
+  for(const a of r.attempts??[])if(a.smashType)types[a.player][a.smashType==='x3'?'x3Smashes':a.smashType==='soft'?'softSmashes':'powerSmashes']++;
+  if(r.point?.shot==='smash'&&r.point.smashType&&!r.point.smashAlreadyCounted)types[r.point.player][r.point.smashType==='x3'?'x3Smashes':r.point.smashType==='soft'?'softSmashes':'powerSmashes']++;
+  if(r.point?.outcome==='winner'&&r.point.shot==='smash'&&r.point.smashType==='soft')types[r.point.player].softSmashWinners++;
   if(r.point?.x4)types[r.point.player].x4Winners++;
  }
  const stats=m.stats.map((s,i)=>({...s,...types[i],doubleFaults:m.tracking.service[i].doubleFaults}));

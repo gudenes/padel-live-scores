@@ -1,7 +1,7 @@
 // Completeness of active observations, never an assessment of scout accuracy.
 export function scoutingProgress(state){
  const rallies=state.rallies.filter(r=>r.point&&!r.undone);
- const strokes=rallies.filter(r=>['winner','unforced','forced'].includes(r.point.outcome));
+ const strokes=rallies.filter(r=>['winner','unforced','forced'].includes(r.point.outcome)&&!(r.point.outcome==='winner'&&r.point.smashRecovery));
  const detailed=strokes.filter(r=>!!r.point.shot).length;
  const forced=rallies.filter(r=>r.point.outcome==='forced');
  return {points:rallies.length,eligible:strokes.length,detailed,
