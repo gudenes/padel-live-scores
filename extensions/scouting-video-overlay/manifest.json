@@ -20,5 +20,8 @@
   },
   "side_panel": {
     "default_path": "panel.html"
-  }
+  },
+  "host_permissions": [
+    "https://admin.padelnachos.com/*"
+  ]
 }
