@@ -153,7 +153,7 @@ export function scoutingUI({$,act,getState}){
   renderCourtCheckin(state,m,busy,setup);
   keyboardContext={enabled,firstFault:!!state.pending?.firstFault,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();paintFeedback();
   const insights=touchInsights(state.rallies);for(const t of touchDirections(state.pending?.touches)){const p=insights.players[t.player];p.shots++;p[t.direction==='cross-court'?'crossCourt':t.direction==='down-the-line'?'downTheLine':'unknown']++;}
-  $('live-stats').replaceChildren(table(['Player','Shots','W','UE','FE'],setup.names.map((name,i)=>[name,insights.players[i].shots,m.stats[i].winners,m.stats[i].unforced,m.stats[i].forced])));
+  $('live-stats').replaceChildren(table(['Player','Assists','W','UE','FE'],setup.names.map((name,i)=>[name,m.stats[i].assists,m.stats[i].winners,m.stats[i].unforced,m.stats[i].forced])));
   const detail=document.createElement('div');detail.className='stats-detail';for(const [i,name] of setup.names.entries()){const row=document.createElement('p'),p=insights.players[i],st=m.stats[i];row.textContent=`${name}: Power ${st.powerSmashes} · X3 ${st.x3Smashes} · X4 ${st.x4Winners} | Assist ${st.assists} · Forced errors created ${st.forcedErrorsCreated} · Smash recovery ${st.smashRecoveryWinners} · Net touch ${st.netTouches} | Cross ${p.crossCourt} · Line ${p.downTheLine} · Unknown ${p.unknown}`;detail.append(row);}$('live-stats').append(detail);
   const sequence=state.pending?.touches??[];$('rally-sequence').textContent=sequence.length?sequence.slice(-12).map(t=>setup.names[t.player]).join(' → '):'No shots tapped in this rally';
   const pending=state.pending,finish=pending?.finish;
