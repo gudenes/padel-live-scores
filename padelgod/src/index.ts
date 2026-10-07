@@ -179,6 +179,7 @@ async function main() {
       enableMarketGenerator: env.ENABLE_MARKET_GENERATOR,
       marketGeneratorDryRun: env.MARKET_GENERATOR_DRY_RUN,
       enableMarketResolver: env.ENABLE_MARKET_RESOLVER,
+      enablePlayReminders: env.ENABLE_PLAY_REMINDERS,
       marketResolverDryRun: env.MARKET_RESOLVER_DRY_RUN,
       enablePredictionScorer: env.ENABLE_PREDICTION_SCORER,
       enableLiveOddsUpdater: env.ENABLE_LIVE_ODDS_UPDATER,

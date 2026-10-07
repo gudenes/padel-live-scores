@@ -232,6 +232,8 @@ const EnvSchema = z.object({
   ENABLE_MARKET_GENERATOR: boolEnv(false),
   MARKET_GENERATOR_DRY_RUN: boolEnv(true),
   ENABLE_MARKET_RESOLVER: boolEnv(false),
+  // Daily grouped emails + personal pre-match mobile reminders; opt-in, ships off.
+  ENABLE_PLAY_REMINDERS: boolEnv(false),
   MARKET_RESOLVER_DRY_RUN: boolEnv(true),
   // padeldev-live-fetcher — live PBP from the padeldev feed behind FIP's
   // `Live Score` tab. Default OFF. Leave PADELDEV_LIVE_DRY_RUN=true first to
