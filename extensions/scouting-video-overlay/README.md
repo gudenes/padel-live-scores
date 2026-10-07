@@ -81,3 +81,8 @@ The live summary and admin insights show assists, forced errors created, smash-r
 
 ## Scouting progress
 The slim top bar shows finishing-stroke coverage. Click it to expand recording details, forced-error attribution, rallies with shot taps and the current server acknowledgement. Double faults need no finishing stroke. Imported scores, unfinished rallies and undone points do not inflate observed coverage. Missing opponent attribution remains valid and does not lower the stroke-coverage bar. Milestones acknowledge 20, 50 or 100 observed points, the first observed set ending, and match completion; only a server-confirmed finished match says completed and synced. These are completeness indicators, not an accuracy rating, and Undo recalculates them.
+
+## Court check-in and serving
+Above the player cards, Court check-in shows how many players are confirmed and the current server. Tick **On court** on each card; the checklist is stored on this device per match and player identity and follows players through end changes. It does not add match statistics or block scouting. Click **Set server** on a player's card between rallies to use the existing server correction, score replay, cloud save and Undo. The serving player's name remains bold.
+
+Each smash button displays that player's current court key: hold **player key + X** for X3, or **player key + Z** for Power. Count these during an open rally. Labels update when ends change.

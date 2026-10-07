@@ -6,7 +6,9 @@ import {quickShots} from './shot-shortcuts.mjs';
 import {formatDuration} from './generated/tracking.mjs';
 import {touchInsights,touchDirections} from './touch-insights.mjs';
 import {finishRally} from './core.mjs';
+import {courtCheckinUI} from './court-checkin.mjs';
 export function scoutingUI({$,act,getState}){
+ const renderCourtCheckin=courtCheckinUI({$,act});
  let keyboardContext={enabled:false,token:'',order:[]};
  let selectedPlayer=null,holdingPlayer=null;
  const feedback=new Map();
@@ -146,7 +148,9 @@ export function scoutingUI({$,act,getState}){
   order.forEach((player,slot)=>{const badge=document.createElement('kbd');badge.textContent=positionKeys[slot].toUpperCase();badge.title='Tap to record a shot; hold 1.3 seconds to select outcome';cards[player].querySelector('h3').prepend(badge,' ');});
   const divider=document.createElement('div');divider.className='court-divider';divider.append('Far end · Net · Near end');const flip=document.createElement('button');flip.className='ui-btn';flip.dataset.variant='ghost';flip.dataset.ends='true';flip.textContent='Switch ends';flip.onclick=()=>act({type:'ends'});divider.append(flip);
   $('players').replaceChildren(...order.slice(0,2).map(i=>cards[i]),divider,...order.slice(2).map(i=>cards[i]));}
-  for(const b of $('players').querySelectorAll('button'))b.disabled=b.dataset.ends?busy||!state.selectedMatch||m.score.phase==='finished':!enabled;
+  for(const card of $('players').querySelectorAll('article[data-player]')){const player=Number(card.dataset.player),key=positionKeys[courtPlayers(state,m).indexOf(player)].toUpperCase();for(const [index,type] of ['x3','power'].entries()){const b=card.querySelector('.attempts').children[index];let hint=b.querySelector('kbd');if(!hint){hint=document.createElement('kbd');b.append(hint);}hint.textContent=`${key} + ${type==='x3'?'X':'Z'}`;b.title=`Hold ${key}, then press ${type==='x3'?'X':'Z'} to count one ${type==='x3'?'X3':'Power'} smash attempt`;}}
+  for(const b of $('players').querySelectorAll('button:not([data-court-server])'))b.disabled=b.dataset.ends?busy||!state.selectedMatch||m.score.phase==='finished':!enabled;
+  renderCourtCheckin(state,m,busy,setup);
   keyboardContext={enabled,firstFault:!!state.pending?.firstFault,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();paintFeedback();
   const insights=touchInsights(state.rallies);for(const t of touchDirections(state.pending?.touches)){const p=insights.players[t.player];p.shots++;p[t.direction==='cross-court'?'crossCourt':t.direction==='down-the-line'?'downTheLine':'unknown']++;}
   $('live-stats').replaceChildren(table(['Player','Shots','W','UE','FE'],setup.names.map((name,i)=>[name,insights.players[i].shots,m.stats[i].winners,m.stats[i].unforced,m.stats[i].forced])));
