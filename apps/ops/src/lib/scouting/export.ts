@@ -1,9 +1,10 @@
+import {DEFAULT_METHODOLOGY,methodologyAnalysis,type MethodologyId} from './methodology'
 import {playerEvolution} from './insights'
 import {activeEvents,replay,type ScoutDoc} from './model'
 export interface ScoutPerson {id:string;name:string;avatar_url?:string|null;photo_url?:string|null}
-export function sessionExport(matchId:string,players:ScoutPerson[],revision:number,document:ScoutDoc){
+export function sessionExport(matchId:string,players:ScoutPerson[],revision:number,document:ScoutDoc,methodology:MethodologyId=DEFAULT_METHODOLOGY){
  const summary=replay(document)
- return {schemaVersion:2,exportedAt:new Date().toISOString(),matchId,players,revision,document,activeEventIds:activeEvents(document).map(e=>e.id),summary,playerEvolution:playerEvolution(summary.tracking.timeline),definitions:{netActions:'Winners minus unforced errors, forced errors and double faults; equal weights, not Pi rating.',lead:'Cumulative observed points won by pair A minus pair B; not win probability.',duration:'Milliseconds from first serve to point completion, including time between serves. Null means not observed.',history:'Document events include undo actions; summary and timeline contain only active observations.',coverage:'Manually observed data only. Score corrections do not reconstruct earlier points.'}}
+ return {schemaVersion:2,exportedAt:new Date().toISOString(),matchId,players,revision,document,activeEventIds:activeEvents(document).map(e=>e.id),summary,playerImpact:methodologyAnalysis(summary.tracking.timeline,methodology),playerEvolution:playerEvolution(summary.tracking.timeline),definitions:{netActions:'Winners minus unforced errors, forced errors and double faults; equal weights, not Pi rating.',lead:'Cumulative observed points won by pair A minus pair B; not win probability.',duration:'Milliseconds from first serve to point completion, including time between serves. Null means not observed.',history:'Document events include undo actions; summary and timeline contain only active observations.',coverage:'Manually observed data only. Score corrections do not reconstruct earlier points.'}}
 }
 export function pointsCsv(players:ScoutPerson[],doc:ScoutDoc){
  const cell=(v:unknown)=>'"'+(typeof v==='string'?v.replace(/^[=+@\-\t\r]/,"'$&"):String(v??'')).replaceAll('"','""')+'"'

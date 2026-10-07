@@ -1,0 +1,75 @@
+import {describe,it,expect} from 'vitest'
+import {freshDoc,replay,type Event} from '../scouting/model'
+import {sessionExport} from '../scouting/export'
+import {methodologyAnalysis,pointWeight,playerScore} from '../scouting/methodology'
+import type {TimelinePoint} from '../scouting/tracking'
+import reference from './fixtures/scouting-score-reference.json'
+
+function point(overrides:Partial<TimelinePoint>={}):TimelinePoint{
+ const state=replay(freshDoc()).score
+ return {id:'p',at:'2026-10-07T10:00:00Z',number:1,winner:'a',server:0,player:0,outcome:'winner',smash:false,lead:1,before:state,after:state,star:false,breakPoint:null,breakConverted:false,setPoint:{a:false,b:false},matchPoint:{a:false,b:false},rallyStartedAt:null,durationMs:null,firstFaultAt:null,...overrides}
+}
+
+describe('versioned scouting methodology',()=>{
+ it('uses the highest overlapping pressure, not stacked multipliers',()=>{
+  const p=point({before:{...replay(freshDoc()).score,phase:'tiebreak'},breakPoint:'a',star:true,setPoint:{a:true,b:false},matchPoint:{a:true,b:false}})
+  expect(pointWeight(p)).toBe(2.5)
+  expect(methodologyAnalysis([p],'v0.1').players[0].impact).toBe(2.5)
+ })
+ it('credits an attributed opponent only in v0.2 and v0.3',()=>{
+  const p=point({player:0,outcome:'forced',forcedBy:2,winner:'b',setPoint:{a:false,b:true}})
+  expect(methodologyAnalysis([p],'v0.1').series[0].values).toEqual([-1,0,0,0])
+  expect(methodologyAnalysis([p],'v0.2').series[0].values).toEqual([-1,0,1,0])
+  expect(methodologyAnalysis([p],'v0.3').series[0].values).toEqual([-1,0,1.05,0.05])
+ })
+ it('keeps the team bonus flat on match points and credits both teammates',()=>{
+  const p=point({matchPoint:{a:true,b:false}})
+  const result=methodologyAnalysis([p],'v0.3')
+  expect(result.series[0].values).toEqual([2.55,0.05,0,0])
+  expect(result.weightedPoints).toBe(2.5)
+ })
+ it('does not infer missing or invalid forced-error creators',()=>{
+  for(const forcedBy of [undefined,1] as const){
+   const result=methodologyAnalysis([point({outcome:'forced',winner:'b',forcedBy})],'v0.2')
+   expect(result.series[0].values).toEqual([-0.5,0,0,0])
+   expect(result.coverage).toMatchObject({forcedErrors:1,attributedForcedErrors:0})
+  }
+ })
+ it('counts unknown points only for coverage, denominator and the shared bonus',()=>{
+  const result=methodologyAnalysis([point({player:null,outcome:'unclassified',winner:'b'})])
+  expect(result.series[0].values).toEqual([0,0,0.05,0.05])
+  expect(result.coverage.unclassifiedPoints).toBe(1)
+  expect(result.players.map(p=>p.generatedPoints)).toEqual([0,0,0,0])
+ })
+ it('handles double faults as a single unforced penalty',()=>{
+  expect(methodologyAnalysis([point({outcome:'double_fault',winner:'b',breakPoint:'b'})],'v0.3').series[0].values).toEqual([-1.5,0,0.05,0.05])
+ })
+ it('shows no score without observations, bounds scores, and normalizes observation length',()=>{
+  expect(methodologyAnalysis([]).players.every(p=>p.score===null)).toBe(true)
+  expect(playerScore(0,100)).toBe(6)
+  expect(playerScore(100,100)).toBe(10)
+  expect(playerScore(-100,100)).toBe(1)
+  expect(playerScore(7,118.5)).toBe(playerScore(14,237))
+ })
+ it('reproduces the checked 109-point match in every weighted version',()=>{
+  const points=reference.map((r,i)=>point({...r,player:r.player as TimelinePoint['player'],forcedBy:r.forcedBy as TimelinePoint['forcedBy'],winner:r.winner as TimelinePoint['winner'],breakPoint:r.breakPoint as TimelinePoint['breakPoint'],number:i+1,before:{...replay(freshDoc()).score,phase:r.phase as TimelinePoint['before']['phase']}}))
+  for(const [id,expected] of [['v0.1',[-9.5,-7.5,-6,2.75]],['v0.2',[-4.75,-6,-2.25,7]],['v0.3',[-2.35,-3.6,0.8,10.05]]] as const){
+   const result=methodologyAnalysis(points,id)
+   expect(result.weightedPoints).toBe(118.5)
+   result.players.forEach((p,i)=>expect(p.impact).toBeCloseTo(expected[i],8))
+  }
+  const result=methodologyAnalysis(points)
+  expect(result.players.map(p=>p.score)).toEqual([5.5,5.2,6.2,8.1])
+  expect(result.players.map(p=>p.generatedPoints)).toEqual([22,8,17,20])
+  expect(result.coverage).toEqual({forcedErrors:27,attributedForcedErrors:27,unclassifiedPoints:0})
+ })
+ it('exports the selected method, preserving legacy evolution and undo semantics',()=>{
+  const events:Event[]=[{id:'one',at:'2026-10-07T10:00:00Z',kind:'point',player:0,outcome:'winner',smash:false},{id:'two',at:'2026-10-07T10:00:01Z',kind:'point',player:2,outcome:'unforced',smash:false},{id:'undo',at:'2026-10-07T10:00:02Z',kind:'undo'}]
+  const doc={...freshDoc(),events},out=sessionExport('match',[],1,doc,'v0.2')
+  expect(out.playerImpact.methodology.id).toBe('v0.2')
+  expect(out.playerImpact.observedPoints).toBe(1)
+  expect(out.playerEvolution).toEqual([{number:1,values:[1,0,0,0]}])
+  expect(replay(doc).tracking.timeline).toHaveLength(1)
+  expect(methodologyAnalysis(replay(doc).tracking.timeline,'net-actions').players[0].score).toBeNull()
+ })
+})
