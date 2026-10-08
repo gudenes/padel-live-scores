@@ -26,7 +26,7 @@
  function matches(event,binding){return !!binding&&(event.key.length===1?event.key.toLowerCase():event.key)===binding.key&&!!event.ctrlKey===!!binding.ctrl&&!!event.altKey===!!binding.alt&&!!event.shiftKey===!!binding.shift&&!!event.metaKey===!!binding.meta;}
  function attach({target,controls,getBindings,isActive=()=>true}){
   const handler=event=>{
-   if(!isActive()||event.repeat||event.isComposing)return;
+   if(!isActive()||event.repeat||event.isComposing||target.querySelector?.('#scouting-menu[open]'))return;
    const focused=event.composedPath()[0];if(focused?.matches?.('input,textarea,select,[contenteditable]')||focused?.isContentEditable)return;
    // Keep letter/number shot shortcuts available inside the scoring dialog.
    if(target.querySelector?.('dialog[open]')&&(/^[a-z0-9]$/i.test(event.key)||[' ','Enter'].includes(event.key))&&!event.ctrlKey&&!event.altKey&&!event.metaKey)return;

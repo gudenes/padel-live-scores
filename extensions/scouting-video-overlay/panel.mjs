@@ -1,3 +1,4 @@
+import {manualUI} from './manual-ui.mjs';
 import {shortcutSettings} from './shortcut-settings.mjs';
 import {mediaShortcuts} from './media-shortcuts.mjs';
 import {catalogUI} from './catalog-ui.mjs';
@@ -12,10 +13,13 @@ let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',pol
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 const renderScouting=scoutingUI({$,act,getState:()=>state});
 const renderProgress=progressUI($);
+const renderManual=manualUI({$,act,call,getState:()=>state});
 function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Math.floor(seconds);return `${Math.floor(s/3600)?`${Math.floor(s/3600)}:`:''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function render(){
   if(!state)return;
   const connection=state.connection;
+  $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;
+
   $('account-status').textContent=({checking:'Checking account…',connected:account.email?'Connected · '+account.email:'Connected',offline:'Offline · saved locally','signed-out':'Sign in again · changes saved locally','not-authorized':'Operator account required','update-required':'Admin sign-in update required','signing-in':'Complete sign-in in the opened tab',demo:'Demo account'})[account.status]??'Sign in to Padel Nachos';
   $('sign-in').hidden=['connected','demo'].includes(account.status);
   $('sign-in').disabled=busy;
@@ -70,9 +74,9 @@ function render(){
   }
   const workspace=$('scouting-workspace'),setup=$('connection-settings');
   if(state.selectedMatch&&workspace.nextElementSibling!==setup)workspace.after(setup);
-  else if(!state.selectedMatch&&setup.previousElementSibling)setup.parentElement.prepend(setup);
+  else if(!state.selectedMatch&&setup.previousElementSibling)$('account-panel').after(setup);
   document.body.classList.toggle('scouting',!!state.selectedMatch);
-  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);
+  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);
 }
 async function call(message){const result=await transport(message);if(!result?.ok)throw Error(result?.error??'The companion is unavailable. Reopen its panel.');return result;}
 async function refresh(){
@@ -84,7 +88,7 @@ async function refresh(){
   finally{polling=false;render();}
 }
 async function act(message){
-  if(busy)return {ok:false,error:'Another action is being saved. Try again.'};let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
+  if(busy)return {ok:false,error:'Another action is being saved. Try again.'};let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match','create-manual','resume-session'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
   try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match')$('catalog-feedback').textContent='Previous match saved on this device. Choose another match below.';if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect')$('connection-feedback').textContent='Video connected. The clock below follows playback.';$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
   catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{busy=false;render();await refresh();}
@@ -112,6 +116,7 @@ $('export').addEventListener('click',async()=>{
   try{const result=await call({type:'state'});const blob=new Blob([JSON.stringify(exported(result.state),null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`padel-video-bookmarks-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}
 });
 document.addEventListener('keydown',event=>{
+  if($('scouting-menu').open)return;
   if(event.code!=='Space'||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.isComposing||event.target.closest('input,textarea,select,button,summary,[contenteditable="true"]'))return;
   event.preventDefault();if(!$('rally').disabled)$('rally').click();
 });

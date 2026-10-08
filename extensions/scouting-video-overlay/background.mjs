@@ -41,11 +41,19 @@ const dispatch=engine({
   read:async()=>(await chrome.storage.local.get('scoutingVideo')).scoutingVideo,
   write:async (state,context)=>{
     await chrome.storage.local.set({scoutingVideo:state});
+    if(context?.remote)await sync.acknowledge(state.selectedMatch.id,context.remote);
     if(state.selectedMatch?.id&&context?.type!=='restore-cloud'){await sync.track(state);scheduleSync();}
   },
   uuid:()=>crypto.randomUUID(),
   catalog:async request=>{
-    await account.connection();
+    const connection=await account.connection();
+    if(request.kind==='manual-session'){const result=await adminVideoSync({kind:'manual',method:'GET',matchId:request.matchId},connection);if(!result.ok)throw Error(result.error);return result;}
+    if(['create-manual','manual-matches','search-players'].includes(request.kind)){
+     const path='/api/internal/manual-scouting-matches'+(request.kind==='search-players'?'?players='+encodeURIComponent(request.query):'');
+     const response=await fetch(ADMIN_ORIGIN+path,{credentials:'include',cache:'no-store',signal:AbortSignal.timeout(10000),...(request.kind==='create-manual'?{method:'POST',headers:{'Content-Type':'application/json','X-Scouting-Authorization':connection.token},body:JSON.stringify(request.input)}:{})});
+     account.invalidate(response.status);let data;try{data=await response.json();}catch{throw Error('Private match support is unavailable. Your local work is retained.');}
+     if(!response.ok)throw Error(data.error??'Could not load private scouting.');return data;
+    }
     return readAdminCatalog(request,{origin:ADMIN_ORIGIN});
   },
   discover:async tabId=>{
@@ -84,6 +92,8 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   }
   if(message.type==='account-status'){const auth=await account.check(true);if(auth.status==='connected')scheduleSync();return {auth};}
   if(message.type==='sign-in'){await chrome.tabs.create({url:ADMIN_ORIGIN+'/login'});return {auth:{status:'signing-in'}};}
+  if(message.type==='search-players'){return {players:(await dispatch({type:'search-players',query:message.query})).players};}
+  if(message.type==='open-video'){const {state}=await dispatch({type:'state'});const link=state.selectedMatch?.videoUrl;if(!link||!/^https?:\/\//.test(link))throw Error('No video link is saved.');await chrome.tabs.create({url:link});return {state};}
   if(message.type==='get-shortcuts'){return {bindings:await savedBindings()};}
   if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await savedBindings();await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return {bindings};}
   if(message.type==='cloud-backup'){
