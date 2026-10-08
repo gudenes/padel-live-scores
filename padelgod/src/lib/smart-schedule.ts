@@ -4,11 +4,11 @@ export interface ScheduleMatch {
   id: string; tournament_id: string; court: string | null; court_order: number | null;
   status: string; scheduled_at: string | null; started_at: string | null;
   finished_at: string | null; duration: string | null; schedule_label: string | null;
-  category?: string | null; updated_at: string; sets: ScheduleSet[] | null;
-  tournament: { timezone: string | null } | null;
+  category?: string | null; last_updated_by?: string | null; updated_at: string; sets: ScheduleSet[] | null;
+  tournament: { timezone: string | null; level?: string | null; country?: string | null } | null;
 }
 export interface ScheduleForecast {
-  version: 1; next_to_play: boolean; predecessor_id: string | null;
+  version: 1; model: 'pbp-calibration-v1'; next_to_play: boolean; predecessor_id: string | null;
   earliest_at: string | null; latest_at: string | null;
   computed_at: string; source_updated_at: string | null;
   basis: 'live_progress' | 'observed_finish' | 'court_order';
@@ -46,9 +46,46 @@ function quantile(values: number[], q: number): number {
   const sorted = values.slice().sort((a, b) => a - b);
   return sorted[Math.floor((sorted.length - 1) * q)]!;
 }
+/** Recorded widget starts only. Neither imported start times nor placeholder
+ * schedules may enter calibration. This is a conservative provenance proxy;
+ * last_updated_by does not itself prove how a timestamp was originally written.
+ */
+export function calibrationHistory(matches: ScheduleMatch[]): ScheduleMatch[] {
+  return matches.filter((m) => {
+    const start = dateMs(m.started_at),
+      schedule = dateMs(m.scheduled_at);
+    return (
+      m.status === "finished" &&
+      m.last_updated_by === "padelgod" &&
+      start !== null &&
+      schedule !== null &&
+      Math.abs(start - schedule) <= 6 * 60 * MINUTE &&
+      !(
+        new Date(schedule).toISOString().slice(11, 19) === "00:00:00" &&
+        !m.schedule_label
+      ) &&
+      durationMinutes(m.duration) !== null
+    );
+  });
+}
+/** Prefer comparable category history, then back off for small cohorts. */
+function comparableHistory(
+  history: ScheduleMatch[],
+  match: ScheduleMatch
+): ScheduleMatch[] {
+  const eligible = calibrationHistory(history).filter(
+    (m) => historicalPace([m]).length > 0
+  );
+  const category = match.category;
+  const sameCategory = eligible.filter(
+    (m) => category && m.category === category
+  );
+  if (sameCategory.length >= 20) return sameCategory;
+  return eligible;
+}
 /** Learn pace only from observed finished matches, never placeholder finished_at values. */
 export function historicalPace(matches: ScheduleMatch[], category?: string | null): number[] {
-  return matches.filter((m) => m.status === 'finished' && m.started_at && (!category || m.category === category))
+  return calibrationHistory(matches).filter((m) => !category || m.category === category)
     .flatMap((m) => {
       const minutes = durationMinutes(m.duration);
       const sets = m.sets ?? [];
@@ -78,8 +115,7 @@ export function remainingMinutes(match: ScheduleMatch, history: ScheduleMatch[])
   }
   if (wins1 >= 2 || wins2 >= 2) return null;
   const played = sets.reduce((n, s) => n + s.pair1_games! + s.pair2_games!, 0);
-  const categoryPace = historicalPace(history, match.category);
-  const allPace = categoryPace.length >= 20 ? categoryPace : historicalPace(history);
+  const allPace = historicalPace(comparableHistory(history, match));
   const base = allPace.length >= 20 ? quantile(allPace, .5) : 3.5;
   const observed = played >= 4 ? Math.min(8, Math.max(1, elapsed / played)) : base;
   const pace = base * .5 + observed * .5;
@@ -99,11 +135,75 @@ export function remainingMinutes(match: ScheduleMatch, history: ScheduleMatch[])
   const uncertainty = allPace.length >= 20 ? 5 : 15;
   return [Math.max(5, quantile(samples, .15) - uncertainty), quantile(samples, .85) + uncertainty];
 }
-function queuedDuration(history: ScheduleMatch[], category?: string | null): [number, number] {
-  const eligible = history.filter((m) => historicalPace([m]).length > 0);
-  const categoryRows = eligible.filter((m) => category && m.category === category);
-  const durations = (categoryRows.length >= 20 ? categoryRows : eligible).map((m) => durationMinutes(m.duration)!);
-  return durations.length >= 20 ? [quantile(durations, .15), quantile(durations, .85)] : [60, 120];
+export function queuedDuration(
+  history: ScheduleMatch[],
+  match: ScheduleMatch
+): [number, number] {
+  const durations = comparableHistory(history, match).map(
+    (m) => durationMinutes(m.duration)!
+  );
+  return durations.length >= 20
+    ? [quantile(durations, 0.15), quantile(durations, 0.85)]
+    : [60, 120];
+}
+/** Turnaround includes leaving court, preparation and warmup before the next
+ * recorded playing start. Fit ordinary changeovers; explicit session floors
+ * continue to handle planned breaks. Never mix categories into separate queues.
+ */
+export function turnaroundWindow(
+  history: ScheduleMatch[],
+  match: ScheduleMatch
+): [number, number] {
+  const groups = new Map<string, ScheduleMatch[]>();
+  for (const m of calibrationHistory(history)) {
+    if (!m.court?.trim() || m.court_order === null || !m.tournament?.timezone)
+      continue;
+    try {
+      const day = localPlayDay(m.started_at!, m.tournament.timezone);
+      if (day !== localPlayDay(m.scheduled_at!, m.tournament.timezone))
+        continue;
+      const key = `${m.tournament_id}:${m.court.trim().toLowerCase()}:${day}`;
+      groups.set(key, [...(groups.get(key) ?? []), m]);
+    } catch {
+      /* A missing or invalid timezone cannot form a training court-day. */
+    }
+  }
+  const gaps: { minutes: number; level: string | null }[] = [];
+  for (const group of groups.values()) {
+    group.sort((a, b) => a.court_order! - b.court_order!);
+    const orderCounts = new Map<number, number>();
+    for (const m of group)
+      orderCounts.set(
+        m.court_order!,
+        (orderCounts.get(m.court_order!) ?? 0) + 1
+      );
+    for (let i = 1; i < group.length; i++) {
+      const previous = group[i - 1]!,
+        next = group[i]!;
+      if (
+        next.court_order !== previous.court_order! + 1 ||
+        orderCounts.get(previous.court_order!) !== 1 ||
+        orderCounts.get(next.court_order!) !== 1
+      )
+        continue;
+      const gap =
+        (dateMs(next.started_at)! - dateMs(previous.started_at)!) / MINUTE -
+        durationMinutes(previous.duration)!;
+      if (gap >= 5 && gap <= 60)
+        gaps.push({ minutes: gap, level: next.tournament?.level ?? null });
+    }
+  }
+  const sameLevel = gaps.filter(
+    (g) => match.tournament?.level && g.level === match.tournament.level
+  );
+  const values = (sameLevel.length >= 30 ? sameLevel : gaps).map(
+    (g) => g.minutes
+  );
+  // The April–October PBP audit found a median of 16 min and p10–p90 of 12–24.
+  // Fallback is deliberately rounded outward; these remain heuristic windows.
+  return values.length >= 30
+    ? [quantile(values, 0.1), quantile(values, 0.9)]
+    : [12, 25];
 }
 function observedEnd(match: ScheduleMatch): number | null {
   if (match.status !== 'finished' && match.status !== 'retired') return null;
@@ -159,13 +259,15 @@ export function computeSmartSchedule(rows: ScheduleMatch[], history: ScheduleMat
       } else if (m.status === 'scheduled') {
         const floor = /not before|starting at/i.test(m.schedule_label ?? '') ? dateMs(m.scheduled_at) : null;
         // Propagate the window through the queue; later cards display only its early edge.
-        const start: [number, number] | null = end ? [Math.max(nowMs + 5 * MINUTE, end[0] + 10 * MINUTE, floor ?? 0), Math.max(nowMs + 10 * MINUTE, end[1] + 20 * MINUTE, floor ?? 0)] : null;
+        const turnaround = turnaroundWindow(history, m);
+        const start: [number, number] | null = end ? [Math.max(nowMs + 5 * MINUTE, end[0] + turnaround[0] * MINUTE, floor ?? 0), Math.max(nowMs + 10 * MINUTE, end[1] + turnaround[1] * MINUTE, floor ?? 0)] : null;
         const round = (ms: number) => new Date(Math.ceil(ms / (5 * MINUTE)) * 5 * MINUTE).toISOString();
-        out.set(m.id, { version: 1, next_to_play: m.id === next.id, predecessor_id: prev?.id ?? null,
-          earliest_at: start ? round(start[0]) : null, latest_at: start ? round(start[1]) : null,
+        // Round uncertainty outward; a firm schedule floor still takes precedence.
+        out.set(m.id, { version: 1, model: 'pbp-calibration-v1', next_to_play: m.id === next.id, predecessor_id: prev?.id ?? null,
+          earliest_at: start ? new Date(Math.max(Math.floor(start[0] / (5 * MINUTE)) * 5 * MINUTE, nowMs + 5 * MINUTE, floor ?? 0)).toISOString() : null, latest_at: start ? round(start[1]) : null,
           computed_at: now.toISOString(), source_updated_at: signal, basis });
         // Later slots have wider uncertainty; no fabricated precision from missing live data.
-        const duration = queuedDuration(history, m.category);
+        const duration = queuedDuration(history, m);
         end = start ? [start[0] + duration[0] * MINUTE, start[1] + duration[1] * MINUTE] : null;
       } else { end = null; basis = 'court_order'; signal = null; }
     }
