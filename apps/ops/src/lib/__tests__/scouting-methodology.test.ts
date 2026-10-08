@@ -11,6 +11,37 @@ function point(overrides:Partial<TimelinePoint>={}):TimelinePoint{
 }
 
 describe('versioned scouting methodology',()=>{
+ it('splits explicit assisted winners equally in v1.3 while retaining earlier versions',()=>{
+  for(const [pressure,expected] of [[{},0.55],[{breakPoint:'a'},0.8],[{setPoint:{a:true,b:false}},1.05],[{matchPoint:{a:true,b:false}},1.3]] as const){
+   const p=point({...pressure,assistBy:1})
+   const result=methodologyAnalysis([p],'v1.3')
+   expect(result.series[0].values).toEqual([expected,expected,0,0])
+   expect(result.players.map(p=>p.generatedPoints)).toEqual([1,0,0,0])
+   const old=methodologyAnalysis([p],'v0.3')
+   expect(result.players.reduce((sum,p)=>sum+p.impact,0)).toBeCloseTo(old.players.reduce((sum,p)=>sum+p.impact,0))
+   expect(old.players[1].impact).toBe(0.05)
+  }
+  expect(methodologyAnalysis([point({player:3,assistBy:2,winner:'b'})]).series[0].values).toEqual([0,0,0.55,0.55])
+ })
+ it('keeps full winner credit with absent, self, opposing or invalid assist attribution',()=>{
+  for(const assistBy of [undefined,0,2,3,-1,4,1.5] as const){
+   expect(methodologyAnalysis([point({assistBy:assistBy as TimelinePoint['assistBy']})]).series[0].values).toEqual([1.05,0.05,0,0])
+  }
+  for(const outcome of ['unforced','forced','double_fault']){
+   const p=point({outcome,assistBy:1,winner:'b'})
+   expect(methodologyAnalysis([p]).series).toEqual(methodologyAnalysis([p],'v0.3').series)
+  }
+ })
+ it('exports v1.3 rules and removes undone assisted winners from recalculation',()=>{
+  const events:Event[]=[{id:'one',at:'2026-10-07T10:00:00Z',kind:'point',player:0,outcome:'winner',assistBy:1,smash:false}]
+  const doc={...freshDoc(),events},out=sessionExport('match',[],1,doc)
+  expect(out.playerImpact.methodology.id).toBe('v1.3')
+  expect(out.playerImpact.rules).toMatchObject({winner:1,assistedWinner:0.5,assist:0.5,pairPointBonus:0.05})
+  expect(out.playerImpact.players.map(p=>p.impact)).toEqual([0.55,0.55,0,0])
+  expect(out.playerEvolution).toEqual([{number:1,values:[1,0,0,0]}])
+  const undone={...doc,events:[...events,{id:'undo',at:'2026-10-07T10:00:01Z',kind:'undo'} as Event]}
+  expect(sessionExport('match',[],2,undone).playerImpact.players.map(p=>p.impact)).toEqual([0,0,0,0])
+ })
  it('uses the highest overlapping pressure, not stacked multipliers',()=>{
   const p=point({before:{...replay(freshDoc()).score,phase:'tiebreak'},breakPoint:'a',star:true,setPoint:{a:true,b:false},matchPoint:{a:true,b:false}})
   expect(pointWeight(p)).toBe(2.5)
