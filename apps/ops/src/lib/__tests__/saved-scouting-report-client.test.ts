@@ -32,3 +32,11 @@ it('shows sync guidance for empty sessions and a retry for server failures',asyn
  fireEvent.click(screen.getByRole('button',{name:'Refresh server copy'}))
  expect(await screen.findByRole('alert')).toHaveProperty('textContent','Sign in to admin as an operator.')
 })
+it('reads private scouting insights and metadata without querying public matches or creating records',async()=>{
+ const fetch=vi.fn(async(_url:string)=>Response.json({session:row,match:{match_date:'2018-10-08',tournament_label:'Historical replay'}}));vi.stubGlobal('fetch',fetch)
+ render(createElement(SavedScoutingReport,{matchId:'private',manual:true}));await screen.findByText('Match finished')
+ expect(screen.getByText(/Private scouting · manually created · 2018-10-08 · Historical replay/)).toBeTruthy()
+ expect(screen.getByRole('link',{name:'← Private scouting matches'}).getAttribute('href')).toBe('/scouting/matches')
+ expect(fetch).toHaveBeenCalledTimes(1);expect(fetch.mock.calls[0][0]).toBe('/api/internal/manual-video-scouting/private')
+ expect(screen.queryByRole('link',{name:'Open admin scouting'})).toBeNull()
+})

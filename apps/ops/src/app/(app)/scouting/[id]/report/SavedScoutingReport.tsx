@@ -11,35 +11,37 @@ import styles from '../scout.module.css'
 import layout from './report.module.css'
 
 type Report=ReturnType<typeof savedReport>
-export default function SavedScoutingReport({matchId}:{matchId:string}){
+export default function SavedScoutingReport({matchId,manual=false}:{matchId:string;manual?:boolean}){
+ const [privateMatch,setPrivateMatch]=useState<{match_date?:string;tournament_label?:string}|null>(null)
  const [methodology,setMethodology]=useState<MethodologyId>(DEFAULT_METHODOLOGY)
  const [report,setReport]=useState<Report|null>(null),[loading,setLoading]=useState(true),[error,setError]=useState(''),[attempt,setAttempt]=useState(0)
  useEffect(()=>{
   const controller=new AbortController();let active=true
-  setLoading(true);setReport(null);setError('')
+  setLoading(true);setReport(null);setPrivateMatch(null);setError('')
   async function load(){
-   for(const source of ['video','admin'] as const){
-    const path=source==='video'?'video-scouting':'scouting'
+   for(const source of (manual?['video']:['video','admin']) as ('video'|'admin')[]){
+    const path=source==='video'?(manual?'manual-video-scouting':'video-scouting'):'scouting'
     const response=await fetch(`/api/internal/${path}/${encodeURIComponent(matchId)}`,{cache:'no-store',signal:controller.signal})
     const data=await response.json()
     if(!response.ok)throw Error(data.error||'Could not load saved scouting.')
+    if(active&&manual)setPrivateMatch(data.match??null)
     if(data.session){if(active)setReport(savedReport(data.session as SavedSession,source));return}
    }
   }
   load().catch(e=>{if(active)setError(e instanceof Error?e.message:'Could not load saved scouting.')}).finally(()=>{if(active)setLoading(false)})
   return()=>{active=false;controller.abort()}
- },[matchId,attempt])
+ },[matchId,manual,attempt])
  function download(content:string,extension:'json'|'csv'){
   const url=URL.createObjectURL(new Blob([content],{type:extension==='json'?'application/json':'text/csv;charset=utf-8'}))
   const a=document.createElement('a');a.href=url;a.download=`scouting-${matchId}.${extension}`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
  }
  const video=report?.videoReport
  return <main className={layout.page}>
-  <header className={layout.header}><div><Link href="/tournament-explorer">← Tournament Explorer</Link><h1>Scouting report & insights</h1></div>
+  <header className={layout.header}><div><Link href={manual?"/scouting/matches":"/tournament-explorer"}>{manual?"← Private scouting matches":"← Tournament Explorer"}</Link><h1>Scouting report & insights</h1>{manual&&<p>Private scouting · manually created{privateMatch?.match_date?" · "+privateMatch.match_date:""}{privateMatch?.tournament_label?" · "+privateMatch.tournament_label:""}</p>}</div>
    <div className={styles.tools}><Link href="/scouting/methodology">Calculation methodologies</Link><Button size="sm" onClick={()=>setAttempt(n=>n+1)} disabled={loading}>Refresh server copy</Button>
-   {report&&<><Button size="sm" onClick={()=>download(JSON.stringify({...sessionExport(matchId,report.players,report.revision,report.doc,methodology),source:report.source,timestampBasis:report.source==='video'?'Video position encoded as UTC from the Unix epoch; not wall-clock match time.':'Recorded wall-clock time.',originalDocument:report.original,videoReport:video},null,2),'json')}>Export all data (JSON)</Button><Button size="sm" onClick={()=>download(pointsCsv(report.players,report.doc),'csv')}>Export points (CSV)</Button></>}</div>
+   {report&&<><Button size="sm" onClick={()=>download(JSON.stringify({...sessionExport(matchId,report.players,report.revision,report.doc,methodology),source:report.source,...(manual?{privateMatch,visibility:"private-scouting"}:{}),timestampBasis:report.source==='video'?'Video position encoded as UTC from the Unix epoch; not wall-clock match time.':'Recorded wall-clock time.',originalDocument:report.original,videoReport:video},null,2),'json')}>Export all data (JSON)</Button><Button size="sm" onClick={()=>download(pointsCsv(report.players,report.doc),'csv')}>Export points (CSV)</Button></>}</div>
   </header>
-  {loading?<p role="status">Loading saved match data…</p>:error?<p role="alert">{error}</p>:!report?<section className={`ui-panel ${styles.chartPanel}`}><h2>No saved scouting for this match</h2><p>In the extension, select this match and use Sync now. Wait for “Saved to server”, then refresh this report.</p><Link className="ui-btn" href={`/scouting/${matchId}`}>Open admin scouting</Link></section>:<>
+  {loading?<p role="status">Loading saved match data…</p>:error?<p role="alert">{error}</p>:!report?<section className={`ui-panel ${styles.chartPanel}`}><h2>No saved scouting for this match</h2><p>In the extension, select this match and use Sync now. Wait for “Saved to server”, then refresh this report.</p>{manual?<p>Open this match from Saved scouting sessions in the extension to begin.</p>:<Link className="ui-btn" href={`/scouting/${matchId}`}>Open admin scouting</Link>}</section>:<>
    <section className={`ui-panel ${styles.chartPanel}`} aria-label="Saved match summary">
     <div className={styles.tools}><h2>{report.players.slice(0,2).map(p=>p.name).join(' / ')} vs {report.players.slice(2).map(p=>p.name).join(' / ')}</h2><Pill tone={report.model.score.phase==='finished'?'lime':'warn'}>{report.model.score.phase==='finished'?'Match finished':'Scouting in progress'}</Pill></div>
     <p><strong>Scouting score: {report.model.score.sets.map(s=>`${s.a}–${s.b}`).join(', ')}</strong> · {report.model.points} points observed{video?` · ${video.shotTracking.shots} shot taps · ${video.varReviews} VAR reviews`:''}</p>

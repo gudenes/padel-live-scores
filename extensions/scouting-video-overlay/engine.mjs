@@ -1,4 +1,5 @@
 import {validateVideoState,videoPayload} from './server-model.mjs';
+import {manualInput} from './manual-match.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference,usable,sameMedia} from './core.mjs';
 import {defaults,match,validateSetup,validatePoint,validateSmashType,courtPlayers} from './match.mjs';
@@ -11,9 +12,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
       state.setup??=defaults();
       const undoable=new Set(['restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
-      const save=async()=>{
+      const save=async(context={})=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
-        await write(state,{type:message.type});return {state};
+        await write(state,{type:message.type,...context});return {state};
       };
       switch(message.type){
         case 'state':return {state};
@@ -67,6 +68,35 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           const active=result.matches.find(m=>m.id===state.selectedMatch?.id);
           if(active&&JSON.stringify(active.playerIds)===JSON.stringify(state.selectedMatch.playerIds)&&JSON.stringify(active.names)===JSON.stringify(state.selectedMatch.names))state.selectedMatch.players=active.players;
           return save();
+        }
+        case 'search-players':return catalog({kind:'search-players',query:String(message.query??'').slice(0,80)});
+        case 'manual-matches':{
+          const result=await catalog({kind:'manual-matches'});state.manualMatches=result.matches;return save();
+        }
+        case 'create-manual':{
+          if(state.pending)throw Error('Save or cancel the current rally before creating another match.');
+          const input=manualInput(message.input);
+          const draft=state.manualDraft;
+          state.manualDraft={...input,id:draft&&JSON.stringify(manualInput(draft))===JSON.stringify(input)?draft.id:uuid()};
+          // Keep the creation ID on disk before sending: retrying a lost response is safe.
+          await write(state,{type:'manual-draft'});
+          const result=await catalog({kind:'create-manual',input:state.manualDraft});
+          const selected=result.match;if(!selected?.id||selected.kind!=='manual')throw Error('The private match was not confirmed. Retry safely.');
+          state.manualMatches=[selected,...(state.manualMatches??[]).filter(m=>m.id!==selected.id)];
+          state.sessions??={};
+          if(state.selectedMatch)state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[]};
+          Object.assign(state,{setup:validateSetup({...defaults(),names:selected.names}),label:selected.tournamentName,rallies:[],cancelled:[],history:[],selectedMatch:selected,connection:null,pending:null,manualDraft:null});return save();
+        }
+        case 'resume-session':{
+          if(state.pending)throw Error('Save or cancel the current rally before switching matches.');
+          if(state.selectedMatch?.id===message.matchId)return {state};
+          const saved=state.sessions?.[message.matchId],selected=saved?.selectedMatch??state.manualMatches?.find(m=>m.id===message.matchId);
+          if(!selected)throw Error('This saved session is unavailable. Refresh the list.');
+          state.sessions??={};
+          if(state.selectedMatch)state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[]};
+          const remote=!saved&&selected.kind==='manual'?(await catalog({kind:'manual-session',matchId:selected.id})).session:null;
+          const restored=remote?validateVideoState(remote.document):null;if(restored?.pending){restored.cancelled.push({...restored.pending,cancelledAt:new Date().toISOString()});restored.pending=null;}
+          Object.assign(state,saved??restored??{setup:validateSetup({...defaults(),names:selected.names}),label:selected.tournamentName,rallies:[],cancelled:[],history:[]});state.selectedMatch=selected;state.connection=null;state.pending=null;return save(remote?{remote:{kind:'manual',payload:remote.document,revision:remote.revision,savedAt:remote.updated_at}}:{});
         }
         case 'select-match':{
           if(state.pending)throw Error('Finish or cancel the current rally before switching matches.');
