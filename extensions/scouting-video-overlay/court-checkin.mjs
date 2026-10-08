@@ -17,7 +17,7 @@ export function courtCheckinUI({$,act,storage=globalThis.localStorage}){
   $('serving-tools').hidden=!state.selectedMatch||finished;
   $('serving-name').textContent=names[model.server];
   $('change-server').disabled=locked;$('quick-server').disabled=locked;
-  $('change-server').title=state.pending?'Finish or cancel the rally before changing server.':'Change server';
+  $('change-server').title=`Serving: ${names[model.server]}${state.pending?' · Finish or cancel the rally before changing server.':''}`;
   $('undo-checkin').hidden=!state.selectedMatch||!complete||finished;$('undo-checkin').disabled=busy;
   const sk=JSON.stringify([names,model.server]);
   if(sk!==serverKey){serverKey=sk;$('quick-server').replaceChildren(...names.map((name,i)=>new Option(name,i)));$('quick-server').value=model.server;}
