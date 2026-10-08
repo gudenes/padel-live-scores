@@ -133,3 +133,13 @@ The hamburger menu holds match/video setup, saved sessions, video/court tools, k
 The header’s thin lime line shows finishing-stroke completeness without taking a separate row. Open **Recording completeness** from the menu for counts and save status. The user icon opens **Sync & backup** and shows the connected account. **Open match report in admin** opens the selected official or private match’s report in a new tab; reports contain the last confirmed server copy, so sync waiting changes first.
 
 Account icon: Google Material Icons Outlined, account_circle (Apache 2.0), https://github.com/google/material-design-icons.
+
+## Match setup wizard
+
+Find a match or Create private match in the header menu opens Match → Video → Court → Ready. Today is the default: canonical matches whose scheduled time falls between the operator device’s local midnight and the next midnight. No tournament-start-date guessing; undated matches are available through Other matches search. Search matches across players/tournaments; results are capped and the UI asks for a narrower query when capped. Only authenticated operators can access `/api/internal/scouting-catalog`.
+
+Court suggestions use stored `players.side`, mirroring the far end relative to the camera. Missing or conflicting preferences are called out for manual confirmation. Swap either pair or switch ends diagonally. Country flags, country names and available rankings use stored profile metadata. No invented rankings or preferences.
+
+Confirm the first server; the other team’s server may be “I don’t know yet”. It persists as an explicit setup flag. The engine blocks starting/restarting their service rally until confirmed, confirmation is undoable, and server validation rejects points recorded while that server is unresolved. Existing numeric serving order remains an internal replay placeholder only until confirmation. Existing saved sessions bypass fresh score setup and resume their records. Starting score and court settings commit together, before any recorded points.
+
+Rollout requires the admin API update (`optional-server-v1`) before extension reload. Until supported, the durable sync queue retains the setup locally and retries; older servers cannot silently discard the unknown-server flag. No schema migration or public-app release. Back up extension storage before installation; this change does not erase or reset saved sessions.

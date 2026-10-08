@@ -11,7 +11,7 @@ export function playerProfile(state, index) {
 }
 export function playerIdentity(name, profile, document=globalThis.document) {
  const identity=document.createElement('span');identity.className='player-identity';
- if(profile.country){const flag=document.createElement('span');flag.className='player-flag';flag.textContent=String.fromCodePoint(...[...profile.country].map(c=>127397+c.charCodeAt(0)));let country=profile.country;try{country=new Intl.DisplayNames(['en'],{type:'region'}).of(profile.country)}catch{}flag.setAttribute('role','img');flag.setAttribute('aria-label',country);flag.title=country;identity.append(flag);}
+ if(profile.country){const flag=document.createElement('span');flag.className='player-flag';flag.textContent=String.fromCodePoint(...[...profile.country].map(c=>127397+c.charCodeAt(0)));let country=profile.country;try{country=new Intl.DisplayNames(['en'],{type:'region'}).of(profile.country)}catch{}flag.setAttribute('role','img');flag.setAttribute('aria-label',country);flag.title=country;identity.append(flag);const countryLabel=document.createElement('small');countryLabel.className='player-country';countryLabel.textContent=country;identity.append(countryLabel);}
  const label=document.createElement('span');label.className='player-name';label.textContent=name;identity.append(label);
  if(profile.ranking){const rank=document.createElement('span');rank.className='player-ranking';rank.textContent='#'+profile.ranking;rank.title='Ranking from admin player profile';rank.setAttribute('aria-label','Ranking '+profile.ranking);identity.append(rank);}
  return identity;

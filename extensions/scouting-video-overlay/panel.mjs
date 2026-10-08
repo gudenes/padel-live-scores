@@ -1,3 +1,4 @@
+import {onboardingUI} from './onboarding-ui.mjs';
 import {adminReportUrl} from './report-link.mjs';
 import {manualUI} from './manual-ui.mjs';
 import {shortcutSettings} from './shortcut-settings.mjs';
@@ -15,6 +16,8 @@ const renderCatalog=catalogUI({$,act,getState:()=>state});
 const renderScouting=scoutingUI({$,act,getState:()=>state});
 const renderProgress=progressUI($);
 const renderManual=manualUI({$,act,call,getState:()=>state});
+const renderOnboarding=onboardingUI({$,act,getState:()=>state,manual:renderManual});
+renderManual.wizard=mode=>renderOnboarding.open(mode);
 function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Math.floor(seconds);return `${Math.floor(s/3600)?`${Math.floor(s/3600)}:`:''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function render(){
   if(!state)return;
@@ -79,7 +82,7 @@ function render(){
     }));
   }
   document.body.classList.toggle('scouting',!!state.selectedMatch);
-  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);
+  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);
 }
 async function call(message){const result=await transport(message);if(!result?.ok)throw Error(result?.error??'The companion is unavailable. Reopen its panel.');return result;}
 async function refresh(){
@@ -92,8 +95,8 @@ async function refresh(){
 }
 async function act(message){
   if(busy)return {ok:false,error:'Another action is being saved. Try again.'};let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match','create-manual','resume-session'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
-  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match'){renderManual.find();$('catalog-feedback').textContent='Previous match saved on this device. Choose another match.';}if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect'){$('connection-feedback').textContent='Video connected. The clock below follows playback.';document.dispatchEvent(new Event('pn-video-connected'));}$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
-  catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){renderManual.open('setup');$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){renderManual.open('setup');$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
+  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true,...result};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match'){renderManual.find();$('catalog-feedback').textContent='Previous match saved on this device. Choose another match.';}if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect'){$('connection-feedback').textContent='Video connected. The clock below follows playback.';document.dispatchEvent(new Event('pn-video-connected'));}$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
+  catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){if(!renderOnboarding.isOpen())renderManual.open('setup');$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){if(!renderOnboarding.isOpen())renderManual.open('setup');$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{busy=false;render();await refresh();}
   return actionResult;
 }
@@ -116,7 +119,7 @@ $('label').addEventListener('change',async()=>{
   try{await call({type:'label',label:$('label').value});}catch(error){$('message').textContent=error.message;}
 });
 document.addEventListener('keydown',event=>{
-  if($('scouting-menu').open)return;
+  if($('scouting-menu').open||renderOnboarding.isOpen())return;
   if(event.code!=='Space'||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.isComposing||event.target.closest('input,textarea,select,button,summary,[contenteditable="true"]'))return;
   event.preventDefault();if(!$('rally').disabled)$('rally').click();
 });

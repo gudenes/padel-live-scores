@@ -93,6 +93,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message.type==='account-status'){const auth=await account.check(true);if(auth.status==='connected')scheduleSync();return {auth};}
   if(message.type==='sign-in'){await chrome.tabs.create({url:ADMIN_ORIGIN+'/login'});return {auth:{status:'signing-in'}};}
   if(message.type==='search-players'){return {players:(await dispatch({type:'search-players',query:message.query})).players};}
+  if(message.type==='open-video-link'){const url=new URL(message.url);if(!['https:','http:'].includes(url.protocol)||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname)||url.username||url.password)throw Error('Enter a valid YouTube link.');const {state}=await dispatch({type:'state'});if(state.pending)throw Error('Finish the rally first.');await chrome.tabs.create({url:url.href});return {state};}
   if(message.type==='open-video'){const {state}=await dispatch({type:'state'});const link=state.selectedMatch?.videoUrl;if(!link||!/^https?:\/\//.test(link))throw Error('No video link is saved.');await chrome.tabs.create({url:link});return {state};}
   if(message.type==='get-shortcuts'){return {bindings:await savedBindings()};}
   if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await savedBindings();await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return {bindings};}

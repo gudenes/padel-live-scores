@@ -19,7 +19,7 @@ export function manualUI({$,act,call,getState}){
  $('mode-find').onclick=()=>showMode('find');$('mode-create').onclick=()=>showMode('create');
  for(const button of document.querySelectorAll('[data-menu]'))button.onclick=()=>{
   lastMenuButton=button;const target=button.dataset.menu;
-  if(target==='find'||target==='create')showMode(target);
+  if(target==='find'||target==='create'){if(render.wizard)render.wizard(target);else showMode(target);}
   else{openView(target);if(target==='saved')act({type:'manual-matches'});}
  };
  $('close-sessions').onclick=()=>{navigation();lastMenuButton?.focus();};
@@ -49,9 +49,9 @@ export function manualUI({$,act,call,getState}){
   event.preventDefault();$('manual-error').textContent='';
   for(let i=0;i<4;i++){$('manual-player-results-'+i).replaceChildren();versions[i]++;clearTimeout(timers[i]);}
   const input={players:chosen.map((id,i)=>({id,name:$('manual-player-'+i).value})),matchDate:$('manual-date').value,tournamentLabel:$('manual-tournament').value,videoUrl:$('manual-video').value};
-  const result=await act({type:'create-manual',input});
-  if(result.ok){$('manual-match-form').reset();chosen.fill(null);for(let i=0;i<4;i++)$('manual-player-hint-'+i).textContent='Type a name or choose an existing player.';restoredDraft='';showMode('find');$('catalog-panel').open=false;reveal($('video-panel'));$('connection-feedback').textContent='Private match created. Open your video, click the extension icon there, then Connect video.';}
-  else{$('manual-error').textContent=result.error;reveal($('manual-error'));}
+  const result=await act({type:'create-manual',wizard:document.body.classList.contains('onboarding-active'),input});
+  if(result.ok){if(document.body.classList.contains('onboarding-active')){document.dispatchEvent(new Event('pn-private-created'));return;}$('manual-match-form').reset();chosen.fill(null);for(let i=0;i<4;i++)$('manual-player-hint-'+i).textContent='Type a name or choose an existing player.';restoredDraft='';showMode('find');$('catalog-panel').open=false;reveal($('video-panel'));$('connection-feedback').textContent='Private match created. Open your video, click the extension icon there, then Connect video.';}
+  else{$('manual-error').textContent=result.error;if(!document.body.classList.contains('onboarding-active'))reveal($('manual-error'));}
  };
  function render(state,busy){
   const locked=busy||!!state.pending;

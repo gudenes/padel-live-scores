@@ -1,6 +1,7 @@
 // A device-local preparation checklist, separate from scored actions.
 export function courtCheckinUI({$,act,storage=globalThis.localStorage}){
  let token='',confirmed=[],lastPlayer=3,current,serverKey='';
+ document.addEventListener('pn-court-confirmed',()=>{confirmed=[true,true,true,true];lastPlayer=3;persist();paint()});
  const persist=()=>{try{storage?.setItem(token,JSON.stringify({confirmed,lastPlayer}));}catch{}};
  $('undo-checkin').onclick=()=>{confirmed[lastPlayer]=false;persist();paint();};
  const picker=visible=>{$('quick-server-picker').hidden=!visible;$('change-server').setAttribute('aria-expanded',String(visible));};
