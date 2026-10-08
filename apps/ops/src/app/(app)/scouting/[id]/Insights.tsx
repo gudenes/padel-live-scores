@@ -5,7 +5,7 @@ import {replay,type ScoutDoc} from '@/lib/scouting/model'
 import {formatDuration} from '@/lib/scouting/tracking'
 import type {ScoutPerson} from '@/lib/scouting/export'
 import {setSegments,scopedStats,teamSummary} from '@/lib/scouting/insights'
-import {DEFAULT_METHODOLOGY,methodologies,methodologyAnalysis,type MethodologyId} from '@/lib/scouting/methodology'
+import {DEFAULT_METHODOLOGY,methodologies,methodologyAnalysis,playerScoreScale,type MethodologyId} from '@/lib/scouting/methodology'
 import {shots,type Shot} from '@/lib/scouting/shots'
 import styles from './scout.module.css'
 function Avatar({person}:{person:ScoutPerson}){
@@ -27,6 +27,7 @@ export default function Insights({model,players,doc,reviewedPointIds=[],methodol
  const series=analysis.series
  const selectedAnalysis=useMemo(()=>methodologyAnalysis(points.slice(0,index+1),methodId),[points,index,methodId])
  const method=analysis.methodology
+ const scoreScale=playerScoreScale(methodId)
  const snapshot=useMemo(()=>scopedStats(doc,allPoints,points.slice(0,index+1)),[doc,allPoints,points,index])
  const teams=useMemo(()=>teamSummary(points.slice(0,index+1),snapshot),[points,index,snapshot])
  const values=chart==='players'?series.flatMap(p=>p.values):points.map(p=>p.lead)
@@ -40,7 +41,7 @@ export default function Insights({model,players,doc,reviewedPointIds=[],methodol
   <section className={`ui-panel ${styles.chartPanel}`} aria-label="Scoring methodology">
    <label className={styles.methodologySelect}>Methodology<select value={methodId} onChange={e=>(onMethodologyChange??setLocalMethodology)(e.target.value as MethodologyId)}>{methodologies.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select></label>
    <p>{method.description} {method.weighted&&'Double faults −1. Pressure: regular ×1; break, Star Point or tiebreak ×1.5; set ×2; match ×2.5. Use the highest multiplier only; the shared bonus is never multiplied.'}</p>
-   {method.weighted&&<p>Player Score = 6 + 0.25 × impact per 100 weighted observed points, bounded to 1–10. Experimental: 6 is a neutral balance, not a calibrated average. Scores cover the selected point range; the graph shows accumulated impact, not a score out of 10.</p>}
+   {method.weighted&&<p>Player Score = {scoreScale.neutral} + {scoreScale.sensitivity} × impact per 100 weighted observed points, bounded to 1–10. Experimental: {scoreScale.neutral} is a neutral balance, not a calibrated average. Scores cover the selected point range; the graph shows accumulated impact, not a score out of 10.</p>}
    {method.creationCredit>0&&analysis.coverage.attributedForcedErrors<analysis.coverage.forcedErrors&&<p role="status">Forced-error creation coverage: {analysis.coverage.attributedForcedErrors}/{analysis.coverage.forcedErrors}. Missing creators receive no inferred credit; older sessions may have incomplete coverage.</p>}
    {!!analysis.coverage.unclassifiedPoints&&<p>{analysis.coverage.unclassifiedPoints} points have no player attribution. They count in the observed denominator and shared bonus, but receive no individual action credit.</p>}
   </section>
