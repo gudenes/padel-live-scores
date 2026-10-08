@@ -1,3 +1,4 @@
+import {closingUI} from './closing-ui.mjs';
 import {onboardingUI} from './onboarding-ui.mjs';
 import {adminReportUrl} from './report-link.mjs';
 import {manualUI} from './manual-ui.mjs';
@@ -18,6 +19,7 @@ const renderProgress=progressUI($);
 const renderManual=manualUI({$,act,call,getState:()=>state});
 const renderOnboarding=onboardingUI({$,act,getState:()=>state,manual:renderManual});
 renderManual.wizard=mode=>renderOnboarding.open(mode);
+const renderClosing=closingUI({$,act,manual:renderManual,onboarding:renderOnboarding,demo});
 function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Math.floor(seconds);return `${Math.floor(s/3600)?`${Math.floor(s/3600)}:`:''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function render(){
   if(!state)return;
@@ -82,7 +84,7 @@ function render(){
     }));
   }
   document.body.classList.toggle('scouting',!!state.selectedMatch);
-  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);
+  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);renderClosing(state,model,cloud,busy);
 }
 async function call(message){const result=await transport(message);if(!result?.ok)throw Error(result?.error??'The companion is unavailable. Reopen its panel.');return result;}
 async function refresh(){
