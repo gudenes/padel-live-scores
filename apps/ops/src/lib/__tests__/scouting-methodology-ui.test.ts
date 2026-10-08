@@ -12,18 +12,21 @@ const doc={...freshDoc(),events:[
  {id:'two',at:'2026-10-07T10:00:01Z',kind:'point',player:2,outcome:'forced',forcedBy:1,smash:false},
 ] as Event[]}
 
-it('defaults to v1.3 and switches graphs and derived scores without changing raw winners',()=>{
+it('defaults to v1.4 and switches graphs and derived scores without changing raw winners',()=>{
  render(createElement(Insights,{model:replay(doc),doc,players}))
  const select=screen.getByRole('combobox',{name:'Methodology'}) as HTMLSelectElement
- expect(select.value).toBe('v1.3')
- expect(screen.getAllByRole('img',{name:/Player Score/})).toHaveLength(4)
- expect(screen.getByRole('img',{name:/Four-player evolution · v1.3/})).toBeTruthy()
+ expect(select.value).toBe('v1.4')
+ expect(screen.getByText(/Player Score = 5 \+ 0.35/)).toBeTruthy()
+ expect(screen.getAllByRole('img',{name:/^Player Score (?:[0-9]|not available)/})).toHaveLength(4)
+ expect(screen.getByRole('img',{name:/Four-player evolution · v1.4/})).toBeTruthy()
+ fireEvent.change(select,{target:{value:'v1.3'}})
+ expect(screen.getByText(/Player Score = 6 \+ 0.25/)).toBeTruthy()
  fireEvent.change(select,{target:{value:'net-actions'}})
- expect(screen.queryAllByRole('img',{name:/Player Score/})).toHaveLength(0)
+ expect(screen.queryAllByRole('img',{name:/^Player Score (?:[0-9]|not available)/})).toHaveLength(0)
  expect(screen.getByRole('img',{name:/Four-player evolution · Original/})).toBeTruthy()
  expect(screen.getAllByText('Winners')).toHaveLength(6)
  fireEvent.change(select,{target:{value:'v0.2'}})
- expect(screen.getAllByRole('img',{name:/Player Score/})).toHaveLength(4)
+ expect(screen.getAllByRole('img',{name:/^Player Score (?:[0-9]|not available)/})).toHaveLength(4)
  fireEvent.change(screen.getByRole('slider',{name:'Explore match point'}),{target:{value:'1'}})
  expect(screen.getByText('Player stats · through point 1')).toBeTruthy()
 })
