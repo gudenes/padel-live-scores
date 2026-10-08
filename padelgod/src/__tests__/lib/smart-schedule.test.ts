@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeSmartSchedule, remainingMinutes, historicalPace, localPlayDay, type ScheduleMatch } from '../../lib/smart-schedule.js';
+import { computeSmartSchedule, remainingMinutes, historicalPace, localPlayDay, calibrationHistory, turnaroundWindow, queuedDuration, type ScheduleMatch } from '../../lib/smart-schedule.js';
 const now = new Date('2026-10-08T10:00:00Z');
 function row(id: string, order: number, overrides: Partial<ScheduleMatch> = {}): ScheduleMatch {
   return { id, tournament_id: 't', court: 'Central', court_order: order, status: 'scheduled', scheduled_at: '2026-10-08T10:00:00Z', started_at: null, finished_at: null, duration: null, schedule_label: 'Followed by', updated_at: now.toISOString(), sets: null, tournament: { timezone: 'Europe/Berlin' }, ...overrides };
@@ -104,5 +104,123 @@ describe('remaining play time', () => {
   });
   it('does not train on placeholder-only finished matches', () => {
     expect(historicalPace([live({ status: 'finished', started_at: null })])).toEqual([]);
+  });
+});
+
+function historical(
+  id: string,
+  overrides: Partial<ScheduleMatch> = {}
+): ScheduleMatch {
+  return row(id, 1, {
+    status: "finished",
+    last_updated_by: "padelgod",
+    started_at: "2026-09-01T08:00:00Z",
+    scheduled_at: "2026-09-01T08:00:00Z",
+    duration: "01:00",
+    category: "men",
+    tournament: { timezone: "Europe/Berlin", level: "p1" },
+    sets: [
+      { set_number: 1, pair1_games: 6, pair2_games: 4, is_current: false },
+      { set_number: 2, pair1_games: 6, pair2_games: 4, is_current: false },
+    ],
+    ...overrides,
+  });
+}
+function turnarounds(
+  gap: number,
+  count: number,
+  level = "p1"
+): ScheduleMatch[] {
+  return Array.from({ length: count }, (_, i) => {
+    const a = historical(`a-${level}-${i}`, {
+      court: `court-${level}-${i}`,
+      tournament: { timezone: "Europe/Berlin", level },
+    });
+    const start = new Date(
+      Date.parse(a.started_at!) + (60 + gap) * 60000
+    ).toISOString();
+    return [
+      a,
+      historical(`b-${level}-${i}`, {
+        court: a.court,
+        court_order: 2,
+        started_at: start,
+        scheduled_at: start,
+        category: "women",
+        tournament: a.tournament,
+      }),
+    ];
+  }).flat();
+}
+describe("historical calibration", () => {
+  it("rejects imported starts, date placeholders, invalid durations and large date offsets", () => {
+    const good = historical("good");
+    expect(
+      calibrationHistory([
+        good,
+        historical("import", { last_updated_by: null }),
+        historical("date", {
+          scheduled_at: "2026-09-01T00:00:00Z",
+          started_at: "2026-09-01T00:05:00Z",
+          schedule_label: null,
+        }),
+        historical("wrong-day", { scheduled_at: "2026-09-03T08:00:00Z" }),
+        historical("bad-duration", { duration: "20:15" }),
+      ])
+    ).toEqual([good]);
+    expect(
+      historicalPace([historical("import", { last_updated_by: null })])
+    ).toEqual([]);
+  });
+  it("learns cross-category court turnaround and uses the same interval in forecasts", () => {
+    const history = turnarounds(18, 30);
+    const target = row("next", 2, {
+      tournament: { timezone: "Europe/Berlin", level: "p1" },
+    });
+    expect(turnaroundWindow(history, target)).toEqual([18, 18]);
+    const forecast = computeSmartSchedule(
+      [live({ status: "finished" }), target],
+      history,
+      now
+    ).get("next");
+    expect(forecast?.earliest_at).toBe("2026-10-08T10:15:00.000Z");
+    expect(forecast?.latest_at).toBe("2026-10-08T10:20:00.000Z");
+  });
+  it("backs off small circuit samples and excludes overlaps, duplicate order and session breaks", () => {
+    const target = row("next", 2, {
+      tournament: { timezone: "Europe/Berlin", level: "p2" },
+    });
+    expect(
+      turnaroundWindow(
+        [...turnarounds(18, 30), ...turnarounds(25, 2, "p2")],
+        target
+      )
+    ).toEqual([18, 18]);
+    expect(
+      turnaroundWindow([...turnarounds(-5, 35), ...turnarounds(90, 35)], target)
+    ).toEqual([12, 25]);
+    const ambiguous = turnarounds(18, 30).flatMap((m) =>
+      m.court_order === 1 ? [m, { ...m, id: m.id + "duplicate" }] : [m]
+    );
+    expect(turnaroundWindow(ambiguous, target)).toEqual([12, 25]);
+  });
+  it("backs off small category duration samples without fitting tournament-level offsets", () => {
+    const fast = Array.from({ length: 40 }, (_, i) => historical(`fast-${i}`));
+    const slow = Array.from({ length: 80 }, (_, i) =>
+      historical(`slow-${i}`, {
+        category: "women",
+        duration: "02:00",
+        tournament: { timezone: "Europe/Berlin", level: "fip_bronze" },
+      })
+    );
+    const target = row("next", 2, {
+      category: "men",
+      tournament: { timezone: "Europe/Berlin", level: "p1" },
+    });
+    expect(queuedDuration([...fast, ...slow], target)).toEqual([60, 60]);
+    expect(queuedDuration([...fast.slice(0, 5), ...slow], target)).toEqual([
+      120, 120,
+    ]);
+    expect(queuedDuration(fast.slice(0, 5), target)).toEqual([60, 120]);
   });
 });
