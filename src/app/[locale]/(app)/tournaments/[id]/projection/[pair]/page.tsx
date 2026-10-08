@@ -10,6 +10,7 @@ import {
   fetchProjectionCategories,
   fetchPlayerNames,
   fetchProjectionTournamentMeta,
+  fetchRoundSchedule,
   type ProjectionCategory,
 } from '@/lib/projection-server'
 import { buildSlugIndex, resolvePairSlug } from '@/lib/projection-slug'
@@ -95,6 +96,7 @@ export default async function ProjectionPairPage({ params }: Props) {
   }
 
   const { pairKeyToSlug } = buildSlugIndex(resolved.rows, resolved.nameById)
+  const roundSchedule = await fetchRoundSchedule(id, resolved.category, meta.round_schedule)
   const showDrawTab = DRAW_TIERS.has(meta.level ?? '')
 
   return (
@@ -113,7 +115,7 @@ export default async function ProjectionPairPage({ params }: Props) {
           category={resolved.category}
           initialPairKey={resolved.row.pair_key}
           tournamentLevel={meta.level}
-          roundSchedule={meta.round_schedule}
+          roundSchedule={roundSchedule}
           pairKeyToSlug={Object.fromEntries(pairKeyToSlug)}
           showDrawTab={showDrawTab}
           tournamentName={meta.name}
