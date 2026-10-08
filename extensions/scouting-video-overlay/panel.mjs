@@ -1,3 +1,4 @@
+import {adminReportUrl} from './report-link.mjs';
 import {manualUI} from './manual-ui.mjs';
 import {shortcutSettings} from './shortcut-settings.mjs';
 import {mediaShortcuts} from './media-shortcuts.mjs';
@@ -21,9 +22,15 @@ function render(){
   $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;$('empty-match-start').hidden=!!state.selectedMatch;
 
   $('account-status').textContent=({checking:'Checking account…',connected:account.email?'Connected · '+account.email:'Connected',offline:'Offline · saved locally','signed-out':'Sign in again · changes saved locally','not-authorized':'Operator account required','update-required':'Admin sign-in update required','signing-in':'Complete sign-in in the opened tab',demo:'Demo account'})[account.status]??'Sign in to Padel Nachos';
+  $('header-account').dataset.status=account.status;
+  $('header-account').title=$('account-status').textContent+' · Account and sync';
+  $('header-account').setAttribute('aria-label',$('header-account').title);
   $('sign-in').hidden=['connected','demo'].includes(account.status);
   $('sign-in').disabled=busy;$('menu-account-status').textContent=$('account-status').textContent;$('menu-sign-in').hidden=$('sign-in').hidden;$('menu-sign-in').disabled=busy;
 
+  const reportUrl=adminReportUrl(state.selectedMatch);$('open-admin-report').hidden=!reportUrl;
+  if(reportUrl)$('open-admin-report').href=reportUrl;else $('open-admin-report').removeAttribute('href');
+  $('report-link-note').textContent=reportUrl?'Report shows the latest server save. Sync local changes first.':'Choose a match to open its report.';
   $('match-identity').textContent=state.selectedMatch?[state.selectedMatch.tournamentName,state.selectedMatch.category,state.selectedMatch.round].filter(Boolean).join(' · '):'Select a match to begin';
   $('save-settings').dataset.sync=cloud.status;
   const recent=state.history?.at(-1),lastPoint=state.rallies.findLast(r=>r.point&&!r.undone),attempt=state.pending?.attempts?.at(-1);

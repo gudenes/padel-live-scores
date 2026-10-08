@@ -16,11 +16,11 @@ test('disclosure keeps its state, uses actual server status and recalculates mil
  const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8')),$=id=>dom.window.document.getElementById(id),render=progressUI($);
  const model={score:{phase:'playing'},tracking:{timeline:[]}},state={selectedMatch:{id:'match'},rallies:Array.from({length:20},()=>point('winner',{shot:'volley'}))};
  render(state,{status:'local'},model);
- assert.equal($('scouting-progress').hidden,false);assert.equal($('scouting-progress').open,false);assert.equal($('progress-bar').value,100);assert.equal($('progress-count').textContent,'20 / 20 strokes');assert.equal($('progress-sync').textContent,'Local copy');assert.equal($('progress-milestone').textContent,'20 points recorded');
+ assert.equal($('scouting-progress').hidden,false);assert.equal($('scouting-progress').open,false);assert.equal($('progress-bar').value,100);assert.equal($('progress-bar').parentElement.tagName,'HEADER');assert.equal($('progress-bar').hidden,false);assert.equal($('progress-count').textContent,'20 / 20 strokes');assert.equal($('progress-sync').textContent,'Local copy');assert.equal($('progress-milestone').textContent,'20 points recorded');
  $('scouting-progress').open=true;render(state,{status:'pending'},model);assert.equal($('scouting-progress').open,true);assert.equal($('progress-sync').textContent,'Waiting for server');assert.doesNotMatch($('progress-save-detail').textContent,/All 20/);
  render(state,{status:'saved'},model);assert.equal($('progress-save-detail').textContent,'All 20 recorded points saved to server');
  state.rallies.at(-1).undone=true;render(state,{status:'error',error:'Disconnected'},model);assert.equal($('progress-milestone').hidden,true);assert.equal($('progress-save-detail').textContent,'Disconnected');
  model.tracking.timeline=[{before:{sets:[{}]},after:{sets:[{},{}],phase:'playing'}}];render(state,{status:'local'},model);assert.equal($('progress-milestone').textContent,'First observed set finished');
  model.score.phase='finished';render(state,{status:'pending'},model);assert.equal($('progress-milestone').textContent,'Match completed · sync pending');render(state,{status:'saved'},model);assert.equal($('progress-milestone').textContent,'Match completed and synced');
- state.selectedMatch=null;render(state,{status:'saved'},model);assert.equal($('scouting-progress').hidden,true);dom.window.close();
+ state.selectedMatch=null;render(state,{status:'saved'},model);assert.equal($('scouting-progress').hidden,true);assert.equal($('progress-bar').hidden,true);dom.window.close();
 });

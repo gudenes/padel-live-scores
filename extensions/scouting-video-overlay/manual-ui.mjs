@@ -2,7 +2,7 @@ export function manualUI({$,act,call,getState}){
  const chosen=Array(4).fill(null),timers=Array(4).fill(null),versions=Array(4).fill(0);
  let restoredDraft='',listKey='',mode='find';
  const menu=$('scouting-menu'),toggle=$('scouting-menu-button'),storage=$('menu-storage'),content=$('menu-content');
- const views={setup:['Match & video setup','connection-settings'],saved:['Saved scouting sessions','saved-sessions-panel'],tools:['Video & court tools','scouting-tools'],shortcuts:['Keyboard shortcuts','shortcut-settings'],bookmarks:['Rally bookmarks','bookmark-settings'],stats:['Detailed stats','advanced-stats'],account:['Sync & backup','account-tools'],finish:['Finish checklist','finish-guide'],help:['Help & limitations','scouting-help']};
+ const views={progress:['Recording completeness','scouting-progress'],setup:['Match & video setup','connection-settings'],saved:['Saved scouting sessions','saved-sessions-panel'],tools:['Video & court tools','scouting-tools'],shortcuts:['Keyboard shortcuts','shortcut-settings'],bookmarks:['Rally bookmarks','bookmark-settings'],stats:['Detailed stats','advanced-stats'],account:['Sync & backup','account-tools'],finish:['Finish checklist','finish-guide'],help:['Help & limitations','scouting-help']};
  let activeView=null,lastMenuButton=null;
  // Move the actual controls, preserving their handlers and state rather than duplicating them.
  for(const [,id] of Object.values(views))storage.append($(id));

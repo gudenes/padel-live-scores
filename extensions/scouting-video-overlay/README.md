@@ -108,7 +108,7 @@ Skipping and speed changes work between rallies; pause remains available during 
 
 ## Extension account and direct sync
 
-Use **Sign in to Padel Nachos** in the account row. Login opens the existing secure admin login in Chrome; Google, email link and password remain handled by admin. The extension reuses the HttpOnly operator session through host-permitted requests, never copies passwords or session cookies into its storage, and does not need an admin tab for catalogue reads or saves. Closing admin, browser restart and extension reload reconnect from that session; expiration requires signing in again. Account connectivity is separate from the server acknowledgement shown in Server saves.
+Use **Sign in to Padel Nachos** from the user icon in the header. Login opens the existing secure admin login in Chrome; Google, email link and password remain handled by admin. The extension reuses the HttpOnly operator session through host-permitted requests, never copies passwords or session cookies into its storage, and does not need an admin tab for catalogue reads or saves. Closing admin, browser restart and extension reload reconnect from that session; expiration requires signing in again. Account connectivity is separate from the server acknowledgement shown in Server saves.
 
 Deploy admin with `/api/internal/scouting-extension/session` before installing this extension build. It issues a short-lived CSRF proof bound to the session user and requesting extension origin; saves still check a live operator session, server feature support and revision conflicts. Same-origin admin writes keep their existing protections. `AUTH_SECRET` is required (already used by admin Auth.js). No database migration or new credentials are needed. The extension requests host access only to `https://admin.padelnachos.com/*`. The durable local scouting records and outbox are preserved and retry after reconnecting; server conflicts still require review. Test real Chrome login, saving with all admin tabs closed, reload/restart, sign-out and offline recovery before rollout.
 
@@ -129,3 +129,7 @@ Undo sits beside VAR review and remains available in the finishing-shot dialog. 
 ### Scouting menu
 
 The hamburger menu holds match/video setup, saved sessions, video/court tools, keyboard shortcuts, rally bookmarks, detailed serve/pressure stats, account sync/backups, finish checklist and help. These open as menu views with Back/Close, without adding lower-page sections to the scouting workspace. An unfinished rally still blocks switching matches. Sync warnings and the finish action remain visible in live feedback; full JSON backups are available under Sync & backup.
+
+The header’s thin lime line shows finishing-stroke completeness without taking a separate row. Open **Recording completeness** from the menu for counts and save status. The user icon opens **Sync & backup** and shows the connected account. **Open match report in admin** opens the selected official or private match’s report in a new tab; reports contain the last confirmed server copy, so sync waiting changes first.
+
+Account icon: Google Material Icons Outlined, account_circle (Apache 2.0), https://github.com/google/material-design-icons.

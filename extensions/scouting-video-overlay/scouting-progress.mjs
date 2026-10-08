@@ -12,7 +12,7 @@ export function scoutingProgress(state){
 
 export function progressUI($){
  return (state,cloud,model)=>{
-  const card=$('scouting-progress');card.hidden=!state.selectedMatch;
+  const card=$('scouting-progress');card.hidden=!state.selectedMatch;$('progress-bar').hidden=card.hidden;
   if(card.hidden)return;
   const p=scoutingProgress(state),saved=cloud.status==='saved';
   $('progress-count').textContent=p.eligible?`${p.detailed} / ${p.eligible} strokes`:p.points?'No strokes to tag':'No points yet';
@@ -20,6 +20,7 @@ export function progressUI($){
   $('progress-bar').setAttribute('aria-valuetext',p.eligible?`${p.detailed} of ${p.eligible} finishing strokes recorded`:'No eligible points recorded');
   const status=({saved:'Saved to server',pending:'Waiting for server',error:'Retry needed',conflict:'Needs attention',local:'Local copy'})[cloud.status]??'Local copy';
   $('progress-sync').textContent=status;card.dataset.sync=cloud.status??'local';
+  $('progress-bar').title=`Recording completeness · ${p.detailed} / ${p.eligible} finishing strokes · ${status}`;
   $('progress-strokes').textContent=`${p.detailed} / ${p.eligible}`;
   $('progress-attribution').textContent=p.forced?`${p.attributed} / ${p.forced}`:'No forced errors yet';
   $('progress-tracked').textContent=`${p.tracked} / ${p.points}`;

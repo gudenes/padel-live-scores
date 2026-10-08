@@ -20,9 +20,10 @@ test('tools move into menu views, with Back and Close preserving the session and
   assert.equal($('menu-storage').contains($('scouting-tools')),true);
   $('scouting-menu-button').click();click('account');assert.equal(menu.open,true);assert.equal($('menu-content').contains($('save-settings')),true);assert.equal($('save-settings').open,true);
   $('menu-back').click();assert.equal($('menu-nav').hidden,false);assert.equal($('menu-storage').contains($('save-settings')),true);
-  for(const [key,id] of [['tools','scouting-tools'],['shortcuts','shortcut-settings'],['stats','advanced-stats'],['bookmarks','bookmark-settings'],['finish','finish-guide'],['help','scouting-help']]){
+  for(const [key,id] of [['progress','scouting-progress'],['tools','scouting-tools'],['shortcuts','shortcut-settings'],['stats','advanced-stats'],['bookmarks','bookmark-settings'],['finish','finish-guide'],['help','scouting-help']]){
    click(key);assert.equal($('menu-content').firstElementChild.id,id);assert.equal($(id).open,true);$('menu-back').click();
   }
+  $('close-menu').click();$('header-account').click();assert.equal(menu.open,true);assert.equal($('menu-content').contains($('save-settings')),true);$('menu-back').click();
   click('create');assert.equal($('menu-content').contains($('manual-match-form')),true);assert.equal($('manual-match-form').hidden,false);
   $('close-menu').click();assert.equal(menu.open,false);assert.equal(document.body.classList.contains('creating-match'),false);assert.equal(document.activeElement,$('scouting-menu-button'));
   assert.deepEqual(state,original);assert.equal(calls.length,0);
