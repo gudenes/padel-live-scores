@@ -62,6 +62,7 @@ export interface MatchesDayMatch {
   round: string | null
   court: string | null
   court_order: number | null
+  smart_schedule?: import('./smart-schedule').SmartScheduleForecast | null
   schedule_label: string | null
   winner_pair: number | null
   pair1_seed: number | null
@@ -124,7 +125,7 @@ const PLAYER_JOIN_FIELDS = `
 
 const MATCH_SELECT = `
   id, status, category, scheduled_at, finished_at, duration, round, court, court_order,
-  schedule_label, winner_pair, late_hint, pair1_seed, pair2_seed,
+  schedule_label, winner_pair, late_hint, smart_schedule, pair1_seed, pair2_seed,
   pred_pair1_prob, pred_model_version, pred_computed_at,
   pair1_player1_name, pair1_player2_name, pair2_player1_name, pair2_player2_name,
   pair1_player1_country, pair1_player2_country, pair2_player1_country, pair2_player2_country,
