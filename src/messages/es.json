@@ -2572,5 +2572,30 @@
     "next": "Siguiente",
     "done": "Entendido",
     "skip": "Saltar guía"
+  },
+  "smartSchedule": {
+    "nextToPlay": "SIGUIENTE EN PISTA",
+    "estimatedIn": "Est. en {min}–{max} min",
+    "afterPrevious": "Tras el partido anterior",
+    "estimatedWindow": "Estimado: {window}",
+    "explanation": "Según el desarrollo del partido y el cambio de pista. El inicio puede variar.",
+    "estimatedStart": "INICIO ESTIMADO EN",
+    "minutesRange": "{min}–{max} min",
+    "clockWindow": "Inicio estimado: {window}",
+    "scheduledAt": "Programado a las {time}",
+    "notBefore": "No antes de las {time}",
+    "followedBy": "A continuación del partido anterior",
+    "previousOnCourt": "Partido anterior en {court}",
+    "live": "En vivo",
+    "finished": "Finalizado",
+    "onCourt": "En pista",
+    "updatedAgo": "Actualizado hace {minutes} min",
+    "waiting": "Esperando la confirmación del inicio",
+    "unavailable": "Estimación no disponible",
+    "scheduledStart": "Inicio programado",
+    "estimatedHours": "Est. en {min}–{max} h",
+    "hoursRange": "{min}–{max} h",
+    "estimatePrefix": "En aprox.",
+    "unlikelyBefore": "No se prevé antes de"
   }
 }

@@ -1,3 +1,4 @@
+import type { SmartScheduleForecast } from '@/lib/smart-schedule';
 // src/types/match.ts
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'cancelled' | 'retired' | 'walkover' | 'suspended'
@@ -67,6 +68,7 @@ export interface Match {
    *  itself delayed. 'starting_soon' = previous match has finished and this
    *  is the immediate next still scheduled. NULL = no hint. Only meaningful
    *  while status === 'scheduled' — UI shows existing chips for other states. */
+  smart_schedule?: SmartScheduleForecast | null
   late_hint?: 'may_be_late' | 'starting_soon' | null
   serving_player_id?: string | null
   pair1_player1: Player | null

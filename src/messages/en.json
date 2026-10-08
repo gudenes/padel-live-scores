@@ -2604,5 +2604,30 @@
     "next": "Next",
     "done": "Got it",
     "skip": "Skip guide"
+  },
+  "smartSchedule": {
+    "nextToPlay": "NEXT TO PLAY",
+    "estimatedIn": "Est. in {min}–{max} min",
+    "afterPrevious": "After previous match",
+    "estimatedWindow": "Estimated {window}",
+    "explanation": "Based on match progress and court changeover. The start may vary.",
+    "estimatedStart": "ESTIMATED START IN",
+    "minutesRange": "{min}–{max} min",
+    "clockWindow": "Estimated start window: {window}",
+    "scheduledAt": "Scheduled at {time}",
+    "notBefore": "Not before {time}",
+    "followedBy": "Following the previous match",
+    "previousOnCourt": "Previous match on {court}",
+    "live": "Live",
+    "finished": "Finished",
+    "onCourt": "On court",
+    "updatedAgo": "Updated {minutes} min ago",
+    "waiting": "Waiting for a confirmed start",
+    "unavailable": "Timing updates unavailable",
+    "scheduledStart": "Scheduled start",
+    "estimatedHours": "Est. in {min}–{max} h",
+    "hoursRange": "{min}–{max} h",
+    "estimatePrefix": "Est. in",
+    "unlikelyBefore": "Unlikely before"
   }
 }
