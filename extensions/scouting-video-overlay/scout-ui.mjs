@@ -1,3 +1,4 @@
+import './shortcut-keys.js';
 import {playerProfile,playerIdentity} from './player-profile.mjs';
 import {match,defaults,courtPlayers} from './match.mjs';
 import {scoreLabel} from './generated/score-label.mjs';
@@ -31,7 +32,11 @@ export function scoutingUI({$,act,getState}){
  $('setup-form').addEventListener('submit',e=>{e.preventDefault();act({type:'setup',setup:{names:[0,1,2,3].map(i=>$(`name-${i}`).value),firstServer:Number($('first-server').value),otherServer:Number($('other-server').value),rule:$('rule').value}})});
  $('var-review').onclick=()=>act({type:'var-review',reviewed:!getState()?.pending?.varReviewed});
  $('shot-var').onchange=()=>act({type:'var-review',reviewed:$('shot-var').checked});
- $('undo').onclick=()=>act({type:'undo-last'});
+ const undo=()=>act({type:'undo-last'});
+ $('undo').onclick=undo;$('shot-undo').onclick=undo;
+ const undoKey=/Mac|iPhone|iPad/.test(globalThis.navigator?.platform??'')?'⌘Z':'Ctrl+Z';
+ for(const badge of document.querySelectorAll('[data-undo-key]'))badge.textContent=undoKey;
+ globalThis.__pnMediaKeys.attachUndo({target:document,control:()=> $('shot-dialog').open?$('shot-undo'):$('undo')});
  for(const type of ['first-fault','double-fault'])$(type).addEventListener('click',()=>act({type}));
  let quickSave=globalThis.localStorage?.getItem('pn-quick-save')==='true';
  $('quick-save').checked=quickSave;
@@ -119,7 +124,8 @@ export function scoutingUI({$,act,getState}){
   $('rally').disabled=busy||!healthy||!state.selectedMatch||!!state.pending||sample?.paused||sample?.seeking||m.score.phase==='finished';
   $('touch-status').textContent=state.pending?.touches?.length?`${state.pending.touches.length} shot${state.pending.touches.length===1?'':'s'} tapped · last: ${setup.names[state.pending.touches.at(-1).player]}`:'';
   $('rally-status').textContent=issue|| (state.pending?state.pending.finish?'Outcome selected · save the shot details':`${Math.max(0,(sample?.time??state.pending.start.time)-state.pending.start.time).toFixed(1)}s video time · ${sample?.paused?'paused':'recording'}`:m.score.phase==='finished'?'Review the score and sync below':'Start at the first serve');
-  $('first-fault').disabled=!enabled||!!state.pending?.firstFault;$('double-fault').disabled=!enabled||!state.pending?.firstFault;$('undo').disabled=busy||(!state.history?.length&&(!m.points||!!state.pending));
+  $('first-fault').disabled=!enabled||!!state.pending?.firstFault;$('double-fault').disabled=!enabled||!state.pending?.firstFault;const noUndo=busy||(!state.history?.length&&(!m.points||!!state.pending));
+  for(const id of ['undo','shot-undo']){$(id).disabled=noUndo;$(id).title=noUndo?'No action to undo':`Undo last action · ${state.history?.length??0} recent actions · ${undoKey}`;}
   const sk=JSON.stringify([setup.names,m.server]);
   if(sk!==serverKey){serverKey=sk;$('current-server').replaceChildren(...setup.names.map((n,i)=>new Option(n,i)));$('current-server').value=m.server;}
   for(const id of ['current-server','apply-server'])$(id).disabled=busy||!!state.pending||!state.selectedMatch||m.score.phase==='finished';

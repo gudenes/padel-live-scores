@@ -121,3 +121,7 @@ Create match asks for four names grouped into two pairs. Existing players appear
 Private sessions use the same scoring, stats, undo and report model. Their durable outbox routes to `manual-video-scouting`; canonical sessions retain `video-scouting`. Admin lists these at `/scouting/matches`; reports use `/scouting/manual/<id>/report`. JSON exports include private metadata. All private data stays in operator-only tables, unavailable to public/anonymous Supabase clients. These are admin-wide scouting records, not personal user profiles.
 
 Rollout: apply `20261008120000_private_scouting_matches.sql` (two new private tables, no changes to existing sessions), deploy admin from merged main, back up extension storage, and install the extension update. Existing extension login must also be installed. No public-app release is required. Verify private creation, sync and report on the deployed service after rollout.
+
+### Undo actions
+
+Undo sits beside VAR review and remains available in the finishing-shot dialog. Click repeatedly or use Cmd+Z (Mac) / Ctrl+Z to walk back through recent actions, including a saved point, outcome selection, smash classification, shot tap, fault, rally start and court adjustments. The local history keeps the last 50 actions per match; older saved points can still be undone once there is no open rally. Scores and derived stats recalculate and queue the correction for server sync. The shortcut also works with the video remote visible, and leaves native text-field undo unchanged.

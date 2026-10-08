@@ -82,7 +82,7 @@ function savedBindings(){
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
  if(sender.id!==chrome.runtime.id)return;
  const panel=sender.url?.startsWith(chrome.runtime.getURL('panel.html'));
- const allowed=new Set(['state','sample','get-shortcuts','reconnect','start','prepare','score','clear-outcome','first-fault','double-fault','smash','undo','cancel','server','ends','skip','positions','playback','overlay-layout','speed','cycle-speed']);
+ const allowed=new Set(['state','sample','get-shortcuts','reconnect','start','prepare','score','clear-outcome','first-fault','double-fault','smash','undo','undo-last','cancel','server','ends','skip','positions','playback','overlay-layout','speed','cycle-speed']);
  const run=async()=>{
   if(!panel){
    const {overlayTab}=await chrome.storage.session.get('overlayTab');
