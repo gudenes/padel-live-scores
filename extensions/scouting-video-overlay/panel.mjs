@@ -1,3 +1,6 @@
+import {closingUI} from './closing-ui.mjs';
+import {onboardingUI} from './onboarding-ui.mjs';
+import {adminReportUrl} from './report-link.mjs';
 import {manualUI} from './manual-ui.mjs';
 import {shortcutSettings} from './shortcut-settings.mjs';
 import {mediaShortcuts} from './media-shortcuts.mjs';
@@ -14,16 +17,25 @@ const renderCatalog=catalogUI({$,act,getState:()=>state});
 const renderScouting=scoutingUI({$,act,getState:()=>state});
 const renderProgress=progressUI($);
 const renderManual=manualUI({$,act,call,getState:()=>state});
+const renderOnboarding=onboardingUI({$,act,getState:()=>state,manual:renderManual});
+renderManual.wizard=mode=>renderOnboarding.open(mode);
+const renderClosing=closingUI({$,act,manual:renderManual,onboarding:renderOnboarding,demo});
 function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Math.floor(seconds);return `${Math.floor(s/3600)?`${Math.floor(s/3600)}:`:''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function render(){
   if(!state)return;
   const connection=state.connection;
-  $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;
+  $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;$('empty-match-start').hidden=!!state.selectedMatch;
 
   $('account-status').textContent=({checking:'Checking account…',connected:account.email?'Connected · '+account.email:'Connected',offline:'Offline · saved locally','signed-out':'Sign in again · changes saved locally','not-authorized':'Operator account required','update-required':'Admin sign-in update required','signing-in':'Complete sign-in in the opened tab',demo:'Demo account'})[account.status]??'Sign in to Padel Nachos';
+  $('header-account').dataset.status=account.status;
+  $('header-account').title=$('account-status').textContent+' · Account and sync';
+  $('header-account').setAttribute('aria-label',$('header-account').title);
   $('sign-in').hidden=['connected','demo'].includes(account.status);
-  $('sign-in').disabled=busy;
+  $('sign-in').disabled=busy;$('menu-account-status').textContent=$('account-status').textContent;$('menu-sign-in').hidden=$('sign-in').hidden;$('menu-sign-in').disabled=busy;
 
+  const reportUrl=adminReportUrl(state.selectedMatch);$('open-admin-report').hidden=!reportUrl;
+  if(reportUrl)$('open-admin-report').href=reportUrl;else $('open-admin-report').removeAttribute('href');
+  $('report-link-note').textContent=reportUrl?'Report shows the latest server save. Sync local changes first.':'Choose a match to open its report.';
   $('match-identity').textContent=state.selectedMatch?[state.selectedMatch.tournamentName,state.selectedMatch.category,state.selectedMatch.round].filter(Boolean).join(' · '):'Select a match to begin';
   $('save-settings').dataset.sync=cloud.status;
   const recent=state.history?.at(-1),lastPoint=state.rallies.findLast(r=>r.point&&!r.undone),attempt=state.pending?.attempts?.at(-1);
@@ -32,7 +44,7 @@ function render(){
   const model=match(state),finished=model.score.phase==='finished';
   renderProgress(state,cloud,model);
   $('finish-status').textContent=finished?(cloud.status==='saved'?'Match finished · all current scouting records saved to server.':'Match finished · server confirmation still pending. Follow the steps below.'):'Still scouting · save every point through the end of the match.';
-  if(finished)$('finish-guide').open=true;
+  if(finished)$('finish-guide').open=true;$('review-sync').hidden=!['error','conflict'].includes(cloud.status);$('finish-menu').hidden=!finished||!$('review-sync').hidden;
   $('cloud-message').textContent=cloud.error||(!state.selectedMatch?'Choose a match to enable server saves.':cloud.status==='saved'?`Last server save: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Changes stay on this device until the server confirms. Reconnection retries automatically.');
   $('export-backup').disabled=busy||!state.selectedMatch;
   $('sync-server').disabled=busy||!state.selectedMatch;$('load-server').disabled=busy||!state.selectedMatch||!!state.pending;
@@ -50,7 +62,6 @@ function render(){
   $('connect').disabled=busy||!!state.pending;
   $('cancel').hidden=!state.pending;$('cancel').disabled=busy;
   $('count').textContent=state.rallies.length;
-  $('export').disabled=busy||(!state.rallies.length&&!state.pending&&!state.cancelled.length);
   if(document.activeElement!==$('label'))$('label').value=state.label;
   const choices=connection?.candidates??[];
   $('player-label').hidden=choices.length<2;
@@ -72,11 +83,8 @@ function render(){
       info.append(title,meta);li.append(info,button);return li;
     }));
   }
-  const workspace=$('scouting-workspace'),setup=$('connection-settings');
-  if(state.selectedMatch&&workspace.nextElementSibling!==setup)workspace.after(setup);
-  else if(!state.selectedMatch&&setup.previousElementSibling)$('account-panel').after(setup);
   document.body.classList.toggle('scouting',!!state.selectedMatch);
-  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);
+  renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);renderClosing(state,model,cloud,busy);
 }
 async function call(message){const result=await transport(message);if(!result?.ok)throw Error(result?.error??'The companion is unavailable. Reopen its panel.');return result;}
 async function refresh(){
@@ -89,8 +97,8 @@ async function refresh(){
 }
 async function act(message){
   if(busy)return {ok:false,error:'Another action is being saved. Try again.'};let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match','create-manual','resume-session'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
-  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match')$('catalog-feedback').textContent='Previous match saved on this device. Choose another match below.';if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect')$('connection-feedback').textContent='Video connected. The clock below follows playback.';$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
-  catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
+  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true,...result};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match'){renderManual.find();$('catalog-feedback').textContent='Previous match saved on this device. Choose another match.';}if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect'){$('connection-feedback').textContent='Video connected. The clock below follows playback.';document.dispatchEvent(new Event('pn-video-connected'));}$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
+  catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){if(!renderOnboarding.isOpen())renderManual.open('setup');$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){if(!renderOnboarding.isOpen())renderManual.open('setup');$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{busy=false;render();await refresh();}
   return actionResult;
 }
@@ -112,11 +120,8 @@ $('label').addEventListener('change',async()=>{
   revision++;
   try{await call({type:'label',label:$('label').value});}catch(error){$('message').textContent=error.message;}
 });
-$('export').addEventListener('click',async()=>{
-  try{const result=await call({type:'state'});const blob=new Blob([JSON.stringify(exported(result.state),null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`padel-video-bookmarks-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}
-});
 document.addEventListener('keydown',event=>{
-  if($('scouting-menu').open)return;
+  if($('scouting-menu').open||renderOnboarding.isOpen())return;
   if(event.code!=='Space'||event.repeat||event.ctrlKey||event.metaKey||event.altKey||event.isComposing||event.target.closest('input,textarea,select,button,summary,[contenteditable="true"]'))return;
   event.preventDefault();if(!$('rally').disabled)$('rally').click();
 });

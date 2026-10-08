@@ -28,6 +28,8 @@
   const handler=event=>{
    if(!isActive()||event.repeat||event.isComposing||target.querySelector?.('#scouting-menu[open]'))return;
    const focused=event.composedPath()[0];if(focused?.matches?.('input,textarea,select,[contenteditable]')||focused?.isContentEditable)return;
+   // Reserve standard Undo for scouting; media shortcuts must not steal it.
+   if(event.key.toLowerCase()==='z'&&(event.ctrlKey||event.metaKey)&&!event.altKey&&!event.shiftKey)return;
    // Keep letter/number shot shortcuts available inside the scoring dialog.
    if(target.querySelector?.('dialog[open]')&&(/^[a-z0-9]$/i.test(event.key)||[' ','Enter'].includes(event.key))&&!event.ctrlKey&&!event.altKey&&!event.metaKey)return;
    const action=Object.keys(controls).find(name=>matches(event,getBindings()[name]));
@@ -35,5 +37,16 @@
   };
   target.addEventListener('keydown',handler,true);return ()=>target.removeEventListener('keydown',handler,true);
  }
- globalThis.__pnMediaKeys={defaults:normalize(defaults),actions,normalize,upgradeFastBindings,label,attach};
+ function attachUndo({target,control,isActive=()=>true}){
+  const handler=event=>{
+   if(!isActive()||event.defaultPrevented||event.repeat||event.isComposing||event.altKey||event.shiftKey||!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='z'||target.querySelector?.('#scouting-menu[open]'))return;
+   const focused=event.composedPath()[0];
+   // Leave native text editing undo alone, including inputs inside the shot dialog.
+   if(focused?.matches?.('input,textarea,select,[contenteditable]')||focused?.isContentEditable)return;
+   const button=control();if(!button||button.disabled)return;
+   event.preventDefault();event.stopImmediatePropagation();button.click();
+  };
+  target.addEventListener('keydown',handler,true);return ()=>target.removeEventListener('keydown',handler,true);
+ }
+ globalThis.__pnMediaKeys={attachUndo,defaults:normalize(defaults),actions,normalize,upgradeFastBindings,label,attach};
 })();

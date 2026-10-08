@@ -18,5 +18,5 @@ export function manualInput(input){
  return {players,matchDate,tournamentLabel,videoUrl};
 }
 export function manualDescriptor(row){
- return {id:row.id,kind:'manual',names:row.players.map(p=>p.name),playerIds:row.players.map(p=>p.id),players:row.players.map(p=>({country:p.country??null,ranking:p.ranking??null})),tournamentName:row.tournament_label||'Private scouting',round:'Manually created',matchDate:row.match_date,videoUrl:row.video_url||'',createdAt:row.created_at};
+ return {id:row.id,kind:'manual',names:row.players.map(p=>p.name),playerIds:row.players.map(p=>p.id),players:row.players.map(p=>({country:p.country??null,ranking:p.ranking??null,side:p.side??null})),tournamentName:row.tournament_label||'Private scouting',round:'Manually created',matchDate:row.match_date,videoUrl:row.video_url||'',createdAt:row.created_at};
 }

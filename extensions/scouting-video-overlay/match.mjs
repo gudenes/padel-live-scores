@@ -11,6 +11,10 @@ export function validateSetup(setup){
  if(!Array.isArray(setup.names)||setup.names.length!==4||setup.names.some(n=>typeof n!=='string'||!n.trim()||n.length>80))throw Error('Enter four player names (up to 80 characters).');
  if(!Number.isInteger(setup.firstServer)||setup.firstServer<0||setup.firstServer>3||!Number.isInteger(setup.otherServer)||setup.otherServer<0||setup.otherServer>3||pair(setup.firstServer)===pair(setup.otherServer))throw Error('Choose the first server and a server from the other pair.');
  if(!['star-point','golden-point','advantage'].includes(setup.rule))throw Error('Choose a supported scoring rule.');
+ if(setup.near!==undefined&&!['a','b'].includes(setup.near))throw Error('Invalid court end.');
+ if(setup.positions&&(['a','b'].some(t=>typeof setup.positions[t]!=='boolean')))throw Error('Invalid court positions.');
+ if(setup.otherServerUnknown!==undefined&&typeof setup.otherServerUnknown!=='boolean')throw Error('Invalid server confirmation.');
+ if(setup.onboardingComplete!==undefined&&typeof setup.onboardingComplete!=='boolean')throw Error('Invalid setup status.');
  return {...setup,names:setup.names.map(n=>n.trim()),...(setup.startingScore?{startingScore:validateStartingScore(setup.startingScore)}:{})};
 }
 export const videoAt=s=>new Date(Math.max(0,s.time)*1000).toISOString();

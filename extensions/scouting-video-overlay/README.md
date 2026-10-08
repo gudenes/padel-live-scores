@@ -108,7 +108,7 @@ Skipping and speed changes work between rallies; pause remains available during 
 
 ## Extension account and direct sync
 
-Use **Sign in to Padel Nachos** in the account row. Login opens the existing secure admin login in Chrome; Google, email link and password remain handled by admin. The extension reuses the HttpOnly operator session through host-permitted requests, never copies passwords or session cookies into its storage, and does not need an admin tab for catalogue reads or saves. Closing admin, browser restart and extension reload reconnect from that session; expiration requires signing in again. Account connectivity is separate from the server acknowledgement shown in Server saves.
+Use **Sign in to Padel Nachos** from the user icon in the header. Login opens the existing secure admin login in Chrome; Google, email link and password remain handled by admin. The extension reuses the HttpOnly operator session through host-permitted requests, never copies passwords or session cookies into its storage, and does not need an admin tab for catalogue reads or saves. Closing admin, browser restart and extension reload reconnect from that session; expiration requires signing in again. Account connectivity is separate from the server acknowledgement shown in Server saves.
 
 Deploy admin with `/api/internal/scouting-extension/session` before installing this extension build. It issues a short-lived CSRF proof bound to the session user and requesting extension origin; saves still check a live operator session, server feature support and revision conflicts. Same-origin admin writes keep their existing protections. `AUTH_SECRET` is required (already used by admin Auth.js). No database migration or new credentials are needed. The extension requests host access only to `https://admin.padelnachos.com/*`. The durable local scouting records and outbox are preserved and retry after reconnecting; server conflicts still require review. Test real Chrome login, saving with all admin tabs closed, reload/restart, sign-out and offline recovery before rollout.
 
@@ -121,3 +121,25 @@ Create match asks for four names grouped into two pairs. Existing players appear
 Private sessions use the same scoring, stats, undo and report model. Their durable outbox routes to `manual-video-scouting`; canonical sessions retain `video-scouting`. Admin lists these at `/scouting/matches`; reports use `/scouting/manual/<id>/report`. JSON exports include private metadata. All private data stays in operator-only tables, unavailable to public/anonymous Supabase clients. These are admin-wide scouting records, not personal user profiles.
 
 Rollout: apply `20261008120000_private_scouting_matches.sql` (two new private tables, no changes to existing sessions), deploy admin from merged main, back up extension storage, and install the extension update. Existing extension login must also be installed. No public-app release is required. Verify private creation, sync and report on the deployed service after rollout.
+
+### Undo actions
+
+Undo sits beside VAR review and remains available in the finishing-shot dialog. Click repeatedly or use Cmd+Z (Mac) / Ctrl+Z to walk back through recent actions, including a saved point, outcome selection, smash classification, shot tap, fault, rally start and court adjustments. The local history keeps the last 50 actions per match; older saved points can still be undone once there is no open rally. Scores and derived stats recalculate and queue the correction for server sync. The shortcut also works with the video remote visible, and leaves native text-field undo unchanged.
+
+### Scouting menu
+
+The hamburger menu holds match/video setup, saved sessions, video/court tools, keyboard shortcuts, rally bookmarks, detailed serve/pressure stats, account sync/backups, finish checklist and help. These open as menu views with Back/Close, without adding lower-page sections to the scouting workspace. An unfinished rally still blocks switching matches. Sync warnings and the finish action remain visible in live feedback; full JSON backups are available under Sync & backup.
+
+The header’s thin lime line shows finishing-stroke completeness without taking a separate row. Open **Recording completeness** from the menu for counts and save status. The user icon opens **Sync & backup** and shows the connected account. **Open match report in admin** opens the selected official or private match’s report in a new tab; reports contain the last confirmed server copy, so sync waiting changes first.
+
+Account icon: Google Material Icons Outlined, account_circle (Apache 2.0), https://github.com/google/material-design-icons.
+
+## Match setup wizard
+
+Find a match or Create private match in the header menu opens Match → Video → Court → Ready. Today is the default: canonical matches whose scheduled time falls between the operator device’s local midnight and the next midnight. No tournament-start-date guessing; undated matches are available through Other matches search. Search matches across players/tournaments; results are capped and the UI asks for a narrower query when capped. Only authenticated operators can access `/api/internal/scouting-catalog`.
+
+Court suggestions use stored `players.side`, mirroring the far end relative to the camera. Missing or conflicting preferences are called out for manual confirmation. Swap either pair or switch ends diagonally. Country flags, country names and available rankings use stored profile metadata. No invented rankings or preferences.
+
+Confirm the first server; the other team’s server may be “I don’t know yet”. It persists as an explicit setup flag. The engine blocks starting/restarting their service rally until confirmed, confirmation is undoable, and server validation rejects points recorded while that server is unresolved. Existing numeric serving order remains an internal replay placeholder only until confirmation. Existing saved sessions bypass fresh score setup and resume their records. Starting score and court settings commit together, before any recorded points.
+
+Rollout requires the admin API update (`optional-server-v1`) before extension reload. Until supported, the durable sync queue retains the setup locally and retries; older servers cannot silently discard the unknown-server flag. No schema migration or public-app release. Back up extension storage before installation; this change does not erase or reset saved sessions.

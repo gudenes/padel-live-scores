@@ -1,0 +1,13 @@
+import {beforeEach,describe,expect,it,vi} from 'vitest'
+const mocks=vi.hoisted(()=>({operator:true,calls:[] as Array<[string,...unknown[]]>,responses:{} as Record<string,unknown[]>}))
+vi.mock('@/lib/auth',()=>({auth:async()=>({user:{isOperator:mocks.operator}})}))
+vi.mock('@/lib/supabase',()=>({serviceClient:()=>({from:(table:string)=>{const chain:any={};for(const key of ['select','gte','lt','or','ilike','in','order','limit'])chain[key]=(...args:unknown[])=>{mocks.calls.push([table+'.'+key,...args]);return chain};chain.then=(resolve:(data:unknown)=>unknown)=>resolve({data:mocks.responses[table]?.shift()??[],error:null});return chain}})}))
+import {GET} from '../route'
+const request=(query='start=2026-10-07T22:00:00.000Z&end=2026-10-08T22:00:00.000Z')=>new Request('https://admin.padelnachos.com/api/internal/scouting-catalog?'+query)
+beforeEach(()=>{mocks.operator=true;mocks.calls=[];mocks.responses={}})
+describe('scouting match catalog',()=>{
+ it('requires an operator session before reading matches',async()=>{mocks.operator=false;expect((await GET(request())).status).toBe(401);expect(mocks.calls).toEqual([])})
+ it('rejects invalid/unbounded day requests and empty all-date searches',async()=>{for(const q of ['', 'start=bad&end=bad','start=2026-10-01&end=2026-10-08'])expect((await GET(request(q))).status).toBe(400);expect(mocks.calls).toEqual([])})
+ it('uses the exclusive local-day boundary and returns stored country and side',async()=>{mocks.responses={matches:[[{id:'m',tournament_id:'t',pair1_player1_id:'p1',pair1_player2_id:'p2',pair2_player1_id:'p3',pair2_player2_id:'p4',scheduled_at:'2026-10-08T12:00:00Z'}]],players:[['p1','p2','p3','p4'].map((id,i)=>({id,name:'Player '+i,country:'ES',side:i%2?'left':'right',ranking:i+1}))],tournaments:[[{id:'t',name:'Germany P2'}]]};const data=await (await GET(request())).json();expect(data.matches[0].players[0]).toEqual({country:'ES',side:'right',ranking:1});expect(mocks.calls).toContainEqual(['matches.gte','scheduled_at','2026-10-07T22:00:00.000Z']);expect(mocks.calls).toContainEqual(['matches.lt','scheduled_at','2026-10-08T22:00:00.000Z'])})
+ it('accepts an explicit all-date search and queries normalized player names',async()=>{await GET(request('q=Lebron'));expect(mocks.calls.some(c=>c[0]==='players.or'&&String(c[1]).includes('normalized_name.ilike.%lebron%'))).toBe(true);expect(mocks.calls.some(c=>c[0]==='matches.gte')).toBe(false)})
+})

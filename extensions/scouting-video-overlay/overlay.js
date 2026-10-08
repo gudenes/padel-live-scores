@@ -41,6 +41,7 @@
   finally{polling=false;}
  }
  globalThis.__pnMediaKeys.attach({target:document,controls,getBindings:()=>bindings,isActive:()=>!host.hidden&&host.isConnected});
+ globalThis.__pnMediaKeys.attachUndo({target:document,control:()=>({disabled:busy||!state?.selectedMatch||(!state.history?.length&&(!!state.pending||!state.rallies?.some(r=>r.point&&!r.undone))),click:()=>act({type:'undo-last'})}),isActive:()=>!host.hidden&&host.isConnected});
  grip.onpointerdown=e=>{if(e.button!==0)return;const rect=bar.getBoundingClientRect(),x=e.clientX,y=e.clientY;grip.setPointerCapture(e.pointerId);grip.onpointermove=ev=>{bar.style.transform='none';bar.style.left=Math.max(0,Math.min(innerWidth-rect.width,rect.left+ev.clientX-x))+'px';bar.style.top=Math.max(0,Math.min(innerHeight-rect.height,rect.top+ev.clientY-y))+'px';};grip.onpointerup=()=>{grip.onpointermove=null;};};
  document.addEventListener('fullscreenchange',()=>{const target=document.fullscreenElement;if(target?.tagName==='VIDEO'){notice.textContent='Use theatre mode for the video remote.';return;}(target||document.documentElement).append(host);});
  const timer=setInterval(()=>{if(!host.isConnected){closed=true;clearInterval(timer);return;}refresh();},1000);render();refresh();

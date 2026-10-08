@@ -10,7 +10,7 @@ test('identity uses real metadata, omits unknown ranks, and stays attached to pl
  assert.deepEqual(playerProfile(state,0),{country:'AR',ranking:12});
  const doc=new JSDOM('').window.document;
  const node=playerIdentity('A',playerProfile(state,0),doc);
- assert.equal(node.textContent,'🇦🇷A#12');assert.equal(node.querySelector('[role=img]').getAttribute('aria-label'),'Argentina');
+ assert.equal(node.textContent,'🇦🇷ArgentinaA#12');assert.equal(node.querySelector('[role=img]').getAttribute('aria-label'),'Argentina');
  assert.equal(playerIdentity('B',playerProfile(state,1),doc).textContent,'B');
  state.setup.names[0]='Someone else';assert.deepEqual(playerProfile(state,0),{country:null,ranking:null});
 });

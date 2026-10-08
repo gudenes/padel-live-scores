@@ -14,7 +14,7 @@ export async function GET(req:Request){
   if(query!==null){
    const term=query.trim().replace(/[%_]/g,'').slice(0,80)
    if(term.length<2)return json({players:[]})
-   const result=await db.from('players').select('id,name,country,ranking').ilike('name','%'+term+'%').order('name').limit(8)
+   const result=await db.from('players').select('id,name,country,ranking,side').ilike('name','%'+term+'%').order('name').limit(8)
    if(result.error)throw Error('Player suggestions are unavailable. You can still type a new name.')
    return json({players:result.data??[]})
   }
@@ -36,7 +36,7 @@ export async function POST(req:Request){
   const acknowledge=(row:any)=>row.request_hash===hash?json({match:manualDescriptor(row)}):json({error:'This creation identifier belongs to different match details.'},409)
   if(existing.data)return acknowledge(existing.data)
   const linkedIds=input.players.flatMap(p=>p.id?[p.id]:[])
-  const linked=linkedIds.length?await db.from('players').select('id,name,country,ranking').in('id',linkedIds):{data:[],error:null}
+  const linked=linkedIds.length?await db.from('players').select('id,name,country,ranking,side').in('id',linkedIds):{data:[],error:null}
   if(linked.error||linked.data?.length!==linkedIds.length)return json({error:'An existing player is no longer available. Choose them again or enter a new name.'},400)
   const players=input.players.map(p=>{
    const resolved=linked.data?.find(x=>x.id===p.id)

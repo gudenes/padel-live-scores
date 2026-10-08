@@ -68,3 +68,10 @@ test('soft and linked attempts wait for compatible server instead of losing clas
   assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
  }
 });
+
+test('unknown-server metadata waits for a server that explicitly supports it',async()=>{
+ const calls=[];
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:[]})};}};
+ const result=await run(env,{method:'POST',matchId:'11111111-1111-4111-8111-111111111111',document:{setup:{otherServerUnknown:true},rallies:[],cancelled:[]}});
+ assert.equal(result.ok,false);assert.deepEqual(calls,['GET']);
+});
