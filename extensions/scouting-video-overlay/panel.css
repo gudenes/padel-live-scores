@@ -93,7 +93,7 @@ body.scouting #scouting-workspace{order:0}body.scouting #connection-settings{ord
 
 .player-card .attempts{grid-template-columns:repeat(3,minmax(0,1fr))}.player-card .attempts .ui-btn{flex-direction:column;gap:0;white-space:nowrap}.player-card .attempts .ui-btn kbd{white-space:nowrap}
 
-.serving-tools{display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;font-size:11px}.serving-tools>.ui-btn{font-size:11px;padding:3px 6px;min-height:28px}#quick-server-picker{width:100%;display:flex;align-items:end;gap:6px}#quick-server-picker label{flex:1}.court-controls[hidden],#quick-server-picker[hidden],.serving-tools[hidden]{display:none}
+.serving-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:var(--bg-card);border:1px solid var(--border-strong);border-radius:8px;padding:8px 10px;font-size:12px}.serving-identity{display:grid;gap:1px;flex:1;min-width:100px}.serving-identity small{font-size:10px;color:var(--text-2)}.serving-identity strong{overflow-wrap:anywhere}.serving-tools>.ui-btn{font-size:12px;min-height:34px;flex-shrink:0}#quick-server-picker{width:100%;display:flex;align-items:end;gap:6px}#quick-server-picker label{flex:1}.court-controls[hidden],#quick-server-picker[hidden],.serving-tools[hidden]{display:none}
 
 .tool-buttons{flex-wrap:wrap}#touch-status:empty{display:none}
 

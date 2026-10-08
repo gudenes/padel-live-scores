@@ -3,9 +3,10 @@ export function courtCheckinUI({$,act,storage=globalThis.localStorage}){
  let token='',confirmed=[],lastPlayer=3,current,serverKey='';
  const persist=()=>{try{storage?.setItem(token,JSON.stringify({confirmed,lastPlayer}));}catch{}};
  $('undo-checkin').onclick=()=>{confirmed[lastPlayer]=false;persist();paint();};
- $('change-server').onclick=()=>{$('quick-server-picker').hidden=!$('quick-server-picker').hidden;if(!$('quick-server-picker').hidden)$('quick-server').focus();};
- $('close-server-picker').onclick=()=>{$('quick-server-picker').hidden=true;};
- $('quick-server').onchange=async()=>{const result=await act({type:'server',player:Number($('quick-server').value)});if(result?.ok!==false)$('quick-server-picker').hidden=true;};
+ const picker=visible=>{$('quick-server-picker').hidden=!visible;$('change-server').setAttribute('aria-expanded',String(visible));};
+ $('change-server').onclick=()=>{picker($('quick-server-picker').hidden);if(!$('quick-server-picker').hidden)$('quick-server').focus();};
+ $('close-server-picker').onclick=()=>{picker(false);$('change-server').focus();};
+ $('quick-server').onchange=async()=>{const result=await act({type:'server',player:Number($('quick-server').value)});if(result?.ok!==false){picker(false);$('change-server').focus();}};
  function paint(){
   if(!current)return;
   const {state,model,busy,names}=current,finished=model.score.phase==='finished',complete=confirmed.filter(Boolean).length===4,locked=busy||!!state.pending||!state.selectedMatch||finished;
@@ -20,7 +21,7 @@ export function courtCheckinUI({$,act,storage=globalThis.localStorage}){
   $('undo-checkin').hidden=!state.selectedMatch||!complete||finished;$('undo-checkin').disabled=busy;
   const sk=JSON.stringify([names,model.server]);
   if(sk!==serverKey){serverKey=sk;$('quick-server').replaceChildren(...names.map((name,i)=>new Option(name,i)));$('quick-server').value=model.server;}
-  if(locked)$('quick-server-picker').hidden=true;
+  if(locked)picker(false);
   for(const card of $('players').querySelectorAll('article[data-player]')){
    const player=Number(card.dataset.player);let controls=card.querySelector('.court-controls');
    if(!controls){
@@ -35,7 +36,7 @@ export function courtCheckinUI({$,act,storage=globalThis.localStorage}){
  }
  return (state,model,busy,setup)=>{
   const names=setup.names,next='pn-court-checkin:'+JSON.stringify([state.selectedMatch?.id,names]);
-  if(next!==token){token=next;confirmed=[];lastPlayer=3;$('quick-server-picker').hidden=true;try{const saved=JSON.parse(storage?.getItem(token)??'[]'),list=Array.isArray(saved)?saved:saved.confirmed;if(Array.isArray(list))confirmed=[0,1,2,3].map(i=>list[i]===true);if(Number.isInteger(saved?.lastPlayer)&&saved.lastPlayer>=0&&saved.lastPlayer<4)lastPlayer=saved.lastPlayer;}catch{}}
+  if(next!==token){token=next;confirmed=[];lastPlayer=3;picker(false);try{const saved=JSON.parse(storage?.getItem(token)??'[]'),list=Array.isArray(saved)?saved:saved.confirmed;if(Array.isArray(list))confirmed=[0,1,2,3].map(i=>list[i]===true);if(Number.isInteger(saved?.lastPlayer)&&saved.lastPlayer>=0&&saved.lastPlayer<4)lastPlayer=saved.lastPlayer;}catch{}}
   current={state,model,busy,names};paint();
  };
 }
