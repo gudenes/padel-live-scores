@@ -21,7 +21,7 @@ it('defaults to v0.3 and switches graphs and derived scores without changing raw
  fireEvent.change(select,{target:{value:'net-actions'}})
  expect(screen.queryAllByRole('img',{name:/Player Score/})).toHaveLength(0)
  expect(screen.getByRole('img',{name:/Four-player evolution · Original/})).toBeTruthy()
- expect(screen.getAllByText('Winners')).toHaveLength(5)
+ expect(screen.getAllByText('Winners')).toHaveLength(6)
  fireEvent.change(select,{target:{value:'v0.2'}})
  expect(screen.getAllByRole('img',{name:/Player Score/})).toHaveLength(4)
  fireEvent.change(screen.getByRole('slider',{name:'Explore match point'}),{target:{value:'1'}})
@@ -34,4 +34,24 @@ it('displays no scores before the first point and warns about missing attributio
  const missing={...freshDoc(),events:[{id:'missing',at:'2026-10-07T10:00:00Z',kind:'point',player:0,outcome:'forced',smash:false} as Event]}
  view.rerender(createElement(Insights,{model:replay(missing),doc:missing,players}))
  expect(screen.getByRole('status').textContent).toContain('0/1')
+})
+
+it('filters the chart, team summary and player snapshots by set and restores full-match totals',()=>{
+ const seed={id:'seed',at:'2026-10-07T10:00:00Z',kind:'score',seed:{sets:[{a:5,b:2}],game:{a:40,b:0},phase:'playing',returns:0,server:0}} as Event
+ const setDoc={...doc,events:[seed,...doc.events]}
+ const {container}=render(createElement(Insights,{model:replay(setDoc),doc:setDoc,players}))
+ expect(screen.getByRole('heading',{name:'Team summary · Full match'})).toBeTruthy()
+ expect(container.querySelectorAll('path[stroke="var(--lime-text)"]')).toHaveLength(2)
+ const keys=container.querySelectorAll('[class*="lineKey"]')
+ expect((keys[0] as HTMLElement).style.borderTopStyle).toBe('solid')
+ expect((keys[1] as HTMLElement).style.borderTopStyle).toBe('dotted')
+ fireEvent.click(screen.getByRole('button',{name:'Set 2'}))
+ expect(screen.getByRole('heading',{name:'Team summary · Set 2'})).toBeTruthy()
+ expect(screen.getByText(/Set 2 · 1 observed points/)).toBeTruthy()
+ expect(screen.getByRole('slider',{name:'Explore match point'}).getAttribute('max')).toBe('1')
+ const summary=screen.getByRole('region',{name:'Team summary'})
+ expect(summary.querySelector('tbody tr')?.textContent).toBe('Winners00')
+ fireEvent.click(screen.getByRole('button',{name:'Full match'}))
+ expect(summary.querySelector('tbody tr')?.textContent).toBe('Winners10')
+ expect(screen.getByRole('slider',{name:'Explore match point'}).getAttribute('max')).toBe('2')
 })
