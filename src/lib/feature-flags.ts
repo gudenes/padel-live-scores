@@ -17,6 +17,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 /** Canonical keys, kept in sync with `feature_flags.key` rows. */
 export const FLAG_KEYS = {
+  SMART_SCHEDULE_ENABLED: 'smart_schedule_enabled',
   HOME_LIVE_TOURNAMENTS_CAROUSEL: 'home_live_tournaments_carousel',
   HOME_TOURNAMENT_SPOTLIGHT:      'home_tournament_spotlight',
   NEWS_PIPELINE_ENRICHMENT:       'news_pipeline_enrichment',

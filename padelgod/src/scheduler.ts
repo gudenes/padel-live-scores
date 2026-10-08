@@ -1,3 +1,4 @@
+import { runSmartScheduleWriter } from './workers/smart-schedule-writer.js';
 import cron, { type ScheduledTask } from 'node-cron';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { AxiosInstance } from 'axios';
@@ -111,6 +112,8 @@ export interface SchedulerFlags {
    *  for safety; flip in Railway once the first run's dry-run output
    *  is reviewed. */
   rawPayloadsPruneDryRun: boolean;
+  enableSmartScheduleWriter?: boolean;
+  smartScheduleWriterDryRun?: boolean;
   enableScheduleHintsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   scheduleHintsWriterDryRun: boolean;
@@ -864,6 +867,13 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           dryRun: flags.rawPayloadsPruneDryRun,
         });
       },
+    });
+  }
+  if (flags.enableSmartScheduleWriter) {
+    entries.push({
+      name: 'smart-schedule-writer',
+      cron: '* * * * *',
+      run: (deps) => runSmartScheduleWriter({ supabase: deps.supabase, logger: deps.logger, dryRun: flags.smartScheduleWriterDryRun ?? true }),
     });
   }
   if (flags.enableScheduleHintsWriter) {

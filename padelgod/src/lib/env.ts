@@ -185,6 +185,8 @@ const EnvSchema = z.object({
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
   // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.
+  ENABLE_SMART_SCHEDULE_WRITER: boolEnv(false),
+  SMART_SCHEDULE_WRITER_DRY_RUN: boolEnv(true),
   ENABLE_SCHEDULE_HINTS_WRITER: boolEnv(true),
   // Dry-run: when true (default), logs proposed UPDATEs but makes no DB
   // writes. Flip to false in Railway once dry-run output looks correct.

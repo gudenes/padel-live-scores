@@ -27,6 +27,8 @@ import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { pairName, getMatchDisplay, type Match } from '@/types/match'
+import { useSmartSchedule } from '@/hooks/useSmartSchedule'
+import { NextToPlayBadge, SmartScheduleHint } from '@/components/SmartSchedule'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
 import { countryToTimezone } from '@/lib/country-timezone'
@@ -244,6 +246,7 @@ export function MatchCard({
   const isLiveStatus =
     matchProp.status === 'live' || (matchProp.status as string) === 'on_court'
   const match = useLiveMatch(matchProp.id, isLiveStatus, matchProp)
+  const { forecast, now: forecastNow } = useSmartSchedule(match)
 
   // ── Unified display calculation ──────────────────────────────────
   // Single helper used by every card surface (home, matches, tournament,
@@ -426,7 +429,7 @@ export function MatchCard({
             left: 0,
             bottom: 0,
             width: 3,
-            background: genderColor,
+            background: forecast?.next_to_play ? ORANGE : genderColor,
           }}
         />
 
@@ -473,6 +476,7 @@ export function MatchCard({
         >
           {round && <Chip>{round}</Chip>}
           {courtRaw && <Chip>{courtRaw.toUpperCase()}</Chip>}
+          {isScheduled && forecast?.next_to_play && <NextToPlayBadge />}
           {showDayChip && dayChipLabel && (
             <button
               ref={dayChipRef}
@@ -803,7 +807,9 @@ export function MatchCard({
                   {dateStr}
                 </span>
               )}
-              {timeStr ? (
+              {forecast?.earliest_at && forecast.latest_at ? (
+                <SmartScheduleHint forecast={forecast} now={forecastNow} locale={locale} tz={userTz ?? 'UTC'} scheduledTime={timeStr} />
+              ) : timeStr ? (
                 <span style={{ fontSize: 13, fontWeight: 800, color: GREEN, lineHeight: 1.2 }}>
                   {timeStr}{isApproximateTime ? '*' : ''}
                 </span>
@@ -816,7 +822,8 @@ export function MatchCard({
                   TBD
                 </span>
               )}
-              {LATE_HINTS_ENABLED && timeStr && (match.late_hint === 'may_be_late' || match.late_hint === 'starting_soon') && (
+              {forecast && !forecast.earliest_at && <SmartScheduleHint forecast={forecast} now={forecastNow} locale={locale} tz={userTz ?? 'UTC'} scheduledTime={timeStr} />}
+              {!forecast && LATE_HINTS_ENABLED && timeStr && (match.late_hint === 'may_be_late' || match.late_hint === 'starting_soon') && (
                 <LateHintPill
                   hint={match.late_hint}
                   courtName={match.court ?? ''}

@@ -33,6 +33,8 @@ import { PredictionSection, PredictionResult } from './PredictionSection'
 import { MatchPredictionVote } from '@/components/prediction/MatchPredictionVote'
 import { useFeatureFlag } from '@/hooks/useFeatureFlag'
 import { FLAG_KEYS } from '@/lib/feature-flags'
+import { useSmartSchedule } from '@/hooks/useSmartSchedule'
+import { NextToPlayBadge } from '@/components/SmartSchedule'
 import { ScheduledSection } from './ScheduledSection'
 import { MatchRatingCard } from './MatchRatingCard'
 import { LiveFeedTab } from './LiveFeedTab'
@@ -73,6 +75,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const [headerVisible, setHeaderVisible] = useState(true)
   const lastScrollY = useRef(0)
   const heroSentinelRef = useRef<HTMLDivElement>(null)
+  const { forecast: smartForecast } = useSmartSchedule(match)
   const [countdown, setCountdown] = useState({ h: 0, m: 0, s: 0 })
   const [nextMatchId, setNextMatchId] = useState<string | null>(null)
   const { prediction, setPrediction, clearPrediction } = useMatchPrediction(id)
@@ -781,10 +784,11 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
       <div style={{ background: BG_CARD, padding: '14px 16px 0', borderBottom: `0.5px solid ${BORDER}` }}>
 
         {/* Court + round + date */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: isScheduled ? 14 : 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: isScheduled ? 14 : 12 }}>
           <span style={{ fontSize: 10, color: '#888', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{match.court ?? ''}</span>
           {match.court && match.round && <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />}
           <span style={{ fontSize: 10, color: '#777' }}>{match.round ?? ''}</span>
+          {isScheduled && smartForecast?.next_to_play && <NextToPlayBadge />}
           {duration && (
             <>
               <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#555', display: 'inline-block' }} />
