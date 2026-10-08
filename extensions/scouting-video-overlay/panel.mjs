@@ -18,11 +18,11 @@ function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Mat
 function render(){
   if(!state)return;
   const connection=state.connection;
-  $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;
+  $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;$('empty-match-start').hidden=!!state.selectedMatch;
 
   $('account-status').textContent=({checking:'Checking account…',connected:account.email?'Connected · '+account.email:'Connected',offline:'Offline · saved locally','signed-out':'Sign in again · changes saved locally','not-authorized':'Operator account required','update-required':'Admin sign-in update required','signing-in':'Complete sign-in in the opened tab',demo:'Demo account'})[account.status]??'Sign in to Padel Nachos';
   $('sign-in').hidden=['connected','demo'].includes(account.status);
-  $('sign-in').disabled=busy;
+  $('sign-in').disabled=busy;$('menu-account-status').textContent=$('account-status').textContent;$('menu-sign-in').hidden=$('sign-in').hidden;$('menu-sign-in').disabled=busy;
 
   $('match-identity').textContent=state.selectedMatch?[state.selectedMatch.tournamentName,state.selectedMatch.category,state.selectedMatch.round].filter(Boolean).join(' · '):'Select a match to begin';
   $('save-settings').dataset.sync=cloud.status;
@@ -32,7 +32,7 @@ function render(){
   const model=match(state),finished=model.score.phase==='finished';
   renderProgress(state,cloud,model);
   $('finish-status').textContent=finished?(cloud.status==='saved'?'Match finished · all current scouting records saved to server.':'Match finished · server confirmation still pending. Follow the steps below.'):'Still scouting · save every point through the end of the match.';
-  if(finished)$('finish-guide').open=true;
+  if(finished)$('finish-guide').open=true;$('review-sync').hidden=!['error','conflict'].includes(cloud.status);$('finish-menu').hidden=!finished||!$('review-sync').hidden;
   $('cloud-message').textContent=cloud.error||(!state.selectedMatch?'Choose a match to enable server saves.':cloud.status==='saved'?`Last server save: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Changes stay on this device until the server confirms. Reconnection retries automatically.');
   $('export-backup').disabled=busy||!state.selectedMatch;
   $('sync-server').disabled=busy||!state.selectedMatch;$('load-server').disabled=busy||!state.selectedMatch||!!state.pending;
@@ -50,7 +50,6 @@ function render(){
   $('connect').disabled=busy||!!state.pending;
   $('cancel').hidden=!state.pending;$('cancel').disabled=busy;
   $('count').textContent=state.rallies.length;
-  $('export').disabled=busy||(!state.rallies.length&&!state.pending&&!state.cancelled.length);
   if(document.activeElement!==$('label'))$('label').value=state.label;
   const choices=connection?.candidates??[];
   $('player-label').hidden=choices.length<2;
@@ -72,9 +71,6 @@ function render(){
       info.append(title,meta);li.append(info,button);return li;
     }));
   }
-  const workspace=$('scouting-workspace'),setup=$('connection-settings');
-  if(state.selectedMatch&&workspace.nextElementSibling!==setup)workspace.after(setup);
-  else if(!state.selectedMatch&&setup.previousElementSibling)$('account-panel').after(setup);
   document.body.classList.toggle('scouting',!!state.selectedMatch);
   renderScouting(state,sample,busy,healthy);renderCatalog(state,busy);renderManual(state,busy);
 }
@@ -89,8 +85,8 @@ async function refresh(){
 }
 async function act(message){
   if(busy)return {ok:false,error:'Another action is being saved. Try again.'};let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match','create-manual','resume-session'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
-  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match')$('catalog-feedback').textContent='Previous match saved on this device. Choose another match below.';if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect')$('connection-feedback').textContent='Video connected. The clock below follows playback.';$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
-  catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
+  try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match'){renderManual.find();$('catalog-feedback').textContent='Previous match saved on this device. Choose another match.';}if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect'){$('connection-feedback').textContent='Video connected. The clock below follows playback.';document.dispatchEvent(new Event('pn-video-connected'));}$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
+  catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){renderManual.open('setup');$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){renderManual.open('setup');$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{busy=false;render();await refresh();}
   return actionResult;
 }
@@ -111,9 +107,6 @@ $('cancel').addEventListener('click',()=>act({type:'cancel'}));
 $('label').addEventListener('change',async()=>{
   revision++;
   try{await call({type:'label',label:$('label').value});}catch(error){$('message').textContent=error.message;}
-});
-$('export').addEventListener('click',async()=>{
-  try{const result=await call({type:'state'});const blob=new Blob([JSON.stringify(exported(result.state),null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`padel-video-bookmarks-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}
 });
 document.addEventListener('keydown',event=>{
   if($('scouting-menu').open)return;

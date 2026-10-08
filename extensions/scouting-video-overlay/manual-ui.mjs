@@ -1,24 +1,30 @@
 export function manualUI({$,act,call,getState}){
  const chosen=Array(4).fill(null),timers=Array(4).fill(null),versions=Array(4).fill(0);
  let restoredDraft='',listKey='',mode='find';
- const menu=$('scouting-menu'),toggle=$('scouting-menu-button');
- function closeMenu(){menu.close();toggle.setAttribute('aria-expanded','false');}
- toggle.onclick=()=>{menu.showModal();toggle.setAttribute('aria-expanded','true');};
- $('close-menu').onclick=closeMenu;menu.addEventListener('close',()=>toggle.setAttribute('aria-expanded','false'));
+ const menu=$('scouting-menu'),toggle=$('scouting-menu-button'),storage=$('menu-storage'),content=$('menu-content');
+ const views={setup:['Match & video setup','connection-settings'],saved:['Saved scouting sessions','saved-sessions-panel'],tools:['Video & court tools','scouting-tools'],shortcuts:['Keyboard shortcuts','shortcut-settings'],bookmarks:['Rally bookmarks','bookmark-settings'],stats:['Detailed stats','advanced-stats'],account:['Sync & backup','account-tools'],finish:['Finish checklist','finish-guide'],help:['Help & limitations','scouting-help']};
+ let activeView=null,lastMenuButton=null;
+ // Move the actual controls, preserving their handlers and state rather than duplicating them.
+ for(const [,id] of Object.values(views))storage.append($(id));
+ function navigation(){while(content.firstChild)storage.append(content.firstChild);activeView=null;content.hidden=true;$('menu-nav').hidden=false;$('menu-back').hidden=true;$('menu-title').textContent='Scouting menu';menu.classList.remove('menu-detail');document.body.classList.remove('creating-match');}
+ function closeMenu(){menu.close();toggle.setAttribute('aria-expanded','false');document.body.classList.remove('creating-match');toggle.focus();}
+ function openView(key){const view=views[key];if(!view)return;if(activeView===key&&menu.open)return;navigation();activeView=key;content.append($(view[1]));$(view[1]).hidden=false;if(key==='account')$('save-settings').open=true;if($(view[1]).tagName==='DETAILS')$(view[1]).open=true;content.hidden=false;$('menu-nav').hidden=true;$('menu-back').hidden=false;$('menu-title').textContent=view[0];menu.classList.add('menu-detail');if(!menu.open)menu.showModal();toggle.setAttribute('aria-expanded','true');menu.scrollTop=0;$('menu-back').focus();}
+ toggle.onclick=()=>{navigation();menu.showModal();toggle.setAttribute('aria-expanded','true');};
+ $('menu-back').onclick=()=>{navigation();lastMenuButton?.focus();};
+ $('close-menu').onclick=closeMenu;menu.addEventListener('close',()=>{toggle.setAttribute('aria-expanded','false');document.body.classList.remove('creating-match');toggle.focus();});
  menu.addEventListener('click',event=>{if(event.target===menu){const box=menu.getBoundingClientRect();if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)closeMenu();}});
- function reveal(node){for(let p=node;p;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;node.scrollIntoView({block:'start',behavior:'smooth'});}
- function showMode(value){mode=value;document.body.classList.toggle('creating-match',value==='create');$('find-match-view').hidden=value!=='find';$('manual-match-form').hidden=value!=='create';$('mode-find').setAttribute('aria-pressed',String(value==='find'));$('mode-create').setAttribute('aria-pressed',String(value==='create'));reveal($('catalog-panel'));if(value==='create')$('manual-player-0').focus();}
- $('catalog-panel').addEventListener('toggle',()=>document.body.classList.toggle('creating-match',mode==='create'&&$('catalog-panel').open));
- $('manual-cancel').onclick=()=>{showMode('find');$('catalog-panel').open=false;reveal($('scouting-workspace'));};
+ function reveal(node){for(const [key,[,id]] of Object.entries(views))if($(id)===node||$(id).contains(node)){if(activeView!==key||!menu.open)openView(key);break;}for(let p=node;p&&p!==menu;p=p.parentElement)if(p.tagName==='DETAILS')p.open=true;node.scrollIntoView({block:'nearest',behavior:'smooth'});}
+ function showMode(value){if(activeView!=='setup'||!menu.open)openView('setup');mode=value;document.body.classList.toggle('creating-match',value==='create');$('find-match-view').hidden=value!=='find';$('manual-match-form').hidden=value!=='create';$('mode-find').setAttribute('aria-pressed',String(value==='find'));$('mode-create').setAttribute('aria-pressed',String(value==='create'));reveal($('catalog-panel'));if(value==='create')$('manual-player-0').focus();}
+ $('manual-cancel').onclick=()=>{showMode('find');closeMenu();};
  $('mode-find').onclick=()=>showMode('find');$('mode-create').onclick=()=>showMode('create');
- for(const button of menu.querySelectorAll('[data-menu]'))button.onclick=()=>{
-  closeMenu();const target=button.dataset.menu;
+ for(const button of document.querySelectorAll('[data-menu]'))button.onclick=()=>{
+  lastMenuButton=button;const target=button.dataset.menu;
   if(target==='find'||target==='create')showMode(target);
-  else if(target==='saved'){$('saved-sessions-panel').hidden=false;reveal($('saved-sessions-panel'));act({type:'manual-matches'});}
-  else if(target==='shortcuts')reveal($('shortcut-settings'));
-  else{reveal($('save-settings'));$('account-panel').scrollIntoView({block:'start',behavior:'smooth'});}
+  else{openView(target);if(target==='saved')act({type:'manual-matches'});}
  };
- $('close-sessions').onclick=()=>{$('saved-sessions-panel').hidden=true;toggle.focus();};
+ $('close-sessions').onclick=()=>{navigation();lastMenuButton?.focus();};
+ $('menu-sign-in').onclick=()=>$('sign-in').click();
+ document.addEventListener('pn-video-connected',()=>{if(activeView==='setup'&&menu.open)closeMenu();});
  $('refresh-private').onclick=async()=>{const result=await act({type:'manual-matches'});$('saved-error').textContent=result.ok?'':result.error;};
  $('open-saved-video').onclick=()=>act({type:'open-video'});
  for(let i=0;i<4;i++){
@@ -50,7 +56,7 @@ export function manualUI({$,act,call,getState}){
  function render(state,busy){
   const locked=busy||!!state.pending;
   $('manual-cancel').hidden=!state.selectedMatch;$('manual-cancel').disabled=busy;
-  for(const button of menu.querySelectorAll('[data-menu]'))button.disabled=locked&&['find','create','saved'].includes(button.dataset.menu);
+  for(const button of document.querySelectorAll('[data-menu]'))button.disabled=locked&&['find','create','saved'].includes(button.dataset.menu);
   $('menu-note').textContent=state.pending?'Save or cancel the current rally before switching matches.':busy?'Saving your action…':'';
   for(const id of ['mode-find','mode-create','create-manual','refresh-private'])$(id).disabled=locked;
   for(const input of $('manual-match-form').querySelectorAll('input'))input.disabled=locked;
@@ -69,5 +75,5 @@ export function manualUI({$,act,call,getState}){
   });
   if(!rows.length){const empty=document.createElement('p');empty.className='hint';empty.textContent='No sessions yet. Find a match or create a private match to begin.';rows.push(empty);}$('saved-sessions-list').replaceChildren(...rows);
  }
- return render;
+ render.open=openView;render.find=()=>showMode('find');render.close=closeMenu;return render;
 }

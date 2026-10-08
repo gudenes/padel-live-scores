@@ -125,3 +125,7 @@ Rollout: apply `20261008120000_private_scouting_matches.sql` (two new private ta
 ### Undo actions
 
 Undo sits beside VAR review and remains available in the finishing-shot dialog. Click repeatedly or use Cmd+Z (Mac) / Ctrl+Z to walk back through recent actions, including a saved point, outcome selection, smash classification, shot tap, fault, rally start and court adjustments. The local history keeps the last 50 actions per match; older saved points can still be undone once there is no open rally. Scores and derived stats recalculate and queue the correction for server sync. The shortcut also works with the video remote visible, and leaves native text-field undo unchanged.
+
+### Scouting menu
+
+The hamburger menu holds match/video setup, saved sessions, video/court tools, keyboard shortcuts, rally bookmarks, detailed serve/pressure stats, account sync/backups, finish checklist and help. These open as menu views with Back/Close, without adding lower-page sections to the scouting workspace. An unfinished rally still blocks switching matches. Sync warnings and the finish action remain visible in live feedback; full JSON backups are available under Sync & backup.
