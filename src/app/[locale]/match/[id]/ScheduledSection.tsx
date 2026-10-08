@@ -81,7 +81,7 @@ export function ScheduledSection({ match, pair1Label, pair2Label, countdown, tz 
       {predecessor && predecessor.court === match.court && <div style={{ background: BG_CARD, padding: '12px 16px', borderBottom: `0.5px solid ${BORDER}` }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12, marginBottom: 10 }}>
           <span>{tSmart('previousOnCourt', { court: match.court ?? '' })}</span>
-          <span style={{ color: predecessor.status === 'live' ? '#FF4655' : MUTED }}>{tSmart(predecessor.status === 'live' ? 'live' : (predecessor.status as string) === 'on_court' ? 'onCourt' : 'finished')}</span>
+          <span style={{ color: predecessor.status === 'live' ? '#FF4655' : MUTED }}>{tSmart(predecessor.status === 'live' ? 'live' : (predecessor.status as string) === 'on_court' ? 'onCourt' : predecessor.status === 'scheduled' ? 'scheduledStart' : 'finished')}</span>
         </div>
         {[pairName(predecessor.pair1_player1, predecessor.pair1_player2), pairName(predecessor.pair2_player1, predecessor.pair2_player2)].map((name, i) => <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, padding: '6px 0' }}>
           <span>{name}</span><span style={{ display: 'flex', gap: 10 }}>{getMatchDisplay(predecessor).sets.map((s) => <b key={s.raw.set_number}>{i === 0 ? s.p1Games : s.p2Games}</b>)}</span>
