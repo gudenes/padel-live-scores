@@ -12,12 +12,12 @@ const doc={...freshDoc(),events:[
  {id:'two',at:'2026-10-07T10:00:01Z',kind:'point',player:2,outcome:'forced',forcedBy:1,smash:false},
 ] as Event[]}
 
-it('defaults to v0.3 and switches graphs and derived scores without changing raw winners',()=>{
+it('defaults to v1.3 and switches graphs and derived scores without changing raw winners',()=>{
  render(createElement(Insights,{model:replay(doc),doc,players}))
  const select=screen.getByRole('combobox',{name:'Methodology'}) as HTMLSelectElement
- expect(select.value).toBe('v0.3')
+ expect(select.value).toBe('v1.3')
  expect(screen.getAllByRole('img',{name:/Player Score/})).toHaveLength(4)
- expect(screen.getByRole('img',{name:/Four-player evolution · v0.3/})).toBeTruthy()
+ expect(screen.getByRole('img',{name:/Four-player evolution · v1.3/})).toBeTruthy()
  fireEvent.change(select,{target:{value:'net-actions'}})
  expect(screen.queryAllByRole('img',{name:/Player Score/})).toHaveLength(0)
  expect(screen.getByRole('img',{name:/Four-player evolution · Original/})).toBeTruthy()
@@ -54,4 +54,15 @@ it('filters the chart, team summary and player snapshots by set and restores ful
  fireEvent.click(screen.getByRole('button',{name:'Full match'}))
  expect(summary.querySelector('tbody tr')?.textContent).toBe('Winners10')
  expect(screen.getByRole('slider',{name:'Explore match point'}).getAttribute('max')).toBe('2')
+})
+
+it('recalculates assisted winner scores when switching to the preserved v0.3 method',()=>{
+ const assisted={...freshDoc(),events:[{id:'assist',at:'2026-10-07T10:00:00Z',kind:'point',player:0,outcome:'winner',assistBy:1,smash:false} as Event]}
+ render(createElement(Insights,{model:replay(assisted),doc:assisted,players}))
+ expect(screen.getAllByRole('img',{name:'Player Score 10.0 out of 10'})).toHaveLength(2)
+ expect(screen.getByText(/Assisted winners split impact equally/)).toBeTruthy()
+ fireEvent.change(screen.getByRole('combobox',{name:'Methodology'}),{target:{value:'v0.3'}})
+ expect(screen.getAllByRole('img',{name:'Player Score 10.0 out of 10'})).toHaveLength(1)
+ expect(screen.getByRole('img',{name:'Player Score 7.3 out of 10'})).toBeTruthy()
+ expect(screen.getByText(/Assists are recorded without separate impact credit/)).toBeTruthy()
 })
