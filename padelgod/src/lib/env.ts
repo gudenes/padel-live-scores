@@ -182,6 +182,17 @@ const EnvSchema = z.object({
   // but makes no DB writes. Flip to false once the first day's dry-run
   // output looks correct.
   RAW_PAYLOADS_PRUNE_DRY_RUN: boolEnv(true),
+  // scrape-jobs-prune — deletes `padelgod.scrape_jobs` rows older than the
+  // retention window (default 14 days). ON DELETE CASCADE removes the
+  // matching results/oop/entry_list/draw snapshot + raw_payload children.
+  // Runs daily at 03:30 UTC, after raw-payloads-prune. Default OFF —
+  // operator flips on in Railway AFTER migration 20260616000001 (the FK
+  // indexes) is applied and a dry-run has been reviewed.
+  ENABLE_SCRAPE_JOBS_PRUNE: boolEnv(false),
+  // Dry-run: when true (default), logs how many rows would be deleted but
+  // makes no DB writes. Flip to false once the first day's dry-run output
+  // looks correct.
+  SCRAPE_JOBS_PRUNE_DRY_RUN: boolEnv(true),
   // schedule-hints-writer — computes per-match `late_hint` ("may be late" /
   // "starting soon" / null) for the matches list UI. Runs every 2 min.
   // Default ON; disable via ENABLE_SCHEDULE_HINTS_WRITER=false.
