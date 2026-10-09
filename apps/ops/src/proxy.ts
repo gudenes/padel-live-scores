@@ -1,14 +1,20 @@
-// apps/ops/src/proxy.ts
-// Next.js 16 proxy (middleware-equivalent). Phase 1: pass-through.
-// Auth gating happens at the (app)/layout.tsx level via await auth().
-
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { auth } from '@/lib/auth'
+import { scouterRouteAllowed } from '@/lib/scouting-permissions'
 
-export function proxy(_request: NextRequest) {
+export const proxy = auth((request) => {
+  const user = request.auth?.user
+  if (user?.isScouter && !user.isOperator) {
+    const path = request.nextUrl.pathname.replace(/\/$/, '') || '/'
+    if (['/', '/today', '/login'].includes(path) && request.method === 'GET') {
+      return NextResponse.redirect(new URL('/scouting', request.url))
+    }
+    if (!scouterRouteAllowed(path, request.method)) {
+      return path.startsWith('/api/')
+        ? NextResponse.json({error:'Your role does not allow this action.'},{status:403})
+        : new NextResponse('This page requires administrator access.', {status:403})
+    }
+  }
   return NextResponse.next()
-}
-
-export const config = {
-  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)'],
-}
+})
+export const config = { matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|svg|woff2?)$).*)'] }

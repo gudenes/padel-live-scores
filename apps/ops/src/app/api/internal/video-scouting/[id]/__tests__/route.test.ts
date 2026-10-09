@@ -75,3 +75,29 @@ it('accepts extension writes only with a matching operator session and signed or
   expect((await POST(req,ctx)).status).toBe(401)
  }finally{vi.unstubAllEnvs()}
 })
+
+it('allows scouters to read all reports but refuses writes to other and legacy sessions',async()=>{
+ mock.auth.mockResolvedValue({user:{id:'scouter',isScouter:true,email:'scouter@test'}})
+ mock.queue.push({data:{document,players,revision:1,assigned_scouter_user_id:'other'}})
+ expect((await GET(request(),ctx)).status).toBe(200)
+ for(const owner of ['other',null]){
+  mock.queue.push({data:{document,players,revision:1,assigned_scouter_user_id:owner}})
+  expect((await POST(request(document,1),ctx)).status).toBe(403)
+ }
+ expect(mock.writes).not.toHaveBeenCalled()
+})
+it('attributes new scouter sessions and accepts assigned-session corrections',async()=>{
+ mock.auth.mockResolvedValue({user:{id:'scouter',isScouter:true,email:'scouter@test'}})
+ mock.queue.push({data:null},{data:{id,pair1_player1_id:'0',pair1_player2_id:'1',pair2_player1_id:'2',pair2_player2_id:'3'}},{data:players},{data:{revision:1}})
+ expect((await POST(request(),ctx)).status).toBe(200)
+ expect(mock.writes).toHaveBeenCalledWith(expect.objectContaining({creator_user_id:'scouter',assigned_scouter_user_id:'scouter',updated_by_user_id:'scouter'}))
+ mock.queue.push({data:{document,players,revision:1,write_id:'old',assigned_scouter_user_id:'scouter'}},{data:{revision:2}})
+ expect((await POST(request(document,1),ctx)).status).toBe(200)
+})
+it('denies suspended users and handles database revocation during save',async()=>{
+ mock.auth.mockResolvedValue({user:{id:'scouter',isScouter:false}})
+ expect((await POST(request(),ctx)).status).toBe(401)
+ mock.auth.mockResolvedValue({user:{id:'scouter',isScouter:true}})
+ mock.queue.push({data:{document,players,revision:1,write_id:'old',assigned_scouter_user_id:'scouter'}},{error:{code:'42501'}})
+ expect((await POST(request(document,1),ctx)).status).toBe(403)
+})

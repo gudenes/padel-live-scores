@@ -17,6 +17,7 @@ import { verifyPassword } from './password'
 import { check as rateLimitCheck } from './rate-limit'
 import { getClientIp } from './client-ip'
 import { isUserOperator } from './operators'
+import { bindScoutingGrant, isUserScouter } from './staff-access'
 import PostgresAdapter from '@auth/pg-adapter'
 import { pgPool } from './db'
 
@@ -98,9 +99,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     // JWT callback fires on every request. On initial sign-in `user` is
     // populated and we copy its id onto the token; subsequent calls only get
     // `token`. This is the canonical JWT-strategy pattern.
-    async jwt({ token, user }) {
+    async jwt({ token, user, account, profile }) {
       if (user?.id) {
         token.userId = user.id
+        await bindScoutingGrant(user.id, account?.provider === 'google' && profile?.email_verified === true)
       }
       return token
     },
@@ -111,6 +113,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (userId && session.user) {
         session.user.id = userId
         session.user.isOperator = await isUserOperator(userId)
+        session.user.isScouter = session.user.isOperator ? false : await isUserScouter(userId)
       }
       return session
     },

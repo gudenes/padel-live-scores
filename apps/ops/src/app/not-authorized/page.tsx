@@ -24,8 +24,8 @@ export default async function NotAuthorizedPage() {
             </h1>
             <p style={{ fontSize: 14, color: 'var(--text-2)', margin: '0 0 24px' }}>
               {session?.user?.email
-                ? `You are signed in as ${session.user.email}, but your account is not on the operators list.`
-                : 'You are not signed in to the operators dashboard.'}
+                ? `You are signed in as ${session.user.email}, but your account does not have active admin or scouting access.`
+                : 'Sign in to access scouting or administration.'}
             </p>
             <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 16px' }}>
               Contact an admin to be added.

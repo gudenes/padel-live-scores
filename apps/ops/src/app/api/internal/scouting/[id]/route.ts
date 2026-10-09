@@ -1,3 +1,4 @@
+import {canScout} from '@/lib/scouting-permissions'
 import { auth } from '@/lib/auth'
 import { serviceClient } from '@/lib/supabase'
 import {historyJson} from '@/lib/scouting/history'
@@ -18,7 +19,7 @@ async function roster(id:string){
   return ids.map(id=>p.data!.find(p=>p.id===id)!)
 }
 export async function GET(_req:Request,ctx:{params:Promise<{id:string}>}){
-  if(!(await auth())?.user?.isOperator)return json({error:'unauthorized'},401)
+  if(!canScout((await auth())?.user))return json({error:'unauthorized'},401)
   const {id}=await ctx.params;if(!uuid.test(id))return json({error:'Invalid match.'},400)
   try{
     const session=await serviceClient().from('operator_scouting_sessions').select('*').eq('match_id',id).maybeSingle()
