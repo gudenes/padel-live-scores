@@ -3,14 +3,14 @@
 Implemented on codex/scouter-access from origin/main e2a712aa8. No production changes made.
 
 ## What ships
-- Existing operators keep administrator privileges. Scouter is a separate, revocable grant.
-- Team access at /team-access: grant an email, suspend/restore. Administrators cannot be modified here.
+- Existing operators keep administrator privileges. Viewer, Scouter and Administrator are separate, revocable grants.
+- Team access at /team-access: grant an email at a chosen access level, change level, suspend/restore. Legacy operator accounts are protected. Serialized changes recheck administrator access and preserve at least one active administrator; pending accounts do not count.
 - Grants bind to a verified authenticated account, never an arbitrary client-supplied email. New users can use existing Google or magic-link sign-in. Google users whose emailVerified field is empty may need to sign out and back in after the grant.
 - Scouter workspace /scouting: searchable, paginated canonical/private/legacy report library, filters for player/tournament, scouter, match date and completion.
-- All scouters can read all saved reports and exports. Existing insights/set filters and calculation logic are reused unchanged.
+- Viewers and scouters can read all saved reports and exports. Viewers cannot record, obtain extension authorization, or modify sessions. Existing insights/set filters and calculation logic are reused unchanged.
 - Scouters record through the extension; legacy on-site editor remains administrator-only.
 - A new extension session is assigned to its first writer. Scouters write only their assigned sessions. Administrators may reassign from the library via Team access. Existing unassigned sessions remain administrator-editable until explicitly assigned.
-- Required catalogue reads are scoped. Direct URLs and unexpected HTTP methods/server actions are denied for scouters. The existing isOperator flag is not widened.
+- Required catalogue reads are scoped. Direct URLs and unexpected HTTP methods/server actions are denied for scouters. Active delegated Administrators receive full isOperator permissions; scoped roles never do. Permissions are reloaded on every authenticated request.
 - Role changes and attributed session writes are audited. Assignment enforcement runs in a database trigger as well as in the API.
 - Match documents, stats and official scores are not rewritten by the migration.
 
@@ -36,4 +36,6 @@ No emails or invitations are sent by granting access. The owner shares the sign-
 ## Rollback and limits
 Keep the additive tables and ownership fields; do not drop recorded data. Rollback to old application code removes scouter access because old code still requires operators. Old code can update administrator-owned legacy rows, but may be blocked on already attributed scouter rows by the assignment trigger; handle such corrections with the current admin application, not by disabling the trigger casually.
 The migration does not infer old ownership from email. Library dates are match dates, last-save display uses Europe/Madrid. Legacy reports without a persisted finished phase are labeled “In progress / legacy”.
-Independent simultaneous scout versions per match and an insights-only role are out of scope for this first release.
+Independent simultaneous scout versions per match are out of scope.
+
+Approved access-level UI is implemented, including inline role changes, descriptions, protected accounts and assignment restricted to recording roles. The local preview uses the real component with mock data. Viewer read/write isolation, delegated admin writes and demotion are covered by policy/API/proxy tests and the isolated database check.

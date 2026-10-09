@@ -1,11 +1,11 @@
 import {beforeEach,expect,it,vi} from 'vitest'
 const query=vi.hoisted(()=>vi.fn())
 vi.mock('@/lib/db',()=>({pgPool:()=>({query})}))
-import {isUserScouter,bindScoutingGrant} from '../staff-access'
-beforeEach(()=>{query.mockReset();query.mockResolvedValue({rowCount:1})})
+import {isUserScouter,staffRole,bindScoutingGrant} from '../staff-access'
+beforeEach(()=>{query.mockReset();query.mockResolvedValue({rowCount:1,rows:[{role:"scouter"}]})})
 it('rechecks active membership on each request instead of caching grants in JWTs',async()=>{
  expect(await isUserScouter('a')).toBe(true)
- query.mockResolvedValueOnce({rowCount:0})
+ query.mockResolvedValueOnce({rowCount:0,rows:[]})
  expect(await isUserScouter('a')).toBe(false)
  expect(query).toHaveBeenCalledTimes(2)
  expect(query.mock.calls[0][0]).toContain("status='active'")
@@ -24,4 +24,8 @@ it('fails closed when the migration is missing, but propagates unexpected failur
  await expect(bindScoutingGrant('a')).resolves.toBeUndefined()
  query.mockRejectedValue(Error('connection lost'))
  await expect(isUserScouter('a')).rejects.toThrow('connection lost')
+})
+
+it('resolves each active role without treating viewers as scouters',async()=>{
+ for(const role of ['viewer','admin','scouter']){query.mockResolvedValue({rows:[{role}]});expect(await staffRole('a')).toBe(role);expect(await isUserScouter('a')).toBe(role==='scouter')}
 })

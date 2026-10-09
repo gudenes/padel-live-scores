@@ -17,7 +17,7 @@ import { verifyPassword } from './password'
 import { check as rateLimitCheck } from './rate-limit'
 import { getClientIp } from './client-ip'
 import { isUserOperator } from './operators'
-import { bindScoutingGrant, isUserScouter } from './staff-access'
+import { bindScoutingGrant, staffRole } from './staff-access'
 import PostgresAdapter from '@auth/pg-adapter'
 import { pgPool } from './db'
 
@@ -113,7 +113,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (userId && session.user) {
         session.user.id = userId
         session.user.isOperator = await isUserOperator(userId)
-        session.user.isScouter = session.user.isOperator ? false : await isUserScouter(userId)
+        const role = session.user.isOperator ? null : await staffRole(userId)
+        session.user.isOperator = session.user.isOperator || role === 'admin'
+        session.user.isScouter = role === 'scouter'
+        session.user.isViewer = role === 'viewer'
       }
       return session
     },

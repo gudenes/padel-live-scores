@@ -1,4 +1,4 @@
-import {canScout,canWriteSession} from '@/lib/scouting-permissions'
+import {canScout,canViewReports,canWriteSession} from '@/lib/scouting-permissions'
 import {auth} from '@/lib/auth'
 import {verifyScoutingProof} from '@/lib/scouting-extension-auth'
 import {serviceClient} from '@/lib/supabase'
@@ -19,7 +19,7 @@ export async function canonicalRoster(id:string){
 
 export function videoScoutingApi({table,roster,metadata}:{table:string;roster:(id:string)=>Promise<any>;metadata?:(id:string)=>Promise<any>}){
 async function GET(_req:Request,ctx:{params:Promise<{id:string}>}){
- if(!canScout((await auth())?.user))return json({error:'Sign in with an account that has scouting access.'},401)
+ if(!canViewReports((await auth())?.user))return json({error:'Sign in with an account that has scouting access.'},401)
  const {id}=await ctx.params;if(!uuid.test(id))return json({error:'Invalid match.'},400)
  try{
   const result=await serviceClient().from(table).select('revision,document,score,stats,players,updated_at,assigned_scouter_user_id').eq('match_id',id).maybeSingle()

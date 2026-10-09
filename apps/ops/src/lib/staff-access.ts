@@ -1,12 +1,13 @@
 import { pgPool } from './db'
 
-export async function isUserScouter(userId: string): Promise<boolean> {
+export type StaffRole = 'viewer' | 'scouter' | 'admin'
+export async function staffRole(userId: string): Promise<StaffRole | null> {
   try {
-    const result = await pgPool().query("select 1 from public.scouting_staff_grants where user_id=$1 and status='active'", [userId])
-    return !!result.rowCount
+    const result = await pgPool().query("select role from public.scouting_staff_grants where user_id=$1 and status='active'", [userId])
+    return result.rows[0]?.role ?? null
   } catch (error) {
     // An additive rollout must not lock out existing administrators.
-    if ((error as {code?:string}).code === '42P01') return false
+    if ((error as {code?:string}).code === '42P01') return null
     throw error
   }
 }
@@ -22,3 +23,5 @@ export async function bindScoutingGrant(userId: string, verifiedByProvider = fal
     if ((error as {code?:string}).code !== '42P01') throw error
   }
 }
+
+export async function isUserScouter(userId: string) { return (await staffRole(userId)) === 'scouter' }

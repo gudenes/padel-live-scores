@@ -10,7 +10,7 @@ export default async function LoginPage() {
   // If already signed in, route to /today (operator gate applies there).
   const session = await auth()
   if (session?.user) {
-    redirect(session.user.isScouter && !session.user.isOperator ? '/scouting' : '/today')
+    redirect((session.user.isScouter || session.user.isViewer) && !session.user.isOperator ? '/scouting' : '/today')
   }
   return (
     <main

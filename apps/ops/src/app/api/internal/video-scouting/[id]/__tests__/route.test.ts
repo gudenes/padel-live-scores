@@ -101,3 +101,11 @@ it('denies suspended users and handles database revocation during save',async()=
  mock.queue.push({data:{document,players,revision:1,write_id:'old',assigned_scouter_user_id:'scouter'}},{error:{code:'42501'}})
  expect((await POST(request(document,1),ctx)).status).toBe(403)
 })
+
+it('lets viewers load complete report data but rejects saving',async()=>{
+ mock.auth.mockResolvedValue({user:{id:'viewer',isViewer:true}})
+ mock.queue.push({data:{document,revision:2,score:{},stats:[],players}})
+ expect((await GET(request(),ctx)).status).toBe(200)
+ expect((await POST(request(),ctx)).status).toBe(401)
+ expect(mock.writes).not.toHaveBeenCalled()
+})

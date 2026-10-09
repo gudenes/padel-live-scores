@@ -42,4 +42,15 @@ assert.equal((await db.query(libraryQuery,['','','private','','',0])).rows.lengt
 assert.equal((await db.query(libraryQuery,['','','','b@test','',0])).rows.length,2)
 assert.equal((await db.query(libraryQuery,['no-such-player','','','','',0])).rows.length,0)
 console.log('PASS: migrations, canonical/private ownership, corrections, revocation, reassignment, immutable creator, audit and preserved documents')
+
+// Role transitions must take effect at the database write, even for an existing session.
+for(const table of ['operator_video_scouting_sessions','operator_manual_video_scouting_sessions']){
+ await db.query("update scouting_staff_grants set role='viewer' where user_id=$1",[b])
+ await assert.rejects(()=>db.query('update '+table+' set updated_by_user_id=$1',[b]),/revoked/)
+ await db.query("update scouting_staff_grants set role='admin' where user_id=$1",[a])
+ await db.query('update '+table+' set updated_by_user_id=$1',[a])
+ await db.query("update scouting_staff_grants set role='scouter' where user_id=$1",[a])
+ await assert.rejects(()=>db.query('update '+table+' set updated_by_user_id=$1',[a]),/assigned/)
+}
+console.log('PASS: Viewer write denial, delegated Administrator writes and immediate demotion enforcement')
 await db.close()

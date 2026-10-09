@@ -12,6 +12,7 @@ declare module 'next-auth' {
       image?: string | null
       isOperator?: boolean
       isScouter?: boolean
+      isViewer?: boolean
     }
   }
 }

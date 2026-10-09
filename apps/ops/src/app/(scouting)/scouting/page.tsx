@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import {auth} from '@/lib/auth'
-import {canScout} from '@/lib/scouting-permissions'
+import {canViewReports} from '@/lib/scouting-permissions'
 import {redirect} from 'next/navigation'
 import {pgPool} from '@/lib/db'
 export const dynamic='force-dynamic'
 export const metadata={title:'All scouted matches · Padel Nachos'}
 export default async function Page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
- const user=(await auth())?.user;if(!canScout(user))redirect('/login')
+ const user=(await auth())?.user;if(!canViewReports(user))redirect('/login')
  const params=await searchParams
  const text=(k:string)=>typeof params[k]==='string'?(params[k] as string).slice(0,100):''
  const q=text('q'),status=text('status'),kind=text('kind'),scouter=text('scouter'),date=text('date')
@@ -34,7 +34,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  rows=result.rows
  }catch{failed=true}
  const pageUrl=(n:number)=>{const p=new URLSearchParams({q,status,kind,scouter,date,page:String(n)});return '/scouting?'+p}
- return <main style={{padding:24,maxWidth:1300,margin:'auto'}}><h1>All scouted matches</h1><p>View everyone’s saved insights. To record a match, open the Padel Nachos extension and choose New match.</p><p><Link href="/scouting/methodology">Calculation methodology</Link>{user?.isOperator&&<> · <Link href="/team-access">Manage scouters</Link></>}</p>
+ return <main style={{padding:24,maxWidth:1300,margin:'auto'}}><h1>All scouted matches</h1><p>View everyone’s saved insights.{!user?.isViewer && <> To record a match, open the Padel Nachos extension and choose New match.</>}</p><p><Link href="/scouting/methodology">Calculation methodology</Link>{user?.isOperator&&<> · <Link href="/team-access">Team access</Link></>}</p>
  <form className="ui-panel" style={{padding:16,display:'flex',gap:12,flexWrap:'wrap',alignItems:'end'}}>
  <label>Players or tournament<input className="ui-input" name="q" defaultValue={q}/></label>
  <label>Scouter<input className="ui-input" name="scouter" defaultValue={scouter}/></label>

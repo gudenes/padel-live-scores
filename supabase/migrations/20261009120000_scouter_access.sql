@@ -2,7 +2,7 @@
 create table public.scouting_staff_grants (
  email text primary key check (email=lower(trim(email))),
  user_id uuid unique references public.users(id),
- role text not null default 'scouter' check (role='scouter'),
+ role text not null default 'scouter' check (role in ('viewer','scouter','admin')),
  status text not null default 'active' check (status in ('active','suspended')),
  granted_by uuid not null references public.users(id),
  created_at timestamptz not null default now(),
@@ -36,7 +36,7 @@ alter table public.operator_manual_scouting_matches add column creator_user_id u
 -- Enforce current grants and assignment atomically at the database write, including
 -- revocation/reassignment racing with an in-flight extension save.
 create function public.enforce_scouting_assignment() returns trigger language plpgsql as $$
-declare actor uuid;
+declare actor uuid; actor_role text;
 begin
  actor := new.updated_by_user_id;
  -- Compatibility for old administrator-only code during rollout/rollback.
@@ -47,8 +47,9 @@ begin
    return new;
  end if;
  if not exists(select 1 from public.operators where user_id=actor) then
-   perform 1 from public.scouting_staff_grants where user_id=actor and status='active' for share;
-   if not found then raise exception 'Scouting access revoked' using errcode='42501'; end if;
+   select role into actor_role from public.scouting_staff_grants where user_id=actor and status='active' for share;
+   if not found or actor_role='viewer' then raise exception 'Scouting access revoked' using errcode='42501'; end if;
+   if actor_role='scouter' then
    if TG_OP='INSERT' then
      if new.assigned_scouter_user_id is distinct from actor or new.creator_user_id is distinct from actor then
        raise exception 'Invalid scouting assignment' using errcode='42501';
@@ -56,6 +57,7 @@ begin
    elsif old.assigned_scouter_user_id is distinct from actor or new.assigned_scouter_user_id is distinct from old.assigned_scouter_user_id then
      raise exception 'This session is assigned to another scouter' using errcode='42501';
    end if;
+ end if;
  end if;
  if TG_OP='UPDATE' and new.creator_user_id is distinct from old.creator_user_id then
    raise exception 'Session creator is immutable' using errcode='42501';

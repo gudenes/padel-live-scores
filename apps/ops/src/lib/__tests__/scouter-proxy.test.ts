@@ -23,3 +23,14 @@ it('preserves administrator access and permits scoped report pages',async()=>{
  expect((await request('/team-access','GET',{id:'admin',isOperator:true})).status).toBe(200)
  expect((await request('/scouting')).status).toBe(200)
 })
+
+it('allows viewers to read reports but denies recording, tokens and administration',async()=>{
+ const viewer={id:'viewer',isViewer:true},id='11111111-1111-4111-8111-111111111111'
+ for(const path of ['/scouting','/scouting/methodology','/scouting/'+id+'/report','/api/internal/video-scouting/'+id,'/api/internal/manual-video-scouting/'+id]){
+  expect((await request(path,'GET',viewer)).status).toBe(200)
+  expect((await request(path,'POST',viewer)).status).toBe(403)
+ }
+ for(const path of ['/team-access','/api/internal/scouting-extension/session','/api/internal/manual-scouting-matches','/api/internal/scouting-catalog']){
+  expect((await request(path,'GET',viewer)).status).toBe(403)
+ }
+})
