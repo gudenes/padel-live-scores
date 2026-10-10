@@ -143,7 +143,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(match(state).score.phase==='finished')throw Error('Undo the last action before correcting a finished match.');
           const adjustment={type:message.type,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()};
           if(message.type==='missed-point'){
-            if(match(state).setServers)throw Error('Confirm both servers for the new set first.');
+            if(match(state).setServers)throw Error('Confirm this game’s server first.');
             if(!['a','b'].includes(message.team))throw Error('Choose a pair.');
             adjustment.team=message.team;
           }else adjustment.score=validateStartingScore(message.score);
@@ -165,11 +165,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
  case 'confirm-set-servers':{
  const required=match(state).setServers;
  if(!required||state.pending)throw Error('Confirm servers between sets, before starting a rally.');
- const {first,second}=message;
- if(!Number.isInteger(first)||first<0||first>3||!Number.isInteger(second)||second<0||second>3||Math.floor(first/2)===Math.floor(second/2)||(first<2?'a':'b')!==required.firstTeam)throw Error('Choose one server from each pair, keeping the serving team order.');
- // set_server advances a slot when changing teams: select the other pair’s
- // partner first, then the first server, leaving the chosen second server next.
- for(const player of [second^1,first])(state.setup.adjustments??=[]).push({type:'server',player,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()});
+ const {player}=message;
+ if(!Number.isInteger(player)||player<0||player>3||(player<2?'a':'b')!==required.team)throw Error('Choose a player from the serving team.');
+ (state.setup.adjustments??=[]).push({type:'server',player,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()});
  return save();
  }
  case 'confirm-other-server':{
@@ -188,7 +186,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           state.setup.positions??={a:false,b:false};state.setup.positions[message.pair]=!state.setup.positions[message.pair];return save();
         }
         case 'server':case 'ends':{
-          if(message.type==='server'&&match(state).setServers)throw Error('Confirm both servers for the new set first.');
+          if(message.type==='server'&&match(state).setServers)throw Error('Confirm this game’s server first.');
           if(message.type==='server'&&state.setup.otherServerUnknown&&Math.floor(message.player/2)!==Math.floor(state.setup.firstServer/2))throw Error('Confirm the other team’s server using the reminder first.');
           if(state.pending&&message.type==='server')throw Error('Finish or cancel the rally before changing server.');
           if(!state.selectedMatch||match(state).score.phase==='finished')throw Error('Select an unfinished match.');

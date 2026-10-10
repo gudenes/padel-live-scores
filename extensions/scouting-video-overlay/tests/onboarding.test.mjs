@@ -14,18 +14,23 @@ function fixture(){let disk=fresh(),time=100,serial=0;const snap=()=>({tabId:1,d
 async function setup(f){await f.dispatch({type:'scouting-matches'});await f.dispatch({type:'select-match',wizard:true,tournamentId:'t',matchId:'m'});await f.dispatch({type:'connect'});await assert.rejects(f.dispatch({type:'start'}),/Complete match setup/);await f.dispatch({type:'complete-onboarding',setup:{firstServer:0,otherServer:2,otherServerUnknown:true,...courtSetup([1,0,2,3]),rule:'star-point'},score:{completed:[{a:6,b:4}],games:{a:0,b:0},points:{a:40,b:0},server:0,near:'b',advantageReturns:0}})}
 test('unknown server persists, blocks the next service game, resolves and undoes without losing points',async()=>{const f=fixture();await setup(f);assert.deepEqual(courtPlayers(f.get()),[1,0,2,3]);assert.equal(videoPayload(f.get()).setup.otherServerUnknown,true);assert.equal(validateVideoState(videoPayload(f.get())).setup.otherServerUnknown,true);await f.point();assert.equal(needsServerConfirmation(f.get(),match(f.get())),true);await assert.rejects(f.dispatch({type:'start'}),/Confirm/);await assert.rejects(f.dispatch({type:'restart-rally'}),/Confirm/);await assert.rejects(f.dispatch({type:'confirm-other-server',player:0}),/other pair/);const before=match(f.get()).score;await f.dispatch({type:'confirm-other-server',player:3});assert.equal(match(f.get()).server,3);assert.equal(f.get().rallies.length,1);assert.equal(needsServerConfirmation(f.get(),match(f.get())),false);await f.dispatch({type:'undo-last'});assert.equal(f.get().setup.otherServerUnknown,true);assert.equal(f.get().rallies.length,1);assert.deepEqual(match(f.get()).score,before)});
 test('invalid starting score leaves setup and saved score unchanged',async()=>{const f=fixture();await setup(f);const old=f.get();await assert.rejects(f.dispatch({type:'complete-onboarding',setup:{firstServer:0,otherServer:2},score:{completed:[{a:0,b:0}],games:{a:0,b:0},points:{a:0,b:0},server:0,near:'a'}}));assert.deepEqual(f.get(),old);await f.point();await assert.rejects(f.dispatch({type:'complete-onboarding',setup:{firstServer:0,otherServer:2}}),/recorded points/);assert.equal(f.get().rallies.length,1)});
-test('new set requires both servers, keeps team sequence, survives sync and can be undone',async()=>{
+test('new set asks separately before games one and two, preserves order, sync and undo',async()=>{
  for(const tie of [false,true])for(const fslot of [0,1])for(const sslot of [0,1]){
   const f=fixture();await setup(f);await f.dispatch({type:'confirm-other-server',player:2});
   await f.dispatch({type:'starting-score',score:{completed:[],games:tie?{a:6,b:6}:{a:5,b:0},points:tie?{a:6,b:0}:{a:40,b:0},server:0,near:'b',advantageReturns:0}});
-  await f.point();const before=match(f.get());assert.equal(before.setServers.set,2);const base=before.setServers.firstTeam==='a'?0:2,first=base+fslot,second=(2-base)+sslot;assert.equal(before.setServers.firstTeam,before.score.servingTeam);
+  await f.point();const before=match(f.get());assert.equal(before.setServers.set,2);const base=before.setServers.team==='a'?0:2,first=base+fslot,second=(2-base)+sslot;assert.equal(before.setServers.team,before.score.servingTeam);
   await assert.rejects(f.dispatch({type:'start'}),/Confirm/);await assert.rejects(f.dispatch({type:'restart-rally'}),/Confirm/);
-  await assert.rejects(f.dispatch({type:'confirm-set-servers',first:second,second:first}),/team order/);
-  await f.dispatch({type:'confirm-set-servers',first,second});assert.equal(match(f.get()).server,first);assert.equal(match(f.get()).setServers,null);assert.deepEqual(match(f.get()).stats,before.stats);
+  await assert.rejects(f.dispatch({type:'confirm-set-servers',player:second}),/serving team/);
+  await f.dispatch({type:'confirm-set-servers',player:first});assert.equal(match(f.get()).server,first);assert.equal(match(f.get()).setServers,null);assert.deepEqual(match(f.get()).stats,before.stats);
   const restored=validateVideoState(videoPayload(f.get()));assert.equal(match(restored).server,first);assert.equal(match(restored).setServers,null);
   await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).setServers.set,2);
-  await f.dispatch({type:'confirm-set-servers',first,second});
-  for(let i=0;i<4;i++)await f.point();assert.equal(match(f.get()).server,second);
+  await f.dispatch({type:'confirm-set-servers',player:first});
+  for(let i=0;i<4;i++)await f.point();assert.equal(match(f.get()).setServers.game,2);
+  await assert.rejects(f.dispatch({type:'start'}),/Confirm/);
+  await f.dispatch({type:'confirm-set-servers',player:second});assert.equal(match(f.get()).server,second);
+  assert.equal(match(validateVideoState(videoPayload(f.get()))).setServers,null);
+  await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).setServers.game,2);
+  await f.dispatch({type:'confirm-set-servers',player:second});
   for(let i=0;i<4;i++)await f.point();assert.equal(match(f.get()).server,first^1);
  }
 });
