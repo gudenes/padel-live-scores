@@ -194,3 +194,11 @@ Menu → Coaches allows one confirmed coach per team, combining canonical DB sug
 Deploy admin support for `match-setup-v2` and the authenticated `/api/internal/scouting-coaches` lookup before installing this update. No database migration is required; observations use the existing private session document. Sync retains the full local record until server capability is confirmed. Demo coach suggestions use a read-only DB snapshot dated 2026-10-10; they are not confirmations of attendance.
 
 Smash effectiveness: direct smash winners plus immediately following opponent forced/unforced errors with previousShot=smash, divided by attempts. The previous player must be explicitly recorded. Reuses a same-player attempt in the current rally; absent a tapped attempt, that explicit stroke supplies one attempt. Counts at most one successful attempt per point. Direct winners and error classifications remain unchanged. Derived stats replay existing records; missing historical previous-stroke attribution is not guessed.
+
+### Responsive local recording
+
+Local saves use an atomic index plus changed top-level fields under `scoutingVideo:fields:v1:*`. The original `scoutingVideo` snapshot is retained as a migration backup; it is not the current record after migration. All extension readers use `local-store.mjs`. Do not downgrade to a reader that only knows the legacy key without exporting the current backup first.
+
+Actions still acknowledge a durable local write before reporting success. Server payload preparation is deferred off the recording queue; the retry alarm recovers current and saved sessions after a worker restart. Outcome selection opens an editable local draft immediately, while authoritative video validation completes. Failed preparation prevents a queued save from recording the wrong outcome.
+
+In rally-tap mode, one tap by a receiving player followed by Unforced preselects Return. This requires a confirmed opposing server. Space confirms the return and previous Serve attribution; the operator can change the finishing stroke. Multiple taps, serving-team taps, and unknown servers do not trigger the suggestion.

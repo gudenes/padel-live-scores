@@ -6,9 +6,10 @@ test('expired document reports recovery; overlay reconnect targets its own tab a
  let listener,seekTime,queried=false;
  const snap={videoId:'new-video',mediaId:'new-media',time:100,at:new Date().toISOString(),paused:false,ended:false,seeking:false,readyState:4,rate:1,seekEpoch:0,seekable:[[0,5000]]};
  let disk={...fresh(),connection:{tabId:7,page:'https://www.youtube.com/watch',candidates:[],selected:{documentId:'old-document',videoId:'old-video'}}};
+ const stored={scoutingVideo:disk};
  globalThis.chrome={
   action:{onClicked:{addListener(){}}},sidePanel:{},
-  storage:{local:{get:async()=>({scoutingVideo:structuredClone(disk)}),set:async value=>{if(value.scoutingVideo)disk=value.scoutingVideo;}},session:{get:async()=>({})}},
+  storage:{local:{get:async keys=>Object.fromEntries((Array.isArray(keys)?keys:[keys]).filter(k=>k in stored).map(k=>[k,structuredClone(stored[k])])),set:async value=>{Object.assign(stored,structuredClone(value));}},session:{get:async()=>({})}},
   tabs:{query:async()=>{queried=true;throw Error('Must not use an unrelated active tab');},get:async id=>{assert.equal(id,7);return {id,url:'https://www.youtube.com/watch?v=replay'};}},
   scripting:{executeScript:async args=>{
    assert.equal(args.target.tabId,7);
@@ -23,7 +24,7 @@ test('expired document reports recovery; overlay reconnect targets its own tab a
   const sender={id:'test',tab:{id:7},frameId:0,url:'https://www.youtube.com/watch?v=replay'};
   const send=(message,who=sender)=>new Promise(resolve=>listener(message,who,resolve));
   const failed=await send({type:'sample'});assert.equal(failed.ok,false);assert.match(failed.error,/Video connection expired.*Reconnect video/);
-  const recovered=await send({type:'reconnect'});assert.equal(recovered.ok,true);assert.equal(disk.connection.selected.documentId,'new-document');assert.equal(queried,false);
+  const recovered=await send({type:'reconnect'});assert.equal(recovered.ok,true);assert.equal(stored['scoutingVideo:fields:v1:connection'].selected.documentId,'new-document');assert.equal(queried,false);
   const skipped=await send({type:'skip',seconds:30});assert.equal(skipped.ok,true);assert.equal(seekTime,130);
   assert.equal((await send({type:'reconnect'},{...sender,tab:{id:8}})).ok,false);
  }finally{delete globalThis.chrome;}
