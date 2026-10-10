@@ -37,7 +37,7 @@ export default function SavedScoutingReport({matchId,manual=false}:{matchId:stri
  }
  const video=report?.videoReport
  return <main className={layout.page}>
-  <header className={layout.header}><div><Link href={manual?"/scouting/matches":"/tournament-explorer"}>{manual?"← Private scouting matches":"← Tournament Explorer"}</Link><h1>Scouting report & insights</h1>{manual&&<p>Private scouting · manually created{privateMatch?.match_date?" · "+privateMatch.match_date:""}{privateMatch?.tournament_label?" · "+privateMatch.tournament_label:""}</p>}</div>
+  <header className={layout.header}><div><Link href={"/scouting"}>{"← All scouted matches"}</Link><h1>Scouting report & insights</h1>{manual&&<p>Private scouting · manually created{privateMatch?.match_date?" · "+privateMatch.match_date:""}{privateMatch?.tournament_label?" · "+privateMatch.tournament_label:""}</p>}</div>
    <div className={styles.tools}><Link href="/scouting/methodology">Calculation methodologies</Link><Button size="sm" onClick={()=>setAttempt(n=>n+1)} disabled={loading}>Refresh server copy</Button>
    {report&&<><Button size="sm" onClick={()=>download(JSON.stringify({...sessionExport(matchId,report.players,report.revision,report.doc,methodology),source:report.source,...(manual?{privateMatch,visibility:"private-scouting"}:{}),timestampBasis:report.source==='video'?'Video position encoded as UTC from the Unix epoch; not wall-clock match time.':'Recorded wall-clock time.',originalDocument:report.original,videoReport:video},null,2),'json')}>Export all data (JSON)</Button><Button size="sm" onClick={()=>download(pointsCsv(report.players,report.doc),'csv')}>Export points (CSV)</Button></>}</div>
   </header>

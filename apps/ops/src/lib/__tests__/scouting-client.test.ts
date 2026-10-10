@@ -2,7 +2,7 @@
 import {createElement} from 'react'
 import {afterEach,beforeEach,it,expect,vi} from 'vitest'
 import {render,screen,fireEvent,waitFor,cleanup,within} from '@testing-library/react'
-import Scout from '../../app/(app)/scouting/[id]/Scout'
+import Scout from '../../app/(scouting)/scouting/[id]/Scout'
 import {freshDoc,replay} from '../scouting/model'
 vi.mock('next/link',()=>({default:(props:Record<string,unknown>)=>createElement('a',props)}))
 const players=['One','Two','Three','Four'].map((name,i)=>({id:String(i),name}))

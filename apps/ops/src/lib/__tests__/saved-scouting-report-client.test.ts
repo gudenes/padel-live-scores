@@ -2,7 +2,7 @@
 import {createElement} from 'react'
 import {afterEach,it,expect,vi} from 'vitest'
 import {render,screen,fireEvent,cleanup,within} from '@testing-library/react'
-import SavedScoutingReport from '../../app/(app)/scouting/[id]/report/SavedScoutingReport'
+import SavedScoutingReport from '../../app/(scouting)/scouting/[id]/report/SavedScoutingReport'
 import {freshDoc} from '../scouting/model'
 vi.mock('next/link',()=>({default:(props:Record<string,unknown>)=>createElement('a',props)}))
 const players=['One','Two','Three','Four'].map((name,i)=>({id:String(i),name}))
@@ -36,7 +36,7 @@ it('reads private scouting insights and metadata without querying public matches
  const fetch=vi.fn(async(_url:string)=>Response.json({session:row,match:{match_date:'2018-10-08',tournament_label:'Historical replay'}}));vi.stubGlobal('fetch',fetch)
  render(createElement(SavedScoutingReport,{matchId:'private',manual:true}));await screen.findByText('Match finished')
  expect(screen.getByText(/Private scouting · manually created · 2018-10-08 · Historical replay/)).toBeTruthy()
- expect(screen.getByRole('link',{name:'← Private scouting matches'}).getAttribute('href')).toBe('/scouting/matches')
+ expect(screen.getByRole('link',{name:'← All scouted matches'}).getAttribute('href')).toBe('/scouting')
  expect(fetch).toHaveBeenCalledTimes(1);expect(fetch.mock.calls[0][0]).toBe('/api/internal/manual-video-scouting/private')
  expect(screen.queryByRole('link',{name:'Open admin scouting'})).toBeNull()
 })

@@ -1,3 +1,4 @@
+import { canScout } from '@/lib/scouting-permissions'
 // apps/ops/src/app/api/internal/tournament-explorer/route.ts
 //
 // Tournament-centric ops view. Lists tournaments in a date window, with
@@ -160,7 +161,7 @@ function parseDateParam(raw: string | null, fallback: Date): string {
 
 export async function GET(request: Request) {
   const session = await auth()
-  if (!session?.user?.isOperator) {
+  if (!session?.user || !canScout(session.user)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -466,7 +467,7 @@ export async function GET(request: Request) {
   })
 
   return Response.json({
-    tournaments: enriched,
+    tournaments: session.user.isOperator ? enriched : enriched.map(t=>({id:t.id,name:t.name,level:t.level,country:t.country,location:t.location,starts_at:t.starts_at,ends_at:t.ends_at})),
     filters: { level: levelFilter, source: sourceFilter, from: fromDate, to: toDate },
   })
 }

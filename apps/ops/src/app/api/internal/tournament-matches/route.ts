@@ -1,3 +1,4 @@
+import { canScout } from '@/lib/scouting-permissions'
 // apps/ops/src/app/api/internal/tournament-matches/route.ts
 //
 // Tournament-scoped match list sourced from padelgod snapshots. Merges:
@@ -157,7 +158,7 @@ interface DetailResponse {
 
 export async function GET(request: Request) {
   const session = await auth()
-  if (!session?.user?.isOperator) {
+  if (!session?.user || !canScout(session.user)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 })
   }
 
@@ -859,5 +860,6 @@ export async function GET(request: Request) {
     matchscorerCode: tournamentWidgetId,
   }
 
+  if (!session.user.isOperator) return Response.json({dayDates,matches:matches.map(m=>({linkedMatchId:m.linkedMatchId,team1Player1:m.team1Player1,team1Player2:m.team1Player2,team2Player1:m.team2Player1,team2Player2:m.team2Player2,team1Player1Name:m.team1Player1Name,team1Player2Name:m.team1Player2Name,team2Player1Name:m.team2Player1Name,team2Player2Name:m.team2Player2Name,dayNumber:m.dayNumber,category:m.category,roundLabel:m.roundLabel,status:m.status}))})
   return Response.json(response)
 }

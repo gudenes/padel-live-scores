@@ -1,10 +1,11 @@
+import { canScout } from '@/lib/scouting-permissions'
 import {auth} from '@/lib/auth'
 import {serviceClient} from '@/lib/supabase'
 export const dynamic='force-dynamic'
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}})
 const slots=['pair1_player1','pair1_player2','pair2_player1','pair2_player2'] as const
 export async function GET(req:Request){
- if(!(await auth())?.user?.isOperator)return json({error:'Sign in with an operator account.'},401)
+ if(!canScout((await auth())?.user))return json({error:'Sign in with an scouting account.'},401)
  const params=new URL(req.url).searchParams,start=params.get('start'),end=params.get('end'),q=(params.get('q')??'').trim().slice(0,80)
  if(start||end){const a=Date.parse(start??''),b=Date.parse(end??'');if(!Number.isFinite(a)||!Number.isFinite(b)||b<=a||b-a>26*3600000)return json({error:'Choose a valid day.'},400)}
  else if(q.length<2)return json({error:'Type at least two characters to search other matches.'},400)
