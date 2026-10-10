@@ -146,10 +146,10 @@ Rollout requires the admin API update (`optional-server-v1`) before extension re
 
 ### Direct entry and editable keys
 
-- Leave **Rally taps** on for shot counting and 1.3-second player holds. Turn it off for immediate Q/W/A/S → Winner shot selection; this preference is device-local.
+- Leave **Rally taps** on for shot counting and 1.3-second player holds. Turn it off for immediate Q/W/A/S player selection on the court, then W Winner / A UE / D FE to open the shot picker; this preference is device-local.
 - In the shot picker, **Esc** opens the outcome choices (W Winner, A UE, D FE). Choose the finishing stroke using the existing stroke keys.
 - Errors from play require the previous opponent: **Enter/Space → opponent key → optional stroke → Space**. Double faults retain their separate flow. UE attribution never creates forced-error credit. Esc moves back one step; Cancel abandons only the selected outcome.
-- With direct entry, player key then Z/X/C (before choosing a finishing stroke) records a Power/X3/Soft attempt only and returns to the rally.
+- With direct entry, player key then Z/X/C (while the player card is highlighted) records a Power/X3/Soft attempt only and returns to the rally.
 - Click **Edit shortcuts**, choose an action and press a new key. Clicking a visible shortcut badge also opens its editor. Assignments save immediately on this device. Same-step conflicts and video-key conflicts are rejected. Player keys remain attached to court quadrants after switching ends. Tab and Enter remain navigation keys. Escape cancels key capture. Use Reset scouting keys to restore defaults.
 - Video shortcut badges open the existing video-key settings. Scouting keyboard shortcuts require focus in the extension panel; video keys also work in the connected video tab.
 - New `previousPlayer` and optional `previousShot` fields survive session validation, timeline and JSON/CSV export. Legacy sessions need no backfill. Deploy the companion admin validation/export update **before installing this extension version**, so older server code does not strip new fields. No database migration is required.

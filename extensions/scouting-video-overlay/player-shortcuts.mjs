@@ -13,11 +13,12 @@ export function playerShortcuts({target,context,select,prepare,tap=()=>{},smash=
   if(!c.enabled){if(held===null&&selected===null&&lastTapped!==null&&['z','x','c'].includes(key)){consume(e);if(!e.repeat)smash(lastTapped,key==='z'?'power':key==='x'?'x3':'soft',true);}return;}
   if(key==='1'||key==='2'){consume(e);if(!e.repeat&&((key==='1'&&!c.firstFault)||(key==='2'&&c.firstFault))){reset();fault(key==='1'?'first-fault':'double-fault');}return;}
   if(selected!==null&&held===null&&outcomeKeys[key]){consume(e);if(!e.repeat){const player=selected;reset();prepare(player,outcomeKeys[key]);}return;}
+  if(c.direct&&selected!==null&&held===null&&['z','x','c'].includes(key)){consume(e);if(!e.repeat){const player=selected;reset();smash(player,key==='z'?'power':key==='x'?'x3':'soft');}return;}
   if(held!==null&&['z','x','c'].includes(key)){consume(e);if(!e.repeat&&!completed){const player=c.order[positionKeys.indexOf(held)];if(timer!==null)clearTimer(timer);timer=null;completed=true;hold(null);selected=null;select(null);lastTapped=null;smash(player,key==='z'?'power':key==='x'?'x3':'soft');}return;}
   if(held===null&&selected===null&&lastTapped!==null&&['z','x','c'].includes(key)){consume(e);if(!e.repeat)smash(lastTapped,key==='z'?'power':key==='x'?'x3':'soft',true);return;}
   if(key==='escape'){reset();return;}
   const slot=positionKeys.indexOf(key);
-  if(slot>=0&&c.direct){consume(e);if(!e.repeat){reset();prepare(c.order[slot],'winner');}return;}
+  if(slot>=0&&c.direct){consume(e);if(!e.repeat){reset();selected=c.order[slot];select(selected);}return;}
   if(slot>=0){consume(e);if(e.repeat||held===key)return;cancelHold();lastTapped=null;selected=null;select(null);held=key;hold(c.order[slot]);
    const started=c.token;
    timer=setTimer(()=>{timer=null;const now=context();if(held!==key||!now.enabled||now.token!==started)return;completed=true;hold(null);selected=now.order[slot];select(selected);},holdDuration);

@@ -18,9 +18,9 @@ function fixture(){
  const press=(key,target=$('shot-dialog').open?$('shot-form'):$('players'),extra={})=>{target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...extra}));target.dispatchEvent(new dom.window.KeyboardEvent('keyup',{key,bubbles:true,cancelable:true,...extra}));};
  return {dom,$,actions,state,render,press,close:()=>{dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}};
 }
-test('direct keys open winner without touches; UE requires previous opponent and allows skipping their stroke',()=>{
+test('direct keys highlight a player before a separate outcome choice, without touches; UE requires previous opponent and allows skipping their stroke',()=>{
  const f=fixture(),{$,actions,state,press}=f;try{
- $('rally-taps').click();press('a');assert.deepEqual(actions.at(-1),{type:'prepare',player:0,outcome:'winner'});assert.equal(actions.filter(a=>a.type==='touch').length,0);
+ $('rally-taps').click();press('a');assert.equal(actions.length,0);assert.equal($('shot-dialog').open,false);assert.ok($('players').querySelector('[data-player="0"]').classList.contains('keyboard-selected'));press('w');assert.deepEqual(actions.at(-1),{type:'prepare',player:0,outcome:'winner'});assert.equal(actions.filter(a=>a.type==='touch').length,0);
  press('Escape');assert.equal($('outcome-picker').hidden,false);press('a');assert.equal(state.pending.finish.outcome,'unforced');press('w');press('Enter');assert.equal($('shot-form').dataset.step,'opponent');
  const count=actions.length;press(' ');assert.equal(actions.length,count);press('s');assert.equal(actions.length,count); // teammate cannot be selected
  press('q');assert.equal($('shot-form').dataset.step,'previous');press(' ');
@@ -29,7 +29,7 @@ test('direct keys open winner without touches; UE requires previous opponent and
 });
 test('previous stroke has its own key stage; going back preserves the finishing stroke',()=>{
  const f=fixture(),{$,actions,press}=f;try{
- $('rally-taps').click();press('a');press('Escape');press('d');press('d');press(' ');press('w');press('q'); // FE lob, opponent B2, previous smash
+ $('rally-taps').click();press('a');press('d');press('d');press(' ');press('w');press('q'); // FE lob, opponent B2, previous smash
  press('Escape');assert.equal($('shot-form').dataset.step,'opponent');press('q');press('2');press(' ');
  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'lob',previousPlayer:2,previousShot:'block',forcedBy:2}});
  }finally{f.close();}
@@ -39,7 +39,7 @@ test('key editor captures without recording, rejects conflicts, persists and rem
  $('rally-taps').click();$('edit-scout-keys').click();const editor=$('scout-key-editor');editor.querySelector('[data-action=player-0]').click();
  press('w',editor);assert.match(editor.textContent,/Already used/);assert.equal(actions.length,0);
  press('t',editor);assert.equal(JSON.parse(dom.window.localStorage.getItem('pn-scouting-keys'))['player-0'],'t');editor.querySelector('[data-key-close]').click();
- press('q');assert.equal(actions.length,0);press('t');assert.equal(actions.at(-1).player,2);press('q');press('z');press(' ');assert.equal(actions.at(-1).details.shot,'smash');
+ press('q');assert.equal(actions.length,0);press('t');assert.equal(actions.length,0);press('w');assert.equal(actions.at(-1).player,2);press('q');press('z');press(' ');assert.equal(actions.at(-1).details.shot,'smash');
  }finally{f.close();}
 });
 test('scouting shortcuts reject overlapping stages and media conflicts but allow different-stage reuse',()=>{

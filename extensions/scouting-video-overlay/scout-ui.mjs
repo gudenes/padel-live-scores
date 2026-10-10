@@ -17,7 +17,7 @@ export function scoutingUI({$,act,getState}){
  let selectedPlayer=null,holdingPlayer=null;
  let direct=globalThis.localStorage?.getItem('pn-rally-taps')==='off';
  $('rally-taps').checked=!direct;
- const modeHint=()=>{$('entry-mode-hint').textContent=direct?'Player key → Winner shots':'Tap: shot · Hold: outcome';};modeHint();
+ const modeHint=()=>{$('entry-mode-hint').textContent=direct?'Player key → choose action':'Tap: shot · Hold: outcome';};modeHint();
  $('rally-taps').onchange=()=>{direct=!$('rally-taps').checked;globalThis.localStorage?.setItem('pn-rally-taps',direct?'off':'on');keyboard.reset();keyboardContext.direct=direct;modeHint();$('rally-taps').blur();};
  const keyEditor=scoutingKeys({$,scope:()=> $('shot-dialog').open?step:getState()?.selectedMatch?(selectedPlayer===null?'rally':'outcome'):null,onEditing:()=>keyboard?.reset()});
  const feedback=new Map();
@@ -126,7 +126,6 @@ export function scoutingUI({$,act,getState}){
   if(step==='opponent'){const b=[...$('forced-opponents').querySelectorAll('button')].find(b=>b.dataset.shortcut===key);if(b&&!e.shiftKey){e.preventDefault();credit(Number(b.dataset.player));}return;}
   if(step==='shot'&&!e.shiftKey&&finish?.outcome==='winner'&&['f','r','4'].includes(key)){e.preventDefault();const id={f:'assist',r:'smash-recovery',4:'x4'}[key];$(id).checked=!$(id).checked;$(id).onchange();return;}
   if(finish?.outcome==='winner'&&$('smash-recovery').checked&&!$('x4').checked)return;
-  if(direct&&step==='shot'&&!shot&&!e.shiftKey&&['z','x','c'].includes(key)){e.preventDefault();const player=finish.player;Promise.resolve(act({type:'clear-outcome'})).then(result=>{if(result?.ok)record(player,{type:'smash',player,smashType:{z:'power',x:'x3',c:'soft'}[key]},'Smash attempt');});return;}
   if(step==='shot'&&!e.shiftKey&&shot==='smash'&&['z','x','c'].includes(key)){e.preventDefault();chooseType(key==='z'?'power':key==='x'?'x3':'soft');return;}
   const choice=[...$('shot-options').querySelectorAll('button')].find(b=>b.dataset.shortcut===shotShortcut(e));
   if(choice){e.preventDefault();if(!choice.disabled)chooseShot(choice.dataset.shot,true);}

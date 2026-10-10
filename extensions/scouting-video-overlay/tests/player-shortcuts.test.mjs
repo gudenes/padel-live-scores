@@ -40,3 +40,11 @@ test('tap then Z/X/C classifies the latest player shot; resets on blur, rally an
  key('keydown','a');timer();key('keyup','a');key('keydown','c');assert.equal(attempts.length,2);
  dom.window.close();
 });
+test('direct entry selects on the court, ignores repeats and requires a second action key',()=>{
+ const dom=new JSDOM(''),doc=dom.window.document,c={enabled:true,direct:true,token:'r',order:[2,3,0,1]},calls=[];let selected;
+ const controls=playerShortcuts({target:doc,context:()=>c,select:p=>selected=p,prepare:(...args)=>calls.push(args),tap:()=>calls.push('tap'),smash:(...args)=>calls.push(args)});controls.update();
+ const key=(type,key,repeat=false)=>doc.dispatchEvent(new dom.window.KeyboardEvent(type,{key,repeat,bubbles:true}));
+ key('keydown','w');assert.equal(selected,3);assert.deepEqual(calls,[]);key('keydown','w',true);assert.deepEqual(calls,[]);key('keyup','w');key('keydown','w');assert.deepEqual(calls,[[3,'winner']]);
+ for(const [action,type] of [['z','power'],['x','x3'],['c','soft']]){key('keydown','q');assert.equal(selected,2);key('keyup','q');key('keydown',action);key('keydown',action,true);assert.deepEqual(calls.at(-1),[2,type]);assert.equal(selected,null);}
+ assert.equal(calls.length,4);dom.window.close();
+});
