@@ -76,4 +76,4 @@
 
 #coach-players fieldset{border:1px solid #d6dccb;border-radius:10px;padding:12px;margin:14px 0}#coach-players legend{font-weight:700;font-size:12px}#coach-players label{display:flex;align-items:center;gap:8px;margin:9px 0}#coach-players input{width:16px;height:16px}#coach-players [aria-pressed=true]{background:#c7f000}#save-coaches{width:100%}
 
-.score-table .coach-nudge{display:block;max-width:100%;margin:3px 0 0;padding:2px 0;min-height:22px;font-size:10px;text-align:left;white-space:normal;line-height:1.3}#coach-players fieldset[hidden]{display:none}
+.score-table .coach-nudge{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;width:26px;min-width:26px;min-height:26px;margin:0 0 0 4px;padding:4px;color:var(--coral-ink)}.score-table .coach-nudge svg{display:block;flex-shrink:0}#coach-players fieldset[hidden]{display:none}
