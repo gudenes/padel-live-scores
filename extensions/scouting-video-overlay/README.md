@@ -177,8 +177,10 @@ Scoreboard → Adjust score offers +1 for each pair and Enter current score. Add
 The stroke picker uses compact keyboard rows with coral overheads, lime defense and teal net shots. Unused keys and the legend are omitted. Winner tags and net touch share the keyboard, and Contrapared has a separate clickable Shift+D control under Lob. Remapped shortcut labels remain visible; use Edit shortcuts to change assignments. Smash types appear only after selecting Smash.
 
 ### Compact scouting controls
-- Use the `+` beside either pair's score for one missed, unclassified point (between rallies). `Adjust score` retains exact-score entry.
+- Use the `+` beside either pair's score for one missed, unclassified point (between rallies). Menu → Adjust score retains exact-score entry.
 - Rally taps and Edit shortcuts are under Menu → Keyboard shortcuts.
 - Player cards retain flags and rankings; totals are in Live stats, including Smash W (smash winners).
 - Attempt buttons follow the navigation-key order: Power (Delete), X3 (End), Soft (Page Down).
 - Default Undo is Left Arrow; Ctrl/Cmd+Z remains an alias unless Undo is remapped. Backspace goes back in point selection; Shift+Backspace cancels the selection without using fullscreen Escape. These scouting shortcuts work with the panel focused.
+
+- Compact media row keeps −5s, Play/Pause, +5s and speed visible; More (⋯) contains +10s, +30s and the playback status. Keyboard shortcuts remain active when More is closed.
