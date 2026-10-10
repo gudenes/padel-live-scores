@@ -4,3 +4,8 @@
 .header a{font-size:13px;color:var(--text-2)}
 .page>section{min-width:0}
 @media(max-width:650px){.page{padding:12px}.header h1{font-size:20px}}
+.page{animation:reportEnter 260ms cubic-bezier(.2,.8,.2,1)}
+.page>section{animation:sectionEnter 260ms ease both}
+@keyframes reportEnter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes sectionEnter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.page,.page>section{animation:none}}
