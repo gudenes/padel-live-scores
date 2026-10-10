@@ -84,3 +84,29 @@ test('all strokes stay expanded and N toggles net touch for winners and errors',
  press('Escape');press('a');press('n');assert.equal($('net-touch').checked,true);
  }finally{f.close();}
 });
+
+test('unforced return fills current server and Serve, then saves without another selection',()=>{
+ const f=fixture(),{$,actions,press}=f;try{
+ $('rally-taps').click();press('q');press('a');press('6');
+ assert.match($('previous-shot-context').textContent,/Previous shot: Serve.*Auto-filled/);
+ assert.equal($('save-point').textContent,'Save point · Space');press(' ');
+ assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'return',previousPlayer:0,previousShot:'serve'}});
+ assert.equal(actions.at(-1).details.forcedBy,undefined);
+ }finally{f.close();}
+});
+test('changing Return to another stroke clears automatic server attribution',()=>{
+ const f=fixture(),{$,actions,press}=f;try{
+ $('rally-taps').click();press('q');press('a');press('6');press('w');press(' ');
+ assert.equal($('shot-form').dataset.step,'opponent');assert.equal(actions.some(a=>a.type==='score'),false);
+ }finally{f.close();}
+});
+test('return auto-fill uses corrected server and never guesses an unknown or same-team server',()=>{
+ for(const scenario of ['corrected','unknown','same-team']){
+ const f=fixture(),{$,actions,press,state,render}=f;try{
+ if(scenario==='corrected')state.setup.adjustments=[{type:'server',player:1,afterId:null,at:'2026-10-10T00:00:00Z'}];
+ if(scenario==='unknown'){state.setup.otherServerUnknown=true;state.setup.adjustments=[{type:'server',player:2,afterId:null,at:'2026-10-10T00:00:00Z'}];}
+ render(state,snapshot(110),false,true);$('rally-taps').click();press(scenario==='corrected'?'q':'a');press('a');press('6');press(' ');
+ if(scenario==='corrected')assert.equal(actions.at(-1).details.previousPlayer,1);
+ else {assert.equal($('shot-form').dataset.step,'opponent');assert.equal(actions.some(a=>a.type==='score'),false);}
+ }finally{f.close();}}
+});

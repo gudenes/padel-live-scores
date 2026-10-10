@@ -1,3 +1,4 @@
+import {scoreCorrectionUI} from './score-correction-ui.mjs';
 import {scoutingKeys} from './scouting-keys.mjs';
 import {needsServerConfirmation} from './onboarding-model.mjs';
 import './shortcut-keys.js';
@@ -12,6 +13,7 @@ import {touchInsights,touchDirections} from './touch-insights.mjs';
 import {finishRally} from './core.mjs';
 import {courtCheckinUI} from './court-checkin.mjs';
 export function scoutingUI({$,act,getState}){
+ const renderScoreCorrection=scoreCorrectionUI({$,act,getState});
  const renderCourtCheckin=courtCheckinUI({$,act});
  let keyboardContext={enabled:false,token:'',order:[]};
  let selectedPlayer=null,holdingPlayer=null;
@@ -62,7 +64,13 @@ export function scoutingUI({$,act,getState}){
  for(const family of families){const grid=document.createElement('div');grid.className='shot-grid';grid.setAttribute('role','group');grid.setAttribute('aria-label',{overhead:'Overheads',defense:'Defense',net:'Net shots',other:'Other'}[family]);for(const [shortcut,key] of orderedShots){const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';if(group===family)grid.append(shotButton(key,shortcut));}common.append(grid);}
  $('shot-options').append(common);
  function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player&&a.smashType===smashType)??-1;}
+ function returnServer(){
+  const state=getState(),finish=state?.pending?.finish;if(finish?.outcome!=='unforced'||shot!=='return')return undefined;
+  const model=match(state);if(needsServerConfirmation(state,model)||Math.floor(model.server/2)===Math.floor(finish.player/2))return undefined;
+  return model.server;
+ }
  function syncShot(){
+  const autoServer=returnServer();
   for(const b of $('shot-options').querySelectorAll('button')){b.setAttribute('aria-pressed',String(b.dataset.shot===(step==='previous'?previousShot:shot)));b.dataset.variant=b.dataset.shot===(step==='previous'?previousShot:shot)?'primary':'default';}
   const p=getState()?.pending,smash=shot==='smash',canLink=smash&&!!smashType&&matchingAttempt()>=0;
   const x4=p?.finish?.outcome==='winner'&&$('x4').checked,recovery=p?.finish?.outcome==='winner'&&$('smash-recovery').checked;
@@ -77,9 +85,9 @@ export function scoutingUI({$,act,getState}){
   $('smash-options').hidden=step!=='shot'||!smash;
   for(const id of ['net-touch','shot-var'])$(id).closest('label').hidden=step!=='shot';
   $('shot-details').hidden=step!=='shot';
-  $('previous-shot-context').hidden=step!=='previous';
-  $('previous-shot-context').textContent=forcedBy===undefined?'':`Previous player: ${getState().setup.names[forcedBy]} · ${previousShot?shots[previousShot]:'Stroke not recorded'}`;
-  $('save-point').textContent=step==='opponent'?'Select the previous opponent':step==='outcome'?'Choose an outcome':step==='previous'?previousShot?'Save point · Space':'Save without previous stroke · Space':p?.finish?.outcome!=='winner'?'Next: previous opponent · Enter':'Save point · Space';
+  $('previous-shot-context').hidden=step!=='previous'&&!(step==='shot'&&autoServer!==undefined);
+  $('previous-shot-context').textContent=step==='shot'&&autoServer!==undefined?`Previous shot: Serve · ${getState().setup.names[autoServer]} · Auto-filled`:forcedBy===undefined?'':`Previous player: ${getState().setup.names[forcedBy]} · ${previousShot?shots[previousShot]:'Stroke not recorded'}`;
+  $('save-point').textContent=step==='opponent'?'Select the previous opponent':step==='outcome'?'Choose an outcome':step==='previous'?previousShot?'Save point · Space':'Save without previous stroke · Space':p?.finish?.outcome!=='winner'&&autoServer===undefined?'Next: previous opponent · Enter':'Save point · Space';
   $('save-point').setAttribute('aria-disabled',String(step==='opponent'||step==='outcome'));
   if(step==='previous')$('shot-title').textContent=getState().setup.names[forcedBy]+' · previous stroke';
   else if(step==='opponent')$('shot-title').textContent='Previous opponent';
@@ -109,9 +117,10 @@ export function scoutingUI({$,act,getState}){
  $('shot-dialog').addEventListener('cancel',e=>{e.preventDefault();goBack()});
  function savePoint(){
   const p=getState()?.pending?.finish;if(!p||$('save-point').disabled)return;if(step==='outcome')return;if(step==='opponent'){ $('shot-error').textContent='Choose the previous opponent before saving.';return;}const recovery=p.outcome==='winner'&&$('smash-recovery').checked;if((!shot&&!recovery)||shot==='smash'&&!smashType){$('shot-error').textContent='Choose a shot'+(shot==='smash'?' and smash type':'')+', then press Space to save.';return;}
-  if(p.outcome!=='winner'&&step==='shot'){step='opponent';syncShot();$('forced-opponents').querySelector('button')?.focus();return;}
-  if(p.outcome!=='winner'&&forcedBy===undefined){$('shot-error').textContent='Choose the previous opponent before saving.';return;}
-  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...(p.outcome!=='winner'&&forcedBy!==undefined?{previousPlayer:forcedBy,...(previousShot?{previousShot}:{}),...(p.outcome==='forced'?{forcedBy}:{})}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
+  const autoServer=returnServer(),previousPlayer=autoServer??forcedBy,priorShot=autoServer!==undefined?'serve':previousShot;
+  if(p.outcome!=='winner'&&step==='shot'&&autoServer===undefined){step='opponent';syncShot();$('forced-opponents').querySelector('button')?.focus();return;}
+  if(p.outcome!=='winner'&&previousPlayer===undefined){$('shot-error').textContent='Choose the previous opponent before saving.';return;}
+  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...(p.outcome!=='winner'&&previousPlayer!==undefined?{previousPlayer,...(priorShot?{previousShot:priorShot}:{}),...(p.outcome==='forced'?{forcedBy}:{})}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
  }
  $('shot-form').addEventListener('submit',e=>{e.preventDefault();savePoint();});
  $('shot-form').addEventListener('keydown',e=>{
@@ -130,6 +139,7 @@ export function scoutingUI({$,act,getState}){
   if(choice){e.preventDefault();if(!choice.disabled)chooseShot(choice.dataset.shot,true);}
  });
  return function render(state,sample,busy,healthy){
+  renderScoreCorrection(state,sample,busy);
   const setup=state.setup??defaults(),m=match(state),locked=!!state.pending||state.rallies.some(r=>r.point);
   const seedToken=JSON.stringify([state.selectedMatch?.id,setup.startingScore,setup.names]);
   if(seedToken!==seedKey){seedKey=seedToken;const seed=setup.startingScore; $('seed-count').value=seed?.completed.length??0;for(const i of [1,2])for(const team of ['a','b'])$(`seed-${i}-${team}`).value=seed?.completed[i-1]?.[team]??0;for(const team of ['a','b']){$('seed-games-'+team).value=seed?.games[team]??0;$('seed-points-'+team).value=seed?.points[team]??0;}$('seed-server').replaceChildren(...setup.names.map((n,i)=>new Option(n,i)));$('seed-server').value=seed?.server??setup.firstServer;$('seed-near').value=seed?.near??setup.near??'a';$('seed-deuce').value=seed?.advantageReturns??0;$('seed-elapsed').value=seed?.elapsedSeconds===undefined?'':seed.elapsedSeconds/60;seedRows();}

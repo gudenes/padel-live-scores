@@ -75,3 +75,11 @@ test('unknown-server metadata waits for a server that explicitly supports it',as
  const result=await run(env,{method:'POST',matchId:'11111111-1111-4111-8111-111111111111',document:{setup:{otherServerUnknown:true},rallies:[],cancelled:[]}});
  assert.equal(result.ok,false);assert.deepEqual(calls,['GET']);
 });
+
+test('broadcast-gap corrections wait for server support before uploading',async()=>{
+ const calls=[],request={matchId:id,method:'POST',document:{setup:{adjustments:[{type:'missed-point',team:'a'}]}}};
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:[]})};}};
+ assert.equal((await run(env,request)).ok,false);assert.deepEqual(calls,['GET']);
+ env.fetch=async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['score-corrections-v1']})};};
+ assert.equal((await run(env,request)).ok,true);assert.equal(calls.at(-1),'POST');
+});

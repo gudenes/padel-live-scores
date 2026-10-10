@@ -24,7 +24,12 @@ export function scoutingDocument(state){
  const firstAt=videoAt(state.rallies.find(r=>r.point&&!r.undone)?.start??state.pending?.start??{time:0});
  if(seed)push('baseline','score',firstAt,{seed:{sets:[...seed.completed,seed.games],game:seed.points,phase:seed.games.a===6&&seed.games.b===6?'tiebreak':'playing',returns:seed.advantageReturns,server:seed.server}});
  for(const team of ['a','b'])if(setup.positions?.[team])push('position-'+team,'swap',firstAt,{team});
- const adjust=(afterId,at)=>{for(const [i,a] of (setup.adjustments??[]).entries())if(a.afterId===afterId)push('adjust-'+i,a.type==='server'?'server':'flip',at,a.type==='server'?{player:a.player}:{});};
+ const adjust=(afterId,at)=>{for(const [i,a] of (setup.adjustments??[]).entries())if(a.afterId===afterId){
+  const when=a.videoTime===undefined?at:videoAt({time:a.videoTime});
+  if(a.type==='missed-point')push('adjust-'+i,'unclassified',when,{team:a.team});
+  else if(a.type==='score-correction'){const v=validateStartingScore(a.score);push('adjust-'+i,'score',when,{seed:{sets:[...v.completed,v.games],game:v.points,phase:v.games.a===6&&v.games.b===6?'tiebreak':'playing',returns:v.advantageReturns,server:v.server}});}
+  else push('adjust-'+i,a.type==='server'?'server':'flip',when,a.type==='server'?{player:a.player}:{});
+ }};
  adjust(null,firstAt);
  const addRally=(r,complete)=>{
   const at=videoAt(r.start);push(r.id+'-start','rally_start',at);

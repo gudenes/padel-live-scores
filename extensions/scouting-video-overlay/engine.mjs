@@ -12,7 +12,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const undoable=new Set(['complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
+      const undoable=new Set(['score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async(context={})=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
@@ -136,6 +136,18 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           const restored=validateVideoState(message.document);
           if(restored.pending){restored.cancelled.push({...restored.pending,cancelledAt:new Date().toISOString()});restored.pending=null;}
           Object.assign(state,{scoutingTime:null},restored);state.history=[];state.connection=null;return save();
+        }
+        case 'missed-point':case 'score-correction':{
+          if(!state.selectedMatch)throw Error('Select a match first.');
+          if(state.pending)throw Error('Finish or cancel the unfinished rally before adjusting the score.');
+          if(match(state).score.phase==='finished')throw Error('Undo the last action before correcting a finished match.');
+          const adjustment={type:message.type,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()};
+          if(message.type==='missed-point'){
+            if(!['a','b'].includes(message.team))throw Error('Choose a pair.');
+            adjustment.team=message.team;
+          }else adjustment.score=validateStartingScore(message.score);
+          if(Number.isFinite(message.videoTime)&&message.videoTime>=0)adjustment.videoTime=message.videoTime;
+          (state.setup.adjustments??=[]).push(adjustment);return save();
         }
         case 'starting-score':{
           if(!state.selectedMatch)throw Error('Select a match first.');
