@@ -12,13 +12,13 @@ const doc={...freshDoc(),events:[
  {id:'two',at:'2026-10-07T10:00:01Z',kind:'point',player:2,outcome:'forced',forcedBy:1,smash:false},
 ] as Event[]}
 
-it('defaults to v1.4 and switches graphs and derived scores without changing raw winners',()=>{
+it('defaults to v1.5 and switches graphs and derived scores without changing raw winners',()=>{
  render(createElement(Insights,{model:replay(doc),doc,players}))
  const select=screen.getByRole('combobox',{name:'Methodology'}) as HTMLSelectElement
- expect(select.value).toBe('v1.4')
- expect(screen.getByText(/Player Score = 5 \+ 0.35/)).toBeTruthy()
+ expect(select.value).toBe('v1.5')
+ expect(screen.getByText(/Player Score = 5 \+ 5 × tanh/)).toBeTruthy()
  expect(screen.getAllByRole('img',{name:/^Player Score (?:[0-9]|not available)/})).toHaveLength(4)
- expect(screen.getByRole('img',{name:/Four-player evolution · v1.4/})).toBeTruthy()
+ expect(screen.getByRole('img',{name:/Four-player evolution · v1.5/})).toBeTruthy()
  fireEvent.change(select,{target:{value:'v1.3'}})
  expect(screen.getByText(/Player Score = 6 \+ 0.25/)).toBeTruthy()
  fireEvent.change(select,{target:{value:'net-actions'}})
@@ -62,7 +62,7 @@ it('filters the chart, team summary and player snapshots by set and restores ful
 it('recalculates assisted winner scores when switching to the preserved v0.3 method',()=>{
  const assisted={...freshDoc(),events:[{id:'assist',at:'2026-10-07T10:00:00Z',kind:'point',player:0,outcome:'winner',assistBy:1,smash:false} as Event]}
  render(createElement(Insights,{model:replay(assisted),doc:assisted,players}))
- expect(screen.getAllByRole('img',{name:'Player Score 10.0 out of 10'})).toHaveLength(2)
+ expect(screen.getAllByRole('img',{name:'Player Score 9.9 out of 10'})).toHaveLength(2)
  expect(screen.getByText(/Assisted winners split impact equally/)).toBeTruthy()
  fireEvent.change(screen.getByRole('combobox',{name:'Methodology'}),{target:{value:'v0.3'}})
  expect(screen.getAllByRole('img',{name:'Player Score 10.0 out of 10'})).toHaveLength(1)

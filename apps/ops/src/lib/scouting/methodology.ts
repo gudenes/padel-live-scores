@@ -1,7 +1,7 @@
 import type {TimelinePoint} from './tracking'
 
-export type MethodologyId = 'net-actions' | 'v0.1' | 'v0.2' | 'v0.3' | 'v1.3' | 'v1.4'
-export const DEFAULT_METHODOLOGY: MethodologyId = 'v1.4'
+export type MethodologyId = 'net-actions' | 'v0.1' | 'v0.2' | 'v0.3' | 'v1.3' | 'v1.4' | 'v1.5'
+export const DEFAULT_METHODOLOGY: MethodologyId = 'v1.5'
 export const methodologies = [
  {id:'net-actions',label:'Original · Net actions',weighted:false,creationCredit:0,pairBonus:0,assistCredit:0,description:'Winners − unforced errors − forced errors − double faults. Equal weights; no Player Score.'},
  {id:'v0.1',label:'v0.1 · Pressure-weighted impact',weighted:true,creationCredit:0,pairBonus:0,assistCredit:0,description:'Winner +1, unforced error −1, forced error suffered −0.5. No credit for forced errors created.'},
@@ -9,6 +9,7 @@ export const methodologies = [
  {id:'v0.3',label:'v0.3 · Shared point bonus',weighted:true,creationCredit:0.5,pairBonus:0.05,assistCredit:0,description:'v0.2 plus a flat +0.05 to both players whenever their pair wins an observed point.'},
  {id:'v1.3',label:'v1.3 · Assisted winners · 50/50',weighted:true,creationCredit:0.5,pairBonus:0.05,assistCredit:0.5,description:'v0.3 with assisted winner credit split equally: +0.5 to the finisher and +0.5 to the recorded teammate, both pressure-weighted. Unassisted winners keep +1.'},
  {id:'v1.4',label:'v1.4 · Player Score · Greater separation',weighted:true,creationCredit:0.5,pairBonus:0.05,assistCredit:0.5,description:'Same impact and 50/50 assist split as v1.3. Player Score starts at 5 and adds 35 × impact / weighted observed points, bounded to 1–10.'},
+ {id:'v1.5',label:'v1.5 · Individual performance · Stronger curve',weighted:true,creationCredit:0.5,pairBonus:0,assistCredit:0.5,description:'Individual impact with 50/50 assisted winners and no shared team bonus. Player Score uses a smooth curve: k=11 for positive impact and k=7 below zero, normalized by weighted observed points. Automatic scores stop at 9.9 until perfect-match completeness can be verified.'},
 ] as const
 
 export function pointWeight(p:TimelinePoint){
@@ -19,13 +20,18 @@ export function pointWeight(p:TimelinePoint){
 }
 
 export function playerScoreScale(id:MethodologyId=DEFAULT_METHODOLOGY){
+ if(id==='v1.5')return {neutral:5,sensitivity:null,perWeightedMatchPoints:100,min:1,max:9.9,decimals:1,curve:'tanh',positiveK:11,negativeK:7,amplitude:5,normalization:'individual impact / weighted observed points',perfectScore:'Reserved: zero UE, zero double faults, finished, full coverage and verified completeness. Verification is not recorded yet; automatic scores cap at 9.9.'}
  return {neutral:id==='v1.4'?5:6,sensitivity:id==='v1.4'?0.35:0.25,perWeightedMatchPoints:100,min:1,max:10,decimals:1}
 }
 
 export function playerScore(impact:number,weightedPoints:number,id:MethodologyId=DEFAULT_METHODOLOGY){
  if(weightedPoints<=0)return null
+ if(id==='v1.5'){
+  const ratio=impact/weightedPoints,k=impact<0?7:11
+  return Math.min(9.9,Math.round(Math.max(1,5+5*Math.tanh(k*ratio))*10)/10)
+ }
  const scale=playerScoreScale(id)
- return Math.round(Math.max(scale.min,Math.min(scale.max,scale.neutral+scale.sensitivity*scale.perWeightedMatchPoints*impact/weightedPoints))*10)/10
+ return Math.round(Math.max(scale.min,Math.min(scale.max,scale.neutral+scale.sensitivity!*scale.perWeightedMatchPoints*impact/weightedPoints))*10)/10
 }
 
 // Input is the replayed active timeline: imports and undone events never add points.
