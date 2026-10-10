@@ -42,6 +42,8 @@ function render(){
   $('last-action').textContent=state.pending?.varReviewed?'VAR review · current point':recent?.type==='smash'&&attempt?`${state.setup.names[attempt.player]} · ${attempt.smashType==='x3'?'X3':attempt.smashType==='power'?'Power':attempt.smashType==='soft'?'Soft smash':'Smash'} attempt recorded`:lastPoint?`${state.setup.names[lastPoint.point.player]} · ${lastPoint.point.outcome.replace('_',' ')}${lastPoint.point.shot?' · '+lastPoint.point.shot:''}${lastPoint.point.smashType?' '+lastPoint.point.smashType:''}${lastPoint.point.x4?' · X4 winner':''}${lastPoint.varReviewed?' · VAR reviewed':''}`:'Ready to record';
   $('cloud-status').textContent=({local:'Local copy',pending:'Waiting to save',saved:'Saved to server',error:'Local copy · retry needed',conflict:'Needs attention'})[cloud.status]??'Local copy';
   const model=match(state),finished=model.score.phase==='finished';
+  $('scout-time').textContent=time(state.scoutingTime?.seconds??0);$('scout-time-toggle').textContent=state.scoutingTime?.paused?'Resume clock':'Pause clock';$('scout-time-toggle').disabled=busy||finished||(!state.pending&&!state.rallies.length);
+  $('scout-time-toggle').title='Working time while this panel is open. Pause for breaks; video speed does not affect it.';
   renderProgress(state,cloud,model);
   $('finish-status').textContent=finished?(cloud.status==='saved'?'Match finished · all current scouting records saved to server.':'Match finished · server confirmation still pending. Follow the steps below.'):'Still scouting · save every point through the end of the match.';
   if(finished)$('finish-guide').open=true;$('review-sync').hidden=!['error','conflict'].includes(cloud.status);$('finish-menu').hidden=!finished||!$('review-sync').hidden;
@@ -99,7 +101,7 @@ async function act(message){
   if(busy)return {ok:false,error:'Another action is being saved. Try again.'};let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match','create-manual','resume-session'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;busy=true;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
   try{const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true,...result};state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match'){renderManual.find();$('catalog-feedback').textContent='Previous match saved on this device. Choose another match.';}if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect'){$('connection-feedback').textContent='Video connected. The clock below follows playback.';document.dispatchEvent(new Event('pn-video-connected'));}$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
   catch(error){actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){if(!renderOnboarding.isOpen())renderManual.open('setup');$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){if(!renderOnboarding.isOpen())renderManual.open('setup');$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
-  finally{busy=false;render();await refresh();}
+  finally{busy=false;render();await refresh();if(['start','score','double-fault'].includes(message.type))await clockTick();}
   return actionResult;
 }
 $('export-backup').onclick=async()=>{try{const {state:current}=await call({type:'state'});const backup=exported(current);const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='scouting-local-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}};
@@ -130,3 +132,19 @@ try{state=(await call({type:'state'})).state;render();await refresh();}catch(err
 setInterval(refresh,1500);
 
 $('show-overlay').onclick=()=>act({type:'show-overlay'});
+
+let clockBusy=false;
+async function clockTick(mode='tick'){
+ if(clockBusy||busy||!state?.selectedMatch)return;
+ clockBusy=true;const before=revision;
+ try{const result=await call({type:'scouting-clock',matchId:state.selectedMatch.id,mode});if(before===revision&&!busy){state=result.state;render();}}catch(error){$('message').textContent='Scouting clock could not save: '+error.message;}finally{clockBusy=false;}
+}
+$('scout-time-toggle').onclick=()=>clockTick(state?.scoutingTime?.paused?'resume':'pause');
+setInterval(()=>{if(document.visibilityState==='visible'&&!renderOnboarding.isOpen())clockTick();},15000);
+document.addEventListener('visibilitychange',()=>clockTick(document.visibilityState==='visible'?'tick':'suspend'));
+window.addEventListener('pagehide',()=>clockTick('suspend'));
+
+setInterval(()=>{
+ const clock=state?.scoutingTime;if(!clock)return;const delta=(Date.now()-(clock.lastAt??Date.now()))/1000;
+ $('scout-time').textContent=time(clock.seconds+(!clock.paused&&document.visibilityState==='visible'&&delta>=0&&delta<=30?delta:0));
+},1000);

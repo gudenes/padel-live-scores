@@ -141,3 +141,5 @@ header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#men
 #shot-options .extra-strokes{margin-top:5px}.net-touch-toggle kbd{font:11px var(--font);margin-left:6px;opacity:.7}
 
 .shot-families{display:grid;gap:8px}
+
+.time-strip{flex-wrap:wrap}.scout-time{display:inline-flex;align-items:center;gap:4px}.scout-time .ui-btn{font-size:10px;padding:1px 4px;min-height:22px}.match-result{font-weight:650;color:var(--text-1)}

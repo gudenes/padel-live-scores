@@ -157,3 +157,7 @@ Rollout requires the admin API update (`optional-server-v1`) before extension re
 ### Compact stroke controls
 
 Half volley and Serve are hidden from new stroke selection; saved historical strokes remain valid. Wall return uses 5, Return 6 and Other 0. Outside-court recovery (7) sits alongside X4 winner (4), uses the existing recovery flag and still allows a finishing stroke. Power/X3/Soft attempts and smash types default to Delete/End/Page Down; custom device assignments remain editable.
+
+### Match dates and operator time
+
+The onboarding date filter includes Today, Yesterday (local calendar day) and Other matches. Completed cards show recorded set scores and duration when supplied by admin, otherwise explicit unavailable labels. Scouting time is wall-clock operator time from the first rally, independent of video speed or seeking. Pause clock excludes breaks; hidden/closed panels and heartbeat gaps over 30 seconds are excluded. Totals checkpoint every 15 seconds and on scoring/pause, remain per match, and travel in server documents/backups. A sudden browser crash can lose up to the last checkpoint interval. Existing sessions start measuring from this update; prior working time is not reconstructed. The closing wizard compares this total with recorded match duration. Deploy the admin catalog/validation update before installing.
