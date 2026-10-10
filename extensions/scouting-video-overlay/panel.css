@@ -189,3 +189,11 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .player-card .ui-btn:disabled{opacity:.55;cursor:not-allowed}
 @media(pointer:coarse){body.scouting .player-card .ui-btn,.player-card .ui-btn{min-height:44px}}
 @media(prefers-reduced-motion:reduce){body.scouting .player-card .ui-btn,.player-card .ui-btn{transition:none}}
+/* Player-selection key stays separate from identity and ranking. */
+.player-card h3{align-items:center;gap:7px;min-height:28px;margin:0}
+.player-card h3>.player-identity{flex:1;flex-wrap:wrap;column-gap:4px;row-gap:1px}
+.player-card h3 .player-name{flex:1;min-width:65px}
+.player-card h3 .player-ranking{margin-left:0;font-size:9px;background:transparent;padding:0 2px;color:#717c64}
+.player-card h3>kbd[data-scout-key]{order:2;flex:0 0 auto;min-width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px;border:1px solid #c8d1bb;border-bottom-width:3px;border-radius:6px;background:#f2f5ea;color:#334324;font:750 13px/1 var(--font);white-space:nowrap}
+.player-card.keyboard-selected h3>kbd[data-scout-key]{background:#334324;color:#fff;border-color:#334324}
+.player-card.holding h3>kbd[data-scout-key]{border-color:#688735}
