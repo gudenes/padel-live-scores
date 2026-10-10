@@ -11,7 +11,7 @@ export function savedReport(session:SavedSession,source:'video'|'admin'){
  // Video records are validated before conversion; admin event-count limits do not apply to them.
  const doc=video?scoutingDocument(video) as ScoutDoc:validateDoc(session.document)
  return {doc,model:replay(doc),players:session.players,source,revision:session.revision,updatedAt:session.updated_at,
-  partial:!!(video?.setup.startingScore||doc.events.some(e=>e.kind==='score')),
+  partial:!!(video?.setup.startingScore||doc.events.some(e=>e.kind==='score'||e.kind==='unclassified')),
   videoReport:video?publicReport({...session,document:video}):null,
   reviewedPointIds:video?(video.rallies as {id:string;point?:unknown;undone?:boolean;varReviewed?:boolean}[]).filter(r=>r.point&&!r.undone&&r.varReviewed).map(r=>r.id):[],
   original:session.document}

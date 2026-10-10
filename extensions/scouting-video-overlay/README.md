@@ -4,6 +4,12 @@ Scout players and save points in the side panel. The on-video overlay is now a c
 
 Reload Corner overlay at chrome://extensions, refresh the video page, reopen its side panel and Connect video. Show video remote displays playback controls without the four player overlays. Keyboard shortcuts work while the video page or side panel has focus: J back 10 seconds, K play/pause, L forward 30 seconds, left arrow back 5 seconds and right arrow forward 5 seconds. The remote shows ±5-second controls directly. Extra controls provide +10 and −30 seconds. Skips are disabled during an open rally; pausing does not end or score it. Close hides the remote; show it again from the side panel.
 
+## Local storage allowance
+
+The extension requests `unlimitedStorage` so saved sessions, undo history, backups and queued server saves can exceed Chrome's default local-storage quota. Available disk space still limits storage. This permission does not add website access or delete existing data.
+
+When upgrading after a quota error, export a fresh local backup before reloading the existing extension in place. Check the saved score and last recorded point before retrying: the point may already have been written locally even if queuing its server save failed. Then retry server sync and verify its confirmation. Do not uninstall the extension or clear its storage to resolve this error.
+
 ## Fast shot entry
 
 After starting a rally, click the player’s Winner / Unforced / Forced outcome in the side panel. The end time is captured immediately. The common shot picker uses a stable 3×3 keyboard layout:
@@ -161,3 +167,11 @@ Half volley and Serve are hidden from new stroke selection; saved historical str
 ### Match dates and operator time
 
 The onboarding date filter includes Today, Yesterday (local calendar day) and Other matches. Completed cards show recorded set scores and duration when supplied by admin, otherwise explicit unavailable labels. Scouting time is wall-clock operator time from the first rally, independent of video speed or seeking. Pause clock excludes breaks; hidden/closed panels and heartbeat gaps over 30 seconds are excluded. Totals checkpoint every 15 seconds and on scoring/pause, remain per match, and travel in server documents/backups. A sudden browser crash can lose up to the last checkpoint interval. Existing sessions start measuring from this update; prior working time is not reconstructed. The closing wizard compares this total with recorded match duration. Deploy the admin catalog/validation update before installing.
+
+### Return errors and missed broadcast play
+
+Unforced error + Return automatically records the current confirmed opponent server as `previousPlayer` and `serve` as `previousShot`. It saves with the usual Space confirmation and does not award forced-error credit. A missing/unconfirmed or same-team server falls back to the existing previous-opponent selection. Changing the finishing stroke removes the automatic shortcut.
+
+Scoreboard → Adjust score offers +1 for each pair and Enter current score. Added points are unclassified team points, with no player outcome or stroke; the existing scoring rules advance games, sets and service. Exact current-score corrections change the scoreboard without reconstructing the missing point sequence. Enter current score accepts an ongoing match; +1 can complete a match. The latest adjustment can be undone, including a match-ending added point. Finish or cancel an unfinished rally before using these controls. Corrections persist with their position in the session and video time when available, and reports are marked partial. Deploy admin support for `score-corrections-v1` before installing; the outbox refuses to upload these records to older servers. No migration is required.
+
+The stroke picker uses compact keyboard rows with coral overheads, lime defense and teal net shots. Unused keys and the legend are omitted. Winner tags and net touch share the keyboard, and Contrapared has a separate clickable Shift+D control under Lob. Remapped shortcut labels remain visible; use Edit shortcuts to change assignments. Smash types appear only after selecting Smash.

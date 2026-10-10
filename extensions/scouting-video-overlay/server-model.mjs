@@ -1,3 +1,4 @@
+import {validateStartingScore} from './starting-score.mjs';
 import {needsServerConfirmation} from './onboarding-model.mjs';
 // Shared by the extension and the operator API. No browser APIs or credentials.
 import {validateSetup,validatePoint,match,validateSmashType} from './match.mjs';
@@ -53,7 +54,7 @@ export function validateVideoState(raw){
  if(settings.positions){if(typeof settings.positions.a!=='boolean'||typeof settings.positions.b!=='boolean')throw Error('Invalid court positions.');setup.positions={a:settings.positions.a,b:settings.positions.b};}
  let scoutingTime=null;if(raw.scoutingTime!=null){const c=raw.scoutingTime;if(!Number.isFinite(c.seconds)||c.seconds<0||c.seconds>31536000||typeof c.paused!=='boolean')throw Error('Invalid scouting time.');scoutingTime={seconds:c.seconds,paused:c.paused};}
  const ids=new Set();const rallies=raw.rallies.map(r=>{const next=rally(r);if(ids.has(next.id))throw Error('Duplicate rally.');ids.add(next.id);if(!next.end||next.finish)throw Error('A saved rally requires an end.');return next;});
- if(settings.adjustments){if(!Array.isArray(settings.adjustments)||settings.adjustments.length>2000)throw Error('Too many corrections.');setup.adjustments=settings.adjustments.map(a=>{if(!['server','ends'].includes(a.type)||a.afterId!==null&&!ids.has(a.afterId))throw Error('Invalid score correction.');return {type:a.type,...(a.type==='server'?{player:player(a.player)}:{}),afterId:a.afterId,at:at(a.at)};});}
+ if(settings.adjustments){if(!Array.isArray(settings.adjustments)||settings.adjustments.length>2000)throw Error('Too many corrections.');setup.adjustments=settings.adjustments.map(a=>{if(!['server','ends','missed-point','score-correction'].includes(a.type)||a.afterId!==null&&!ids.has(a.afterId))throw Error('Invalid score correction.');if(a.type==='missed-point'&&!['a','b'].includes(a.team))throw Error('Invalid missed-point pair.');if(a.videoTime!==undefined&&(!Number.isFinite(a.videoTime)||a.videoTime<0))throw Error('Invalid correction video time.');return {type:a.type,...(a.type==='missed-point'?{team:a.team}:{}),...(a.type==='score-correction'?{score:validateStartingScore(a.score)}:{}),...(a.videoTime!==undefined?{videoTime:a.videoTime}:{}),...(a.type==='server'?{player:player(a.player)}:{}),afterId:a.afterId,at:at(a.at)};});}
  const result={version:1,...(scoutingTime?{scoutingTime}:{}),label:string(raw.label??''),setup,rallies:[],cancelled:raw.cancelled.map(r=>rally(r)),pending:raw.pending?rally(raw.pending):null};
  for(let i=0;i<rallies.length;i++){
   const r=rallies[i],original=raw.rallies[i];

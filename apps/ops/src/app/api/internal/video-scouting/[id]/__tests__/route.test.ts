@@ -33,7 +33,7 @@ it('stores the calculated game score and updated player stats after scoring and 
 })
 
 it('advertises typed smash support and saves subtype and X4 stats without double counting',async()=>{
- mock.queue.push({data:null});expect((await (await GET(request(),ctx)).json()).features).toEqual(['smash-types-v1','var-review-v1','rally-touches-v1','point-tags-v2','soft-smash-v1','optional-server-v1'])
+ mock.queue.push({data:null});expect((await (await GET(request(),ctx)).json()).features).toEqual(['smash-types-v1','var-review-v1','rally-touches-v1','point-tags-v2','soft-smash-v1','optional-server-v1','score-corrections-v1'])
  const snap=(time:number)=>({tabId:7,documentId:'d',videoId:'v',mediaId:'m',time,at:'2026-10-06T12:00:00Z',readyState:4,seekEpoch:0,paused:false})
  const log={...document,rallies:[{id:'r',varReviewed:true,start:snap(10),end:snap(20),attempts:[{player:0,smashType:'power',snapshot:snap(15)}],point:{player:0,outcome:'winner',shot:'smash',smashType:'power',x4:true,smashAlreadyCounted:true,smashAttemptIndex:0}}]}
  mock.queue.push({data:{document,players,revision:1,write_id:'other'}},{data:{revision:2}})

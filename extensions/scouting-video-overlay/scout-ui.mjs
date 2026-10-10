@@ -1,3 +1,4 @@
+import {scoreCorrectionUI} from './score-correction-ui.mjs';
 import {scoutingKeys} from './scouting-keys.mjs';
 import {needsServerConfirmation} from './onboarding-model.mjs';
 import './shortcut-keys.js';
@@ -12,6 +13,7 @@ import {touchInsights,touchDirections} from './touch-insights.mjs';
 import {finishRally} from './core.mjs';
 import {courtCheckinUI} from './court-checkin.mjs';
 export function scoutingUI({$,act,getState}){
+ const renderScoreCorrection=scoreCorrectionUI({$,act,getState});
  const renderCourtCheckin=courtCheckinUI({$,act});
  let keyboardContext={enabled:false,token:'',order:[]};
  let selectedPlayer=null,holdingPlayer=null;
@@ -57,13 +59,28 @@ export function scoutingUI({$,act,getState}){
   if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);b.title=(key==='bajada'?'Bajada de pared':shots[key])+' · '+({overhead:'Overheads',defense:'Defense',net:'Net shots',other:'Other'}[group])+' · '+shortcutLabel(shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcutLabel(shortcut);b.append(kbd);}
   b.addEventListener('click',()=>chooseShot(key));return b;
  }
- const common=document.createElement('div');common.className='shot-families';common.setAttribute('aria-label','Strokes grouped by family');
- const orderedShots=[...quickShots,...extraShots],families=[...Object.keys(shotGroups),'other'];
- for(const family of families){const grid=document.createElement('div');grid.className='shot-grid';grid.setAttribute('role','group');grid.setAttribute('aria-label',{overhead:'Overheads',defense:'Defense',net:'Net shots',other:'Other'}[family]);for(const [shortcut,key] of orderedShots){const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';if(group===family)grid.append(shotButton(key,shortcut));}common.append(grid);}
+ const common=document.createElement('div');common.className='shot-keyboard';common.setAttribute('aria-label','Stroke keyboard');
+ const shotKeys=Object.fromEntries([...quickShots,...extraShots].map(([key,shot])=>[shot,key]));
+ const tagNames={x4:'X4 winner',outside:'Outside','smash-recovery':'Recovery',assist:'Assist','net-touch':'Net touch'};
+ const rows=[['chiquita','block','bajada','@x4','wall','return','@outside','other'],['smash','volley','vibora','@smash-recovery','rulo'],['bandeja','groundstroke','lob','@assist','gancho'],['drop','@net-touch']];
+ for(const [i,keys] of rows.entries()){
+  const row=document.createElement('div');row.className='keyboard-row keyboard-row-'+i;row.setAttribute('role','group');row.setAttribute('aria-label',['Number keys','QWERT row','ASDFG row','Bottom row'][i]);
+  for(const key of keys){
+   if(key.startsWith('@')){const id=key.slice(1),b=document.createElement('button');b.type='button';b.className='ui-btn keyboard-tag';b.dataset.tag=id;b.innerHTML='<kbd></kbd><span class="shot-label"></span>';b.querySelector('span').textContent=tagNames[id];b.onclick=()=>{if($('save-point').disabled)return;$(id).checked=!$(id).checked;$(id).onchange();};row.append(b);}
+   else {const b=shotButton(key,shotKeys[key]);if(key==='bajada')b.querySelector('.shot-label').textContent='Bajada';row.append(b);if(key==='lob'){const wrapper=document.createElement('div');wrapper.className='keyboard-dual';b.replaceWith(wrapper);wrapper.append(b);const shifted=shotButton('contrapared','shift+d');shifted.classList.add('shifted-shot');wrapper.append(shifted);}}
+  }
+  common.append(row);
+ }
  $('shot-options').append(common);
  function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player&&a.smashType===smashType)??-1;}
+ function returnServer(){
+  const state=getState(),finish=state?.pending?.finish;if(finish?.outcome!=='unforced'||shot!=='return')return undefined;
+  const model=match(state);if(needsServerConfirmation(state,model)||Math.floor(model.server/2)===Math.floor(finish.player/2))return undefined;
+  return model.server;
+ }
  function syncShot(){
-  for(const b of $('shot-options').querySelectorAll('button')){b.setAttribute('aria-pressed',String(b.dataset.shot===(step==='previous'?previousShot:shot)));b.dataset.variant=b.dataset.shot===(step==='previous'?previousShot:shot)?'primary':'default';}
+  const autoServer=returnServer();
+  for(const b of $('shot-options').querySelectorAll('[data-shot]')){b.setAttribute('aria-pressed',String(b.dataset.shot===(step==='previous'?previousShot:shot)));b.dataset.variant=b.dataset.shot===(step==='previous'?previousShot:shot)?'primary':'default';}
   const p=getState()?.pending,smash=shot==='smash',canLink=smash&&!!smashType&&matchingAttempt()>=0;
   const x4=p?.finish?.outcome==='winner'&&$('x4').checked,recovery=p?.finish?.outcome==='winner'&&$('smash-recovery').checked;
   $('smash-options').hidden=!smash;$('x4-label').hidden=p?.finish?.outcome!=='winner';$('shot-options').hidden=x4||recovery;$('x4-action').hidden=!x4;$('smash-type-picker').hidden=x4;
@@ -72,14 +89,16 @@ export function scoutingUI({$,act,getState}){
   $('point-back').querySelector('kbd').dataset.scoutKey='back';
   $('point-step').textContent={shot:'Finishing stroke',outcome:'Choose outcome',opponent:'Previous opponent · required',previous:'Previous stroke · optional'}[step];
   $('shot-form').dataset.step=step;
-  $('shot-options').hidden=!(step==='previous'||step==='shot'&&!x4&&!recovery);
+  $('shot-options').hidden=!(step==='previous'||step==='shot');
+  for(const b of common.querySelectorAll('[data-tag]')){const id=b.dataset.tag;b.hidden=step!=='shot'||id!=='net-touch'&&p?.finish?.outcome!=='winner';b.disabled=$('save-point').disabled;b.setAttribute('aria-pressed',String($(id).checked));b.querySelector('kbd').textContent=keyEditor.label(id);}
+  for(const b of common.querySelectorAll('[data-shot]')){b.disabled=$('save-point').disabled||(step==='shot'&&(x4||recovery));b.querySelector('kbd').textContent=keyEditor.label('shot-'+b.dataset.shot);}
   $('winner-tags').hidden=step!=='shot'||p?.finish?.outcome!=='winner';
   $('smash-options').hidden=step!=='shot'||!smash;
   for(const id of ['net-touch','shot-var'])$(id).closest('label').hidden=step!=='shot';
   $('shot-details').hidden=step!=='shot';
-  $('previous-shot-context').hidden=step!=='previous';
-  $('previous-shot-context').textContent=forcedBy===undefined?'':`Previous player: ${getState().setup.names[forcedBy]} · ${previousShot?shots[previousShot]:'Stroke not recorded'}`;
-  $('save-point').textContent=step==='opponent'?'Select the previous opponent':step==='outcome'?'Choose an outcome':step==='previous'?previousShot?'Save point · Space':'Save without previous stroke · Space':p?.finish?.outcome!=='winner'?'Next: previous opponent · Enter':'Save point · Space';
+  $('previous-shot-context').hidden=step!=='previous'&&!(step==='shot'&&autoServer!==undefined);
+  $('previous-shot-context').textContent=step==='shot'&&autoServer!==undefined?`Previous shot: Serve · ${getState().setup.names[autoServer]} · Auto-filled`:forcedBy===undefined?'':`Previous player: ${getState().setup.names[forcedBy]} · ${previousShot?shots[previousShot]:'Stroke not recorded'}`;
+  $('save-point').textContent=step==='opponent'?'Select the previous opponent':step==='outcome'?'Choose an outcome':step==='previous'?previousShot?'Save point · Space':'Save without previous stroke · Space':p?.finish?.outcome!=='winner'&&autoServer===undefined?'Next: previous opponent · Enter':'Save point · Space';
   $('save-point').setAttribute('aria-disabled',String(step==='opponent'||step==='outcome'));
   if(step==='previous')$('shot-title').textContent=getState().setup.names[forcedBy]+' · previous stroke';
   else if(step==='opponent')$('shot-title').textContent='Previous opponent';
@@ -109,9 +128,10 @@ export function scoutingUI({$,act,getState}){
  $('shot-dialog').addEventListener('cancel',e=>{e.preventDefault();goBack()});
  function savePoint(){
   const p=getState()?.pending?.finish;if(!p||$('save-point').disabled)return;if(step==='outcome')return;if(step==='opponent'){ $('shot-error').textContent='Choose the previous opponent before saving.';return;}const recovery=p.outcome==='winner'&&$('smash-recovery').checked;if((!shot&&!recovery)||shot==='smash'&&!smashType){$('shot-error').textContent='Choose a shot'+(shot==='smash'?' and smash type':'')+', then press Space to save.';return;}
-  if(p.outcome!=='winner'&&step==='shot'){step='opponent';syncShot();$('forced-opponents').querySelector('button')?.focus();return;}
-  if(p.outcome!=='winner'&&forcedBy===undefined){$('shot-error').textContent='Choose the previous opponent before saving.';return;}
-  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...(p.outcome!=='winner'&&forcedBy!==undefined?{previousPlayer:forcedBy,...(previousShot?{previousShot}:{}),...(p.outcome==='forced'?{forcedBy}:{})}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
+  const autoServer=returnServer(),previousPlayer=autoServer??forcedBy,priorShot=autoServer!==undefined?'serve':previousShot;
+  if(p.outcome!=='winner'&&step==='shot'&&autoServer===undefined){step='opponent';syncShot();$('forced-opponents').querySelector('button')?.focus();return;}
+  if(p.outcome!=='winner'&&previousPlayer===undefined){$('shot-error').textContent='Choose the previous opponent before saving.';return;}
+  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...(p.outcome!=='winner'&&previousPlayer!==undefined?{previousPlayer,...(priorShot?{previousShot:priorShot}:{}),...(p.outcome==='forced'?{forcedBy}:{})}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
  }
  $('shot-form').addEventListener('submit',e=>{e.preventDefault();savePoint();});
  $('shot-form').addEventListener('keydown',e=>{
@@ -130,6 +150,7 @@ export function scoutingUI({$,act,getState}){
   if(choice){e.preventDefault();if(!choice.disabled)chooseShot(choice.dataset.shot,true);}
  });
  return function render(state,sample,busy,healthy){
+  renderScoreCorrection(state,sample,busy);
   const setup=state.setup??defaults(),m=match(state),locked=!!state.pending||state.rallies.some(r=>r.point);
   const seedToken=JSON.stringify([state.selectedMatch?.id,setup.startingScore,setup.names]);
   if(seedToken!==seedKey){seedKey=seedToken;const seed=setup.startingScore; $('seed-count').value=seed?.completed.length??0;for(const i of [1,2])for(const team of ['a','b'])$(`seed-${i}-${team}`).value=seed?.completed[i-1]?.[team]??0;for(const team of ['a','b']){$('seed-games-'+team).value=seed?.games[team]??0;$('seed-points-'+team).value=seed?.points[team]??0;}$('seed-server').replaceChildren(...setup.names.map((n,i)=>new Option(n,i)));$('seed-server').value=seed?.server??setup.firstServer;$('seed-near').value=seed?.near??setup.near??'a';$('seed-deuce').value=seed?.advantageReturns??0;$('seed-elapsed').value=seed?.elapsedSeconds===undefined?'':seed.elapsedSeconds/60;seedRows();}
@@ -205,7 +226,7 @@ export function scoutingUI({$,act,getState}){
    $('save-point').disabled=busy;syncShot();for(const b of $('smash-options').querySelectorAll('button,input'))b.disabled=busy;
    for(const id of ['assist','smash-recovery','x4','outside','net-touch','forced-unknown'])$(id).disabled=busy;
    $('shot-title').textContent=step==='previous'?setup.names[forcedBy]+' · previous stroke':step==='opponent'?'Previous opponent':`${setup.names[finish.player]} · ${finish.outcome.replace('_',' ')}`;$('save-point').disabled=busy;$('dismiss-shot').disabled=busy;
-   for(const b of $('shot-options').querySelectorAll('button'))b.disabled=busy;
+   syncShot();
    if(!$('shot-dialog').open){$('shot-dialog').showModal();common.querySelector('button')?.focus();}
   }else{openId='';if($('shot-dialog').open)$('shot-dialog').close();}
  };
