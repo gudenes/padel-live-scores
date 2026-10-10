@@ -234,8 +234,15 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
         case 'score':{
           if(!state.pending?.finish)throw Error('Select the player’s outcome first.');
           const selected=state.pending.finish;
-          const point=validatePoint({...message.details,player:selected.player,outcome:selected.outcome},state.pending,match(state).server);
-          const rally=finishRally(state.pending,selected.end);
+          const pending=structuredClone(state.pending);
+          // A finishing-type correction edits the explicitly linked attempt, never adds one.
+          if(message.details?.smashAlreadyCounted&&message.details.smashAttemptIndex!==undefined){
+            const index=message.details.smashAttemptIndex,attempt=pending.attempts?.[index];
+            if(!Number.isInteger(index)||!attempt||attempt.player!==selected.player)throw Error('Choose this player’s recorded smash.');
+            if(message.details.smashType!==undefined)attempt.smashType=validateSmashType(message.details.smashType);
+          }
+          const point=validatePoint({...message.details,player:selected.player,outcome:selected.outcome},pending,match(state).server);
+          const rally=finishRally(pending,selected.end);
           delete rally.finish;
           state.rallies.push({...rally,point});state.pending=null;return save();
         }

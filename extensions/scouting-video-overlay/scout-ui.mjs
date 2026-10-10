@@ -52,7 +52,7 @@ export function scoutingUI({$,act,getState}){
  function setQuick(value){quickSave=value;$('quick-save').checked=value;globalThis.localStorage?.setItem('pn-quick-save',String(value));}
  $('quick-save').addEventListener('change',()=>setQuick($('quick-save').checked));
  $('shot-details').addEventListener('toggle',()=>{if($('shot-details').open)setQuick(false)});
- function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;if(step==='previous'){previousShot=key;syncShot();return;}shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
+ function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;if(step==='previous'){previousShot=key;syncShot();return;}if(key==='smash'&&shot!=='smash'){const p=getState()?.pending,a=p?.attempts?.[matchingAttempt()];smashType=a?.smashType;$('counted').checked=true;}shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
  const shotGroups={overhead:['smash','vibora','bandeja','rulo','gancho'],defense:['groundstroke','lob','block','bajada','wall','return','contrapared'],net:['volley','chiquita','drop','half_volley']};
  function shotButton(key,shortcut){
   const b=document.createElement('button');b.type='button';b.className='ui-btn';b.dataset.size='sm';const label=document.createElement('span');label.className='shot-label';label.textContent=key==='bajada'?'Bajada de pared':shots[key];const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';label.dataset.group=group;b.append(label);b.dataset.shot=key;b.dataset.group=group;b.setAttribute('aria-pressed','false');
@@ -72,7 +72,7 @@ export function scoutingUI({$,act,getState}){
   common.append(row);
  }
  $('shot-options').append(common);
- function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player&&a.smashType===smashType)??-1;}
+ function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player)??-1;}
  function returnServer(){
   const state=getState(),finish=state?.pending?.finish;if(finish?.outcome!=='unforced'||shot!=='return')return undefined;
   const model=match(state);if(needsServerConfirmation(state,model)||Math.floor(model.server/2)===Math.floor(finish.player/2))return undefined;
@@ -106,8 +106,8 @@ export function scoutingUI({$,act,getState}){
   for(const b of $('forced-opponents').querySelectorAll('button')){b.setAttribute('aria-pressed',String(Number(b.dataset.player)===forcedBy));b.disabled=$('save-point').disabled;}
   $('forced-unknown').textContent='Back to error stroke';
   for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.setAttribute('aria-pressed',String(b.dataset.smashType===smashType));
-  $('counted-label').hidden=!canLink;
-  const label=!shot?(recovery?`${getState()?.setup?.names[p?.finish?.player]??'Player'} · winner`:'Choose a stroke'):smash&&!smashType?'Choose Power, X3 or Soft smash before saving':`${getState()?.setup?.names[p?.finish?.player]??'Player'} · ${p?.finish?.outcome??''} · ${shots[shot]}${smash?' '+(smashType==='x3'?'X3':smashType==='soft'?'Soft':'Power'):''}${smash&&$('x4').checked?' · X4 winner':''}${smash&&smashType?' · '+(canLink&&$('counted').checked?'Attempt already counted':'Adds one attempt'):''}`;
+  $('counted-label').hidden=!canLink;const prior=getState()?.pending?.attempts?.[matchingAttempt()];$('reuse-smash').textContent='Use last smash · '+({power:'Power',x3:'X3',soft:'Soft'}[prior?.smashType]??'Recorded');for(const [id,selected] of [['reuse-smash',$('counted').checked],['new-smash',!$('counted').checked]]){$(id).setAttribute('aria-pressed',String(selected));$(id).dataset.variant=selected?'primary':'default';}
+  const label=!shot?(recovery?`${getState()?.setup?.names[p?.finish?.player]??'Player'} · winner`:'Choose a stroke'):smash&&!smashType?'Choose Power, X3 or Soft smash before saving':`${getState()?.setup?.names[p?.finish?.player]??'Player'} · ${p?.finish?.outcome??''} · ${shots[shot]}${smash?' '+(smashType==='x3'?'X3':smashType==='soft'?'Soft':'Power'):''}${smash&&$('x4').checked?' · X4 winner':''}${smash&&smashType?' · '+(canLink&&$('counted').checked?'Updates the recorded attempt · No extra attempt':'Adds one new attempt'):''}`;
   $('save-point').textContent=$('save-point').textContent.replace('Space',keyEditor.label('save'));
   $('shot-instruction').textContent=$('shot-instruction').textContent.replaceAll('Space',keyEditor.label('save')).replaceAll('Esc',keyEditor.label('back'));
   $('shot-summary').textContent=label+(forcedBy!==undefined?' · Previous opponent: '+getState().setup.names[forcedBy]:'')+($('assist').checked?' · Assist: '+getState().setup.names[p.finish.player^1]:'')+($('smash-recovery').checked?' · Smash recovery':'')+($('outside').checked?' · Outside-court recovery':'')+($('net-touch').checked?' · Net touch':'');
@@ -115,7 +115,7 @@ export function scoutingUI({$,act,getState}){
  }
  function chooseType(type){smashType=type;if(type!=='power')$('x4').checked=false;syncShot();}
  for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.onclick=()=>chooseType(b.dataset.smashType);
- $('x4').onchange=()=>{if($('x4').checked){shot='smash';smashType='power';}else if($('smash-recovery').checked){shot=undefined;smashType=undefined;}syncShot();$('save-point').focus();};$('counted').onchange=syncShot;
+ $('x4').onchange=()=>{if($('x4').checked){shot='smash';smashType='power';}else if($('smash-recovery').checked){shot=undefined;smashType=undefined;}syncShot();$('save-point').focus();};$('counted').onchange=syncShot;for(const id of ['reuse-smash','new-smash'])$(id).onclick=()=>{$('counted').checked=id==='reuse-smash';syncShot();};
  $('smash-recovery').onchange=()=>{if($('smash-recovery').checked&&!$('x4').checked){shot=undefined;smashType=undefined;}syncShot();$('shot-error').textContent='';$('save-point').focus();};
  for(const id of ['assist','net-touch','outside'])$(id).onchange=()=>{syncShot();$('save-point').focus();};
  function credit(player){if(forcedBy!==player)previousShot=undefined;forcedBy=player;step='previous';attributionReady=true;syncShot();$('save-point').focus();}
