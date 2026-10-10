@@ -1,5 +1,4 @@
 import {validateStartingScore} from './starting-score.mjs';
-import {needsServerConfirmation} from './onboarding-model.mjs';
 // Shared by the extension and the operator API. No browser APIs or credentials.
 import {validateSetup,validatePoint,match,validateSmashType} from './match.mjs';
 import {finishRally} from './core.mjs';
@@ -58,7 +57,7 @@ export function validateVideoState(raw){
  const result={version:1,...(scoutingTime?{scoutingTime}:{}),label:string(raw.label??''),setup,rallies:[],cancelled:raw.cancelled.map(r=>rally(r)),pending:raw.pending?rally(raw.pending):null};
  for(let i=0;i<rallies.length;i++){
   const r=rallies[i],original=raw.rallies[i];
-  if(original.point){if(!r.undone&&needsServerConfirmation(result,match(result)))throw Error('Confirm the other server before recording their service game.');if(!r.undone&&match(result).score.phase==='finished')throw Error('Match has finished.');r.point=validatePoint(original.point,r,match(result).server);}
+  if(original.point){if(!r.undone&&(result.setup.otherServerUnknown===true&&Math.floor(match(result).server/2)!==Math.floor(result.setup.firstServer/2)))throw Error('Confirm the other server before recording their service game.');if(!r.undone&&match(result).score.phase==='finished')throw Error('Match has finished.');r.point=validatePoint(original.point,r,match(result).server);}
   result.rallies.push(r);
  }
  if(result.pending&&(ids.has(result.pending.id)||result.pending.end))throw Error('Invalid open rally.');

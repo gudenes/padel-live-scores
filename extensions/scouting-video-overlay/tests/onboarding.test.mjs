@@ -32,6 +32,7 @@ test('new set asks separately before games one and two, preserves order, sync an
   await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).setServers.game,2);
   await f.dispatch({type:'confirm-set-servers',player:second});
   for(let i=0;i<4;i++)await f.point();assert.equal(match(f.get()).server,first^1);
+  const legacy=structuredClone(f.get());legacy.setup.adjustments=[];assert.doesNotThrow(()=>videoPayload(legacy),'older sessions without confirmation events remain exportable');
  }
 });
 test('undo set-winning point clears gate; finishing the match needs no confirmation',async()=>{
