@@ -51,9 +51,10 @@ export function scoutingUI({$,act,getState}){
  $('quick-save').addEventListener('change',()=>setQuick($('quick-save').checked));
  $('shot-details').addEventListener('toggle',()=>{if($('shot-details').open)setQuick(false)});
  function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;if(step==='previous'){previousShot=key;syncShot();return;}shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
+ const shotGroups={overhead:['smash','vibora','bandeja','rulo','gancho'],defense:['groundstroke','lob','block','bajada','wall','return','contrapared'],net:['volley','chiquita','drop','half_volley']};
  function shotButton(key,shortcut){
-  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.dataset.size='sm';b.textContent=key==='bajada'?'Bajada de pared':shots[key];b.dataset.shot=key;b.setAttribute('aria-pressed','false');
-  if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);b.title=(key==='bajada'?'Bajada de pared':shots[key])+' · '+shortcutLabel(shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcutLabel(shortcut);b.append(kbd);}
+  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.dataset.size='sm';const label=document.createElement('span');label.className='shot-label';label.textContent=key==='bajada'?'Bajada de pared':shots[key];const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';label.dataset.group=group;b.append(label);b.dataset.shot=key;b.dataset.group=group;b.setAttribute('aria-pressed','false');
+  if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);b.title=(key==='bajada'?'Bajada de pared':shots[key])+' · '+({overhead:'Overheads',defense:'Defense',net:'Net shots',other:'Other'}[group])+' · '+shortcutLabel(shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcutLabel(shortcut);b.append(kbd);}
   b.addEventListener('click',()=>chooseShot(key));return b;
  }
  const common=document.createElement('div');common.className='shot-grid';common.setAttribute('aria-label','Common shots');

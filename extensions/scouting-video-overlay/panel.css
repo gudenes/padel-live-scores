@@ -128,3 +128,10 @@ header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#men
 .entry-preferences{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}.entry-preferences .hint{flex-basis:100%;margin:0}
 [data-scout-key],[data-media-key]{cursor:pointer} [data-scout-key]:hover,[data-media-key]:hover{outline:1px solid currentColor;outline-offset:2px}
 #scout-key-editor{max-width:460px;width:calc(100% - 24px);max-height:85vh;overflow:auto}#scout-key-editor [data-key-fields]{display:grid;grid-template-columns:1fr 1fr;gap:10px}#scout-key-editor label{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px}#point-step{font-weight:600}#outcome-picker[hidden]{display:none}#shot-dialog [aria-disabled=true]{opacity:.6}
+
+/* Shot-family markers keep the approved button and selected-state styles. */
+#shot-options .shot-label{display:flex;align-items:center;gap:5px;min-width:0}
+#shot-options .shot-label::before{content:'';width:4px;min-width:4px;height:20px;border-radius:2px;background:var(--shot-family,#a7ada1)}
+#shot-options [data-group=overhead]{--shot-family:#F67869}
+#shot-options [data-group=defense]{--shot-family:#79A92B}
+#shot-options [data-group=net]{--shot-family:#629CAB}
