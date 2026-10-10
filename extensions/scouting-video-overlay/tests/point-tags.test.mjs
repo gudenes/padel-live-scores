@@ -28,7 +28,7 @@ test('quick tags, independent X4 and position-based opponent keys save once and 
  try{
   render(state,snapshot(110),false,true);assert.equal($('assist').closest('details'),null);assert.equal($('smash-recovery').closest('details'),null);
   press('f');press('r');press('4');assert.equal(document.activeElement,$('save-point'));$('net-touch').click();assert.equal(document.activeElement,$('save-point'));assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);press(' ');
-  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'power',x4:true,assistBy:1,smashRecovery:true,netTouch:true,smashAlreadyCounted:true,smashAttemptIndex:0}});
+  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'power',x4:true,assistBy:1,smashRecovery:true,netTouch:true}});
   state.pending.id='forced';state.pending.finish.outcome='forced';render(state,snapshot(110),false,true);
   assert.equal($('winner-tags').hidden,true);assert.equal($('net-touch').checked,false);
   assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[2,'q'],[3,'w']]);
