@@ -20,6 +20,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
       };
       switch(message.type){
         case 'state':return {state};
+        case 'checkpoint':await write(state,{type:'checkpoint'});return {state};
         case 'scouting-clock':{
           if(!state.selectedMatch||message.matchId!==state.selectedMatch.id)return {state};
           if(!['tick','pause','resume','suspend'].includes(message.mode))throw Error('Invalid clock action.');

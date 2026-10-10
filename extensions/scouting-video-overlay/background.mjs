@@ -36,13 +36,23 @@ function scheduleSync(){
  chrome.alarms?.create('video-scouting-sync',{delayInMinutes:1,periodInMinutes:1});
  sync.flush().catch(console.error);
 }
-chrome.alarms?.onAlarm.addListener(alarm=>{if(alarm.name==='video-scouting-sync')sync.flush().catch(console.error);});
+let tapSyncTimer=null;
+function scheduleTapSync(){
+ chrome.alarms?.create('video-scouting-sync',{delayInMinutes:1,periodInMinutes:1});
+ if(tapSyncTimer!==null)return;
+ tapSyncTimer=setTimeout(()=>{tapSyncTimer=null;dispatch({type:'checkpoint'}).catch(console.error);},1000);
+}
+chrome.alarms?.onAlarm.addListener(alarm=>{if(alarm.name==='video-scouting-sync')dispatch({type:'checkpoint'}).catch(console.error);});
 const dispatch=engine({
   read:async()=>(await chrome.storage.local.get('scoutingVideo')).scoutingVideo,
   write:async (state,context)=>{
     await chrome.storage.local.set({scoutingVideo:state});
     if(context?.remote)await sync.acknowledge(state.selectedMatch.id,context.remote);
-    if(state.selectedMatch?.id&&context?.type!=='restore-cloud'){await sync.track(state);scheduleSync();}
+    if(state.selectedMatch?.id&&context?.type!=='restore-cloud'){
+      if(['touch','smash'].includes(context?.type)){scheduleTapSync();return;}
+      if(tapSyncTimer!==null){clearTimeout(tapSyncTimer);tapSyncTimer=null;}
+      await sync.track(state);scheduleSync();
+    }
   },
   uuid:()=>crypto.randomUUID(),
   catalog:async request=>{

@@ -1,3 +1,4 @@
+import {actionQueue} from '../action-queue.mjs';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -70,7 +71,8 @@ test('rapid tap then Page Down queues classification behind the in-flight shot s
  const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8'),{url:'https://example.test'});
  globalThis.document=dom.window.document;globalThis.Option=dom.window.Option;Object.defineProperty(globalThis,'localStorage',{value:dom.window.localStorage,configurable:true});
  const $=id=>document.getElementById(id),state={...fresh(),setup:defaults(),selectedMatch:{id:'match'},pending:{id:'r',start:{time:100}}},calls=[];let release;
- const render=scoutingUI({$,getState:()=>state,act:async msg=>{calls.push(msg);if(msg.type==='touch'){render(state,{time:101},true,true);await new Promise(resolve=>release=resolve);}render(state,{time:101},false,true);return {ok:true};}});
+ const queue=actionQueue(async msg=>{calls.push(msg);if(msg.type==='touch')await new Promise(resolve=>release=resolve);return {ok:true};});
+ const render=scoutingUI({$,getState:()=>state,act:msg=>queue.push(msg)});
  try{
   render(state,{time:101},false,true);
   const key=(type,key)=>document.dispatchEvent(new dom.window.KeyboardEvent(type,{key,bubbles:true,cancelable:true}));
