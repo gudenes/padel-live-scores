@@ -110,3 +110,13 @@ test('return auto-fill uses corrected server and never guesses an unknown or sam
  else {assert.equal($('shot-form').dataset.step,'opponent');assert.equal(actions.some(a=>a.type==='score'),false);}
  }finally{f.close();}}
 });
+
+test('compact keyboard tags can be clicked and toggled back off without losing the picker',()=>{
+ const f=fixture(),{$,press,actions,state,render}=f;try{
+ $('rally-taps').click();press('q');press('w');const tag=id=>$('shot-options').querySelector(`[data-tag="${id}"]`);
+ tag('smash-recovery').click();assert.equal($('smash-recovery').checked,true);render(state,snapshot(110),false,true);assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);
+ tag('smash-recovery').click();assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,false);
+ tag('assist').click();tag('net-touch').click();$('shot-options').querySelector('[data-shot=volley]').click();press(' ');
+ assert.equal(actions.at(-1).details.assistBy,3);assert.equal(actions.at(-1).details.netTouch,true);
+ }finally{f.close();}
+});

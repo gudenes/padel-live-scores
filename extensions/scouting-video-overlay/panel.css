@@ -143,3 +143,21 @@ header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#men
 .shot-families{display:grid;gap:8px}
 
 .time-strip{flex-wrap:wrap}.scout-time{display:inline-flex;align-items:center;gap:4px}.scout-time .ui-btn{font-size:10px;padding:1px 4px;min-height:22px}.match-result{font-weight:650;color:var(--text-1)}
+
+/* Approved compact keyboard picker: unused keys and the legend are omitted. */
+#shot-dialog{width:min(460px,calc(100vw - 20px));box-sizing:border-box;padding:12px}
+#shot-dialog #winner-tags,#shot-dialog .net-touch-toggle{display:none}
+.shot-keyboard{display:grid;gap:8px}.keyboard-row{display:flex;gap:5px;align-items:stretch}.keyboard-row>*{flex:1;min-width:0}.keyboard-row-1{margin-left:4px}.keyboard-row-2{margin-left:8px}.keyboard-row-3{justify-content:center}.keyboard-row-3>*{flex:0 1 100px}
+#shot-options .keyboard-row .ui-btn{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:5px;min-height:62px;padding:7px 5px;font-size:11px;line-height:1.15;text-align:left;white-space:normal;overflow-wrap:anywhere;border-color:var(--key-border,#d2d5cd);background:var(--key-bg,#f5f6f2);box-shadow:0 2px 0 var(--key-border,#d2d5cd);color:#222b20}
+#shot-options .keyboard-row kbd{order:-1;font:700 21px/1.1 var(--font);opacity:1;white-space:normal;overflow-wrap:anywhere}
+#shot-options .shot-label{display:block}#shot-options .shot-label::before{display:none}
+#shot-options [data-group=overhead]{--key-bg:#fff0ec;--key-border:#eea49b}#shot-options [data-group=defense]{--key-bg:#f1f8dc;--key-border:#b2ce79}#shot-options [data-group=net]{--key-bg:#e6f5f6;--key-border:#8dc7cb}
+#shot-options .keyboard-row .ui-btn[aria-pressed=true]{background:var(--lime);border-color:#749e23;box-shadow:inset 0 0 0 1px #749e23,0 2px 0 #749e23}
+#shot-options .keyboard-row .ui-btn:focus-visible{outline:2px solid #1a2012;outline-offset:2px}
+#shot-options .keyboard-row-0 .ui-btn{font-size:10px;padding:6px 3px;min-height:65px}
+.keyboard-dual{display:flex;flex-direction:column;gap:3px}#shot-options .keyboard-dual>.ui-btn{width:100%;flex:1;min-height:0}#shot-options .keyboard-dual>.shifted-shot{flex:0;font-size:9px;gap:2px;padding:4px}#shot-options .shifted-shot kbd{font-size:10px}
+#shot-options .keyboard-row [hidden]{display:none}#shot-options .keyboard-row button:disabled{opacity:.45}
+@media(max-width:360px){#shot-dialog{padding:8px}.keyboard-row{gap:3px}#shot-options .keyboard-row-0 .ui-btn{font-size:9px}#shot-options .keyboard-row .ui-btn{padding:5px 3px}}
+#shot-options .keyboard-row-0 .shot-label{font-size:9px;overflow-wrap:normal;word-break:normal}
+#shot-options .keyboard-row-2 .shot-label{font-size:10px;overflow-wrap:normal}
+#shot-options .keyboard-dual>.shifted-shot{flex:0 0 auto;min-height:34px}#shot-options .keyboard-dual>.ui-btn:first-child{min-height:48px}
