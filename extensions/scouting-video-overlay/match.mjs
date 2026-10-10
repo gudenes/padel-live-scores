@@ -1,3 +1,4 @@
+import {validateCoachConfirmations} from './coach-model.mjs';
 import {replay} from './generated/model.mjs';
 import {pressure} from './generated/tracking.mjs';
 import {validateStartingScore} from './starting-score.mjs';
@@ -13,6 +14,8 @@ export function validateSetup(setup){
  if(!['star-point','golden-point','advantage'].includes(setup.rule))throw Error('Choose a supported scoring rule.');
  if(setup.near!==undefined&&!['a','b'].includes(setup.near))throw Error('Invalid court end.');
  if(setup.positions&&(['a','b'].some(t=>typeof setup.positions[t]!=='boolean')))throw Error('Invalid court positions.');
+ if(setup.firstServerUnknown!==undefined&&typeof setup.firstServerUnknown!=='boolean')throw Error('Invalid first server confirmation.');
+ if(setup.coaches!==undefined)setup={...setup,coaches:validateCoachConfirmations(setup.coaches)};
  if(setup.otherServerUnknown!==undefined&&typeof setup.otherServerUnknown!=='boolean')throw Error('Invalid server confirmation.');
  if(setup.onboardingComplete!==undefined&&typeof setup.onboardingComplete!=='boolean')throw Error('Invalid setup status.');
  return {...setup,names:setup.names.map(n=>n.trim()),...(setup.startingScore?{startingScore:validateStartingScore(setup.startingScore)}:{})};
@@ -46,7 +49,24 @@ export function scoutingDocument(state){
 }
 export function match(state){
  const seed=state.setup?.startingScore?validateStartingScore(state.setup.startingScore):null;
- const m=replay(scoutingDocument(state));
+ const document=scoutingDocument(state),m=replay(document);
+ // Confirm each pair only when its first service game of the set arrives.
+ // Use existing server events so reports and server sync retain the same format.
+ let setServers=null;
+ const games=m.score.sets.at(-1),game=games.a+games.b+1;
+ if(m.score.phase!=='finished'&&m.score.sets.length>1&&game<=2&&m.score.currentGame.a===0&&m.score.currentGame.b===0){
+  for(let index=document.events.length-1;index>=0;index--){
+   const event=document.events[index];
+   if(event.kind==='score')break; // A manually seeded position already specifies its server.
+   if(!['point','double_fault','unclassified'].includes(event.kind))continue;
+   const before=replay({...document,events:document.events.slice(0,index)});
+   if(before.score.sets.length<m.score.sets.length){
+    const confirmed=document.events.slice(index+1).some(e=>e.kind==='server'&&pair(e.player)===pair(m.server));
+    if(!confirmed)setServers={set:m.score.sets.length,game,team:pair(m.server)};
+    break;
+   }
+  }
+ }
  const types=Array.from({length:4},()=>({powerSmashes:0,x3Smashes:0,softSmashes:0,softSmashWinners:0,x4Winners:0}));
  for(const r of [...state.rallies.filter(r=>!r.undone&&r.point),...(state.pending?[state.pending]:[])]){
   for(const a of r.attempts??[])if(a.smashType)types[a.player][a.smashType==='x3'?'x3Smashes':a.smashType==='soft'?'softSmashes':'powerSmashes']++;
@@ -55,7 +75,7 @@ export function match(state){
   if(r.point?.x4)types[r.point.player].x4Winners++;
  }
  const stats=m.stats.map((s,i)=>({...s,...types[i],doubleFaults:m.tracking.service[i].doubleFaults}));
- return {...m,stats,situation:pressure(m.score),timeOffset:seed?.elapsedSeconds??null};
+ return {...m,setServers,stats,situation:pressure(m.score),timeOffset:seed?.elapsedSeconds??null};
 }
 export function validatePoint(raw,pending,server){
  const p={player:raw.player,outcome:raw.outcome};

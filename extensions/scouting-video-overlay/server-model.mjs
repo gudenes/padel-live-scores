@@ -1,5 +1,4 @@
 import {validateStartingScore} from './starting-score.mjs';
-import {needsServerConfirmation} from './onboarding-model.mjs';
 // Shared by the extension and the operator API. No browser APIs or credentials.
 import {validateSetup,validatePoint,match,validateSmashType} from './match.mjs';
 import {finishRally} from './core.mjs';
@@ -49,7 +48,7 @@ export function validateVideoState(raw){
  if(!raw||typeof raw!=='object'||raw.version!==1)throw Error('Invalid video scouting session.');
  if(!Array.isArray(raw.rallies)||raw.rallies.length>2000||!Array.isArray(raw.cancelled)||raw.cancelled.length>2000)throw Error('Session is too large.');
  const settings=raw.setup??{};
- const setup=validateSetup({names:settings.names,firstServer:settings.firstServer,otherServer:settings.otherServer,rule:settings.rule,startingScore:settings.startingScore,otherServerUnknown:settings.otherServerUnknown,onboardingComplete:settings.onboardingComplete});
+ const setup=validateSetup({names:settings.names,firstServer:settings.firstServer,otherServer:settings.otherServer,rule:settings.rule,startingScore:settings.startingScore,firstServerUnknown:settings.firstServerUnknown,coaches:settings.coaches,otherServerUnknown:settings.otherServerUnknown,onboardingComplete:settings.onboardingComplete});
  if(settings.near!==undefined){if(!['a','b'].includes(settings.near))throw Error('Invalid court end.');setup.near=settings.near;}
  if(settings.positions){if(typeof settings.positions.a!=='boolean'||typeof settings.positions.b!=='boolean')throw Error('Invalid court positions.');setup.positions={a:settings.positions.a,b:settings.positions.b};}
  let scoutingTime=null;if(raw.scoutingTime!=null){const c=raw.scoutingTime;if(!Number.isFinite(c.seconds)||c.seconds<0||c.seconds>31536000||typeof c.paused!=='boolean')throw Error('Invalid scouting time.');scoutingTime={seconds:c.seconds,paused:c.paused};}
@@ -58,7 +57,7 @@ export function validateVideoState(raw){
  const result={version:1,...(scoutingTime?{scoutingTime}:{}),label:string(raw.label??''),setup,rallies:[],cancelled:raw.cancelled.map(r=>rally(r)),pending:raw.pending?rally(raw.pending):null};
  for(let i=0;i<rallies.length;i++){
   const r=rallies[i],original=raw.rallies[i];
-  if(original.point){if(!r.undone&&needsServerConfirmation(result,match(result)))throw Error('Confirm the other server before recording their service game.');if(!r.undone&&match(result).score.phase==='finished')throw Error('Match has finished.');r.point=validatePoint(original.point,r,match(result).server);}
+  if(original.point){if(!r.undone&&(result.setup.otherServerUnknown===true&&Math.floor(match(result).server/2)!==Math.floor(result.setup.firstServer/2)))throw Error('Confirm the other server before recording their service game.');if(!r.undone&&match(result).score.phase==='finished')throw Error('Match has finished.');r.point=validatePoint(original.point,r,match(result).server);}
   result.rallies.push(r);
  }
  if(result.pending&&(ids.has(result.pending.id)||result.pending.end))throw Error('Invalid open rally.');

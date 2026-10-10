@@ -124,7 +124,7 @@ test('typed smash attempts link by subtype, survive server validation and undo w
  const f=fixture();await f.choose();await f.dispatch({type:'start'});
  await f.dispatch({type:'smash',player:0,smashType:'power'});await f.dispatch({type:'smash',player:0,smashType:'x3'});
  await f.dispatch({type:'prepare',player:0,outcome:'winner'});
- await assert.rejects(f.dispatch({type:'score',details:{shot:'smash',smashType:'power',smashAlreadyCounted:true,smashAttemptIndex:1}}),/matching attempt/);
+ await assert.rejects(f.dispatch({type:'score',details:{shot:'smash',smashType:'power',smashAlreadyCounted:true,smashAttemptIndex:9}}),/recorded smash/);
  await f.dispatch({type:'score',details:{shot:'smash',smashType:'power',x4:true,smashAlreadyCounted:true,smashAttemptIndex:0}});
  const payload=videoPayload(f.get()),summary=videoSummary(payload);assert.equal(summary.stats[0].smashes,2);assert.equal(summary.stats[0].powerSmashes,1);assert.equal(summary.stats[0].x3Smashes,1);assert.equal(summary.stats[0].x4Winners,1);assert.equal(summary.score.currentGame.a,15);
  await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).points,0);assert.equal(match(f.get()).stats[0].smashes,2);assert.equal(match(f.get()).stats[0].x4Winners,0);
@@ -198,4 +198,25 @@ test('changing default Winner to an error preserves the original rally end and o
  assert.equal(f.get().rallies[0].videoSeconds,10);assert.equal(f.get().rallies[0].point.previousShot,'bajada');
  assert.equal(match(f.get()).stats[2].forcedErrorsCreated,0);
  await f.dispatch({type:'undo-last'});assert.equal(f.get().rallies.length,0);assert.equal(f.get().pending.finish.outcome,'unforced');
+});
+
+test('correcting a linked smash type keeps one attempt, roundtrips and undo restores original',async()=>{
+ const {videoPayload,videoSummary}=await import('../server-model.mjs');
+ const f=fixture();await f.choose();await f.dispatch({type:'start'});
+ await f.dispatch({type:'smash',player:0,smashType:'power'});await f.dispatch({type:'prepare',player:0,outcome:'winner'});
+ await f.dispatch({type:'score',details:{shot:'smash',smashType:'soft',smashAlreadyCounted:true,smashAttemptIndex:0}});
+ const s=videoSummary(videoPayload(f.get())).stats[0];assert.equal(s.smashes,1);assert.equal(s.softSmashes,1);assert.equal(s.powerSmashes,0);assert.equal(s.smashWinners,1);
+ await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.attempts[0].smashType,'power');
+ await f.dispatch({type:'score',details:{shot:'smash',smashType:'soft'}});assert.equal(match(f.get()).stats[0].smashes,2);
+});
+
+test('previous smash error can reuse or add an attempt without changing error attribution',async()=>{
+ const {videoPayload,videoSummary}=await import('../server-model.mjs');
+ for(const outcome of ['forced','unforced'])for(const freshAttempt of [false,true]){
+  const f=fixture();await f.choose();await f.dispatch({type:'start'});await f.dispatch({type:'smash',player:0,smashType:'power'});
+  await f.dispatch({type:'prepare',player:2,outcome});
+  await f.dispatch({type:'score',details:{shot:'block',previousPlayer:0,previousShot:'smash',previousSmashType:'soft',...(freshAttempt?{previousSmashNew:true}:{}),...(outcome==='forced'?{forcedBy:0}:{})}});
+  const m=videoSummary(videoPayload(f.get()));assert.equal(m.stats[0].smashes,freshAttempt?2:1);assert.equal(m.stats[0].smashPointsWon,1);assert.equal(m.stats[0].softSmashes,1);assert.equal(m.stats[0].powerSmashes,freshAttempt?1:0);assert.equal(m.stats[0].smashWinners,0);assert.equal(m.stats[2][outcome],1);
+  await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.attempts.length,1);
+ }
 });

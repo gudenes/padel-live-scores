@@ -100,7 +100,7 @@ export function replay(doc) {
     score = { ...score, servingPlayer: f, servingTeam: teamOf(settings.firstServer), servingOrder: [f, o, ((f + 2) % 4), ((o + 2) % 4)] };
     let near = settings.near;
     const swapped = { a: false, b: false };
-    const stats = Array.from({ length: 4 }, () => ({ winners: 0, forced: 0, unforced: 0, smashes: 0, smashWinners: 0, smashErrors: 0, assists: 0, forcedErrorsCreated: 0, netTouches: 0, recoveryWinners: 0, smashRecoveryWinners: 0, luckyNetCords: 0, unluckyNetCords: 0, shots: {} }));
+    const stats = Array.from({ length: 4 }, () => ({ winners: 0, forced: 0, unforced: 0, smashes: 0, smashWinners: 0, smashPointsWon: 0, smashErrorsGenerated: 0, smashErrors: 0, assists: 0, forcedErrorsCreated: 0, netTouches: 0, recoveryWinners: 0, smashRecoveryWinners: 0, luckyNetCords: 0, unluckyNetCords: 0, shots: {} }));
     const tracking = createTracking();
     let points = 0, unclassified = 0;
     const rallySmashes = new Map();
@@ -179,10 +179,21 @@ export function replay(doc) {
             if (e.smash) {
                 if (!e.smashAttemptId)
                     s.smashes++;
-                if (e.outcome === 'winner')
+                if (e.outcome === 'winner') {
                     s.smashWinners++;
+                    s.smashPointsWon++;
+                }
                 else
                     s.smashErrors++;
+            }
+            if (e.outcome !== 'winner' && e.previousShot === 'smash' && e.previousPlayer !== undefined) {
+                const prior = stats[e.previousPlayer];
+                // The last smash by this opponent in this rally is the attributed attempt.
+                // If it was not tapped, the explicit previous-stroke observation supplies it.
+                if (![...rallySmashes.values()].includes(e.previousPlayer))
+                    prior.smashes++;
+                prior.smashErrorsGenerated++;
+                prior.smashPointsWon++;
             }
             winningTeam = e.outcome === 'winner' ? teamOf(e.player) : teamOf(e.player) === 'a' ? 'b' : 'a';
         }

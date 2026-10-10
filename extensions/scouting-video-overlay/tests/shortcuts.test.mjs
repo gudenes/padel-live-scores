@@ -33,7 +33,7 @@ test('remote uses the saved pause key and exposes both five-second controls',asy
 });
 test('saving navigation keys releases the assignment field and controls the video on the next press',async()=>{
  const dom=new JSDOM('<div id="shortcut-fields"></div><button id="reset-shortcuts"></button><p id="shortcut-error"></p><dialog open></dialog>');globalThis.document=dom.window.document;
- const mapping={back10:'F9',pause:'Insert',forward30:'PageDown',back5:'PageUp',forward5:'End'};
+ const mapping={back10:'F9',pause:'Insert',forward30:'F8',back5:'PageUp',forward5:'F7'};
  let stored=Object.fromEntries(Object.keys(keys.actions).map(action=>[action,null]));const $=id=>document.getElementById(id),calls=[];
  try{
   const get=shortcutSettings({$,send:async m=>{if(m.type==='set-shortcuts')stored=m.bindings;return {ok:true,bindings:stored};},onChange:()=>{}});

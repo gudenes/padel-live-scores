@@ -10,7 +10,7 @@ it('allows report reads but never editor writes, admin routes or unexpected meth
  for(const [p,m] of [['/team-access','GET'],['/today','POST'],[`/scouting/${id}`,'GET'],[`/api/internal/scouting/${id}`,'POST'],[`/api/internal/video-scouting/${id}`,'DELETE'],['/api/internal/tournament-explorer','POST'],['/api/internal/new-admin-feature','GET'],['/scouting','POST'],[`/scouting/${id}/report/extra`,'GET']])expect(scouterRouteAllowed(p,m)).toBe(false)
 })
 it('allows required catalogue and sync routes with exact methods',()=>{
- for(const p of ['/api/internal/scouting-extension/session','/api/internal/scouting-catalog','/api/internal/tournament-matches','/api/internal/tournament-explorer'])expect(scouterRouteAllowed(p,'GET')).toBe(true)
+ for(const p of ['/api/internal/scouting-extension/session','/api/internal/scouting-catalog','/api/internal/scouting-coaches','/api/internal/tournament-matches','/api/internal/tournament-explorer'])expect(scouterRouteAllowed(p,'GET')).toBe(true)
  expect(scouterRouteAllowed('/api/internal/manual-scouting-matches','POST')).toBe(true)
  expect(scouterRouteAllowed(`/api/internal/manual-video-scouting/${id}`,'POST')).toBe(true)
 })

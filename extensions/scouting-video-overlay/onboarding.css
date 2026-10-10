@@ -71,3 +71,11 @@
 #closing-sync-status{padding:14px;background:#edf3df;border-radius:10px;font-size:14px;font-weight:650}
 
 #closing-insights[aria-disabled=true]{opacity:.5;cursor:default}
+
+#pending-server-choices:has(fieldset){display:block}#pending-server-choices fieldset{border:0;padding:0;margin:10px 0}#pending-server-choices legend{font-size:11px;font-weight:650}#pending-server-choices fieldset .ui-btn{flex:1;min-width:0}#pending-server-choices>button{width:100%}
+
+#coach-players fieldset{border:1px solid #d6dccb;border-radius:10px;padding:12px;margin:14px 0}#coach-players legend{font-weight:700;font-size:12px}#coach-players label{display:flex;align-items:center;gap:8px;margin:9px 0}#coach-players input{width:16px;height:16px}#coach-players [aria-pressed=true]{background:#c7f000}#save-coaches{width:100%}
+
+.score-table .coach-nudge{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;gap:3px;width:38px;min-width:38px;min-height:28px;margin:0 0 0 5px;padding:4px}.score-table .coach-cue{font-size:12px;font-weight:800;line-height:1}.score-table .coach-nudge svg{display:block;flex-shrink:0}#coach-players fieldset[hidden]{display:none}
+
+.player-card.server-choice-active{position:relative}.server-card-overlay{position:absolute;z-index:3;inset:38px 5px 5px;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:9px;padding:10px;background:rgba(247,250,239,.97);border-radius:6px;text-align:center}.server-card-title{font-size:11px;color:var(--text-2)}.server-card-overlay .ui-btn{min-height:36px;font-size:12px}.server-choice-active>h3{position:relative;z-index:4}

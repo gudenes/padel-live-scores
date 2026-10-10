@@ -4,13 +4,14 @@ export const scoutingKeyActions=[
  ...['q','w','a','s'].map((key,i)=>action('player-'+i,['Far left player','Far right player','Near left player','Near right player'][i],key,['rally','opponent'])),
  ...Object.entries({winner:'w',unforced:'a',forced:'d'}).map(([name,key])=>action('outcome-'+name,name==='unforced'?'Unforced error':name==='forced'?'Forced error':'Winner',key,['outcome'])),
  ...allShotShortcuts.map(([key,shot])=>action('shot-'+shot,shot.replaceAll('_',' '),key,['shot','previous'])),
- ...Object.entries({power:'z',x3:'x',soft:'c'}).map(([name,key])=>({...action('smash-'+name,name+' smash',key,['rally','outcome','shot']),defaultKey:{power:'delete',x3:'end',soft:'pagedown'}[name]})),
+ ...Object.entries({power:'z',x3:'x',soft:'c'}).map(([name,key])=>({...action('smash-'+name,name+' smash',key,['rally','outcome','shot','previous']),defaultKey:{power:'delete',x3:'end',soft:'pagedown'}[name]})),
+ {...action('reuse-smash','Use recorded smash','b',['shot','previous']),defaultKey:'home'},{...action('new-smash','New smash attempt','h',['shot','previous']),defaultKey:'insert'},
  action('first-fault','First fault','1',['rally']),action('double-fault','Double fault','2',['rally']),
  action('net-touch','Ball touched the net','n',['shot']),action('assist','Teammate assist','f',['shot']),action('smash-recovery','Smash recovery','r',['shot']),action('x4','X4 winner','4',['shot']),action('outside','Outside-court recovery','7',['shot']),
- action('save','Start / continue / save','space',['rally','shot','previous','opponent']),action('back','Back / change outcome','escape',['shot','previous','opponent','outcome']),
- action('undo','Undo','ctrl+z',['rally','shot','previous','opponent','outcome']),
+ action('save','Start / continue / save','space',['rally','shot','previous','opponent']),{...action('back','Back / change outcome','escape',['shot','previous','opponent','outcome']),defaultKey:'backspace'},action('cancel','Cancel point selection','shift+backspace',['shot','previous','opponent','outcome']),
+ {...action('undo','Undo','ctrl+z',['rally','shot','previous','opponent','outcome']),defaultKey:'arrowleft'},
 ];
-export const keyLabel=key=>key.split('+').map(k=>({space:'Space',escape:'Esc',ctrl:'Ctrl',meta:'⌘',shift:'Shift',alt:'Alt',delete:'Delete',end:'End',pagedown:'Page Down'}[k]??(k.length===1?k.toUpperCase():k))).join('+');
+export const keyLabel=key=>key.split('+').map(k=>({home:'Home',insert:'Insert',arrowleft:'←',backspace:'Backspace',space:'Space',escape:'Esc',ctrl:'Ctrl',meta:'⌘',shift:'Shift',alt:'Alt',delete:'Delete',end:'End',pagedown:'Page Down'}[k]??(k.length===1?k.toUpperCase():k))).join('+');
 export function eventKey(e){return [e.ctrlKey?'ctrl':null,e.altKey?'alt':null,e.shiftKey?'shift':null,e.metaKey?'meta':null,e.key===' '?'space':e.key.toLowerCase()].filter(Boolean).join('+');}
 export function validateKeyAssignment(bindings,id,key,media=[]){
  const a=scoutingKeyActions.find(a=>a.id===id);if(!a)throw Error('Unknown action.');
@@ -18,7 +19,7 @@ export function validateKeyAssignment(bindings,id,key,media=[]){
  if(id!=='undo'&&['ctrl+z','meta+z'].includes(key))throw Error('That combination is reserved for Undo.');
  if(!base||['control','meta','shift','alt','tab','dead','unidentified','capslock','enter'].includes(base))throw Error('Choose a letter, number, navigation or function key. Tab and Enter are reserved for navigation.');
  if(['ctrl+w','meta+w','ctrl+r','meta+r','ctrl+l','meta+l','ctrl+t','meta+t'].includes(key))throw Error('That combination is reserved by the browser.');
- if(media.includes(key))throw Error('That key is assigned to video controls. Change it in Video keyboard shortcuts first.');
+ if(media.includes(key)&&!['reuse-smash','new-smash'].includes(id))throw Error('That key is assigned to video controls. Change it in Video keyboard shortcuts first.');
  const conflict=scoutingKeyActions.find(b=>b.id!==id&&(bindings[b.id]??b.defaultKey??b.key)===key&&b.scopes.some(s=>a.scopes.includes(s)));
  if(conflict)throw Error('Already used by '+conflict.label+' in this step.');
  return {...bindings,[id]:key};
@@ -47,13 +48,14 @@ export function scoutingKeys({$,scope,onEditing=()=>{}}){
   if(e.isComposing||e.target.closest?.('input,select,textarea,[contenteditable]')||doc.querySelector('#scouting-menu[open],#onboarding-wizard[open],#closing-wizard[open]'))return;
   if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'&&bindings.undo&&bindings.undo!=='ctrl+z'&&eventKey(e)!==bindings.undo){e.preventDefault();e.stopImmediatePropagation();return;}
   const active=scope();if(!active)return;
+  if(!bindings.undo&&['ctrl+z','meta+z'].includes(eventKey(e)))return;
   const input=eventKey(e),physical=e.code||e.key;
   let a=e.type==='keyup'?down.get(physical):scoutingKeyActions.find(a=>a.scopes.includes(active)&&(bindings[a.id]??a.defaultKey??a.key)===input);
   if(e.type==='keyup')down.delete(physical);
   if(!a){if(scoutingKeyActions.some(a=>a.scopes.includes(active)&&a.key===input&&(bindings[a.id]??a.defaultKey??a.key)!==input)){e.preventDefault();e.stopImmediatePropagation();}return;}
   if(e.type==='keydown')down.set(physical,a);
   if((bindings[a.id]??a.defaultKey??a.key)===a.key)return;
-  e.preventDefault();e.stopImmediatePropagation();const parts=a.key.split('+'),base=parts.at(-1),key=base==='space'?' ':base==='escape'?'Escape':base;
+  e.preventDefault();e.stopImmediatePropagation();const parts=a.key.split('+'),base=parts.at(-1),key=base==='space'?' ':base==='escape'?'Escape':base==='backspace'?'Backspace':base;
   const next=new doc.defaultView.KeyboardEvent(e.type,{key,code:base==='space'?'Space':e.code,ctrlKey:parts.includes('ctrl'),altKey:parts.includes('alt'),shiftKey:parts.includes('shift'),metaKey:parts.includes('meta'),repeat:e.repeat,bubbles:true,cancelable:true});forwarded.add(next);e.target.dispatchEvent(next);
  }
  doc.addEventListener('keydown',translate,true);doc.addEventListener('keyup',translate,true);

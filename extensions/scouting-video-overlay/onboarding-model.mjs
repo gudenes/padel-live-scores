@@ -13,4 +13,4 @@ export function localDayWindow(now=new Date()){
  const start=new Date(now.getFullYear(),now.getMonth(),now.getDate()),end=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
  return {date:[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-'),start:start.toISOString(),end:end.toISOString()};
 }
-export function needsServerConfirmation(state,model){return state.setup?.otherServerUnknown===true&&Math.floor(model.server/2)!==Math.floor(state.setup.firstServer/2);}
+export function needsServerConfirmation(state,model){return state.setup?.firstServerUnknown===true||!!model.setServers||state.setup?.otherServerUnknown===true&&Math.floor(model.server/2)!==Math.floor(state.setup.firstServer/2);}

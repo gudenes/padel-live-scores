@@ -12,7 +12,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const undoable=new Set(['score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
+      const undoable=new Set(['confirm-first-server','confirm-coaches','confirm-set-servers','score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async(context={})=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
@@ -87,6 +87,14 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(active&&JSON.stringify(active.playerIds)===JSON.stringify(state.selectedMatch.playerIds)&&JSON.stringify(active.names)===JSON.stringify(state.selectedMatch.names))state.selectedMatch.players=active.players;
           return save();
         }
+        case 'coach-suggestions':{
+          const ids=(state.selectedMatch?.playerIds??[]).filter(id=>typeof id==='string'&&/^[0-9a-f-]{36}$/i.test(id));
+          return ids.length?catalog({kind:'coaches',playerIds:ids}):{coaches:[]};
+        }
+        case 'confirm-coaches':{
+          if(!state.selectedMatch||message.matchId!==state.selectedMatch.id)throw Error('Reopen coaches for the current match.');
+          state.setup=validateSetup({...state.setup,coaches:message.coaches});return save();
+        }
         case 'search-players':return catalog({kind:'search-players',query:String(message.query??'').slice(0,80)});
         case 'manual-matches':{
           const result=await catalog({kind:'manual-matches'});state.manualMatches=result.matches;return save();
@@ -143,6 +151,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(match(state).score.phase==='finished')throw Error('Undo the last action before correcting a finished match.');
           const adjustment={type:message.type,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()};
           if(message.type==='missed-point'){
+            if(needsServerConfirmation(state,match(state)))throw Error('Confirm this game’s server first.');
             if(!['a','b'].includes(message.team))throw Error('Choose a pair.');
             adjustment.team=message.team;
           }else adjustment.score=validateStartingScore(message.score);
@@ -161,6 +170,21 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
  if(message.score){setup.startingScore=validateStartingScore(message.score);if(setup.startingScore.server!==setup.firstServer)throw Error('Starting-score server must match the selected first server.');}else delete setup.startingScore;
  setup.adjustments=[];state.setup=setup;return save();
  }
+ case 'confirm-first-server':{
+ if(!state.setup.firstServerUnknown||state.pending||state.rallies.some(r=>r.point&&!r.undone))throw Error('Choose the first server before scouting starts.');
+ const p=message.player;if(!Number.isInteger(p)||p<0||p>3)throw Error('Choose a server.');
+ state.setup.firstServer=p;state.setup.otherServer=p<2?2:0;state.setup.firstServerUnknown=false;state.setup.otherServerUnknown=true;
+ if(state.setup.startingScore)state.setup.startingScore.server=p;
+ return save();
+ }
+ case 'confirm-set-servers':{
+ const required=match(state).setServers;
+ if(!required||state.pending)throw Error('Confirm servers between sets, before starting a rally.');
+ const {player}=message;
+ if(!Number.isInteger(player)||player<0||player>3||(player<2?'a':'b')!==required.team)throw Error('Choose a player from the serving team.');
+ (state.setup.adjustments??=[]).push({type:'server',player,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()});
+ return save();
+ }
  case 'confirm-other-server':{
  if(!state.setup.otherServerUnknown)throw Error('The other server is already confirmed.');
  if(state.pending)throw Error('Finish the current rally first.');
@@ -177,6 +201,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           state.setup.positions??={a:false,b:false};state.setup.positions[message.pair]=!state.setup.positions[message.pair];return save();
         }
         case 'server':case 'ends':{
+          if(message.type==='server'&&(state.setup.firstServerUnknown||match(state).setServers))throw Error('Confirm this game’s server first.');
           if(message.type==='server'&&state.setup.otherServerUnknown&&Math.floor(message.player/2)!==Math.floor(state.setup.firstServer/2))throw Error('Confirm the other team’s server using the reminder first.');
           if(state.pending&&message.type==='server')throw Error('Finish or cancel the rally before changing server.');
           if(!state.selectedMatch||match(state).score.phase==='finished')throw Error('Select an unfinished match.');
@@ -209,8 +234,22 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
         case 'score':{
           if(!state.pending?.finish)throw Error('Select the player’s outcome first.');
           const selected=state.pending.finish;
-          const point=validatePoint({...message.details,player:selected.player,outcome:selected.outcome},state.pending,match(state).server);
-          const rally=finishRally(state.pending,selected.end);
+          const pending=structuredClone(state.pending);
+          // A finishing-type correction edits the explicitly linked attempt, never adds one.
+          if(message.details?.smashAlreadyCounted&&message.details.smashAttemptIndex!==undefined){
+            const index=message.details.smashAttemptIndex,attempt=pending.attempts?.[index];
+            if(!Number.isInteger(index)||!attempt||attempt.player!==selected.player)throw Error('Choose this player’s recorded smash.');
+            if(message.details.smashType!==undefined)attempt.smashType=validateSmashType(message.details.smashType);
+          }
+          const point=validatePoint({...message.details,player:selected.player,outcome:selected.outcome},pending,match(state).server);
+          if(message.details?.previousSmashNew||message.details?.previousSmashType!==undefined){
+            if(point.previousShot!=='smash'||point.previousPlayer===undefined)throw Error('Choose the previous opponent and Smash before adding an attempt.');
+            const smashType=message.details.previousSmashType===undefined?undefined:validateSmashType(message.details.previousSmashType);
+            const index=pending.attempts?.findLastIndex(a=>a.player===point.previousPlayer)??-1;
+            if(!message.details.previousSmashNew&&index>=0){if(smashType)pending.attempts[index].smashType=smashType;}
+            else (pending.attempts??=[]).push({player:point.previousPlayer,snapshot:structuredClone(selected.end),...(smashType?{smashType}:{})});
+          }
+          const rally=finishRally(pending,selected.end);
           delete rally.finish;
           state.rallies.push({...rally,point});state.pending=null;return save();
         }
@@ -276,7 +315,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(state.pending)throw Error('A rally is already open.');
           if(!state.selectedMatch)throw Error('Select a tournament and match first.');
           if(state.setup.onboardingComplete===false)throw Error('Complete match setup in the side panel before starting a rally.');
-          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the other team’s server before starting this rally.');
+          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the servers above before starting this rally.');
           if(match(state).score.phase==='finished')throw Error('The match is finished.');
           if(!state.connection)throw Error('Connect to the video first.');
           if(typeof message.label==='string')state.label=message.label.trim().slice(0,160);
@@ -291,7 +330,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           return save();
         }
         case 'restart-rally':{
-          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the other team’s server before starting this rally.');
+          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the servers above before starting this rally.');
           if(!state.pending||!state.connection)throw Error('Start a rally and connect its video first.');
           if(state.pending.finish)throw Error('Save or clear the selected outcome before restarting.');
           let sample=await capture(state.connection);usable(sample);

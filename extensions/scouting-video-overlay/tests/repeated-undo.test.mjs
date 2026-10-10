@@ -27,7 +27,7 @@ test('repeated Undo works across the reopened shot dialog, undoing outcome, smas
   $('undo').click();await task;assert.equal($('shot-dialog').open,true);assert.equal(match(disk).points,0);assert.equal($('shot-undo').disabled,false);
   $('shot-undo').click();await task;assert.equal($('shot-dialog').open,false);assert.equal(disk.pending.finish,undefined);
   assert.equal(press('z',{metaKey:true}).defaultPrevented,true);await task;assert.equal(disk.pending.attempts?.length??0,0);
-  press('z',{ctrlKey:true});await task;assert.equal(disk.pending.touches?.length??0,0);
+  press('ArrowLeft');await task;assert.equal(disk.pending.touches?.length??0,0);
   press('z',{ctrlKey:true});await task;assert.equal(disk.pending,null);assert.equal(disk.history.length,0);assert.equal($('undo').disabled,true);
   assert.equal(videoSummary(videoPayload(disk)).stats[0].x3Smashes,0);
   assert.equal(press('z',{ctrlKey:true}).defaultPrevented,false);
