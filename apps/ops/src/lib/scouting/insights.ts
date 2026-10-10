@@ -49,6 +49,6 @@ export function teamSummary(points:TimelinePoint[],snapshot:ReturnType<typeof sc
  return (['a','b'] as const).map((team,index)=>{
   const players=snapshot.stats.slice(index*2,index*2+2),service=snapshot.service.slice(index*2,index*2+2)
   const sum=(key:keyof Omit<typeof players[number],'shots'>)=>players.reduce((n,p)=>n+p[key],0)
-  return {team,winners:sum('winners'),unforced:sum('unforced'),forced:sum('forced'),created:sum('forcedErrorsCreated'),assists:sum('assists'),smashWinners:sum('smashWinners'),smashes:sum('smashes'),doubleFaults:service.reduce((n,s)=>n+s.doubleFaults,0),breaks:points.filter(p=>p.breakConverted&&p.winner===team).length,breakPoints:points.filter(p=>p.breakPoint===team).length,won:points.filter(p=>p.winner===team).length}
+  return {team,winners:sum('winners'),unforced:sum('unforced'),forced:sum('forced'),created:sum('forcedErrorsCreated'),assists:sum('assists'),smashWinners:sum('smashWinners'),smashPointsWon:sum('smashPointsWon'),smashErrorsGenerated:sum('smashErrorsGenerated'),smashes:sum('smashes'),doubleFaults:service.reduce((n,s)=>n+s.doubleFaults,0),breaks:points.filter(p=>p.breakConverted&&p.winner===team).length,breakPoints:points.filter(p=>p.breakPoint===team).length,won:points.filter(p=>p.winner===team).length}
  })
 }

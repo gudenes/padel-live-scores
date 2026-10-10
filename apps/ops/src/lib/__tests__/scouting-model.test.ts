@@ -48,3 +48,19 @@ it('tracks recovery types and net luck independently',()=>{
  expect(()=>validateDoc({...doc,events:[{...error,smashRecovery:true}]})).toThrow(/recovery/)
  expect(()=>validateDoc({...doc,events:[{...error,netCord:'invalid'}]})).toThrow(/net cord/)
 })
+
+it('counts immediate opponent errors as effective smashes without duplicating attempts',()=>{
+ for(const outcome of ['forced','unforced']){
+  const attempts=[evt({kind:'smash',player:0}),evt({kind:'smash',player:0})]
+  const error=evt({kind:'point',player:2,outcome,smash:false,shot:'block',previousPlayer:0,previousShot:'smash'})
+  const doc={...freshDoc(),events:[...attempts,error]}
+  expect(replay(doc).stats[0]).toMatchObject({smashes:2,smashPointsWon:1,smashErrorsGenerated:1,smashWinners:0,forcedErrorsCreated:0})
+  expect(replay({...doc,events:[...doc.events,evt({kind:'undo'})]}).stats[0]).toMatchObject({smashes:2,smashPointsWon:0})
+  expect(replay({...doc,events:[error]}).stats[0]).toMatchObject({smashes:1,smashPointsWon:1})
+ }
+})
+it('does not convert returned smashes or reuse an earlier rally attempt',()=>{
+ const m=replay({...freshDoc(),events:[evt({kind:'smash',player:0}),point(1),evt({kind:'point',player:2,outcome:'unforced',smash:false,previousPlayer:0,previousShot:'smash'})]})
+ expect(m.stats[0]).toMatchObject({smashes:2,smashPointsWon:1,smashWinners:0})
+ expect(replay({...freshDoc(),events:[point(0,'winner',true)]}).stats[0]).toMatchObject({smashes:1,smashPointsWon:1,smashWinners:1})
+})
