@@ -135,3 +135,5 @@ header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#men
 #shot-options [data-group=overhead]{--shot-family:#F67869}
 #shot-options [data-group=defense]{--shot-family:#79A92B}
 #shot-options [data-group=net]{--shot-family:#629CAB}
+
+.winner-specials{display:grid;grid-template-columns:1fr 1fr;gap:6px}.winner-specials .quick-tag{padding:8px;gap:5px;font-size:11px}.winner-specials .quick-tag input{width:15px;height:15px;flex-shrink:0}

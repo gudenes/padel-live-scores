@@ -5,8 +5,8 @@ export const quickShots=[
 ];
 export const extraShots=[
  ['t','rulo'],['g','gancho'],['v','drop'],
- ['b','half_volley'],['shift+a','wall'],['shift+s','return'],
- ['shift+d','contrapared'],['5','serve'],['6','other'],
+ ['5','wall'],['6','return'],
+ ['shift+d','contrapared'],['0','other'],
 ];
 export const allShotShortcuts=[...quickShots,...extraShots];
 export const shotShortcut=e=>(e.shiftKey?'shift+':'')+e.key.toLowerCase();

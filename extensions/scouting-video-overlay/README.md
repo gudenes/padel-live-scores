@@ -153,3 +153,7 @@ Rollout requires the admin API update (`optional-server-v1`) before extension re
 - Click **Edit shortcuts**, choose an action and press a new key. Clicking a visible shortcut badge also opens its editor. Assignments save immediately on this device. Same-step conflicts and video-key conflicts are rejected. Player keys remain attached to court quadrants after switching ends. Tab and Enter remain navigation keys. Escape cancels key capture. Use Reset scouting keys to restore defaults.
 - Video shortcut badges open the existing video-key settings. Scouting keyboard shortcuts require focus in the extension panel; video keys also work in the connected video tab.
 - New `previousPlayer` and optional `previousShot` fields survive session validation, timeline and JSON/CSV export. Legacy sessions need no backfill. Deploy the companion admin validation/export update **before installing this extension version**, so older server code does not strip new fields. No database migration is required.
+
+### Compact stroke controls
+
+Half volley and Serve are hidden from new stroke selection; saved historical strokes remain valid. Wall return uses 5, Return 6 and Other 0. Outside-court recovery (7) sits alongside X4 winner (4), uses the existing recovery flag and still allows a finishing stroke. Power/X3/Soft attempts and smash types default to Delete/End/Page Down; custom device assignments remain editable.
