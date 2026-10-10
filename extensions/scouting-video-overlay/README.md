@@ -4,6 +4,12 @@ Scout players and save points in the side panel. The on-video overlay is now a c
 
 Reload Corner overlay at chrome://extensions, refresh the video page, reopen its side panel and Connect video. Show video remote displays playback controls without the four player overlays. Keyboard shortcuts work while the video page or side panel has focus: J back 10 seconds, K play/pause, L forward 30 seconds, left arrow back 5 seconds and right arrow forward 5 seconds. The remote shows ±5-second controls directly. Extra controls provide +10 and −30 seconds. Skips are disabled during an open rally; pausing does not end or score it. Close hides the remote; show it again from the side panel.
 
+## Local storage allowance
+
+The extension requests `unlimitedStorage` so saved sessions, undo history, backups and queued server saves can exceed Chrome's default local-storage quota. Available disk space still limits storage. This permission does not add website access or delete existing data.
+
+When upgrading after a quota error, export a fresh local backup before reloading the existing extension in place. Check the saved score and last recorded point before retrying: the point may already have been written locally even if queuing its server save failed. Then retry server sync and verify its confirmation. Do not uninstall the extension or clear its storage to resolve this error.
+
 ## Fast shot entry
 
 After starting a rally, click the player’s Winner / Unforced / Forced outcome in the side panel. The end time is captured immediately. The common shot picker uses a stable 3×3 keyboard layout:
