@@ -4,7 +4,7 @@ export const scoutingKeyActions=[
  ...['q','w','a','s'].map((key,i)=>action('player-'+i,['Far left player','Far right player','Near left player','Near right player'][i],key,['rally','opponent'])),
  ...Object.entries({winner:'w',unforced:'a',forced:'d'}).map(([name,key])=>action('outcome-'+name,name==='unforced'?'Unforced error':name==='forced'?'Forced error':'Winner',key,['outcome'])),
  ...allShotShortcuts.map(([key,shot])=>action('shot-'+shot,shot.replaceAll('_',' '),key,['shot','previous'])),
- ...Object.entries({power:'z',x3:'x',soft:'c'}).map(([name,key])=>({...action('smash-'+name,name+' smash',key,['rally','outcome','shot']),defaultKey:{power:'delete',x3:'end',soft:'pagedown'}[name]})),
+ ...Object.entries({power:'z',x3:'x',soft:'c'}).map(([name,key])=>({...action('smash-'+name,name+' smash',key,['rally','outcome','shot','previous']),defaultKey:{power:'delete',x3:'end',soft:'pagedown'}[name]})),
  action('reuse-smash','Use recorded smash','b',['shot','previous']),action('new-smash','New smash attempt','h',['shot','previous']),
  action('first-fault','First fault','1',['rally']),action('double-fault','Double fault','2',['rally']),
  action('net-touch','Ball touched the net','n',['shot']),action('assist','Teammate assist','f',['shot']),action('smash-recovery','Smash recovery','r',['shot']),action('x4','X4 winner','4',['shot']),action('outside','Outside-court recovery','7',['shot']),

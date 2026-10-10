@@ -242,9 +242,12 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
             if(message.details.smashType!==undefined)attempt.smashType=validateSmashType(message.details.smashType);
           }
           const point=validatePoint({...message.details,player:selected.player,outcome:selected.outcome},pending,match(state).server);
-          if(message.details?.previousSmashNew){
+          if(message.details?.previousSmashNew||message.details?.previousSmashType!==undefined){
             if(point.previousShot!=='smash'||point.previousPlayer===undefined)throw Error('Choose the previous opponent and Smash before adding an attempt.');
-            (pending.attempts??=[]).push({player:point.previousPlayer,snapshot:structuredClone(selected.end)});
+            const smashType=message.details.previousSmashType===undefined?undefined:validateSmashType(message.details.previousSmashType);
+            const index=pending.attempts?.findLastIndex(a=>a.player===point.previousPlayer)??-1;
+            if(!message.details.previousSmashNew&&index>=0){if(smashType)pending.attempts[index].smashType=smashType;}
+            else (pending.attempts??=[]).push({player:point.previousPlayer,snapshot:structuredClone(selected.end),...(smashType?{smashType}:{})});
           }
           const rally=finishRally(pending,selected.end);
           delete rally.finish;

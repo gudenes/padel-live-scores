@@ -215,8 +215,8 @@ test('previous smash error can reuse or add an attempt without changing error at
  for(const outcome of ['forced','unforced'])for(const freshAttempt of [false,true]){
   const f=fixture();await f.choose();await f.dispatch({type:'start'});await f.dispatch({type:'smash',player:0,smashType:'power'});
   await f.dispatch({type:'prepare',player:2,outcome});
-  await f.dispatch({type:'score',details:{shot:'block',previousPlayer:0,previousShot:'smash',...(freshAttempt?{previousSmashNew:true}:{}),...(outcome==='forced'?{forcedBy:0}:{})}});
-  const m=videoSummary(videoPayload(f.get()));assert.equal(m.stats[0].smashes,freshAttempt?2:1);assert.equal(m.stats[0].smashPointsWon,1);assert.equal(m.stats[0].smashWinners,0);assert.equal(m.stats[2][outcome],1);
+  await f.dispatch({type:'score',details:{shot:'block',previousPlayer:0,previousShot:'smash',previousSmashType:'soft',...(freshAttempt?{previousSmashNew:true}:{}),...(outcome==='forced'?{forcedBy:0}:{})}});
+  const m=videoSummary(videoPayload(f.get()));assert.equal(m.stats[0].smashes,freshAttempt?2:1);assert.equal(m.stats[0].smashPointsWon,1);assert.equal(m.stats[0].softSmashes,1);assert.equal(m.stats[0].powerSmashes,freshAttempt?1:0);assert.equal(m.stats[0].smashWinners,0);assert.equal(m.stats[2][outcome],1);
   await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.attempts.length,1);
  }
 });
