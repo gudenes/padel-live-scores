@@ -73,31 +73,28 @@ export function onboardingUI({$,act,getState,manual}){
   $('wizard-arrivals').textContent=arrivals.length===4?'All four confirmed · Undo':'Confirm all four on court';
   if(step===3){$('seed-server').value=String(first);$('seed-near').value=courtSetup(order).near;summary()}
  }
- const reminder=$('pending-server');let reminderKey='';
- let setChoiceKey='',setRenderKey='',setFirst=null;
- function serverReminder(){const m=match(state);
- if(state.setup.firstServerUnknown&&!open&&state.selectedMatch){
-  reminder.hidden=false;$('rally').disabled=true;$('serving-name').textContent='Confirm server above';
-  reminder.querySelector('strong').textContent='Who is serving?';$('pending-server-note').textContent='Choose the player serving the next point. We’ll ask for the other pair when they serve.';
-  const key=JSON.stringify(['first',state.selectedMatch.id,state.setup.names,busy]);
-  if(reminderKey!==key){reminderKey=key;buttons(state.setup.names.map((n,i)=>[i,n]),$('pending-server-choices'),null,async player=>{const r=await act({type:'confirm-first-server',player});if(!r.ok)$('message').textContent=r.error;});}return;
- }
- if(m.setServers&&!open&&state.selectedMatch){
-  reminder.hidden=false;$('rally').disabled=true;$('serving-name').textContent='Confirm this game’s server';
-  const key=JSON.stringify([state.selectedMatch.id,m.setServers,state.rallies.at(-1)?.id]);
-  if(key!==setChoiceKey){setChoiceKey=key;setFirst=null;reminderKey='';}
-  reminder.querySelector('strong').textContent='Set '+m.setServers.set+' · Game '+m.setServers.game+' server';
-  $('pending-server-note').textContent=m.setServers.game===1?'Who serves first? We’ll ask for the other pair before game 2.':'Who serves for the other pair? Their partner will serve next time.';
-  const renderKey=JSON.stringify([key,setFirst,busy]);if(renderKey===setRenderKey)return;setRenderKey=renderKey;
-  const target=$('pending-server-choices');target.replaceChildren();
-  for(const [team,label,value,choose] of [[m.setServers.team,'Serving pair',setFirst,i=>setFirst=i]]){
-   const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=label;row.className='wizard-server-buttons';field.append(legend,row);target.append(field);
-   buttons(state.setup.names.flatMap((n,i)=>(i<2?'a':'b')===team?[[i,n]]:[]),row,value,i=>{choose(i);serverReminder()});
+ function serverReminder(){
+  const m=match(state),required=!open&&!!state.selectedMatch&&needsServerConfirmation(state,m);
+  $('pending-server').hidden=true;
+  if(required){$('rally').disabled=true;$('serving-name').textContent='Choose the server on their card';}
+  for(const card of $('players').querySelectorAll('article[data-player]')){
+   const player=Number(card.dataset.player);
+   const eligible=required&&(state.setup.firstServerUnknown||(m.setServers?(player<2?'a':'b')===m.setServers.team:Math.floor(player/2)!==Math.floor(state.setup.firstServer/2)));
+   card.classList.toggle('server-choice-active',!!eligible);
+   let overlay=card.querySelector('.server-card-overlay');
+   if(!eligible){overlay?.remove();continue;}
+   if(!overlay){
+    overlay=document.createElement('div');overlay.className='server-card-overlay';
+    const title=document.createElement('strong'),button=document.createElement('button');title.className='server-card-title';
+    button.className='ui-btn';button.dataset.variant='primary';button.dataset.courtServer='true';button.textContent='Confirm serving';
+    button.setAttribute('aria-label','Confirm '+state.setup.names[player]+' is serving');
+    button.onclick=async()=>{const current=match(state),type=state.setup.firstServerUnknown?'confirm-first-server':current.setServers?'confirm-set-servers':'confirm-other-server';const r=await act({type,player});if(!r.ok)$('message').textContent=r.error;else $('rally').focus();};
+    overlay.append(title,button);card.append(overlay);
+   }
+   overlay.querySelector('strong').textContent=m.setServers?'Set '+m.setServers.set+' · Game '+m.setServers.game+' server':'Who is serving?';
+   overlay.querySelector('button').disabled=busy;
   }
-  const confirm=document.createElement('button');confirm.className='ui-btn';confirm.dataset.variant='primary';confirm.textContent='Confirm server';confirm.disabled=busy||setFirst===null;confirm.onclick=async()=>{const r=await act({type:'confirm-set-servers',player:setFirst});if(!r.ok)$('message').textContent=r.error;};target.append(confirm);return;
  }
- setChoiceKey='';setRenderKey='';reminder.querySelector('strong').textContent='Other team’s server · not known yet';
- const unknown=state.setup.otherServerUnknown===true;reminder.hidden=!unknown||open||!state.selectedMatch;if(!unknown){reminderKey='';return}const required=needsServerConfirmation(state,m);reminder.hidden=!required||open||!state.selectedMatch;$('pending-server-note').textContent=required?'Choose who is serving before the next rally.':'Confirm when the other team serves. You can scout the current game.';const rk=JSON.stringify([state.setup.names,state.setup.firstServer,busy]);if(rk!==reminderKey){reminderKey=rk;buttons(state.setup.names.flatMap((n,i)=>Math.floor(i/2)!==Math.floor(state.setup.firstServer/2)?[[i,n]]:[]),$('pending-server-choices'),null,async i=>{const r=await act({type:'confirm-other-server',player:i});if(!r.ok)$('message').textContent=r.error});}if(required){$('rally').disabled=true;$('serving-name').textContent='Confirm server above';}}
  function render(next,isBusy,isHealthy,account){state=next;busy=isBusy;healthy=isHealthy;paint();serverReminder();const id=state.selectedMatch?.id;if(id&&lastId!==id&&open){initCourt();if(step>0)show(1)}if(!lastAuto&&!busy&&account&&['connected','demo'].includes(account.status)){lastAuto='loaded';if(!state.selectedMatch)queueMicrotask(()=>launch());else if(state.setup.onboardingComplete===false&&!state.rallies.some(r=>r.point))queueMicrotask(()=>{launch();initCourt();show(1)})}}
  render.open=launch;render.isOpen=()=>open;return render;
 }
