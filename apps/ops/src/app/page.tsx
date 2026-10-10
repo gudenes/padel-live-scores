@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation'
 export default async function RootPage() {
   const session = await auth()
   if (session?.user) {
-    redirect('/today')
+    redirect((session.user.isScouter || session.user.isViewer) && !session.user.isOperator ? '/scouting' : '/today')
   }
   redirect('/login')
 }

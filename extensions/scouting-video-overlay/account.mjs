@@ -17,7 +17,7 @@ export function extensionAccount({fetch:request=globalThis.fetch,extensionId,now
  }
  async function connection(){
   await check();
-  if(!cached)throw Error(({ 'signed-out':'Sign in to Padel Nachos again. Changes are saved locally.', 'not-authorized':'An operator account is required. Changes are saved locally.', 'update-required':'The admin sign-in update is not deployed yet. Changes are saved locally.' })[status.status]??'Offline. Changes are saved locally and will retry automatically.');
+  if(!cached)throw Error(({ 'signed-out':'Sign in to Padel Nachos again. Changes are saved locally.', 'not-authorized':'Scouting access is required. Ask an administrator to grant it. Changes are saved locally.', 'update-required':'The admin sign-in update is not deployed yet. Changes are saved locally.' })[status.status]??'Offline. Changes are saved locally and will retry automatically.');
   return {origin:ADMIN_ORIGIN,token:cached.token};
  }
  function invalidate(code){if([401,403].includes(code)){cached=null;status={status:code===401?'signed-out':'not-authorized'};}}

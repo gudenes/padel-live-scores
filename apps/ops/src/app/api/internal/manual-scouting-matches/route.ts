@@ -1,3 +1,4 @@
+import { canScout } from '@/lib/scouting-permissions'
 import {createHash,randomUUID} from 'node:crypto'
 import {auth} from '@/lib/auth'
 import {verifyScoutingProof} from '@/lib/scouting-extension-auth'
@@ -8,7 +9,7 @@ export const dynamic='force-dynamic'
 const table='operator_manual_scouting_matches'
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}})
 export async function GET(req:Request){
- if(!(await auth())?.user?.isOperator)return json({error:'Sign in with an operator account.'},401)
+ if(!canScout((await auth())?.user))return json({error:'Sign in with an scouting account.'},401)
  try{
   const db=serviceClient(),query=new URL(req.url).searchParams.get('players')
   if(query!==null){
@@ -24,7 +25,7 @@ export async function GET(req:Request){
  }catch(e){return json({error:e instanceof Error?e.message:'Private scouting unavailable.'},503)}
 }
 export async function POST(req:Request){
- const user=(await auth())?.user;if(!user?.isOperator)return json({error:'Sign in with an operator account.'},401)
+ const user=(await auth())?.user;if(!user || !canScout(user))return json({error:'Sign in with an scouting account.'},401)
  const url=new URL(req.url)
  if(req.headers.get('origin')!==`${url.protocol}//${req.headers.get('host')??url.host}`&&!verifyScoutingProof(req.headers.get('x-scouting-authorization'),user.id,req.headers.get('origin')))return json({error:'Sign in again. Your local work is retained.'},403)
  let input,id
@@ -43,7 +44,7 @@ export async function POST(req:Request){
    return resolved?{...resolved,existingPlayerId:resolved.id}:{id:randomUUID(),name:p.name,country:null,ranking:null,existingPlayerId:null}
   })
   if(new Set(players.map(p=>p.name.normalize('NFKC').toLocaleLowerCase())).size!==4)return json({error:'Choose four different players.'},400)
-  const row={id,players,match_date:input.matchDate,tournament_label:input.tournamentLabel,video_url:input.videoUrl,request_hash:hash,created_by:user.email??user.id}
+  const row={id,players,match_date:input.matchDate,tournament_label:input.tournamentLabel,video_url:input.videoUrl,request_hash:hash,created_by:user.email??user.id,creator_user_id:user.id}
   const result=await db.from(table).insert(row).select('*').single()
   if(result.error?.code==='23505'){const retry=await db.from(table).select('*').eq('id',id).maybeSingle();if(retry.error||!retry.data)throw Error('Could not confirm the created match. Retry safely.');return acknowledge(retry.data)}
   if(result.error)throw Error('Could not create the match. Retry safely; no public data was changed.')

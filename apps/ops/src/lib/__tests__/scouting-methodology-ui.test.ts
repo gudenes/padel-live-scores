@@ -2,7 +2,7 @@
 import {createElement} from 'react'
 import {afterEach,it,expect} from 'vitest'
 import {cleanup,render,screen,fireEvent} from '@testing-library/react'
-import Insights from '../../app/(app)/scouting/[id]/Insights'
+import Insights from '../../app/(scouting)/scouting/[id]/Insights'
 import {freshDoc,replay,type Event} from '../scouting/model'
 
 afterEach(cleanup)
