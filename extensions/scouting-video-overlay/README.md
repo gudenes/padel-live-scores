@@ -184,6 +184,3 @@ The stroke picker uses compact keyboard rows with coral overheads, lime defense 
 - Default Undo is Left Arrow; Ctrl/Cmd+Z remains an alias unless Undo is remapped. Backspace goes back in point selection; Shift+Backspace cancels the selection without using fullscreen Escape. These scouting shortcuts work with the panel focused.
 
 - Compact media row keeps −5s, Play/Pause, +5s and speed visible; More (⋯) contains +10s, +30s and the playback status. Keyboard shortcuts remain active when More is closed.
-
-### Blue court layout
-The four player quadrants use the approved asymmetric controls: Winner beside stacked Unforced/Forced buttons, with Power/X3/Soft underneath. Match, game, scouting and video clocks remain live above the scoreboard inside the court. The net keeps Switch ends accessible; playback, rally and fault controls remain below the court. Existing event handlers and storage are unchanged.
