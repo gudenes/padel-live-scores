@@ -1,9 +1,13 @@
 import {describe,it,expect} from 'vitest'
 import {freshDoc,replay,type Event} from '../scouting/model'
 import {sessionExport} from '../scouting/export'
-import {methodologyAnalysis,pointWeight,playerScore} from '../scouting/methodology'
+import {methodologyAnalysis as analyze,pointWeight,playerScore as score,type MethodologyId} from '../scouting/methodology'
 import type {TimelinePoint} from '../scouting/tracking'
 import reference from './fixtures/scouting-score-reference.json'
+
+// These regression tests explicitly retain the historical v1.4 default.
+const methodologyAnalysis=(points:TimelinePoint[],id:MethodologyId='v1.4')=>analyze(points,id)
+const playerScore=(impact:number,weighted:number,id:MethodologyId='v1.4')=>score(impact,weighted,id)
 
 function point(overrides:Partial<TimelinePoint>={}):TimelinePoint{
  const state=replay(freshDoc()).score
@@ -34,13 +38,13 @@ describe('versioned scouting methodology',()=>{
  })
  it('exports v1.4 rules and removes undone assisted winners from recalculation',()=>{
   const events:Event[]=[{id:'one',at:'2026-10-07T10:00:00Z',kind:'point',player:0,outcome:'winner',assistBy:1,smash:false}]
-  const doc={...freshDoc(),events},out=sessionExport('match',[],1,doc)
+  const doc={...freshDoc(),events},out=sessionExport('match',[],1,doc,'v1.4')
   expect(out.playerImpact.methodology.id).toBe('v1.4')
   expect(out.playerImpact.rules).toMatchObject({winner:1,assistedWinner:0.5,assist:0.5,pairPointBonus:0.05})
   expect(out.playerImpact.players.map(p=>p.impact)).toEqual([0.55,0.55,0,0])
   expect(out.playerEvolution).toEqual([{number:1,values:[1,0,0,0]}])
   const undone={...doc,events:[...events,{id:'undo',at:'2026-10-07T10:00:01Z',kind:'undo'} as Event]}
-  expect(sessionExport('match',[],2,undone).playerImpact.players.map(p=>p.impact)).toEqual([0,0,0,0])
+  expect(sessionExport('match',[],2,undone,'v1.4').playerImpact.players.map(p=>p.impact)).toEqual([0,0,0,0])
  })
  it('uses scenario B for v1.4 and preserves v1.3 scores with identical impact',()=>{
   expect([15.45,20.2,24.45,15.95].map(impact=>playerScore(impact,194.5))).toEqual([7.8,8.6,9.4,7.9])
