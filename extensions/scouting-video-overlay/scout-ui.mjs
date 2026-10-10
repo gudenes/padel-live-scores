@@ -57,13 +57,10 @@ export function scoutingUI({$,act,getState}){
   if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);b.title=(key==='bajada'?'Bajada de pared':shots[key])+' · '+({overhead:'Overheads',defense:'Defense',net:'Net shots',other:'Other'}[group])+' · '+shortcutLabel(shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcutLabel(shortcut);b.append(kbd);}
   b.addEventListener('click',()=>chooseShot(key));return b;
  }
- const common=document.createElement('div');common.className='shot-grid';common.setAttribute('aria-label','Common shots');
- for(const [shortcut,key] of quickShots)common.append(shotButton(key,shortcut));
- const more=document.createElement('div'),extra=document.createElement('div');more.className='extra-strokes';
- extra.className='shot-grid';extra.setAttribute('aria-label','Other strokes');
- for(const [shortcut,key] of extraShots)extra.append(shotButton(key,shortcut));
- more.append(extra);
- $('shot-options').append(common,more);
+ const common=document.createElement('div');common.className='shot-families';common.setAttribute('aria-label','Strokes grouped by family');
+ const orderedShots=[...quickShots,...extraShots],families=[...Object.keys(shotGroups),'other'];
+ for(const family of families){const grid=document.createElement('div');grid.className='shot-grid';grid.setAttribute('role','group');grid.setAttribute('aria-label',{overhead:'Overheads',defense:'Defense',net:'Net shots',other:'Other'}[family]);for(const [shortcut,key] of orderedShots){const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';if(group===family)grid.append(shotButton(key,shortcut));}common.append(grid);}
+ $('shot-options').append(common);
  function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player&&a.smashType===smashType)??-1;}
  function syncShot(){
   for(const b of $('shot-options').querySelectorAll('button')){b.setAttribute('aria-pressed',String(b.dataset.shot===(step==='previous'?previousShot:shot)));b.dataset.variant=b.dataset.shot===(step==='previous'?previousShot:shot)?'primary':'default';}

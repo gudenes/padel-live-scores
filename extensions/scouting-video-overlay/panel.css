@@ -139,3 +139,5 @@ header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#men
 .winner-specials{display:grid;grid-template-columns:1fr 1fr;gap:6px}.winner-specials .quick-tag{padding:8px;gap:5px;font-size:11px}.winner-specials .quick-tag input{width:15px;height:15px;flex-shrink:0}
 
 #shot-options .extra-strokes{margin-top:5px}.net-touch-toggle kbd{font:11px var(--font);margin-left:6px;opacity:.7}
+
+.shot-families{display:grid;gap:8px}

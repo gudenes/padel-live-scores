@@ -31,7 +31,8 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
   const rows=$('score').querySelectorAll('tr');assert.equal(rows[1].querySelector('strong').textContent,'Player A1');assert.doesNotMatch(rows[2].textContent,/Break point/);
   state={...state,setup:{...state.setup,startingScore:{...state.setup.startingScore,completed:[],points:{a:40,b:0},advantageReturns:0}}};render(state,{time:110},false,true);assert.match($('pressure').textContent,/Set point/);assert.doesNotMatch($('pressure').textContent,/Match point/);
   state=initial;render(state,{time:110},false,true);
-  assert.equal($('shot-options').querySelector('[aria-label="Common shots"]').children.length,9);
+  assert.equal($('shot-options').querySelector('[aria-label="Strokes grouped by family"]').querySelectorAll('button').length,allShotShortcuts.length);
+  assert.deepEqual([...$('shot-options').querySelectorAll('button')].map(b=>b.dataset.group),[...Array(5).fill('overhead'),...Array(7).fill('defense'),...Array(3).fill('net'),'other']);
   assert.deepEqual(quickShots.map(([key])=>key),['q','w','e','a','s','d','1','2','3']);
   assert.deepEqual(quickShots.slice(-2),[['2','block'],['3','bajada']]);
   assert.equal($('shot-options').querySelector('[data-shot=wall]').dataset.shortcut,'5');
