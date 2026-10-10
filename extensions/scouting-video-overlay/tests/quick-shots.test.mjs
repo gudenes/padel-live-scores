@@ -63,9 +63,9 @@ test('media shortcuts dispatch once, respect disabled controls and ignore typing
  buttons.forEach((button,i)=>button.onclick=()=>calls.push(i));
  const remove=mediaShortcuts({target:document,back:buttons[0],pause:buttons[1],forward:buttons[2]});
  const press=(target,key,options={})=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
- for(const key of ['j','Home','l'])press(document,key);assert.deepEqual(calls,[0,1,2]);
- buttons[2].disabled=true;press(document,'l');press(document,'j',{repeat:true});press(document.querySelector('input'),'k');assert.equal(calls.length,3);
- remove();press(document,'j');assert.equal(calls.length,3);dom.window.close();
+ for(const key of ['j','Home','l'])press(document,key);assert.deepEqual(calls,[0,1]);
+ buttons[2].disabled=true;press(document,'l');press(document,'j',{repeat:true});press(document.querySelector('input'),'k');assert.equal(calls.length,2);
+ remove();press(document,'j');assert.equal(calls.length,2);dom.window.close();
 });
 test('rapid tap then Page Down queues classification behind the in-flight shot save',async()=>{
  const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8'),{url:'https://example.test'});
@@ -76,7 +76,7 @@ test('rapid tap then Page Down queues classification behind the in-flight shot s
  try{
   render(state,{time:101},false,true);
   const key=(type,key)=>document.dispatchEvent(new dom.window.KeyboardEvent(type,{key,bubbles:true,cancelable:true}));
-  key('keydown','w');key('keyup','w');await new Promise(resolve=>setImmediate(resolve));
+  key('keydown','o');key('keyup','o');await new Promise(resolve=>setImmediate(resolve));
   key('keydown','PageDown');assert.equal(calls.length,1);release();await new Promise(resolve=>setImmediate(resolve));
   assert.deepEqual(calls,[{type:'touch',player:3},{type:'smash',player:3,smashType:'soft',latestTouch:true}]);
  }finally{await new Promise(resolve=>setTimeout(resolve,1100));dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}

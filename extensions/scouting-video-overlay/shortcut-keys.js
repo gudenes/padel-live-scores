@@ -1,7 +1,7 @@
 // Shared by the panel, worker and isolated video remote.
 (()=>{
  if(globalThis.__pnMediaKeys)return;
- const defaults={back10:{key:'j'},pause:{key:'Home'},forward30:{key:'l'},back5:{key:'Insert'},forward5:{key:'PageUp'},forward10:{key:'l',shift:true},speed:{key:'k',shift:true}};
+ const defaults={back10:{key:'j'},pause:{key:'Home'},forward30:null,back5:{key:'Insert'},forward5:{key:'PageUp'},forward10:{key:'l',shift:true},speed:{key:'k',shift:true}};
  const actions={back10:'Back 10 seconds',pause:'Play / pause',forward30:'Forward 30 seconds',back5:'Back 5 seconds',forward5:'Forward 5 seconds',forward10:'Forward 10 seconds',speed:'Cycle playback speed'};
  function normalize(raw){
   const out={};

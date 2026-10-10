@@ -24,7 +24,7 @@ test('quick tags, independent X4 and position-based opponent keys save once and 
  const $=id=>document.getElementById(id),actions=[];
  const state={...fresh(),setup:defaults(),selectedMatch:{id:'match'},pending:{id:'winner',start:snapshot(100),finish:{player:0,outcome:'winner',end:snapshot(110)},attempts:[{player:0,smashType:'power',snapshot:snapshot(105)}]}};
  const render=scoutingUI({$,act:msg=>actions.push(msg),getState:()=>state});
- const press=key=>$('shot-form').dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true}));
+ const press=key=>$('shot-form').dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:$('shot-form').dataset.step==='opponent'?({q:'i',w:'o',a:'k',s:'l'}[key]??key):key,bubbles:true,cancelable:true}));
  try{
   render(state,snapshot(110),false,true);assert.equal($('assist').closest('details'),null);assert.equal($('smash-recovery').closest('details'),null);
   press('f');press('r');press('4');assert.equal(document.activeElement,$('save-point'));$('net-touch').click();assert.equal(document.activeElement,$('save-point'));assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);press(' ');
