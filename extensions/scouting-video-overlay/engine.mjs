@@ -12,7 +12,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const undoable=new Set(['score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
+      const undoable=new Set(['confirm-set-servers','score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async(context={})=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
@@ -143,6 +143,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(match(state).score.phase==='finished')throw Error('Undo the last action before correcting a finished match.');
           const adjustment={type:message.type,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()};
           if(message.type==='missed-point'){
+            if(match(state).setServers)throw Error('Confirm both servers for the new set first.');
             if(!['a','b'].includes(message.team))throw Error('Choose a pair.');
             adjustment.team=message.team;
           }else adjustment.score=validateStartingScore(message.score);
@@ -161,6 +162,16 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
  if(message.score){setup.startingScore=validateStartingScore(message.score);if(setup.startingScore.server!==setup.firstServer)throw Error('Starting-score server must match the selected first server.');}else delete setup.startingScore;
  setup.adjustments=[];state.setup=setup;return save();
  }
+ case 'confirm-set-servers':{
+ const required=match(state).setServers;
+ if(!required||state.pending)throw Error('Confirm servers between sets, before starting a rally.');
+ const {first,second}=message;
+ if(!Number.isInteger(first)||first<0||first>3||!Number.isInteger(second)||second<0||second>3||Math.floor(first/2)===Math.floor(second/2)||(first<2?'a':'b')!==required.firstTeam)throw Error('Choose one server from each pair, keeping the serving team order.');
+ // set_server advances a slot when changing teams: select the other pair’s
+ // partner first, then the first server, leaving the chosen second server next.
+ for(const player of [second^1,first])(state.setup.adjustments??=[]).push({type:'server',player,afterId:state.rallies.at(-1)?.id??null,at:new Date().toISOString()});
+ return save();
+ }
  case 'confirm-other-server':{
  if(!state.setup.otherServerUnknown)throw Error('The other server is already confirmed.');
  if(state.pending)throw Error('Finish the current rally first.');
@@ -177,6 +188,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           state.setup.positions??={a:false,b:false};state.setup.positions[message.pair]=!state.setup.positions[message.pair];return save();
         }
         case 'server':case 'ends':{
+          if(message.type==='server'&&match(state).setServers)throw Error('Confirm both servers for the new set first.');
           if(message.type==='server'&&state.setup.otherServerUnknown&&Math.floor(message.player/2)!==Math.floor(state.setup.firstServer/2))throw Error('Confirm the other team’s server using the reminder first.');
           if(state.pending&&message.type==='server')throw Error('Finish or cancel the rally before changing server.');
           if(!state.selectedMatch||match(state).score.phase==='finished')throw Error('Select an unfinished match.');
@@ -276,7 +288,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(state.pending)throw Error('A rally is already open.');
           if(!state.selectedMatch)throw Error('Select a tournament and match first.');
           if(state.setup.onboardingComplete===false)throw Error('Complete match setup in the side panel before starting a rally.');
-          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the other team’s server before starting this rally.');
+          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the servers above before starting this rally.');
           if(match(state).score.phase==='finished')throw Error('The match is finished.');
           if(!state.connection)throw Error('Connect to the video first.');
           if(typeof message.label==='string')state.label=message.label.trim().slice(0,160);
@@ -291,7 +303,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           return save();
         }
         case 'restart-rally':{
-          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the other team’s server before starting this rally.');
+          if(needsServerConfirmation(state,match(state)))throw Error('Confirm the servers above before starting this rally.');
           if(!state.pending||!state.connection)throw Error('Start a rally and connect its video first.');
           if(state.pending.finish)throw Error('Save or clear the selected outcome before restarting.');
           let sample=await capture(state.connection);usable(sample);

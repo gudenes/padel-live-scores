@@ -46,7 +46,21 @@ export function scoutingDocument(state){
 }
 export function match(state){
  const seed=state.setup?.startingScore?validateStartingScore(state.setup.startingScore):null;
- const m=replay(scoutingDocument(state));
+ const document=scoutingDocument(state),m=replay(document);
+ // At a natural set boundary, require both pairs to choose their first server.
+ // Existing server events preserve compatibility with saved reports and server sync.
+ let setServers=null;
+ if(m.score.phase!=='finished'&&m.score.sets.length>1&&m.score.sets.at(-1).a===0&&m.score.sets.at(-1).b===0&&m.score.currentGame.a===0&&m.score.currentGame.b===0){
+  const index=document.events.findLastIndex(e=>['point','double_fault','unclassified','score'].includes(e.kind));
+  if(index>=0&&document.events[index].kind!=='score'){
+   const before=replay({...document,events:document.events.slice(0,index)});
+   if(before.score.sets.length<m.score.sets.length){
+    const boundary=replay({...document,events:document.events.slice(0,index+1)});
+    const confirmations=document.events.slice(index+1).filter(e=>e.kind==='server');
+    if(new Set(confirmations.map(e=>pair(e.player))).size<2||pair(m.server)!==pair(boundary.server))setServers={set:m.score.sets.length,firstTeam:pair(boundary.server)};
+   }
+  }
+ }
  const types=Array.from({length:4},()=>({powerSmashes:0,x3Smashes:0,softSmashes:0,softSmashWinners:0,x4Winners:0}));
  for(const r of [...state.rallies.filter(r=>!r.undone&&r.point),...(state.pending?[state.pending]:[])]){
   for(const a of r.attempts??[])if(a.smashType)types[a.player][a.smashType==='x3'?'x3Smashes':a.smashType==='soft'?'softSmashes':'powerSmashes']++;
@@ -55,7 +69,7 @@ export function match(state){
   if(r.point?.x4)types[r.point.player].x4Winners++;
  }
  const stats=m.stats.map((s,i)=>({...s,...types[i],doubleFaults:m.tracking.service[i].doubleFaults}));
- return {...m,stats,situation:pressure(m.score),timeOffset:seed?.elapsedSeconds??null};
+ return {...m,setServers,stats,situation:pressure(m.score),timeOffset:seed?.elapsedSeconds??null};
 }
 export function validatePoint(raw,pending,server){
  const p={player:raw.player,outcome:raw.outcome};

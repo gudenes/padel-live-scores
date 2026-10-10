@@ -31,3 +31,11 @@ if(new URL(location.href).searchParams.has('finish')){
  await dispatch({type:'prepare',player:0,outcome:'winner'});
  await dispatch({type:'score',details:{shot:'volley'}});
 }
+
+// New-set confirmation fixture, isolated from real scouting sessions.
+if(new URL(location.href).searchParams.has('newset')){
+ await dispatch({type:'load-tournaments'});await dispatch({type:'load-matches',tournamentId:'demo-rotterdam'});
+ await dispatch({type:'select-match',tournamentId:'demo-rotterdam',matchId:'demo-rotterdam-men'});await dispatch({type:'connect'});
+ await dispatch({type:'starting-score',score:{completed:[],games:{a:5,b:4},points:{a:40,b:0},server:0,near:'a',advantageReturns:0}});
+ await dispatch({type:'start'});offset+=10;await dispatch({type:'prepare',player:0,outcome:'winner'});await dispatch({type:'score',details:{shot:'volley'}});
+}

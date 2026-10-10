@@ -74,7 +74,24 @@ export function onboardingUI({$,act,getState,manual}){
   if(step===3){$('seed-server').value=String(first);$('seed-near').value=courtSetup(order).near;summary()}
  }
  const reminder=$('pending-server');let reminderKey='';
- function serverReminder(){const m=match(state),unknown=state.setup.otherServerUnknown===true;reminder.hidden=!unknown||open||!state.selectedMatch;if(!unknown){reminderKey='';return}const required=needsServerConfirmation(state,m);$('pending-server-note').textContent=required?'Choose who is serving before the next rally.':'Confirm when the other team serves. You can scout the current game.';const rk=JSON.stringify([state.setup.names,state.setup.firstServer,busy]);if(rk!==reminderKey){reminderKey=rk;buttons(state.setup.names.flatMap((n,i)=>Math.floor(i/2)!==Math.floor(state.setup.firstServer/2)?[[i,n]]:[]),$('pending-server-choices'),null,async i=>{const r=await act({type:'confirm-other-server',player:i});if(!r.ok)$('message').textContent=r.error});}if(required){$('rally').disabled=true;$('serving-name').textContent='Confirm server above';}}
+ let setChoiceKey='',setRenderKey='',setFirst=null,setSecond=null;
+ function serverReminder(){const m=match(state);
+ if(m.setServers&&!open&&state.selectedMatch){
+  reminder.hidden=false;$('rally').disabled=true;$('serving-name').textContent='Confirm new-set servers';
+  const key=JSON.stringify([state.selectedMatch.id,m.setServers,state.rallies.at(-1)?.id]);
+  if(key!==setChoiceKey){setChoiceKey=key;setFirst=null;setSecond=null;reminderKey='';}
+  reminder.querySelector('strong').textContent='Set '+m.setServers.set+' · Confirm servers';
+  $('pending-server-note').textContent='Same team order. Choose who serves first for each pair.';
+  const renderKey=JSON.stringify([key,setFirst,setSecond,busy]);if(renderKey===setRenderKey)return;setRenderKey=renderKey;
+  const target=$('pending-server-choices');target.replaceChildren();
+  for(const [team,label,value,choose] of [[m.setServers.firstTeam,'Serves first',setFirst,i=>setFirst=i],[m.setServers.firstTeam==='a'?'b':'a','Serves next',setSecond,i=>setSecond=i]]){
+   const field=document.createElement('fieldset'),legend=document.createElement('legend'),row=document.createElement('div');legend.textContent=label;row.className='wizard-server-buttons';field.append(legend,row);target.append(field);
+   buttons(state.setup.names.flatMap((n,i)=>(i<2?'a':'b')===team?[[i,n]]:[]),row,value,i=>{choose(i);serverReminder()});
+  }
+  const confirm=document.createElement('button');confirm.className='ui-btn';confirm.dataset.variant='primary';confirm.textContent='Confirm servers';confirm.disabled=busy||setFirst===null||setSecond===null;confirm.onclick=async()=>{const r=await act({type:'confirm-set-servers',first:setFirst,second:setSecond});if(!r.ok)$('message').textContent=r.error;};target.append(confirm);return;
+ }
+ setChoiceKey='';setRenderKey='';reminder.querySelector('strong').textContent='Other team’s server · not known yet';
+ const unknown=state.setup.otherServerUnknown===true;reminder.hidden=!unknown||open||!state.selectedMatch;if(!unknown){reminderKey='';return}const required=needsServerConfirmation(state,m);$('pending-server-note').textContent=required?'Choose who is serving before the next rally.':'Confirm when the other team serves. You can scout the current game.';const rk=JSON.stringify([state.setup.names,state.setup.firstServer,busy]);if(rk!==reminderKey){reminderKey=rk;buttons(state.setup.names.flatMap((n,i)=>Math.floor(i/2)!==Math.floor(state.setup.firstServer/2)?[[i,n]]:[]),$('pending-server-choices'),null,async i=>{const r=await act({type:'confirm-other-server',player:i});if(!r.ok)$('message').textContent=r.error});}if(required){$('rally').disabled=true;$('serving-name').textContent='Confirm server above';}}
  function render(next,isBusy,isHealthy,account){state=next;busy=isBusy;healthy=isHealthy;paint();serverReminder();const id=state.selectedMatch?.id;if(id&&lastId!==id&&open){initCourt();if(step>0)show(1)}if(!lastAuto&&!busy&&account&&['connected','demo'].includes(account.status)){lastAuto='loaded';if(!state.selectedMatch)queueMicrotask(()=>launch());else if(state.setup.onboardingComplete===false&&!state.rallies.some(r=>r.point))queueMicrotask(()=>{launch();initCourt();show(1)})}}
  render.open=launch;render.isOpen=()=>open;return render;
 }
