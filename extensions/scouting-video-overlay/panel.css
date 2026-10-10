@@ -173,3 +173,19 @@ header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#men
 .media-more{position:relative}.media-more>summary{list-style:none;font-size:18px;cursor:pointer}.media-more>summary::-webkit-details-marker{display:none}
 .media-more-content{position:absolute;right:0;top:calc(100% + 5px);z-index:5;width:190px;padding:8px;background:var(--bg-card);border:1px solid #D8DCCD;border-radius:10px;box-shadow:0 4px 14px #0002;display:grid;grid-template-columns:1fr 1fr;gap:6px}.media-more-content #speed-note{grid-column:1/-1}
 @media(pointer:coarse){.video-toolbar .ui-btn,.video-toolbar .speed-control select{min-height:44px}}
+/* Refined player actions within the existing card layout. */
+body.scouting .player-card,.player-card{gap:5px;padding:8px}
+body.scouting .player-card .ui-btn,.player-card .ui-btn{border-radius:7px;min-height:32px;font-size:11px;font-weight:600;padding:5px 4px;transition:background-color 120ms,border-color 120ms,box-shadow 120ms}
+.player-card>.ui-btn[data-variant="record"]{min-height:35px;background:var(--coral);border-color:var(--coral);color:#482219;font-weight:750}
+.player-card>.ui-btn[data-variant="record"]:hover:not(:disabled){background:#f99c91;border-color:#ee8d80}
+.player-card .errors{gap:5px}.player-card .errors .ui-btn{background:#fff;border-color:#dce1d4;color:#4c5544}
+.player-card .errors .ui-btn:hover:not(:disabled){background:#f3f6ed;border-color:#bcc8ac}
+.player-card .attempts{gap:4px;padding-top:5px;border-top:1px solid #edf0e6}
+body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-height:39px;background:#f4f6ef;border-color:transparent;color:#47563b;font-size:10px;padding:4px 2px;gap:3px}
+.player-card .attempts .ui-btn:hover:not(:disabled){background:#e8eedf;border-color:#c5d2b5}
+.player-card .attempts .ui-btn kbd{margin:0;font-size:9px;line-height:1.2;font-weight:500;color:#6d775f;white-space:normal}
+.player-card .ui-btn:active:not(:disabled){box-shadow:inset 0 1px 3px #0002}
+.player-card .ui-btn:focus-visible{outline:2px solid #638239;outline-offset:2px}
+.player-card .ui-btn:disabled{opacity:.55;cursor:not-allowed}
+@media(pointer:coarse){body.scouting .player-card .ui-btn,.player-card .ui-btn{min-height:44px}}
+@media(prefers-reduced-motion:reduce){body.scouting .player-card .ui-btn,.player-card .ui-btn{transition:none}}
