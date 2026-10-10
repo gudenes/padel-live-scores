@@ -21,7 +21,7 @@ function fixture(){
 test('direct keys highlight a player before a separate outcome choice, without touches; UE requires previous opponent and allows skipping their stroke',()=>{
  const f=fixture(),{$,actions,state,press}=f;try{
  $('rally-taps').click();press('a');assert.equal(actions.length,0);assert.equal($('shot-dialog').open,false);assert.ok($('players').querySelector('[data-player="0"]').classList.contains('keyboard-selected'));press('w');assert.deepEqual(actions.at(-1),{type:'prepare',player:0,outcome:'winner'});assert.equal(actions.filter(a=>a.type==='touch').length,0);
- press('Escape');assert.equal($('outcome-picker').hidden,false);press('a');assert.equal(state.pending.finish.outcome,'unforced');press('w');press('Enter');assert.equal($('shot-form').dataset.step,'opponent');
+ press('Backspace');assert.equal($('outcome-picker').hidden,false);press('a');assert.equal(state.pending.finish.outcome,'unforced');press('w');press('Enter');assert.equal($('shot-form').dataset.step,'opponent');
  const count=actions.length;press(' ');assert.equal(actions.length,count);press('s');assert.equal(actions.length,count); // teammate cannot be selected
  press('q');assert.equal($('shot-form').dataset.step,'previous');press(' ');
  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',previousPlayer:2}});assert.equal(actions.at(-1).details.forcedBy,undefined);
@@ -30,7 +30,7 @@ test('direct keys highlight a player before a separate outcome choice, without t
 test('previous stroke has its own key stage; going back preserves the finishing stroke',()=>{
  const f=fixture(),{$,actions,press}=f;try{
  $('rally-taps').click();press('a');press('d');press('d');press(' ');press('w');press('q'); // FE lob, opponent B2, previous smash
- press('Escape');assert.equal($('shot-form').dataset.step,'opponent');press('q');press('2');press(' ');
+ press('Backspace');assert.equal($('shot-form').dataset.step,'opponent');press('q');press('2');press(' ');
  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'lob',previousPlayer:2,previousShot:'block',forcedBy:2}});
  }finally{f.close();}
 });
@@ -81,7 +81,7 @@ test('all strokes stay expanded and N toggles net touch for winners and errors',
  $('rally-taps').click();press('q');press('w');
  assert.equal($('shot-options').querySelector('details'),null);assert.ok($('shot-options').querySelector('[data-shot=wall]'));
  press('n');assert.equal($('net-touch').checked,true);press('n');assert.equal($('net-touch').checked,false);press('n');press('w');press(' ');assert.equal(actions.at(-1).details.netTouch,true);
- press('Escape');press('a');press('n');assert.equal($('net-touch').checked,true);
+ press('Backspace');press('a');press('n');assert.equal($('net-touch').checked,true);
  }finally{f.close();}
 });
 
@@ -120,3 +120,12 @@ test('compact keyboard tags can be clicked and toggled back off without losing t
  assert.equal(actions.at(-1).details.assistBy,3);assert.equal(actions.at(-1).details.netTouch,true);
  }finally{f.close();}
 });
+
+ test('compact scoreboard plus buttons are guarded during rallies and send team-only points; navigation avoids Escape',async()=>{
+ const f=fixture(),{$,state,render,press,actions}=f;try{
+ assert.equal(document.querySelectorAll('[data-score-add]').length,2);assert.equal(document.querySelector('[data-score-add=a]').disabled,true);
+ state.pending=null;render(state,snapshot(110),false,true);document.querySelector('[data-score-add=b]').click();assert.deepEqual(actions.at(-1),{type:'missed-point',team:'b',videoTime:110});await new Promise(resolve=>setImmediate(resolve));
+ assert.ok($('shortcut-settings').contains($('rally-taps')));assert.ok($('shortcut-settings').contains($('edit-scout-keys')));
+ state.pending={id:'rally',start:snapshot(100)};render(state,snapshot(110),false,true);$('rally-taps').click();press('q');press('w');press('Backspace', $('shot-form'), {shiftKey:true});assert.equal(actions.at(-1).type,'clear-outcome');
+ }finally{f.close();}
+ });

@@ -161,3 +161,6 @@ header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#men
 #shot-options .keyboard-row-0 .shot-label{font-size:9px;overflow-wrap:normal;word-break:normal}
 #shot-options .keyboard-row-2 .shot-label{font-size:10px;overflow-wrap:normal}
 #shot-options .keyboard-dual>.shifted-shot{flex:0 0 auto;min-height:34px}#shot-options .keyboard-dual>.ui-btn:first-child{min-height:48px}
+
+.score-table .score-add{min-width:28px;min-height:28px;padding:2px 7px;font-size:18px;line-height:1}.score-table td:last-child{width:30px;padding-right:0}.score-table th:last-child{width:30px}#shortcut-settings .entry-preferences{display:flex;flex-wrap:wrap;margin-bottom:12px}
+.attempts .ui-btn{min-width:0}.attempts kbd{white-space:normal;font-size:9px;overflow-wrap:anywhere}

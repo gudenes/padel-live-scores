@@ -175,3 +175,10 @@ Unforced error + Return automatically records the current confirmed opponent ser
 Scoreboard → Adjust score offers +1 for each pair and Enter current score. Added points are unclassified team points, with no player outcome or stroke; the existing scoring rules advance games, sets and service. Exact current-score corrections change the scoreboard without reconstructing the missing point sequence. Enter current score accepts an ongoing match; +1 can complete a match. The latest adjustment can be undone, including a match-ending added point. Finish or cancel an unfinished rally before using these controls. Corrections persist with their position in the session and video time when available, and reports are marked partial. Deploy admin support for `score-corrections-v1` before installing; the outbox refuses to upload these records to older servers. No migration is required.
 
 The stroke picker uses compact keyboard rows with coral overheads, lime defense and teal net shots. Unused keys and the legend are omitted. Winner tags and net touch share the keyboard, and Contrapared has a separate clickable Shift+D control under Lob. Remapped shortcut labels remain visible; use Edit shortcuts to change assignments. Smash types appear only after selecting Smash.
+
+### Compact scouting controls
+- Use the `+` beside either pair's score for one missed, unclassified point (between rallies). `Adjust score` retains exact-score entry.
+- Rally taps and Edit shortcuts are under Menu → Keyboard shortcuts.
+- Player cards retain flags and rankings; totals are in Live stats, including Smash W (smash winners).
+- Attempt buttons follow the navigation-key order: Power (Delete), X3 (End), Soft (Page Down).
+- Default Undo is Left Arrow; Ctrl/Cmd+Z remains an alias unless Undo is remapped. Backspace goes back in point selection; Shift+Backspace cancels the selection without using fullscreen Escape. These scouting shortcuts work with the panel focused.
