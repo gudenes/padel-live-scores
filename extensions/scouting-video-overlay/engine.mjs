@@ -242,6 +242,10 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
             if(message.details.smashType!==undefined)attempt.smashType=validateSmashType(message.details.smashType);
           }
           const point=validatePoint({...message.details,player:selected.player,outcome:selected.outcome},pending,match(state).server);
+          if(message.details?.previousSmashNew){
+            if(point.previousShot!=='smash'||point.previousPlayer===undefined)throw Error('Choose the previous opponent and Smash before adding an attempt.');
+            (pending.attempts??=[]).push({player:point.previousPlayer,snapshot:structuredClone(selected.end)});
+          }
           const rally=finishRally(pending,selected.end);
           delete rally.finish;
           state.rallies.push({...rally,point});state.pending=null;return save();

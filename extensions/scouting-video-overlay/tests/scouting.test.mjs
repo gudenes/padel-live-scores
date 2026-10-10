@@ -209,3 +209,14 @@ test('correcting a linked smash type keeps one attempt, roundtrips and undo rest
  await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.attempts[0].smashType,'power');
  await f.dispatch({type:'score',details:{shot:'smash',smashType:'soft'}});assert.equal(match(f.get()).stats[0].smashes,2);
 });
+
+test('previous smash error can reuse or add an attempt without changing error attribution',async()=>{
+ const {videoPayload,videoSummary}=await import('../server-model.mjs');
+ for(const outcome of ['forced','unforced'])for(const freshAttempt of [false,true]){
+  const f=fixture();await f.choose();await f.dispatch({type:'start'});await f.dispatch({type:'smash',player:0,smashType:'power'});
+  await f.dispatch({type:'prepare',player:2,outcome});
+  await f.dispatch({type:'score',details:{shot:'block',previousPlayer:0,previousShot:'smash',...(freshAttempt?{previousSmashNew:true}:{}),...(outcome==='forced'?{forcedBy:0}:{})}});
+  const m=videoSummary(videoPayload(f.get()));assert.equal(m.stats[0].smashes,freshAttempt?2:1);assert.equal(m.stats[0].smashPointsWon,1);assert.equal(m.stats[0].smashWinners,0);assert.equal(m.stats[2][outcome],1);
+  await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.attempts.length,1);
+ }
+});
