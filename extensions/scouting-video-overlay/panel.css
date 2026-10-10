@@ -199,3 +199,5 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .player-card.holding h3>kbd[data-scout-key]{border-color:#688735}
 
 .smash-attempt-choice{display:flex;gap:6px;margin-top:10px}.smash-attempt-choice .ui-btn{flex:1;font-size:11px;min-height:34px}
+
+.plugin-brand{align-items:center;gap:12px}.plugin-brand #extension-version{font-size:11px;color:#626957;white-space:nowrap}

@@ -13,6 +13,8 @@ import {exported} from './core.mjs';
 import {progressUI} from './scouting-progress.mjs';
 const $=id=>document.getElementById(id);
 const demo=new URL(location.href).searchParams.has('demo')&&!globalThis.chrome?.runtime?.id;
+const installedVersion=globalThis.chrome?.runtime?.getManifest?.().version;
+$('extension-version').textContent=installedVersion?'v'+installedVersion:'Local preview';
 const transport=demo?(await import('./preview.mjs')).send:message=>chrome.runtime.sendMessage(message);
 let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',polling=false,revision=0,videoKey='',cloud={status:'local'},account={status:demo?'demo':'checking'},accountPoll=0,accountChecking=false;
 const renderCatalog=catalogUI({$,act,getState:()=>state});
