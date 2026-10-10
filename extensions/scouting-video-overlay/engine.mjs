@@ -1,10 +1,11 @@
+import {scoutingTime} from './scouting-time.mjs';
 import {needsServerConfirmation} from './onboarding-model.mjs';
 import {validateVideoState,videoPayload} from './server-model.mjs';
 import {manualInput} from './manual-match.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference,usable,sameMedia} from './core.mjs';
 import {defaults,match,validateSetup,validatePoint,validateSmashType,courtPlayers} from './match.mjs';
-export function engine({read,write,discover,capture,seek,uuid,catalog,playback,setRate}){
+export function engine({read,write,discover,capture,seek,uuid,catalog,playback,setRate,now=Date.now}){
   // All panels share this queue in the worker, preventing duplicate or lost writes.
   let queue=Promise.resolve();
   return message=>{
@@ -19,6 +20,14 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
       };
       switch(message.type){
         case 'state':return {state};
+        case 'scouting-clock':{
+          if(!state.selectedMatch||message.matchId!==state.selectedMatch.id)return {state};
+          if(!['tick','pause','resume','suspend'].includes(message.mode))throw Error('Invalid clock action.');
+          const finished=match(state).score.phase==='finished';
+          if(finished&&!state.scoutingTime?.lastAt)return {state};
+          if(!state.pending&&!state.rallies.length&&!state.scoutingTime)return {state};
+          state.scoutingTime=scoutingTime(state.scoutingTime,now(),finished?'suspend':message.mode);return save();
+        }
         case 'undo-last':{
           const last=state.history?.pop();
           if(!last){if(state.pending)throw Error('No recent action to undo. Cancel the open rally first.');const r=state.rallies.findLast(r=>r.point&&!r.undone);if(!r)throw Error('No action to undo.');r.undone=true;r.undoneAt=new Date().toISOString();return save();}
@@ -53,9 +62,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(state.pending)throw Error('Finish or cancel the current rally before switching matches.');
           if(state.selectedMatch){
             state.sessions??={};
-            state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[]};
+            state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[],scoutingTime:state.scoutingTime?{seconds:state.scoutingTime.seconds,paused:state.scoutingTime.paused}:null};
           }
-          Object.assign(state,{setup:defaults(),label:'',rallies:[],cancelled:[],selectedMatch:null,connection:null,pending:null,history:[]});return save();
+          Object.assign(state,{setup:defaults(),label:'',rallies:[],cancelled:[],selectedMatch:null,connection:null,pending:null,history:[],scoutingTime:null});return save();
         }
         case 'scouting-matches':{
  const result=await catalog({kind:'scouting-matches',start:message.start,end:message.end,q:message.q});
@@ -93,8 +102,8 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           const selected=result.match;if(!selected?.id||selected.kind!=='manual')throw Error('The private match was not confirmed. Retry safely.');
           state.manualMatches=[selected,...(state.manualMatches??[]).filter(m=>m.id!==selected.id)];
           state.sessions??={};
-          if(state.selectedMatch)state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[]};
-          Object.assign(state,{setup:validateSetup({...defaults(),names:selected.names,...(message.wizard?{onboardingComplete:false}:{})}),label:selected.tournamentName,rallies:[],cancelled:[],history:[],selectedMatch:selected,connection:null,pending:null,manualDraft:null});return save();
+          if(state.selectedMatch)state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[],scoutingTime:state.scoutingTime?{seconds:state.scoutingTime.seconds,paused:state.scoutingTime.paused}:null};
+          Object.assign(state,{setup:validateSetup({...defaults(),names:selected.names,...(message.wizard?{onboardingComplete:false}:{})}),label:selected.tournamentName,rallies:[],cancelled:[],history:[],scoutingTime:null,selectedMatch:selected,connection:null,pending:null,manualDraft:null});return save();
         }
         case 'resume-session':{
           if(state.pending)throw Error('Save or cancel the current rally before switching matches.');
@@ -102,10 +111,10 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           const saved=state.sessions?.[message.matchId],selected=saved?.selectedMatch??state.manualMatches?.find(m=>m.id===message.matchId);
           if(!selected)throw Error('This saved session is unavailable. Refresh the list.');
           state.sessions??={};
-          if(state.selectedMatch)state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[]};
+          if(state.selectedMatch)state.sessions[state.selectedMatch.id]={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch,history:state.history??[],scoutingTime:state.scoutingTime?{seconds:state.scoutingTime.seconds,paused:state.scoutingTime.paused}:null};
           const remote=!saved&&selected.kind==='manual'?(await catalog({kind:'manual-session',matchId:selected.id})).session:null;
           const restored=remote?validateVideoState(remote.document):null;if(restored?.pending){restored.cancelled.push({...restored.pending,cancelledAt:new Date().toISOString()});restored.pending=null;}
-          Object.assign(state,saved??restored??{setup:validateSetup({...defaults(),names:selected.names,...(message.wizard?{onboardingComplete:false}:{})}),label:selected.tournamentName,rallies:[],cancelled:[],history:[]});state.selectedMatch=selected;state.connection=null;state.pending=null;return save(remote?{remote:{kind:'manual',payload:remote.document,revision:remote.revision,savedAt:remote.updated_at}}:{});
+          Object.assign(state,{scoutingTime:null},saved??restored??{setup:validateSetup({...defaults(),names:selected.names,...(message.wizard?{onboardingComplete:false}:{})}),label:selected.tournamentName,rallies:[],cancelled:[],history:[],scoutingTime:null});state.selectedMatch=selected;state.connection=null;state.pending=null;return save(remote?{remote:{kind:'manual',payload:remote.document,revision:remote.revision,savedAt:remote.updated_at}}:{});
         }
         case 'select-match':{
           if(state.pending)throw Error('Finish or cancel the current rally before switching matches.');
@@ -115,9 +124,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(state.selectedMatch?.id===selected.id)return {state};
           const setup=validateSetup({...defaults(),names:selected.names,...(message.wizard?{onboardingComplete:false}:{})});
           state.sessions??={};
-          state.sessions[state.selectedMatch?.id??'unassigned']={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch??null,history:state.history??[]};
+          state.sessions[state.selectedMatch?.id??'unassigned']={setup:state.setup,label:state.label,rallies:state.rallies,cancelled:state.cancelled,selectedMatch:state.selectedMatch??null,history:state.history??[],scoutingTime:state.scoutingTime?{seconds:state.scoutingTime.seconds,paused:state.scoutingTime.paused}:null};
           const saved=state.sessions[selected.id];
-          Object.assign(state,saved??{setup,label:`${tournament.name} · ${selected.round??selected.category??'Match'}`,rallies:[],cancelled:[],history:[]});
+          Object.assign(state,{scoutingTime:null},saved??{setup,label:`${tournament.name} · ${selected.round??selected.category??'Match'}`,rallies:[],cancelled:[],history:[],scoutingTime:null});
           state.selectedMatch={...selected,tournamentName:tournament.name};state.connection=null;state.pending=null;return save();
         }
         case 'restore-cloud':{
@@ -126,7 +135,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(JSON.stringify(videoPayload(state))!==message.expectedHash)throw Error('Local scouting changed while loading. Your local copy is retained; try again.');
           const restored=validateVideoState(message.document);
           if(restored.pending){restored.cancelled.push({...restored.pending,cancelledAt:new Date().toISOString()});restored.pending=null;}
-          Object.assign(state,restored);state.history=[];state.connection=null;return save();
+          Object.assign(state,{scoutingTime:null},restored);state.history=[];state.connection=null;return save();
         }
         case 'starting-score':{
           if(!state.selectedMatch)throw Error('Select a match first.');
@@ -173,9 +182,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
         }
         case 'prepare':{
           if(!state.pending||!state.connection)throw Error('Start a rally first.');
-          if(state.pending.finish)throw Error('Save or cancel the selected outcome first.');
+          if(state.pending.finish&&!message.changeOutcome)throw Error('Save or cancel the selected outcome first.');
           const point=validatePoint(message,state.pending,match(state).server);
-          const end=await capture(state.connection);finishRally(state.pending,end);
+          const end=state.pending.finish?.end??await capture(state.connection);finishRally(state.pending,end);
           state.pending.finish={end,player:point.player,outcome:point.outcome};return save();
         }
         case 'var-review':{

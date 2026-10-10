@@ -10,7 +10,7 @@ export type Outcome = 'winner' | 'forced' | 'unforced'
 export interface ScoreSeed { sets:{a:number;b:number}[]; game:{a:number|'Adv';b:number|'Adv'}; phase:'playing'|'tiebreak'; returns:number; server:Player }
 export type CourtSetup = Pick<ScoutDoc,'rule'|'firstServer'|'otherServer'|'near'>
 export type Event = { id:string; at:string } & (
-  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean; smashAttemptId?:string; shot?:Shot; side?:ShotSide; assistBy?:Player; forcedBy?:Player;netTouch?:boolean; recovery?:boolean;smashRecovery?:boolean;netCord?:'lucky'|'unlucky'}
+  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean; smashAttemptId?:string; shot?:Shot; side?:ShotSide; assistBy?:Player; forcedBy?:Player;previousPlayer?:Player;previousShot?:Shot;netTouch?:boolean; recovery?:boolean;smashRecovery?:boolean;netCord?:'lucky'|'unlucky'}
   | {kind:'smash'; player:Player}
   | {kind:'unclassified'; team:'a'|'b'}
   | {kind:'flip'} | {kind:'swap'; team:'a'|'b'}
@@ -46,6 +46,9 @@ export function validateDoc(raw:unknown):ScoutDoc {
       if(e.side!==undefined&&!['forehand','backhand'].includes(e.side))throw Error('Invalid shot side.')
       if(e.assistBy!==undefined&&(!player(e.assistBy)||e.outcome!=='winner'||e.assistBy!==(e.player^1)))throw Error('Assists must credit the winning player’s teammate.')
       if(e.forcedBy!==undefined&&(!player(e.forcedBy)||e.outcome!=='forced'||teamOf(e.forcedBy)===teamOf(e.player)))throw Error('Forced-error credit must name an opponent.')
+      if(e.previousPlayer!==undefined&&(!player(e.previousPlayer)||!['forced','unforced'].includes(e.outcome)||teamOf(e.previousPlayer)===teamOf(e.player)))throw Error('Previous player must name an opponent for an error.')
+      if(e.previousShot!==undefined&&(e.previousPlayer===undefined||!Object.hasOwn(shots,e.previousShot)))throw Error('Previous stroke requires an opponent and valid shot.')
+      if(e.previousPlayer!==undefined&&e.forcedBy!==undefined&&e.previousPlayer!==e.forcedBy)throw Error('Previous player and forced-error credit must agree.')
       if(e.netTouch!==undefined&&typeof e.netTouch!=='boolean')throw Error('Invalid net touch tag.')
       if(e.smashRecovery!==undefined&&(typeof e.smashRecovery!=='boolean'||(e.smashRecovery&&e.outcome!=='winner')))throw Error('Smash recovery is only available for winners.')
       if(e.netCord!==undefined&&!['lucky','unlucky'].includes(e.netCord))throw Error('Invalid net cord tag.')

@@ -66,6 +66,9 @@ export function validatePoint(raw,pending,server){
  for(const tag of ['recovery','smashRecovery'])if(raw[tag]){if(p.outcome!=='winner')throw Error('Recovery tags apply to winners.');p[tag]=true;}
  if(raw.assistBy!==undefined){if(p.outcome!=='winner'||raw.assistBy!==(p.player^1))throw Error('Assist must credit the winner’s partner.');p.assistBy=raw.assistBy;}
  if(raw.forcedBy!==undefined){if(!Number.isInteger(raw.forcedBy)||raw.forcedBy<0||raw.forcedBy>3||p.outcome!=='forced'||pair(raw.forcedBy)===pair(p.player))throw Error('Forced-error credit must name an opponent of the player making the forced error.');p.forcedBy=raw.forcedBy;}
+ if(raw.previousPlayer!==undefined){if(!Number.isInteger(raw.previousPlayer)||raw.previousPlayer<0||raw.previousPlayer>3||!['forced','unforced'].includes(p.outcome)||pair(raw.previousPlayer)===pair(p.player))throw Error('Previous player must name an opponent for an error.');p.previousPlayer=raw.previousPlayer;}
+ if(raw.previousShot!==undefined){if(p.previousPlayer===undefined||!Object.hasOwn(shots,raw.previousShot))throw Error('Choose a previous player and valid stroke.');p.previousShot=raw.previousShot;}
+ if(p.previousPlayer!==undefined&&p.forcedBy!==undefined&&p.previousPlayer!==p.forcedBy)throw Error('Previous player and forced-error credit must agree.');
  if(raw.netTouch!==undefined){if(typeof raw.netTouch!=='boolean')throw Error('Invalid net touch tag.');if(raw.netTouch)p.netTouch=true;}
  if(raw.netCord!==undefined){if(!['lucky','unlucky'].includes(raw.netCord))throw Error('Invalid net cord tag.');p.netCord=raw.netCord;}
  if(raw.smashAlreadyCounted){if(p.shot!=='smash'||!pending.attempts?.some(a=>a.player===p.player))throw Error('No smash attempt to link for this player.');p.smashAlreadyCounted=true;}

@@ -189,3 +189,13 @@ test('sequential smash classification preserves one shot, corrects one attempt, 
  await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).stats[0].softSmashWinners,0);
  await f.dispatch({type:'clear-outcome'});await f.dispatch({type:'touch',player:2});await assert.rejects(f.dispatch({type:'smash',player:0,smashType:'soft',latestTouch:true}),/Tap this player/);
 });
+test('changing default Winner to an error preserves the original rally end and optional previous stroke',async()=>{
+ const f=fixture();await f.choose();await f.dispatch({type:'start'});f.set(110);
+ await f.dispatch({type:'prepare',player:0,outcome:'winner'});f.set(180);
+ await f.dispatch({type:'prepare',player:0,outcome:'unforced',changeOutcome:true});
+ assert.equal(f.get().pending.finish.end.time,110);
+ await f.dispatch({type:'score',details:{shot:'volley',previousPlayer:2,previousShot:'bajada'}});
+ assert.equal(f.get().rallies[0].videoSeconds,10);assert.equal(f.get().rallies[0].point.previousShot,'bajada');
+ assert.equal(match(f.get()).stats[2].forcedErrorsCreated,0);
+ await f.dispatch({type:'undo-last'});assert.equal(f.get().rallies.length,0);assert.equal(f.get().pending.finish.outcome,'unforced');
+});

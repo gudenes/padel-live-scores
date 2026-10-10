@@ -143,3 +143,21 @@ Court suggestions use stored `players.side`, mirroring the far end relative to t
 Confirm the first server; the other team’s server may be “I don’t know yet”. It persists as an explicit setup flag. The engine blocks starting/restarting their service rally until confirmed, confirmation is undoable, and server validation rejects points recorded while that server is unresolved. Existing numeric serving order remains an internal replay placeholder only until confirmation. Existing saved sessions bypass fresh score setup and resume their records. Starting score and court settings commit together, before any recorded points.
 
 Rollout requires the admin API update (`optional-server-v1`) before extension reload. Until supported, the durable sync queue retains the setup locally and retries; older servers cannot silently discard the unknown-server flag. No schema migration or public-app release. Back up extension storage before installation; this change does not erase or reset saved sessions.
+
+### Direct entry and editable keys
+
+- Leave **Rally taps** on for shot counting and 1.3-second player holds. Turn it off for immediate Q/W/A/S player selection on the court, then W Winner / A UE / D FE to open the shot picker; this preference is device-local.
+- In the shot picker, **Esc** opens the outcome choices (W Winner, A UE, D FE). Choose the finishing stroke using the existing stroke keys.
+- Errors from play require the previous opponent: **Enter/Space → opponent key → optional stroke → Space**. Double faults retain their separate flow. UE attribution never creates forced-error credit. Esc moves back one step; Cancel abandons only the selected outcome.
+- With direct entry, player key then Z/X/C (while the player card is highlighted) records a Power/X3/Soft attempt only and returns to the rally.
+- Click **Edit shortcuts**, choose an action and press a new key. Clicking a visible shortcut badge also opens its editor. Assignments save immediately on this device. Same-step conflicts and video-key conflicts are rejected. Player keys remain attached to court quadrants after switching ends. Tab and Enter remain navigation keys. Escape cancels key capture. Use Reset scouting keys to restore defaults.
+- Video shortcut badges open the existing video-key settings. Scouting keyboard shortcuts require focus in the extension panel; video keys also work in the connected video tab.
+- New `previousPlayer` and optional `previousShot` fields survive session validation, timeline and JSON/CSV export. Legacy sessions need no backfill. Deploy the companion admin validation/export update **before installing this extension version**, so older server code does not strip new fields. No database migration is required.
+
+### Compact stroke controls
+
+Half volley and Serve are hidden from new stroke selection; saved historical strokes remain valid. Wall return uses 5, Return 6 and Other 0. Outside-court recovery (7) sits alongside X4 winner (4), uses the existing recovery flag and still allows a finishing stroke. Power/X3/Soft attempts and smash types default to Delete/End/Page Down; custom device assignments remain editable.
+
+### Match dates and operator time
+
+The onboarding date filter includes Today, Yesterday (local calendar day) and Other matches. Completed cards show recorded set scores and duration when supplied by admin, otherwise explicit unavailable labels. Scouting time is wall-clock operator time from the first rally, independent of video speed or seeking. Pause clock excludes breaks; hidden/closed panels and heartbeat gaps over 30 seconds are excluded. Totals checkpoint every 15 seconds and on scoring/pause, remain per match, and travel in server documents/backups. A sudden browser crash can lose up to the last checkpoint interval. Existing sessions start measuring from this update; prior working time is not reconstructed. The closing wizard compares this total with recorded match duration. Deploy the admin catalog/validation update before installing.

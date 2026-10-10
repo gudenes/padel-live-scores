@@ -11,7 +11,7 @@ export async function GET(req:Request){
  else if(q.length<2)return json({error:'Type at least two characters to search other matches.'},400)
  try{
   const db=serviceClient()
-  let query=db.from('matches').select('id,tournament_id,status,category,round,scheduled_at,'+slots.map(s=>s+'_id,'+s+'_name').join(','))
+  let query=db.from('matches').select('id,tournament_id,status,category,round,scheduled_at,duration,sets(set_number,pair1_games,pair2_games),'+slots.map(s=>s+'_id,'+s+'_name').join(','))
   if(start&&end)query=query.gte('scheduled_at',start).lt('scheduled_at',end)
   // Resolve the first search term into canonical player/tournament IDs, then match all words below.
   if(q){
@@ -32,7 +32,7 @@ export async function GET(req:Request){
   if(ps.error||ts.error)throw Error('Could not load player profiles. Retry shortly.')
   const players=new Map((ps.data??[]).map(p=>[p.id,p])),tournaments=(ts.data??[]).map(t=>({id:t.id,name:t.name,country:t.country,level:t.level,startsAt:t.starts_at,endsAt:t.ends_at}))
   const normalize=(s:string)=>s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
-  const matches=rows.map(m=>({id:m.id,tournamentId:m.tournament_id,names:slots.map(s=>players.get(m[s+'_id'])?.name??m[s+'_name']),playerIds:slots.map(s=>m[s+'_id']),players:slots.map(s=>{const p=players.get(m[s+'_id']);return {country:p?.country??null,ranking:p?.ranking??null,side:p?.side??null}}),category:m.category,round:m.round,status:m.status,scheduledAt:m.scheduled_at,tournamentName:tournaments.find(t=>t.id===m.tournament_id)?.name??''})).filter(m=>m.tournamentId&&m.names.every(n=>typeof n==='string'&&n.trim())&&normalize(q).split(/\s+/).every(term=>normalize(m.names.join(' ')+' '+m.tournamentName).includes(term)))
+  const matches=rows.map(m=>({id:m.id,tournamentId:m.tournament_id,names:slots.map(s=>players.get(m[s+'_id'])?.name??m[s+'_name']),playerIds:slots.map(s=>m[s+'_id']),players:slots.map(s=>{const p=players.get(m[s+'_id']);return {country:p?.country??null,ranking:p?.ranking??null,side:p?.side??null}}),category:m.category,round:m.round,status:m.status,duration:typeof m.duration==='string'&&/^\d{1,2}:[0-5]\d$/.test(m.duration)&&Number(m.duration.split(':')[0])*60+Number(m.duration.split(':')[1])<=240?m.duration:null,sets:(Array.isArray(m.sets)?m.sets:[]).filter((s:any)=>Number.isInteger(s.pair1_games)&&Number.isInteger(s.pair2_games)).sort((a:any,b:any)=>a.set_number-b.set_number).map((s:any)=>({a:s.pair1_games,b:s.pair2_games})),scheduledAt:m.scheduled_at,tournamentName:tournaments.find(t=>t.id===m.tournament_id)?.name??''})).filter(m=>m.tournamentId&&m.names.every(n=>typeof n==='string'&&n.trim())&&normalize(q).split(/\s+/).every(term=>normalize(m.names.join(' ')+' '+m.tournamentName).includes(term)))
   return json({matches,tournaments,truncated:rows.length===250,loadedAt:new Date().toISOString()})
  }catch(e){return json({error:e instanceof Error?e.message:'Match search unavailable.'},503)}
 }
