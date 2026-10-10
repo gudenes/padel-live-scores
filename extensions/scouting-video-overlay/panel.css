@@ -123,3 +123,8 @@ body:not(.scouting) #connection-settings>details:not(#catalog-panel){display:non
 header .header-actions #scouting-menu-button{min-width:36px;min-height:36px}#menu-content #scouting-progress{margin:0;border:0;border-radius:0}#menu-content #scouting-progress .progress-details{padding:0;border:0}#menu-content #scouting-progress>summary{display:flex;padding:0 0 10px;justify-content:space-between;align-items:center;gap:8px;cursor:default}#menu-content .progress-heading strong,#menu-content .progress-heading:after{display:none}#menu-content #progress-count{margin:0}
 
 #open-admin-report{text-decoration:none}#report-link-note{font-size:10px;font-weight:400;letter-spacing:0;text-transform:none;line-height:1.4}
+
+/* Direct point entry reuses the approved panel buttons and colors. */
+.entry-preferences{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}.entry-preferences .hint{flex-basis:100%;margin:0}
+[data-scout-key],[data-media-key]{cursor:pointer} [data-scout-key]:hover,[data-media-key]:hover{outline:1px solid currentColor;outline-offset:2px}
+#scout-key-editor{max-width:460px;width:calc(100% - 24px);max-height:85vh;overflow:auto}#scout-key-editor [data-key-fields]{display:grid;grid-template-columns:1fr 1fr;gap:10px}#scout-key-editor label{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px}#point-step{font-weight:600}#outcome-picker[hidden]{display:none}#shot-dialog [aria-disabled=true]{opacity:.6}

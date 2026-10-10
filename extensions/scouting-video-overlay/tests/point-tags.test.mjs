@@ -32,13 +32,14 @@ test('quick tags, independent X4 and position-based opponent keys save once and 
   state.pending.id='forced';state.pending.finish.outcome='forced';render(state,snapshot(110),false,true);
   assert.equal($('winner-tags').hidden,true);assert.equal($('net-touch').checked,false);
   assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[2,'q'],[3,'w']]);
+  press('w');press('Enter');
   const opponent=$('forced-opponents').firstElementChild;opponent.focus();render(state,snapshot(111),false,true);assert.equal($('forced-opponents').firstElementChild,opponent);assert.equal(document.activeElement,opponent);
-  press('w');assert.equal($('forced-opponents').querySelector('[aria-pressed=true]').dataset.player,'3');assert.match($('shot-summary').textContent,/Forced by Player B2/);
-  press('w');press(' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',forcedBy:3}});
+  press('w');assert.equal($('forced-opponents').querySelector('[aria-pressed=true]').dataset.player,'3');assert.match($('shot-summary').textContent,/Previous opponent: Player B2/);
+  press('w');press(' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',previousPlayer:3,previousShot:'volley',forcedBy:3}});
   state.setup.adjustments=[{type:'ends',afterId:null,at:'2026-10-06T00:00:00Z'}];state.pending.id='flipped';render(state,snapshot(110),false,true);
   const order=courtPlayers(state);assert.deepEqual(order,[1,0,3,2]);assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[3,'a'],[2,'s']]);
-  press('s');press('w');$('net-touch').click();press(' ');assert.equal(actions.at(-1).details.forcedBy,2);assert.equal(actions.at(-1).details.netTouch,true);
-  state.pending.id='unknown';render(state,snapshot(110),false,true);$('forced-unknown').click();press('w');press(' ');assert.equal(actions.at(-1).details.forcedBy,undefined);
+  press('w');press('Enter');press('s');press('w');$('net-touch').click();press(' ');assert.equal(actions.at(-1).details.forcedBy,2);assert.equal(actions.at(-1).details.netTouch,true);
+  state.pending.id='unknown';render(state,snapshot(110),false,true);$('forced-unknown').click();press('w');const unsaved=actions.length;press(' ');press(' ');assert.equal(actions.length,unsaved);assert.match($('shot-error').textContent,/previous opponent/);
   const count=actions.length;render(state,snapshot(110),true,true);press('f');press('4');press(' ');assert.equal(actions.length,count);
   state.pending.id='recovery-only';state.pending.finish.outcome='winner';render(state,snapshot(110),false,true);
   press('r');assert.equal($('shot-options').hidden,true);assert.match($('shot-instruction').textContent,/No stroke needed/);press(' ');

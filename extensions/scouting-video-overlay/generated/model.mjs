@@ -41,6 +41,12 @@ export function validateDoc(raw) {
                 throw Error('Assists must credit the winning player’s teammate.');
             if (e.forcedBy !== undefined && (!player(e.forcedBy) || e.outcome !== 'forced' || teamOf(e.forcedBy) === teamOf(e.player)))
                 throw Error('Forced-error credit must name an opponent.');
+            if (e.previousPlayer !== undefined && (!player(e.previousPlayer) || !['forced', 'unforced'].includes(e.outcome) || teamOf(e.previousPlayer) === teamOf(e.player)))
+                throw Error('Previous player must name an opponent for an error.');
+            if (e.previousShot !== undefined && (e.previousPlayer === undefined || !Object.hasOwn(shots, e.previousShot)))
+                throw Error('Previous stroke requires an opponent and valid shot.');
+            if (e.previousPlayer !== undefined && e.forcedBy !== undefined && e.previousPlayer !== e.forcedBy)
+                throw Error('Previous player and forced-error credit must agree.');
             if (e.netTouch !== undefined && typeof e.netTouch !== 'boolean')
                 throw Error('Invalid net touch tag.');
             if (e.smashRecovery !== undefined && (typeof e.smashRecovery !== 'boolean' || (e.smashRecovery && e.outcome !== 'winner')))

@@ -173,9 +173,9 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
         }
         case 'prepare':{
           if(!state.pending||!state.connection)throw Error('Start a rally first.');
-          if(state.pending.finish)throw Error('Save or cancel the selected outcome first.');
+          if(state.pending.finish&&!message.changeOutcome)throw Error('Save or cancel the selected outcome first.');
           const point=validatePoint(message,state.pending,match(state).server);
-          const end=await capture(state.connection);finishRally(state.pending,end);
+          const end=state.pending.finish?.end??await capture(state.connection);finishRally(state.pending,end);
           state.pending.finish={end,player:point.player,outcome:point.outcome};return save();
         }
         case 'var-review':{

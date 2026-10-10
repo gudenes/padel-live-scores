@@ -17,6 +17,7 @@ export function playerShortcuts({target,context,select,prepare,tap=()=>{},smash=
   if(held===null&&selected===null&&lastTapped!==null&&['z','x','c'].includes(key)){consume(e);if(!e.repeat)smash(lastTapped,key==='z'?'power':key==='x'?'x3':'soft',true);return;}
   if(key==='escape'){reset();return;}
   const slot=positionKeys.indexOf(key);
+  if(slot>=0&&c.direct){consume(e);if(!e.repeat){reset();prepare(c.order[slot],'winner');}return;}
   if(slot>=0){consume(e);if(e.repeat||held===key)return;cancelHold();lastTapped=null;selected=null;select(null);held=key;hold(c.order[slot]);
    const started=c.token;
    timer=setTimer(()=>{timer=null;const now=context();if(held!==key||!now.enabled||now.token!==started)return;completed=true;hold(null);selected=now.order[slot];select(selected);},holdDuration);
