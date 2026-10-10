@@ -59,10 +59,10 @@ export function scoutingUI({$,act,getState}){
  }
  const common=document.createElement('div');common.className='shot-grid';common.setAttribute('aria-label','Common shots');
  for(const [shortcut,key] of quickShots)common.append(shotButton(key,shortcut));
- const more=document.createElement('details'),heading=document.createElement('summary'),extra=document.createElement('div');
- heading.textContent='More strokes';extra.className='shot-grid';extra.setAttribute('aria-label','Other strokes');
+ const more=document.createElement('div'),extra=document.createElement('div');more.className='extra-strokes';
+ extra.className='shot-grid';extra.setAttribute('aria-label','Other strokes');
  for(const [shortcut,key] of extraShots)extra.append(shotButton(key,shortcut));
- more.append(heading,extra);
+ more.append(extra);
  $('shot-options').append(common,more);
  function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player&&a.smashType===smashType)??-1;}
  function syncShot(){
@@ -125,6 +125,7 @@ export function scoutingUI({$,act,getState}){
   const key=e.key.toLowerCase(),finish=getState()?.pending?.finish;if($('save-point').disabled)return;
   if(step==='outcome'){const outcome={w:'winner',a:'unforced',d:'forced'}[key];if(outcome&&!e.shiftKey){e.preventDefault();$('outcome-picker').querySelector(`[data-choose-outcome="${outcome}"]`).click();}return;}
   if(step==='opponent'){const b=[...$('forced-opponents').querySelectorAll('button')].find(b=>b.dataset.shortcut===key);if(b&&!e.shiftKey){e.preventDefault();credit(Number(b.dataset.player));}return;}
+  if(step==='shot'&&!e.shiftKey&&key==='n'){e.preventDefault();$('net-touch').checked=!$('net-touch').checked;$('net-touch').onchange();return;}
   if(step==='shot'&&!e.shiftKey&&finish?.outcome==='winner'&&['f','r','4','7'].includes(key)){e.preventDefault();const id={f:'assist',r:'smash-recovery',4:'x4',7:'outside'}[key];$(id).checked=!$(id).checked;$(id).onchange();return;}
   if(finish?.outcome==='winner'&&$('smash-recovery').checked&&!$('x4').checked)return;
   if(step==='shot'&&!e.shiftKey&&shot==='smash'&&['z','x','c'].includes(key)){e.preventDefault();chooseType(key==='z'?'power':key==='x'?'x3':'soft');return;}
@@ -200,7 +201,7 @@ export function scoutingUI({$,act,getState}){
   const pending=state.pending,finish=pending?.finish;
   $('var-review').disabled=busy||!pending;$('var-review').setAttribute('aria-pressed',String(!!pending?.varReviewed));$('var-review').textContent=pending?.varReviewed?'VAR flagged':'VAR review';
   if(finish){
-   if(openId!==pending.id+':'+finish.player+':'+finish.outcome){const samePlayer=openId.startsWith(pending.id+':'+finish.player+':');openId=pending.id+':'+finish.player+':'+finish.outcome;step='shot';previousShot=undefined;if(!samePlayer){shot=undefined;smashType=undefined;}forcedBy=undefined;attributionReady=finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=true;$('shot-details').open=false;more.open=false;syncShot();$('shot-error').textContent='';}
+   if(openId!==pending.id+':'+finish.player+':'+finish.outcome){const samePlayer=openId.startsWith(pending.id+':'+finish.player+':');openId=pending.id+':'+finish.player+':'+finish.outcome;step='shot';previousShot=undefined;if(!samePlayer){shot=undefined;smashType=undefined;}forcedBy=undefined;attributionReady=finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=true;$('shot-details').open=false;syncShot();$('shot-error').textContent='';}
    const order=courtPlayers(state,m),creditKey=JSON.stringify([pending.id,finish.player,order,setup.names]);if(creditKey!==attributionKey){attributionKey=creditKey;$('forced-opponents').replaceChildren(...order.filter(player=>(player<2)!==(finish.player<2)).map(player=>{const b=document.createElement('button'),kbd=document.createElement('kbd');b.type='button';b.className='ui-btn';b.dataset.player=player;b.dataset.shortcut=positionKeys[order.indexOf(player)];b.setAttribute('aria-keyshortcuts',b.dataset.shortcut.toUpperCase());b.append(setup.names[player]+' ');kbd.textContent=b.dataset.shortcut.toUpperCase();kbd.dataset.scoutKey='player-'+order.indexOf(player);b.append(kbd);b.onclick=()=>credit(player);return b;}));}
    $('assist-name').textContent='By '+setup.names[finish.player^1];$('recovery-name').textContent='By '+setup.names[finish.player];$('outside-label').hidden=finish.outcome!=='winner';
    $('shot-var').checked=!!pending.varReviewed;$('shot-var').disabled=busy;

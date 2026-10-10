@@ -75,3 +75,12 @@ test('navigation keys record each smash attempt and outside recovery saves from 
  assert.equal($('shot-options').querySelector('[data-shot=half_volley]'),null);assert.equal($('shot-options').querySelector('[data-shot=serve]'),null);
  }finally{await new Promise(resolve=>setTimeout(resolve,1100));f.close();}
 });
+
+test('all strokes stay expanded and N toggles net touch for winners and errors',()=>{
+ const f=fixture(),{$,actions,press}=f;try{
+ $('rally-taps').click();press('q');press('w');
+ assert.equal($('shot-options').querySelector('details'),null);assert.ok($('shot-options').querySelector('[data-shot=wall]'));
+ press('n');assert.equal($('net-touch').checked,true);press('n');assert.equal($('net-touch').checked,false);press('n');press('w');press(' ');assert.equal(actions.at(-1).details.netTouch,true);
+ press('Escape');press('a');press('n');assert.equal($('net-touch').checked,true);
+ }finally{f.close();}
+});
