@@ -1,3 +1,4 @@
+import {validateCoachConfirmations} from './coach-model.mjs';
 import {replay} from './generated/model.mjs';
 import {pressure} from './generated/tracking.mjs';
 import {validateStartingScore} from './starting-score.mjs';
@@ -13,6 +14,8 @@ export function validateSetup(setup){
  if(!['star-point','golden-point','advantage'].includes(setup.rule))throw Error('Choose a supported scoring rule.');
  if(setup.near!==undefined&&!['a','b'].includes(setup.near))throw Error('Invalid court end.');
  if(setup.positions&&(['a','b'].some(t=>typeof setup.positions[t]!=='boolean')))throw Error('Invalid court positions.');
+ if(setup.firstServerUnknown!==undefined&&typeof setup.firstServerUnknown!=='boolean')throw Error('Invalid first server confirmation.');
+ if(setup.coaches!==undefined)setup={...setup,coaches:validateCoachConfirmations(setup.coaches)};
  if(setup.otherServerUnknown!==undefined&&typeof setup.otherServerUnknown!=='boolean')throw Error('Invalid server confirmation.');
  if(setup.onboardingComplete!==undefined&&typeof setup.onboardingComplete!=='boolean')throw Error('Invalid setup status.');
  return {...setup,names:setup.names.map(n=>n.trim()),...(setup.startingScore?{startingScore:validateStartingScore(setup.startingScore)}:{})};

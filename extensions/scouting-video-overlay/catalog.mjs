@@ -3,6 +3,10 @@
 export async function readAdminCatalog(request, connection=null){
  if(!connection&&location.origin!=='https://admin.padelnachos.com')throw Error('Open admin.padelnachos.com in Chrome, sign in, then click the extension icon there.');
  if(request.kind==='scouting-matches'){const params=new URLSearchParams();for(const key of ['start','end','q'])if(request[key])params.set(key,request[key]);const response=await fetch((connection?.origin??'')+'/api/internal/scouting-catalog?'+params,{credentials:connection?'include':'same-origin',cache:'no-store'});let data;try{data=await response.json()}catch{throw Error('Today’s match search requires the admin update. Your saved scouting is unchanged.')}if(!response.ok)throw Error(data.error??'Match search unavailable. Update admin and retry.');return data;}
+ if(request.kind==='coaches'){
+  const response=await fetch((connection?.origin??'')+'/api/internal/scouting-coaches?players='+encodeURIComponent(request.playerIds.join(',')),{credentials:connection?'include':'same-origin',cache:'no-store'});
+  if(!response.ok)throw Error('Coach suggestions unavailable. Retry after the admin update.');return response.json();
+ }
  let path='/api/internal/tournament-explorer';
  if(request.kind==='matches'){
   if(!/^[0-9a-f-]{36}$/i.test(request.tournamentId??''))throw Error('Invalid tournament ID.');

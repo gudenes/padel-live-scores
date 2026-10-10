@@ -1,3 +1,4 @@
+import {coachUI} from './coach-ui.mjs';
 import {closingUI} from './closing-ui.mjs';
 import {onboardingUI} from './onboarding-ui.mjs';
 import {adminReportUrl} from './report-link.mjs';
@@ -16,6 +17,7 @@ let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',pol
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 const renderScouting=scoutingUI({$,act,getState:()=>state});
 const renderProgress=progressUI($);
+coachUI({$,act,call,getState:()=>state});
 const renderManual=manualUI({$,act,call,getState:()=>state});
 const renderOnboarding=onboardingUI({$,act,getState:()=>state,manual:renderManual});
 renderManual.wizard=mode=>renderOnboarding.open(mode);

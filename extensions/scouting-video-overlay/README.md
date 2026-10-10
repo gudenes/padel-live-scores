@@ -184,3 +184,11 @@ The stroke picker uses compact keyboard rows with coral overheads, lime defense 
 - Default Undo is Left Arrow; Ctrl/Cmd+Z remains an alias unless Undo is remapped. Backspace goes back in point selection; Shift+Backspace cancels the selection without using fullscreen Escape. These scouting shortcuts work with the panel focused.
 
 - Compact media row keeps −5s, Play/Pause, +5s and speed visible; More (⋯) contains +10s, +30s and the playback status. Keyboard shortcuts remain active when More is closed.
+
+### Coach observations and court-only onboarding
+
+The court wizard confirms arrivals and positions; it no longer asks for servers. On the scoring screen, the first server must be chosen before a rally starts, and the other pair is prompted on its first service game. Each new set repeats confirmation separately for games 1 and 2 while preserving the serving team order.
+
+Menu → Coaches allows one confirmed coach per team, combining canonical DB suggestions from both players, or an explicit “I don’t know”. Unreviewed teams remain null. Confirmations belong to this scouting session, can be edited at any time, and do not modify permanent player-coach relationships. The two entries in `setup.coaches` follow the match roster’s pair order (not court ends); each contains status and at most one coach ID/name snapshot. These survive backup, server sync, reload and Undo.
+
+Deploy admin support for `match-setup-v2` and the authenticated `/api/internal/scouting-coaches` lookup before installing this update. No database migration is required; observations use the existing private session document. Sync retains the full local record until server capability is confirmed. Demo coach suggestions use a read-only DB snapshot dated 2026-10-10; they are not confirmations of attendance.

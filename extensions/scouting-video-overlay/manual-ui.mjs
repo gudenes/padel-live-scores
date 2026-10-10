@@ -2,13 +2,14 @@ export function manualUI({$,act,call,getState}){
  const chosen=Array(4).fill(null),timers=Array(4).fill(null),versions=Array(4).fill(0);
  let restoredDraft='',listKey='',mode='find';
  const menu=$('scouting-menu'),toggle=$('scouting-menu-button'),storage=$('menu-storage'),content=$('menu-content');
- const views={score:['Adjust score','score-correction'],progress:['Recording completeness','scouting-progress'],setup:['Match & video setup','connection-settings'],saved:['Saved scouting sessions','saved-sessions-panel'],tools:['Video & court tools','scouting-tools'],shortcuts:['Keyboard shortcuts','shortcut-settings'],bookmarks:['Rally bookmarks','bookmark-settings'],stats:['Detailed stats','advanced-stats'],account:['Sync & backup','account-tools'],finish:['Finish checklist','finish-guide'],help:['Help & limitations','scouting-help']};
+ const views={coaches:['Coaches','coach-panel'],score:['Adjust score','score-correction'],progress:['Recording completeness','scouting-progress'],setup:['Match & video setup','connection-settings'],saved:['Saved scouting sessions','saved-sessions-panel'],tools:['Video & court tools','scouting-tools'],shortcuts:['Keyboard shortcuts','shortcut-settings'],bookmarks:['Rally bookmarks','bookmark-settings'],stats:['Detailed stats','advanced-stats'],account:['Sync & backup','account-tools'],finish:['Finish checklist','finish-guide'],help:['Help & limitations','scouting-help']};
  let activeView=null,lastMenuButton=null;
  // Move the actual controls, preserving their handlers and state rather than duplicating them.
  for(const [,id] of Object.values(views))storage.append($(id));
  function navigation(){while(content.firstChild)storage.append(content.firstChild);activeView=null;content.hidden=true;$('menu-nav').hidden=false;$('menu-back').hidden=true;$('menu-title').textContent='Scouting menu';menu.classList.remove('menu-detail');document.body.classList.remove('creating-match');}
  function closeMenu(){menu.close();toggle.setAttribute('aria-expanded','false');document.body.classList.remove('creating-match');toggle.focus();}
  function openView(key){const view=views[key];if(!view)return;if(activeView===key&&menu.open)return;navigation();activeView=key;content.append($(view[1]));$(view[1]).hidden=false;if(key==='account')$('save-settings').open=true;if($(view[1]).tagName==='DETAILS')$(view[1]).open=true;content.hidden=false;$('menu-nav').hidden=true;$('menu-back').hidden=false;$('menu-title').textContent=view[0];menu.classList.add('menu-detail');if(!menu.open)menu.showModal();toggle.setAttribute('aria-expanded','true');menu.scrollTop=0;$('menu-back').focus();}
+ document.addEventListener('pn-coach-request',event=>{openView('coaches');document.dispatchEvent(new CustomEvent('pn-open-coaches',{detail:event.detail}));});
  toggle.onclick=()=>{navigation();menu.showModal();toggle.setAttribute('aria-expanded','true');};
  $('menu-back').onclick=()=>{navigation();lastMenuButton?.focus();};
  $('close-menu').onclick=closeMenu;menu.addEventListener('close',()=>{toggle.setAttribute('aria-expanded','false');document.body.classList.remove('creating-match');toggle.focus();});
@@ -20,7 +21,7 @@ export function manualUI({$,act,call,getState}){
  for(const button of document.querySelectorAll('[data-menu]'))button.onclick=()=>{
   lastMenuButton=button;const target=button.dataset.menu;
   if(target==='find'||target==='create'){if(render.wizard)render.wizard(target);else showMode(target);}
-  else{openView(target);if(target==='saved')act({type:'manual-matches'});}
+  else{openView(target);if(target==='saved')act({type:'manual-matches'});if(target==='coaches')document.dispatchEvent(new Event('pn-open-coaches'));}
  };
  $('close-sessions').onclick=()=>{navigation();lastMenuButton?.focus();};
  $('menu-sign-in').onclick=()=>$('sign-in').click();

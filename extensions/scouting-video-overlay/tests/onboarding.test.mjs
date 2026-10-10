@@ -41,3 +41,27 @@ test('undo set-winning point clears gate; finishing the match needs no confirmat
  await f.point();await f.dispatch({type:'undo-last'});assert.equal(match(f.get()).setServers,null);
  const g=fixture();await setup(g);await g.dispatch({type:'confirm-other-server',player:2});await g.dispatch({type:'starting-score',score:{completed:[{a:6,b:0}],games:{a:5,b:0},points:{a:40,b:0},server:0,near:'b',advantageReturns:0}});await g.point();assert.equal(match(g.get()).score.phase,'finished');assert.equal(match(g.get()).setServers,null);
 });
+test('court-only onboarding defers service choice to scoring, then asks other pair on its turn',async()=>{
+ const f=fixture();await f.dispatch({type:'scouting-matches'});await f.dispatch({type:'select-match',wizard:true,tournamentId:'t',matchId:'m'});await f.dispatch({type:'connect'});
+ await f.dispatch({type:'complete-onboarding',setup:{firstServer:0,otherServer:2,firstServerUnknown:true,otherServerUnknown:true}});
+ assert.equal(validateVideoState(videoPayload(f.get())).setup.firstServerUnknown,true);
+ await assert.rejects(f.dispatch({type:'start'}),/Confirm/);await assert.rejects(f.dispatch({type:'missed-point',team:'a'}),/Confirm/);
+ await f.dispatch({type:'confirm-first-server',player:3});assert.equal(match(f.get()).server,3);
+ await f.dispatch({type:'undo-last'});assert.equal(needsServerConfirmation(f.get(),match(f.get())),true);
+ await f.dispatch({type:'confirm-first-server',player:3});for(let i=0;i<4;i++)await f.point();
+ await assert.rejects(f.dispatch({type:'start'}),/Confirm/);await f.dispatch({type:'confirm-other-server',player:1});assert.equal(match(f.get()).server,1);
+});
+test('optional coach confirmations persist one coach per team and unknown, without affecting match data',async()=>{
+ const f=fixture();await setup(f);const original=match(f.get());const coach=i=>({id:'00000000-0000-0000-0000-00000000000'+i,name:'Coach '+i});
+ const coaches=[{status:'confirmed',coaches:[coach(1)]},{status:'unknown',coaches:[]}];
+ await f.dispatch({type:'confirm-coaches',matchId:'m',coaches});assert.deepEqual(videoPayload(f.get()).setup.coaches,coaches);assert.deepEqual(match(f.get()),original);
+ await assert.rejects(f.dispatch({type:'confirm-coaches',matchId:'other',coaches}),/current match/);
+ await assert.rejects(f.dispatch({type:'confirm-coaches',matchId:'m',coaches:[{status:'confirmed',coaches:[]},null]}),/Choose a coach/);
+ await assert.rejects(f.dispatch({type:'confirm-coaches',matchId:'m',coaches:[{status:'confirmed',coaches:[coach(1),coach(2)]},null]}),/Invalid coach/);
+ await f.dispatch({type:'undo-last'});assert.equal(f.get().setup.coaches,undefined);
+});
+test('older admin cannot silently strip coach observations or deferred first-server status',async()=>{
+ const {adminVideoSync}=await import('../cloud.mjs');const original=globalThis.fetch;let writes=0;
+ globalThis.fetch=async(_url,options)=>{if(options.method==='POST')writes++;return {ok:true,json:async()=>({features:['optional-server-v1']})}};
+ try{const result=await adminVideoSync({method:'POST',matchId:'00000000-0000-0000-0000-000000000001',document:{setup:{coaches:[null,null],firstServerUnknown:true},rallies:[]}},{origin:'https://admin.padelnachos.com'});assert.equal(result.ok,false);assert.match(result.error,/pending/);assert.equal(writes,0);}finally{globalThis.fetch=original}
+});
