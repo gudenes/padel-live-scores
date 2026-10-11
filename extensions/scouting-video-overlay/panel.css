@@ -201,3 +201,5 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .smash-attempt-choice{display:flex;gap:6px;margin-top:10px}.smash-attempt-choice .ui-btn{flex:1;font-size:11px;min-height:34px}
 
 .plugin-brand{align-items:center;gap:12px}.plugin-brand #extension-version{font-size:11px;color:#626957;white-space:nowrap}
+
+.mode-switch{display:flex;align-items:center;gap:2px}.header-actions .mode-switch .ui-btn{width:auto;min-width:0;min-height:30px;padding:5px 8px;font-size:11px}.mode-switch small{display:block;font-size:9px;line-height:1.1}
