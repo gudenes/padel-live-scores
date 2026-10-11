@@ -35,6 +35,8 @@ function render(){
 
   $('account-status').textContent=({checking:'Checking account…',connected:account.email?'Connected · '+account.email:'Connected',offline:'Offline · saved locally','signed-out':'Sign in again · changes saved locally','not-authorized':'Operator account required','update-required':'Admin sign-in update required','signing-in':'Complete sign-in in the opened tab',demo:'Demo account'})[account.status]??'Sign in to Padel Nachos';
   $('header-account').dataset.status=account.status;
+  const accountInitial=account.email?.trim().charAt(0).toUpperCase();
+  $('account-avatar').textContent=accountInitial||(account.status==='demo'?'PN':account.status==='checking'?'…':'?');
   $('header-account').title=$('account-status').textContent+' · Account and sync';
   $('header-account').setAttribute('aria-label',$('header-account').title);
   $('sign-in').hidden=['connected','demo'].includes(account.status);
