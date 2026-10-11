@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import {
-  DownloadSimple,
   Clock,
   ArrowLeft,
   ArrowRight,
@@ -266,7 +265,7 @@ function Panel({ title, sub, children, className = "" }) {
     </section>
   );
 }
-export function MatchInsightsView({ data, onExport, reports }) {
+export function MatchInsightsView({ data, onScopeChange, reports }) {
   const [scope, setScope] = useState("all"),
     [tab, setTab] = useState("Overview"),
     [gameSelection, setGameSelection] = useState(null),
@@ -415,6 +414,7 @@ export function MatchInsightsView({ data, onExport, reports }) {
                   className={scope === k ? "active" : ""}
                   onClick={() => {
                     setScope(k);
+                    onScopeChange?.(k);
                     setCurrent(0);
                   }}
                   key={k}
@@ -424,9 +424,7 @@ export function MatchInsightsView({ data, onExport, reports }) {
               ))}
           </div>
           <span>{points.length} observed points</span>
-          <button onClick={onExport}>
-            <DownloadSimple size={16} /> Export points
-          </button>
+
         </div>
         {data.partial && (
           <p className="coverageNotice">

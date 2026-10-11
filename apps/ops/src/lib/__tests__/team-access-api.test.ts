@@ -1,4 +1,4 @@
-import {beforeEach,expect,it,vi} from 'vitest'
+import {afterEach,beforeEach,expect,it,vi} from 'vitest'
 const mock=vi.hoisted(()=>({auth:vi.fn(),query:vi.fn(),release:vi.fn()}))
 vi.mock('@/lib/auth',()=>({auth:mock.auth}))
 vi.mock('@/lib/db',()=>({pgPool:()=>({query:mock.query,connect:async()=>({query:mock.query,release:mock.release})})}))
@@ -57,4 +57,24 @@ it.each([{role:'viewer',status:'active'},{role:'admin',status:'suspended'}])('pr
  })
  expect((await POST(request({email:'a@test.com',...change}))).status).toBe(409)
  expect(mock.query).toHaveBeenLastCalledWith('rollback')
+})
+
+afterEach(()=>vi.unstubAllEnvs())
+it('accepts the public admin origin behind the production proxy without changing access',async()=>{
+ vi.stubEnv('NODE_ENV','production')
+ for(const endpoint of [POST,assign]){
+  const req=new Request('http://localhost:8080/api/internal/action',{method:'POST',headers:{origin:'https://admin.padelnachos.com','Content-Type':'application/json'},body:'{}'})
+  expect((await endpoint(req)).status).toBe(400)
+ }
+ expect(mock.query).not.toHaveBeenCalled()
+})
+it.each([undefined,'null','https://evil.test','http://admin.padelnachos.com','https://admin.padelnachos.com.evil.test'])('blocks untrusted production origin %s even with spoofed forwarding headers',async origin=>{
+ vi.stubEnv('NODE_ENV','production')
+ for(const endpoint of [POST,assign]){
+  const headers:Record<string,string>={'Content-Type':'application/json','x-forwarded-host':'admin.padelnachos.com','x-forwarded-proto':'https'}
+  if(origin)headers.origin=origin
+  const req=new Request('http://localhost:8080/api/internal/action',{method:'POST',headers,body:'{}'})
+  expect((await endpoint(req)).status).toBe(403)
+ }
+ expect(mock.query).not.toHaveBeenCalled()
 })

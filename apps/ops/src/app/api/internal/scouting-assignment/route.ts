@@ -1,9 +1,10 @@
 import {auth} from '@/lib/auth'
+import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {pgPool} from '@/lib/db'
 export async function POST(req:Request){
  const user=(await auth())?.user
  if(!user?.isOperator)return Response.json({error:'Administrator access required.'},{status:user?403:401})
- if(req.headers.get('origin')!==new URL(req.url).origin)return Response.json({error:'Invalid origin.'},{status:403})
+ if(!hasAdminRequestOrigin(req))return Response.json({error:'Invalid origin.'},{status:403})
  let body;try{body=await req.json()}catch{return Response.json({error:'Invalid request.'},{status:400})}
  if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(body.matchId??'')||!['match','private'].includes(body.kind)||typeof body.email!=='string')return Response.json({error:'Invalid assignment.'},{status:400})
  const table=body.kind==='private'?'operator_manual_video_scouting_sessions':'operator_video_scouting_sessions'
