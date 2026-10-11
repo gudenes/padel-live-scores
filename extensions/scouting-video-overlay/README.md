@@ -136,7 +136,7 @@ Undo sits beside VAR review and remains available in the finishing-shot dialog. 
 
 The hamburger menu holds match/video setup, saved sessions, video/court tools, keyboard shortcuts, rally bookmarks, detailed serve/pressure stats, account sync/backups, finish checklist and help. These open as menu views with Back/Close, without adding lower-page sections to the scouting workspace. An unfinished rally still blocks switching matches. Sync warnings and the finish action remain visible in live feedback; full JSON backups are available under Sync & backup.
 
-The header’s thin lime line shows finishing-stroke completeness without taking a separate row. Open **Recording completeness** from the menu for counts and save status. The user icon opens **Sync & backup** and shows the connected account. **Open match report in admin** opens the selected official or private match’s report in a new tab; reports contain the last confirmed server copy, so sync waiting changes first.
+The header’s thin lime line shows scouting quality without taking a separate row. Open **Scouting quality** from the menu for the breakdown, observation coverage and save status. The user icon opens **Sync & backup** and shows the connected account. **Open match report in admin** opens the selected official or private match’s report in a new tab; reports contain the last confirmed server copy, so sync waiting changes first.
 
 Account icon: Google Material Icons Outlined, account_circle (Apache 2.0), https://github.com/google/material-design-icons.
 
@@ -194,3 +194,20 @@ Menu → Coaches allows one confirmed coach per team, combining canonical DB sug
 Deploy admin support for `match-setup-v2` and the authenticated `/api/internal/scouting-coaches` lookup before installing this update. No database migration is required; observations use the existing private session document. Sync retains the full local record until server capability is confirmed. Demo coach suggestions use a read-only DB snapshot dated 2026-10-10; they are not confirmations of attendance.
 
 Smash effectiveness: direct smash winners plus immediately following opponent forced/unforced errors with previousShot=smash, divided by attempts. The previous player must be explicitly recorded. Reuses a same-player attempt in the current rally; absent a tapped attempt, that explicit stroke supplies one attempt. Counts at most one successful attempt per point. Direct winners and error classifications remain unchanged. Derived stats replay existing records; missing historical previous-stroke attribution is not guessed.
+
+### Responsive local recording
+
+Local saves use an atomic index plus changed top-level fields under `scoutingVideo:fields:v1:*`. The original `scoutingVideo` snapshot is retained as a migration backup; it is not the current record after migration. All extension readers use `local-store.mjs`. Do not downgrade to a reader that only knows the legacy key without exporting the current backup first.
+
+Actions still acknowledge a durable local write before reporting success. Server payload preparation is deferred off the recording queue; the retry alarm recovers current and saved sessions after a worker restart. Outcome selection opens an editable local draft immediately, while authoritative video validation completes. Failed preparation prevents a queued save from recording the wrong outcome.
+
+In rally-tap mode, one tap by a receiving player followed by Unforced preselects Return. This requires a confirmed opposing server. Space confirms the return and previous Serve attribution; the operator can change the finishing stroke. Multiple taps, serving-team taps, and unknown servers do not trigger the suggestion.
+
+
+### Scouting quality v1
+
+Operational quality of saved observations, not video-verified accuracy: 45% required-field completeness, 35% consistency, 20% score reconciliation. High ≥90, Medium 70–89, Low <70; no observations means Not rated. Pro and Expert share core criteria. Optional previous strokes, touches, speed, Undo and sync status do not affect the score. Coverage and unknown score gaps are shown separately.
+
+Confirm **Score matches the broadcast** between rallies. This checkpoint is saved in the session, survives export/sync, and becomes stale after score or point changes. Admin cards also reconcile completed scores with available official final sets. Ratings remain provisional without reconciliation or with fewer than ten observed points. All remain Not reviewed against video.
+
+Deploy admin support for `quality-checkpoint-v1` before distributing the updated extension. Older servers cannot silently discard score confirmations; confirmed sessions remain in the local outbox until support is available. No database migration is needed: the checkpoint lives in the existing session document.

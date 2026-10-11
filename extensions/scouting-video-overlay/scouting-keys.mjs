@@ -1,8 +1,8 @@
 import {allShotShortcuts} from './shot-shortcuts.mjs';
 const action=(id,label,key,scopes)=>({id,label,key,scopes});
 export const scoutingKeyActions=[
- ...['q','w','a','s'].map((key,i)=>action('player-'+i,['Far left player','Far right player','Near left player','Near right player'][i],key,['rally','opponent'])),
- ...Object.entries({winner:'w',unforced:'a',forced:'d'}).map(([name,key])=>action('outcome-'+name,name==='unforced'?'Unforced error':name==='forced'?'Forced error':'Winner',key,['outcome'])),
+ ...['q','w','a','s'].map((key,i)=>({...action('player-'+i,['Far left player','Far right player','Near left player','Near right player'][i],key,['rally','outcome','opponent']),defaultKey:['i','o','k','l'][i]})),
+ ...Object.entries({winner:'w',unforced:'a',forced:'d'}).map(([name,key])=>action('outcome-'+name,name==='unforced'?'Unforced error':name==='forced'?'Forced error':'Winner',key,['rally','outcome'])),
  ...allShotShortcuts.map(([key,shot])=>action('shot-'+shot,shot.replaceAll('_',' '),key,['shot','previous'])),
  ...Object.entries({power:'z',x3:'x',soft:'c'}).map(([name,key])=>({...action('smash-'+name,name+' smash',key,['rally','outcome','shot','previous']),defaultKey:{power:'delete',x3:'end',soft:'pagedown'}[name]})),
  {...action('reuse-smash','Use recorded smash','b',['shot','previous']),defaultKey:'home'},{...action('new-smash','New smash attempt','h',['shot','previous']),defaultKey:'insert'},
@@ -56,7 +56,7 @@ export function scoutingKeys({$,scope,onEditing=()=>{}}){
   if(e.type==='keydown')down.set(physical,a);
   if((bindings[a.id]??a.defaultKey??a.key)===a.key)return;
   e.preventDefault();e.stopImmediatePropagation();const parts=a.key.split('+'),base=parts.at(-1),key=base==='space'?' ':base==='escape'?'Escape':base==='backspace'?'Backspace':base;
-  const next=new doc.defaultView.KeyboardEvent(e.type,{key,code:base==='space'?'Space':e.code,ctrlKey:parts.includes('ctrl'),altKey:parts.includes('alt'),shiftKey:parts.includes('shift'),metaKey:parts.includes('meta'),repeat:e.repeat,bubbles:true,cancelable:true});forwarded.add(next);e.target.dispatchEvent(next);
+  const next=new doc.defaultView.KeyboardEvent(e.type,{key,code:base==='space'?'Space':e.code,ctrlKey:parts.includes('ctrl'),altKey:parts.includes('alt'),shiftKey:parts.includes('shift'),metaKey:parts.includes('meta'),repeat:e.repeat,bubbles:true,cancelable:true});Object.defineProperty(next,'scoutingPlayer',{value:a.id.startsWith('player-')});forwarded.add(next);e.target.dispatchEvent(next);
  }
  doc.addEventListener('keydown',translate,true);doc.addEventListener('keyup',translate,true);
  const observer=new doc.defaultView.MutationObserver(paint);observer.observe(doc.body,{childList:true,subtree:true});paint();

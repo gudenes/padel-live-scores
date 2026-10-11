@@ -1,3 +1,4 @@
+import {qualityCheckpoint} from './scouting-quality.mjs';
 import {scoutingTime} from './scouting-time.mjs';
 import {needsServerConfirmation} from './onboarding-model.mjs';
 import {validateVideoState,videoPayload} from './server-model.mjs';
@@ -12,7 +13,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
     const operation=async()=>{
       const state=(await read())??fresh();
       state.setup??=defaults();
-      const undoable=new Set(['confirm-first-server','confirm-coaches','confirm-set-servers','score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
+      const undoable=new Set(['confirm-quality-score','confirm-first-server','confirm-coaches','confirm-set-servers','score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async(context={})=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
@@ -20,6 +21,8 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
       };
       switch(message.type){
         case 'state':return {state};
+        case 'confirm-quality-score':{if(state.pending)throw Error('Finish this rally before confirming the score.');if(!state.selectedMatch||!match(state).points)throw Error('Record a point before confirming the score.');state.setup.qualityCheckpoint=qualityCheckpoint(match(state));return save();}
+        case 'checkpoint':await write(state,{type:'checkpoint'});return {state};
         case 'scouting-clock':{
           if(!state.selectedMatch||message.matchId!==state.selectedMatch.id)return {state};
           if(!['tick','pause','resume','suspend'].includes(message.mode))throw Error('Invalid clock action.');

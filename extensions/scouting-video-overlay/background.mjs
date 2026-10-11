@@ -1,4 +1,6 @@
 import './shortcut-keys.js';
+import {localStore} from './local-store.mjs';
+const scoutingStore=localStore(chrome.storage.local,'scoutingVideo');
 import {extensionAccount,ADMIN_ORIGIN} from './account.mjs';
 const account=extensionAccount({extensionId:chrome.runtime.id});
 import {videoPayload} from './server-model.mjs';
@@ -36,13 +38,35 @@ function scheduleSync(){
  chrome.alarms?.create('video-scouting-sync',{delayInMinutes:1,periodInMinutes:1});
  sync.flush().catch(console.error);
 }
-chrome.alarms?.onAlarm.addListener(alarm=>{if(alarm.name==='video-scouting-sync')sync.flush().catch(console.error);});
+let tapSyncTimer=null;
+const localRevisions=new Map(),trackedRevisions=new Map();
+let recoverSavedSessions=true;
+async function syncStatus(id){
+ if(localRevisions.get(id)!==trackedRevisions.get(id))return {status:'pending',error:''};
+ return sync.status(id);
+}
+function scheduleTapSync(){
+ chrome.alarms?.create('video-scouting-sync',{delayInMinutes:1,periodInMinutes:1});
+ if(tapSyncTimer!==null)return;
+ tapSyncTimer=setTimeout(()=>{tapSyncTimer=null;dispatch({type:'checkpoint'}).catch(console.error);},1000);
+}
+chrome.alarms?.onAlarm.addListener(alarm=>{if(alarm.name==='video-scouting-sync')dispatch({type:'checkpoint'}).catch(console.error);});
 const dispatch=engine({
-  read:async()=>(await chrome.storage.local.get('scoutingVideo')).scoutingVideo,
+  read:()=>scoutingStore.read(),
   write:async (state,context)=>{
-    await chrome.storage.local.set({scoutingVideo:state});
+    await scoutingStore.write(state);
     if(context?.remote)await sync.acknowledge(state.selectedMatch.id,context.remote);
-    if(state.selectedMatch?.id&&context?.type!=='restore-cloud'){await sync.track(state);scheduleSync();}
+    if((state.selectedMatch?.id||context?.type==='checkpoint')&&context?.type!=='restore-cloud'){
+      if(context?.type!=='checkpoint'){localRevisions.set(state.selectedMatch.id,(localRevisions.get(state.selectedMatch.id)??0)+1);scheduleTapSync();return;}
+      if(tapSyncTimer!==null){clearTimeout(tapSyncTimer);tapSyncTimer=null;}
+      const snapshots=[...(state.selectedMatch?[state]:[]),...Object.values(state.sessions??{}).filter(session=>session.selectedMatch?.id!==state.selectedMatch?.id&&(recoverSavedSessions||localRevisions.get(session.selectedMatch?.id)!==trackedRevisions.get(session.selectedMatch?.id))).map(session=>({...session,version:1,pending:null}))];
+      recoverSavedSessions=false;
+      for(const snapshot of snapshots){
+        const id=snapshot.selectedMatch?.id;if(!id)continue;
+        const revision=localRevisions.get(id);
+        sync.track(structuredClone(snapshot)).then(()=>{trackedRevisions.set(id,revision);scheduleSync();}).catch(error=>{recoverSavedSessions=true;console.error(error);});
+      }
+    }
   },
   uuid:()=>crypto.randomUUID(),
   catalog:async request=>{
@@ -86,7 +110,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
  const run=async()=>{
   if(!panel){
    const {overlayTab}=await chrome.storage.session.get('overlayTab');
-   const state=(await chrome.storage.local.get('scoutingVideo')).scoutingVideo;
+   const state=await scoutingStore.read();
    const connectedTab=state?.connection?.tabId??overlayTab;
    if(!Number.isInteger(connectedTab)||sender.tab?.id!==connectedTab||sender.frameId!==0||!allowed.has(message.type))throw Error('Connect this video in the side panel, then show the video remote again.');
   }
@@ -106,7 +130,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message.type==='sync-server'){
    const {state}=await dispatch({type:'state'});
    for(const session of Object.values(state.sessions??{})){if(session.selectedMatch?.id)await sync.track({...session,version:1,pending:null});}
-   if(state.selectedMatch){await sync.track(state);await sync.flush();}
+   if(state.selectedMatch){const id=state.selectedMatch.id,revision=localRevisions.get(id);await sync.track(state);trackedRevisions.set(id,revision);await sync.flush();}
    return {state,sync:state.selectedMatch?await sync.status(state.selectedMatch.id):{status:'local'}};
   }
   if(message.type==='load-server'){
@@ -130,7 +154,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   }
   const result=await dispatch(message),m=match(result.state);
   const shortcuts=await savedBindings();
-  return {...result,auth:account.status(),bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await sync.status(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
+  return {...result,auth:account.status(),bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await syncStatus(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
  };
  run().then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message||'Overlay unavailable.'}));
  return true;

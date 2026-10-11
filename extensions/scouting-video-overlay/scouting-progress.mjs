@@ -1,3 +1,4 @@
+import {scoutingQuality} from './scouting-quality.mjs';
 // Completeness of active observations, never an assessment of scout accuracy.
 export function scoutingProgress(state){
  const rallies=state.rallies.filter(r=>r.point&&!r.undone);
@@ -10,17 +11,27 @@ export function scoutingProgress(state){
   tracked:rallies.filter(r=>r.touches?.length>0).length};
 }
 
-export function progressUI($){
+export function progressUI($,act){
+ if(act)$('quality-confirm').onclick=()=>act({type:'confirm-quality-score'});
  return (state,cloud,model)=>{
   const card=$('scouting-progress');card.hidden=!state.selectedMatch;$('progress-bar').hidden=card.hidden;
   if(card.hidden)return;
   const p=scoutingProgress(state),saved=cloud.status==='saved';
+  const quality=scoutingQuality({model,doc:{events:[...(state.setup?.startingScore?[{kind:'score'}]:[]),...(state.setup?.adjustments??[]).filter(a=>a.type==='score-correction').map(()=>({kind:'score'}))]},checkpoint:state.setup?.qualityCheckpoint});
+  $('quality-label').textContent=quality.score===null?'Not rated':`${quality.label} · ${quality.score}/100${quality.provisional?' · Provisional':''}`;
+  $('quality-label').dataset.quality=quality.label.toLowerCase();
+  $('quality-breakdown').textContent=`Complete records ${quality.components.completeness}% · Consistency ${quality.components.consistency}% · Score checked ${quality.components.reconciliation}%`;
+  $('quality-coverage').textContent=`${quality.coverage.scouted} ${quality.coverage.scouted===1?'point':'points'} scouted · ${quality.coverage.scoreOnly} score-only points${quality.coverage.unknownGap?' · Partial coverage: gap size unknown':''}`;
+  $('quality-issues').replaceChildren(...quality.issues.map(text=>{const li=$('quality-issues').ownerDocument.createElement('li');li.textContent=text;return li;}));
+  $('quality-confirm').disabled=!!state.pending||!quality.coverage.scouted;
+  $('quality-confirm').textContent=quality.components.reconciliation?'Score confirmed':'Score matches the broadcast';
+
   $('progress-count').textContent=p.eligible?`${p.detailed} / ${p.eligible} strokes`:p.points?'No strokes to tag':'No points yet';
-  $('progress-bar').value=p.percent;
-  $('progress-bar').setAttribute('aria-valuetext',p.eligible?`${p.detailed} of ${p.eligible} finishing strokes recorded`:'No eligible points recorded');
+  $('progress-bar').value=quality.score??0;
+  $('progress-bar').setAttribute('aria-valuetext',quality.score===null?'Scouting quality not rated':`${quality.label}: ${quality.score} out of 100${quality.provisional?', provisional':''}`);
   const status=({saved:'Saved to server',pending:'Waiting for server',error:'Retry needed',conflict:'Needs attention',local:'Local copy'})[cloud.status]??'Local copy';
   $('progress-sync').textContent=status;card.dataset.sync=cloud.status??'local';
-  $('progress-bar').title=`Recording completeness · ${p.detailed} / ${p.eligible} finishing strokes · ${status}`;
+  $('progress-bar').title=`Scouting quality · ${quality.label}${quality.score===null?'':' · '+quality.score+'/100'}${quality.provisional?' · Provisional':''} · ${status}`;
   $('progress-strokes').textContent=`${p.detailed} / ${p.eligible}`;
   $('progress-attribution').textContent=p.forced?`${p.attributed} / ${p.forced}`:'No forced errors yet';
   $('progress-tracked').textContent=`${p.tracked} / ${p.points}`;

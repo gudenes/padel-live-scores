@@ -15,7 +15,7 @@ function fixture(){
  const $=id=>document.getElementById(id),actions=[],state={...fresh(),setup:defaults(),selectedMatch:{id:'match'},pending:{id:'rally',start:snapshot(100)}};
  let render;const act=message=>{actions.push(message);if(message.type==='prepare'){state.pending.finish={player:message.player,outcome:message.outcome,end:snapshot(110)};render(state,snapshot(110),false,true);}return {ok:true};};
  render=scoutingUI({$,act,getState:()=>state});render(state,snapshot(110),false,true);
- const press=(key,target=$('shot-dialog').open?$('shot-form'):$('players'),extra={})=>{target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...extra}));target.dispatchEvent(new dom.window.KeyboardEvent('keyup',{key,bubbles:true,cancelable:true,...extra}));};
+ const press=(key,target=$('shot-dialog').open?$('shot-form'):$('players'),extra={})=>{if(($('shot-dialog').open&&$('shot-form').dataset.step==='opponent')||(!$('shot-dialog').open&&!$('players').querySelector('.keyboard-selected')))key=({q:'i',w:'o',a:'k',s:'l'})[key]??key;target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...extra}));target.dispatchEvent(new dom.window.KeyboardEvent('keyup',{key,bubbles:true,cancelable:true,...extra}));};
  return {dom,$,actions,state,render,press,close:()=>{dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}};
 }
 test('direct keys highlight a player before a separate outcome choice, without touches; UE requires previous opponent and allows skipping their stroke',()=>{
@@ -129,3 +129,23 @@ test('compact keyboard tags can be clicked and toggled back off without losing t
  state.pending={id:'rally',start:snapshot(100)};render(state,snapshot(110),false,true);$('rally-taps').click();press('q');press('w');press('Backspace', $('shot-form'), {shiftKey:true});assert.equal(actions.at(-1).type,'clear-outcome');
  }finally{f.close();}
  });
+test('tap mode highlights the last hitter, accepts W/A/D and preselects the adjacent opponent',()=>{
+ const f=fixture(),{$,actions,state,render,press}=f;try{
+ state.pending.touches=[{player:2,order:[2,3,0,1]},{player:0,order:[2,3,0,1]}];render(state,snapshot(110),false,true);
+ assert.ok($('players').querySelector('[data-player="0"]').classList.contains('keyboard-selected'));
+ // Explicit physical keyboard events: I/O/K/L retain their identity in rally mode.
+ press('d');assert.deepEqual(actions.at(-1),{type:'prepare',player:0,outcome:'forced'});
+ assert.match($('shot-summary').textContent,/Previous opponent: Player B1/);
+ press('w');press(' ');assert.equal($('shot-form').dataset.step,'previous');
+ press('2');press(' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',previousPlayer:2,previousShot:'block',forcedBy:2}});
+ }finally{f.close();}
+});
+test('undoing a tap restores the prior highlight and player keys remain taps after selection',async()=>{
+ const f=fixture(),{$,actions,state,render,press}=f;try{
+ state.pending.touches=[{player:2,order:[2,3,0,1]},{player:0,order:[2,3,0,1]}];render(state,snapshot(110),false,true);
+ press('o');assert.equal(actions.at(-1).type,'touch');assert.equal(actions.at(-1).player,3);
+ await new Promise(resolve=>setImmediate(resolve));state.pending.touches.pop();render(state,snapshot(110),false,true);
+ assert.ok($('players').querySelector('[data-player="2"]').classList.contains('keyboard-selected'));
+ press('w');assert.deepEqual(actions.at(-1),{type:'prepare',player:2,outcome:'winner'});
+ }finally{await new Promise(resolve=>setTimeout(resolve,1100));f.close();}
+});
