@@ -315,6 +315,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           return {state,sample:await capture(state.connection)};
         }
         case 'start':{
+          if(message.mode!==undefined&&!['pro','expert'].includes(message.mode))throw Error('Invalid scouting mode.');
           if(state.pending)throw Error('A rally is already open.');
           if(!state.selectedMatch)throw Error('Select a tournament and match first.');
           if(state.setup.onboardingComplete===false)throw Error('Complete match setup in the side panel before starting a rally.');
@@ -329,7 +330,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
             if(normal.rate!==1||!sameMedia(current,normal)||normal.seekEpoch!==current.seekEpoch)throw Error('Could not restore normal playback. Reconnect before starting.');
             current=normal;
           }
-          state.pending=startRally(current,state.label,uuid());
+          state.pending={...startRally(current,state.label,uuid()),...(message.mode?{mode:message.mode}:{})};
           return save();
         }
         case 'restart-rally':{
@@ -343,7 +344,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
             const normal=await setRate(state.connection,sample,1);
             if(normal.rate!==1||!sameMedia(sample,normal)||sample.seekEpoch!==normal.seekEpoch)throw Error('Could not restore normal playback. Reconnect before restarting.');sample=normal;
           }
-          const next={id:uuid(),label:state.label,start:sample};
+          const next={id:uuid(),label:state.label,start:sample,...(state.pending.mode?{mode:state.pending.mode}:{})};
           state.cancelled.push({...state.pending,cancelledAt:new Date().toISOString()});
           state.pending=next;return save();
         }

@@ -91,3 +91,11 @@ test('score confirmations wait for compatible server support before uploading',a
  assert.equal((await run(env,request)).ok,false);assert.deepEqual(calls,['GET']);
  calls.length=0;supported=true;assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
 });
+
+test('mode-tagged rallies wait for compatible server support',async()=>{
+ const calls=[],request={matchId:id,method:'POST',document:{rallies:[{mode:'expert'}]}};
+ let supported=false;
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>o.method==='POST'?{revision:1}:{features:supported?['scouting-mode-v1']:[]}};}};
+ assert.equal((await run(env,request)).ok,false);assert.deepEqual(calls,['GET']);
+ supported=true;assert.equal((await run(env,request)).ok,true);
+});

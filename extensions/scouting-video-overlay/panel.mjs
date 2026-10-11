@@ -108,6 +108,7 @@ async function refresh(){
 }
 const actions=actionQueue(performAction,({busy:locked})=>{busy=locked;revision++;render();});
 function act(message){
+ if(message.type==='start')message={...message,mode:$('rally-taps').checked?'expert':'pro'};
  if(message.type==='prepare'&&state?.pending&&healthy){draftFinish={player:message.player,outcome:message.outcome,end:sample};confirmingPoint=false;render();}
  if(message.type==='score')confirmingPoint=true;
  return actions.push(message);

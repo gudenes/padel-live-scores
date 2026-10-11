@@ -48,3 +48,38 @@ test('confirmation survives server sanitization and can be undone without removi
  await dispatch({type:'undo-last'});assert.equal(state.setup.qualityCheckpoint,undefined);assert.equal(state.rallies.length,1);
  assert.throws(()=>validateQualityCheckpoint({version:1,key:'x',at:'bad'}),/Invalid/);
 });
+
+const tracked=(id,players,mode='expert',extra={})=>({id,mode,point:{outcome:'winner'},touches:players.map(player=>({player})),...extra});
+test('Expert sequence scoring checks alternating teams, not alternating player names',()=>{
+ const m=model([point('a'),point('b'),point('c')]);
+ const q=rate(m,{checkpoint:qualityCheckpoint(m),rallies:[tracked('a',[0,2,1,3]),tracked('b',[0,0,2]),tracked('c',[0,1,2])]});
+ assert.equal(q.mode,'Expert');assert.equal(q.sequences.consistent,1);assert.equal(q.sequences.invalidTransitions,2);assert.equal(q.components.sequenceConsistency,33.3);assert.equal(q.score,88.3);assert.equal(q.label,'Medium');
+});
+test('a single-tap return error is valid, double faults exempt and unassessable Expert rallies disclosed',()=>{
+ const m=model([point('a',{player:2,outcome:'unforced',winner:'a',shot:'return',previousPlayer:0}),point('b',{outcome:'double_fault',winner:'b',shot:undefined}),point('c')]);
+ const q=rate(m,{checkpoint:qualityCheckpoint(m),rallies:[tracked('a',[2]),tracked('b',[]),tracked('c',[0])]});
+ assert.equal(q.sequences.eligible,2);assert.equal(q.sequences.consistent,1);assert.equal(q.sequences.missing,1);assert.equal(q.provisional,true);assert.equal(q.score,94.2);
+});
+test('Pro has no sequence deduction, mixed sessions retain mode and exclude undone/cancelled observations',()=>{
+ const m=model([point('a'),point('b')]);
+ assert.equal(rate(m,{checkpoint:qualityCheckpoint(m),rallies:[tracked('a',[],'pro'),tracked('b',[],'pro')]}).score,100);
+ const q=rate(m,{checkpoint:qualityCheckpoint(m),rallies:[tracked('a',[],'pro'),tracked('b',[0,0]),tracked('gone',[0,0],'expert',{undone:true})]});
+ assert.equal(q.mode,'Mixed');assert.equal(q.sequences.eligible,1);assert.equal(q.score,91.3);
+});
+test('legacy mode is inferred only from taps; missing mode is not assumed to be Pro',()=>{
+ const m=model([point('a')]);
+ const r=tracked('a',[0,2]);delete r.mode;
+ assert.equal(rate(m,{rallies:[r]}).modeInferred,true);assert.equal(rate(m,{rallies:[r]}).mode,'Expert');
+ assert.equal(rate(m).mode,'Unknown');
+});
+test('rally mode survives restart, save and server sanitization',async()=>{
+ const snap={tabId:7,documentId:'d',videoId:'v',mediaId:'m',time:1,at:'2026-10-11T00:00:00Z',readyState:4,seekEpoch:0,paused:false};
+ let serial=0,state={version:1,selectedMatch:{id:'match'},connection:{},setup:defaults(),label:'Test',rallies:[],cancelled:[],pending:null};
+ const dispatch=engine({read:async()=>structuredClone(state),write:async s=>{state=s;},capture:async()=>({...snap,time:++serial}),uuid:()=>String(serial)});
+ await assert.rejects(dispatch({type:'start',mode:'bad'}),/Invalid scouting mode/);
+ await dispatch({type:'start',mode:'pro'});assert.equal(state.pending.mode,'pro');
+ await dispatch({type:'restart-rally'});assert.equal(state.pending.mode,'pro');assert.equal(state.cancelled[0].mode,'pro');
+ await dispatch({type:'prepare',player:0,outcome:'winner'});await dispatch({type:'score',details:{shot:'volley'}});
+ assert.equal(videoPayload(state).rallies[0].mode,'pro');
+ state.rallies[0].mode='bad';assert.throws(()=>videoPayload(state),/Invalid scouting mode/);
+});
