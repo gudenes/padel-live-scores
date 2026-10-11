@@ -25,7 +25,7 @@ export async function reportContext(
     const result = await db.query(
       manual
         ? `select tournament_label as tournament,match_date::text as scheduled_at,players from operator_manual_scouting_matches where id=$1`
-        : `select m.duration,m.round,m.category,m.scheduled_at,t.name as tournament, array[m.pair1_player1_id,m.pair1_player2_id,m.pair2_player1_id,m.pair2_player2_id] as player_ids from matches m left join tournaments t on t.id=m.tournament_id where m.id=$1`,
+        : `select m.duration,m.round,m.category,m.status,m.winner_pair,m.scheduled_at,t.name as tournament, array[m.pair1_player1_id,m.pair1_player2_id,m.pair2_player1_id,m.pair2_player2_id] as player_ids from matches m left join tournaments t on t.id=m.tournament_id where m.id=$1`,
       [id]
     );
     const match = result.rows[0];
@@ -40,7 +40,7 @@ export async function reportContext(
     const avatars = ids.length
       ? (
           await db.query(
-            "select id,avatar_url from players where id=any($1::uuid[])",
+            "select id,name,avatar_url from players where id=any($1::uuid[])",
             [ids]
           )
         ).rows
@@ -49,11 +49,42 @@ export async function reportContext(
       ? []
       : (
           await db.query(
-            "select winner_pair,score_after from match_points where match_id=$1 order by created_at,id",
+            `select p.id,p.game_id,p.point_number,p.winner_pair,p.score_after,p.server_player_id,p.is_break_point,p.is_set_point,p.is_match_point,s.set_number,g.game_number
+             from match_points p join sets s on s.id=p.set_id join games g on g.id=p.game_id
+             where p.match_id=$1 order by s.set_number,g.game_number,p.point_number,p.id`,
+            [id]
+          )
+        ).rows;
+    const sets = manual
+      ? []
+      : (
+          await db.query(
+            "select set_number,pair1_games as a,pair2_games as b from sets where match_id=$1 order by set_number",
+            [id]
+          )
+        ).rows;
+    const games = manual
+      ? []
+      : (
+          await db.query(
+            "select g.id,s.set_number,g.game_number,g.winner_pair,g.server_player_id,g.is_tiebreak,g.game_score,g.points from games g join sets s on s.id=g.set_id where g.match_id=$1 order by s.set_number,g.game_number",
             [id]
           )
         ).rows;
     return {
+      players: manual
+        ? match.players ?? []
+        : match.player_ids.map(
+            (id: string | null, i: number) =>
+              avatars.find((p) => p.id === id) ?? {
+                id: id ?? "unknown-" + i,
+                name: "Player TBC",
+              }
+          ),
+      sets: sets.filter((s) => Number.isInteger(s.a) && Number.isInteger(s.b)),
+      games,
+      status: match.status ?? null,
+      winnerPair: match.winner_pair ?? null,
       meta: {
         duration: match.duration ?? null,
         round: match.round ?? null,

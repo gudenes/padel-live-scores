@@ -49,7 +49,8 @@ export const CATALOG_SQL=`with sessions as (
  and ($5='' or coalesce(u.email,s.updated_by,'') ilike '%'||$5||'%')
  and ($6='' or (c.match_date at time zone 'Europe/Madrid')::date::text=$6)
  ) select f.*,
- (select jsonb_agg(jsonb_build_object('a',st.pair1_games,'b',st.pair2_games) order by st.set_number) from public.sets st where st.match_id=f.match_id and f.kind='match') as official_sets
+ (select jsonb_agg(jsonb_build_object('a',st.pair1_games,'b',st.pair2_games) order by st.set_number) from public.sets st where st.match_id=f.match_id and f.kind='match') as official_sets,
+ (f.kind='match' and (exists(select 1 from public.match_points mp where mp.match_id=f.match_id) or exists(select 1 from public.games g where g.match_id=f.match_id and jsonb_typeof(g.points::jsonb)='array' and g.points::jsonb <> '[]'::jsonb))) as has_pbp
  from filtered f order by sort_date desc nulls last,match_id desc,kind limit $7 offset $8`
 
 export async function loadMatchCatalog(db:Pick<Pool,'query'>,filters:CatalogFilters){

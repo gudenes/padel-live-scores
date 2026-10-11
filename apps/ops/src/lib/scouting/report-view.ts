@@ -16,6 +16,12 @@ export interface ViewRally {
   start: number | null;
   end: number | null;
 }
+export interface OfficialPoint {
+  id?:string; winner_pair:number|null; score_after:string|null;
+  game_id?:string; set_number?:number; game_number?:number; point_number?:number;
+  server_player_id?:string|null; is_break_point?:boolean; is_set_point?:boolean; is_match_point?:boolean;
+}
+export interface OfficialGame {id:string;set_number:number;game_number:number;winner_pair:number|null;server_player_id:string|null;is_tiebreak:boolean;points?:unknown;game_score?:string|null}
 export interface ReportContext {
   meta: {
     duration: string | null;
@@ -25,7 +31,12 @@ export interface ReportContext {
     scheduled_at: string | null;
   };
   avatars: Record<string, string | null>;
-  pbp: { winner_pair: number; score_after: string | null }[];
+  pbp: OfficialPoint[];
+  players?:{id:string;name:string;avatar_url?:string|null}[];
+  sets?:{a:number;b:number;set_number?:number}[];
+  games?:OfficialGame[];
+  status?:string|null;
+  winnerPair?:number|null;
   unavailable?: boolean;
 }
 export function directionCounts(rallies: ViewRally[]) {

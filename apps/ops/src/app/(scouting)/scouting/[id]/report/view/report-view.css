@@ -2200,3 +2200,5 @@
 .matchInsights .reportBody {
   padding: 0;
 }
+
+.matchInsights .unavailableWidget{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:12px;min-height:200px}.matchInsights .unavailableWidget p{color:var(--muted);font-size:12px;line-height:1.6;margin:0}.matchInsights .unavailableLabel{padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:12px;background:var(--bg)}

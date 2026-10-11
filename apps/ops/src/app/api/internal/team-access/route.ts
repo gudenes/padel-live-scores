@@ -1,4 +1,5 @@
 import {auth} from '@/lib/auth'
+import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {pgPool} from '@/lib/db'
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}})
 export async function GET(){
@@ -9,7 +10,7 @@ export async function GET(){
 }
 export async function POST(req:Request){
  const user=(await auth())?.user;if(!user?.isOperator)return json({error:'Administrator access required.'},user?403:401)
- if(req.headers.get('origin')!==new URL(req.url).origin)return json({error:'Invalid origin.'},403)
+ if(!hasAdminRequestOrigin(req))return json({error:'Invalid origin.'},403)
  let body;try{body=await req.json()}catch{return json({error:'Invalid request.'},400)}
  if(!body || typeof body!=='object')return json({error:'Invalid request.'},400)
  const email=String(body.email??'').trim().toLowerCase(),status=body.status,role=body.role ?? 'scouter'
