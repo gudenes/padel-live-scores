@@ -83,3 +83,11 @@ test('broadcast-gap corrections wait for server support before uploading',async(
  env.fetch=async(_p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>({features:['score-corrections-v1']})};};
  assert.equal((await run(env,request)).ok,true);assert.equal(calls.at(-1),'POST');
 });
+
+test('score confirmations wait for compatible server support before uploading',async()=>{
+ const calls=[],request={matchId:id,method:'POST',document:{setup:{qualityCheckpoint:{version:1,key:'score',at:'2026-10-11T00:00:00Z'}}}};
+ let supported=false;
+ const env={location:{origin:'https://admin.padelnachos.com'},fetch:async(p,o)=>{calls.push(o.method??'GET');return {ok:true,status:200,json:async()=>o.method==='POST'?{revision:1}:{features:supported?['quality-checkpoint-v1']:[]}};}};
+ assert.equal((await run(env,request)).ok,false);assert.deepEqual(calls,['GET']);
+ calls.length=0;supported=true;assert.equal((await run(env,request)).ok,true);assert.deepEqual(calls,['GET','POST']);
+});

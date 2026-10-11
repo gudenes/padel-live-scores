@@ -220,3 +220,5 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .scout-header .header-actions .mode-switch .ui-btn{width:30px;min-width:30px;height:28px;min-height:28px;padding:5px;border-radius:9px;transition:background .15s ease,color .15s ease,box-shadow .15s ease}
 .mode-switch svg{display:block;flex-shrink:0}.mode-switch .ui-btn[aria-pressed=true]{box-shadow:0 1px 3px #1a20121a}
 @media(prefers-reduced-motion:reduce){.scout-header .header-actions .mode-switch .ui-btn{transition:none}}
+
+#quality-label{display:inline-flex;padding:5px 9px;border-radius:999px;background:#eef0e9;font-size:12px}#quality-label[data-quality=high]{background:#e4f7bb;color:#34510a}#quality-label[data-quality=medium]{background:#fff1cb;color:#715214}#quality-label[data-quality=low]{background:#ffe3df;color:#962d27}#quality-issues{padding-left:18px;font-size:12px;line-height:1.5}
