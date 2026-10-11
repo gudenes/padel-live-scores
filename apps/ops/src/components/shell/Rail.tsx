@@ -26,7 +26,7 @@ const GROUPS: Group[] = [
   ]},
   { label: 'Tournament Ops', items: [
     { href: '/tournament-explorer', label: 'Tournament Explorer', icon: 'grid' },
-    { href: '/scouting', label: 'All Scouted Matches', icon: 'list' },
+    { href: '/scouting', label: 'Matches', icon: 'list' },
     { href: '/team-access', label: 'Team Access', icon: 'users' },
     { href: '/scouting/methodology', label: 'Scouting Methodology · V1', icon: 'doc' },
     { href: '/entry-lists', label: 'Entry Lists', icon: 'list' },
