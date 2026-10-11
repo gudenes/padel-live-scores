@@ -18,7 +18,7 @@ export function progressUI($,act){
   if(card.hidden)return;
   const p=scoutingProgress(state),saved=cloud.status==='saved';
   const quality=scoutingQuality({model,doc:{events:[...(state.setup?.startingScore?[{kind:'score'}]:[]),...(state.setup?.adjustments??[]).filter(a=>a.type==='score-correction').map(()=>({kind:'score'}))]},checkpoint:state.setup?.qualityCheckpoint,rallies:state.rallies});
-  $('quality-label').textContent=quality.score===null?'Not rated':`${quality.mode==='Unknown'?'':quality.mode+' · '}${quality.label} · ${quality.score}/100${quality.provisional?' · Provisional':''}`;
+  $('quality-label').textContent=quality.score===null?'Not rated':`${['Unknown','Pro'].includes(quality.mode)?'':quality.mode+' · '}${quality.label} · ${quality.score}/100${quality.provisional?' · Provisional':''}`;
   $('quality-label').dataset.quality=quality.label.toLowerCase();
   $('quality-breakdown').textContent=`Complete records ${quality.components.completeness}% · Consistency ${quality.components.consistency}% · Score checked ${quality.components.reconciliation}%`;
   $('quality-sequences').textContent=quality.sequences.eligible?`Expert sequences: ${quality.sequences.consistent}/${quality.sequences.eligible} consistent rallies · ${quality.components.sequenceConsistency}%${quality.modeInferred?' · mode inferred from taps':''}. ${quality.sequences.invalidTransitions} invalid transitions; ${quality.sequences.missing} rallies need more taps.${quality.sequences.flagged.length?' Review points '+quality.sequences.flagged.slice(0,8).map(p=>p.number).join(', ')+(quality.sequences.flagged.length>8?'…':''):''}`:'No Expert sequences to assess; record checks only.';
