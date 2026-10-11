@@ -75,7 +75,10 @@
 .shell{flex:1;display:flex;overflow:hidden;min-height:0}
 
 /* ======================= RAIL (always dark) ======================= */
-.rail{width:236px;background:var(--rail-bg);background-image:var(--rail-bg-grad);border-right:1px solid var(--rail-border);
+.rail{--lime:#C9F43B;--lime-2:#BCE62A;--lime-deep:#BCE62A;--lime-ink:#1A2012;--lime-text:#C9F43B;
+  --lime-bg:rgba(201,244,59,.13);--lime-bg-2:rgba(201,244,59,.20);--lime-border:rgba(201,244,59,.38);
+  --lime-glow:0 0 0 1px rgba(201,244,59,.30),0 6px 20px rgba(201,244,59,.12);
+  width:236px;background:var(--rail-bg);background-image:var(--rail-bg-grad);border-right:1px solid var(--rail-border);
   display:flex;flex-direction:column;flex-shrink:0;transition:width .2s var(--t);overflow:hidden}
 .app.collapsed .rail{width:70px}
 .railtop{display:flex;align-items:center;padding:10px 12px 6px}
