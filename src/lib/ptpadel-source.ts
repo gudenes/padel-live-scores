@@ -1,5 +1,8 @@
 // Server-side adapter for the publisher's API. Never persist the authenticated URL.
 export const PTPADEL_ENDPOINT = 'https://ptpadelportugal.com/api/noticias.php'
+// Publisher's official logo, mirrored locally because Google's favicon lookup
+// returns a generic globe for this domain. Original: https://ptpadelportugal.com/logo.png
+export const PTPADEL_ICON = 'https://padelnachos.com/source-icons/ptpadel-portugal.png'
 
 interface Source {
   key: string
@@ -44,7 +47,7 @@ export function parsePtPadel(payload: unknown, source: Source, now = new Date())
     const image = images.map(publisherUrl).find(Boolean) ?? null
     const plain = body.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
     const snippet = plain.length > 200 ? plain.slice(0, 197).replace(/\s+\S*$/, '') + '...' : plain
-    const favicon = 'https://www.google.com/s2/favicons?sz=64&domain=ptpadelportugal.com'
+    const favicon = PTPADEL_ICON
     rows.push({
       title, url, source_key: source.key, source_name: source.name,
       source_icon: favicon, favicon_url: favicon, image_url: image,

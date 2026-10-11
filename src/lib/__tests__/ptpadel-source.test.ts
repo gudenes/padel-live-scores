@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchPtPadel, parsePtPadel } from '../ptpadel-source'
+import { fetchPtPadel, parsePtPadel, PTPADEL_ICON } from '../ptpadel-source'
 import { fetchArticleBody } from '../article-enrichment'
 
 const source = { key: 'ptpadelportugal', name: 'PTPadel Portugal', language: 'pt', weight: 1.2 }
@@ -16,7 +16,8 @@ describe('PTPadel integration', () => {
   it('maps API fields and retains the supplied body without resetting enrichment', () => {
     const [row] = parsePtPadel({ success: true, items: [item, item] }, source, now)
     expect(row).toMatchObject({ title: item.titulo, url: item.url, source_body: item.noticia.trim(),
-      image_url: item.fotografia, published_at: '2026-10-10T00:00:00.000Z', language: 'pt' })
+      image_url: item.fotografia, published_at: '2026-10-10T00:00:00.000Z', language: 'pt',
+      favicon_url: PTPADEL_ICON, source_icon: PTPADEL_ICON })
     expect(row.snippet!.length).toBeLessThanOrEqual(200)
     expect(row).not.toHaveProperty('enrichment_status')
     expect(parsePtPadel({ success: true, items: [item, item] }, source, now)).toHaveLength(1)
