@@ -28,3 +28,5 @@ Unscouted matches now open an official PBP report, with set filters, set-separat
 The report header has one export menu for full-match JSON and selected-set scouting/PBP CSV. Full-card native links retain independently usable assignment and quality controls. Reviewed desktop and 390px mobile layouts.
 
 Team Access and session assignment accept only the exact public admin origin in production, independent of Railway's internal request URL. Regression tests cover proxy requests, missing/hostile origins and spoofed forwarding headers. Existing administrator authorization, protected accounts, transaction locking and audit records remain intact. Validation never granted or changed a person's access.
+
+Live catalog verification identified that games.points is a PostgreSQL text[] (score snapshots), not JSONB. The PBP availability query now uses cardinality(points)>0. The full catalog query was exercised read-only against the actual database with all/scouted/unscouted filters before redeployment.
