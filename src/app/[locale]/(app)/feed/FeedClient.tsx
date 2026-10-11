@@ -331,6 +331,7 @@ function NewsCard({ item, onClickArticle, onPeek, userLocale, bookmarked, onTogg
   onHide?: (id: string) => void;
 }) {
   const [copied, setCopied] = useState(false)
+  const wideSourceLogo = item.source_key === 'ptpadelportugal'
   const faviconUrl = getFaviconUrl(item)
   const displayTitle = localizedNewsTitle(item, userLocale)
 
@@ -401,12 +402,12 @@ function NewsCard({ item, onClickArticle, onPeek, userLocale, bookmarked, onTogg
             {faviconUrl && (
               <div style={{
                 position: 'absolute', top: 10, right: 10,
-                width: 32, height: 32, borderRadius: 7,
+                width: wideSourceLogo ? 64 : 32, height: 32, borderRadius: 7,
                 background: '#fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
               }}>
-                <img src={faviconUrl} alt="" loading="lazy" style={{ width: 20, height: 20, objectFit: 'contain' }} />
+                <img src={faviconUrl} alt="" loading="lazy" style={{ width: wideSourceLogo ? 52 : 20, height: 20, objectFit: 'contain' }} />
               </div>
             )}
           </div>
@@ -416,12 +417,12 @@ function NewsCard({ item, onClickArticle, onPeek, userLocale, bookmarked, onTogg
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px 6px' }}>
           {!item.image_url && faviconUrl && (
             <div style={{
-              width: 24, height: 24, borderRadius: 7,
+              width: wideSourceLogo ? 56 : 24, height: 24, borderRadius: 7,
               background: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>
-              <img src={faviconUrl} alt="" loading="lazy" style={{ width: 14, height: 14, objectFit: 'contain' }} />
+              <img src={faviconUrl} alt="" loading="lazy" style={{ width: wideSourceLogo ? 44 : 14, height: 14, objectFit: 'contain' }} />
             </div>
           )}
           <span style={{ fontSize: 11, fontWeight: 700, color: ORANGE }}>{item.source_name}</span>

@@ -208,7 +208,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                           clipped polygon outline. */}
                       <div style={{
                         position: 'absolute', top: 12, right: 12,
-                        width: 36, height: 36,
+                        width: article.source_name === 'PTPadel Portugal' ? 64 : 36, height: 36,
                         clipPath: CHUNKY.badge,
                         background: '#fff',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -220,7 +220,7 @@ function HighlightsPreviewInner({ highlights, news }: { highlights: Highlight[];
                           src={article.source_icon || article.favicon_url || `https://www.google.com/s2/favicons?domain=${new URL(articleUrl).hostname}&sz=64`}
                           alt={article.source_name ?? undefined}
                           loading="lazy"
-                          style={{ width: 22, height: 22, borderRadius: 4 }}
+                          style={{ width: article.source_name === 'PTPadel Portugal' ? 52 : 22, height: 22, objectFit: 'contain', borderRadius: 4 }}
                         />
                       </div>
                       {/* +N sources chip — interactive, expands sibling list */}

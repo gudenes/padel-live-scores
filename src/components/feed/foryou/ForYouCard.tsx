@@ -187,7 +187,7 @@ export function ForYouCard({ article, onBack, peekPx = 60 }: ForYouCardProps) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#B0B0B0', marginBottom: 10 }}>
           {article.favicon_url && (
-            <Image src={article.favicon_url} alt="" width={16} height={16} style={{ borderRadius: 3 }} unoptimized />
+            <Image src={article.favicon_url} alt="" width={article.source_name === 'PTPadel Portugal' ? 48 : 16} height={16} style={{ objectFit: 'contain', borderRadius: 3 }} unoptimized />
           )}
           <span style={{ fontWeight: 700, color: '#fff' }}>{article.source_name ?? 'Padel news'}</span>
           {article.published_at && (
