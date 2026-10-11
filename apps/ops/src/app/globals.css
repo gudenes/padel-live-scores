@@ -214,3 +214,6 @@ button {
  --lime-text:#C9F43B;
 }
 :root[data-theme="light"]{--lime-text:#48620A;--coral-text:#A52F25;--bg-app:#F3F5EF;--bg-input:#F7F8F4;--text-3:#646F5A;--text-4:#7B8573}
+
+:root:not([data-theme="light"]){color-scheme:dark;--text-1:#F1F4EF;--text-2:#BEC6BC;--text-3:#929C91;--text-4:#858F85}
+:root[data-theme="light"]{color-scheme:light}
