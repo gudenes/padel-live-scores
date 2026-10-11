@@ -1,0 +1,2202 @@
+.matchInsights * {
+  box-sizing: border-box;
+}
+.matchInsights {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  color: #202823;
+}
+.matchInsights button,
+.matchInsights select {
+  font: inherit;
+}
+.matchInsights button {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--card);
+  color: var(--text);
+  padding: 9px 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.matchInsights button:hover {
+  border-color: #98b940;
+}
+.matchInsights button:focus-visible,
+.matchInsights select:focus-visible {
+  outline: 3px solid #aacd24;
+  outline-offset: 2px;
+}
+.matchInsights button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.matchInsights {
+  --bg: #f2f5ef;
+  --card: #fff;
+  --line: #dce3d7;
+  --text: #202823;
+  --muted: #717c72;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+:root:not([data-theme="light"]) .matchInsights {
+  --bg: #171e1b;
+  --card: #242d27;
+  --line: #3a483d;
+  --text: #edf2e9;
+  --muted: #adb8ae;
+}
+.matchInsights header {
+  background: #202926;
+  color: #fff;
+  height: 87px;
+  display: flex;
+  align-items: center;
+  padding: 0 30px;
+  gap: 24px;
+}
+.matchInsights .brand {
+  display: flex;
+  align-items: center;
+  gap: 17px;
+}
+.matchInsights .brand img {
+  width: 75px;
+  height: 55px;
+  object-fit: contain;
+}
+.matchInsights .brand span {
+  height: 38px;
+  width: 1px;
+  background: #506055;
+}
+.matchInsights .brand .labs {
+  width: 145px;
+  filter: brightness(0) invert(1);
+}
+.matchInsights nav {
+  display: flex;
+  gap: 25px;
+  align-items: center;
+  flex: 1;
+  font-size: 13px;
+}
+.matchInsights nav b {
+  color: #c9f43b;
+  border-bottom: 3px solid;
+  padding: 27px 0;
+}
+.matchInsights .account {
+  border: 1px solid #6f875b;
+  border-radius: 50%;
+  padding: 11px;
+  color: #d7f38a;
+}
+.matchInsights .icon {
+  background: transparent;
+  color: #fff;
+  border: 0;
+}
+.matchInsights .reportBody {
+  max-width: 1440px;
+  margin: auto;
+  padding: 24px 28px;
+}
+.matchInsights .crumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 17px;
+}
+.matchInsights .badge {
+  background: #e8f5c8;
+  color: #476124;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border-radius: 7px;
+}
+.matchInsights .hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  padding: 16px 24px;
+  gap: 20px;
+}
+.matchInsights .heroTeam {
+  display: flex;
+  gap: 22px;
+  flex: 1;
+}
+.matchInsights .heroTeam > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  text-align: center;
+  font-size: 12px;
+  max-width: 165px;
+}
+.matchInsights .heroTeam img {
+  width: 93px;
+  height: 93px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 3px solid #eef1e8;
+}
+.matchInsights .result {
+  min-width: 280px;
+  text-align: center;
+}
+.matchInsights .result small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.matchInsights h1 {
+  font-size: 35px;
+  letter-spacing: 2px;
+  white-space: pre;
+  margin: 17px 0;
+}
+.matchInsights .result span {
+  font-size: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+.matchInsights .result strong {
+  display: table;
+  margin: 13px auto 0;
+  background: #c9f43b;
+  color: #27300e;
+  font-size: 12px;
+  border-radius: 20px;
+  padding: 8px 17px;
+}
+.matchInsights .tabs {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--card);
+  margin-top: 18px;
+  overflow: auto;
+}
+.matchInsights .tabs button {
+  border: 0;
+  border-radius: 0;
+  flex: 1;
+  padding: 15px;
+  white-space: nowrap;
+}
+.matchInsights .tabs button.active {
+  background: #ecf7cf;
+  color: #273611;
+  border-bottom: 2px solid #799e10;
+}
+.matchInsights .toolbar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 20px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.matchInsights .toolbar > button {
+  margin-left: auto;
+}
+.matchInsights .seg {
+  display: flex;
+  gap: 3px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  padding: 3px;
+  border-radius: 10px;
+}
+.matchInsights .seg button {
+  border: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+}
+.matchInsights .seg .active {
+  background: #c9f43b;
+  color: #25300d;
+}
+.matchInsights .panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 20px;
+  min-width: 0;
+  margin-bottom: 17px;
+}
+.matchInsights h2 {
+  font-size: 15px;
+  margin: 0 0 14px;
+}
+.matchInsights h3 {
+  font-size: 14px;
+}
+.matchInsights p {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.matchInsights small,
+.matchInsights .muted {
+  font-size: 11px;
+  color: var(--muted);
+}
+.matchInsights .overview {
+  display: grid;
+  grid-template-columns: 0.85fr 1.1fr 1.6fr;
+  gap: 17px;
+}
+.matchInsights .split {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 17px;
+}
+.matchInsights .bigstat {
+  font-size: 40px;
+  font-weight: 700;
+  margin: 10px 0 18px;
+}
+.matchInsights .bigstat span {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 5px;
+}
+.matchInsights .stat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  gap: 10px;
+}
+.matchInsights .stat b {
+  font-weight: 600;
+}
+.matchInsights .take {
+  display: flex;
+  gap: 12px;
+  margin: 8px 0;
+}
+.matchInsights .take svg {
+  flex: none;
+  background: #ecf6d0;
+  color: #547218;
+  padding: 7px;
+  width: 33px;
+  height: 33px;
+  border-radius: 10px;
+}
+.matchInsights .take p {
+  margin: 0;
+  font-size: 12px;
+}
+.matchInsights canvas {
+  width: 100%;
+  height: 230px;
+}
+.matchInsights .legend {
+  display: flex;
+  gap: 17px;
+  flex-wrap: wrap;
+  font-size: 10px;
+}
+.matchInsights .lime {
+  color: #7eaa0c;
+}
+.matchInsights .coraltext {
+  color: #df7166;
+}
+.matchInsights table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.matchInsights th {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  text-align: left;
+  padding: 9px 3px;
+}
+.matchInsights td {
+  padding: 9px 3px;
+  border-bottom: 1px solid var(--line);
+}
+.matchInsights td small {
+  margin-left: 6px;
+}
+.matchInsights .barline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.matchInsights .bar {
+  background: #c9f43b;
+  display: inline-block;
+  height: 9px;
+  border-radius: 3px;
+}
+.matchInsights .bar.coral {
+  background: #ff8a7a;
+}
+.matchInsights .players {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 13px;
+}
+.matchInsights .player {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px;
+}
+.matchInsights .playerhead {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 13px;
+}
+.matchInsights .playerhead img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.matchInsights .playerhead b {
+  font-size: 11px;
+  flex: 1;
+}
+.matchInsights .rating {
+  border: 3px solid #c9f43b;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex: none;
+}
+.matchInsights .rating small {
+  font-size: 8px;
+}
+.matchInsights .rating.coral {
+  border-color: #ff8a7a;
+}
+.matchInsights .filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  font-size: 12px;
+}
+.matchInsights select {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--line);
+  padding: 10px;
+  border-radius: 8px;
+}
+.matchInsights .pointnav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.matchInsights .detailbadge {
+  background: #ffdfd9;
+  color: #9c382e;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.matchInsights .pointlist {
+  max-height: 390px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.matchInsights .pointlist button {
+  justify-content: space-between;
+  font-size: 11px;
+  text-align: left;
+  padding: 12px 8px;
+}
+.matchInsights .pointlist .chosen {
+  background: #edf8d6;
+  color: #2c4215;
+}
+.matchInsights .strokes,
+.matchInsights .capgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.matchInsights .strokes > div {
+  border: 1px solid var(--line);
+  padding: 14px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.matchInsights .capgrid > div {
+  background: var(--bg);
+  padding: 16px;
+  border-radius: 10px;
+}
+.matchInsights .capgrid p {
+  font-size: 12px;
+}
+.matchInsights .capgrid h3 {
+  color: #71980d;
+}
+.matchInsights footer {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 20px 0;
+}
+@media (max-width: 1050px) {
+  .matchInsights nav {
+    display: none;
+  }
+  .matchInsights .overview {
+    grid-template-columns: 1fr 1fr;
+  }
+  .matchInsights .overview > .panel:last-child {
+    grid-column: 1/-1;
+  }
+  .matchInsights .players {
+    grid-template-columns: 1fr 1fr;
+  }
+  .matchInsights .heroTeam {
+    gap: 7px;
+  }
+  .matchInsights .heroTeam img {
+    width: 66px;
+    height: 66px;
+  }
+  .matchInsights .result {
+    min-width: 215px;
+  }
+  .matchInsights h1 {
+    font-size: 28px;
+  }
+}
+@media (max-width: 700px) {
+  .matchInsights .reportBody {
+    padding: 15px;
+  }
+  .matchInsights .hero {
+    flex-wrap: wrap;
+  }
+  .matchInsights .result {
+    order: -1;
+    flex-basis: 100%;
+  }
+  .matchInsights .overview,
+  .matchInsights .split {
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .players,
+  .matchInsights .capgrid,
+  .matchInsights .strokes {
+    grid-template-columns: 1fr 1fr;
+  }
+  .matchInsights .toolbar {
+    flex-wrap: wrap;
+  }
+  .matchInsights .toolbar > span {
+    display: none;
+  }
+  .matchInsights header {
+    padding: 0 15px;
+  }
+  .matchInsights .heroTeam > div {
+    font-size: 10px;
+  }
+  .matchInsights .tabs button {
+    font-size: 12px;
+    padding: 12px;
+  }
+}
+.matchInsights .setScores {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+}
+.matchInsights .setScores sup {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0;
+  position: relative;
+  top: -7px;
+  margin-left: 2px;
+}
+.matchInsights .compareTeams {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  font-size: 12px;
+  margin: 4px 0 16px;
+}
+.matchInsights .compareTeams strong:first-child {
+  color: #799e0e;
+}
+.matchInsights .compareTeams strong:last-child {
+  color: #db6e62;
+}
+.matchInsights .compareRow {
+  padding: 8px 0;
+}
+.matchInsights .compareNumbers {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  font-size: 12px;
+  align-items: center;
+  gap: 12px;
+}
+.matchInsights .compareNumbers span {
+  text-align: center;
+  font-size: 11px;
+}
+.matchInsights .compareNumbers b:last-child {
+  text-align: right;
+}
+.matchInsights .compareTracks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 6px;
+}
+.matchInsights .compareTracks > div {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--line);
+  overflow: hidden;
+  display: flex;
+}
+.matchInsights .compareTracks > div:first-child {
+  justify-content: flex-end;
+}
+.matchInsights .compareFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.matchInsights .compareFill.green {
+  background: #bce92e;
+}
+.matchInsights .compareFill.coral {
+  background: #ff8a7a;
+}
+.matchInsights .gameLegend {
+  display: flex;
+  gap: 24px;
+  font-size: 11px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.matchInsights .gameLegend > span:last-child {
+  color: var(--muted);
+}
+.matchInsights .setCards {
+  display: flex;
+  gap: 18px;
+}
+.matchInsights .setCard {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  min-width: 0;
+}
+.matchInsights .setCardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.matchInsights .setCardHead h3 {
+  margin: 0;
+}
+.matchInsights .setCardHead strong {
+  font-size: 18px;
+}
+.matchInsights .setCardHead small {
+  font-size: 11px;
+  font-weight: 400;
+  margin-left: 5px;
+}
+.matchInsights .gameBars {
+  display: flex;
+  gap: 4px;
+  height: 112px;
+  margin-bottom: 12px;
+  align-items: stretch;
+}
+.matchInsights .gameBar {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  border: 0;
+  border-radius: 3px;
+  padding: 0;
+  background: transparent;
+  display: block;
+  height: 90px;
+}
+.matchInsights .gameBar:hover,
+.matchInsights .gameBar.selected {
+  background: var(--card);
+  outline: 1px solid #9bb522;
+}
+.matchInsights .barHalf {
+  display: flex;
+  height: 40px;
+  background: #b8df2320;
+  padding: 0 4px;
+}
+.matchInsights .barHalf.upper {
+  align-items: flex-end;
+  border-bottom: 1px solid var(--muted);
+}
+.matchInsights .barHalf.lower {
+  align-items: flex-start;
+  background: #ff8a7a18;
+}
+.matchInsights .barHalf i {
+  display: block;
+  width: 100%;
+  border-radius: 2px;
+  background: #a3cf0a;
+  min-height: 0;
+}
+.matchInsights .barHalf.lower i {
+  background: #f58a7d;
+}
+.matchInsights .gameBar > small {
+  display: block;
+  font-size: 9px;
+  margin-top: 4px;
+}
+.matchInsights .gameBar em {
+  position: absolute;
+  bottom: 39px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-style: normal;
+  background: #ffda8f;
+  color: #4e390e;
+  border-radius: 8px;
+  padding: 1px 3px;
+}
+.matchInsights .setCardFoot {
+  font-size: 10px;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+}
+.matchInsights .gameDetail {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-top: 9px;
+}
+.matchInsights .gameDetail summary {
+  cursor: pointer;
+  padding: 13px 17px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 13px;
+}
+.matchInsights .gameDetail summary > svg {
+  flex: none;
+}
+.matchInsights .gameTitle {
+  flex: 1;
+  font-weight: 600;
+}
+.matchInsights .gameTitle small {
+  display: block;
+  font-weight: 400;
+  font-size: 10px;
+  margin-top: 5px;
+}
+.matchInsights .gameResult {
+  font-weight: 700;
+  font-size: 17px;
+}
+.matchInsights .breakBadge,
+.matchInsights .holdBadge {
+  font-size: 10px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #ffe2d8;
+  color: #9d4737;
+}
+.matchInsights .holdBadge {
+  background: #d9e9ba;
+  color: #4c622f;
+}
+.matchInsights .pbpRows {
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  padding: 13px 16px;
+}
+.matchInsights .pbpRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: max-content;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.matchInsights .pbpRow > b {
+  width: 170px;
+  flex: none;
+  font-size: 11px;
+}
+.matchInsights .pbpRow > span {
+  width: 38px;
+  min-height: 29px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-radius: 5px;
+  flex: none;
+}
+.matchInsights .pointWon.green {
+  background: #dbedaa;
+  color: #344c0c;
+}
+.matchInsights .pointWon.coral {
+  background: #ffd2ca;
+  color: #803d31;
+}
+.matchInsights .events {
+  color: var(--muted);
+}
+.matchInsights .events span {
+  font-size: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.matchInsights .events small {
+  font-size: 8px;
+  color: #ad653e;
+}
+.matchInsights .gameDetail[open] summary {
+  background: var(--bg);
+  border-radius: 10px 10px 0 0;
+}
+@media (max-width: 700px) {
+  .matchInsights .setCards {
+    flex-direction: column;
+  }
+  .matchInsights .setScores {
+    gap: 18px;
+  }
+  .matchInsights .gameLegend {
+    gap: 12px;
+  }
+}
+.matchInsights .result .setScores > span {
+  display: inline;
+  font-size: 35px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.matchInsights .result .setScores sup {
+  font-size: 11px;
+}
+.matchInsights .gameBar:focus-visible {
+  outline: 3px solid #97bd12;
+  outline-offset: 3px;
+}
+@media (max-width: 1050px) {
+  .matchInsights .result .setScores > span {
+    font-size: 28px;
+  }
+}
+.matchInsights .setCardHead sup,
+.matchInsights .gameResult sup {
+  font-size: 10px;
+  margin-left: 2px;
+  vertical-align: super;
+}
+.matchInsights .momentumPanel {
+  padding: 24px;
+}
+.matchInsights .momentumHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.matchInsights .momentumHead h2 {
+  font-size: 24px;
+  margin: 0 0 10px;
+}
+.matchInsights .momentumHead p {
+  margin: 0;
+}
+.matchInsights .momentumHead > span {
+  font-size: 11px;
+}
+.matchInsights .trajectoryScroll {
+  overflow-x: auto;
+}
+.matchInsights .trajectory {
+  display: flex;
+  min-width: 760px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  padding: 16px 14px 12px;
+}
+.matchInsights .trajectoryTeams {
+  width: 144px;
+  flex-shrink: 0;
+  padding: 68px 14px 24px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 28px;
+}
+.matchInsights .trajectoryTeam strong {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 120px;
+  margin-top: 9px;
+}
+.matchInsights .teamAvatars {
+  display: flex;
+  gap: 5px;
+}
+.matchInsights .teamAvatars img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #bcf52d;
+  background: var(--card);
+}
+.matchInsights .team1 .teamAvatars img {
+  border-color: #ff897b;
+}
+.matchInsights .trajectorySets {
+  display: flex;
+  flex: 1;
+  gap: 0;
+  min-width: 0;
+}
+.matchInsights .trajectorySet {
+  min-width: 0;
+  padding: 0 12px;
+}
+.matchInsights .trajectorySet + .trajectorySet {
+  border-left: 1px solid var(--line);
+  padding-left: 18px;
+}
+.matchInsights .trajectorySetHead {
+  height: 58px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 3px;
+}
+.matchInsights .trajectorySetHead h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin: 8px 0;
+}
+.matchInsights .trajectorySetHead strong {
+  font-size: 23px;
+  padding: 5px 9px;
+  background: var(--card);
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.matchInsights .trajectorySetHead sup,
+.matchInsights .trajectorySelection sup {
+  font-size: 10px;
+  vertical-align: super;
+}
+.matchInsights .trajectoryBars {
+  display: flex;
+  gap: 4px;
+  padding-top: 28px;
+  padding-bottom: 28px;
+}
+.matchInsights .trajectoryBar {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  gap: 0;
+}
+.matchInsights .trajectoryBar:hover {
+  background: var(--line);
+}
+.matchInsights .trajectoryBar.selected {
+  outline: 1px solid #85ae10;
+  outline-offset: 2px;
+  background: rgba(188, 245, 45, 0.08);
+}
+.matchInsights .trajectoryHalf {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100px;
+  background: rgba(120, 145, 80, 0.035);
+}
+.matchInsights .trajectoryHalf i {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  background: #b3e92c;
+  display: block;
+  min-height: 0;
+  border-radius: 2px 2px 0 0;
+}
+.matchInsights .trajectoryHalf.upper {
+  border-bottom: 1px solid #a7b197;
+}
+.matchInsights .trajectoryHalf.upper i {
+  bottom: 0;
+}
+.matchInsights .trajectoryHalf.lower i {
+  top: 0;
+  background: #ff897b;
+  border-radius: 0 0 2px 2px;
+}
+.matchInsights .trajectoryHalf em {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  line-height: 16px;
+  padding: 0 4px;
+  font-style: normal;
+  font-weight: 600;
+  border-radius: 4px;
+  z-index: 2;
+  white-space: nowrap;
+}
+.matchInsights .trajectoryHalf.upper em {
+  margin-bottom: 5px;
+  background: #bcf52d;
+  color: #26370a;
+}
+.matchInsights .trajectoryHalf.lower em {
+  margin-top: 5px;
+  background: #ff897b;
+  color: #572019;
+}
+.matchInsights .trajectoryBar > small {
+  position: absolute;
+  top: calc(100% + 13px);
+  font-size: 10px;
+  color: var(--muted);
+  left: 0;
+  right: 0;
+}
+.matchInsights .trajectorySelection {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  padding: 12px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.matchInsights .trajectorySelection button {
+  margin-left: auto;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+}
+.matchInsights .heroTeam:first-child img {
+  border: 3px solid #bcf52d;
+  border-radius: 50%;
+}
+.matchInsights .heroTeam:last-child img {
+  border: 3px solid #ff897b;
+  border-radius: 50%;
+}
+@media (max-width: 700px) {
+  .matchInsights .momentumPanel {
+    padding: 16px;
+  }
+  .matchInsights .momentumHead {
+    display: block;
+  }
+  .matchInsights .momentumHead > span {
+    display: block;
+    margin-top: 10px;
+  }
+  .matchInsights .trajectorySelection {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .matchInsights .trajectorySelection button {
+    padding: 6px;
+  }
+}
+/* Calm motion and responsive match report */
+.matchInsights {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+.matchInsights button {
+  transition: background-color 0.16s ease, border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.matchInsights button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.matchInsights .tabContent {
+  animation: reportEnter 0.24s ease-out;
+}
+.matchInsights .trajectoryHalf i {
+  transition: height 0.32s ease-out, background-color 0.2s ease;
+}
+.matchInsights .trajectorySelection {
+  animation: reportEnter 0.18s ease-out;
+}
+.matchInsights .trajectoryBar {
+  transition: background-color 0.16s ease, outline-color 0.16s ease;
+}
+.matchInsights .gameDetail[open] .pbpRows {
+  animation: reportEnter 0.2s ease-out;
+}
+.matchInsights .player {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.matchInsights .player:hover {
+  border-color: #a8bb88;
+  box-shadow: 0 4px 15px rgba(24, 40, 20, 0.04);
+}
+.matchInsights .toolbar,
+.matchInsights .tabs,
+.matchInsights .filters {
+  max-width: 100%;
+}
+.matchInsights .tabs {
+  scrollbar-width: thin;
+}
+.matchInsights .tabs button.active {
+  box-shadow: inset 0 -2px #799e10;
+}
+.matchInsights .panel table {
+  overflow-wrap: anywhere;
+}
+.matchInsights .playerhead img {
+  flex-shrink: 0;
+}
+.matchInsights .players > .player:nth-child(-n + 2) .playerhead img {
+  border: 2px solid #bcf52d;
+}
+.matchInsights .players > .player:nth-child(n + 3) .playerhead img {
+  border: 2px solid #ff897b;
+}
+@keyframes reportEnter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 1050px) {
+  .matchInsights header .brand {
+    margin-right: auto;
+  }
+  .matchInsights .split {
+    grid-template-columns: 1fr 1fr;
+  }
+  .matchInsights .trajectoryTeams {
+    width: 124px;
+  }
+  .matchInsights .teamAvatars img {
+    width: 36px;
+    height: 36px;
+  }
+}
+@media (max-width: 700px) {
+  .matchInsights header {
+    height: 70px;
+    gap: 8px;
+  }
+  .matchInsights .brand {
+    gap: 10px;
+  }
+  .matchInsights .brand img {
+    width: 57px;
+    height: 43px;
+  }
+  .matchInsights .brand .labs {
+    width: 110px;
+  }
+  .matchInsights .brand span {
+    height: 28px;
+  }
+  .matchInsights .account {
+    padding: 8px;
+  }
+  .matchInsights .icon {
+    padding: 8px;
+  }
+  .matchInsights .crumb {
+    gap: 10px;
+    font-size: 11px;
+  }
+  .matchInsights .hero {
+    padding: 16px 12px;
+    gap: 15px;
+  }
+  .matchInsights .heroTeam {
+    min-width: 0;
+  }
+  .matchInsights .heroTeam img {
+    width: 58px;
+    height: 58px;
+  }
+  .matchInsights .heroTeam > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .matchInsights .result {
+    min-width: 0;
+  }
+  .matchInsights .split {
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .panel {
+    padding: 16px;
+  }
+  .matchInsights .toolbar {
+    gap: 10px;
+  }
+  .matchInsights .toolbar > button {
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .matchInsights .seg button {
+    padding: 8px 10px;
+  }
+  .matchInsights .trajectory {
+    min-width: 0;
+    display: block;
+    padding: 12px;
+  }
+  .matchInsights .trajectoryTeams {
+    width: auto;
+    padding: 0 0 15px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 12px;
+  }
+  .matchInsights .trajectoryTeam {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .matchInsights .trajectoryTeam strong {
+    font-size: 10px;
+    margin: 0;
+    max-width: 90px;
+  }
+  .matchInsights .teamAvatars {
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .matchInsights .teamAvatars img {
+    width: 30px;
+    height: 30px;
+    border-width: 2px;
+  }
+  .matchInsights .teamAvatars img + img {
+    margin-left: -6px;
+  }
+  .matchInsights .trajectorySets {
+    display: block;
+  }
+  .matchInsights .trajectorySet {
+    padding: 0;
+  }
+  .matchInsights .trajectorySet + .trajectorySet {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 16px 0 0;
+    margin-top: 16px;
+  }
+  .matchInsights .trajectorySetHead {
+    height: 43px;
+  }
+  .matchInsights .trajectoryBars {
+    gap: 3px;
+    padding-top: 18px;
+  }
+  .matchInsights .trajectoryHalf {
+    height: 75px;
+  }
+  .matchInsights .trajectoryHalf em {
+    font-size: 0;
+    padding: 0 4px;
+    line-height: 13px;
+  }
+  .matchInsights .trajectoryHalf em:after {
+    content: "B";
+    font-size: 8px;
+  }
+  .matchInsights .trajectoryBar > small {
+    font-size: 9px;
+  }
+  .matchInsights .trajectorySelection {
+    padding: 10px;
+    font-size: 11px;
+  }
+  .matchInsights .momentumHead h2 {
+    font-size: 21px;
+  }
+  .matchInsights .filters {
+    flex-wrap: wrap;
+  }
+  .matchInsights .filters select {
+    max-width: 100%;
+  }
+  .matchInsights .pointnav h3 {
+    font-size: 12px;
+    text-align: center;
+  }
+  .matchInsights .compareNumbers {
+    grid-template-columns: 1fr 1.7fr 1fr;
+    gap: 8px;
+  }
+  .matchInsights .compareTeams {
+    font-size: 11px;
+  }
+  .matchInsights .pbpRow > b {
+    min-width: 130px;
+  }
+  .matchInsights .strokes,
+  .matchInsights .capgrid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .matchInsights .stat {
+    font-size: 11px;
+  }
+  .matchInsights .legend {
+    gap: 9px;
+  }
+  .matchInsights .pointlist button {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+@media (max-width: 420px) {
+  .matchInsights .players {
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .brand .labs {
+    width: 94px;
+  }
+  .matchInsights .brand {
+    gap: 8px;
+  }
+  .matchInsights .reportBody {
+    padding: 12px;
+  }
+  .matchInsights .strokes {
+    grid-template-columns: 1fr 1fr;
+  }
+  .matchInsights .strokes > div {
+    padding: 10px;
+  }
+  .matchInsights .capgrid {
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .trajectoryTeam {
+    gap: 5px;
+  }
+  .matchInsights .trajectoryTeam strong {
+    font-size: 9px;
+  }
+  .matchInsights .trajectorySelection strong {
+    font-size: 10px;
+  }
+  .matchInsights .trajectorySelection button {
+    font-size: 11px;
+    padding: 6px;
+  }
+  .matchInsights .compareNumbers span {
+    font-size: 10px;
+  }
+  .matchInsights .pointlist button {
+    font-size: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .matchInsights *,
+  .matchInsights *:before,
+  .matchInsights *:after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* Pointer-only feedback: preserve touch behavior and reduced motion. */
+@media (hover: hover) and (pointer: fine) {
+  .matchInsights button {
+    transition: background-color 0.18s ease, border-color 0.18s ease,
+      box-shadow 0.18s ease, transform 0.18s ease;
+  }
+  .matchInsights button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 9px rgba(26, 45, 23, 0.07);
+  }
+  .matchInsights button:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+  .matchInsights .tabs button:hover:not(.active) {
+    background: var(--bg);
+    box-shadow: inset 0 -2px #bedc67;
+  }
+  .matchInsights .tabs button:hover,
+  .matchInsights .seg button:hover {
+    transform: none;
+  }
+  .matchInsights .trajectoryBar:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+    background: rgba(159, 190, 109, 0.12);
+  }
+  .matchInsights .trajectoryHalf i {
+    transition: height 0.32s ease-out, filter 0.2s ease, box-shadow 0.2s ease;
+  }
+  .matchInsights .trajectoryBar:hover .trajectoryHalf.upper i {
+    filter: brightness(1.05);
+    box-shadow: 0 0 9px rgba(188, 245, 45, 0.32);
+  }
+  .matchInsights .trajectoryBar:hover .trajectoryHalf.lower i {
+    filter: brightness(1.04);
+    box-shadow: 0 0 9px rgba(255, 137, 123, 0.25);
+  }
+  .matchInsights .trajectoryHalf em {
+    transition: transform 0.18s ease;
+  }
+  .matchInsights .trajectoryBar:hover .trajectoryHalf.upper em {
+    transform: translate(-50%, -2px);
+  }
+  .matchInsights .trajectoryBar:hover .trajectoryHalf.lower em {
+    transform: translate(-50%, 2px);
+  }
+  .matchInsights .player {
+    transition: transform 0.22s ease, border-color 0.22s ease,
+      box-shadow 0.22s ease;
+  }
+  .matchInsights .player:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(26, 45, 23, 0.08);
+  }
+  .matchInsights .heroTeam img,
+  .matchInsights .teamAvatars img,
+  .matchInsights .playerhead img {
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+  }
+  .matchInsights .heroTeam img:hover,
+  .matchInsights .teamAvatars img:hover {
+    transform: scale(1.06);
+    box-shadow: 0 4px 12px rgba(26, 45, 23, 0.12);
+  }
+  .matchInsights .player:hover .playerhead img {
+    transform: scale(1.04);
+  }
+  .matchInsights .compareFill {
+    transition: filter 0.2s ease;
+  }
+  .matchInsights .compareRow:hover .compareFill {
+    filter: brightness(1.06);
+  }
+  .matchInsights .gameDetail summary {
+    transition: background-color 0.18s ease;
+  }
+  .matchInsights .gameDetail summary:hover {
+    background: var(--bg);
+  }
+  .matchInsights .pointlist button:hover:not(.chosen) {
+    background: var(--bg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .matchInsights *,
+  .matchInsights *:before,
+  .matchInsights *:after {
+    transition: none !important;
+    animation: none !important;
+  }
+  .matchInsights .player:hover,
+  .matchInsights .heroTeam img:hover,
+  .matchInsights .teamAvatars img:hover,
+  .matchInsights .player:hover .playerhead img,
+  .matchInsights button:hover:not(:disabled) {
+    transform: none !important;
+  }
+}
+.matchInsights .overviewAnalytics {
+  grid-template-columns: 1fr 1.2fr;
+  gap: 20px;
+}
+.matchInsights .overviewAnalytics > .panel {
+  padding: 24px;
+}
+.matchInsights .overviewAnalytics h2 {
+  font-size: 20px;
+  letter-spacing: -0.4px;
+  margin-bottom: 12px;
+}
+.matchInsights .impactCanvas {
+  height: 360px;
+  margin: 12px 0 14px;
+}
+.matchInsights .impactLegend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.matchInsights .impactLegend > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  min-width: 0;
+}
+.matchInsights .impactLegend img {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #bcf52d;
+  flex: none;
+}
+.matchInsights .impactLegend .teamCoral img {
+  border-color: #ff897b;
+}
+.matchInsights .lineSample {
+  width: 22px;
+  border-top: 2px solid #a3cf0a;
+  flex: none;
+}
+.matchInsights .lineSample.dotted {
+  border-top-style: dotted;
+}
+.matchInsights .teamCoral .lineSample {
+  border-color: #ed7669;
+}
+.matchInsights .impactPanel {
+  background: var(--card);
+}
+@media (min-width: 1200px) {
+  .matchInsights .reportBody {
+    max-width: 1540px;
+  }
+  .matchInsights .overviewAnalytics {
+    grid-template-columns: 1fr 1.3fr;
+  }
+  .matchInsights .impactLegend > div {
+    font-size: 13px;
+  }
+}
+@media (max-width: 850px) {
+  .matchInsights .overviewAnalytics {
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .overviewAnalytics > .panel {
+    padding: 20px;
+  }
+  .matchInsights .impactCanvas {
+    margin-top: 8px;
+  }
+}
+@media (max-width: 420px) {
+  .matchInsights .impactLegend {
+    gap: 10px;
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .overviewAnalytics h2 {
+    font-size: 19px;
+  }
+}
+.matchInsights .chartWrap {
+  position: relative;
+}
+.matchInsights .impactTooltip {
+  position: absolute;
+  top: 12px;
+  left: 50px;
+  min-width: 230px;
+  max-width: calc(100% - 60px);
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 6px 22px rgba(20, 35, 20, 0.12);
+  pointer-events: none;
+  z-index: 3;
+  font-size: 11px;
+  animation: reportEnter 0.12s ease-out;
+}
+.matchInsights .impactTooltip > strong {
+  display: block;
+  margin-bottom: 10px;
+}
+.matchInsights .impactTooltip > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 4px 0;
+}
+.matchInsights .impactTooltip b {
+  font-variant-numeric: tabular-nums;
+}
+.matchInsights .impactCanvas:focus-visible {
+  outline: 2px solid #99b932;
+  outline-offset: 4px;
+  border-radius: 5px;
+}
+@media (max-width: 420px) {
+  .matchInsights .impactTooltip {
+    left: 35px;
+    min-width: 0;
+    font-size: 10px;
+  }
+}
+.matchInsights .impactTooltip .tooltipScore {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 12px;
+  padding: 0 0 10px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.matchInsights .tooltipScore > span {
+  color: var(--muted);
+}
+.matchInsights .tooltipScore > small {
+  grid-column: 1/-1;
+}
+.matchInsights .impactTooltip > strong {
+  margin-bottom: 9px;
+}
+.matchInsights .directionHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.matchInsights .directionHeading h2 {
+  font-size: 24px;
+  letter-spacing: -0.5px;
+}
+.matchInsights .directionHeading .detailbadge {
+  font-size: 11px;
+  white-space: nowrap;
+  background: #e9f3d4;
+  color: #486020;
+}
+.matchInsights .courtPlayerTabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 22px;
+}
+.matchInsights .courtPlayerTabs button {
+  font-size: 12px;
+  padding: 8px 12px;
+  flex: 1;
+}
+.matchInsights .courtPlayerTabs img,
+.matchInsights .hitRow img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+.matchInsights .courtLime img {
+  border: 2px solid #bcf52d;
+}
+.matchInsights .courtCoral img {
+  border: 2px solid #ff897b;
+}
+.matchInsights .courtPlayerTabs .active.courtLime {
+  background: #eff8d8;
+  border-color: #98b527;
+  color: #25351a;
+}
+.matchInsights .courtPlayerTabs .active.courtCoral {
+  background: #fff0ed;
+  border-color: #e7897c;
+  color: #663c36;
+}
+.matchInsights .courtAnalytics {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(270px, 1fr);
+  gap: 24px;
+}
+.matchInsights .courtPrimary,
+.matchInsights .courtComparisons {
+  min-width: 0;
+}
+.matchInsights .courtTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+.matchInsights .courtTitle > span {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.matchInsights .courtScene {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e9edf0;
+  aspect-ratio: 3/2;
+}
+.matchInsights .courtBackground {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.matchInsights .directionOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.matchInsights .courtMarker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  z-index: 2;
+  color: white;
+}
+.matchInsights .courtMarker img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 50%;
+  border-width: 3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+.matchInsights .courtMarker span {
+  background: #243544;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  border: 1px solid #758888;
+  white-space: nowrap;
+}
+.matchInsights .courtMarker.selected img {
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.7), 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+.matchInsights .courtMarker:hover:not(:disabled),
+.matchInsights .courtMarker:active:not(:disabled) {
+  transform: translate(-50%, -50%);
+  box-shadow: none;
+}
+.matchInsights .courtMarker:hover img {
+  scale: 1.08;
+}
+.matchInsights .courtDirectionMetrics {
+  display: flex;
+  gap: 24px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.matchInsights .courtDirectionMetrics > div {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.matchInsights .courtDirectionMetrics b {
+  font-size: 18px;
+}
+.matchInsights .courtDirectionMetrics small {
+  flex-basis: 100%;
+  padding-left: 26px;
+}
+.matchInsights .routeSample {
+  width: 20px;
+  border-top: 3px solid #90b723;
+}
+.matchInsights .routeSample.dotted {
+  border-top-style: dashed;
+}
+.matchInsights .courtFoot p {
+  margin: 12px 0 0;
+}
+.matchInsights .courtComparisons h3 {
+  font-size: 18px;
+  margin: 0 0 6px;
+  letter-spacing: -0.3px;
+}
+.matchInsights .courtComparisons > p,
+.matchInsights .reception > p {
+  margin: 0 0 15px;
+}
+.matchInsights .hitRow {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 9px;
+  padding: 10px 8px;
+  gap: 10px;
+  margin: 3px 0;
+  text-align: left;
+}
+.matchInsights .hitRow > div {
+  flex: 1;
+  min-width: 0;
+}
+.matchInsights .hitRow span {
+  font-size: 11px;
+}
+.matchInsights .hitRow b {
+  font-size: 14px;
+}
+.matchInsights .hitRow.selected {
+  background: var(--bg);
+  box-shadow: inset 3px 0 #a5c738;
+}
+.matchInsights .hitTrack {
+  height: 6px;
+  background: var(--line);
+  border-radius: 5px;
+  margin-top: 7px;
+  overflow: hidden;
+}
+.matchInsights .hitTrack i {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.25s ease;
+}
+.matchInsights .reception {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 22px;
+}
+.matchInsights .receptionPair {
+  margin: 17px 0 22px;
+}
+.matchInsights .receptionLabels {
+  display: flex;
+  justify-content: space-between;
+}
+.matchInsights .receptionLabels > div {
+  display: grid;
+  grid-template-columns: 30px auto;
+  align-items: center;
+  gap: 3px 8px;
+  font-size: 11px;
+}
+.matchInsights .receptionLabels > div:last-child {
+  text-align: right;
+}
+.matchInsights .receptionLabels img {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  grid-row: span 2;
+}
+.matchInsights .receptionLabels small {
+  grid-column: 1/-1;
+  font-size: 10px;
+}
+.matchInsights .receptionLabels b {
+  font-size: 16px;
+}
+.matchInsights .receptionTrack {
+  display: flex;
+  height: 8px;
+  border-radius: 7px;
+  overflow: hidden;
+  gap: 2px;
+  margin-top: 9px;
+}
+.matchInsights .neveraNote {
+  padding: 14px;
+  background: var(--bg);
+  border-radius: 9px;
+  font-size: 12px;
+}
+.matchInsights .neveraNote p {
+  font-size: 11px;
+  margin: 6px 0;
+}
+.matchInsights .neveraNote small {
+  font-size: 10px;
+}
+@media (max-width: 900px) {
+  .matchInsights .courtAnalytics {
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .courtComparisons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 20px;
+  }
+  .matchInsights .courtComparisons > h3,
+  .matchInsights .courtComparisons > p {
+    grid-column: 1;
+  }
+  .matchInsights .reception {
+    grid-column: 2;
+    grid-row: 1/7;
+    margin-top: 0;
+    padding-top: 0;
+    border: 0;
+  }
+  .matchInsights .courtComparisons > .hitRow {
+    grid-column: 1;
+  }
+}
+@media (max-width: 600px) {
+  .matchInsights .directionHeading {
+    display: block;
+  }
+  .matchInsights .directionHeading h2 {
+    font-size: 21px;
+  }
+  .matchInsights .directionHeading .detailbadge {
+    display: inline-flex;
+    margin: 0 0 12px;
+  }
+  .matchInsights .courtPlayerTabs {
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .matchInsights .courtPlayerTabs button {
+    flex-basis: 45%;
+    font-size: 10px;
+    padding: 6px;
+  }
+  .matchInsights .courtPlayerTabs img {
+    width: 27px;
+    height: 27px;
+  }
+  .matchInsights .courtComparisons {
+    display: block;
+  }
+  .matchInsights .reception {
+    border-top: 1px solid var(--line);
+    margin-top: 20px;
+    padding-top: 18px;
+  }
+  .matchInsights .courtTitle {
+    display: block;
+  }
+  .matchInsights .courtTitle > span {
+    display: block;
+    margin-top: 6px;
+  }
+  .matchInsights .courtMarker img {
+    width: 31px;
+    height: 31px;
+  }
+  .matchInsights .courtMarker span {
+    font-size: 8px;
+    padding: 2px 5px;
+  }
+  .matchInsights .courtDirectionMetrics {
+    gap: 12px;
+    font-size: 10px;
+  }
+  .matchInsights .courtDirectionMetrics b {
+    font-size: 15px;
+  }
+  .matchInsights .courtDirectionMetrics small {
+    font-size: 9px;
+  }
+  .matchInsights .courtAnalytics {
+    gap: 20px;
+  }
+  .matchInsights .directionHeading h2 {
+    line-height: 1.2;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .matchInsights .courtMarker:hover img {
+    scale: 1;
+  }
+}
+.matchInsights .courtMarker {
+  transform: translate(-50%, -22px);
+}
+.matchInsights .courtMarker img,
+.matchInsights .courtPlayerTabs img,
+.matchInsights .hitRow img,
+.matchInsights .receptionLabels img {
+  background: #fff;
+}
+.matchInsights .courtMarker:hover:not(:disabled),
+.matchInsights .courtMarker:active:not(:disabled) {
+  transform: translate(-50%, -22px);
+}
+.matchInsights .courtMarker.selected img {
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.8), 0 5px 14px rgba(0, 0, 0, 0.18);
+}
+@media (max-width: 600px) {
+  .matchInsights .courtMarker,
+  .matchInsights .courtMarker:hover:not(:disabled),
+  .matchInsights .courtMarker:active:not(:disabled) {
+    transform: translate(-50%, -15.5px);
+  }
+}
+.matchInsights .courtAnalytics {
+  grid-template-columns: minmax(0, 2.1fr) minmax(270px, 0.9fr);
+  gap: 22px;
+}
+.matchInsights .courtScene {
+  border-radius: 14px;
+}
+.matchInsights .courtFoot p {
+  font-size: 10px;
+  line-height: 1.5;
+}
+.matchInsights .directionExplorer {
+  padding: 24px;
+}
+.matchInsights .courtMarker img {
+  width: 48px;
+  height: 48px;
+}
+.matchInsights .courtMarker,
+.matchInsights .courtMarker:hover:not(:disabled),
+.matchInsights .courtMarker:active:not(:disabled) {
+  transform: translate(-50%, -24px);
+}
+@media (min-width: 1200px) {
+  .matchInsights .courtAnalytics {
+    grid-template-columns: minmax(0, 2.25fr) minmax(310px, 0.85fr);
+  }
+}
+@media (max-width: 900px) {
+  .matchInsights .courtAnalytics {
+    grid-template-columns: 1fr;
+  }
+  .matchInsights .courtComparisons {
+    margin-top: 8px;
+  }
+}
+@media (max-width: 600px) {
+  .matchInsights .directionExplorer {
+    padding: 16px;
+  }
+  .matchInsights .courtMarker img {
+    width: 31px;
+    height: 31px;
+  }
+  .matchInsights .courtMarker,
+  .matchInsights .courtMarker:hover:not(:disabled),
+  .matchInsights .courtMarker:active:not(:disabled) {
+    transform: translate(-50%, -15.5px);
+  }
+}
+
+.matchInsights .courtFilterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 22px;
+  flex-wrap: wrap;
+}
+.matchInsights .courtPhaseTabs {
+  display: flex;
+  gap: 3px;
+  background: var(--bg, #f2f5ee);
+  padding: 4px;
+  border: 1px solid var(--border, #e0e6d9);
+  border-radius: 12px;
+}
+.matchInsights .courtPhaseTabs button {
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 12px;
+  color: var(--text, #17251c);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+.matchInsights .courtPhaseTabs button.active {
+  background: #c4f63a;
+  color: #1b2914;
+  box-shadow: 0 2px 5px #18260d10;
+  font-weight: 700;
+}
+.matchInsights .courtFilterBar > .muted {
+  font-size: 11px;
+  margin: 0;
+}
+.matchInsights .courtEmpty {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  background: #172c3de8;
+  color: white;
+  padding: 14px 20px;
+  border-radius: 10px;
+  text-align: center;
+  width: 65%;
+  font-size: 13px;
+}
+@media (max-width: 600px) {
+  .matchInsights .courtFilterBar {
+    gap: 8px;
+  }
+  .matchInsights .courtPhaseTabs {
+    width: 100%;
+  }
+  .matchInsights .courtPhaseTabs button {
+    flex: 1;
+    padding: 9px 10px;
+  }
+  .matchInsights .courtEmpty {
+    font-size: 11px;
+  }
+}
+
+.matchInsights .courtPrimary {
+  align-self: center;
+}
+
+.matchInsights {
+  min-height: 0;
+  border-radius: 16px;
+  --bg: var(--bg-app);
+  --card: var(--bg-card);
+  --line: var(--border);
+  --text: var(--text-1);
+  --muted: var(--text-3);
+}
+.matchInsights .reportBody {
+  padding: 0;
+  max-width: 1500px;
+}
+.matchInsights .coverageNotice {
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.matchInsights button {
+  border-radius: 9px;
+}
+.matchInsights .heroTeam img {
+  background: #fff;
+}
+.matchInsights .heroTeam {
+  flex: 1;
+}
+.matchInsights .result {
+  flex: 1;
+}
+.matchInsights .heroTeam > div {
+  flex: 1;
+}
+.matchInsights .heroTeam img {
+  object-fit: cover;
+}
+.matchInsights .heroTeam b {
+  overflow-wrap: anywhere;
+}
+:root:not([data-theme="light"])
+  .matchInsights
+  .courtPlayerTabs
+  .active.courtLime {
+  background: #314021;
+  color: #eef5dd;
+}
+:root:not([data-theme="light"])
+  .matchInsights
+  .courtPlayerTabs
+  .active.courtCoral {
+  background: #4c302d;
+  color: #ffe8e2;
+}
+
+.matchInsights h2,
+.matchInsights h3 {
+  font-weight: 700;
+}
+.matchInsights .reportBody {
+  padding: 0;
+}

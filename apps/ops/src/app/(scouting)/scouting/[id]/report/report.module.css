@@ -9,3 +9,5 @@
 @keyframes reportEnter{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @keyframes sectionEnter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.page,.page>section{animation:none}}
+
+.page{max-width:1560px}
