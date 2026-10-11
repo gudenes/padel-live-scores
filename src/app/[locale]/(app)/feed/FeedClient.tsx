@@ -526,7 +526,7 @@ function NewsCard({ item, onClickArticle, onPeek, userLocale, bookmarked, onTogg
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); onHide(item.id) }}
           style={{
-            position: 'absolute', top: 8, right: item.image_url ? 52 : 8, zIndex: 2,
+            position: 'absolute', top: 8, right: item.image_url ? (wideSourceLogo ? 84 : 52) : 8, zIndex: 2,
             background: 'rgba(0,0,0,0.5)', border: 'none', cursor: 'pointer',
             padding: 6, color: '#fff', clipPath: CHUNKY.badge,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
