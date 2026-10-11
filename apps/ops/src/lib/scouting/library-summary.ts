@@ -6,7 +6,7 @@ import {methodologyAnalysis,DEFAULT_METHODOLOGY} from './methodology'
 export function librarySummary(session:SavedSession,source:'video'|'admin',officialSets?:{a:number;b:number}[]){
  try{
   const report=savedReport(session,source)
-  const quality=scoutingQuality({model:report.model,doc:report.doc,checkpoint:(session.document as {setup?:{qualityCheckpoint?:unknown}})?.setup?.qualityCheckpoint,officialSets})
+  const quality=scoutingQuality({model:report.model,doc:report.doc,checkpoint:(session.document as {setup?:{qualityCheckpoint?:unknown}})?.setup?.qualityCheckpoint,officialSets,rallies:source==='video'?(report.original as {rallies?:unknown[]}).rallies:[]})
   return {quality,ratings:methodologyAnalysis(report.model.tracking.timeline,DEFAULT_METHODOLOGY).players.map(p=>p.score),points:report.model.points,sets:report.model.score.sets,partial:report.partial,failed:false}
  }catch{return {quality:null,ratings:[null,null,null,null],points:null,sets:[],partial:false,failed:true}}
 }

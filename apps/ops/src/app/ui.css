@@ -117,3 +117,13 @@
 .ui-dl { display:grid; grid-template-columns:132px 1fr; gap:7px 12px; font-size:12.5px; align-items:baseline; }
 .ui-dl dt { color:var(--text-3); font-size:11px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; }
 .ui-dl dd { margin:0; color:var(--text-1); }
+
+/* Shared control polish retains the approved button variants. */
+.ui-btn{min-height:38px;transition:background .15s ease,border-color .15s ease,box-shadow .15s ease}
+.ui-btn[data-size="sm"]{min-height:30px}.ui-btn[data-variant="danger"]{background:var(--coral-bg);border-color:var(--coral-border);color:var(--coral-text)}
+.ui-btn:focus-visible,.workspace-link:focus-visible,.workspace-sub-link:focus-visible{outline:2px solid var(--lime-text);outline-offset:3px}
+.ui-input,.ui-select{min-height:38px}.ui-input:focus,.ui-select:focus{border-color:var(--lime-deep);box-shadow:0 0 0 3px var(--lime-bg-2)}
+.ui-input:disabled,.ui-select:disabled{opacity:.55;cursor:not-allowed}.ui-field-label{color:var(--text-2)}
+.ui-ph-title{font-size:26px;letter-spacing:-.025em}.ui-ph-sub{line-height:1.6}.ui-panel,.ui-kpi,.ui-table-wrap{border-radius:14px}
+.ui-cmd-scrim{z-index:300}
+@media(prefers-reduced-motion:reduce){.ui-btn,.ui-input,.ui-select{transition:none}}

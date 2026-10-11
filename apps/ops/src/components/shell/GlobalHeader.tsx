@@ -1,50 +1,30 @@
 'use client'
 import { useState } from 'react'
 import { useTheme } from './ThemeProvider'
-import { useBrand, BRANDS, type Brand } from './BrandProvider'
+import Link from 'next/link'
+import { HorizontalNav } from './HorizontalNav'
 import { Icon } from '../IconSprite'
 import { signOutAction } from '@/lib/actions/sign-out'
 import { CommandPalette } from './CommandPalette'
 
 export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }) {
   const { theme, toggle } = useTheme()
-  const { brand, setBrand } = useBrand()
-  const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
-  const b = BRANDS[brand]
   const avatarLabel = userEmail ? userEmail.charAt(0).toUpperCase() : 'PN'
   return (
     <header className="gheader">
-      <div className="brand" onMouseLeave={() => setMenuOpen(false)}>
-        <button className="brandbtn" onClick={() => setMenuOpen(o => !o)} aria-haspopup="menu" aria-expanded={menuOpen}>
-          <span className={`mark ${brand === 'labs' ? 'labs' : ''}`}>
-            {b.markGlyph === 'paddle'
-              ? <img src="/brand/padel-nachos-paddle.png" alt="" />
-              : <span className="labglyph" style={{ display: 'block' }}>L</span>}
-          </span>
-          <span className="wmwrap">
-            <span className="wm">{b.wordmark}<span className="n" style={brand === 'labs' ? { color: 'var(--lime-text)' } : undefined}>{b.accentWord}</span></span>
-            <span className="wmsub"><span className="tag">ADMIN</span>{b.host}</span>
-          </span>
-          <span className="bchev">▾</span>
-        </button>
-        <div className={`brandmenu ${menuOpen ? 'open' : ''}`} role="menu">
-          <div className="bm-h">Switch workspace</div>
-          {(Object.keys(BRANDS) as Brand[]).map(key => (
-            <div key={key} className={`bm-i ${key === 'labs' ? 'labs' : ''} ${brand === key ? 'on' : ''}`} role="menuitem"
-                 onClick={() => { setBrand(key); setMenuOpen(false) }}>
-              <span className="bm-mk">{key === 'nachos' ? <img src="/brand/padel-nachos-paddle.png" alt="" /> : 'L'}</span>
-              <span className="bm-tx"><b>Padel {key === 'nachos' ? 'Nachos' : 'Labs'}</b><span>{BRANDS[key].host}</span></span>
-              <span className="bm-ck">✓</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Link className="dual-brand" href="/today" aria-label="Padel Nachos and Padel Labs · Admin home">
+        <img className="nachos-wordmark" src="/brand/padelnachos.png" alt="Padel Nachos" width="86" height="54" />
+        <span className="brand-divider" aria-hidden="true" />
+        <img className="labs-wordmark" src="/brand/padellabs.png" alt="Padel Labs" width="156" height="42" />
+      </Link>
+      <HorizontalNav />
 
       <label className="gsearch">
         <Icon id="search" />
         <input
-          placeholder="Search matches, players, tournaments, pages…"
+          aria-label="Search admin"
+          placeholder="Search matches, players…"
           readOnly
           onFocus={(e) => { e.currentTarget.blur(); window.dispatchEvent(new Event('ops:open-palette')) }}
           onClick={() => window.dispatchEvent(new Event('ops:open-palette'))}
@@ -57,10 +37,11 @@ export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }
         <button className="iconbtn" onClick={toggle} aria-label="Toggle theme">
           <Icon id={theme === 'light' ? 'moon' : 'sun'} />
         </button>
-        <button className="iconbtn" aria-label="Notifications"><Icon id="bell" /><span className="nd" /></button>
+
         <div className="usermenu" onMouseLeave={() => setUserMenuOpen(false)}>
           <button
             className="avatar"
+            aria-label="Open account menu"
             onClick={() => setUserMenuOpen(o => !o)}
             aria-haspopup="menu"
             aria-expanded={userMenuOpen}
