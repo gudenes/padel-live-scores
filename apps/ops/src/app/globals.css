@@ -204,3 +204,13 @@ button {
   --shadow-md:0 6px 18px rgba(40,50,30,.10);
   --shadow-lg:0 16px 40px rgba(40,50,30,.14);
 }
+
+/* Approved lime and coral palette, with legible text variants. */
+:root,:root[data-theme="light"]{
+ --lime:#C9F43B;--lime-2:#D6FA69;--lime-deep:#95BD15;--lime-ink:#1A230A;
+ --lime-bg:rgba(201,244,59,.13);--lime-bg-2:rgba(201,244,59,.22);--lime-border:rgba(125,161,20,.5);
+ --lime-glow:0 0 0 1px rgba(201,244,59,.4),0 6px 20px rgba(201,244,59,.12);
+ --coral:#FF8A7A;--coral-bg:rgba(255,138,122,.15);--coral-text:#FFAD9F;--coral-border:rgba(255,138,122,.4);
+ --lime-text:#C9F43B;
+}
+:root[data-theme="light"]{--lime-text:#48620A;--coral-text:#A52F25;--bg-app:#F3F5EF;--bg-input:#F7F8F4;--text-3:#646F5A;--text-4:#7B8573}
