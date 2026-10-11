@@ -214,3 +214,9 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .expert-explanation{border-left:3px solid var(--coral);padding:10px 12px;background:#f6f7f2;border-radius:0 8px 8px 0;margin:14px 0}
 #expert-confirm .expert-explanation p{font-size:12px;margin:5px 0 0}.expert-explanation strong{font-size:13px}
 #expert-confirm .hint{font-size:12px;color:#626957}.expert-actions{display:flex;gap:8px;margin-top:18px}.expert-actions .ui-btn{flex:1;min-height:40px}
+
+/* Compact icon-only mode selector; selected buttons use the shared primary variant. */
+.scout-header .mode-switch{gap:2px;padding:3px;border-radius:12px;background:var(--bg-hover,#e8ebe2);border:0}
+.scout-header .header-actions .mode-switch .ui-btn{width:30px;min-width:30px;height:28px;min-height:28px;padding:5px;border-radius:9px;transition:background .15s ease,color .15s ease,box-shadow .15s ease}
+.mode-switch svg{display:block;flex-shrink:0}.mode-switch .ui-btn[aria-pressed=true]{box-shadow:0 1px 3px #1a20121a}
+@media(prefers-reduced-motion:reduce){.scout-header .header-actions .mode-switch .ui-btn{transition:none}}
