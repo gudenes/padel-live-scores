@@ -101,3 +101,6 @@ body.mobile-second-serve #scouting-workspace .rally-bar #double-fault{display:in
 .standalone-notice #standalone-saved{margin-left:auto;text-align:right;max-width:none}
 
 .standalone-notice{position:sticky;top:0;z-index:90;background:#f5f6ef;padding-block:8px}
+
+.resume-warning{width:min(440px,calc(100vw - 32px));box-sizing:border-box;padding:24px;border:1px solid #d5dccb;border-radius:16px;background:#fff;color:#1a2012}
+.resume-warning::backdrop{background:#15201580}.resume-warning h2{font-size:21px;margin:0 0 16px}.resume-warning p{font-size:14px;line-height:1.6;overflow-wrap:anywhere}.resume-warning>div{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.resume-warning button{flex:1;min-height:44px}

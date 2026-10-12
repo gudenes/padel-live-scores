@@ -14,3 +14,7 @@
 .menu p[role=alert]{font-size:11px;line-height:1.5;padding:8px;color:var(--text-2)}
 @keyframes reveal{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.menu{animation:none}}
+
+.menu[data-placement=below]{bottom:auto;top:calc(100% + 10px);left:auto;right:0}
+
+.extensionGuide{padding:8px;font-size:12px;line-height:1.55}.extensionGuide strong{font-size:14px}.extensionGuide p{margin:10px 0;color:var(--text-2)}.extensionGuide p[role=alert]{padding:0}.extensionGuide button{width:100%}

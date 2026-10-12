@@ -1,3 +1,4 @@
+import {confirmResume} from './resume-warning.mjs';
 import './shortcut-keys.js';
 import {engine} from './engine.mjs';
 import {videoPayload,validateVideoState} from './server-model.mjs';
@@ -12,6 +13,10 @@ async function request(path,options={}){
  return body;
 }
 const bootstrap=await request('/api/internal/standalone-scouting/'+matchId);
+if(!await confirmResume(bootstrap.resumeWarning)){
+ window.top.location.href='/scouting/'+matchId+'/report';
+ await new Promise(()=>{});
+}
 const key=bootstrap.user.id+':'+matchId;
 if(!navigator.locks)throw Error('This browser cannot protect your scouting session. Use a current version of Safari or Chrome.');
 await new Promise((resolve,reject)=>{
