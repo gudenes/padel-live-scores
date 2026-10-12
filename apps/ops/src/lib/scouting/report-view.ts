@@ -32,12 +32,25 @@ export interface ReportContext {
   };
   avatars: Record<string, string | null>;
   pbp: OfficialPoint[];
-  players?:{id:string;name:string;avatar_url?:string|null}[];
+  players?:{id:string;name:string;display_name?:string|null;avatar_url?:string|null}[];
   sets?:{a:number;b:number;set_number?:number}[];
   games?:OfficialGame[];
   status?:string|null;
   winnerPair?:number|null;
   unavailable?: boolean;
+}
+export function compactPlayerName(name:string){
+ const parts=name.trim().split(/\s+/)
+ return parts.length>1?`${parts[0][0]}. ${parts.slice(1).join(' ')}`:name
+}
+/** Normalize the first recorded court arrangement to team A at the near end. */
+export function recordedCourtSlots(rallies:ViewRally[]){
+ const fallback=[{x:.28,y:.697},{x:.72,y:.697},{x:.66,y:.249},{x:.34,y:.249}]
+ const order=rallies.flatMap(r=>r.touches).map(t=>t.order).find(o=>o?.length===4&&new Set(o).size===4&&o.every(p=>Number.isInteger(p)&&p>=0&&p<4)&&Math.floor(o[0]/2)===Math.floor(o[1]/2)&&Math.floor(o[2]/2)===Math.floor(o[3]/2))
+ if(!order)return fallback
+ const normalized=order[2]<2?order:[...order].reverse()
+ const positions=[{x:.34,y:.249},{x:.66,y:.249},{x:.28,y:.697},{x:.72,y:.697}]
+ return fallback.map((_,player)=>positions[normalized.indexOf(player)])
 }
 /** Next recorded hitter by identity, independent of illustrative court positions. */
 export function receiverCounts(rallies: ViewRally[]) {
@@ -176,6 +189,7 @@ export function reportView(
     meta: context.meta,
     players: report.players.map((p) => ({
       ...p,
+      shortName: compactPlayerName(context.players?.find(profile=>profile.id===p.id)?.display_name || p.name),
       avatar:
         context.avatars[p.id] ??
         p.avatar_url ??

@@ -19,7 +19,18 @@ it('draws the majority label toward Ariana rather than Ustero after an end switc
  fireEvent.click(screen.getByRole('button',{name:'Select Martina Calvo'}));
  expect(screen.getByRole('img',{name:'Next recorded receiver: Andrea Ustero 25.0%, Ariana Sanchez 75.0%'})).toBeTruthy();
  const majority=ctx.fillText.mock.calls.find(([label])=>label==='75.0%');
- expect(majority).toBeTruthy();expect(majority![1]).toBeGreaterThan(500);
+ expect(majority).toBeTruthy();expect(majority![1]).toBeLessThan(500);
  const minority=ctx.fillText.mock.calls.find(([label])=>label==='25.0%');
- expect(minority![1]).toBeLessThan(500);
+ expect(minority![1]).toBeGreaterThan(500);
 });
+
+it('keeps the saved playing sides through an end switch and uses preferred surnames',async()=>{
+ const {recordedCourtSlots,compactPlayerName}=await import('../scouting/report-view')
+ const rally=(order:number[])=>[{id:'r',start:null,end:null,touches:[{player:1,order}]}]
+ const slots=recordedCourtSlots(rally([3,2,1,0]))
+ expect(slots[1].x).toBeLessThan(slots[0].x)
+ expect(recordedCourtSlots(rally([0,1,2,3]))).toEqual(slots)
+ expect(compactPlayerName('Andrea Ustero')).toBe('A. Ustero')
+ expect(compactPlayerName('Ari Sanchez')).toBe('A. Sanchez')
+ expect(compactPlayerName('Claudia Fernandez')).toBe('C. Fernandez')
+})
