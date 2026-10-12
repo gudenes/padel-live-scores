@@ -42,3 +42,11 @@ it('allows extension package downloads without permitting writes or arbitrary fi
   expect((await request('/downloads/private.json','GET',user)).status).toBe(403)
  }
 })
+
+it('allows the public court background for both staff roles without opening arbitrary scouting files',async()=>{
+ for(const user of [{id:'scout',isScouter:true},{id:'viewer',isViewer:true}]){
+  for(const method of ['GET','HEAD']) expect((await request('/scouting/court-empty.webp',method,user)).status).toBe(200)
+  expect((await request('/scouting/court-empty.webp','POST',user)).status).toBe(403)
+  expect((await request('/scouting/private.webp','GET',user)).status).toBe(403)
+ }
+})
