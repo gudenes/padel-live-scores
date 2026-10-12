@@ -95,10 +95,10 @@ export default function TournamentSuggestions({ onPublished }: { onPublished: ()
       <Button type="button" size="sm" disabled={loading || busy} onClick={reload}>Refresh suggestions</Button>
     </div>
     <div className={styles.toolbar}>
-      <label>Pre-draw closing deadline (UTC)<input className="ui-input" type="datetime-local" value={deadline} disabled={loading||busy} onChange={e=>setDeadline(e.target.value)} /></label>
+      <label>Closing deadline (UTC)<input className="ui-input" type="datetime-local" value={deadline} disabled={loading||busy} onChange={e=>setDeadline(e.target.value)} /></label>
       <Button type="button" size="sm" disabled={loading||busy||!deadline} onClick={()=>{const value=Date.parse(deadline+'Z');if(!Number.isFinite(value)||value<=Date.now()){setError('Choose a future closing deadline in UTC.');return;}setLoading(true);setAppliedDeadline(new Date(value).toISOString());setRefresh(n=>n+1)}}>Apply deadline</Button>
     </div>
-    <p className={styles.footnote}>Open from the draw before match times are available. Choose a deadline before expected play; these markets close earlier if any main-draw match starts or is scheduled earlier. Applying a deadline does not publish anything.</p>
+    <p className={styles.footnote}>Match times are not required. Choose a deadline before the selected pairs are expected to play. Markets linked to a pair’s next match close earlier if that match starts or receives an earlier time. Without a next match in the draw, markets close when the main draw starts. Applying a deadline does not publish anything.</p>
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {message && <p role="status" className={styles.success}>{message}</p>}
     {loading ? <div className={styles.grid} aria-busy="true" aria-label="Loading tournament suggestions">{Array.from({length:4},(_,i)=><div key={i} className={`${styles.card} ${styles.skeleton}`}><span>Checking the draw…</span></div>)}</div>

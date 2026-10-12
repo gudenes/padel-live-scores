@@ -28,3 +28,12 @@ No live settings, markets, or positions were changed while implementing this fea
 - Browser preview uses the actual component with clearly labelled illustrative data and mock publication. It does not access or write live markets.
 
 Validation completed: admin production build passed; worker TypeScript passed; 29 admin/API/UI tests, 21 resolver tests, 23 consumer tests and both embedded PostgreSQL lifecycle scenarios passed. Four existing route helpers were made private to satisfy Next.js 16 route export checks; their behavior is unchanged. Desktop and 390px-wide browser layouts were inspected.
+
+
+## Approval before a confirmed match time
+
+A suggestion can bind to the selected pair's next scheduled match even when `scheduled_at` is null. The operator must supply a future closing deadline before expected play. Other pairs already playing in the same draw do not prevent this approval. A known time in the past still blocks publication.
+
+The database verifies the bound match is scheduled, in the same tournament and draw, and contains both selected players. It locks the match row during publication to serialize against schedule/status updates. Existing triggers shorten the deadline for an earlier confirmed time and lock trading when the bound match starts. Ordinary match markets still require a confirmed time. Suggestions without a next-match row retain the whole-draw pre-play restriction.
+
+Apply `20261012150000_play_unscheduled_pair_deadlines.sql` before deploying the admin change. The migration changes approval rules only; it does not create markets. Operators still review and approve each suggestion.

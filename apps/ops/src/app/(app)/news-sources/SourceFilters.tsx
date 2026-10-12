@@ -1,7 +1,7 @@
 'use client'
 
 export interface Filters {
-  type: 'all' | 'rss' | 'wp-api' | 'google-news-search'
+  type: 'all' | 'rss' | 'wp-api' | 'google-news-search' | 'ptpadel-api'
   lang: 'all' | 'en' | 'es' | 'pt' | 'it' | 'fr'
   health: 'all' | 'healthy' | 'errors' | 'auto-disabled'
   kind: 'all' | 'static' | 'player' | 'tournament' | 'brand' | 'user-suggested' | 'ai-discovered'
@@ -17,6 +17,7 @@ const GROUPS: ChipGroup<keyof Filters>[] = [
   { field: 'type', label: 'Type', options: [
     { value: 'all', label: 'All' }, { value: 'rss', label: 'RSS' },
     { value: 'wp-api', label: 'WP-API' }, { value: 'google-news-search', label: 'Google News' },
+    { value: 'ptpadel-api', label: 'PTPadel API' },
   ]},
   { field: 'lang', label: 'Lang', options: [
     { value: 'all', label: 'All' }, { value: 'en', label: 'EN' }, { value: 'es', label: 'ES' },

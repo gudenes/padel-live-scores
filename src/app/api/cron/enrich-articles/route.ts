@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     const cutoffIso = new Date(Date.now() - WINDOW_DAYS * 86400_000).toISOString()
     const { data: candidates, error } = await supabase
       .from('articles')
-      .select('id, source_url:url, title, enrichment_retry_count')
+      .select('id, source_url:url, title, source_body, enrichment_retry_count')
       .eq('enrichment_status', 'pending')
       .lt('enrichment_retry_count', MAX_RETRIES + 1)
       .gte('published_at', cutoffIso)
@@ -107,11 +107,11 @@ export async function GET(req: NextRequest) {
 async function enrichOne(
   supabase: ReturnType<typeof createServerClient>,
   anthropic: Anthropic,
-  article: { id: string; source_url: string; title: string; enrichment_retry_count: number | null },
+  article: { id: string; source_url: string; title: string; source_body: string | null; enrichment_retry_count: number | null },
 ) {
   // 1. Fetch body (via @extractus/article-extractor — replaces jsdom + Readability,
   //    which had ESM-incompatible transitive deps on Vercel's Node 22)
-  const { text: body, title: extractedTitle } = await fetchArticleBody(article.source_url)
+  const { text: body, title: extractedTitle } = await fetchArticleBody(article.source_url, 15000, article.source_body)
   const headline = extractedTitle ?? article.title
 
   // 2. Sonnet

@@ -5,11 +5,6 @@
 // biased to the top of the source image (FIP posters reliably place
 // players + tier badge in the upper half).
 //
-// The `variant` prop currently doesn't change behavior — both render
-// the same. It exists so consumers communicate intent and so future
-// divergence (e.g. per-surface aspect-aware fallbacks) stays additive
-// without churning every call site.
-//
 // Returns null when `src` is missing — consumers continue to render
 // their existing tier-gradient fallback underneath this component.
 
@@ -47,12 +42,16 @@ interface Props {
 export default function TournamentCoverImage({
   src,
   alt,
-  variant: _variant,
+  variant,
   sizes,
   priority = false,
   focal = 'top',
 }: Props) {
   if (!src) return null
+  // Milan's tall poster has a sponsor strip above the players. Move the
+  // hero crop down so all five faces sit above the title overlay.
+  const milanHero = variant === 'hero' && /\/2025\/12\/MILANO-P1\.jpeg(?:[?#]|$)/.test(src)
+  const position = focal === 'center' ? 'center' : milanHero ? 'center 25%' : 'center top'
   return (
     <Image
       src={src}
@@ -60,7 +59,7 @@ export default function TournamentCoverImage({
       fill
       sizes={sizes}
       priority={priority}
-      style={{ objectFit: 'cover', objectPosition: focal === 'center' ? 'center' : 'center top' }}
+      style={{ objectFit: 'cover', objectPosition: position }}
     />
   )
 }

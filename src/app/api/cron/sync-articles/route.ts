@@ -1,6 +1,6 @@
 // src/app/api/cron/sync-articles/route.ts
-// Fetches padel news from RSS feeds + FIP WordPress API, upserts into articles table.
-// Runs every 6 hours via Vercel cron.
+// Fetches padel news from RSS, WordPress and PTPadel APIs into articles.
+// Runs hourly via scripts/railway-cron-runner.mjs (minute 40).
 
 import { NextRequest, NextResponse } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -9,6 +9,7 @@ import Parser from 'rss-parser'
 import GoogleNewsDecoder from 'google-news-decoder'
 import { logOpsEvent } from '@/lib/ops-logger'
 import { translateTitleBundle } from '@/lib/snippet-translator'
+import { fetchPtPadel } from '@/lib/ptpadel-source'
 
 // Bumped from 60→120s to absorb title-translation calls. Each new
 // article costs one Claude Haiku call (~2s); typical hourly run has
@@ -24,7 +25,7 @@ interface ArticleSource {
   icon: string
   language: string
   weight: number
-  type: 'rss' | 'wp-api'
+  type: 'rss' | 'wp-api' | 'google-news-search' | 'ptpadel-api'
   url: string
   /** How far back to ingest articles for this source. Defaults to 14 days.
    *  Niche / low-volume sources (e.g. Olympic-track padel news) widen this
@@ -50,7 +51,7 @@ async function loadStaticSources(supabase: SupabaseClient): Promise<ArticleSourc
     icon: r.name.charAt(0).toUpperCase() || '?',
     language: r.language,
     weight: r.weight,
-    type: r.source_type as 'rss' | 'wp-api',
+    type: r.source_type as ArticleSource['type'],
     url: r.url,
     lookbackDays: r.lookback_days,
   }))
@@ -369,13 +370,13 @@ export async function GET(req: NextRequest) {
       const sources = await loadStaticSources(supabase)
       for (const source of sources) {
         try {
-          const rows = source.type === 'wp-api'
+          const rows = source.type === 'ptpadel-api'
+            ? await fetchPtPadel(source)
+            : source.type === 'wp-api'
             ? await fetchFIP(source)
             : await fetchRSS(source)
 
           results[source.key] = { fetched: rows.length }
-
-          if (rows.length === 0) continue
 
           // Enrich articles — resolve real URLs for Google News, fetch og:image & og:description.
           // Process up to 10 at a time to stay within the 60s timeout.
@@ -418,7 +419,7 @@ export async function GET(req: NextRequest) {
             for (const r of needEnrich) delete (r as any)._realUrl
           }
 
-          const { error, data } = await supabase
+          const { error, data } = rows.length === 0 ? { error: null, data: [] } : await supabase
             .from('articles')
             .upsert(rows, { onConflict: 'url' })
             .select('id, title, language, title_translations')
