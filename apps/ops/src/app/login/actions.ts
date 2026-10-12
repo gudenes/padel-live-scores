@@ -1,6 +1,7 @@
 'use server'
 
 import { AuthError } from 'next-auth'
+import { redirect } from 'next/navigation'
 import { signIn } from '@/lib/auth'
 
 type CredentialsState = { error: string } | undefined
@@ -37,9 +38,22 @@ export async function loginWithCredentials(
   }
 }
 
-export async function loginWithEmailLink(formData: FormData) {
-  const email = String(formData.get('email') ?? '')
-  await signIn('resend', { email, redirectTo: '/' })
+export type EmailLinkState = {error:string} | undefined
+export async function loginWithEmailLink(_prev:EmailLinkState,formData:FormData):Promise<EmailLinkState> {
+  const email = String(formData.get('email') ?? '').trim().toLowerCase()
+  if(!email)return {error:'Enter your email address.'}
+  let target:string
+  try {
+    target=await signIn('resend',{email,redirectTo:'/',redirect:false})
+    const next=new URL(target,'https://admin.padelnachos.com')
+    if(next.searchParams.has('error') || !next.pathname.endsWith('/verify-request')) {
+      return {error:'We couldn’t send your sign-in email. Please try again or continue with Google.'}
+    }
+  } catch {
+    return {error:'We couldn’t send your sign-in email. Please try again or continue with Google.'}
+  }
+  // Redirect only after Auth.js confirms the verification email was accepted.
+  redirect(target)
 }
 
 export async function loginWithGoogle() {
