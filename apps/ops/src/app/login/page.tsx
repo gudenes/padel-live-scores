@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { Panel } from '@/components/ui'
-import { loginWithEmailLink, loginWithGoogle } from './actions'
+import { loginWithGoogle } from './actions'
 import { LoginForm } from './LoginForm'
+import { EmailLinkForm } from './EmailLinkForm'
 
 export const metadata = { title: 'Sign in · PadelNachos Admin' }
 
@@ -57,24 +58,7 @@ export default async function LoginPage() {
           </div>
 
           {/* Magic link */}
-          <form action={loginWithEmailLink} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <input name="email" type="email" required placeholder="Email for sign-in link" className="ui-input" />
-            <button
-              type="submit"
-              style={{
-                background: 'var(--bg-card-2)',
-                color: 'var(--text-1)',
-                border: '1px solid var(--border-card)',
-                borderRadius: 8,
-                padding: '10px 12px',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Email me a sign-in link
-            </button>
-          </form>
+          <EmailLinkForm />
 
           {/* Google */}
           <form action={loginWithGoogle} style={{ marginTop: 10 }}>

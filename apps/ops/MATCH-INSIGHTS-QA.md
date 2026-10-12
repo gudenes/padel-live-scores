@@ -30,3 +30,9 @@ The report header has one export menu for full-match JSON and selected-set scout
 Team Access and session assignment accept only the exact public admin origin in production, independent of Railway's internal request URL. Regression tests cover proxy requests, missing/hostile origins and spoofed forwarding headers. Existing administrator authorization, protected accounts, transaction locking and audit records remain intact. Validation never granted or changed a person's access.
 
 Live catalog verification identified that games.points is a PostgreSQL text[] (score snapshots), not JSONB. The PBP availability query now uses cardinality(points)>0. The full catalog query was exercised read-only against the actual database with all/scouted/unscouted filters before redeployment.
+
+## Receiver arrow correction
+
+Court arrows now use a shared hitter-to-next-receiver matrix for both their endpoint and percentage. Recorded positional orders still inform cross-court/down-the-line analysis separately; illustrative avatar positions never determine who receives a shot. The same matrix supplies reception totals.
+
+Reviewed match b189e398-c70c-48f3-85cf-d0620ae0b859 (94 rallies, 1,035 taps): Calvo to Ariana 203/290 (70.0%), to Ustero 87/290 (30.0%); Claudia to Ariana 86/164 (52.4%), to Ustero 78/164 (47.6%). Existing totals, saved scouting and ratings are unchanged. Regression tests verify endpoint placement after end switches and reconciliation of outgoing/incoming counts. Temporary real-data validation route removed.

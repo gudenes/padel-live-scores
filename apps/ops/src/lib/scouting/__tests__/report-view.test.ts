@@ -141,3 +141,23 @@ it("builds scoped live reports without importing scores as observations, retaini
   expect(data.scopes["1"].teams[0].winners).toBe(1);
   expect(data.partial).toBe(true);
 });
+
+it('preserves receiver identity across swapped ends and positional orders', async()=>{
+ const {receiverCounts}=await import('../report-view');
+ const rallies:ViewRally[]=[{id:'a',start:null,end:null,touches:[
+  {player:2,order:[3,2,1,0]},{player:1,order:[3,2,1,0]},{player:3,order:[3,2,1,0]},{player:0,order:[3,2,1,0]}
+ ]},{id:'b',start:null,end:null,touches:[{player:2,order:[0,1,2,3]},{player:1,order:[0,1,2,3]}]}];
+ const result=receiverCounts(rallies);
+ expect(result.players[2].receivers).toEqual([0,2,0,0]);
+ expect(result.players[3].receivers).toEqual([1,0,0,0]);
+ expect(result.incoming).toEqual([1,2,0,1]);
+ for(let receiver=0;receiver<4;receiver++)expect(result.players.reduce((sum,row)=>sum+row.receivers[receiver],0)).toBe(result.incoming[receiver]);
+});
+it('excludes same-team and final taps from receiver percentages',async()=>{
+ const {receiverCounts}=await import('../report-view');
+ const result=receiverCounts([{id:'a',start:null,end:null,touches:[{player:2,order:[]},{player:3,order:[]},{player:1,order:[]}]}]);
+ expect(result.players[2]).toMatchObject({shots:1,unknown:1});
+ expect(result.players[3].receivers).toEqual([0,1,0,0]);
+ expect(result.players[1].unknown).toBe(1);
+ expect(result.excluded).toBe(1);
+});

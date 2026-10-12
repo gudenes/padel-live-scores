@@ -7,3 +7,7 @@ The email matches the admin branding with a dark dual-logo header, lime CTA and 
 Uses the existing RESEND_API_KEY and AUTH_EMAIL_FROM configuration. Provider rejection/missing configuration returns a visible delivery warning while preserving the access grant. No existing members receive a backfill email. Delivery acceptance is not a receipt/read guarantee.
 
 Validation: 28 access/email tests passed with mocked delivery; production webpack build and TypeScript passed; desktop and 390px browser previews reviewed. No real emails were sent and no access was changed.
+
+## Magic-link delivery checks
+
+Admin login now checks the provider’s error response and message ID, and only proceeds to Auth.js’s verification page on an accepted email request. Failures remain in the email form with a retry/Google message. Safe diagnostic categories exclude recipients, authentication URLs, tokens and provider response bodies. Plain-text sign-in instructions accompany HTML. A provider-accepted message is not proof of inbox delivery.
