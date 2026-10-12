@@ -1,0 +1,117 @@
+import {validateCoachConfirmations} from './coach-model.mjs';
+import {replay} from './generated/model.mjs';
+import {pressure} from './generated/tracking.mjs';
+import {validateStartingScore} from './starting-score.mjs';
+import {createInitialState,apply} from './generated/scoring.mjs';
+import {shots} from './generated/shots.mjs';
+export const defaults=()=>({names:['Player A1','Player A2','Player B1','Player B2'],firstServer:0,otherServer:2,rule:'star-point'});
+const slots=[0,2,1,3];
+export const pair=p=>p<2?'a':'b';
+export function validateSmashType(type){if(!['power','x3','soft'].includes(type))throw Error('Choose Power, X3 or Soft smash.');return type;}
+export function validateSetup(setup){
+ if(!Array.isArray(setup.names)||setup.names.length!==4||setup.names.some(n=>typeof n!=='string'||!n.trim()||n.length>80))throw Error('Enter four player names (up to 80 characters).');
+ if(!Number.isInteger(setup.firstServer)||setup.firstServer<0||setup.firstServer>3||!Number.isInteger(setup.otherServer)||setup.otherServer<0||setup.otherServer>3||pair(setup.firstServer)===pair(setup.otherServer))throw Error('Choose the first server and a server from the other pair.');
+ if(!['star-point','golden-point','advantage'].includes(setup.rule))throw Error('Choose a supported scoring rule.');
+ if(setup.near!==undefined&&!['a','b'].includes(setup.near))throw Error('Invalid court end.');
+ if(setup.positions&&(['a','b'].some(t=>typeof setup.positions[t]!=='boolean')))throw Error('Invalid court positions.');
+ if(setup.firstServerUnknown!==undefined&&typeof setup.firstServerUnknown!=='boolean')throw Error('Invalid first server confirmation.');
+ if(setup.coaches!==undefined)setup={...setup,coaches:validateCoachConfirmations(setup.coaches)};
+ if(setup.otherServerUnknown!==undefined&&typeof setup.otherServerUnknown!=='boolean')throw Error('Invalid server confirmation.');
+ if(setup.onboardingComplete!==undefined&&typeof setup.onboardingComplete!=='boolean')throw Error('Invalid setup status.');
+ return {...setup,names:setup.names.map(n=>n.trim()),...(setup.startingScore?{startingScore:validateStartingScore(setup.startingScore)}:{})};
+}
+export const videoAt=s=>new Date(Math.max(0,s.time)*1000).toISOString();
+export function scoutingDocument(state){
+ const setup=state.setup??defaults(),seed=setup.startingScore?validateStartingScore(setup.startingScore):null,events=[];
+ const push=(id,kind,at,extra={})=>events.push({id,kind,at,...extra});
+ const firstAt=videoAt(state.rallies.find(r=>r.point&&!r.undone)?.start??state.pending?.start??{time:0});
+ if(seed)push('baseline','score',firstAt,{seed:{sets:[...seed.completed,seed.games],game:seed.points,phase:seed.games.a===6&&seed.games.b===6?'tiebreak':'playing',returns:seed.advantageReturns,server:seed.server}});
+ for(const team of ['a','b'])if(setup.positions?.[team])push('position-'+team,'swap',firstAt,{team});
+ const adjust=(afterId,at)=>{for(const [i,a] of (setup.adjustments??[]).entries())if(a.afterId===afterId){
+  const when=a.videoTime===undefined?at:videoAt({time:a.videoTime});
+  if(a.type==='missed-point')push('adjust-'+i,'unclassified',when,{team:a.team});
+  else if(a.type==='score-correction'){const v=validateStartingScore(a.score);push('adjust-'+i,'score',when,{seed:{sets:[...v.completed,v.games],game:v.points,phase:v.games.a===6&&v.games.b===6?'tiebreak':'playing',returns:v.advantageReturns,server:v.server}});}
+  else push('adjust-'+i,a.type==='server'?'server':'flip',when,a.type==='server'?{player:a.player}:{});
+ }};
+ adjust(null,firstAt);
+ const addRally=(r,complete)=>{
+  const at=videoAt(r.start);push(r.id+'-start','rally_start',at);
+  if(r.firstFault)push(r.id+'-fault','first_fault',videoAt(r.firstFault));
+  for(const [i,a] of (r.attempts??[]).entries())push(r.id+'-smash-'+i,'smash',videoAt(a.snapshot),{player:a.player});
+  if(!complete)return;
+  const p=r.point,end=videoAt(r.end);
+  if(p.outcome==='double_fault')push(r.id,'double_fault',end);
+  else {const attempt=p.smashAttemptIndex??(r.attempts??[]).findLastIndex(a=>a.player===p.player);push(r.id,'point',end,{...p,smash:p.shot==='smash',...(p.smashAlreadyCounted?{smashAttemptId:r.id+'-smash-'+attempt}:{})});}
+ };
+ for(const r of state.rallies){if(r.point&&!r.undone)addRally(r,true);adjust(r.id,videoAt(r.end??r.start));}
+ if(state.pending)addRally(state.pending,false);
+ return {version:1,rule:setup.rule,firstServer:setup.firstServer,otherServer:setup.otherServer,near:seed?.near??setup.near??'a',events};
+}
+export function match(state){
+ const seed=state.setup?.startingScore?validateStartingScore(state.setup.startingScore):null;
+ const document=scoutingDocument(state),m=replay(document);
+ // Confirm each pair only when its first service game of the set arrives.
+ // Use existing server events so reports and server sync retain the same format.
+ let setServers=null;
+ const games=m.score.sets.at(-1),game=games.a+games.b+1;
+ if(m.score.phase!=='finished'&&m.score.sets.length>1&&game<=2&&m.score.currentGame.a===0&&m.score.currentGame.b===0){
+  for(let index=document.events.length-1;index>=0;index--){
+   const event=document.events[index];
+   if(event.kind==='score')break; // A manually seeded position already specifies its server.
+   if(!['point','double_fault','unclassified'].includes(event.kind))continue;
+   const before=replay({...document,events:document.events.slice(0,index)});
+   if(before.score.sets.length<m.score.sets.length){
+    const confirmed=document.events.slice(index+1).some(e=>e.kind==='server'&&pair(e.player)===pair(m.server));
+    if(!confirmed)setServers={set:m.score.sets.length,game,team:pair(m.server)};
+    break;
+   }
+  }
+ }
+ const types=Array.from({length:4},()=>({powerSmashes:0,x3Smashes:0,softSmashes:0,softSmashWinners:0,x4Winners:0}));
+ for(const r of [...state.rallies.filter(r=>!r.undone&&r.point),...(state.pending?[state.pending]:[])]){
+  for(const a of r.attempts??[])if(a.smashType)types[a.player][a.smashType==='x3'?'x3Smashes':a.smashType==='soft'?'softSmashes':'powerSmashes']++;
+  if(r.point?.shot==='smash'&&r.point.smashType&&!r.point.smashAlreadyCounted)types[r.point.player][r.point.smashType==='x3'?'x3Smashes':r.point.smashType==='soft'?'softSmashes':'powerSmashes']++;
+  if(r.point?.outcome==='winner'&&r.point.shot==='smash'&&r.point.smashType==='soft')types[r.point.player].softSmashWinners++;
+  if(r.point?.x4)types[r.point.player].x4Winners++;
+ }
+ const stats=m.stats.map((s,i)=>({...s,...types[i],doubleFaults:m.tracking.service[i].doubleFaults}));
+ return {...m,setServers,stats,situation:pressure(m.score),timeOffset:seed?.elapsedSeconds??null};
+}
+export function validatePoint(raw,pending,server){
+ const p={player:raw.player,outcome:raw.outcome};
+ if(!Number.isInteger(p.player)||p.player<0||p.player>3||!['winner','unforced','forced','double_fault'].includes(p.outcome))throw Error('Choose a player and outcome.');
+ if(p.outcome==='double_fault'){
+  if(!pending.firstFault||p.player!==server)throw Error('Record the first fault before a double fault.');
+  return p;
+ }
+ if(raw.shot!==undefined){if(!Object.hasOwn(shots,raw.shot))throw Error('Invalid shot.');p.shot=raw.shot;}
+ if(raw.smashType!==undefined){if(p.shot!=='smash')throw Error('Smash type applies only to smashes.');p.smashType=validateSmashType(raw.smashType);}
+ if(raw.x4!==undefined){if(typeof raw.x4!=='boolean'||raw.x4&&(p.outcome!=='winner'||p.shot!=='smash'||p.smashType!=='power'))throw Error('X4 applies only to a Power smash winner.');if(raw.x4)p.x4=true;}
+ if(raw.side!==undefined){if(!['forehand','backhand'].includes(raw.side))throw Error('Invalid shot side.');p.side=raw.side;}
+ for(const tag of ['recovery','smashRecovery'])if(raw[tag]){if(p.outcome!=='winner')throw Error('Recovery tags apply to winners.');p[tag]=true;}
+ if(raw.assistBy!==undefined){if(p.outcome!=='winner'||raw.assistBy!==(p.player^1))throw Error('Assist must credit the winner’s partner.');p.assistBy=raw.assistBy;}
+ if(raw.forcedBy!==undefined){if(!Number.isInteger(raw.forcedBy)||raw.forcedBy<0||raw.forcedBy>3||p.outcome!=='forced'||pair(raw.forcedBy)===pair(p.player))throw Error('Forced-error credit must name an opponent of the player making the forced error.');p.forcedBy=raw.forcedBy;}
+ if(raw.previousPlayer!==undefined){if(!Number.isInteger(raw.previousPlayer)||raw.previousPlayer<0||raw.previousPlayer>3||!['forced','unforced'].includes(p.outcome)||pair(raw.previousPlayer)===pair(p.player))throw Error('Previous player must name an opponent for an error.');p.previousPlayer=raw.previousPlayer;}
+ if(raw.previousShot!==undefined){if(p.previousPlayer===undefined||!Object.hasOwn(shots,raw.previousShot))throw Error('Choose a previous player and valid stroke.');p.previousShot=raw.previousShot;}
+ if(p.previousPlayer!==undefined&&p.forcedBy!==undefined&&p.previousPlayer!==p.forcedBy)throw Error('Previous player and forced-error credit must agree.');
+ if(raw.netTouch!==undefined){if(typeof raw.netTouch!=='boolean')throw Error('Invalid net touch tag.');if(raw.netTouch)p.netTouch=true;}
+ if(raw.netCord!==undefined){if(!['lucky','unlucky'].includes(raw.netCord))throw Error('Invalid net cord tag.');p.netCord=raw.netCord;}
+ if(raw.smashAlreadyCounted){if(p.shot!=='smash'||!pending.attempts?.some(a=>a.player===p.player))throw Error('No smash attempt to link for this player.');p.smashAlreadyCounted=true;}
+ if(raw.smashAttemptIndex!==undefined){const a=pending.attempts?.[raw.smashAttemptIndex];if(!Number.isInteger(raw.smashAttemptIndex)||!p.smashAlreadyCounted||!a||a.player!==p.player||p.smashType&&a.smashType!==p.smashType)throw Error('Choose a matching attempt in this rally.');p.smashAttemptIndex=raw.smashAttemptIndex;}
+ else if(p.smashAlreadyCounted&&p.smashType){const index=pending.attempts.findLastIndex(a=>a.player===p.player&&a.smashType===p.smashType);if(index<0)throw Error('Choose a matching attempt in this rally.');p.smashAttemptIndex=index;}
+ return p;
+}
+
+export function changesEnds(before,after){
+ if(before.phase==='tiebreak'||before.phase==='super-tiebreak')return after.phase!==before.phase||(Number(after.currentGame.a)+Number(after.currentGame.b))%6===0;
+ const i=before.sets.length-1,prev=before.sets[i],next=after.sets[i];
+ return next.a+next.b!==prev.a+prev.b&&(next.a+next.b)%2===1;
+}
+
+// Camera-facing order reverses at each end change; playing roles stay fixed.
+export function courtPlayers(state,m=match(state)){
+ const initialNear=state.setup?.startingScore?.near??state.setup?.near??'a';
+ const flipped=m.near!==initialNear;
+ const order=team=>{const first=team==='a'?0:2,reverse=!!m.swapped[team]!==flipped;return reverse?[first+1,first]:[first,first+1];};
+ return [...order(m.near==='a'?'b':'a'),...order(m.near)];
+}

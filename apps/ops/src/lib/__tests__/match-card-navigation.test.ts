@@ -17,3 +17,16 @@ it('lets cards without scouting open official match details and keeps private ro
  expect(screen.getByRole('link',{name:'Open insights: One / Two / Three / Four'}).getAttribute('href')).toBe('/scouting/manual/example/report')
  expect(screen.getByText('Official match details')).toBeTruthy()
 })
+it('offers standalone scouting to scouters while keeping the card destination as insights',()=>{
+ render(createElement(MatchCard,{row,user:{isScouter:true}}))
+ expect(screen.getByRole('link',{name:'Start scouting'}).getAttribute('href')).toBe('/scouting/example/live')
+ expect(screen.getByRole('link',{name:'Open insights'}).getAttribute('href')).toBe('/scouting/example/report')
+})
+it('does not offer recording to viewers or offer to overwrite extension data',()=>{
+ const view=render(createElement(MatchCard,{row,user:{isViewer:true}}))
+ expect(screen.queryByRole('link',{name:'Start scouting'})).toBeNull()
+ view.rerender(createElement(MatchCard,{row:{...row,has_scouting:true,document:{}},user:{isOperator:true}}))
+ expect(screen.queryByRole('link',{name:/scouting/})).toBeNull()
+ view.rerender(createElement(MatchCard,{row:{...row,has_scouting:true,document:{captureMode:'standalone'}},user:{isOperator:true}}))
+ expect(screen.getByRole('link',{name:'Continue scouting'}).getAttribute('href')).toBe('/scouting/example/live')
+})

@@ -1,5 +1,6 @@
 export interface VideoState {
  version:1;
+ captureMode?:"video"|"standalone";
  label:string;
  setup:{qualityCheckpoint?:{version:1;key:string;at:string};otherServerUnknown?:boolean;onboardingComplete?:boolean;names:string[];firstServer:number;otherServer:number;rule:string;startingScore?:{completed:{a:number;b:number}[];games:{a:number;b:number};points:{a:number|string;b:number|string};server:number;near:string;advantageReturns:number;elapsedSeconds?:number};near?:string;positions?:{a:boolean;b:boolean};adjustments?:unknown[]};
  rallies:unknown[];
