@@ -98,3 +98,30 @@ describe('pre-draw publication',()=>{
   expect(p.errors).toEqual([]);expect(p.locksAt).toBe('2026-09-29T12:00:00.000Z');expect(p.boundMatchId).toBeTruthy()
  })
 })
+
+
+describe('unscheduled next-match publication',()=>{
+ const next={id:'44444444-4444-4444-4444-444444444444',status:'scheduled',scheduled_at:null,round_canonical:'R32',pair1_player1_id:ids[0],pair1_player2_id:ids[1]}
+ const deadline='2026-09-30T07:00:00Z'
+ it('allows an explicit deadline after unrelated main-draw matches start',async()=>{
+  const p=await previewEditorial(database({matches:[next,{id:'other',status:'live',round_canonical:'R64'}]}),{...config,locksAt:deadline},now)
+  expect(p.errors).toEqual([])
+  expect(p.boundMatchId).toBe(next.id)
+  expect(p.locksAt).toBe('2026-09-30T07:00:00.000Z')
+  expect(p.evidence.nextMatch).toEqual({id:next.id,startsAt:null})
+ })
+ it('still requires an explicit future deadline',async()=>{
+  for(const locksAt of ['', '2026-09-29T09:00:00Z']) {
+   const p=await previewEditorial(database({matches:[next]}),{...config,locksAt},now)
+   expect(p.errors.join(' ')).toContain('Closing time must be in the future')
+  }
+ })
+ it('does not override an overdue scheduled match',async()=>{
+  const p=await previewEditorial(database({matches:[{...next,scheduled_at:'2026-09-29T09:00:00Z'}]}),{...config,locksAt:deadline},now)
+  expect(p.errors.length).toBeGreaterThan(0)
+ })
+ it('does not allow publication while the selected pair is playing',async()=>{
+  const p=await previewEditorial(database({matches:[{...next,status:'live'}]}),{...config,locksAt:deadline},now)
+  expect(p.errors.join(' ')).toContain('currently playing')
+ })
+})

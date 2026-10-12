@@ -51,10 +51,13 @@ export async function previewEditorial(db: SupabaseClient, raw: unknown, now = n
     const upcoming = pairMatches.filter(m => m.status === 'scheduled').sort((a,b) => String(a.scheduled_at ?? '').localeCompare(String(b.scheduled_at ?? '')))
     const next = upcoming[0]
     const nextTime = Date.parse(String(next?.scheduled_at ?? ''))
-    if (Number.isFinite(nextTime) && nextTime > now.getTime()) {
+    if (next && (!next.scheduled_at || (Number.isFinite(nextTime) && nextTime > now.getTime()))) {
       boundMatchId = String(next.id)
-      locksAt = c.locksAt && Date.parse(c.locksAt) < nextTime ? c.locksAt : String(next.scheduled_at)
-      evidence.nextMatch = { id: next.id, startsAt: next.scheduled_at }
+      locksAt = next.scheduled_at
+        ? (c.locksAt && Date.parse(c.locksAt) < nextTime ? c.locksAt : String(next.scheduled_at))
+        : c.locksAt
+      if (!locksAt) errors.push('Set a closing deadline before the pair is expected to play; a confirmed match time is not required.')
+      evidence.nextMatch = { id: next.id, startsAt: next.scheduled_at ?? null }
     } else {
       // Draw-based opening is pre-play only. It closes for the whole draw's
       // first ball, even if the selected pair has a bye or no match row yet.

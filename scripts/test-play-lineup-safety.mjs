@@ -13,7 +13,7 @@ async function setup(){
  CREATE TABLE players(id uuid primary key,name text,display_name text,avatar_url text,country text);
  CREATE TABLE model_predictions(id uuid default gen_random_uuid(),match_id uuid, pair1_prob numeric);
  INSERT INTO users VALUES('${uuid(1)}');INSERT INTO profiles SELECT * FROM users;INSERT INTO tournaments VALUES('${uuid(2)}');`)
- for(const f of ['20260923120000_play_market_core.sql','20260923120100_play_market_trading.sql','20260923120200_play_market_ledger.sql','20260418_user_notifications.sql','20260927160000_play_atomic_settlement.sql','20260929170000_play_editorial_scopes.sql','20260929190000_play_editorial_publishing.sql','20260929210000_play_editorial_contract_uniqueness.sql','20261004110000_play_champion_editorial.sql','20261005090000_play_predraw_deadlines.sql','20261006100000_play_lineup_safety.sql'])
+ for(const f of ['20260923120000_play_market_core.sql','20260923120100_play_market_trading.sql','20260923120200_play_market_ledger.sql','20260418_user_notifications.sql','20260927160000_play_atomic_settlement.sql','20260929170000_play_editorial_scopes.sql','20260929190000_play_editorial_publishing.sql','20260929210000_play_editorial_contract_uniqueness.sql','20261004110000_play_champion_editorial.sql','20261005090000_play_predraw_deadlines.sql','20261006100000_play_lineup_safety.sql','20261012150000_play_unscheduled_pair_deadlines.sql'])
   await db.exec((await readFile(`supabase/migrations/${f}`,'utf8')).replace("encode(gen_random_bytes(8), 'hex')","gen_random_uuid()::text"))
  await db.exec(`INSERT INTO market_seasons(id,name,starts_at,ends_at,status) VALUES('${uuid(3)}','test',now()-interval '1 day',now()+interval '90 days','active');
  INSERT INTO matches(id,tournament_id,status,scheduled_at,pair1_player1_id,pair1_player2_id,pair2_player1_id,pair2_player2_id) VALUES('${uuid(4)}','${uuid(2)}','scheduled',now()+interval '1 day','${uuid(5)}','${uuid(6)}','${uuid(7)}','${uuid(8)}');
@@ -99,5 +99,46 @@ test('match-bound editorial contracts can be replaced while retaining duplicate 
  await reconcile(db);assert.equal((await market(db,id)).status,'void')
  await predict(db);assert.notEqual(await insert(),id)
  await assert.rejects(insert(),/duplicate_market/)
+ }finally{await db.close()}
+})
+
+
+async function publishUnscheduledPair(db, overrides={}) {
+ const {player1Id=uuid(5),player2Id=uuid(6),category='men',tournamentId=uuid(2),close="now()+interval '20 hours'"}=overrides
+ return (await db.query(`insert into markets(season_id,template_id,tournament_id,bound_match_id,category,resolver_key,resolver_params,lmsr_b,seed_prob,seed_source,q_yes,q_no,status,locks_at)
+ values($1,(select id from market_templates where key='editorial.champion.v1'),$2,$3,$4,'tournament.pair_champion_v1',$5,100,.5,'projection',0,0,'open',${close}) returning id`,[uuid(3),tournamentId,uuid(4),category,{player1Id,player2Id}])).rows[0].id
+}
+test('unscheduled pair market opens after other draw matches start and locks on its own first ball',async()=>{
+ const db=await setup();try{
+ await db.exec("update matches set scheduled_at=null")
+ await db.exec(`insert into matches(id,tournament_id,status) values('${uuid(40)}','${uuid(2)}','live')`)
+ const id=await publishUnscheduledPair(db)
+ assert.equal((await market(db,id)).status,'open')
+ await db.exec(`update matches set status='finished' where id='${uuid(40)}'`)
+ assert.equal((await market(db,id)).status,'open')
+ await db.exec(`update matches set status='on_court' where id='${uuid(4)}'`)
+ assert.equal((await market(db,id)).status,'locked')
+ await assert.rejects(db.query('select play_commit_trade($1,$2,$3)',[id,uuid(1),quote]),/market_not_open/)
+ }finally{await db.close()}
+})
+test('an earlier confirmed schedule shortens the deadline and later changes never extend it',async()=>{
+ const db=await setup();try{
+ await db.exec("update matches set scheduled_at=null")
+ const id=await publishUnscheduledPair(db)
+ await db.exec("update matches set scheduled_at=now()+interval '2 hours'")
+ const shortened=String((await market(db,id)).locks_at)
+ await db.exec("update matches set scheduled_at=now()+interval '3 hours'")
+ assert.equal(String((await market(db,id)).locks_at),shortened)
+ }finally{await db.close()}
+})
+test('unscheduled exception rejects wrong pairs, draws, past deadlines and started matches',async()=>{
+ const db=await setup();try{
+ await db.exec("update matches set scheduled_at=null")
+ await assert.rejects(publish(db),/verified_pair_match/)
+ await assert.rejects(publishUnscheduledPair(db,{player1Id:uuid(99)}),/verified_pair_match/)
+ await assert.rejects(publishUnscheduledPair(db,{category:'women'}),/verified_pair_match/)
+ await assert.rejects(publishUnscheduledPair(db,{close:"now()-interval '1 hour'"}),/future_close/)
+ await db.exec("update matches set status='live'")
+ await assert.rejects(publishUnscheduledPair(db),/match_already_started/)
  }finally{await db.close()}
 })
