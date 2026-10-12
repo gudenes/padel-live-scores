@@ -95,3 +95,9 @@ body.mobile-second-serve #scouting-workspace .rally-bar #double-fault{display:in
 .wizard-steps{grid-template-columns:repeat(2,1fr)!important}
 #sync-server,#closing-sync{display:inline-flex!important}
 .standalone-notice>span{overflow-wrap:anywhere}
+
+/* Keep the workspace exit obvious and easy to tap at every screen size. */
+.standalone-notice #standalone-reset{display:inline-flex;align-items:center;gap:8px;min-height:44px;flex-shrink:0;white-space:nowrap}
+.standalone-notice #standalone-saved{margin-left:auto;text-align:right;max-width:none}
+
+.standalone-notice{position:sticky;top:0;z-index:90;background:#f5f6ef;padding-block:8px}
