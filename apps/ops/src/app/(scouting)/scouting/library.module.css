@@ -32,3 +32,5 @@
 .cardSummary{min-width:0}.cardActions{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}.card .cardActions a{min-width:0;min-height:40px;padding-inline:10px;text-align:center;text-decoration:none}
 
 .avatarWrap{position:relative;width:30px;height:30px;flex-shrink:0;margin-right:3px}.avatarFlag{position:absolute;right:-4px;bottom:-2px;object-fit:cover;border:1px solid var(--bg-card,#fff);border-radius:3px;box-shadow:0 1px 3px #0002}.playerName{display:flex;align-items:center;flex-wrap:wrap;gap:5px}.playerRank{font-size:10px;color:var(--text-2);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.pendingQuality{font-size:11px;font-weight:600;padding:4px 7px;border-radius:6px;background:var(--bg-hover);color:var(--text-2)}
