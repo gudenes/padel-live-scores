@@ -19,3 +19,13 @@ describe('match library',()=>{
  })
  it('does not confuse unavailable duration with zero or accept malformed times',()=>{expect(libraryDuration('01:42')).toBe('1h 42m');expect(libraryDuration('00:48')).toBe('48m');for(const v of [null,'','00:00','01:75','05:00',102])expect(libraryDuration(v)).toBeNull()})
 })
+
+it('only marks scouting complete after its own final point, and reverses completion when the final point is removed',()=>{
+ const document=freshDoc()
+ for(let i=0;i<48;i++)document.events.push({id:`p${i}`,at:row.updated_at,kind:'point',player:0,outcome:'winner',smash:false})
+ expect(librarySummary({...row,document},'admin').completed).toBe(true)
+ document.events.pop()
+ expect(librarySummary({...row,document},'admin',[{a:6,b:0},{a:6,b:0}]).completed).toBe(false)
+ expect(librarySummary(row,'admin').completed).toBe(false)
+ expect(librarySummary({...row,document:{}},'video').completed).toBe(false)
+})

@@ -1,12 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { receiverCounts, contextRallies } from "@/lib/scouting/report-view";
-const slots = [
-  { x: 0.28, y: 0.697 },
-  { x: 0.72, y: 0.697 },
-  { x: 0.66, y: 0.249 },
-  { x: 0.34, y: 0.249 },
-];
-const short = (p) => p.name.split(" ").at(-1);
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { receiverCounts, contextRallies, recordedCourtSlots, compactPlayerName } from "@/lib/scouting/report-view";
+const short = (p) => p.shortName || compactPlayerName(p.display_name || p.name);
 
 export function DirectionCourt({
   players,
@@ -15,6 +9,7 @@ export function DirectionCourt({
 }) {
   const [selected, setSelected] = useState(1),
     [phase, setPhase] = useState("all");
+  const slots = useMemo(()=>recordedCourtSlots(allRallies),[allRallies]);
   const canvas = useRef();
   const rallies = contextRallies(allRallies, points, selected, phase);
   const {players: exchanges, incoming, excluded} = receiverCounts(rallies);
@@ -49,7 +44,10 @@ export function DirectionCourt({
           sy = from.y * h + uy * radius,
           ex = to.x * w - ux * radius,
           ey = to.y * h - uy * radius;
-        const bend = (dotted ? -0.022 : 0.045) * w;
+        // Reflect the curve across the court centre for right-side hitters.
+        // Reverse the normal at the far end so the same reflection holds there.
+        const curveOrientation = (from.x > 0.5 ? -1 : 1) * (dy > 0 ? -1 : 1);
+        const bend = (dotted ? -0.022 : 0.045) * w * curveOrientation;
         const cx = (sx + ex) / 2 - uy * bend,
           cy = (sy + ey) / 2 + ux * bend;
         const tone = selected < 2 ? "#c4f63a" : "#ff897b";
@@ -119,7 +117,7 @@ export function DirectionCourt({
     const resize = new ResizeObserver(draw);
     resize.observe(el);
     return () => resize.disconnect();
-  }, [selected, firstShare, secondShare, known]);
+  }, [selected, firstShare, secondShare, known, slots]);
   return (
     <section className="panel directionExplorer">
       <div className="directionHeading">
@@ -146,7 +144,7 @@ export function DirectionCourt({
             key={p.id}
           >
             <img src={p.avatar} alt="" />
-            {p.name}
+            {short(p)}
           </button>
         ))}
       </div>
@@ -180,7 +178,7 @@ export function DirectionCourt({
       <div className="courtAnalytics">
         <div className="courtPrimary">
           <div className="courtTitle">
-            <strong>Shot direction · {players[selected].name}</strong>
+            <strong>Shot direction · {short(players[selected])}</strong>
             <span>
               {known} known · {row.unknown} unknown
             </span>
@@ -226,7 +224,7 @@ export function DirectionCourt({
             <p className="muted">
               Arrows show the next recorded hitter. Percentages exclude unknown
               receivers. Serving / returning refers to the selected pair.
-              Positions are illustrative.
+              Positions use the first recorded layout when available, with the lime pair at the near end; they are not tracked coordinates.
             </p>
           </div>
         </div>
@@ -248,7 +246,7 @@ export function DirectionCourt({
             >
               <img src={p.avatar} alt="" />
               <div>
-                <span>{p.name}</span>
+                <span>{short(p)}</span>
                 <div className="hitTrack">
                   <i
                     style={{

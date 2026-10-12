@@ -40,7 +40,7 @@ export async function reportContext(
     const avatars = ids.length
       ? (
           await db.query(
-            "select id,name,avatar_url from players where id=any($1::uuid[])",
+            "select id,name,display_name,avatar_url from players where id=any($1::uuid[])",
             [ids]
           )
         ).rows

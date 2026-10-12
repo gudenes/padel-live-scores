@@ -1,0 +1,1 @@
+Additional 40px country flag PNGs bundled from https://flagcdn.com/w40/{country-code}.png on 2026-10-12. Files are served locally so flag rendering does not require third-party requests. Unrecognized country codes do not render a flag.

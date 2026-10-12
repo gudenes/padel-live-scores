@@ -2,6 +2,7 @@
 import {createElement} from 'react'
 import {render,screen,cleanup} from '@testing-library/react'
 import {it,expect,vi,afterEach} from 'vitest'
+import {freshDoc} from '../scouting/model'
 import MatchCard,{type MatchCardRow} from '../../app/(scouting)/scouting/MatchCard'
 vi.mock('next/link',()=>({default:(props:Record<string,unknown>)=>createElement('a',props),useLinkStatus:()=>({pending:false})}))
 afterEach(cleanup)
@@ -29,4 +30,26 @@ it('does not offer recording to viewers or offer to overwrite extension data',()
  expect(screen.queryByRole('link',{name:/scouting/})).toBeNull()
  view.rerender(createElement(MatchCard,{row:{...row,has_scouting:true,document:{captureMode:'standalone'}},user:{isOperator:true}}))
  expect(screen.getByRole('link',{name:'Continue scouting'}).getAttribute('href')).toBe('/scouting/example/live')
+})
+
+it('places the country flag on the avatar and shows the current ranking',()=>{
+ render(createElement(MatchCard,{row:{...row,players:row.players.map(p=>({...p,country:'AR',ranking:3}))}}))
+ expect(screen.getAllByAltText('AR')[0].getAttribute('src')).toBe('/flags/ar.png')
+ expect(screen.getAllByText('#3')).toHaveLength(4)
+ expect(screen.queryByText('Provisional')).toBeNull()
+})
+
+it('withholds quality ratings and player scores until scouting is completed',()=>{
+ const document=freshDoc()
+ document.events.push({id:'point',at:row.updated_at,kind:'point',player:0,outcome:'winner',smash:false})
+ const view=render(createElement(MatchCard,{row:{...row,has_scouting:true,source:'admin',document}}))
+ expect(screen.getByText('Quality · Pending')).toBeTruthy()
+ expect(screen.queryByText(/Player Score \/ 10/)).toBeNull()
+ expect(view.container.querySelector('[title^="Player Score"]')).toBeNull()
+ expect(view.container.querySelector('details')).toBeNull()
+ for(let i=1;i<48;i++)document.events.push({id:`point${i}`,at:row.updated_at,kind:'point',player:0,outcome:'winner',smash:false})
+ view.rerender(createElement(MatchCard,{row:{...row,has_scouting:true,source:'admin',document}}))
+ expect(screen.queryByText('Quality · Pending')).toBeNull()
+ expect(view.container.querySelectorAll('[title^="Player Score"]')).toHaveLength(4)
+ expect(view.container.querySelector('details')).toBeTruthy()
 })

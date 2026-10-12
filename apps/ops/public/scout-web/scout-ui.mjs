@@ -19,7 +19,8 @@ export function scoutingUI({$,act,getState}){
  const renderCourtCheckin=courtCheckinUI({$,act});
  let keyboardContext={enabled:false,token:'',order:[]};
  let selectedPlayer=null,holdingPlayer=null;
- let direct=preferences?.getItem('pn-rally-taps')==='off';
+ // Expert is opt-in; fresh users start in Pro while saved choices are preserved.
+ let direct=preferences?.getItem('pn-rally-taps')!=='on';
  $('rally-taps').checked=!direct;
  const modeHint=()=>{$('entry-mode-hint').textContent=direct?'Pro · Player key → choose action · no previous-stroke step':'Expert · Tap player · W winner · A unforced · D forced';for(const mode of ['pro','expert']){const active=(mode==='pro')===direct;$('mode-'+mode).setAttribute('aria-pressed',String(active));$('mode-'+mode).dataset.variant=active?'primary':'ghost';}};modeHint();
  function setMode(pro){if(getState()?.pending){$('rally-taps').checked=!direct;return;}direct=pro;selectedPlayer=null;preferences?.setItem('pn-rally-taps',direct?'off':'on');$('rally-taps').checked=!direct;keyboard.reset();keyboardContext.direct=direct;modeHint();paintFeedback();}

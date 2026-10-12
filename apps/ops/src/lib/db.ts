@@ -27,7 +27,10 @@ export function pgPool(): Pool {
   if (_pool) return _pool
   _pool = new Pool({
     ...parseDbUrl(process.env.DATABASE_URL ?? ''),
-    max: 1, // Vercel serverless: minimal pool per instance
+    // Railway runs a long-lived process. Allow a small number of concurrent queries.
+    max: Math.max(1,Math.min(10,Number.parseInt(process.env.ADMIN_DB_POOL_MAX ?? '5',10)||5)),
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000,
     ssl: { rejectUnauthorized: false },
   })
   return _pool
