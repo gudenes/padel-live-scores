@@ -27,7 +27,7 @@ it('preserves ordinary navigation when blocked or when modifier keys are used',(
 
 it('offers both destinations with keyboard navigation and Escape dismissal',()=>{
  render(createElement(ScoutLaunchMenu,{matchId:'match-id',continuing:true}))
- const trigger=screen.getByRole('button',{name:'Continue scouting'})
+ const trigger=screen.getByRole('button',{name:'Scouting window options'})
  expect(screen.queryByRole('menu')).toBeNull()
  fireEvent.click(trigger)
  const same=screen.getByRole('menuitem',{name:'Same window'})

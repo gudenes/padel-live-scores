@@ -32,6 +32,6 @@ export default function MatchCard({row:r,user}:{row:MatchCardRow;user?:StaffUser
  <InsightLink href={reportHref} secondary={showScouting}/>
  </div>
  </footer>
- {user?.isOperator&&r.has_scouting&&r.source==='video'&&<div className={styles.assign}><Link href={`/team-access?match=${r.match_id}&kind=${r.kind}`}>Assign scouter</Link></div>}
+ <div className={styles.assign}>{user?.isOperator&&r.has_scouting&&r.source==='video'&&<Link href={`/team-access?match=${r.match_id}&kind=${r.kind}`}>Assign scouter</Link>}</div>
  </article>
 }

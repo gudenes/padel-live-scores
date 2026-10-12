@@ -26,9 +26,10 @@ export default function ScoutLaunchMenu({matchId,continuing}:{matchId:string;con
    items[next]?.focus()
   }
  }}>
- <button ref={trigger} type="button" className={'ui-btn '+styles.trigger} data-variant="primary" aria-haspopup="menu" aria-controls={id} aria-expanded={open} onClick={()=>setOpen(!open)} onKeyDown={e=>{if(!open&&['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();setOpen(true)}}}>{continuing?'Continue scouting':'Start scouting'}<span aria-hidden="true">⌄</span></button>
+ <a className={"ui-btn "+styles.mainAction} data-variant="primary" href={`/scouting/${matchId}/live`}>{continuing?'Continue scouting':'Start scouting'}</a>
+ <button ref={trigger} type="button" className={'ui-btn '+styles.trigger} data-variant="primary" aria-label="Scouting window options" title="Scouting window options" aria-haspopup="menu" aria-controls={id} aria-expanded={open} onClick={()=>setOpen(!open)} onKeyDown={e=>{if(!open&&['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();setOpen(true)}}}><span aria-hidden="true">⌄</span></button>
  <div ref={menu} id={id} role="menu" aria-label="Open scouting" hidden={!open} className={styles.menu}>
- <p>How would you like to scout?</p>
+ <p>Open scouting</p>
  <a className="ui-btn" data-variant="ghost" role="menuitem" href={`/scouting/${matchId}/live`} onClick={close}><span aria-hidden="true">▣</span>Same window</a>
  <ScoutPopupLink matchId={matchId} menuItem onChoose={close}/>
  </div>
