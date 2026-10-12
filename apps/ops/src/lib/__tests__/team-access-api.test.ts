@@ -1,11 +1,12 @@
 import {afterEach,beforeEach,expect,it,vi} from 'vitest'
-const mock=vi.hoisted(()=>({auth:vi.fn(),query:vi.fn(),release:vi.fn()}))
+const mock=vi.hoisted(()=>({auth:vi.fn(),query:vi.fn(),release:vi.fn(),welcome:vi.fn()}))
 vi.mock('@/lib/auth',()=>({auth:mock.auth}))
+vi.mock('@/lib/email/team-welcome',()=>({sendTeamWelcomeEmail:mock.welcome}))
 vi.mock('@/lib/db',()=>({pgPool:()=>({query:mock.query,connect:async()=>({query:mock.query,release:mock.release})})}))
 import {GET,POST} from '@/app/api/internal/team-access/route'
 import {POST as assign} from '@/app/api/internal/scouting-assignment/route'
 const request=(body:unknown,origin='https://admin.test')=>new Request('https://admin.test/api/internal/team-access',{method:'POST',headers:{origin,'Content-Type':'application/json'},body:JSON.stringify(body)})
-beforeEach(()=>{vi.clearAllMocks();mock.auth.mockResolvedValue({user:{id:'admin',isOperator:true}});mock.query.mockImplementation(async(sql:string)=>({rowCount:sql.includes('where user_id=$1 union')?1:0,rows:[]}))})
+beforeEach(()=>{vi.clearAllMocks();mock.welcome.mockResolvedValue(undefined);mock.auth.mockResolvedValue({user:{id:'admin',isOperator:true}});mock.query.mockImplementation(async(sql:string)=>({rowCount:sql.includes('where user_id=$1 union')?1:0,rows:[]}))})
 it('refuses access management and reassignment from scoped and unauthenticated users',async()=>{
  for(const user of [null,{id:'scout',isScouter:true}]){
   mock.auth.mockResolvedValue(user?{user}:null)
@@ -77,4 +78,29 @@ it.each([undefined,'null','https://evil.test','http://admin.padelnachos.com','ht
   expect((await endpoint(req)).status).toBe(403)
  }
  expect(mock.query).not.toHaveBeenCalled()
+})
+
+it('sends a role-specific welcome only after committing a new active grant',async()=>{
+ mock.welcome.mockImplementation(async()=>{expect(mock.query).toHaveBeenLastCalledWith('commit')})
+ const response=await POST(request({email:' New@Example.com ',status:'active',role:'viewer'}))
+ expect(await response.json()).toMatchObject({ok:true,welcomeEmail:'sent'})
+ expect(mock.welcome).toHaveBeenCalledExactlyOnceWith({to:'new@example.com',role:'viewer'})
+})
+it('does not send welcomes on active role changes or suspension',async()=>{
+ mock.query.mockImplementation(async(sql:string)=>({rowCount:sql.includes('where user_id=$1 union')?1:0,rows:sql.includes('for update')?[{role:'scouter',status:'active',user_id:'person'}]:[]}))
+ for(const change of [{role:'viewer',status:'active'},{role:'scouter',status:'suspended'}]){
+  expect((await POST(request({email:'person@example.com',...change}))).status).toBe(200)
+ }
+ expect(mock.welcome).not.toHaveBeenCalled()
+})
+it('reports email failure without rolling back a committed grant',async()=>{
+ mock.welcome.mockRejectedValue(Error('provider'))
+ const response=await POST(request({email:'person@example.com',status:'active',role:'scouter'}))
+ expect(response.status).toBe(200)
+ expect(await response.json()).toMatchObject({ok:true,welcomeEmail:'failed'})
+ expect(mock.query).toHaveBeenLastCalledWith('commit')
+})
+it('never sends a welcome for rejected access requests',async()=>{
+ expect((await POST(request({email:'a@test.com',status:'active'},'https://evil.test'))).status).toBe(403)
+ expect(mock.welcome).not.toHaveBeenCalled()
 })

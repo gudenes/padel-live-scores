@@ -29,7 +29,7 @@ export default function TeamAccess(){
    const data=await response.json();if(!response.ok)throw Error(data.error||'Could not update access.');
    if(data.redirect){window.location.assign(data.redirect);return;}
    setEditing(null);setEmail('');await load();
-   setMessage(status==='suspended'?'Access suspended. Local unsynced work stays on their device.':roles[level].label+' access saved. They can sign in with this email; no invitation email has been sent.');
+   setMessage(status==='suspended'?'Access suspended. Local unsynced work stays on their device.':roles[level].label+' access saved. '+(data.welcomeEmail==='sent'?'Welcome email sent.':data.welcomeEmail==='failed'?'The welcome email could not be sent. They can still sign in with this email.':'They can sign in with this email.'));
   }catch(e){setMessage(e instanceof Error?e.message:'Could not update access.')}finally{setBusy(false)}
  }
  function add(){
@@ -45,6 +45,7 @@ export default function TeamAccess(){
  <label>Access level<select aria-label="Access level" className="ui-input" value={role} onChange={e=>setRole(e.target.value as Role)}>{Object.entries(roles).map(([key,r])=><option value={key} key={key}>{r.label}</option>)}</select></label>
  <button disabled={busy} className="ui-btn" data-variant="primary" type="submit">Grant access</button></div>
  <p className={'role-description '+(role==='admin'?'admin-description':'')}>{roles[role].description}</p>
+ <p className="role-description">New members receive a welcome email with their access level and sign-in instructions.</p>
  </form><p className="access-message" role="status">{message}</p>
  {matchId&&<form className="ui-panel" style={{padding:20,marginBottom:20}} onSubmit={e=>{e.preventDefault();void assign()}}><h2>Assign scouting session</h2><p>Existing recorded points stay intact. Pending saves from the previous scouter will be blocked.</p><label>Active scouter <select required className="ui-input" value={assignee} onChange={e=>setAssignee(e.target.value)}><option value="">Choose a person</option>{people.filter(g=>g.user_id&&g.status==='active'&&g.role!=='viewer').map(g=><option key={g.email} value={g.email}>{g.email}</option>)}</select></label> <button className="ui-btn" disabled={busy||!assignee}>Assign session</button></form>}<div className="ui-panel people-panel"><h2>People</h2>{admins.map(a=><div className="person-row" key={a.id}><div className="identity"><strong>{a.email}</strong><small>Protected account</small></div><span className="role-label">Administrator</span></div>)}
  {people.map(p=><div className="person-row" key={p.email}><div className="identity"><strong>{p.email}</strong><small>{p.status==='suspended'?'Suspended':p.user_id?'Active':'Awaiting verified sign-in'}</small></div>
