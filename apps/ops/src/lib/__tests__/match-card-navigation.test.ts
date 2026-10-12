@@ -30,3 +30,10 @@ it('does not offer recording to viewers or offer to overwrite extension data',()
  view.rerender(createElement(MatchCard,{row:{...row,has_scouting:true,document:{captureMode:'standalone'}},user:{isOperator:true}}))
  expect(screen.getByRole('link',{name:'Continue scouting'}).getAttribute('href')).toBe('/scouting/example/live')
 })
+
+it('places the country flag on the avatar and shows the current ranking',()=>{
+ render(createElement(MatchCard,{row:{...row,players:row.players.map(p=>({...p,country:'AR',ranking:3}))}}))
+ expect(screen.getAllByAltText('AR')[0].getAttribute('src')).toBe('/flags/ar.png')
+ expect(screen.getAllByText('#3')).toHaveLength(4)
+ expect(screen.queryByText('Provisional')).toBeNull()
+})

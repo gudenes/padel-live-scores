@@ -30,3 +30,5 @@ it('allows standalone pages and assets for scouts but not viewers or writes to a
   expect(scouterRouteAllowed(path,'POST')).toBe(false)
  }
 })
+
+it('lets scoped accounts load flag assets without granting write access',()=>{for(const viewer of [true,false]){expect(scouterRouteAllowed('/flags/ar.png','GET',viewer)).toBe(true);expect(scouterRouteAllowed('/flags/ar.png','POST',viewer)).toBe(false)}})

@@ -1,6 +1,6 @@
 import {describe,it,expect,vi} from 'vitest'
 import {catalogFilters,catalogUrl,loadMatchCatalog,MATCH_PAGE_SIZE} from '../match-catalog'
-const row=(n:number,scouted=false)=>({match_id:String(n),kind:'match',has_scouting:scouted,players:[{id:'a',name:'Catalog A',avatar_url:'photo-a'}]})
+const row=(n:number,scouted=false)=>({match_id:String(n),kind:'match',has_scouting:scouted,players:[{id:'a',name:'Catalog A',avatar_url:'photo-a',country:'AR',ranking:3}]})
 describe('paginated match catalog',()=>{
  it('defaults to all matches and bounds malformed filter/page input',()=>{
   expect(catalogFilters({})).toEqual({q:'',status:'',kind:'',scouting:'',scouter:'',date:'',page:1})
@@ -26,7 +26,7 @@ describe('paginated match catalog',()=>{
   const query=vi.fn().mockResolvedValueOnce({rows}).mockResolvedValueOnce({rows:[{match_id:'0',kind:'match',source:'video',players:[{id:'b',name:'Saved B'},{id:'a',name:'Saved A'}],document:{rallies:[]}}]})
   const result=await loadMatchCatalog({query} as any,catalogFilters({scouting:'scouted'}))
   expect(query.mock.calls[1][1]).toEqual([['0']]);expect(result.rows[0].players[0].name).toBe('Saved B');expect(result.rows[0].avatars).toEqual({a:'photo-a'})
-  expect(result.rows[0].document).toEqual({rallies:[]})
+  expect(result.rows[0].players[1]).toMatchObject({name:'Saved A',country:'AR',ranking:3});expect(result.rows[0].document).toEqual({rallies:[]})
   expect(query.mock.calls[0][1][3]).toBe('scouted')
  })
  it('handles the last or empty page without a next-page link',async()=>{
