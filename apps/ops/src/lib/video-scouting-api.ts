@@ -43,7 +43,7 @@ async function POST(req:Request,ctx:{params:Promise<{id:string}>}){
   const db=serviceClient(),old=await db.from(table).select('*').eq('match_id',id).maybeSingle()
   if(old.error)throw Error('Video scouting storage is unavailable.')
   if(!canWriteSession(user,old.data))return json({error:'This session belongs to another scouter. Ask an administrator to assign it to you. Your local copy is retained.'},403)
-  if(old.data && (old.data.document?.captureMode==='standalone') !== (document.captureMode==='standalone'))return json({error:'This match uses a different scouting mode. Open the existing session instead.'},409)
+  if(old.data && (old.data.document?.captureMode==='standalone') !== (document.captureMode==='standalone') && !(body.transferToWeb===true&&document.captureMode==='standalone'))return json({error:'This match uses a different scouting mode. Open the existing session instead.'},409)
   // Retried requests after a lost response acknowledge the original save.
   if(old.data?.write_id===body.writeId){
    if(historyJson(old.data.document)!==historyJson(document))return json({error:'Save identifier was reused with different data.'},409)

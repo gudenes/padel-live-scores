@@ -187,7 +187,7 @@ export default function SavedScoutingReport({
           </p>
         </div>
         <ReportActions
-          resumeAction={!loading&&!error&&canResume&&report?.model.score.phase!=='finished'?<ScoutLaunchMenu matchId={matchId} continuing extension={resumeInExtension} label="Resume scouting" placement="below"/>:undefined}
+          resumeAction={!loading&&!error&&canResume&&report?.model.score.phase!=='finished'?<ScoutLaunchMenu matchId={matchId} continuing extension={resumeInExtension} label="Scouting options" placement="below"/>:undefined}
           loading={loading}
           scope={scope}
           canExport={canExport}

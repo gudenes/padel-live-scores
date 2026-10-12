@@ -11,4 +11,4 @@ beforeEach(()=>{state.user={id:'owner',email:'owner@example.com',isOperator:fals
 it('resumes the original owner without warning',async()=>{expect((await (await read()).json()).resumeWarning).toBeNull()})
 it('warns an authorized reassigned scouter about the original creator',async()=>{state.session.creator_user_id='creator';expect((await (await read()).json()).resumeWarning).toEqual({creator:'creator@example.com',unknown:false})})
 it('keeps unauthorized scouters blocked',async()=>{state.session.assigned_scouter_user_id='other';expect((await read()).status).toBe(403)})
-it('still blocks incompatible extension sessions',async()=>{state.session.document.captureMode='extension';expect((await read()).status).toBe(409)})
+it('allows authorized extension sessions to reach transfer confirmation',async()=>{state.session.document.captureMode='video';expect((await read()).status).toBe(200)})

@@ -22,7 +22,6 @@ export async function GET(_req:Request,{params}:{params:Promise<{id:string}>}){
   ])
   if(people.error||tournament.error||session.error||people.data?.length!==4)throw Error('Could not load scouting. Please retry.')
   if(!canWriteSession(user,session.data))return json({error:'This match is assigned to another scouter. Ask an administrator to assign it to you.'},403)
-  if(session.data&&session.data.document?.captureMode!=='standalone')return json({error:'This match already has extension scouting. Open its insights or continue in the extension; web scouting will not overwrite it.'},409)
   let resumeWarning:null|{creator:string;unknown:boolean}=null
   if(session.data&&session.data.creator_user_id!==user.id){
    const creatorId=session.data.creator_user_id

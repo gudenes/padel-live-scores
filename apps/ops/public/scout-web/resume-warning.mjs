@@ -1,12 +1,17 @@
-export function confirmResume(warning){
- if(!warning)return Promise.resolve(true);
+export function confirmResume(warning,action='resume',transfer=false){
+ if(!warning&&action!=='new'&&!transfer)return Promise.resolve(true);
  return new Promise(resolve=>{
   const dialog=document.createElement('dialog');
   dialog.className='resume-warning';
   dialog.setAttribute('aria-labelledby','resume-warning-title');
   dialog.setAttribute('aria-describedby','resume-warning-description');
   dialog.innerHTML='<h2 id="resume-warning-title">Continue another scouter’s work?</h2><p id="resume-warning-description"></p><p>Your changes will be saved to this same session. Make sure the other scouter has stopped before continuing.</p><div><button type="button" class="ui-btn" data-cancel>Back to insights</button><button type="button" class="ui-btn" data-variant="primary" data-continue>Resume scouting</button></div>';
-  dialog.querySelector('#resume-warning-description').textContent=warning.unknown?'The original scouter is unknown for this older session.':`This scouting session was started by ${warning.creator}.`;
+  dialog.querySelector('#resume-warning-description').textContent=!warning?'':warning.unknown?'The original scouter is unknown for this older session.':`This scouting session was started by ${warning.creator}.`;
+  if(action==='new'||transfer){
+   dialog.querySelector('h2').textContent=action==='new'?'Start a new scout from 0–0?':'Continue this scout in the browser?';
+   dialog.querySelectorAll('p')[1].textContent=action==='new'?'The current session will be backed up on this device before starting again. New saves replace the active server session. Make sure no other scouter is working on this match.':'Your saved points and score will be kept, with a backup on this device. Future scouting will work without video. Stop using the extension for this match before continuing.';
+   dialog.querySelector('[data-continue]').textContent=action==='new'?'Back up & start new':'Continue in browser';
+  }
   const done=value=>{dialog.close();dialog.remove();resolve(value)};
   dialog.querySelector('[data-cancel]').onclick=()=>done(false);
   dialog.querySelector('[data-continue]').onclick=()=>done(true);

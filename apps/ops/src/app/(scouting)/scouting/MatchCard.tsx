@@ -28,7 +28,7 @@ export default function MatchCard({row:r,user}:{row:MatchCardRow;user?:StaffUser
  <footer>
  <div className={styles.cardSummary}>{r.has_scouting?<><strong>{summary.failed?'Report needs review':'Saved to server'}</strong><small>Scouter: {r.assigned_email??'Administrator / unassigned'}</small><small>Saved {new Date(r.updated_at).toLocaleString('en-GB',{timeZone:'Europe/Madrid'})}</small></>:<><strong>{r.has_pbp?'Official PBP insights available':'Official match details'}</strong><small>{r.has_pbp?'Score progression and recorded team stats':'Scouting statistics are not available yet'}</small></>}</div>
  <div className={styles.cardActions}>
- {showScouting&&<ScoutLaunchMenu matchId={r.match_id} continuing={r.has_scouting} extension={r.has_scouting&&(r.document as {captureMode?:string})?.captureMode!=='standalone'} label={r.has_scouting&&!summary.completed?'Resume scouting':undefined}/>}
+ {showScouting&&<ScoutLaunchMenu matchId={r.match_id} continuing={r.has_scouting} extension={r.has_scouting&&(r.document as {captureMode?:string})?.captureMode!=='standalone'} label={r.has_scouting&&!summary.completed?'Scouting options':undefined}/>}
  <InsightLink href={reportHref} secondary={showScouting}/>
  </div>
  </footer>

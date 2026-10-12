@@ -1,1 +1,1 @@
-export function confirmResume(warning: {creator:string;unknown:boolean}|null|undefined):Promise<boolean>;
+export function confirmResume(warning: {creator:string;unknown:boolean}|null|undefined,action?:'new'|'resume',transfer?:boolean):Promise<boolean>;
