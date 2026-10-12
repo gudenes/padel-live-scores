@@ -23,3 +23,10 @@ it('only allows own-session writes and preserves admin access to legacy records'
  expect(canWriteSession({isOperator:true},{assigned_scouter_user_id:null})).toBe(true)
  expect(canWriteSession({id},null)).toBe(false)
 })
+it('allows standalone pages and assets for scouts but not viewers or writes to assets',()=>{
+ for(const path of [`/scouting/${id}/live`,`/api/internal/standalone-scouting/${id}`,'/scout-web/panel.html','/scout-web/generated/scoring.mjs']){
+  expect(scouterRouteAllowed(path,'GET')).toBe(true)
+  expect(scouterRouteAllowed(path,'GET',true)).toBe(false)
+  expect(scouterRouteAllowed(path,'POST')).toBe(false)
+ }
+})

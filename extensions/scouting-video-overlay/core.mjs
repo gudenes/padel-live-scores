@@ -31,5 +31,5 @@ export function replayTarget(rally,current,leadIn=3){
   return Math.max(range[0],rally.start.time-leadIn);
 }
 export function exported(state){
-  return {format:'padel-nachos-video-bookmarks',version:1,exportedAt:new Date().toISOString(),clock:'video currentTime in seconds; live and replay timelines may differ',label:state.label,setup:state.setup,selectedMatch:state.selectedMatch,scoutingTime:state.scoutingTime?{seconds:state.scoutingTime.seconds,paused:state.scoutingTime.paused}:null,summary:match(state),savedSessions:state.sessions??{},rallies:state.rallies,pending:state.pending,cancelled:state.cancelled};
+  return {format:state.captureMode==='standalone'?'padel-nachos-standalone':'padel-nachos-video-bookmarks',...(state.captureMode?{captureMode:state.captureMode}:{}),version:1,exportedAt:new Date().toISOString(),clock:state.captureMode==='standalone'?'Local elapsed scouting seconds; not linked to video':'video currentTime in seconds; live and replay timelines may differ',label:state.label,setup:state.setup,selectedMatch:state.selectedMatch,scoutingTime:state.scoutingTime?{seconds:state.scoutingTime.seconds,paused:state.scoutingTime.paused}:null,summary:match(state),savedSessions:state.sessions??{},rallies:state.rallies,pending:state.pending,cancelled:state.cancelled};
 }

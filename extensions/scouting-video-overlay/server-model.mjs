@@ -49,6 +49,7 @@ function rally(raw){
 export function validateVideoState(raw){
  if(!raw||typeof raw!=='object'||raw.version!==1)throw Error('Invalid video scouting session.');
  if(!Array.isArray(raw.rallies)||raw.rallies.length>2000||!Array.isArray(raw.cancelled)||raw.cancelled.length>2000)throw Error('Session is too large.');
+ if(raw.captureMode!==undefined&&!['video','standalone'].includes(raw.captureMode))throw Error('Invalid capture mode.');
  const settings=raw.setup??{};
  const setup=validateSetup({names:settings.names,firstServer:settings.firstServer,otherServer:settings.otherServer,rule:settings.rule,startingScore:settings.startingScore,firstServerUnknown:settings.firstServerUnknown,coaches:settings.coaches,otherServerUnknown:settings.otherServerUnknown,onboardingComplete:settings.onboardingComplete});
  if(settings.near!==undefined){if(!['a','b'].includes(settings.near))throw Error('Invalid court end.');setup.near=settings.near;}
@@ -57,7 +58,7 @@ export function validateVideoState(raw){
  if(settings.qualityCheckpoint!==undefined)setup.qualityCheckpoint=validateQualityCheckpoint(settings.qualityCheckpoint);
  const ids=new Set();const rallies=raw.rallies.map(r=>{const next=rally(r);if(ids.has(next.id))throw Error('Duplicate rally.');ids.add(next.id);if(!next.end||next.finish)throw Error('A saved rally requires an end.');return next;});
  if(settings.adjustments){if(!Array.isArray(settings.adjustments)||settings.adjustments.length>2000)throw Error('Too many corrections.');setup.adjustments=settings.adjustments.map(a=>{if(!['server','ends','missed-point','score-correction'].includes(a.type)||a.afterId!==null&&!ids.has(a.afterId))throw Error('Invalid score correction.');if(a.type==='missed-point'&&!['a','b'].includes(a.team))throw Error('Invalid missed-point pair.');if(a.videoTime!==undefined&&(!Number.isFinite(a.videoTime)||a.videoTime<0))throw Error('Invalid correction video time.');return {type:a.type,...(a.type==='missed-point'?{team:a.team}:{}),...(a.type==='score-correction'?{score:validateStartingScore(a.score)}:{}),...(a.videoTime!==undefined?{videoTime:a.videoTime}:{}),...(a.type==='server'?{player:player(a.player)}:{}),afterId:a.afterId,at:at(a.at)};});}
- const result={version:1,...(scoutingTime?{scoutingTime}:{}),label:string(raw.label??''),setup,rallies:[],cancelled:raw.cancelled.map(r=>rally(r)),pending:raw.pending?rally(raw.pending):null};
+ const result={version:1,...(raw.captureMode?{captureMode:raw.captureMode}:{}),...(scoutingTime?{scoutingTime}:{}),label:string(raw.label??''),setup,rallies:[],cancelled:raw.cancelled.map(r=>rally(r)),pending:raw.pending?rally(raw.pending):null};
  for(let i=0;i<rallies.length;i++){
   const r=rallies[i],original=raw.rallies[i];
   if(original.point){if(!r.undone&&(result.setup.otherServerUnknown===true&&Math.floor(match(result).server/2)!==Math.floor(result.setup.firstServer/2)))throw Error('Confirm the other server before recording their service game.');if(!r.undone&&match(result).score.phase==='finished')throw Error('Match has finished.');r.point=validatePoint(original.point,r,match(result).server);}
@@ -66,5 +67,5 @@ export function validateVideoState(raw){
  if(result.pending&&(ids.has(result.pending.id)||result.pending.end))throw Error('Invalid open rally.');
  return result;
 }
-export function videoPayload(state){return validateVideoState({version:1,label:state.label,setup:state.setup,rallies:state.rallies,cancelled:state.cancelled,pending:state.pending,scoutingTime:state.scoutingTime});}
+export function videoPayload(state){return validateVideoState({version:1,...(state.captureMode?{captureMode:state.captureMode}:{}),label:state.label,setup:state.setup,rallies:state.rallies,cancelled:state.cancelled,pending:state.pending,scoutingTime:state.scoutingTime});}
 export function videoSummary(payload){const m=match(payload);return {score:m.score,stats:m.stats,points:m.points,server:m.server};}

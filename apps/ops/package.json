@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "predev": "node scripts/sync-ocr-calibrations.mjs",
-    "prebuild": "node scripts/sync-ocr-calibrations.mjs",
+    "predev": "node scripts/sync-ocr-calibrations.mjs && node scripts/sync-web-scout.mjs",
+    "prebuild": "node scripts/sync-ocr-calibrations.mjs && node scripts/sync-web-scout.mjs",
     "dev": "next dev -p 3004",
     "build": "next build",
     "start": "next start",

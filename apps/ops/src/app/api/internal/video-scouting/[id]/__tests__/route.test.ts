@@ -109,3 +109,15 @@ it('lets viewers load complete report data but rejects saving',async()=>{
  expect((await POST(request(),ctx)).status).toBe(401)
  expect(mock.writes).not.toHaveBeenCalled()
 })
+it('preserves standalone provenance and rejects switching capture modes over an existing session',async()=>{
+ const standalone={...document,captureMode:'standalone'}
+ mock.queue.push({data:{document:standalone,players,revision:1,write_id:'other'}},{data:{revision:2}})
+ expect((await POST(request(standalone,1),ctx)).status).toBe(200)
+ expect(mock.writes.mock.calls.at(-1)![0].document.captureMode).toBe('standalone')
+ mock.writes.mockClear()
+ for(const [old,next] of [[standalone,document],[document,standalone]]){
+  mock.queue.push({data:{document:old,players,revision:1,write_id:'other'}})
+  expect((await POST(request(next,1),ctx)).status).toBe(409)
+ }
+ expect(mock.writes).not.toHaveBeenCalled()
+})

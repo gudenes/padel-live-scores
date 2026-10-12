@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import {librarySummary,libraryDuration} from '@/lib/scouting/library-summary'
 import type {ScoutPerson} from '@/lib/scouting/export'
+import {canScout} from '@/lib/scouting-permissions'
 import type {StaffUser} from '@/lib/scouting-permissions'
 import InsightLink from './InsightLink'
 import styles from './library.module.css'
@@ -21,6 +22,7 @@ export default function MatchCard({row:r,user}:{row:MatchCardRow;user?:StaffUser
  {[0,1].map(team=><div className={styles.team} key={team}><div className={styles.pair}>{r.players.slice(team*2,team*2+2).map((p,i)=>{const rating=summary.ratings[team*2+i],avatar=r.avatars?.[p.id]??p.avatar_url??p.photo_url;return <div className={styles.player} key={p.id??i}>{avatar?<img className={styles.avatar} src={avatar} alt="" loading="lazy"/>:<span className={styles.avatarFallback} aria-hidden="true">{p.name?.slice(0,1)}</span>}<span>{p.name}</span>{r.has_scouting&&<span className={styles.rating} data-high={rating!==null&&rating>=9} title={`Player Score · v1.5${summary.partial?' · Partial observation':''}`}>{rating===null?'—':rating.toFixed(1)}</span>}</div>})}</div><div className={styles.sets}>{sets.length?sets.map((set,i)=><span key={i} aria-label={`Set ${i+1}: ${team===0?set.a:set.b}`}><small>S{i+1}</small><b>{team===0?set.a:set.b}</b></span>):<span>—</span>}</div></div>)}
  <div className={styles.meta}><span>{r.has_scouting?(summary.points===null?'Stats unavailable':`${summary.points} points scouted`):'No scouting data yet'}{summary.partial?' · Partial':''}</span><span>{duration?<>Match time <strong>{duration}</strong></>:<>Match time <strong>—</strong></>}</span></div>
  <footer>{r.has_scouting?<><div><strong>{summary.failed?'Report needs review':'Saved to server'}</strong><small>Scouter: {r.assigned_email??'Administrator / unassigned'}</small><small>Saved {new Date(r.updated_at).toLocaleString('en-GB',{timeZone:'Europe/Madrid'})}</small></div><InsightLink href={`/scouting/${r.kind==='private'?'manual/':''}${r.match_id}/report`}/></>:<><div><strong>{r.has_pbp?'Official PBP insights available':'Official match details'}</strong><small>{r.has_pbp?'Score progression and recorded team stats':'Scouting statistics are not available yet'}</small></div><InsightLink href={reportHref}/></>}</footer>
+ {canScout(user)&&r.kind==='match'&&(!r.has_scouting||(r.document as {captureMode?:string})?.captureMode==='standalone')&&<div className={styles.assign}><Link className="ui-btn" data-variant="primary" href={`/scouting/${r.match_id}/live`}>{r.has_scouting?'Continue scouting':'Start scouting'}</Link></div>}
  {user?.isOperator&&r.has_scouting&&r.source==='video'&&<div className={styles.assign}><Link href={`/team-access?match=${r.match_id}&kind=${r.kind}`}>Assign scouter</Link></div>}
  </article>
 }
