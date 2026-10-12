@@ -2,25 +2,26 @@
 import { useState } from 'react'
 import { useTheme } from './ThemeProvider'
 import Link from 'next/link'
+import {ScoutingNav} from './ScoutingNav'
 import { HorizontalNav } from './HorizontalNav'
 import { Icon } from '../IconSprite'
 import { signOutAction } from '@/lib/actions/sign-out'
 import { CommandPalette } from './CommandPalette'
 
-export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }) {
+export function GlobalHeader({ userEmail = null, scoped = false }: { userEmail?: string | null; scoped?: boolean }) {
   const { theme, toggle } = useTheme()
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const avatarLabel = userEmail ? userEmail.charAt(0).toUpperCase() : 'PN'
   return (
-    <header className="gheader">
-      <Link className="dual-brand" href="/today" aria-label="Padel Nachos and Padel Labs · Admin home">
+    <header className={scoped ? "gheader gheader--scoped" : "gheader"}>
+      <Link className="dual-brand" href={scoped ? "/scouting" : "/today"} aria-label={scoped ? "Padel Nachos and Padel Labs · Matches" : "Padel Nachos and Padel Labs · Admin home"}>
         <img className="nachos-wordmark" src="/brand/padelnachos.png" alt="Padel Nachos" width="86" height="54" />
         <span className="brand-divider" aria-hidden="true" />
         <img className="labs-wordmark" src="/brand/padellabs.png" alt="Padel Labs" width="156" height="42" />
       </Link>
-      <HorizontalNav />
+      {scoped ? <ScoutingNav /> : <HorizontalNav />}
 
-      <label className="gsearch">
+      {!scoped && <label className="gsearch">
         <Icon id="search" />
         <input
           aria-label="Search admin"
@@ -30,7 +31,7 @@ export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }
           onClick={() => window.dispatchEvent(new Event('ops:open-palette'))}
         />
         <kbd>⌘K</kbd>
-      </label>
+      </label>}
 
       <div className="gright">
         <a className="iconbtn" href="/downloads/padel-nachos-scout-0.2.8.zip" download="padel-nachos-scout-0.2.8.zip" aria-label="Download scouting extension" title="Download Scout v0.2.8 · installation guide and Mac / Windows helpers">
@@ -60,17 +61,17 @@ export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }
                   <span className="um-email">{userEmail}</span>
                 </div>
               )}
-              <form action={signOutAction}>
+              {scoped ? <Link href="/api/auth/signout" className="um-signout" role="menuitem"><Icon id="share" />Sign out</Link> : <form action={signOutAction}>
                 <button type="submit" className="um-signout" role="menuitem">
                   <Icon id="share" />Sign out
                 </button>
-              </form>
+              </form>}
             </div>
           )}
         </div>
       </div>
 
-      <CommandPalette />
+      {!scoped && <CommandPalette />}
     </header>
   )
 }
