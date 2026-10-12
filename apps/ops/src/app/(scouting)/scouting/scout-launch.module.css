@@ -1,7 +1,16 @@
-.root{position:relative;z-index:3;min-width:0;display:flex;gap:4px}
-.mainAction{flex:1;min-width:0;font-size:11px;white-space:nowrap;padding-inline:6px!important}
-.trigger{width:36px;min-height:40px;flex-shrink:0;padding:0;justify-content:center}
-.menu{position:absolute;bottom:calc(100% + 8px);left:0;width:240px;max-width:calc(100vw - 76px);padding:8px;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);box-shadow:0 10px 30px #14201626;z-index:4}
+.root{position:relative;z-index:3;min-width:0}
+.trigger{width:100%;min-height:40px;gap:8px;padding-inline:10px;justify-content:space-between;font-size:12px}
+.menu{position:absolute;bottom:calc(100% + 10px);left:0;width:280px;max-width:calc(100vw - 76px);box-sizing:border-box;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--bg-card);box-shadow:0 12px 36px #14201626;z-index:4;animation:reveal 140ms ease-out}
 .menu[hidden]{display:none}
-.menu p{margin:4px 8px 8px;font-size:11px;color:var(--text-2)}
-.menu a{display:flex;width:100%;justify-content:flex-start;gap:10px;min-height:44px;text-decoration:none}
+.heading{padding:5px 8px 10px;border-bottom:1px solid var(--border);margin-bottom:6px}
+.heading>span{font-size:9px;font-weight:700;letter-spacing:.1em;color:var(--text-2)}
+.heading p{margin:5px 0 0;font-size:13px;font-weight:600;color:var(--text-1)}
+.menu a{display:flex;width:100%;box-sizing:border-box;justify-content:flex-start;gap:12px;min-height:70px;text-decoration:none;text-align:left!important;white-space:normal}
+.menu a>svg{flex-shrink:0;width:22px;height:22px;color:var(--text-2)}
+.copy{display:flex;flex-direction:column;gap:4px;min-width:0}
+.menu .copy strong{font-size:13px;color:var(--text-1)}
+.menu .copy small{font-size:11px;font-weight:400;line-height:1.45;color:var(--text-2);margin:0}
+.menu a:focus-visible{outline:2px solid var(--lime);outline-offset:-2px}
+.menu p[role=alert]{font-size:11px;line-height:1.5;padding:8px;color:var(--text-2)}
+@keyframes reveal{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.menu{animation:none}}

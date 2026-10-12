@@ -26,12 +26,11 @@ export default function ScoutLaunchMenu({matchId,continuing}:{matchId:string;con
    items[next]?.focus()
   }
  }}>
- <a className={"ui-btn "+styles.mainAction} data-variant="primary" href={`/scouting/${matchId}/live`}>{continuing?'Continue scouting':'Start scouting'}</a>
- <button ref={trigger} type="button" className={'ui-btn '+styles.trigger} data-variant="primary" aria-label="Scouting window options" title="Scouting window options" aria-haspopup="menu" aria-controls={id} aria-expanded={open} onClick={()=>setOpen(!open)} onKeyDown={e=>{if(!open&&['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();setOpen(true)}}}><span aria-hidden="true">⌄</span></button>
+ <button ref={trigger} type="button" className={'ui-btn '+styles.trigger} data-variant="primary" aria-haspopup="menu" aria-controls={id} aria-expanded={open} onClick={()=>setOpen(!open)} onKeyDown={e=>{if(!open&&['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();setOpen(true)}}}>{continuing?'Continue scouting':'Start scouting'}<span aria-hidden="true">⌄</span></button>
  <div ref={menu} id={id} role="menu" aria-label="Open scouting" hidden={!open} className={styles.menu}>
- <p>Open scouting</p>
- <a className="ui-btn" data-variant="ghost" role="menuitem" href={`/scouting/${matchId}/live`} onClick={close}><span aria-hidden="true">▣</span>Same window</a>
- <ScoutPopupLink matchId={matchId} menuItem onChoose={close}/>
+ <div className={styles.heading}><span>YOUR WORKSPACE</span><p>How would you like to open it?</p></div>
+ <a className="ui-btn" data-variant="ghost" role="menuitem" aria-label="Same window" href={`/scouting/${matchId}/live`} onClick={close}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M6 6.5h1m2 0h1"/></svg><span className={styles.copy}><strong>Same window</strong><small>Use this tab for scouting.</small></span></a>
+ <ScoutPopupLink matchId={matchId} menuItem onChoose={close}><span className={styles.copy}><strong>Pop-up window</strong><small>A movable window beside your video.</small></span></ScoutPopupLink>
  </div>
  </div>
 }

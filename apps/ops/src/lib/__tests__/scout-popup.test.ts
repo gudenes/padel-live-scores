@@ -27,7 +27,7 @@ it('preserves ordinary navigation when blocked or when modifier keys are used',(
 
 it('offers both destinations with keyboard navigation and Escape dismissal',()=>{
  render(createElement(ScoutLaunchMenu,{matchId:'match-id',continuing:true}))
- const trigger=screen.getByRole('button',{name:'Scouting window options'})
+ const trigger=screen.getByRole('button',{name:'Continue scouting'})
  expect(screen.queryByRole('menu')).toBeNull()
  fireEvent.click(trigger)
  const same=screen.getByRole('menuitem',{name:'Same window'})
@@ -38,4 +38,13 @@ it('offers both destinations with keyboard navigation and Escape dismissal',()=>
  expect(screen.queryByRole('menu')).toBeNull();expect(document.activeElement).toBe(trigger)
  fireEvent.click(trigger);fireEvent.pointerDown(document.body)
  expect(screen.queryByRole('menu')).toBeNull()
+})
+
+it('keeps the choice open if the requested pop-up is blocked',()=>{
+ vi.spyOn(window,'open').mockReturnValue(null)
+ render(createElement(ScoutLaunchMenu,{matchId:'match-id',continuing:false}))
+ fireEvent.click(screen.getByRole('button',{name:'Start scouting'}))
+ expect(fireEvent.click(screen.getByRole('menuitem',{name:'Pop-up window'}))).toBe(false)
+ expect(screen.getByRole('alert').textContent).toContain('Allow pop-ups')
+ expect(screen.getByRole('menuitem',{name:'Same window'}).getAttribute('href')).toBe('/scouting/match-id/live')
 })
