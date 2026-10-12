@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import {createElement} from 'react'
-import {render,screen,cleanup} from '@testing-library/react'
+import {render,screen,cleanup,fireEvent} from '@testing-library/react'
 import {it,expect,vi,afterEach} from 'vitest'
 import {freshDoc} from '../scouting/model'
 import MatchCard,{type MatchCardRow} from '../../app/(scouting)/scouting/MatchCard'
@@ -20,16 +20,18 @@ it('lets cards without scouting open official match details and keeps private ro
 })
 it('offers standalone scouting to scouters while keeping the card destination as insights',()=>{
  render(createElement(MatchCard,{row,user:{isScouter:true}}))
- expect(screen.getByRole('link',{name:'Start scouting'}).getAttribute('href')).toBe('/scouting/example/live')
+ fireEvent.click(screen.getByRole('button',{name:'Start scouting'}))
+ expect(screen.getByRole('menuitem',{name:'Same window'}).getAttribute('href')).toBe('/scouting/example/live')
  expect(screen.getByRole('link',{name:'Open insights'}).getAttribute('href')).toBe('/scouting/example/report')
 })
 it('does not offer recording to viewers or offer to overwrite extension data',()=>{
  const view=render(createElement(MatchCard,{row,user:{isViewer:true}}))
- expect(screen.queryByRole('link',{name:'Start scouting'})).toBeNull()
+ expect(screen.queryByRole('button',{name:'Start scouting'})).toBeNull()
  view.rerender(createElement(MatchCard,{row:{...row,has_scouting:true,document:{}},user:{isOperator:true}}))
- expect(screen.queryByRole('link',{name:/scouting/})).toBeNull()
+ expect(screen.queryByRole('button',{name:/scouting/})).toBeNull()
  view.rerender(createElement(MatchCard,{row:{...row,has_scouting:true,document:{captureMode:'standalone'}},user:{isOperator:true}}))
- expect(screen.getByRole('link',{name:'Continue scouting'}).getAttribute('href')).toBe('/scouting/example/live')
+ fireEvent.click(screen.getByRole('button',{name:'Continue scouting'}))
+ expect(screen.getByRole('menuitem',{name:'Same window'}).getAttribute('href')).toBe('/scouting/example/live')
 })
 
 it('places the country flag on the avatar and shows the current ranking',()=>{

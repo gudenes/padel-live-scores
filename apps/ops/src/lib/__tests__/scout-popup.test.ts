@@ -2,6 +2,7 @@
 import {createElement} from 'react'
 import {render,screen,fireEvent,cleanup} from '@testing-library/react'
 import {it,expect,vi,afterEach} from 'vitest'
+import ScoutLaunchMenu from '../../app/(scouting)/scouting/ScoutLaunchMenu'
 import ScoutPopupLink from '../../app/(scouting)/scouting/ScoutPopupLink'
 afterEach(()=>{cleanup();vi.restoreAllMocks()})
 it('opens the authorized live route and reuses the open window without reloading it',()=>{
@@ -22,4 +23,19 @@ it('preserves ordinary navigation when blocked or when modifier keys are used',(
  expect(link.getAttribute('href')).toBe('/scouting/match-id/live')
  expect(fireEvent.click(link,{ctrlKey:true})).toBe(true)
  expect(open).toHaveBeenCalledTimes(1)
+})
+
+it('offers both destinations with keyboard navigation and Escape dismissal',()=>{
+ render(createElement(ScoutLaunchMenu,{matchId:'match-id',continuing:true}))
+ const trigger=screen.getByRole('button',{name:'Continue scouting'})
+ expect(screen.queryByRole('menu')).toBeNull()
+ fireEvent.click(trigger)
+ const same=screen.getByRole('menuitem',{name:'Same window'})
+ expect(document.activeElement).toBe(same)
+ fireEvent.keyDown(same,{key:'ArrowDown'})
+ expect(document.activeElement).toBe(screen.getByRole('menuitem',{name:'Pop-up window'}))
+ fireEvent.keyDown(document.activeElement!,{key:'Escape'})
+ expect(screen.queryByRole('menu')).toBeNull();expect(document.activeElement).toBe(trigger)
+ fireEvent.click(trigger);fireEvent.pointerDown(document.body)
+ expect(screen.queryByRole('menu')).toBeNull()
 })
