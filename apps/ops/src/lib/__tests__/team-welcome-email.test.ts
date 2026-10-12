@@ -7,7 +7,7 @@ afterEach(()=>{vi.unstubAllEnvs();vi.resetAllMocks()})
 it.each(['viewer','scouter','admin'] as const)('renders branded HTML and plain text for %s',role=>{
  const email=teamWelcomeTemplate({email:'person@example.com',role})
  expect(email.html).toContain('https://admin.padelnachos.com/brand/padelnachos.png')
- expect(email.html).toContain('https://admin.padelnachos.com/brand/padellabs.png')
+ expect(email.html).toContain('https://admin.padelnachos.com/brand/padellabs-white.png')
  expect(email.html).toContain('#c9f43b')
  expect(email.html).toContain('person@example.com')
  expect(email.text).toContain('https://admin.padelnachos.com/login')
