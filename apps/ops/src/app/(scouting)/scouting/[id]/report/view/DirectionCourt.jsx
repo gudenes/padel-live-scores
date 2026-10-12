@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { directionCounts, contextRallies } from "@/lib/scouting/report-view";
+import { receiverCounts, contextRallies } from "@/lib/scouting/report-view";
 const slots = [
   { x: 0.28, y: 0.697 },
   { x: 0.72, y: 0.697 },
@@ -10,7 +10,6 @@ const short = (p) => p.name.split(" ").at(-1);
 
 export function DirectionCourt({
   players,
-  directions: allDirections,
   rallies: allRallies,
   points,
 }) {
@@ -18,30 +17,13 @@ export function DirectionCourt({
     [phase, setPhase] = useState("all");
   const canvas = useRef();
   const rallies = contextRallies(allRallies, points, selected, phase);
-  const directions = phase === "all" ? allDirections : directionCounts(rallies);
-  const row = directions.players[selected],
-    known = row.crossCourt + row.downTheLine;
-  const cross = known ? (100 * row.crossCourt) / known : 0,
-    line = known ? (100 * row.downTheLine) / known : 0;
-  const incoming = [0, 0, 0, 0];
-  let excluded = 0;
-  for (const rally of rallies) {
-    for (let i = 1; i < rally.touches.length; i++) {
-      const a = rally.touches[i - 1].player,
-        b = rally.touches[i].player;
-      if (
-        Number.isInteger(a) &&
-        Number.isInteger(b) &&
-        a >= 0 &&
-        a < 4 &&
-        b >= 0 &&
-        b < 4 &&
-        Math.floor(a / 2) !== Math.floor(b / 2)
-      )
-        incoming[b]++;
-      else excluded++;
-    }
-  }
+  const {players: exchanges, incoming, excluded} = receiverCounts(rallies);
+  const directions = {players: exchanges, shots: exchanges.reduce((sum,p)=>sum+p.shots,0)};
+  const row = exchanges[selected];
+  const known = row.receivers.reduce((sum,count)=>sum+count,0);
+  const shares = row.receivers.map(count=>known ? 100*count/known : 0);
+  const opponents = selected < 2 ? [2,3] : [0,1];
+  const [firstShare,secondShare] = opponents.map(i=>shares[i]);
   useEffect(() => {
     const el = canvas.current;
     const draw = () => {
@@ -53,10 +35,7 @@ export function DirectionCourt({
       const c = el.getContext("2d");
       if (!c) return;
       c.scale(2, 2);
-      const from = slots[selected],
-        opponents = selected < 2 ? [2, 3] : [0, 1];
-      const down = opponents.find((i) => slots[i].x > 0.5 === from.x > 0.5),
-        diagonal = opponents.find((i) => i !== down);
+      const from = slots[selected];
       function arrow(toIndex, share, dotted) {
         if (!known || !share) return;
         const to = slots[toIndex],
@@ -132,14 +111,15 @@ export function DirectionCourt({
         c.textAlign = "left";
         c.textBaseline = "alphabetic";
       }
-      arrow(diagonal, cross, false);
-      arrow(down, line, true);
+      // Percentage and endpoint belong to the same receiver, even after end switches.
+      const receivers = selected < 2 ? [2,3] : [0,1];
+      receivers.forEach((i,index)=>arrow(i,index===0?firstShare:secondShare,(slots[i].x>0.5)===(from.x>0.5)));
     };
     draw();
     const resize = new ResizeObserver(draw);
     resize.observe(el);
     return () => resize.disconnect();
-  }, [selected, cross, line, known]);
+  }, [selected, firstShare, secondShare, known]);
   return (
     <section className="panel directionExplorer">
       <div className="directionHeading">
@@ -213,15 +193,13 @@ export function DirectionCourt({
             />
             {!known && (
               <div className="courtEmpty">
-                No identifiable directions in this selection.
+                No identifiable receivers in this selection.
               </div>
             )}
             <canvas
               ref={canvas}
               className="directionOverlay"
-              aria-label={`Inferred direction: ${cross.toFixed(
-                1
-              )}% cross-court and ${line.toFixed(1)}% down the line`}
+              aria-label={`Next recorded receiver: ${opponents.map(i=>players[i].name+' '+shares[i].toFixed(1)+'%').join(', ')}`}
               role="img"
             />
             {players.map((p, i) => (
@@ -246,8 +224,9 @@ export function DirectionCourt({
           </div>
           <div className="courtFoot">
             <p className="muted">
-              Percentages exclude unknown directions. Serving / returning refers
-              to the selected pair. Positions are illustrative.
+              Arrows show the next recorded hitter. Percentages exclude unknown
+              receivers. Serving / returning refers to the selected pair.
+              Positions are illustrative.
             </p>
           </div>
         </div>

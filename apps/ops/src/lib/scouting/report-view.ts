@@ -39,6 +39,22 @@ export interface ReportContext {
   winnerPair?:number|null;
   unavailable?: boolean;
 }
+/** Next recorded hitter by identity, independent of illustrative court positions. */
+export function receiverCounts(rallies: ViewRally[]) {
+  const players = Array.from({length:4},()=>({shots:0,receivers:[0,0,0,0],unknown:0}));
+  const incoming = [0,0,0,0];
+  let excluded = 0;
+  const validPlayer=(p:number)=>Number.isInteger(p)&&p>=0&&p<4;
+  for(const rally of rallies) rally.touches.forEach((touch,i)=>{
+    const next=rally.touches[i+1];
+    const valid=next&&validPlayer(touch.player)&&validPlayer(next.player)&&Math.floor(touch.player/2)!==Math.floor(next.player/2);
+    if(next&&!valid)excluded++;
+    if(!validPlayer(touch.player))return;
+    const row=players[touch.player];row.shots++;
+    if(valid){row.receivers[next.player]++;incoming[next.player]++;}else row.unknown++;
+  });
+  return {players,incoming,excluded};
+}
 export function directionCounts(rallies: ViewRally[]) {
   const players = Array.from({ length: 4 }, () => ({
     shots: 0,
