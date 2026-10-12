@@ -33,6 +33,9 @@ export function GlobalHeader({ userEmail = null }: { userEmail?: string | null }
       </label>
 
       <div className="gright">
+        <a className="iconbtn" href="/downloads/padel-nachos-scout-0.2.8.zip" download="padel-nachos-scout-0.2.8.zip" aria-label="Download scouting extension" title="Download Scout v0.2.8 · installation guide and Mac / Windows helpers">
+          <Icon id="download" />
+        </a>
         <span className="envpill"><span className="d" />Prod</span>
         <button className="iconbtn" onClick={toggle} aria-label="Toggle theme">
           <Icon id={theme === 'light' ? 'moon' : 'sun'} />

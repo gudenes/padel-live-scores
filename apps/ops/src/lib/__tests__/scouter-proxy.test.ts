@@ -34,3 +34,11 @@ it('allows viewers to read reports but denies recording, tokens and administrati
   expect((await request(path,'GET',viewer)).status).toBe(403)
  }
 })
+
+it('allows extension package downloads without permitting writes or arbitrary files',async()=>{
+ for(const user of [{id:'scout',isScouter:true},{id:'viewer',isViewer:true}]){
+  expect((await request('/downloads/padel-nachos-scout-0.2.8.zip','GET',user)).status).toBe(200)
+  expect((await request('/downloads/padel-nachos-scout-0.2.8.zip','POST',user)).status).toBe(403)
+  expect((await request('/downloads/private.json','GET',user)).status).toBe(403)
+ }
+})
