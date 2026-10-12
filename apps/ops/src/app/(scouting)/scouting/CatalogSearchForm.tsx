@@ -18,5 +18,6 @@ export default function CatalogSearchForm({children,className}:{children:ReactNo
  return <form className={className} onSubmit={submit} onChange={event=>{
   cancel();const form=event.currentTarget
   if(event.target instanceof HTMLInputElement&&event.target.name==='q')timer.current=setTimeout(()=>search(form),400)
+  else if(event.target instanceof HTMLSelectElement)search(form)
  }} aria-busy={pending}>{children}<span role="status" style={{fontSize:11,color:'var(--text-2)'}}>{pending?'Searching…':'Type 3+ letters to search'}</span></form>
 }

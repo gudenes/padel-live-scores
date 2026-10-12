@@ -5,7 +5,7 @@ import {redirect} from 'next/navigation'
 import {pgPool} from '@/lib/db'
 import MatchCard from './MatchCard'
 import CatalogSearchForm from './CatalogSearchForm'
-import {catalogFilters,catalogUrl,loadMatchCatalog,MATCH_PAGE_SIZE} from '@/lib/scouting/match-catalog'
+import {catalogFilters,catalogUrl,loadMatchCatalog,MATCH_PAGE_SIZE,LEAGUE_GROUPS} from '@/lib/scouting/match-catalog'
 import styles from './library.module.css'
 export const dynamic='force-dynamic'
 export const metadata={title:'Matches · Padel Nachos'}
@@ -13,7 +13,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  const user=(await auth())?.user;if(!canViewReports(user))redirect('/login')
  const params=await searchParams
  const filters=catalogFilters(params)
- const {q,status,kind,scouter,date,scouting,page}=filters
+ const {q,status,kind,scouter,date,scouting,page,league}=filters
  let rows:any[]=[];let failed=false;let hasNext=false
  try{({rows,hasNext}=await loadMatchCatalog(pgPool(),filters))}catch{failed=true}
  const pageUrl=(n:number)=>catalogUrl(filters,{page:n})
@@ -21,6 +21,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  <header className={styles.heading}><div><div className={styles.eyebrow}>YOUR MATCH LIBRARY</div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><Link className="ui-btn" data-variant="ghost" href="/scouting/methodology">Methodology</Link></header>
  <CatalogSearchForm className={styles.filters}>
  <label className={styles.search}>Players or tournament<input className="ui-input" name="q" placeholder="Search players or tournaments…" defaultValue={q}/></label>
+ <label>Circuit / tier<select className="ui-input" name="league" defaultValue={league}><option value="">All circuits & tiers</option>{LEAGUE_GROUPS.map(group=><optgroup key={group.label} label={group.label}>{group.options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</optgroup>)}</select></label>
  <label>Match date<input className="ui-input" type="date" name="date" defaultValue={date}/></label>
  <label>Status<select className="ui-input" name="status" defaultValue={status}><option value="">All statuses</option><option value="finished">Finished</option><option value="live">Live</option><option value="scheduled">Scheduled</option><option value="walkover">Walkover</option><option value="retired">Retired</option></select></label>
  <label>Type<select className="ui-input" name="kind" defaultValue={kind}><option value="">All matches</option><option value="match">Tournament</option><option value="private">Private</option></select></label>
