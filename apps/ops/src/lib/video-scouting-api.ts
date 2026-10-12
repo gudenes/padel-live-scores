@@ -19,12 +19,13 @@ export async function canonicalRoster(id:string){
 
 export function videoScoutingApi({table,roster,metadata}:{table:string;roster:(id:string)=>Promise<any>;metadata?:(id:string)=>Promise<any>}){
 async function GET(_req:Request,ctx:{params:Promise<{id:string}>}){
- if(!canViewReports((await auth())?.user))return json({error:'Sign in with an account that has scouting access.'},401)
+ const user=(await auth())?.user
+ if(!canViewReports(user))return json({error:'Sign in with an account that has scouting access.'},401)
  const {id}=await ctx.params;if(!uuid.test(id))return json({error:'Invalid match.'},400)
  try{
   const result=await serviceClient().from(table).select('revision,document,score,stats,players,updated_at,assigned_scouter_user_id').eq('match_id',id).maybeSingle()
   if(result.error)throw Error('Video scouting storage is unavailable.')
-  return json({session:result.data,...(metadata?{match:await metadata(id)}:{}),features:['match-setup-v2','smash-types-v1','var-review-v1','rally-touches-v1','point-tags-v2','soft-smash-v1','optional-server-v1','score-corrections-v1','quality-checkpoint-v1','scouting-mode-v1']})
+  return json({session:result.data,canResume:!!user&&canScout(user)&&!!result.data&&canWriteSession(user,result.data),...(metadata?{match:await metadata(id)}:{}),features:['match-setup-v2','smash-types-v1','var-review-v1','rally-touches-v1','point-tags-v2','soft-smash-v1','optional-server-v1','score-corrections-v1','quality-checkpoint-v1','scouting-mode-v1']})
  }catch(e){return json({error:e instanceof Error?e.message:'Scouting unavailable.'},503)}
 }
 async function POST(req:Request,ctx:{params:Promise<{id:string}>}){
@@ -42,7 +43,7 @@ async function POST(req:Request,ctx:{params:Promise<{id:string}>}){
   const db=serviceClient(),old=await db.from(table).select('*').eq('match_id',id).maybeSingle()
   if(old.error)throw Error('Video scouting storage is unavailable.')
   if(!canWriteSession(user,old.data))return json({error:'This session belongs to another scouter. Ask an administrator to assign it to you. Your local copy is retained.'},403)
-  if(old.data && (old.data.document?.captureMode==='standalone') !== (document.captureMode==='standalone'))return json({error:'This match uses a different scouting mode. Open the existing session instead.'},409)
+  if(old.data && (old.data.document?.captureMode==='standalone') !== (document.captureMode==='standalone') && !(body.transferToWeb===true&&document.captureMode==='standalone'))return json({error:'This match uses a different scouting mode. Open the existing session instead.'},409)
   // Retried requests after a lost response acknowledge the original save.
   if(old.data?.write_id===body.writeId){
    if(historyJson(old.data.document)!==historyJson(document))return json({error:'Save identifier was reused with different data.'},409)

@@ -10,6 +10,7 @@ import {
   type MethodologyId,
 } from "@/lib/scouting/methodology";
 import { pbpAnalysis, pbpCsv, officialPoints } from "@/lib/scouting/pbp-report";
+import ScoutLaunchMenu from "../../ScoutLaunchMenu";
 import Insights from "../Insights";
 import { MatchInsightsView } from "./view/MatchInsightsView";
 import PbpInsightsView from "./view/PbpInsightsView";
@@ -39,6 +40,8 @@ export default function SavedScoutingReport({
   context?: ReportContext;
 }) {
   const router = useRouter();
+  const [canResume,setCanResume]=useState(false)
+  const [resumeInExtension,setResumeInExtension]=useState(false);
   const [privateMatch, setPrivateMatch] = useState<{
     match_date?: string;
     tournament_label?: string;
@@ -55,6 +58,7 @@ export default function SavedScoutingReport({
     let active = true;
     setLoading(true);
     setReport(null);
+    setCanResume(false);
     setPrivateMatch(null);
     setError("");
     setScope("all");
@@ -78,8 +82,11 @@ export default function SavedScoutingReport({
           throw Error(data.error || "Could not load saved scouting.");
         if (active && manual) setPrivateMatch(data.match ?? null);
         if (data.session) {
-          if (active)
+          if (active){
             setReport(savedReport(data.session as SavedSession, source));
+            setCanResume(!manual&&data.canResume===true);
+            setResumeInExtension(data.session.document?.captureMode!=='standalone');
+          }
           return;
         }
       }
@@ -180,6 +187,7 @@ export default function SavedScoutingReport({
           </p>
         </div>
         <ReportActions
+          resumeAction={!loading&&!error&&canResume&&report?.model.score.phase!=='finished'?<ScoutLaunchMenu matchId={matchId} continuing extension={resumeInExtension} label="Scouting options" placement="below"/>:undefined}
           loading={loading}
           scope={scope}
           canExport={canExport}

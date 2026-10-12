@@ -121,3 +121,13 @@ it('preserves standalone provenance and rejects switching capture modes over an 
  }
  expect(mock.writes).not.toHaveBeenCalled()
 })
+
+it('requires explicit web transfer and preserves revision protection',async()=>{
+ const web={...document,captureMode:'standalone'},old={document,players,revision:3,write_id:'other'};
+ mock.queue.push({data:old});expect((await POST(request(web,3),ctx)).status).toBe(409);
+ const transfer=()=>new Request('https://admin.test/api/internal/video-scouting/'+id,{method:'POST',headers:{origin:'https://admin.test',host:'admin.test','content-type':'application/json'},body:JSON.stringify({document:web,revision:3,writeId,transferToWeb:true})});
+ mock.queue.push({data:{...old,revision:4}});expect((await POST(transfer(),ctx)).status).toBe(409);expect(mock.writes).not.toHaveBeenCalled();
+ mock.queue.push({data:old},{data:{revision:4}});expect((await POST(transfer(),ctx)).status).toBe(200);
+ expect(mock.writes).toHaveBeenCalledWith(expect.objectContaining({revision:4,document:expect.objectContaining({captureMode:'standalone'})}));
+ mock.queue.push({data:{...old,document:web,revision:4}});expect((await POST(request(document,4),ctx)).status).toBe(409);
+});

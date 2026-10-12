@@ -2,10 +2,10 @@
 
 import {useRef, useState, type ReactNode, type MouseEvent} from 'react'
 
-export default function ScoutPopupLink({matchId,menuItem=false,onChoose,children}:{matchId:string;menuItem?:boolean;onChoose?:()=>void;children?:ReactNode}) {
+export default function ScoutPopupLink({matchId,action,menuItem=false,onChoose,children}:{matchId:string;action?:'new'|'resume';menuItem?:boolean;onChoose?:()=>void;children?:ReactNode}) {
  const [blocked,setBlocked]=useState(false)
  const popup = useRef<Window | null>(null)
- const href = `/scouting/${matchId}/live`
+ const href = `/scouting/${matchId}/live${action==='new'?'?action=new':''}`
  function open(event:MouseEvent<HTMLAnchorElement>) {
   if(event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return
   if(popup.current && !popup.current.closed){event.preventDefault();popup.current.focus();onChoose?.();return}

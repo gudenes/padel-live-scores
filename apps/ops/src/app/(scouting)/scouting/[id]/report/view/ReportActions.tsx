@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui";
 import { DownloadSimple, CaretDown } from "./Icons";
 import layout from "../report.module.css";
 export function ReportActions({
+  resumeAction,
   loading,
   scope,
   canExport,
@@ -14,6 +15,7 @@ export function ReportActions({
   onScoutCsv,
   onPbpCsv,
 }: {
+  resumeAction?:ReactNode;
   loading: boolean;
   scope: string;
   canExport: boolean;
@@ -32,6 +34,7 @@ export function ReportActions({
   };
   return (
     <div className={layout.headerActions}>
+      {resumeAction}
       <Button size="sm" variant="ghost" onClick={onRefresh} disabled={loading}>
         Refresh server copy
       </Button>

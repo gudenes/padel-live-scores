@@ -1,3 +1,5 @@
+import {webResumeState} from './web-resume.mjs';
+import {confirmResume} from './resume-warning.mjs';
 import './shortcut-keys.js';
 import {engine} from './engine.mjs';
 import {videoPayload,validateVideoState} from './server-model.mjs';
@@ -12,6 +14,12 @@ async function request(path,options={}){
  return body;
 }
 const bootstrap=await request('/api/internal/standalone-scouting/'+matchId);
+const restart=new URL(location.href).searchParams.get('action')==='new';
+const transfer=!!bootstrap.session&&bootstrap.session.document?.captureMode!=='standalone';
+if(!await confirmResume(bootstrap.resumeWarning,restart?'new':'resume',transfer)){
+ window.top.location.href='/scouting/'+matchId+'/report';
+ await new Promise(()=>{});
+}
 const key=bootstrap.user.id+':'+matchId;
 if(!navigator.locks)throw Error('This browser cannot protect your scouting session. Use a current version of Safari or Chrome.');
 await new Promise((resolve,reject)=>{
@@ -23,11 +31,22 @@ await new Promise((resolve,reject)=>{
 const database=await new Promise((resolve,reject)=>{const r=indexedDB.open('pn-web-scout',1);r.onupgradeneeded=()=>r.result.createObjectStore('sessions');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
 let envelope=await new Promise((resolve,reject)=>{const r=database.transaction('sessions').objectStore('sessions').get(key);r.onsuccess=()=>resolve(r.result??null);r.onerror=()=>reject(r.error)});
 const remote=bootstrap.session;
+if(transfer&&envelope&&(envelope.dirty||envelope.outbox))throw Error('This browser has unsaved scouting for this match. Export or sync that session before transferring from the extension.');
+if(restart||transfer){
+ const backup={savedAt:new Date().toISOString(),matchId,server:remote,local:envelope};
+ await new Promise((resolve,reject)=>{const t=database.transaction('sessions','readwrite');t.objectStore('sessions').put(backup,key+':backup:'+crypto.randomUUID());t.oncomplete=resolve;t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error)});
+ // Also provide a portable copy; the IndexedDB backup is committed first.
+ const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'}));
+ const link=document.createElement('a');link.href=url;link.download='scouting-backup-'+matchId+'-'+Date.now()+'.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),60000);
+ envelope=null;
+ const cleanUrl=new URL(window.top.location.href);cleanUrl.searchParams.delete('action');window.top.history.replaceState(null,'',cleanUrl);
+ const frameUrl=new URL(location.href);frameUrl.searchParams.delete('action');history.replaceState(null,'',frameUrl);
+}
 let sync={status:remote?'saved':'local',savedAt:remote?.updated_at},timer,running=false,initializing=true;
 let diskQueue=Promise.resolve();
 function store(){const value=structuredClone(envelope);const operation=()=>new Promise((resolve,reject)=>{const t=database.transaction('sessions','readwrite');t.objectStore('sessions').put(value,key);t.oncomplete=resolve;t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error)});const result=diskQueue.then(operation);diskQueue=result.catch(()=>{});return result;}
 if(!envelope||(!envelope.dirty&&!envelope.outbox&&(remote?.revision??0)>envelope.revision)){
- envelope={state:{...fresh(),setup:{...defaults(),names:bootstrap.match.names,onboardingComplete:false,firstServerUnknown:true,otherServerUnknown:true},...(remote?validateVideoState(remote.document):{}),selectedMatch:bootstrap.match,captureMode:'standalone'},revision:remote?.revision??0,dirty:false,outbox:null,clockOrigin:Date.now()};
+ envelope={state:{...fresh(),setup:{...defaults(),names:bootstrap.match.names,onboardingComplete:false,firstServerUnknown:true,otherServerUnknown:true},...(!restart&&remote?webResumeState(validateVideoState(remote.document),matchId):{}),selectedMatch:bootstrap.match,captureMode:'standalone'},revision:remote?.revision??0,dirty:restart||transfer,transferToWeb:transfer,outbox:null,clockOrigin:Date.now()};
 }
 if(envelope.state.captureMode!=='standalone')throw Error('This local session is not standalone scouting.');
 if(envelope.revision!==(remote?.revision??0)&&envelope.outbox?.writeId!==remote?.write_id){sync={status:'conflict',error:'This match changed on another device. Export your local backup before resolving the conflict.'};}
@@ -48,10 +67,10 @@ async function flush(){
  if(running||initializing||sync.status==='conflict'||!envelope.dirty&&!envelope.outbox)return;
  running=true;
  try{
-  if(!envelope.outbox){envelope.outbox={revision:envelope.revision,writeId:crypto.randomUUID(),document:videoPayload(envelope.state)};await store();}
+  if(!envelope.outbox){envelope.outbox={revision:envelope.revision,writeId:crypto.randomUUID(),...(envelope.transferToWeb?{transferToWeb:true}:{}),document:videoPayload(envelope.state)};await store();}
   const sent=structuredClone(envelope.outbox);
   const result=await request('/api/internal/video-scouting/'+matchId,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sent)});
-  envelope.revision=result.revision;envelope.outbox=null;
+  envelope.revision=result.revision;envelope.outbox=null;envelope.transferToWeb=false;
   envelope.dirty=JSON.stringify(videoPayload(envelope.state))!==JSON.stringify(sent.document);
   await store();sync={status:envelope.dirty?'pending':'saved',savedAt:result.savedAt};
  }catch(error){sync={status:[401,403,409].includes(error.status)?'conflict':'error',error:error.message};}
