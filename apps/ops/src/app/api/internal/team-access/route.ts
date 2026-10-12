@@ -1,5 +1,6 @@
 import {auth} from '@/lib/auth'
 import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
+import {sendTeamWelcomeEmail} from '@/lib/email/team-welcome'
 import {pgPool} from '@/lib/db'
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}})
 export async function GET(){
@@ -16,6 +17,7 @@ export async function POST(req:Request){
  const email=String(body.email??'').trim().toLowerCase(),status=body.status,role=body.role ?? 'scouter'
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254||!['active','suspended'].includes(status)||!['viewer','scouter','admin'].includes(role))return json({error:'Enter a valid email, access level and status.'},400)
  const client=await pgPool().connect()
+ let welcome=false,redirect:string|null=null
  try{
   await client.query('begin')
   // Serialize access mutations and recheck the actor after acquiring the lock.
@@ -36,6 +38,11 @@ export async function POST(req:Request){
   // Bind existing verified identities only. Pending grants activate on verified sign-in.
   await client.query(`update public.scouting_staff_grants g set user_id=u.id from public.users u where g.email=$1 and g.user_id is null and lower(trim(u.email))=g.email and u."emailVerified" is not null and (select count(*) from public.users other where lower(trim(other.email))=g.email)=1`,[email])
   await client.query('insert into public.scouting_access_audit(actor_user_id,action,target,details) values($1,$2,$3,$4)',[user.id,status==='active'?'access.granted':'access.suspended',email,JSON.stringify({role,previous:previous??null})])
-  await client.query('commit');return json({ok:true,redirect:previous?.user_id===user.id && (role!=='admin'||status!=='active') ? (status==='active'?'/scouting':'/not-authorized') : null})
+  await client.query('commit')
+  welcome=status==='active'&&previous?.status!=='active'
+  redirect=previous?.user_id===user.id && (role!=='admin'||status!=='active') ? (status==='active'?'/scouting':'/not-authorized') : null
  }catch{await client.query('rollback');return json({error:'Access could not be updated. Please retry.'},503)}finally{client.release()}
+ let welcomeEmail:'sent'|'failed'|'not-needed'='not-needed'
+ if(welcome){try{await sendTeamWelcomeEmail({to:email,role});welcomeEmail='sent'}catch{welcomeEmail='failed'}}
+ return json({ok:true,redirect,welcomeEmail})
 }
