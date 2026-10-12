@@ -8,5 +8,5 @@ export default async function Page({params}:{params:Promise<{id:string}>}){
  if(!canScout(user))redirect('/scouting')
  const {id}=await params
  if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))redirect('/scouting')
- return <iframe title="Match scouting" src={`/scout-web/panel.html?matchId=${id}`} style={{position:'fixed',inset:0,width:'100%',height:'100dvh',border:0,zIndex:60,background:'#f5f6ef'}}/>
+ return <iframe data-scout-focus="true" title="Match scouting" src={`/scout-web/panel.html?matchId=${id}`} style={{position:'fixed',inset:0,width:'100%',height:'100dvh',border:0,zIndex:60,background:'#f5f6ef'}}/>
 }
