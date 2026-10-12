@@ -332,7 +332,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               position: 'absolute',
               top: 10,
               right: 10,
-              width: 32,
+              width: sourceName === 'PTPadel Portugal' ? 64 : 32,
               height: 32,
               borderRadius: 8,
               background: '#fff',
@@ -346,7 +346,7 @@ const NewsPeekSheet: React.FC<NewsPeekSheetProps> = ({
               <img
                 src={faviconUrl}
                 alt={sourceName}
-                style={{ width: 22, height: 22, borderRadius: 4 }}
+                style={{ width: sourceName === 'PTPadel Portugal' ? 52 : 22, height: 22, objectFit: 'contain', borderRadius: 4 }}
               />
             </div>
           </div>

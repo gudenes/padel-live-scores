@@ -62,7 +62,13 @@ async function resolveRedirect(url: string): Promise<string> {
   throw new Error(`google_news_decode_failed: ${result?.message ?? 'unknown'}`)
 }
 
-export async function fetchArticleBody(url: string, timeoutMs = 15000): Promise<FetchedBody> {
+export async function fetchArticleBody(url: string, timeoutMs = 15000, sourceBody?: string | null): Promise<FetchedBody> {
+  // Direct publisher APIs already supply the body; keep the normal extraction
+  // fallback for sources without usable text.
+  if (sourceBody?.trim()) {
+    const text = htmlToText(sourceBody)
+    if (text.length >= MIN_BODY_CHARS) return { text, title: null }
+  }
   // Decode Google News URLs first — pending rows from pre-enrichment ingest
   // still carry raw news.google.com/rss/articles/... that need to be resolved.
   const realUrl = await resolveRedirect(url)
