@@ -5,6 +5,7 @@ import type {ScoutPerson} from '@/lib/scouting/export'
 import {canScout} from '@/lib/scouting-permissions'
 import type {StaffUser} from '@/lib/scouting-permissions'
 import InsightLink from './InsightLink'
+import ScoutLaunchMenu from './ScoutLaunchMenu'
 import NavigationProgress from './NavigationProgress'
 import styles from './library.module.css'
 export interface MatchCardRow {kind:'match'|'private';match_id:string;has_scouting:boolean;has_pbp?:boolean;official_sets?:{a:number;b:number}[];players:ScoutPerson[];source:'video'|'admin';document:unknown;revision:number;updated_at:string;match_status?:string;phase?:string;match_date?:string;duration?:unknown;tournament_name:string;round?:string;category?:string;assigned_email?:string;avatars?:Record<string,string|null>}
@@ -27,10 +28,10 @@ export default function MatchCard({row:r,user}:{row:MatchCardRow;user?:StaffUser
  <footer>
  <div className={styles.cardSummary}>{r.has_scouting?<><strong>{summary.failed?'Report needs review':'Saved to server'}</strong><small>Scouter: {r.assigned_email??'Administrator / unassigned'}</small><small>Saved {new Date(r.updated_at).toLocaleString('en-GB',{timeZone:'Europe/Madrid'})}</small></>:<><strong>{r.has_pbp?'Official PBP insights available':'Official match details'}</strong><small>{r.has_pbp?'Score progression and recorded team stats':'Scouting statistics are not available yet'}</small></>}</div>
  <div className={styles.cardActions}>
- {showScouting&&<Link prefetch={false} className="ui-btn" data-variant="primary" href={`/scouting/${r.match_id}/live`}>{r.has_scouting?'Continue scouting':'Start scouting'}</Link>}
+ {showScouting&&<ScoutLaunchMenu matchId={r.match_id} continuing={r.has_scouting}/>}
  <InsightLink href={reportHref} secondary={showScouting}/>
  </div>
  </footer>
- {user?.isOperator&&r.has_scouting&&r.source==='video'&&<div className={styles.assign}><Link href={`/team-access?match=${r.match_id}&kind=${r.kind}`}>Assign scouter</Link></div>}
+ <div className={styles.assign}>{user?.isOperator&&r.has_scouting&&r.source==='video'&&<Link href={`/team-access?match=${r.match_id}&kind=${r.kind}`}>Assign scouter</Link>}</div>
  </article>
 }
