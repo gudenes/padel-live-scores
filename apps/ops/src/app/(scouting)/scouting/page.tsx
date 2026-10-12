@@ -5,6 +5,8 @@ import {redirect} from 'next/navigation'
 import {pgPool} from '@/lib/db'
 import MatchCard from './MatchCard'
 import CatalogSearchForm from './CatalogSearchForm'
+import FilterSelect from './FilterSelect'
+import FilterDate from './FilterDate'
 import {catalogFilters,catalogUrl,loadMatchCatalog,MATCH_PAGE_SIZE,LEAGUE_GROUPS} from '@/lib/scouting/match-catalog'
 import styles from './library.module.css'
 export const dynamic='force-dynamic'
@@ -26,15 +28,15 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  <CatalogSearchForm className={styles.refinedFilters} initialSearch={q}>
  <div className={styles.filterMain}>
  <label className={styles.heroSearch}><span>Find a match</span><div><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/></svg><input className="ui-input" name="q" placeholder="Search a player or tournament…" defaultValue={q}/></div></label>
- <label className={styles.tierField}>Tournament tier<select key={league} className="ui-input" name="league" defaultValue={league}><option value="">All circuits & tiers</option>{LEAGUE_GROUPS.filter(g=>!circuit||(circuit==='fip'?g.label==='FIP':g.label==='Premier Padel')).map(group=><optgroup key={group.label} label={group.label}>{group.options.map(([value,label])=><option key={value} value={value}>{label}</option>)}</optgroup>)}</select></label>
+ <div className={styles.tierField}><FilterSelect name="league" label="Tournament tier" value={league} options={[{value:'',label:'All circuits & tiers'},...LEAGUE_GROUPS.filter(g=>!circuit||(circuit==='fip'?g.label==='FIP':g.label==='Premier Padel')).flatMap(g=>g.options.map(([value,label])=>({value,label,group:g.label})))]}/></div>
  <button className="ui-btn" data-variant="primary">Search</button>
  </div>
  <div className={styles.filterSecondary}><nav className={styles.circuitTabs} aria-label="Circuit">{[['','All circuits'],['premier','Premier Padel'],['fip','FIP']].map(([value,label])=><Link key={value} className="ui-btn" data-size="sm" data-variant={circuit===value?'primary':'ghost'} aria-current={circuit===value?'page':undefined} href={catalogUrl(filters,{league:value,page:1})}>{label}</Link>)}</nav>
  <details className={styles.moreFilters}><summary>More filters {extraCount>0&&<span>{extraCount}</span>}<span aria-hidden="true">⌄</span></summary>
  <div className={styles.extraFields}>
- <label>Match date<input key={date} className="ui-input" type="date" name="date" defaultValue={date}/></label>
- <label>Status<select key={status} className="ui-input" name="status" defaultValue={status}><option value="">All statuses</option><option value="finished">Finished</option><option value="live">Live</option><option value="scheduled">Scheduled</option><option value="walkover">Walkover</option><option value="retired">Retired</option></select></label>
- <label>Match type<select key={kind} className="ui-input" name="kind" defaultValue={kind}><option value="">All matches</option><option value="match">Tournament</option><option value="private">Private</option></select></label>
+ <FilterDate key={date} value={date}/>
+ <FilterSelect name="status" label="Status" value={status} options={[['','All statuses'],['finished','Finished'],['live','Live'],['scheduled','Scheduled'],['walkover','Walkover'],['retired','Retired']].map(([value,label])=>({value,label}))}/>
+ <FilterSelect name="kind" label="Match type" value={kind} options={[['','All matches'],['match','Tournament'],['private','Private']].map(([value,label])=>({value,label}))}/>
  <label>Scouter<input key={scouter} className="ui-input" name="scouter" placeholder="Scouter email" defaultValue={scouter}/></label>
  </div></details></div>
  <input type="hidden" name="scouting" value={scouting}/>
