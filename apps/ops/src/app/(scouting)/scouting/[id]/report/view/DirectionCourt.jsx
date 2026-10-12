@@ -44,7 +44,10 @@ export function DirectionCourt({
           sy = from.y * h + uy * radius,
           ex = to.x * w - ux * radius,
           ey = to.y * h - uy * radius;
-        const bend = (dotted ? -0.022 : 0.045) * w;
+        // Reflect the curve across the court centre for right-side hitters.
+        // Reverse the normal at the far end so the same reflection holds there.
+        const curveOrientation = (from.x > 0.5 ? -1 : 1) * (dy > 0 ? -1 : 1);
+        const bend = (dotted ? -0.022 : 0.045) * w * curveOrientation;
         const cx = (sx + ex) / 2 - uy * bend,
           cy = (sy + ey) / 2 + ux * bend;
         const tone = selected < 2 ? "#c4f63a" : "#ff897b";
