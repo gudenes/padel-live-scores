@@ -306,7 +306,8 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
           {[
             ["Winners", d.stats[i].winners],
             ["Unforced errors", d.stats[i].unforced],
-            ["Forced errors", d.stats[i].forced],
+            ["Forced errors committed", d.stats[i].forced],
+            ["Forced errors created", d.stats[i].forcedErrorsCreated],
             ["Assists", d.stats[i].assists],
             [
               "Smash points / attempts",
