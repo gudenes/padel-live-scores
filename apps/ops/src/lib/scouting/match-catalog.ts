@@ -8,7 +8,10 @@ export const LEAGUE_GROUPS=[
 export function catalogFilters(params:Record<string,string|string[]|undefined>){
  const text=(key:string)=>typeof params[key]==='string'?(params[key] as string).slice(0,100):''
  const allowed=(key:string,values:string[])=>values.includes(text(key))?text(key):''
- return {mine:allowed('mine',['1']),player:/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(text('player'))?text('player'):'',league:allowed('league',LEAGUE_GROUPS.flatMap(g=>g.options.map(([value])=>value))),q:text('q').trim(),status:allowed('status',['finished','live','scheduled','walkover','retired']),
+ const watchlist=allowed('watchlist',['1'])
+ const rawPlayers=typeof params.watched==='string'?params.watched:''
+ const watched=watchlist?[...new Set(rawPlayers.split(',').filter(id=>/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)))].slice(0,50).join(','):''
+ return {watchlist,watched,mine:allowed('mine',['1']),player:/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(text('player'))?text('player'):'',league:allowed('league',LEAGUE_GROUPS.flatMap(g=>g.options.map(([value])=>value))),q:text('q').trim(),status:allowed('status',['finished','live','scheduled','walkover','retired']),
   kind:allowed('kind',['match','private']),scouting:allowed('scouting',['scouted','unscouted','pending']),
   scouter:text('scouter').trim(),date:/^\d{4}-\d{2}-\d{2}$/.test(text('date'))?text('date'):'',
   page:Math.max(1,Math.min(100000,Number.parseInt(text('page')||'1')||1))}
@@ -49,6 +52,7 @@ export const CATALOG_SQL=`with sessions as (
  and ($5='' or coalesce(u.email,s.updated_by,'') ilike '%'||$5||'%')
  and ($10='' or ($10='1' and ($11::uuid is not null and (s.assigned_scouter_user_id=$11::uuid or s.creator_user_id=$11::uuid) or (s.source='admin' and s.updated_by=$12 and $12<>''))))
  and ($13::uuid is null or $13::uuid=any(c.player_ids))
+ and ($14='' or c.player_ids && $15::uuid[])
  and ($9='' or ($9='premier' and c.league_tier in ('major','p1','p2','finals')) or ($9='fip' and left(c.league_tier,4)='fip_') or c.league_tier=$9)
  and ($6='' or (c.match_date at time zone 'Europe/Madrid')::date::text=$6)
  ), paged as materialized (
@@ -59,9 +63,9 @@ export const CATALOG_SQL=`with sessions as (
  from paged f order by case when $13::uuid is not null then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when $13::uuid is not null and match_status='scheduled' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind`
 
 export async function loadMatchCatalog(db:Pick<Pool,'query'>,filters:CatalogFilters,viewer:{id?:string;email?:string|null}={}){
- const {q,status,kind,scouting,scouter,date,page,league,mine,player}=filters
+ const {q,status,kind,scouting,scouter,date,page,league,mine,player,watchlist,watched}=filters
  const size=player?10:MATCH_PAGE_SIZE
- const result=await db.query(CATALOG_SQL,[q,status,kind,scouting,scouter,date,size+1,player?0:(page-1)*size,league,mine,viewer.id??null,viewer.email??'',player||null])
+ const result=await db.query(CATALOG_SQL,[q,status,kind,scouting,scouter,date,size+1,player?0:(page-1)*size,league,mine,viewer.id??null,viewer.email??'',player||null,watchlist,watched?watched.split(','):[]])
  const rows=result.rows.slice(0,size),hasNext=!player&&result.rows.length>size
  const ids=rows.filter(r=>r.has_scouting).map(r=>r.match_id)
  if(ids.length){

@@ -18,7 +18,7 @@ export default function FavouritePlayers({userId,selected}:{userId:string;select
  function save(player:Player,remove=false){
   const next=remove?saved.filter(p=>p.id!==player.id):[...saved.filter(p=>p.id!==player.id),{id:player.id,name:player.name}]
   if(next.length>50){setError('You can save up to 50 players.');return}
-  try{localStorage.setItem(key,JSON.stringify(next));setSaved(next);setError('')}catch{setError('Could not save your watchlist. Check browser storage and try again.')}
+  try{localStorage.setItem(key,JSON.stringify(next));setSaved(next);setError('');window.dispatchEvent(new Event('pn-watchlist-changed'))}catch{setError('Could not save your watchlist. Check browser storage and try again.')}
  }
  return <section className={styles.panel} aria-label="Watchlist"><details open={!!selected||undefined}>
  <summary><span>☆ Watchlist</span><small>{saved.length} saved · View up to 10 matches per player</small></summary>

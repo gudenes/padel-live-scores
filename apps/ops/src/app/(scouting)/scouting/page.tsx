@@ -5,6 +5,7 @@ import {redirect} from 'next/navigation'
 import {pgPool} from '@/lib/db'
 import MatchCard from './MatchCard'
 import FavouritePlayers from './FavouritePlayers'
+import WatchlistFilter from './WatchlistFilter'
 import CatalogSearchForm from './CatalogSearchForm'
 import FilterSelect from './FilterSelect'
 import FilterDate from './FilterDate'
@@ -16,7 +17,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  const user=(await auth())?.user;if(!canViewReports(user))redirect('/login')
  const params=await searchParams
  const filters=catalogFilters(params)
- const {q,status,kind,scouter,date,scouting,page,league,mine,player}=filters
+ const {q,status,kind,scouter,date,scouting,page,league,mine,player,watchlist,watched}=filters
  let rows:any[]=[];let failed=false;let hasNext=false
  try{({rows,hasNext}=await loadMatchCatalog(pgPool(),filters,user??{}))}catch{failed=true}
  const circuit=league==='premier'||['major','p1','p2','finals'].includes(league)?'premier':league==='fip'||league.startsWith('fip_')?'fip':''
@@ -41,13 +42,14 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  <FilterSelect name="kind" label="Match type" value={kind} options={[['','All matches'],['match','Tournament'],['private','Private']].map(([value,label])=>({value,label}))}/>
  <label>Scouter<input key={scouter} className="ui-input" name="scouter" placeholder="Scouter email" defaultValue={scouter}/></label>
  </div></details></div>
+ <input type="hidden" name="watchlist" value={watchlist}/><input type="hidden" name="watched" value={watched}/>
  <input type="hidden" name="mine" value={mine}/><input type="hidden" name="player" value={player}/>
  <input type="hidden" name="scouting" value={scouting}/>
  </CatalogSearchForm>
  {activeFilters.length>0&&<div className={styles.activeFilters} aria-label="Active filters">{activeFilters.map(([key,label])=><Link key={key} className="ui-btn" data-size="sm" data-variant="ghost" aria-label={`Remove ${label} filter`} href={catalogUrl(filters,{[key]:'',page:1})}>{label}<span aria-hidden="true">×</span></Link>)}<Link className="ui-btn" data-variant="ghost" data-size="sm" href={catalogUrl(filters,{q:'',league:'',date:'',status:'',kind:'',scouter:'',page:1})}>Clear filters</Link></div>}
  </section>
- <div className={styles.listToolbar}><nav className={styles.scoutFilters} aria-label="Scouting filter">{[['','All matches'],['scouted','With scouting'],['unscouted','Without scouting'],['pending','Scouting in progress']].map(([value,label])=><Link key={value} className="ui-btn" data-variant={scouting===value?'primary':'ghost'} aria-current={scouting===value?'page':undefined} href={catalogUrl(filters,{scouting:value,page:1})}>{label}</Link>)}</nav><Link className="ui-btn" data-variant={mine?'primary':'ghost'} aria-current={mine?'page':undefined} href={catalogUrl(filters,{mine:mine?'':'1',page:1})}>My scouts</Link><span className={styles.sortNote}>{player?'Latest 10 · Live, upcoming, then completed':`Newest match date first · ${MATCH_PAGE_SIZE} per page`}</span></div>
+ <div className={styles.listToolbar}><nav className={styles.scoutFilters} aria-label="Scouting filter">{[['','All matches'],['scouted','With scouting'],['unscouted','Without scouting'],['pending','Scouting in progress']].map(([value,label])=><Link key={value} className="ui-btn" data-variant={scouting===value?'primary':'ghost'} aria-current={scouting===value?'page':undefined} href={catalogUrl(filters,{scouting:value,page:1})}>{label}</Link>)}</nav><div className={styles.scoutFilters}><WatchlistFilter userId={user?.id??''} filters={filters}/><Link className="ui-btn" data-variant={mine?'primary':'ghost'} aria-current={mine?'page':undefined} href={catalogUrl(filters,{mine:mine?'':'1',page:1})}>My scouts</Link></div><span className={styles.sortNote}>{player?'Latest 10 · Live, upcoming, then completed':`Newest match date first · ${MATCH_PAGE_SIZE} per page`}</span></div>
  <div className={styles.grid}>
- {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<p className="ui-panel">No matches match these filters. <Link href="/scouting">Reset filters</Link></p>:rows.map(r=><MatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
+ {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<p className="ui-panel">{watchlist&&!watched?'Your watchlist is empty. Add players in the Watchlist section above.':'No matches match these filters.'} <Link href="/scouting">Reset filters</Link></p>:rows.map(r=><MatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
  {!failed&&!player&&<nav className={styles.pagination} aria-label="Match pages"><span>{rows.length?`Showing ${(page-1)*MATCH_PAGE_SIZE+1}–${(page-1)*MATCH_PAGE_SIZE+rows.length}`:'0 matches'} · Page {page}</span><div>{page>1&&<Link className="ui-btn" href={pageUrl(page-1)}>Previous</Link>}{hasNext&&<Link className="ui-btn" data-variant="primary" href={pageUrl(page+1)}>Next</Link>}</div></nav>}</main>
 }

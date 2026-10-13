@@ -3,7 +3,7 @@ import {catalogFilters,catalogUrl,loadMatchCatalog,MATCH_PAGE_SIZE} from '../mat
 const row=(n:number,scouted=false)=>({match_id:String(n),kind:'match',has_scouting:scouted,players:[{id:'a',name:'Catalog A',avatar_url:'photo-a',country:'AR',ranking:3}]})
 describe('paginated match catalog',()=>{
  it('defaults to all matches and bounds malformed filter/page input',()=>{
-  expect(catalogFilters({})).toEqual({mine:'',player:'',league:'',q:'',status:'',kind:'',scouting:'',scouter:'',date:'',page:1})
+  expect(catalogFilters({})).toEqual({watchlist:'',watched:'',mine:'',player:'',league:'',q:'',status:'',kind:'',scouting:'',scouter:'',date:'',page:1})
   expect(catalogFilters({page:'-7',status:'injected',kind:['private'],scouting:'bogus',date:'anything'})).toMatchObject({page:1,status:'',kind:'',scouting:'',date:''})
   expect(catalogFilters({page:'99999999'}).page).toBe(100000)
  })
@@ -63,4 +63,20 @@ it('limits a specific player to ten matches before loading scouting documents',a
  expect(query.mock.calls[0][1][12]).toBe(player)
  expect(query.mock.calls[0][0]).toContain("when match_status='live' then 0 when match_status='scheduled' then 1 else 2")
  expect(catalogFilters({player:'invalid'}).player).toBe('')
+})
+
+it('filters all watched players server-side, including an empty watchlist',async()=>{
+ const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222'
+ const query=vi.fn().mockResolvedValue({rows:[]})
+ const filters=catalogFilters({watchlist:'1',watched:[a,b,a,'invalid'].join(','),scouting:'pending',mine:'1'})
+ expect(filters.watched).toBe([a,b].join(','))
+ await loadMatchCatalog({query} as any,filters)
+ expect(query.mock.calls[0][1].slice(13)).toEqual(['1',[a,b]])
+ expect(query.mock.calls[0][0]).toContain('c.player_ids && $15::uuid[]')
+ const url=new URL(catalogUrl(filters,{page:2}),'https://admin.example')
+ expect(url.searchParams.get('watched')).toBe([a,b].join(','))
+ expect(url.searchParams.get('mine')).toBe('1')
+ await loadMatchCatalog({query} as any,catalogFilters({watchlist:'1'}))
+ expect(query.mock.calls[1][1].slice(13)).toEqual(['1',[]])
+ expect(catalogFilters({watched:a}).watched).toBe('')
 })
