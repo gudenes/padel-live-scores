@@ -7,6 +7,7 @@ export const canWriteSession = (user: StaffUser, existing: { assigned_scouter_us
 // Fail closed for scoped accounts, including unknown/new routes and server actions.
 export function scouterRouteAllowed(path: string, method: string, viewer = false) {
   const read = method === 'GET' || method === 'HEAD'
+  if(read&&path==='/api/internal/scouting-player-search')return true
   if (read && /^\/flags\/[a-z]{2}\.png$/.test(path)) return true
   if (read && /^\/downloads\/padel-nachos-scout-\d+\.\d+\.\d+\.zip$/.test(path)) return true
   if (read && ['/scouting/court-empty.webp', '/scouting', '/scouting/matches', '/scouting/methodology', '/not-authorized'].includes(path)) return true
