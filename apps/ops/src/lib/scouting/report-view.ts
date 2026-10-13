@@ -1,6 +1,7 @@
 import { scopedStats, teamSummary } from "./insights";
 import {
   methodologyAnalysis,
+  pointWeight,
   DEFAULT_METHODOLOGY,
   type MethodologyId,
 } from "./methodology";
@@ -170,6 +171,7 @@ export function reportView(
             service: snapshot.service,
             teams: teamSummary(points, snapshot),
             analysis: methodologyAnalysis(points, methodology),
+            keyPointAnalysis: methodologyAnalysis(points.filter(p => pointWeight(p) > 1), methodology),
             directions: directionCounts(taps),
             taps,
           },
