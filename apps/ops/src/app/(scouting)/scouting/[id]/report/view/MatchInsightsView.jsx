@@ -292,7 +292,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
     : [[], [], [], []];
   const tieScores = tieBreaks(data.scopes.all.points);
   const playerCards = (
-    <div className="players">
+    <div className="players" title="Key points: break points, star points, tiebreaks, set points and match points. The score uses only those observed points; overlapping situations count once.">
       {data.players.map((p, i) => (
         <article className="player" key={p.id}>
           <div className="playerhead">
@@ -314,6 +314,8 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
               d.stats[i].smashPointsWon + " / " + d.stats[i].smashes,
             ],
             ["Weighted impact", d.analysis.players[i].impact.toFixed(2)],
+            ["Key-point score / 10", d.keyPointAnalysis?.players[i].score?.toFixed(1) ?? "—"],
+            ["Key-point impact", d.keyPointAnalysis?.observedPoints ? d.keyPointAnalysis.players[i].impact.toFixed(2) : "—"],
           ].map(([l, v]) => (
             <div className="stat" key={l}>
               <span>{l}</span>
@@ -497,7 +499,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
                   </div>
                 </Panel>
               </div>
-              <Panel title="Player performance">{playerCards}</Panel>
+              <Panel title="Player performance" sub={`${d.keyPointAnalysis?.observedPoints ?? 0} key points observed · Break, star, tiebreak, set and match points.`}>{playerCards}</Panel>
             </>
           )}
           {tab === "Match flow" && (
@@ -554,7 +556,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
             <>
               <Panel
                 title="Player performance"
-                sub="Rating recalculates for the selected set; assists retain the current 50/50 split."
+                sub={`${d.keyPointAnalysis?.observedPoints ?? 0} key points observed · Break, star, tiebreak, set and match points. Ratings follow the selected set.`}
               >
                 {playerCards}
               </Panel>
