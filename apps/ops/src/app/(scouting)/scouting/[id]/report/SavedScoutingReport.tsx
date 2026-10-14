@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import MatchLibraryMenu from "../../MatchLibraryMenu";
 import { useRouter } from "next/navigation";
 import { savedReport, type SavedSession } from "@/lib/scouting/saved-report";
 import { pointsCsv, sessionExport } from "@/lib/scouting/export";
@@ -32,10 +33,12 @@ const emptyContext: ReportContext = {
 };
 export default function SavedScoutingReport({
   matchId,
+  userId = "",
   manual = false,
   context = emptyContext,
 }: {
   matchId: string;
+  userId?: string;
   manual?: boolean;
   context?: ReportContext;
 }) {
@@ -170,7 +173,7 @@ export default function SavedScoutingReport({
     <main className={layout.page}>
       <header className={layout.header}>
         <div className={layout.headerIntro}>
-          <Link href="/scouting">← Matches</Link>
+          <MatchLibraryMenu userId={userId}/>
           <h1>Match insights</h1>
           <p>
             {manual

@@ -20,7 +20,7 @@ export type CatalogFilters=ReturnType<typeof catalogFilters>
 export function catalogUrl(filters:CatalogFilters,changes:Partial<CatalogFilters>={}){
  const p=new URLSearchParams()
  for(const [key,value] of Object.entries({...filters,...changes}))if(value!==''&&(key!=='page'||value!==1))p.set(key,String(value))
- return '/scouting'+(p.size?'?'+p:'')
+ return '/scouting'+(p.size?'?'+p:'?view=all')
 }
 // Page lightweight metadata first. Never fetch or replay every scouting document.
 export const CATALOG_SQL=`with sessions as (

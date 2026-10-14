@@ -83,3 +83,27 @@
 @media(max-width:600px){.libraryContent .grid{grid-template-columns:1fr}}
 .libraryViews>a,.libraryViews>button{justify-content:flex-start;width:100%;min-height:46px;text-align:left}
 @media(max-width:800px){.libraryViews>a,.libraryViews>button{width:auto;flex:1}}
+
+.recentMatches{border-top:1px solid var(--border);padding-top:20px;margin-top:20px}
+.recentMatches h2{font-size:11px;letter-spacing:.12em;margin:0 0 8px;color:var(--muted)}
+.recentMatches p{font-size:11px;color:var(--muted);margin:0 0 12px}
+.recentMatches ol{list-style:none;padding:0;margin:0;display:grid;gap:6px}
+.recentMatches a{display:flex;flex-direction:column;gap:5px;padding:10px;border-radius:8px;text-decoration:none;color:var(--text);font-size:12px;line-height:1.45;transition:background .15s}
+.recentMatches a:hover,.recentMatches a:focus-visible{background:var(--card);outline:1px solid var(--border)}
+.recentMatches small{color:var(--muted);font-size:10px}
+
+.recentMatches ol{gap:10px}
+.recentMatches a.recentCard{padding:12px;background:var(--card,#fff);border:1px solid var(--border,#dce2d4);border-radius:12px;gap:10px;box-shadow:0 2px 4px #17210c04;transition:transform .18s,box-shadow .18s,border-color .18s}
+.recentMatches a.recentCard:hover{transform:translateY(-2px);border-color:#a3bf70;box-shadow:0 5px 12px #17210c0c;outline:0}
+.recentTournament{display:flex;justify-content:space-between;gap:8px;font-size:10px;font-weight:650;letter-spacing:.04em;color:var(--muted);line-height:1.4}
+.recentTeam{display:flex;align-items:center;gap:8px;font-size:11px;line-height:1.4;min-width:0}
+.recentAvatars{display:flex;flex-shrink:0;padding-right:2px}
+.recentAvatars>span{width:25px;height:25px;border:2px solid #c9f43b;border-radius:50%;background:#fff;display:grid;place-items:center;overflow:hidden;color:#293527;font-size:10px}
+.recentAvatars>span+span{margin-left:-8px}
+.recentAvatars img{width:100%;height:100%;object-fit:cover}
+.recentTeam[data-team="1"] .recentAvatars>span{border-color:#ff8a7a}
+.recentMatches .recentFooter{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border,#dce2d4);padding-top:8px;font-size:10px}
+@media(prefers-reduced-motion:reduce){.recentMatches a.recentCard{transition:none}.recentMatches a.recentCard:hover{transform:none}}
+
+.libraryTitle{display:flex;align-items:center;justify-content:space-between;min-height:32px;gap:12px}
+.libraryTitle>button{font-size:24px;line-height:1}

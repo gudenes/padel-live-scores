@@ -10,11 +10,18 @@ describe('saved extension data reuses admin insights without changing either ses
   expect(r.model.tracking.timeline[0].durationMs).toBe(10000);expect(r.model.tracking.timeline[0].matchPoint.a).toBe(true)
   expect(r.model.stats[0].smashes).toBe(1);expect(r.videoReport?.players[0].stats.powerSmashes).toBe(1);expect(r.videoReport?.players[0].stats.x4Winners).toBe(1)
   expect(r.videoReport?.varReviews).toBe(1);expect(r.videoReport?.shotTracking.shots).toBe(2);expect(r.videoReport?.shotTracking.players[0].downTheLine).toBe(1)
-  expect(r.partial).toBe(true);expect(JSON.stringify(row)).toBe(before)
+  expect(r.hasScoreAdjustments).toBe(true);expect(r.scoreOnlyPoints).toBe(0);expect(r.partial).toBe(true);expect(JSON.stringify(row)).toBe(before)
  })
  it('excludes undone points and retains the seeded score without fabricated stats',()=>{
   const row=session();Object.assign(row.document.rallies[0],{undone:true,undoneAt:'2026-10-06T00:00:01Z'})
   const r=savedReport(row,'video');expect(r.model.points).toBe(0);expect(r.model.stats[0].winners).toBe(0);expect(r.model.score.sets).toEqual([{a:6,b:4},{a:5,b:4}]);expect(r.videoReport).toBe(null)
+ })
+ it('counts score-only points separately from score corrections',()=>{
+  const row=session()
+  row.document.setup.adjustments.push({type:'missed-point',afterId:null,at:'2026-10-06T00:00:00Z',team:'b'} as any)
+  const r=savedReport(row,'video')
+  expect(r.scoreOnlyPoints).toBe(1)
+  expect(r.hasScoreAdjustments).toBe(true)
  })
  it('keeps original admin scouting compatible and rejects malformed saved data',()=>{
   const row={...session(),document:freshDoc()},r=savedReport(row,'admin')

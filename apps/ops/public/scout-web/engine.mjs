@@ -1,3 +1,4 @@
+import {replaySource} from './replay-source.mjs';
 import {qualityCheckpoint} from './scouting-quality.mjs';
 import {scoutingTime} from './scouting-time.mjs';
 import {needsServerConfirmation} from './onboarding-model.mjs';
@@ -301,6 +302,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(message.type==='reconnect'&&!state.connection)throw Error('Use Connect video in the side panel first.');
           const found=await discover(message.type==='reconnect'?state.connection.tabId:undefined);
           if(!found.videos.length)throw Error('No accessible video found. Start playback, click the extension icon on that tab and reconnect. A player in a different-site iframe may need site-specific support.');
+          state.setup.videoSourceUrl=replaySource(found.url);
           state.connection={tabId:found.tabId,page:pageReference(found.url),candidates:found.videos,selected:found.videos[0]};
           return save();
         }

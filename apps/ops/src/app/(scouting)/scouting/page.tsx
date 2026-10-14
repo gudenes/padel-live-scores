@@ -4,8 +4,7 @@ import {canViewReports} from '@/lib/scouting-permissions'
 import {redirect} from 'next/navigation'
 import {pgPool} from '@/lib/db'
 import MatchCard from './MatchCard'
-import FavouritePlayers from './FavouritePlayers'
-import WatchlistFilter from './WatchlistFilter'
+import LibrarySidebar from './LibrarySidebar'
 import CatalogSearchForm from './CatalogSearchForm'
 import FilterSelect from './FilterSelect'
 import FilterDate from './FilterDate'
@@ -16,6 +15,7 @@ export const metadata={title:'Matches · Padel Nachos'}
 export default async function Page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
  const user=(await auth())?.user;if(!canViewReports(user))redirect('/login')
  const params=await searchParams
+ if(Object.keys(params).length===0)redirect("/scouting?watchlist=1")
  const filters=catalogFilters(params)
  const {q,status,kind,scouter,date,scouting,page,league,mine,player,watchlist,watched}=filters
  let rows:any[]=[];let failed=false;let hasNext=false
@@ -25,12 +25,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  const extraCount=[date,status,kind,scouter].filter(Boolean).length
  const pageUrl=(n:number)=>catalogUrl(filters,{page:n})
  return <main className={styles.page}><div className={styles.libraryLayout}>
- <aside className={styles.libraryRail} aria-label="Your library"><div className={styles.eyebrow}>YOUR LIBRARY</div>
- <nav className={styles.libraryViews} aria-label="Match views">
- <Link className="ui-btn" data-variant={!mine&&!watchlist&&!player?'primary':'ghost'} aria-current={!mine&&!watchlist&&!player?'page':undefined} href={catalogUrl(filters,{mine:'',watchlist:'',watched:'',player:'',page:1})}>All matches</Link>
- <Link className="ui-btn" data-variant={mine?'primary':'ghost'} aria-current={mine?'page':undefined} href={catalogUrl(filters,{mine:'1',watchlist:'',watched:'',player:'',page:1})}>My scouts</Link>
- <WatchlistFilter userId={user?.id??''} filters={filters}/>
- </nav><FavouritePlayers userId={user?.id??''} selected={player} profiles={Object.fromEntries(rows.flatMap(r=>(r.players??[]).filter((p:any)=>p.id&&p.avatar_url).map((p:any)=>[p.id,p.avatar_url])))}/></aside>
+ <aside className={styles.libraryRail} aria-label="Your library"><LibrarySidebar userId={user?.id??''} filters={filters} profiles={Object.fromEntries(rows.flatMap(r=>(r.players??[]).filter((p:any)=>p.id&&p.avatar_url).map((p:any)=>[p.id,p.avatar_url])))}/></aside>
  <div className={styles.libraryContent}>
  <header className={styles.heading}><div><div className={styles.eyebrow}>YOUR MATCH LIBRARY</div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><Link className="ui-btn" data-variant="ghost" href="/scouting/methodology">Methodology</Link></header>
  <section className={styles.filterPanel} aria-label="Match filters">
@@ -54,8 +49,8 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  </CatalogSearchForm>
  {activeFilters.length>0&&<div className={styles.activeFilters} aria-label="Active filters"><span className={styles.filterGroupLabel}>Applied filters</span>{activeFilters.map(([key,label])=><Link key={key} className="ui-btn" data-size="sm" data-variant="ghost" aria-label={`Remove ${label} filter`} href={catalogUrl(filters,{[key]:'',page:1})}>{label}<span aria-hidden="true">×</span></Link>)}<Link className="ui-btn" data-variant="ghost" data-size="sm" href={catalogUrl(filters,{q:'',league:'',date:'',status:'',kind:'',scouter:'',scouting:'',page:1})}>Clear filters</Link></div>}
  </section>
- <div className={styles.resultsHeading}><div><h2>{watchlist?'Your watchlist':mine?'My scouts':player?'Player matches':'All matches'}</h2><span className={styles.sortNote}>{(player||watchlist)?`${rows.length} matches · Live, upcoming, then recent`:`Newest match date first · ${MATCH_PAGE_SIZE} per page`}</span></div></div>
+ <div className={styles.resultsHeading}><div><h2>{watchlist?'My Watchlist':mine?'My scouts':player?'Player matches':'All matches'}</h2><span className={styles.sortNote}>{(player||watchlist)?`${rows.length} matches · Live, upcoming, then recent`:`Newest match date first · ${MATCH_PAGE_SIZE} per page`}</span></div></div>
  <div className={styles.grid}>
- {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<p className="ui-panel">{watchlist&&!watched?'Your watchlist is empty. Add players in the Manage players in the sidebar.':'No matches match these filters.'} <Link href="/scouting">Reset filters</Link></p>:rows.map(r=><MatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
+ {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<p className="ui-panel">{watchlist&&!watched?'Your watchlist is empty. Use the settings icon next to Watched players to add players.':'No matches match these filters.'} <Link href="/scouting">Reset filters</Link></p>:rows.map(r=><MatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
  {!failed&&!player&&!watchlist&&<nav className={styles.pagination} aria-label="Match pages"><span>{rows.length?`Showing ${(page-1)*MATCH_PAGE_SIZE+1}–${(page-1)*MATCH_PAGE_SIZE+rows.length}`:'0 matches'} · Page {page}</span><div>{page>1&&<Link className="ui-btn" href={pageUrl(page-1)}>Previous</Link>}{hasNext&&<Link className="ui-btn" data-variant="primary" href={pageUrl(page+1)}>Next</Link>}</div></nav>}</div></div></main>
 }

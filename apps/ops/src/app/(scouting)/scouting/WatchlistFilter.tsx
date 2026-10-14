@@ -27,5 +27,5 @@ export default function WatchlistFilter({userId,filters}:{userId:string;filters:
    setError('');startTransition(()=>router.push(href,{scroll:false}))
   }catch{setError('Could not read your watchlist in this browser.')}
  }
- return <><button type="button" className="ui-btn" data-variant={filters.watchlist?'primary':'ghost'} aria-pressed={!!filters.watchlist} disabled={pending} onClick={toggle}>Watchlist</button>{error&&<span role="alert">{error}</span>}</>
+ return <><button type="button" className="ui-btn" data-variant={filters.watchlist?'primary':'ghost'} aria-pressed={!!filters.watchlist} disabled={pending} onClick={toggle}>My Watchlist</button>{error&&<span role="alert">{error}</span>}</>
 }
