@@ -6,7 +6,7 @@ export async function GET(req:Request){
  const q=(new URL(req.url).searchParams.get('q')??'').trim().slice(0,100)
  if(q.length<3)return Response.json({players:[]})
  try{
-  const {rows}=await pgPool().query('select id,name,country,ranking from public.players where name ilike $1 order by ranking asc nulls last,name,id limit 12',['%'+q.replace(/[\\%_]/g,'\\$&')+'%'])
+  const {rows}=await pgPool().query('select id,name,country,ranking,avatar_url from public.players where name ilike $1 order by ranking asc nulls last,name,id limit 12',['%'+q.replace(/[\\%_]/g,'\\$&')+'%'])
   return Response.json({players:rows},{headers:{'Cache-Control':'private, no-store'}})
  }catch{return Response.json({error:'Could not search players. Please retry.'},{status:503})}
 }
