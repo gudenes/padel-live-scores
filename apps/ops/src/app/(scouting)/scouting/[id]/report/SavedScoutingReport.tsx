@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import MethodologyGuide from "@/components/scouting/MethodologyGuide";
 import MatchLibraryMenu from "../../MatchLibraryMenu";
 import { useRouter } from "next/navigation";
 import { savedReport, type SavedSession } from "@/lib/scouting/saved-report";
@@ -235,7 +236,7 @@ export default function SavedScoutingReport({
               ))}
             </select>
           </label>
-          <Link href="/scouting/methodology">View calculation rules →</Link>
+          <MethodologyGuide label="How scoring works" methodology={methodology}/>
         </div>
       )}
       {loading ? (

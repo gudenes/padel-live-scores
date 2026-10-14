@@ -1,3 +1,4 @@
+import MethodologyGuide from "@/components/scouting/MethodologyGuide"
 import Link from 'next/link'
 import {auth} from '@/lib/auth'
 import {canViewReports} from '@/lib/scouting-permissions'
@@ -27,7 +28,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  return <main className={styles.page}><div className={styles.libraryLayout}>
  <aside className={styles.libraryRail} aria-label="Your library"><LibrarySidebar userId={user?.id??''} filters={filters} profiles={Object.fromEntries(rows.flatMap(r=>(r.players??[]).filter((p:any)=>p.id&&p.avatar_url).map((p:any)=>[p.id,p.avatar_url])))}/></aside>
  <div className={styles.libraryContent}>
- <header className={styles.heading}><div><div className={styles.eyebrow}>YOUR MATCH LIBRARY</div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><Link className="ui-btn" data-variant="ghost" href="/scouting/methodology">Methodology</Link></header>
+ <header className={styles.heading}><div><div className={styles.eyebrow}>YOUR MATCH LIBRARY</div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><MethodologyGuide/></header>
  <section className={styles.filterPanel} aria-label="Match filters">
  <CatalogSearchForm className={styles.refinedFilters} initialSearch={q}>
  <div className={styles.filterMain}>
