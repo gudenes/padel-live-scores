@@ -28,3 +28,16 @@ test('smash default only reuses final recorded attempt, not an earlier smash by 
  assert.equal(finalSmashAttempt({attempts:[{player:0},{player:2}]},0),-1);
  assert.equal(finalSmashAttempt({attempts:[{player:0,smashType:'power'}]},0),0);
 });
+
+test('implicit serve credits only a confirmed server for a partner third-ball winner',()=>{
+ const p=(...players)=>({touches:players.map(player=>({player}))});
+ for(const server of [0,1,2,3]){
+  const partner=server^1,returner=server<2?2:0;
+  assert.equal(suggestedAssist(p(returner,partner),partner,'winner',server,true),server);
+  assert.equal(suggestedAssist(p(returner,server),server,'winner',server,true),undefined);
+  assert.equal(suggestedAssist(p(returner,partner),partner,'winner',server,false),undefined);
+  for(const outcome of ['forced','unforced'])assert.equal(suggestedAssist(p(returner,partner),partner,outcome,server,true),undefined);
+ }
+ for(const server of [undefined,null,-1,4])assert.equal(suggestedAssist(p(2,1),1,'winner',server,true),undefined);
+ for(const taps of [[1],[0,1],[4,1],[2,1,2,1]])assert.equal(suggestedAssist(p(...taps),1,'winner',0,true),undefined);
+});

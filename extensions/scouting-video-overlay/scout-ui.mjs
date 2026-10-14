@@ -242,7 +242,7 @@ export function scoutingUI({$,act,getState}){
   $('var-review').disabled=busy||!pending;$('var-review').setAttribute('aria-pressed',String(!!pending?.varReviewed));$('var-review').textContent=pending?.varReviewed?'VAR flagged':'VAR review';
   if(finish){
    if(openId!==pending.id+':'+finish.player+':'+finish.outcome){const samePlayer=openId.startsWith(pending.id+':'+finish.player+':');openId=pending.id+':'+finish.player+':'+finish.outcome;step='shot';previousShot=undefined;previousSmashType=undefined;previousReuse=false;if(!samePlayer){shot=undefined;smashType=undefined;}if(!direct&&firstTapReturn(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))){shot='return';smashType=undefined;}forcedBy=!direct&&finish.outcome!=='winner'?previousTapOpponent(pending,finish.player):undefined;attributionReady=forcedBy!==undefined||finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=false;
-   if(!direct)$('assist').checked=suggestedAssist(pending,finish.player,finish.outcome)!==undefined;
+   if(!direct)$('assist').checked=suggestedAssist(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))!==undefined;
    const finalAttempt=finalSmashAttempt(pending,finish.player);
    if(finalAttempt>=0){shot='smash';smashType=pending.attempts[finalAttempt].smashType;$('counted').checked=true;}
    $('outside-attempts').replaceChildren(...setup.names.map((name,player)=>{const label=document.createElement('label');label.className='quick-tag';const check=document.createElement('input');check.type='checkbox';check.value=player;check.name='outside-attempt';label.append(check,document.createTextNode(name));return label;}));

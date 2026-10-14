@@ -29,6 +29,13 @@ for(const [surface,ui,html] of [['extension',scoutingUI,'../panel.html'],['web',
   assert.equal(match(restored).stats[0].smashes,1);assert.equal(match(restored).stats[1].assists,mode==='expert'?1:0);
   assert.deepEqual(match(restored).tracking.timeline[0].outsideRecoveryBy,[2]);
   $('assist').checked=false;$('save-point').click();assert.equal(actions.at(-1).details.assistBy,undefined);
+  state.setup.firstServer=1;
+  state.pending={...pending,id:'implicit-serve',attempts:[],touches:[2,0].map((player,i)=>({player,order:[2,3,0,1],snapshot:snapshot(101+i)}))};
+  render(state,snapshot(104),false,true);
+  assert.equal($('assist').checked,mode==='expert');
+  state.setup.firstServerUnknown=true;state.pending.id='unknown-serve';render(state,snapshot(104),false,true);
+  assert.equal($('assist').checked,false);
+
  }finally{dom.window.close();delete globalThis.matchMedia;delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}
 });
 test('F1 and F2 are displayed and mapped to X3 and Power',()=>{

@@ -13,8 +13,13 @@ export function firstTapReturn(pending,player,outcome,server,serverConfirmed=tru
 }
 
 // Suggest only from the final alternating teammate → opponent → finisher sequence.
-export function suggestedAssist(pending,player,outcome){
+export function suggestedAssist(pending,player,outcome,server,serverConfirmed=false){
  const taps=pending?.touches??[],[partner,opponent,last]=taps.slice(-3);
+ // Expert capture starts with the return: the confirmed serve is implicit.
+ if(outcome==='winner'&&serverConfirmed&&Number.isInteger(server)&&server>=0&&server<4
+  &&taps.length===2&&player===(server^1)&&taps[1].player===player
+  &&Number.isInteger(taps[0].player)&&taps[0].player>=0&&taps[0].player<4
+  &&Math.floor(taps[0].player/2)!==Math.floor(server/2))return server;
  return outcome==='winner'&&last?.player===player&&partner?.player===(player^1)
   &&Number.isInteger(opponent?.player)&&opponent.player>=0&&opponent.player<4
   &&Math.floor(opponent.player/2)!==Math.floor(player/2)?partner.player:undefined;

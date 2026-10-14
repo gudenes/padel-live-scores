@@ -222,7 +222,7 @@ Require `scouting-mode-v1` server support before uploading mode-tagged rallies. 
 
 ## Smart scouting defaults
 
-Expert mode preselects Assist on a winner only when the last three taps are the teammate, an opponent, and the finisher. Review or untick Assist before confirming; Pro mode keeps manual attribution. The existing 50/50 impact split remains unchanged. Historical saved assists are not recalculated.
+Expert mode preselects Assist on a winner only when the last three taps are the teammate, an opponent, and the finisher. When capture starts with the return, two taps (opposing returner → server’s partner winning) also suggest an assist for the confirmed server. Unknown servers and winners by the server do not qualify. Review or untick Assist before confirming; Pro mode keeps manual attribution. The existing 50/50 impact split remains unchanged. Historical saved assists are not recalculated.
 
 F1 records X3 and F2 records Power for the selected/last tapped player. Custom shortcuts remain respected. A final recorded smash preselects Smash and its recorded type and reuses the attempt, so Space confirms without double counting. Later touches prevent reuse as a finishing-shot default.
 
