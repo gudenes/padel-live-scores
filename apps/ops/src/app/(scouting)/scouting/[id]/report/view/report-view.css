@@ -2202,3 +2202,22 @@
 }
 
 .matchInsights .unavailableWidget{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:12px;min-height:200px}.matchInsights .unavailableWidget p{color:var(--muted);font-size:12px;line-height:1.6;margin:0}.matchInsights .unavailableLabel{padding:6px 10px;border:1px solid var(--line);border-radius:8px;color:var(--muted);font-size:12px;background:var(--bg)}
+
+.match-header-sentinel{height:1px;margin-bottom:-1px}.matchInsights .match-sticky-hero{position:sticky;top:var(--match-header-offset,76px);z-index:25;background:var(--card,var(--bg-card,#fff));transition:padding .2s,box-shadow .2s}.matchInsights .match-sticky-hero.is-compact{padding:8px 14px;box-shadow:0 4px 14px #00000012;gap:12px}.matchInsights .match-sticky-hero.is-compact .heroTeam img{width:32px;height:32px;min-width:32px}.matchInsights .match-sticky-hero.is-compact .heroTeam{gap:10px}.matchInsights .match-sticky-hero.is-compact .heroTeam>div{display:flex;align-items:center;gap:6px}.matchInsights .match-sticky-hero.is-compact .heroTeam b{font-size:10px;max-width:110px}.matchInsights .match-sticky-hero.is-compact .result>small,.matchInsights .match-sticky-hero.is-compact .result>span,.matchInsights .match-sticky-hero.is-compact .result>strong{display:none}.matchInsights .match-sticky-hero.is-compact .setScores{font-size:24px;margin:0;gap:12px}@media(max-width:700px){.matchInsights .match-sticky-hero.is-compact{display:flex;justify-content:space-between}.matchInsights .match-sticky-hero.is-compact .heroTeam{display:flex;flex-direction:column;gap:3px}.matchInsights .match-sticky-hero.is-compact .heroTeam img{width:20px;height:20px;min-width:20px}.matchInsights .match-sticky-hero.is-compact .heroTeam b{max-width:90px;font-size:9px}.matchInsights .match-sticky-hero.is-compact .setScores{font-size:18px;gap:6px}}@media(prefers-reduced-motion:reduce){.matchInsights .match-sticky-hero{transition:none}}
+/* Avoid browser scroll anchoring fighting the header's compact transition. */
+main.main:has(.match-sticky-hero){overflow-anchor:none}.matchInsights .match-sticky-hero{transition:box-shadow .2s}
+
+/* Give team comparison bars the same solid visual weight as momentum. */
+.matchInsights .compareTracks > div{height:10px;border-radius:2px}
+.matchInsights .compareFill{border-radius:2px}
+.matchInsights .compareFill.green{background:#c9f43b}
+.matchInsights .compareFill.coral{background:#ff8a7a}
+
+
+.matchInsights .overview-momentum + .overviewAnalytics{margin-top:20px}
+.matchInsights .compareTeams>strong{display:flex;flex-direction:column;gap:8px}
+.matchInsights .compareTeams>strong:last-child{align-items:flex-end}
+.matchInsights .compareAvatars{display:flex;align-items:center;padding-right:2px}
+.matchInsights .compareAvatars img{width:32px;height:32px;object-fit:cover;border-radius:50%;background:white;border:2px solid #c9f43b;box-shadow:0 0 0 2px var(--bg-card,#fff)}
+.matchInsights .compareAvatars img+img{margin-left:-6px}
+.matchInsights .compareAvatars[data-team="1"] img{border-color:#ff8a7a}

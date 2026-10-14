@@ -51,7 +51,7 @@ export function tieBreaks(points) {
   }
   return result;
 }
-export function TeamComparison({ teams, pairs, points }) {
+export function TeamComparison({ teams, pairs, points, players = [] }) {
   const run = (team) => {
     let r = 0,
       max = 0;
@@ -86,8 +86,10 @@ export function TeamComparison({ teams, pairs, points }) {
   return (
     <div className="compare">
       <div className="compareTeams">
-        <strong>{pairs[0]}</strong>
-        <strong>{pairs[1]}</strong>
+        {pairs.map((pair,team)=><strong key={team}>
+          {players.length>0&&<span className="compareAvatars" data-team={team}>{players.slice(team*2,team*2+2).map((player,i)=><img key={player.id??i} src={player.avatar||"/scouting/player-placeholder.svg"} alt={player.name||player.shortName||""} title={player.name||player.shortName}/>)}</span>}
+          <span>{pair}</span>
+        </strong>)}
       </div>
       {rows.map(([label, a, b, display]) => (
         <div className="compareRow" key={label}>

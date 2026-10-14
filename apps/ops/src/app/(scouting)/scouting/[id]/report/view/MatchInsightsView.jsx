@@ -8,6 +8,8 @@ import {
   Info,
 } from "./Icons";
 import "./report-view.css";
+import VideoReview from "./VideoReview";
+import OverviewMomentum from "./OverviewMomentum";
 import { DirectionCourt } from "./DirectionCourt.jsx";
 import { GameFlow, TeamComparison, tieBreaks } from "./MatchFlow.jsx";
 const colors = ["#a3cf0a", "#a3cf0a", "#ed7669", "#ed7669"];
@@ -266,6 +268,27 @@ function Panel({ title, sub, children, className = "" }) {
   );
 }
 export function MatchInsightsView({ data, onScopeChange, reports }) {
+  const headerSentinel=useRef(null);
+  const heroRef=useRef(null),expandedHeight=useRef(0);
+  const [headerSpace,setHeaderSpace]=useState(0);
+  const [compactHeader,setCompactHeader]=useState(false);
+  const [headerOffset,setHeaderOffset]=useState(76);
+  useEffect(()=>{
+    const nav=document.querySelector('.gheader');
+    const measure=()=>setHeaderOffset(document.querySelector('main.main')?0:(nav?.getBoundingClientRect().height??76));
+    measure();const resize=new ResizeObserver(measure);if(nav)resize.observe(nav);
+    return()=>resize.disconnect();
+  },[]);
+  useEffect(()=>{
+    const observer=new IntersectionObserver(([entry])=>setCompactHeader(!entry.isIntersecting&&entry.boundingClientRect.top<(entry.rootBounds?.top??headerOffset)),{root:document.querySelector('main.main'),rootMargin:`-${headerOffset}px 0px 0px 0px`});
+    if(headerSentinel.current)observer.observe(headerSentinel.current);
+    return()=>observer.disconnect();
+  },[headerOffset]);
+  useEffect(()=>{
+    const el=heroRef.current;if(!el)return;
+    const measure=()=>{const height=el.getBoundingClientRect().height;if(!compactHeader){expandedHeight.current=height;setHeaderSpace(0)}else setHeaderSpace(Math.max(0,expandedHeight.current-height));};
+    measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();
+  },[compactHeader]);
   const [scope, setScope] = useState("all"),
     [tab, setTab] = useState("Overview"),
     [gameSelection, setGameSelection] = useState(null),
@@ -339,7 +362,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
             {data.finished ? "Scouted" : "Scouting in progress"}
           </span>
         </div>
-        <section className="hero">
+        <div ref={headerSentinel} className="match-header-sentinel" aria-hidden="true"/><section ref={heroRef} className={`hero match-sticky-hero${compactHeader?' is-compact':''}`} style={{'--match-header-offset':`${headerOffset}px`}}>
           <div className="heroTeam">
             {data.players.slice(0, 2).map((p) => (
               <div key={p.id}>
@@ -387,12 +410,14 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
             ))}
           </div>
         </section>
+        <div aria-hidden="true" style={{height:headerSpace,flexShrink:0}}/>
         <div className="tabs">
           {[
             "Overview",
             "Match flow",
             "Players",
             "Points & shots",
+            "Video review",
             "Data coverage",
             "Reports",
           ].map((t) => (
@@ -429,12 +454,6 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
           <span>{points.length} observed points</span>
 
         </div>
-        {data.partial && (
-          <p className="coverageNotice">
-            Partial scouting: score adjustments do not create observed points or
-            player statistics.
-          </p>
-        )}
         {data.contextUnavailable && (
           <p className="coverageNotice">
             Official metadata is temporarily unavailable. Saved scouting is
@@ -444,16 +463,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
         <div className="tabContent" key={tab}>
           {tab === "Overview" && (
             <>
-              <GameFlow
-                compact
-                onSelect={(key) => {
-                  setGameSelection(key);
-                  setTab("Match flow");
-                }}
-                points={data.scopes.all.points}
-                players={data.players}
-                pairs={[pair(0), pair(1)]}
-              />
+              <OverviewMomentum data={data} scope={scope} />
               <div className="split overviewAnalytics">
                 <Panel
                   title={
@@ -462,6 +472,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
                   }
                 >
                   <TeamComparison
+                    players={data.players}
                     teams={teams}
                     pairs={[pair(0), pair(1)]}
                     points={points}
@@ -585,6 +596,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
               </Panel>
             </>
           )}
+          {tab === "Video review" && <VideoReview data={data} scope={scope} />}
           {tab === "Points & shots" && (
             <>
               <DirectionCourt
@@ -807,6 +819,14 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
           )}
           {tab === "Data coverage" && (
             <>
+        {data.partial && (
+          <p className="coverageNotice">
+            {data.finished ? "Scouting completed" : "Scouting in progress"}
+            {" · "}
+            {data.scoreOnlyPoints > 0 && <>{data.scoreOnlyPoints} {data.scoreOnlyPoints === 1 ? "point has" : "points have"} score only. Player statistics exclude {data.scoreOnlyPoints === 1 ? "that point" : "those points"}.</>}
+            {data.hasScoreAdjustments && <>{data.scoreOnlyPoints > 0 ? " " : ""}The score includes a starting score or manual corrections; these do not add recorded points or player statistics.</>}
+          </p>
+        )}
               <Panel title="Two sources, clearly separated">
                 <div className="seg">
                   <button

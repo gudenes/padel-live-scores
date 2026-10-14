@@ -1,3 +1,4 @@
+import {replaySource} from '../../../../../extensions/scouting-video-overlay/replay-source.mjs';
 import { scopedStats, teamSummary } from "./insights";
 import {
   methodologyAnalysis,
@@ -188,6 +189,7 @@ export function reportView(
         )
       : null;
   return {
+    videoUrl: replaySource((report.original as {setup?:{videoSourceUrl?:string}})?.setup?.videoSourceUrl),
     meta: context.meta,
     players: report.players.map((p) => ({
       ...p,
@@ -204,6 +206,8 @@ export function reportView(
     pbpCount: context.pbp.length,
     updatedAt: report.updatedAt,
     partial: report.partial,
+    scoreOnlyPoints: report.scoreOnlyPoints,
+    hasScoreAdjustments: report.hasScoreAdjustments,
     source: report.source,
     finished: report.model.score.phase === "finished",
     winner: report.model.score.winner,

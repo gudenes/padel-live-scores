@@ -2,13 +2,13 @@
 import {useEffect,useId,useRef,useState} from 'react'
 import styles from './filter-controls.module.css'
 type Option={value:string;label:string;group?:string}
-export default function FilterSelect({name,label,value,options}:{name:string;label:string;value:string;options:Option[]}){
+export default function FilterSelect({name,label,value,options,onChange}:{name:string;label:string;value:string;options:Option[];onChange?:(value:string)=>void}){
  const id=useId(),root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null),input=useRef<HTMLInputElement>(null),search=useRef<HTMLInputElement>(null)
  const [open,setOpen]=useState(false),[query,setQuery]=useState(''),[active,setActive]=useState(0),[selected,setSelected]=useState(value)
  useEffect(()=>setSelected(value),[value])
  useEffect(()=>{if(!open)return;search.current?.focus();const close=(e:PointerEvent)=>{if(!root.current?.contains(e.target as Node))setOpen(false)};document.addEventListener('pointerdown',close);return()=>document.removeEventListener('pointerdown',close)},[open])
  const visible=options.filter(o=>`${o.group??''} ${o.label}`.toLowerCase().includes(query.toLowerCase()))
- function choose(option:Option){setSelected(option.value);setOpen(false);if(input.current){input.current.value=option.value;input.current.form?.requestSubmit()}trigger.current?.focus()}
+ function choose(option:Option){setSelected(option.value);setOpen(false);if(onChange)onChange(option.value);else if(input.current){input.current.value=option.value;input.current.form?.requestSubmit()}trigger.current?.focus()}
  return <div className={styles.field} ref={root} onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setOpen(false)}}>
  <span id={id+'-label'}>{label}</span><input ref={input} type="hidden" name={name} value={selected}/>
  <button ref={trigger} type="button" className={'ui-btn '+styles.trigger} aria-labelledby={id+'-label '+id+'-value'} aria-expanded={open} aria-haspopup="listbox" aria-controls={id} onClick={()=>{setQuery('');setActive(0);setOpen(!open)}} onKeyDown={e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();setOpen(true);setActive(0)}}}><span id={id+'-value'}>{options.find(o=>o.value===selected)?.label??'All'}</span><span aria-hidden="true">⌄</span></button>

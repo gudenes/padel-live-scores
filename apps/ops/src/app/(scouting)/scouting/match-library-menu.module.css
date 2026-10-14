@@ -1,0 +1,9 @@
+.drawer{position:fixed;inset:0 auto 0 0;margin:0;width:min(300px,92vw);height:100dvh;max-height:100dvh;max-width:92vw;box-sizing:border-box;border:0;border-right:1px solid var(--border);padding:0;color:var(--text);background:var(--bg,#f4f5ed);box-shadow:12px 0 48px #0002;overflow-y:auto;--lime:#C9F43B;--lime-2:#BCE62A;--lime-ink:#1A2012}
+.drawer::backdrop{background:transparent}
+.drawer{box-shadow:0 12px 48px #0002}
+.drawer[open]{animation:enter .2s ease-out}
+.content{padding:24px}
+.content nav{flex-direction:column;margin:22px 0 28px;flex-wrap:nowrap}
+.content nav>a,.content nav>button{width:100%;flex:none}
+@keyframes enter{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.drawer[open]{animation:none}}
