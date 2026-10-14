@@ -222,3 +222,5 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 @media(prefers-reduced-motion:reduce){.scout-header .header-actions .mode-switch .ui-btn{transition:none}}
 
 #quality-label{display:inline-flex;padding:5px 9px;border-radius:999px;background:#eef0e9;font-size:12px}#quality-label[data-quality=high]{background:#e4f7bb;color:#34510a}#quality-label[data-quality=medium]{background:#fff1cb;color:#715214}#quality-label[data-quality=low]{background:#ffe3df;color:#962d27}#quality-issues{padding-left:18px;font-size:12px;line-height:1.5}
+
+#outside-attempt-details{margin:8px 0}#outside-attempt-details summary{cursor:pointer;font-weight:600}#outside-attempts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}#outside-attempts label{display:flex;align-items:center;gap:8px;font-size:12px}#outside-attempts input{width:18px;height:18px;flex:none;margin:0}

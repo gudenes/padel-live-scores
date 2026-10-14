@@ -11,3 +11,18 @@ export function firstTapReturn(pending,player,outcome,server,serverConfirmed=tru
   &&pending?.touches?.length===1&&pending.touches[0].player===player
   &&Math.floor(player/2)!==Math.floor(server/2);
 }
+
+// Suggest only from the final alternating teammate → opponent → finisher sequence.
+export function suggestedAssist(pending,player,outcome){
+ const taps=pending?.touches??[],[partner,opponent,last]=taps.slice(-3);
+ return outcome==='winner'&&last?.player===player&&partner?.player===(player^1)
+  &&Number.isInteger(opponent?.player)&&opponent.player>=0&&opponent.player<4
+  &&Math.floor(opponent.player/2)!==Math.floor(player/2)?partner.player:undefined;
+}
+// A recorded attempt must be the final touch, never merely this player's last smash.
+export function finalSmashAttempt(pending,player){
+ const taps=pending?.touches??[],attempts=pending?.attempts??[];
+ return attempts.findLastIndex((a,index)=>index===attempts.length-1&&a.player===player&&(a.touchIndex!==undefined
+  ?a.touchIndex===taps.length-1&&taps.at(-1)?.player===player
+  :!taps.length||a.snapshot?.time>taps.at(-1)?.snapshot?.time));
+}

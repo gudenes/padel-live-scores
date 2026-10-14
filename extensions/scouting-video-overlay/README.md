@@ -219,3 +219,11 @@ Each newly started rally saves Pro or Expert mode. Admin card headers show the m
 Expert consistency allocates half of the 35% consistency weight to record checks and half to rally sequences. Each eligible Expert rally has equal weight: all adjacent taps must alternate teams. A same-player repetition or a teammate-to-teammate sequence makes that rally inconsistent. Show invalid transition count separately. Double faults require no sequence; a single-tap return error is valid. Other Expert rallies with fewer than two taps remain unassessed, reduce the sequence component, and make quality provisional. Only saved active rallies count; Undo and cancelled rallies are excluded. Mixed matches apply sequence weight proportional to their eligible Expert points. Pro retains full record-consistency weight. Scores use one decimal to make deductions visible.
 
 Require `scouting-mode-v1` server support before uploading mode-tagged rallies. v1.1 measures structural plausibility, not event accuracy: an alternating sequence can still omit two shots or identify the wrong player.
+
+## Smart scouting defaults
+
+Expert mode preselects Assist on a winner only when the last three taps are the teammate, an opponent, and the finisher. Review or untick Assist before confirming; Pro mode keeps manual attribution. The existing 50/50 impact split remains unchanged. Historical saved assists are not recalculated.
+
+F1 records X3 and F2 records Power for the selected/last tapped player. Custom shortcuts remain respected. A final recorded smash preselects Smash and its recorded type and reuses the attempt, so Space confirms without double counting. Later touches prevent reuse as a finishing-shot default.
+
+Expand Outside-court recovery attempt in point confirmation and select anyone who attempted a retrieval, including failed attempts. The player markers persist with the point, appear in Video review filters and CSV exports, and carry no extra impact credit. The existing outside-recovery winner tag is separate.
