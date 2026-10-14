@@ -13,7 +13,7 @@ export default function SharedReportAnalytics({stage}:{stage:'gate'|'report'}){
  <dialog ref={dialog} className={styles.modal} aria-labelledby={titleId} onCancel={e=>{e.preventDefault();decide(false)}}>
   <span className={styles.icon} aria-hidden="true">▥</span>
   <h2 id={titleId}>Help us improve your match review.</h2>
-  <p>Allow anonymous usage analytics with PostHog so we can understand which report features are useful.</p>
+  <p>Allow anonymous usage analytics to help us understand which report features are useful and improve your experience.</p>
   <p className={styles.note}>This is optional. You can view the report either way. Email verification and the report access log are separate.</p>
   <div className={styles.actions}><button className="ui-btn" onClick={()=>decide(false)}>Decline</button><button className="ui-btn" data-variant="primary" onClick={()=>decide(true)}>Allow analytics</button></div>
   <small>You can change your choice in Analytics preferences.</small>
