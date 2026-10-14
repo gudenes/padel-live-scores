@@ -5,6 +5,7 @@ import { DownloadSimple, CaretDown } from "./Icons";
 import layout from "../report.module.css";
 export function ReportActions({
   resumeAction,
+  shareAction,
   loading,
   scope,
   canExport,
@@ -16,6 +17,7 @@ export function ReportActions({
   onPbpCsv,
 }: {
   resumeAction?:ReactNode;
+  shareAction?:ReactNode;
   loading: boolean;
   scope: string;
   canExport: boolean;
@@ -38,6 +40,7 @@ export function ReportActions({
       <Button size="sm" variant="ghost" onClick={onRefresh} disabled={loading}>
         Refresh server copy
       </Button>
+      {shareAction}
       <details
         ref={menu}
         className={layout.exportMenu}

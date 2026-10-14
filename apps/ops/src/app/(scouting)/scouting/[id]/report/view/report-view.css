@@ -44,7 +44,7 @@
   background: var(--bg);
   color: var(--text);
 }
-:root:not([data-theme="light"]) .matchInsights {
+:root:not([data-theme="light"]):not(:has([data-shared-report])) .matchInsights {
   --bg: #171e1b;
   --card: #242d27;
   --line: #3a483d;
@@ -2178,14 +2178,14 @@
 .matchInsights .heroTeam b {
   overflow-wrap: anywhere;
 }
-:root:not([data-theme="light"])
+:root:not([data-theme="light"]):not(:has([data-shared-report]))
   .matchInsights
   .courtPlayerTabs
   .active.courtLime {
   background: #314021;
   color: #eef5dd;
 }
-:root:not([data-theme="light"])
+:root:not([data-theme="light"]):not(:has([data-shared-report]))
   .matchInsights
   .courtPlayerTabs
   .active.courtCoral {
@@ -2221,3 +2221,6 @@ main.main:has(.match-sticky-hero){overflow-anchor:none}.matchInsights .match-sti
 .matchInsights .compareAvatars img{width:32px;height:32px;object-fit:cover;border-radius:50%;background:white;border:2px solid #c9f43b;box-shadow:0 0 0 2px var(--bg-card,#fff)}
 .matchInsights .compareAvatars img+img{margin-left:-6px}
 .matchInsights .compareAvatars[data-team="1"] img{border-color:#ff8a7a}
+
+/* Keep the shared scope selector available across report widgets. */
+.matchInsights .match-sticky-hero{flex-wrap:wrap}.matchInsights .match-sticky-hero .match-header-scope{flex:0 0 100%;width:100%;margin:0;padding-top:10px;border-top:1px solid var(--line);gap:12px;flex-wrap:wrap}.matchInsights .match-header-scope .seg{flex-wrap:wrap}.matchInsights .match-sticky-hero.is-compact .match-header-scope{padding-top:6px}.matchInsights .match-header-scope .ui-btn{min-height:30px}

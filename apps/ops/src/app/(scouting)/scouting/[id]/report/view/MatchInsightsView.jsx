@@ -1,4 +1,5 @@
 "use client";
+import {sharedReportEvent} from "@/lib/posthog/shared-report";
 import React, { useState, useEffect, useRef } from "react";
 import {
   Clock,
@@ -267,15 +268,15 @@ function Panel({ title, sub, children, className = "" }) {
     </section>
   );
 }
-export function MatchInsightsView({ data, onScopeChange, reports }) {
+export function MatchInsightsView({ data, onScopeChange, reports, shared = false }) {
   const headerSentinel=useRef(null);
   const heroRef=useRef(null),expandedHeight=useRef(0);
   const [headerSpace,setHeaderSpace]=useState(0);
   const [compactHeader,setCompactHeader]=useState(false);
-  const [headerOffset,setHeaderOffset]=useState(76);
+  const [headerOffset,setHeaderOffset]=useState(shared?0:76);
   useEffect(()=>{
     const nav=document.querySelector('.gheader');
-    const measure=()=>setHeaderOffset(document.querySelector('main.main')?0:(nav?.getBoundingClientRect().height??76));
+    const measure=()=>setHeaderOffset(document.querySelector('main.main')?0:(nav?.getBoundingClientRect().height??(shared?0:76)));
     measure();const resize=new ResizeObserver(measure);if(nav)resize.observe(nav);
     return()=>resize.disconnect();
   },[]);
@@ -409,39 +410,17 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
               </div>
             ))}
           </div>
-        </section>
-        <div aria-hidden="true" style={{height:headerSpace,flexShrink:0}}/>
-        <div className="tabs">
-          {[
-            "Overview",
-            "Match flow",
-            "Players",
-            "Points & shots",
-            "Video review",
-            "Data coverage",
-            "Reports",
-          ].map((t) => (
-            <button
-              className={t === tab ? "active" : ""}
-              onClick={() => {
-                setTab(t);
-                setCurrent(0);
-              }}
-              key={t}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-        <div className="toolbar">
-          <div className="seg">
+        <div className="toolbar match-header-scope">
+          <div className="seg" role="group" aria-label="Filter match report by set">
             {Object.keys(data.scopes)
               .sort((a, b) => (a === "all" ? -1 : b === "all" ? 1 : 0))
               .map((k) => (
                 <button
-                  className={scope === k ? "active" : ""}
+                  className={`ui-btn ${scope === k ? "active" : ""}`}
+                  aria-pressed={scope === k}
                   onClick={() => {
                     setScope(k);
+                    if(shared)sharedReportEvent("shared_report_set_selected",{scope:k});
                     onScopeChange?.(k);
                     setCurrent(0);
                   }}
@@ -453,6 +432,31 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
           </div>
           <span>{points.length} observed points</span>
 
+        </div>
+        </section>
+        <div aria-hidden="true" style={{height:headerSpace,flexShrink:0}}/>
+        <div className="tabs">
+          {[
+            "Overview",
+            "Match flow",
+            "Players",
+            "Points & shots",
+            "Video review",
+            "Data coverage",
+            "Reports",
+          ].filter(t=>!shared||(t!=="Reports"&&(t!=="Video review"||!!data.videoUrl))).map((t) => (
+            <button
+              className={t === tab ? "active" : ""}
+              onClick={() => {
+                setTab(t);
+                if(shared)sharedReportEvent("shared_report_tab_selected",{tab:t});
+                setCurrent(0);
+              }}
+              key={t}
+            >
+              {t}
+            </button>
+          ))}
         </div>
         {data.contextUnavailable && (
           <p className="coverageNotice">
@@ -596,7 +600,7 @@ export function MatchInsightsView({ data, onScopeChange, reports }) {
               </Panel>
             </>
           )}
-          {tab === "Video review" && <VideoReview data={data} scope={scope} />}
+          {tab === "Video review" && <VideoReview data={data} scope={scope} readOnly={shared} />}
           {tab === "Points & shots" && (
             <>
               <DirectionCourt

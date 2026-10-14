@@ -15,7 +15,7 @@ const $=id=>document.getElementById(id);
 const demo=new URL(location.href).searchParams.has('demo')&&!globalThis.chrome?.runtime?.id;
 const installedVersion=globalThis.chrome?.runtime?.getManifest?.().version;
 $('extension-version').textContent=installedVersion?'v'+installedVersion:'Local preview';
-const transport=demo?(await import('./preview.mjs')).send:message=>chrome.runtime.sendMessage(message);
+const transport=demo?(await import('./preview.mjs?sample-points-v1')).send:message=>chrome.runtime.sendMessage(message);
 let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',polling=false,revision=0,videoKey='',cloud={status:'local'},account={status:demo?'demo':'checking'},accountPoll=0,accountChecking=false;
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 let draftFinish=null,confirmingPoint=false,prepareError=null;
@@ -61,6 +61,7 @@ function render(){
   $('sync-server').disabled=busy||!state.selectedMatch;$('load-server').disabled=busy||!state.selectedMatch||!!state.pending;
   const connectedKey=connection?.selected?.videoId??'';if(healthy&&connectedKey&&connectedKey!==videoKey){videoKey=connectedKey;$('video-panel').open=false;$('connection-settings').open=false;}
   $('status').textContent=healthy?'Connected':connection?'Check connection':'Not connected';
+  const connectionNudge=$('video-connection-nudge');connectionNudge.textContent='';$('quick-reconnect').title=healthy?'Video connected · Reconnect video':connection?'Video disconnected · Reconnect video':'Reconnect video';$('quick-reconnect').setAttribute('aria-label',$('quick-reconnect').title);connectionNudge.dataset.status=healthy?'connected':connection?'reconnect':'disconnected';connectionNudge.title=healthy?'Video connected':connection?'Video connection needs attention':'Connect a match video to begin';
   $('source').textContent=connection?.page??'Open the match video in Chrome, then click this extension’s toolbar icon.';
   $('clock').textContent=time(sample?.time);
   $('video-speed').disabled=busy||!!state.pending||!healthy||!!sample?.seeking;
@@ -71,6 +72,8 @@ function render(){
   $('rally').textContent=state.pending?'End rally & save':'Start rally';
   $('rally').disabled=busy||!healthy||(!state.pending&&(sample?.paused||sample?.ended))||sample?.seeking;
   $('connect').disabled=busy||!!state.pending;
+  $('quick-reconnect').hidden=!connection||!!state.pending;
+  $('quick-reconnect').disabled=busy;
   $('cancel').hidden=!state.pending;$('cancel').disabled=busy;
   $('count').textContent=state.rallies.length;
   if(document.activeElement!==$('label'))$('label').value=state.label;
@@ -131,6 +134,7 @@ $('video-speed').onchange=()=>act({type:'speed',rate:Number($('video-speed').val
 const cycleSpeed={get disabled(){return $('video-speed').disabled},click:()=>act({type:'cycle-speed'})};
 mediaShortcuts({target:document,back:$('skip--10'),pause:$('video-playback'),forward:$('skip-30'),back5:$('skip--5'),forward5:$('skip-5'),forward10:$('skip-10'),speed:cycleSpeed,getBindings});
 $('connect').addEventListener('click',()=>act({type:'connect'}));
+$('quick-reconnect').onclick=()=>act({type:'reconnect'});
 $('player').addEventListener('change',()=>act({type:'select',videoId:$('player').value}));
 $('rally').addEventListener('click',()=>act({type:'start'}));
 $('cancel').addEventListener('click',()=>act({type:'cancel'}));

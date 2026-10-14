@@ -31,3 +31,22 @@ export function finalSmashAttempt(pending,player){
   ?a.touchIndex===taps.length-1&&taps.at(-1)?.player===player
   :!taps.length||a.snapshot?.time>taps.at(-1)?.snapshot?.time));
 }
+
+// Link only the opponent's immediately preceding touch, not an earlier smash.
+export function recoverySmashAttempt(pending,player){
+ const opponent=previousTapOpponent(pending,player),index=(pending?.touches?.length??0)-2;
+ if(opponent===undefined)return -1;
+ const touch=pending.touches[index],next=pending.touches[index+1];
+ return (pending.attempts??[]).findLastIndex(a=>a.player===opponent&&(a.touchIndex!==undefined?a.touchIndex===index:a.snapshot?.time>=touch.snapshot?.time&&a.snapshot?.time<next.snapshot?.time));
+}
+export function creditRecoverySmash(pending,player,opponent,attemptIndex){
+ if(!Number.isInteger(opponent)||opponent<0||opponent>3||Math.floor(opponent/2)===Math.floor(player/2))throw Error('Choose the opponent who hit the smash.');
+ if(attemptIndex!==undefined){
+  if(!Number.isInteger(attemptIndex)||pending.attempts?.[attemptIndex]?.player!==opponent)throw Error('Choose that opponent’s recorded smash.');
+  return;
+ }
+ const inferred=previousTapOpponent(pending,player);
+ if(inferred===opponent&&recoverySmashAttempt(pending,player)>=0)return;
+ const touchIndex=(pending.touches?.length??0)-2,touch=inferred===opponent?pending.touches[touchIndex]:undefined;
+ (pending.attempts??=[]).push({player:opponent,snapshot:structuredClone(touch?.snapshot??pending.finish.end),...(touch?{touchIndex}:{})});
+}

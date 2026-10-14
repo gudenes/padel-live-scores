@@ -1,0 +1,9 @@
+.modal{position:fixed;inset:0;margin:auto;width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:32px;border:1px solid #d7dfcb;border-radius:20px;background:#fff;color:#1d291c;box-shadow:0 24px 90px #0003}
+.modal::backdrop{background:#10201770;backdrop-filter:blur(8px)}
+.modal h2{font-size:25px;line-height:1.2;letter-spacing:-.03em;font-weight:650;margin:18px 0}
+.modal p{font-size:14px;line-height:1.65;color:#54634b}
+.modal .note{font-size:12px;margin-top:14px}
+.icon{display:grid;place-items:center;background:#c9f43b;width:44px;height:44px;border-radius:12px;font-size:24px}
+.actions{display:flex;gap:12px;margin:24px 0 16px}
+.actions button{flex:1}
+.modal small{font-size:10px;color:#68765e}

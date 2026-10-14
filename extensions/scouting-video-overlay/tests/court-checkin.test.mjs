@@ -7,6 +7,7 @@ import {fresh} from '../core.mjs';
 import {defaults} from '../match.mjs';
 test('court preparation survives reload by match and player, with safe server controls and moving smash key hints',async()=>{
  const dom=new JSDOM(readFileSync(new URL('../panel.html',import.meta.url),'utf8'),{url:'https://example.test'});
+ dom.window.HTMLDialogElement.prototype.showModal=function(){this.open=true;};dom.window.HTMLDialogElement.prototype.close=function(){this.open=false;};
  globalThis.document=dom.window.document;globalThis.Option=dom.window.Option;Object.defineProperty(globalThis,'localStorage',{value:dom.window.localStorage,configurable:true});
  const $=id=>document.getElementById(id),actions=[],state={...fresh(),setup:defaults(),selectedMatch:{id:'one'}};
  try{
@@ -15,10 +16,14 @@ test('court preparation survives reload by match and player, with safe server co
   const card=i=>$('players').querySelector(`article[data-player="${i}"]`);
   assert.equal($('court-confirmed').textContent,'0/4 on court');
   card(2).querySelector('input').click();assert.equal($('court-confirmed').textContent,'1/4 on court');
-  $('change-server').click();$('quick-server').value='2';await $('quick-server').onchange();assert.deepEqual(actions.at(-1),{type:'server',player:2});
-  assert.match(card(2).querySelector('.attempts').textContent,/F2.*F1.*Page Down/);
+  $('change-server').click();assert.equal($('quick-server-picker').open,true);
+  await $('quick-switch-ends').onclick();assert.deepEqual(actions.pop(),{type:'ends'});
+  await $('quick-swap-a').onclick();assert.deepEqual(actions.pop(),{type:'positions',pair:'a'});
+  await $('quick-swap-b').onclick();assert.deepEqual(actions.pop(),{type:'positions',pair:'b'});
+  $('quick-server').value='2';await $('quick-server').onchange();assert.deepEqual(actions.at(-1),{type:'server',player:2});
+  assert.match(card(2).querySelector('.attempts').textContent,/F1.*F2.*F3/);
   state.setup.adjustments=[{type:'ends',afterId:null,at:'2026-10-07T00:00:00Z'}];render(state,null,false,false);
-  assert.equal(card(2).querySelector('input').checked,true);assert.match(card(2).querySelector('.attempts').textContent,/F2.*F1.*Page Down/);
+  assert.equal(card(2).querySelector('input').checked,true);assert.match(card(2).querySelector('.attempts').textContent,/F1.*F2.*F3/);
   state.selectedMatch.id='two';render(state,null,false,false);assert.equal($('court-confirmed').textContent,'0/4 on court');
   state.selectedMatch.id='one';render(state,null,false,false);assert.equal(card(2).querySelector('input').checked,true);
   state.pending={id:'pending',start:{time:10,at:'2026-10-07T00:00:00Z'}};render(state,null,false,false);

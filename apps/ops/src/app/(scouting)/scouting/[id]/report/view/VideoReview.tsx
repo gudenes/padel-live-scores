@@ -1,4 +1,5 @@
 'use client';
+import {sharedReportEvent} from '@/lib/posthog/shared-report';
 import {useEffect,useMemo,useState} from 'react';
 import type {ReportView} from '@/lib/scouting/report-view';
 import {parseTime,pointScore,replayPoints,timeLabel,videoSource,matchesRallyLength,replayRange} from '@/lib/scouting/video-review';
@@ -7,16 +8,16 @@ import ReplayMomentum from './ReplayMomentum';
 import {ArrowLeft,ArrowRight} from './Icons';
 import './video-review.css';
 const outcomes:Record<string,string>={winner:'Winner',unforced:'Unforced error',forced:'Forced error committed',created:'Forced error created',double_fault:'Double fault',unclassified:'Unclassified'};
-export default function VideoReview({data,scope}:{data:ReportView;scope:string}){
+export default function VideoReview({data,scope,readOnly=false}:{data:ReportView;scope:string;readOnly?:boolean}){
  const all=useMemo(()=>replayPoints(data.scopes.all.points,data.scopes.all.taps),[data]);
- const key='pn-video-review:'+all[0]?.id;
+ const key=(readOnly?'pn-shared-video-review:':'pn-video-review:')+all[0]?.id;
  const [filtersOpen,setFiltersOpen]=useState(true);
  const [outsideOnly,setOutsideOnly]=useState(false);
  const [url,setUrl]=useState(''),[draft,setDraft]=useState(''),[connecting,setConnecting]=useState(false),[error,setError]=useState('');
  const source=useMemo(()=>videoSource(url),[url]);
  const [player,setPlayer]=useState('all'),[outcome,setOutcome]=useState<string[]>([]),[shot,setShot]=useState<string[]>([]),[length,setLength]=useState('all'),[phase,setPhase]=useState('all'),[keyOnly,setKeyOnly]=useState(false);
  const [selected,setSelected]=useState(all.find(p=>p.start!==null)?.id??all[0]?.id),[mode,setMode]=useState('full'),[command,setCommand]=useState({time:Math.max(0,(all.find(p=>p.start!==null)?.start??0)-3),serial:0}),[clock,setClock]=useState(0),[duration,setDuration]=useState(0),[jump,setJump]=useState('');
- useEffect(()=>{try{const local=localStorage.getItem(key);const saved=local&&videoSource(local)?local:data.videoUrl;if(saved&&videoSource(saved)){setUrl(saved);setDraft(saved)}}catch{if(data.videoUrl){setUrl(data.videoUrl);setDraft(data.videoUrl)}}},[key,data.videoUrl]);
+ useEffect(()=>{if(readOnly){setUrl(data.videoUrl??'');return}try{const local=localStorage.getItem(key);const saved=local&&videoSource(local)?local:data.videoUrl;if(saved&&videoSource(saved)){setUrl(saved);setDraft(saved)}}catch{if(data.videoUrl){setUrl(data.videoUrl);setDraft(data.videoUrl)}}},[key,data.videoUrl,readOnly]);
  const filtered=all.filter(p=>(scope==='all'||String(p.before.sets.length)===scope)&&(!outsideOnly||!!p.outsideRecoveryBy?.length&&(player==='all'||p.outsideRecoveryBy.includes(Number(player) as 0|1|2|3)))&&(p.outcome==='forced'?(outcome.includes('forced')&&(player==='all'||outsideOnly||p.player===Number(player))||(!outcome.length||outcome.includes('created'))&&(player==='all'||outsideOnly||p.forcedBy===Number(player))&&(!outcome.includes('created')||p.forcedBy!=null)):(!outcome.length||outcome.includes(p.outcome))&&(player==='all'||outsideOnly||p.player===Number(player)))&&(!shot.length||!!p.shot&&shot.includes(p.shot))&&matchesRallyLength(p.touchCount,length)&&(!keyOnly||p.star||p.breakPoint!==null||p.setPoint.a||p.setPoint.b||p.matchPoint.a||p.matchPoint.b||p.before.phase==='tiebreak')&&(phase==='all'||player!=='all'&&(Math.floor(p.server/2)===Math.floor(Number(player)/2))===(phase==='serve')));
  const chosen=all.find(p=>p.id===selected),index=filtered.findIndex(p=>p.id===selected);
  const [savedMoments,setSavedMoments]=useState<{time:number;pointId:string;label:string}[]>([]);
@@ -27,14 +28,14 @@ export default function VideoReview({data,scope}:{data:ReportView;scope:string})
 
  const toggle=(values:string[],value:string)=>values.includes(value)?values.filter(v=>v!==value):[...values,value];
  const sets=[...new Set(all.map(p=>p.before.sets.length))];
- function seek(time:number){setCommand(c=>({time:Math.max(0,time),serial:c.serial+1}));setClock(Math.max(0,time))}
- function choose(id:string){const p=all.find(p=>p.id===id);setSelected(id);if(p?.start!==null&&p?.start!==undefined)seek(Math.max(0,p.start-3))}
+ function seek(time:number){if(readOnly)sharedReportEvent("shared_report_video_seek");setCommand(c=>({time:Math.max(0,time),serial:c.serial+1}));setClock(Math.max(0,time))}
+ function choose(id:string){if(readOnly)sharedReportEvent("shared_report_replay_selected");const p=all.find(p=>p.id===id);setSelected(id);if(p?.start!==null&&p?.start!==undefined)seek(Math.max(0,p.start-3))}
  const range=replayRange(chosen?.start,chosen?.end,duration);
  const loop=mode==='loop'?range:null;
- function connect(e:React.FormEvent){e.preventDefault();const s=videoSource(draft);if(!s){setError('Use a YouTube link or a direct HTTPS MP4 / WebM video link.');return}setUrl(s.url);setDraft(s.url);setConnecting(false);setError('');setDuration(0);try{localStorage.setItem(key,s.url)}catch{}}
+ function connect(e:React.FormEvent){e.preventDefault();if(readOnly)return;const s=videoSource(draft);if(!s){setError('Use a YouTube link or a direct HTTPS MP4 / WebM video link.');return}setUrl(s.url);setDraft(s.url);setConnecting(false);setError('');setDuration(0);try{localStorage.setItem(key,s.url)}catch{}}
  return <section className="video-review" aria-label="Video review">
- <div className="vr-heading"><div className="vr-heading-main"><div><h2>Video review</h2><p>Find the point. Watch the context. Review it together.</p></div><button className="ui-btn" onClick={()=>setConnecting(!connecting)}>{source?'Change video':'Connect video'}</button></div><button className="ui-btn vr-filter-toggle" data-variant={filtersOpen?'default':'primary'} aria-expanded={filtersOpen} aria-controls="review-filters" onClick={()=>setFiltersOpen(!filtersOpen)}><span aria-hidden="true">☷</span><span>{filtersOpen?'Hide filters':'Show filters'}{player!=='all'||outcome.length||shot.length||length!=='all'||phase!=='all'||keyOnly||outsideOnly?' · Active':''}</span><span aria-hidden="true">{filtersOpen?'›':'‹'}</span></button></div>
- {(!source||connecting)&&<form className="vr-connect" onSubmit={connect}><label>Original match video<input className="ui-input" type="url" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Paste the original YouTube or direct video link" required/></label><button className="ui-btn" data-variant="primary">Connect video</button><p>Saved in this browser only. Use the original broadcast so the recorded times match.</p>{error&&<p role="alert">{error}</p>}</form>}
+ <div className="vr-heading"><div className="vr-heading-main"><div><h2>Video review</h2><p>Find the point. Watch the context. Review it together.</p></div>{!readOnly&&<button className="ui-btn" onClick={()=>setConnecting(!connecting)}>{source?'Change video':'Connect video'}</button>}</div><button className="ui-btn vr-filter-toggle" data-variant={filtersOpen?'default':'primary'} aria-expanded={filtersOpen} aria-controls="review-filters" onClick={()=>setFiltersOpen(!filtersOpen)}><span aria-hidden="true">☷</span><span>{filtersOpen?'Hide filters':'Show filters'}{player!=='all'||outcome.length||shot.length||length!=='all'||phase!=='all'||keyOnly||outsideOnly?' · Active':''}</span><span aria-hidden="true">{filtersOpen?'›':'‹'}</span></button></div>
+ {!readOnly&&(!source||connecting)&&<form className="vr-connect" onSubmit={connect}><label>Original match video<input className="ui-input" type="url" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Paste the original YouTube or direct video link" required/></label><button className="ui-btn" data-variant="primary">Connect video</button><p>Saved in this browser only. Use the original broadcast so the recorded times match.</p>{error&&<p role="alert">{error}</p>}</form>}
  <div className={`vr-workspace${filtersOpen?'':' vr-filters-collapsed'}`}><div className="vr-main"><div className="vr-watch"><div className="vr-watch-video">
 
  {source?<ReplayPlayer source={source} command={command} loop={loop} onTime={(t,d)=>{setClock(t);setDuration(d);if(mode==='full'){const current=all.filter(p=>p.start!==null&&p.end!==null&&t>=Math.max(0,p.start-3)&&t<=p.end+3).sort((a,b)=>b.start!-a.start!)[0];if(current)setSelected(current.id)}}}/>:<div className="vr-empty"><h3>Bring this match to life</h3><p>{all.filter(p=>p.start!==null).length} points have video timestamps ready to replay.</p><p>Connect the original broadcast above to watch them here.</p></div>}

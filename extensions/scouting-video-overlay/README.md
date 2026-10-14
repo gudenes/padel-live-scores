@@ -162,7 +162,7 @@ Rollout requires the admin API update (`optional-server-v1`) before extension re
 
 ### Compact stroke controls
 
-Half volley and Serve are hidden from new stroke selection; saved historical strokes remain valid. Wall return uses 5, Return 6 and Other 0. Outside-court recovery (7) sits alongside X4 winner (4), uses the existing recovery flag and still allows a finishing stroke. Power/X3/Soft attempts and smash types default to Delete/End/Page Down; custom device assignments remain editable.
+Half volley and Serve are hidden from new stroke selection; saved historical strokes remain valid. Wall return uses 5, Return 6 and Other 0. Outside-court recovery (7) sits alongside X4 winner (4), uses the existing recovery flag and still allows a finishing stroke. Power/X3/Soft attempts and smash types default to F1/F2/F3; custom device assignments remain editable.
 
 ### Match dates and operator time
 
@@ -180,7 +180,7 @@ The stroke picker uses compact keyboard rows with coral overheads, lime defense 
 - Use the `+` beside either pair's score for one missed, unclassified point (between rallies). Menu → Adjust score retains exact-score entry.
 - Rally taps and Edit shortcuts are under Menu → Keyboard shortcuts.
 - Player cards retain flags and rankings; totals are in Live stats, including Smash W (smash winners).
-- Attempt buttons follow the navigation-key order: Power (Delete), X3 (End), Soft (Page Down).
+- Attempt buttons follow the navigation-key order: Power (F1), X3 (F2), Soft (F3).
 - Default Undo is Left Arrow; Ctrl/Cmd+Z remains an alias unless Undo is remapped. Backspace goes back in point selection; Shift+Backspace cancels the selection without using fullscreen Escape. These scouting shortcuts work with the panel focused.
 
 - Compact media row keeps −5s, Play/Pause, +5s and speed visible; More (⋯) contains +10s, +30s and the playback status. Keyboard shortcuts remain active when More is closed.
@@ -224,6 +224,8 @@ Require `scouting-mode-v1` server support before uploading mode-tagged rallies. 
 
 Expert mode preselects Assist on a winner only when the last three taps are the teammate, an opponent, and the finisher. When capture starts with the return, two taps (opposing returner → server’s partner winning) also suggest an assist for the confirmed server. Unknown servers and winners by the server do not qualify. Review or untick Assist before confirming; Pro mode keeps manual attribution. The existing 50/50 impact split remains unchanged. Historical saved assists are not recalculated.
 
-F1 records X3 and F2 records Power for the selected/last tapped player. Custom shortcuts remain respected. A final recorded smash preselects Smash and its recorded type and reuses the attempt, so Space confirms without double counting. Later touches prevent reuse as a finishing-shot default.
+F1 records Power, F2 records X3 and F3 records Soft for the selected/last tapped player. Custom shortcuts remain respected. A final recorded smash preselects Smash and its recorded type and reuses the attempt, so Space confirms without double counting. Later touches prevent reuse as a finishing-shot default.
 
 Expand Outside-court recovery attempt in point confirmation and select anyone who attempted a retrieval, including failed attempts. The player markers persist with the point, appear in Video review filters and CSV exports, and carry no extra impact credit. The existing outside-recovery winner tag is separate.
+
+Smash-recovery winners credit the preceding opponent with one smash attempt. Expert taps identify the preceding hitter and reuse an attempt linked to that exact touch; earlier smashes stay separate. Without an identifiable hitter, choose the opponent and either a recorded attempt or a missing attempt. This adds no smash winner or extra impact credit to the opponent.

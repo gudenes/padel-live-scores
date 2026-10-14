@@ -1,3 +1,4 @@
+import {creditRecoverySmash} from './tap-selection.mjs';
 import {replaySource} from './replay-source.mjs';
 import {qualityCheckpoint} from './scouting-quality.mjs';
 import {scoutingTime} from './scouting-time.mjs';
@@ -253,6 +254,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
             if(!message.details.previousSmashNew&&index>=0){if(smashType)pending.attempts[index].smashType=smashType;}
             else (pending.attempts??=[]).push({player:point.previousPlayer,snapshot:structuredClone(selected.end),...(smashType?{smashType}:{})});
           }
+          if(point.smashRecovery)creditRecoverySmash(pending,selected.player,message.details?.recoverySmashPlayer,message.details?.recoverySmashAttemptIndex);
           const rally=finishRally(pending,selected.end);
           delete rally.finish;
           state.rallies.push({...rally,point});state.pending=null;return save();

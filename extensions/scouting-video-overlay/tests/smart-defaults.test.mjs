@@ -29,6 +29,13 @@ for(const [surface,ui,html] of [['extension',scoutingUI,'../panel.html'],['web',
   assert.equal(match(restored).stats[0].smashes,1);assert.equal(match(restored).stats[1].assists,mode==='expert'?1:0);
   assert.deepEqual(match(restored).tracking.timeline[0].outsideRecoveryBy,[2]);
   $('assist').checked=false;$('save-point').click();assert.equal(actions.at(-1).details.assistBy,undefined);
+  state.pending={...pending,id:'recovery',attempts:[{player:2,touchIndex:1,smashType:'power',snapshot:snapshot(102)}]};
+  render(state,snapshot(104),false,true);$('smash-recovery').click();
+  assert.equal($('recovery-smash-label').hidden,false);assert.equal($('recovery-smash').value,'2:0');
+  $('save-point').click();assert.equal(actions.at(-1).details.recoverySmashPlayer,2);assert.equal(actions.at(-1).details.recoverySmashAttemptIndex,0);
+  state.pending={...pending,id:'recovery-unknown',touches:[],attempts:[]};render(state,snapshot(104),false,true);$('smash-recovery').click();
+  const before=actions.length;$('save-point').click();assert.equal(actions.length,before);assert.match($('shot-error').textContent,/Choose the opponent/);
+  $('recovery-smash').value='3:new';$('save-point').click();assert.equal(actions.at(-1).details.recoverySmashPlayer,3);assert.equal(actions.at(-1).details.recoverySmashAttemptIndex,undefined);
   state.setup.firstServer=1;
   state.pending={...pending,id:'implicit-serve',attempts:[],touches:[2,0].map((player,i)=>({player,order:[2,3,0,1],snapshot:snapshot(101+i)}))};
   render(state,snapshot(104),false,true);
@@ -38,6 +45,6 @@ for(const [surface,ui,html] of [['extension',scoutingUI,'../panel.html'],['web',
 
  }finally{dom.window.close();delete globalThis.matchMedia;delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}
 });
-test('F1 and F2 are displayed and mapped to X3 and Power',()=>{
- for(const [id,key] of [['smash-x3','f1'],['smash-power','f2']]){assert.equal(scoutingKeyActions.find(a=>a.id===id).defaultKey,key);assert.equal(keyLabel(key),key.toUpperCase());}
+test('F1, F2 and F3 map to Power, X3 and Soft',()=>{
+ for(const [id,key] of [['smash-power','f1'],['smash-x3','f2'],['smash-soft','f3']]){assert.equal(scoutingKeyActions.find(a=>a.id===id).defaultKey,key);assert.equal(keyLabel(key),key.toUpperCase());}
 });
