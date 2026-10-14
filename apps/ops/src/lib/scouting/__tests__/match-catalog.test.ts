@@ -80,3 +80,12 @@ it('filters all watched players server-side, including an empty watchlist',async
  expect(query.mock.calls[1][1].slice(13)).toEqual(['1',[]])
  expect(catalogFilters({watched:a}).watched).toBe('')
 })
+
+it('caps the combined watchlist at ten matches and ignores stale page numbers',async()=>{
+ const query=vi.fn().mockResolvedValue({rows:Array.from({length:25},(_,i)=>row(i))})
+ const result=await loadMatchCatalog({query} as any,catalogFilters({watchlist:'1',watched:'11111111-1111-4111-8111-111111111111',page:'4'}))
+ expect(result.rows).toHaveLength(10)
+ expect(result.hasNext).toBe(false)
+ expect(query.mock.calls[0][1].slice(6,8)).toEqual([11,0])
+ expect(query.mock.calls[0][0]).toContain("case when ($13::uuid is not null or $14='1') then case when match_status='live'")
+})

@@ -56,17 +56,18 @@ export const CATALOG_SQL=`with sessions as (
  and ($9='' or ($9='premier' and c.league_tier in ('major','p1','p2','finals')) or ($9='fip' and left(c.league_tier,4)='fip_') or c.league_tier=$9)
  and ($6='' or (c.match_date at time zone 'Europe/Madrid')::date::text=$6)
  ), paged as materialized (
- select * from filtered order by case when $13::uuid is not null then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when $13::uuid is not null and match_status='scheduled' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind limit $7 offset $8
+ select * from filtered order by case when ($13::uuid is not null or $14='1') then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when ($13::uuid is not null or $14='1') and match_status='scheduled' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind limit $7 offset $8
  ) select f.*,coalesce(f.players,(select jsonb_agg(jsonb_build_object('id',p.id,'name',coalesce(p.name,f.player_names[slot.n],'Player TBC'),'avatar_url',p.avatar_url,'country',p.country,'ranking',p.ranking) order by slot.n) from generate_subscripts(f.player_ids,1) as slot(n) left join public.players p on p.id=f.player_ids[slot.n])) as players,
  (select jsonb_agg(jsonb_build_object('a',st.pair1_games,'b',st.pair2_games) order by st.set_number) from public.sets st where st.match_id=f.match_id and f.kind='match') as official_sets,
  (f.kind='match' and (exists(select 1 from public.match_points mp where mp.match_id=f.match_id) or exists(select 1 from public.games g where g.match_id=f.match_id and cardinality(g.points)>0))) as has_pbp
- from paged f order by case when $13::uuid is not null then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when $13::uuid is not null and match_status='scheduled' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind`
+ from paged f order by case when ($13::uuid is not null or $14='1') then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when ($13::uuid is not null or $14='1') and match_status='scheduled' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind`
 
 export async function loadMatchCatalog(db:Pick<Pool,'query'>,filters:CatalogFilters,viewer:{id?:string;email?:string|null}={}){
  const {q,status,kind,scouting,scouter,date,page,league,mine,player,watchlist,watched}=filters
- const size=player?10:MATCH_PAGE_SIZE
- const result=await db.query(CATALOG_SQL,[q,status,kind,scouting,scouter,date,size+1,player?0:(page-1)*size,league,mine,viewer.id??null,viewer.email??'',player||null,watchlist,watched?watched.split(','):[]])
- const rows=result.rows.slice(0,size),hasNext=!player&&result.rows.length>size
+ const limited=!!player||watchlist==='1'
+ const size=limited?10:MATCH_PAGE_SIZE
+ const result=await db.query(CATALOG_SQL,[q,status,kind,scouting,scouter,date,size+1,limited?0:(page-1)*size,league,mine,viewer.id??null,viewer.email??'',player||null,watchlist,watched?watched.split(','):[]])
+ const rows=result.rows.slice(0,size),hasNext=!limited&&result.rows.length>size
  const ids=rows.filter(r=>r.has_scouting).map(r=>r.match_id)
  if(ids.length){
   const saved=await db.query(`select match_id,'match' as kind,'video' as source,players,document,revision,score->>'phase' as phase from public.operator_video_scouting_sessions where match_id=any($1::uuid[])
