@@ -48,3 +48,38 @@
 .cardActions:has(>a:only-child){grid-template-columns:1fr}
 
 .cardActions>a{font-size:11px;white-space:nowrap}
+
+/* Keep status choices and personal filters visually distinct. */
+.listToolbar{align-items:stretch;justify-content:flex-start;column-gap:28px;row-gap:16px;margin:24px 0 18px;padding:18px 20px;background:var(--bg-card,var(--panel));border:1px solid var(--border);border-radius:14px}
+.filterGroup,.personalFilterGroup{display:flex;flex-direction:column;gap:10px;min-width:0}
+.personalFilterGroup{padding-left:28px;border-left:1px solid var(--border)}
+.filterGroupLabel{font-size:11px;font-weight:650;letter-spacing:.04em;color:var(--text-2)}
+.listToolbar .scoutFilters{gap:8px}
+.listToolbar .sortNote{flex-basis:100%;padding-top:12px;border-top:1px solid var(--border)}
+.activeFilters{align-items:center;gap:10px}
+.activeFilters>.filterGroupLabel{margin-right:6px}
+@media(max-width:900px){.filterGroup,.personalFilterGroup{width:100%}.personalFilterGroup{padding-left:0;border-left:0;padding-top:16px;border-top:1px solid var(--border)}}
+@media(max-width:700px){.listToolbar{padding:16px;gap:16px}.activeFilters>.filterGroupLabel{flex-basis:100%}}
+
+/* Selected local-library rail concept. Keep the global header and match data intact. */
+.libraryLayout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:32px}
+.libraryRail{border-right:1px solid var(--border);padding:12px 20px 24px 0}
+.libraryViews{display:flex;flex-direction:column;gap:8px;margin:22px 0 28px}
+.libraryViews>.ui-btn{justify-content:flex-start;width:100%;min-height:46px;text-align:left}
+.libraryContent{min-width:0}
+.libraryContent .heading{margin-bottom:30px}
+.libraryContent .eyebrow{display:none}
+.libraryContent .filterPanel{background:transparent;border:0;box-shadow:none;border-radius:0;overflow:visible}
+.libraryContent .refinedFilters{padding:0;gap:8px}
+.libraryContent .filterMain{gap:12px}
+.libraryContent .tierField{width:185px}
+.libraryContent .heroSearch{min-width:180px}
+.libraryContent .activeFilters{border:0;background:var(--bg-card,var(--panel));padding:12px 16px;margin-top:14px;border-radius:9px}
+.libraryContent .grid{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px}
+.resultsHeading{display:flex;align-items:center;justify-content:space-between;margin-top:28px}
+.resultsHeading h2{font-size:22px;letter-spacing:-.5px;margin:0 0 5px}
+@media(max-width:1100px){.libraryLayout{grid-template-columns:190px minmax(0,1fr);gap:24px}.libraryContent .filterMain{flex-wrap:wrap}.libraryContent .heroSearch{flex-basis:100%}.libraryContent .tierField{flex:1;min-width:150px}}
+@media(max-width:800px){.libraryLayout{grid-template-columns:1fr;gap:20px}.libraryRail{border-right:0;border-bottom:1px solid var(--border);padding:0 0 16px}.libraryViews{flex-direction:row;flex-wrap:wrap;margin:12px 0}.libraryViews>.ui-btn{width:auto;flex:1}.libraryContent .heading{margin-bottom:20px}}
+@media(max-width:600px){.libraryContent .grid{grid-template-columns:1fr}}
+.libraryViews>a,.libraryViews>button{justify-content:flex-start;width:100%;min-height:46px;text-align:left}
+@media(max-width:800px){.libraryViews>a,.libraryViews>button{width:auto;flex:1}}

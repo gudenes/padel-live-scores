@@ -3,7 +3,7 @@ import {catalogFilters,catalogUrl,loadMatchCatalog,MATCH_PAGE_SIZE} from '../mat
 const row=(n:number,scouted=false)=>({match_id:String(n),kind:'match',has_scouting:scouted,players:[{id:'a',name:'Catalog A',avatar_url:'photo-a',country:'AR',ranking:3}]})
 describe('paginated match catalog',()=>{
  it('defaults to all matches and bounds malformed filter/page input',()=>{
-  expect(catalogFilters({})).toEqual({league:'',q:'',status:'',kind:'',scouting:'',scouter:'',date:'',page:1})
+  expect(catalogFilters({})).toEqual({watchlist:'',watched:'',mine:'',player:'',league:'',q:'',status:'',kind:'',scouting:'',scouter:'',date:'',page:1})
   expect(catalogFilters({page:'-7',status:'injected',kind:['private'],scouting:'bogus',date:'anything'})).toMatchObject({page:1,status:'',kind:'',scouting:'',date:''})
   expect(catalogFilters({page:'99999999'}).page).toBe(100000)
  })
@@ -17,7 +17,7 @@ describe('paginated match catalog',()=>{
   const query=vi.fn().mockResolvedValueOnce({rows:Array.from({length:25},(_,i)=>row(i))})
   const result=await loadMatchCatalog({query} as any,catalogFilters({page:'2'}))
   expect(result.rows).toHaveLength(MATCH_PAGE_SIZE);expect(result.hasNext).toBe(true);expect(query).toHaveBeenCalledTimes(1)
-  expect(query.mock.calls[0][0]).toContain('order by sort_date desc nulls last,match_id desc,kind')
+  expect(query.mock.calls[0][0]).toContain('sort_date desc nulls last,match_id desc,kind')
   expect(query.mock.calls[0][1].slice(6,8)).toEqual([25,24])
   expect(query.mock.calls[0][0]).not.toContain('document')
  })
@@ -43,4 +43,49 @@ it('keeps circuit and tier filters in URLs and parameterizes the catalogue query
   expect(query.mock.calls.at(-1)?.[1][8]).toBe(league)
  }
  expect(catalogFilters({league:'bogus'}).league).toBe('')
+})
+
+
+it('combines pending and my scouts using the authenticated identity',async()=>{
+ const query=vi.fn().mockResolvedValue({rows:[]}),id='11111111-1111-4111-8111-111111111111'
+ const filters=catalogFilters({mine:'1',scouting:'pending',page:'2'})
+ await loadMatchCatalog({query} as any,filters,{id,email:'me@example.com'})
+ expect(query.mock.calls[0][1].slice(9,12)).toEqual(['1',id,'me@example.com'])
+ expect(query.mock.calls[0][0]).toContain("coalesce(s.scout_phase,'')<>'finished'")
+ expect(catalogUrl(filters,{page:3})).toContain('mine=1')
+ expect(catalogFilters({mine:'other-user'}).mine).toBe('')
+})
+it('limits a specific player to ten matches before loading scouting documents',async()=>{
+ const query=vi.fn().mockResolvedValue({rows:Array.from({length:11},(_,i)=>row(i))}),player='11111111-1111-4111-8111-111111111111'
+ const result=await loadMatchCatalog({query} as any,catalogFilters({player,page:'5'}))
+ expect(result.rows).toHaveLength(10);expect(result.hasNext).toBe(false)
+ expect(query.mock.calls[0][1].slice(6,8)).toEqual([11,0])
+ expect(query.mock.calls[0][1][12]).toBe(player)
+ expect(query.mock.calls[0][0]).toContain("when match_status='live' then 0 when match_status='scheduled' then 1 else 2")
+ expect(catalogFilters({player:'invalid'}).player).toBe('')
+})
+
+it('filters all watched players server-side, including an empty watchlist',async()=>{
+ const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222'
+ const query=vi.fn().mockResolvedValue({rows:[]})
+ const filters=catalogFilters({watchlist:'1',watched:[a,b,a,'invalid'].join(','),scouting:'pending',mine:'1'})
+ expect(filters.watched).toBe([a,b].join(','))
+ await loadMatchCatalog({query} as any,filters)
+ expect(query.mock.calls[0][1].slice(13)).toEqual(['1',[a,b]])
+ expect(query.mock.calls[0][0]).toContain('c.player_ids && $15::uuid[]')
+ const url=new URL(catalogUrl(filters,{page:2}),'https://admin.example')
+ expect(url.searchParams.get('watched')).toBe([a,b].join(','))
+ expect(url.searchParams.get('mine')).toBe('1')
+ await loadMatchCatalog({query} as any,catalogFilters({watchlist:'1'}))
+ expect(query.mock.calls[1][1].slice(13)).toEqual(['1',[]])
+ expect(catalogFilters({watched:a}).watched).toBe('')
+})
+
+it('caps the combined watchlist at ten matches and ignores stale page numbers',async()=>{
+ const query=vi.fn().mockResolvedValue({rows:Array.from({length:25},(_,i)=>row(i))})
+ const result=await loadMatchCatalog({query} as any,catalogFilters({watchlist:'1',watched:'11111111-1111-4111-8111-111111111111',page:'4'}))
+ expect(result.rows).toHaveLength(10)
+ expect(result.hasNext).toBe(false)
+ expect(query.mock.calls[0][1].slice(6,8)).toEqual([11,0])
+ expect(query.mock.calls[0][0]).toContain("case when ($13::uuid is not null or $14='1') then case when match_status='live'")
 })
