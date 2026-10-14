@@ -39,7 +39,7 @@ test('key editor captures without recording, rejects conflicts, persists and rem
  $('rally-taps').click();$('edit-scout-keys').click();const editor=$('scout-key-editor');editor.querySelector('[data-action=player-0]').click();
  press('w',editor);assert.match(editor.textContent,/Already used/);assert.equal(actions.length,0);
  press('t',editor);assert.equal(JSON.parse(dom.window.localStorage.getItem('pn-scouting-keys'))['player-0'],'t');editor.querySelector('[data-key-close]').click();
- press('q');assert.equal(actions.length,0);press('t');assert.equal(actions.length,0);press('w');assert.equal(actions.at(-1).player,2);press('q');press('Delete');press(' ');assert.equal(actions.at(-1).details.shot,'smash');
+ press('q');assert.equal(actions.length,0);press('t');assert.equal(actions.length,0);press('w');assert.equal(actions.at(-1).player,2);press('q');press('F2');press(' ');assert.equal(actions.at(-1).details.shot,'smash');
  }finally{f.close();}
 });
 test('scouting shortcuts reject overlapping stages and media conflicts but allow different-stage reuse',()=>{
@@ -69,7 +69,7 @@ test('saved custom key survives reload, and capture Escape leaves its previous a
 test('navigation keys record each smash attempt and outside recovery saves from the compact tag',async()=>{
  const f=fixture(),{$,actions,press,state,render}=f;try{
  $('rally-taps').click();
- for(const [key,smashType] of [['Delete','power'],['End','x3'],['PageDown','soft']]){press('q');press(key);await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(actions.at(-1),{type:'smash',player:2,smashType,latestTouch:false});}
+ for(const [key,smashType] of [['F2','power'],['F1','x3'],['PageDown','soft']]){press('q');press(key);await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(actions.at(-1),{type:'smash',player:2,smashType,latestTouch:false});}
  press('q');press('w');press('w');press('7');assert.equal($('outside').checked,true);assert.equal($('outside').closest('.winner-specials'),$('x4').closest('.winner-specials'));press(' ');
  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',recovery:true}});
  assert.equal($('shot-options').querySelector('[data-shot=half_volley]'),null);assert.equal($('shot-options').querySelector('[data-shot=serve]'),null);

@@ -41,3 +41,21 @@ if(new URL(location.href).searchParams.has('newset')){
  await dispatch({type:'starting-score',score:{completed:[],games:{a:5,b:4},points:{a:40,b:0},server:0,near:'a',advantageReturns:0}});
  await dispatch({type:'start'});offset+=10;await dispatch({type:'prepare',player:0,outcome:'winner'});await dispatch({type:'score',details:{shot:'volley'}});
 }
+
+// Synthetic saved points for UI review only; this module never runs in the installed extension.
+if(new URL(location.href).searchParams.has('samplePoints')){
+ delete saved.setup.startingScore;saved.setup.adjustments=[];saved.rallies=[];saved.pending=null;
+ const gameWinners=[0,1,0,0,1,0,0,0,1,0,1,0];
+ let number=0;
+ for(const winningTeam of gameWinners){
+  for(const team of [winningTeam,1-winningTeam,winningTeam,1-winningTeam,winningTeam,winningTeam]){
+   const n=number++,player=team*2+(n%2),opponent=(1-team)*2+((n+1)%2),time=30+n*22;
+   const snap=t=>({...snapshot(),time:t,at:new Date(t*1000).toISOString()});
+   const outcome=n%5===0?'forced':n%4===0?'unforced':'winner';
+   const finisher=outcome==='winner'?player:opponent;
+   const touches=[opponent,player^1,opponent,player].map((p,i)=>({player:p,order:[2,3,0,1],snapshot:snap(time+i*3)}));
+   saved.rallies.push({id:'demo-sample-'+n,start:snap(time),end:snap(time+14),touches,attempts:[],point:{player:finisher,outcome,shot:n%3===0?'smash':'volley',...(outcome==='winner'&&n%3===0?{smash:true,smashType:'power'}:{}),...(outcome==='winner'&&n%4===1?{assistBy:player^1}:{}),...(outcome==='forced'?{forcedBy:player}:{} )}});
+  }
+ }
+ saved.label='Demo · Synthetic points for review';offset=30+number*22;base=Date.now();
+}

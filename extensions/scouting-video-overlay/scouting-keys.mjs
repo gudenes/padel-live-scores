@@ -4,14 +4,14 @@ export const scoutingKeyActions=[
  ...['q','w','a','s'].map((key,i)=>({...action('player-'+i,['Far left player','Far right player','Near left player','Near right player'][i],key,['rally','outcome','opponent']),defaultKey:['i','o','k','l'][i]})),
  ...Object.entries({winner:'w',unforced:'a',forced:'d'}).map(([name,key])=>action('outcome-'+name,name==='unforced'?'Unforced error':name==='forced'?'Forced error':'Winner',key,['rally','outcome'])),
  ...allShotShortcuts.map(([key,shot])=>action('shot-'+shot,shot.replaceAll('_',' '),key,['shot','previous'])),
- ...Object.entries({power:'z',x3:'x',soft:'c'}).map(([name,key])=>({...action('smash-'+name,name+' smash',key,['rally','outcome','shot','previous']),defaultKey:{power:'delete',x3:'end',soft:'pagedown'}[name]})),
+ ...Object.entries({power:'z',x3:'x',soft:'c'}).map(([name,key])=>({...action('smash-'+name,name+' smash',key,['rally','outcome','shot','previous']),defaultKey:{power:'f1',x3:'f2',soft:'f3'}[name]})),
  {...action('reuse-smash','Use recorded smash','b',['shot','previous']),defaultKey:'home'},{...action('new-smash','New smash attempt','h',['shot','previous']),defaultKey:'insert'},
  action('first-fault','First fault','1',['rally']),action('double-fault','Double fault','2',['rally']),
  action('net-touch','Ball touched the net','n',['shot']),action('assist','Teammate assist','f',['shot']),action('smash-recovery','Smash recovery','r',['shot']),action('x4','X4 winner','4',['shot']),action('outside','Outside-court recovery','7',['shot']),
  action('save','Start / continue / save','space',['rally','shot','previous','opponent']),{...action('back','Back / change outcome','escape',['shot','previous','opponent','outcome']),defaultKey:'backspace'},action('cancel','Cancel point selection','shift+backspace',['shot','previous','opponent','outcome']),
  {...action('undo','Undo','ctrl+z',['rally','shot','previous','opponent','outcome']),defaultKey:'arrowleft'},
 ];
-export const keyLabel=key=>key.split('+').map(k=>({home:'Home',insert:'Insert',arrowleft:'←',backspace:'Backspace',space:'Space',escape:'Esc',ctrl:'Ctrl',meta:'⌘',shift:'Shift',alt:'Alt',delete:'Delete',end:'End',pagedown:'Page Down'}[k]??(k.length===1?k.toUpperCase():k))).join('+');
+export const keyLabel=key=>key.split('+').map(k=>({f1:'F1',f2:'F2',f3:'F3',home:'Home',insert:'Insert',arrowleft:'←',backspace:'Backspace',space:'Space',escape:'Esc',ctrl:'Ctrl',meta:'⌘',shift:'Shift',alt:'Alt',delete:'Delete',end:'End',pagedown:'Page Down'}[k]??(k.length===1?k.toUpperCase():k))).join('+');
 export function eventKey(e){return [e.ctrlKey?'ctrl':null,e.altKey?'alt':null,e.shiftKey?'shift':null,e.metaKey?'meta':null,e.key===' '?'space':e.key.toLowerCase()].filter(Boolean).join('+');}
 export function validateKeyAssignment(bindings,id,key,media=[]){
  const a=scoutingKeyActions.find(a=>a.id===id);if(!a)throw Error('Unknown action.');

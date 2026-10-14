@@ -27,8 +27,8 @@ test('quick tags, independent X4 and position-based opponent keys save once and 
  const press=key=>$('shot-form').dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:$('shot-form').dataset.step==='opponent'?({q:'i',w:'o',a:'k',s:'l'}[key]??key):key,bubbles:true,cancelable:true}));
  try{
   render(state,snapshot(110),false,true);assert.equal($('assist').closest('details'),null);assert.equal($('smash-recovery').closest('details'),null);
-  press('f');press('r');press('4');assert.equal(document.activeElement,$('save-point'));$('net-touch').click();assert.equal(document.activeElement,$('save-point'));assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);press(' ');
-  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'power',x4:true,assistBy:1,smashRecovery:true,netTouch:true}});
+  press('f');press('r');$('recovery-smash').value='2:new';press('4');assert.equal(document.activeElement,$('save-point'));$('net-touch').click();assert.equal(document.activeElement,$('save-point'));assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);press(' ');
+  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'power',x4:true,assistBy:1,smashRecovery:true,recoverySmashPlayer:2,netTouch:true,smashAlreadyCounted:true,smashAttemptIndex:0}});
   state.pending.id='forced';state.pending.finish.outcome='forced';render(state,snapshot(110),false,true);
   assert.equal($('winner-tags').hidden,true);assert.equal($('net-touch').checked,false);
   assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[2,'q'],[3,'w']]);
@@ -42,8 +42,8 @@ test('quick tags, independent X4 and position-based opponent keys save once and 
   state.pending.id='unknown';render(state,snapshot(110),false,true);$('forced-unknown').click();press('w');const unsaved=actions.length;press(' ');press(' ');assert.equal(actions.length,unsaved);assert.match($('shot-error').textContent,/previous opponent/);
   const count=actions.length;render(state,snapshot(110),true,true);press('f');press('4');press(' ');assert.equal(actions.length,count);
   state.pending.id='recovery-only';state.pending.finish.outcome='winner';render(state,snapshot(110),false,true);
-  press('r');assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);assert.match($('shot-instruction').textContent,/No stroke needed/);press(' ');
-  assert.deepEqual(actions.at(-1),{type:'score',details:{smashRecovery:true}});
+  press('r');$('recovery-smash').value='2:new';assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);assert.match($('shot-instruction').textContent,/No stroke needed/);press(' ');
+  assert.deepEqual(actions.at(-1),{type:'score',details:{smashRecovery:true,recoverySmashPlayer:2}});
   const recovered=validatePoint({player:0,outcome:'winner',...actions.at(-1).details},{},0);
   const saved=validateVideoState(videoPayload({...fresh(),setup:defaults(),rallies:[{id:'recovery-only',start:snapshot(100),end:snapshot(110),point:recovered}]}));
   assert.equal(videoSummary(saved).stats[0].smashRecoveryWinners,1);assert.equal(videoSummary(saved).stats[0].smashes,0);assert.equal(saved.rallies[0].point.shot,undefined);

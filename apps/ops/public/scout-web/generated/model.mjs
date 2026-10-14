@@ -47,6 +47,8 @@ export function validateDoc(raw) {
                 throw Error('Previous stroke requires an opponent and valid shot.');
             if (e.previousPlayer !== undefined && e.forcedBy !== undefined && e.previousPlayer !== e.forcedBy)
                 throw Error('Previous player and forced-error credit must agree.');
+            if (e.outsideRecoveryBy !== undefined && (!Array.isArray(e.outsideRecoveryBy) || e.outsideRecoveryBy.length > 4 || new Set(e.outsideRecoveryBy).size !== e.outsideRecoveryBy.length || e.outsideRecoveryBy.some(p => !player(p))))
+                throw Error('Invalid outside recovery attempt players.');
             if (e.netTouch !== undefined && typeof e.netTouch !== 'boolean')
                 throw Error('Invalid net touch tag.');
             if (e.smashRecovery !== undefined && (typeof e.smashRecovery !== 'boolean' || (e.smashRecovery && e.outcome !== 'winner')))

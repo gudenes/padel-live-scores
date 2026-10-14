@@ -26,3 +26,12 @@ describe('manual point tags in admin stats and exports',()=>{
   for(const patch of [{forcedBy:1},{forcedBy:4},{outcome:'winner'},{netTouch:'yes'}])expect(()=>validateDoc({...freshDoc(),events:[{...error,...patch}]})).toThrow()
  })
 })
+
+it('retains outside recovery attempts on lost points and exports them without winner credit',()=>{
+ const doc=validateDoc({...freshDoc(),events:[{...error,outsideRecoveryBy:[0,1]}]})
+ const result=replay(doc)
+ expect(result.tracking.timeline[0].outsideRecoveryBy).toEqual([0,1])
+ expect(result.stats[0].recoveryWinners).toBe(0)
+ expect(pointsCsv(players,doc)).toContain('"0|1","Player 0|Player 1"')
+ for(const outsideRecoveryBy of [[4],[0,0],['0'],'yes'])expect(()=>validateDoc({...freshDoc(),events:[{...error,outsideRecoveryBy}]})).toThrow()
+})

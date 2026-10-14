@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import ShareReport from "./ShareReport";
+import MethodologyGuide from "@/components/scouting/MethodologyGuide";
 import MatchLibraryMenu from "../../MatchLibraryMenu";
 import { useRouter } from "next/navigation";
 import { savedReport, type SavedSession } from "@/lib/scouting/saved-report";
@@ -34,11 +36,13 @@ const emptyContext: ReportContext = {
 export default function SavedScoutingReport({
   matchId,
   userId = "",
+  canShare = false,
   manual = false,
   context = emptyContext,
 }: {
   matchId: string;
   userId?: string;
+  canShare?: boolean;
   manual?: boolean;
   context?: ReportContext;
 }) {
@@ -190,6 +194,7 @@ export default function SavedScoutingReport({
           </p>
         </div>
         <ReportActions
+          shareAction={canShare&&!manual&&report?<ShareReport matchId={matchId} firstPointId={data?.scopes.all.points[0]?.id}/>:undefined}
           resumeAction={!loading&&!error&&canResume&&report?.model.score.phase!=='finished'?<ScoutLaunchMenu matchId={matchId} continuing extension={resumeInExtension} label="Scouting options" placement="below"/>:undefined}
           loading={loading}
           scope={scope}
@@ -235,7 +240,7 @@ export default function SavedScoutingReport({
               ))}
             </select>
           </label>
-          <Link href="/scouting/methodology">View calculation rules →</Link>
+          <MethodologyGuide label="How scoring works" methodology={methodology}/>
         </div>
       )}
       {loading ? (

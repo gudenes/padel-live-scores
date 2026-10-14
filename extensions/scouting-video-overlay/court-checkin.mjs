@@ -4,8 +4,10 @@ export function courtCheckinUI({$,act,storage=globalThis.localStorage}){
  document.addEventListener('pn-court-confirmed',()=>{confirmed=[true,true,true,true];lastPlayer=3;persist();paint()});
  const persist=()=>{try{storage?.setItem(token,JSON.stringify({confirmed,lastPlayer}));}catch{}};
  $('undo-checkin').onclick=()=>{confirmed[lastPlayer]=false;persist();paint();};
- const picker=visible=>{$('quick-server-picker').hidden=!visible;$('change-server').setAttribute('aria-expanded',String(visible));};
- $('change-server').onclick=()=>{picker($('quick-server-picker').hidden);if(!$('quick-server-picker').hidden)$('quick-server').focus();};
+ const picker=visible=>{const dialog=$('quick-server-picker');dialog.hidden=!visible;if(visible&&!dialog.open)dialog.showModal();else if(!visible&&dialog.open)dialog.close();$('change-server').setAttribute('aria-expanded',String(visible));};
+ $('quick-server-picker').addEventListener('cancel',e=>{e.preventDefault();picker(false);$('change-server').focus();});
+ for(const [id,action] of [['quick-switch-ends',{type:'ends'}],['quick-swap-a',{type:'positions',pair:'a'}],['quick-swap-b',{type:'positions',pair:'b'}]])$(id).onclick=async()=>{await act(action);};
+ $('change-server').onclick=()=>{picker($('quick-server-picker').hidden);if(!$('quick-server-picker').hidden)$('quick-switch-ends').focus();};
  $('close-server-picker').onclick=()=>{picker(false);$('change-server').focus();};
  $('quick-server').onchange=async()=>{const result=await act({type:'server',player:Number($('quick-server').value)});if(result?.ok!==false){picker(false);$('change-server').focus();}};
  function paint(){
@@ -18,11 +20,13 @@ export function courtCheckinUI({$,act,storage=globalThis.localStorage}){
   $('serving-tools').hidden=!state.selectedMatch||finished;
   $('serving-name').textContent=names[model.server];
   $('change-server').disabled=locked;$('quick-server').disabled=locked;
-  $('change-server').title=`Serving: ${names[model.server]}${state.pending?' · Finish or cancel the rally before changing server.':''}`;
+  $('quick-court-layout').textContent=`Near end: Pair ${model.near.toUpperCase()} · Far end: Pair ${model.near==='a'?'B':'A'}`;
+  for(const id of ['quick-switch-ends','quick-swap-a','quick-swap-b'])$(id).disabled=locked;
+  $('change-server').title=`Change court sides · Serving: ${names[model.server]}${state.pending?' · Finish or cancel the rally before changing server.':''}`;
   $('undo-checkin').hidden=!state.selectedMatch||!complete||finished;$('undo-checkin').disabled=busy;
   const sk=JSON.stringify([names,model.server]);
   if(sk!==serverKey){serverKey=sk;$('quick-server').replaceChildren(...names.map((name,i)=>new Option(name,i)));$('quick-server').value=model.server;}
-  if(locked)picker(false);
+  if(state.pending||!state.selectedMatch||finished)picker(false);
   for(const card of $('players').querySelectorAll('article[data-player]')){
    const player=Number(card.dataset.player);let controls=card.querySelector('.court-controls');
    if(!controls){
