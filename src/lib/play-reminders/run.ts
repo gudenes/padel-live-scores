@@ -16,7 +16,7 @@ import {
   appBase,
   type ReminderLocale,
 } from './copy'
-import { hasRecentAppActivity } from './activity'
+import { resolvePrefs } from '@/lib/notification-categories'
 import { buildReminderEmail } from './email'
 
 type Preference = {
@@ -47,7 +47,7 @@ export type ReminderTransport = {
 export async function runPlayReminders(
   db: SupabaseClient,
   transport: ReminderTransport,
-  options: { dryRun: boolean; now?: number }
+  options: { dryRun: boolean; now?: number; pushNow?: boolean }
 ) {
   const now = options.now ?? Date.now(),
     stats = {
@@ -65,15 +65,30 @@ export async function runPlayReminders(
     .maybeSingle()
   if (flag.error) throw Error('play_flag_unavailable')
   if (!flag.data?.enabled) return stats
-  const prefs = await paginatedSelect<Preference>(
+  const storedPrefs = await paginatedSelect<Preference>(
     (a, b) =>
       db
         .from('play_reminder_preferences')
         .select('*')
-        .or('email_enabled.eq.true,push_enabled.eq.true')
         .order('user_id')
         .range(a, b),
     { what: 'reminder preferences' }
+  )
+  const members = await paginatedSelect<{ user_id: string }>(
+    (a, b) =>
+      db.from('play_access').select('user_id').order('user_id').range(a, b),
+    { what: 'reminder members' }
+  )
+  const byUser = new Map(storedPrefs.map((p) => [p.user_id, p]))
+  const prefs = members.map(
+    ({ user_id }) =>
+      byUser.get(user_id) ?? {
+        user_id,
+        email_enabled: false,
+        push_enabled: true,
+        timezone: 'Europe/Madrid',
+        unsubscribe_token: '',
+      }
   )
   const marketCache = new Map<
     ReminderLocale,
@@ -84,14 +99,17 @@ export async function runPlayReminders(
   for (const pref of prefs) {
     if (dispatches >= 20) break
     if (!validTimezone(pref.timezone)) continue
-    const clock = localClock(now, pref.timezone)
+    const local = localClock(now, pref.timezone).minutes
+    const madrid = localClock(now, 'Europe/Madrid').minutes
     if (
-      clock.minutes < 480 ||
-      clock.minutes >= 1260 ||
-      (!pref.push_enabled && clock.minutes < 540)
+      !(
+        pref.push_enabled &&
+        (options.pushNow || (madrid >= 540 && madrid < 600))
+      ) &&
+      !(pref.email_enabled && local >= 540 && local < 1260)
     )
       continue
-    const [access, profile, user, activity] = await Promise.all([
+    const [access, profile, user] = await Promise.all([
       db
         .from('play_access')
         .select('user_id')
@@ -99,17 +117,10 @@ export async function runPlayReminders(
         .maybeSingle(),
       db
         .from('profiles')
-        .select('locale,notification_mute_until')
+        .select('locale,notification_mute_until,notification_prefs')
         .eq('id', pref.user_id)
         .maybeSingle(),
       db.from('users').select('email').eq('id', pref.user_id).maybeSingle(),
-      pref.push_enabled
-        ? db
-            .from('user_app_activity')
-            .select('last_seen_at')
-            .eq('user_id', pref.user_id)
-            .maybeSingle()
-        : Promise.resolve({ data: null, error: null }),
     ])
     if (access.error || profile.error || user.error) {
       stats.failed++
@@ -122,24 +133,48 @@ export async function runPlayReminders(
       choices = await loadUserChoices(db, pref.user_id)
     if (!marketCache.has(locale))
       marketCache.set(locale, await loadReminderMarkets(db, locale, now))
-    const day = localClock(now, pref.timezone).day
-    for (const channel of ['email', 'push'] as ReminderChannel[]) {
+    for (const channel of (options.pushNow
+      ? ['push']
+      : ['email', 'push']) as ReminderChannel[]) {
       if (
         !pref[`${channel}_enabled`] ||
         (channel === 'email' && !user.data?.email) ||
         (channel === 'push' &&
-          (activity.error ||
-            hasRecentAppActivity(activity.data?.last_seen_at, now)))
+          !resolvePrefs(profile.data.notification_prefs, 'marketing').push)
       )
         continue
+      if (channel === 'push') {
+        const [web, native] = await Promise.all([
+          db
+            .from('push_subscriptions')
+            .select('user_id')
+            .eq('user_id', pref.user_id)
+            .limit(1),
+          db
+            .from('native_push_subscriptions')
+            .select('user_id')
+            .eq('user_id', pref.user_id)
+            .limit(1),
+        ])
+        if (web.error || native.error) {
+          stats.failed++
+          continue
+        }
+        if (!web.data?.length && !native.data?.length) continue
+      }
       const matches = planReminder({
         markets: marketCache.get(locale)!,
         ...choices,
         timezone: pref.timezone,
         now,
         channel,
+        pushNow: options.pushNow,
       })
       if (!matches.length) continue
+      const day = localClock(
+        now,
+        channel === 'push' ? 'Europe/Madrid' : pref.timezone
+      ).day
       const prior = await db
         .from('play_reminder_deliveries')
         .select('state,channel,local_day,created_at,sent_at')
@@ -155,7 +190,9 @@ export async function runPlayReminders(
           (d) =>
             (d.local_day === day &&
               (d.state !== 'pending' || channel === 'push')) ||
-            (d.state === 'sent' && Date.parse(d.sent_at) > now - 24 * 3600000)
+            (channel === 'email' &&
+              d.state === 'sent' &&
+              Date.parse(d.sent_at) > now - 24 * 3600000)
         )
       )
         continue
@@ -207,7 +244,7 @@ export async function runPlayReminders(
           .maybeSingle()
         const currentProfile = await db
           .from('profiles')
-          .select('notification_mute_until')
+          .select('notification_mute_until,notification_prefs')
           .eq('id', pref.user_id)
           .maybeSingle()
         if (
@@ -235,16 +272,8 @@ export async function runPlayReminders(
           timezone: delivery.payload.timezone,
           channel,
           now: dispatchNow,
+          pushNow: options.pushNow,
         })
-        const latestActivity =
-          channel === 'push'
-            ? await db
-                .from('user_app_activity')
-                .select('last_seen_at')
-                .eq('user_id', pref.user_id)
-                .maybeSingle()
-            : { data: null, error: null }
-        if (latestActivity.error) throw Error('activity_recheck_failed')
         const validMatches = new Map(valid.map((m) => [m.matchId, m]))
         const scheduleChanged = delivery.payload.matches.some((m) => {
           const current = validMatches.get(m.matchId)
@@ -260,17 +289,16 @@ export async function runPlayReminders(
         if (
           (channel === 'email' &&
             currentUser.data?.email !== delivery.payload.email) ||
-          !fresh.data?.[`${channel}_enabled`] ||
+          !(fresh.data?.[`${channel}_enabled`] ?? channel === 'push') ||
           !member.data ||
           !currentFlag.data?.enabled ||
-          fresh.data.timezone !== delivery.payload.timezone ||
+          (fresh.data?.timezone ?? 'Europe/Madrid') !==
+            delivery.payload.timezone ||
           freshMute === 'forever' ||
           (freshMute && Date.parse(freshMute) > dispatchNow) ||
           (channel === 'push' &&
-            hasRecentAppActivity(
-              latestActivity.data?.last_seen_at,
-              dispatchNow
-            )) ||
+            !resolvePrefs(currentProfile.data?.notification_prefs, 'marketing')
+              .push) ||
           scheduleChanged ||
           originalIds.some((id) => !validIds.has(id))
         ) {
@@ -347,26 +375,12 @@ export const productionEmail: ReminderTransport['email'] = async (
   return r.data.id
 }
 export function pushContent(payload: Payload, key: string) {
-  const c = reminderCopy[payload.locale],
-    first = payload.matches[0],
-    count = payload.matches.reduce((n, m) => n + m.markets.length, 0)
+  const c = reminderCopy[payload.locale]
   return {
     title: c.pushTitle,
-    body:
-      payload.matches.length === 1
-        ? c.pushSingle
-            .replace('{pair1}', first.pair1.map((p) => p.name).join(' / '))
-            .replace('{pair2}', first.pair2.map((p) => p.name).join(' / '))
-        : c.pushBody
-            .replace('{matches}', String(payload.matches.length))
-            .replace('{questions}', String(count)),
-    url: appPath(payload.locale, `/play?match=${first.matchId}`),
+    body: c.pushBody,
+    url: appPath(payload.locale, '/play'),
     tag: `play-reminder-${key}`,
-    icon:
-      payload.icon ??
-      [...first.pair1, ...first.pair2].find((p) =>
-        p.image?.startsWith('https://')
-      )?.image ??
-      `${appBase}/padelnachos-logo-v2.png`,
+    icon: `${appBase}/padelnachos-logo-v2.png`,
   }
 }

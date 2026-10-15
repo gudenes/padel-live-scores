@@ -80,7 +80,7 @@ export async function POST(req: Request) {
           return accepted > 0
         },
       },
-      { dryRun }
+      { dryRun, ...(body?.pushNow === true ? { pushNow: true } : {}) }
     )
     return Response.json(result, { status: result.failed ? 503 : 200 })
   } catch (e) {
