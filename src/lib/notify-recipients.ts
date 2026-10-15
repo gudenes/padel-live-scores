@@ -195,3 +195,18 @@ export async function resolveEntityFollowers(
     return EMPTY
   }
 }
+
+/** Draw audiences include tournament followers and followers of bracket players. */
+export async function resolveDrawFollowers(supabase: Supa, tournamentId: string): Promise<EntityFollowers> {
+  const tournament = await resolveEntityFollowers(supabase, 'tournament', tournamentId)
+  const { data, error } = await supabase.from('tournament_draws')
+    .select('player1_id, player2_id').eq('tournament_id', tournamentId)
+  if (error) throw new Error(`Draw recipients unavailable: ${error.message}`)
+  const playerIds = [...new Set((data ?? []).flatMap(row => [row.player1_id, row.player2_id])
+    .filter((id): id is string => typeof id === 'string' && !!id))]
+  const players = await resolveEntityFollowers(supabase, 'player', playerIds)
+  return {
+    userIds: [...new Set([...tournament.userIds, ...players.userIds])],
+    anonSubs: players.anonSubs,
+  }
+}

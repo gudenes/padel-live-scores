@@ -8,6 +8,7 @@ import {
   personalizeScheduled,
   playerLastName,
   rankingFallbackCopy,
+  resolveScheduledTimeZone,
 } from '@/lib/push-copy'
 
 const triay = { name: 'Gemma Triay Pons', display_name: 'Gemma Triay' }
@@ -181,5 +182,42 @@ describe('personalizeEliminated', () => {
   })
   it('returns null when the user does not follow a player in the match', () => {
     expect(personalizeEliminated(match, { locale: 'en', followedPlayerId: null })).toBeNull()
+  })
+})
+
+
+describe('scheduled notifications: region and estimates', () => {
+  it('uses the chosen region before the device timezone', () => {
+    const timeZone = resolveScheduledTimeZone('br', 'Europe/Madrid')
+    expect(timeZone).toBe('America/Sao_Paulo')
+    expect(personalizeScheduled(match, { locale: 'pt', timeZone, followedPlayerId: 't' }).title)
+      .toBe('Triay joga às 13:00')
+  })
+  it('falls back to a valid device zone and rejects invalid zones', () => {
+    expect(resolveScheduledTimeZone(null, 'Europe/Lisbon')).toBe('Europe/Lisbon')
+    expect(resolveScheduledTimeZone('?', 'invalid')).toBeNull()
+  })
+  it('labels a Followed-by time as an estimate in the configured region', () => {
+    const out = personalizeScheduled({ ...match, schedule_label: 'Followed by' }, {
+      locale: 'pt', timeZone: 'America/Sao_Paulo', followedPlayerId: 't',
+    })
+    expect(out.title).toBe('Triay · previsão às 13:00')
+  })
+  it('uses a fresh forecast window instead of the static estimate', () => {
+    const now = Date.now()
+    const forecast = {
+      version: 1 as const, next_to_play: true, predecessor_id: 'm0',
+      earliest_at: new Date(now + 3600000).toISOString(), latest_at: new Date(now + 5400000).toISOString(),
+      computed_at: new Date(now).toISOString(), source_updated_at: null, basis: 'court_order' as const,
+    }
+    const out = personalizeScheduled({ ...match, schedule_label: 'Followed by', smart_schedule: forecast }, {
+      locale: 'pt', timeZone: 'America/Sao_Paulo', followedPlayerId: 't',
+    })
+    expect(out.title).toContain('previsão às')
+    expect(out.title).toContain('–')
+    const stale = personalizeScheduled({ ...match, schedule_label: 'Followed by', smart_schedule: {
+      ...forecast, computed_at: new Date(now - 600000).toISOString(),
+    } }, { locale: 'pt', timeZone: 'America/Sao_Paulo', followedPlayerId: 't' })
+    expect(stale.title).toBe('Triay · previsão às 13:00')
   })
 })
