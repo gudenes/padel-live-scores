@@ -21,6 +21,7 @@ export const market = (
   pair1: [player('A'), player('B')],
   pair2: [player('C'), player('D')],
   tournament: 'Rotterdam P2',
+  tournamentLevel: 'p2',
   round: 'QF',
   category: 'men',
   startsAt: '2026-10-07T13:00:00Z',
@@ -93,25 +94,41 @@ describe('padel reminder selection', () => {
       plan([market()], { now: Date.parse('2026-10-07T20:00:00Z') })
     ).toEqual([])
   })
-  it('push needs personal relevance and a 20–30 minute lead; groups simultaneous matches', () => {
-    const ms = [
-      market({ startsAt: new Date(now + 25 * 60000).toISOString() }),
-      market({
-        id: 'q2',
-        matchId: 'match2',
-        startsAt: new Date(now + 28 * 60000).toISOString(),
-      }),
-    ]
-    expect(plan(ms, { channel: 'push' })).toEqual([])
+  it('morning push includes users with no follows and already answered markets', () => {
+    const morning = Date.parse('2026-10-07T07:00:00Z')
     expect(
-      plan(ms, { channel: 'push', followed: new Set(['A']) })
-    ).toHaveLength(2)
-    expect(
-      plan([market({ startsAt: new Date(now + 19 * 60000).toISOString() })], {
+      plan([market()], {
         channel: 'push',
-        followed: new Set(['A']),
+        now: morning,
+        answered: new Set(['q1']),
+      })
+    ).toHaveLength(1)
+    expect(
+      plan([market()], {
+        channel: 'push',
+        now: morning,
+        timezone: 'America/New_York',
+      })
+    ).toHaveLength(1)
+    expect(plan([market()], { channel: 'push' })).toEqual([])
+    expect(
+      plan([market({ tournamentLevel: 'fip_platinum' })], {
+        channel: 'push',
+        now: morning,
       })
     ).toEqual([])
+    expect(plan([market()], { channel: 'push', now: morning - 60000 })).toEqual(
+      []
+    )
+  })
+  it('morning push follows Madrid daylight saving time', () => {
+    const winter = Date.parse('2026-10-26T08:00:00Z')
+    const m = market({
+      startsAt: '2026-10-26T13:00:00Z',
+      locksAt: '2026-10-26T13:00:00Z',
+    })
+    expect(plan([m], { channel: 'push', now: winter })).toHaveLength(1)
+    expect(plan([m], { channel: 'push', now: winter - 3600000 })).toEqual([])
   })
   it('validates zones and handles DST using actual local dates', () => {
     expect(validTimezone('Mars/City')).toBe(false)

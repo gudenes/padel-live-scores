@@ -34,10 +34,10 @@ it('requires Play access on reads and writes', async () => {
   expect((await PATCH(req({}))).status).toBe(404)
   expect(m.upsert).not.toHaveBeenCalled()
 })
-it('starts with both reminders off; no inferred email consent', async () =>
+it('defaults morning push on without inferring email consent', async () =>
   expect(await (await GET()).json()).toEqual({
     email_enabled: false,
-    push_enabled: false,
+    push_enabled: true,
     timezone: null,
   }))
 it('rejects cross-origin writes and invalid zones', async () => {
