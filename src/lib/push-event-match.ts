@@ -22,7 +22,7 @@ export async function loadPushMatch(supabase: Supa, matchId: string): Promise<Pu
   const { data, error } = await supabase
     .from('matches')
     .select(`
-      id, round, court, scheduled_at, category, winner_pair,
+      id, round, court, scheduled_at, schedule_label, smart_schedule, status, category, winner_pair,
       tournament:tournaments(name, level, timezone),
       pair1_player1:players!matches_pair1_player1_id_fkey(${PLAYER_SELECT}),
       pair1_player2:players!matches_pair1_player2_id_fkey(${PLAYER_SELECT}),
@@ -40,6 +40,9 @@ export async function loadPushMatch(supabase: Supa, matchId: string): Promise<Pu
     round: (row.round as string | null) ?? null,
     court: (row.court as string | null) ?? null,
     scheduled_at: (row.scheduled_at as string | null) ?? null,
+    schedule_label: (row.schedule_label as string | null) ?? null,
+    smart_schedule: (row.smart_schedule as PushMatch['smart_schedule']) ?? null,
+    status: (row.status as string | null) ?? null,
     category: (row.category as string | null) ?? null,
     winner_pair: (row.winner_pair as number | null) ?? null,
     tournament: tournamentRaw

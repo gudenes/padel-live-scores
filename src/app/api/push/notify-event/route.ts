@@ -23,8 +23,9 @@
 // (event.data.json()). There is NO nested `data` wrapper — sendPush/FcmPayload
 // take flat fields. Don't add fields the SW won't read.
 
+import { loadDrawNotificationContents } from '@/lib/draw-notification-content'
 import { createServiceClient } from '@/lib/supabase'
-import { resolveEntityFollowers, type EntityType } from '@/lib/notify-recipients'
+import { resolveEntityFollowers, resolveDrawFollowers, type EntityType } from '@/lib/notify-recipients'
 import {
   isKnownCategory,
   resolvePrefs,
@@ -37,7 +38,7 @@ import { sendPush } from '@/lib/push'
 import { sendPushToFcmTokens } from '@/lib/push-fcm'
 import { circuitIconUrl, resolveNotificationIcon } from '@/lib/notification-icon'
 import { buildPlayerEnteredContent, type EnteredPlayer, type EnteredContent } from '@/lib/player-entered-content'
-import { personalizeEliminated, personalizeScheduled, resolvePushLocale } from '@/lib/push-copy'
+import { personalizeEliminated, personalizeScheduled, resolvePushLocale, resolveScheduledTimeZone } from '@/lib/push-copy'
 import { loadFollowedPlayerByUser, loadPushMatch, matchIdFromEvent } from '@/lib/push-event-match'
 
 type Body = {
@@ -116,12 +117,14 @@ export async function POST(request: Request) {
   // anonSubs are anonymous web-push subscriptions (no account). They get NO
   // tier gate, NO in-app row, and NO per-category pref — they're free by
   // definition. Resolved here so an anon-only entity (zero authed followers)
-  // still fans out below. Tournament events resolve anonSubs: [].
-  const { userIds, anonSubs } = await resolveEntityFollowers(
-    supabase,
-    entityType,
-    entityIds && entityIds.length > 0 ? entityIds : entityId,
-  )
+  // still fans out below. Draw events also include anonymous player followers.
+  const { userIds, anonSubs } = category === 'draw_released' && entityType === 'tournament'
+    ? await resolveDrawFollowers(supabase, entityId)
+    : await resolveEntityFollowers(
+        supabase,
+        entityType,
+        entityIds && entityIds.length > 0 ? entityIds : entityId,
+      )
   if (userIds.length === 0 && anonSubs.length === 0) {
     return Response.json({ ok: true, recipients: 0, inApp: 0, webSent: 0, fcmSent: 0, anonSent: 0 })
   }
@@ -130,7 +133,7 @@ export async function POST(request: Request) {
   const [profilesRes, alreadyRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, locale, notification_prefs, notification_mute_until, plan, plan_expires_at')
+      .select('id, locale, preferred_country, notification_prefs, notification_mute_until, plan, plan_expires_at')
       .in('id', userIds),
     supabase
       .from('user_notifications')
@@ -150,8 +153,10 @@ export async function POST(request: Request) {
   const muteByUser = new Map<string, string | null>()
   const proByUser = new Map<string, boolean>()
   const localeByUser = new Map<string, string>()
+  const countryByUser = new Map<string, string | null>()
   for (const row of profilesRes.data ?? []) {
     const id = row.id as string
+    countryByUser.set(id, row.preferred_country ?? null)
     prefsByUser.set(id, (row.notification_prefs ?? {}) as Record<string, Partial<ChannelPrefs>>)
     muteByUser.set(id, (row as { notification_mute_until?: string | null }).notification_mute_until ?? null)
     localeByUser.set(id, resolvePushLocale((row as { locale?: string | null }).locale))
@@ -174,6 +179,12 @@ export async function POST(request: Request) {
   const uniform: EnteredContent = { title, body, icon: icon ?? '', url }
   const contentByUser = new Map<string, EnteredContent>()
   let anonContent: EnteredContent = uniform
+  if (category === 'draw_released' && entityType === 'tournament') {
+    const contents = await loadDrawNotificationContents(supabase, entityId, userIds, localeByUser)
+    for (const [id, content] of contents.byUser) contentByUser.set(id, content)
+    anonContent = contents.anonymous
+  }
+
   const personalize =
     personalizePerFollower &&
     entityType === 'player' &&
@@ -231,8 +242,8 @@ export async function POST(request: Request) {
   // ── 2c. match_scheduled / player_eliminated — on-court grammar ──
   // Always on for these two categories (unlike player_entered which is
   // opt-in via personalizePerFollower). Loads the match, maps each user
-  // to the player they follow, and formats the clock in their timezone
-  // (native/web subscription tz, else tournament tz + abbreviation).
+  // to the player they follow. Clock priority: configured profile region,
+  // native/web subscription timezone, then tournament timezone + abbreviation.
   if (category === 'match_scheduled' || category === 'player_eliminated') {
     const matchId = matchIdFromEvent({ entityType, entityId, url, metadata })
     if (matchId) {
@@ -280,7 +291,7 @@ export async function POST(request: Request) {
         for (const userId of userIds) {
           const recipient = {
             locale: localeByUser.get(userId) ?? 'en',
-            timeZone: tzByUser.get(userId) ?? null,
+            timeZone: resolveScheduledTimeZone(countryByUser.get(userId), tzByUser.get(userId)),
             followedPlayerId: followMap.get(userId) ?? null,
           }
           const built =

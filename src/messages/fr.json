@@ -1828,6 +1828,13 @@
     }
   },
   "push": {
+    "drawFollowTitle": "Le parcours de {name} est défini",
+    "drawFollowBody": "Le tableau de {tournament} est disponible. Découvrez les adversaires et le parcours vers la finale.",
+    "drawTitle": "Tableau disponible · {tournament}",
+    "drawBody": "Les rencontres sont définies. Découvrez les affiches.",
+    "drawTournamentFallback": "votre tournoi",
+    "scheduledEstimatedFollowTitle": "{name} · début estimé à {time}",
+    "scheduledEstimatedBookmarkTitle": "Prochain match · début estimé à {time}",
     "scheduledFollowTitle": "{name} joue à {time}",
     "scheduledFollowTitleNoTime": "{name} est programmée",
     "scheduledBookmarkTitle": "Match programmé · {time}",
