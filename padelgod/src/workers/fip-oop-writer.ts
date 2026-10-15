@@ -7,7 +7,8 @@ import {
   type OopScheduleRow,
 } from '../lib/oop-schedule-parser.js';
 import { activeTournamentArgs } from '../lib/active-tournament-args.js';
-import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
+import { scheduleNotificationBatch } from '../lib/schedule-notification-batch.js';
+import { notifyEvent, notifyEventAwait, type NotifyDeps } from '../lib/notify.js';
 
 /**
  * fip-oop-writer — simplified-pipeline writer #2.
@@ -82,6 +83,8 @@ export interface FipOopWriterDeps {
    * BOTH this is true AND `notify` is configured.
    */
   eventsEnabled?: boolean;
+  /** Enable only after the web endpoint supports match batches. */
+  groupScheduledNotifications?: boolean;
 }
 
 export interface FipOopWriterResult {
@@ -256,6 +259,8 @@ export async function runFipOopWriter(
     ? allTournaments.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
     : allTournaments;
 
+  const scheduledNotifications: string[] = [];
+  try {
   for (const t of tournaments) {
     const tournamentWidgetId = await getActiveWidgetIdCode(
       supabase,
@@ -493,6 +498,9 @@ export async function runFipOopWriter(
                   'fip-oop-writer: match_scheduled claim failed',
                 );
               } else if (claimedSched && claimedSched.length > 0) {
+                if (deps.groupScheduledNotifications) {
+                  scheduledNotifications.push(matchId);
+                } else {
                 notifyEvent(
                   {
                     category: 'match_scheduled',
@@ -506,6 +514,7 @@ export async function runFipOopWriter(
                   },
                   notify,
                 );
+                }
               }
             }
           }
@@ -518,6 +527,12 @@ export async function runFipOopWriter(
           writeEligible.size - parsedWriteEligible;
       }
     }
+  }
+
+  } finally {
+    // Flush completed writes even if a later tournament fails.
+    const batch = scheduleNotificationBatch(scheduledNotifications);
+    if (batch && deps.notify) await notifyEventAwait(batch, deps.notify);
   }
 
   logger?.info(result, 'fip-oop-writer run complete');

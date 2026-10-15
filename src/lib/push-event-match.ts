@@ -4,7 +4,7 @@ import type { PushMatch, PushPlayer } from '@/lib/push-copy'
 
 type Supa = Pick<SupabaseClient, 'from'>
 
-const PLAYER_SELECT = 'id, name, display_name, avatar_url'
+const PLAYER_SELECT = 'id, name, display_name, avatar_url, ranking'
 
 function asPlayer(raw: unknown): PushPlayer | null {
   if (!raw || typeof raw !== 'object') return null
@@ -15,6 +15,7 @@ function asPlayer(raw: unknown): PushPlayer | null {
     name: p.name ?? null,
     display_name: p.display_name ?? null,
     avatar_url: p.avatar_url ?? null,
+    ranking: (raw as { ranking?: number | null }).ranking ?? null,
   }
 }
 
@@ -33,7 +34,25 @@ export async function loadPushMatch(supabase: Supa, matchId: string): Promise<Pu
     .eq('id', matchId)
     .maybeSingle()
   if (error || !data) return null
-  const row = data as Record<string, unknown>
+  return asPushMatch(data as Record<string, unknown>)
+}
+
+export async function loadPushMatches(supabase: Supa, ids: string[]): Promise<PushMatch[]> {
+  if (!ids.length) return []
+  const { data, error } = await supabase.from('matches').select(`
+      id, round, court, scheduled_at, schedule_label, smart_schedule, status, category, winner_pair,
+      tournament:tournaments(name, level, timezone),
+      pair1_player1:players!matches_pair1_player1_id_fkey(${PLAYER_SELECT}),
+      pair1_player2:players!matches_pair1_player2_id_fkey(${PLAYER_SELECT}),
+      pair2_player1:players!matches_pair2_player1_id_fkey(${PLAYER_SELECT}),
+      pair2_player2:players!matches_pair2_player2_id_fkey(${PLAYER_SELECT}),
+      sets(set_number, set_score, pair1_games, pair2_games)
+    `).in('id', ids)
+  if (error) throw new Error(`Schedule matches: ${error.message}`)
+  return (data ?? []).map(row => asPushMatch(row as unknown as Record<string, unknown>))
+}
+
+function asPushMatch(row: Record<string, unknown>): PushMatch {
   const tournamentRaw = row.tournament as { name?: string | null; level?: string | null; timezone?: string | null } | null
   return {
     id: String(row.id),

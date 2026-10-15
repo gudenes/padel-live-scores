@@ -59,3 +59,10 @@ describe('draw notification content', () => {
     expect(result.anonymous.icon).toContain('premier-padel-star')
   })
 })
+
+it('mentions additional unique favorites without repeating a player', () => {
+  const other = { ...triay, id: 'p2', display_name: 'Paula Brea', ranking: 3 }
+  const out = buildDrawNotificationContent(tournament, [triay, triay, other], 'en')
+  expect(out.title).toBe('Triay’s path is set · +1 more')
+  expect(out.icon).toBe(triay.avatar_url)
+})

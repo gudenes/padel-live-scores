@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { resolveNotificationIcon } from '@/lib/notification-icon'
 import { playerLastName } from '@/lib/player-name'
-import { resolvePushLocale } from '@/lib/push-copy'
+import { resolvePushLocale, additionalPlayersCopy } from '@/lib/push-copy'
 import type { EnteredContent, EnteredPlayer } from '@/lib/player-entered-content'
 import en from '@/messages/en.json'
 import pt from '@/messages/pt.json'
@@ -18,15 +18,16 @@ export function buildDrawNotificationContent(
 ): EnteredContent {
   const copy = messages[resolvePushLocale(locale)]
   // One notification even for several favorites. A stable headliner supplies the image.
-  const player = followed.filter(p => playerLastName(p)).sort((a, b) =>
-    (a.ranking ?? Infinity) - (b.ranking ?? Infinity) || a.id.localeCompare(b.id),
+  const unique = [...new Map(followed.map(p => [p.id, p])).values()]
+  const player = unique.filter(p => playerLastName(p)).sort((a, b) =>
+    (a.ranking && a.ranking > 0 ? a.ranking : Infinity) - (b.ranking && b.ranking > 0 ? b.ranking : Infinity) || a.id.localeCompare(b.id),
   )[0]
   const tournamentName = tournament.name || copy.drawTournamentFallback
   const fill = (value: string) => value.replace(/\{(name|tournament)\}/g,
     (_, key: string) => key === 'name' ? playerLastName(player) : tournamentName)
   const category = player?.drawCategory ?? tournament.drawCategory
   return {
-    title: fill(player ? copy.drawFollowTitle : copy.drawTitle),
+    title: fill(player ? copy.drawFollowTitle : copy.drawTitle) + (player && unique.length > 1 ? ` · ${additionalPlayersCopy(locale, unique.length - 1)}` : ''),
     body: fill(player ? copy.drawFollowBody : copy.drawBody),
     icon: resolveNotificationIcon({
       reason: player ? 'follow' : 'bookmark',

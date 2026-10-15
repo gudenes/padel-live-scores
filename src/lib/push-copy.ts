@@ -189,7 +189,7 @@ export function composeEliminated(input: {
   return { title, body }
 }
 
-export type PushPlayer = PlayerName & { id: string; avatar_url: string | null }
+export type PushPlayer = PlayerName & { id: string; avatar_url: string | null; ranking?: number | null }
 
 export type PushMatch = {
   id: string
@@ -307,4 +307,16 @@ export function renderFinalScore(
     }
   }
   return parts.join(', ')
+}
+
+/** Localized grouping cue. Count is unique additional followed players/matches. */
+export function groupedScheduleCopy(locale: string, name: string | null, others: number, games: number) {
+  const msg = PUSH_BY_LOCALE[resolvePushLocale(locale)]
+  return {
+    title: interpolate(name && others > 0 ? msg.scheduleGroupPlayers : msg.scheduleGroupMatches, { name: name ?? '', count: String(others > 0 ? others : games) }),
+    hint: msg.scheduleGroupHint,
+  }
+}
+export function additionalPlayersCopy(locale: string, count: number): string {
+  return interpolate(PUSH_BY_LOCALE[resolvePushLocale(locale)].additionalPlayers, { count: String(count) })
 }

@@ -204,3 +204,15 @@ describe('draw audience', () => {
     await expect(resolveDrawFollowers(supa, 't1')).rejects.toThrow('Draw recipients unavailable')
   })
 })
+
+it('unions followers across every match in a schedule batch', async () => {
+  const supa = fakeSupabase({
+    matches: [{ pair1_player1_id: 'p1' }, { pair1_player1_id: 'p2' }],
+    'user_bookmarks:match': [{ user_id: 'u1' }],
+    'user_bookmarks:player': [{ user_id: 'u1' }, { user_id: 'u2' }],
+  })
+  expect((await resolveEntityFollowers(supa, 'match', ['m1', 'm2'])).userIds).toEqual(['u1', 'u2'])
+  expect(callsOf(supa)).toContainEqual({ m: 'in', col: 'id', val: ['m1', 'm2'] })
+  expect(callsOf(supa)).toContainEqual({ m: 'in', col: 'target_id', val: ['m1', 'm2'] })
+  expect(callsOf(supa)).toContainEqual({ m: 'in', col: 'target_id', val: ['p1', 'p2'] })
+})

@@ -1828,6 +1828,10 @@
     }
   },
   "push": {
+    "scheduleGroupPlayers": "{name} et {count} autres · horaires disponibles",
+    "scheduleGroupMatches": "{count} matchs · horaires disponibles",
+    "scheduleGroupHint": "Consultez tous vos prochains matchs.",
+    "additionalPlayers": "+{count} autres",
     "drawFollowTitle": "Le parcours de {name} est défini",
     "drawFollowBody": "Le tableau de {tournament} est disponible. Découvrez les adversaires et le parcours vers la finale.",
     "drawTitle": "Tableau disponible · {tournament}",

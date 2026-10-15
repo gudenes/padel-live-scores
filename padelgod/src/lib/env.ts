@@ -244,6 +244,7 @@ const EnvSchema = z.object({
   PADELDEV_LIVE_DRY_RUN: boolEnv(true),
   // free event-notification senders — premium notifications Plan 2B; default off.
   ENABLE_EVENT_NOTIFICATIONS: boolEnv(false),
+  ENABLE_GROUPED_SCHEDULE_NOTIFICATIONS: boolEnv(false),
   // tournament_starting notifier (premium notifications Plan 2A) — default off.
   ENABLE_TOURNAMENT_START_NOTIFIER: boolEnv(false),
   // projection_ready notifier (premium notifications Plan 2C) — default off.

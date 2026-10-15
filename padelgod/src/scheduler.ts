@@ -188,6 +188,7 @@ export interface SchedulerDeps {
    * is configured (NOTIFY_BASE_URL + CRON_SECRET present).
    */
   eventsEnabled: boolean;
+  groupScheduledNotifications?: boolean;
   /**
    * Dry-run flag for the fip-draw-linker worker. When true (default),
    * the worker proposes and logs linkages without writing to
@@ -357,6 +358,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       dryRun: true,
       notify: deps.notify,
       eventsEnabled: deps.eventsEnabled,
+      groupScheduledNotifications: deps.groupScheduledNotifications,
     });
     case 'fip-draw-reconciler':  return (deps) => runFipDrawReconciler({
       supabase: deps.supabase,
@@ -677,6 +679,7 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           dryRun: flags.fipOopWriterDryRun,
           notify: deps.notify,
           eventsEnabled: deps.eventsEnabled,
+          groupScheduledNotifications: deps.groupScheduledNotifications,
         });
       },
     });
