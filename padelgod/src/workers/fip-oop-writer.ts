@@ -134,7 +134,7 @@ interface ExistingMatch {
   scheduled_at: string | null;
   schedule_label: string | null;
   /** match_scheduled notify marker (Plan 2B). NULL until the sender claims
-   *  it on the first firm-time fill. Used to gate the one-shot fire. */
+   *  it on the first time/estimate notification. Used to gate the one-shot fire. */
   scheduled_notified_at: string | null;
   status: string | null;
 }
@@ -164,7 +164,7 @@ export interface MatchScheduledNotifyInput {
 }
 
 /**
- * Whether to dispatch match_scheduled push after a first firm-time fill.
+ * Whether to dispatch match_scheduled for the first available start time or estimate.
  *
  * Incident 2026-09-07: Paris Major Q1 (already finished the day before)
  * got scheduled_at backfilled when the 24h OOP parser shipped, and the
@@ -176,7 +176,7 @@ export function shouldFireMatchScheduledNotify(
   input: MatchScheduledNotifyInput,
 ): boolean {
   if (!input.eventsEnabled || !input.hasNotify) return false;
-  if (!input.firstFirmFill || input.approximate) return false;
+  if (!input.firstFirmFill) return false;
   if ((input.matchStatus ?? '').toLowerCase() !== 'scheduled') return false;
   const at = Date.parse(input.scheduledAtIso);
   if (Number.isNaN(at)) return false;
@@ -461,12 +461,13 @@ export async function runFipOopWriter(
             }
 
             // match_scheduled sender (Plan 2B, ships dark behind
-            // ENABLE_EVENT_NOTIFICATIONS). Fire ONCE the first time a
-            // still-upcoming match gets a firm real time + court. Gates
+            // ENABLE_EVENT_NOTIFICATIONS). Fire ONCE for a future start time,
+            // including Followed-by estimates that have not been notified. Gates
             // live in shouldFireMatchScheduledNotify — in particular we
             // never notify finished/past matches (Paris Q1 2026-09-07).
             const firstFirmFill =
-              originalValue == null || isPlaceholderScheduledAt(originalValue);
+              originalValue == null || isPlaceholderScheduledAt(originalValue) ||
+              (p.approximate && !matchById.get(matchId)?.scheduled_notified_at);
             const existingForNotify = matchById.get(matchId);
             const notify = deps.notify;
             if (
