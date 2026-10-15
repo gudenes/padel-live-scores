@@ -125,8 +125,8 @@ describe('shouldFireMatchScheduledNotify', () => {
     }
   });
 
-  it('does NOT fire for approximate labels ("Not before" / "Followed by")', () => {
-    expect(shouldFireMatchScheduledNotify({ ...base, approximate: true })).toBe(false);
+  it('fires for approximate labels ("Not before" / "Followed by")', () => {
+    expect(shouldFireMatchScheduledNotify({ ...base, approximate: true })).toBe(true);
   });
 
   it('does NOT fire when events are dark or notify is unconfigured', () => {

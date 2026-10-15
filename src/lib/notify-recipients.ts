@@ -18,7 +18,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type EntityType = 'player' | 'tournament' | 'match'
 
-export type AnonSub = { id: string; endpoint: string; p256dh_key: string; auth_key: string }
+export type AnonSub = { id: string; endpoint: string; p256dh_key: string; auth_key: string; device_id?: string }
 
 export type EntityFollowers = {
   userIds: string[]
@@ -38,17 +38,18 @@ async function fetchAnonSubsForDevices(
   if (deviceIds.size === 0) return []
   const { data, error } = await supabase
     .from('anon_push_subscriptions')
-    .select('id, endpoint, p256dh_key, auth_key')
+    .select('id, endpoint, p256dh_key, auth_key, device_id')
     .in('device_id', [...deviceIds])
   if (error || !data) return []
   const byId = new Map<string, AnonSub>()
-  for (const s of data as Array<{ id: string; endpoint: string; p256dh_key: string; auth_key: string }>) {
+  for (const s of data as Array<{ id: string; endpoint: string; p256dh_key: string; auth_key: string; device_id?: string }>) {
     if (s.id) {
       byId.set(s.id, {
         id: s.id,
         endpoint: s.endpoint,
         p256dh_key: s.p256dh_key,
         auth_key: s.auth_key,
+        device_id: s.device_id,
       })
     }
   }
@@ -71,8 +72,7 @@ export async function resolveEntityFollowers(
   // resolves the UNION of followers across several entities. The batch form
   // backs per-tournament coalescing of `player_entered` sends — every fan who
   // follows any of the newly-entered players is resolved once, deduped, and
-  // notified a single time (see fip-entry-list-populator). 'match' has no
-  // batch caller, so it always uses the first id.
+  // notified a single time (see fip-entry-list-populator). match schedules use the same union to produce one alert per refresh.
   const isBatch = Array.isArray(entityId)
   const ids = (isBatch ? entityId : [entityId]).filter(Boolean) as string[]
   if (ids.length === 0) return EMPTY
@@ -114,36 +114,27 @@ export async function resolveEntityFollowers(
     }
 
     // ── match ──────────────────────────────────────────────────
-    // Read the 4 player FKs off the match row, then union match-bookmarks
+    // Read the player FKs from every match, then union match-bookmarks
     // with player-follows across both authed + anon tables.
-    const matchId = ids[0]
-    const { data: matchRow, error: matchErr } = await supabase
-      .from('matches')
+    const matchQuery = supabase.from('matches')
       .select('pair1_player1_id, pair1_player2_id, pair2_player1_id, pair2_player2_id')
-      .eq('id', matchId)
-      .single()
+    const { data: matchRows, error: matchErr } = await (isBatch
+      ? matchQuery.in('id', ids) : matchQuery.eq('id', ids[0]).single())
     if (matchErr) return EMPTY
-    const m = (matchRow ?? {}) as {
-      pair1_player1_id: string | null
-      pair1_player2_id: string | null
-      pair2_player1_id: string | null
-      pair2_player2_id: string | null
-    }
-    const playerIds = [
-      m.pair1_player1_id,
-      m.pair1_player2_id,
-      m.pair2_player1_id,
-      m.pair2_player2_id,
-    ].filter((id): id is string => !!id)
+    const rows = (isBatch ? matchRows ?? [] : [matchRows ?? {}]) as Array<Record<string, string | null>>
+    const playerIds = [...new Set(rows.flatMap(m => [
+      m.pair1_player1_id, m.pair1_player2_id, m.pair2_player1_id, m.pair2_player2_id,
+    ]).filter((id): id is string => !!id))]
 
     // ── Authed: match-bookmarks + player-follows ─────────────
     const userIdSet = new Set<string>()
 
-    const { data: matchBm, error: matchBmErr } = await supabase
+    const matchBookmarks = supabase
       .from('user_bookmarks')
       .select('user_id')
       .eq('bookmark_type', 'match')
-      .eq('target_id', matchId)
+    const { data: matchBm, error: matchBmErr } = await (isBatch
+      ? matchBookmarks.in('target_id', ids) : matchBookmarks.eq('target_id', ids[0]))
     if (matchBmErr) return EMPTY
     for (const r of (matchBm as { user_id: string }[] | null) ?? []) {
       if (r.user_id) userIdSet.add(r.user_id)
@@ -164,11 +155,12 @@ export async function resolveEntityFollowers(
     // ── Anon: match-bookmarks + player-bookmarks → device_ids ──
     const deviceIds = new Set<string>()
 
-    const { data: anonMatchBm, error: anonMatchErr } = await supabase
+    const anonMatchBookmarks = supabase
       .from('anon_bookmarks')
       .select('device_id')
       .eq('bookmark_type', 'match')
-      .eq('target_id', matchId)
+    const { data: anonMatchBm, error: anonMatchErr } = await (isBatch
+      ? anonMatchBookmarks.in('target_id', ids) : anonMatchBookmarks.eq('target_id', ids[0]))
     if (!anonMatchErr) {
       for (const r of (anonMatchBm as { device_id: string }[] | null) ?? []) {
         if (r.device_id) deviceIds.add(r.device_id)
@@ -193,5 +185,20 @@ export async function resolveEntityFollowers(
   } catch {
     // Fail soft — a resolution error must never block the rest of a notify run.
     return EMPTY
+  }
+}
+
+/** Draw audiences include tournament followers and followers of bracket players. */
+export async function resolveDrawFollowers(supabase: Supa, tournamentId: string): Promise<EntityFollowers> {
+  const tournament = await resolveEntityFollowers(supabase, 'tournament', tournamentId)
+  const { data, error } = await supabase.from('tournament_draws')
+    .select('player1_id, player2_id').eq('tournament_id', tournamentId)
+  if (error) throw new Error(`Draw recipients unavailable: ${error.message}`)
+  const playerIds = [...new Set((data ?? []).flatMap(row => [row.player1_id, row.player2_id])
+    .filter((id): id is string => typeof id === 'string' && !!id))]
+  const players = await resolveEntityFollowers(supabase, 'player', playerIds)
+  return {
+    userIds: [...new Set([...tournament.userIds, ...players.userIds])],
+    anonSubs: players.anonSubs,
   }
 }

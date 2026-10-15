@@ -1860,6 +1860,17 @@
     }
   },
   "push": {
+    "scheduleGroupPlayers": "{name} +{count} more · schedules ready",
+    "scheduleGroupMatches": "{count} matches · schedules ready",
+    "scheduleGroupHint": "See all your upcoming matches.",
+    "additionalPlayers": "+{count} more",
+    "drawFollowTitle": "{name}’s path is set",
+    "drawFollowBody": "The {tournament} draw is out. See the opponents and the path to the final.",
+    "drawTitle": "Draw available · {tournament}",
+    "drawBody": "The matchups are set. See who faces whom.",
+    "drawTournamentFallback": "your tournament",
+    "scheduledEstimatedFollowTitle": "{name} · estimated start {time}",
+    "scheduledEstimatedBookmarkTitle": "Upcoming match · estimated start {time}",
     "scheduledFollowTitle": "{name} plays at {time}",
     "scheduledFollowTitleNoTime": "{name} is scheduled",
     "scheduledBookmarkTitle": "Match scheduled · {time}",

@@ -234,6 +234,7 @@ async function main() {
       // Free event-notification senders master switch (Plan 2B). Ships dark
       // by default; a sender fires only when this is true AND notify is set.
       eventsEnabled: env.ENABLE_EVENT_NOTIFICATIONS,
+      groupScheduledNotifications: env.ENABLE_GROUPED_SCHEDULE_NOTIFICATIONS,
       fipDrawLinkerDryRun: env.FIP_DRAW_LINKER_DRY_RUN,
     };
     scheduledTasks = startScheduler(schedule, schedulerDeps);

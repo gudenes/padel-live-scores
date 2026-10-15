@@ -1828,6 +1828,17 @@
     }
   },
   "push": {
+    "scheduleGroupPlayers": "{name} e altri {count} · orari disponibili",
+    "scheduleGroupMatches": "{count} partite · orari disponibili",
+    "scheduleGroupHint": "Vedi tutte le tue prossime partite.",
+    "additionalPlayers": "+{count} altri",
+    "drawFollowTitle": "Il percorso di {name} è definito",
+    "drawFollowBody": "È uscito il tabellone di {tournament}. Scopri gli avversari e il percorso verso la finale.",
+    "drawTitle": "Tabellone disponibile · {tournament}",
+    "drawBody": "Gli incontri sono definiti. Scopri chi affronta chi.",
+    "drawTournamentFallback": "il tuo torneo",
+    "scheduledEstimatedFollowTitle": "{name} · inizio previsto {time}",
+    "scheduledEstimatedBookmarkTitle": "Prossima partita · inizio previsto {time}",
     "scheduledFollowTitle": "{name} gioca alle {time}",
     "scheduledFollowTitleNoTime": "{name} è in programma",
     "scheduledBookmarkTitle": "Partita in programma · {time}",

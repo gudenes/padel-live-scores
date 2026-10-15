@@ -4,6 +4,9 @@
 // the live on-court grammar: "{Name} is on court" → "{Name} plays at 18:00" /
 // "{Name} knocked out". Locale strings live in messages/*.json under `push`.
 
+import { countryToTimezone } from '@/lib/country-timezone'
+import { visibleForecast, startClockWindow, type SmartScheduleForecast } from '@/lib/smart-schedule'
+
 import en from '@/messages/en.json'
 import es from '@/messages/es.json'
 import pt from '@/messages/pt.json'
@@ -42,6 +45,16 @@ export function pairLastNames(a: PlayerName | null | undefined, b: PlayerName | 
     .map((p) => playerLastName(p))
     .filter(Boolean)
     .join('/')
+}
+
+/** Explicit profile region wins over a device's detected timezone. */
+export function resolveScheduledTimeZone(country: string | null | undefined, deviceZone: string | null | undefined): string | null {
+  const configured = countryToTimezone(country)
+  if (configured) return configured
+  if (deviceZone) {
+    try { new Intl.DateTimeFormat('en', { timeZone: deviceZone }); return deviceZone } catch { /* invalid subscription */ }
+  }
+  return null
 }
 
 function clockInTz(iso: string, timeZone: string): string {
@@ -96,6 +109,7 @@ export function composeScheduled(input: {
   round: string
   court: string
   time: string | null
+  estimated?: boolean
 }): { title: string; body: string } {
   const locale = resolvePushLocale(input.locale)
   const msg = PUSH_BY_LOCALE[locale]
@@ -106,6 +120,9 @@ export function composeScheduled(input: {
     title = interpolate(time ? msg.scheduledFollowTitle : msg.scheduledFollowTitleNoTime, { name, time })
   } else {
     title = interpolate(time ? msg.scheduledBookmarkTitle : msg.scheduledBookmarkTitleNoTime, { time })
+  }
+  if (input.estimated && time) {
+    title = interpolate(input.reason === 'follow' && name ? msg.scheduledEstimatedFollowTitle : msg.scheduledEstimatedBookmarkTitle, { name, time })
   }
   const tail = [input.court, [input.tournament, input.round].filter(Boolean).join(' ')]
     .filter(Boolean)
@@ -172,13 +189,16 @@ export function composeEliminated(input: {
   return { title, body }
 }
 
-export type PushPlayer = PlayerName & { id: string; avatar_url: string | null }
+export type PushPlayer = PlayerName & { id: string; avatar_url: string | null; ranking?: number | null }
 
 export type PushMatch = {
   id: string
   round: string | null
   court: string | null
   scheduled_at: string | null
+  schedule_label?: string | null
+  smart_schedule?: SmartScheduleForecast | null
+  status?: string | null
   category: string | null
   winner_pair: number | null
   tournament: { name: string | null; level: string | null; timezone: string | null } | null
@@ -212,11 +232,20 @@ export function personalizeScheduled(
 ): PersonalizedPush {
   const followed = playerById(match, recipient.followedPlayerId)
   const reason: 'follow' | 'bookmark' = followed ? 'follow' : 'bookmark'
-  const time = formatPushTime(match.scheduled_at, {
+  let time = formatPushTime(match.scheduled_at, {
     userTimeZone: recipient.timeZone,
     tournamentTimeZone: match.tournament?.timezone ?? null,
   })
+  const forecast = visibleForecast(match.smart_schedule, match.status ?? 'scheduled', Date.now())
+  let estimated = /followed by|not before/i.test(match.schedule_label ?? '')
+  if (forecast?.earliest_at && forecast.latest_at) {
+    const zone = recipient.timeZone || match.tournament?.timezone || 'UTC'
+    time = startClockWindow(forecast, resolvePushLocale(recipient.locale), zone)
+    if (!recipient.timeZone && time) time += ` ${tzAbbr(forecast.earliest_at, zone)}`
+    estimated = true
+  }
   const copy = composeScheduled({
+    estimated,
     locale: recipient.locale,
     reason,
     playerName: followed ? playerLastName(followed) : null,
@@ -278,4 +307,16 @@ export function renderFinalScore(
     }
   }
   return parts.join(', ')
+}
+
+/** Localized grouping cue. Count is unique additional followed players/matches. */
+export function groupedScheduleCopy(locale: string, name: string | null, others: number, games: number) {
+  const msg = PUSH_BY_LOCALE[resolvePushLocale(locale)]
+  return {
+    title: interpolate(name && others > 0 ? msg.scheduleGroupPlayers : msg.scheduleGroupMatches, { name: name ?? '', count: String(others > 0 ? others : games) }),
+    hint: msg.scheduleGroupHint,
+  }
+}
+export function additionalPlayersCopy(locale: string, count: number): string {
+  return interpolate(PUSH_BY_LOCALE[resolvePushLocale(locale)].additionalPlayers, { count: String(count) })
 }
