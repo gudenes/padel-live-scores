@@ -174,3 +174,60 @@
 @media(max-width:560px){.rm-help-dialog{padding:16px}.rm-help-grid svg{height:64px}.rm-help-dialog h2{font-size:21px}}
 
 .rm-score-point[data-readonly=true],.rm-score-point[data-readonly=true]:hover{cursor:default;transform:none;box-shadow:none;background:transparent;border-color:transparent}
+
+/* Keep the footage clear; point context and playback share a dedicated column. */
+.video-review .vr-watch{display:grid;grid-template-columns:minmax(0,1fr) 250px;align-items:stretch}
+.video-review .vr-watch-video{display:flex;align-items:center;background:#101817}
+.video-review .vr-watch .vr-player{width:100%;height:clamp(320px,40vh,440px);aspect-ratio:auto}
+.vr-control-panel{min-width:0;display:flex;flex-direction:column;background:#fff;color:#20261b;border-left:1px solid #dce2d4}
+.video-review .vr-control-panel .vr-now{position:relative;inset:auto;width:auto;max-height:none;overflow:visible;backdrop-filter:none;background:transparent;border:0;border-radius:0;padding:14px;gap:9px;z-index:auto}
+.video-review .vr-control-panel .vr-now .vr-section-head{top:12px;right:12px}
+.video-review .vr-control-panel .vr-now h2{font-size:20px}
+.video-review .vr-control-panel .vr-now .vr-person img{width:34px;height:34px}
+.video-review .vr-control-panel .vr-now .vr-person p{display:block;font-size:11px}
+.video-review .vr-control-panel .vr-playback{display:flex;flex-direction:column;gap:9px;padding:12px 14px;margin-top:auto;border:0;border-top:1px solid #dce2d4;border-radius:0;background:transparent;color:#20261b}
+.vr-control-panel .vr-playback h3{font-size:12px}
+.vr-control-panel .vr-playback .ui-btn{font-size:12px;padding:7px 9px;min-height:34px;background:#fff;color:#20261b;border-color:#dce2d4}
+.vr-control-panel .vr-playback .ui-btn[data-variant=primary]{background:#c5f531;color:#17210c;border-color:#c5f531}
+.vr-control-panel .vr-mode{gap:6px}
+.vr-control-panel .vr-mode .ui-btn{flex:1;white-space:nowrap}
+.vr-control-panel .vr-jump{margin:0;align-items:end}
+.vr-control-panel .vr-jump label{font-size:11px;gap:5px}
+.vr-control-panel .vr-jump input{min-width:0;min-height:34px}
+.vr-control-panel .vr-playback>a{font-size:11px;color:#58634e}
+.video-review .vr-main{gap:16px}
+.video-review .vr-momentum>.vr-filter-note{display:none}
+@media(max-width:1100px){.video-review .vr-workspace{grid-template-columns:minmax(0,1fr)}.video-review .vr-sidebar{grid-row:auto}}
+@media(max-width:700px){
+ .video-review .vr-watch{grid-template-columns:minmax(0,1fr)}
+ .video-review .vr-watch .vr-player{height:auto;aspect-ratio:16/9}
+ .vr-control-panel{border-left:0;border-top:1px solid #dce2d4}
+ .video-review .vr-control-panel .vr-now{display:flex;padding:12px}
+ .video-review .vr-control-panel .vr-playback{display:grid;grid-template-columns:1fr 1fr;padding:12px}
+ .vr-control-panel .vr-playback h3,.vr-control-panel .vr-jump{grid-column:1/-1}
+}
+.video-review .vr-watch-video{align-self:stretch}
+.video-review .vr-watch .vr-player{height:100%;min-height:320px}
+.video-review .vr-control-panel .vr-now{padding:12px;gap:6px}
+.video-review .vr-control-panel .vr-playback{padding:10px 12px;gap:6px}
+.vr-control-panel .vr-playback .ui-btn{min-height:30px;padding:5px 8px}
+@media(max-width:700px){.video-review .vr-watch .vr-player{height:auto;min-height:0}}
+
+.video-review .vr-control-panel .vr-now{color:#20261b}
+.video-review .vr-control-panel .vr-now p,.video-review .vr-control-panel .vr-now small,.vr-control-panel .vr-overlay-set{color:#69725f}
+.video-review .vr-control-panel .vr-now .ui-btn{background:#fff;color:#20261b;border-color:#dce2d4}
+.vr-control-panel .vr-jump .ui-input{background:#f6f8f2;color:#20261b;border-color:#dce2d4}
+
+.vr-moment-dialog{width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;margin:auto;padding:24px;border:1px solid #dce2d4;border-radius:16px;background:#fff;color:#20261b;box-shadow:0 16px 60px #0003}
+.vr-moment-dialog::backdrop{background:#10181766;backdrop-filter:blur(5px)}
+.vr-moment-dialog form{display:flex;flex-direction:column;gap:14px}
+.vr-moment-dialog h2{font-size:22px}.vr-moment-dialog label{font-size:14px;font-weight:600}.vr-moment-dialog label span{font-weight:400;color:#69725f}
+.vr-moment-dialog .ui-input{width:100%;box-sizing:border-box;resize:vertical;min-height:100px;background:#f6f8f2;color:#20261b}
+.vr-moment-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+.vr-saved-moments .ui-btn:has(.vr-moment-note){display:flex;flex-direction:column;align-items:flex-start;white-space:normal;text-align:left;max-width:360px;height:auto}
+.vr-moment-note{white-space:pre-wrap;overflow-wrap:anywhere;font-weight:400;line-height:1.5}
+
+.vr-save-label{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.vr-save-check{color:#31934c;animation:vr-check-in .3s ease-out}
+@keyframes vr-check-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.vr-save-check{animation:none}}
