@@ -6,7 +6,7 @@ vi.mock('../data', () => ({
 }))
 import { runPlayReminders, type ReminderTransport } from '../run'
 import type { ReminderMarket } from '../plan'
-const now = Date.parse('2026-10-07T08:00:00Z'),
+const now = Date.parse('2026-10-07T07:00:00Z'),
   uid = 'member'
 const p = (id: string) => ({ id, name: id, image: null })
 const m: ReminderMarket = {
@@ -16,6 +16,7 @@ const m: ReminderMarket = {
   pair1: [p('a'), p('b')],
   pair2: [p('c'), p('d')],
   tournament: 'Madrid P1',
+  tournamentLevel: 'p1',
   round: 'SF',
   category: 'men',
   startsAt: '2026-10-07T13:00:00Z',
@@ -42,6 +43,10 @@ function fakeDb(
     lastSeen?: string | null
     openedBeforeSend?: string | null
     activityError?: boolean
+    noPreferences?: boolean
+    noSubscriptions?: boolean
+    prior?: unknown[]
+    marketingOff?: boolean
   } = {}
 ) {
   const writes: Record<string, unknown>[] = [],
@@ -67,6 +72,7 @@ function fakeDb(
       or: () => q,
       order: () => q,
       range: () => q,
+      limit: () => q,
       gte: () => q,
       eq: () => q,
       update: (v: unknown) => {
@@ -86,14 +92,33 @@ function fakeDb(
         if (table === 'feature_flags') data = { enabled: options.flag ?? true }
         if (table === 'play_reminder_preferences')
           data = readSingle
-            ? { ...pref, email_enabled: options.consent ?? true }
+            ? options.noPreferences
+              ? null
+              : { ...pref, email_enabled: options.consent ?? true }
+            : options.noPreferences
+            ? []
             : [pref]
         if (table === 'play_access')
-          data = options.access ?? true ? { user_id: uid } : null
+          data = readSingle
+            ? options.access ?? true
+              ? { user_id: uid }
+              : null
+            : [{ user_id: uid }]
         if (table === 'profiles')
-          data = { locale: 'en', notification_mute_until: null }
+          data = {
+            locale: 'en',
+            notification_mute_until: null,
+            notification_prefs: options.marketingOff
+              ? { marketing: { push: false } }
+              : null,
+          }
+        if (
+          table === 'push_subscriptions' ||
+          table === 'native_push_subscriptions'
+        )
+          data = options.noSubscriptions ? [] : [{ user_id: uid }]
         if (table === 'users') data = { email: 'test@example.com' }
-        if (table === 'play_reminder_deliveries') data = []
+        if (table === 'play_reminder_deliveries') data = options.prior ?? []
         if (table === 'user_app_activity') {
           activityReads++
           data = {
@@ -236,13 +261,13 @@ function configurePush() {
     bookmarked: new Set(),
   })
 }
-it('recent app use suppresses only mobile, not daily email', async () => {
+it('recent app use no longer suppresses the morning push', async () => {
   configurePush()
   const f = fakeDb({ lastSeen: '2026-10-07T07:45:00Z' }),
     t = transport()
   await runPlayReminders(f.db, t, { dryRun: false, now })
-  expect(t.push).not.toHaveBeenCalled()
-  expect(f.rpc).not.toHaveBeenCalled()
+  expect(t.push).toHaveBeenCalledTimes(1)
+  expect(f.rpc).toHaveBeenCalledTimes(1)
   pref.email_enabled = true
   pref.push_enabled = false
   mocked.markets.mockResolvedValue([m])
@@ -252,7 +277,7 @@ it('recent app use suppresses only mobile, not daily email', async () => {
     await runPlayReminders(e.db, et, { dryRun: false, now })
   ).toMatchObject({ emailSent: 1 })
 })
-it('opening the app after selection cancels the claimed push', async () => {
+it('opening the app after selection does not cancel the morning push', async () => {
   configurePush()
   const f = fakeDb({
       lastSeen: '2026-10-06T19:00:00Z',
@@ -260,9 +285,9 @@ it('opening the app after selection cancels the claimed push', async () => {
     }),
     t = transport()
   expect(await runPlayReminders(f.db, t, { dryRun: false, now })).toMatchObject(
-    { skipped: 1, pushSent: 0 }
+    { skipped: 0, pushSent: 1 }
   )
-  expect(t.push).not.toHaveBeenCalled()
+  expect(t.push).toHaveBeenCalledTimes(1)
 })
 it('users inactive for over 12 hours can receive a followed-player reminder', async () => {
   configurePush()
@@ -273,10 +298,105 @@ it('users inactive for over 12 hours can receive a followed-player reminder', as
   )
   expect(t.push).toHaveBeenCalledTimes(1)
 })
-it('activity lookup failures suppress mobile delivery', async () => {
+it('morning delivery no longer depends on app activity lookups', async () => {
   configurePush()
   const f = fakeDb({ activityError: true }),
     t = transport()
   await runPlayReminders(f.db, t, { dryRun: false, now })
-  expect(t.push).not.toHaveBeenCalled()
+  expect(t.push).toHaveBeenCalledTimes(1)
+})
+
+it('users without reminder preferences receive push by default, never email', async () => {
+  const f = fakeDb({ noPreferences: true }),
+    t = transport()
+  expect(await runPlayReminders(f.db, t, { dryRun: false, now })).toMatchObject(
+    { pushSent: 1, emailSent: 0 }
+  )
+  expect(t.email).not.toHaveBeenCalled()
+})
+it('explicit push and marketing opt-outs still prevent delivery', async () => {
+  pref.email_enabled = false
+  for (const options of [{}, { noPreferences: true, marketingOff: true }]) {
+    const f = fakeDb(options),
+      t = transport()
+    await runPlayReminders(f.db, t, { dryRun: false, now })
+    expect(t.push).not.toHaveBeenCalled()
+  }
+})
+it('a push less than 24 hours ago on the previous day does not block morning delivery', async () => {
+  configurePush()
+  const f = fakeDb({
+      prior: [
+        {
+          state: 'sent',
+          channel: 'push',
+          local_day: '2026-10-06',
+          sent_at: '2026-10-06T20:00:00Z',
+        },
+      ],
+    }),
+    t = transport()
+  expect(await runPlayReminders(f.db, t, { dryRun: false, now })).toMatchObject(
+    { pushSent: 1 }
+  )
+})
+it('same-day pending and completed pushes still prevent duplicate sends', async () => {
+  configurePush()
+  for (const state of ['pending', 'sent']) {
+    const f = fakeDb({
+        prior: [
+          {
+            state,
+            channel: 'push',
+            local_day: '2026-10-07',
+            sent_at: '2026-10-07T06:59:00Z',
+          },
+        ],
+      }),
+      t = transport()
+    await runPlayReminders(f.db, t, { dryRun: false, now })
+    expect(t.push).not.toHaveBeenCalled()
+    expect(f.rpc).not.toHaveBeenCalled()
+  }
+})
+
+it('ad hoc sends bypass the clock for push only and keep same-day duplicate protection', async () => {
+  pref.push_enabled = true
+  const outsideMorning = Date.parse('2026-10-07T10:00:00Z')
+  const f = fakeDb(),
+    t = transport()
+  expect(
+    await runPlayReminders(f.db, t, {
+      dryRun: false,
+      now: outsideMorning,
+      pushNow: true,
+    })
+  ).toMatchObject({ pushSent: 1, emailSent: 0 })
+  expect(t.email).not.toHaveBeenCalled()
+  const duplicate = fakeDb({
+      prior: [
+        {
+          state: 'sent',
+          channel: 'push',
+          local_day: '2026-10-07',
+          sent_at: '2026-10-07T07:00:00Z',
+        },
+      ],
+    }),
+    second = transport()
+  await runPlayReminders(duplicate.db, second, {
+    dryRun: false,
+    now: outsideMorning,
+    pushNow: true,
+  })
+  expect(second.push).not.toHaveBeenCalled()
+})
+it('does not claim or fail a morning push for a user without registered devices', async () => {
+  configurePush()
+  const f = fakeDb({ noSubscriptions: true }),
+    t = transport()
+  expect(await runPlayReminders(f.db, t, { dryRun: false, now })).toMatchObject(
+    { planned: 0, failed: 0 }
+  )
+  expect(f.rpc).not.toHaveBeenCalled()
 })

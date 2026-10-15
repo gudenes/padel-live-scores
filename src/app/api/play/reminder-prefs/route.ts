@@ -17,7 +17,7 @@ export async function GET() {
     .maybeSingle()
   if (r.error) return reply({ error: 'unavailable' }, 503)
   return reply(
-    r.data ?? { email_enabled: false, push_enabled: false, timezone: null }
+    r.data ?? { email_enabled: false, push_enabled: true, timezone: null }
   )
 }
 export async function PATCH(req: Request) {

@@ -7,6 +7,7 @@ export type ReminderMarket = {
   pair1: ReminderPlayer[]
   pair2: ReminderPlayer[]
   tournament: string
+  tournamentLevel?: string | null
   round: string
   category: string
   startsAt: string
@@ -55,17 +56,25 @@ export function planReminder(input: {
   timezone: string
   channel: ReminderChannel
   now: number
+  pushNow?: boolean
 }): ReminderMatch[] {
   if (!validTimezone(input.timezone)) return []
   const clock = localClock(input.now, input.timezone)
-  // Avoid waking users; the daily briefing begins at 09:00 local time.
+  // One morning campaign, scheduled at 09:00 Madrid; email retains local timing.
+  const morning = localClock(input.now, 'Europe/Madrid')
   if (
-    clock.minutes < (input.channel === 'email' ? 540 : 480) ||
-    clock.minutes >= 1260
+    input.channel === 'push'
+      ? !input.pushNow && (morning.minutes < 540 || morning.minutes >= 600)
+      : clock.minutes < 540 || clock.minutes >= 1260
   )
     return []
   const grouped = new Map<string, ReminderMatch>()
   for (const m of input.markets) {
+    if (
+      input.channel === 'push' &&
+      !/^(p1|p2|major|premier|finals)/i.test(m.tournamentLevel ?? '')
+    )
+      continue
     const start = Date.parse(m.startsAt),
       lock = Date.parse(m.locksAt),
       lead = start - input.now
@@ -84,21 +93,24 @@ export function planReminder(input: {
     if (
       players.length !== 4 ||
       new Set(players.map((p) => p.id)).size !== 4 ||
-      input.answered.has(m.id)
+      (input.channel === 'email' && input.answered.has(m.id))
     )
       continue
-    if (localClock(start, input.timezone).day !== clock.day) continue
+    if (
+      input.channel === 'email' &&
+      localClock(start, input.timezone).day !== clock.day
+    )
+      continue
     if (
       input.channel === 'email'
         ? lead < 3600000 || lock - input.now < 3600000
-        : lead < 20 * 60000 || lead > 30 * 60000
+        : lead <= 0
     )
       continue
     const relevant =
       input.bookmarked.has(m.matchId) ||
       players.some((p) => input.followed.has(p.id))
-    // Push is reserved for matches the user has shown an interest in.
-    if (input.channel === 'push' && !relevant) continue
+    // Follows influence ordering only; everyone with Predict access is eligible.
     const priority =
       (relevant ? 100 : 0) + (m.round === 'F' ? 30 : m.round === 'SF' ? 20 : 0)
     const group = grouped.get(m.matchId) ?? { ...m, markets: [], priority }

@@ -103,3 +103,13 @@ it('applies a match expiry and player image to both mobile transports', async ()
     expect.objectContaining({ ttlSeconds: 600 })
   )
 })
+
+it('allows an authenticated ad hoc push while preserving dry-run mode', async () => {
+  vi.stubEnv('PLAY_REMINDERS_MODE', 'dry-run')
+  m.run.mockResolvedValue({ planned: 0, failed: 0 })
+  await POST(req('Bearer test', { pushNow: true, dryRun: false }))
+  expect(m.run).toHaveBeenCalledWith(expect.anything(), expect.anything(), {
+    dryRun: true,
+    pushNow: true,
+  })
+})

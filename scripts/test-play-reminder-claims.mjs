@@ -6,11 +6,17 @@ const id = "00000000-0000-4000-8000-000000000001";
 async function setup() {
   const db = new PGlite();
   await db.exec(
-    `CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role;CREATE TABLE users(id uuid primary key);CREATE TABLE profiles(id uuid primary key,notification_mute_until text);CREATE TABLE feature_flags(key text primary key,enabled boolean);CREATE TABLE play_access(user_id uuid primary key);INSERT INTO users VALUES('${id}');INSERT INTO profiles VALUES('${id}',null);INSERT INTO feature_flags VALUES('play_enabled',true);INSERT INTO play_access VALUES('${id}');`
+    `CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role;CREATE TABLE users(id uuid primary key);CREATE TABLE profiles(id uuid primary key,notification_mute_until text,notification_prefs jsonb);CREATE TABLE feature_flags(key text primary key,enabled boolean);CREATE TABLE play_access(user_id uuid primary key);INSERT INTO users VALUES('${id}');INSERT INTO profiles VALUES('${id}',null,'{}');INSERT INTO feature_flags VALUES('play_enabled',true);INSERT INTO play_access VALUES('${id}');`
   );
   await db.exec(
     await readFile(
       "supabase/migrations/20261007110000_play_reminders.sql",
+      "utf8"
+    )
+  );
+  await db.exec(
+    await readFile(
+      "supabase/migrations/20261015130000_predict_morning_reminders.sql",
       "utf8"
     )
   );
@@ -111,6 +117,39 @@ test("retry expiry, rolling cap, local day and invalid timezone are enforced", a
       null
     );
     assert.ok(first.id);
+  } finally {
+    await db.close();
+  }
+});
+
+test("push removes rolling cap but retains atomic same-morning dedupe", async () => {
+  const db = await setup();
+  try {
+    const first = await claim(db, "push");
+    await db.exec(
+      "update play_reminder_deliveries set local_day=local_day-1,state='sent',sent_at=now()-interval '1 hour'"
+    );
+    const second = await claim(db, "push");
+    assert.ok(second.id);
+    assert.notEqual(first.id, second.id);
+    assert.equal(await claim(db, "push"), null);
+  } finally {
+    await db.close();
+  }
+});
+test("missing preferences default to push only; explicit opt-out and marketing opt-out are respected", async () => {
+  const db = await setup();
+  try {
+    await db.exec("update play_reminder_preferences set push_enabled=false");
+    assert.equal(await claim(db, "push"), null);
+    await db.exec("delete from play_reminder_preferences");
+    assert.equal(await claim(db, "email"), null);
+    await db.exec(
+      `update profiles set notification_prefs='{"marketing":{"push":false}}'`
+    );
+    assert.equal(await claim(db, "push"), null);
+    await db.exec("update profiles set notification_prefs='{}'");
+    assert.ok((await claim(db, "push")).id);
   } finally {
     await db.close();
   }

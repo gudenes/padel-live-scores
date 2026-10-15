@@ -61,6 +61,7 @@ export async function loadReminderMarkets(
         pair1: v.players.pair1.filter((p) => p.id !== null).map(player),
         pair2: v.players.pair2.filter((p) => p.id !== null).map(player),
         tournament: v.competition ?? '',
+        tournamentLevel: m.tournament?.level ?? null,
         round:
           roundKey(m.round) === 'final' ? 'F' : roundKey(m.round).toUpperCase(),
         category: v.category ?? '',
