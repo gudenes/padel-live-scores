@@ -2224,3 +2224,11 @@ main.main:has(.match-sticky-hero){overflow-anchor:none}.matchInsights .match-sti
 
 /* Keep the shared scope selector available across report widgets. */
 .matchInsights .match-sticky-hero{flex-wrap:wrap}.matchInsights .match-sticky-hero .match-header-scope{flex:0 0 100%;width:100%;margin:0;padding-top:10px;border-top:1px solid var(--line);gap:12px;flex-wrap:wrap}.matchInsights .match-header-scope .seg{flex-wrap:wrap}.matchInsights .match-sticky-hero.is-compact .match-header-scope{padding-top:6px}.matchInsights .match-header-scope .ui-btn{min-height:30px}
+/* One-line compact match context leaves room for video and replay together. */
+@media(min-width:1100px){
+ .matchInsights:has(.video-review) .match-sticky-hero.is-compact{flex-wrap:nowrap;gap:16px}
+ .matchInsights:has(.video-review) .match-sticky-hero.is-compact .match-header-scope{flex:0 0 auto;width:auto;border-top:0;border-left:1px solid var(--line);padding:0 0 0 14px;gap:8px}
+ .matchInsights:has(.video-review) .match-sticky-hero.is-compact .match-header-scope>span{display:none}
+ .matchInsights:has(.video-review) .match-sticky-hero.is-compact .heroTeam{gap:8px}
+ .matchInsights:has(.video-review) .match-sticky-hero.is-compact .heroTeam b{max-width:90px}
+}
