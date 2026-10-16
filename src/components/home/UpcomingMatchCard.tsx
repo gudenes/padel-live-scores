@@ -112,8 +112,8 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
               ))}
             </div>
             {/* Right: date/time centered */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: `1px solid ${BORDER}`, paddingLeft: 8, minWidth: 65 }}>
-              <span style={{ fontSize: 10, fontWeight: 600, textAlign: 'center', lineHeight: 1.4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: `1px solid ${BORDER}`, paddingLeft: 8, width: 82, minWidth: 0, flexShrink: 0, boxSizing: 'border-box' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, textAlign: 'center', lineHeight: 1.4, maxWidth: '100%', whiteSpace: 'normal', overflowWrap: 'break-word' }}>
                 {date && <><span style={{ color: GREEN }}>{date}</span><br /></>}
                 <span style={{ color: time ? GREEN : MUTED }}>{timing}</span>
               </span>
