@@ -27,8 +27,9 @@ import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
 import { FlagImage } from '@/components/FlagImage'
 import { pairName, getMatchDisplay, type Match } from '@/types/match'
+import { formatShortDate, formatScheduledTime } from '@/lib/match-schedule-format'
 import { useSmartSchedule } from '@/hooks/useSmartSchedule'
-import { NextToPlayBadge, SmartScheduleHint } from '@/components/SmartSchedule'
+import { NextToPlayBadge, ScheduledMatchTime } from '@/components/SmartSchedule'
 import { useLiveMatch } from '@/hooks/useLiveMatch'
 import { shouldShowDayIndicator, formatDayChipLabel } from '@/lib/tournament-day-indicator'
 import { countryToTimezone } from '@/lib/country-timezone'
@@ -143,43 +144,6 @@ function statusChip(
 // Short locale-aware date string ("26 abr"). Picks finished_at when the
 // match has wrapped, otherwise scheduled_at. Returns null when neither
 // is set.
-
-function formatShortDate(
-  match: Match,
-  locale: string,
-  tz: string,
-): string | null {
-  const iso = match.finished_at ?? match.scheduled_at
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  return new Intl.DateTimeFormat(locale, {
-    day: 'numeric',
-    month: 'short',
-    timeZone: tz,
-  }).format(d)
-}
-
-// Time chip for scheduled matches. Skips date-only padelapi values
-// (those land on midnight UTC and don't carry a real start time).
-function formatScheduledTime(
-  match: Match,
-  locale: string,
-  tz: string,
-): string | null {
-  if (match.status !== 'scheduled') return null
-  const iso = match.scheduled_at
-  if (!iso) return null
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return null
-  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return null
-  return new Intl.DateTimeFormat(locale, {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: tz,
-  }).format(d)
-}
 
 function tournamentLocationLabel(match: Match, locale: string): string {
   const t = (match as { tournament?: { name?: string | null; country?: string | null } }).tournament
@@ -807,22 +771,7 @@ export function MatchCard({
                   {dateStr}
                 </span>
               )}
-              {forecast?.earliest_at && forecast.latest_at ? (
-                <SmartScheduleHint forecast={forecast} now={forecastNow} locale={locale} tz={userTz ?? 'UTC'} scheduledTime={timeStr} />
-              ) : timeStr ? (
-                <span style={{ fontSize: 13, fontWeight: 800, color: GREEN, lineHeight: 1.2 }}>
-                  {timeStr}{isApproximateTime ? '*' : ''}
-                </span>
-              ) : estimatedLabel ? (
-                <span style={{ fontSize: 9, fontWeight: 600, color: ORANGE, lineHeight: 1.2, textTransform: 'uppercase' }}>
-                  {estimatedLabel}
-                </span>
-              ) : (
-                <span style={{ fontSize: 10, fontWeight: 600, color: MUTED, lineHeight: 1.2, opacity: 0.5 }}>
-                  TBD
-                </span>
-              )}
-              {forecast && !forecast.earliest_at && <SmartScheduleHint forecast={forecast} now={forecastNow} locale={locale} tz={userTz ?? 'UTC'} scheduledTime={timeStr} />}
+              <ScheduledMatchTime forecast={forecast} now={forecastNow} locale={locale} tz={userTz ?? 'UTC'} time={timeStr} approximate={isApproximateTime} estimatedLabel={estimatedLabel} />
               {!forecast && LATE_HINTS_ENABLED && timeStr && (match.late_hint === 'may_be_late' || match.late_hint === 'starting_soon') && (
                 <LateHintPill
                   hint={match.late_hint}

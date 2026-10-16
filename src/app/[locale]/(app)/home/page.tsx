@@ -560,6 +560,11 @@ function V3HomePageInner() {
       .channel('v3-home-live')
       .on(
         'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'matches', filter: 'status=eq.scheduled' },
+        triggerRefetch,
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'matches', filter: 'status=eq.live' },
         triggerRefetch,
       )
