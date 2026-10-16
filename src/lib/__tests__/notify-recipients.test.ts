@@ -1,6 +1,6 @@
 // src/lib/__tests__/notify-recipients.test.ts
 import { describe, it, expect } from 'vitest'
-import { resolveEntityFollowers } from '@/lib/notify-recipients'
+import { resolveEntityFollowers, resolveDrawFollowers } from '@/lib/notify-recipients'
 
 // Fake of the supabase query-builder chain used by the resolver.
 //
@@ -177,4 +177,42 @@ describe('resolveEntityFollowers', () => {
     expect(res.userIds).toEqual([])
     expect(res.anonSubs).toEqual([])
   })
+})
+
+describe('draw audience', () => {
+  it('includes player-only followers and anonymous followers, deduping tournament followers', async () => {
+    const supa = fakeSupabase({
+      'user_bookmarks:tournament': [{ user_id: 'both' }],
+      tournament_draws: [{ player1_id: 'p1', player2_id: 'p2' }, { player1_id: 'p1', player2_id: null }],
+      'user_bookmarks:player': [{ user_id: 'both' }, { user_id: 'player-only' }],
+      'anon_bookmarks:player': [{ device_id: 'd1' }],
+      anon_push_subscriptions: [{ id: 's1', endpoint: 'e', p256dh_key: 'k', auth_key: 'a' }],
+    })
+    const result = await resolveDrawFollowers(supa, 't1')
+    expect(result.userIds.sort()).toEqual(['both', 'player-only'])
+    expect(result.anonSubs.map(s => s.id)).toEqual(['s1'])
+    expect(callsOf(supa)).toContainEqual({ m: 'in', col: 'target_id', val: ['p1', 'p2'] })
+  })
+
+  it('keeps tournament followers when the bracket has no resolved players', async () => {
+    const supa = fakeSupabase({ 'user_bookmarks:tournament': [{ user_id: 'u1' }] })
+    expect(await resolveDrawFollowers(supa, 't1')).toEqual({ userIds: ['u1'], anonSubs: [] })
+  })
+
+  it('does not silently send an incomplete audience when the draw lookup fails', async () => {
+    const supa = fakeSupabase({ tournament_draws: { error: { message: 'unavailable' } } })
+    await expect(resolveDrawFollowers(supa, 't1')).rejects.toThrow('Draw recipients unavailable')
+  })
+})
+
+it('unions followers across every match in a schedule batch', async () => {
+  const supa = fakeSupabase({
+    matches: [{ pair1_player1_id: 'p1' }, { pair1_player1_id: 'p2' }],
+    'user_bookmarks:match': [{ user_id: 'u1' }],
+    'user_bookmarks:player': [{ user_id: 'u1' }, { user_id: 'u2' }],
+  })
+  expect((await resolveEntityFollowers(supa, 'match', ['m1', 'm2'])).userIds).toEqual(['u1', 'u2'])
+  expect(callsOf(supa)).toContainEqual({ m: 'in', col: 'id', val: ['m1', 'm2'] })
+  expect(callsOf(supa)).toContainEqual({ m: 'in', col: 'target_id', val: ['m1', 'm2'] })
+  expect(callsOf(supa)).toContainEqual({ m: 'in', col: 'target_id', val: ['p1', 'p2'] })
 })

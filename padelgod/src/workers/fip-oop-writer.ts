@@ -7,7 +7,8 @@ import {
   type OopScheduleRow,
 } from '../lib/oop-schedule-parser.js';
 import { activeTournamentArgs } from '../lib/active-tournament-args.js';
-import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
+import { scheduleNotificationBatch } from '../lib/schedule-notification-batch.js';
+import { notifyEvent, notifyEventAwait, type NotifyDeps } from '../lib/notify.js';
 
 /**
  * fip-oop-writer — simplified-pipeline writer #2.
@@ -82,6 +83,8 @@ export interface FipOopWriterDeps {
    * BOTH this is true AND `notify` is configured.
    */
   eventsEnabled?: boolean;
+  /** Enable only after the web endpoint supports match batches. */
+  groupScheduledNotifications?: boolean;
 }
 
 export interface FipOopWriterResult {
@@ -134,7 +137,7 @@ interface ExistingMatch {
   scheduled_at: string | null;
   schedule_label: string | null;
   /** match_scheduled notify marker (Plan 2B). NULL until the sender claims
-   *  it on the first firm-time fill. Used to gate the one-shot fire. */
+   *  it on the first time/estimate notification. Used to gate the one-shot fire. */
   scheduled_notified_at: string | null;
   status: string | null;
 }
@@ -164,7 +167,7 @@ export interface MatchScheduledNotifyInput {
 }
 
 /**
- * Whether to dispatch match_scheduled push after a first firm-time fill.
+ * Whether to dispatch match_scheduled for the first available start time or estimate.
  *
  * Incident 2026-09-07: Paris Major Q1 (already finished the day before)
  * got scheduled_at backfilled when the 24h OOP parser shipped, and the
@@ -176,7 +179,7 @@ export function shouldFireMatchScheduledNotify(
   input: MatchScheduledNotifyInput,
 ): boolean {
   if (!input.eventsEnabled || !input.hasNotify) return false;
-  if (!input.firstFirmFill || input.approximate) return false;
+  if (!input.firstFirmFill) return false;
   if ((input.matchStatus ?? '').toLowerCase() !== 'scheduled') return false;
   const at = Date.parse(input.scheduledAtIso);
   if (Number.isNaN(at)) return false;
@@ -256,6 +259,8 @@ export async function runFipOopWriter(
     ? allTournaments.filter((t) => deps.onlyTournamentIds!.has(t.tournament_id))
     : allTournaments;
 
+  const scheduledNotifications: string[] = [];
+  try {
   for (const t of tournaments) {
     const tournamentWidgetId = await getActiveWidgetIdCode(
       supabase,
@@ -461,12 +466,13 @@ export async function runFipOopWriter(
             }
 
             // match_scheduled sender (Plan 2B, ships dark behind
-            // ENABLE_EVENT_NOTIFICATIONS). Fire ONCE the first time a
-            // still-upcoming match gets a firm real time + court. Gates
+            // ENABLE_EVENT_NOTIFICATIONS). Fire ONCE for a future start time,
+            // including Followed-by estimates that have not been notified. Gates
             // live in shouldFireMatchScheduledNotify — in particular we
             // never notify finished/past matches (Paris Q1 2026-09-07).
             const firstFirmFill =
-              originalValue == null || isPlaceholderScheduledAt(originalValue);
+              originalValue == null || isPlaceholderScheduledAt(originalValue) ||
+              (p.approximate && !matchById.get(matchId)?.scheduled_notified_at);
             const existingForNotify = matchById.get(matchId);
             const notify = deps.notify;
             if (
@@ -492,6 +498,9 @@ export async function runFipOopWriter(
                   'fip-oop-writer: match_scheduled claim failed',
                 );
               } else if (claimedSched && claimedSched.length > 0) {
+                if (deps.groupScheduledNotifications) {
+                  scheduledNotifications.push(matchId);
+                } else {
                 notifyEvent(
                   {
                     category: 'match_scheduled',
@@ -505,6 +514,7 @@ export async function runFipOopWriter(
                   },
                   notify,
                 );
+                }
               }
             }
           }
@@ -517,6 +527,12 @@ export async function runFipOopWriter(
           writeEligible.size - parsedWriteEligible;
       }
     }
+  }
+
+  } finally {
+    // Flush completed writes even if a later tournament fails.
+    const batch = scheduleNotificationBatch(scheduledNotifications);
+    if (batch && deps.notify) await notifyEventAwait(batch, deps.notify);
   }
 
   logger?.info(result, 'fip-oop-writer run complete');
