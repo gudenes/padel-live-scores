@@ -17,7 +17,7 @@ import {finishRally} from './core.mjs';
 import {courtCheckinUI} from './court-checkin.mjs';
 export function scoutingUI({$,act,getState}){
  const renderScoreCorrection=scoreCorrectionUI({$,act,getState});
- const renderCourtCheckin=courtCheckinUI({$,act});
+ const renderCourtCheckin=courtCheckinUI({$,act,storage:preferences});
  let keyboardContext={enabled:false,token:'',order:[]};
  let selectedPlayer=null,holdingPlayer=null;
  // Expert is opt-in; fresh users start in Pro while saved choices are preserved.
@@ -54,7 +54,20 @@ export function scoutingUI({$,act,getState}){
  $('setup-form').addEventListener('submit',e=>{e.preventDefault();act({type:'setup',setup:{names:[0,1,2,3].map(i=>$(`name-${i}`).value),firstServer:Number($('first-server').value),otherServer:Number($('other-server').value),rule:$('rule').value}})});
  $('var-review').onclick=()=>act({type:'var-review',reviewed:!getState()?.pending?.varReviewed});
  $('shot-var').onchange=()=>act({type:'var-review',reviewed:$('shot-var').checked});
- const undo=()=>act({type:'undo-last'});
+ let draftHistory=[],lastDraft=null;
+ const draftFlags=['assist','smash-recovery','x4','outside','net-touch','counted'];
+ function readDraft(){return {shot,smashType,forcedBy,attributionReady,previousShot,previousSmashType,previousReuse,step,flags: Object.fromEntries(draftFlags.map(id=>[id,$(id).checked])),recovery:$('recovery-smash').value,outsideAttempts:[...$('outside-attempts').querySelectorAll('input:checked')].map(input=>input.value)};}
+ function rememberDraft(){const next=readDraft();if(lastDraft&&JSON.stringify(next)!==JSON.stringify(lastDraft)){draftHistory.push(lastDraft);draftHistory=draftHistory.slice(-50);}lastDraft=next;}
+ const undo=()=>{
+  if($('shot-dialog').open&&draftHistory.length){
+   const prior=draftHistory.pop();({shot,smashType,forcedBy,attributionReady,previousShot,previousSmashType,previousReuse,step}=prior);
+   for(const id of draftFlags)$(id).checked=prior.flags[id];
+   $('recovery-smash').value=prior.recovery;
+   for(const input of $('outside-attempts').querySelectorAll('input'))input.checked=prior.outsideAttempts.includes(input.value);
+   lastDraft=readDraft();syncShot();$('shot-error').textContent='Last selection undone.';return;
+  }
+  return act({type:'undo-last'});
+ };
  $('undo').onclick=undo;$('shot-undo').onclick=undo;
  const undoKey=keyEditor.label('undo');
  for(const badge of document.querySelectorAll('[data-undo-key]'))badge.textContent=undoKey;
@@ -93,6 +106,7 @@ export function scoutingUI({$,act,getState}){
   return model.server;
  }
  function syncShot(){
+  rememberDraft();
   const autoServer=returnServer();
   for(const b of $('shot-options').querySelectorAll('[data-shot]')){b.setAttribute('aria-pressed',String(b.dataset.shot===(step==='previous'?previousShot:shot)));b.dataset.variant=b.dataset.shot===(step==='previous'?previousShot:shot)?'primary':'default';}
   const p=getState()?.pending,smash=shot==='smash',canLink=smash&&matchingAttempt()>=0;
@@ -116,7 +130,7 @@ export function scoutingUI({$,act,getState}){
   $('save-point').setAttribute('aria-disabled',String(step==='opponent'||step==='outcome'));
   if(step==='previous')$('shot-title').textContent=getState().setup.names[forcedBy]+' · previous stroke';
   else if(step==='opponent')$('shot-title').textContent='Previous opponent';
-  $('shot-instruction').textContent=step==='opponent'?'Select the opponent using their player key. Required before saving.':step==='previous'?'Optional: choose their stroke, or Space to save without it.':step==='outcome'?'Choose Winner, UE or FE.':recovery?'Smash recovery winner · Space to save. No stroke needed.':'Choose the stroke, then Space. Esc changes the outcome.';
+  $('shot-instruction').textContent=step==='opponent'?'Select the opponent using their player key. Required before saving.':step==='previous'?'Optional: choose their stroke, or save without it.':step==='outcome'?'Choose Winner, UE or FE.':recovery?'Smash recovery winner. No stroke needed.':'Choose the stroke, then save below. Esc changes the outcome.';
   if(matchMedia('(max-width:600px),(pointer:coarse)').matches)$('shot-instruction').textContent=step==='opponent'?'Select the opponent before continuing.':step==='previous'?'Choose their stroke, or save without it.':step==='outcome'?'Choose Winner, UE or FE.':recovery?'Smash recovery winner. Tap Save point.':'Choose the stroke, then tap Save point.';
   for(const b of $('forced-opponents').querySelectorAll('button')){b.setAttribute('aria-pressed',String(Number(b.dataset.player)===forcedBy));b.disabled=$('save-point').disabled;}
   $('forced-unknown').textContent='Back to error stroke';
@@ -142,7 +156,8 @@ export function scoutingUI({$,act,getState}){
  function chooseType(type){if(step==='previous'){previousShot='smash';previousSmashType=type;syncShot();return;}smashType=type;if(type!=='power')$('x4').checked=false;syncShot();}
  for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.onclick=()=>chooseType(b.dataset.smashType);
  $('x4').onchange=()=>{if($('x4').checked){shot='smash';smashType='power';}else if($('smash-recovery').checked){shot=undefined;smashType=undefined;}syncShot();$('save-point').focus();};$('counted').onchange=syncShot;for(const id of ['reuse-smash','new-smash'])$(id).onclick=()=>{if(id==='reuse-smash'&&(step==='previous'?previousAttempt():matchingAttempt())<0)return;if(step==='previous')previousReuse=id==='reuse-smash';else $('counted').checked=id==='reuse-smash';syncShot();};
- $('recovery-smash').onchange=()=>{$('shot-error').textContent='';};
+ $('recovery-smash').onchange=()=>{syncShot();$('shot-error').textContent='';};
+ $('outside-attempts').addEventListener('change',()=>syncShot());
  $('smash-recovery').onchange=()=>{if($('smash-recovery').checked&&!$('x4').checked){shot=undefined;smashType=undefined;}syncShot();$('shot-error').textContent='';$('save-point').focus();};
  for(const id of ['assist','net-touch','outside'])$(id).onchange=()=>{syncShot();$('save-point').focus();};
  function credit(player){if(forcedBy!==player){previousShot=undefined;previousSmashType=undefined;previousReuse=false;}forcedBy=player;step=direct?'shot':'previous';attributionReady=true;syncShot();$('save-point').focus();}
@@ -209,7 +224,6 @@ export function scoutingUI({$,act,getState}){
   const enabled=!!state.pending&&!state.pending.finish&&!busy&&healthy&&!sample?.seeking&&!issue;
   $('rally').textContent=m.score.phase==='finished'?'Match complete':state.pending?sample?.paused?'Rally paused with video':'Rally in progress':m.points?'Start next rally':'Start rally';
   if(!state.pending&&m.score.phase!=='finished'){const hint=document.createElement('kbd');hint.dataset.scoutKey='save';hint.textContent=keyEditor.label('save');$('rally').append(' ',hint);}
-  if(!state.pending&&m.score.phase!=='finished'){const hint=document.createElement('kbd');hint.dataset.scoutKey='save';hint.textContent=keyEditor.label('save');$('rally').append(' ',hint);}
   $('rally').disabled=busy||!healthy||!state.selectedMatch||!!state.pending||sample?.paused||sample?.seeking||m.score.phase==='finished';
   $('touch-status').textContent=state.pending?.touches?.length?`${state.pending.touches.length} shot${state.pending.touches.length===1?'':'s'} tapped · last: ${setup.names[state.pending.touches.at(-1).player]}`:'';
   $('rally-status').textContent=issue|| (state.pending?state.pending.finish?'Outcome selected · save the shot details':`${Math.max(0,(sample?.time??state.pending.start.time)-state.pending.start.time).toFixed(1)}s · ${sample?.paused?'paused':'recording'}`:m.score.phase==='finished'?'Review the final score':'Start at the first serve');
@@ -259,7 +273,7 @@ export function scoutingUI({$,act,getState}){
   for(const mode of ['pro','expert']){$('mode-'+mode).disabled=busy||!!pending;$('mode-'+mode).title=pending?'Finish or cancel this rally before changing mode':mode==='pro'?'Pro: no taps or previous-stroke step':'Expert: with rally taps';}$('rally-taps').disabled=busy||!!pending;
   $('var-review').disabled=busy||!pending;$('var-review').setAttribute('aria-pressed',String(!!pending?.varReviewed));$('var-review').textContent=pending?.varReviewed?'VAR flagged':'VAR review';
   if(finish){
-   if(openId!==pending.id+':'+finish.player+':'+finish.outcome){const samePlayer=openId.startsWith(pending.id+':'+finish.player+':');openId=pending.id+':'+finish.player+':'+finish.outcome;step='shot';previousShot=undefined;previousSmashType=undefined;previousReuse=false;if(!samePlayer){shot=undefined;smashType=undefined;}if(!direct&&firstTapReturn(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))){shot='return';smashType=undefined;}forcedBy=!direct&&finish.outcome!=='winner'?previousTapOpponent(pending,finish.player):undefined;attributionReady=forcedBy!==undefined||finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=false;
+   if(openId!==pending.id+':'+finish.player+':'+finish.outcome){const samePlayer=openId.startsWith(pending.id+':'+finish.player+':');openId=pending.id+':'+finish.player+':'+finish.outcome;draftHistory=[];lastDraft=null;step='shot';previousShot=undefined;previousSmashType=undefined;previousReuse=false;if(!samePlayer){shot=undefined;smashType=undefined;}if(!direct&&firstTapReturn(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))){shot='return';smashType=undefined;}forcedBy=!direct&&finish.outcome!=='winner'?previousTapOpponent(pending,finish.player):undefined;attributionReady=forcedBy!==undefined||finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=false;
    if(!direct)$('assist').checked=suggestedAssist(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))!==undefined;
    const recoverySelect=$('recovery-smash');recoverySelect.replaceChildren(new Option('Choose the opponent’s smash',''));
    for(let opponent=0;opponent<4;opponent++)if(Math.floor(opponent/2)!==Math.floor(finish.player/2)){
@@ -280,6 +294,6 @@ export function scoutingUI({$,act,getState}){
    $('shot-title').textContent=step==='previous'?setup.names[forcedBy]+' · previous stroke':step==='opponent'?'Previous opponent':`${setup.names[finish.player]} · ${finish.outcome.replace('_',' ')}`;$('save-point').disabled=busy;$('dismiss-shot').disabled=busy;
    syncShot();
    if(!$('shot-dialog').open){$('shot-dialog').showModal();common.querySelector('button')?.focus();}
-  }else{openId='';if($('shot-dialog').open)$('shot-dialog').close();}
+  }else{openId='';draftHistory=[];lastDraft=null;if($('shot-dialog').open)$('shot-dialog').close();}
  };
 }

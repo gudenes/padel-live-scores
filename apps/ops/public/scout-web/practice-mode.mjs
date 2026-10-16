@@ -1,5 +1,5 @@
 // Practice uses the same controls, but never the installed extension transport.
-export const playground = false;
+export const playground = new URL(globalThis.location?.href??"http://localhost/").searchParams.has('playground');
 export function memoryStorage(){
  const values=new Map();
  return {getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key)};

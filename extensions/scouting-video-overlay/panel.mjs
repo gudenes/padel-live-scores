@@ -1,3 +1,4 @@
+import {scoutingLog} from './scouting-log.mjs';
 import {actionQueue} from './action-queue.mjs';
 import {coachUI} from './coach-ui.mjs';
 import {closingUI} from './closing-ui.mjs';
@@ -20,6 +21,7 @@ let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',pol
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 let draftFinish=null,confirmingPoint=false,prepareError=null;
 const visibleState=()=>draftFinish&&state?.pending?{...state,pending:{...state.pending,finish:draftFinish}}:state;
+const renderLog=scoutingLog({act,getState:()=>state});
 const renderScouting=scoutingUI({$,act,getState:visibleState});
 const renderProgress=progressUI($,act);
 coachUI({$,act,call,getState:()=>state});
@@ -30,6 +32,7 @@ const renderClosing=closingUI({$,act,manual:renderManual,onboarding:renderOnboar
 function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Math.floor(seconds);return `${Math.floor(s/3600)?`${Math.floor(s/3600)}:`:''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function render(){
   if(!state)return;
+  renderLog();
   const connection=state.connection;
   $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;$('empty-match-start').hidden=!!state.selectedMatch;
 
