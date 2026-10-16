@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { relativeStartWindow, startClockWindow, earliestStartClock, type SmartScheduleForecast } from '@/lib/smart-schedule'
 
-export function NextToPlayBadge() {
+export function NextToPlayBadge({ compact = false }: { compact?: boolean }) {
   const t = useTranslations('smartSchedule')
-  return <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 6px', color: '#141414', background: '#F5A623', clipPath: 'polygon(3% 5%,97% 0%,100% 95%,0% 100%)', whiteSpace: 'nowrap' }}>{t('nextToPlay')}</span>
+  return <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 6px', color: '#141414', background: '#F5A623', clipPath: 'polygon(3% 5%,97% 0%,100% 95%,0% 100%)', whiteSpace: compact ? 'normal' : 'nowrap', ...(compact ? { fontSize: 8, lineHeight: 1.2, textAlign: 'center' as const, maxWidth: '100%', boxSizing: 'border-box' as const, marginBottom: 4 } : {}) }}>{t('nextToPlay')}</span>
 }
 export function SmartScheduleHint({ forecast, now, locale, tz, scheduledTime }: { forecast: SmartScheduleForecast; now: number; locale: string; tz: string; scheduledTime?: string | null }) {
   const t = useTranslations('smartSchedule')

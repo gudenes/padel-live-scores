@@ -65,7 +65,6 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
         </div>
         <FollowButton type="match" targetId={match.id} variant="star" size={14} />
       </div>
-      {forecast?.next_to_play && <div style={{ marginBottom: 6 }}><NextToPlayBadge /></div>}
       {/* Players + date/time two-column layout */}
       {(() => {
         const seed1 = Math.min(
@@ -102,6 +101,7 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
             </div>
             {/* Same forecast, fallback and explanation as the matches page. */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', borderLeft: `1px solid ${BORDER}`, paddingLeft: 8, width: 100, minWidth: 0, flexShrink: 0, boxSizing: 'border-box' }}>
+              {forecast?.next_to_play && <NextToPlayBadge compact />}
               {date && <span style={{ fontSize: 10, fontWeight: 600, color: MUTED }}>{date}</span>}
               <ScheduledMatchTime forecast={forecast} now={now} locale={locale} tz={tz} time={time} approximate={approximate} />
             </div>
