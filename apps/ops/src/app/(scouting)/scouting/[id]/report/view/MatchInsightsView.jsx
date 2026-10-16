@@ -11,6 +11,7 @@ import {
 import "./report-view.css";
 import VideoReview from "./VideoReview";
 import OverviewMomentum from "./OverviewMomentum";
+import ShotDistribution from "./ShotDistribution";
 import { DirectionCourt } from "./DirectionCourt.jsx";
 import { GameFlow, TeamComparison, tieBreaks } from "./MatchFlow.jsx";
 const colors = ["#a3cf0a", "#a3cf0a", "#ed7669", "#ed7669"];
@@ -569,6 +570,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           )}
           {tab === "Players" && (
             <>
+              <ShotDistribution data={data} scope={scope} />
               <Panel
                 title="Player performance"
                 sub={`${d.keyPointAnalysis?.observedPoints ?? 0} key points observed · Break, star, tiebreak, set and match points. Ratings follow the selected set.`}
