@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import { parseSetScores } from './static-reconciler.js';
-import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
+import { computeFinishedAtFallback, sanitizeDurationHHMM } from '../lib/match-time-stamps.js';
+import { paginatedSelect } from '../lib/db-paginate.js';
 
 /**
  * fip-draw-results-writer — settles pre-match walkovers visible only
@@ -170,6 +171,13 @@ export function translateDrawSnapshotToMatchPatch(
   return null;
 }
 
+/** Only actual play timing can establish a finish time from a draw. */
+export function drawFinishedAt(existing: Pick<ExistingMatch, 'started_at' | 'duration'>): string | null {
+  if (!existing.started_at || !Number.isFinite(Date.parse(existing.started_at)) ||
+      sanitizeDurationHHMM(existing.duration) === null) return null;
+  return computeFinishedAtFallback(existing.started_at, existing.duration, existing.started_at);
+}
+
 // ── Main entry ─────────────────────────────────────────────────────────
 
 export async function runFipDrawResultsWriter(
@@ -267,19 +275,11 @@ export async function runFipDrawResultsWriter(
         updated_at: nowIso,
       };
 
-      if (existing.finished_at === null) {
-        const finishedAt = computeFinishedAtFallback(
-          existing.started_at,
-          existing.duration,
-          r.captured_at,
-          // No day_number on draw_snapshots — let the helper fall back
-          // to captured_at when started_at+duration aren't available.
-          undefined,
-        );
-        if (finishedAt) {
-          matchPatch.finished_at = finishedAt;
-          result.finishedAtBackfilled += 1;
-        }
+      // Do not turn an old walkover into a result played at scrape time.
+      const finishedAt = drawFinishedAt(existing);
+      if (existing.finished_at === null && finishedAt) {
+        matchPatch.finished_at = finishedAt;
+        result.finishedAtBackfilled += 1;
       }
 
       if (dryRun) {
@@ -359,26 +359,34 @@ async function getActiveWidgetIdCode(
   return (data?.widget_id as string | undefined) ?? null;
 }
 
-async function loadLatestDrawRows(
+export async function loadLatestDrawRows(
   supabase: SupabaseClient,
   tournamentId: string,
 ): Promise<DrawSnapshotRow[]> {
-  const { data, error } = await supabase
-    .schema('padelgod')
-    .from('draw_snapshots')
-    .select(
-      'tournament_id, match_widget_id, category, round_label, draw_position, ' +
-        'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
-        'set_scores, winner_team, status, source, captured_at',
-    )
-    .eq('tournament_id', tournamentId)
-    .eq('source', 'fip_event_page');
-  if (error) {
-    throw new Error(
-      `draw_snapshots read failed (tournament=${tournamentId}): ${error.message}`,
-    );
-  }
-  const rows = (data ?? []) as unknown as DrawSnapshotRow[];
+  // Hourly captures accumulate beyond PostgREST's response cap. Read a
+  // bounded, paginated window with stable ordering so recent winners cannot
+  // disappear behind older scheduled snapshots. Freeze the upper bound so
+  // new captures cannot shift offsets while this run is paging.
+  const until = new Date().toISOString();
+  const since = new Date(Date.parse(until) - 24 * 3600_000).toISOString();
+  const rows = await paginatedSelect<DrawSnapshotRow>(
+    (start, end) => supabase
+      .schema('padelgod')
+      .from('draw_snapshots')
+      .select(
+        'tournament_id, match_widget_id, category, round_label, draw_position, ' +
+          'team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, ' +
+          'set_scores, winner_team, status, source, captured_at',
+      )
+      .eq('tournament_id', tournamentId)
+      .eq('source', 'fip_event_page')
+      .gte('captured_at', since)
+      .lte('captured_at', until)
+      .order('captured_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(start, end),
+    { what: `draw_snapshots (tournament=${tournamentId})` },
+  );
 
   const latest = new Map<string, DrawSnapshotRow>();
   for (const r of rows) {
