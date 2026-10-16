@@ -45,6 +45,10 @@ function rally(raw){
  if(raw.undone){result.undone=true;result.undoneAt=at(raw.undoneAt);}
  if(raw.cancelledAt)result.cancelledAt=at(raw.cancelledAt);
  if(raw.finish){const end=snapshot(raw.finish.end);finishRally(result,end);result.finish={end,player:player(raw.finish.player),outcome:raw.finish.outcome};if(!['winner','unforced','forced'].includes(result.finish.outcome))throw Error('Invalid selected outcome.');}
+ if(raw.corrections!==undefined){
+  if(!Array.isArray(raw.corrections)||raw.corrections.length>100)throw Error('Invalid correction history.');
+  result.corrections=raw.corrections.map(c=>({at:at(c.at),before:validatePoint(c.before,result,c.before?.player),after:validatePoint(c.after,result,c.after?.player)}));
+ }
  return result;
 }
 export function validateVideoState(raw){

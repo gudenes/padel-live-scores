@@ -1,3 +1,4 @@
+import {correctPoint} from './point-corrections.mjs';
 import {creditRecoverySmash} from './tap-selection.mjs';
 import {replaySource} from './replay-source.mjs';
 import {qualityCheckpoint} from './scouting-quality.mjs';
@@ -23,6 +24,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
       };
       switch(message.type){
         case 'state':return {state};
+        case 'edit-point':{const point=structuredClone(state.rallies.find(r=>r.id===message.rallyId)?.point);correctPoint(state,message,now);if(JSON.stringify(point)!==JSON.stringify(state.rallies.find(r=>r.id===message.rallyId)?.point))(state.history??=[]).push({type:'edit-point',rallyId:message.rallyId,point});return save();}
         case 'confirm-quality-score':{if(state.pending)throw Error('Finish this rally before confirming the score.');if(!state.selectedMatch||!match(state).points)throw Error('Record a point before confirming the score.');state.setup.qualityCheckpoint=qualityCheckpoint(match(state));return save();}
         case 'checkpoint':await write(state,{type:'checkpoint'});return {state};
         case 'scouting-clock':{
@@ -34,6 +36,12 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           state.scoutingTime=scoutingTime(state.scoutingTime,now(),finished?'suspend':message.mode);return save();
         }
         case 'undo-last':{
+          const correction=state.history?.at(-1);
+          if(correction?.type==='edit-point'){
+            const current=state.rallies.find(r=>r.id===correction.rallyId)?.point;
+            correctPoint(state,{rallyId:correction.rallyId,expectedPoint:current,point:correction.point,confirmScoreChange:true},now);
+            state.history.pop();return save();
+          }
           const last=state.history?.pop();
           if(!last){if(state.pending)throw Error('No recent action to undo. Cancel the open rally first.');const r=state.rallies.findLast(r=>r.point&&!r.undone);if(!r)throw Error('No action to undo.');r.undone=true;r.undoneAt=new Date().toISOString();return save();}
           Object.assign(state,{setup:last.setup,label:last.label,pending:last.pending});

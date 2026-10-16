@@ -1,3 +1,4 @@
+import {scoutingLog} from './scouting-log.mjs';
 import {playground} from './practice-mode.mjs';
 import {actionQueue} from './action-queue.mjs';
 import {coachUI} from './coach-ui.mjs';
@@ -8,19 +9,20 @@ import {manualUI} from './manual-ui.mjs?v=quality-v1';
 import {shortcutSettings} from './shortcut-settings.mjs';
 import {mediaShortcuts} from './media-shortcuts.mjs';
 import {catalogUI} from './catalog-ui.mjs';
-import {scoutingUI} from './scout-ui.mjs';
+import {scoutingUI} from './scout-ui.mjs?v=single-space-draft-undo1';
 import {match} from './match.mjs';
 import {exported} from './core.mjs';
 import {progressUI} from './scouting-progress.mjs';
 const $=id=>document.getElementById(id);
-const demo=false;
+const demo=playground;
 const installedVersion=globalThis.chrome?.runtime?.getManifest?.().version;
 $('extension-version').textContent=installedVersion?'v'+installedVersion:'Web scouting · 1.0';
-const transport=(await import('./standalone-transport.mjs').catch(error=>{document.getElementById('standalone-saved').textContent='Could not open scouting: '+error.message;throw error})).send;
+const transport=(await import(playground?'./practice-transport.mjs':'./standalone-transport.mjs').catch(error=>{document.getElementById('standalone-saved').textContent='Could not open scouting: '+error.message;throw error})).send;
 let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',polling=false,revision=0,videoKey='',cloud={status:'local'},account={status:demo?'demo':'checking'},accountPoll=0,accountChecking=false;
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 let draftFinish=null,confirmingPoint=false,prepareError=null;
 const visibleState=()=>draftFinish&&state?.pending?{...state,pending:{...state.pending,finish:draftFinish}}:state;
+const renderLog=scoutingLog({act,getState:()=>state});
 const renderScouting=scoutingUI({$,act,getState:visibleState});
 const renderProgress=progressUI($,act);
 coachUI({$,act,call,getState:()=>state});
@@ -31,6 +33,7 @@ const renderClosing=closingUI({$,act,manual:renderManual,onboarding:renderOnboar
 function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Math.floor(seconds);return `${Math.floor(s/3600)?`${Math.floor(s/3600)}:`:''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function render(){
   if(!state)return;
+  renderLog();
   const connection=state.connection;
   $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;$('empty-match-start').hidden=!!state.selectedMatch;
 
@@ -166,10 +169,10 @@ setInterval(()=>{
  $('scout-time').textContent=time(clock.seconds+(!clock.paused&&document.visibilityState==='visible'&&delta>=0&&delta<=30?delta:0));
 },1000);
 
-if(playground){document.body.classList.add('playground');$('practice-banner').hidden=false;document.querySelector('h1').textContent='Playground';$('reset-practice').onclick=()=>{if(confirm('Reset this practice match? Real scouting sessions will not change.'))location.reload();};$('exit-practice').onclick=()=>{if(globalThis.chrome?.runtime?.id)window.close();else location.href='panel.html?demo';};}
+if(playground){document.body.classList.add('playground');$('practice-banner').hidden=false;document.querySelector('h1').textContent='Playground';$('reset-practice').onclick=()=>{if(confirm('Reset this practice match? Real scouting sessions will not change.'))location.reload();};$('exit-practice').onclick=()=>{if(globalThis.chrome?.runtime?.id)window.close();else location.href='/scouting';};}
 
 function standalonePaint(){
- $('standalone-saved').textContent=cloud.error||({saved:'Saved to admin',pending:'Saved locally · syncing',error:'Saved locally · retry needed',conflict:'Sync needs attention'})[cloud.status]||'Saved on this device';
+ $('standalone-saved').textContent=playground?'Practice · not saved':cloud.error||({saved:'Saved to admin',pending:'Saved locally · syncing',error:'Saved locally · retry needed',conflict:'Sync needs attention'})[cloud.status]||'Saved on this device';
  $('standalone-saved').setAttribute('role','status');
  $('scout-time-toggle').title='Time spent scouting. Pause for breaks.';
  $('restart-rally').textContent='Restart this rally';

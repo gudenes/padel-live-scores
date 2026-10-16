@@ -104,3 +104,28 @@ body.mobile-second-serve #scouting-workspace .rally-bar #double-fault{display:in
 
 .resume-warning{width:min(440px,calc(100vw - 32px));box-sizing:border-box;padding:24px;border:1px solid #d5dccb;border-radius:16px;background:#fff;color:#1a2012}
 .resume-warning::backdrop{background:#15201580}.resume-warning h2{font-size:21px;margin:0 0 16px}.resume-warning p{font-size:14px;line-height:1.6;overflow-wrap:anywhere}.resume-warning>div{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}.resume-warning button{flex:1;min-height:44px}
+
+/* Compact web scouting: keep the four court positions visible in popup windows. */
+.standalone-notice #header-playground{flex-shrink:0;min-height:36px;font-size:12px;white-space:nowrap}
+body.playground #practice-banner:not([hidden]){display:flex!important;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;padding:8px 12px;margin:0 0 6px;background:#eef6d5;border:1px solid #d5dfbd;border-radius:10px;font-size:12px}
+body.playground #practice-banner p{flex-basis:100%;margin:0;font-size:11px}
+body.playground #header-playground,body.playground #sync-server,body.playground #closing-sync{display:none!important}
+#players .player-card .attempts{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+@media(pointer:fine){
+body.standalone{padding:0 12px 16px!important}
+.standalone-notice{padding-block:4px;gap:8px;min-height:40px}
+.standalone-notice #standalone-reset{min-height:34px;font-size:11px;padding:6px 10px}
+.scout-header{padding:6px 10px!important}.header-logo{width:50px!important;height:36px!important;object-fit:contain}.header-actions{gap:4px!important}
+.scoreboard{padding:6px 10px!important}.score-table td{padding:4px!important;font-size:13px}.score-table td:not(:first-child){font-size:20px}
+.time-strip{padding:4px 2px!important;gap:8px!important;font-size:11px!important}
+#rally{min-height:36px!important;font-size:14px!important}.rally-bar{margin:2px 0 5px!important}.point-controls{margin-bottom:5px!important}.point-controls button{min-height:32px!important;font-size:11px!important;padding:5px 8px!important}
+#players{gap:6px!important}#players .player-card{padding:8px!important;border-radius:10px!important}
+#players .player-card h3{font-size:13px!important;line-height:1.2;min-height:28px!important;margin:0 0 5px!important}
+#players .player-card>.ui-btn{min-height:34px!important;font-size:12px!important;padding:5px!important}
+#players .player-card .errors,#players .player-card .attempts{margin-top:4px!important;gap:4px!important}
+#players .player-card .errors button,#players .player-card .attempts button{min-height:32px!important;font-size:11px!important;padding:4px 2px!important}
+#players .player-card .tap-feedback{min-height:12px;font-size:10px!important}
+#players .court-divider{min-height:26px!important;padding:0 2px!important}#players .court-divider button{min-height:26px!important;padding:3px 8px!important}
+#touch-status{margin:3px 0!important;font-size:11px!important}.live-summary{margin-top:10px!important}
+dialog{padding:12px!important;max-height:calc(100dvh - 20px)!important}dialog .ui-btn{min-height:34px}#shot-options button{min-height:42px!important}#save-point{min-height:38px!important}
+}
