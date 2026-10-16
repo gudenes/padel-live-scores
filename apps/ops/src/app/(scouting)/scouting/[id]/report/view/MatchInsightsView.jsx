@@ -11,14 +11,20 @@ import {
 import "./report-view.css";
 import VideoReview from "./VideoReview";
 import OverviewMomentum from "./OverviewMomentum";
+import ShotDistribution from "./ShotDistribution";
+import PlayerWorkspace from "./PlayerWorkspace";
 import { DirectionCourt } from "./DirectionCourt.jsx";
 import { GameFlow, TeamComparison, tieBreaks } from "./MatchFlow.jsx";
 const colors = ["#a3cf0a", "#a3cf0a", "#ed7669", "#ed7669"];
 const name = (p) => p.name.split(" ").slice(-1)[0];
 const pct = (a, b) => (b ? Math.round((a / b) * 100) + "%" : "—");
-function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
+function Chart({ series, labels, mode = "momentum", names = [], points = [], chartColors = colors, highlightedPlayer = null, markedPoints = [], markerLabel = "", markerTypes = {}, onReview, canReview }) {
   const ref = useRef();
   const [hover, setHover] = useState(null);
+  const [pinned,setPinned] = useState(false);
+  const [cardPosition,setCardPosition] = useState(null);
+  useEffect(()=>{setPinned(false);setHover(null);setCardPosition(null)},[highlightedPlayer]);
+
   const isImpact = mode === "impact";
   useEffect(() => {
     const el = ref.current;
@@ -77,9 +83,10 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
           ctx.textAlign = "left";
         });
       }
-      series.forEach((line, k) => {
-        ctx.strokeStyle = isImpact ? colors[k] : "#95ba13";
-        ctx.lineWidth = 2.3;
+      series.map((line,k)=>({line,k})).sort((a,b)=>Number(a.k===highlightedPlayer)-Number(b.k===highlightedPlayer)).forEach(({line,k}) => {
+        ctx.globalAlpha = highlightedPlayer == null || k === highlightedPlayer ? 1 : 0.25;
+        ctx.strokeStyle = isImpact ? chartColors[k] : "#95ba13";
+        ctx.lineWidth = k === highlightedPlayer ? 3.5 : 2.3;
         ctx.setLineDash(isImpact && k % 2 ? [3, 5] : []);
         ctx.beginPath();
         line.forEach((n, i) => {
@@ -90,6 +97,7 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
         });
         ctx.stroke();
       });
+      ctx.globalAlpha = 1;
       ctx.setLineDash([]);
       if (isImpact) {
         const ends = series
@@ -112,13 +120,14 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
           ends.forEach((e) => (e.labelY -= shift));
         }
         ends.forEach((e) => {
-          ctx.strokeStyle = colors[e.k];
+          ctx.globalAlpha = highlightedPlayer == null || e.k === highlightedPlayer ? 1 : 0.45;
+          ctx.strokeStyle = chartColors[e.k];
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.moveTo(right, e.y);
           ctx.lineTo(right + 7, e.labelY);
           ctx.stroke();
-          ctx.fillStyle = colors[e.k];
+          ctx.fillStyle = chartColors[e.k];
           ctx.font = "bold 11px Arial";
           ctx.fillText(
             (e.value >= 0 ? "+" : "") + e.value.toFixed(2),
@@ -126,6 +135,7 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
             e.labelY + 4
           );
         });
+        ctx.globalAlpha = 1;
         if (hover !== null && labels.length) {
           const x = xFor(hover);
           ctx.strokeStyle = "#97a28e";
@@ -136,13 +146,40 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
           ctx.stroke();
           ctx.setLineDash([]);
           series.forEach((line, k) => {
+            if (highlightedPlayer != null && k !== highlightedPlayer) return;
             if (!Number.isFinite(line[hover])) return;
-            ctx.fillStyle = colors[k];
+            ctx.fillStyle = chartColors[k];
             ctx.beginPath();
             ctx.arc(x, yFor(line[hover]), 4, 0, Math.PI * 2);
             ctx.fill();
           });
         }
+      }
+      if (isImpact && highlightedPlayer != null) {
+        const selectedSeries = series[highlightedPlayer] ?? [];
+        const marked = new Set(markedPoints);
+        ctx.globalAlpha = 1;
+        ctx.setLineDash([]);
+        labels.forEach((number,i) => {
+          if (!marked.has(number) || !Number.isFinite(selectedSeries[i])) return;
+          const x = xFor(i), y = yFor(selectedSeries[i]);
+          const kind=markerTypes[number]??'unclassified';
+          const radius=hover===i?8:5.5;
+          const mistake=kind==='unforced'||kind==='double_fault';
+          const forced=kind==='forced';
+          const markerColor=mistake?'#dc625b':forced?'#b77a20':'#84a91b';
+          ctx.beginPath();
+          if(mistake){
+            const r=radius*.8;
+            ctx.moveTo(x-r,y-r);ctx.lineTo(x+r,y+r);ctx.moveTo(x+r,y-r);ctx.lineTo(x-r,y+r);
+            ctx.lineCap='round';ctx.strokeStyle='#fff';ctx.lineWidth=5;ctx.stroke();
+            ctx.strokeStyle=markerColor;ctx.lineWidth=2.8;ctx.stroke();ctx.lineCap='butt';
+          }else{
+            if(forced)ctx.rect(x-radius,y-radius,radius*2,radius*2);
+            else ctx.arc(x,y,radius,0,Math.PI*2);
+            ctx.fillStyle=markerColor;ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.stroke();
+          }
+        });
       }
       ctx.font = "11px Arial";
       ctx.fillStyle = "#879086";
@@ -153,13 +190,20 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
     const observer = new ResizeObserver(draw);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [series, labels, mode, hover, points, isImpact]);
+  }, [series, labels, mode, hover, points, isImpact, chartColors, highlightedPlayer, markedPoints, markerTypes]);
   if (!labels.length)
     return <p className="muted">No observed points in this selection.</p>;
-  const selectAt = (e) => {
+  const selectAt = (e, pin = false) => {
+    if(onReview && pinned && !pin)return;
     if (!isImpact || !labels.length) return;
     const r = ref.current.getBoundingClientRect();
     const x = e.clientX - r.left;
+    if(onReview){
+      const width=Math.min(280,window.innerWidth-24);
+      const left=e.clientX+16+width<=window.innerWidth-12?e.clientX+16:Math.max(12,e.clientX-width-16);
+      setCardPosition({left,top:Math.max(12,Math.min(e.clientY+12,window.innerHeight-320)),width});
+      if(pin)setPinned(true);
+    }
     setHover(
       Math.max(
         0,
@@ -178,17 +222,20 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
   const setEnded =
     inspected && inspected.before.sets.length !== score.sets.length;
   return (
-    <div className="chartWrap">
+    <div className="chartWrap" onPointerLeave={()=>{if(!pinned)setHover(null)}}>
       <canvas
         className={isImpact ? "impactCanvas" : ""}
         ref={ref}
         onPointerMove={selectAt}
-        onPointerLeave={() => setHover(null)}
-        onPointerDown={selectAt}
+        onPointerLeave={() => {if(!onReview)setHover(null)}}
+        onPointerDown={e=>selectAt(e,true)}
         tabIndex={isImpact ? 0 : undefined}
-        onFocus={() => isImpact && setHover(labels.length - 1)}
-        onBlur={() => setHover(null)}
+        onFocus={e => {if(isImpact && e.currentTarget.matches(":focus-visible"))setHover(labels.length - 1)}}
+        onBlur={() => {if(!onReview)setHover(null)}}
         onKeyDown={(e) => {
+          if(e.key==="Escape"){setPinned(false);setHover(null)}
+          if(onReview&&(e.key==="Enter"||e.key===" ")){e.preventDefault();setPinned(true)}
+
           if (isImpact && ["ArrowLeft", "ArrowRight"].includes(e.key)) {
             e.preventDefault();
             setHover(
@@ -211,8 +258,11 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
         role="img"
       />
       {isImpact && hover !== null && (
-        <div className="impactTooltip" role="status">
+        <div className={onReview?"impactTooltip impactTooltip-action":"impactTooltip"} style={onReview&&cardPosition?{position:"fixed",...cardPosition,maxWidth:"calc(100vw - 24px)",maxHeight:300,overflowY:"auto",transform:"none",zIndex:80}:undefined} role="status">
+          {onReview&&<button type="button" className="ui-btn impact-close" data-variant="ghost" aria-label="Close point details" onClick={()=>{setPinned(false);setHover(null)}}>✕</button>}
+          {markedPoints.includes(labels[hover]) && <strong>{({winner:'Winner',unforced:'Unforced error',forced:'Forced error committed',created:'Forced error created',assist:'Assist',double_fault:'Double fault'})[markerTypes[labels[hover]]]??markerLabel} · {names[highlightedPlayer]}</strong>}
           <strong>Point {labels[hover]} · impact</strong>
+          {onReview&&inspected&&<button type="button" className="ui-btn" data-variant="primary" disabled={!canReview?.(inspected)} onClick={()=>onReview(inspected)}>{canReview?.(inspected)?'▷ Review point':'No video timestamp'}</button>}
           {score && (
             <div className="tooltipScore">
               <span>Score after point</span>
@@ -244,8 +294,8 @@ function Chart({ series, labels, mode = "momentum", names = [], points = [] }) {
             </div>
           )}
           {series.map((line, k) => (
-            <div key={k}>
-              <span style={{ color: colors[k] }}>
+            <div key={k} style={{opacity: highlightedPlayer == null || k === highlightedPlayer ? 1 : 0.55, fontWeight: k === highlightedPlayer ? 700 : undefined}}>
+              <span style={{ color: chartColors[k] }}>
                 {names[k] ?? "Player " + (k + 1)}
               </span>
               <b>
@@ -290,6 +340,9 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
     const measure=()=>{const height=el.getBoundingClientRect().height;if(!compactHeader){expandedHeight.current=height;setHeaderSpace(0)}else setHeaderSpace(Math.max(0,expandedHeight.current-height));};
     measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();
   },[compactHeader]);
+  const [focusedPlayer,setFocusedPlayer]=useState(null);
+  const [replayPoint,setReplayPoint]=useState(null);
+  const openPlayer=(index)=>{setFocusedPlayer(index);setTab("Players")};
   const [scope, setScope] = useState("all"),
     [tab, setTab] = useState("Overview"),
     [gameSelection, setGameSelection] = useState(null),
@@ -319,7 +372,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
     <div className="players" title="Key points: break points, star points, tiebreaks, set points and match points. The score uses only those observed points; overlapping situations count once.">
       {data.players.map((p, i) => (
         <article className="player" key={p.id}>
-          <div className="playerhead">
+          <div className="playerhead" role="button" tabIndex={0} aria-label={`Analyze ${p.name}`} onClick={()=>openPlayer(i)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();openPlayer(i)}}}>
             <img src={p.avatar} alt={p.name} />
             <b>{p.name}</b>
             <strong className={i < 2 ? "rating" : "rating coral"}>
@@ -338,7 +391,6 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
               d.stats[i].smashPointsWon + " / " + d.stats[i].smashes,
             ],
             ["Weighted impact", d.analysis.players[i].impact.toFixed(2)],
-            ["Key-point score / 10", d.keyPointAnalysis?.players[i].score?.toFixed(1) ?? "—"],
             ["Key-point impact", d.keyPointAnalysis?.observedPoints ? d.keyPointAnalysis.players[i].impact.toFixed(2) : "—"],
           ].map(([l, v]) => (
             <div className="stat" key={l}>
@@ -366,10 +418,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
         <div ref={headerSentinel} className="match-header-sentinel" aria-hidden="true"/><section ref={heroRef} className={`hero match-sticky-hero${compactHeader?' is-compact':''}`} style={{'--match-header-offset':`${headerOffset}px`}}>
           <div className="heroTeam">
             {data.players.slice(0, 2).map((p) => (
-              <div key={p.id}>
-                <img src={p.avatar} alt="" />
-                <b>{p.name}</b>
-              </div>
+              <button className="ui-btn player-open" data-variant="ghost" key={p.id} onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name}`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>
             ))}
           </div>
           <div className="result">
@@ -404,10 +453,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           </div>
           <div className="heroTeam">
             {data.players.slice(2).map((p) => (
-              <div key={p.id}>
-                <img src={p.avatar} alt="" />
-                <b>{p.name}</b>
-              </div>
+              <button className="ui-btn player-open" data-variant="ghost" key={p.id} onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name}`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>
             ))}
           </div>
         <div className="toolbar match-header-scope">
@@ -438,7 +484,6 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
         <div className="tabs">
           {[
             "Overview",
-            "Match flow",
             "Players",
             "Points & shots",
             "Video review",
@@ -569,38 +614,10 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           )}
           {tab === "Players" && (
             <>
-              <Panel
-                title="Player performance"
-                sub={`${d.keyPointAnalysis?.observedPoints ?? 0} key points observed · Break, star, tiebreak, set and match points. Ratings follow the selected set.`}
-              >
-                {playerCards}
-              </Panel>
-              <Panel title="Impact evolution">
-                <Chart
-                  mode="impact"
-                  names={data.players.map((p) => p.name)}
-                  points={points}
-                  series={impact}
-                  labels={d.analysis.series.map((p) => p.number)}
-                />
-                <div className="impactLegend">
-                  {data.players.map((p, i) => (
-                    <div
-                      className={i < 2 ? "teamLime" : "teamCoral"}
-                      key={p.id}
-                    >
-                      <img src={p.avatar} alt="" />
-                      <span
-                        className={i % 2 ? "lineSample dotted" : "lineSample"}
-                      />
-                      <span>{p.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </Panel>
+              {focusedPlayer!=null?<PlayerWorkspace data={data} scope={scope} playerIndex={focusedPlayer} onPlayer={setFocusedPlayer} onClose={()=>setFocusedPlayer(null)} readOnly={shared} renderImpact={(index,marked,label,markerTypes,onReview,canReview)=><Chart mode="impact" names={data.players.map(p=>p.name)} points={points} series={impact} labels={d.analysis.series.map(p=>p.number)} highlightedPlayer={index} markedPoints={marked} markerLabel={label} markerTypes={markerTypes} onReview={onReview} canReview={canReview}/>}/>:<ShotDistribution data={data} scope={scope} onPlayerSelect={openPlayer} />}
             </>
           )}
-          {tab === "Video review" && <VideoReview data={data} scope={scope} readOnly={shared} />}
+          {tab === "Video review" && <VideoReview data={data} scope={scope} readOnly={shared} initialPointId={replayPoint} />}
           {tab === "Points & shots" && (
             <>
               <DirectionCourt
