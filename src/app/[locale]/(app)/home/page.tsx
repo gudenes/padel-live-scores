@@ -21,11 +21,10 @@ import { useTranslations } from 'next-intl'
 
 // ── Extracted section components ──────────────────────────────
 import {
-  BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PREMIER_LEVELS, PAGE_STYLES, SectionTitle,
+  BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PAGE_STYLES, SectionTitle,
   Tournament, Highlight, RankedPlayer, NewsItem, isHiddenLevel, HIDDEN_TOURNAMENT_LEVELS,
 } from '@/components/home/shared'
 import LiveMatchCard from '@/components/home/LiveMatchCard'
-import UpcomingMatchCard from '@/components/home/UpcomingMatchCard'
 import RankingsSection from '@/components/home/RankingsSection'
 import ResultsSection from '@/components/home/ResultsSection'
 import HighlightsPreview from '@/components/home/HighlightsPreview'
@@ -57,17 +56,6 @@ const MATCH_PLAYER_JOINS = `
 
 const MATCH_SELECT_LIVE = `*, ${MATCH_PLAYER_JOINS}, sets(*, games(*))`
 const MATCH_SELECT_LEAN = `*, ${MATCH_PLAYER_JOINS}, sets(set_number, set_score, pair1_games, pair2_games, is_current, score_source)`
-// Variant of MATCH_SELECT_LEAN that uses !inner on tournaments so a
-// .in('tournament.level', …) filter actually drops rows (instead of
-// just nulling the embed). Used for the "Coming Up" query which must
-// be Premier-only at the DB layer — there are enough FIP-tier matches
-// scheduled earlier in the day to consume a global limit(50) and
-// starve Premier matches out before client-side filtering runs.
-const MATCH_SELECT_LEAN_PREMIER = MATCH_SELECT_LEAN.replace(
-  'tournament:tournaments(',
-  'tournament:tournaments!inner(',
-)
-
 // ════════��═══════════════════════════════════════════════════════
 // ██  HOME PAGE
 // ══════════════════════════════════��═════════════════════════════
@@ -138,7 +126,6 @@ function V3HomePageInner() {
 
   const gender = 'all' as const
   const [liveMatches, setLiveMatches] = useState<Match[]>([])
-  const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
   const [topMen, setTopMen] = useState<RankedPlayer[]>([])
   const [topWomen, setTopWomen] = useState<RankedPlayer[]>([])
@@ -298,13 +285,6 @@ function V3HomePageInner() {
         // early so fans see the match is about to start instead of the
         // scheduled-card fallback.
         wrap(supabase.from('matches').select(MATCH_SELECT_LIVE).in('status', ['live', 'on_court']).order('court_order', { ascending: true }) as any, 'home:live'),
-        // "Coming Up": scheduled Premier matches, but ONLY from tournaments that
-        // haven't already ended. Without the ends_at guard, matches that never
-        // got closed (e.g. qualifying rounds the Crionet results feed skipped —
-        // frozen on status='scheduled' with a null scheduled_at) leak into the
-        // upcoming list for days after the event finishes. The !inner embed on
-        // tournaments makes this filter drop rows rather than null the embed.
-        wrap(supabase.from('matches').select(MATCH_SELECT_LEAN_PREMIER).eq('status', 'scheduled').in('tournament.level', PREMIER_LEVELS).gte('tournament.ends_at', new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString()).order('scheduled_at', { ascending: true }).limit(50) as any, 'home:scheduled'),
         wrap(supabase.from('tournaments')
           .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url, cover_image_url')
           .in('level', ['finals', 'major', 'p1', 'p2'])
@@ -411,21 +391,20 @@ function V3HomePageInner() {
       }
 
       setLiveMatches(dataOf(0).filter((m: any) => !isHiddenLevel(m?.tournament?.level)))
-      setScheduledMatches(dataOf(1))
-      const tournaments: Tournament[] = dataOf(2)
+      const tournaments: Tournament[] = dataOf(1)
       setUpcomingTournaments(tournaments)
-      setTopMen(dataOf(3))
-      setTopWomen(dataOf(4))
-      setRecentMatches(dataOf(5))
-      setHighlights(dataOf(6))
+      setTopMen(dataOf(2))
+      setTopWomen(dataOf(3))
+      setRecentMatches(dataOf(4))
+      setHighlights(dataOf(5))
       // fetchClusteredNews returns ClusteredArticle[] directly (not { data: [] })
-      const newsResult = results[7]
+      const newsResult = results[6]
       setLatestNews(newsResult.status === 'fulfilled' ? (newsResult.value as ClusteredArticle[]) ?? [] : [])
 
       // ── Carousel transform ─────────────────────────────────────
-      const carouselLiveRows: any[] = dataOf(8).filter((r: Tournament) => !isHiddenLevel(r?.level))
-      const carouselMatchRows: any[] = dataOf(9)
-      const recentFinalsRows: any[] = dataOf(11)
+      const carouselLiveRows: any[] = dataOf(7).filter((r: Tournament) => !isHiddenLevel(r?.level))
+      const carouselMatchRows: any[] = dataOf(8)
+      const recentFinalsRows: any[] = dataOf(10)
       const matchInfo = buildMatchInfoMap(carouselMatchRows)
 
       // Build per-tournament champion map from recent finals. Winner_pair
@@ -511,11 +490,11 @@ function V3HomePageInner() {
       }
       setCarouselLiveToday(insertManagedCardsByDate(decorate(carouselLiveRows), managedCards).slice(0, 10))
 
-      // Resolve home feature flags — dataOf(10) is an array of
+      // Resolve home feature flags — dataOf(9) is an array of
       // { key, enabled, enabled_local } rows (0–2). Key by `key`;
       // resolveFlag() picks enabled vs enabled_local by hostname and
       // defaults missing rows to false (safe-off).
-      const flagRows = dataOf(10) as Array<{
+      const flagRows = dataOf(9) as Array<{
         key: string
         enabled?: boolean | null
         enabled_local?: boolean | null
@@ -590,10 +569,6 @@ function V3HomePageInner() {
     const level = (m as any).tournament?.level
     return level && LIVE_SCORE_LEVELS.includes(level)
   }).filter(genderFilter)
-  const upcoming = scheduledMatches
-    .filter(m => !!(m.pair1_player1 && m.pair1_player2 && m.pair2_player1 && m.pair2_player2))
-    .filter(genderFilter)
-    .slice(0, 10)
   const filteredRecent = recentMatches.filter(genderFilter)
   const spotlightTournament = upcomingTournaments[0] ?? null
 
@@ -648,30 +623,8 @@ function V3HomePageInner() {
         </>
       )}
 
-      {/* ── COMING UP ───────��───────────────────────────���───── */}
-      {upcoming.length > 0 && (
-        <>
-          <SectionTitle action={tHome('allScores')} href="/matches">
-            {tHome('comingUp')}
-          </SectionTitle>
-          <div style={{
-            display: 'flex',
-            gap: 12,
-            padding: '0 16px',
-            overflowX: 'auto',
-            scrollSnapType: 'x mandatory',
-            WebkitOverflowScrolling: 'touch',
-            msOverflowStyle: 'none',
-            scrollbarWidth: 'none',
-          }}>
-            {upcoming.map(m => (
-              <div key={m.id} style={{ scrollSnapAlign: 'start' }}>
-                <UpcomingMatchCard match={m} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
+      {/* Upcoming matches are withheld until stale schedules and official
+          order-of-play timing are reconciled. See the matches page for scores. */}
 
       {/* ── LATEST NEWS ──────────────────────────────────────
           Highlights (videos) intentionally hidden from home — they
