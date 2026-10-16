@@ -128,6 +128,8 @@ const EnvSchema = z.object({
   // posture as the other writers (default OFF + dry-run ON).
   ENABLE_FIP_DRAW_RESULTS_WRITER: boolEnv(false),
   FIP_DRAW_RESULTS_WRITER_DRY_RUN: boolEnv(true),
+  // Optional UUID allowlist for a scoped draw-result reconciliation rollout.
+  FIP_DRAW_RESULTS_WRITER_TOURNAMENT_IDS: z.string().default(''),
   // fip-winner-propagator — simplified-pipeline writer #4. When a match
   // is finished with a winner, the propagator copies the winning pair's
   // 2 player UUIDs into the next-round match via bracket math. Pure

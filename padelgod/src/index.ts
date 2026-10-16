@@ -153,6 +153,7 @@ async function main() {
       fipResultsWriterDryRun: env.FIP_RESULTS_WRITER_DRY_RUN,
       enableFipDrawResultsWriter: env.ENABLE_FIP_DRAW_RESULTS_WRITER,
       fipDrawResultsWriterDryRun: env.FIP_DRAW_RESULTS_WRITER_DRY_RUN,
+      fipDrawResultsWriterTournamentIds: new Set(env.FIP_DRAW_RESULTS_WRITER_TOURNAMENT_IDS.split(',').map(id => id.trim()).filter(Boolean)),
       enableFipWinnerPropagator: env.ENABLE_FIP_WINNER_PROPAGATOR,
       fipWinnerPropagatorDryRun: env.FIP_WINNER_PROPAGATOR_DRY_RUN,
       fipDrawLinkerDryRun: env.FIP_DRAW_LINKER_DRY_RUN,

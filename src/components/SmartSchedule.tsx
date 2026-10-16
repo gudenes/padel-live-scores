@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { relativeStartWindow, startClockWindow, earliestStartClock, type SmartScheduleForecast } from '@/lib/smart-schedule'
 
-export function NextToPlayBadge() {
+export function NextToPlayBadge({ compact = false }: { compact?: boolean }) {
   const t = useTranslations('smartSchedule')
-  return <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 6px', color: '#141414', background: '#F5A623', clipPath: 'polygon(3% 5%,97% 0%,100% 95%,0% 100%)', whiteSpace: 'nowrap' }}>{t('nextToPlay')}</span>
+  return <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 6px', color: '#141414', background: '#F5A623', clipPath: 'polygon(3% 5%,97% 0%,100% 95%,0% 100%)', whiteSpace: compact ? 'normal' : 'nowrap', ...(compact ? { fontSize: 8, lineHeight: 1.2, textAlign: 'center' as const, maxWidth: '100%', boxSizing: 'border-box' as const, marginBottom: 4 } : {}) }}>{t('nextToPlay')}</span>
 }
 export function SmartScheduleHint({ forecast, now, locale, tz, scheduledTime }: { forecast: SmartScheduleForecast; now: number; locale: string; tz: string; scheduledTime?: string | null }) {
   const t = useTranslations('smartSchedule')
@@ -23,5 +23,25 @@ export function SmartScheduleHint({ forecast, now, locale, tz, scheduledTime }: 
       {scheduledTime && <div style={{ color: '#999', marginBottom: 4 }}>{t('scheduledAt', { time: scheduledTime })}</div>}
       {t('explanation')}
     </div>}
+  </>
+}
+
+
+/** Shared schedule precedence for full match cards and the homepage rail. */
+export function ScheduledMatchTime({ forecast, now, locale, tz, time, approximate, estimatedLabel }: {
+  forecast: SmartScheduleForecast | null; now: number; locale: string; tz: string;
+  time: string | null; approximate: boolean; estimatedLabel?: string | null;
+}) {
+  return <>
+    {forecast?.earliest_at && forecast.latest_at ? (
+      <SmartScheduleHint forecast={forecast} now={now} locale={locale} tz={tz} scheduledTime={time} />
+    ) : time ? (
+      <span style={{ fontSize: 13, fontWeight: 800, color: '#7ED321', lineHeight: 1.2 }}>{time}{approximate ? '*' : ''}</span>
+    ) : estimatedLabel ? (
+      <span style={{ fontSize: 9, fontWeight: 600, color: '#F5A623', lineHeight: 1.2, textTransform: 'uppercase' }}>{estimatedLabel}</span>
+    ) : (
+      <span style={{ fontSize: 10, fontWeight: 600, color: '#6B7280', lineHeight: 1.2, opacity: 0.5 }}>TBD</span>
+    )}
+    {forecast && !forecast.earliest_at && <SmartScheduleHint forecast={forecast} now={now} locale={locale} tz={tz} scheduledTime={time} />}
   </>
 }

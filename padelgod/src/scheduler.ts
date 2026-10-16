@@ -88,6 +88,7 @@ export interface SchedulerFlags {
   enableFipDrawResultsWriter: boolean;
   /** Same dry-run semantics as the populator flag. Independent. */
   fipDrawResultsWriterDryRun: boolean;
+  fipDrawResultsWriterTournamentIds?: Set<string>;
   enableFipWinnerPropagator: boolean;
   /** Same dry-run semantics. Independent. */
   fipWinnerPropagatorDryRun: boolean;
@@ -736,6 +737,7 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipDrawResultsWriterDryRun,
+          onlyTournamentIds: flags.fipDrawResultsWriterTournamentIds,
         });
       },
     });
