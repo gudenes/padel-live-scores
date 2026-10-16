@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { translateDrawSnapshotToMatchPatch } from '../fip-draw-results-writer.js';
+import { describe, it, expect, vi } from 'vitest';
+import { drawFinishedAt, loadLatestDrawRows, translateDrawSnapshotToMatchPatch } from '../fip-draw-results-writer.js';
 
 describe('translateDrawSnapshotToMatchPatch', () => {
   it('returns null when winner_team is missing — bracket not yet decided', () => {
@@ -113,5 +113,55 @@ describe('translateDrawSnapshotToMatchPatch', () => {
       set_scores: null,
     });
     expect(out?.status).toBe('walkover');
+  });
+});
+
+
+describe('loadLatestDrawRows', () => {
+  function client(rows: unknown[], errorOffset = -1) {
+    const query: Record<string, ReturnType<typeof vi.fn>> = {};
+    for (const method of ['schema', 'from', 'select', 'eq', 'gte', 'lte', 'order']) {
+      query[method] = vi.fn(() => query);
+    }
+    query.range = vi.fn(async (start: number, end: number) => ({
+      data: start === errorOffset ? null : rows.slice(start, end + 1),
+      error: start === errorOffset ? { message: 'read failed' } : null,
+    }));
+    return query;
+  }
+
+  it('reads beyond the response cap and retains the newest state per match', async () => {
+    const rows = Array.from({ length: 1000 }, (_, i) => ({
+      match_widget_id: `MD${i}`, captured_at: '2026-10-16T07:00:00Z', status: 'scheduled',
+    }));
+    const q = client([...rows,
+      { match_widget_id: 'WQ010', captured_at: '2026-10-16T06:00:00Z', status: 'finished', winner_team: 2 },
+      { match_widget_id: 'WQ010', captured_at: '2026-10-16T05:00:00Z', status: 'scheduled', winner_team: null },
+    ]);
+    const result = await loadLatestDrawRows(q as never, 'milano');
+    expect(result.find(r => r.match_widget_id === 'WQ010')).toMatchObject({ status: 'finished', winner_team: 2 });
+    expect(q.range).toHaveBeenNthCalledWith(1, 0, 999);
+    expect(q.range).toHaveBeenNthCalledWith(2, 1000, 1999);
+    expect(q.order).toHaveBeenCalledWith('id', { ascending: false });
+    expect(q.gte).toHaveBeenCalledWith('captured_at', expect.any(String));
+    expect(q.lte).toHaveBeenCalledWith('captured_at', expect.any(String));
+  });
+
+  it('fails the run instead of settling from an incomplete read', async () => {
+    const q = client(Array.from({ length: 1000 }, () => ({})), 1000);
+    await expect(loadLatestDrawRows(q as never, 'milano')).rejects.toThrow('read failed');
+  });
+});
+
+
+describe('drawFinishedAt', () => {
+  it('leaves an unobserved walkover completion time unknown', () => {
+    expect(drawFinishedAt({ started_at: null, duration: null })).toBeNull();
+    expect(drawFinishedAt({ started_at: '2026-10-11T12:00:00Z', duration: null })).toBeNull();
+  });
+  it('uses real match timing and rejects malformed or implausible durations', () => {
+    expect(drawFinishedAt({ started_at: '2026-10-11T12:00:00Z', duration: '01:20' })).toBe('2026-10-11T13:20:00.000Z');
+    expect(drawFinishedAt({ started_at: 'invalid', duration: '01:20' })).toBeNull();
+    expect(drawFinishedAt({ started_at: '2026-10-11T12:00:00Z', duration: '22:30' })).toBeNull();
   });
 });

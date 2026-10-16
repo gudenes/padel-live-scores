@@ -3,7 +3,7 @@
 import React from 'react'
 import { Link } from '@/i18n/navigation'
 import { Match, pairName } from '@/types/match'
-import { useFormatter } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { TIME_24H, DATE_SHORT } from '@/lib/format-patterns'
 import FollowButton from '@/components/FollowButton'
 import {
@@ -14,6 +14,8 @@ import {
 
 function UpcomingMatchCardInner({ match }: { match: Match }) {
   const format = useFormatter()
+  const tSmart = useTranslations('smartSchedule')
+  const tMatch = useTranslations('match')
   const pair1 = pairName(match.pair1_player1, match.pair1_player2)
   const pair2 = pairName(match.pair2_player1, match.pair2_player2)
   // Detect date-only scheduled_at (midnight UTC = no real time from padelapi)
@@ -27,6 +29,10 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
   const date = match.scheduled_at
     ? format.dateTime(scheduledDate!, DATE_SHORT)
     : ''
+  const scheduleLabel = (match as Match & { schedule_label?: string | null }).schedule_label ?? ''
+  const timing = /followed by/i.test(scheduleLabel) ? tSmart('followedBy')
+    : time ? /not before/i.test(scheduleLabel) ? tSmart('notBefore', { time }) : time
+    : tMatch('startTimeTbd')
   const tournament = (match as any).tournament
   const isLive = match.status === 'live'
   const category = (match as any).category as string | null
@@ -108,10 +114,8 @@ function UpcomingMatchCardInner({ match }: { match: Match }) {
             {/* Right: date/time centered */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderLeft: `1px solid ${BORDER}`, paddingLeft: 8, minWidth: 65 }}>
               <span style={{ fontSize: 10, fontWeight: 600, textAlign: 'center', lineHeight: 1.4 }}>
-                {date && time
-                  ? <><span style={{ color: GREEN }}>{date}</span><br /><span style={{ color: GREEN, fontFamily: 'monospace', fontWeight: 700 }}>{time}</span></>
-                  : <><span style={{ color: MUTED }}>Time to be</span><br /><span style={{ color: MUTED }}>confirmed</span></>
-                }
+                {date && <><span style={{ color: GREEN }}>{date}</span><br /></>}
+                <span style={{ color: time ? GREEN : MUTED }}>{timing}</span>
               </span>
             </div>
           </div>
