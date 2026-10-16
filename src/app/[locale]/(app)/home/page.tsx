@@ -21,10 +21,11 @@ import { useTranslations } from 'next-intl'
 
 // ── Extracted section components ──────────────────────────────
 import {
-  BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PAGE_STYLES, SectionTitle,
+  BG_BASE, CHUNKY, LIVE_SCORE_LEVELS, PREMIER_LEVELS, PAGE_STYLES, SectionTitle,
   Tournament, Highlight, RankedPlayer, NewsItem, isHiddenLevel, HIDDEN_TOURNAMENT_LEVELS,
 } from '@/components/home/shared'
 import LiveMatchCard from '@/components/home/LiveMatchCard'
+import UpcomingMatchCard from '@/components/home/UpcomingMatchCard'
 import RankingsSection from '@/components/home/RankingsSection'
 import ResultsSection from '@/components/home/ResultsSection'
 import HighlightsPreview from '@/components/home/HighlightsPreview'
@@ -126,6 +127,7 @@ function V3HomePageInner() {
 
   const gender = 'all' as const
   const [liveMatches, setLiveMatches] = useState<Match[]>([])
+  const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
   const [topMen, setTopMen] = useState<RankedPlayer[]>([])
   const [topWomen, setTopWomen] = useState<RankedPlayer[]>([])
@@ -381,6 +383,19 @@ function V3HomePageInner() {
             .limit(50) as any,
           'home:carousel-recent-finals',
         ),
+        // Filter before the limit: old unresolved qualifiers must never crowd
+        // out today's schedule. Keep delayed matches from today, since a
+        // followed-by estimate passing does not mean the match has finished.
+        wrap(supabase.from('matches')
+          .select(MATCH_SELECT_LEAN.replace('tournament:tournaments(', 'tournament:tournaments!inner('))
+          .eq('status', 'scheduled')
+          .is('winner_pair', null)
+          .in('tournament.level', PREMIER_LEVELS)
+          .gte('scheduled_at', getLocalDayBoundaryUTC().startUTC)
+          .lte('scheduled_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+          .gte('tournament.ends_at', new Date(new Date().setUTCHours(0, 0, 0, 0)).toISOString())
+          .order('scheduled_at', { ascending: true })
+          .limit(50) as any, 'home:scheduled'),
       ])
 
       const dataOf = (i: number) => {
@@ -390,6 +405,7 @@ function V3HomePageInner() {
         return []
       }
 
+      setScheduledMatches(dataOf(11))
       setLiveMatches(dataOf(0).filter((m: any) => !isHiddenLevel(m?.tournament?.level)))
       const tournaments: Tournament[] = dataOf(1)
       setUpcomingTournaments(tournaments)
@@ -569,6 +585,10 @@ function V3HomePageInner() {
     const level = (m as any).tournament?.level
     return level && LIVE_SCORE_LEVELS.includes(level)
   }).filter(genderFilter)
+  const upcoming = scheduledMatches
+    .filter(m => !!(m.pair1_player1 && m.pair1_player2 && m.pair2_player1 && m.pair2_player2))
+    .filter(genderFilter)
+    .slice(0, 10)
   const filteredRecent = recentMatches.filter(genderFilter)
   const spotlightTournament = upcomingTournaments[0] ?? null
 
@@ -623,8 +643,30 @@ function V3HomePageInner() {
         </>
       )}
 
-      {/* Upcoming matches are withheld until stale schedules and official
-          order-of-play timing are reconciled. See the matches page for scores. */}
+      {/* ── COMING UP ────────────────────────────────────────── */}
+      {upcoming.length > 0 && (
+        <>
+          <SectionTitle action={tHome('allScores')} href="/matches">
+            {tHome('comingUp')}
+          </SectionTitle>
+          <div style={{
+            display: 'flex',
+            gap: 12,
+            padding: '0 16px',
+            overflowX: 'auto',
+            scrollSnapType: 'x mandatory',
+            WebkitOverflowScrolling: 'touch',
+            msOverflowStyle: 'none',
+            scrollbarWidth: 'none',
+          }}>
+            {upcoming.map(m => (
+              <div key={m.id} style={{ scrollSnapAlign: 'start' }}>
+                <UpcomingMatchCard match={m} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* ── LATEST NEWS ──────────────────────────────────────
           Highlights (videos) intentionally hidden from home — they
