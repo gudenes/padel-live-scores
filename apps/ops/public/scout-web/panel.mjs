@@ -148,7 +148,7 @@ document.addEventListener('keydown',event=>{
   event.preventDefault();if(!$('rally').disabled)$('rally').click();
 });
 if(demo){$('demo-controls').hidden=false;$('demo-pause').onclick=async()=>{await transport({type:'demo-pause'});await refresh();$('demo-pause').textContent=sample?.paused?'Resume demo video':'Pause demo video';};$('demo-rewind').onclick=async()=>{await transport({type:'demo-rewind'});await refresh();};document.body.classList.add('demo');document.querySelector('h1').textContent='Match scouting';document.querySelector('.eyebrow span').textContent='SIMULATED PREVIEW';}
-try{state=(await call({type:'state'})).state;render();await refresh();}catch(error){$('message').textContent=error.message;}
+try{state=(await call({type:'state'})).state;render();await refresh();if(!state?.selectedMatch||!healthy)throw Error($('message').textContent||'The match could not be loaded. Please try again.');}catch(error){$('message').textContent=error.message;throw error;}
 setInterval(refresh,1500);
 
 $('show-overlay').onclick=()=>act({type:'show-overlay'});
