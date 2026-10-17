@@ -1,86 +1,26 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { Panel } from '@/components/ui'
+import { Button } from '@/components/ui'
 import { loginWithGoogle } from './actions'
 import { LoginForm } from './LoginForm'
 import { EmailLinkForm } from './EmailLinkForm'
+import styles from './login.module.css'
 
 export const metadata = { title: 'Sign in · PadelNachos Admin' }
 
 export default async function LoginPage() {
-  // If already signed in, route to /today (operator gate applies there).
-  const session = await auth()
-  if (session?.user) {
-    redirect((session.user.isScouter || session.user.isViewer) && !session.user.isOperator ? '/scouting' : '/today')
-  }
-  return (
-    <main
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-app)',
-        padding: 24,
-      }}
-    >
-      <div style={{ width: '100%', maxWidth: 360 }}>
-        <Panel>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 4px', color: 'var(--text-1)' }}>
-            PadelNachos Admin
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 24px' }}>
-            Sign in to the operations dashboard.
-          </p>
-
-          {/* Email + password (client component for useActionState error display) */}
-          <LoginForm />
-
-          <div style={{ textAlign: 'right', marginTop: 8 }}>
-            <a href="/forgot-password" style={{ fontSize: 12, color: 'var(--lime-text)' }}>
-              Forgot password?
-            </a>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              margin: '20px 0',
-              color: 'var(--text-3)',
-              fontSize: 11,
-            }}
-          >
-            <span style={{ flex: 1, height: 1, background: 'var(--border-card)' }} />
-            OR
-            <span style={{ flex: 1, height: 1, background: 'var(--border-card)' }} />
-          </div>
-
-          {/* Magic link */}
-          <EmailLinkForm />
-
-          {/* Google */}
-          <form action={loginWithGoogle} style={{ marginTop: 10 }}>
-            <button
-              type="submit"
-              style={{
-                width: '100%',
-                background: 'var(--bg-card-2)',
-                color: 'var(--text-1)',
-                border: '1px solid var(--border-card)',
-                borderRadius: 8,
-                padding: '10px 12px',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Continue with Google
-            </button>
-          </form>
-        </Panel>
-      </div>
-    </main>
-  )
+ const session = await auth()
+ if (session?.user) redirect((session.user.isScouter || session.user.isViewer) && !session.user.isOperator ? '/scouting' : '/today')
+ return <main className={styles.page}>
+  <section className={styles.hero} aria-label="Our purpose"><div className={styles.heroCopy}><h2>You’re building<br/>the future of padel.</h2><p>Where fan passion meets sports science.</p></div></section>
+  <section className={styles.login} aria-labelledby="login-title"><div className={styles.content}>
+   <div className={styles.brands}><img className={styles.nachos} src="/scout-web/assets/padelnachos-logo.png" alt="Padel Nachos" width="96" height="70"/><span className={styles.brandDivider} aria-hidden="true"/><img className={styles.labs} src="/brand/padellabs.png" alt="Padel Labs" width="205" height="51"/></div>
+   <h1 id="login-title">Welcome back</h1><p className={styles.intro}>Sign in to your admin workspace.</p>
+   <form action={loginWithGoogle}><Button type="submit" variant="default" className={`ui-btn ${styles.google}`}><img src="/brand/google.svg" alt="" width="19" height="19"/>Continue with Google</Button></form>
+   <div className={styles.divider}>or</div>
+   <LoginForm/>
+   <details className={styles.emailLink}><summary>Email me a sign-in link</summary><EmailLinkForm/></details>
+   <p className={styles.footer}>Authorized team access.</p>
+  </div></section>
+ </main>
 }
