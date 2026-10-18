@@ -1,4 +1,4 @@
-import {replaySource} from './replay-source.mjs';
+import {replaySource,videoPageUrl} from './replay-source.mjs';
 import {validateQualityCheckpoint} from './scouting-quality.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 // Shared by the extension and the operator API. No browser APIs or credentials.
@@ -57,6 +57,7 @@ export function validateVideoState(raw){
  if(raw.captureMode!==undefined&&!['video','standalone'].includes(raw.captureMode))throw Error('Invalid capture mode.');
  const settings=raw.setup??{};
  const setup=validateSetup({names:settings.names,firstServer:settings.firstServer,otherServer:settings.otherServer,rule:settings.rule,startingScore:settings.startingScore,firstServerUnknown:settings.firstServerUnknown,coaches:settings.coaches,otherServerUnknown:settings.otherServerUnknown,onboardingComplete:settings.onboardingComplete});
+ const pageUrl=videoPageUrl(settings.videoPageUrl);if(pageUrl)setup.videoPageUrl=pageUrl;
  const sourceUrl=replaySource(settings.videoSourceUrl);if(sourceUrl)setup.videoSourceUrl=sourceUrl;
  if(settings.near!==undefined){if(!['a','b'].includes(settings.near))throw Error('Invalid court end.');setup.near=settings.near;}
  if(settings.positions){if(typeof settings.positions.a!=='boolean'||typeof settings.positions.b!=='boolean')throw Error('Invalid court positions.');setup.positions={a:settings.positions.a,b:settings.positions.b};}

@@ -1,6 +1,6 @@
 import {correctPoint} from './point-corrections.mjs';
 import {creditRecoverySmash} from './tap-selection.mjs';
-import {replaySource} from './replay-source.mjs';
+import {replaySource,videoPageUrl} from './replay-source.mjs';
 import {qualityCheckpoint} from './scouting-quality.mjs';
 import {scoutingTime} from './scouting-time.mjs';
 import {needsServerConfirmation} from './onboarding-model.mjs';
@@ -204,6 +204,13 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
  if(!Number.isInteger(message.player)||message.player<0||message.player>3||Math.floor(message.player/2)===Math.floor(state.setup.firstServer/2))throw Error('Choose a player from the other pair.');
  state.setup.otherServer=message.player;state.setup.otherServerUnknown=false;return save();
  }
+        case 'save-video-url':{
+          if(!state.selectedMatch)throw Error('Choose a match first.');
+          const url=videoPageUrl(message.url);
+          if(!url)throw Error('Enter a YouTube or Red Bull TV video link.');
+          state.setup.videoPageUrl=url;
+          return save();
+        }
         case 'setup':{
           if(state.pending||state.rallies.some(r=>r.point))throw Error('Match setup is locked after scouting starts.');
           state.setup=validateSetup({...state.setup,...message.setup});return save();
@@ -313,6 +320,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           const found=await discover(message.type==='reconnect'?state.connection.tabId:undefined);
           if(!found.videos.length)throw Error('No accessible video found. Start playback, click the extension icon on that tab and reconnect. A player in a different-site iframe may need site-specific support.');
           state.setup.videoSourceUrl=replaySource(found.url);
+          state.setup.videoPageUrl=videoPageUrl(found.url);
           state.connection={tabId:found.tabId,page:pageReference(found.url),candidates:found.videos,selected:found.videos[0]};
           return save();
         }

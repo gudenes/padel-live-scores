@@ -1,3 +1,4 @@
+import {savedVideoUrl} from './replay-source.mjs';
 export function manualUI({$,act,call,getState}){
  const chosen=Array(4).fill(null),timers=Array(4).fill(null),versions=Array(4).fill(0);
  let restoredDraft='',listKey='',mode='find';
@@ -62,17 +63,17 @@ export function manualUI({$,act,call,getState}){
   for(const id of ['mode-find','mode-create','create-manual','refresh-private'])$(id).disabled=locked;
   for(const input of $('manual-match-form').querySelectorAll('input'))input.disabled=locked;
   $('create-manual').textContent=busy&&mode==='create'?'Creating match…':'Create match';
-  $('open-saved-video').hidden=!state.selectedMatch?.videoUrl;$('open-saved-video').disabled=locked;
+  $('open-saved-video').hidden=!savedVideoUrl(state);$('open-saved-video').disabled=locked;
   if(state.manualDraft?.id&&restoredDraft!==state.manualDraft.id){restoredDraft=state.manualDraft.id;state.manualDraft.players.forEach((p,i)=>{chosen[i]=p.id;$('manual-player-'+i).value=p.name;$('manual-player-hint-'+i).textContent=p.id?'Existing player':'Name only · private scouting';});$('manual-date').value=state.manualDraft.matchDate??'';$('manual-tournament').value=state.manualDraft.tournamentLabel;$('manual-video').value=state.manualDraft.videoUrl;}
   const sessions=new Map((state.manualMatches??[]).map(m=>[m.id,{selectedMatch:m,rallies:[]}]));
   for(const saved of Object.values(state.sessions??{}))if(saved.selectedMatch)sessions.set(saved.selectedMatch.id,saved);
-  if(state.selectedMatch)sessions.set(state.selectedMatch.id,{selectedMatch:state.selectedMatch,rallies:state.rallies});
+  if(state.selectedMatch)sessions.set(state.selectedMatch.id,{selectedMatch:state.selectedMatch,rallies:state.rallies,setup:state.setup});
   const key=JSON.stringify([[...sessions],locked]);if(key===listKey)return;listKey=key;
   const rows=[...sessions.values()].map(saved=>{
    const selected=saved.selectedMatch,row=document.createElement('div'),name=document.createElement('strong'),meta=document.createElement('small'),actions=document.createElement('div'),button=document.createElement('button'),report=document.createElement('a');
    row.className='saved-session';name.textContent=selected.names.slice(0,2).join(' / ')+' vs '+selected.names.slice(2).join(' / ');meta.textContent=[selected.kind==='manual'?'Private · manually created':selected.tournamentName,selected.matchDate,`${saved.rallies?.filter(r=>r.point&&!r.undone).length??0} points on this device`].filter(Boolean).join(' · ');
    actions.className='catalog-filters';button.className='ui-btn';button.textContent=selected.id===state.selectedMatch?.id?'Current match':'Open session';button.disabled=locked||selected.id===state.selectedMatch?.id;button.onclick=async()=>{const result=await act({type:'resume-session',matchId:selected.id});if(result.ok){$('saved-sessions-panel').hidden=true;reveal($('video-panel'));}else $('saved-error').textContent=result.error;};
-   report.href='https://admin.padelnachos.com/scouting/'+(selected.kind==='manual'?'manual/':'')+encodeURIComponent(selected.id)+'/report';report.target='_blank';report.rel='noopener';report.textContent='View report';actions.append(button,report);row.append(name,meta,actions);return row;
+   report.href='https://admin.padelnachos.com/scouting/'+(selected.kind==='manual'?'manual/':'')+encodeURIComponent(selected.id)+'/report';report.target='_blank';report.rel='noopener';report.textContent='View report';actions.append(button,report);const video=savedVideoUrl(saved);if(video){const link=document.createElement('a');link.href=video;link.target='_blank';link.rel='noopener noreferrer';link.className='ui-btn';link.dataset.variant='ghost';link.textContent='Open video ↗';actions.append(link);}row.append(name,meta,actions);return row;
   });
   if(!rows.length){const empty=document.createElement('p');empty.className='hint';empty.textContent='No sessions yet. Find a match or create a private match to begin.';rows.push(empty);}$('saved-sessions-list').replaceChildren(...rows);
  }
