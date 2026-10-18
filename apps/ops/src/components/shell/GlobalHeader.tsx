@@ -34,7 +34,7 @@ export function GlobalHeader({ userEmail = null, scoped = false }: { userEmail?:
       </label>}
 
       <div className="gright">
-        <a className="iconbtn" href="/downloads/padel-nachos-scout-0.2.8.zip" download="padel-nachos-scout-0.2.8.zip" aria-label="Download scouting extension" title="Download Scout v0.2.8 · installation guide and Mac / Windows helpers">
+        <a className="iconbtn" href="/downloads/padel-nachos-scout-0.2.10.zip" download="padel-nachos-scout-0.2.10.zip" aria-label="Download scouting extension" title="Download Scout v0.2.10 · installation guide and Mac / Windows helpers">
           <Icon id="download" />
         </a>
         <span className="envpill"><span className="d" />Prod</span>

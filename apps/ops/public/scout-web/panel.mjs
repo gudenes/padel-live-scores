@@ -1,3 +1,4 @@
+import {savedVideoUrl} from './replay-source.mjs';
 import {scoutingLog} from './scouting-log.mjs';
 import {playground} from './practice-mode.mjs';
 import {actionQueue} from './action-queue.mjs';
@@ -34,6 +35,10 @@ function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Mat
 function render(){
   if(!state)return;
   renderLog();
+  $('save-video-link').hidden=playground||!state.selectedMatch;
+  const savedVideo=savedVideoUrl(state);
+  $('resume-video-link').hidden=playground||!savedVideo;
+  if(savedVideo)$('resume-video-link').href=savedVideo;else $('resume-video-link').removeAttribute('href');
   const connection=state.connection;
   $('scouting-workspace').hidden=!state.selectedMatch;$('video-panel').hidden=!state.selectedMatch;$('empty-match-start').hidden=!!state.selectedMatch;
 
@@ -182,3 +187,7 @@ function backToMatches(){window.top.location.href='/scouting';}
 $('standalone-reset').onclick=backToMatches;
 $('header-new-match').onclick=backToMatches;
 $('closing-new').onclick=backToMatches;
+
+$('save-video-link').onclick=()=>{$('video-link-input').value=savedVideoUrl(state)||'';$('video-link-feedback').textContent='';$('video-link-dialog').showModal();};
+$('video-link-cancel').onclick=()=>$('video-link-dialog').close();
+$('video-link-form').onsubmit=async event=>{event.preventDefault();const button=event.submitter;button.disabled=true;try{const result=await act({type:'save-video-url',url:$('video-link-input').value.trim()});$('video-link-feedback').textContent=result.ok?'Video link saved with this session.':result.error;}finally{button.disabled=false;}};
