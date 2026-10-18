@@ -240,3 +240,12 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .scout-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:1000;max-width:calc(100vw - 32px);padding:12px 18px;border-radius:10px;background:#202b26;color:#fff;border-left:4px solid #c9f52d;box-shadow:0 6px 24px #0003;font-size:12px;pointer-events:none}
 
 .header-actions #quick-reconnect{position:relative}.header-actions #quick-reconnect .video-connection-nudge{position:absolute;top:3px;right:3px;width:7px;height:7px;border-radius:50%;background:#81a900;box-shadow:0 0 0 2px var(--bg-card,#fff);display:none}.header-actions #quick-reconnect .video-connection-nudge[data-status="connected"]{display:block}.header-actions #quick-reconnect .video-connection-nudge:before{display:none}
+
+/* Keep required recovery attribution outside the compact, hidden tag controls. */
+#recovery-smash-label{display:grid;gap:6px;padding:10px;border:1px solid var(--border-strong);border-radius:8px;background:white}
+#recovery-smash-label[hidden]{display:none}
+.player-card[data-feedback=recorded][data-smash-type=power] .attempts button:nth-child(1),
+.player-card[data-feedback=recorded][data-smash-type=x3] .attempts button:nth-child(2),
+.player-card[data-feedback=recorded][data-smash-type=soft] .attempts button:nth-child(3){outline:2px solid var(--lime-ink);outline-offset:1px;animation:smash-confirm .3s ease-out}
+@keyframes smash-confirm{50%{transform:scale(1.05)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.player-card .attempts button{animation:none!important}}

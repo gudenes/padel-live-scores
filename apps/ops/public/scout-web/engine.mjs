@@ -20,7 +20,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async(context={})=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
-        await write(state,{type:message.type,...context});return {state};
+        await write(state,{type:message.type,...context});return {state,...(context.smashFeedback?{smashFeedback:context.smashFeedback}:{})};
       };
       switch(message.type){
         case 'state':return {state};
@@ -301,10 +301,10 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
             const touchIndex=(state.pending.touches?.length??0)-1,touch=state.pending.touches?.[touchIndex];
             if(!touch||touch.player!==message.player)throw Error('Tap this player’s shot first.');
             const existing=(state.pending.attempts??=[]).find(a=>a.touchIndex===touchIndex);
-            if(existing){existing.smashType=smashType;return save();}
+            if(existing){existing.smashType=smashType;return save({smashFeedback:{kind:'updated'}});}
             state.pending.attempts.push({player:message.player,snapshot:touch.snapshot,touchIndex,...(smashType?{smashType}:{})});
           }else (state.pending.attempts??=[]).push({player:message.player,snapshot,...(smashType?{smashType}:{})});
-          return save();
+          return save({smashFeedback:{kind:'added'}});
         }
         case 'undo':{
           if(state.pending)throw Error('Cancel the open rally before undoing a point.');
