@@ -413,7 +413,16 @@ export default function V3RankingPage() {
         return
       }
 
-      const rankCol = rt === 'official' ? 'ranking' : 'race_ranking'
+      if (rt === 'official') {
+        const response = await fetch(`/api/rankings?gender=${g}`)
+        if (!response.ok) throw new Error('Official rankings unavailable')
+        const result = await response.json()
+        setPlayers(result.players)
+        setUpdatedAt(result.rankingDate)
+        return
+      }
+
+      const rankCol = 'race_ranking'
       const RANKING_COLS =
         'id, name, display_name, country, ranking, points, ranking_move, points_move, race_ranking, race_points, race_move, race_points_move, avatar_url, category, updated_at, ranking_date'
 
@@ -449,6 +458,8 @@ export default function V3RankingPage() {
         setUpdatedAt(latestRankingDate)
       }
     } catch (e) {
+      setPlayers([])
+      setUpdatedAt(null)
       console.error('[V3 Ranking] load error:', e)
     } finally {
       setLoading(false)
