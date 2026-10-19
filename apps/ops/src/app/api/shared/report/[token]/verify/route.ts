@@ -1,3 +1,4 @@
+import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {randomUUID} from 'node:crypto'
 import {NextResponse} from 'next/server'
 import {pgPool} from '@/lib/db'
@@ -10,7 +11,7 @@ const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'C
 export async function POST(req:Request,{params}:{params:Promise<{token:string}>}){
  const {token}=await params
  if(!validShareToken(token))return json({error:'This link is unavailable.'},404)
- if(req.headers.get('origin')!==new URL(req.url).origin)return json({error:'Invalid origin.'},403)
+ if(!hasAdminRequestOrigin(req))return json({error:'Invalid origin.'},403)
  let body;try{const text=await req.text();if(text.length>2048)return json({error:'Invalid request.'},400);body=JSON.parse(text)}catch{return json({error:'Invalid request.'},400)}
  const share=shareTokenHash(token),db=pgPool(),client=await db.connect()
  let transaction=false
