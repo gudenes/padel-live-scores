@@ -99,3 +99,6 @@ import/
 
 # Private draft and backup data
 .local/
+
+# Local training media is hosted separately from source control.
+/apps/ops/public/training-media/
