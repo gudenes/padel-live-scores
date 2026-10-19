@@ -28,7 +28,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  return <main className={styles.page}><div className={styles.libraryLayout}>
  <aside className={styles.libraryRail} aria-label="Your library"><LibrarySidebar userId={user?.id??''} filters={filters} profiles={Object.fromEntries(rows.flatMap(r=>(r.players??[]).filter((p:any)=>p.id&&p.avatar_url).map((p:any)=>[p.id,p.avatar_url])))}/></aside>
  <div className={styles.libraryContent}>
- <header className={styles.heading}><div><div className={styles.eyebrow}>YOUR MATCH LIBRARY</div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><MethodologyGuide/></header>
+ <header className={styles.heading}><div><div className={styles.eyebrow}>YOUR MATCH LIBRARY</div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><div className={styles.headingActions}><Link href="/scouting/academy" className="ui-btn" data-variant="primary" aria-label="Scout Academy — learn and practise scouting" title="Scout Academy · Learn and practise scouting"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5-10-5Z"/><path d="M6 11v6c3 3 9 3 12 0v-6M22 9v7"/></svg></Link><MethodologyGuide/></div></header>
  <section className={styles.filterPanel} aria-label="Match filters">
  <CatalogSearchForm className={styles.refinedFilters} initialSearch={q}>
  <div className={styles.filterMain}>

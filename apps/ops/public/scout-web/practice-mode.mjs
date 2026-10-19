@@ -6,3 +6,7 @@ export function memoryStorage(){
 }
 export const preferences = playground ? memoryStorage() : {getItem:key=>globalThis.localStorage?.getItem(key)??null,setItem:(key,value)=>globalThis.localStorage?.setItem(key,value),removeItem:key=>globalThis.localStorage?.removeItem(key)};
 export function practiceMessageAllowed(type){return !['sync-server','load-server','sign-in','account-status','open-video','open-video-link'].includes(type);}
+
+// Seed the existing mode preference before the real scouting UI mounts.
+const academyParams=new URL(globalThis.location?.href??'http://localhost/').searchParams;
+if(playground&&academyParams.has('academy'))preferences.setItem('pn-rally-taps',academyParams.get('mode')==='expert'?'on':'off');
