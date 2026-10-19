@@ -36,3 +36,20 @@ Final result: blocked — requires original match video URL for playback/alignme
 - 41 scouting utility tests and 14 catalog/report/access/header tests passed. Client harness updated for the sticky-header IntersectionObserver and new library entry.
 - Extension suite: 162 passed, 3 failed; all three direct-entry failures also occur on unchanged origin/main (160 passed, 3 failed). New video-source tests pass.
 - Video links and saved moments remain browser-local unless a source URL is present in saved scouting metadata. Existing downloaded extension package is unchanged.
+
+## Matches catalog · 2026-10-19
+
+Source visual truth: /Volumes/Crucial/Apps/codex/home/generated_images/01a1102e-efe0-79f2-9415-f4298ad0ea0e/exec-68f6021b-4ee3-487c-8bac-8bbcf015654f.png
+Implementation screenshot: /Volumes/Crucial/Apps/codex/home/scouter-tmp/matches-catalog/desktop.png
+Preview: http://localhost:8824/scouting?date=2026-10-18
+
+Compared both images together. Source is a 1724×912 generated concept; desktop browser requested 1440×1000, screenshot includes browser scaling and surrounding canvas. Compared the content regions proportionally, not pixel-for-pixel. The reference uses fictional Today fixtures; the implementation uses real previous-day fixtures because Today is empty. Existing global navigation, search help, applied-filter chips, watched-player settings, and Scout menu intentionally remain available. These explain the taller header region and different data density.
+
+Required surfaces: existing app typography and hierarchy retained; three equal card columns, compact paired avatars and aligned set scores match the proposed structure; existing cream/lime/coral tokens retained; real player photos used with existing initials fallback where absent; labels and dates use real catalog data rather than fabricated scheduling times. Full view and readable browser DOM checked; focused date controls additionally checked on a narrow viewport. Full player names intentionally wrap to preserve identity.
+
+Interactions verified: Today empty state, previous-day populated results, All dates clears the date, Scout menu opens independently of the card link. Thirteen catalog/date tests and TypeScript pass; browser console has no recorded errors. Date arithmetic covers month boundaries and Madrid midnight/DST; filters retain selection and reset pagination. Narrow view fits all seven dates and switches cards to one column; desktop has three columns.
+
+Findings: no actionable P0/P1/P2 issues for the requested catalog change. P3: existing filter help and applied-filter row could be consolidated in a later refinement. Existing sidebar stacking on narrow screens is unchanged.
+Comparison history: initial browser comparison passed with the intentional existing-shell differences above; no visual repair loop required.
+Implementation checklist: date strip complete; three-column cards complete; original scouting entry preserved; local preview running. Production deployment not performed.
+final result: passed

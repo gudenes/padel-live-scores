@@ -1,10 +1,13 @@
+import {Icon} from '@/components/IconSprite'
 import MethodologyGuide from "@/components/scouting/MethodologyGuide"
 import Link from 'next/link'
 import {auth} from '@/lib/auth'
 import {canViewReports} from '@/lib/scouting-permissions'
 import {redirect} from 'next/navigation'
 import {pgPool} from '@/lib/db'
-import MatchCard from './MatchCard'
+import CompactMatchCard from './CompactMatchCard'
+import MatchDateStrip from './MatchDateStrip'
+import {catalogDay} from '@/lib/scouting/catalog-days'
 import LibrarySidebar from './LibrarySidebar'
 import CatalogSearchForm from './CatalogSearchForm'
 import FilterSelect from './FilterSelect'
@@ -17,6 +20,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  const user=(await auth())?.user;if(!canViewReports(user))redirect('/login')
  const params=await searchParams
  if(Object.keys(params).length===0)redirect("/scouting?watchlist=1")
+ const today=catalogDay()
  const filters=catalogFilters(params)
  const {q,status,kind,scouter,date,scouting,page,league,mine,player,watchlist,watched}=filters
  let rows:any[]=[];let failed=false;let hasNext=false
@@ -29,6 +33,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  <aside className={styles.libraryRail} aria-label="Your library"><LibrarySidebar userId={user?.id??''} filters={filters} profiles={Object.fromEntries(rows.flatMap(r=>(r.players??[]).filter((p:any)=>p.id&&p.avatar_url).map((p:any)=>[p.id,p.avatar_url])))}/></aside>
  <div className={styles.libraryContent}>
  <header className={styles.heading}><div><div className={styles.eyebrow}>YOUR MATCH LIBRARY</div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><div className={styles.headingActions}><Link href="/scouting/academy" className="ui-btn" data-variant="primary" aria-label="Scout Academy — learn and practise scouting" title="Scout Academy · Learn and practise scouting"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5-10-5Z"/><path d="M6 11v6c3 3 9 3 12 0v-6M22 9v7"/></svg></Link><MethodologyGuide/></div></header>
+ <MatchDateStrip today={today} filters={filters}/>
  <section className={styles.filterPanel} aria-label="Match filters">
  <CatalogSearchForm className={styles.refinedFilters} initialSearch={q}>
  <div className={styles.filterMain}>
@@ -50,8 +55,8 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  </CatalogSearchForm>
  {activeFilters.length>0&&<div className={styles.activeFilters} aria-label="Active filters"><span className={styles.filterGroupLabel}>Applied filters</span>{activeFilters.map(([key,label])=><Link key={key} className="ui-btn" data-size="sm" data-variant="ghost" aria-label={`Remove ${label} filter`} href={catalogUrl(filters,{[key]:'',page:1})}>{label}<span aria-hidden="true">×</span></Link>)}<Link className="ui-btn" data-variant="ghost" data-size="sm" href={catalogUrl(filters,{q:'',league:'',date:'',status:'',kind:'',scouter:'',scouting:'',page:1})}>Clear filters</Link></div>}
  </section>
- <div className={styles.resultsHeading}><div><h2>{watchlist?'My Watchlist':mine?'My scouts':player?'Player matches':'All matches'}</h2><span className={styles.sortNote}>{(player||watchlist)?`${rows.length} matches · Live, upcoming, then recent`:`Newest match date first · ${MATCH_PAGE_SIZE} per page`}</span></div></div>
+ <div className={styles.resultsHeading}><div><h2>{watchlist?'My Watchlist':mine?'My scouts':player?'Player matches':date===today?'Today’s matches':date?'Matches · '+new Date(date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'All matches'}</h2><span className={styles.sortNote}>{(player||watchlist)?`${rows.length} matches · Live, upcoming, then recent`:`Newest match date first · ${MATCH_PAGE_SIZE} per page`}</span></div></div>
  <div className={styles.grid}>
- {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<p className="ui-panel">{watchlist&&!watched?'Your watchlist is empty. Use the settings icon next to Watched players to add players.':'No matches match these filters.'} <Link href="/scouting">Reset filters</Link></p>:rows.map(r=><MatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
- {!failed&&!player&&!watchlist&&<nav className={styles.pagination} aria-label="Match pages"><span>{rows.length?`Showing ${(page-1)*MATCH_PAGE_SIZE+1}–${(page-1)*MATCH_PAGE_SIZE+rows.length}`:'0 matches'} · Page {page}</span><div>{page>1&&<Link className="ui-btn" href={pageUrl(page-1)}>Previous</Link>}{hasNext&&<Link className="ui-btn" data-variant="primary" href={pageUrl(page+1)}>Next</Link>}</div></nav>}</div></div></main>
+ {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<section className={styles.emptyMatches} aria-labelledby="empty-matches-title"><div className={styles.emptyMatchIcon} aria-hidden="true"><Icon id={watchlist&&!watched?'users':date?'today':'search'}/></div><h3 id="empty-matches-title">{watchlist&&!watched?'Build your match watchlist':date===today?'No matches found for today':date?'No matches found for this date':'No matches found'}</h3><p>{watchlist&&!watched?'Add players using the settings icon next to Watched players to see their matches here.':'Try another date or clear your filters to explore more matches.'}</p><div className={styles.emptyMatchActions}>{date&&<Link className="ui-btn" data-variant="primary" href={catalogUrl(filters,{date:'',page:1})}>Browse all dates</Link>}<Link className="ui-btn" data-variant={date?'default':'primary'} href="/scouting?view=all">{watchlist&&!watched?'Explore all matches':'Clear all filters'}</Link></div></section>:rows.map(r=><CompactMatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
+ {!failed&&(rows.length>0||page>1)&&!player&&!watchlist&&<nav className={styles.pagination} aria-label="Match pages"><span>{rows.length?`Showing ${(page-1)*MATCH_PAGE_SIZE+1}–${(page-1)*MATCH_PAGE_SIZE+rows.length}`:'0 matches'} · Page {page}</span><div>{page>1&&<Link className="ui-btn" href={pageUrl(page-1)}>Previous</Link>}{hasNext&&<Link className="ui-btn" data-variant="primary" href={pageUrl(page+1)}>Next</Link>}</div></nav>}</div></div></main>
 }

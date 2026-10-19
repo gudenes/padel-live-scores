@@ -1,4 +1,4 @@
-import {beforeEach,expect,it,vi} from 'vitest'
+import {afterEach,beforeEach,expect,it,vi} from 'vitest'
 const mocks=vi.hoisted(()=>({auth:vi.fn(),query:vi.fn(),view:vi.fn()}))
 vi.mock('@/lib/auth',()=>({auth:mocks.auth}))
 vi.mock('@/lib/db',()=>({pgPool:()=>({query:mocks.query})}))
@@ -34,4 +34,21 @@ it('rejects an unsupported browser video before querying',async()=>{
  mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}})
  const response=await POST(new Request('https://admin.test/api/internal/report-share/'+id,{method:'POST',headers:{origin:'https://admin.test'},body:JSON.stringify({videoUrl:'javascript:alert(1)'})}),ctx)
  expect(response.status).toBe(400);expect(mocks.query).not.toHaveBeenCalled()
+})
+
+afterEach(()=>vi.unstubAllEnvs())
+it('accepts the production admin origin behind an internal proxy URL',async()=>{
+ vi.stubEnv('NODE_ENV','production');mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}});mocks.query.mockResolvedValue({rows:[]})
+ const response=await DELETE(new Request('http://internal:8080/api/internal/report-share/'+id,{method:'DELETE',headers:{origin:'https://admin.padelnachos.com'},body:JSON.stringify({token:'a'.repeat(43)})}),ctx)
+ expect(response.status).toBe(200)
+})
+it.each(['https://evil.test','http://internal:8080','null'])('rejects untrusted production origin %s even with forwarded headers',async origin=>{
+ vi.stubEnv('NODE_ENV','production');mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}})
+ const response=await POST(new Request('http://internal:8080/api/internal/report-share/'+id,{method:'POST',headers:{origin,'x-forwarded-host':'admin.padelnachos.com'}}),ctx)
+ expect(response.status).toBe(403);expect(mocks.query).not.toHaveBeenCalled()
+})
+it('accepts matching loopback Host in development when Next normalizes the URL',async()=>{
+ vi.stubEnv('NODE_ENV','development');mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}});mocks.query.mockResolvedValue({rows:[]})
+ const response=await DELETE(new Request('http://localhost:8824/api/internal/report-share/'+id,{method:'DELETE',headers:{origin:'http://127.0.0.1:8824',host:'127.0.0.1:8824'},body:JSON.stringify({token:'a'.repeat(43)})}),ctx)
+ expect(response.status).toBe(200)
 })
