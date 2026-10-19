@@ -31,3 +31,21 @@ it('short links receive a session scoped to the short report path',async()=>{
  const short='b'.repeat(22),base=mocks.query.getMockImplementation()!;mocks.query.mockImplementation(async(sql:string,...args:unknown[])=>sql.includes('select * from report_share_codes')?{rows:[{id,email:'me@example.com',code_hash:codeDigest(id,'123456')}]}:base(sql,...args))
  const response=await POST(req({action:'verify',challengeId:id,code:'123456'}),{params:Promise.resolve({token:short})});expect(response.status).toBe(200);expect(response.headers.get('set-cookie')).toContain('Path=/s/'+short)
 })
+
+it('sends a code from the production admin origin behind the hosting proxy',async()=>{
+ vi.stubEnv('NODE_ENV','production');mocks.send.mockResolvedValue(undefined)
+ const base=mocks.query.getMockImplementation()!;mocks.query.mockImplementation(async(sql:string,...args:unknown[])=>sql.includes('count(*) filter')?{rows:[{recipient:0,ip:0,link:0,recent:0}]}:base(sql,...args))
+ const response=await POST(new Request(`http://internal:8080/api/shared/report/${token}/verify`,{method:'POST',headers:{origin:'https://admin.padelnachos.com'},body:JSON.stringify({action:'request',email:'me@example.com'})}),ctx)
+ expect(response.status).toBe(200);expect(await response.json()).toHaveProperty('challengeId');expect(mocks.send).toHaveBeenCalledWith('me@example.com',expect.stringMatching(/^\d{6}$/))
+})
+it('verifies codes behind the hosting proxy and keeps secure report-scoped cookies',async()=>{
+ vi.stubEnv('NODE_ENV','production')
+ const base=mocks.query.getMockImplementation()!;mocks.query.mockImplementation(async(sql:string,...args:unknown[])=>sql.includes('select * from report_share_codes')?{rows:[{id,email:'me@example.com',code_hash:codeDigest(id,'123456')}]}:base(sql,...args))
+ const response=await POST(new Request(`http://internal:8080/api/shared/report/${token}/verify`,{method:'POST',headers:{origin:'https://admin.padelnachos.com'},body:JSON.stringify({action:'verify',challengeId:id,code:'123456'})}),ctx)
+ expect(response.status).toBe(200);expect(response.headers.get('set-cookie')).toContain('Secure');expect(response.headers.get('set-cookie')).toContain('HttpOnly');expect(response.headers.get('set-cookie')).toContain('/shared/report/'+token)
+})
+it.each(['https://evil.test','http://internal:8080','null',''])('rejects untrusted production origin %s before storage or email',async origin=>{
+ vi.stubEnv('NODE_ENV','production')
+ const response=await POST(new Request(`http://internal:8080/api/shared/report/${token}/verify`,{method:'POST',headers:{...(origin?{origin}:{}),'x-forwarded-host':'admin.padelnachos.com'},body:JSON.stringify({action:'request',email:'me@example.com'})}),ctx)
+ expect(response.status).toBe(403);expect(mocks.query).not.toHaveBeenCalled();expect(mocks.send).not.toHaveBeenCalled()
+})
