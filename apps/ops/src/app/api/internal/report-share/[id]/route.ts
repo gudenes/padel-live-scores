@@ -1,3 +1,4 @@
+import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {videoSource} from '@/lib/scouting/video-review'
 import {auth} from '@/lib/auth'
 import {pgPool} from '@/lib/db'
@@ -9,13 +10,14 @@ export const runtime='nodejs'
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{'Cache-Control':'no-store'}})
 async function authorize(req:Request,id:string){
  const user=(await auth())?.user
- if(!user?.isOperator)return null
- if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))return null
- if(req.headers.get('origin')!==new URL(req.url).origin)return null
+ if(!user)return json({error:'Your session has expired. Sign in again to share this report.'},403)
+ if(!user.isOperator)return json({error:'Only administrators can create or revoke report links.'},403)
+ if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))return json({error:'Invalid match.'},400)
+ if(!hasAdminRequestOrigin(req))return json({error:'The request came from an unrecognized address. Reopen the report from the admin site and try again.'},403)
  return user
 }
 export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
- const {id}=await params,user=await authorize(req,id);if(!user)return json({error:'Not authorized.'},403)
+ const {id}=await params,user=await authorize(req,id);if(user instanceof Response)return user
  try{
   const body=await req.text()
   if(body.length>8192)return json({error:'Invalid video source.'},400)
@@ -37,7 +39,7 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
  }catch{return json({error:'Sharing is unavailable. Please try again after the sharing service is configured.'},503)}
 }
 export async function DELETE(req:Request,{params}:{params:Promise<{id:string}>}){
- const {id}=await params,user=await authorize(req,id);if(!user)return json({error:'Not authorized.'},403)
+ const {id}=await params,user=await authorize(req,id);if(user instanceof Response)return user
  try{const {token}=await req.json();if(typeof token!=='string'||!validShareToken(token))return json({error:'Invalid link.'},400)
  await pgPool().query('update scouting_report_shares set revoked_at=now() where token_hash=$1 and match_id=$2',[shareTokenHash(token),id]);return json({ok:true})
  }catch{return json({error:'Could not revoke the link.'},503)}
