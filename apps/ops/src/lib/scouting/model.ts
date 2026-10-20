@@ -85,7 +85,7 @@ export function replay(doc:ScoutDoc){
   score={...score,servingPlayer:f,servingTeam:teamOf(settings.firstServer),servingOrder:[f,o,((f+2)%4) as PlayerIndex,((o+2)%4) as PlayerIndex]}
   let near=settings.near
   const swapped={a:false,b:false}
-  const stats=Array.from({length:4},()=>({winners:0,forced:0,unforced:0,smashes:0,smashWinners:0,smashPointsWon:0,smashErrorsGenerated:0,smashErrors:0,assists:0,forcedErrorsCreated:0,netTouches:0,recoveryWinners:0,smashRecoveryWinners:0,luckyNetCords:0,unluckyNetCords:0,shots:{} as Partial<Record<Shot|'unrecorded',{winners:number;unforced:number;forced:number}>>}))
+  const stats=Array.from({length:4},()=>({winners:0,forced:0,unforced:0,smashes:0,smashWinners:0,smashRecoveredByRival:0,smashPointsWon:0,smashErrorsGenerated:0,smashErrors:0,assists:0,forcedErrorsCreated:0,netTouches:0,recoveryWinners:0,smashRecoveryWinners:0,luckyNetCords:0,unluckyNetCords:0,shots:{} as Partial<Record<Shot|'unrecorded',{winners:number;unforced:number;forced:number}>>}))
   const tracking=createTracking()
   let points=0,unclassified=0
   const rallySmashes=new Map<string,Player>()
@@ -125,9 +125,16 @@ export function replay(doc:ScoutDoc){
       }
       winningTeam=e.outcome==='winner'?teamOf(e.player):teamOf(e.player)==='a'?'b':'a'
     }else if(e.kind==='double_fault'){winningTeam=score.servingTeam==='a'?'b':'a'}else{winningTeam=e.team;unclassified++}
+    // Older recovery observations lack an explicit attempt link. Attribute only
+    // when all recorded rival smashes identify the same player in this rally.
+    const recoveryCandidates=e.kind==='point'&&e.smashRecovery&&e.outcome==='winner'
+      ? [...new Set([...rallySmashes.values()].filter(p=>teamOf(p)!==teamOf(e.player)))]:[]
+    const recoveredSmashBy=recoveryCandidates.length===1?recoveryCandidates[0]:undefined
+    if(recoveredSmashBy!==undefined)stats[recoveredSmashBy].smashRecoveredByRival++
     rallySmashes.clear()
     const before=score
     score=apply(score,{kind:'point_for',team:winningTeam});points++;tracking.handle(e,before,score,winningTeam)
+    if(recoveredSmashBy!==undefined)tracking.data.timeline.at(-1)!.recoveredSmashBy=recoveredSmashBy
     if(changesEnds(before,score))near=near==='a'?'b':'a'
   }
   return {ready,arrivals,settings,score,near,swapped,stats,points,unclassified,tracking:tracking.data,server:([0,2,1,3] as const)[score.servingPlayer] as Player}
