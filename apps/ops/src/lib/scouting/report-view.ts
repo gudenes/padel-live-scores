@@ -1,3 +1,4 @@
+import {getDeuceRule} from './scoring';
 import {replaySource} from '../../../../../extensions/scouting-video-overlay/replay-source.mjs';
 import { scopedStats, teamSummary } from "./insights";
 import {
@@ -212,6 +213,7 @@ export function reportView(
     finished: report.model.score.phase === "finished",
     winner: report.model.score.winner,
     elapsedMs: elapsed,
+    scoringRule: getDeuceRule(report.model.score.config),
     contextUnavailable: context.unavailable ?? false,
   };
 }

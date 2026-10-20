@@ -194,7 +194,7 @@ export default function SavedScoutingReport({
           </p>
         </div>
         <ReportActions
-          shareAction={canShare&&!manual&&report?<ShareReport matchId={matchId} firstPointId={data?.scopes.all.points[0]?.id}/>:undefined}
+          shareAction={canShare&&report?<ShareReport manual={manual} matchId={matchId} firstPointId={data?.scopes.all.points[0]?.id}/>:undefined}
           resumeAction={!loading&&!error&&canResume&&report?.model.score.phase!=='finished'?<ScoutLaunchMenu matchId={matchId} continuing extension={resumeInExtension} label="Scouting options" placement="below"/>:undefined}
           loading={loading}
           scope={scope}

@@ -21,15 +21,17 @@ export async function POST(req:Request,{params}:{params:Promise<{id:string}>}){
  try{
   const body=await req.text()
   if(body.length>8192)return json({error:'Invalid video source.'},400)
-  let videoUrl:string|undefined
+  let videoUrl:string|undefined,manual=false
   if(body){let input;try{input=JSON.parse(body)}catch{return json({error:'Invalid request.'},400)}
+   if(input?.manual!==undefined&&typeof input.manual!=='boolean')return json({error:'Invalid match type.'},400)
+   manual=input?.manual===true
    if(input?.videoUrl!=null){if(typeof input.videoUrl!=='string'||!videoSource(input.videoUrl))return json({error:'Unsupported video source.'},400);videoUrl=videoSource(input.videoUrl)!.url}
   }
   const db=pgPool();let source:'video'|'admin'='video'
-  let session=(await db.query('select document,players,revision,updated_at from operator_video_scouting_sessions where match_id=$1',[id])).rows[0]
-  if(!session){source='admin';session=(await db.query('select document,players,revision,updated_at from operator_scouting_sessions where match_id=$1',[id])).rows[0]}
+  let session=(await db.query(manual?'select document,players,revision,updated_at from operator_manual_video_scouting_sessions where match_id=$1':'select document,players,revision,updated_at from operator_video_scouting_sessions where match_id=$1',[id])).rows[0]
+  if(!session&&!manual){source='admin';session=(await db.query('select document,players,revision,updated_at from operator_scouting_sessions where match_id=$1',[id])).rows[0]}
   if(!session)return json({error:'Save scouting before sharing this report.'},404)
-  const snapshot=reportView(savedReport(session,source),await reportContext(id))
+  const snapshot=reportView(savedReport(session,source),await reportContext(id,manual))
   // Preserve the connected source, including an admin's browser-only connection.
   snapshot.videoUrl=videoSource(videoUrl??snapshot.videoUrl??'')?.url??null
   snapshot.players=snapshot.players.map(p=>({id:p.id,name:p.name,shortName:p.shortName,avatar:p.avatar}))

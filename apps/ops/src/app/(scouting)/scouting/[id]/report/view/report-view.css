@@ -2232,3 +2232,6 @@ main.main:has(.match-sticky-hero){overflow-anchor:none}.matchInsights .match-sti
  .matchInsights:has(.video-review) .match-sticky-hero.is-compact .heroTeam{gap:8px}
  .matchInsights:has(.video-review) .match-sticky-hero.is-compact .heroTeam b{max-width:90px}
 }
+
+.matchInsights .result .match-date { display: block; margin-top: 4px; }
+.matchInsights .match-sticky-hero.is-compact .result .match-date { display: none; }

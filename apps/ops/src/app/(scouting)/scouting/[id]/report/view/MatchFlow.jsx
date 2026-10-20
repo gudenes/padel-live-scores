@@ -1,3 +1,4 @@
+import { decidingPoints } from "@/lib/scouting/deciding-points";
 import React, { useState } from "react";
 import { CaretDown } from "./Icons";
 export function groupGames(points) {
@@ -51,7 +52,7 @@ export function tieBreaks(points) {
   }
   return result;
 }
-export function TeamComparison({ teams, pairs, points, players = [] }) {
+export function TeamComparison({ teams, pairs, points, players = [], scoringRule }) {
   const run = (team) => {
     let r = 0,
       max = 0;
@@ -80,6 +81,12 @@ export function TeamComparison({ teams, pairs, points, players = [] }) {
       teams[1].breaks,
       teams.map((t) => t.breaks + " / " + t.breakPoints),
     ],
+    ...decidingPoints(points, scoringRule).map(p => [
+      `${p.label} won / opportunities`,
+      p.a,
+      p.b,
+      [p.a, p.b].map(won => `${won} / ${p.total}`),
+    ]),
     ["Double faults", teams[0].doubleFaults, teams[1].doubleFaults],
     ["Longest point run", run("a"), run("b")],
   ];
