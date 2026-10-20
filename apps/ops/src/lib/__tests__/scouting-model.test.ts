@@ -64,3 +64,13 @@ it('does not convert returned smashes or reuse an earlier rally attempt',()=>{
  expect(m.stats[0]).toMatchObject({smashes:2,smashPointsWon:1,smashWinners:0})
  expect(replay({...freshDoc(),events:[point(0,'winner',true)]}).stats[0]).toMatchObject({smashes:1,smashPointsWon:1,smashWinners:1})
 })
+it('attributes rival recovery winners only to an unambiguous smasher in the current rally',()=>{
+ const recovery=()=>evt({kind:'point',player:2,outcome:'winner',smash:false,smashRecovery:true})
+ const smash=(player:number)=>evt({kind:'smash',player})
+ const m=replay({...freshDoc(),events:[smash(0),smash(0),recovery(),recovery(),smash(0),smash(1),recovery()]})
+ expect(m.stats[0]).toMatchObject({smashes:3,smashRecoveredByRival:1})
+ expect(m.stats[1].smashRecoveredByRival).toBe(0)
+ expect(m.tracking.timeline.map(p=>p.recoveredSmashBy)).toEqual([0,undefined,undefined])
+ const undone=replay({...freshDoc(),events:[smash(0),recovery(),evt({kind:'undo'})]})
+ expect(undone.stats[0].smashRecoveredByRival).toBe(0)
+})
