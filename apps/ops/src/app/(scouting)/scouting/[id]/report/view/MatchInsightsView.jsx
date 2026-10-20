@@ -428,6 +428,13 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
                 .filter(Boolean)
                 .join(" · ") || "Private scouting"}
             </small>
+            {data.meta.scheduled_at && Number.isFinite(Date.parse(data.meta.scheduled_at)) && (
+              <small className="match-date">
+                {new Date(data.meta.scheduled_at).toLocaleDateString("en-GB", {
+                  day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid",
+                })}
+              </small>
+            )}
             <h1 className="setScores">
               {data.sets.map((s, i) => (
                 <span key={i}>
@@ -526,6 +533,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
                   <TeamComparison
                     players={data.players}
                     teams={teams}
+                    scoringRule={data.scoringRule}
                     pairs={[pair(0), pair(1)]}
                     points={points}
                   />

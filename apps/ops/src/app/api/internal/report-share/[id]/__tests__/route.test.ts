@@ -6,6 +6,7 @@ vi.mock('@/lib/scouting/report-context',()=>({reportContext:vi.fn()}))
 vi.mock('@/lib/scouting/saved-report',()=>({savedReport:vi.fn()}))
 vi.mock('@/lib/scouting/report-view',()=>({reportView:mocks.view}))
 import {POST,DELETE} from '../route'
+import {reportContext} from '@/lib/scouting/report-context'
 const id='311fc424-99af-49f9-9dad-37780b7f01b6',ctx={params:Promise.resolve({id})}
 beforeEach(()=>{vi.clearAllMocks()})
 it('denies anonymous, viewer and scouter creation without querying data',async()=>{
@@ -51,4 +52,28 @@ it('accepts matching loopback Host in development when Next normalizes the URL',
  vi.stubEnv('NODE_ENV','development');mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}});mocks.query.mockResolvedValue({rows:[]})
  const response=await DELETE(new Request('http://localhost:8824/api/internal/report-share/'+id,{method:'DELETE',headers:{origin:'http://127.0.0.1:8824',host:'127.0.0.1:8824'},body:JSON.stringify({token:'a'.repeat(43)})}),ctx)
  expect(response.status).toBe(200)
+})
+
+it('shares a manual snapshot with reusable avatars and connected video',async()=>{
+ mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}})
+ mocks.view.mockReturnValue({videoUrl:'https://example.org/match.mp4',players:[{id:'local-id',name:'Player',shortName:'P',avatar:'https://example.org/avatar.png'}]})
+ mocks.query.mockResolvedValueOnce({rows:[{document:{},players:[]}]}).mockResolvedValueOnce({rows:[{expires_at:'2026-11-20'}]})
+ const response=await POST(new Request('https://admin.test/api/internal/report-share/'+id,{method:'POST',headers:{origin:'https://admin.test'},body:JSON.stringify({manual:true})}),ctx)
+ expect(response.status).toBe(200)
+ expect(mocks.query.mock.calls[0][0]).toContain('operator_manual_video_scouting_sessions')
+ expect(reportContext).toHaveBeenCalledWith(id,true)
+ const snapshot=JSON.parse(mocks.query.mock.calls[1][1][3])
+ expect(snapshot.players[0].avatar).toBe('https://example.org/avatar.png')
+ expect(snapshot.videoUrl).toBe('https://example.org/match.mp4')
+ expect((await response.json()).path).toMatch(/^\/s\//)
+})
+it('does not fall back to tournament data for a missing manual session',async()=>{
+ mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}});mocks.query.mockResolvedValueOnce({rows:[]})
+ const response=await POST(new Request('https://admin.test/api/internal/report-share/'+id,{method:'POST',headers:{origin:'https://admin.test'},body:JSON.stringify({manual:true})}),ctx)
+ expect(response.status).toBe(404);expect(mocks.query).toHaveBeenCalledTimes(1)
+})
+it('rejects invalid match types before reading any session',async()=>{
+ mocks.auth.mockResolvedValue({user:{id:'operator',isOperator:true}})
+ const response=await POST(new Request('https://admin.test/api/internal/report-share/'+id,{method:'POST',headers:{origin:'https://admin.test'},body:JSON.stringify({manual:'true'})}),ctx)
+ expect(response.status).toBe(400);expect(mocks.query).not.toHaveBeenCalled()
 })
