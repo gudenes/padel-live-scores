@@ -36,3 +36,14 @@ it("keeps saved report usable during optional official metadata failures", async
   query.mockRejectedValue(Error("Unavailable"));
   expect((await reportContext(id)).unavailable).toBe(true);
 });
+it('resolves reusable profile avatars without changing saved match player IDs', async () => {
+  auth.mockResolvedValue({ user: { isScouter: true } });
+  const local='f273d7ed-6543-448a-8339-a7f17bef353d';
+  const linked='01b6794f-9813-4db8-899a-56a23230df13';
+  query.mockResolvedValueOnce({rows:[{players:[{id:local,name:'Player',existingPlayerId:linked}],tournament:'FCP'}]})
+    .mockResolvedValueOnce({rows:[{id:linked,name:'Player',avatar_url:'https://example.com/avatar.png'}]});
+  const result=await reportContext(id,true);
+  expect(query.mock.calls[1][1]).toEqual([[linked]]);
+  expect(result.avatars[local]).toBe('https://example.com/avatar.png');
+  expect(result.players?.[0].id).toBe(local);
+});

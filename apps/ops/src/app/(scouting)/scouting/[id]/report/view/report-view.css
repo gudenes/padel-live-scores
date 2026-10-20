@@ -1057,11 +1057,11 @@
   color: var(--text);
   background: transparent;
 }
-.matchInsights .heroTeam:first-child img {
+.matchInsights .heroTeam[data-team="a"] img {
   border: 3px solid #bcf52d;
   border-radius: 50%;
 }
-.matchInsights .heroTeam:last-child img {
+.matchInsights .heroTeam[data-team="b"] img {
   border: 3px solid #ff897b;
   border-radius: 50%;
 }

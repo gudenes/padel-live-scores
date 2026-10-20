@@ -416,12 +416,13 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           </span>
         </div>
         <div ref={headerSentinel} className="match-header-sentinel" aria-hidden="true"/><section ref={heroRef} className={`hero match-sticky-hero${compactHeader?' is-compact':''}`} style={{'--match-header-offset':`${headerOffset}px`}}>
-          <div className="heroTeam">
+          <div className="heroTeam" data-team="a">
             {data.players.slice(0, 2).map((p) => (
               <button className="ui-btn player-open" data-variant="ghost" key={p.id} onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name}`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>
             ))}
           </div>
           <div className="result">
+            {data.meta.tournament?.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes('federacio catalana de padel')&&<img src="/brand/federations/fcp.png" alt="Federació Catalana de Pàdel" width="56" height="56" style={{objectFit:'contain',background:'#fff',borderRadius:8,padding:4,margin:'0 auto 8px',display:'block'}}/>}
             <small>
               {[data.meta.tournament, data.meta.category, data.meta.round]
                 .filter(Boolean)
@@ -442,8 +443,10 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
               ))}
             </h1>
             <span>
-              <Clock size={15} /> Official match:{" "}
-              {data.meta.duration ?? "Not available"}
+              <Clock size={15} /> {data.meta.duration ? "Official match" : "Match time"}:{" "}
+              {data.meta.duration ?? (Number.isFinite(data.elapsedMs) && data.elapsedMs > 0
+                ? `${Math.floor(data.elapsedMs / 3600000)}h ${Math.floor(data.elapsedMs / 60000) % 60}m`
+                : "Not available")}
             </span>
             <strong>
               {data.winner
@@ -451,7 +454,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
                 : "Scouting in progress"}
             </strong>
           </div>
-          <div className="heroTeam">
+          <div className="heroTeam" data-team="b">
             {data.players.slice(2).map((p) => (
               <button className="ui-btn player-open" data-variant="ghost" key={p.id} onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name}`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>
             ))}

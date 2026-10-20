@@ -32,7 +32,7 @@ export async function reportContext(
     if (!match) return empty;
     const ids = (
       manual
-        ? (match.players ?? []).map((p: { id: string }) => p.id)
+        ? (match.players ?? []).map((p: { id: string; existingPlayerId?: string }) => p.existingPlayerId ?? p.id)
         : match.player_ids ?? []
     ).filter(
       (v: unknown) => typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v)
@@ -94,7 +94,9 @@ export async function reportContext(
           ? new Date(match.scheduled_at).toISOString()
           : null,
       },
-      avatars: Object.fromEntries(avatars.map((p) => [p.id, p.avatar_url])),
+      avatars: manual
+        ? Object.fromEntries((match.players ?? []).map((p: {id:string;existingPlayerId?:string}) => [p.id, avatars.find(a=>a.id===(p.existingPlayerId??p.id))?.avatar_url ?? null]))
+        : Object.fromEntries(avatars.map((p) => [p.id, p.avatar_url])),
       pbp,
     };
   } catch {
