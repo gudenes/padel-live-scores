@@ -8,6 +8,7 @@ import {
   fetchProjectionCategories,
   fetchPlayerNames,
   fetchProjectionTournamentMeta,
+  fetchRoundSchedule,
   type ProjectionCategory,
 } from '@/lib/projection-server'
 import { buildSlugIndex } from '@/lib/projection-slug'
@@ -71,6 +72,7 @@ export default async function ProjectionPage({ params, searchParams }: Props) {
   const resolvedCategory: ProjectionCategory = category ?? 'men'
   const nameById = await fetchPlayerNames(rows.flatMap((r) => r.pair_player_ids))
   const { pairKeyToSlug } = buildSlugIndex(rows, nameById)
+  const roundSchedule = await fetchRoundSchedule(id, resolvedCategory, meta.round_schedule)
   const showDrawTab = DRAW_TIERS.has(meta.level ?? '')
 
   return (
@@ -88,7 +90,7 @@ export default async function ProjectionPage({ params, searchParams }: Props) {
           category={resolvedCategory}
           initialPairKey={null}
           tournamentLevel={meta.level}
-          roundSchedule={meta.round_schedule}
+          roundSchedule={roundSchedule}
           pairKeyToSlug={Object.fromEntries(pairKeyToSlug)}
           showDrawTab={showDrawTab}
           tournamentName={meta.name}
