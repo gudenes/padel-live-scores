@@ -5,6 +5,8 @@
 // until their integrations land.
 
 import Link from 'next/link'
+import { getReportAccess } from '@/lib/growth/report-access'
+import { ReportAccessPanel } from './_components/ReportAccessPanel'
 import { PageHeader, Panel, KpiStrip, Kpi, EmptyState } from '@/components/ui'
 import { getRecentSnapshots, getLatestIngestDay, getTopQueries } from '@/lib/seo/seo-queries'
 import { sumWindow, windowDelta } from '@/lib/seo/seo-compute'
@@ -52,7 +54,7 @@ function KpiWithDelta({ label, value, delta, tone }: { label: string; value: str
 }
 
 export default async function Page() {
-  const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows, catalogRaw, allSends, beta] = await Promise.all([
+  const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows, catalogRaw, allSends, beta, reportAccess] = await Promise.all([
     getDailySignups(WINDOW_DAYS * 2),
     getTotalUsers(),
     getSignupLocales(WINDOW_DAYS),
@@ -64,6 +66,7 @@ export default async function Page() {
     fetchNotificationCatalog(),
     fetchRecentSends(),
     getBetaSignupStats(WINDOW_DAYS),
+    getReportAccess(WINDOW_DAYS),
   ])
   const topQueries = latestIngest ? await getTopQueries(latestIngest.day, 8) : []
 
@@ -110,6 +113,8 @@ export default async function Page() {
           days={fillDaily(beta?.byDay ?? [], isoDaysAgo(0), WINDOW_DAYS)}
         />
       </div>
+
+      <div style={{ marginTop: 14, marginBottom: 14 }}><ReportAccessPanel data={reportAccess} /></div>
 
       {notif && (
         <KpiStrip cols={4}>
