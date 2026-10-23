@@ -1,10 +1,6 @@
-// Single source of the "is this match fed by the webtuga live worker" check.
-// A match is webtuga-sourced iff it has an entity_external_ids row with
-// (entity_type='match', source='webtuga') — written by padelgod's
-// webtuga-live-fetcher on resolve. Used to hide the Score Recap for these
-// matches (their recap would be a breaks-only view from a best-effort point
-// log, not real Crionet stats). Server-side only: entity_external_ids is
-// anon-RLS-locked, so this must run with the service-role client.
+// Legacy function/API name retained for compatibility. Both Webtuga and Puntuate
+// hide Score Recap because their polled point history can be incomplete.
+// Server-side only: entity_external_ids requires the service-role client.
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 export async function isMatchWebtugaSourced(
@@ -15,8 +11,9 @@ export async function isMatchWebtugaSourced(
     .from('entity_external_ids')
     .select('entity_id')
     .eq('entity_type', 'match')
-    .eq('source', 'webtuga')
+    .in('source', ['webtuga', 'puntuate'])
     .eq('entity_id', matchId)
+    .limit(1)
     .maybeSingle()
   if (error) return false
   return !!data

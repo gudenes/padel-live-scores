@@ -228,6 +228,8 @@ const EnvSchema = z.object({
   // tick; configured via an entity_external_ids source='webtuga_live' row).
   // Default OFF. Once enabled, leave WEBTUGA_LIVE_DRY_RUN=true to inspect a
   // read-only dry run first, then set it to false to write sets/games/match_points.
+  ENABLE_PUNTUATE_LIVE: boolEnv(false),
+  PUNTUATE_LIVE_DRY_RUN: boolEnv(true),
   ENABLE_WEBTUGA_LIVE: boolEnv(false),
   WEBTUGA_LIVE_DRY_RUN: boolEnv(true),
   // Play prediction market. Both default OFF with dry-run ON, so enabling in

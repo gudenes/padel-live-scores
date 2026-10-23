@@ -186,6 +186,8 @@ async function main() {
       marketResolverDryRun: env.MARKET_RESOLVER_DRY_RUN,
       enablePredictionScorer: env.ENABLE_PREDICTION_SCORER,
       enableLiveOddsUpdater: env.ENABLE_LIVE_ODDS_UPDATER,
+      enablePuntuateLive: env.ENABLE_PUNTUATE_LIVE,
+      puntuateLiveDryRun: env.PUNTUATE_LIVE_DRY_RUN,
       enableWebtugaLive: env.ENABLE_WEBTUGA_LIVE,
       webtugaLiveDryRun: env.WEBTUGA_LIVE_DRY_RUN,
       enablePadeldevLive: env.ENABLE_PADELDEV_LIVE,
