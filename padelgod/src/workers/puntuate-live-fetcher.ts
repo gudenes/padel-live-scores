@@ -1,5 +1,5 @@
 /** Puntuate live scoreboard ingestion, following the Webtuga diff/apply pipeline.
- * Only live rows are written; FIP continues to own authoritative final results.
+ * Live scores and decisive finals are written directly from Puntuate.
  * Cached identities are revalidated each tick and dry-run also validates scores.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -9,6 +9,7 @@ import { applyDiff, type ResolvedPlayers } from '../lib/point-reconstruction.js'
 import { fetchResultsFeed } from '../lib/puntuate-client.js';
 import { resolvePuntuateMatch, type CandidateMatch } from '../lib/puntuate-resolve.js';
 import { puntuateToLiveState } from '../lib/puntuate-adapter.js';
+import { puntuateWinner, writePuntuateProgress } from '../lib/puntuate-progress.js';
 import { notifyLiveTransition } from '../lib/notify.js';
 import {
   discoverPuntuateTournaments,
@@ -116,8 +117,8 @@ export async function runPuntuateLiveFetcher(
       continue;
     }
 
-    const live = feed.filter((r) => String(r.status).toLowerCase() === 'live');
-    res.liveSeen += live.length;
+    const live = feed.filter((r) => r.status === 'Live' || r.status === 'Finished');
+    res.liveSeen += live.filter(r => r.status === 'Live').length;
     if (live.length === 0) continue;
 
     const cacheMap = await loadMatchCache(supabase, t.tournamentId);
@@ -128,8 +129,10 @@ export async function runPuntuateLiveFetcher(
       let resolvedFromMatcher: ResolvedPlayers;
 
       try { // Revalidate cached identities and terminal status on every tick.
+        if (rowItem.status === 'Finished' && puntuateWinner(rowItem, 'AB') === null) continue;
         const r = resolvePuntuateMatch(rowItem, candidates);
         if (r === null) {
+          if (rowItem.status === 'Finished') continue;
           res.unresolved++;
           logger.warn({ puntuateId: rowItem.id }, 'puntuate match unresolved');
           continue;
@@ -152,10 +155,21 @@ export async function runPuntuateLiveFetcher(
       }
       res.resolved++;
       try {
+        const winner = puntuateWinner(rowItem, entry.orientation);
+        if (winner !== null) {
+          if (!opts.dryRun) {
+            await writePuntuateProgress(supabase, entry.matchId, rowItem, entry.orientation);
+            res.applied++;
+          }
+          continue;
+        }
+        // An incomplete final could be a retirement; do not invent a normal winner.
+        if (rowItem.status === 'Finished') continue;
         // Explicit live presence is authoritative even before the scoreboard
         // appears. Do not manufacture 0-0 sets or reset a previously cached score.
         if (rowItem.setsA.length === 0 && rowItem.setsB.length === 0) {
           if (opts.dryRun) continue;
+          await writePuntuateProgress(supabase, entry.matchId, rowItem, entry.orientation);
           const flipped = await flipStatusToLive(supabase, entry.matchId);
           if (flipped && deps.notify) notifyLiveTransition(entry.matchId, deps.notify);
           res.applied++;
@@ -166,6 +180,7 @@ export async function runPuntuateLiveFetcher(
         const prev = entry.lastState;
         const diff = diffLiveState(prev, curr);
         await applyDiff(supabase, entry.matchId, prev, curr, diff, resolvedFromMatcher);
+        await writePuntuateProgress(supabase, entry.matchId, rowItem, entry.orientation);
         const flipped = await flipStatusToLive(supabase, entry.matchId);
         if (flipped && deps.notify) {
           // Reuse the same on-court push the Premier live-poller fires.
