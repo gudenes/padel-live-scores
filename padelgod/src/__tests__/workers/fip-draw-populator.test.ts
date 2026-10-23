@@ -2804,28 +2804,41 @@ describe('resolveFourPlayers — Spanish paternal-surname collision (BA P1 MD042
 // ── resolveFourPlayers — short-form and middle-name fallbacks ──────────
 
 describe('resolveFourPlayers — short-form fallback', () => {
+  it('leaves conflicting slots unresolved when distinct FIP IDs map to one UUID', () => {
+    const names = new Map([['miguel deus', 'P201200'], ['nuno deus', 'P201198']]);
+    expect(resolveFourPlayers({
+      team1_player1_name: 'M. Deus', team1_player2_name: 'N. Deus',
+      team2_player1_name: null, team2_player2_name: null,
+    } as never, names, buildShortFormMap(names), new Map([
+      ['P201200', 'miguel'], ['P201198', 'miguel'],
+    ]))).toEqual({ p1p1: null, p1p2: null, p2p1: null, p2p2: null });
+  });
   it('resolves Crionet OOP-style short-form names ("M. Alvarez")', () => {
     const nameToFipId = new Map<string, string>([
       ['mateo alvarez', 'fip-P216185'],
       ['octavio alvarez', 'fip-P100615'],
+      ['miguel deus', 'P201200'],
+      ['nuno deus', 'P201198'],
     ]);
     const shortFormToFipId = buildShortFormMap(nameToFipId);
     const fipIdToPlayerId = new Map<string, string>([
       ['fip-P216185', 'uuid-mateo'],
       ['fip-P100615', 'uuid-octavio'],
+      ['P201200', 'uuid-miguel'],
+      ['P201198', 'uuid-nuno'],
     ]);
     const draw = {
       team1_player1_name: 'M. Alvarez',
       team1_player2_name: 'O. Alvarez',
-      team2_player1_name: 'Mateo Alvarez',      // long-form should also work
-      team2_player2_name: 'octavio alvarez',     // already normalized long-form
+      team2_player1_name: 'Miguel Deus',       // long-form should also work
+      team2_player2_name: 'nuno deus',         // already normalized long-form
     } as never;
     const resolved = resolveFourPlayers(draw, nameToFipId, shortFormToFipId, fipIdToPlayerId);
     expect(resolved).toEqual({
       p1p1: 'uuid-mateo',
       p1p2: 'uuid-octavio',
-      p2p1: 'uuid-mateo',
-      p2p2: 'uuid-octavio',
+      p2p1: 'uuid-miguel',
+      p2p2: 'uuid-nuno',
     });
   });
 
@@ -2872,7 +2885,7 @@ describe('resolveFourPlayers — short-form fallback', () => {
       team1_player1_name: 'M. Alvarez',
       team1_player2_name: 'Jose Garcia',
       team2_player1_name: 'Carlos Lopez',
-      team2_player2_name: 'Jose Garcia',
+      team2_player2_name: null,
     } as never;
     // Ambiguous short-form returns null only for the affected slot — other
     // unambiguous slots still resolve so callers can do partial FK fills.
@@ -2880,7 +2893,7 @@ describe('resolveFourPlayers — short-form fallback', () => {
       p1p1: null,
       p1p2: 'uuid-3',
       p2p1: 'uuid-4',
-      p2p2: 'uuid-3',
+      p2p2: null,
     });
   });
 });
@@ -3068,6 +3081,20 @@ describe('runFipDrawPopulator — pass-3 wantedFipIds pre-load', () => {
 // long-form names + valid team_fip_id. The populator should refresh the
 // names AND resolve the FKs — the draw is the higher-confidence source.
 describe('runFipDrawPopulator — draw refreshes short-form names on UPDATE', () => {
+  it('does not duplicate an existing player when NULL-filling a reordered pair', async () => {
+    const supabase = fakeSupabase({
+      tournaments: [{ tournament_id: TOURNAMENT_ID, tournament_name: 'Isla', slug: TOURNAMENT_SLUG }],
+      widgetCodeByTournament: { [TOURNAMENT_ID]: TOURNAMENT_WIDGET },
+      draws: [realMatchDraw], entryList, players: rosterPlayers,
+      existingMatches: [{
+        id: 'reversed-partial', widget_id_composite: `${TOURNAMENT_WIDGET}:MD017`,
+        pair1_player1_id: 'uuid-P2', pair1_player2_id: null,
+        pair2_player1_id: 'uuid-P3', pair2_player2_id: 'uuid-P4',
+      }],
+    });
+    await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    expect(supabase.updated).toHaveLength(0);
+  });
   it('UPDATE: short-form names in existing row get replaced by draw long-form + FKs resolved', async () => {
     const supabase = fakeSupabase({
       tournaments: [

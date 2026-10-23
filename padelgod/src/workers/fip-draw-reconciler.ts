@@ -59,6 +59,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import { paginatedSelect } from '../lib/db-paginate.js';
+import { patchDuplicatesPlayer } from '../lib/match-player-identity.js';
 import {
   loadEntryListNameMap,
   loadPlayersByFipId,
@@ -460,6 +461,19 @@ function applyRoundPatch(
 }
 
 export function computeReconciliationPatch(
+  draw: DrawForReconcile,
+  existing: ExistingForReconcile,
+  resolved: ResolvedFour,
+  ctx?: ReconcileContext,
+): Record<string, unknown> | null {
+  const patch = computeUncheckedPatch(draw, existing, resolved, ctx);
+  // A partial resolution must not overwrite A with B while retaining B
+  // in an unresolved neighbouring slot (also applies to bye recipients).
+  if (patch && patchDuplicatesPlayer(existing, patch)) return null;
+  return patch;
+}
+
+function computeUncheckedPatch(
   draw: DrawForReconcile,
   existing: ExistingForReconcile,
   resolved: ResolvedFour,

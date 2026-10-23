@@ -74,16 +74,20 @@ export function resolveShortName(
   if (!shortName) return { fipId: null, confidence: 'unresolved', candidates: [] };
 
   const normFull = normalize(shortName);
-  const surname = extractSurname(shortName);
 
   // 1. Try full name match
-  const fullMatches = dict.byNormalizedFullName.get(normFull) ?? [];
+  const fullMatches = [...new Set(dict.byNormalizedFullName.get(normFull) ?? [])];
   if (fullMatches.length === 1) {
     return { fipId: fullMatches[0]!, confidence: 'exact', candidates: fullMatches };
   }
 
-  // 2. Try surname match
-  const surnameMatches = dict.byNormalizedSurname.get(surname) ?? [];
+  // 2. Keep all supplied name evidence, including the first initial.
+  // Surname-only matching linked both M. Deus and N. Deus to Miguel:
+  // their partner surnames are also identical. Scan the small tournament
+  // roster to support shortened compound surnames without discarding initials.
+  const surnameMatches = [...dict.players.values()]
+    .filter((player) => nameIsConsistent(shortName, player.name))
+    .map((player) => player.fipId);
   if (surnameMatches.length === 0) {
     return { fipId: null, confidence: 'unresolved', candidates: [] };
   }
@@ -93,17 +97,27 @@ export function resolveShortName(
 
   // 3. Multiple surname matches — try partner disambiguation
   if (partnerHint) {
-    const partnerSurname = extractSurname(partnerHint);
-    for (const fipId of surnameMatches) {
+    const partnerMatches = surnameMatches.filter((fipId) => {
       const player = dict.players.get(fipId);
-      if (!player?.partnerName) continue;
-      const dictPartnerSurname = extractSurname(player.partnerName);
-      if (dictPartnerSurname === partnerSurname) {
-        return { fipId, confidence: 'pair_disambiguated', candidates: surnameMatches };
-      }
+      return !!player?.partnerName && nameIsConsistent(partnerHint, player.partnerName);
+    });
+    if (partnerMatches.length === 1) {
+      return { fipId: partnerMatches[0]!, confidence: 'pair_disambiguated', candidates: surnameMatches };
     }
   }
 
   // 4. Multiple matches, no disambiguation — unresolved with candidates list
   return { fipId: null, confidence: 'unresolved', candidates: surnameMatches };
+}
+
+function nameIsConsistent(input: string, fullName: string): boolean {
+  const parts = normalize(input).split(' ').filter(Boolean);
+  const full = normalize(fullName).split(' ').filter(Boolean);
+  if (!parts.length || !full.length) return false;
+  // Some legacy widgets only provide a surname. It still must resolve
+  // uniquely (possibly with a unique partner), never first-match-wins.
+  if (parts.length === 1) return full.slice(1).includes(parts[0]!);
+  const given = parts[0]!;
+  if (given.length === 1 ? full[0]![0] !== given : full[0] !== given) return false;
+  return parts.slice(1).every((part) => full.slice(1).includes(part));
 }

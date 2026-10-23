@@ -345,6 +345,16 @@ const COMPOSITE = 'FIP-2026-1701:MQ012';
 // ---------------------------------------------------------------------------
 
 describe('findOrCreateMatch', () => {
+  it.each([
+    [['miguel', 'miguel'], ['gustavo', 'renzo']],
+    [['miguel', 'nuno'], ['gustavo', 'miguel']],
+  ])('rejects duplicate resolved IDs before any lookup or write', async (pair1, pair2) => {
+    const supabase = { from: vi.fn() };
+    await expect(findOrCreateMatch(supabase as any, {
+      ...BASE_INPUT, pair1PlayerIds: pair1 as [string, string], pair2PlayerIds: pair2 as [string, string],
+    })).rejects.toThrow('duplicate player IDs');
+    expect(supabase.from).not.toHaveBeenCalled();
+  });
   it('returns existing match id when entity_external_ids has a mapping', async () => {
     const state = makeState();
     state.matches.set('existing-uuid', {
