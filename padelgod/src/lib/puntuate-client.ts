@@ -16,6 +16,7 @@ export interface PuntuateRow {
   pointsA: string;
   pointsB: string;
   servingTeam: 1 | 2 | null;
+  durationMinutes?: number | null;
 }
 
 export function normalizePuntuateUrl(input: string): string {
@@ -69,6 +70,7 @@ export function parsePuntuate(html: string): PuntuateRow[] {
     // preventing reuse of cached score orientation from the earlier layout.
     const id = createHash('sha256').update(JSON.stringify([date, cat, round, teamA, teamB])).digest('hex');
     const row: PuntuateRow = {
+      durationMinutes: parsePuntuateDuration(card.find('.ojf-duration').text()),
       id, date, round, category: cat === 'Men' ? 'men' : 'women', status,
       court: card.closest('.ojf-courtColumn').find('.ojf-courtHeader').first().text().trim(),
       teamA, teamB, setsA, setsB,
@@ -86,4 +88,11 @@ export async function fetchResultsFeed(http: AxiosInstance, url: string): Promis
   });
   if (typeof res.data !== 'string') throw new Error('Expected Puntuate HTML');
   return parsePuntuate(res.data);
+}
+
+export function parsePuntuateDuration(text: string): number | null {
+  const m = text.trim().match(/^(\d+)h\s*(\d{1,2})min$/);
+  if (!m || Number(m[2]) >= 60) return null;
+  const minutes = Number(m[1])*60+Number(m[2]);
+  return minutes >= 0 && minutes <= 240 ? minutes : null;
 }

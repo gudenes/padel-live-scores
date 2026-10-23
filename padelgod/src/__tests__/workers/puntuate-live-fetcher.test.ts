@@ -1,3 +1,5 @@
+const writeProgress = vi.hoisted(() => vi.fn(async () => null));
+vi.mock('../../lib/puntuate-progress.js', async (orig) => ({...(await orig<any>()), writePuntuateProgress: writeProgress}));
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const applyDiff = vi.hoisted(() => vi.fn(async () => {}));
@@ -252,4 +254,18 @@ it('keeps scoreless live dry-run read-only', async () => {
   expect(db._statusUpdate).not.toHaveBeenCalled();
   expect(cache.upsertMatchCache).not.toHaveBeenCalled();
   expect(notifyLiveTransition).not.toHaveBeenCalled();
+});
+
+it('closes a decisive finished card without point labels or live notification', async () => {
+ baseSpies(); writeProgress.mockClear(); notifyLiveTransition.mockClear(); applyDiff.mockClear();
+ vi.spyOn(client,'fetchResultsFeed').mockResolvedValue([{...LIVE_ROW,status:'Finished',setsA:[6,7],setsB:[2,5],pointsA:'',pointsB:''} as any]);
+ const res=await runPuntuateLiveFetcher({supabase:makeSupabase(),httpClient:{} as any,logger,notify},{dryRun:false});
+ expect(res.errors).toBe(0);expect(res.applied).toBe(1);expect(writeProgress).toHaveBeenCalledOnce();
+ expect(applyDiff).not.toHaveBeenCalled();expect(notifyLiveTransition).not.toHaveBeenCalled();
+});
+it('does not infer a final from an incomplete third set', async () => {
+ baseSpies();writeProgress.mockClear();
+ vi.spyOn(client,'fetchResultsFeed').mockResolvedValue([{...LIVE_ROW,status:'Finished',setsA:[6,3,5],setsB:[2,6,3]} as any]);
+ const res=await runPuntuateLiveFetcher({supabase:makeSupabase(),httpClient:{} as any,logger},{dryRun:false});
+ expect(res.applied).toBe(0);expect(writeProgress).not.toHaveBeenCalled();
 });
