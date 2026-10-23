@@ -55,9 +55,15 @@ export function onboardingUI({$,act,getState,manual}){
  $('wizard-rule').onchange=()=>{$('wizard-rule-label').textContent=$('wizard-rule').selectedOptions[0].textContent;$('wizard-rule-options').open=false;};
  $('wizard-start').onclick=async()=>{const r=await act({type:'complete-onboarding',setup:{firstServer:0,otherServer:2,firstServerUnknown:true,otherServerUnknown:true,...courtSetup(order),rule:$('wizard-rule').value},...(mid?{score:{...readScore(),server:0}}:{} )});if(!r.ok){$('wizard-error').textContent=r.error;return}try{localStorage.setItem('pn-court-checkin:'+JSON.stringify([state.selectedMatch.id,state.setup.names]),JSON.stringify({confirmed:[true,true,true,true],lastPlayer:3}));}catch{}document.dispatchEvent(new Event('pn-court-confirmed'));close()};
  function summary(){if(!state?.selectedMatch)return;const names=state.setup.names,box=$('wizard-summary');box.replaceChildren();const title=document.createElement('strong');title.textContent=names.slice(0,2).join(' / ')+' vs '+names.slice(2).join(' / ');box.append(title);const text=document.createElement('p');text.className='hint';text.textContent='Confirm the server on the scoring screen. Coaches can be reviewed anytime in the menu.';box.append(text);const score=mid?readScore():{completed:[],games:{a:0,b:0},points:{a:0,b:0}};for(const [i,t] of ['a','b'].entries()){const row=document.createElement('div');row.className='wizard-score-row';const name=document.createElement('span');name.textContent=names.slice(i*2,i*2+2).join(' / ');const value=document.createElement('strong');value.textContent=[...score.completed.map(s=>s[t]),score.games[t],score.points[t]].join('   ');row.append(name,value);box.append(row)}}
+ function syncMatchControls(){
+  for(const card of $('wizard-matches').children)card.disabled=busy||loading;
+  $('wizard-select').disabled=busy||loading||!selection;
+  $('wizard-refresh').disabled=busy||loading;
+ }
  function paint(){
   if(!state)return;$('header-new-match').disabled=busy||!!state.pending;$('header-new-match').title=state.pending?'Save or cancel the current rally before starting a new match':'Start setup for another match; your current session is kept';resume.hidden=open||state.setup?.onboardingComplete!==false||state.rallies.some(r=>r.point);if(!resume.hidden)$('rally').disabled=true;$('onboarding').hidden=!open;$('scouting-workspace').hidden=open||!state.selectedMatch;$('empty-match-start').hidden=open||!!state.selectedMatch;
   if(!open)return;
+  syncMatchControls();
   for(const id of ['wizard-find','wizard-private','wizard-today','wizard-yesterday','wizard-all','wizard-reset-positions','wizard-swap-far','wizard-swap-near','wizard-ends','wizard-arrivals','wizard-from-start','wizard-mid','wizard-open-video'])$(id).disabled=busy;
   for(const page of root.querySelectorAll('[data-page]'))page.hidden=Number(page.dataset.page)!==step;
   for(const b of root.querySelectorAll('[data-step]')){b.disabled=busy||Number(b.dataset.step)>maxStep;b.setAttribute('aria-current',Number(b.dataset.step)===step?'step':'false');b.classList.toggle('complete',Number(b.dataset.step)<step)}
