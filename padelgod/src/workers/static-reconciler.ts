@@ -12,6 +12,7 @@ import {
 } from '../lib/match-identifier.js';
 import { computeFinishedAtFallback } from '../lib/match-time-stamps.js';
 import { roundCanonical } from '../lib/round-canonical.js';
+import { hasDuplicatePlayerIds } from '../lib/match-player-identity.js';
 
 export interface StaticReconcilerDeps {
   supabase: SupabaseClient;
@@ -723,6 +724,13 @@ async function reconcileDraws(
     const t2p1Uuid = fipIdToPlayerId.get(t2p1!.fipId!) ?? null;
     const t2p2Uuid = fipIdToPlayerId.get(t2p2!.fipId!) ?? null;
 
+    if (hasDuplicatePlayerIds([t1p1Uuid, t1p2Uuid, t2p1Uuid, t2p2Uuid])) {
+      drawsUnresolved += 1;
+      logger?.warn({ tournamentId: d.tournament_id, matchWidgetId: d.match_widget_id },
+        'static-reconciler: duplicate resolved players — skipping draw');
+      continue;
+    }
+
     // If the dictionary knew the fipId but phase 1 hadn't run yet (or the
     // player record was missing for some other reason), we can't drive the
     // pair-based fallback in match-identifier — findOrCreateMatch will just
@@ -986,6 +994,7 @@ function resolveFourNames(
   const u3 = fipIdToPlayerId.get(r3.fipId);
   const u4 = fipIdToPlayerId.get(r4.fipId);
   if (!u1 || !u2 || !u3 || !u4) return null;
+  if (hasDuplicatePlayerIds([u1, u2, u3, u4])) return null;
   return { p1p1: u1, p1p2: u2, p2p1: u3, p2p2: u4 };
 }
 

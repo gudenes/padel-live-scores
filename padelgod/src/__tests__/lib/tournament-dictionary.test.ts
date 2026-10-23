@@ -41,3 +41,42 @@ describe('buildTournamentDictionary + resolveShortName', () => {
     expect(result.confidence).toBe('unresolved');
   });
 });
+
+describe('October 2026 duplicate-player regressions', () => {
+  it.each([
+    ['Miguel Deus', 'Nuno Deus', 'M. Deus', 'N. Deus'],
+    ['Mathias Hviid', 'Lasse Hviid', 'M. Hviid', 'L. Hviid'],
+    ['Jose Nino', 'Diego Nino', 'J. Nino', 'D. Nino'],
+    ['Micaela Para', 'Jessica Para', 'M. Para', 'J. Para'],
+  ])('keeps %s and %s separate, regardless of roster order', (a, b, shortA, shortB) => {
+    const players = [
+      { fipId: 'A', name: a, country: null, partnerFipId: 'B', partnerName: b },
+      { fipId: 'B', name: b, country: null, partnerFipId: 'A', partnerName: a },
+    ];
+    for (const roster of [players, [...players].reverse()]) {
+      const dict = buildTournamentDictionary(roster);
+      expect(resolveShortName(dict, shortA, shortB).fipId).toBe('A');
+      expect(resolveShortName(dict, shortB, shortA).fipId).toBe('B');
+    }
+    // A missing sibling must never fall back to the only shared surname.
+    expect(resolveShortName(buildTournamentDictionary([players[0]!]), shortB, shortA).fipId).toBeNull();
+  });
+
+  it('does not choose the first player when partner names are also ambiguous', () => {
+    const dict = buildTournamentDictionary([
+      { fipId: 'A', name: 'Miguel Deus', country: null, partnerName: 'Nuno Deus' },
+      { fipId: 'B', name: 'Manuel Deus', country: null, partnerName: 'Nicolas Deus' },
+    ]);
+    expect(resolveShortName(dict, 'M. Deus', 'N. Deus').fipId).toBeNull();
+  });
+
+  it('does not discard a contradictory full given name', () => {
+    const dict = buildTournamentDictionary(PLAYERS);
+    expect(resolveShortName(dict, 'Miguel Lebron', 'Federico Chingotto').fipId).toBeNull();
+  });
+
+  it('deduplicates repeated snapshot identities before testing ambiguity', () => {
+    const dict = buildTournamentDictionary([...PLAYERS, ...PLAYERS]);
+    expect(resolveShortName(dict, 'J. Lebron').fipId).toBe('P001');
+  });
+});

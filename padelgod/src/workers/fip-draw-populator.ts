@@ -6,6 +6,7 @@ import type { Logger } from 'pino';
 // for the project policy.
 import { paginatedSelect } from '../lib/db-paginate.js';
 import { roundCanonical } from '../lib/round-canonical.js';
+import { patchDuplicatesPlayer } from '../lib/match-player-identity.js';
 // Low-level name/fip_id/player-UUID primitives — shared with
 // fip-draw-reconciler. The populator's higher-level tiered
 // `resolveFourPlayers` (bracket overlay + partner anchor) stays in
@@ -1259,6 +1260,15 @@ export async function runFipDrawPopulator(
         continue;
       }
 
+      // NULL-only fills are still unsafe when the source has reordered a
+      // pair: [A, null] + [B, A] must not become [A, A]. Check the merged row.
+      if (patchDuplicatesPlayer(existing, patch)) {
+        result.skippedPlayerUnresolved += 1;
+        logger?.warn({ composite, matchId: existing.id },
+          'fip-draw-populator: duplicate players in proposed lineup — skipping update');
+        continue;
+      }
+
       if (dryRun) {
         logger?.info(
           { composite, patch, matchId: existing.id },
@@ -1792,6 +1802,19 @@ export function resolveFourPlayers(
     }
   }
 
+  // Corrupt upstream identity maps can make different names resolve to the
+  // same UUID even when their FIP IDs differ. Preserve raw names for all
+  // conflicting slots instead of arbitrarily deciding which person owns it.
+  const slots = ['p1p1', 'p1p2', 'p2p1', 'p2p2'] as const;
+  const ids = slots.map((slot) => out[slot]);
+  for (const slot of slots) {
+    const id = out[slot];
+    if (id && ids.filter((value) => value === id).length > 1) {
+      logger?.warn({ slot, playerId: id }, 'fip-draw-populator: duplicate player resolution');
+      out[slot] = null;
+      if (out.tiers) out.tiers[slot] = 'unresolved';
+    }
+  }
   return out;
 }
 

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { roundCanonical } from './round-canonical.js';
+import { hasDuplicatePlayerIds } from './match-player-identity.js';
 
 /**
  * match-identifier — resolves a Crionet widget match id to a canonical
@@ -594,6 +595,9 @@ export async function findOrCreateMatch(
   input: MatchIdentifierInput,
   opts: FindOrCreateOptions = {}
 ): Promise<MatchIdentifierResult> {
+  if (hasDuplicatePlayerIds([...(input.pair1PlayerIds ?? []), ...(input.pair2PlayerIds ?? [])])) {
+    throw new Error('match-identifier: duplicate player IDs in match lineup');
+  }
   const composite = buildComposite(input.tournamentWidgetId, input.matchWidgetId);
 
   // Step 1: widget-id direct lookup (sidecar)

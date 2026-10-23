@@ -1037,6 +1037,53 @@ describe('runStaticReconciler — draw phase (V2)', () => {
 });
 
 describe('runStaticReconciler — OOP phase (V3)', () => {
+  it.each([
+    ['Miguel Deus', 'Nuno Deus', 'M. Deus', 'N. Deus'],
+    ['Lasse Hviid', 'Mathias Hviid', 'L. Hviid', 'M. Hviid'],
+    ['Diego Nino', 'Jose Nino', 'D. Nino', 'J. Nino'],
+    ['Micaela Para', 'Jessica Para', 'M. Para', 'J. Para'],
+  ])('writes %s and %s as distinct players from the OOP', async (a, b, shortA, shortB) => {
+    const names = ['Gustavo Nunes', 'Renzo Gabriel Nuñez', a, b];
+    const snapshots: SnapshotSeed[] = names.map((name, i) => ({
+      tournament_id: TOUR, category: 'men', fip_id: `P${i}`, name, country: null,
+      captured_at: T, partner_fip_id: `P${i ^ 1}`, partner_name: names[i ^ 1],
+    }));
+    const players: PlayerSeed[] = names.map((name, i) => ({
+      id: `uuid-${i}`, fip_id: `P${i}`, name, country: null, category: 'men',
+    }));
+    const supabase = fakeSupabase(snapshots, players, [], [], [], [{
+      id: 'kuwait-oop', tournament_id: TOUR, category: 'men', day_number: 1,
+      round_label: 'Q1', court: 'COURT 3 VOLVO', court_position: 0,
+      scheduled_label: 'Starting at 2:00 PM', status: 'scheduled', captured_at: T,
+      match_widget_id: 'MQ029', team1_player1_name: 'G. Nunes', team1_player2_name: 'R. Nuñez',
+      team2_player1_name: shortA, team2_player2_name: shortB,
+    }], [], [{ tournament_id: TOUR, widget_id: 'FIP-2026-4410', is_active: true }]);
+    await runStaticReconciler({ supabase: supabase as any });
+    expect(supabase.matchesInserted).toHaveLength(1);
+    expect(supabase.matchesInserted[0]).toMatchObject({
+      pair1_player1_id: 'uuid-0', pair1_player2_id: 'uuid-1',
+      pair2_player1_id: 'uuid-2', pair2_player2_id: 'uuid-3',
+    });
+  });
+  it('defers the Iconico pair when Mario Rodriguez resolves to his partner Marcos', async () => {
+    const names = ['Gustavo Nunes', 'Renzo Gabriel Nuñez', 'Mario Rodriguez Marcos'];
+    const snapshots: SnapshotSeed[] = names.map((name, i) => ({
+      tournament_id: TOUR, category: 'men', fip_id: `P${i}`, name, country: null, captured_at: T,
+    }));
+    const players: PlayerSeed[] = names.map((name, i) => ({
+      id: `uuid-${i}`, fip_id: `P${i}`, name, country: null, category: 'men',
+    }));
+    const supabase = fakeSupabase(snapshots, players, [], [], [], [{
+      id: 'ambiguous-oop', tournament_id: TOUR, category: 'men', day_number: 1,
+      round_label: 'Q1', court: 'Court 1', court_position: 0, scheduled_label: null,
+      status: 'scheduled', captured_at: T, match_widget_id: 'MQ020',
+      team1_player1_name: names[0]!, team1_player2_name: names[1]!,
+      team2_player1_name: 'Mario Rodriguez Marcos', team2_player2_name: 'Mario Rodriguez',
+    }], [], [{ tournament_id: TOUR, widget_id: 'FIP-2026-1609', is_active: true }]);
+    const result = await runStaticReconciler({ supabase: supabase as any });
+    expect(result.oopUnresolved).toBe(1);
+    expect(supabase.matchesInserted).toHaveLength(0);
+  });
   const TEAM1_P1 = 'Juan Lebron';
   const TEAM1_P2 = 'Federico Chingotto';
   const TEAM2_P1 = 'Ale Galan';

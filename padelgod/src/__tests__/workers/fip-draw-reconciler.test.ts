@@ -62,6 +62,39 @@ function baseResolved(over: Partial<ResolvedFour> = {}): ResolvedFour {
   return { p1p1: null, p1p2: null, p2p1: null, p2p2: null, ...over };
 }
 
+describe('October 2026 partial-resolution collisions', () => {
+  it.each([
+    ['Cristobal Molina', 'Alonso Villavicencio'],
+    ['Jeel Pala', 'Collins Nyabuto'],
+    ['Sharon Juma', 'Serish Thakker'],
+    ['Helder Simao', 'Joao Menezes'],
+    ['Nirek Pabbaraju', 'Krish Sobati'],
+    ['Kate Zabinsky', 'Anne Cathrien Duijnhouwer'],
+    ['Troels Mahieu Sorensen', 'Muqtadir Nimji'],
+    ['Mario Rodriguez Marcos', 'Mario Rodriguez'],
+  ])('does not duplicate %s when %s is unresolved after a slot-order change', (known, missing) => {
+    const existing = baseExisting({ pair1_player1_id: 'missing-player', pair1_player2_id: 'known-player' });
+    const draw = baseDraw({ team1_player1_name: known, team1_player2_name: missing });
+    expect(computeReconciliationPatch(draw, existing, baseResolved({ p1p1: 'known-player' }))).toBeNull();
+    // Both identities available: replacing the whole pair is safe.
+    expect(computeReconciliationPatch(draw, baseExisting({ pair1_player1_id: 'known-player', pair1_player2_id: 'known-player' }),
+      baseResolved({ p1p1: 'known-player', p1p2: 'missing-player' }))).toMatchObject({ pair1_player2_id: 'missing-player' });
+  });
+
+  it('also checks partial bye-recipient updates', () => {
+    expect(computeReconciliationPatch(
+      baseDraw({ status: 'walkover', team1_player1_name: 'Mario Rodriguez Marcos', team1_player2_name: 'Mario Rodriguez' }),
+      baseExisting({ pair1_player1_id: 'other', pair1_player2_id: 'marcos' }),
+      baseResolved({ p1p1: 'marcos' }),
+    )).toBeNull();
+  });
+
+  it('does not place a player on both teams', () => {
+    expect(computeReconciliationPatch(baseDraw(), baseExisting({ pair2_player1_id: 'same' }),
+      baseResolved({ p1p1: 'same' }))).toBeNull();
+  });
+});
+
 describe('computeReconciliationPatch — no drift', () => {
   it('returns null when DB and draw match exactly', () => {
     const draw = baseDraw({
