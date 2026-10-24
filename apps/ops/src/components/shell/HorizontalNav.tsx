@@ -36,7 +36,8 @@ export function HorizontalNav() {
     if (event.key === 'Escape') { const open = nav.current?.querySelector('details[open]'); close(); (open?.querySelector('summary') as HTMLElement | null)?.focus(); event.preventDefault() }
   }}>
     <Link href="/today" className="top-link" aria-current={active === '/today' ? 'page' : undefined}><Icon id="today" />Today</Link>
-    <Link href="/scouting" className="top-link" aria-current={active === '/scouting' ? 'page' : undefined}><Icon id="users" />Matches</Link>
+    <Link href="/scouting" className="top-link" aria-current={active === '/scouting' && !pathname.startsWith('/scouting/players') ? 'page' : undefined}><Icon id="users" />Matches</Link>
+    <Link href="/scouting/players" className="top-link" aria-current={pathname.startsWith('/scouting/players')?'page':undefined}><Icon id="users"/>Players</Link>
     <details className="top-dropdown" name="admin-navigation">
       <summary className={`top-link ${tournamentLinks.some(item => item.href === active) ? 'is-active' : ''}`}>Tournaments <span aria-hidden="true">⌄</span></summary>
       <div className="top-dropdown-panel tournament-panel">{tournamentLinks.map(link)}</div>

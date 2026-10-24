@@ -47,6 +47,8 @@ export default function SavedScoutingReport({
   context?: ReportContext;
 }) {
   const router = useRouter();
+  const [playerReturn,setPlayerReturn]=useState<string|null>(null);
+  useEffect(()=>{const path=new URLSearchParams(window.location.search).get('returnTo');if(path==='/scouting/players'||path?.startsWith('/scouting/players?'))setPlayerReturn(path)},[]);
   const [canResume,setCanResume]=useState(false)
   const [resumeInExtension,setResumeInExtension]=useState(false);
   const [privateMatch, setPrivateMatch] = useState<{
@@ -178,6 +180,7 @@ export default function SavedScoutingReport({
       <header className={layout.header}>
         <div className={layout.headerIntro}>
           <MatchLibraryMenu userId={userId}/>
+          {!report&&playerReturn&&<Link className="ui-btn" href={playerReturn}>← Back to player analysis</Link>}
           <h1>Match insights</h1>
           <p>
             {manual

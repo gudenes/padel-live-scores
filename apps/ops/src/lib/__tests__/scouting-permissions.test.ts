@@ -32,3 +32,10 @@ it('allows standalone pages and assets for scouts but not viewers or writes to a
 })
 
 it('lets scoped accounts load flag assets without granting write access',()=>{for(const viewer of [true,false]){expect(scouterRouteAllowed('/flags/ar.png','GET',viewer)).toBe(true);expect(scouterRouteAllowed('/flags/ar.png','POST',viewer)).toBe(false)}})
+
+it('allows read-only player intelligence to scouting viewers',()=>{
+ for(const p of ['/scouting/players','/api/internal/scouting-intelligence']){
+  expect(scouterRouteAllowed(p,'GET',true)).toBe(true)
+  expect(scouterRouteAllowed(p,'POST',true)).toBe(false)
+ }
+})

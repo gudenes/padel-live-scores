@@ -22,9 +22,12 @@ function parseDbUrl(url: string) {
 }
 
 let _pool: Pool | null = null
+// Keep the development pool across hot reloads instead of accumulating connections.
+const devGlobal=globalThis as typeof globalThis & {padelOpsDbPool?:Pool}
 
 export function pgPool(): Pool {
   if (_pool) return _pool
+  if(process.env.NODE_ENV==='development'&&devGlobal.padelOpsDbPool)return devGlobal.padelOpsDbPool
   _pool = new Pool({
     ...parseDbUrl(process.env.DATABASE_URL ?? ''),
     // Railway runs a long-lived process. Allow a small number of concurrent queries.
@@ -33,5 +36,6 @@ export function pgPool(): Pool {
     idleTimeoutMillis: 30000,
     ssl: { rejectUnauthorized: false },
   })
+  if(process.env.NODE_ENV==='development')devGlobal.padelOpsDbPool=_pool
   return _pool
 }
