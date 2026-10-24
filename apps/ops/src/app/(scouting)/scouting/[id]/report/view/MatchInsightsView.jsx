@@ -1,5 +1,6 @@
 "use client";
 import {sharedReportEvent} from "@/lib/posthog/shared-report";
+import Link from "next/link";
 import React, { useState, useEffect, useRef } from "react";
 import {
   Clock,
@@ -342,6 +343,15 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
   },[compactHeader]);
   const [focusedPlayer,setFocusedPlayer]=useState(null);
   const [replayPoint,setReplayPoint]=useState(null);
+  const [intelligenceReturn,setIntelligenceReturn]=useState(null);
+  useEffect(()=>{
+    const q=new URLSearchParams(window.location.search),back=q.get("returnTo");
+    if(back==="/scouting/players"||back?.startsWith("/scouting/players?"))setIntelligenceReturn(back);
+    const slot=q.get("playerSlot");
+    if(slot!==null&&/^[0-3]$/.test(slot)){setFocusedPlayer(Number(slot));setTab("Players")};
+    const point=q.get("point");
+    if(point&&data.scopes.all.points.some(p=>p.id===point)){setReplayPoint(point);setTab("Video review")};
+  },[]);
   const openPlayer=(index)=>{setFocusedPlayer(index);setTab("Players")};
   const [scope, setScope] = useState("all"),
     [tab, setTab] = useState("Overview"),
@@ -405,6 +415,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
   return (
     <div className="matchInsights">
       <div className="reportBody">
+        {intelligenceReturn&&<Link href={intelligenceReturn} className="ui-btn" data-variant="ghost">← Back to player analysis</Link>}
         <div className="crumb">
           <span>
             Matches / {data.meta.tournament ?? "Private match"} /{" "}
