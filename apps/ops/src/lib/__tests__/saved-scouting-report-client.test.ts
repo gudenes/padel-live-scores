@@ -4,7 +4,7 @@ import {afterEach,beforeEach,it,expect,vi} from 'vitest'
 import {render,screen,fireEvent,cleanup} from '@testing-library/react'
 import SavedScoutingReport from '../../app/(scouting)/scouting/[id]/report/SavedScoutingReport'
 import {freshDoc} from '../scouting/model'
-vi.mock('next/navigation',()=>({useRouter:()=>({refresh:vi.fn()})}))
+vi.mock('next/navigation',()=>({useRouter:()=>({refresh:vi.fn()}),usePathname:()=>'/scouting/test/report',useSearchParams:()=>new URLSearchParams()}))
 vi.mock('next/link',()=>({default:(props:Record<string,unknown>)=>createElement('a',props)}))
 const players=['One','Two','Three','Four'].map((name,i)=>({id:String(i),name}))
 const snap=(time:number)=>({tabId:1,documentId:'d',videoId:'v',mediaId:'m',page:'https://youtube.com/watch?v=v',time,seekEpoch:0,readyState:4,paused:false,seeking:false,at:'2026-10-06T00:00:00Z'})
@@ -42,7 +42,7 @@ it('reads private scouting insights and metadata without querying public matches
  const fetch=vi.fn(async(_url:string)=>Response.json({session:row,match:{match_date:'2018-10-08',tournament_label:'Historical replay'}}));vi.stubGlobal('fetch',fetch)
  render(createElement(SavedScoutingReport,{matchId:'private',manual:true}));await screen.findByText('1 observed points')
  expect(screen.getByText(/Private scouting · Historical replay · 2018-10-08/)).toBeTruthy()
- expect(screen.getByRole('button',{name:'My Library'})).toBeTruthy()
+ expect(screen.getByRole('link',{name:'← Back to matches'})).toBeTruthy()
  expect(fetch).toHaveBeenCalledTimes(1);expect(fetch.mock.calls[0][0]).toBe('/api/internal/manual-video-scouting/private')
  expect(screen.queryByRole('link',{name:'Open admin scouting'})).toBeNull()
 })
@@ -51,7 +51,7 @@ it('opens PBP-only insights and marks scouting widgets unavailable without creat
  const fetch=vi.fn(async(_url:unknown,_options?:RequestInit)=>Response.json({session:null}));vi.stubGlobal('fetch',fetch)
  render(createElement(SavedScoutingReport,{matchId:'pbp',context}));await screen.findByText('1 PBP records · No scouting')
  expect(screen.getByRole('heading',{name:'Match momentum'})).toBeTruthy();expect(screen.queryByText('No saved scouting for this match')).toBeNull()
- fireEvent.click(screen.getByRole('button',{name:'Players'}));expect(screen.getAllByText('Not available')).toHaveLength(2)
+ fireEvent.click(screen.getByRole('button',{name:'Player performance'}));expect(screen.getAllByText('Not available')).toHaveLength(2)
  fireEvent.click(screen.getByLabelText('Export match data'));expect(screen.getByRole('button',{name:'Scouted points (CSV)'})).toHaveProperty('disabled',true);expect(screen.getByRole('button',{name:'Official PBP (CSV)'})).toHaveProperty('disabled',false)
  expect(fetch).toHaveBeenCalledTimes(2);for(const call of fetch.mock.calls)expect(call[1]).not.toHaveProperty('method')
 })

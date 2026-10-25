@@ -1,6 +1,7 @@
 "use client";
 import {sharedReportEvent} from "@/lib/posthog/shared-report";
 import Link from "next/link";
+import {playerProfileHref} from "@/lib/scouting/navigation";
 import React, { useState, useEffect, useRef } from "react";
 import {
   Clock,
@@ -343,15 +344,6 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
   },[compactHeader]);
   const [focusedPlayer,setFocusedPlayer]=useState(null);
   const [replayPoint,setReplayPoint]=useState(null);
-  const [intelligenceReturn,setIntelligenceReturn]=useState(null);
-  useEffect(()=>{
-    const q=new URLSearchParams(window.location.search),back=q.get("returnTo");
-    if(back==="/scouting/players"||back?.startsWith("/scouting/players?"))setIntelligenceReturn(back);
-    const slot=q.get("playerSlot");
-    if(slot!==null&&/^[0-3]$/.test(slot)){setFocusedPlayer(Number(slot));setTab("Players")};
-    const point=q.get("point");
-    if(point&&data.scopes.all.points.some(p=>p.id===point)){setReplayPoint(point);setTab("Video review")};
-  },[]);
   const openPlayer=(index)=>{setFocusedPlayer(index);setTab("Players")};
   const [scope, setScope] = useState("all"),
     [tab, setTab] = useState("Overview"),
@@ -360,6 +352,15 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
     [player, setPlayer] = useState("all"),
     [current, setCurrent] = useState(0),
     [source, setSource] = useState("scout");
+  const [navigationReady,setNavigationReady]=useState(false);
+  useEffect(()=>{
+    const q=new URLSearchParams(window.location.search);
+    if(!shared){try{const saved=JSON.parse(sessionStorage.getItem('pn-report-view:'+location.pathname)||'null');if(saved){if(data.scopes[saved.scope]){setScope(saved.scope);onScopeChange?.(saved.scope)}if(['Overview','Players','Points & shots','Video review','Data coverage','Reports'].includes(saved.tab))setTab(saved.tab);if(Number.isInteger(saved.focusedPlayer)&&saved.focusedPlayer>=0&&saved.focusedPlayer<4)setFocusedPlayer(saved.focusedPlayer);if(['all','winner','unforced','forced','double_fault'].includes(saved.kind))setKind(saved.kind);if(['all','0','1','2','3'].includes(saved.player))setPlayer(saved.player)}}catch{}}
+    const slot=q.get('playerSlot');if(slot!==null&&/^[0-3]$/.test(slot)){setFocusedPlayer(Number(slot));setTab('Players')}
+    const point=q.get('point');if(point&&data.scopes.all.points.some(p=>p.id===point)){setReplayPoint(point);setTab('Video review')}
+    setNavigationReady(true);
+  },[]);
+  useEffect(()=>{if(shared||!navigationReady)return;try{sessionStorage.setItem('pn-report-view:'+location.pathname,JSON.stringify({scope,tab,focusedPlayer,kind,player}))}catch{}},[shared,navigationReady,scope,tab,focusedPlayer,kind,player]);
   const d = data.scopes[scope],
     points = d.points,
     teams = d.teams;
@@ -415,7 +416,6 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
   return (
     <div className="matchInsights">
       <div className="reportBody">
-        {intelligenceReturn&&<Link href={intelligenceReturn} className="ui-btn" data-variant="ghost">← Back to player analysis</Link>}
         <div className="crumb">
           <span>
             Matches / {data.meta.tournament ?? "Private match"} /{" "}
@@ -429,8 +429,9 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
         <div ref={headerSentinel} className="match-header-sentinel" aria-hidden="true"/><section ref={heroRef} className={`hero match-sticky-hero${compactHeader?' is-compact':''}`} style={{'--match-header-offset':`${headerOffset}px`}}>
           <div className="heroTeam" data-team="a">
             {data.players.slice(0, 2).map((p) => (
-              <button className="ui-btn player-open" data-variant="ghost" key={p.id} onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name}`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>
+              <div className="connectedReportPlayer" key={p.id}><button className="ui-btn player-open" data-variant="ghost" onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name} in this match`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>{!shared&&playerProfileHref([p.profileId!==undefined?p.profileId:p.id])&&<Link className="profileConnection" href={playerProfileHref([p.profileId!==undefined?p.profileId:p.id])} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}</div>
             ))}
+            {!shared&&playerProfileHref(data.players.slice(0,2).map(p=>p.profileId!==undefined?p.profileId:p.id))&&<Link className="pairConnection" href={playerProfileHref(data.players.slice(0,2).map(p=>p.profileId!==undefined?p.profileId:p.id))} aria-label={`View pair: ${data.players.slice(0,2).map(p=>p.name).join(" / ")}`}>View pair ↗</Link>}
           </div>
           <div className="result">
             {data.meta.tournament?.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().includes('federacio catalana de padel')&&<img src="/brand/federations/fcp.png" alt="Federació Catalana de Pàdel" width="56" height="56" style={{objectFit:'contain',background:'#fff',borderRadius:8,padding:4,margin:'0 auto 8px',display:'block'}}/>}
@@ -474,8 +475,9 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           </div>
           <div className="heroTeam" data-team="b">
             {data.players.slice(2).map((p) => (
-              <button className="ui-btn player-open" data-variant="ghost" key={p.id} onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name}`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>
+              <div className="connectedReportPlayer" key={p.id}><button className="ui-btn player-open" data-variant="ghost" onClick={()=>openPlayer(data.players.indexOf(p))} aria-label={`Analyze ${p.name} in this match`}><img src={p.avatar} alt="" /><b>{p.name}</b></button>{!shared&&playerProfileHref([p.profileId!==undefined?p.profileId:p.id])&&<Link className="profileConnection" href={playerProfileHref([p.profileId!==undefined?p.profileId:p.id])} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}</div>
             ))}
+            {!shared&&playerProfileHref(data.players.slice(2,4).map(p=>p.profileId!==undefined?p.profileId:p.id))&&<Link className="pairConnection" href={playerProfileHref(data.players.slice(2,4).map(p=>p.profileId!==undefined?p.profileId:p.id))} aria-label={`View pair: ${data.players.slice(2,4).map(p=>p.name).join(" / ")}`}>View pair ↗</Link>}
           </div>
         <div className="toolbar match-header-scope">
           <div className="seg" role="group" aria-label="Filter match report by set">
@@ -520,7 +522,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
               }}
               key={t}
             >
-              {t}
+              {t === "Players" ? "Player performance" : t}
             </button>
           ))}
         </div>

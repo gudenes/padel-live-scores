@@ -2235,3 +2235,12 @@ main.main:has(.match-sticky-hero){overflow-anchor:none}.matchInsights .match-sti
 
 .matchInsights .result .match-date { display: block; margin-top: 4px; }
 .matchInsights .match-sticky-hero.is-compact .result .match-date { display: none; }
+
+.matchInsights .heroTeam{flex-wrap:wrap}
+.matchInsights .heroTeam>.connectedReportPlayer{min-width:0;gap:5px}
+.matchInsights .connectedReportPlayer .player-open{display:flex;flex-direction:column;align-items:center;white-space:normal;width:100%}
+.matchInsights .profileConnection,.matchInsights .pairConnection{font-size:12px;font-weight:600;color:var(--text-2,#4c5b4c);text-decoration:underline;text-underline-offset:3px;padding:4px 6px;border-radius:4px}
+.matchInsights .pairConnection{flex-basis:100%;text-align:center}
+.matchInsights .profileConnection:focus-visible,.matchInsights .pairConnection:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+.matchInsights .match-sticky-hero.is-compact .heroTeam>.connectedReportPlayer{flex-direction:column;align-items:center}
+.matchInsights .match-sticky-hero.is-compact .profileConnection,.matchInsights .match-sticky-hero.is-compact .pairConnection{font-size:10px;padding:2px}

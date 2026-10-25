@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import ShareReport from "./ShareReport";
 import MethodologyGuide from "@/components/scouting/MethodologyGuide";
-import MatchLibraryMenu from "../../MatchLibraryMenu";
+import {ScoutingBackLink} from "@/components/scouting/ScoutingNavigation";
 import { useRouter } from "next/navigation";
 import { savedReport, type SavedSession } from "@/lib/scouting/saved-report";
 import { pointsCsv, sessionExport } from "@/lib/scouting/export";
@@ -47,8 +47,6 @@ export default function SavedScoutingReport({
   context?: ReportContext;
 }) {
   const router = useRouter();
-  const [playerReturn,setPlayerReturn]=useState<string|null>(null);
-  useEffect(()=>{const path=new URLSearchParams(window.location.search).get('returnTo');if(path==='/scouting/players'||path?.startsWith('/scouting/players?'))setPlayerReturn(path)},[]);
   const [canResume,setCanResume]=useState(false)
   const [resumeInExtension,setResumeInExtension]=useState(false);
   const [privateMatch, setPrivateMatch] = useState<{
@@ -176,11 +174,10 @@ export default function SavedScoutingReport({
     download(JSON.stringify(payload, null, 2), "json", "match");
   }
   return (
-    <main className={layout.page}>
+    <main className={layout.page} data-navigation-loading={loading}>
       <header className={layout.header}>
         <div className={layout.headerIntro}>
-          <MatchLibraryMenu userId={userId}/>
-          {!report&&playerReturn&&<Link className="ui-btn" href={playerReturn}>← Back to player analysis</Link>}
+          <ScoutingBackLink/>
           <h1>Match insights</h1>
           <p>
             {manual

@@ -73,7 +73,7 @@ export async function reportContext(
         ).rows;
     return {
       players: manual
-        ? match.players ?? []
+        ? (match.players ?? []).map((p: {id:string;existingPlayerId?:string})=>({...p,profileId:avatars.find(a=>a.id===(p.existingPlayerId??p.id))?.id??null}))
         : match.player_ids.map(
             (id: string | null, i: number) =>
               avatars.find((p) => p.id === id) ?? {
