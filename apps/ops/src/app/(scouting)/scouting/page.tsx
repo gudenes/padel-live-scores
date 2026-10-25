@@ -1,3 +1,4 @@
+import {ScoutingBackLink} from '@/components/scouting/ScoutingNavigation'
 import {Icon} from '@/components/IconSprite'
 import MethodologyGuide from "@/components/scouting/MethodologyGuide"
 import Link from 'next/link'
@@ -22,17 +23,21 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  if(Object.keys(params).length===0)redirect("/scouting?view=all")
  const today=catalogDay()
  const filters=catalogFilters(params)
- const {q,status,kind,scouter,date,scouting,page,league,mine,player,watchlist,watched}=filters
+ const {tournament,tournamentLabel,q,status,kind,scouter,date,scouting,page,league,mine,player,watchlist,watched}=filters
  let rows:any[]=[];let failed=false;let hasNext=false
  try{({rows,hasNext}=await loadMatchCatalog(pgPool(),filters,user??{}))}catch{failed=true}
 
+ let tournamentName=tournamentLabel
+ if(tournament){try{const result=await pgPool().query('select name from public.tournaments where id=$1::uuid',[tournament]);tournamentName=result.rows[0]?.name||'Tournament'}catch{tournamentName='Tournament'}}
+ const tournamentView=!!(tournament||tournamentLabel)
  const activeFilters=[['q',q?'Search: '+q:''],['league',LEAGUE_GROUPS.flatMap(g=>g.options.map(([v,l])=>[v,g.label+' · '+l])).find(([v])=>v===league)?.[1]??''],['date',date],['status',status],['kind',kind],['scouter',scouter?'Scouter: '+scouter:''],['scouting',({'scouted':'With scouting','unscouted':'Without scouting','pending':'In progress'} as Record<string,string>)[scouting]??'']].filter(([,value])=>value)
  const extraCount=[date,status,kind,scouter].filter(Boolean).length
  const pageUrl=(n:number)=>catalogUrl(filters,{page:n})
  return <main className={styles.page}><div className={styles.connectedLayout}>
 
  <div className={styles.libraryContent}>
- <header className={styles.heading}><div><h1>Matches<span className={styles.titleDot} aria-hidden="true"/></h1><p>Every match, with scouting insights when available.</p></div><div className={styles.headingActions}><Link href="/scouting/academy" className="ui-btn" data-variant="primary" aria-label="Scout Academy — learn and practise scouting" title="Scout Academy · Learn and practise scouting"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5-10-5Z"/><path d="M6 11v6c3 3 9 3 12 0v-6M22 9v7"/></svg></Link><MethodologyGuide/></div></header>
+ {tournamentView&&<ScoutingBackLink/>}
+ <header className={styles.heading}><div><h1>{tournamentView?tournamentName:'Matches'}<span className={styles.titleDot} aria-hidden="true"/></h1><p>{tournamentView?(tournament?'Tournament matches · All players and rounds.':'Matches with this tournament label · May include multiple editions.'):'Every match, with scouting insights when available.'}</p></div><div className={styles.headingActions}><Link href="/scouting/academy" className="ui-btn" data-variant="primary" aria-label="Scout Academy — learn and practise scouting" title="Scout Academy · Learn and practise scouting"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5-10-5Z"/><path d="M6 11v6c3 3 9 3 12 0v-6M22 9v7"/></svg></Link><MethodologyGuide/></div></header>
  <MatchBrowseBar userId={user?.id??''} filters={filters}/>
  <MatchDateStrip today={today} filters={filters}/>
  <section className={styles.filterPanel} aria-label="Match filters">
@@ -50,6 +55,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  <FilterSelect name="kind" label="Match type" value={kind} options={[['','All matches'],['match','Tournament'],['private','Private']].map(([value,label])=>({value,label}))}/>
  <label>Scouter<input key={scouter} className="ui-input" name="scouter" placeholder="Scouter email" defaultValue={scouter}/></label>
  </div></details></div>
+ <input type="hidden" name="tournament" value={tournament}/><input type="hidden" name="tournamentLabel" value={tournamentLabel}/>
  <input type="hidden" name="watchlist" value={watchlist}/><input type="hidden" name="watched" value={watched}/>
  <input type="hidden" name="mine" value={mine}/><input type="hidden" name="player" value={player}/>
 
@@ -58,6 +64,6 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  </section>
  <div className={styles.resultsHeading}><div><h2>{watchlist?'My Watchlist':mine?'My scouts':player?'Player matches':date===today?'Today’s matches':date?'Matches · '+new Date(date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'All matches'}</h2><span className={styles.sortNote}>{(player||watchlist)?`${rows.length} matches · Live, upcoming, then recent`:`Newest match date first · ${MATCH_PAGE_SIZE} per page`}</span></div></div>
  <div className={styles.grid}>
- {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<section className={styles.emptyMatches} aria-labelledby="empty-matches-title"><div className={styles.emptyMatchIcon} aria-hidden="true"><Icon id={watchlist&&!watched?'users':date?'today':'search'}/></div><h3 id="empty-matches-title">{watchlist&&!watched?'Build your match watchlist':date===today?'No matches found for today':date?'No matches found for this date':'No matches found'}</h3><p>{watchlist&&!watched?'Follow players from their profiles to see their matches here.':'Try another date or clear your filters to explore more matches.'}</p><div className={styles.emptyMatchActions}>{watchlist&&!watched&&<Link className="ui-btn" data-variant="primary" href="/scouting/players">Find players to follow</Link>}{date&&<Link className="ui-btn" data-variant="primary" href={catalogUrl(filters,{date:'',page:1})}>Browse all dates</Link>}<Link className="ui-btn" data-variant={date?'default':'primary'} href="/scouting?view=all">{watchlist&&!watched?'Explore all matches':'Clear all filters'}</Link></div></section>:rows.map(r=><CompactMatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
+ {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<section className={styles.emptyMatches} aria-labelledby="empty-matches-title"><div className={styles.emptyMatchIcon} aria-hidden="true"><Icon id={watchlist&&!watched?'users':date?'today':'search'}/></div><h3 id="empty-matches-title">{watchlist&&!watched?'Build your match watchlist':date===today?'No matches found for today':date?'No matches found for this date':'No matches found'}</h3><p>{watchlist&&!watched?'Follow players from their profiles to see their matches here.':'Try another date or clear your filters to explore more matches.'}</p><div className={styles.emptyMatchActions}>{watchlist&&!watched&&<Link className="ui-btn" data-variant="primary" href="/scouting/players">Find players to follow</Link>}{date&&<Link className="ui-btn" data-variant="primary" href={catalogUrl(filters,{date:'',page:1})}>Browse all dates</Link>}<Link className="ui-btn" data-variant={date?'default':'primary'} href={catalogUrl(catalogFilters({tournament,tournamentLabel}))}>{watchlist&&!watched?'Explore all matches':'Clear all filters'}</Link></div></section>:rows.map(r=><CompactMatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
  {!failed&&(rows.length>0||page>1)&&!player&&!watchlist&&<nav className={styles.pagination} aria-label="Match pages"><span>{rows.length?`Showing ${(page-1)*MATCH_PAGE_SIZE+1}–${(page-1)*MATCH_PAGE_SIZE+rows.length}`:'0 matches'} · Page {page}</span><div>{page>1&&<Link className="ui-btn" href={pageUrl(page-1)}>Previous</Link>}{hasNext&&<Link className="ui-btn" data-variant="primary" href={pageUrl(page+1)}>Next</Link>}</div></nav>}</div></div></main>
 }

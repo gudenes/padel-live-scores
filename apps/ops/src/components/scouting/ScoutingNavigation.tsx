@@ -14,7 +14,7 @@ function here(){return location.pathname+location.search+location.hash}
 function main(){return document.querySelector<HTMLElement>('main.main')}
 function label(path:string){
  const url=new URL(path,location.origin)
- if(url.pathname==='/scouting')return 'matches'
+ if(url.pathname==='/scouting')return url.searchParams.has('tournament')||url.searchParams.has('tournamentLabel')?'tournament matches':'matches'
  if(url.pathname==='/scouting/players')return url.searchParams.has('player')?(document.querySelector('h1')?.textContent?.trim()||'player profile'):(url.searchParams.get('view')==='pairs'?'pairs':'players')
  return 'match report'
 }

@@ -119,3 +119,5 @@
 .compactProfile[data-pair=true] .headerResults{border:0;padding-left:0}
 .compactProfile[data-pair=true] .headerForm{margin-left:auto}
 @media(max-width:650px){.compactProfile[data-pair=true] .inlineBio{grid-template-columns:1fr}.compactProfile[data-pair=true] .headerForm{margin-left:0}}
+
+.tournamentHeader{display:flex;align-items:center;flex-wrap:wrap;background:var(--bg-surface);padding:10px 14px;gap:8px}.tournamentName{flex:1;min-width:160px;font-size:14px}.tournamentName a{display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none}.tournamentName a:hover{text-decoration:underline;text-underline-offset:3px}.tournamentName a:focus-visible{outline:2px solid var(--lime);outline-offset:4px}.tournamentName svg{width:16px;height:16px;flex-shrink:0}.matchFirst .tournamentHeader .tournamentToggle{width:auto;flex:0 1 auto;padding:7px;background:transparent}.tournamentHeader .tournamentInfo{text-align:right}@media(max-width:760px){.tournamentHeader .tournamentToggle{max-width:100%}.tournamentHeader .tournamentInfo{white-space:normal}}
