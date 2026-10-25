@@ -78,7 +78,7 @@ export async function loadMatchCatalog(db:Pick<Pool,'query'>,filters:CatalogFilt
    // Saved roster order must match the scouting timeline; catalog avatars stay attached by ID.
    row.avatars=Object.fromEntries(row.players.filter((p:any)=>p.id).map((p:any)=>[p.id,p.avatar_url]))
    const profiles=new Map(row.players.filter((p:any)=>p.id).map((p:any)=>[p.id,p]))
-   const players=session.players.map((p:any)=>{const profile=profiles.get(p.id) as any;return {...p,...(profile?{avatar_url:profile.avatar_url,country:profile.country,ranking:profile.ranking}:{})}})
+   const players=session.players.map((p:any)=>{const profile=profiles.get(p.id) as any;return {...p,...(profile?{existingPlayerId:profile.existingPlayerId,avatar_url:profile.avatar_url,country:profile.country,ranking:profile.ranking}:{})}})
    Object.assign(row,session,{players})
   }}
  }

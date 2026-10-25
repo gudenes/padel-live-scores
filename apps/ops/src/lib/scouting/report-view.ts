@@ -35,7 +35,7 @@ export interface ReportContext {
   };
   avatars: Record<string, string | null>;
   pbp: OfficialPoint[];
-  players?:{id:string;name:string;display_name?:string|null;avatar_url?:string|null}[];
+  players?:{profileId?:string|null;existingPlayerId?:string;id:string;name:string;display_name?:string|null;avatar_url?:string|null}[];
   sets?:{a:number;b:number;set_number?:number}[];
   games?:OfficialGame[];
   status?:string|null;
@@ -194,6 +194,7 @@ export function reportView(
     meta: context.meta,
     players: report.players.map((p) => ({
       ...p,
+      ...({profileId: context.players?.find(profile=>profile.id===p.id)?.profileId !== undefined ? context.players?.find(profile=>profile.id===p.id)?.profileId : p.id} as {profileId?:string|null}),
       shortName: compactPlayerName(context.players?.find(profile=>profile.id===p.id)?.display_name || p.name),
       avatar:
         context.avatars[p.id] ??

@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import Link from "next/link";
+import {playerProfileHref} from "@/lib/scouting/navigation";
+import { useEffect, useState } from "react";
 import type { ReportContext } from "@/lib/scouting/report-view";
 import { pbpAnalysis } from "@/lib/scouting/pbp-report";
 import { Clock, CaretDown } from "./Icons";
@@ -24,6 +26,19 @@ export default function PbpInsightsView({
   const [scope, setScope] = useState("all"),
     [tab, setTab] = useState("Overview"),
     [selected, setSelected] = useState<string | null>(null);
+  const [navigationReady, setNavigationReady] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('pn-pbp-view:' + location.pathname) || '{}');
+      if (['Overview','Match flow','Players','Points & shots','Data coverage'].includes(saved.tab)) setTab(saved.tab);
+      if (saved.scope === 'all' || /^[1-5]$/.test(saved.scope)) { setScope(saved.scope); onScopeChange(saved.scope); }
+      if (typeof saved.selected === 'string') setSelected(saved.selected);
+    } catch { /* Browsing works without storage. */ }
+    setNavigationReady(true);
+  }, []);
+  useEffect(() => {
+    if (navigationReady) try { sessionStorage.setItem('pn-pbp-view:' + location.pathname, JSON.stringify({scope,tab,selected})); } catch { /* Optional persistence. */ }
+  }, [navigationReady,scope,tab,selected]);
   const data = pbpAnalysis(context, scope),
     all = pbpAnalysis(context),
     players = context.players ?? [],
@@ -190,9 +205,10 @@ export default function PbpInsightsView({
                   }
                   alt=""
                 />
-                <b>{p.name}</b>
+                <b>{p.name}</b>{playerProfileHref([p.existingPlayerId??p.id])&&<Link className="profileConnection" href={playerProfileHref([p.existingPlayerId??p.id])!} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}
               </div>
             ))}
+            {playerProfileHref(players.slice(0, 2).map(p=>p.existingPlayerId??p.id))&&<Link className="pairConnection" href={playerProfileHref(players.slice(0, 2).map(p=>p.existingPlayerId??p.id))!} aria-label={`View pair: ${players.slice(0, 2).map(p=>p.name).join(" / ")}`}>View pair ↗</Link>}
           </div>
           <div className="result">
             <small>
@@ -239,9 +255,10 @@ export default function PbpInsightsView({
                   }
                   alt=""
                 />
-                <b>{p.name}</b>
+                <b>{p.name}</b>{playerProfileHref([p.existingPlayerId??p.id])&&<Link className="profileConnection" href={playerProfileHref([p.existingPlayerId??p.id])!} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}
               </div>
             ))}
+            {playerProfileHref(players.slice(2, 4).map(p=>p.existingPlayerId??p.id))&&<Link className="pairConnection" href={playerProfileHref(players.slice(2, 4).map(p=>p.existingPlayerId??p.id))!} aria-label={`View pair: ${players.slice(2, 4).map(p=>p.name).join(" / ")}`}>View pair ↗</Link>}
           </div>
         </section>
         <div className="tabs">
@@ -257,7 +274,7 @@ export default function PbpInsightsView({
               className={tab === t ? "active" : ""}
               onClick={() => setTab(t)}
             >
-              {t}
+              {t === "Players" ? "Player performance" : t}
             </button>
           ))}
         </div>

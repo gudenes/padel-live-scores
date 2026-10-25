@@ -121,3 +121,21 @@
 @media(max-width:650px){.dateStrip .allDates{height:72px;min-height:72px}}
 
 .emptyMatches{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:42px 24px;background:var(--bg-card,var(--panel,#fff));border:1px solid var(--border);border-radius:14px}.emptyMatchIcon{display:grid;place-items:center;width:64px;height:64px;border-radius:18px;background:var(--lime-bg,#eef7ce);color:var(--text-1)}.emptyMatchIcon svg{width:28px;height:28px;fill:none;stroke:currentColor}.emptyMatches h3{margin:4px 0 0;font-size:20px;letter-spacing:-.4px}.emptyMatches p{margin:0;max-width:400px;line-height:1.6;color:var(--text-2);font-size:13px}.emptyMatchActions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:8px}.emptyMatchActions a{text-decoration:none}
+
+/* Shared match browsing: full-width results with explicit entity links. */
+.connectedLayout{display:block;max-width:1600px;margin:0 auto}
+.browseBar,.browseViews,.browseUtilities{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.browseBar{justify-content:space-between;border-bottom:1px solid var(--border);padding:0 0 14px;margin:20px 0 0}
+.browseViews a,.browseUtilities a{text-decoration:none}
+.recentMenu{position:relative}.recentMenu>summary{list-style:none;cursor:pointer}.recentMenu>summary::-webkit-details-marker{display:none}
+.recentMenu>div{position:absolute;right:0;top:calc(100% + 8px);width:300px;max-width:85vw;max-height:65vh;overflow:auto;padding:16px;background:var(--bg-card,#fff);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 24px #17261e20;z-index:20}
+.connectedTeam{display:flex;align-items:center;gap:12px;padding-bottom:9px;border-bottom:1px solid var(--border)}
+.connectedTeam:last-child{border:0;padding:0}.connectedPlayers{flex:1;min-width:0;display:grid;gap:4px}
+.connectedPlayer{display:flex;align-items:center;gap:8px;min-height:30px;color:var(--text-1);text-decoration:none;font-size:12px;line-height:1.4}
+.connectedPlayer>span:last-child{overflow-wrap:anywhere}
+.connectedPlayer img,.playerInitial{width:28px;height:28px;flex-shrink:0;border:2px solid var(--lime);border-radius:50%;object-fit:cover;background:var(--bg-app)}
+.playerInitial{display:grid;place-items:center}.connectedTeam[data-team='1'] img,.connectedTeam[data-team='1'] .playerInitial{border-color:var(--coral,#ff8178)}
+.connectedPlayer:hover>span:last-child,.pairLink:hover{text-decoration:underline;text-underline-offset:3px}
+.pairLink{font-size:11px;font-weight:600;color:var(--text-2);justify-self:start;padding:4px 0 2px 36px;text-decoration:none}
+.compactLink:after{display:none}.compactLink:focus-visible,.connectedPlayer:focus-visible,.pairLink:focus-visible{outline:2px solid var(--text-1);outline-offset:3px;border-radius:4px}
+@media(max-width:650px){.browseBar{align-items:flex-start}.browseUtilities{gap:2px}.browseUtilities .ui-btn{font-size:12px}.recentMenu>div{right:auto;left:0}.browseViews{gap:4px}}
