@@ -13,7 +13,10 @@ import { runRawPayloadsPrune } from '../../workers/raw-payloads-prune.js';
  * stub deletes from it for real, so the loop's termination is exercised
  * rather than mocked.
  */
-function fakeSupabase(rows: string[], opts: { deleteError?: string; probeError?: string } = {}) {
+function fakeSupabase(
+  rows: string[],
+  opts: { deleteError?: string; probeError?: string; maxRowsPerDelete?: number } = {},
+) {
   const remaining = [...rows].sort();
   const deleteBounds: string[] = [];
 
@@ -49,6 +52,15 @@ function fakeSupabase(rows: string[], opts: { deleteError?: string; probeError?:
             }
             if (state.op === 'delete') {
               if (opts.deleteError) return resolve({ count: null, error: { message: opts.deleteError } });
+              // Statement-timeout simulation: a delete spanning too many rows
+              // is cancelled, exactly as `authenticator`'s 8s budget does.
+              if (opts.maxRowsPerDelete != null
+                  && remaining.filter((r) => r < state.lt).length > opts.maxRowsPerDelete) {
+                return resolve({
+                  count: null,
+                  error: { message: 'canceling statement due to statement timeout', code: '57014' },
+                });
+              }
               deleteBounds.push(state.lt);
               const doomed = remaining.filter((r) => r < state.lt);
               for (const d of doomed) remaining.splice(remaining.indexOf(d), 1);
@@ -73,7 +85,8 @@ describe('runRawPayloadsPrune', () => {
 
     expect(res.rowsDeleted).toBe(3);
     expect(sb.remaining).toEqual([]);
-    // One 24h window per batch, so each row falls in its own delete.
+    // Rows sit a day apart and the default window is 2h, so each row
+    // falls in its own delete.
     expect(res.batchesRun).toBe(3);
     expect(res.abortedEarly).toBe(false);
   });
@@ -159,5 +172,58 @@ describe('runRawPayloadsPrune', () => {
 
     expect(res.abortedEarly).toBe(true);
     expect(res.rowsDeleted).toBe(0);
+  });
+
+  // ── statement-timeout backoff ───────────────────────────────────────────
+  //
+  // The production failure that shipping the URL fix alone did NOT solve:
+  // the delete landed, then died on `authenticator`'s 8s statement_timeout,
+  // and the run aborted having deleted nothing.
+
+  it('halves the window and retries instead of aborting on a timeout', async () => {
+    // 10 rows a day apart; the stub cancels any delete spanning >2 rows, so
+    // the opening 24h window must back off before it can make progress.
+    const rows = Array.from({ length: 10 }, (_, i) => daysAgo(30 + i));
+    const sb = fakeSupabase(rows, { maxRowsPerDelete: 2 });
+    const res = await runRawPayloadsPrune({
+      supabase: sb as any, dryRun: false, windowHours: 24 * 30,
+    });
+
+    expect(res.rowsDeleted).toBe(10);
+    expect(sb.remaining).toEqual([]);
+    expect(res.abortedEarly).toBe(false);
+    expect(res.windowShrinks).toBeGreaterThan(0);
+    expect(res.finalWindowHours).toBeLessThan(24 * 30);
+  });
+
+  it('reports the window it settled on', async () => {
+    const rows = Array.from({ length: 6 }, (_, i) => daysAgo(30 + i));
+    const sb = fakeSupabase(rows, { maxRowsPerDelete: 1 });
+    const res = await runRawPayloadsPrune({
+      supabase: sb as any, dryRun: false, windowHours: 48,
+    });
+
+    expect(res.rowsDeleted).toBe(6);
+    expect(res.finalWindowHours).toBeLessThanOrEqual(48);
+    expect(res.finalWindowHours).toBeGreaterThan(0);
+  });
+
+  it('gives up when even the floor window times out', async () => {
+    // Nothing can be deleted at any size — a table-level problem, not a
+    // batch-size one. Must abort rather than spin forever.
+    const sb = fakeSupabase([daysAgo(40), daysAgo(39)], { maxRowsPerDelete: 0 });
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
+    expect(res.abortedEarly).toBe(true);
+    expect(res.rowsDeleted).toBe(0);
+    expect(sb.remaining).toHaveLength(2);
+  });
+
+  it('does not treat a non-timeout error as a reason to shrink', async () => {
+    const sb = fakeSupabase([daysAgo(40)], { deleteError: 'permission denied' });
+    const res = await runRawPayloadsPrune({ supabase: sb as any, dryRun: false });
+
+    expect(res.abortedEarly).toBe(true);
+    expect(res.windowShrinks).toBe(0);
   });
 });
