@@ -8,7 +8,7 @@ import InsightLink from './InsightLink'
 import ScoutLaunchMenu from './ScoutLaunchMenu'
 import NavigationProgress from './NavigationProgress'
 import styles from './library.module.css'
-export interface MatchCardRow {kind:'match'|'private';match_id:string;has_scouting:boolean;has_pbp?:boolean;official_sets?:{a:number;b:number}[];players:ScoutPerson[];source:'video'|'admin';document:unknown;revision:number;updated_at:string;match_status?:string;phase?:string;match_date?:string;duration?:unknown;tournament_name:string;round?:string;category?:string;assigned_email?:string;avatars?:Record<string,string|null>}
+export interface MatchCardRow {kind:'match'|'private';match_id:string;has_scouting:boolean;has_pbp?:boolean;official_sets?:{a:number;b:number}[];players:ScoutPerson[];source:'video'|'admin';document:unknown;revision:number;updated_at:string;match_status?:string;phase?:string;match_date?:string;duration?:unknown;tournament_id?:string|null;tournament_name:string;round?:string;category?:string;assigned_email?:string;avatars?:Record<string,string|null>}
 export default function MatchCard({row:r,user}:{row:MatchCardRow;user?:StaffUser|null}){
 
  const official=Array.isArray(r.official_sets)?r.official_sets.filter(s=>Number.isInteger(s.a)&&Number.isInteger(s.b)):[]
