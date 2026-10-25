@@ -1,3 +1,4 @@
+import { createFipDrawPlayerResolver, preserveDrawPlayerLinks } from '../lib/fip-draw-player.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 // Paginated reads against snapshot tables that can exceed PostgREST's
@@ -6,7 +7,7 @@ import type { Logger } from 'pino';
 // for the project policy.
 import { paginatedSelect } from '../lib/db-paginate.js';
 import { roundCanonical } from '../lib/round-canonical.js';
-import { patchDuplicatesPlayer } from '../lib/match-player-identity.js';
+import { hasDuplicatePlayerIds, patchDuplicatesPlayer } from '../lib/match-player-identity.js';
 // Low-level name/fip_id/player-UUID primitives — shared with
 // fip-draw-reconciler. The populator's higher-level tiered
 // `resolveFourPlayers` (bracket overlay + partner anchor) stays in
@@ -849,6 +850,7 @@ export async function runFipDrawPopulator(
       if (partnerFipId) wantedFipIds.add(partnerFipId);
     }
     const fipIdToPlayerId = await loadPlayersByFipId(supabase, wantedFipIds);
+    const resolveFullFipName = createFipDrawPlayerResolver(supabase, dryRun);
 
     // 6. Pre-load existing matches by composite for this tournament.
     // Two sources, because the same widget identity can be stored in
@@ -1025,6 +1027,17 @@ export async function runFipDrawPopulator(
           bracketOverlay: d.match_widget_id ? bracketOverlay.get(d.match_widget_id) : undefined,
         },
       );
+      // Only the official draw can supply full names; never create profiles
+      // from abbreviated OOP names or infer an individual ID from a team ID.
+      if (d.source === 'fip_event_page') {
+        const slots = ['p1p1', 'p1p2', 'p2p1', 'p2p2'] as const;
+        const names = [d.team1_player1_name, d.team1_player2_name,
+          d.team2_player1_name, d.team2_player2_name];
+        for (let i = 0; i < slots.length; i++) {
+          const slot = slots[i]!;
+          if (!resolved[slot]) resolved[slot] = await resolveFullFipName(names[i] ?? null, d.category);
+        }
+      }
       const numResolved = resolvedCount(resolved);
       if (numResolved === 0 && !allowThinMatch) {
         result.skippedPlayerUnresolved += 1;
@@ -1078,6 +1091,12 @@ export async function runFipDrawPopulator(
         slot(resolved.p1p2, d.team1_player2_name, d.team1_player2_country, 'pair1_player2_id', 'pair1_player2_name', 'pair1_player2_country');
         slot(resolved.p2p1, d.team2_player1_name, d.team2_player1_country, 'pair2_player1_id', 'pair2_player1_name', 'pair2_player1_country');
         slot(resolved.p2p2, d.team2_player2_name, d.team2_player2_country, 'pair2_player2_id', 'pair2_player2_name', 'pair2_player2_country');
+
+        if (patchDuplicatesPlayer({}, insertRow)) {
+          result.skippedPlayerUnresolved += 1;
+          logger?.warn({ composite }, 'fip-draw-populator: duplicate players — refusing insert');
+          continue;
+        }
 
         // Seeds — written for both resolved-FK and thin-name paths.
         // FIP draw exposes them on the structured fip_event_page rows;
@@ -1415,7 +1434,7 @@ async function upsertTournamentDraws(
       team_points: null,
     },
   ];
-  for (const teamRow of teamRows) {
+  for (let teamRow of teamRows) {
     // tournament_draws has NOT NULL on player1_name. Pending-qualifier
     // and scaffolding cells (R16/QF/SF/F pre-tournament; "winner of Q2
     // #X" R64 slots) have null names on one or both team rows. Skip
@@ -1423,6 +1442,17 @@ async function upsertTournamentDraws(
     // and the public bracket UI doesn't need TBD-side rows. The
     // companion match in public.matches still gets the cell.
     if (teamRow.player1_name == null) {
+      continue;
+    }
+    const { data: previous, error: readError } = await supabase.from('tournament_draws')
+      .select('player1_name,player2_name,player1_id,player2_id')
+      .eq('tournament_id', teamRow.tournament_id).eq('category', teamRow.category)
+      .eq('draw_position', teamRow.draw_position).maybeSingle();
+    if (readError) throw new Error(`draw identity lookup failed: ${readError.message}`);
+    teamRow = preserveDrawPlayerLinks(teamRow, previous);
+    if (hasDuplicatePlayerIds([teamRow.player1_id, teamRow.player2_id])) {
+      logger?.warn({ tournamentId: d.tournament_id, position: teamRow.draw_position },
+        'fip-draw-populator: duplicate draw players — preserving existing row');
       continue;
     }
     if (dryRun) {

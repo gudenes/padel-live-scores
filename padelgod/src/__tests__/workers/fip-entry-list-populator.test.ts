@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+// Profile adoption behavior is covered by the full-name resolver tests.
+vi.mock('../../lib/fip-draw-player.js', () => ({ attachFipIdToDrawProfile: async () => null }));
 import { runFipEntryListPopulator } from '../../workers/fip-entry-list-populator.js';
 
 // ── Test fixtures ────────────────────────────────────────────────────────
