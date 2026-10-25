@@ -1,3 +1,4 @@
+import { attachFipIdToDrawProfile } from '../lib/fip-draw-player.js';
 // padelgod/src/workers/fip-entry-list-populator.ts
 //
 // Simplified-pipeline writer #5 (PR 3 in the migration plan).
@@ -391,6 +392,17 @@ export async function runFipEntryListPopulator(
       // with just a fip_id is useless to downstream consumers.
       if (!snap.name) {
         result.playersSkippedNoFipId += 1; // close enough; same outcome
+        continue;
+      }
+
+      const adoptedId = await attachFipIdToDrawProfile(supabase, {
+        name: snap.name, category: snap.category, fipId, country: snap.country,
+      }, dryRun);
+      if (adoptedId) {
+        existingByFipId.set(fipId, { id: adoptedId, fip_id: fipId, name: snap.name,
+          category: snap.category, country: snap.country, points: null });
+        result.playersUpdated += 1;
+        if (!dryRun) await recordPlayerEntered(snap.tournament_id, adoptedId);
         continue;
       }
 

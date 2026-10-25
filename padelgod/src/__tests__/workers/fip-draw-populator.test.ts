@@ -1,4 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+const fullNameFallback = vi.hoisted(() => vi.fn(async (_name: string | null) => null as string | null));
+afterEach(() => fullNameFallback.mockReset());
+// Existing fixtures isolate entry-list resolution; full-name creation has its own tests.
+vi.mock('../../lib/fip-draw-player.js', async (original) => ({
+  ...await original<typeof import('../../lib/fip-draw-player.js')>(),
+  createFipDrawPlayerResolver: () => fullNameFallback,
+}));
 import {
   runFipDrawPopulator,
   resolveFourPlayers,
@@ -300,6 +307,9 @@ function fakeSupabase(opts: Options) {
   // Records the raw row + the conflict key so tests can assert on the
   // exact write the bracket-table consumers expect.
   const tournamentDrawsTable = () => ({
+    select: () => ({ eq: () => ({ eq: () => ({ eq: () => ({
+      maybeSingle: async () => ({ data: null, error: null }),
+    }) }) }) }),
     upsert: (row: Record<string, unknown>, opts: { onConflict?: string } = {}) => {
       tournamentDrawsUpserted.push(row);
       tournamentDrawsConflictKeys.push(opts.onConflict ?? null);
@@ -4247,5 +4257,24 @@ describe('isQualifierSlotRow — bye vs qualifier discriminator', () => {
   it('falls back to BYE when the parent row is absent entirely (unverifiable)', () => {
     const child = cell('MD028', 'Franco Stupaczuk', 'Jon Sanz');
     expect(isQualifierSlotRow(child, new Map())).toBe(false);
+  });
+});
+
+
+describe('official full-name fallback integration', () => {
+  it('fills all four Taunton slots without an entry-list ID and keeps them on the next run', async () => {
+    const names = ['Luca Cheshire', 'Will Edlin', 'Ben David George Burgess', 'Kieran Thomas Muir'];
+    fullNameFallback.mockImplementation(async name => `verified-${names.indexOf(name!)}`);
+    const supabase = fakeSupabase({
+      tournaments: [{tournament_id: TOURNAMENT_ID, tournament_name: 'Taunton', slug: TOURNAMENT_SLUG}],
+      widgetCodeByTournament: {[TOURNAMENT_ID]: TOURNAMENT_WIDGET},
+      draws: [{...realMatchDraw, source:'fip_event_page', team1_player1_name:names[0]!, team1_player2_name:names[1]!, team2_player1_name:names[2]!, team2_player2_name:names[3]!}],
+    });
+    const first = await runFipDrawPopulator({supabase:supabase as any,dryRun:false});
+    expect(first.inserted).toBe(1);expect(first.skippedPlayerUnresolved).toBe(0);expect(first.tournamentsFailed).toBe(0);
+    expect(supabase.inserted[0]).toMatchObject({pair1_player1_id:'verified-0',pair1_player2_id:'verified-1',pair2_player1_id:'verified-2',pair2_player2_id:'verified-3'});
+    fullNameFallback.mockResolvedValue(null);
+    const second = await runFipDrawPopulator({supabase:supabase as any,dryRun:false});
+    expect(second.updated).toBe(0);expect(supabase.updated).toHaveLength(0);
   });
 });
