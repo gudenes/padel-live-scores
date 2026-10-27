@@ -28,7 +28,7 @@ test('recovery attribution is reachable and selecting a finishing smash reuses t
   $('shot-options').querySelector('[data-tag=smash-recovery]').click();
   assert.equal($('recovery-smash-label').hidden,false);
   assert.equal($('recovery-smash-label').closest('#winner-tags'),null);
-  $('save-point').click();assert.match($('shot-error').textContent,/opponent/);
+  $('save-point').click();assert.match($('shot-error').textContent,/remate rival/);
   assert.equal(document.activeElement,$('recovery-smash'));
   $('recovery-smash').value='2:new';$('recovery-smash').dispatchEvent(new dom.window.Event('change'));
   $('save-point').click();await dispatch(actions.at(-1));assert.equal(match(state).stats[2].smashes,1);

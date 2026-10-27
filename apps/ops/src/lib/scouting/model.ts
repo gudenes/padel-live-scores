@@ -1,4 +1,4 @@
-import {shots,type Shot,type ShotSide} from './shots'
+import {shots,type Shot,type ShotSide,type ReturnType,type ReturnFailure,returnTypes,returnFailures} from './shots'
 import { apply, createInitialState, type DeuceRule, type MatchState, type PlayerIndex } from './scoring'
 
 import {createTracking} from './tracking'
@@ -10,7 +10,7 @@ export type Outcome = 'winner' | 'forced' | 'unforced'
 export interface ScoreSeed { sets:{a:number;b:number}[]; game:{a:number|'Adv';b:number|'Adv'}; phase:'playing'|'tiebreak'; returns:number; server:Player }
 export type CourtSetup = Pick<ScoutDoc,'rule'|'firstServer'|'otherServer'|'near'>
 export type Event = { id:string; at:string } & (
-  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean; smashAttemptId?:string; shot?:Shot; side?:ShotSide; assistBy?:Player; forcedBy?:Player;previousPlayer?:Player;previousShot?:Shot;netTouch?:boolean; outsideRecoveryBy?:Player[];recovery?:boolean;smashRecovery?:boolean;netCord?:'lucky'|'unlucky'}
+  | {kind:'point'; player:Player; outcome:Outcome; smash:boolean; smashAttemptId?:string; shot?:Shot; side?:ShotSide;returnType?:ReturnType;returnFailure?:ReturnFailure; assistBy?:Player; forcedBy?:Player;previousPlayer?:Player;previousShot?:Shot;netTouch?:boolean; outsideRecoveryBy?:Player[];recovery?:boolean;smashRecovery?:boolean;netCord?:'lucky'|'unlucky'}
   | {kind:'smash'; player:Player}
   | {kind:'unclassified'; team:'a'|'b'}
   | {kind:'flip'} | {kind:'swap'; team:'a'|'b'}
@@ -50,6 +50,8 @@ export function validateDoc(raw:unknown):ScoutDoc {
       if(e.previousShot!==undefined&&(e.previousPlayer===undefined||!Object.hasOwn(shots,e.previousShot)))throw Error('Previous stroke requires an opponent and valid shot.')
       if(e.previousPlayer!==undefined&&e.forcedBy!==undefined&&e.previousPlayer!==e.forcedBy)throw Error('Previous player and forced-error credit must agree.')
       if(e.outsideRecoveryBy!==undefined&&(!Array.isArray(e.outsideRecoveryBy)||e.outsideRecoveryBy.length>4||new Set(e.outsideRecoveryBy).size!==e.outsideRecoveryBy.length||e.outsideRecoveryBy.some(p=>!player(p))))throw Error('Invalid outside recovery attempt players.')
+      if(e.returnType!==undefined&&(e.shot!=='return'||!Object.hasOwn(returnTypes,e.returnType)))throw Error('Invalid return type.')
+      if(e.returnFailure!==undefined&&(e.shot!=='return'||!['forced','unforced'].includes(e.outcome)||!Object.hasOwn(returnFailures,e.returnFailure)))throw Error('Invalid return failure.')
       if(e.netTouch!==undefined&&typeof e.netTouch!=='boolean')throw Error('Invalid net touch tag.')
       if(e.smashRecovery!==undefined&&(typeof e.smashRecovery!=='boolean'||(e.smashRecovery&&e.outcome!=='winner')))throw Error('Smash recovery is only available for winners.')
       if(e.netCord!==undefined&&!['lucky','unlucky'].includes(e.netCord))throw Error('Invalid net cord tag.')

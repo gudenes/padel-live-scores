@@ -10,6 +10,7 @@
 // Session callback enriches with isOperator (see operators.ts).
 
 import NextAuth from 'next-auth'
+import { sessionCookie } from './auth-cookie'
 import Google from 'next-auth/providers/google'
 import Resend from 'next-auth/providers/resend'
 import Credentials from 'next-auth/providers/credentials'
@@ -108,20 +109,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return session
     },
   },
-  cookies: {
-    sessionToken: {
-      name:
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-authjs.session-token'
-          : 'authjs.session-token',
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === 'production',
-        domain: process.env.NODE_ENV === 'production' ? '.padelnachos.com' : undefined,
-      },
-    },
-  },
+  cookies: {sessionToken:sessionCookie(process.env.NODE_ENV === 'production',process.env.AUTH_URL ?? process.env.NEXTAUTH_URL)},
   trustHost: true,
 })

@@ -38,12 +38,14 @@ export default function SavedScoutingReport({
   userId = "",
   canShare = false,
   manual = false,
+  liveReview = false,
   context = emptyContext,
 }: {
   matchId: string;
   userId?: string;
   canShare?: boolean;
   manual?: boolean;
+  liveReview?: boolean;
   context?: ReportContext;
 }) {
   const router = useRouter();
@@ -70,7 +72,7 @@ export default function SavedScoutingReport({
     setError("");
     setScope("all");
     async function load() {
-      for (const source of (manual ? ["video"] : ["video", "admin"]) as (
+      for (const source of (manual || liveReview ? ["video"] : ["video", "admin"]) as (
         | "video"
         | "admin"
       )[]) {
@@ -81,7 +83,7 @@ export default function SavedScoutingReport({
               : "video-scouting"
             : "scouting";
         const response = await fetch(
-          `/api/internal/${path}/${encodeURIComponent(matchId)}`,
+          liveReview ? `/api/internal/scouting/${encodeURIComponent(matchId)}/live-session` : `/api/internal/${path}/${encodeURIComponent(matchId)}`,
           { cache: "no-store", signal: controller.signal }
         );
         const data = await response.json();
@@ -91,7 +93,7 @@ export default function SavedScoutingReport({
         if (data.session) {
           if (active){
             setReport(savedReport(data.session as SavedSession, source));
-            setCanResume(!manual&&data.canResume===true);
+            setCanResume(!liveReview&&!manual&&data.canResume===true);
             setResumeInExtension(data.session.document?.captureMode!=='standalone');
           }
           return;
@@ -112,7 +114,7 @@ export default function SavedScoutingReport({
       active = false;
       controller.abort();
     };
-  }, [matchId, manual, attempt]);
+  }, [matchId, manual, liveReview, attempt]);
   const data = report ? reportView(report, context, methodology) : null;
   const pbp = officialPoints(context),
     hasMatch = (context.players?.length ?? 0) > 0,

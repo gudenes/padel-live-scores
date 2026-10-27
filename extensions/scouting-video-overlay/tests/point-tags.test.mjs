@@ -34,15 +34,15 @@ test('quick tags, independent X4 and position-based opponent keys save once and 
   assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[2,'q'],[3,'w']]);
   press('w');press('Enter');
   const opponent=$('forced-opponents').firstElementChild;opponent.focus();render(state,snapshot(111),false,true);assert.equal($('forced-opponents').firstElementChild,opponent);assert.equal(document.activeElement,opponent);
-  press('w');assert.equal($('forced-opponents').querySelector('[aria-pressed=true]').dataset.player,'3');assert.match($('shot-summary').textContent,/Previous opponent: Player B2/);
+  press('w');assert.equal($('forced-opponents').querySelector('[aria-pressed=true]').dataset.player,'3');assert.match($('shot-summary').textContent,/Rival anterior: Player B2/);
   press('w');press(' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',previousPlayer:3,previousShot:'volley',forcedBy:3}});
   state.setup.adjustments=[{type:'ends',afterId:null,at:'2026-10-06T00:00:00Z'}];state.pending.id='flipped';render(state,snapshot(110),false,true);
   const order=courtPlayers(state);assert.deepEqual(order,[1,0,3,2]);assert.deepEqual([...$('forced-opponents').children].map(b=>[Number(b.dataset.player),b.dataset.shortcut]),[[3,'a'],[2,'s']]);
   press('w');press('Enter');press('s');press('w');$('net-touch').click();press(' ');assert.equal(actions.at(-1).details.forcedBy,2);assert.equal(actions.at(-1).details.netTouch,true);
-  state.pending.id='unknown';render(state,snapshot(110),false,true);$('forced-unknown').click();press('w');const unsaved=actions.length;press(' ');press(' ');assert.equal(actions.length,unsaved);assert.match($('shot-error').textContent,/previous opponent/);
+  state.pending.id='unknown';render(state,snapshot(110),false,true);$('forced-unknown').click();press('w');const unsaved=actions.length;press(' ');press(' ');assert.equal(actions.length,unsaved);assert.match($('shot-error').textContent,/rival anterior/);
   const count=actions.length;render(state,snapshot(110),true,true);press('f');press('4');press(' ');assert.equal(actions.length,count);
   state.pending.id='recovery-only';state.pending.finish.outcome='winner';render(state,snapshot(110),false,true);
-  press('r');$('recovery-smash').value='2:new';assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);assert.match($('shot-instruction').textContent,/No stroke needed/);press(' ');
+  press('r');$('recovery-smash').value='2:new';assert.equal($('shot-options').querySelector('[data-shot=volley]').disabled,true);assert.match($('shot-instruction').textContent,/Ganador tras recuperar remate/);press(' ');
   assert.deepEqual(actions.at(-1),{type:'score',details:{smashRecovery:true,recoverySmashPlayer:2}});
   const recovered=validatePoint({player:0,outcome:'winner',...actions.at(-1).details},{},0);
   const saved=validateVideoState(videoPayload({...fresh(),setup:defaults(),rallies:[{id:'recovery-only',start:snapshot(100),end:snapshot(110),point:recovered}]}));

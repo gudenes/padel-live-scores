@@ -19,9 +19,9 @@ test('pause freezes video duration, resume retains rally, shot selection time is
  const f=fixture();await f.choose();await f.dispatch({type:'start'});f.set(108);f.pause();
  let read=await f.dispatch({type:'sample'});assert.equal(read.sample.time,108);assert.equal(read.state.pending.start.time,100);
  f.resume();f.set(114);await f.dispatch({type:'prepare',player:0,outcome:'winner'});f.set(200);
- await f.dispatch({type:'score',details:{shot:'volley',assistBy:1,recovery:true,smashRecovery:true,netCord:'lucky'}});
+ await f.dispatch({type:'score',details:{shot:'volley',assistBy:1,recovery:true,smashRecovery:true,recoverySmashPlayer:2,netCord:'lucky'}});
  assert.equal(f.get().rallies[0].videoSeconds,14);assert.equal(match(f.get()).score.currentGame.a,15);assert.equal(match(f.get()).stats[1].assists,1);
- assert.equal(exported(f.get()).selectedMatch.id,'one');
+ assert.equal(exported(f.get()).selectedMatch.id,'one');assert.equal(f.get().rallies[0].attempts.length,1);assert.equal(f.get().rallies[0].attempts[0].player,2);assert.equal(match(f.get()).stats[0].smashRecoveryWinners,1);
 });
 test('can log an outcome while paused and does not start a new rally until playback resumes',async()=>{
  const f=fixture();await f.choose();await f.dispatch({type:'start'});f.set(110);f.pause();await f.dispatch({type:'prepare',player:2,outcome:'unforced'});await f.dispatch({type:'score',details:{netCord:'unlucky'}});
@@ -219,4 +219,14 @@ test('previous smash error can reuse or add an attempt without changing error at
   const m=videoSummary(videoPayload(f.get()));assert.equal(m.stats[0].smashes,freshAttempt?2:1);assert.equal(m.stats[0].smashPointsWon,1);assert.equal(m.stats[0].softSmashes,1);assert.equal(m.stats[0].powerSmashes,freshAttempt?1:0);assert.equal(m.stats[0].smashWinners,0);assert.equal(m.stats[2][outcome],1);
   await f.dispatch({type:'undo-last'});assert.equal(f.get().pending.attempts.length,1);
  }
+});
+
+test('recovery selection requires an opponent and reuses their smash without duplicating it',async()=>{
+ const f=fixture();await f.choose();await f.dispatch({type:'start'});f.set(104);await f.dispatch({type:'smash',player:2,smashType:'power'});f.set(110);await f.dispatch({type:'prepare',player:0,outcome:'winner'});
+ const before=structuredClone(f.get());
+ for(const details of [{smashRecovery:true},{smashRecovery:true,recoverySmashPlayer:1},{smashRecovery:true,recoverySmashPlayer:3,recoverySmashAttemptIndex:0}]){
+  await assert.rejects(f.dispatch({type:'score',details}),/Choose/);assert.deepEqual(f.get(),before);
+ }
+ await f.dispatch({type:'score',details:{smashRecovery:true,recoverySmashPlayer:2,recoverySmashAttemptIndex:0}});
+ assert.equal(f.get().rallies[0].attempts.length,1);assert.equal(f.get().rallies[0].videoSeconds,10);assert.equal(match(f.get()).stats[2].smashes,1);assert.equal(match(f.get()).stats[0].smashRecoveryWinners,1);
 });

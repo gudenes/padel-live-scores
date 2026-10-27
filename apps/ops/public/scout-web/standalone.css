@@ -129,3 +129,6 @@ body.standalone{padding:0 12px 16px!important}
 #touch-status{margin:3px 0!important;font-size:11px!important}.live-summary{margin-top:10px!important}
 dialog{padding:12px!important;max-height:calc(100dvh - 20px)!important}dialog .ui-btn{min-height:34px}#shot-options button{min-height:42px!important}#save-point{min-height:38px!important}
 }
+
+body.live-lab #save-video-link,body.live-lab #header-playground,body.live-lab #sync-server,body.live-lab #closing-sync,body.live-lab #video-panel,body.live-lab #standalone-reset{display:none!important}
+body.live-lab .standalone-video-clock{display:inline!important}

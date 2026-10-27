@@ -253,3 +253,7 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 #save-status-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;font-size:12px}#save-status-bar[hidden]{display:none}#sync-comparison{display:grid;gap:8px}#sync-comparison[hidden]{display:none}#sync-comparison dd{margin:4px 0 12px;overflow-wrap:anywhere}#sync-comparison .ui-btn{white-space:normal}
 
 #sync-review-error:empty{display:none}
+/* Optional return detail fields stay readable in the narrow scouting panel. */
+#return-details{display:grid;gap:10px;border:1px solid var(--border,#D8DCCD);border-radius:8px;padding:10px;margin:10px 0}#return-details label{font-size:12px}#return-details small{font-weight:400;color:var(--text-2)}.shot-label{overflow-wrap:anywhere}
+
+.return-choices{display:flex;flex-wrap:wrap;gap:6px}.return-choices .ui-btn{flex:0 1 auto}.return-choices .ui-btn[aria-pressed=true]{font-weight:700}

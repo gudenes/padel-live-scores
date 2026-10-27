@@ -1,4 +1,5 @@
 "use client";
+import {returnTypes,returnFailures} from '@/lib/scouting/shots';
 import PreGameComparison from "./PreGameComparison";
 import {sharedReportEvent} from "@/lib/posthog/shared-report";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import {
   Info,
 } from "./Icons";
 import "./report-view.css";
+import {videoSource,replayRange} from '@/lib/scouting/video-review';
 import VideoReview from "./VideoReview";
 import OverviewMomentum from "./OverviewMomentum";
 import ShotDistribution from "./ShotDistribution";
@@ -376,6 +378,8 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
       (player === "all" || p.player === Number(player))
   );
   const chosen = filter[Math.min(current, filter.length - 1)];
+  const canReplayPoint=point=>{const rally=d.taps.find(r=>r.id===point?.id);return !!videoSource(data.videoUrl??'')&&!!replayRange(rally?.start,rally?.end)};
+  const reviewPoint=point=>{if(!canReplayPoint(point))return;setReplayPoint(point.id);setTab('Video review');};
   const impact = d.analysis.series.length
     ? [0, 1, 2, 3].map((k) => d.analysis.series.map((p) => p.values[k]))
     : [[], [], [], []];
@@ -719,7 +723,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
                       </h2>
                       <div className="detailbadge">
                         {chosen.outcome.replace("_", " ")} ·{" "}
-                        {chosen.shot ?? "Stroke not recorded"}
+                        {chosen.shot ?? "Stroke not recorded"}{chosen.returnType&&` · ${returnTypes[chosen.returnType]}`}{chosen.returnFailure&&` · ${returnFailures[chosen.returnFailure]}`}
                       </div>
                       {[
                         [
@@ -759,10 +763,8 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
                           <b>{v}</b>
                         </div>
                       ))}
-                      <p className="muted">
-                        Video jump can be added once the source URL and player
-                        seek support are verified.
-                      </p>
+                      <button type="button" className="ui-btn" data-variant="primary" disabled={!canReplayPoint(chosen)} onClick={()=>reviewPoint(chosen)}>Review rally</button>
+                      <p className="muted">{canReplayPoint(chosen)?'Opens the video 3 seconds before this rally. Live replay depends on the available YouTube buffer.':'No playable video or rally timestamp is available for this point.'}</p>
                     </>
                   ) : (
                     <p>No matching points.</p>
@@ -773,7 +775,8 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
                     {filter.map((p, i) => (
                       <button
                         className={current === i ? "chosen" : ""}
-                        onClick={() => setCurrent(i)}
+                        onClick={() => {setCurrent(i);reviewPoint(p)}}
+                        title={canReplayPoint(p)?`Review point ${p.number} in the video`:`View point ${p.number} details`}
                         key={p.id}
                       >
                         <b>#{p.number}</b>
