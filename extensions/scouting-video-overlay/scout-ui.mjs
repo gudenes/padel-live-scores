@@ -7,7 +7,8 @@ import './shortcut-keys.js';
 import {playerProfile,playerIdentity} from './player-profile.mjs';
 import {match,defaults,courtPlayers} from './match.mjs';
 import {scoreLabel} from './generated/score-label.mjs';
-import {shots} from './generated/shots.mjs';
+import {spanishShots,returnTypes,returnFailures} from './generated/shots.mjs';
+const shots={...spanishShots,groundstroke:'Fondo',wall:'Pared',bajada:'Bajada'};
 import {playerShortcuts,positionKeys} from './player-shortcuts.mjs';
 import {quickShots,extraShots,shotShortcut,shortcutLabel} from './shot-shortcuts.mjs';
 import {formatDuration} from './generated/tracking.mjs';
@@ -63,22 +64,22 @@ export function scoutingUI({$,act,getState}){
  function setQuick(value){quickSave=value;$('quick-save').checked=value;globalThis.localStorage?.setItem('pn-quick-save',String(value));}
  $('quick-save').addEventListener('change',()=>setQuick($('quick-save').checked));
  $('shot-details').addEventListener('toggle',()=>{if($('shot-details').open)setQuick(false)});
- function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;if(step==='previous'){if(previousShot!==key){previousReuse=false;previousSmashType=key==='smash'?getState()?.pending?.attempts?.[previousAttempt()]?.smashType:undefined;}previousShot=key;syncShot();return;}if(key==='smash'&&shot!=='smash'){const p=getState()?.pending,a=p?.attempts?.[matchingAttempt()];smashType=a?.smashType;$('counted').checked=finalSmashAttempt(p,p?.finish?.player)>=0;}shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
+ function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;if(step==='previous'){if(previousShot!==key){previousReuse=false;previousSmashType=key==='smash'?getState()?.pending?.attempts?.[previousAttempt()]?.smashType:undefined;}previousShot=key;syncShot();return;}if(key==='smash'&&shot!=='smash'){const p=getState()?.pending,a=p?.attempts?.[matchingAttempt()];smashType=a?.smashType;$('counted').checked=finalSmashAttempt(p,p?.finish?.player)>=0;}if(shot!==key){$('return-type').value='';$('return-failure').value='';}shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash'&&shot!=='return')savePoint();}
  const shotGroups={overhead:['smash','vibora','bandeja','rulo','gancho'],defense:['groundstroke','lob','block','bajada','wall','return','contrapared'],net:['volley','chiquita','drop','half_volley']};
  function shotButton(key,shortcut){
-  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.dataset.size='sm';const label=document.createElement('span');label.className='shot-label';label.textContent=key==='bajada'?'Bajada de pared':shots[key];const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';label.dataset.group=group;b.append(label);b.dataset.shot=key;b.dataset.group=group;b.setAttribute('aria-pressed','false');
-  if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);b.title=(key==='bajada'?'Bajada de pared':shots[key])+' · '+({overhead:'Overheads',defense:'Defense',net:'Net shots',other:'Other'}[group])+' · '+shortcutLabel(shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcutLabel(shortcut);b.append(kbd);}
+  const b=document.createElement('button');b.type='button';b.className='ui-btn';b.dataset.size='sm';const label=document.createElement('span');label.className='shot-label';label.textContent=shots[key];const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';label.dataset.group=group;b.title=spanishShots[key];b.append(label);b.dataset.shot=key;b.dataset.group=group;b.setAttribute('aria-pressed','false');
+  if(shortcut){b.dataset.shortcut=shortcut;b.setAttribute('aria-keyshortcuts',shortcut);b.title=spanishShots[key]+' · '+({overhead:'Golpes por arriba',defense:'Defensa',net:'Golpes de red',other:'Otro'}[group])+' · '+shortcutLabel(shortcut);const kbd=document.createElement('kbd');kbd.textContent=shortcutLabel(shortcut);b.append(kbd);}
   b.addEventListener('click',()=>chooseShot(key));return b;
  }
  const common=document.createElement('div');common.className='shot-keyboard';common.setAttribute('aria-label','Stroke keyboard');
  const shotKeys=Object.fromEntries([...quickShots,...extraShots].map(([key,shot])=>[shot,key]));
- const tagNames={x4:'X4 winner',outside:'Outside','smash-recovery':'Recovery',assist:'Assist','net-touch':'Net touch'};
+ const tagNames={x4:'Por 4',outside:'Fuera pista','smash-recovery':'Recup. remate',assist:'Asistencia','net-touch':'Toca red'};
  const rows=[['chiquita','block','bajada','@x4','wall','return','@outside','other'],['smash','volley','vibora','@smash-recovery','rulo'],['bandeja','groundstroke','lob','@assist','gancho'],['drop','@net-touch']];
  for(const [i,keys] of rows.entries()){
   const row=document.createElement('div');row.className='keyboard-row keyboard-row-'+i;row.setAttribute('role','group');row.setAttribute('aria-label',['Number keys','QWERT row','ASDFG row','Bottom row'][i]);
   for(const key of keys){
-   if(key.startsWith('@')){const id=key.slice(1),b=document.createElement('button');b.type='button';b.className='ui-btn keyboard-tag';b.dataset.tag=id;b.innerHTML='<kbd></kbd><span class="shot-label"></span>';b.querySelector('span').textContent=tagNames[id];b.onclick=()=>{if($('save-point').disabled)return;$(id).checked=!$(id).checked;$(id).onchange();};row.append(b);}
-   else {const b=shotButton(key,shotKeys[key]);if(key==='bajada')b.querySelector('.shot-label').textContent='Bajada';row.append(b);if(key==='lob'){const wrapper=document.createElement('div');wrapper.className='keyboard-dual';b.replaceWith(wrapper);wrapper.append(b);const shifted=shotButton('contrapared','shift+d');shifted.classList.add('shifted-shot');wrapper.append(shifted);}}
+   if(key.startsWith('@')){const id=key.slice(1),b=document.createElement('button');b.type='button';b.className='ui-btn keyboard-tag';b.dataset.tag=id;b.innerHTML='<kbd></kbd><span class="shot-label"></span>';b.querySelector('span').textContent=tagNames[id];b.title={x4:'Ganador por 4',outside:'Recuperación fuera de pista','smash-recovery':'Recuperación de remate',assist:'Asistencia del compañero','net-touch':'La bola tocó la red'}[id];b.onclick=()=>{if($('save-point').disabled)return;$(id).checked=!$(id).checked;$(id).onchange();};row.append(b);}
+   else {const b=shotButton(key,shotKeys[key]);row.append(b);if(key==='lob'){const wrapper=document.createElement('div');wrapper.className='keyboard-dual';b.replaceWith(wrapper);wrapper.append(b);const shifted=shotButton('contrapared','shift+d');shifted.classList.add('shifted-shot');wrapper.append(shifted);}}
   }
   common.append(row);
  }
@@ -92,6 +93,10 @@ export function scoutingUI({$,act,getState}){
  }
  function syncShot(){
   const autoServer=returnServer();
+  const isReturn=shot==='return',isReturnError=isReturn&&['forced','unforced'].includes(getState()?.pending?.finish?.outcome);
+  $('return-details').hidden=step!=='shot'||!isReturn;$('return-failure-label').hidden=!isReturnError;
+  if(!isReturnError)$('return-failure').value='';
+  for(const button of $('return-details').querySelectorAll('[data-return-field]')){const selected=$(button.dataset.returnField).value===button.dataset.returnValue;button.setAttribute('aria-pressed',String(selected));button.dataset.variant=selected?'primary':'default';button.disabled=$('save-point').disabled;}
   for(const b of $('shot-options').querySelectorAll('[data-shot]')){b.setAttribute('aria-pressed',String(b.dataset.shot===(step==='previous'?previousShot:shot)));b.dataset.variant=b.dataset.shot===(step==='previous'?previousShot:shot)?'primary':'default';}
   const p=getState()?.pending,smash=shot==='smash',canLink=smash&&!!smashType&&matchingAttempt()>=0;
   const x4=p?.finish?.outcome==='winner'&&$('x4').checked,recovery=p?.finish?.outcome==='winner'&&$('smash-recovery').checked;
@@ -99,7 +104,7 @@ export function scoutingUI({$,act,getState}){
   $('forced-credit').hidden=step!=='opponent';
   $('outcome-picker').hidden=step!=='outcome';
   $('point-back').querySelector('kbd').dataset.scoutKey='back';
-  $('point-step').textContent={shot:'Finishing stroke',outcome:'Choose outcome',opponent:'Previous opponent · required',previous:'Previous stroke · optional'}[step];
+  $('point-step').textContent={shot:'Golpe final',outcome:'Elegir resultado',opponent:'Rival anterior · obligatorio',previous:'Golpe anterior · opcional'}[step];
   $('shot-form').dataset.step=step;
   $('shot-options').hidden=!(step==='previous'||step==='shot');
   for(const b of common.querySelectorAll('[data-tag]')){const id=b.dataset.tag;b.hidden=step!=='shot'||id!=='net-touch'&&p?.finish?.outcome!=='winner';b.disabled=$('save-point').disabled;b.setAttribute('aria-pressed',String($(id).checked));b.querySelector('kbd').textContent=keyEditor.label(id);}
@@ -109,29 +114,32 @@ export function scoutingUI({$,act,getState}){
   for(const id of ['net-touch','shot-var'])$(id).closest('label').hidden=step!=='shot';
   $('shot-details').hidden=step!=='shot';$('outside-attempt-details').hidden=step!=='shot';
   $('previous-shot-context').hidden=step!=='previous'&&!(step==='shot'&&(autoServer!==undefined||forcedBy!==undefined));
-  $('previous-shot-context').textContent=step==='shot'&&autoServer!==undefined?`Previous shot: Serve · ${getState().setup.names[autoServer]} · Auto-filled`:forcedBy===undefined?'':`Previous player: ${getState().setup.names[forcedBy]} · ${previousShot?shots[previousShot]:'Stroke not recorded'}`;
-  $('save-point').textContent=step==='opponent'?'Select the previous opponent':step==='outcome'?'Choose an outcome':step==='previous'?previousShot?'Save point · Space':'Save without previous stroke · Space':p?.finish?.outcome!=='winner'&&autoServer===undefined?(forcedBy===undefined?'Next: previous opponent · Enter':direct?'Save point · Space':'Next: previous stroke · Enter'):'Save point · Space';
+  $('previous-shot-context').textContent=step==='shot'&&autoServer!==undefined?`Golpe anterior: Saque · ${getState().setup.names[autoServer]} · Automático`:forcedBy===undefined?'':`Rival anterior: ${getState().setup.names[forcedBy]} · ${previousShot?shots[previousShot]:'Golpe no registrado'}`;
+  $('save-point').textContent=step==='opponent'?'Elige el rival anterior':step==='outcome'?'Elige un resultado':step==='previous'?previousShot?'Guardar punto · Space':'Guardar sin golpe anterior · Space':p?.finish?.outcome!=='winner'&&autoServer===undefined?(forcedBy===undefined?'Siguiente: rival anterior · Enter':direct?'Guardar punto · Space':'Siguiente: golpe anterior · Enter'):'Guardar punto · Space';
   $('save-point').setAttribute('aria-disabled',String(step==='opponent'||step==='outcome'));
-  if(step==='previous')$('shot-title').textContent=getState().setup.names[forcedBy]+' · previous stroke';
-  else if(step==='opponent')$('shot-title').textContent='Previous opponent';
-  $('shot-instruction').textContent=step==='opponent'?'Select the opponent using their player key. Required before saving.':step==='previous'?'Optional: choose their stroke, or Space to save without it.':step==='outcome'?'Choose Winner, UE or FE.':recovery?($('recovery-smash').value?'Smash recovery winner · opponent’s smash selected · Space to save.':'Smash recovery winner · choose the opponent’s smash below, then Space to save.'):'Choose the stroke, then Space. Esc changes the outcome.';
+  if(step==='previous')$('shot-title').textContent=getState().setup.names[forcedBy]+' · golpe anterior';
+  else if(step==='opponent')$('shot-title').textContent='Rival que golpeó antes';
+  $('shot-instruction').textContent=step==='opponent'?'Elige el rival con su tecla. Obligatorio para guardar.':step==='previous'?'Opcional: elige su golpe o pulsa Space para guardar sin él.':step==='outcome'?'Elige Ganador, ENF o EF.':recovery?($('recovery-smash').value?'Ganador tras recuperar remate · remate rival seleccionado · Space para guardar.':'Ganador tras recuperar remate · elige el remate rival y pulsa Space para guardar.'):'Elige el golpe y pulsa Space. Esc cambia el resultado.';
   for(const b of $('forced-opponents').querySelectorAll('button')){b.setAttribute('aria-pressed',String(Number(b.dataset.player)===forcedBy));b.disabled=$('save-point').disabled;}
-  $('forced-unknown').textContent='Back to error stroke';
+  $('forced-unknown').textContent='Volver al golpe del error';
   for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.setAttribute('aria-pressed',String(b.dataset.smashType===(step==='previous'?previousSmashType:smashType)));
   const previousSmash=step==='previous'&&previousShot==='smash',reuse=previousSmash?previousReuse:$('counted').checked;
   const index=previousSmash?previousAttempt():matchingAttempt(),prior=getState()?.pending?.attempts?.[index];
   $('counted-label').hidden=!(previousSmash||step==='shot'&&smash);$('reuse-smash').hidden=index<0;$('reuse-smash').disabled=index<0;
-  $('reuse-smash').querySelector('span').textContent='Use last smash · '+({power:'Power',x3:'X3',soft:'Soft'}[prior?.smashType]??'Recorded');
+  $('reuse-smash').querySelector('span').textContent='Use last smash · '+({power:'Potente',x3:'Por 3',soft:'Suave'}[prior?.smashType]??'Registrado');
   for(const [id,selected] of [['reuse-smash',reuse],['new-smash',!reuse]]){$(id).setAttribute('aria-pressed',String(selected));$(id).dataset.variant=selected?'primary':'default';}
-  $('attempt-choice-note').textContent=previousSmash?'Link the smash that caused this error. New smash adds a separate attempt.':'Changing the type updates the selected attempt. Choose New smash only for another shot.';
+  $('attempt-choice-note').textContent=previousSmash?'Vincula el remate que provocó el error. Nuevo remate añade otro intento.':'Cambiar el tipo actualiza el intento seleccionado. Elige Nuevo remate solo para otro golpe.';
 
-  const label=!shot?(recovery?`${getState()?.setup?.names[p?.finish?.player]??'Player'} · winner`:'Choose a stroke'):smash&&!smashType?'Choose Power, X3 or Soft smash before saving':`${getState()?.setup?.names[p?.finish?.player]??'Player'} · ${p?.finish?.outcome??''} · ${shots[shot]}${smash?' '+(smashType==='x3'?'X3':smashType==='soft'?'Soft':'Power'):''}${smash&&$('x4').checked?' · X4 winner':''}${smash&&smashType?' · '+(canLink&&$('counted').checked?'Updates the recorded attempt · No extra attempt':'Adds one new attempt'):''}`;
+  const label=!shot?(recovery?`${getState()?.setup?.names[p?.finish?.player]??'Player'} · winner`:'Elige un golpe'):smash&&!smashType?'Elige remate potente, por 3 o suave antes de guardar':`${getState()?.setup?.names[p?.finish?.player]??'Player'} · ${({winner:'Ganador',unforced:'Error no forzado',forced:'Error forzado'})[p?.finish?.outcome]??''} · ${shots[shot]}${smash?' '+(smashType==='x3'?'Por 3':smashType==='soft'?'Suave':'Potente'):''}${smash&&$('x4').checked?' · X4 winner':''}${smash&&smashType?' · '+(canLink&&$('counted').checked?'Actualiza el intento registrado · Sin intento adicional':'Añade un intento nuevo'):''}`;
   if($('save-point').textContent.endsWith(' · Space')){$('save-point').textContent=$('save-point').textContent.slice(0,-8);const hint=document.createElement('kbd');hint.dataset.scoutKey='save';hint.textContent=keyEditor.label('save');$('save-point').append(' ',hint);}
   $('shot-instruction').textContent=$('shot-instruction').textContent.replaceAll('Space',keyEditor.label('save')).replaceAll('Esc',keyEditor.label('back'));
-  $('shot-summary').textContent=(previousSmash?getState().setup.names[forcedBy]+' · Smash'+(previousSmashType?' '+({power:'Power',x3:'X3',soft:'Soft'}[previousSmashType]):'')+' → opponent error · '+(index>=0&&previousReuse?'Uses recorded attempt · No extra attempt':'Adds one new attempt'):label)+(forcedBy!==undefined?' · Previous opponent: '+getState().setup.names[forcedBy]:'')+($('assist').checked?' · Assist: '+getState().setup.names[p.finish.player^1]:'')+($('smash-recovery').checked?' · Smash recovery':'')+($('outside').checked?' · Outside-court recovery':'')+($('net-touch').checked?' · Net touch':'');
+  $('shot-summary').textContent=(previousSmash?getState().setup.names[forcedBy]+' · Smash'+(previousSmashType?' '+({power:'Potente',x3:'Por 3',soft:'Suave'}[previousSmashType]):'')+' → opponent error · '+(index>=0&&previousReuse?'Usa el intento registrado · Sin intento adicional':'Añade un intento nuevo'):label)+(forcedBy!==undefined?' · Rival anterior: '+getState().setup.names[forcedBy]:'')+($('assist').checked?' · Asistencia: '+getState().setup.names[p.finish.player^1]:'')+($('smash-recovery').checked?' · Recuperación de remate':'')+($('outside').checked?' · Recuperación fuera de pista':'')+($('net-touch').checked?' · Toque de red':'');
+  if(shot==='return')$('shot-summary').textContent+=($('return-type').value?' · '+returnTypes[$('return-type').value]:'')+($('return-failure').value?' · '+returnFailures[$('return-failure').value]:'');
   $('recovery-smash-label').hidden=step!=='shot'||!$('smash-recovery').checked||getState()?.pending?.finish?.outcome!=='winner';
   for(const input of ['assist','smash-recovery','x4','outside'])$(input).closest('label').classList.toggle('selected',$(input).checked);
  }
+ for(const button of $('return-details').querySelectorAll('[data-return-field]'))button.onclick=()=>{if($('save-point').disabled)return;const field=$(button.dataset.returnField);field.value=field.value===button.dataset.returnValue?'':button.dataset.returnValue;syncShot();};
+ $('return-details').addEventListener('keydown',event=>{if(event.target.closest('button')&&(event.key==='Enter'||event.key===' '))event.stopPropagation();});
  function chooseType(type){if(step==='previous'){previousShot='smash';previousSmashType=type;syncShot();return;}smashType=type;if(type!=='power')$('x4').checked=false;syncShot();}
  for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.onclick=()=>chooseType(b.dataset.smashType);
  $('x4').onchange=()=>{if($('x4').checked){if(shot!=='smash')$('counted').checked=finalSmashAttempt(getState()?.pending,getState()?.pending?.finish?.player)>=0;shot='smash';smashType='power';}else if($('smash-recovery').checked){shot=undefined;smashType=undefined;}syncShot();$('save-point').focus();};$('counted').onchange=syncShot;for(const id of ['reuse-smash','new-smash'])$(id).onclick=()=>{if(id==='reuse-smash'&&(step==='previous'?previousAttempt():matchingAttempt())<0)return;if(step==='previous')previousReuse=id==='reuse-smash';else $('counted').checked=id==='reuse-smash';syncShot();};
@@ -147,20 +155,20 @@ export function scoutingUI({$,act,getState}){
  $('dismiss-shot').addEventListener('click',cancel);
  $('shot-dialog').addEventListener('cancel',e=>{e.preventDefault();goBack()});
  function savePoint(){
-  const p=getState()?.pending?.finish;if(!p||$('save-point').disabled)return;if(step==='outcome')return;if(step==='opponent'){ $('shot-error').textContent='Choose the previous opponent before saving.';return;}const recovery=p.outcome==='winner'&&$('smash-recovery').checked;if((!shot&&!recovery)||shot==='smash'&&!smashType){$('shot-error').textContent='Choose a shot'+(shot==='smash'?' and smash type':'')+', then press Space to save.';return;}
-  if(recovery&&!$('recovery-smash').value){$('shot-error').textContent='Choose the opponent’s smash: reuse a recorded attempt or add the missing attempt.';$('recovery-smash-label').scrollIntoView({block:'nearest'});$('recovery-smash').focus();return;}
+  const p=getState()?.pending?.finish;if(!p||$('save-point').disabled)return;if(step==='outcome')return;if(step==='opponent'){ $('shot-error').textContent='Elige el rival anterior antes de guardar.';return;}const recovery=p.outcome==='winner'&&$('smash-recovery').checked;if((!shot&&!recovery)||shot==='smash'&&!smashType){$('shot-error').textContent='Choose a shot'+(shot==='smash'?' and smash type':'')+', then press Space to save.';return;}
+  if(recovery&&!$('recovery-smash').value){$('shot-error').textContent='Elige el remate rival: usa un intento registrado o añade el que falta.';$('recovery-smash-label').scrollIntoView({block:'nearest'});$('recovery-smash').focus();return;}
   const [recoveryPlayer,recoveryAttempt]=($('recovery-smash').value||'').split(':');
   const autoServer=returnServer(),previousPlayer=autoServer??forcedBy,priorShot=autoServer!==undefined?'serve':previousShot;
   if(p.outcome!=='winner'&&step==='shot'&&autoServer===undefined&&(!direct||forcedBy===undefined)){step=forcedBy===undefined?'opponent':'previous';syncShot();(step==='opponent'?$('forced-opponents'):common).querySelector('button')?.focus();return;}
-  if(p.outcome!=='winner'&&previousPlayer===undefined){$('shot-error').textContent='Choose the previous opponent before saving.';return;}
-  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...($('outside-attempts').querySelector('input:checked')?{outsideRecoveryBy:[...$('outside-attempts').querySelectorAll('input:checked')].map(input=>Number(input.value))}:{}),...(p.outcome!=='winner'&&previousPlayer!==undefined?{previousPlayer,...(priorShot?{previousShot:priorShot}:{}),...(priorShot==='smash'&&previousSmashType?{previousSmashType}:{}),...(priorShot==='smash'&&previousAttempt()>=0&&!previousReuse?{previousSmashNew:true}:{}),...(p.outcome==='forced'?{forcedBy}:{})}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true,recoverySmashPlayer:Number(recoveryPlayer),...(recoveryAttempt!=='new'?{recoverySmashAttemptIndex:Number(recoveryAttempt)}:{})}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
+  if(p.outcome!=='winner'&&previousPlayer===undefined){$('shot-error').textContent='Elige el rival anterior antes de guardar.';return;}
+  act({type:'score',details:{...(shot?{shot}:{}),...(shot==='return'&&$('return-type').value?{returnType:$('return-type').value}:{}),...(shot==='return'&&p.outcome!=='winner'&&$('return-failure').value?{returnFailure:$('return-failure').value}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...($('outside-attempts').querySelector('input:checked')?{outsideRecoveryBy:[...$('outside-attempts').querySelectorAll('input:checked')].map(input=>Number(input.value))}:{}),...(p.outcome!=='winner'&&previousPlayer!==undefined?{previousPlayer,...(priorShot?{previousShot:priorShot}:{}),...(priorShot==='smash'&&previousSmashType?{previousSmashType}:{}),...(priorShot==='smash'&&previousAttempt()>=0&&!previousReuse?{previousSmashNew:true}:{}),...(p.outcome==='forced'?{forcedBy}:{})}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true,recoverySmashPlayer:Number(recoveryPlayer),...(recoveryAttempt!=='new'?{recoverySmashAttemptIndex:Number(recoveryAttempt)}:{})}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
  }
  $('shot-form').addEventListener('submit',e=>{e.preventDefault();savePoint();});
  $('shot-form').addEventListener('keydown',e=>{
   if(e.key==='Backspace'&&e.shiftKey){e.preventDefault();e.stopPropagation();if(!e.repeat)cancel();return;}
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(!e.repeat)goBack();return;}
   if(e.repeat){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();}return;}if(e.isComposing||e.altKey)return;
-  if((e.key==='Enter'||e.key===' ')&&!e.target.closest('input,select,textarea,[contenteditable]')){e.preventDefault();e.stopPropagation();if(shot||getState()?.pending?.finish?.outcome==='winner'&&$('smash-recovery').checked||e.ctrlKey||e.metaKey)savePoint();else $('shot-error').textContent='Choose a shot, then press Space to save.';return;}
+  if((e.key==='Enter'||e.key===' ')&&!e.target.closest('input,select,textarea,[contenteditable]')){e.preventDefault();e.stopPropagation();if(shot||getState()?.pending?.finish?.outcome==='winner'&&$('smash-recovery').checked||e.ctrlKey||e.metaKey)savePoint();else $('shot-error').textContent='Elige un golpe y pulsa Space para guardar.';return;}
   if(e.ctrlKey||e.metaKey||e.target.closest('input,select,textarea,[contenteditable]'))return;
   const key=e.key.toLowerCase(),finish=getState()?.pending?.finish;if($('save-point').disabled)return;
   if(!e.shiftKey&&['b','h'].includes(key)&&!$('counted-label').hidden){e.preventDefault();$(key==='b'?'reuse-smash':'new-smash').click();return;}
@@ -236,7 +244,7 @@ export function scoutingUI({$,act,getState}){
   order.forEach((player,slot)=>{const badge=document.createElement('kbd');badge.textContent=positionKeys[slot].toUpperCase();badge.dataset.scoutKey='player-'+slot;badge.title='Tap to record a shot; hold 1.3 seconds to select outcome';cards[player].querySelector('h3').prepend(badge,' ');});
   const divider=document.createElement('div');divider.className='court-divider';divider.append('Far end · Net · Near end');const flip=document.createElement('button');flip.className='ui-btn';flip.dataset.variant='ghost';flip.dataset.ends='true';flip.textContent='Switch ends';flip.onclick=()=>act({type:'ends'});divider.append(flip);
   $('players').replaceChildren(...order.slice(0,2).map(i=>cards[i]),divider,...order.slice(2).map(i=>cards[i]));}
-  for(const card of $('players').querySelectorAll('article[data-player]')){const player=Number(card.dataset.player),key=keyEditor.label('player-'+courtPlayers(state,m).indexOf(player));for(const [index,type] of ['power','x3','soft'].entries()){const b=card.querySelector('.attempts').children[index];let hint=b.querySelector('kbd');if(!hint){hint=document.createElement('kbd');b.append(hint);}hint.dataset.scoutKey='smash-'+type;hint.textContent=keyEditor.label('smash-'+type);b.title=`Tap ${key}, then press ${keyEditor.label('smash-'+type)} to count one ${type==='x3'?'X3':type==='soft'?'Soft':'Power'} smash attempt`;}}
+  for(const card of $('players').querySelectorAll('article[data-player]')){const player=Number(card.dataset.player),key=keyEditor.label('player-'+courtPlayers(state,m).indexOf(player));for(const [index,type] of ['power','x3','soft'].entries()){const b=card.querySelector('.attempts').children[index];let hint=b.querySelector('kbd');if(!hint){hint=document.createElement('kbd');b.append(hint);}hint.dataset.scoutKey='smash-'+type;hint.textContent=keyEditor.label('smash-'+type);b.title=`Tap ${key}, then press ${keyEditor.label('smash-'+type)} to count one ${type==='x3'?'Por 3':type==='soft'?'Suave':'Potente'} smash attempt`;}}
   for(const b of $('players').querySelectorAll('button:not([data-court-server])'))b.disabled=b.dataset.ends?busy||!state.selectedMatch||m.score.phase==='finished':!enabled;
   renderCourtCheckin(state,m,busy,setup);
   keyboardContext={enabled,direct,mappedPlayers:true,tapOutcomes:!direct,recording:busy&&recording>0&&!!state.pending&&!state.pending.finish&&healthy&&!issue&&!sample?.seeking,firstFault:!!state.pending?.firstFault,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();paintFeedback();
@@ -249,10 +257,10 @@ export function scoutingUI({$,act,getState}){
   if(finish){
    if(openId!==pending.id+':'+finish.player+':'+finish.outcome){const samePlayer=openId.startsWith(pending.id+':'+finish.player+':');openId=pending.id+':'+finish.player+':'+finish.outcome;step='shot';previousShot=undefined;previousSmashType=undefined;previousReuse=false;if(!samePlayer){shot=undefined;smashType=undefined;}if(!direct&&firstTapReturn(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))){shot='return';smashType=undefined;}forcedBy=!direct&&finish.outcome!=='winner'?previousTapOpponent(pending,finish.player):undefined;attributionReady=forcedBy!==undefined||finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=false;
    if(!direct)$('assist').checked=suggestedAssist(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))!==undefined;
-   const recoverySelect=$('recovery-smash');recoverySelect.replaceChildren(new Option('Choose the opponent’s smash',''));
+   const recoverySelect=$('recovery-smash');recoverySelect.replaceChildren(new Option('Elige remate rival',''));
    for(let opponent=0;opponent<4;opponent++)if(Math.floor(opponent/2)!==Math.floor(finish.player/2)){
-    recoverySelect.add(new Option(getState().setup.names[opponent]+' · Add missing attempt',opponent+':new'));
-    (pending.attempts??[]).forEach((a,i)=>{if(a.player===opponent)recoverySelect.add(new Option(getState().setup.names[opponent]+' · Reuse smash '+(i+1),opponent+':'+i));});
+    recoverySelect.add(new Option(getState().setup.names[opponent]+' · Añadir intento',opponent+':new'));
+    (pending.attempts??[]).forEach((a,i)=>{if(a.player===opponent)recoverySelect.add(new Option(getState().setup.names[opponent]+' · Usar remate '+(i+1),opponent+':'+i));});
    }
    const recoveryOpponent=previousTapOpponent(pending,finish.player),recoveryIndex=recoverySmashAttempt(pending,finish.player);
    if(recoveryOpponent!==undefined)recoverySelect.value=recoveryOpponent+':'+(recoveryIndex>=0?recoveryIndex:'new');
@@ -261,11 +269,12 @@ export function scoutingUI({$,act,getState}){
    $('outside-attempts').replaceChildren(...setup.names.map((name,player)=>{const label=document.createElement('label');label.className='quick-tag';const check=document.createElement('input');check.type='checkbox';check.value=player;check.name='outside-attempt';label.append(check,document.createTextNode(name));return label;}));
    $('shot-details').open=false;syncShot();$('shot-error').textContent='';}
    const order=courtPlayers(state,m),creditKey=JSON.stringify([pending.id,finish.player,order,setup.names]);if(creditKey!==attributionKey){attributionKey=creditKey;$('forced-opponents').replaceChildren(...order.filter(player=>(player<2)!==(finish.player<2)).map(player=>{const b=document.createElement('button'),kbd=document.createElement('kbd');b.type='button';b.className='ui-btn';b.dataset.player=player;b.dataset.shortcut=positionKeys[order.indexOf(player)];b.setAttribute('aria-keyshortcuts',b.dataset.shortcut.toUpperCase());b.append(setup.names[player]+' ');kbd.textContent=b.dataset.shortcut.toUpperCase();kbd.dataset.scoutKey='player-'+order.indexOf(player);b.append(kbd);b.onclick=()=>credit(player);return b;}));}
-   $('assist-name').textContent='By '+setup.names[finish.player^1];$('recovery-name').textContent='By '+setup.names[finish.player];$('outside-label').hidden=finish.outcome!=='winner';
+   $('assist-name').textContent='De '+setup.names[finish.player^1];$('recovery-name').textContent='De '+setup.names[finish.player];$('outside-label').hidden=finish.outcome!=='winner';
    $('shot-var').checked=!!pending.varReviewed;$('shot-var').disabled=busy;
    $('save-point').disabled=busy;for(const input of $('outside-attempts').querySelectorAll('input'))input.disabled=busy;syncShot();for(const b of $('smash-options').querySelectorAll('button,input'))b.disabled=busy;
+   for(const id of ['return-type','return-failure'])$(id).disabled=busy;
    for(const id of ['assist','smash-recovery','x4','outside','net-touch','forced-unknown'])$(id).disabled=busy;
-   $('shot-title').textContent=step==='previous'?setup.names[forcedBy]+' · previous stroke':step==='opponent'?'Previous opponent':`${setup.names[finish.player]} · ${finish.outcome.replace('_',' ')}`;$('save-point').disabled=busy;$('dismiss-shot').disabled=busy;
+   $('shot-title').textContent=step==='previous'?setup.names[forcedBy]+' · golpe anterior':step==='opponent'?'Rival que golpeó antes':`${setup.names[finish.player]} · ${({winner:'Ganador',unforced:'Error no forzado',forced:'Error forzado'})[finish.outcome]??finish.outcome}`;$('save-point').disabled=busy;$('dismiss-shot').disabled=busy;
    syncShot();
    if(!$('shot-dialog').open){$('shot-dialog').showModal();common.querySelector('button')?.focus();}
   }else{openId='';if($('shot-dialog').open)$('shot-dialog').close();}

@@ -1,5 +1,5 @@
 // Generated from admin scouting. Run node extensions/scouting-video-overlay/sync-scoring.cjs
-import { shots } from './shots.mjs';
+import { shots, returnTypes, returnFailures } from './shots.mjs';
 import { apply, createInitialState } from './scoring.mjs';
 import { createTracking } from './tracking.mjs';
 export const teamOf = (p) => p < 2 ? 'a' : 'b';
@@ -49,6 +49,10 @@ export function validateDoc(raw) {
                 throw Error('Previous player and forced-error credit must agree.');
             if (e.outsideRecoveryBy !== undefined && (!Array.isArray(e.outsideRecoveryBy) || e.outsideRecoveryBy.length > 4 || new Set(e.outsideRecoveryBy).size !== e.outsideRecoveryBy.length || e.outsideRecoveryBy.some(p => !player(p))))
                 throw Error('Invalid outside recovery attempt players.');
+            if (e.returnType !== undefined && (e.shot !== 'return' || !Object.hasOwn(returnTypes, e.returnType)))
+                throw Error('Invalid return type.');
+            if (e.returnFailure !== undefined && (e.shot !== 'return' || !['forced', 'unforced'].includes(e.outcome) || !Object.hasOwn(returnFailures, e.returnFailure)))
+                throw Error('Invalid return failure.');
             if (e.netTouch !== undefined && typeof e.netTouch !== 'boolean')
                 throw Error('Invalid net touch tag.');
             if (e.smashRecovery !== undefined && (typeof e.smashRecovery !== 'boolean' || (e.smashRecovery && e.outcome !== 'winner')))
@@ -102,7 +106,7 @@ export function replay(doc) {
     score = { ...score, servingPlayer: f, servingTeam: teamOf(settings.firstServer), servingOrder: [f, o, ((f + 2) % 4), ((o + 2) % 4)] };
     let near = settings.near;
     const swapped = { a: false, b: false };
-    const stats = Array.from({ length: 4 }, () => ({ winners: 0, forced: 0, unforced: 0, smashes: 0, smashWinners: 0, smashPointsWon: 0, smashErrorsGenerated: 0, smashErrors: 0, assists: 0, forcedErrorsCreated: 0, netTouches: 0, recoveryWinners: 0, smashRecoveryWinners: 0, luckyNetCords: 0, unluckyNetCords: 0, shots: {} }));
+    const stats = Array.from({ length: 4 }, () => ({ winners: 0, forced: 0, unforced: 0, smashes: 0, smashWinners: 0, smashRecoveredByRival: 0, smashPointsWon: 0, smashErrorsGenerated: 0, smashErrors: 0, assists: 0, forcedErrorsCreated: 0, netTouches: 0, recoveryWinners: 0, smashRecoveryWinners: 0, luckyNetCords: 0, unluckyNetCords: 0, shots: {} }));
     const tracking = createTracking();
     let points = 0, unclassified = 0;
     const rallySmashes = new Map();
@@ -206,11 +210,20 @@ export function replay(doc) {
             winningTeam = e.team;
             unclassified++;
         }
+        // Older recovery observations lack an explicit attempt link. Attribute only
+        // when all recorded rival smashes identify the same player in this rally.
+        const recoveryCandidates = e.kind === 'point' && e.smashRecovery && e.outcome === 'winner'
+            ? [...new Set([...rallySmashes.values()].filter(p => teamOf(p) !== teamOf(e.player)))] : [];
+        const recoveredSmashBy = recoveryCandidates.length === 1 ? recoveryCandidates[0] : undefined;
+        if (recoveredSmashBy !== undefined)
+            stats[recoveredSmashBy].smashRecoveredByRival++;
         rallySmashes.clear();
         const before = score;
         score = apply(score, { kind: 'point_for', team: winningTeam });
         points++;
         tracking.handle(e, before, score, winningTeam);
+        if (recoveredSmashBy !== undefined)
+            tracking.data.timeline.at(-1).recoveredSmashBy = recoveredSmashBy;
         if (changesEnds(before, score))
             near = near === 'a' ? 'b' : 'a';
     }

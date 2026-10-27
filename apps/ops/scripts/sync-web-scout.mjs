@@ -9,3 +9,5 @@ await mkdir(target,{recursive:true});
 for(const name of await readdir(source))if((name.endsWith('.mjs')||name.endsWith('.js'))&&!overrides.has(name)&&!excluded.has(name))await copyFile(path.join(source,name),path.join(target,name));
 await mkdir(path.join(target,'generated'),{recursive:true});
 for(const name of await readdir(path.join(source,'generated')))await copyFile(path.join(source,'generated',name),path.join(target,'generated',name));
+// Live video uses the extension's complete presentation, not standalone overrides.
+await import('./sync-live-scout.mjs');

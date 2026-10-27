@@ -36,3 +36,24 @@ it('uploads a browser point through the real API and reloads the confirmed score
  const remote=await second.load(matchId);await second.acknowledge(matchId,remote)
  expect(remote.payload.rallies).toHaveLength(1);expect((await second.status(matchId)).revision).toBe(1)
 })
+
+it('finishes browser live scouting through production storage and reloads both rally timestamps',async()=>{
+ db.session=null
+ const {liveSync}=await import('../../../../../../../public/scout-web/live-sync.mjs')
+ const {videoPayload}=await import('../../../../../../../../../extensions/scouting-video-overlay/server-model.mjs')
+ const ctx={params:Promise.resolve({id:'22222222-2222-4222-8222-222222222222'})},url='https://admin.test/api/internal/video-scouting/22222222-2222-4222-8222-222222222222'
+ const snap=(time:number)=>({tabId:0,documentId:'browser-session',videoId:'qiwOmZnjyLw',mediaId:'youtube:qiwOmZnjyLw',time,at:'2026-10-27T12:00:00Z',readyState:4,seekEpoch:0,paused:false})
+ const state={version:1,captureMode:'video',label:'',setup:{names:['a1','a2','b1','b2'],firstServer:0,otherServer:2,rule:'star-point',videoSourceUrl:'https://www.youtube.com/watch?v=qiwOmZnjyLw'},cancelled:[],pending:null,rallies:[{id:'r1',start:snap(100),end:snap(120),point:{player:0,outcome:'winner',shot:'volley'}},{id:'r2',start:snap(140),end:snap(160),point:{player:2,outcome:'unforced',shot:'return',returnType:'lob',returnFailure:'long'}}]}
+ const envelope={state,revision:0,dirty:false,generation:0,outbox:null}
+ const sync=liveSync({envelope,storage:'server',store:async()=>{},payload:videoPayload,request:async(body:unknown)=>{const response=await POST(new Request(url,{method:'POST',headers:{origin:'https://admin.test',host:'admin.test','content-type':'application/json'},body:JSON.stringify(body)}),ctx);const result=await response.json();if(!response.ok)throw Error(result.error);return result}})
+ try{
+  await sync.update(state);await sync.finish()
+  expect(sync.status()).toMatchObject({status:'saved',storage:'server'})
+  const remote=await (await GET(new Request(url),ctx)).json()
+  expect(remote.canResume).toBe(true);expect(remote.session.write_id).toBeTruthy()
+  expect(remote.session.score.currentGame.a).toBe(30)
+  expect(remote.session.document.setup.videoSourceUrl).toBe(state.setup.videoSourceUrl)
+  expect(remote.session.document.rallies.map((r:any)=>[r.start.time,r.end.time])).toEqual([[100,120],[140,160]])
+  expect(remote.session.document.rallies[1].point).toMatchObject({returnType:'lob',returnFailure:'long'})
+ }finally{sync.close()}
+})

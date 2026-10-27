@@ -88,7 +88,7 @@ test('all strokes stay expanded and N toggles net touch for winners and errors',
 test('unforced return fills current server and Serve, then saves without another selection',()=>{
  const f=fixture(),{$,actions,press}=f;try{
  $('rally-taps').click();press('q');press('a');press('6');
- assert.match($('previous-shot-context').textContent,/Previous shot: Serve.*Auto-filled/);
+ assert.match($('previous-shot-context').textContent,/Golpe anterior: Saque.*Automático/);
  assert.equal($('save-point').textContent,'Save point · Space');press(' ');
  assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'return',previousPlayer:0,previousShot:'serve'}});
  assert.equal(actions.at(-1).details.forcedBy,undefined);
@@ -135,7 +135,7 @@ test('tap mode highlights the last hitter, accepts W/A/D and preselects the adja
  assert.ok($('players').querySelector('[data-player="0"]').classList.contains('keyboard-selected'));
  // Explicit physical keyboard events: I/O/K/L retain their identity in rally mode.
  press('d');assert.deepEqual(actions.at(-1),{type:'prepare',player:0,outcome:'forced'});
- assert.match($('shot-summary').textContent,/Previous opponent: Player B1/);
+ assert.match($('shot-summary').textContent,/Rival anterior: Player B1/);
  press('w');press(' ');assert.equal($('shot-form').dataset.step,'previous');
  press('2');press(' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'volley',previousPlayer:2,previousShot:'block',forcedBy:2}});
  }finally{f.close();}

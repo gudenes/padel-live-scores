@@ -23,7 +23,7 @@ async function GET(_req:Request,ctx:{params:Promise<{id:string}>}){
  if(!canViewReports(user))return json({error:'Sign in with an account that has scouting access.'},401)
  const {id}=await ctx.params;if(!uuid.test(id))return json({error:'Invalid match.'},400)
  try{
-  const result=await serviceClient().from(table).select('revision,document,score,stats,players,updated_at,assigned_scouter_user_id').eq('match_id',id).maybeSingle()
+  const result=await serviceClient().from(table).select('revision,write_id,document,score,stats,players,updated_at,assigned_scouter_user_id').eq('match_id',id).maybeSingle()
   if(result.error)throw Error('Video scouting storage is unavailable.')
   return json({session:result.data,canResume:!!user&&canScout(user)&&!!result.data&&canWriteSession(user,result.data),...(metadata?{match:await metadata(id)}:{}),features:['match-setup-v2','smash-types-v1','var-review-v1','rally-touches-v1','point-tags-v2','soft-smash-v1','optional-server-v1','score-corrections-v1','quality-checkpoint-v1','scouting-mode-v1']})
  }catch(e){return json({error:e instanceof Error?e.message:'Scouting unavailable.'},503)}

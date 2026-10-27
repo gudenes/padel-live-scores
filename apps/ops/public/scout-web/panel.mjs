@@ -18,7 +18,9 @@ const $=id=>document.getElementById(id);
 const demo=playground;
 const installedVersion=globalThis.chrome?.runtime?.getManifest?.().version;
 $('extension-version').textContent=installedVersion?'v'+installedVersion:'Web scouting · 1.0';
-const transport=(await import(playground?'./practice-transport.mjs':'./standalone-transport.mjs').catch(error=>{document.getElementById('standalone-saved').textContent='Could not open scouting: '+error.message;throw error})).send;
+const liveExperiment=new URL(location.href).searchParams.has('liveLab');
+if(liveExperiment)document.body.classList.add('live-lab');
+const transport=(await import(liveExperiment?'./live-transport.mjs':playground?'./practice-transport.mjs':'./standalone-transport.mjs').catch(error=>{document.getElementById('standalone-saved').textContent='Could not open scouting: '+error.message;throw error})).send;
 let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',polling=false,revision=0,videoKey='',cloud={status:'local'},account={status:demo?'demo':'checking'},accountPoll=0,accountChecking=false;
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 let draftFinish=null,confirmingPoint=false,prepareError=null;
@@ -177,7 +179,7 @@ setInterval(()=>{
 if(playground){document.body.classList.add('playground');$('practice-banner').hidden=false;document.querySelector('h1').textContent='Playground';$('reset-practice').onclick=()=>{if(confirm('Reset this practice match? Real scouting sessions will not change.'))location.reload();};$('exit-practice').onclick=()=>{if(globalThis.chrome?.runtime?.id)window.close();else location.href='/scouting';};}
 
 function standalonePaint(){
- $('standalone-saved').textContent=playground?'Practice · not saved':cloud.error||({saved:'Saved to admin',pending:'Saved locally · syncing',error:'Saved locally · retry needed',conflict:'Sync needs attention'})[cloud.status]||'Saved on this device';
+ $('standalone-saved').textContent=liveExperiment?'Live video test · saved on this device only':playground?'Practice · not saved':cloud.error||({saved:'Saved to admin',pending:'Saved locally · syncing',error:'Saved locally · retry needed',conflict:'Sync needs attention'})[cloud.status]||'Saved on this device';
  $('standalone-saved').setAttribute('role','status');
  $('scout-time-toggle').title='Time spent scouting. Pause for breaks.';
  $('restart-rally').textContent='Restart this rally';

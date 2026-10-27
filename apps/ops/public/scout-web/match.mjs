@@ -3,7 +3,7 @@ import {replay} from './generated/model.mjs';
 import {pressure} from './generated/tracking.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {createInitialState,apply} from './generated/scoring.mjs';
-import {shots} from './generated/shots.mjs';
+import {shots,returnTypes,returnFailures} from './generated/shots.mjs';
 export const defaults=()=>({names:['Player A1','Player A2','Player B1','Player B2'],firstServer:0,otherServer:2,rule:'star-point'});
 const slots=[0,2,1,3];
 export const pair=p=>p<2?'a':'b';
@@ -87,6 +87,8 @@ export function validatePoint(raw,pending,server){
  if(raw.shot!==undefined){if(!Object.hasOwn(shots,raw.shot))throw Error('Invalid shot.');p.shot=raw.shot;}
  if(raw.smashType!==undefined){if(p.shot!=='smash')throw Error('Smash type applies only to smashes.');p.smashType=validateSmashType(raw.smashType);}
  if(raw.x4!==undefined){if(typeof raw.x4!=='boolean'||raw.x4&&(p.outcome!=='winner'||p.shot!=='smash'||p.smashType!=='power'))throw Error('X4 applies only to a Power smash winner.');if(raw.x4)p.x4=true;}
+ if(raw.returnType!==undefined){if(p.shot!=='return'||!Object.hasOwn(returnTypes,raw.returnType))throw Error('Invalid return type.');p.returnType=raw.returnType;}
+ if(raw.returnFailure!==undefined){if(p.shot!=='return'||!['forced','unforced'].includes(p.outcome)||!Object.hasOwn(returnFailures,raw.returnFailure))throw Error('Invalid return failure.');p.returnFailure=raw.returnFailure;}
  if(raw.side!==undefined){if(!['forehand','backhand'].includes(raw.side))throw Error('Invalid shot side.');p.side=raw.side;}
  for(const tag of ['recovery','smashRecovery'])if(raw[tag]){if(p.outcome!=='winner')throw Error('Recovery tags apply to winners.');p[tag]=true;}
  if(raw.outsideRecoveryBy!==undefined){if(!Array.isArray(raw.outsideRecoveryBy)||raw.outsideRecoveryBy.length>4||new Set(raw.outsideRecoveryBy).size!==raw.outsideRecoveryBy.length||raw.outsideRecoveryBy.some(p=>!Number.isInteger(p)||p<0||p>3))throw Error('Choose valid players for outside recovery attempts.');p.outsideRecoveryBy=[...raw.outsideRecoveryBy];}

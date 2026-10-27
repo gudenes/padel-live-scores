@@ -9,7 +9,7 @@ import {manualInput} from './manual-match.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference,usable,sameMedia} from './core.mjs';
 import {defaults,match,validateSetup,validatePoint,validateSmashType,courtPlayers} from './match.mjs';
-export function engine({read,write,discover,capture,seek,uuid,catalog,playback,setRate,now=Date.now}){
+export function engine({read,write,discover,capture,seek,uuid,catalog,playback,setRate,canRestartMedia=sameMedia,now=Date.now}){
   // All panels share this queue in the worker, preventing duplicate or lost writes.
   let queue=Promise.resolve();
   return message=>{
@@ -358,7 +358,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
           if(!state.pending||!state.connection)throw Error('Start a rally and connect its video first.');
           if(state.pending.finish)throw Error('Save or clear the selected outcome before restarting.');
           let sample=await capture(state.connection);usable(sample);
-          if(sample.ended||!sameMedia(state.pending.start,sample))throw Error('The video changed or ended. Cancel the rally and reconnect.');
+          if(sample.ended||!canRestartMedia(state.pending.start,sample))throw Error('The video changed or ended. Cancel the rally and reconnect.');
           if(sample.rate!==undefined&&sample.rate!==1){
             if(!setRate)throw Error('Return the video to 1× before restarting a rally.');
             const normal=await setRate(state.connection,sample,1);

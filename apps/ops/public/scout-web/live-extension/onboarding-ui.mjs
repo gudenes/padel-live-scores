@@ -1,0 +1,107 @@
+import {suggestedCourt,courtSetup,preferredSide,localDayWindow,needsServerConfirmation} from './onboarding-model.mjs';
+import {playerProfile,playerIdentity} from './player-profile.mjs';
+import {match,courtPlayers} from './match.mjs';
+export function onboardingUI({$,act,getState,manual}){
+ const root=$('onboarding');
+ const resume=document.createElement('button');resume.className='ui-btn';resume.textContent='Continue match setup';resume.hidden=true;root.before(resume);resume.onclick=()=>{launch();initCourt();show(1)};
+ root.innerHTML=`<nav class="wizard-steps" aria-label="Match setup"><button data-step="0"><span class="wizard-step-number">1</span><span>Match</span></button><button data-step="1"><span class="wizard-step-number">2</span><span>Video</span></button><button data-step="2"><span class="wizard-step-number">3</span><span>Court</span></button><button data-step="3"><span class="wizard-step-number">4</span><span>Ready</span></button></nav>
+ <section data-page="0"><h2>Which match are you scouting?</h2><p class="hint">Today’s matches, ready to scout.</p><div class="wizard-tabs"><button id="wizard-find" aria-pressed="true">Tournament match</button><button id="wizard-private">Private match</button></div><div id="wizard-search-view"><label>Search matches<input id="wizard-query" type="search" placeholder="Players or tournament…"></label><div class="wizard-tabs wizard-date-tabs"><button id="wizard-today" aria-pressed="true">Today</button><button id="wizard-yesterday">Yesterday</button><button id="wizard-all">Other matches</button></div><div class="wizard-list-heading"><p id="wizard-day" class="hint"></p><button class="ui-btn" data-variant="ghost" id="wizard-refresh">Refresh</button></div><p id="wizard-count" role="status"></p><div id="wizard-matches" class="wizard-match-grid"></div><p id="wizard-selection" class="wizard-selection" hidden></p><button class="ui-btn" data-variant="primary" id="wizard-select">Continue to video</button></div><div id="wizard-private-slot" hidden></div></section>
+ <section data-page="1" hidden><h2>Connect your match video.</h2><p class="hint">Open the video tab, then connect. You can pause before the first point.</p><div id="wizard-video-slot"></div><label>YouTube link <span class="hint">Optional</span><input id="wizard-video-url" type="url" placeholder="https://www.youtube.com/watch?v=…"></label><button class="ui-btn" id="wizard-open-video">Open video tab</button><button class="ui-btn" data-variant="primary" id="wizard-to-court">Continue to court</button></section>
+ <section data-page="2" hidden><h2>Set the court.</h2><p class="hint">Suggested from player profiles. Adjust to match your video.</p><p id="wizard-position-note" class="hint"></p><button class="ui-btn" data-variant="ghost" id="wizard-reset-positions">Reset to profile positions</button><div class="wizard-court-label">Far end · facing the net ↓ <button id="wizard-swap-far" class="ui-btn" data-variant="ghost">Swap players</button></div><div id="wizard-far" class="wizard-player-grid"></div><div class="wizard-net">Net<button id="wizard-ends" class="ui-btn" data-variant="ghost">Switch ends</button></div><div class="wizard-court-label">Near end · facing the net ↑ <button id="wizard-swap-near" class="ui-btn" data-variant="ghost">Swap players</button></div><div id="wizard-near" class="wizard-player-grid"></div><button id="wizard-arrivals" class="ui-btn" data-variant="ghost">Confirm all four on court</button><button id="wizard-review" class="ui-btn" data-variant="primary">Review & start</button></section>
+ <section data-page="3" hidden><h2>Ready for the first point?</h2><div class="wizard-tabs"><button id="wizard-from-start" aria-pressed="true">From the start</button><button id="wizard-mid">Mid-match</button></div><div id="wizard-score-slot" hidden></div><details class="wizard-rule-nudge" id="wizard-rule-options"><summary><span id="wizard-rule-label">Star Point</span><span class="rule-change">Change</span></summary><label>Scoring rule<select id="wizard-rule"><option value="star-point">Star Point</option><option value="golden-point">Golden Point</option><option value="advantage">Advantage</option></select></label></details><div id="wizard-summary" class="card"></div><button class="ui-btn" data-variant="primary" id="wizard-start">Start scouting</button></section>
+ <p id="wizard-error" class="error" role="alert"></p><div class="wizard-footer"><button id="wizard-back" class="ui-btn" data-variant="ghost">Back</button><button id="wizard-close" class="ui-btn" data-variant="ghost">Continue later</button></div>`;
+ const homes=new Map(['manual-match-form','video-panel','starting-score-panel'].map(id=>[id,{parent:$(id).parentElement,next:$(id).nextSibling}]));
+ let open=false,step=0,maxStep=0,mode='find',day='today',rows=[],selection=null,loading=false,queued=false,lastAuto='',lastId='',state=null,busy=false,healthy=false,order=[0,1,2,3],first=null,second=null,arrivals=[],courtKey='',mid=false,dirty=false,searchTimer;
+ const buttons=(items,target,selected,choose)=>{target.replaceChildren(...items.map(([value,label])=>{const b=document.createElement('button');b.className='ui-btn';b.type='button';b.textContent=label;b.setAttribute('aria-pressed',String(value===selected));b.disabled=busy;b.onclick=()=>choose(value);return b}));};
+ function move(){ $('wizard-private-slot').append($('manual-match-form'));$('manual-match-form').hidden=false;$('wizard-video-slot').append($('video-panel'));$('video-panel').open=true;$('wizard-score-slot').append($('starting-score-panel'));$('starting-score-panel').open=true;$('starting-score-form').querySelector('button[type=submit]').hidden=true; }
+ function restore(){for(const [id,home] of homes){const node=$(id);home.parent.insertBefore(node,home.next?.parentElement===home.parent?home.next:null)}$('starting-score-form').querySelector('button[type=submit]').hidden=false;}
+ function show(n){step=n;maxStep=Math.max(n,maxStep);$('wizard-error').textContent='';courtKey='';paint();root.scrollIntoView({block:'start'});}
+ function close(){open=false;document.body.classList.remove('onboarding-active');root.hidden=true;restore();paint();if(state)serverReminder();}
+ function launch(value='find'){
+  if(busy||state?.pending)return;
+  clearTimeout(searchTimer);$('wizard-error').textContent='';$('wizard-video-url').value='';manual.close();open=true;mode=value;step=0;maxStep=0;selection=null;day='today';$('wizard-query').value='';document.body.classList.add('onboarding-active');root.hidden=false;move();paint();root.scrollIntoView({block:'start'});if(value==='find')load();
+ }
+ $('header-new-match').onclick=()=>launch();
+ async function load(){if(loading){queued=true;return}const q=$('wizard-query').value.trim();if(day==='all'&&q.length<2){rows=[];paintMatches('Search by player or tournament to find older or upcoming matches.');return}loading=true;$('wizard-error').textContent='';paintMatches('Loading matches…');const request={type:'scouting-matches',q,...(day!=='all'?localDayWindow(dayDate()):{})};delete request.date;const result=await act(request);loading=false;if(result.ok){rows=result.matches??[];paintMatches(result.truncated?'Showing up to 250 candidates. Refine your search for more.':null)}else{rows=[];paintMatches(result.error)}if(queued){queued=false;load()}}
+ function dayDate(){const d=new Date();if(day==='yesterday')d.setDate(d.getDate()-1);return d;}
+ function paintMatches(message){
+  $('wizard-selection').hidden=!selection;$('wizard-selection').textContent=selection?'Selected · '+selection.names.slice(0,2).join(' / ')+' vs '+selection.names.slice(2).join(' / '):'';
+  $('wizard-day').textContent=day!=='all'?(day==='today'?'Today':'Yesterday')+' · '+dayDate().toLocaleDateString(undefined,{dateStyle:'medium'})+' · local time':'Search all dates';
+  $('wizard-count').textContent=message??(rows.length?`${rows.length} matches`:'No matches found. Try Other matches or create a private match.');
+  $('wizard-matches').replaceChildren(...rows.map(m=>{const b=document.createElement('button');b.className='wizard-match';b.setAttribute('aria-pressed',String(selection?.id===m.id));b.disabled=busy||loading;for(const text of [m.names.slice(0,2).join(' / '),'vs',m.names.slice(2).join(' / ')]){const line=document.createElement(text==='vs'?'small':'strong');line.textContent=text;b.append(line)}const meta=document.createElement('small');meta.textContent=[m.tournamentName,m.category,m.round,m.scheduledAt?new Date(m.scheduledAt).toLocaleDateString():null].filter(Boolean).join(' · ');b.append(meta);if(['finished','completed'].includes(m.status)){const result=document.createElement('small');result.className='match-result';result.textContent='Final · '+(m.sets?.map(s=>`${s.a}–${s.b}`).join(' · ')||'Score unavailable')+' · '+(m.duration?'Match time '+m.duration:'Time unavailable');b.append(result);}b.onclick=()=>{selection=m;paintMatches()};return b}));$('wizard-select').disabled=busy||loading||!selection;$('wizard-refresh').disabled=busy||loading;
+ }
+ function initCourt(){const current=getState();lastId=current.selectedMatch?.id;order=courtPlayers(current);first=current.setup.firstServer;second=current.setup.otherServerUnknown?'unknown':current.setup.otherServer;arrivals=[];mid=!!current.setup.startingScore;dirty=false;
+  // New matches require explicit confirmation of both servers, including “unknown”.
+  if(current.setup.onboardingComplete===false){const suggested=suggestedCourt(current.selectedMatch?.players);order=suggested.order;first=0;second=2;}
+  $('wizard-rule').value=current.setup.rule;$('wizard-rule-label').textContent=$('wizard-rule').selectedOptions[0]?.textContent??'Star Point';$('wizard-rule-options').open=false;courtKey='';}
+ async function selected(){$('connection-feedback').textContent='';initCourt();maxStep=1;show(1)}
+ $('wizard-select').onclick=async()=>{const r=await act({type:'select-match',wizard:true,tournamentId:selection.tournamentId,matchId:selection.id});if(r.ok)selected();else $('wizard-error').textContent=r.error};
+ document.addEventListener('pn-private-created',()=>{if(open)selected()});
+ for(const [id,value] of [['wizard-find','find'],['wizard-private','create']])$(id).onclick=()=>{mode=value;paint()};
+ for(const [id,value] of [['wizard-today','today'],['wizard-yesterday','yesterday'],['wizard-all','all']])$(id).onclick=()=>{day=value;selection=null;paint();load()};
+ $('wizard-query').oninput=()=>{clearTimeout(searchTimer);selection=null;searchTimer=setTimeout(load,300)};
+ $('wizard-refresh').onclick=load;
+ $('wizard-to-court').onclick=()=>{if(state.rallies.some(r=>r.point)){close();return}show(2)};
+ $('wizard-open-video').onclick=async()=>{const r=await act({type:'open-video-link',url:$('wizard-video-url').value});$('wizard-error').textContent=r.ok?'Switch to the opened video and click Connect video.':r.error};
+ $('wizard-reset-positions').onclick=()=>{order=suggestedCourt(state.selectedMatch?.players).order;dirty=false;courtKey='';paint()};
+ $('wizard-swap-far').onclick=()=>{order=[order[1],order[0],order[2],order[3]];dirty=true;paint()};$('wizard-swap-near').onclick=()=>{order=[order[0],order[1],order[3],order[2]];dirty=true;paint()};$('wizard-ends').onclick=()=>{order=[order[3],order[2],order[1],order[0]];dirty=true;paint()};
+ $('wizard-arrivals').onclick=()=>{arrivals=arrivals.length===4?[]:[0,1,2,3];paint()};
+ $('wizard-review').onclick=()=>show(3);
+ $('wizard-back').onclick=()=>show(Math.max(0,step-1));$('wizard-close').onclick=close;
+ for(const b of root.querySelectorAll('[data-step]'))b.onclick=()=>show(Number(b.dataset.step));
+ for(const [id,value] of [['wizard-from-start',false],['wizard-mid',true]])$(id).onclick=()=>{mid=value;paint()};
+ function readScore(){const point=t=>/^adv$/i.test($('seed-points-'+t).value)?'Adv':Number($('seed-points-'+t).value);return {completed:Array.from({length:Number($('seed-count').value)},(_,i)=>({a:Number($(`seed-${i+1}-a`).value),b:Number($(`seed-${i+1}-b`).value)})),games:{a:Number($('seed-games-a').value),b:Number($('seed-games-b').value)},points:{a:point('a'),b:point('b')},server:first,near:courtSetup(order).near,advantageReturns:Number($('seed-deuce').value),...($('seed-elapsed').value.trim()?{elapsedSeconds:Number($('seed-elapsed').value)*60}:{})}}
+ $('starting-score-form').addEventListener('input',summary);$('starting-score-form').addEventListener('change',summary);
+ $('wizard-rule').onchange=()=>{$('wizard-rule-label').textContent=$('wizard-rule').selectedOptions[0].textContent;$('wizard-rule-options').open=false;};
+ $('wizard-start').onclick=async()=>{const r=await act({type:'complete-onboarding',setup:{firstServer:0,otherServer:2,firstServerUnknown:true,otherServerUnknown:true,...courtSetup(order),rule:$('wizard-rule').value},...(mid?{score:{...readScore(),server:0}}:{} )});if(!r.ok){$('wizard-error').textContent=r.error;return}try{localStorage.setItem('pn-court-checkin:'+JSON.stringify([state.selectedMatch.id,state.setup.names]),JSON.stringify({confirmed:[true,true,true,true],lastPlayer:3}));}catch{}document.dispatchEvent(new Event('pn-court-confirmed'));close()};
+ function summary(){if(!state?.selectedMatch)return;const names=state.setup.names,box=$('wizard-summary');box.replaceChildren();const title=document.createElement('strong');title.textContent=names.slice(0,2).join(' / ')+' vs '+names.slice(2).join(' / ');box.append(title);const text=document.createElement('p');text.className='hint';text.textContent='Confirm the server on the scoring screen. Coaches can be reviewed anytime in the menu.';box.append(text);const score=mid?readScore():{completed:[],games:{a:0,b:0},points:{a:0,b:0}};for(const [i,t] of ['a','b'].entries()){const row=document.createElement('div');row.className='wizard-score-row';const name=document.createElement('span');name.textContent=names.slice(i*2,i*2+2).join(' / ');const value=document.createElement('strong');value.textContent=[...score.completed.map(s=>s[t]),score.games[t],score.points[t]].join('   ');row.append(name,value);box.append(row)}}
+ function syncMatchControls(){
+  for(const card of $('wizard-matches').children)card.disabled=busy||loading;
+  $('wizard-select').disabled=busy||loading||!selection;
+  $('wizard-refresh').disabled=busy||loading;
+ }
+ function paint(){
+  if(!state)return;$('header-new-match').disabled=busy||!!state.pending;$('header-new-match').title=state.pending?'Save or cancel the current rally before starting a new match':'Start setup for another match; your current session is kept';resume.hidden=open||state.setup?.onboardingComplete!==false||state.rallies.some(r=>r.point);if(!resume.hidden)$('rally').disabled=true;$('onboarding').hidden=!open;$('scouting-workspace').hidden=open||!state.selectedMatch;$('empty-match-start').hidden=open||!!state.selectedMatch;
+  if(!open)return;
+  syncMatchControls();
+  for(const id of ['wizard-find','wizard-private','wizard-today','wizard-yesterday','wizard-all','wizard-reset-positions','wizard-swap-far','wizard-swap-near','wizard-ends','wizard-arrivals','wizard-from-start','wizard-mid','wizard-open-video'])$(id).disabled=busy;
+  for(const page of root.querySelectorAll('[data-page]'))page.hidden=Number(page.dataset.page)!==step;
+  for(const b of root.querySelectorAll('[data-step]')){b.disabled=busy||Number(b.dataset.step)>maxStep;b.setAttribute('aria-current',Number(b.dataset.step)===step?'step':'false');b.classList.toggle('complete',Number(b.dataset.step)<step)}
+  for(const id of ['wizard-find','wizard-private'])$(id).setAttribute('aria-pressed',String((id==='wizard-find')===(mode==='find')));
+  for(const id of ['wizard-today','wizard-yesterday','wizard-all'])$(id).setAttribute('aria-pressed',String(id==='wizard-'+day));
+  $('wizard-search-view').hidden=mode!=='find';$('wizard-private-slot').hidden=mode!=='create';$('wizard-back').hidden=step===0;$('wizard-back').disabled=busy;$('wizard-close').disabled=busy;
+  $('wizard-to-court').disabled=busy||!healthy;$('wizard-to-court').textContent=state.rallies.some(r=>r.point)?'Resume saved scouting':'Continue to court';
+  const ready=arrivals.length===4;$('wizard-review').disabled=busy||!ready;$('wizard-start').disabled=busy||!ready||!healthy;
+  $('wizard-score-slot').hidden=!mid;$('wizard-from-start').setAttribute('aria-pressed',String(!mid));$('wizard-mid').setAttribute('aria-pressed',String(mid));
+  const suggested=suggestedCourt(state.selectedMatch?.players);$('wizard-position-note').textContent=dirty?'Positions adjusted for this match.':suggested.unresolved.length?'Missing or conflicting preferences. Check both players’ positions.':'Usual positions from saved player profiles.';
+  const key=JSON.stringify([order,arrivals,first,second,state.selectedMatch?.players,state.setup.names,busy]);
+  if(key!==courtKey){courtKey=key;for(const [end,indices] of [['far',order.slice(0,2)],['near',order.slice(2)]]){$('wizard-'+end).replaceChildren(...indices.map((i,j)=>{const card=document.createElement('div');card.className='wizard-player'+(arrivals.includes(i)?' checked':'');const h=document.createElement('strong');h.append(playerIdentity(state.setup.names[i],playerProfile(state,i)));const side=document.createElement('small');side.textContent=preferredSide(state.selectedMatch?.players?.[i]?.side)?'Usually plays '+preferredSide(state.selectedMatch.players[i].side):'Preferred side not set';const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=arrivals.includes(i);input.disabled=busy;input.onchange=()=>{arrivals=arrivals.includes(i)?arrivals.filter(p=>p!==i):[...arrivals,i];paint()};label.append(input,'On court');card.append(h,side,label);return card}));}}
+
+  $('wizard-arrivals').textContent=arrivals.length===4?'All four confirmed · Undo':'Confirm all four on court';
+  if(step===3){$('seed-server').value=String(first);$('seed-near').value=courtSetup(order).near;summary()}
+ }
+ function serverReminder(){
+  const m=match(state),required=!open&&!!state.selectedMatch&&needsServerConfirmation(state,m);
+  $('pending-server').hidden=true;
+  if(required){$('rally').disabled=true;$('serving-name').textContent='Choose the server on their card';}
+  for(const card of $('players').querySelectorAll('article[data-player]')){
+   const player=Number(card.dataset.player);
+   const eligible=required&&(state.setup.firstServerUnknown||(m.setServers?(player<2?'a':'b')===m.setServers.team:Math.floor(player/2)!==Math.floor(state.setup.firstServer/2)));
+   card.classList.toggle('server-choice-active',!!eligible);
+   let overlay=card.querySelector('.server-card-overlay');
+   if(!eligible){overlay?.remove();continue;}
+   if(!overlay){
+    overlay=document.createElement('div');overlay.className='server-card-overlay';
+    const title=document.createElement('strong'),button=document.createElement('button');title.className='server-card-title';
+    button.className='ui-btn';button.dataset.variant='primary';button.dataset.courtServer='true';button.textContent='Confirm serving';
+    button.setAttribute('aria-label','Confirm '+state.setup.names[player]+' is serving');
+    button.onclick=async()=>{const current=match(state),type=state.setup.firstServerUnknown?'confirm-first-server':current.setServers?'confirm-set-servers':'confirm-other-server';const r=await act({type,player});if(!r.ok)$('message').textContent=r.error;else $('rally').focus();};
+    overlay.append(title,button);card.append(overlay);
+   }
+   overlay.querySelector('strong').textContent=m.setServers?'Set '+m.setServers.set+' · Game '+m.setServers.game+' server':'Who is serving?';
+   overlay.querySelector('button').disabled=busy;
+  }
+ }
+ function render(next,isBusy,isHealthy,account){state=next;busy=isBusy;healthy=isHealthy;paint();serverReminder();const id=state.selectedMatch?.id;if(id&&lastId!==id&&open){initCourt();if(step>0)show(1)}if(!lastAuto&&!busy&&account&&['connected','demo'].includes(account.status)){lastAuto='loaded';if(!state.selectedMatch)queueMicrotask(()=>launch());else if(state.setup.onboardingComplete===false&&!state.rallies.some(r=>r.point))queueMicrotask(()=>{launch();initCourt();show(1)})}}
+ render.open=launch;render.isOpen=()=>open;return render;
+}

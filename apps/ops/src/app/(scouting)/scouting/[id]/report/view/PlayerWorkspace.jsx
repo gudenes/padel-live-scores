@@ -3,7 +3,7 @@ import Link from 'next/link';
 import {playerProfileHref} from '@/lib/scouting/navigation';
 import {useState,useCallback,useEffect,useRef} from 'react';
 import ShotDistribution from './ShotDistribution';
-import {shots} from '@/lib/scouting/shots';
+import {shots,returnTypes,returnFailures} from '@/lib/scouting/shots';
 import {endingFilters,shotDistribution} from '@/lib/scouting/shot-distribution';
 import ReplayPlayer from './ReplayPlayer';
 import './video-review.css';
@@ -90,7 +90,7 @@ export default function PlayerWorkspace({data,scope,playerIndex,onPlayer,onClose
    {review&&<><header className="pw-branded-header"><div className="pw-replay-heading"><span className="pw-replay-eyebrow">MATCH REVIEW</span><h3 id="mini-replay-title">Match situation <span>Point {review.number}</span></h3><small>{pointScore(review)}</small></div><div className="pw-replay-nav"><button type="button" className="ui-btn" aria-label="Previous point" title="Previous point with video" disabled={reviewIndex<=0||!!noteDraft} onClick={()=>openReview(replayable[reviewIndex-1])}>←</button><button type="button" className="ui-btn" aria-label="Next point" title="Next point with video" disabled={reviewIndex<0||reviewIndex>=replayable.length-1||!!noteDraft} onClick={()=>openReview(replayable[reviewIndex+1])}>→</button><button type="button" className="ui-btn pw-replay-close" aria-label="Close replay" onClick={()=>mini.current?.close()}>✕</button></div></header>
    <div className="pw-replay-classification">
     {review.player!=null&&data.players[review.player]&&<img src={data.players[review.player].avatar} alt="" style={{borderColor:review.player<2?'#c8f52b':'#ff8179'}}/>}
-    <div><strong>{review.player!=null?data.players[review.player]?.shortName??'Unknown player':'Player not recorded'}</strong><small>{shots[review.shot]??(review.outcome==='double_fault'?'Serve':'Shot not recorded')}</small></div>
+    <div><strong>{review.player!=null?data.players[review.player]?.shortName??'Unknown player':'Player not recorded'}</strong><small>{shots[review.shot]??(review.outcome==='double_fault'?'Serve':'Shot not recorded')}{review.returnType&&` · ${returnTypes[review.returnType]}`}{review.returnFailure&&` · ${returnFailures[review.returnFailure]}`}</small></div>
     <span className="pw-outcome-badge" data-error={['unforced','forced','double_fault'].includes(review.outcome)}>{({winner:'Winner',unforced:'Unforced error',forced:'Forced error committed',double_fault:'Double fault',unclassified:'Unclassified'})[review.outcome]??'Unclassified'}</span>
     {pointWeight(review)>1&&<span className="pw-key-badge">★ Key point</span>}
     {review.outcome==='forced'&&review.forcedBy!=null&&<small className="pw-replay-credit">Forced error created by {data.players[review.forcedBy]?.shortName}</small>}

@@ -34,7 +34,7 @@ for(const [surface,ui,html] of [['extension',scoutingUI,'../panel.html'],['web',
   assert.equal($('recovery-smash-label').hidden,false);assert.equal($('recovery-smash').value,'2:0');
   $('save-point').click();assert.equal(actions.at(-1).details.recoverySmashPlayer,2);assert.equal(actions.at(-1).details.recoverySmashAttemptIndex,0);
   state.pending={...pending,id:'recovery-unknown',touches:[],attempts:[]};render(state,snapshot(104),false,true);$('smash-recovery').click();
-  const before=actions.length;$('save-point').click();assert.equal(actions.length,before);assert.match($('shot-error').textContent,/Choose the opponent/);
+  const before=actions.length;$('save-point').click();assert.equal(actions.length,before);assert.match($('shot-error').textContent,/Choose the opponent|Elige el remate rival/);
   $('recovery-smash').value='3:new';$('save-point').click();assert.equal(actions.at(-1).details.recoverySmashPlayer,3);assert.equal(actions.at(-1).details.recoverySmashAttemptIndex,undefined);
   state.setup.firstServer=1;
   state.pending={...pending,id:'implicit-serve',attempts:[],touches:[2,0].map((player,i)=>({player,order:[2,3,0,1],snapshot:snapshot(101+i)}))};
