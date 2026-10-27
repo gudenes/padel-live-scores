@@ -14,9 +14,10 @@ it.each(['viewer','scouter','admin'] as const)('renders branded HTML and plain t
  expect(email.text).toContain('Email me a sign-in link')
  expect(email.text).not.toContain('password is required to')
 })
-it('keeps viewer guidance read-only and scouting instructions specific to scouters',()=>{
+it('explains Viewer review notes while reserving scouting for Scouters',()=>{
  const viewer=teamWelcomeTemplate({email:'a@test.com',role:'viewer'}),scouter=teamWelcomeTemplate({email:'a@test.com',role:'scouter'})
- expect(viewer.text).toContain('read-only')
+ expect(viewer.text).toContain('tag moments and leave notes')
+ expect(viewer.text).toContain('Scouting data and scores remain protected')
  expect(viewer.text).not.toContain('Record points')
  expect(scouter.text).toContain('Playground')
  expect(scouter.text).toContain('assigned to you')

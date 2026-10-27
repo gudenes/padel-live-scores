@@ -250,6 +250,7 @@ export default function SavedScoutingReport({
       ) : report && data ? (
         <MatchInsightsView
           data={data}
+          reviewContext={{matchId,manual,userId}}
           onScopeChange={setScope}
           reports={
             <Insights
