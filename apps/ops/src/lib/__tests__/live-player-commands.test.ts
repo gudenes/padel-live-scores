@@ -1,4 +1,5 @@
 import {it,expect,vi} from 'vitest'
+// @ts-expect-error Browser JavaScript module is exercised directly in this runtime test.
 import {seekLiveCommand} from '../../../public/scout-web/live-player-commands.mjs'
 it('routes extension skip and replay controls without inventing DVR bounds',()=>{const current={time:20,seeking:false,tabId:0,documentId:'s',videoId:'v',mediaId:'v'},seek=vi.fn(),bridge={snapshot:()=>current,seek};const state={pending:null,rallies:[{id:'r',start:{...current,time:12}}]};seekLiveCommand(state,bridge,{type:'skip',seconds:-5});expect(seek).toHaveBeenLastCalledWith(15);seekLiveCommand(state,bridge,{type:'replay',id:'r'});expect(seek).toHaveBeenLastCalledWith(9);expect(()=>seekLiveCommand({...state,pending:{}},bridge,{type:'skip',seconds:5})).toThrow('Finish');expect(()=>seekLiveCommand(state,{...bridge,snapshot:()=>({...current,documentId:'new'})},{type:'replay',id:'r'})).toThrow('different video')})
 
