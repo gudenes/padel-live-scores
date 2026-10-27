@@ -13,7 +13,7 @@ export function scouterRouteAllowed(path: string, method: string, viewer = false
   if (read && /^\/downloads\/padel-nachos-scout-\d+\.\d+\.\d+\.zip$/.test(path)) return true
   if (read && ['/scouting/court-empty.webp', '/scouting', '/scouting/matches', '/scouting/methodology', '/not-authorized'].includes(path)) return true
   if (read && /^\/scouting\/(manual\/)?[0-9a-f-]{36}\/report$/i.test(path)) return true
-  if (read && /^\/api\/internal\/scouting\/[0-9a-f-]{36}$/i.test(path)) return true
+  if (read && /^\/api\/internal\/scouting\/[0-9a-f-]{36}(?:\/pregame)?$/i.test(path)) return true
   if (!viewer && read && (/^\/scouting\/[0-9a-f-]{36}\/live$/i.test(path) || /^\/api\/internal\/standalone-scouting\/[0-9a-f-]{36}$/i.test(path))) return true
   if (!viewer && read && /^\/scout-web\/[a-z0-9_./-]+\.(html|mjs|js|css|png|svg|webp)$/i.test(path)) return true
   if (viewer) return read && /^\/api\/internal\/(manual-)?video-scouting\/[0-9a-f-]{36}$/i.test(path)

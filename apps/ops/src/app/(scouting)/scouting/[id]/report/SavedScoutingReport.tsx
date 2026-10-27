@@ -250,6 +250,7 @@ export default function SavedScoutingReport({
       ) : report && data ? (
         <MatchInsightsView
           data={data}
+          pregameMatchId={manual ? undefined : matchId}
           onScopeChange={setScope}
           reports={
             <Insights
@@ -263,7 +264,7 @@ export default function SavedScoutingReport({
           }
         />
       ) : hasMatch ? (
-        <PbpInsightsView context={context} onScopeChange={setScope} />
+        <PbpInsightsView matchId={manual ? undefined : matchId} context={context} onScopeChange={setScope} />
       ) : (
         <section className={`ui-panel ${styles.chartPanel}`}>
           <h2>No saved scouting for this match</h2>

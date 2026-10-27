@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import PreGameComparison from "./PreGameComparison";
 import {playerProfileHref} from "@/lib/scouting/navigation";
 import { useEffect, useState } from "react";
 import type { ReportContext } from "@/lib/scouting/report-view";
@@ -18,19 +19,21 @@ function Unavailable({ title }: { title: string }) {
 }
 export default function PbpInsightsView({
   context,
+  matchId,
   onScopeChange,
 }: {
   context: ReportContext;
+  matchId?: string;
   onScopeChange: (scope: string) => void;
 }) {
   const [scope, setScope] = useState("all"),
-    [tab, setTab] = useState("Overview"),
+    [tab, setTab] = useState(matchId && context.status === "scheduled" ? "Pre-game" : "Overview"),
     [selected, setSelected] = useState<string | null>(null);
   const [navigationReady, setNavigationReady] = useState(false);
   useEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem('pn-pbp-view:' + location.pathname) || '{}');
-      if (['Overview','Match flow','Players','Points & shots','Data coverage'].includes(saved.tab)) setTab(saved.tab);
+      if (['Pre-game','Overview','Match flow','Players','Points & shots','Data coverage'].includes(saved.tab) && (saved.tab !== 'Pre-game' || matchId)) setTab(saved.tab);
       if (saved.scope === 'all' || /^[1-5]$/.test(saved.scope)) { setScope(saved.scope); onScopeChange(saved.scope); }
       if (typeof saved.selected === 'string') setSelected(saved.selected);
     } catch { /* Browsing works without storage. */ }
@@ -205,7 +208,7 @@ export default function PbpInsightsView({
                   }
                   alt=""
                 />
-                <b>{p.name}</b>{playerProfileHref([p.existingPlayerId??p.id])&&<Link className="profileConnection" href={playerProfileHref([p.existingPlayerId??p.id])!} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}
+                <b>{p.name}</b>{p.ranking != null && <small title="Current stored world ranking">World #{p.ranking}</small>}{playerProfileHref([p.existingPlayerId??p.id])&&<Link className="profileConnection" href={playerProfileHref([p.existingPlayerId??p.id])!} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}
               </div>
             ))}
             {playerProfileHref(players.slice(0, 2).map(p=>p.existingPlayerId??p.id))&&<Link className="pairConnection" href={playerProfileHref(players.slice(0, 2).map(p=>p.existingPlayerId??p.id))!} aria-label={`View pair: ${players.slice(0, 2).map(p=>p.name).join(" / ")}`}>View pair ↗</Link>}
@@ -232,7 +235,7 @@ export default function PbpInsightsView({
                       </span>
                     );
                   })
-                : "Result pending"}
+                : tab === "Pre-game" && context.status === "scheduled" ? "Upcoming match" : "Result pending"}
             </h1>
             <span>
               <Clock size={15} /> Official match:{" "}
@@ -255,7 +258,7 @@ export default function PbpInsightsView({
                   }
                   alt=""
                 />
-                <b>{p.name}</b>{playerProfileHref([p.existingPlayerId??p.id])&&<Link className="profileConnection" href={playerProfileHref([p.existingPlayerId??p.id])!} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}
+                <b>{p.name}</b>{p.ranking != null && <small title="Current stored world ranking">World #{p.ranking}</small>}{playerProfileHref([p.existingPlayerId??p.id])&&<Link className="profileConnection" href={playerProfileHref([p.existingPlayerId??p.id])!} aria-label={`View full profile: ${p.name}`}>Full profile ↗</Link>}
               </div>
             ))}
             {playerProfileHref(players.slice(2, 4).map(p=>p.existingPlayerId??p.id))&&<Link className="pairConnection" href={playerProfileHref(players.slice(2, 4).map(p=>p.existingPlayerId??p.id))!} aria-label={`View pair: ${players.slice(2, 4).map(p=>p.name).join(" / ")}`}>View pair ↗</Link>}
@@ -263,6 +266,7 @@ export default function PbpInsightsView({
         </section>
         <div className="tabs">
           {[
+            ...(matchId ? ["Pre-game"] : []),
             "Overview",
             "Match flow",
             "Players",
@@ -278,7 +282,7 @@ export default function PbpInsightsView({
             </button>
           ))}
         </div>
-        <div className="toolbar">
+        {tab !== "Pre-game" && <div className="toolbar">
           <div className="seg">
             {["all", ...availableSets.map(String)].map((key) => (
               <button
@@ -294,8 +298,9 @@ export default function PbpInsightsView({
             ))}
           </div>
           <span>{data.records} PBP records · No scouting</span>
-        </div>
+        </div>}
         {data.excludedRecords>0&&<p className="coverageNotice">{data.excludedRecords} PBP record(s) fall outside the official finished set’s game count and are excluded from summary stats. Raw exports retain them.</p>}<div className="tabContent" key={tab}>
+          {tab === "Pre-game" && matchId && <PreGameComparison matchId={matchId}/>}
           {tab === "Overview" && (
             <>
               {momentum}

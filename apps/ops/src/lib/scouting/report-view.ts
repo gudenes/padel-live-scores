@@ -35,7 +35,7 @@ export interface ReportContext {
   };
   avatars: Record<string, string | null>;
   pbp: OfficialPoint[];
-  players?:{profileId?:string|null;existingPlayerId?:string;id:string;name:string;display_name?:string|null;avatar_url?:string|null}[];
+  players?:{ranking?:number|null;profileId?:string|null;existingPlayerId?:string;id:string;name:string;display_name?:string|null;avatar_url?:string|null}[];
   sets?:{a:number;b:number;set_number?:number}[];
   games?:OfficialGame[];
   status?:string|null;

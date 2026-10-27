@@ -6,6 +6,8 @@ import {ScoutingBackLink} from '@/components/scouting/ScoutingNavigation'
 import {createPortal} from 'react-dom'
 import {useRouter,useSearchParams} from 'next/navigation'
 import {Icon} from '@/components/IconSprite'
+import {Avatar,Country} from '@/components/scouting/ProfileAvatar'
+import {Metric,Benchmark} from '@/components/scouting/ProfileMetric'
 import {partnership,averageOfficialDuration,officialSeason,historyGroups,historySearch,playerWon,tournamentPage} from '@/lib/scouting/intelligence/history'
 import {shotColor} from '@/lib/scouting/shot-colors'
 import {shots} from '@/lib/scouting/shots'
@@ -20,7 +22,7 @@ const n=(x:number)=>new Intl.NumberFormat('en-GB',{maximumFractionDigits:1}).for
 const durationLabel=(ms:number)=>{const minutes=Math.round(ms/60000);return Math.floor(minutes/60)+'h '+String(minutes%60).padStart(2,'0')+'m'}
 const rate=(v:number,total:number)=>total?`${n(v/total*100)}%`:'—'
 const outcomeNames:Record<string,string>={all:'All endings',winner:'Winners',unforced:'Unforced errors',forced:'Forced errors',smash:'Smash winners',recovery:'Recovery winners',impact:'All contributions'}
-function Country({code}:{code:string|null}){const [failed,setFailed]=useState(false);const valid=!!code&&/^[a-z]{2}$/i.test(code);let name='Country not recorded';if(valid){try{name=new Intl.DisplayNames(['en'],{type:'region'}).of(code!.toUpperCase())||name}catch{}}return <span className={styles.country} title={name}>{valid&&!failed?<img src={`/flags/${code!.toLowerCase()}.png`} alt={name} onError={()=>setFailed(true)}/>:<><Icon id="flag"/><span>{name}</span></>}</span>}
+
 function countryName(code:string|null){try{return code?new Intl.DisplayNames(['en'],{type:'region'}).of(code.toUpperCase())||code:'Country not recorded'}catch{return 'Country not recorded'}}
 function PlayerBio({p,showName=false}:{p:Person;showName?:boolean}){
  const tooltipId=useId(),[dismissed,setDismissed]=useState(false)
@@ -35,9 +37,7 @@ function PlayerBio({p,showName=false}:{p:Person;showName?:boolean}){
 }
 function age(birthdate?:string|null){if(!birthdate)return 'Not recorded';const d=new Date(birthdate),today=new Date();if(!Number.isFinite(d.getTime())||d>today)return 'Not recorded';let years=today.getFullYear()-d.getUTCFullYear();if(today.getMonth()<d.getUTCMonth()||(today.getMonth()===d.getUTCMonth()&&today.getDate()<d.getUTCDate()))years--;return `${years} years`}
 function height(value?:number|null){const h=Number(value);return h>0?`${h<3?Math.round(h*100):h} cm`:'Not recorded'}
-function Avatar({p,large=false}:{p:Person;large?:boolean}){const [failed,setFailed]=useState(false);return <span className={`${styles.avatarShell} ${large?styles.avatarShellLarge:''}`}><span className={`${styles.avatar} ${large?styles.large:''}`}>{p.avatar_url&&!failed?<img src={p.avatar_url} alt="" onError={()=>setFailed(true)}/>:<span aria-hidden="true">{p.name.split(/\s+/).slice(0,2).map(x=>x[0]).join('')}</span>}</span>{p.country&&<span className={styles.avatarFlag}><Country code={p.country}/></span>}</span>}
-function Metric({label,value,detail,onClick,active=false,benchmark}:{label:string;value:string;detail:string;onClick?:()=>void;active?:boolean;benchmark?:{metric:Benchmarks['smash'];actual:number|null;unit?:string}}){const body=<><span className={styles.metricTitle}><Icon id={label==='Win rate'?'odds':label==='Match record'?'list':label==='Titles'?'flag':label==='Tournaments'?'today':label.includes('impact')?'odds':label.includes('Winners')?'check':label.includes('errors')?'flag':label.includes('Smash')?'play':label.includes('watch')?'heart':label.includes('matches')?'today':'users'}/>{label}</span><strong>{value}{(label==='Winners'||label==='Unforced errors')&&<em className={styles.metricUnit}> / 100</em>}</strong><small>{detail}</small>{benchmark&&<Benchmark {...benchmark}/ >}{onClick&&<small className={styles.hint}>Explore points ↗</small>}</>;return onClick?<button title={detail} className={`ui-btn ${styles.metric}`} data-variant="secondary" aria-pressed={active} onClick={onClick}>{body}</button>:<div className={styles.metric}>{body}</div>}
-function Benchmark({metric,actual,unit='pp'}:{metric:Benchmarks['smash'];actual:number|null;unit?:string}){return <span className={styles.benchmarkInline} title={`${metric.cohort??'Team benchmark · all positions'}. ${n(metric.numerator)} / ${metric.denominator} ${unit==='impact'?'peer player-match observations':unit==='pp'?'peer opportunities':'peer player-point observations'}. Same category and selected period; completed official scouting sessions without recorded gaps; selected player excluded. Exploratory sample, not a tour-wide norm.`}><span>{metric.cohort?.startsWith('Right')?'Right peers':metric.cohort?.startsWith('Left')?'Left peers':metric.cohort?'Position unknown':'Team peer'} {metric.value===null?'—':n(metric.value)+(unit==='pp'?'%':unit==='impact'?'':' / 100')}</span>{metric.value!==null&&actual!==null?<span>{actual-metric.value>0?'+':''}{n(actual-metric.value)} {unit==='impact'?'':unit}</span>:<span>Insufficient data</span>}</span>}
+
 
 function ReferenceMarker({metric,label,category}:{metric:Benchmarks['smash'];label:string;category:string}){
  const [dismissed,setDismissed]=useState(false)

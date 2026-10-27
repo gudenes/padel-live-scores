@@ -1,4 +1,5 @@
 "use client";
+import PreGameComparison from "./PreGameComparison";
 import {sharedReportEvent} from "@/lib/posthog/shared-report";
 import Link from "next/link";
 import {playerProfileHref} from "@/lib/scouting/navigation";
@@ -320,7 +321,7 @@ function Panel({ title, sub, children, className = "" }) {
     </section>
   );
 }
-export function MatchInsightsView({ data, onScopeChange, reports, shared = false }) {
+export function MatchInsightsView({ data, onScopeChange, reports, shared = false, pregameMatchId }) {
   const headerSentinel=useRef(null);
   const heroRef=useRef(null),expandedHeight=useRef(0);
   const [headerSpace,setHeaderSpace]=useState(0);
@@ -355,7 +356,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
   const [navigationReady,setNavigationReady]=useState(false);
   useEffect(()=>{
     const q=new URLSearchParams(window.location.search);
-    if(!shared){try{const saved=JSON.parse(sessionStorage.getItem('pn-report-view:'+location.pathname)||'null');if(saved){if(data.scopes[saved.scope]){setScope(saved.scope);onScopeChange?.(saved.scope)}if(['Overview','Players','Points & shots','Video review','Data coverage','Reports'].includes(saved.tab))setTab(saved.tab);if(Number.isInteger(saved.focusedPlayer)&&saved.focusedPlayer>=0&&saved.focusedPlayer<4)setFocusedPlayer(saved.focusedPlayer);if(['all','winner','unforced','forced','double_fault'].includes(saved.kind))setKind(saved.kind);if(['all','0','1','2','3'].includes(saved.player))setPlayer(saved.player)}}catch{}}
+    if(!shared){try{const saved=JSON.parse(sessionStorage.getItem('pn-report-view:'+location.pathname)||'null');if(saved){if(data.scopes[saved.scope]){setScope(saved.scope);onScopeChange?.(saved.scope)}if(['Pre-game','Overview','Players','Points & shots','Video review','Data coverage','Reports'].includes(saved.tab)&&(saved.tab!=='Pre-game'||pregameMatchId))setTab(saved.tab);if(Number.isInteger(saved.focusedPlayer)&&saved.focusedPlayer>=0&&saved.focusedPlayer<4)setFocusedPlayer(saved.focusedPlayer);if(['all','winner','unforced','forced','double_fault'].includes(saved.kind))setKind(saved.kind);if(['all','0','1','2','3'].includes(saved.player))setPlayer(saved.player)}}catch{}}
     const slot=q.get('playerSlot');if(slot!==null&&/^[0-3]$/.test(slot)){setFocusedPlayer(Number(slot));setTab('Players')}
     const point=q.get('point');if(point&&data.scopes.all.points.some(p=>p.id===point)){setReplayPoint(point);setTab('Video review')}
     setNavigationReady(true);
@@ -506,6 +507,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
         <div aria-hidden="true" style={{height:headerSpace,flexShrink:0}}/>
         <div className="tabs">
           {[
+            ...(!shared && pregameMatchId ? ["Pre-game"] : []),
             "Overview",
             "Players",
             "Points & shots",
@@ -533,6 +535,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           </p>
         )}
         <div className="tabContent" key={tab}>
+          {tab === "Pre-game" && !shared && pregameMatchId && <PreGameComparison matchId={pregameMatchId}/>}
           {tab === "Overview" && (
             <>
               <OverviewMomentum data={data} scope={scope} />
