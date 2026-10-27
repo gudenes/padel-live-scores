@@ -30,7 +30,7 @@ export function progressUI($,act){
   $('progress-count').textContent=p.eligible?`${p.detailed} / ${p.eligible} strokes`:p.points?'No strokes to tag':'No points yet';
   $('progress-bar').value=quality.score??0;
   $('progress-bar').setAttribute('aria-valuetext',quality.score===null?'Scouting quality not rated':`${quality.label}: ${quality.score} out of 100${quality.provisional?', provisional':''}`);
-  const status=({saved:'Saved to server',pending:'Waiting for server',error:'Retry needed',conflict:'Needs attention',local:'Local copy'})[cloud.status]??'Local copy';
+  const status=({saved:'Saved to server',syncing:'Syncing to server…',pending:'Waiting for server',error:'Retry needed',conflict:'Needs attention',local:'Local copy'})[cloud.status]??'Local copy';
   $('progress-sync').textContent=status;card.dataset.sync=cloud.status??'local';
   $('progress-bar').title=`Scouting quality · ${quality.label}${quality.score===null?'':' · '+quality.score+'/100'}${quality.provisional?' · Provisional':''} · ${status}`;
   $('progress-strokes').textContent=`${p.detailed} / ${p.eligible}`;

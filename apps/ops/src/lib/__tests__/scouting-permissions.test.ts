@@ -39,3 +39,11 @@ it('allows read-only player intelligence to scouting viewers',()=>{
   expect(scouterRouteAllowed(p,'POST',true)).toBe(false)
  }
 })
+
+it('allows pre-game reads to scouts and viewers without allowing writes or suffix routes',()=>{
+ for(const viewer of [false,true]){
+  expect(scouterRouteAllowed(`/api/internal/scouting/${id}/pregame`,'GET',viewer)).toBe(true)
+  expect(scouterRouteAllowed(`/api/internal/scouting/${id}/pregame`,'POST',viewer)).toBe(false)
+  expect(scouterRouteAllowed(`/api/internal/scouting/${id}/pregame/extra`,'GET',viewer)).toBe(false)
+ }
+})
