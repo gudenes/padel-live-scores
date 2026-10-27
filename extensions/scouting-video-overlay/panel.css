@@ -249,3 +249,7 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .player-card[data-feedback=recorded][data-smash-type=soft] .attempts button:nth-child(3){outline:2px solid var(--lime-ink);outline-offset:1px;animation:smash-confirm .3s ease-out}
 @keyframes smash-confirm{50%{transform:scale(1.05)}100%{transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.player-card .attempts button{animation:none!important}}
+
+#save-status-bar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;font-size:12px}#save-status-bar[hidden]{display:none}#sync-comparison{display:grid;gap:8px}#sync-comparison[hidden]{display:none}#sync-comparison dd{margin:4px 0 12px;overflow-wrap:anywhere}#sync-comparison .ui-btn{white-space:normal}
+
+#sync-review-error:empty{display:none}

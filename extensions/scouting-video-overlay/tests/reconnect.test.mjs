@@ -24,6 +24,8 @@ test('expired document reports recovery; overlay reconnect targets its own tab a
   const sender={id:'test',tab:{id:7},frameId:0,url:'https://www.youtube.com/watch?v=replay'};
   const send=(message,who=sender)=>new Promise(resolve=>listener(message,who,resolve));
   const failed=await send({type:'sample'});assert.equal(failed.ok,false);assert.match(failed.error,/Video connection expired.*Reconnect video/);
+  const panelSample=await send({type:'sample'},{id:'test',url:'chrome-extension://test/panel.html'});
+  assert.equal(panelSample.ok,true);assert.equal(panelSample.sample,null);assert.ok(panelSample.state);assert.equal(panelSample.sync.status,'local');assert.match(panelSample.videoError,/Server saves are independent/);
   const recovered=await send({type:'reconnect'});assert.equal(recovered.ok,true);assert.equal(stored['scoutingVideo:fields:v1:connection'].selected.documentId,'new-document');assert.equal(queried,false);
   const skipped=await send({type:'skip',seconds:30});assert.equal(skipped.ok,true);assert.equal(seekTime,130);
   assert.equal((await send({type:'reconnect'},{...sender,tab:{id:8}})).ok,false);

@@ -38,7 +38,7 @@ export function closingUI({$,act,manual,onboarding,demo}){
   $('closing-pair-a').textContent=state.setup.names.slice(0,2).join(' / ');$('closing-pair-b').textContent=state.setup.names.slice(2).join(' / ');$('closing-score').textContent=current.score;
   $('closing-time').textContent=(state.scoutingTime?'Scouting time: '+Math.floor(state.scoutingTime.seconds/60)+' min · ':'')+'Recorded match duration: '+(state.selectedMatch?.duration??'unavailable');
   $('closing-count').textContent=`${current.points} ${current.points===1?'point':'points'} scouted · Earlier imported scores are not observations.`;
-  $('closing-sync-status').textContent=demo?'Demo · no server save':current.saved?'Saved to server':({conflict:'Sync needs attention',error:'Save failed · your local copy is safe',pending:'Waiting for server confirmation'})[cloud.status]??'Saved locally · server confirmation needed';
+  $('closing-sync-status').textContent=demo?'Demo · no server save':current.saved?'Saved to server':({conflict:'Sync needs attention',error:'Save failed · your local copy is safe',syncing:'Syncing to server…',pending:'Waiting for server confirmation'})[cloud.status]??'Saved locally · server confirmation needed';
   $('closing-sync-detail').textContent=demo?'This preview does not upload match data.':cloud.error||(current.saved?`Last saved: ${cloud.savedAt?new Date(cloud.savedAt).toLocaleString():'confirmed'}`:'Use Sync now. If needed, open Account & sync help to sign in or resolve a conflict.');
   if(step===2&&!current.saved&&!demo)step=1;paint();
   if(!busy&&!seen.has(current.key)&&!onboarding.isOpen()&&!document.querySelector('dialog[open]'))open();

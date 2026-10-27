@@ -229,3 +229,14 @@ F1 records Power, F2 records X3 and F3 records Soft for the selected/last tapped
 Expand Outside-court recovery attempt in point confirmation and select anyone who attempted a retrieval, including failed attempts. The player markers persist with the point, appear in Video review filters and CSV exports, and carry no extra impact credit. The existing outside-recovery winner tag is separate.
 
 Smash-recovery winners credit the preceding opponent with one smash attempt. Expert taps identify the preceding hitter and reuse an attempt linked to that exact touch; earlier smashes stay separate. Without an identifiable hitter, choose the opponent and either a recorded attempt or a missing attempt. This adds no smash winner or extra impact credit to the opponent.
+
+
+### Sync recovery and visible save status
+
+The header distinguishes saved on this device, waiting to sync, syncing, confirmed server saves (with point count), and conflicts. Video disconnection no longer prevents panel state and save status from refreshing. A finished score alone does not indicate a server save.
+
+**Recheck server copy** re-reads a conflicted record. Identical records are acknowledged without a write; different records remain in conflict. **Resolve conflict** / **Review server copy** show both point counts, set scores, completion states and the server timestamp. The scouting clock pauses while comparing; resume it to continue scouting. Choose explicitly which copy should replace the other. There is no automatic merge or largest-point-count overwrite.
+
+Every replacement first stores both documents in `chrome.storage.local` under `videoScoutingRecovery:<review token>`. **Export local backup** includes these in `recoveryCopies`. Failure to write the backup blocks replacement. Local changes invalidate the review; server changes invalidate the review or are rejected by the API's revision compare-and-swap. Lost upload responses retain the normal idempotent retry behavior. Recovery uses existing authenticated endpoints and requires no database migration.
+
+Validation: `node --test extensions/scouting-video-overlay/tests/{cloud,sync-recovery,sync-ui,reconnect,closing,scouting-progress}.test.mjs`.
