@@ -8,6 +8,7 @@ describe('live clock',()=>{
 })
 
 it('existing scoring engine refuses a rally after a seek or reconnect',async()=>{
+ // @ts-expect-error Browser JavaScript module is exercised directly in this runtime test.
  const {startRally,finishRally}=await import('../../../../../extensions/scouting-video-overlay/core.mjs')
  let time=10,wall=0;const p={getCurrentTime:()=>time,getDuration:()=>200,getPlaybackRate:()=>1,getPlayerState:()=>1};const c=liveVideoClock('abcdefghijk','first',()=>wall)
  const rally=startRally(c.sample(p),'test','point-1');wall=500;time=10.5;expect(finishRally(rally,c.sample(p)).videoSeconds).toBe(.5)

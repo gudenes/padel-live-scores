@@ -39,6 +39,7 @@ it('uploads a browser point through the real API and reloads the confirmed score
 
 it('finishes browser live scouting through production storage and reloads both rally timestamps',async()=>{
  db.session=null
+ // @ts-expect-error Browser JavaScript module is exercised directly in this runtime test.
  const {liveSync}=await import('../../../../../../../public/scout-web/live-sync.mjs')
  const {videoPayload}=await import('../../../../../../../../../extensions/scouting-video-overlay/server-model.mjs')
  const ctx={params:Promise.resolve({id:'22222222-2222-4222-8222-222222222222'})},url='https://admin.test/api/internal/video-scouting/22222222-2222-4222-8222-222222222222'

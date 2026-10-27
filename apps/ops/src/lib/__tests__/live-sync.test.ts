@@ -1,4 +1,5 @@
 import {it,expect,vi} from 'vitest'
+// @ts-expect-error Browser JavaScript module is exercised directly in this runtime test.
 import {liveSync} from '../../../public/scout-web/live-sync.mjs'
 const state=(n=0)=>({rallies:Array(n).fill({point:{player:1}}),pending:null})
 function setup(request:any){const envelope={state:state(),revision:0,dirty:false,generation:0,outbox:null,completed:false};const stored:any[]=[];const sync=liveSync({envelope,store:async(value:any)=>{stored.push(structuredClone(value))},payload:(s:any)=>s,request,delay:60000});return {sync,envelope,stored}}

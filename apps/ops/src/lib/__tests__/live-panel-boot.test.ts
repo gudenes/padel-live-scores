@@ -10,6 +10,7 @@ it('boots the real scouting panel with a live video adapter',async()=>{
  HTMLDialogElement.prototype.showModal=function(){this.open=true}
  vi.stubGlobal('matchMedia',()=>({matches:false,addEventListener(){},removeEventListener(){}}))
  vi.stubGlobal('ResizeObserver',class{observe(){}disconnect(){}})
+ // @ts-expect-error Browser JavaScript module is exercised directly in this runtime test.
  await import('../../../public/scout-web/live-extension/panel.mjs')
  expect(document.querySelector('[aria-label="Video controls"]')).toBeTruthy()
  expect(document.querySelector('#skip--5')?.textContent).toContain('−5s')
