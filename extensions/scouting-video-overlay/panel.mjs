@@ -1,3 +1,4 @@
+import {syncUI,syncLabel} from './sync-ui.mjs';
 import {scoutingLog} from './scouting-log.mjs';
 import {actionQueue} from './action-queue.mjs';
 import {coachUI} from './coach-ui.mjs';
@@ -28,6 +29,7 @@ coachUI({$,act,call,getState:()=>state});
 const renderManual=manualUI({$,act,call,getState:()=>state});
 const renderOnboarding=onboardingUI({$,act,getState:()=>state,manual:renderManual});
 renderManual.wizard=mode=>renderOnboarding.open(mode);
+const renderSync=syncUI({$,act});
 const renderClosing=closingUI({$,act,manual:renderManual,onboarding:renderOnboarding,demo});
 function time(seconds){if(!Number.isFinite(seconds))return '—:—';const s=Math.floor(seconds);return `${Math.floor(s/3600)?`${Math.floor(s/3600)}:`:''}${String(Math.floor(s/60)%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function render(){
@@ -52,7 +54,7 @@ function render(){
   $('save-settings').dataset.sync=cloud.status;
   const recent=state.history?.at(-1),lastPoint=state.rallies.findLast(r=>r.point&&!r.undone),attempt=state.pending?.attempts?.at(-1);
   $('last-action').textContent=state.pending?.varReviewed?'VAR review · current point':recent?.type==='smash'&&attempt?`${state.setup.names[attempt.player]} · ${attempt.smashType==='x3'?'X3':attempt.smashType==='power'?'Power':attempt.smashType==='soft'?'Soft smash':'Smash'} attempt recorded`:lastPoint?`${state.setup.names[lastPoint.point.player]} · ${lastPoint.point.outcome.replace('_',' ')}${lastPoint.point.shot?' · '+lastPoint.point.shot:''}${lastPoint.point.smashType?' '+lastPoint.point.smashType:''}${lastPoint.point.x4?' · X4 winner':''}${lastPoint.varReviewed?' · VAR reviewed':''}`:'Ready to record';
-  $('cloud-status').textContent=({local:'Local copy',pending:'Waiting to save',saved:'Saved to server',error:'Local copy · retry needed',conflict:'Needs attention'})[cloud.status]??'Local copy';
+  $('cloud-status').textContent=syncLabel(cloud,state.rallies.filter(r=>r.point&&!r.undone).length);
   const model=match(state),finished=model.score.phase==='finished';
   $('scout-time').textContent=time(state.scoutingTime?.seconds??0);$('scout-time-toggle').textContent=state.scoutingTime?.paused?'Resume clock':'Pause clock';$('scout-time-toggle').disabled=busy||finished||(!state.pending&&!state.rallies.length);
   $('scout-time-toggle').title='Working time while this panel is open. Pause for breaks; video speed does not affect it.';
@@ -101,14 +103,14 @@ function render(){
     }));
   }
   document.body.classList.toggle('scouting',!!state.selectedMatch);
-  renderScouting(visibleState(),sample,busy&&(!draftFinish||confirmingPoint),healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);renderClosing(state,model,cloud,busy);
+  renderScouting(visibleState(),sample,busy&&(!draftFinish||confirmingPoint),healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);renderClosing(state,model,cloud,busy);renderSync(state,cloud,busy,model.points);
 }
 async function call(message){const result=await transport(message);if(!result?.ok)throw Error(result?.error??'The companion is unavailable. Reopen its panel.');return result;}
 async function refresh(){
   if(busy||polling||actions.pending)return;
   polling=true;const before=revision;
   if(!demo&&!accountChecking&&Date.now()-accountPoll>30000){accountPoll=Date.now();accountChecking=true;call({type:'account-status'}).then(result=>{account=result.auth??account;},()=>{account={status:'offline'};}).finally(()=>{accountChecking=false;render();});}
-  try{const result=await call({type:'sample'});if(before!==revision||busy)return;state=result.state;cloud=result.sync??cloud;sample=result.sample;healthy=!!sample;}
+  try{const result=await call({type:'sample'});if(before!==revision||busy)return;state=result.state;cloud=result.sync??cloud;sample=result.sample;healthy=!!sample;if(result.videoError)$('message').textContent=result.videoError;}
   catch(error){if(before!==revision||busy)return;healthy=false;sample=null;$('message').textContent=error.message;}
   finally{polling=false;render();}
 }
@@ -120,16 +122,18 @@ function act(message){
  return actions.push(message);
 }
 async function performAction(message){
+  const syncAction=['sync-server','keep-local'].includes(message.type);
+  if(syncAction)cloud={...cloud,status:'syncing',error:''};
   let actionResult;if(message.type==='starting-score')$('seed-error').textContent='';const catalogAction=['load-tournaments','load-matches','clear-catalog','leave-match','select-match','create-manual','resume-session'].includes(message.type);if(catalogAction)$('catalog-feedback').textContent='';revision++;if(message.type==='connect')$('connection-feedback').textContent='Connecting to the current video tab…';render();
   try{if(message.type==='score'&&prepareError)throw Error(prepareError);const result=await call({...message,...(message.type==='start'?{label:$('label').value}:{})});actionResult={ok:true,...result};if(message.type==='prepare')prepareError=null;state=result.state;cloud=result.sync??cloud;if(message.type==='leave-match'){renderManual.find();$('catalog-feedback').textContent='Previous match saved on this device. Choose another match.';}if(message.type==='clear-catalog')$('catalog-feedback').textContent='Search cache cleared. Load tournaments to refresh the list.';if(message.type==='connect'){$('connection-feedback').textContent='Video connected. The clock below follows playback.';document.dispatchEvent(new Event('pn-video-connected'));}$('message').textContent=message.type==='end'?'Video timing saved on this device.':message.type==='cancel'?'Rally cancelled; its start remains in your export.':message.type==='undo-last'?'Last action undone.':'';}
-  catch(error){if(message.type==='prepare')prepareError=error.message;actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){if(!renderOnboarding.isOpen())renderManual.open('setup');$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){if(!renderOnboarding.isOpen())renderManual.open('setup');$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
+  catch(error){if(syncAction)cloud={...cloud,status:'error',error:error.message};if(message.type==='prepare')prepareError=error.message;actionResult={ok:false,error:error.message};$('message').textContent=error.message;if(message.type==='starting-score')$('seed-error').textContent=error.message;if(catalogAction){if(!renderOnboarding.isOpen())renderManual.open('setup');$('catalog-feedback').textContent=error.message;$('connection-settings').open=true;$('catalog-panel').open=true;}if(message.type==='connect'){if(!renderOnboarding.isOpen())renderManual.open('setup');$('connection-feedback').textContent=error.message;$('video-panel').open=true;$('connection-settings').open=true;}if($('shot-dialog').open)$('shot-error').textContent=error.message;}
   finally{if(message.type==='prepare')draftFinish=null;if(message.type==='score')confirmingPoint=false;render();if(!['touch','smash'].includes(message.type))await refresh();if(['start','score','double-fault'].includes(message.type))await clockTick();}
   return actionResult;
 }
-$('export-backup').onclick=async()=>{try{const result=await act({type:'state'});if(!result.ok)throw Error(result.error);const current=result.state;const backup=exported(current);const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='scouting-local-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}};
+$('export-backup').onclick=async()=>{try{const result=await act({type:demo?'state':'export-backup'});if(!result.ok)throw Error(result.error);const current=result.state;const backup={...exported(current),recoveryCopies:result.recoveryCopies??[]};const url=URL.createObjectURL(new Blob([JSON.stringify(backup,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='scouting-local-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(error){$('message').textContent=error.message;}};
 $('sign-in').onclick=async()=>{try{const result=await call({type:'sign-in'});account=result.auth;accountPoll=0;render();}catch(error){$('message').textContent=error.message;}};
 $('sync-server').onclick=()=>act({type:'sync-server'});
-$('load-server').onclick=()=>act({type:'load-server'});
+
 $('video-playback').onclick=()=>act({type:'playback'});
 function paintMediaKeys(bindings){for(const badge of document.querySelectorAll('[data-media-key]')){const binding=bindings[badge.dataset.mediaKey];badge.textContent=globalThis.__pnMediaKeys.label(binding);const control=badge.closest('button, label');control.title=globalThis.__pnMediaKeys.actions[badge.dataset.mediaKey]+' · '+badge.textContent;if(binding)control.setAttribute('aria-keyshortcuts',badge.textContent);else control.removeAttribute('aria-keyshortcuts');}}
 const getBindings=shortcutSettings({$,send:transport,onChange:paintMediaKeys});

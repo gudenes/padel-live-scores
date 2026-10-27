@@ -30,6 +30,7 @@ const sync=cloudSync({
  read:async()=>(await chrome.storage.local.get('videoScoutingCloud')).videoScoutingCloud,
  write:store=>chrome.storage.local.set({videoScoutingCloud:store}),
  uuid:()=>crypto.randomUUID(),
+ backup:record=>chrome.storage.local.set({['videoScoutingRecovery:'+record.token]:record}),
  request:async request=>{
   try{const result=await adminVideoSync(request,await account.connection());account.invalidate(result.status);return result;}
   catch(error){return {ok:false,error:error.message};}
@@ -123,6 +124,12 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message.type==='open-video'){const {state}=await dispatch({type:'state'});const link=savedVideoUrl(state);if(!link||!/^https?:\/\//.test(link))throw Error('No video link is saved.');await chrome.tabs.create({url:link});return {state};}
   if(message.type==='get-shortcuts'){return {bindings:await savedBindings()};}
   if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await savedBindings();await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return {bindings};}
+  if(message.type==='export-backup'){
+   const {state}=await dispatch({type:'state'});
+   const stored=await chrome.storage.local.get(null);
+   const recoveryCopies=Object.entries(stored).filter(([key])=>key.startsWith('videoScoutingRecovery:')).map(([,value])=>value);
+   return {state,recoveryCopies,sync:state.selectedMatch?await syncStatus(state.selectedMatch.id):{status:'local'}};
+  }
   if(message.type==='cloud-backup'){
    const {state}=await dispatch({type:'state'});
    const {videoScoutingBackups}=await chrome.storage.local.get('videoScoutingBackups');
@@ -131,16 +138,28 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message.type==='sync-server'){
    const {state}=await dispatch({type:'state'});
    for(const session of Object.values(state.sessions??{})){if(session.selectedMatch?.id)await sync.track({...session,version:1,pending:null});}
-   if(state.selectedMatch){const id=state.selectedMatch.id,revision=localRevisions.get(id);await sync.track(state);trackedRevisions.set(id,revision);await sync.flush();}
-   return {state,sync:state.selectedMatch?await sync.status(state.selectedMatch.id):{status:'local'}};
+   if(state.selectedMatch){const id=state.selectedMatch.id,revision=localRevisions.get(id);await sync.track(state);trackedRevisions.set(id,revision);await sync.retry(id);}
+   return {state,sync:state.selectedMatch?await syncStatus(state.selectedMatch.id):{status:'local'}};
+  }
+  if(['review-conflict','keep-local'].includes(message.type)){
+   let {state}=await dispatch({type:'state'});const id=state.selectedMatch?.id;
+   if(!id||state.pending)throw Error('Select a match and finish or cancel the open rally first.');
+   if(message.type==='review-conflict'&&state.scoutingTime&&!state.scoutingTime.paused){
+    ({state}=await dispatch({type:'scouting-clock',matchId:id,mode:'pause'}));
+   }
+   const revision=localRevisions.get(id);await sync.track(state);trackedRevisions.set(id,revision);
+   if(message.type==='review-conflict')return {state,review:await sync.review(id),sync:await syncStatus(id)};
+   await sync.keepLocal(id,message.token);
+   return {state,sync:await syncStatus(id)};
   }
   if(message.type==='load-server'){
    const {state}=await dispatch({type:'state'});
    if(!state.selectedMatch||state.pending)throw Error('Select a match and finish or cancel the open rally first.');
-   await sync.flush();const id=state.selectedMatch.id,remote=await sync.load(id);
+   const id=state.selectedMatch.id;await sync.track(state);
+   const remote=await sync.checkedReview(id,message.token);
    const previous=(await chrome.storage.local.get('videoScoutingBackups')).videoScoutingBackups??{};
    previous[id]={at:new Date().toISOString(),selectedMatch:state.selectedMatch,document:videoPayload(state)};await chrome.storage.local.set({videoScoutingBackups:previous});
-   const result=await dispatch({type:'restore-cloud',matchId:id,document:remote.payload,expectedHash:JSON.stringify(videoPayload(state))});
+   const result=await dispatch({type:'restore-cloud',matchId:id,document:remote.payload,expectedHash:remote.localHash});
    await sync.acknowledge(id,remote);await sync.track(result.state);scheduleSync();
    const shortcuts=await savedBindings();
   return {...result,bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:await sync.status(id)};
@@ -153,7 +172,13 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
    await chrome.scripting.executeScript({target:{tabId:state.connection.tabId},files:['shortcut-keys.js','overlay.js']});
    return {state};
   }
-  const result=await dispatch(message),m=match(result.state);
+  let result;
+  try{result=await dispatch(message);}
+  catch(error){
+   if(!panel||message.type!=='sample')throw error;
+   result={...await dispatch({type:'state'}),sample:null,videoError:'Video disconnected. Reconnect to continue recording. Server saves are independent of the video.'};
+  }
+  const m=match(result.state);
   const shortcuts=await savedBindings();
   return {...result,auth:account.status(),bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await syncStatus(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
  };

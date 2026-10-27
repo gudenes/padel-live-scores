@@ -1,7 +1,8 @@
-import {videoPayload,validateVideoState} from './server-model.mjs';
+import {videoPayload,validateVideoState,videoSummary} from './server-model.mjs';
 const hash=payload=>JSON.stringify(validateVideoState(payload));
-export function cloudSync({read,write,request,uuid}){
+export function cloudSync({read,write,request,uuid,backup}){
  let queue=Promise.resolve(),flushing=null;
+ const uploading=new Set();
  const mutate=fn=>{const next=queue.then(async()=>{const store=await read()??{entries:{}};store.entries??={};const result=await fn(store);await write(store);return result;});queue=next.catch(()=>{});return next;};
  const track=state=>mutate(store=>{
   const id=state.selectedMatch?.id;if(!id)return;
@@ -25,17 +26,18 @@ export function cloudSync({read,write,request,uuid}){
       const remote=result.session;
       if(remote){
        const same=hash(remote.document)===entry.hash;
-       await mutate(store=>{const current=store.entries[id];current.revision=remote.revision;if(same){current.status=current.hash===entry.hash?'saved':'pending';current.savedAt=remote.updated_at;current.ackHash=entry.hash;current.error='';}else{current.status='conflict';current.error='A server copy already exists. Load it before continuing; your local copy is retained.';}});
+       await mutate(store=>{const current=store.entries[id];current.revision=remote.revision;if(same){current.status=current.hash===entry.hash?'saved':'pending';current.savedAt=remote.updated_at;current.ackHash=entry.hash;current.error='';}else{current.status='conflict';current.error='Local and server copies differ. Review both copies to choose which to keep. Your local work is safe.';}});
        continue;
       }
       await mutate(store=>{store.entries[id].revision=0;});entry.revision=0;
      }
      const sending=entry.flight??{revision:entry.revision,writeId:entry.writeId,payload:entry.payload,hash:entry.hash};
      await mutate(store=>{store.entries[id].flight=sending;});
+     uploading.add(id);
      const result=await request({matchId:id,method:'POST',...(entry.kind==='manual'?{kind:'manual'}:{}),revision:sending.revision,writeId:sending.writeId,document:sending.payload});
      if(!result.ok)throw Object.assign(Error(result.error),{status:result.status});
      await mutate(store=>{const current=store.entries[id];current.revision=result.revision;current.ackHash=sending.hash;current.savedAt=result.savedAt;current.error='';delete current.flight;current.status=current.hash===sending.hash?'saved':'pending';});
-    }catch(error){await mutate(store=>{const current=store.entries[id];if([400,413].includes(error.status)&&current.flight){const rejected=current.flight;current.rejectedFlights=[...(current.rejectedFlights??[]),{...rejected,error:error.message}].slice(-5);delete current.flight;current.writeId=uuid();current.status=current.hash!==rejected.hash?'pending':'error';}else current.status=error.status===409?'conflict':'error';current.error=error.message||'Server unavailable. Your local copy is retained.';});}
+    }catch(error){await mutate(store=>{const current=store.entries[id];if([400,413].includes(error.status)&&current.flight){const rejected=current.flight;current.rejectedFlights=[...(current.rejectedFlights??[]),{...rejected,error:error.message}].slice(-5);delete current.flight;current.writeId=uuid();current.status=current.hash!==rejected.hash?'pending':'error';}else current.status=error.status===409?'conflict':'error';current.error=error.message||'Server unavailable. Your local copy is retained.';});}finally{uploading.delete(id);}
    }
   await queue;const remaining=(await read())?.entries??{};if(Object.values(remaining).some(e=>e.status==='pending'))await drain();
  }
@@ -47,8 +49,51 @@ export function cloudSync({read,write,request,uuid}){
   return {payload:validateVideoState(result.session.document),revision:result.session.revision,savedAt:result.session.updated_at};
  }
  const acknowledge=(id,remote)=>mutate(store=>{const payload=validateVideoState(remote.payload);store.entries[id]={kind:remote.kind??store.entries[id]?.kind??'official',payload,hash:hash(payload),ackHash:hash(payload),revision:remote.revision,writeId:uuid(),status:'saved',savedAt:remote.savedAt,error:''};});
- const status=async id=>{await queue;const entry=(await read())?.entries?.[id];return entry?{status:entry.status,error:entry.error,savedAt:entry.savedAt,revision:entry.revision}:{status:'local',error:''};};
- return {track,flush,load,acknowledge,status};
+ // Explicit retries re-read conflicts; never overwrite a different remote document.
+ async function retry(id){
+  if(flushing)await flushing;
+  await mutate(store=>{const entry=store.entries[id];if(entry?.status==='conflict'){
+   entry.revision=null;entry.status='pending';delete entry.flight;
+  }});
+  await flush();
+ }
+ async function review(id){
+  if(flushing)await flushing;
+  await queue;const entry=(await read())?.entries?.[id];
+  if(!entry)throw Error('No local copy is available.');
+  const remote=await load(id),token=uuid();
+  await mutate(store=>{
+   const current=store.entries[id];if(current.hash!==entry.hash)throw Error('Local scouting changed. Review the copies again.');
+   current.review={token,localHash:entry.hash,remoteHash:hash(remote.payload),revision:remote.revision};
+  });
+  const describe=payload=>{const m=videoSummary(payload);return {points:m.points,sets:m.score.sets,finished:m.score.phase==='finished'};};
+  return {token,matchId:id,local:describe(entry.payload),remote:{...describe(remote.payload),savedAt:remote.savedAt}};
+ }
+ async function checkedReview(id,token){
+  await queue;const entry=(await read())?.entries?.[id],review=entry?.review;
+  if(!review||review.token!==token||entry.hash!==review.localHash)throw Error('Local scouting changed. Review the copies again.');
+  const remote=await load(id);
+  if(remote.revision!==review.revision||hash(remote.payload)!==review.remoteHash)throw Error('The server copy changed. Review the copies again.');
+  // Both copies must be durable before either one can be replaced.
+  if(!backup)throw Error('Recovery backup storage is unavailable.');
+  await backup({id,token,at:new Date().toISOString(),local:entry.payload,remote});
+  await queue;const current=(await read())?.entries?.[id];
+  if(current?.hash!==review.localHash||current.review?.token!==token)throw Error('Local scouting changed. Review the copies again.');
+  return {...remote,localHash:review.localHash};
+ }
+ async function keepLocal(id,token){
+  if(flushing)await flushing;
+  const remote=await checkedReview(id,token);
+  await mutate(store=>{
+   const current=store.entries[id];
+   if(current.hash!==remote.localHash||current.review?.token!==token)throw Error('Local scouting changed. Review the copies again.');
+   current.revision=remote.revision;current.writeId=uuid();current.status='pending';current.error='';
+   delete current.flight;delete current.review;
+  });
+  await flush();
+ }
+ const status=async id=>{await queue;const entry=(await read())?.entries?.[id];return entry?{status:uploading.has(id)?'syncing':entry.status,error:entry.error,savedAt:entry.savedAt,revision:entry.revision}:{status:'local',error:''};};
+ return {track,flush,retry,review,checkedReview,keepLocal,load,acknowledge,status};
 }
 // Uses the browser-managed operator session; no password or session cookie is copied.
 export async function adminVideoSync(request,connection=null){
