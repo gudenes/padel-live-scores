@@ -4,11 +4,12 @@ import {useEffect,useMemo,useState,useRef} from 'react';
 import type {ReportView} from '@/lib/scouting/report-view';
 import {parseTime,pointScore,replayPoints,timeLabel,videoSource,matchesRallyLength,replayRange} from '@/lib/scouting/video-review';
 import ReplayPlayer from './ReplayPlayer';
+import ReviewNotes,{type ReviewContext} from './ReviewNotes';
 import ReplayMomentum from './ReplayMomentum';
 import {ArrowLeft,ArrowRight,CheckCircle} from './Icons';
 import './video-review.css';
 const outcomes:Record<string,string>={winner:'Winner',unforced:'Unforced error',forced:'Forced error committed',created:'Forced error created',double_fault:'Double fault',unclassified:'Unclassified'};
-export default function VideoReview({data,scope,readOnly=false,initialPointId}:{data:ReportView;scope:string;readOnly?:boolean;initialPointId?:string|null}){
+export default function VideoReview({data,scope,readOnly=false,initialPointId,reviewContext}:{data:ReportView;scope:string;readOnly?:boolean;initialPointId?:string|null;reviewContext?:ReviewContext}){
  const all=useMemo(()=>replayPoints(data.scopes.all.points,data.scopes.all.taps),[data]);
  const initialPoint=all.find(p=>p.id===initialPointId)??all.find(p=>p.start!==null)??all[0];
  const key=(readOnly?'pn-shared-video-review:':'pn-video-review:')+all[0]?.id;
@@ -73,5 +74,6 @@ export default function VideoReview({data,scope,readOnly=false,initialPointId}:{
  {momentError&&<p role="alert">{momentError}</p>}
  <div className="vr-moment-actions"><button type="button" className="ui-btn" onClick={()=>momentDialog.current?.close()}>Cancel</button><button type="submit" className="ui-btn" data-variant="primary">Save moment</button></div>
  </form></dialog>
+ {!readOnly&&reviewContext&&<ReviewNotes key={`${reviewContext.manual}:${reviewContext.matchId}:${reviewContext.userId}`} context={reviewContext} videoUrl={source?.url??''} clock={clock} onSeek={(nextUrl,time)=>{setUrl(nextUrl);setDraft(nextUrl);seek(time)}}/>}
  </section>
 }

@@ -4,7 +4,7 @@ import {useSearchParams} from 'next/navigation'
 import {useEffect,useState} from 'react';
 type Role='viewer'|'scouter'|'admin';
 const roles:Record<Role,{label:string;description:string}>={
- viewer:{label:'Viewer',description:'View all scouted matches, insights and exports. Cannot record or edit matches.'},
+ viewer:{label:'Viewer',description:'View matches, player insights and exports; tag video moments and leave team review notes. Cannot change scouting data or scores.'},
  scouter:{label:'Scouter',description:'Record matches, edit assigned sessions and view all scouting insights.'},
  admin:{label:'Administrator',description:'Full admin access, including users, official scores, content and system settings.'}
 };
