@@ -230,7 +230,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
         }
         case 'skip':{
           if(state.pending)throw Error('Finish or cancel the rally before skipping the video.');
-          if(![-30,-10,-5,5,10,30].includes(message.seconds)||!state.connection)throw Error('Connect a video and choose ±5s, ±10s or ±30s.');
+          if(![-30,-10,-5,5,10,30,90].includes(message.seconds)||!state.connection)throw Error('Connect a video and choose ±5s, ±10s, ±30s or +90s.');
           const current=await capture(state.connection);
           if(current.seeking)throw Error('Wait for the video to finish seeking.');
           const range=current.seekable.find(([a,b])=>current.time>=a&&current.time<b);

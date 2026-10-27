@@ -44,7 +44,7 @@ export function scoutingUI({$,act,getState}){
  $('restart-rally').onclick=()=>act({type:'restart-rally'});
  for(const team of ['a','b'])$('swap-pair-'+team).onclick=()=>act({type:'positions',pair:team});
  $('swap-ends').onclick=()=>act({type:'ends'});
- for(const seconds of [-30,-10,-5,5,10,30])$(`skip-${seconds}`).onclick=()=>act({type:'skip',seconds});
+ for(const seconds of [-30,-10,-5,5,10,30,90])$(`skip-${seconds}`).onclick=()=>act({type:'skip',seconds});
  const seedRows=()=>{for(const i of [1,2])$('seed-set-'+i).hidden=Number($('seed-count').value)<i;};
  $('seed-count').onchange=seedRows;seedRows();
  $('starting-score-form').onsubmit=e=>{e.preventDefault();const points=team=>{const v=$('seed-points-'+team).value.trim();return /^adv$/i.test(v)?'Adv':Number(v);};act({type:'starting-score',score:{completed:Array.from({length:Number($('seed-count').value)},(_,i)=>({a:Number($(`seed-${i+1}-a`).value),b:Number($(`seed-${i+1}-b`).value)})),games:{a:Number($('seed-games-a').value),b:Number($('seed-games-b').value)},points:{a:points('a'),b:points('b')},server:Number($('seed-server').value),near:$('seed-near').value,advantageReturns:Number($('seed-deuce').value),...($('seed-elapsed').value.trim()?{elapsedSeconds:Number($('seed-elapsed').value)*60}:{})}});};
@@ -220,7 +220,7 @@ export function scoutingUI({$,act,getState}){
   for(const id of ['swap-ends','swap-pair-a','swap-pair-b'])$(id).disabled=busy||!state.selectedMatch||m.score.phase==='finished';
   $('video-playback').disabled=busy||!healthy||!!sample?.seeking;
   ($('video-playback-label')??$('video-playback')).textContent=sample?.paused?'Play':'Pause';
-  for(const seconds of [-30,-10,-5,5,10,30])$(`skip-${seconds}`).disabled=busy||!!state.pending||!healthy||!!sample?.seeking;
+  for(const seconds of [-30,-10,-5,5,10,30,90])$(`skip-${seconds}`).disabled=busy||!!state.pending||!healthy||!!sample?.seeking;
   $('court-ends').textContent=`Far end: Pair ${m.near==='a'?'B':'A'} · Near end: Pair ${m.near.toUpperCase()} · automatic changeovers`;
   const clock=m.tracking,now=sample?sample.time*1000:clock.timeline.at(-1)?Date.parse(clock.timeline.at(-1).at):null;
   const elapsed=at=>at&&now!==null?Math.max(0,(clock.endedAt?Date.parse(clock.endedAt):now)-Date.parse(at)):null;
@@ -247,7 +247,7 @@ export function scoutingUI({$,act,getState}){
   for(const card of $('players').querySelectorAll('article[data-player]')){const player=Number(card.dataset.player),key=keyEditor.label('player-'+courtPlayers(state,m).indexOf(player));for(const [index,type] of ['power','x3','soft'].entries()){const b=card.querySelector('.attempts').children[index];let hint=b.querySelector('kbd');if(!hint){hint=document.createElement('kbd');b.append(hint);}hint.dataset.scoutKey='smash-'+type;hint.textContent=keyEditor.label('smash-'+type);b.title=`Tap ${key}, then press ${keyEditor.label('smash-'+type)} to count one ${type==='x3'?'Por 3':type==='soft'?'Suave':'Potente'} smash attempt`;}}
   for(const b of $('players').querySelectorAll('button:not([data-court-server])'))b.disabled=b.dataset.ends?busy||!state.selectedMatch||m.score.phase==='finished':!enabled;
   renderCourtCheckin(state,m,busy,setup);
-  keyboardContext={enabled,direct,mappedPlayers:true,tapOutcomes:!direct,recording:busy&&recording>0&&!!state.pending&&!state.pending.finish&&healthy&&!issue&&!sample?.seeking,firstFault:!!state.pending?.firstFault,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();paintFeedback();
+  keyboardContext={enabled,direct,retainSelection:!!state.pending&&!state.pending.finish,mappedPlayers:true,tapOutcomes:!direct,recording:busy&&recording>0&&!!state.pending&&!state.pending.finish&&healthy&&!issue&&!sample?.seeking,firstFault:!!state.pending?.firstFault,token:JSON.stringify([state.selectedMatch?.id,state.pending?.id,courtPlayers(state,m)]),order:courtPlayers(state,m)};keyboard.update();paintFeedback();
   const insights=touchInsights(state.rallies);for(const t of touchDirections(state.pending?.touches)){const p=insights.players[t.player];p.shots++;p[t.direction==='cross-court'?'crossCourt':t.direction==='down-the-line'?'downTheLine':'unknown']++;}
   renderLiveStats({rallies:state.rallies,timeline:m.tracking.timeline,names:setup.names,identity:i=>playerIdentity(setup.names[i],playerProfile(state,i))});
   const sequence=state.pending?.touches??[];$('rally-sequence').textContent=sequence.length?sequence.slice(-12).map(t=>setup.names[t.player]).join(' → '):'';$('rally-sequence').hidden=sequence.length===0;
@@ -273,6 +273,7 @@ export function scoutingUI({$,act,getState}){
    if(!direct&&finish.outcome!=='winner'&&!previousPlayerChosen){
     const inferred=previousTapOpponent(pending,finish.player);
     if(forcedBy!==inferred){forcedBy=inferred;previousShot=undefined;previousSmashType=undefined;previousReuse=false;attributionReady=inferred!==undefined||finish.outcome!=='forced';}
+    if(inferred!==undefined&&step==='opponent')step='previous';
    }
    const order=courtPlayers(state,m),creditKey=JSON.stringify([pending.id,finish.player,order,setup.names]);if(creditKey!==attributionKey){attributionKey=creditKey;$('forced-opponents').replaceChildren(...order.filter(player=>(player<2)!==(finish.player<2)).map(player=>{const b=document.createElement('button'),kbd=document.createElement('kbd');b.type='button';b.className='ui-btn';b.dataset.player=player;b.dataset.shortcut=positionKeys[order.indexOf(player)];b.setAttribute('aria-keyshortcuts',b.dataset.shortcut.toUpperCase());b.append(setup.names[player]+' ');kbd.textContent=b.dataset.shortcut.toUpperCase();kbd.dataset.scoutKey='player-'+order.indexOf(player);b.append(kbd);b.onclick=()=>credit(player);return b;}));}
    $('assist-name').textContent='De '+setup.names[finish.player^1];$('recovery-name').textContent='De '+setup.names[finish.player];$('outside-label').hidden=finish.outcome!=='winner';

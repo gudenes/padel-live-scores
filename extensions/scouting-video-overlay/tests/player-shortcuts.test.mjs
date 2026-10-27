@@ -48,3 +48,14 @@ test('direct entry selects on the court, ignores repeats and requires a second a
  for(const [action,type] of [['z','power'],['x','x3'],['c','soft']]){key('keydown','q');assert.equal(selected,2);key('keyup','q');key('keydown',action);key('keydown',action,true);assert.deepEqual(calls.at(-1),[2,type]);assert.equal(selected,null);}
  assert.equal(calls.length,4);dom.window.close();
 });
+
+test('retains the selected player through temporary unavailability in the same rally',()=>{
+ const dom=new JSDOM(''),doc=dom.window.document,c={enabled:true,direct:true,retainSelection:true,token:'r',order:[2,3,0,1]},calls=[];let selected;
+ const controls=playerShortcuts({target:doc,context:()=>c,select:p=>selected=p,prepare:(...args)=>calls.push(args)});
+ const key=(type,key)=>doc.dispatchEvent(new dom.window.KeyboardEvent(type,{key,bubbles:true,cancelable:true}));
+ try{controls.update();key('keydown','a');key('keyup','a');assert.equal(selected,0);
+ c.enabled=false;controls.update();assert.equal(selected,0);key('keydown','w');assert.equal(calls.length,0);
+ c.enabled=true;controls.update();key('keydown','w');assert.deepEqual(calls,[[0,'winner']]);
+ key('keydown','s');key('keyup','s');c.token='next-rally';controls.update();assert.equal(selected,null);
+ }finally{dom.window.close()}
+});

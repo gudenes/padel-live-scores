@@ -5,7 +5,7 @@ export function seekLiveCommand(state,bridge,message){
  const current=bridge.snapshot();if(current.seeking)throw Error('Wait for the video to finish seeking.');
  let target;
  if(message.type==='skip'){
-  if(![-30,-10,-5,5,10,30].includes(message.seconds))throw Error('Invalid skip.');
+  if(![-30,-10,-5,5,10,30,90].includes(message.seconds))throw Error('Invalid skip.');
   target=current.time+message.seconds;
  }else if(message.type==='replay'){
   const rally=state.rallies.find(r=>r.id===message.id);
