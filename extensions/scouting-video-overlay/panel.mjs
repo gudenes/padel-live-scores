@@ -139,7 +139,7 @@ function paintMediaKeys(bindings){for(const badge of document.querySelectorAll('
 const getBindings=shortcutSettings({$,send:transport,onChange:paintMediaKeys});
 $('video-speed').onchange=()=>act({type:'speed',rate:Number($('video-speed').value)});
 const cycleSpeed={get disabled(){return $('video-speed').disabled},click:()=>act({type:'cycle-speed'})};
-mediaShortcuts({target:document,back:$('skip--10'),pause:$('video-playback'),forward:$('skip-30'),back5:$('skip--5'),forward5:$('skip-5'),forward10:$('skip-10'),speed:cycleSpeed,getBindings});
+mediaShortcuts({target:document,back:$('skip--10'),pause:$('video-playback'),forward:$('skip-30'),back5:$('skip--5'),forward5:$('skip-5'),forward10:$('skip-10'),forward90:$('skip-90'),speed:cycleSpeed,getBindings});
 $('connect').addEventListener('click',()=>act({type:'connect'}));
 $('quick-reconnect').onclick=()=>act({type:'reconnect'});
 $('player').addEventListener('change',()=>act({type:'select',videoId:$('player').value}));

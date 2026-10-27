@@ -8,3 +8,10 @@ it('replays saved YouTube points after reopening the same video, without alterin
 })
 
 it('continues from the saved end without changing scoring state',()=>{const current={time:100,seeking:false,videoId:'abcdefghijk',mediaId:'youtube:abcdefghijk',documentId:'new',tabId:0};const state={pending:null,rallies:[{id:'r',start:{...current,documentId:'old',time:20},end:{time:37}}]};const original=structuredClone(state),seek=vi.fn(),bridge={snapshot:()=>current,seek};seekLiveCommand(state,bridge,{type:'replay',id:'r',position:'end'});expect(seek).toHaveBeenCalledWith(37);expect(state).toEqual(original);expect(()=>seekLiveCommand({...state,pending:{}},bridge,{type:'replay',id:'r',position:'end'})).toThrow('Finish');})
+
+it('skips 90 seconds using the video clock and refuses to seek during a rally',()=>{
+ const seek=vi.fn(),bridge={snapshot:()=>({time:120,seeking:false}),seek}
+ seekLiveCommand({pending:null},bridge,{type:'skip',seconds:90});expect(seek).toHaveBeenCalledWith(210)
+ expect(()=>seekLiveCommand({pending:{id:'r'}},bridge,{type:'skip',seconds:90})).toThrow('Finish or cancel')
+ expect(seek).toHaveBeenCalledTimes(1)
+})

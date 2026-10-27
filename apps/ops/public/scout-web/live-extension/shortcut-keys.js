@@ -1,9 +1,11 @@
 // Shared by the panel, worker and isolated video remote.
 (()=>{
  if(globalThis.__pnMediaKeys)return;
- const defaults={back10:{key:'j'},pause:{key:'Home'},forward30:null,back5:{key:'Insert'},forward5:{key:'PageUp'},forward10:{key:'l',shift:true},speed:{key:'k',shift:true}};
- const actions={back10:'Back 10 seconds',pause:'Play / pause',forward30:'Forward 30 seconds',back5:'Back 5 seconds',forward5:'Forward 5 seconds',forward10:'Forward 10 seconds',speed:'Cycle playback speed'};
+ const defaults={back10:{key:'j'},pause:{key:'Home'},forward30:null,back5:{key:'Insert'},forward5:{key:'PageUp'},forward10:{key:'l',shift:true},speed:null,forward90:{key:'k',shift:true}};
+ const actions={back10:'Back 10 seconds',pause:'Play / pause',forward30:'Forward 30 seconds',back5:'Back 5 seconds',forward5:'Forward 5 seconds',forward10:'Forward 10 seconds',speed:'Cycle playback speed',forward90:'Forward 90 seconds'};
  function normalize(raw){
+  // Migrate the former default speed shortcut to the requested 90-second skip.
+  if(raw&&raw.forward90===undefined&&raw.speed?.key?.toLowerCase()==='k'&&raw.speed.shift&&!raw.speed.ctrl&&!raw.speed.alt&&!raw.speed.meta)raw={...raw,speed:null};
   const out={};
   for(const action of Object.keys(actions)){
    const value=raw?.[action]===undefined?defaults[action]:raw[action];
@@ -12,7 +14,7 @@
    out[action]={key:value.key.length===1?value.key.toLowerCase():value.key,ctrl:!!value.ctrl,alt:!!value.alt,shift:!!value.shift,meta:!!value.meta};
   }
   // Adding new actions must not steal an existing custom combination.
-  if(raw)for(const action of ['forward10','speed'])if(raw[action]===undefined&&out[action]&&Object.entries(out).some(([other,b])=>other!==action&&b&&JSON.stringify(b)===JSON.stringify(out[action])))out[action]=null;
+  if(raw)for(const action of ['forward10','speed','forward90'])if(raw[action]===undefined&&out[action]&&Object.entries(out).some(([other,b])=>other!==action&&b&&JSON.stringify(b)===JSON.stringify(out[action])))out[action]=null;
   const keys=Object.values(out).filter(Boolean).map(b=>JSON.stringify(b));
   if(new Set(keys).size!==keys.length)throw Error('That shortcut is already assigned to another action.');
   return out;

@@ -5,7 +5,7 @@ export function playerShortcuts({target,context,select,prepare,tap=()=>{},smash=
  let held=null,timer=null,selected=null,token='',completed=false,lastTapped=null;
  const cancelHold=()=>{if(timer!==null)clearTimer(timer);timer=null;held=null;completed=false;hold(null);};
  function reset(){lastTapped=null;cancelHold();selected=null;select(null);}
- function update(){const c=context();if(c.token!==token||(!c.enabled&&!c.recording)){token=c.token;reset();}return c;}
+ function update(){const c=context();if(c.token!==token){token=c.token;reset();}else if(!c.enabled&&!c.recording){if(c.retainSelection)cancelHold();else reset();}return c;}
  const consume=e=>{e.preventDefault();e.stopImmediatePropagation();};
  const down=e=>{
   const c=update();if((!c.enabled&&!c.recording)||e.isComposing||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||e.target.closest?.('input,select,textarea,[contenteditable]'))return;

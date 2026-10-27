@@ -40,3 +40,9 @@ test('worker applies requested keys once, preserves scouting storage, and retain
  const next=await send({type:'get-shortcuts'});assert.equal(next.bindings.pause.key,'F10');assert.deepEqual(store.scoutingVideo,original);
  }finally{delete globalThis.chrome}
 });
+
+test('90-second skip uses the video clock, clamps to its seek window and protects an open rally',async()=>{
+ const f=fixture();await f.dispatch({type:'skip',seconds:90});assert.equal((await f.dispatch({type:'sample'})).sample.time,190);
+ f.time(980);await f.dispatch({type:'skip',seconds:90});assert.equal((await f.dispatch({type:'sample'})).sample.time,999.99);
+ f.time(100);await f.dispatch({type:'start'});await assert.rejects(f.dispatch({type:'skip',seconds:90}),/Finish or cancel/);
+});

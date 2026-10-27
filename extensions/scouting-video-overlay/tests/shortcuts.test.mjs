@@ -66,3 +66,13 @@ test('video remote receives all saved navigation shortcuts',async()=>{
   assert.deepEqual(JSON.parse(JSON.stringify(calls.filter(m=>m.type!=='sample'))),[{type:'skip',seconds:-10},{type:'playback'},{type:'skip',seconds:30},{type:'skip',seconds:-5},{type:'skip',seconds:5}]);
  }finally{dom.window.close();}
 });
+
+test('Shift+K advances 90 seconds, migrates the former speed default, and respects disabled controls',()=>{
+ const upgraded=keys.normalize({speed:{key:'k',shift:true}});assert.equal(upgraded.speed,null);assert.equal(keys.label(upgraded.forward90),'Shift+K');
+ assert.equal(keys.normalize({speed:{key:'x',shift:true}}).speed.key,'x');
+ assert.equal(keys.normalize({pause:{key:'k',shift:true}}).forward90,null);
+ const dom=new JSDOM('<input>'),calls=[],control={disabled:false,click:()=>calls.push(90)};
+ const detach=keys.attach({target:dom.window.document,controls:{forward90:control},getBindings:()=>upgraded});
+ const press=(target=dom.window.document)=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'K',shiftKey:true,bubbles:true,cancelable:true}));
+ try{press();assert.deepEqual(calls,[90]);control.disabled=true;press();control.disabled=false;press(dom.window.document.querySelector('input'));assert.deepEqual(calls,[90]);}finally{detach();dom.window.close()}
+});
