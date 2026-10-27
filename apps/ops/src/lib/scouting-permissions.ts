@@ -7,6 +7,7 @@ export const canWriteSession = (user: StaffUser, existing: { assigned_scouter_us
 // Fail closed for scoped accounts, including unknown/new routes and server actions.
 export function scouterRouteAllowed(path: string, method: string, viewer = false) {
   const read = method === 'GET' || method === 'HEAD'
+  if (['GET','HEAD','POST','DELETE'].includes(method) && /^\/api\/internal\/scouting-review-notes\/[0-9a-f-]{36}$/i.test(path)) return true
   if(read&&['/scouting/players','/api/internal/scouting-intelligence','/api/internal/scouting-player-search'].includes(path))return true
   if(read && ['/scouting/academy','/training-media/milano.mp4'].includes(path)) return true
   if (read && /^\/flags\/[a-z]{2}\.png$/.test(path)) return true

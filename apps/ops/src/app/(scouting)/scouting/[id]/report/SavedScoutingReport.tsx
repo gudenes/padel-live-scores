@@ -251,6 +251,7 @@ export default function SavedScoutingReport({
         <MatchInsightsView
           data={data}
           pregameMatchId={manual ? undefined : matchId}
+          reviewContext={{matchId,manual,userId}}
           onScopeChange={setScope}
           reports={
             <Insights
