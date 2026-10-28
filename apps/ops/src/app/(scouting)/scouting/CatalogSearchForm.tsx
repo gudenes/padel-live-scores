@@ -13,7 +13,7 @@ export default function CatalogSearchForm({children,className,initialSearch}:{ch
   const data=new FormData(form),q=String(data.get('q')??'').trim()
   if(q.length>0&&q.length<3)return
   const params=new URLSearchParams()
-  for(const [name,value] of data)if(typeof value==='string'&&value.trim())params.set(name,value.trim())
+  for(const [name,value] of data)if(typeof value==='string'&&(value.trim()||name==='league'||name==='date'))params.set(name,value.trim())
   startTransition(()=>router.replace(`/scouting${params.size?'?'+params:''}`,{scroll:false}))
  }
  function submit(event:FormEvent<HTMLFormElement>){event.preventDefault();cancel();search(event.currentTarget)}

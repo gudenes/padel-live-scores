@@ -19,7 +19,7 @@ export function catalogFilters(params:Record<string,string|string[]|undefined>){
 export type CatalogFilters=ReturnType<typeof catalogFilters>
 export function catalogUrl(filters:CatalogFilters,changes:Partial<CatalogFilters>={}){
  const p=new URLSearchParams()
- for(const [key,value] of Object.entries({...filters,...changes}))if(value!==''&&(key!=='page'||value!==1))p.set(key,String(value))
+ for(const [key,value] of Object.entries({...filters,...changes}))if((value!==''||key==='league'||key==='date')&&(key!=='page'||value!==1))p.set(key,String(value))
  return '/scouting'+(p.size?'?'+p:'?view=all')
 }
 // Page lightweight metadata first. Never fetch or replay every scouting document.
@@ -58,11 +58,11 @@ export const CATALOG_SQL=`with sessions as (
  and ($9='' or ($9='premier' and c.league_tier in ('major','p1','p2','finals')) or ($9='fip' and left(c.league_tier,4)='fip_') or c.league_tier=$9)
  and ($6='' or (c.match_date at time zone 'Europe/Madrid')::date::text=$6)
  ), paged as materialized (
- select * from filtered order by case when ($13::uuid is not null or $14='1') then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when ($13::uuid is not null or $14='1') and match_status='scheduled' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind limit $7 offset $8
+ select * from filtered order by case when ($13::uuid is not null or $14='1') then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when ($13::uuid is not null or $14='1') and match_status='scheduled' then sort_date end asc nulls last, case when $13::uuid is null and $14<>'1' then (sort_date at time zone 'Europe/Madrid')::date end desc nulls last, case when $13::uuid is null and $14<>'1' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind limit $7 offset $8
  ) select f.*,coalesce(f.players,(select jsonb_agg(jsonb_build_object('id',p.id,'name',coalesce(p.name,f.player_names[slot.n],'Player TBC'),'avatar_url',p.avatar_url,'country',p.country,'ranking',p.ranking) order by slot.n) from generate_subscripts(f.player_ids,1) as slot(n) left join public.players p on p.id=f.player_ids[slot.n])) as players,
  (select jsonb_agg(jsonb_build_object('a',st.pair1_games,'b',st.pair2_games) order by st.set_number) from public.sets st where st.match_id=f.match_id and f.kind='match') as official_sets,
  (f.kind='match' and (exists(select 1 from public.match_points mp where mp.match_id=f.match_id) or exists(select 1 from public.games g where g.match_id=f.match_id and cardinality(g.points)>0))) as has_pbp
- from paged f order by case when ($13::uuid is not null or $14='1') then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when ($13::uuid is not null or $14='1') and match_status='scheduled' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind`
+ from paged f order by case when ($13::uuid is not null or $14='1') then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when ($13::uuid is not null or $14='1') and match_status='scheduled' then sort_date end asc nulls last, case when $13::uuid is null and $14<>'1' then (sort_date at time zone 'Europe/Madrid')::date end desc nulls last, case when $13::uuid is null and $14<>'1' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind`
 
 export async function loadMatchCatalog(db:Pick<Pool,'query'>,filters:CatalogFilters,viewer:{id?:string;email?:string|null}={}){
  const {q,status,kind,scouting,scouter,date,page,league,mine,player,watchlist,watched}=filters
