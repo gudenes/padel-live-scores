@@ -31,7 +31,7 @@ export function scoutingUI({$,act,getState}){
  $('expert-cancel').onclick=()=>expertDialog.close();
  $('expert-confirm-button').onclick=()=>{setMode(false);expertDialog.close();$('mode-expert').focus();};
  document.addEventListener('keydown',event=>{if(expertDialog.open)event.stopImmediatePropagation();},true);
- const keyEditor=scoutingKeys({$,scope:()=> $('expert-confirm').open?null:$('shot-dialog').open?step:getState()?.selectedMatch?(selectedPlayer===null?'rally':'outcome'):null,onEditing:()=>keyboard?.reset()});
+ const keyEditor=scoutingKeys({$,scope:()=> $('expert-confirm').open?null:$('shot-dialog').open?(step==='shot'&&shot==='return'?'return':step):getState()?.selectedMatch?(selectedPlayer===null?'rally':'outcome'):null,onEditing:()=>keyboard?.reset()});
  const feedback=new Map(),queuedTaps=[];
  const latestPlayer=()=>{const p=getState()?.pending;if(direct||!p||p.finish)return null;return queuedTaps.filter(t=>t.rally===p.id).at(-1)?.player??p.touches?.at(-1)?.player??null;};
  let recording=0;
@@ -177,6 +177,10 @@ export function scoutingUI({$,act,getState}){
   if(step==='shot'&&!e.shiftKey&&key==='n'){e.preventDefault();$('net-touch').checked=!$('net-touch').checked;$('net-touch').onchange();return;}
   if(step==='shot'&&!e.shiftKey&&finish?.outcome==='winner'&&['f','r','4','7'].includes(key)){e.preventDefault();const id={f:'assist',r:'smash-recovery',4:'x4',7:'outside'}[key];$(id).checked=!$(id).checked;$(id).onchange();return;}
   if(finish?.outcome==='winner'&&$('smash-recovery').checked&&!$('x4').checked)return;
+  if(step==='shot'&&shot==='return'&&!e.shiftKey){
+   const type={z:'lob',x:'low'}[key],failure={f4:'net',f5:'long',f6:'wide',f7:'wall',f8:'miss',f9:'unclear'}[key];
+   if(type||failure){e.preventDefault();if(type||!$('return-failure-label').hidden)$('return-details').querySelector(`[data-return-value="${type??failure}"]`).click();return;}
+  }
   if(!e.shiftKey&&(step==='shot'&&shot==='smash'||step==='previous'&&previousShot==='smash')&&['z','x','c'].includes(key)){e.preventDefault();chooseType(key==='z'?'power':key==='x'?'x3':'soft');return;}
   const choice=[...$('shot-options').querySelectorAll('button')].find(b=>b.dataset.shortcut===shotShortcut(e));
   if(choice){e.preventDefault();if(!choice.disabled)chooseShot(choice.dataset.shot,true);}
