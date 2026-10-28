@@ -1,5 +1,6 @@
 'use client'
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { FlagImage } from '@/components/FlagImage'
@@ -108,7 +109,7 @@ export function RegionPicker({ currentCountry, onPick, onBack }: RegionPickerPro
             border: '1px solid rgba(255,255,255,0.08)',
             color: '#fff',
             fontFamily: 'inherit',
-            fontSize: 12,
+            fontSize: mobileInputFontSize(12),
             fontWeight: 500,
             padding: '8px 10px 8px 30px',
             outline: 'none',

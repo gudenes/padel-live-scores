@@ -2,6 +2,7 @@
 // src/app/(app)/rankings/page.tsx
 // V3 Rankings — FIP Official & Race rankings with chunky brand styling.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useRouter, usePathname } from '@/i18n/navigation'
@@ -606,8 +607,8 @@ export default function V3RankingPage() {
             value={query}
             onChange={e => setQuery(e.target.value)}
             style={{
-              flex: 1, border: 'none', outline: 'none', background: 'transparent',
-              color: '#E2E8F0', fontSize: 15, fontFamily: 'inherit',
+              flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
+              color: '#E2E8F0', fontSize: mobileInputFontSize(15), fontFamily: 'inherit',
             }}
           />
           {query ? (

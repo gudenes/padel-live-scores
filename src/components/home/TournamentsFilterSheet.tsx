@@ -13,6 +13,7 @@
 // lives per-match, not per-tournament, so filtering at this level would
 // need a separate query path. Punted to a follow-up if there's demand.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { GREEN, ORANGE, LIVE_RED, BG_CARD, MUTED, BORDER, CHUNKY } from './shared'
@@ -373,7 +374,7 @@ export default function TournamentsFilterSheet({
                   width: '100%', padding: '9px 12px 9px 34px',
                   background: BG_CARD, border: `1px solid ${BORDER}`,
                   clipPath: CHUNKY.bar,
-                  color: '#fff', fontSize: 12,
+                  color: '#fff', fontSize: mobileInputFontSize(12),
                   fontFamily: 'inherit',
                   outline: 'none',
                 }}
@@ -396,7 +397,7 @@ export default function TournamentsFilterSheet({
                   width: '100%', padding: '9px 12px 9px 34px',
                   background: BG_CARD, border: `1px solid ${BORDER}`,
                   clipPath: CHUNKY.bar,
-                  color: '#fff', fontSize: 12,
+                  color: '#fff', fontSize: mobileInputFontSize(12),
                   fontFamily: 'inherit',
                   outline: 'none',
                 }}

@@ -11,6 +11,7 @@
 // Google's view of the site, so /search?q=... is noindexed; only the
 // bare /search entry (used by the SearchAction handler) is indexable.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
@@ -127,7 +128,7 @@ export default async function SearchPage({ searchParams }: Props) {
             background: BG_CARD,
             border: `1px solid ${BORDER}`,
             color: '#fff',
-            fontSize: 15,
+            fontSize: mobileInputFontSize(15),
             outline: 'none',
           }}
         />

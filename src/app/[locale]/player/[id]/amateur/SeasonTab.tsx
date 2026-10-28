@@ -12,6 +12,7 @@
 // unnecessary duplicate fetch for the common case (single season, or the
 // current season selected).
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
@@ -95,7 +96,8 @@ export function AmateurSeasonTab({
             aria-label={t('seasonSelector')}
             style={{
               background: BG_CARD, color: '#fff', border: `1px solid ${BORDER}`,
-              fontSize: 10, padding: '2px 4px', fontFamily: 'inherit', flexShrink: 0,
+              fontSize: mobileInputFontSize(10), padding: '2px 4px', fontFamily: 'inherit', flexShrink: 0,
+              minWidth: 0, maxWidth: '50%',
             }}
           >
             {seasons.map(s => (
