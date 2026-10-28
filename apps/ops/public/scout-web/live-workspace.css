@@ -1,0 +1,56 @@
+/* Browser workspace only. Extension markup, handlers and shortcut targets stay intact. */
+body.workspace-integrated .local-test-note,
+body.workspace-integrated .scout-header #match-identity,
+body.workspace-integrated .scout-header #save-status-bar,
+body.workspace-integrated .scout-header #progress-bar,
+body.workspace-integrated .scout-header .header-logo,
+body.workspace-integrated #scouting-workspace>.scoreboard,
+body.workspace-integrated #scouting-workspace>.video-toolbar{display:none!important}
+body.workspace-integrated .scout-header{padding:8px 10px 4px;min-height:40px}
+body.workspace-integrated .header-brand{gap:6px}
+body.workspace-integrated .header-brand h1{display:block!important;position:static;width:auto;height:auto;clip-path:none;overflow:visible;font-size:14px!important;margin:0!important}
+body.workspace-integrated main{padding:0 10px 10px}
+body.workspace-integrated #scouting-workspace{gap:6px}
+body.workspace-integrated .time-strip{font-size:10px;margin-bottom:2px}
+body.workspace-integrated .time-strip>span:last-child{display:none}
+body.workspace-integrated .rally-bar{grid-template-columns:minmax(0,1fr) auto;gap:8px}
+body.workspace-integrated #rally,body.workspace-integrated #change-server{min-height:34px}
+body.workspace-integrated .player-card{padding:7px;gap:4px}
+body.workspace-integrated .player-card .ui-btn{min-height:30px}
+body.workspace-integrated .player-card .attempts .ui-btn{min-height:26px}
+body.workspace-integrated .live-summary{min-height:320px;margin-top:4px;padding:10px}
+body.workspace-integrated .live-summary h3{font-size:14px}
+body.workspace-integrated .live-impact-chart svg{min-height:200px}
+body.workspace-integrated .live-summary table{font-size:12px}
+body.workspace-integrated #touch-status:empty,body.workspace-integrated #rally-sequence:empty,body.workspace-integrated #message:empty{display:none}
+@media(max-width:400px){body.workspace-integrated .live-summary{padding:8px}body.workspace-integrated .header-brand h1{font-size:12px!important}}
+@media(pointer:coarse){body.workspace-integrated .player-card .ui-btn{min-height:44px}}
+/* Commands remain in the iframe for shortcuts/dialogs, with their triggers in the host header. */
+body.workspace-integrated .scout-header{display:none!important}
+body.workspace-integrated main{padding-top:6px}
+body.workspace-integrated .live-stat-content{min-width:0;max-width:100%}
+body.workspace-integrated .live-impact-chart{min-width:0;max-width:100%}
+body.workspace-integrated .live-impact-chart svg{width:100%;height:auto;min-height:0;aspect-ratio:auto}
+body.workspace-integrated .live-impact-chart h4{margin:6px 0}
+body.workspace-integrated .live-impact-legend{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body.workspace-integrated .live-impact-legend>div{align-items:flex-start}
+body.workspace-integrated .live-impact-legend .player-identity{min-width:0;flex-wrap:wrap;overflow-wrap:anywhere}
+body.workspace-integrated .live-impact-legend .player-name{white-space:normal;overflow-wrap:anywhere}
+body.workspace-integrated .live-impact-chart>.hint{overflow-wrap:anywhere;white-space:normal;line-height:1.45}
+body.workspace-integrated .live-stat-tabs,body.workspace-integrated .live-stat-filters{gap:4px;margin:5px 0}
+body.workspace-integrated .live-stat-tabs{padding-bottom:6px}
+@media(max-width:380px){body.workspace-integrated .live-impact-legend{grid-template-columns:minmax(0,1fr)}}
+/* Expand the same iframe for coach confirmation: no remount or session interruption. */
+html.workspace-coach-overlay,body.workspace-coach-overlay{background:transparent!important;overflow:hidden}
+body.workspace-coach-overlay>:not(#scouting-menu):not(script){visibility:hidden!important}
+body.workspace-coach-overlay #scouting-menu[open]{position:fixed;top:20px;bottom:auto;left:50%;right:auto;transform:translateX(-50%);margin:0;width:min(500px,calc(100vw - 32px));max-height:calc(100dvh - 40px);box-sizing:border-box;overflow:auto}
+body.workspace-coach-overlay #scouting-menu::backdrop{background:#20282266}
+
+/* Compact player portraits with the country badge anchored to the circle. */
+.workspace-integrated .player-card h3>.player-identity{flex-wrap:nowrap;gap:8px}
+.workspace-avatar{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 36px;width:36px;height:36px;border:2px solid #C7EF63;border-radius:50%;background:#f2f5ea;box-sizing:border-box}
+.workspace-avatar[data-pair="coral"]{border-color:#FF8A7A}
+.workspace-avatar-initials{font-size:10px;font-weight:650;color:#59664a}
+.workspace-avatar>img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.workspace-avatar-flag{position:absolute;right:-5px;bottom:-3px;display:flex;align-items:center;justify-content:center;width:19px;height:17px;border:1px solid #dce2d3;border-radius:5px;background:white;font-size:13px;line-height:1;z-index:1}
+.workspace-integrated .player-card h3 .player-name{min-width:0}

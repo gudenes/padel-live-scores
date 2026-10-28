@@ -9,5 +9,5 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
  if(!/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))return Response.json({error:'Invalid match.'},{status:400})
  const context=await reportContext(id)
  if(context.players?.length!==4)return Response.json({error:'Match needs four players.'},{status:422})
- return Response.json({localTest:process.env.SCOUT_LIVE_EXPERIMENT==='1',user:{id:user!.id},match:{id,names:context.players.map(p=>p.display_name||p.name),playerIds:context.players.map(p=>p.id),players:context.players,tournamentName:context.meta.tournament,round:context.meta.round,category:context.meta.category}},{headers:{'Cache-Control':'no-store'}})
+ return Response.json({localTest:process.env.SCOUT_LIVE_EXPERIMENT==='1',user:{id:user!.id},match:{id,names:context.players.map(p=>p.display_name||p.name),playerIds:context.players.map(p=>p.id),players:context.players,tournamentName:context.meta.tournament,round:context.meta.round,court:context.meta.court??null,category:context.meta.category}},{headers:{'Cache-Control':'no-store'}})
 }

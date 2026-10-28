@@ -25,7 +25,7 @@ export async function reportContext(
     const result = await db.query(
       manual
         ? `select tournament_label as tournament,match_date::text as scheduled_at,players from operator_manual_scouting_matches where id=$1`
-        : `select m.duration,m.round,m.category,m.status,m.winner_pair,m.scheduled_at,t.name as tournament, array[m.pair1_player1_id,m.pair1_player2_id,m.pair2_player1_id,m.pair2_player2_id] as player_ids from matches m left join tournaments t on t.id=m.tournament_id where m.id=$1`,
+        : `select m.duration,m.round,m.category,m.court,m.status,m.winner_pair,m.scheduled_at,t.name as tournament, array[m.pair1_player1_id,m.pair1_player2_id,m.pair2_player1_id,m.pair2_player2_id] as player_ids from matches m left join tournaments t on t.id=m.tournament_id where m.id=$1`,
       [id]
     );
     const match = result.rows[0];
@@ -40,7 +40,7 @@ export async function reportContext(
     const avatars = ids.length
       ? (
           await db.query(
-            "select id,name,display_name,avatar_url,ranking from players where id=any($1::uuid[])",
+            "select id,name,display_name,avatar_url,ranking,country from players where id=any($1::uuid[])",
             [ids]
           )
         ).rows
@@ -87,6 +87,7 @@ export async function reportContext(
       winnerPair: match.winner_pair ?? null,
       meta: {
         duration: match.duration ?? null,
+        court: match.court ?? null,
         round: match.round ?? null,
         category: match.category ?? null,
         tournament: match.tournament ?? null,

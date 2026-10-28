@@ -28,6 +28,7 @@ export interface OfficialGame {id:string;set_number:number;game_number:number;wi
 export interface ReportContext {
   meta: {
     duration: string | null;
+    court?: string | null;
     round: string | null;
     category: string | null;
     tournament: string | null;
