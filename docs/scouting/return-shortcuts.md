@@ -1,5 +1,8 @@
 # Return selection shortcuts
 
+See the [full feature README](return-shortcuts/README.md) for the workflow,
+shortcut reference, implementation scope, validation, and local review steps.
+
 In the extension and embedded live-video scouting panel, select **Resto (6)**
 to show return details in the same button layout as the smash subtype picker.
 
