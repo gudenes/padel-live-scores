@@ -105,3 +105,16 @@ it('uses exact parameterized labels for manual tournaments',async()=>{
  expect(query.mock.calls[0][1].slice(15)).toEqual([null,label])
  expect(query.mock.calls[0][0]).toContain("c.kind='private' and c.tournament_name=$17")
 })
+
+it('preserves an explicit all-circuits choice when clearing the Premier default',()=>{
+ const url=new URL(catalogUrl(catalogFilters({league:'premier'}),{league:''}),'https://admin.example')
+ expect(url.searchParams.has('league')).toBe(true)
+ expect(url.searchParams.get('league')).toBe('')
+})
+
+it('preserves All dates when clearing the default day',()=>{
+ const url=new URL(catalogUrl(catalogFilters({date:'2026-10-28',league:'premier'}),{date:''}),'https://admin.example')
+ expect(url.searchParams.has('date')).toBe(true)
+ expect(url.searchParams.get('date')).toBe('')
+ expect(url.searchParams.get('league')).toBe('premier')
+})
