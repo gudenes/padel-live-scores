@@ -16,6 +16,7 @@
 // which handles Google/Apple via web OAuth redirects and Resend for
 // magic links. Apple's external-browser objection was iOS-specific.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { signIn } from 'next-auth/react'
@@ -394,10 +395,10 @@ export default function LoginSheet({ open, onClose, embedded=false, callbackUrl=
                     onChange={e => setEmail(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleMagicLink()}
                     style={{
-                      flex: 1, background: BG_BASE,
+                      flex: 1, minWidth: 0, background: BG_BASE,
                       border: `1px solid ${BORDER}`,
                       clipPath: CLIP.button,
-                      padding: '12px 14px', color: '#fff', fontSize: 13,
+                      padding: '12px 14px', color: '#fff', fontSize: mobileInputFontSize(13),
                       outline: 'none', fontFamily: 'inherit',
                     }}
                   />

@@ -1,5 +1,6 @@
 'use client'
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
@@ -268,12 +269,12 @@ export default function WelcomePickerPage() {
             placeholder={t('search')}
             aria-label={t('search')}
             style={{
-              flex: 1,
+              flex: 1, minWidth: 0,
               background: 'transparent',
               border: 'none',
               outline: 'none',
               color: '#fff',
-              fontSize: 13,
+              fontSize: mobileInputFontSize(13),
               padding: '11px 0',
               fontFamily: 'inherit',
             }}

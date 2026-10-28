@@ -2,6 +2,8 @@
 @plugin "@tailwindcss/typography";
 
 :root {
+  /* Used by mobileInputFontSize for editable controls, not surrounding labels. */
+  --input-font-size-min: 0px;
   /* ── Forge Dark v2 ───────────────────────────────────────────────── */
 
   /* Backgrounds */
@@ -87,6 +89,13 @@
   --clip-card:   polygon(0% 1%, 99.5% 0%, 100% 99%, 0.5% 100%);
   --clip-tag:    polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%);
   --clip-chunky: polygon(0% 4%, 100% 0%, 100% 96%, 0% 100%);
+}
+
+/* Include landscape phones, tablets and devices with both touch and a mouse.
+   Size the text before focus; changing it only on :focus is too late for iOS.
+   Keep user zoom available instead of clamping the page viewport. */
+@media (any-pointer: coarse) {
+  :root { --input-font-size-min: 16px; }
 }
 
 *, *::before, *::after { box-sizing: border-box; }

@@ -1,5 +1,6 @@
 'use client'
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { LeaderboardRow, type LeaderboardRowData } from './LeaderboardRow'
@@ -48,7 +49,7 @@ export function TournamentLeaderboard({ tournaments, defaultTournamentId }: {
         style={{
           width: '100%', marginBottom: 10,
           background: '#1A1A1A', color: '#fff', border: '1px solid rgba(255,255,255,0.10)',
-          padding: '8px 10px', fontSize: 12,
+          padding: '8px 10px', fontSize: mobileInputFontSize(12),
         }}
       >
         {tournaments.map(opt => (

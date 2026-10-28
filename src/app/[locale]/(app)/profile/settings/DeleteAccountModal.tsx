@@ -4,6 +4,7 @@
 // text input that must match the localized confirm word (default "DELETE")
 // before the final destructive button is enabled.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { signOut } from 'next-auth/react'
@@ -103,7 +104,7 @@ export function DeleteAccountModal({ open, onClose }: Props) {
                 width: '100%', padding: '10px 12px',
                 background: '#0A0A0A', color: '#fff',
                 border: `1px solid ${V3.BORDER}`, borderRadius: 8,
-                fontSize: 14, outline: 'none',
+                fontSize: mobileInputFontSize(14), outline: 'none',
                 fontFamily: 'inherit',
               }}
             />

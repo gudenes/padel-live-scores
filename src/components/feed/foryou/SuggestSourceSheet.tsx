@@ -1,5 +1,6 @@
 'use client'
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
@@ -99,6 +100,6 @@ function SuccessView({ body, onClose, t }: { body: string; onClose: () => void; 
   )
 }
 
-const inputStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 10, fontSize: 14, marginTop: 12 }
+const inputStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 10, fontSize: mobileInputFontSize(14), marginTop: 12 }
 const btnPrimary: React.CSSProperties = { background: '#7ED321', color: '#0a0a0a', border: 0, padding: '10px 20px', fontWeight: 700, cursor: 'pointer', clipPath: 'polygon(3% 5%, 97% 0%, 100% 95%, 0% 100%)' }
 const btnSecondary: React.CSSProperties = { background: '#1a1a1a', color: '#ccc', border: 0, padding: '10px 20px', cursor: 'pointer' }

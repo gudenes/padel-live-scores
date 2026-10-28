@@ -4,6 +4,7 @@
 // Functionality preserved: player/tournament/match search, debounced queries,
 // recent searches in localStorage, popular section.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useEffect, useState, useRef } from 'react'
 import Avatar from '@/components/Avatar'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -399,8 +400,8 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
             onChange={e => setQuery(e.target.value)}
             placeholder={tSearch('placeholder')}
             style={{
-              flex: 1, background: 'transparent', border: 'none', outline: 'none',
-              color: '#fff', fontSize: 15, fontFamily: 'inherit', fontWeight: 500,
+              flex: 1, minWidth: 0, background: 'transparent', border: 'none', outline: 'none',
+              color: '#fff', fontSize: mobileInputFontSize(15), fontFamily: 'inherit', fontWeight: 500,
             }}
           />
           <button
@@ -409,7 +410,7 @@ export default function SearchOverlay({ open, onClose }: { open: boolean; onClos
             style={{
               background: BG_CARD, border: `1px solid ${BORDER}`,
               clipPath: CLIP.button,
-              width: 32, height: 32,
+              width: 32, height: 32, flexShrink: 0,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 20, fontWeight: 600, lineHeight: 1,
               color: MUTED, cursor: 'pointer', fontFamily: 'inherit',

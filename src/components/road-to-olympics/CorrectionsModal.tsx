@@ -1,6 +1,7 @@
 // src/components/road-to-olympics/CorrectionsModal.tsx
 'use client'
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { GREEN, BG_CARD, BORDER, MUTED, CHUNKY } from '@/components/home/shared-constants'
@@ -132,7 +133,7 @@ export default function CorrectionsModal({ onClose }: Props) {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', background: '#1a1a1a', border: `1px solid ${BORDER}`,
-  borderRadius: 6, padding: '8px 10px', color: '#fff', fontSize: 13, marginTop: 4,
+  borderRadius: 6, padding: '8px 10px', color: '#fff', fontSize: mobileInputFontSize(13), marginTop: 4,
 }
 // Layout-only style for the PressButton CTAs in this modal. Visual
 // (background, clipPath, color) comes from PRESS_PRESETS.chunkyTilted.

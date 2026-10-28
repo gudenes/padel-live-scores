@@ -2,6 +2,7 @@
 // src/app/[locale]/(app)/profile/settings/EditNameSheet.tsx
 // Bottom sheet for editing profiles.display_name. Calls PATCH /api/user/profile.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
@@ -98,7 +99,7 @@ export function EditNameSheet({ open, initialName, onClose, onSaved }: Props) {
             width: '100%', padding: '12px 14px',
             background: '#0A0A0A', color: '#fff',
             border: `1px solid ${V3.BORDER}`, borderRadius: 8,
-            fontSize: 14, outline: 'none',
+            fontSize: mobileInputFontSize(14), outline: 'none',
             fontFamily: 'inherit',
           }}
         />

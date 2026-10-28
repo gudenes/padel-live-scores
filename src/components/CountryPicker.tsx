@@ -20,6 +20,7 @@
 // The trigger and popover share the V3 CHUNKY_BUTTON clip-path so the
 // whole thing reads as one unit.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useTranslations } from 'next-intl'
 import { flagcdnWidth } from './FlagImage'
@@ -212,12 +213,12 @@ export default function CountryPicker({ options, value, onChange, disabled }: Co
                 placeholder={tCountry('searchPlaceholder')}
                 aria-label={tCountry('searchAria')}
                 style={{
-                  flex: 1,
+                  flex: 1, minWidth: 0,
                   background: 'transparent',
                   border: 'none',
                   outline: 'none',
                   color: '#fff',
-                  fontSize: 13,
+                  fontSize: mobileInputFontSize(13),
                   fontFamily: 'inherit',
                   padding: 0,
                 }}

@@ -7,6 +7,7 @@
 // a free-text comment and a hidden honeypot. Submits only the changed fields
 // to /api/player/[id]/suggest. Styling mirrors SuggestSourceSheet.
 
+import { mobileInputFontSize } from '@/lib/mobile-input'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import PressButton, { PRESS_PRESETS } from './PressButton'
@@ -212,4 +213,4 @@ export function SuggestChangesSheet({ open, onClose, player }: Props) {
 
 const labelStyle: React.CSSProperties = { display: 'block', marginTop: 12 }
 const labelText: React.CSSProperties = { display: 'block', fontSize: 11, color: '#9CA3AF', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 }
-const inputStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 10, fontSize: 14, borderRadius: 6, boxSizing: 'border-box' }
+const inputStyle: React.CSSProperties = { width: '100%', background: '#1a1a1a', color: '#fff', border: '1px solid #2a2a2a', padding: 10, fontSize: mobileInputFontSize(14), borderRadius: 6, boxSizing: 'border-box' }
