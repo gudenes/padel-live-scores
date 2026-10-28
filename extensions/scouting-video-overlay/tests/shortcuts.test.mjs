@@ -76,3 +76,17 @@ test('Shift+K advances 90 seconds, migrates the former speed default, and respec
  const press=(target=dom.window.document)=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'K',shiftKey:true,bubbles:true,cancelable:true}));
  try{press();assert.deepEqual(calls,[90]);control.disabled=true;press();control.disabled=false;press(dom.window.document.querySelector('input'));assert.deepEqual(calls,[90]);}finally{detach();dom.window.close()}
 });
+
+test('browser host forwards Insert to the same rewind control and cleans up on unload',async()=>{
+ const {mediaShortcuts}=await import('../media-shortcuts.mjs');
+ const panel=new JSDOM('<button id="back"></button>'),host=new JSDOM('<input>');
+ let calls=0;const back=panel.window.document.querySelector('button');back.onclick=()=>calls++;
+ mediaShortcuts({target:panel.window.document,hostTarget:host.window.document,back5:back,back,pause:back,forward:back});
+ const press=target=>target.dispatchEvent(new host.window.KeyboardEvent('keydown',{key:'Insert',bubbles:true,cancelable:true}));
+ press(host.window.document);assert.equal(calls,1);
+ press(host.window.document.querySelector('input'));assert.equal(calls,1);
+ const dialog=panel.window.document.createElement('dialog');dialog.open=true;panel.window.document.body.append(dialog);press(host.window.document);assert.equal(calls,1);
+ dialog.remove();back.disabled=true;press(host.window.document);assert.equal(calls,1);
+ back.disabled=false;panel.window.dispatchEvent(new panel.window.Event('pagehide'));press(host.window.document);assert.equal(calls,1);
+ panel.window.close();host.window.close();
+});

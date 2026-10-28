@@ -1,6 +1,7 @@
 // Same cumulative series, colors, player line styles and set boundaries as the admin.
-export function impactChart({analysis,points,names,identity}){
- const chartWidth=Math.max(260,Math.min(600,document.documentElement.clientWidth-44)),chartHeight=Math.max(200,Math.round(chartWidth*.55));const root=document.createElement('div');root.className='live-impact-chart';
+export function impactChart({analysis,points,names,identity,width}){
+ const chartWidth=Math.max(260,Math.min(600,width||document.documentElement.clientWidth-44)),chartHeight=Math.max(200,Math.round(chartWidth*.55));
+ const root=document.createElement('div');root.className='live-impact-chart';
  const title=document.createElement('h4');title.textContent='Impact evolution';root.append(title);
  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox',`0 0 ${chartWidth} ${chartHeight}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','Cumulative weighted impact by player. Use left and right arrow keys to inspect points.');svg.setAttribute('tabindex','0');
  const add=(tag,attrs,text)=>{const n=document.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));if(text!==undefined)n.textContent=text;svg.append(n);return n;};
@@ -19,5 +20,5 @@ export function impactChart({analysis,points,names,identity}){
  const inspect=i=>{selected=Math.max(0,Math.min(series.length-1,i));const row=series[selected];if(!row)return;cursor.setAttribute('x1',x(selected));cursor.setAttribute('x2',x(selected));cursor.setAttribute('visibility','visible');dots.forEach((dot,k)=>{dot.setAttribute('cx',x(selected));dot.setAttribute('cy',y(row.values[k]));dot.setAttribute('visibility','visible');});detail.textContent=`Point ${row.number} · Set ${points[selected].before.sets.length} · `+names.map((name,k)=>`${name}: ${row.values[k].toFixed(2)}`).join(' · ');};
  const pointer=e=>{const box=svg.getBoundingClientRect();inspect(Math.round(((e.clientX-box.left)/box.width*chartWidth-left)/(right-left)*Math.max(1,series.length-1)));};
  svg.onpointermove=pointer;svg.onpointerdown=pointer;svg.onfocus=()=>inspect(selected);svg.onkeydown=e=>{if(['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();inspect(selected+(e.key==='ArrowRight'?1:-1));}};
- const legend=document.createElement('div');legend.className='live-impact-legend';names.forEach((name,k)=>{const item=document.createElement('div'),line=document.createElement('span');line.style.borderTop=`3px ${k%2?'dotted':'solid'} ${colors[k]}`;item.append(identity(k),line);legend.append(item);});root.append(svg,legend,detail);return root;
+ const legend=document.createElement('div');legend.className='live-impact-legend';names.forEach((name,k)=>{const item=document.createElement('div'),line=document.createElement('span');line.style.borderTop=`3px ${k%2?'dotted':'solid'} ${colors[k]}`;item.append(line,identity(k));legend.append(item);});root.append(legend,svg,detail);return root;
 }

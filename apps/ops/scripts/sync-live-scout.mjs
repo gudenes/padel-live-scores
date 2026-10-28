@@ -12,6 +12,7 @@ const transport="const transport=demo?(await import('./preview.mjs?sample-points
 if(!panel.includes(transport))throw Error('Extension transport changed: review the live adapter generation.');
 panel=panel.replace("button.textContent='Replay'","button.textContent='Ir al punto';button.title='Go to 3 seconds before this point. YouTube may limit live replay.'");
 panel=panel.replace(transport,"const transport=(await import('../live-transport.mjs')).send;").replace("installedVersion?'v'+installedVersion:'Local preview'","'Live video'");
+panel=panel.replace('mediaShortcuts({target:document,','mediaShortcuts({target:document,hostTarget:window.parent.document,');
 // Keep browser layout integration separate from the extension's action engine.
 const renderAnchor='renderSync(state,cloud,busy,model.points);';
 if(!panel.includes(renderAnchor))throw Error('Panel render changed: review workspace projection.');
@@ -29,19 +30,9 @@ await writeFile(path.join(target,'panel.html'),html);
 await cp(path.join(ops,'public/scout-web/boot.mjs'),path.join(target,'boot.mjs'));
 await writeFile(path.join(target,'local-test.css'),`body.scout-booting>:not(#scout-loading):not(script){display:none!important}#scout-loading{padding:40px 20px;text-align:center}.local-test-note{font-size:12px;padding:8px;border:1px solid var(--lime,#c9f43b);border-radius:8px}#load-server,#closing-sync,#closing-account,#sign-in,#menu-sign-in,#show-overlay,#header-new-match,#switch-match,[data-menu="find"],[data-menu="create"],[data-menu="saved"]{display:none!important}\n`);
 
-// The browser's resizable panel needs readable axis text at narrow widths.
-let chart=await readFile(path.join(source,'impact-chart.mjs'),'utf8');
-const chartEdits=[
- ["const root=document.createElement('div');", "const chartWidth=Math.max(260,Math.min(600,document.documentElement.clientWidth-44)),chartHeight=Math.max(200,Math.round(chartWidth*.55));const root=document.createElement('div');"],
- ["svg.setAttribute('viewBox','0 0 600 330')", "svg.setAttribute('viewBox',`0 0 ${chartWidth} ${chartHeight}`)"],
- ['left=38,right=530,top=24,bottom=287','left=38,right=chartWidth-70,top=24,bottom=chartHeight-43'],
- ['y:316','y:chartHeight-14'],
- ['box.width*600-left','box.width*chartWidth-left'],
-];
-for(const [from,to] of chartEdits){if(!chart.includes(from))throw Error('Impact chart changed: review responsive browser layout.');chart=chart.replaceAll(from,to);}
-await writeFile(path.join(target,'impact-chart.mjs'),chart);
+// Redraw stats when the browser scouting panel changes width.
 let stats=await readFile(path.join(source,'live-stats.mjs'),'utf8');
-const signature='JSON.stringify([data.timeline,data.names,data.rallies])';
+const signature='JSON.stringify([data.timeline,data.names,data.rallies,data.doc])';
 if(!stats.includes(signature))throw Error('Live stats changed: review resize redraw.');
-stats=stats.replace(signature,'JSON.stringify([document.documentElement.clientWidth,data.timeline,data.names,data.rallies])');
+stats=stats.replace(signature,'JSON.stringify([document.documentElement.clientWidth,data.timeline,data.names,data.rallies,data.doc])');
 await writeFile(path.join(target,'live-stats.mjs'),stats);
