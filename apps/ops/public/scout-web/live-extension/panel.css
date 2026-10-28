@@ -229,7 +229,7 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 
 .live-summary-pairs{display:flex;justify-content:space-between;gap:16px;font-size:11px;margin:12px 0}.live-summary-pairs strong{max-width:48%}.live-summary-pairs strong:last-child{text-align:right}.live-summary-metric{margin:14px 0}.live-summary-labels{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px}.live-summary-track{display:flex;gap:3px;height:8px;border-radius:4px;overflow:hidden}
 
-.live-impact-chart svg{display:block;width:100%;height:auto;min-height:190px}.live-impact-chart h4{margin:12px 0}.live-impact-legend{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11px}.live-impact-legend>div{display:flex;align-items:center;gap:6px;min-width:0}.live-impact-legend>div>span:last-child{width:24px;flex-shrink:0}.live-impact-chart svg:focus-visible{outline:2px solid #a3cf0a;outline-offset:2px}
+.live-impact-chart svg{display:block;width:100%;height:auto;min-height:190px}.live-impact-chart h4{margin:12px 0}.live-impact-legend{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11px}.live-impact-legend>div{display:flex;align-items:center;gap:6px;min-width:0}.live-impact-legend>div>span:first-child{width:24px;flex-shrink:0}.live-impact-chart svg:focus-visible{outline:2px solid #a3cf0a;outline-offset:2px}
 
 #quick-server-picker{position:fixed;inset:0;margin:auto;width:min(360px,calc(100vw - 32px));max-height:85vh;overflow:auto;border-radius:14px;padding:20px;box-shadow:0 12px 48px #0003}#quick-server-picker:not([open]){display:none}#quick-server-picker::backdrop{background:#101b1666}#quick-server-picker[open]{display:grid}#quick-reconnect{flex:0 0 36px;display:inline-flex;align-items:center;justify-content:center}#quick-server-picker .tool-buttons{display:flex;gap:8px;flex-wrap:wrap}
 
@@ -259,3 +259,7 @@ body.scouting .player-card .attempts .ui-btn,.player-card .attempts .ui-btn{min-
 .return-choices{display:flex;flex-wrap:wrap;gap:6px}.return-choices .ui-btn{flex:0 1 auto}.return-choices .ui-btn[aria-pressed=true]{font-weight:700}
 
 .video-toolbar #skip-5,.video-toolbar #skip-90{flex-direction:column;gap:1px;padding:3px 2px}
+
+.live-stat-content table{table-layout:fixed;border-collapse:collapse}.live-stat-content th:first-child{width:34%}.live-stat-content td{text-align:center;white-space:nowrap}.live-stat-content th{overflow-wrap:anywhere}.live-stat-content .player-identity{min-width:0;flex-wrap:wrap}.live-stat-content .player-name{white-space:normal;overflow-wrap:anywhere}.live-impact-legend{margin:8px 0 12px;grid-template-columns:repeat(2,minmax(0,1fr))}.live-impact-legend>div{min-width:0}.live-impact-legend>div>span:first-child{margin-top:7px}.live-impact-legend .player-identity{min-width:0;flex-wrap:wrap}.live-impact-legend .player-name{white-space:normal;overflow-wrap:anywhere}
+
+.live-stat-content .player-country{display:none}
