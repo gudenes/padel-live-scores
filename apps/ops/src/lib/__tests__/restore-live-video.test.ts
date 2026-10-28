@@ -1,0 +1,8 @@
+import {it,expect,vi} from 'vitest'
+import {restoreLiveVideo} from '../scouting/restore-live-video'
+const url='https://www.youtube.com/watch?v=MXwTOKa1V-g'
+const response=(session:unknown)=>({ok:true,json:async()=>({session})})
+it('restores a remembered video without a network request',async()=>{const request=vi.fn();expect(await restoreLiveVideo({matchId:'m',localTest:true,cached:url,request})).toBe(url);expect(request).not.toHaveBeenCalled()})
+it('prefers the local session source and never reads production when it exists',async()=>{const request=vi.fn().mockResolvedValue(response({document:{setup:{videoSourceUrl:url}}}));expect(await restoreLiveVideo({matchId:'m',localTest:true,cached:'',request})).toBe(url);expect(request).toHaveBeenCalledTimes(1);expect(request.mock.calls[0][0]).toBe('/api/internal/scouting/m/live-session')})
+it('reads the production link as a local fallback without writing either session',async()=>{const request=vi.fn().mockResolvedValueOnce(response(null)).mockResolvedValueOnce(response({document:{setup:{videoPageUrl:url}}}));expect(await restoreLiveVideo({matchId:'m',localTest:true,cached:'',request})).toBe(url);expect(request).toHaveBeenCalledTimes(2);for(const [,options] of request.mock.calls)expect(options.method).toBeUndefined()})
+it('returns no link only after checking the saved session, and reports access failures',async()=>{const request=vi.fn().mockResolvedValue(response(null));expect(await restoreLiveVideo({matchId:'m',localTest:false,cached:'invalid',request})).toBeNull();request.mockResolvedValue({ok:false});await expect(restoreLiveVideo({matchId:'m',localTest:true,cached:'',request})).rejects.toThrow('Could not restore')})

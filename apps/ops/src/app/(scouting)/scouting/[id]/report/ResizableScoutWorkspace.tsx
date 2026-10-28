@@ -4,7 +4,7 @@ import styles from './scout-live.module.css'
 
 const storageKey='pn-live-scout-panel-width'
 const minimum=300
-const defaultWidth=360
+const defaultWidth=520
 
 export default function ResizableScoutWorkspace({children}:{children:ReactNode}){
  const container=useRef<HTMLDivElement>(null)

@@ -1,3 +1,4 @@
+import {liveWorkspace} from '../live-workspace.mjs';
 import {syncUI,syncLabel} from './sync-ui.mjs';
 import {scoutingLog} from './scouting-log.mjs';
 import {actionQueue} from './action-queue.mjs';
@@ -18,6 +19,7 @@ const demo=new URL(location.href).searchParams.has('demo')&&!globalThis.chrome?.
 const installedVersion=globalThis.chrome?.runtime?.getManifest?.().version;
 $('extension-version').textContent='Live video';
 const transport=(await import('../live-transport.mjs')).send;
+const paintWorkspace=liveWorkspace();
 let state=null,sample=null,busy=false,healthy=false,lastList='',selection='',polling=false,revision=0,videoKey='',cloud={status:'local'},account={status:demo?'demo':'checking'},accountPoll=0,accountChecking=false;
 const renderCatalog=catalogUI({$,act,getState:()=>state});
 let draftFinish=null,confirmingPoint=false,prepareError=null;
@@ -103,7 +105,7 @@ function render(){
     }));
   }
   document.body.classList.toggle('scouting',!!state.selectedMatch);
-  renderScouting(visibleState(),sample,busy&&(!draftFinish||confirmingPoint),healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);renderClosing(state,model,cloud,busy);renderSync(state,cloud,busy,model.points);
+  renderScouting(visibleState(),sample,busy&&(!draftFinish||confirmingPoint),healthy);renderCatalog(state,busy);renderManual(state,busy);renderOnboarding(state,busy,healthy,account);renderClosing(state,model,cloud,busy);renderSync(state,cloud,busy,model.points);paintWorkspace();
 }
 async function call(message){const result=await transport(message);if(!result?.ok)throw Error(result?.error??'The companion is unavailable. Reopen its panel.');return result;}
 async function refresh(){

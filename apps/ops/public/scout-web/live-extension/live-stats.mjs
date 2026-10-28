@@ -51,5 +51,5 @@ export function liveStats(root){
   }
   root.replaceChildren(tabs,filters,el('p',data.points.length+' observed points · '+(set==='all'?'Full match':'Set '+set),'hint'),content);
  }
- let signature='';return data=>{current=data;const next=JSON.stringify([data.timeline,data.names,data.rallies]);if(next!==signature){signature=next;draw();}};
+ let signature='';return data=>{current=data;const next=JSON.stringify([document.documentElement.clientWidth,data.timeline,data.names,data.rallies]);if(next!==signature){signature=next;draw();}};
 }

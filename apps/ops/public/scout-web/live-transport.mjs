@@ -12,6 +12,8 @@ const response=await fetch('/api/internal/scouting/'+matchId+'/live-bootstrap',{
 const bootstrap=await response.json();if(!response.ok)throw Error(bootstrap.error??'Scouting access required.');
 const bridge=window.parent!==window&&window.parent.__pnLiveScout;
 if(!bridge)throw Error('Open Scout live and connect a video first.');
+bridge.matchPlayers=bootstrap.match.players;
+bridge.matchInfo={tournament:bootstrap.match.tournamentName,round:bootstrap.match.round,category:bootstrap.match.category,court:bootstrap.match.court};
 const localTest=bootstrap.localTest===true;
 document.querySelector('.local-test-note').textContent=localTest?'Local test · background saves to local server':'Background saving · Finish scouting to review on the match page';
 const key=bootstrap.user.id+':'+matchId+':'+bridge.videoId;
