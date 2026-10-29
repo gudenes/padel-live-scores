@@ -13,7 +13,11 @@ export async function videoProbe(command={kind:'list'}){
       if(el.shadowRoot)collect(el.shadowRoot);
     }
   }
-  collect(document);
+  // Reuse the selected element while it remains attached, including shadow DOM.
+  // Discovery and replacement still use the full scan.
+  const selected=command.kind!=='list'&&state.selectedVideo;
+  if(selected?.isConnected&&state.videos.get(selected)?.videoId===command.videoId)elements.push(selected);
+  else collect(document);
   function meta(video){
     let m=state.videos.get(video);
     if(!m){
@@ -34,6 +38,7 @@ export async function videoProbe(command={kind:'list'}){
   if(command.kind==='list')return elements.map(snapshot);
   const video=elements.find(v=>meta(v).videoId===command.videoId);
   if(!video)throw Error('The selected player disappeared. Reconnect to the video.');
+  state.selectedVideo=video;
   if(command.kind==='playback'){
     if(meta(video).mediaId!==command.mediaId)throw Error('The video source changed. Reconnect first.');
     if(command.paused)video.pause();else await video.play();

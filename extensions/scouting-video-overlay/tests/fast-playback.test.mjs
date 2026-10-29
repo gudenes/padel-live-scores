@@ -31,13 +31,15 @@ test('requested navigation bindings migrate without stealing other custom keys',
 });
 
 test('worker applies requested keys once, preserves scouting storage, and retains later shortcut edits',async()=>{
- let listener;const store={scoutingVideo:{...fresh(),rallies:[{id:'saved'}],sessions:{other:{rallies:[{id:'old'}]}}}},original=structuredClone(store.scoutingVideo);
+ let listener;const store={scoutingVideo:{...fresh(),rallies:[{id:'saved'}],history:[{type:'score',rallies:[{id:'undo'}]}],sessions:{other:{rallies:[{id:'old'}]}}}},original=structuredClone(store.scoutingVideo);
  globalThis.chrome={action:{onClicked:{addListener(){}}},sidePanel:{},storage:{local:{get:async()=>structuredClone(store),set:async fields=>Object.assign(store,structuredClone(fields))},session:{get:async()=>({})}},runtime:{id:'test',getURL:p=>'chrome-extension://test/'+p,onMessage:{addListener:fn=>listener=fn}}};
  try{
  await import('../background.mjs');const sender={id:'test',url:'chrome-extension://test/panel.html'};const send=m=>new Promise(resolve=>listener(m,sender,resolve));
  const first=await send({type:'get-shortcuts'});assert.equal(first.ok,true);assert.equal(first.bindings.pause.key,'Home');assert.equal(store.videoFastKeysV1,true);
  await send({type:'set-shortcuts',bindings:{...first.bindings,pause:{key:'F10'}}});
  const next=await send({type:'get-shortcuts'});assert.equal(next.bindings.pause.key,'F10');assert.deepEqual(store.scoutingVideo,original);
+ const compact=await send({type:'sample',compactReply:true});assert.equal(compact.ok,true);assert.deepEqual(compact.state.history,[{type:'score'}]);assert.equal(compact.state.sessions.other.rallies,undefined);
+ const backup=await send({type:'export-backup',compactReply:true});assert.equal(backup.ok,true);assert.deepEqual(backup.state.sessions,original.sessions);assert.deepEqual(backup.state.history,original.history);
  }finally{delete globalThis.chrome}
 });
 

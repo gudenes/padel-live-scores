@@ -9,18 +9,23 @@ import {manualInput} from './manual-match.mjs';
 import {validateStartingScore} from './starting-score.mjs';
 import {fresh,startRally,finishRally,replayTarget,pageReference,usable,sameMedia} from './core.mjs';
 import {defaults,match,validateSetup,validatePoint,validateSmashType,courtPlayers} from './match.mjs';
-export function engine({read,write,discover,capture,seek,uuid,catalog,playback,setRate,canRestartMedia=sameMedia,now=Date.now}){
+export function engine({read,write:persist,discover,capture:captureVideo,seek,uuid,catalog,playback,setRate,canRestartMedia=sameMedia,now=Date.now}){
   // All panels share this queue in the worker, preventing duplicate or lost writes.
   let queue=Promise.resolve();
   return message=>{
+    const queuedAt=performance.now(),timing={queueMs:0,readMs:0,videoMs:0,writeMs:0,engineMs:0};
+    const measure=async(key,fn)=>{const start=performance.now();try{return await fn();}finally{timing[key]+=performance.now()-start;}};
+    const capture=(...args)=>measure('videoMs',()=>captureVideo(...args));
+    const write=(...args)=>measure('writeMs',()=>persist(...args));
     const operation=async()=>{
-      const state=(await read())??fresh();
+      timing.queueMs=performance.now()-queuedAt;
+      const state=(await measure('readMs',read))??fresh();
       state.setup??=defaults();
       const undoable=new Set(['confirm-quality-score','confirm-first-server','confirm-coaches','confirm-set-servers','score-correction','missed-point','complete-onboarding','confirm-other-server','restart-rally','var-review','starting-score','setup','positions','server','ends','prepare','clear-outcome','score','first-fault','double-fault','smash','touch','undo','label','start','end','cancel']);
       const before=undoable.has(message.type)?structuredClone({setup:state.setup,label:state.label,pending:state.pending,rallies:state.rallies,cancelled:state.cancelled}):null;
       const save=async(context={})=>{
         if(before){const changes=(old,next)=>old.flatMap((value,index)=>JSON.stringify(value)!==JSON.stringify(next[index])?[{index,value}]:[]);(state.history??=[]).push({type:message.type,setup:before.setup,label:before.label,pending:before.pending,ralliesLength:before.rallies.length,cancelledLength:before.cancelled.length,rallies:changes(before.rallies,state.rallies),cancelled:changes(before.cancelled,state.cancelled)});state.history=state.history.slice(-50);}
-        await write(state,{type:message.type,...context});return {state,...(context.smashFeedback?{smashFeedback:context.smashFeedback}:{})};
+        await write(state,{type:message.type,...context,timing});return {state,...(context.smashFeedback?{smashFeedback:context.smashFeedback}:{})};
       };
       switch(message.type){
         case 'state':return {state};
@@ -351,7 +356,7 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
             current=normal;
           }
           state.pending={...startRally(current,state.label,uuid()),...(message.mode?{mode:message.mode}:{})};
-          return save();
+          return {...await save(),sample:current};
         }
         case 'restart-rally':{
           if(needsServerConfirmation(state,match(state)))throw Error('Confirm the servers above before starting this rally.');
@@ -388,7 +393,10 @@ export function engine({read,write,discover,capture,seek,uuid,catalog,playback,s
         default:throw Error('Unknown video companion action.');
       }
     };
-    const result=queue.then(operation);
+    const result=queue.then(operation).then(value=>{
+      timing.engineMs=performance.now()-queuedAt;
+      return {...value,timing};
+    },error=>{timing.engineMs=performance.now()-queuedAt;error.scoutTiming=timing;throw error;});
     queue=result.catch(()=>{});
     return result;
   };

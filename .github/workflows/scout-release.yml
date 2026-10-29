@@ -29,8 +29,8 @@ jobs:
         run: |
           node apps/ops/scripts/sync-web-scout.mjs
           git diff --exit-code -- apps/ops/public/scout-web
-      - name: Return shortcuts and server compatibility
+      - name: Scouting, save performance and server compatibility
         shell: bash
-        run: node --test extensions/scouting-video-overlay/tests/{return-details,return-shortcuts,shortcuts,quick-shots,admin-sync,cloud,sync-recovery,sync-ui,reconnect,closing,scouting-progress}.test.mjs
+        run: node --test extensions/scouting-video-overlay/tests/{return-details,return-shortcuts,shortcuts,quick-shots,admin-sync,cloud,sync-recovery,sync-ui,reconnect,closing,scouting-progress,panel-state,probe-cache,local-store,fast-playback,recovery-smash,smash-save-ui,previous-player-race,overlay-connection}.test.mjs
       - name: Verify download, version and checksum match source
         run: python3 scripts/package-scout.py --check

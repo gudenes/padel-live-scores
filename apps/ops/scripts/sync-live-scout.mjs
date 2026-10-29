@@ -8,7 +8,7 @@ await mkdir(target,{recursive:true});
 for(const name of await readdir(source))if(/\.(mjs|js|css)$/.test(name))await cp(path.join(source,name),path.join(target,name));
 for(const dir of ['assets','generated'])await cp(path.join(source,dir),path.join(target,dir),{recursive:true});
 let panel=await readFile(path.join(source,'panel.mjs'),'utf8');
-const transport="const transport=demo?(await import('./preview.mjs?sample-points-v1')).send:message=>chrome.runtime.sendMessage(message);";
+const transport="const transport=demo?(await import('./preview.mjs?sample-points-v1')).send:message=>chrome.runtime.sendMessage({...message,compactReply:true});";
 if(!panel.includes(transport))throw Error('Extension transport changed: review the live adapter generation.');
 panel=panel.replace("button.textContent='Replay'","button.textContent='Ir al punto';button.title='Go to 3 seconds before this point. YouTube may limit live replay.'");
 panel=panel.replace(transport,"const transport=(await import('../live-transport.mjs')).send;").replace("installedVersion?'v'+installedVersion:'Local preview'","'Live video'");

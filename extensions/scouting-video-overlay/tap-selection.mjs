@@ -50,3 +50,9 @@ export function creditRecoverySmash(pending,player,opponent,attemptIndex){
  const touchIndex=(pending.touches?.length??0)-2,touch=inferred===opponent?pending.touches[touchIndex]:undefined;
  (pending.attempts??=[]).push({player:opponent,snapshot:structuredClone(touch?.snapshot??pending.finish.end),...(touch?{touchIndex}:{})});
 }
+
+// A recovery flag explicitly refers to an opposing smash in this rally.
+export function latestRivalSmash(pending,player){
+ if(!Number.isInteger(player)||player<0||player>3)return -1;
+ return (pending?.attempts??[]).findLastIndex(a=>Number.isInteger(a.player)&&a.player>=0&&a.player<4&&Math.floor(a.player/2)!==Math.floor(player/2));
+}
