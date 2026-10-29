@@ -1,7 +1,9 @@
+import {redbullSource} from './redbull-video-bridge';
 import type { TimelinePoint } from './tracking';
 import type { ViewRally } from './report-view';
 export function videoSource(value:string){
- try {const u=new URL(value);if(u.protocol!=='https:')return null;
+ const redbull=redbullSource(value);if(redbull)return {kind:'redbull' as const,id:redbull,url:redbull};
+ try {const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password)return null;
  const h=u.hostname.toLowerCase();let id='';
  if(h==='youtu.be')id=u.pathname.slice(1);
  if(['youtube.com','www.youtube.com','m.youtube.com','www.youtube-nocookie.com'].includes(h))id=u.searchParams.get('v')||u.pathname.match(/^\/(?:embed|live|shorts)\/([^/]+)/)?.[1]||'';

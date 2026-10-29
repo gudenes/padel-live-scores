@@ -62,3 +62,11 @@ Saved links restore without automatically connecting Red Bull TV. Reconnecting t
 No database migration or public-app deployment is required. Deploy the merged admin change on Railway and publish/upload the matching 0.2.17 extension package separately. The older installed extension cannot provide this bridge. Do not uninstall it or erase its local records when updating.
 
 Validation: 81 focused extension checks and 18 admin video tests pass; the webpack production build and TypeScript check pass. The full extension suite reports 224 passing / 5 previously documented failures in direct-entry and player-profile. Browser UI verification covers the Red Bull connection instructions and missing-extension state. The live Red Bull page exposes a playable HTML video; actual cross-tab operation still requires loading 0.2.17 in Chrome and a toolbar gesture. The existing local extension and saved records have not been changed.
+
+### Red Bull TV in report Video review
+
+The report's **Video review** tab also accepts official Red Bull TV pages and restores the page saved with the scouting session. Open the video in another Chrome tab, start playback, click the Scout toolbar icon there, then press **Connect Scout** in Video review. This uses Scout 0.2.17; no extension update beyond that version is required.
+
+Select a known point and pause the video at its first serve. **Align current frame to point … start** maps the saved scouting clock to the player's current clock, including live epoch timestamps and relative replay clocks. Point jumps, ±10 seconds, saved moments and rally loops then use that alignment. Alignment lasts for the current connection only and never changes the saved scouting timestamps. Expired replay-window targets are rejected; disconnected or changed videos require reconnecting and aligning again. Shared reports offer the original link but do not expose the authenticated admin extension connection.
+
+Validation: focused review/source/report tests cover canonical Red Bull links, restoration, explicit alignment, epoch-to-relative mapping, seekable bounds, point jumps, looping, disconnection, shared-report restrictions and the existing YouTube player. This change deploys admin only and does not require a Chrome Web Store submission or public-app rebuild.

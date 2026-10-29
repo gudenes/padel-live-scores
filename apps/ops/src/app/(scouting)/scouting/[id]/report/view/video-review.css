@@ -231,3 +231,5 @@
 .vr-save-check{color:#31934c;animation:vr-check-in .3s ease-out}
 @keyframes vr-check-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.vr-save-check{animation:none}}
+
+.video-review .vr-redbull{width:100%;aspect-ratio:auto;min-height:320px;box-sizing:border-box}.vr-redbull>div{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}.vr-redbull .vr-error{position:static;width:100%;box-sizing:border-box}

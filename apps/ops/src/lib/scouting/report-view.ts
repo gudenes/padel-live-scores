@@ -1,5 +1,5 @@
 import {getDeuceRule} from './scoring';
-import {replaySource} from '../../../../../extensions/scouting-video-overlay/replay-source.mjs';
+import {replaySource,videoPageUrl} from '../../../../../extensions/scouting-video-overlay/replay-source.mjs';
 import { scopedStats, teamSummary } from "./insights";
 import {
   methodologyAnalysis,
@@ -191,7 +191,7 @@ export function reportView(
         )
       : null;
   return {
-    videoUrl: replaySource((report.original as {setup?:{videoSourceUrl?:string}})?.setup?.videoSourceUrl),
+    videoUrl: videoPageUrl((report.original as {setup?:{videoPageUrl?:string}})?.setup?.videoPageUrl) || replaySource((report.original as {setup?:{videoSourceUrl?:string}})?.setup?.videoSourceUrl),
     meta: context.meta,
     players: report.players.map((p) => ({
       ...p,
