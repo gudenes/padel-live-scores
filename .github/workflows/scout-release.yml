@@ -1,0 +1,35 @@
+name: Scout release checks
+
+on:
+  pull_request:
+    paths:
+      - 'extensions/scouting-video-overlay/**'
+      - 'apps/ops/public/scout-web/**'
+      - 'apps/ops/public/downloads/**'
+      - 'apps/ops/src/lib/scouting/**'
+      - 'apps/ops/src/components/shell/GlobalHeader.tsx'
+      - 'apps/ops/scripts/sync-*-scout.mjs'
+      - 'scripts/package-scout.py'
+      - '.github/workflows/scout-release.yml'
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify embedded assets match extension source
+        run: |
+          node apps/ops/scripts/sync-web-scout.mjs
+          git diff --exit-code -- apps/ops/public/scout-web
+      - name: Return shortcuts and server compatibility
+        shell: bash
+        run: node --test extensions/scouting-video-overlay/tests/{return-details,return-shortcuts,shortcuts,quick-shots,admin-sync,cloud,sync-recovery,sync-ui,reconnect,closing,scouting-progress}.test.mjs
+      - name: Verify download, version and checksum match source
+        run: python3 scripts/package-scout.py --check
