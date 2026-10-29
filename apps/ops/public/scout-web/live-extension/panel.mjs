@@ -103,7 +103,7 @@ function renderScreen(){
       const li=document.createElement('li'),info=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('small'),button=document.createElement('button');
       title.textContent=`${r.undone?'Undone · ':''}Rally ${state.rallies.length-i} · ${r.videoSeconds.toFixed(1)}s`;if(r.point)title.textContent+=` · ${state.setup.names[r.point.player]} ${r.point.outcome.replace('_',' ')}`;
       meta.textContent=`${r.point?.shot?`${r.point.shot}${r.point.smashType?' '+r.point.smashType:''}${r.point.x4?' · X4 winner':''} · `:''}${r.varReviewed?'VAR reviewed · ':''}${time(r.start.time)} → ${time(r.end.time)}${r.label?` · ${r.label}`:''}`;
-      button.className='ui-btn';button.dataset.size='sm';button.textContent='Ir al punto';button.title='Go to 3 seconds before this point. YouTube may limit live replay.';button.disabled=busy||!!state.pending||!healthy;
+      button.className='ui-btn';button.dataset.size='sm';button.textContent='Ir al punto';button.title='Go to 3 seconds before this point, within the available replay window.';button.disabled=busy||!!state.pending||!healthy;
       button.addEventListener('click',()=>act({type:'replay',id:r.id}));
       info.append(title,meta);li.append(info,button);return li;
     }));

@@ -13,7 +13,7 @@ export function seekLiveCommand(state,bridge,message){
   if(message.position!==undefined&&!['start','end'].includes(message.position))throw Error('Invalid point position.');
   if(message.position==='end'){if(!Number.isFinite(rally.end?.time))throw Error('This point has no end timestamp.');target=rally.end.time;}else target=rally.start.time-3;
  }else throw Error('Invalid video command.');
- bridge.seek(Math.max(0,target));
+ return bridge.seek(Math.max(0,target));
 }
 
 // Explicit restart/replay can cross a reload boundary for the same YouTube video; scoring remains session-strict.

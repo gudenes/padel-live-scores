@@ -1,3 +1,6 @@
+import {adminVideoBridge} from './admin-video-bridge.mjs';
+const adminVideo=adminVideoBridge(chrome);
+let adminVideoQueue=Promise.resolve();
 import {panelState} from './panel-state.mjs';
 import {savedVideoUrl} from './replay-source.mjs';
 import './shortcut-keys.js';
@@ -11,6 +14,7 @@ import {readAdminCatalog} from './catalog.mjs';
 import {videoProbe} from './probe.mjs';
 import {engine} from './engine.mjs';
 chrome.action.onClicked.addListener(tab=>{
+  void adminVideo.designate(tab).catch(console.error);
   // open() must run directly inside the toolbar user gesture.
   chrome.sidePanel.open({windowId:tab.windowId}).catch(console.error);
   chrome.storage.session.set({candidateTab:tab.id}).catch(console.error);
@@ -108,6 +112,7 @@ function savedBindings(){
 }
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
  if(sender.id!==chrome.runtime.id)return;
+ if(message.type==='admin-video'){const task=adminVideoQueue.then(()=>adminVideo.handle(message,sender));adminVideoQueue=task.catch(()=>{});task.then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message}));return true;}
  const panel=sender.url?.startsWith(chrome.runtime.getURL('panel.html'));
  const allowed=new Set(['state','sample','get-shortcuts','reconnect','start','prepare','score','clear-outcome','first-fault','double-fault','smash','undo','undo-last','cancel','server','ends','skip','positions','playback','overlay-layout','speed','cycle-speed']);
  const run=async()=>{

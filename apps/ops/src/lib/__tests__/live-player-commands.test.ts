@@ -15,3 +15,5 @@ it('skips 90 seconds using the video clock and refuses to seek during a rally',(
  expect(()=>seekLiveCommand({pending:{id:'r'}},bridge,{type:'skip',seconds:90})).toThrow('Finish or cancel')
  expect(seek).toHaveBeenCalledTimes(1)
 })
+
+it('awaits Red Bull seek errors and refuses replay after the player document changes',async()=>{const current={time:1793303900,seeking:false,tabId:8,documentId:'redbull-doc',videoId:'native',mediaId:'media'},seek=vi.fn().mockRejectedValue(Error('Outside replay window')),bridge={snapshot:()=>current,seek};const state={pending:null,rallies:[{id:'r',start:{...current,time:1793303800}}]};await expect(seekLiveCommand(state,bridge,{type:'replay',id:'r'})).rejects.toThrow('Outside replay window');expect(seek).toHaveBeenCalledWith(1793303797);expect(()=>seekLiveCommand(state,{...bridge,snapshot:()=>({...current,documentId:'reloaded'})},{type:'replay',id:'r'})).toThrow('different video')})

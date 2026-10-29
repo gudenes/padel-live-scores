@@ -1,5 +1,6 @@
 import {youtubeId} from './live-video-clock'
-const canonical=(value:unknown)=>typeof value==='string'&&youtubeId(value)?'https://www.youtube.com/watch?v='+youtubeId(value):null
+import {redbullSource} from './redbull-video-bridge'
+const canonical=(value:unknown)=>typeof value==='string'&&youtubeId(value)?'https://www.youtube.com/watch?v='+youtubeId(value):typeof value==='string'?redbullSource(value):null
 export function sessionVideoSource(session:{document?:{setup?:{videoSourceUrl?:unknown;videoPageUrl?:unknown};selectedMatch?:{videoUrl?:unknown}}}|null|undefined){
  const doc=session?.document
  return canonical(doc?.setup?.videoSourceUrl)||canonical(doc?.setup?.videoPageUrl)||canonical(doc?.selectedMatch?.videoUrl)
