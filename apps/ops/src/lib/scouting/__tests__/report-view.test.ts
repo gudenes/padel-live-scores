@@ -132,6 +132,8 @@ it("builds scoped live reports without importing scores as observations, retaini
     pbp: [],
   };
   const data = reportView(report, context);
+  const redbull="https://www.redbull.tv/es_ES/page/rrn:content:live-videos:f5a4e725-eabd-44f7-a22d-3be211e1c65f/kuwait";
+  expect(reportView({...report,original:{...(report.original as object),setup:{videoPageUrl:redbull}}},context).videoUrl).toBe(redbull);
   expect(data.scopes.all.points).toHaveLength(2);
   expect(data.scopes["1"].points).toHaveLength(1);
   expect(data.scopes["2"].points).toHaveLength(1);
