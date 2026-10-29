@@ -1,0 +1,8 @@
+{
+  "name": "scout-extension-tests",
+  "private": true,
+  "version": "1.0.0",
+  "devDependencies": {
+    "jsdom": "29.1.1"
+  }
+}

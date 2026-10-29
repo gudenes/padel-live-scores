@@ -23,7 +23,8 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+          cache-dependency-path: extensions/scouting-video-overlay/tests/package-lock.json
+      - run: npm ci --prefix extensions/scouting-video-overlay/tests
       - name: Verify embedded assets match extension source
         run: |
           node apps/ops/scripts/sync-web-scout.mjs
