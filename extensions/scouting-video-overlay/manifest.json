@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Padel Nachos Scout",
-  "description": "Local match scouting, scoring and video-linked rally replay.",
+  "description": "Scout padel matches with video controls, keyboard shortcuts, scoring and synced match insights.",
   "version": "0.2.11",
   "minimum_chrome_version": "116",
   "permissions": [
@@ -17,12 +17,24 @@
     "type": "module"
   },
   "action": {
-    "default_title": "Padel Nachos \u00b7 Corner overlay setup"
+    "default_title": "Open Padel Nachos Scout",
+    "default_icon": {
+      "16": "assets/icon-16.png",
+      "32": "assets/icon-32.png",
+      "48": "assets/icon-48.png",
+      "128": "assets/icon-128.png"
+    }
   },
   "side_panel": {
     "default_path": "panel.html"
   },
   "host_permissions": [
     "https://admin.padelnachos.com/*"
-  ]
+  ],
+  "icons": {
+    "16": "assets/icon-16.png",
+    "32": "assets/icon-32.png",
+    "48": "assets/icon-48.png",
+    "128": "assets/icon-128.png"
+  }
 }

@@ -44,6 +44,7 @@ def package():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Fail if published files differ from source")
+    parser.add_argument("--store-output", type=Path, help="Also write a Chrome Web Store ZIP with manifest at its root")
     args = parser.parse_args()
     version, data, count = package()
     name = f"padel-nachos-scout-{version}"
@@ -61,4 +62,15 @@ if __name__ == "__main__":
                 raise SystemExit(f"Stale package: {path.relative_to(ROOT)}; run python3 scripts/package-scout.py")
         else:
             path.write_bytes(contents)
+    if args.store_output:
+        if args.check:
+            raise SystemExit("Use --store-output when packaging, not with --check")
+        args.store_output.parent.mkdir(parents=True, exist_ok=True)
+        prefix = "padel-nachos-scout/"
+        with zipfile.ZipFile(io.BytesIO(data)) as source, zipfile.ZipFile(args.store_output, "w") as target:
+            for entry in source.infolist():
+                if entry.filename.startswith(prefix):
+                    contents = source.read(entry)
+                    entry.filename = entry.filename[len(prefix):]
+                    target.writestr(entry, contents)
     print(f"Scout {version}: {count} files; {'verified' if args.check else 'packaged'} SHA-256 {hashlib.sha256(data).hexdigest()}")
