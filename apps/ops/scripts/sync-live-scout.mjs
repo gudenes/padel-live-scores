@@ -10,7 +10,7 @@ for(const dir of ['assets','generated'])await cp(path.join(source,dir),path.join
 let panel=await readFile(path.join(source,'panel.mjs'),'utf8');
 const transport="const transport=demo?(await import('./preview.mjs?sample-points-v1')).send:message=>chrome.runtime.sendMessage({...message,compactReply:true});";
 if(!panel.includes(transport))throw Error('Extension transport changed: review the live adapter generation.');
-panel=panel.replace("button.textContent='Replay'","button.textContent='Ir al punto';button.title='Go to 3 seconds before this point. YouTube may limit live replay.'");
+panel=panel.replace("button.textContent='Replay'","button.textContent='Ir al punto';button.title='Go to 3 seconds before this point, within the available replay window.'");
 panel=panel.replace(transport,"const transport=(await import('../live-transport.mjs')).send;").replace("installedVersion?'v'+installedVersion:'Local preview'","'Live video'");
 panel=panel.replace('mediaShortcuts({target:document,','mediaShortcuts({target:document,hostTarget:window.parent.document,');
 // Keep browser layout integration separate from the extension's action engine.
@@ -22,8 +22,8 @@ panel=panel.replace(renderAnchor,renderAnchor+'paintWorkspace();');
 await writeFile(path.join(target,'panel.mjs'),panel);
 await writeFile(path.join(target,'report-link.mjs'),"export function adminReportUrl(m){return m?.id?'/scouting/'+encodeURIComponent(m.id)+'/report'+(new URL(location.href).searchParams.get('liveLab')==='1'?'?liveReview=1':''):null;}\n");
 let html=await readFile(path.join(source,'panel.html'),'utf8');
-html=html.replace('old bookmarks stay in your export, but replay in a new playback session is not yet supported.','saved points can be replayed after reconnecting the same video. YouTube may clamp seeks to its live buffer, and timestamps can shift after the broadcast ends.');
-html=html.replace('</head>','<link rel="stylesheet" href="local-test.css"><link rel="stylesheet" href="../live-workspace.css"></head>').replace('<body>','<body class="scout-booting"><section id="scout-loading"><h2 id="scout-loading-title">Preparing your scout</h2><p id="scout-loading-status">Connecting to the embedded video…</p><button class="ui-btn" id="scout-loading-retry" hidden>Try again</button></section><p class="local-test-note">Live video test · background saves to local server · Finish scouting to review</p>');
+html=html.replace('old bookmarks stay in your export, but replay in a new playback session is not yet supported.','YouTube points can be replayed after reconnecting the same video. Red Bull TV requires the same player session and available replay buffer. Timestamps can shift after a broadcast ends.');
+html=html.replace('</head>','<link rel="stylesheet" href="local-test.css"><link rel="stylesheet" href="../live-workspace.css"></head>').replace('<body>','<body class="scout-booting"><section id="scout-loading"><h2 id="scout-loading-title">Preparing your scout</h2><p id="scout-loading-status">Connecting to your video…</p><button class="ui-btn" id="scout-loading-retry" hidden>Try again</button></section><p class="local-test-note">Live video test · background saves to local server · Finish scouting to review</p>');
 html=html.replace('src="panel.mjs?v=scouting-log1"','src="boot.mjs"');
 html=html.replace('Scouting records and calculated scores save to the server when admin is connected. The panel confirms each server save.','Scouting saves in the background. Finish scouting in the video workspace to review.');
 await writeFile(path.join(target,'panel.html'),html);

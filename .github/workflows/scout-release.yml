@@ -7,6 +7,7 @@ on:
       - 'apps/ops/public/scout-web/**'
       - 'apps/ops/public/downloads/**'
       - 'apps/ops/src/lib/scouting/**'
+      - 'apps/ops/src/app/(scouting)/scouting/**'
       - 'apps/ops/src/components/shell/GlobalHeader.tsx'
       - 'apps/ops/scripts/sync-*-scout.mjs'
       - 'scripts/package-scout.py'
@@ -31,6 +32,6 @@ jobs:
           git diff --exit-code -- apps/ops/public/scout-web
       - name: Scouting, save performance and server compatibility
         shell: bash
-        run: node --test extensions/scouting-video-overlay/tests/{return-details,return-shortcuts,shortcuts,quick-shots,admin-sync,cloud,sync-recovery,sync-ui,reconnect,closing,scouting-progress,panel-state,probe-cache,local-store,fast-playback,recovery-smash,smash-save-ui,previous-player-race,overlay-connection}.test.mjs
+        run: node --test extensions/scouting-video-overlay/tests/{admin-video-bridge,return-details,return-shortcuts,shortcuts,quick-shots,admin-sync,cloud,sync-recovery,sync-ui,reconnect,closing,scouting-progress,panel-state,probe-cache,local-store,fast-playback,recovery-smash,smash-save-ui,previous-player-race,overlay-connection}.test.mjs
       - name: Verify download, version and checksum match source
         run: python3 scripts/package-scout.py --check

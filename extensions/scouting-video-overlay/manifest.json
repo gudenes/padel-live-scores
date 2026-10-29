@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Padel Nachos Scout",
   "description": "Scout padel matches with video controls, keyboard shortcuts, scoring and synced match insights.",
-  "version": "0.2.16",
+  "version": "0.2.17",
   "minimum_chrome_version": "116",
   "permissions": [
     "activeTab",
@@ -36,5 +36,15 @@
     "32": "assets/icon-32.png",
     "48": "assets/icon-48.png",
     "128": "assets/icon-128.png"
-  }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://admin.padelnachos.com/*"
+      ],
+      "js": [
+        "admin-video-relay.js"
+      ]
+    }
+  ]
 }
