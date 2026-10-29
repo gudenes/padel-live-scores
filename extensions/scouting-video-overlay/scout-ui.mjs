@@ -1,5 +1,5 @@
 import {liveStats} from './live-stats.mjs';
-import {previousTapOpponent,firstTapReturn,suggestedAssist,finalSmashAttempt,recoverySmashAttempt} from './tap-selection.mjs';
+import {previousTapOpponent,firstTapReturn,suggestedAssist,finalSmashAttempt,recoverySmashAttempt,latestRivalSmash} from './tap-selection.mjs';
 import {scoreCorrectionUI} from './score-correction-ui.mjs';
 import {scoutingKeys} from './scouting-keys.mjs?v=smash-home-insert';
 import {needsServerConfirmation} from './onboarding-model.mjs';
@@ -266,7 +266,7 @@ export function scoutingUI({$,act,getState}){
     recoverySelect.add(new Option(getState().setup.names[opponent]+' · Añadir intento',opponent+':new'));
     (pending.attempts??[]).forEach((a,i)=>{if(a.player===opponent)recoverySelect.add(new Option(getState().setup.names[opponent]+' · Usar remate '+(i+1),opponent+':'+i));});
    }
-   const recoveryOpponent=previousTapOpponent(pending,finish.player),recoveryIndex=recoverySmashAttempt(pending,finish.player);
+   const recoveryIndex=latestRivalSmash(pending,finish.player),recoveryOpponent=recoveryIndex>=0?pending.attempts[recoveryIndex].player:previousTapOpponent(pending,finish.player);
    if(recoveryOpponent!==undefined)recoverySelect.value=recoveryOpponent+':'+(recoveryIndex>=0?recoveryIndex:'new');
    const finalAttempt=finalSmashAttempt(pending,finish.player);
    if(finalAttempt>=0){shot='smash';smashType=pending.attempts[finalAttempt].smashType;$('counted').checked=true;}

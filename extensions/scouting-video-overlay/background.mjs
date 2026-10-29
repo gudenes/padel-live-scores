@@ -1,3 +1,4 @@
+import {panelState} from './panel-state.mjs';
 import {savedVideoUrl} from './replay-source.mjs';
 import './shortcut-keys.js';
 import {localStore} from './local-store.mjs';
@@ -6,9 +7,6 @@ import {extensionAccount,ADMIN_ORIGIN} from './account.mjs';
 const account=extensionAccount({extensionId:chrome.runtime.id});
 import {videoPayload} from './server-model.mjs';
 import {cloudSync,adminVideoSync} from './cloud.mjs';
-import {match} from './match.mjs';
-import {scoreLabel} from './generated/score-label.mjs';
-import {shots} from './generated/shots.mjs';
 import {readAdminCatalog} from './catalog.mjs';
 import {videoProbe} from './probe.mjs';
 import {engine} from './engine.mjs';
@@ -56,7 +54,8 @@ chrome.alarms?.onAlarm.addListener(alarm=>{if(alarm.name==='video-scouting-sync'
 const dispatch=engine({
   read:()=>scoutingStore.read(),
   write:async (state,context)=>{
-    await scoutingStore.write(state);
+    const storageTiming=await scoutingStore.write(state);
+    if(context?.timing)Object.assign(context.timing,storageTiming);
     if(context?.remote)await sync.acknowledge(state.selectedMatch.id,context.remote);
     if((state.selectedMatch?.id||context?.type==='checkpoint')&&context?.type!=='restore-cloud'){
       if(context?.type!=='checkpoint'){localRevisions.set(state.selectedMatch.id,(localRevisions.get(state.selectedMatch.id)??0)+1);scheduleTapSync();return;}
@@ -98,12 +97,14 @@ const dispatch=engine({
   playback:(connection,current,paused)=>invoke(connection,{kind:'playback',mediaId:current.mediaId,paused}),
   seek:(connection,current,time)=>invoke(connection,{kind:'seek',mediaId:current.mediaId,time})
 });
-let bindingsQueue=Promise.resolve();
+let bindingsQueue=Promise.resolve(),bindingsCache=null;
+chrome.storage.onChanged?.addListener((changes,area)=>{if(area==='local'&&(changes.videoMediaShortcuts||changes.videoFastKeysV1))bindingsCache=null;});
 function savedBindings(){
+ if(bindingsCache)return Promise.resolve(bindingsCache);
  const read=async()=>{const stored=await chrome.storage.local.get(['videoMediaShortcuts','videoFastKeysV1']);
   const bindings=stored.videoFastKeysV1?globalThis.__pnMediaKeys.normalize(stored.videoMediaShortcuts):globalThis.__pnMediaKeys.upgradeFastBindings(stored.videoMediaShortcuts);
   if(!stored.videoFastKeysV1)await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return bindings;};
- const result=bindingsQueue.then(read);bindingsQueue=result.catch(()=>{});return result;
+ const result=bindingsQueue.then(async()=>bindingsCache??(bindingsCache=await read()));bindingsQueue=result.catch(()=>{});return result;
 }
 chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
  if(sender.id!==chrome.runtime.id)return;
@@ -123,7 +124,7 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
   if(message.type==='open-video-link'){const url=new URL(message.url);if(!['https:','http:'].includes(url.protocol)||!['youtube.com','www.youtube.com','m.youtube.com','youtu.be'].includes(url.hostname)||url.username||url.password)throw Error('Enter a valid YouTube link.');const {state}=await dispatch({type:'state'});if(state.pending)throw Error('Finish the rally first.');await chrome.tabs.create({url:url.href});return {state};}
   if(message.type==='open-video'){const {state}=await dispatch({type:'state'});const link=savedVideoUrl(state);if(!link||!/^https?:\/\//.test(link))throw Error('No video link is saved.');await chrome.tabs.create({url:link});return {state};}
   if(message.type==='get-shortcuts'){return {bindings:await savedBindings()};}
-  if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await savedBindings();await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});return {bindings};}
+  if(message.type==='set-shortcuts'){const bindings=globalThis.__pnMediaKeys.normalize(message.bindings);await savedBindings();await chrome.storage.local.set({videoMediaShortcuts:bindings,videoFastKeysV1:true});bindingsCache=bindings;return {bindings};}
   if(message.type==='export-backup'){
    const {state}=await dispatch({type:'state'});
    const stored=await chrome.storage.local.get(null);
@@ -178,11 +179,14 @@ chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
    if(!panel||message.type!=='sample')throw error;
    result={...await dispatch({type:'state'}),sample:null,videoError:'Video disconnected. Reconnect to continue recording. Server saves are independent of the video.'};
   }
-  const m=match(result.state);
-  const shortcuts=await savedBindings();
-  return {...result,auth:account.status(),bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:result.state.selectedMatch?await syncStatus(result.state.selectedMatch.id):{status:'local'},view:{score:m.score,stats:m.stats,near:m.near,server:m.server,points:m.points,labels:{a:scoreLabel(m.score,'a'),b:scoreLabel(m.score,'b')},shots}};
+  const afterEngine=performance.now(),bindingsStart=performance.now();
+  const shortcuts=await savedBindings(),bindingsMs=performance.now()-bindingsStart;
+  const syncStart=performance.now(),syncInfo=result.state.selectedMatch?await syncStatus(result.state.selectedMatch.id):{status:'local'},syncStatusMs=performance.now()-syncStart;
+  const reply={...result,state:message.compactReply&&message.type!=='state'?panelState(result.state):result.state,auth:account.status(),bindings:globalThis.__pnMediaKeys.normalize(shortcuts),sync:syncInfo};
+  reply.timing={...reply.timing,bindingsMs,syncStatusMs,postEngineMs:performance.now()-afterEngine};
+  return reply;
  };
- run().then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message||'Overlay unavailable.'}));
+ run().then(data=>sendResponse({ok:true,...data}),error=>sendResponse({ok:false,error:error.message||'Overlay unavailable.',timing:error.scoutTiming}));
  return true;
 });
 
