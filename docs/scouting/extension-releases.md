@@ -45,7 +45,7 @@ Validation: release CI includes compact-response/full-backup preservation, save 
 Item ID: `najiogbfjnejaomcidknjnfbjconalok`.
 Listing: https://chromewebstore.google.com/detail/najiogbfjnejaomcidknjnfbjconalok
 
-0.2.0 is the approved unlisted version. 0.2.11 was submitted on October 29 before discovering local 0.2.15; 0.2.16 supersedes it after reconciliation. Keep unlisted visibility and automatic publication after review. GitHub/Railway do not submit Chrome Web Store updates.
+0.2.11 was submitted and approved on October 29; the dashboard confirmed it published/unlisted while preparing this release. It was submitted before discovering local 0.2.15. 0.2.16 supersedes it after reconciliation. Keep unlisted visibility and automatic publication after review. GitHub/Railway do not submit Chrome Web Store updates.
 
 Before submitting, inspect the existing store manifest/assets/privacy disclosures, build a store package with manifest at the archive root, and submit to the same item ID. Permissions and host access match approved 0.2.0. Public/searchable visibility is a separate distribution setting. Do not upload the installer ZIP (which wraps runtime files in a folder). Keep unpacked local storage backups when moving to a store installation; do not assume the two extension IDs share storage.
 
