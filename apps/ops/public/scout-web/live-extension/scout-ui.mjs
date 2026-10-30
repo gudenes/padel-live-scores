@@ -164,7 +164,9 @@ export function scoutingUI({$,act,getState}){
   act({type:'score',details:{...(shot?{shot}:{}),...(shot==='return'&&$('return-type').value?{returnType:$('return-type').value}:{}),...(shot==='return'&&p.outcome!=='winner'&&$('return-failure').value?{returnFailure:$('return-failure').value}:{}),...(shot==='smash'?{smashType,...(p.outcome==='winner'&&$('x4').checked?{x4:true}:{})}:{}),...($('shot-side').value?{side:$('shot-side').value}:{}),...($('net-touch').checked?{netTouch:true}:{}),...($('outside-attempts').querySelector('input:checked')?{outsideRecoveryBy:[...$('outside-attempts').querySelectorAll('input:checked')].map(input=>Number(input.value))}:{}),...(p.outcome!=='winner'&&previousPlayer!==undefined?{previousPlayer,...(priorShot?{previousShot:priorShot}:{}),...(priorShot==='smash'&&previousSmashType?{previousSmashType}:{}),...(priorShot==='smash'&&previousAttempt()>=0&&!previousReuse?{previousSmashNew:true}:{}),...(p.outcome==='forced'?{forcedBy}:{})}:{}),...(p.outcome==='winner'?{...($('assist').checked?{assistBy:p.player^1}:{}),...($('outside').checked?{recovery:true}:{}),...($('smash-recovery').checked?{smashRecovery:true,recoverySmashPlayer:Number(recoveryPlayer),...(recoveryAttempt!=='new'?{recoverySmashAttemptIndex:Number(recoveryAttempt)}:{})}:{})}:{}),...(shot==='smash'&&matchingAttempt()>=0&&$('counted').checked?{smashAlreadyCounted:true,smashAttemptIndex:matchingAttempt()}:{} )}});
  }
  $('shot-form').addEventListener('submit',e=>{e.preventDefault();savePoint();});
- $('shot-form').addEventListener('keydown',e=>{
+ // Backdrop clicks can focus the dialog itself, outside the form.
+ document.addEventListener('keydown',e=>{
+  if(!$('shot-dialog').open||document.querySelector('dialog[open]:not(#shot-dialog)'))return;
   if(e.key==='Backspace'&&e.shiftKey){e.preventDefault();e.stopPropagation();if(!e.repeat)cancel();return;}
   if(e.key==='Escape'){e.preventDefault();e.stopPropagation();if(!e.repeat)goBack();return;}
   if(e.repeat){if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();}return;}if(e.isComposing||e.altKey)return;
