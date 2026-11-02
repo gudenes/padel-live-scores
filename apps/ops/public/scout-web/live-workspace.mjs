@@ -3,6 +3,15 @@ import {playerProfile} from './live-extension/player-profile.mjs';
 export function liveWorkspace({document:doc=document,host=window.parent}={}) {
  const bridge=host.__pnLiveScout;
  if(!bridge)return ()=>{};
+ // The surrounding workspace can own focus after a mouse click. Keep point
+ // selection on the panel's existing shortcut path, including custom bindings.
+ const forwardShotKey=event=>{
+  const dialog=doc.getElementById('shot-dialog');
+  if(!dialog?.open||doc.querySelector('dialog[open]:not(#shot-dialog)')||host.document.querySelector('dialog[open]')||event.defaultPrevented||event.isComposing||event.target.closest?.('input,select,textarea,[contenteditable]'))return;
+  const forwarded=new doc.defaultView.KeyboardEvent(event.type,{key:event.key,code:event.code,ctrlKey:event.ctrlKey,altKey:event.altKey,shiftKey:event.shiftKey,metaKey:event.metaKey,repeat:event.repeat,bubbles:true,cancelable:true});
+  if(!dialog.dispatchEvent(forwarded)){event.preventDefault();event.stopPropagation();}
+ };
+ for(const type of ['keydown','keyup'])host.document.addEventListener(type,forwardShotKey);
  const mediaIds=['skip--5','video-playback','skip-5','skip-90','skip--30','skip--10','skip-10','skip-30'];
  let previous='',targets=new Map();
  bridge.workspaceAction=(key,value)=>{
@@ -59,6 +68,6 @@ export function liveWorkspace({document:doc=document,host=window.parent}={}) {
  const menu=doc.getElementById('scouting-menu');
  const observer=menu?new doc.defaultView.MutationObserver(read):null;
  observer?.observe(menu,{attributes:true,attributeFilter:['open','hidden'],childList:true,subtree:true});
- doc.defaultView.addEventListener('pagehide',()=>{observer?.disconnect();delete bridge.workspaceAction;delete bridge.workspace;host.dispatchEvent(new host.CustomEvent('pn-scout-workspace'));},{once:true});
+ doc.defaultView.addEventListener('pagehide',()=>{for(const type of ['keydown','keyup'])host.document.removeEventListener(type,forwardShotKey);observer?.disconnect();delete bridge.workspaceAction;delete bridge.workspace;host.dispatchEvent(new host.CustomEvent('pn-scout-workspace'));},{once:true});
  return read;
 }
