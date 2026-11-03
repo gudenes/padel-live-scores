@@ -1,0 +1,5 @@
+.root { background:#141414; margin-bottom:6px; min-width:0; }
+.toggle { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; min-height:44px; padding:10px 12px; border:0; border-top:1px solid #292929; background:#202020; color:#7ed321; font:inherit; font-size:11px; font-weight:800; cursor:pointer; text-align:left; }
+.player { display:block; width:100%; aspect-ratio:16 / 9; border:0; background:#000; }
+.fallback { display:block; padding:12px; color:#9ca3af; font-size:11px; }
+.root :is(button,a):focus-visible { outline:2px solid #7ed321; outline-offset:-2px; }

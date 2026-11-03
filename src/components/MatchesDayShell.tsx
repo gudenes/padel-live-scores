@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
+import WorldCupDaily, { useDailyCupTies } from '@/components/world-cup/WorldCupDaily'
 import EmptyState from '@/components/EmptyState'
 import MatchesFilterClient from '@/components/MatchesFilterClient'
 import MatchesTournamentGroup from '@/components/MatchesTournamentGroup'
@@ -320,6 +321,9 @@ export default function MatchesDayShell({
   const isLoadingActive = !activeEntry || activeEntry.state === 'loading'
   const isErrorActive = activeEntry?.state === 'error'
   const groups = activeEntry?.state === 'loaded' ? activeEntry.groups : []
+  const cupTies = useDailyCupTies(activeIso, groups, tz)
+  const cupMatchIds = new Set(cupTies.flatMap(tie => tie.matches.map(match => match.id)))
+  const regularGroups = groups.map(group => ({ ...group, matches: group.matches.filter(match => !cupMatchIds.has(match.id)) })).filter(group => group.matches.length > 0)
 
   // Drives whether the LIVE pill in the filter bar pulses. We only want
   // the red dot animating when there's actually something live to surface
@@ -429,6 +433,7 @@ export default function MatchesDayShell({
             having to first land on a populated day. */}
         <MatchesFilterClient
           rootId="matches-filter-root"
+          contentVersion={`${activeIso}:${isLoadingActive}:${groups.map(g => g.matches.map(m => `${m.id}:${m.status}`).join(',')).join(';')}:${cupTies.map(t => `${t.key}:${t.status}`).join(',')}`}
           hasLiveMatches={hasLiveMatches}
           hasLiveNow={hasLiveNow}
           isOnToday={isOnToday}
@@ -487,6 +492,8 @@ export default function MatchesDayShell({
             `.matches-day-fade` keyframe + scrolls any sub-state back to
             initial without a jarring page-flash. */}
         <div className="matches-day-fade" key={activeIso}>
+          <div id="matches-filter-root" style={{ padding: '0 8px' }}>
+          <WorldCupDaily iso={activeIso} ties={cupTies} locale={locale} userTz={userTz} />
           {isLoadingActive ? (
             <MatchesDayShimmer />
           ) : isErrorActive ? (
@@ -504,7 +511,7 @@ export default function MatchesDayShell({
                 }
               />
             </div>
-          ) : groups.length === 0 ? (
+          ) : groups.length === 0 && cupTies.length === 0 ? (
             <div style={{ padding: '8px 16px 24px' }}>
               <EmptyState
                 title={emptyStateTitle}
@@ -544,8 +551,8 @@ export default function MatchesDayShell({
               />
             </div>
           ) : (
-            <div id="matches-filter-root" style={{ padding: '0 8px' }}>
-              {groups.map((g) => (
+            <div>
+              {regularGroups.map((g) => (
                 <MatchesTournamentGroup
                   key={g.tournamentId}
                   group={{
@@ -566,6 +573,7 @@ export default function MatchesDayShell({
               ))}
             </div>
           )}
+          </div>
         </div>
       </div>
     </>

@@ -1,0 +1,18 @@
+.root { padding: 8px 12px 24px; container-type: inline-size; }
+.categories { display:flex; gap:16px; margin-bottom:14px; }
+.categories button { flex:1; background:none; color:#9ca3af; border:0; border-bottom:2px solid transparent; min-height:44px; font:inherit; font-size:12px; font-weight:800; text-transform:uppercase; cursor:pointer; }
+.days { position:relative; display:flex; gap:6px; overflow-x:auto; scrollbar-width:none; padding:8px 0 10px; }
+.days::-webkit-scrollbar { display:none; }
+.days button { flex-shrink:0; display:flex; flex-direction:column; align-items:center; gap:2px; min-height:44px; background:rgba(255,255,255,.04); color:#6b7280; border:0; padding:6px 14px; cursor:pointer; font:inherit; white-space:nowrap; }
+.days button b { font-size:11px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; }
+.days button span { font-size:8px; letter-spacing:.2px; text-transform:uppercase; color:rgba(255,255,255,.4); }
+.days button[aria-pressed="true"] { background:rgba(126,211,33,.12); color:#7ed321; }
+.days button[aria-pressed="true"] span { color:rgba(126,211,33,.7); }
+.stage { margin:22px 0 12px; font-size:14px; text-transform:uppercase; font-weight:800; }
+.note { font-size:12px; color:#9ca3af; margin:-4px 0 16px; line-height:1.5; }
+.tieRow { position:relative; }
+.expandButton { position:absolute; inset:0; z-index:1; width:100%; border:0; background:transparent; cursor:pointer; }
+.flagButton { position:relative; z-index:2; display:flex; align-items:center; justify-content:center; flex-shrink:0; min-width:32px; min-height:32px; margin:-4px; padding:4px; border:0; background:transparent; cursor:pointer; }
+.flagButton:hover { background:rgba(255,255,255,.08); }
+.empty { padding-top:24px; }
+.root button:focus-visible { outline:2px solid #7ed321; outline-offset:3px; }
