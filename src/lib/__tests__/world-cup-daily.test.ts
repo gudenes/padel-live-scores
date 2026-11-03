@@ -34,3 +34,11 @@ describe('daily country confrontations',()=>{
   expect(dailyCupTies(null,[],'2026-11-03','Europe/Madrid')).toEqual([])
  })
 })
+it('keeps language options when stream announcements merge into actual matches',()=>{
+ const streams=[{videoId:'abcdefghijk',language:'ENG'},{videoId:'12345678901',language:'ESP'}]
+ const enriched={...data,ties:data.ties.map(tie=>({...tie,streams}))}
+ const match={id:'one',category:'women',scheduled_at:'2026-11-03T11:00:00Z',round:'Group stage',status:'finished',winner_pair:1,sets:[],pair1_player1_country:'ESP',pair1_player2_country:'ESP',pair2_player1_country:'GER',pair2_player2_country:'GER'}
+ const groups=[{tournamentId:WORLD_CUP.tournamentId,matches:[match]}] as unknown as MatchesDayGroup[]
+ const rows=dailyCupTies(enriched,groups,'2026-11-03','Europe/Madrid')
+ expect(rows).toHaveLength(1);expect(rows[0].streams).toEqual(streams)
+})

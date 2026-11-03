@@ -99,7 +99,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
         <span className={dailyStyles.meta}><small>{live ? t('liveTie') : finished ? t('finishedTie') : `${tie.round ?? t(selected.stage)} · ${t('matchCount', { count: tie.matches.length })}`}</small><span aria-hidden="true">{expanded ? '−' : '+'}</span></span>
       </div>
       <div id={panelId} className={dailyStyles.collapse} data-open={expanded} inert={!expanded} aria-hidden={!expanded}>
-        <div>{expanded && stream && <WorldCupStream key={stream.videoId} videoId={stream.videoId} title={`${stream.home} – ${stream.away}`} />}{tie.matches.map(match => <MatchCard embedded key={match.id} match={match} genderColor={color} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />)}</div>
+        <div>{expanded && stream && <WorldCupStream key={stream.videoId} videoId={stream.videoId} streams={stream.streams} title={`${stream.home} – ${stream.away}`} />}{tie.matches.map(match => <MatchCard embedded key={match.id} match={match} genderColor={color} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />)}</div>
       </div>
     </section>
   }
@@ -133,7 +133,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
           <span className={dailyStyles.meta}><strong>{tie.liveObservedAt ? t('liveTie') : tie.scheduledAt ? new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', timeZone: userTz }).format(new Date(tie.scheduledAt)) : '—'}</strong><small>{!tie.liveObservedAt && t('broadcastTime')}{tie.group ? ` · ${t('group')} ${tie.group}` : ''}</small><span aria-hidden="true">{expanded ? '−' : '+'}</span></span>
         </div>
         <div id={panelId} className={dailyStyles.collapse} data-open={expanded} inert={!expanded} aria-hidden={!expanded}>
-          <div>{expanded && <WorldCupStream key={tie.videoId} videoId={tie.videoId} title={`${tie.home} – ${tie.away}`} />}<p className={dailyStyles.pending}>{t('pairsPending')}</p></div>
+          <div>{expanded && <WorldCupStream key={tie.videoId} videoId={tie.videoId} streams={tie.streams} title={`${tie.home} – ${tie.away}`} />}<p className={dailyStyles.pending}>{t('pairsPending')}</p></div>
         </div>
       </section>
     })}

@@ -62,3 +62,15 @@ describe("FIP World Cup official HTML", () => {
     expect(isWorldCupDay("2026-11-08")).toBe(false);
   });
 });
+describe('broadcast language labels',()=>{
+ const card=(title:string,id:string)=>`<li class="bw-yt-item"><a data-yt="${id}" data-title="${title}"><span class="bw-yt-badge--live">Live</span><span class="bw-yt-tags">MEN · GROUP D</span></a></li>`
+ it('groups English and Spanish streams under one real country tie',()=>{
+  const ties=parseCupStreams(card('[ENG] 🇮🇹 Italy vs Mexico 🇲🇽','g0M7qNVQ6kw')+card('[ESP] 🇮🇹 Italy vs Mexico 🇲🇽','XmHXJj55beE'))
+  expect(ties).toHaveLength(1)
+  expect(ties[0]).toMatchObject({id:'men-italy-mexico',home:'Italy',away:'Mexico',videoId:'g0M7qNVQ6kw',streams:[{videoId:'g0M7qNVQ6kw',language:'ENG'},{videoId:'XmHXJj55beE',language:'ESP'}]})
+ })
+ it('supports parenthesized labels, deduplicates videos, and retains ordinary country names',()=>{
+  expect(parseCupStreams(card('(ESP) Italy vs Mexico','abcdefghijk')+card('(ESP) Italy vs Mexico','abcdefghijk'))[0].streams).toHaveLength(1)
+  expect(parseCupStreams(card('England vs Mexico','abcdefghijk'))[0].home).toBe('England')
+ })
+})

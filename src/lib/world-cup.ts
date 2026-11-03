@@ -16,6 +16,7 @@ export interface CupTeam {
   profiles?: Record<string, { id: string; name: string; avatarUrl: string | null }>;
   category: CupCategory;
 }
+export interface CupStream { videoId: string; language: string | null }
 export interface CupTie {
   id: string;
   category: CupCategory;
@@ -25,6 +26,7 @@ export interface CupTie {
   scheduledAt: string | null;
   liveObservedAt?: string;
   videoId: string;
+  streams?: CupStream[];
 }
 export interface CupStanding {
   name: string;
