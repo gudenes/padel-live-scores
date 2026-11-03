@@ -37,6 +37,9 @@ import { levelLabel } from '@/lib/tournament-labels'
 import TournamentCoverImage from '@/components/TournamentCoverImage'
 import { getTierPill } from '@/lib/tournament-tier-style'
 import DrawTab from './DrawTab'
+import WorldCup from '@/components/world-cup/WorldCup'
+import WorldCupMatches from '@/components/world-cup/WorldCupMatches'
+import { WORLD_CUP } from '@/lib/world-cup'
 import ProjectionTab from './ProjectionTab'
 import { useHasEntries } from './useEntryList'
 import { buildProjectionQuery } from './projection-url'
@@ -197,6 +200,7 @@ export default function TournamentDetailWrapper({ params }: { params: Promise<{ 
 function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const format = useFormatter()
   const tTournament = useTranslations('tournament')
+  const tWorldCup = useTranslations('worldCup')
   const tCommon = useTranslations('common')
   const locale = useLocale()
   // User's timezone from the browser. Falls back to UTC when Intl is
@@ -234,11 +238,13 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   const wantsMatchesAnimation =
     searchParams.get('intent') === 'matches' && paramTab === 'matches'
 
-  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw' | 'entries'>(
+  const [pageTab, setPageTabState] = useState<'matches' | 'overview' | 'story' | 'draw' | 'entries' | 'groups' | 'teams'>(
     // Legacy param mapping: `?tab=recap` → 'story', and the old projection
     // tab param → 'entries' now that Projection is content inside the Entries tab.
     wantsMatchesAnimation
       ? 'overview'
+      : tournamentId === WORLD_CUP.tournamentId && (paramTab === 'groups' || paramTab === 'teams')
+      ? paramTab
       : paramTab === 'entries' || paramTab === 'projection'
       ? 'entries'
       : paramTab === 'draw'
@@ -250,6 +256,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       : 'overview'
   )
 
+  // Keep the World Cup tabs in sync with browser back/forward navigation.
+  useEffect(() => {
+    if (tournamentId !== WORLD_CUP.tournamentId || wantsMatchesAnimation) return
+    if (paramTab === 'groups' || paramTab === 'teams' || paramTab === 'matches' || paramTab === 'story' || paramTab === 'overview') {
+      setPageTabState(paramTab)
+    } else if (!paramTab) {
+      setPageTabState('overview')
+    }
+  }, [paramTab, tournamentId, wantsMatchesAnimation])
+
   // Initial pair slug for in-page projection deep-links (?pair=<slug>). Captured
   // once so the shallow URL sync (which rewrites the query) can't null it out
   // before ProjectionTab resolves it against the async-loaded rows.
@@ -258,7 +274,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // Tracks whether the user has manually changed tabs, so the scheduled
   // animated-arrival commit doesn't override a tap that happens during the dwell.
   const userChangedTabRef = useRef(false)
-  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw' | 'entries') => {
+  const setPageTab = useCallback((next: 'matches' | 'overview' | 'story' | 'draw' | 'entries' | 'groups' | 'teams') => {
     userChangedTabRef.current = true
     setPageTabState(next)
   }, [])
@@ -502,9 +518,11 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
   // ── Auto-switch gender if no matches ──────────────────────────
   useEffect(() => {
     if (loading || allMatches.length === 0) return
+    // Squad/group categories exist before their individual matches are published.
+    if (tournamentId === WORLD_CUP.tournamentId) return
     if (genderFilter === 'men' && !hasMen && hasWomen) setGenderFilter('women')
     else if (genderFilter === 'women' && !hasWomen && hasMen) setGenderFilter('men')
-  }, [loading, allMatches, genderFilter, hasMen, hasWomen])
+  }, [loading, allMatches, genderFilter, hasMen, hasWomen, tournamentId, pageTab])
 
   // ── Available rounds (ordered R64 → Finals) ──────────────────
   const availableRounds = useMemo(() => {
@@ -1198,14 +1216,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             flush below the chrome row on devices with a notch / status
             bar. Sliding ink-bar handled by <SlidingInkTabs>. */}
         <SlidingInkTabs
-          tabs={(['overview', ...(showEntriesTab ? ['entries'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
+          tabs={(tournamentId === WORLD_CUP.tournamentId
+            ? ['overview', 'matches', 'groups', 'teams', 'story'] as const
+            : ['overview', ...(showEntriesTab ? ['entries'] as const : []), 'story', 'matches', ...(showDrawTab ? ['draw'] as const : [])] as const).map(tab => ({
             key: tab,
             label: tab === 'entries' && tabsMounted && !entriesSeen ? (
               <span style={{ position: 'relative' }}>
                 {tTournament(tab)}
                 <span style={{ marginLeft: 5, fontSize: 8, fontWeight: 800, letterSpacing: 0.3, color: '#06210a', background: '#7ED321', padding: '1px 4px', borderRadius: 3, verticalAlign: 'middle' }}>{tTournament('newBadge')}</span>
               </span>
-            ) : tTournament(tab),
+            ) : tab === 'groups' || tab === 'teams' ? tWorldCup(tab) : tTournament(tab),
           }))}
           activeKey={pageTab}
           onChange={(key) => {
@@ -1221,6 +1241,13 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
               if (paramTab === 'entries' || paramTab === 'projection') router.replace(pathname, { scroll: false })
             }
             setPageTab(key)
+            if (tournamentId === WORLD_CUP.tournamentId) {
+              const params = new URLSearchParams(searchParams.toString())
+              params.set('tab', key)
+              params.set('category', genderFilter)
+              params.delete('tie')
+              router.replace(`${pathname}?${params}`, { scroll: false })
+            }
           }}
           containerStyle={{
             position: 'sticky',
@@ -1237,7 +1264,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         />
 
         {/* Coverage disclaimer */}
-        {activeTournamentObj && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && (
+        {activeTournamentObj && tournamentId !== WORLD_CUP.tournamentId && !FULL_COVERAGE_LEVELS.has(activeTournamentObj.level ?? '') && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px',
@@ -1260,7 +1287,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
             hardest (there the toggle is now hidden entirely).
             Colour comes from `genderFilter`, which IS the truth here — the
             list below is filtered by strict equality on it. */}
-        {pageTab === 'matches' && availableRounds.length > 0 && (
+        {pageTab === 'matches' && tournamentId !== WORLD_CUP.tournamentId && availableRounds.length > 0 && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '10px 16px 0',
@@ -1276,7 +1303,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         )}
 
         {/* Stage selector strip (matches tab only) */}
-        {pageTab === 'matches' && availableRounds.length > 0 && (
+        {pageTab === 'matches' && tournamentId !== WORLD_CUP.tournamentId && availableRounds.length > 0 && (
           <div ref={stageStripRef} style={{
             display: 'flex', gap: 6, padding: '8px 16px 10px',
             overflowX: 'auto', scrollbarWidth: 'none',
@@ -1331,7 +1358,10 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         )}
 
         {/* ── Matches Feed ── */}
-        {pageTab === 'matches' && (
+        {pageTab === 'matches' && tournamentId === WORLD_CUP.tournamentId && (
+          <WorldCupMatches matches={allMatches} category={genderFilter} onCategoryChange={setGenderFilter} loading={loading} userTz={userTz} />
+        )}
+        {pageTab === 'matches' && tournamentId !== WORLD_CUP.tournamentId && (
           <div style={{ padding: '8px 12px 16px' }}>
             {loading ? (
               Array.from({ length: 4 }).map((_, i) => (
@@ -1400,6 +1430,16 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
         )}
 
         {/* ── Overview Tab ── */}
+        {tournamentId === WORLD_CUP.tournamentId && (pageTab === 'groups' || pageTab === 'teams') && (
+          <WorldCup matches={allMatches} userTz={userTz} category={genderFilter} onCategoryChange={(category) => {
+            setGenderFilter(category)
+            const params = new URLSearchParams(searchParams.toString())
+            params.set('tab', pageTab)
+            params.set('category', category)
+            params.delete('tie')
+            router.replace(`${pathname}?${params}`, { scroll: false })
+          }} view={pageTab === 'teams' ? 'squads' : 'groups'} />
+        )}
         {pageTab === 'overview' && (
           <V3Overview
             tournament={activeTournamentObj}

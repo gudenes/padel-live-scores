@@ -170,6 +170,8 @@ function tournamentLocationLabel(match: Match, locale: string): string {
 // ── Component ───────────────────────────────────────────────────────────
 
 export interface MatchCardProps {
+  /** Parent confrontation supplies the continuous accent and outer edges. */
+  embedded?: boolean
   match: Match
   genderColor: string
   locale: string
@@ -191,6 +193,7 @@ export interface MatchCardProps {
 }
 
 export function MatchCard({
+  embedded = false,
   match: matchProp,
   genderColor,
   locale,
@@ -375,7 +378,9 @@ export function MatchCard({
         style={{
           background: BG_CARD,
           border: `1px solid ${borderColor}`,
-          clipPath: CHUNKY.card,
+          clipPath: embedded ? undefined : CHUNKY.card,
+          width: '100%',
+          boxSizing: 'border-box',
           // Asymmetric vertical padding: top has the 6px chip-row marginBottom
           // adding to the gap between chips and pair 1 text, so bottom can be
           // tighter to feel balanced. Without this, live cards look bottom-heavy
@@ -385,8 +390,8 @@ export function MatchCard({
           overflow: 'hidden',
         }}
       >
-        {/* Left gender accent bar — runs the full height of the card */}
-        <div
+        {/* Parent confrontation supplies the accent for embedded cards. */}
+        {!embedded && <div
           style={{
             position: 'absolute',
             top: 0,
@@ -395,7 +400,7 @@ export function MatchCard({
             width: 3,
             background: forecast?.next_to_play ? ORANGE : genderColor,
           }}
-        />
+        />}
 
         {/* Bookmark hidden on finished/ended cards — once a match is over, the
             "follow this live match" affordance no longer applies. FollowButton

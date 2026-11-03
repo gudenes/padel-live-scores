@@ -29,6 +29,7 @@ import type { LiveChannel, BroadcasterRow, ChannelMeta } from '@/lib/where-to-wa
 export interface MatchesFilterClientProps {
   /** ID of the wrapper div the server renders around all match nodes.
    *  Used as the root for visibility toggling. */
+  contentVersion?: string
   rootId: string
   /** Whether any match in the active day has status='live'/'on_court'.
    *  Drives the LIVE pill's pulse — when nothing is actually live we
@@ -58,6 +59,7 @@ export interface MatchesFilterClientProps {
 
 export default function MatchesFilterClient({
   rootId,
+  contentVersion,
   hasLiveMatches,
   hasLiveNow,
   isOnToday,
@@ -179,6 +181,11 @@ export default function MatchesFilterClient({
     lastFiltersRef.current = filters
     applyFilters()
   }, [filters, hydrated, applyFilters])
+
+  // Reapply when a day swap or asynchronously published fixtures change the list.
+  useEffect(() => {
+    if (hydrated) applyFilters()
+  }, [contentVersion, hydrated, applyFilters])
 
   // One-tap LIVE toggle. The pill IS the existing status filter — when
   // active it sets {live:true, upcoming:false, finished:false}; when
