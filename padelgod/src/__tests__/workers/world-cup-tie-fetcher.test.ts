@@ -44,3 +44,8 @@ describe('World Cup scheduled announcements', () => {
     done({ data: fixture }); await first;
   });
 });
+it('stores broadcast languages under one country tie',()=>{
+ const card=(language:string,id:string)=>`<li class="bw-yt-item"><a data-yt="${id}" data-title="[${language}] Italy vs Mexico"><span class="bw-yt-badge--live">Live</span><span class="bw-yt-tags">MEN GROUP D</span></a></li>`;
+ const ties=parseCupStreams(card('ENG','g0M7qNVQ6kw')+card('ESP','XmHXJj55beE'));
+ expect(ties).toHaveLength(1);expect(ties[0]).toMatchObject({home:'Italy',away:'Mexico',streams:[{videoId:'g0M7qNVQ6kw',language:'ENG'},{videoId:'XmHXJj55beE',language:'ESP'}]});
+});
