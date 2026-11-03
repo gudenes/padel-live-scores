@@ -24,6 +24,7 @@ export const GROUPS: Group[] = [
     { href: '/team-access', label: 'Team Access', icon: 'users' },
     { href: '/scouting/methodology', label: 'Scouting Methodology · V1', icon: 'doc' },
     { href: '/entry-lists', label: 'Entry Lists', icon: 'list' },
+    { href: '/world-cup-history', label: 'World Cup Archive', icon: 'doc' },
     { href: '/needs-review', label: 'Needs Review', icon: 'flag' },
     { href: '/simulator', label: 'Simulator', icon: 'play' },
   ]},
@@ -65,7 +66,7 @@ export const GROUPS: Group[] = [
 ]
 
 
-const tournamentRoutes = new Set(['/tournament-explorer', '/entry-lists', '/needs-review', '/simulator'])
+const tournamentRoutes = new Set(['/tournament-explorer', '/entry-lists', '/world-cup-history', '/needs-review', '/simulator'])
 export const tournamentLinks = GROUPS.flatMap(group => group.items).filter(item => tournamentRoutes.has(item.href))
 export const workspaceGroups = GROUPS.map(group => ({ ...group, items: group.items.filter(item => !tournamentRoutes.has(item.href) && !['/today', '/scouting'].includes(item.href)) })).filter(group => group.items.length)
 export function activeDestination(path: string) {
