@@ -6,7 +6,7 @@ import { hasDuplicatePlayerIds, MATCH_PLAYER_COLUMNS } from '../lib/match-player
 export const WORLD_CUP_ID = '2c1a0800-3bd6-424c-92f1-5417fea2cba1';
 const ENTRY_URL = 'https://widget.matchscorerlive.com/screen/entrylist/FIP-2026-4516?t=tol&theme=1';
 export interface Squad { country: string; category: string; names: string[] }
-export interface Profile { id: string; name: string; display_name: string | null; country: string | null; category: string | null }
+export interface Profile { id: string; name: string; display_name: string | null; country: string | null; category: string | null; fip_id?: string | null }
 const key = (name: string) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z ]/g, '').replace(/\s+/g, ' ').trim();
 export function parseWorldCupSquads(html: string): Squad[] {
   const $ = load(html), squads: Squad[] = [];
@@ -27,6 +27,22 @@ export function parseWorldCupSquads(html: string): Squad[] {
   });
   return squads;
 }
+// Reviewed against the official profile's playerID on 2026-11-03.
+// Scoped to this event roster: represented country is not necessarily nationality.
+// Do not add an identity with conflicting FIP IDs without resolving that conflict.
+const verifiedRosterIdentities = [
+  ['women', 'SE', 'Amanda Girdo', 'P200116', 'amanda-girdo'],
+  ['men', 'QA', 'Khalid Saadon Alkuwari', 'P201001', 'khalid-saadon-alkuwari'],
+  ['men', 'MX', 'Moises Rafael Rivero', 'P100877', 'moises-rafael-rivero'],
+  ['men', 'US', 'Vinny Nahuel Di Francesco', 'P100616', 'vinny-nahuel-di-francesco'],
+  ['men', 'US', 'Daniel Elohim Fernandez Guerra', 'P205636', 'daniel-elohim-fernandez-guerra'],
+  ['men', 'AE', 'Abdulrahman Al Janahi', 'P100263', 'abdulrahman-al-janahi'],
+  ['men', 'MX', 'Eduardo Agustin Torre', 'P100879', 'eduardo-agustin-torre'],
+].map(([category, country, name, fipId, slug]) => ({
+  category, country, name: key(name!), fipId,
+  source: `https://www.padelfip.com/player/${slug}/`,
+}));
+
 /** Initial + complete surname must identify exactly one member of the published squad. */
 export function resolveWorldCupPlayer(raw: string, country: string, category: string, squads: Squad[], profiles: Profile[]): string | null {
   const candidates = squads.filter(s => s.country === normalizeCountry(country) && s.category === category).flatMap(s => s.names);
@@ -40,6 +56,13 @@ export function resolveWorldCupPlayer(raw: string, country: string, category: st
   if (names.length !== 1) return null;
   const full = key(names[0]!);
   const gender = profiles.filter(p => p.category === category);
+  const verified = verifiedRosterIdentities.find(identity =>
+    identity.category === category && identity.country === normalizeCountry(country) && identity.name === full);
+  if (verified) {
+    const identified = gender.filter(p => p.fip_id === verified.fipId);
+    // An authoritative identity must still map to exactly one database row.
+    return identified.length === 1 ? identified[0]!.id : null;
+  }
   const matches = (p: Profile) => [p.name, p.display_name].some(n => {
     if (!n) return false;
     const other = key(n);
@@ -70,7 +93,7 @@ export async function runWorldCupReconciler({ supabase, dryRun = true }: { supab
   if (!squads.length) throw new Error('World Cup entry list contained no squads');
   const profiles: Profile[] = [];
   for (let offset = 0; ; offset += 1000) {
-    const { data, error } = await supabase.from('players').select('id,name,display_name,country,category').in('category', ['men','women']).order('id').range(offset, offset + 999);
+    const { data, error } = await supabase.from('players').select('id,name,display_name,country,category,fip_id').in('category', ['men','women']).order('id').range(offset, offset + 999);
     if (error) throw error;
     profiles.push(...(data ?? []));
     if (!data || data.length < 1000) break;
@@ -101,4 +124,18 @@ export async function runWorldCupReconciler({ supabase, dryRun = true }: { supab
     if (result.data?.length) updated += Object.keys(patch).length;
   }
   return { proposed, updated, unresolved };
+}
+
+let scheduledRunActive = false;
+/** Independent event-scoped task: unrelated reconciler failures cannot starve player links. */
+export async function runScheduledWorldCupReconciler(deps: { supabase: SupabaseClient; dryRun?: boolean }) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (today < '2026-11-02' || today > '2026-11-08') return { skipped: 'outside-event' };
+  if (scheduledRunActive) return { skipped: 'already-running' };
+  scheduledRunActive = true;
+  try {
+    return await runWorldCupReconciler(deps);
+  } finally {
+    scheduledRunActive = false;
+  }
 }
