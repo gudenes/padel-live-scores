@@ -1,10 +1,10 @@
+import { loadCupTies, type CupTieSnapshot } from '@/lib/world-cup-tie-source';
 import { createAnonServerClient } from "@/lib/supabase";
 import { normalizeCountry } from "@/lib/country";
 import { resolveCupPlayer, type CupPlayerProfile } from "@/lib/world-cup-players";
 import { WORLD_CUP, type CupData } from "@/lib/world-cup";
 import {
   parseCupGroups,
-  parseCupStreams,
   parseCupTeams,
 } from "@/lib/world-cup-parser";
 export const runtime = "nodejs";
@@ -19,7 +19,15 @@ async function html(url: string) {
 export async function GET() {
   const base = `https://widget.matchscorerlive.com/screen`;
   const results = await Promise.allSettled([
-    html(WORLD_CUP.eventUrl),
+    loadCupTies({
+      loadSnapshot: async () => {
+        const { data, error } = await createAnonServerClient().from('world_cup_tie_snapshots')
+          .select('ties,fetched_at').eq('tournament_id', WORLD_CUP.tournamentId).maybeSingle();
+        if (error) throw error;
+        return data as CupTieSnapshot | null;
+      },
+      fetchPage: () => html(WORLD_CUP.eventUrl),
+    }),
     html(`${base}/entrylist/${WORLD_CUP.widgetCode}?t=tol&theme=1`),
     html(`${base}/groups/${WORLD_CUP.widgetCode}?t=tol&theme=1`),
   ]);
@@ -27,12 +35,13 @@ export async function GET() {
     results[i].status === "fulfilled"
       ? (results[i] as PromiseFulfilledResult<string>).value
       : "";
+  const tieSource = results[0].status === 'fulfilled' ? results[0].value : null;
   const data: CupData = {
-    ties: parseCupStreams(source(0)),
+    ties: tieSource?.ties ?? [],
     teams: parseCupTeams(source(1)),
     groups: parseCupGroups(source(2)),
-    fetchedAt: new Date().toISOString(),
-    partial: results.some((r) => r.status === "rejected"),
+    fetchedAt: tieSource?.fetchedAt ?? new Date().toISOString(),
+    partial: (tieSource?.partial ?? true) || results.some((r) => r.status === "rejected"),
   };
   if (!data.ties.length && !data.teams.length && !data.groups.length)
     return Response.json({ error: "FIP data unavailable" }, { status: 502 });

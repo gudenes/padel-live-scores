@@ -3,7 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { normalizeCountry } from '../lib/country.js';
 import { hasDuplicatePlayerIds, MATCH_PLAYER_COLUMNS } from '../lib/match-player-identity.js';
 
-export const WORLD_CUP_ID = '2c1a0800-3bd6-424c-92f1-5417fea2cba1';
+import { WORLD_CUP_ID, isWorldCupActive } from '../lib/world-cup-event.js';
+export { WORLD_CUP_ID } from '../lib/world-cup-event.js';
 const ENTRY_URL = 'https://widget.matchscorerlive.com/screen/entrylist/FIP-2026-4516?t=tol&theme=1';
 export interface Squad { country: string; category: string; names: string[] }
 export interface Profile { id: string; name: string; display_name: string | null; country: string | null; category: string | null; fip_id?: string | null }
@@ -129,8 +130,7 @@ export async function runWorldCupReconciler({ supabase, dryRun = true }: { supab
 let scheduledRunActive = false;
 /** Independent event-scoped task: unrelated reconciler failures cannot starve player links. */
 export async function runScheduledWorldCupReconciler(deps: { supabase: SupabaseClient; dryRun?: boolean }) {
-  const today = new Date().toISOString().slice(0, 10);
-  if (today < '2026-11-02' || today > '2026-11-08') return { skipped: 'outside-event' };
+  if (!isWorldCupActive()) return { skipped: 'outside-event' };
   if (scheduledRunActive) return { skipped: 'already-running' };
   scheduledRunActive = true;
   try {

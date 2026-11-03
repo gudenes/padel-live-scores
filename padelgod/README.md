@@ -103,3 +103,11 @@ Live cards without set scores update status and trigger notifications without in
 - Manual worker triggers remain dry-run. The existing `scripts/reconcile-world-cup.ts` also stays read-only unless `--apply` is supplied.
 - Identity resolution still requires unique squad/profile matches and compares the full lineup before updating missing links. Ambiguous identities remain unresolved rather than being guessed.
 - Seven reviewed roster identities use the FIP ID published on their official FIP profile, including Eduardo Agustin Torre → P100879. Each mapping records its source URL and is scoped to the event country/category/full roster name. The ID must identify exactly one database row; no generic preference for ranked profiles or fuzzy surname fallback is used. Conflicting FIP IDs remain unresolved.
+
+### World Cup OOP and team announcements
+
+- During November 2–8, a successful scheduled OOP fetch (every 15 minutes) immediately runs the existing match populator for the World Cup only, then the schedule writer. The importer reuses Crionet composite IDs and existing duplicate protection. Populator enablement, dry-run, tournament allowlist and level exclusions are retained. The independent hourly import and quarter-hour schedule writer remain retry paths.
+- World Cup OOP entries are merged by match ID, including new matches in an already-published stage; other tournaments keep their round-based merge behavior.
+- `world-cup-tie-fetcher` polls FIP's event page every five minutes under `ENABLE_STATIC_RECONCILER`, in the same event window. Its live-transmission cards are present in the event HTML. Team announcements are stored separately from individual matches: no pairings, Crionet IDs or player schedules are invented from a stream card.
+- Apply `20261103170000_world_cup_tie_snapshots.sql` before deploying the worker. The web API reads fresh snapshots, falls back to FIP after 15 minutes, and can retain a last successful snapshot for up to 24 hours (marked partial). Empty/error pages never erase stored announcements. Manual worker triggers remain read-only.
+- Rollout order: migration, Padel God release, web release. The web API retains its direct-fetch fallback while the new table is absent or empty.

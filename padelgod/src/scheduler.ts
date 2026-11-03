@@ -1,3 +1,5 @@
+import { runWorldCupTieFetcher } from './workers/world-cup-tie-fetcher.js';
+import { WORLD_CUP_ID, isWorldCupActive } from './lib/world-cup-event.js';
 import { runScheduledWorldCupReconciler } from './workers/world-cup-reconciler.js';
 import { runSmartScheduleWriter } from './workers/smart-schedule-writer.js';
 import cron, { type ScheduledTask } from 'node-cron';
@@ -226,6 +228,7 @@ export type WorkerName =
   | 'results-fetcher'
   | 'static-reconciler'
   | 'world-cup-reconciler'
+  | 'world-cup-tie-fetcher'
   | 'match-stats-fetcher'
   | 'live-poller-manager'
   | 'shadow-diff-finalizer'
@@ -273,6 +276,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'results-fetcher',
   'static-reconciler',
   'world-cup-reconciler',
+  'world-cup-tie-fetcher',
   'match-stats-fetcher',
   'live-poller-manager',
   'shadow-diff-finalizer',
@@ -405,6 +409,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     );
     case 'oop-fetcher':          return (deps) => runOopFetcher(deps);
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
+    case 'world-cup-tie-fetcher': return (deps) => runWorldCupTieFetcher({ ...deps, dryRun: true });
     case 'world-cup-reconciler': return (deps) => runScheduledWorldCupReconciler({ supabase: deps.supabase, dryRun: true });
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
     case 'match-stats-fetcher':  return (deps) => runMatchStatsFetcher(deps);
@@ -789,7 +794,20 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
     entries.push({
       name: 'oop-fetcher',
       cron: '*/15 * * * *', // every 15 min at :00/:15/:30/:45
-      run: getWorkerRunner('oop-fetcher')!,
+      run: async (deps) => {
+        const result = await runOopFetcher(deps);
+        const allowlist = parseTournamentAllowlist(flags.fipDrawPopulatorOnlyTournaments);
+        if (isWorldCupActive() && flags.enableFipDrawPopulator && !flags.fipDrawPopulatorDryRun
+          && (!allowlist?.size || allowlist.has(WORLD_CUP_ID))) {
+          const onlyTournamentIds = new Set([WORLD_CUP_ID]);
+          const imported = await runFipDrawPopulator({ ...deps, dryRun: false, onlyTournamentIds,
+            excludeLevels: parseExcludeLevels(flags.fipDrawPopulatorExcludeLevels) });
+          if (imported.tournamentsFailed) throw new Error('World Cup OOP import failed');
+          if (flags.enableFipOopWriter) await runFipOopWriter({ ...deps,
+            dryRun: flags.fipOopWriterDryRun, onlyTournamentIds });
+        }
+        return result;
+      },
     });
   }
   if (flags.enableResultsFetcher) {
@@ -800,6 +818,11 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
     });
   }
   if (flags.enableStaticReconciler) {
+    entries.push({
+      name: 'world-cup-tie-fetcher',
+      cron: '*/5 * * * *',
+      run: (deps) => runWorldCupTieFetcher({ ...deps, dryRun: false }),
+    });
     entries.push({
       name: 'world-cup-reconciler',
       cron: '*/5 * * * *',
