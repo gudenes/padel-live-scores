@@ -1,3 +1,4 @@
+import { runScheduledWorldCupReconciler } from './workers/world-cup-reconciler.js';
 import { runSmartScheduleWriter } from './workers/smart-schedule-writer.js';
 import cron, { type ScheduledTask } from 'node-cron';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -224,6 +225,7 @@ export type WorkerName =
   | 'oop-fetcher'
   | 'results-fetcher'
   | 'static-reconciler'
+  | 'world-cup-reconciler'
   | 'match-stats-fetcher'
   | 'live-poller-manager'
   | 'shadow-diff-finalizer'
@@ -270,6 +272,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'oop-fetcher',
   'results-fetcher',
   'static-reconciler',
+  'world-cup-reconciler',
   'match-stats-fetcher',
   'live-poller-manager',
   'shadow-diff-finalizer',
@@ -402,6 +405,7 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
     );
     case 'oop-fetcher':          return (deps) => runOopFetcher(deps);
     case 'results-fetcher':      return (deps) => runResultsFetcher(deps);
+    case 'world-cup-reconciler': return (deps) => runScheduledWorldCupReconciler({ supabase: deps.supabase, dryRun: true });
     case 'static-reconciler':    return (deps) => runStaticReconciler({ supabase: deps.supabase, logger: deps.logger });
     case 'match-stats-fetcher':  return (deps) => runMatchStatsFetcher(deps);
     case 'live-poller-manager':  return (deps) => runLivePollerManager({
@@ -661,7 +665,7 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
         const excludeLevels = parseExcludeLevels(
           flags.fipDrawPopulatorExcludeLevels,
         );
-        return runFipDrawPopulator({
+        const result = await runFipDrawPopulator({
           supabase: deps.supabase,
           logger: deps.logger,
           dryRun: flags.fipDrawPopulatorDryRun,
@@ -670,6 +674,19 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
           notify: deps.notify,
           eventsEnabled: deps.eventsEnabled,
         });
+        // The :47 schedule writer can finish before this import creates its rows.
+        // Fill their schedules before declaring the import complete; retain the
+        // independent writer cadence as a retry path if this step fails.
+        if (flags.enableFipOopWriter && !flags.fipDrawPopulatorDryRun) {
+          await runFipOopWriter({
+            supabase: deps.supabase,
+            logger: deps.logger,
+            dryRun: flags.fipOopWriterDryRun,
+            notify: deps.notify,
+            eventsEnabled: deps.eventsEnabled,
+          });
+        }
+        return result;
       },
     });
   }
@@ -783,6 +800,11 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
     });
   }
   if (flags.enableStaticReconciler) {
+    entries.push({
+      name: 'world-cup-reconciler',
+      cron: '*/5 * * * *',
+      run: (deps) => runScheduledWorldCupReconciler({ supabase: deps.supabase, dryRun: false }),
+    });
     entries.push({
       name: 'static-reconciler',
       cron: '5,35 * * * *', // twice hourly at :05 and :35 — consumes snapshots from fetchers

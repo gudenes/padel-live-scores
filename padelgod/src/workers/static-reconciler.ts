@@ -1,4 +1,3 @@
-import { runWorldCupReconciler } from './world-cup-reconciler.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
 import {
@@ -168,13 +167,6 @@ export async function runStaticReconciler(
   const drawResult = await reconcileDraws(deps, cutoff);
   const oopResult = await reconcileOOP(deps, cutoff);
   const resultsResult = await reconcileResults(deps, cutoff);
-  // Team-event entry lists have a different shape from pairs tournaments.
-  // Reuse this scheduled reconciliation pass while the event is active.
-  const today = new Date().toISOString().slice(0, 10);
-  if (today >= '2026-11-02' && today <= '2026-11-08') {
-    const worldCup = await runWorldCupReconciler({ supabase: deps.supabase, dryRun: false });
-    deps.logger?.info(worldCup, 'World Cup player links reconciled');
-  }
 
   deps.logger?.info(
     { ...entryListResult, ...drawResult, ...oopResult, ...resultsResult },

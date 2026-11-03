@@ -29,3 +29,29 @@ describe('World Cup roster identity',()=>{
     expect(resolveWorldCupPlayer('M. Koek','NED','women',squads,[profile('m','Marcella Koek','ES')])).toBe('m');
   });
 });
+
+describe('reviewed World Cup FIP identities', () => {
+  const roster = [{ country: 'MX', category: 'men', names: ['Eduardo Agustin Torre'] }];
+  const torre: Profile = { id: 'torre', name: 'Agustín Torre', display_name: null, country: 'AR', category: 'men', fip_id: 'P100879' };
+  it('links a verified full roster name by FIP ID despite different nationality and abbreviated DB name', () => {
+    expect(resolveWorldCupPlayer('E. Torre', 'MEX', 'men', roster, [torre])).toBe('torre');
+  });
+  it('does not infer identity from surname or a missing/duplicated FIP ID', () => {
+    expect(resolveWorldCupPlayer('E. Torre', 'MEX', 'men', roster, [{ ...torre, fip_id: null }])).toBeNull();
+    expect(resolveWorldCupPlayer('E. Torre', 'MEX', 'men', roster, [torre, { ...torre, id: 'duplicate' }])).toBeNull();
+    expect(resolveWorldCupPlayer('E. Torre', 'MEX', 'men', roster, [{ ...torre, category: 'women' }])).toBeNull();
+    expect(resolveWorldCupPlayer('E. Torre', 'ARG', 'men', roster, [torre])).toBeNull();
+  });
+  it('prefers the reviewed FIP identity over an ID-less duplicate', () => {
+    const squad = [{ country: 'SE', category: 'women', names: ['Amanda Girdo'] }];
+    const amanda = { ...profile('amanda', 'Amanda Girdo', 'SE'), fip_id: 'P200116' };
+    expect(resolveWorldCupPlayer('A. Girdo', 'SWE', 'women', squad, [amanda, profile('duplicate', 'Amanda Girdo', 'SE')])).toBe('amanda');
+  });
+  it('leaves conflicting identities outside the reviewed list unresolved', () => {
+    const squad = [{ country: 'DE', category: 'women', names: ['Milla Blaschke'] }];
+    expect(resolveWorldCupPlayer('M. Blaschke', 'GER', 'women', squad, [
+      { ...profile('a', 'Milla Blaschke', 'DE'), fip_id: 'P204071' },
+      { ...profile('b', 'Milla Blaschke', 'DE'), fip_id: 'P214369' },
+    ])).toBeNull();
+  });
+});

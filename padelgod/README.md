@@ -94,3 +94,12 @@ with no ambiguous or unresolved matches. This verifies reading, resolution and
 adaptation, not production writes.
 
 Live cards without set scores update status and trigger notifications without inventing scores.
+
+
+### World Cup import completeness
+
+- The scheduled FIP draw populator now awaits the OOP writer after a successful non-dry import, when the writer is enabled. New rows receive published schedules without waiting for the next quarter-hour tick. The independent OOP schedule remains the retry path; writer dry-run settings are preserved.
+- `world-cup-reconciler` runs independently every five minutes when `ENABLE_STATIC_RECONCILER` is enabled, only November 2–8, 2026 (UTC). It skips overlapping runs and releases the guard after failures. It no longer waits for bulk entry/draw/OOP/results reconciliation.
+- Manual worker triggers remain dry-run. The existing `scripts/reconcile-world-cup.ts` also stays read-only unless `--apply` is supplied.
+- Identity resolution still requires unique squad/profile matches and compares the full lineup before updating missing links. Ambiguous identities remain unresolved rather than being guessed.
+- Seven reviewed roster identities use the FIP ID published on their official FIP profile, including Eduardo Agustin Torre → P100879. Each mapping records its source URL and is scoped to the event country/category/full roster name. The ID must identify exactly one database row; no generic preference for ranked profiles or fuzzy surname fallback is used. Conflicting FIP IDs remain unresolved.
