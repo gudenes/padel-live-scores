@@ -1,5 +1,6 @@
 export const RELEASE_KEY = 'pn_release_world_cup_smart_schedule_2026_11'
-export const RELEASE_END = Date.parse('2026-12-01T00:00:00Z')
+// Fifteen days after the November 4 production release (09:52:32 UTC).
+export const RELEASE_END = Date.parse('2026-11-19T09:52:32Z')
 let seenInMemory = false
 
 export function releaseEligible(pathname: string, now = Date.now()) {
