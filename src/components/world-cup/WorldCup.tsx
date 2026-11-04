@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useSearchParams } from 'next/navigation';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { useLocale, useTranslations, useTimeZone } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { FlagImage } from "@/components/FlagImage";
@@ -39,6 +41,19 @@ export default function WorldCup({
   const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
   const [selectedTeam, setSelectedTeam] = useState<CupTeam | null>(null);
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const requestedTeam = params.get('team');
+  const activeTeam = (requestedTeam && data?.teams.find(team => team.category === category && normalizeCountry(team.country) === requestedTeam)) || selectedTeam;
+  const closeTeam = () => {
+    setSelectedTeam(null);
+    if (requestedTeam) {
+      const next = new URLSearchParams(params.toString());
+      next.delete('team');
+      router.replace(`${pathname}?${next}`, { scroll: false });
+    }
+  };
   const [country, setCountry] = useState("");
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   useEffect(() => {
@@ -221,7 +236,7 @@ export default function WorldCup({
                 })}
             </div>
           )}
-          {selectedTeam && <WorldCupTeam team={selectedTeam} data={data} matches={matches} userTz={userTz} onClose={() => setSelectedTeam(null)} />}
+          {activeTeam && <WorldCupTeam team={activeTeam} data={data} matches={matches} userTz={userTz} onClose={closeTeam} />}
           <p className={styles.source}>
             <a
               href={WORLD_CUP.eventUrl}
