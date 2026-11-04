@@ -4,6 +4,7 @@
 
 import { useSearchParams } from 'next/navigation'
 import { usePathname } from '@/i18n/navigation'
+import ProductRelease from '@/components/releases/ProductRelease'
 import BottomNavV3 from '@/components/nav/BottomNavV3'
 import { BadgeToastProvider } from '@/components/BadgeToast'
 import DesktopDownloadRail from '@/components/DesktopDownloadRail'
@@ -47,6 +48,7 @@ function AppLayoutInner({ children }: { children: React.ReactNode }) {
           outside this (app) group but still need the nudge context). */}
       <div data-app-route-shell data-avatar-shop-shell={(pathname === '/avatar-shop' || pathname === '/avatar-preview') ? '' : undefined} style={{ paddingBottom: hideNav ? 0 : 72 }}>{children}</div>
       {!hideNav && <BottomNavV3 />}
+      {!hideNav && <ProductRelease key={pathname} />}
       {/* Quiet "get the app" rail — desktop-only, hidden inside Capacitor
           shells. Self-gated for mobile/tablet via CSS media query. Skipped
           on full-screen routes for the same reason BottomNavV3 is. */}
