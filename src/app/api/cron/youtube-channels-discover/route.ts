@@ -1,13 +1,13 @@
 // src/app/api/cron/youtube-channels-discover/route.ts
 //
 // Polls the YouTube uploads playlist of every active row in
-// `youtube_channels` every 5 min. UPSERTs currently-live videos into
+// `youtube_channels` every 2 min. UPSERTs currently-live videos into
 // `youtube_channel_live`; prunes stale rows (last seen >30 min ago).
 //
 // Spec: docs/superpowers/specs/2026-05-14-youtube-live-indicator-design.md
-// Schedule: */5 * * * * (every 5 minutes), see vercel.json
+// Schedule: */2 * * * * (every 2 minutes), see scripts/railway-cron-runner.mjs
 //
-// Cost: 2 quota units per channel per run. At 2 channels = ~1.2k/day.
+// Cost: 2 quota units per channel per run. At 4 channels = 5,760/day.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase'

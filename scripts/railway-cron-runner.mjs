@@ -28,7 +28,7 @@ const JOBS = [
   { path: '/api/cron/play-result-push', cron: '* * * * *' },
   { path: '/api/cron/process-factsheets', cron: '8 */2 * * *' },
   { path: '/api/cron/sync-highlights', cron: '20 */1 * * *' },
-  { path: '/api/cron/youtube-channels-discover', cron: '*/5 * * * *' },
+  { path: '/api/cron/youtube-channels-discover', cron: '*/2 * * * *' },
   { path: '/api/cron/sync-articles', cron: '40 */1 * * *' },
   { path: '/api/cron/enrich-articles', cron: '*/15 * * * *' },
   { path: '/api/cron/regenerate-dynamic-sources', cron: '0 5 * * 1' },

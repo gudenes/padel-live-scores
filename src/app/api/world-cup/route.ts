@@ -2,9 +2,10 @@ import { createAnonServerClient } from "@/lib/supabase";
 import { normalizeCountry } from "@/lib/country";
 import { resolveCupPlayer, type CupPlayerProfile } from "@/lib/world-cup-players";
 import { WORLD_CUP, type CupData } from "@/lib/world-cup";
+import { FIP_CHANNEL_ID } from '@/lib/fip-channel';
+import { CUP_STREAM_FRESHNESS_MS, matchCupYouTubeStreams } from '@/lib/world-cup-youtube';
 import {
   parseCupGroups,
-  parseCupStreams,
   parseCupTeams,
 } from "@/lib/world-cup-parser";
 export const runtime = "nodejs";
@@ -19,7 +20,6 @@ async function html(url: string) {
 export async function GET() {
   const base = `https://widget.matchscorerlive.com/screen`;
   const results = await Promise.allSettled([
-    html(WORLD_CUP.eventUrl),
     html(`${base}/entrylist/${WORLD_CUP.widgetCode}?t=tol&theme=1`),
     html(`${base}/groups/${WORLD_CUP.widgetCode}?t=tol&theme=1`),
   ]);
@@ -28,9 +28,9 @@ export async function GET() {
       ? (results[i] as PromiseFulfilledResult<string>).value
       : "";
   const data: CupData = {
-    ties: parseCupStreams(source(0)),
-    teams: parseCupTeams(source(1)),
-    groups: parseCupGroups(source(2)),
+    ties: [],
+    teams: parseCupTeams(source(0)),
+    groups: parseCupGroups(source(1)),
     fetchedAt: new Date().toISOString(),
     partial: results.some((r) => r.status === "rejected"),
   };
@@ -38,6 +38,17 @@ export async function GET() {
     return Response.json({ error: "FIP data unavailable" }, { status: 502 });
   try {
     const db = createAnonServerClient();
+    const { data: streams, error: streamError } = await db.from('youtube_channel_live')
+      .select('video_id,title,started_at,last_seen_at,channel:youtube_channels!inner(channel_id,is_active)')
+      .in('channel.channel_id', [FIP_CHANNEL_ID, 'UCK59dYVs3Wgwoe73nDTH6jw'])
+      .eq('channel.is_active', true)
+      .gt('last_seen_at', new Date(Date.now() - CUP_STREAM_FRESHNESS_MS).toISOString());
+    if (streamError) {
+      console.error('[world-cup] YouTube broadcast lookup failed:', streamError.message);
+      data.partial = true;
+    } else {
+      data.ties = matchCupYouTubeStreams(streams ?? [], data.teams);
+    }
     const countries = [...new Set(data.teams.map(t => normalizeCountry(t.country)).filter((c): c is string => !!c))];
     const players: CupPlayerProfile[] = [];
     for (let offset = 0; countries.length; offset += 1000) {
