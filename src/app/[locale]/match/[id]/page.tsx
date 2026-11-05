@@ -16,6 +16,7 @@ import { useMatchPrediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
+import WorldCupPairLink from '@/components/world-cup/WorldCupPairLink'
 import { MatchStatsView, type MatchStatsResponse } from '@/components/MatchStatsView'
 import { computeBreaks } from './break-stats'
 import { SwipeTabView } from '@/components/SwipeTabView'
@@ -816,6 +817,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <p role="status" style={{color:MUTED,fontSize:13,textAlign:'center',margin:'0 0 16px'}}>{tMatch('awaitingConfirmedOpponents')}</p>
         )}
         {/* Pair 1 row */}
+        <WorldCupPairLink match={match} pair={1} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, ...(!isLive && !isScheduled ? { borderBottom: `0.5px solid ${BORDER}` } : {}) }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
             <PlayerSquare player={match.pair1_player1} winner={p1Won} router={router} />
@@ -898,6 +900,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {isFinished && <div style={{ height: 12 }} />}
 
         {/* Pair 2 row */}
+        <WorldCupPairLink match={match} pair={2} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 14 }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
             <PlayerSquare player={match.pair2_player1} winner={p2Won} router={router} />
