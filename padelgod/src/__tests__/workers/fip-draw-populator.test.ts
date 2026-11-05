@@ -388,7 +388,7 @@ function fakeSupabase(opts: Options) {
     select: (_cols: string) => ({
       eq: (col: string, val: string) => {
         const data = entryList.filter(
-          (e) => col !== 'tournament_id' || val === TOURNAMENT_ID,
+          (e) => col !== 'tournament_id' || val === ((e as EntryListSeed & { tournament_id?: string }).tournament_id ?? TOURNAMENT_ID),
         );
         return paginatedResult(data);
       },
@@ -1969,6 +1969,27 @@ describe('runFipDrawPopulator', () => {
     expect(supabase.inserted[0].widget_id_composite).toBe(
       'FIP-2026-1706:MD017',
     );
+  });
+
+  it('World Cup imports additional matches in the same stage without duplicating bracket IDs', async () => {
+    const cup = '2c1a0800-3bd6-424c-92f1-5417fea2cba1';
+    const supabase = fakeSupabase({
+      tournaments: [{ tournament_id: cup, tournament_name: 'World Cup', slug: 'fip-world-cup-2026-2' }],
+      widgetCodeByTournament: { [cup]: 'FIP-2026-4516' },
+      tournamentLevels: { [cup]: 'fip_championship' },
+      draws: [{ ...realMatchDraw, tournament_id: cup, round_label: 'Group Stage' }],
+      oopSnapshots: [
+        { ...oopRow, tournament_id: cup, round_label: 'Group Stage', match_widget_id: realMatchDraw.match_widget_id },
+        { ...oopRow, tournament_id: cup, round_label: 'Group Stage', match_widget_id: 'MD999' },
+      ],
+      entryList: entryList.map(row => ({ ...row, tournament_id: cup })), players: rosterPlayers,
+    });
+    const result = await runFipDrawPopulator({ supabase: supabase as any, dryRun: false });
+    expect(result.tournamentsFailed).toBe(0);
+    expect(result.drawRowsConsidered).toBe(2);
+    expect(result.inserted).toBe(2);
+    expect(supabase.inserted.map((r: {widget_id_composite:string}) => r.widget_id_composite).sort())
+      .toEqual(['FIP-2026-4516:MD017', 'FIP-2026-4516:MD999']);
   });
 
   it('OOP fallback: dedupes to latest captured_at per match_widget_id', async () => {

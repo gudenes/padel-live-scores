@@ -1,3 +1,4 @@
+import { WORLD_CUP_ID } from '../lib/world-cup-event.js';
 import { createFipDrawPlayerResolver, preserveDrawPlayerLinks } from '../lib/fip-draw-player.js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Logger } from 'pino';
@@ -769,7 +770,7 @@ export async function runFipDrawPopulator(
       const oopExtra = await loadLatestOopRowsAsDrawRows(
         supabase,
         t.tournament_id,
-        { excludeRoundLabels: drawRoundLabels },
+        { excludeRoundLabels: t.tournament_id === WORLD_CUP_ID ? undefined : drawRoundLabels },
       );
       if (oopExtra.length > 0) {
         logger?.info(
@@ -784,7 +785,9 @@ export async function runFipDrawPopulator(
           'fip-draw-populator: merging OOP-only rounds into draw set',
         );
       }
-      latestDraws = [...latestDraws, ...oopExtra];
+      // Team ties share round labels; a partial bracket must not hide new OOP matches.
+      const drawnIds = new Set(latestDraws.map(row => row.match_widget_id));
+      latestDraws = [...latestDraws, ...oopExtra.filter(row => t.tournament_id !== WORLD_CUP_ID || !drawnIds.has(row.match_widget_id))];
     }
     if (latestDraws.length === 0) continue;
 
