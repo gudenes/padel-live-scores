@@ -99,7 +99,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
         <span className={dailyStyles.meta}><small>{live ? t('liveTie') : finished ? t('finishedTie') : `${tie.round ?? t(selected.stage)} · ${t('matchCount', { count: tie.matches.length })}`}</small><span aria-hidden="true">{expanded ? '−' : '+'}</span></span>
       </div>
       <div id={panelId} className={dailyStyles.collapse} data-open={expanded} inert={!expanded} aria-hidden={!expanded}>
-        <div>{expanded && stream && <WorldCupStream key={stream.videoId} videoId={stream.videoId} streams={stream.streams} title={`${stream.home} – ${stream.away}`} />}{tie.matches.map(match => <MatchCard embedded key={match.id} match={match} genderColor={color} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />)}</div>
+        <div>{expanded && stream && <WorldCupStream key={stream.videoId} videoId={stream.videoId} streams={stream.streams} title={`${stream.home} – ${stream.away}`} />}{tie.matches.map(match => <MatchCard teamCountries={tie.countries} embedded key={match.id} match={match} genderColor={color} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />)}</div>
       </div>
     </section>
   }

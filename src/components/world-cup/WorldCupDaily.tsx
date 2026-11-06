@@ -70,7 +70,7 @@ export default function WorldCupDaily({ties, locale, userTz, iso}: {iso:string;t
       </button>}
       </div>
       <div id={panelId} className={styles.collapse} data-open={open} inert={!open} aria-hidden={!open}>
-        <div>{open && tie.videoId && <WorldCupStream key={tie.videoId} videoId={tie.videoId} streams={tie.streams} open={watching === key} onOpenChange={value => setWatching(value ? key : null)} title={tie.countries.map((country,index) => country ? regions.of(country) : tie.names[index]).join(" – ")} />}{tie.matches.length ? tie.matches.map(match => <MatchCard embedded key={match.id} match={match} genderColor={tie.category === 'men' ? MEN_BLUE : WOMEN_PURPLE} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />) : <p className={styles.pending}>{t('pairsPending')}</p>}</div>
+        <div>{open && tie.videoId && <WorldCupStream key={tie.videoId} videoId={tie.videoId} streams={tie.streams} open={watching === key} onOpenChange={value => setWatching(value ? key : null)} title={tie.countries.map((country,index) => country ? regions.of(country) : tie.names[index]).join(" – ")} />}{tie.matches.length ? tie.matches.map(match => <MatchCard teamCountries={tie.countries} embedded key={match.id} match={match} genderColor={tie.category === 'men' ? MEN_BLUE : WOMEN_PURPLE} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />) : <p className={styles.pending}>{t('pairsPending')}</p>}</div>
       </div>
       </div>
     })}

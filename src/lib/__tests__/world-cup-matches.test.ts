@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { Match } from '@/types/match'
-import { CUP_DAYS, cupTieScore, cupMatchDay, groupCupMatches } from '../world-cup-matches'
+import { CUP_DAYS, cupPairOrder, pairCountry, cupTieScore, cupMatchDay, groupCupMatches } from '../world-cup-matches'
 import { cupSeed } from '../world-cup'
 const match = (id: string, a = 'ESP', b = 'SWE', extra = {}) => ({
   id, category: 'men', scheduled_at: '2026-11-03T15:00:00Z', round: 'Group stage',
@@ -48,5 +48,19 @@ describe('country tie score', () => {
   })
   it('does not invent a result for unplayed matches', () => {
     expect(cupTieScore(groupCupMatches([match('one','ESP','SWE',{status:'scheduled',winner_pair:null})],'men','2026-11-03')[0])).toBeNull()
+  })
+})
+
+describe('World Cup player row presentation', () => {
+  it('aligns reversed player and score rows with the country header', () => {
+    const row = match('portugal-netherlands', 'POR', 'NED')
+    expect(cupPairOrder(row, ['NL', 'PT'])).toEqual([2, 1])
+    expect(cupPairOrder(row, ['PT', 'NL'])).toEqual([1, 2])
+    expect(cupPairOrder(row)).toEqual([1, 2])
+  })
+  it('uses represented Netherlands even when player profiles contain Niger', () => {
+    const row = match('bad-profile', 'POR', 'NED', {pair2_player1:{country:'NE'},pair2_player2:{country:'NE'}})
+    expect(pairCountry(row, 2)).toBe('NL')
+    expect(cupPairOrder(row, ['NL', 'PT'])).toEqual([2, 1])
   })
 })

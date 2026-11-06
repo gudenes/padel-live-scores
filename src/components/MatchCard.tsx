@@ -25,6 +25,7 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import posthog from 'posthog-js'
 import { Link } from '@/i18n/navigation'
+import { cupPairOrder, pairCountry } from '@/lib/world-cup-matches'
 import { FlagImage } from '@/components/FlagImage'
 import { pairName, getMatchDisplay, type Match } from '@/types/match'
 import { formatShortDate, formatScheduledTime } from '@/lib/match-schedule-format'
@@ -172,6 +173,8 @@ function tournamentLocationLabel(match: Match, locale: string): string {
 export interface MatchCardProps {
   /** Parent confrontation supplies the continuous accent and outer edges. */
   embedded?: boolean
+  /** National-team header order; also selects represented-country flags. */
+  teamCountries?: readonly (string | null)[] | null
   match: Match
   genderColor: string
   locale: string
@@ -194,6 +197,7 @@ export interface MatchCardProps {
 
 export function MatchCard({
   embedded = false,
+  teamCountries,
   match: matchProp,
   genderColor,
   locale,
@@ -213,6 +217,7 @@ export function MatchCard({
   const isLiveStatus =
     matchProp.status === 'live' || (matchProp.status as string) === 'on_court'
   const match = useLiveMatch(matchProp.id, isLiveStatus, matchProp)
+  const pairOrder = cupPairOrder(match, teamCountries)
   const { forecast, now: forecastNow } = useSmartSchedule(match)
 
   // ── Unified display calculation ──────────────────────────────────
@@ -581,7 +586,7 @@ export function MatchCard({
 
             {/* Names column — both pair-lefts stacked */}
             <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-              {[1, 2].map(pairNum => {
+              {pairOrder.map(pairNum => {
                 const p1 = pairNum === 1 ? match.pair1_player1 : match.pair2_player1
                 const p2 = pairNum === 1 ? match.pair1_player2 : match.pair2_player2
                 const pair = pairName(p1, p2)
@@ -595,10 +600,11 @@ export function MatchCard({
                 // Kosovan / other less-tracked players render flagless.
                 // normalizeCountry inside FlagImage handles alpha-3 → -2.
                 const m = match as unknown as Record<string, string | null>
-                let p1Country: string | null = p1?.country
+                const representedCountry = teamCountries ? pairCountry(match, pairNum) : null
+                let p1Country: string | null = representedCountry ?? p1?.country
                   ?? m[`pair${pairNum}_player1_country`]
                   ?? null
-                let p2Country: string | null = p2?.country
+                let p2Country: string | null = representedCountry ?? p2?.country
                   ?? m[`pair${pairNum}_player2_country`]
                   ?? null
                 // Partner fallback: the dual-flag stack is designed to
@@ -691,7 +697,7 @@ export function MatchCard({
                 presence-only and scores render again. */}
             {!presenceOnlyLive && (
             <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-              {[1, 2].map(pairNum => {
+              {pairOrder.map(pairNum => {
                 const isLoser = winner !== 0 && winner !== pairNum
                 return (
                   <div key={pairNum} style={{
