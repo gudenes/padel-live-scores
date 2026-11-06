@@ -61,7 +61,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
   const broadcasts = (cup?.ties ?? []).filter(tie => tie.category === category && (tie.scheduledAt || tie.liveObservedAt) &&
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Qatar', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date((tie.scheduledAt ?? tie.liveObservedAt)!)) === day)
   const pending = broadcasts.filter(broadcast => {
-    const countries = [teamCountry(broadcast.home), teamCountry(broadcast.away)].sort().join('-')
+    const countries = [broadcast.homeCountry ?? teamCountry(broadcast.home), broadcast.awayCountry ?? teamCountry(broadcast.away)].sort().join('-')
     return !ties.some(tie => tie.countries?.join('-') === countries)
   })
   const toggleTie = (key: string) => setOpenTies(previous => {
@@ -81,7 +81,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
     const expanded = openTies.has(tie.key)
     const score = cupTieScore(tie)
     const stream = tie.countries && broadcasts.find(broadcast =>
-      [teamCountry(broadcast.home), teamCountry(broadcast.away)].sort().join('-') === tie.countries?.join('-') &&
+      [broadcast.homeCountry ?? teamCountry(broadcast.home), broadcast.awayCountry ?? teamCountry(broadcast.away)].sort().join('-') === tie.countries?.join('-') &&
       tie.key.startsWith(`${day}:`))
     const panelId = `cup-${encodeURIComponent(tie.key)}`
     const live = tie.matches.some(match => ['live', 'on_court'].includes(match.status))
@@ -99,7 +99,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
         <span className={dailyStyles.meta}><small>{live ? t('liveTie') : finished ? t('finishedTie') : `${tie.round ?? t(selected.stage)} · ${t('matchCount', { count: tie.matches.length })}`}</small><span aria-hidden="true">{expanded ? '−' : '+'}</span></span>
       </div>
       <div id={panelId} className={dailyStyles.collapse} data-open={expanded} inert={!expanded} aria-hidden={!expanded}>
-        <div>{expanded && stream && <WorldCupStream key={stream.videoId} videoId={stream.videoId} streams={stream.streams} title={`${stream.home} – ${stream.away}`} />}{tie.matches.map(match => <MatchCard teamCountries={tie.countries} embedded key={match.id} match={match} genderColor={color} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />)}</div>
+        <div>{expanded && stream?.videoId && <WorldCupStream key={stream.videoId} videoId={stream.videoId} streams={stream.streams} title={`${stream.home} – ${stream.away}`} />}{tie.matches.map(match => <MatchCard teamCountries={tie.countries} embedded key={match.id} match={match} genderColor={color} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />)}</div>
       </div>
     </section>
   }
@@ -121,7 +121,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
     {!loading && pending.map(tie => {
       const expanded = openTies.has(tie.id)
       const panelId = `cup-pending-${encodeURIComponent(tie.id)}`
-      const countries = [teamCountry(tie.home), teamCountry(tie.away)]
+      const countries = [tie.homeCountry ?? teamCountry(tie.home), tie.awayCountry ?? teamCountry(tie.away)]
       return <section key={tie.id} className={dailyStyles.confrontation} style={{borderLeftColor:color}}>
         <div className={`${dailyStyles.row} ${styles.tieRow}`}>
           <button type="button" className={styles.expandButton} aria-label={`${tie.home} – ${tie.away}`} aria-expanded={expanded} aria-controls={panelId} onClick={() => toggleTie(tie.id)} />
@@ -130,14 +130,14 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
             <strong className={dailyStyles.score} style={{clipPath:CHUNKY.badge}}>vs</strong>
             {countryLabel(countries[1], tie.away)}
           </span>
-          <span className={dailyStyles.meta}><strong>{tie.liveObservedAt ? t('liveTie') : tie.scheduledAt ? new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', timeZone: userTz }).format(new Date(tie.scheduledAt)) : '—'}</strong><small>{!tie.liveObservedAt && t('broadcastTime')}{tie.group ? ` · ${t('group')} ${tie.group}` : ''}</small><span aria-hidden="true">{expanded ? '−' : '+'}</span></span>
+          <span className={dailyStyles.meta}><strong>{!tie.liveObservedAt && tie.notBefore && `${t('notBefore')} `}{tie.liveObservedAt ? t('liveTie') : tie.scheduledAt ? new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit', timeZone: userTz }).format(new Date(tie.scheduledAt)) : '—'}</strong><small>{!tie.liveObservedAt && t(tie.scheduleSource ? 'tieTime' : 'broadcastTime')}{tie.court ? ` · ${tie.court}` : ''}{tie.group ? ` · ${t('group')} ${tie.group}` : ''}</small><span aria-hidden="true">{expanded ? '−' : '+'}</span></span>
         </div>
         <div id={panelId} className={dailyStyles.collapse} data-open={expanded} inert={!expanded} aria-hidden={!expanded}>
-          <div>{expanded && <WorldCupStream key={tie.videoId} videoId={tie.videoId} streams={tie.streams} title={`${tie.home} – ${tie.away}`} />}<p className={dailyStyles.pending}>{t('pairsPending')}</p></div>
+          <div>{expanded && tie.videoId && <WorldCupStream key={tie.videoId} videoId={tie.videoId} streams={tie.streams} title={`${tie.home} – ${tie.away}`} />}<p className={dailyStyles.pending}>{t('pairsPending')}</p></div>
         </div>
       </section>
     })}
-    {!loading && pending.length > 0 && <p className={styles.note}>{t('scheduleHelp')}</p>}
+    {!loading && pending.some(tie => !tie.scheduleSource) && <p className={styles.note}>{t('scheduleHelp')}</p>}
     {selectedTeam && cup && <WorldCupTeam team={selectedTeam} data={cup} matches={matches} userTz={userTz} onClose={() => setSelectedTeam(null)} />}
     {!loading && undated.length > 0 && <div><h2 className={styles.stage}>{t('datePending')}</h2>{undated.map(renderTie)}</div>}
   </section>

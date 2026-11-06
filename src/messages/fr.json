@@ -2610,6 +2610,8 @@
     "unlikelyBefore": "Peu probable avant"
   },
   "worldCup": {
+    "notBefore": "Pas avant",
+    "tieTime": "Heure de la rencontre",
     "liveTie": "En direct",
     "finishedTie": "Terminé",
     "closeTeam": "Fermer l’équipe",

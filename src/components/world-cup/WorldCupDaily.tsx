@@ -60,7 +60,7 @@ export default function WorldCupDaily({ties, locale, userTz, iso}: {iso:string;t
         <strong className={styles.score} style={{clipPath:CHUNKY.badge}}>{tie.score ? `${tie.score[0]} – ${tie.score[1]}` : 'vs'}</strong>
         <span className={styles.country}><FlagImage country={tie.countries[1]} size={24}/><b>{tie.countries[1] ? regions.of(tie.countries[1]) : tie.names[1]}</b></span>
       </span>
-      <span className={styles.meta}>{tie.score || tie.status === 'live' ? <span>{t(tie.status === 'live' ? 'liveTie' : tie.status === 'finished' ? 'finishedTie' : 'matches')}</span> : <><strong>{tie.time ? new Intl.DateTimeFormat(locale,{hour:'numeric',minute:'2-digit',timeZone:userTz}).format(new Date(tie.time)) : '—'}</strong><small>{t(tie.broadcast ? 'broadcastTime' : 'matches')}</small></>}<span aria-hidden="true">{open ? '−' : '+'}</span></span>
+      <span className={styles.meta}>{tie.score || tie.status === 'live' ? <span>{t(tie.status === 'live' ? 'liveTie' : tie.status === 'finished' ? 'finishedTie' : 'matches')}</span> : <><strong>{tie.notBefore && `${t('notBefore')} `}{tie.time ? new Intl.DateTimeFormat(locale,{hour:'numeric',minute:'2-digit',timeZone:userTz}).format(new Date(tie.time)) : '—'}</strong><small>{tie.round ? t(tie.round) : t(tie.broadcast ? 'broadcastTime' : 'tieTime')}{tie.court ? ` · ${tie.court}` : ''}</small></>}<span aria-hidden="true">{open ? '−' : '+'}</span></span>
       </button>
       {tie.videoId && <button type="button" className={styles.watchIcon} title={t('watch')} aria-label={`${t('watch')} · ${tie.names.join(' – ')}`} aria-controls={panelId} aria-expanded={open && watching === key} onClick={() => {
         setExpanded(previous => new Set(previous).add(key))

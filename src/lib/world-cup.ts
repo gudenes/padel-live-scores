@@ -27,6 +27,12 @@ export interface CupTie {
   liveObservedAt?: string;
   videoId: string;
   streams?: CupStream[];
+  homeCountry?: string;
+  awayCountry?: string;
+  court?: string;
+  round?: "semifinals";
+  notBefore?: boolean;
+  scheduleSource?: string;
 }
 export interface CupStanding {
   name: string;

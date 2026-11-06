@@ -13,6 +13,9 @@ export interface DailyCupTie {
   time: string | null
   videoId: string | null
   streams?: CupStream[]
+  court?: string
+  round?: "semifinals"
+  notBefore?: boolean
   broadcast: boolean
   score: [number, number] | null
   status: 'live' | 'upcoming' | 'finished'
@@ -23,9 +26,9 @@ export function dailyCupTies(data: CupData | null, groups: MatchesDayGroup[], is
   for (const tie of data?.ties ?? []) {
     const datedAt = tie.scheduledAt ?? tie.liveObservedAt
     if (!datedAt || date(datedAt) !== iso) continue
-    const countries = [tie.home, tie.away].map(name => normalizeCountry(data?.teams.find(team => team.category === tie.category && cupTeamKey(team.name) === cupTeamKey(name))?.country)) as DailyCupTie['countries']
+    const countries = [tie.home, tie.away].map((name, index) => normalizeCountry((index === 0 ? tie.homeCountry : tie.awayCountry) ?? data?.teams.find(team => team.category === tie.category && cupTeamKey(team.name) === cupTeamKey(name))?.country)) as DailyCupTie['countries']
     const key = `${tie.category}:${countries.every(Boolean) ? [...countries].sort().join('-') : tie.id}`
-    rows.set(key, {key,category:tie.category,countries,names:[tie.home,tie.away],time:tie.scheduledAt,videoId:tie.videoId,streams:tie.streams,broadcast:true,score:null,matches:[],status:tie.liveObservedAt ? 'live' : 'upcoming'})
+    rows.set(key, {key,category:tie.category,countries,names:[tie.home,tie.away],time:tie.scheduledAt,videoId:tie.videoId,streams:tie.streams,court:tie.court,round:tie.round,notBefore:tie.notBefore,broadcast:!tie.scheduleSource,score:null,matches:[],status:tie.liveObservedAt ? 'live' : 'upcoming'})
   }
   const matches = groups.filter(group => group.tournamentId === WORLD_CUP.tournamentId).flatMap(group => group.matches).map(match => ({...match,sets:match.sets ?? []})) as unknown as Match[]
   for (const category of ['men','women'] as const) {
@@ -35,7 +38,7 @@ export function dailyCupTies(data: CupData | null, groups: MatchesDayGroup[], is
         const key = `${category}:${tie.countries.join('-')}`
         const stream = rows.get(key)
         const status = tie.matches.some(m => ['live','on_court'].includes(m.status)) ? 'live' : tie.matches.length >= 3 && tie.matches.every(m => ['finished','ended','retired','walkover'].includes(m.status)) ? 'finished' : 'upcoming'
-        rows.set(key,{key,category,videoId:stream?.videoId ?? null,streams:stream?.streams,countries:tie.countries,names:tie.countries,time:tie.matches[0].scheduled_at ?? stream?.time ?? null,broadcast:!tie.matches[0].scheduled_at && !!stream,score:cupTieScore(tie),matches:tie.matches,status})
+        rows.set(key,{key,category,videoId:stream?.videoId ?? null,streams:stream?.streams,countries:tie.countries,names:tie.countries,time:tie.matches[0].scheduled_at ?? stream?.time ?? null,court:stream?.court,round:stream?.round,notBefore:stream?.notBefore,broadcast:!tie.matches[0].scheduled_at && !!stream?.broadcast,score:cupTieScore(tie),matches:tie.matches,status})
       }
     }
   }

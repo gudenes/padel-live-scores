@@ -63,7 +63,7 @@ export default function WorldCupTeam({ team, data, matches, userTz, onClose }: {
           <h3>{cupMatchDay(tie.matches[0]) ? new Intl.DateTimeFormat(locale,{month:'short',day:'numeric',timeZone:'Asia/Qatar'}).format(new Date(tie.matches[0].scheduled_at ?? tie.matches[0].started_at ?? tie.matches[0].finished_at!)) : t('datePending')} · {tie.round ?? t('groupStage')}</h3>
           {tie.matches.map(match => <MatchCard teamCountries={tie.countries} key={match.id} match={match} genderColor={color} locale={locale} userTz={userTz} tournamentLevel="fip_championship" />)}
         </section>)}
-        {broadcasts.map(tie => <div key={tie.id} className={styles.broadcast} style={{clipPath:CHUNKY.card}}><strong>{tie.home} vs {tie.away}</strong><p>{tie.liveObservedAt ? t('liveTie') : tie.scheduledAt ? `${t('broadcastTime')} · ${date(tie.scheduledAt)}` : t('datePending')}</p><p>{t('pairsPending')}</p></div>)}
+        {broadcasts.map(tie => <div key={tie.id} className={styles.broadcast} style={{clipPath:CHUNKY.card}}><strong>{tie.home} vs {tie.away}</strong><p>{tie.liveObservedAt ? t('liveTie') : tie.scheduledAt ? `${tie.notBefore ? `${t('notBefore')} · ` : ''}${t(tie.scheduleSource ? 'tieTime' : 'broadcastTime')} · ${date(tie.scheduledAt)}${tie.court ? ` · ${tie.court}` : ''}` : t('datePending')}</p><p>{t('pairsPending')}</p></div>)}
         {broadcasts.length > 0 && <p className={styles.note}>{t('scheduleHelp')}</p>}
         {!teamMatches.length && !broadcasts.length && <p className={styles.note}>{t('fixturesPendingHelp')}</p>}
       </>}
