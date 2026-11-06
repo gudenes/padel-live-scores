@@ -1,3 +1,4 @@
+import { withCupSchedule } from "@/lib/world-cup-schedule";
 import { createAnonServerClient } from "@/lib/supabase";
 import { normalizeCountry } from "@/lib/country";
 import { resolveCupPlayer, type CupPlayerProfile } from "@/lib/world-cup-players";
@@ -28,7 +29,7 @@ export async function GET() {
       ? (results[i] as PromiseFulfilledResult<string>).value
       : "";
   const data: CupData = {
-    ties: [],
+    ties: withCupSchedule([]),
     teams: parseCupTeams(source(0)),
     groups: parseCupGroups(source(1)),
     fetchedAt: new Date().toISOString(),
@@ -47,7 +48,7 @@ export async function GET() {
       console.error('[world-cup] YouTube broadcast lookup failed:', streamError.message);
       data.partial = true;
     } else {
-      data.ties = matchCupYouTubeStreams(streams ?? [], data.teams);
+      data.ties = withCupSchedule(matchCupYouTubeStreams(streams ?? [], data.teams));
     }
     const countries = [...new Set(data.teams.map(t => normalizeCountry(t.country)).filter((c): c is string => !!c))];
     const players: CupPlayerProfile[] = [];

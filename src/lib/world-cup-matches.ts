@@ -26,7 +26,7 @@ export function cupMatchDay(match: Match): string | null {
   if (!value || !Number.isFinite(Date.parse(value))) return null
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Qatar', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
 }
-function pairCountry(match: CupMatch, pair: 1 | 2) {
+export function pairCountry(match: CupMatch, pair: 1 | 2) {
   const a = normalizeCountry(match[`pair${pair}_player1_country`] ?? match[`pair${pair}_player1`]?.country)
   const b = normalizeCountry(match[`pair${pair}_player2_country`] ?? match[`pair${pair}_player2`]?.country)
   return a && b && a === b ? a : null
@@ -73,4 +73,11 @@ export function cupTieScore(tie: CountryConfrontation): [number, number] | null 
     known = true
   }
   return known ? score : null
+}
+
+/** Keep player and score rows in the same country order as their tie header. */
+export function cupPairOrder(match: Match, countries?: readonly (string | null)[] | null): (1 | 2)[] {
+  const first = countries?.[0]
+  return first && pairCountry(match, 2) === first && pairCountry(match, 1) === countries?.[1]
+    ? [2, 1] : [1, 2]
 }

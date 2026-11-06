@@ -2642,6 +2642,8 @@
     "unlikelyBefore": "Unlikely before"
   },
   "worldCup": {
+    "notBefore": "Not before",
+    "tieTime": "Match time",
     "liveTie": "Live",
     "finishedTie": "Finished",
     "closeTeam": "Close team",
