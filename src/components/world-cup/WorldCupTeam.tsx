@@ -15,14 +15,14 @@ import type { Match } from '@/types/match'
 import styles from './WorldCupTeam.module.css'
 
 /** Shared country view from standings and confrontation cards. Native dialog traps focus. */
-export default function WorldCupTeam({ team, data, matches, userTz, onClose }: {
-  team: CupTeam; data: CupData; matches: Match[]; userTz: string; onClose: () => void
+export default function WorldCupTeam({ team, data, matches, userTz, onClose, initialView = 'squads' }: {
+  team: CupTeam; data: CupData; matches: Match[]; userTz: string; onClose: () => void; initialView?: 'squads' | 'matches'
 }) {
   const t = useTranslations('worldCup')
   const locale = useLocale()
   const dialog = useRef<HTMLDialogElement>(null)
   const titleId = useId()
-  const [view, setView] = useState<'squads' | 'matches'>('squads')
+  const [view, setView] = useState<'squads' | 'matches'>(initialView)
   useEffect(() => {
     const element = dialog.current
     element?.showModal()

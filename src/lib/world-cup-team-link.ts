@@ -1,5 +1,6 @@
 import { normalizeCountry } from './country'
 import { WORLD_CUP, type CupData } from './world-cup'
+import { cupMatchDay, groupCupMatches } from './world-cup-matches'
 import type { Match } from '@/types/match'
 
 /** Only offer a national-team destination when both players agree and the squad exists. */
@@ -13,5 +14,25 @@ export function worldCupTeamDestination(match: CupLinkedMatch, pair: 1 | 2, data
   if (!first || first !== second) return null
   const team = data.teams.find(team => team.category === category && normalizeCountry(team.country) === first)
   if (!team) return null
-  return { country: first, href: `/tournaments/${WORLD_CUP.tournamentId}?tab=teams&category=${category}&team=${first}` }
+  return { country: first, href: `/tournaments/${WORLD_CUP.tournamentId}?tab=teams&category=${category}&team=${first}&teamView=matches` }
+}
+
+export function worldCupSeriesDestination(match: CupLinkedMatch) {
+  const { category } = match
+  if (match.tournament?.id !== WORLD_CUP.tournamentId || (category !== 'men' && category !== 'women')) return null
+  const query = new URLSearchParams({ tab: 'matches', category, match: match.id })
+  const day = cupMatchDay(match)
+  if (day) query.set('day', day)
+  return `/tournaments/${WORLD_CUP.tournamentId}?${query}`
+}
+
+export function worldCupNextInSeries(match: CupLinkedMatch, matches: Match[]): string | null {
+  if (!worldCupSeriesDestination(match)) return null
+  const day = cupMatchDay(match)
+  if (!day) return null
+  const series = groupCupMatches(matches, match.category as 'men' | 'women', day)
+    .find(tie => tie.countries && tie.matches.some(row => row.id === match.id))
+  if (!series) return null
+  const index = series.matches.findIndex(row => row.id === match.id)
+  return series.matches[index + 1]?.id ?? null
 }

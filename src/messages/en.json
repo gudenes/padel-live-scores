@@ -2642,6 +2642,13 @@
     "unlikelyBefore": "Unlikely before"
   },
   "worldCup": {
+    "places1to4": "Places 1–4",
+    "places5to8": "Places 5–8",
+    "places9to12": "Places 9–12",
+    "places13to16": "Places 13–16",
+    "places1to8": "Places 1–8",
+    "places9to16": "Places 9–16",
+    "bracketPending": "Bracket to be confirmed",
     "notBefore": "Not before",
     "tieTime": "Match time",
     "liveTie": "Live",

@@ -7,11 +7,12 @@ import { MatchCard } from '@/components/MatchCard'
 import EmptyState from '@/components/EmptyState'
 import MatchCardSkeleton from '@/components/skeletons/MatchCardSkeleton'
 import { FlagImage } from '@/components/FlagImage'
-import { CUP_DAYS, groupCupMatches, cupTieScore, type CountryConfrontation } from '@/lib/world-cup-matches'
-import { cupTeamKey, type CupCategory, type CupData, type CupTeam } from '@/lib/world-cup'
+import { CUP_DAYS, cupBroadcastOnDay, cupSemiBracket, cupQuarterBracket, cupCountryPriority, groupCupMatches, cupTieScore, type CountryConfrontation } from '@/lib/world-cup-matches'
+import { cupTeamKey, type CupCategory, type CupData, type CupTeam, type CupTie } from '@/lib/world-cup'
 import { normalizeCountry } from '@/lib/country'
 import type { Match } from '@/types/match'
-import { MEN_BLUE, WOMEN_PURPLE, CHUNKY } from '@/components/home/shared'
+import { CHUNKY, MEN_BLUE, WOMEN_PURPLE } from '@/components/home/shared'
+import { scrollToCupTarget } from './scrollToCupTarget'
 import WorldCupTeam from './WorldCupTeam'
 import WorldCupStream from './WorldCupStream'
 import styles from './WorldCupMatches.module.css'
@@ -58,8 +59,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
   const region = new Intl.DisplayNames([locale], { type: 'region' })
   const color = category === 'men' ? MEN_BLUE : WOMEN_PURPLE
   const teamCountry = (name: string) => normalizeCountry(cup?.teams.find(team => team.category === category && cupTeamKey(team.name) === cupTeamKey(name))?.country)
-  const broadcasts = (cup?.ties ?? []).filter(tie => tie.category === category && (tie.scheduledAt || tie.liveObservedAt) &&
-    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Qatar', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date((tie.scheduledAt ?? tie.liveObservedAt)!)) === day)
+  const broadcasts = (cup?.ties ?? []).filter(tie => cupBroadcastOnDay(tie, category, day))
   const pending = broadcasts.filter(broadcast => {
     const countries = [broadcast.homeCountry ?? teamCountry(broadcast.home), broadcast.awayCountry ?? teamCountry(broadcast.away)].sort().join('-')
     return !ties.some(tie => tie.countries?.join('-') === countries)
@@ -78,7 +78,8 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
     </span>
   }
   const renderTie = (tie: CountryConfrontation) => {
-    const expanded = openTies.has(tie.key)
+    const targeted = tie.matches.some(match => match.id === searchParams.get('match'))
+    const expanded = targeted !== openTies.has(tie.key)
     const score = cupTieScore(tie)
     const stream = tie.countries && broadcasts.find(broadcast =>
       [broadcast.homeCountry ?? teamCountry(broadcast.home), broadcast.awayCountry ?? teamCountry(broadcast.away)].sort().join('-') === tie.countries?.join('-') &&
@@ -86,7 +87,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
     const panelId = `cup-${encodeURIComponent(tie.key)}`
     const live = tie.matches.some(match => ['live', 'on_court'].includes(match.status))
     const finished = tie.matches.length >= 3 && tie.matches.every(match => ['finished', 'ended', 'retired', 'walkover'].includes(match.status))
-    return <section className={dailyStyles.confrontation} style={{borderLeftColor:color}} key={tie.key}>
+    return <section ref={targeted ? scrollToCupTarget : undefined} className={dailyStyles.confrontation} style={{borderLeftColor:color}} key={tie.key}>
       <div className={`${dailyStyles.row} ${styles.tieRow}`}>
         <button type="button" className={styles.expandButton} aria-label={tie.countries ? `${region.of(tie.countries[0])} – ${region.of(tie.countries[1])}` : t('unassignedTie')} aria-expanded={expanded} aria-controls={panelId} onClick={() => toggleTie(tie.key)} />
         <span className={dailyStyles.teams}>
@@ -103,22 +104,7 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
       </div>
     </section>
   }
-  return <section className={styles.root} aria-label={t('matches')}>
-    <div className={styles.categories}>
-      {(['men', 'women'] as const).map(g => <button key={g} aria-pressed={g === category} onClick={() => onCategoryChange(g)} style={g === category ? { color: g === 'men' ? MEN_BLUE : WOMEN_PURPLE, borderBottomColor: g === 'men' ? MEN_BLUE : WOMEN_PURPLE } : undefined}>{t(g)}</button>)}
-    </div>
-    <div ref={dayStrip} className={styles.days} aria-label={t('eventDays')}>
-      {CUP_DAYS.map(d => <button key={d.date} aria-pressed={day === d.date} onClick={() => setDay(d.date)} style={{ clipPath: CHUNKY.button }}>
-        <b>{t(d.stage)}</b>
-        <span>{new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${d.date}T12:00:00Z`))}</span>
-      </button>)}
-    </div>
-    <h2 className={styles.stage}>{t(selected.stage)}</h2>
-    {day >= '2026-11-05' && <p className={styles.note}>{t('placementMatches')}</p>}
-    {loading ? <MatchCardSkeleton /> : (ties.length || pending.length) ? ties.map(renderTie) : <div className={styles.empty}>
-      <EmptyState title={tTournament('placeholder.headline')} subtitle={tTournament('placeholder.body')} />
-    </div>}
-    {!loading && pending.map(tie => {
+  const renderPending = (tie: CupTie) => {
       const expanded = openTies.has(tie.id)
       const panelId = `cup-pending-${encodeURIComponent(tie.id)}`
       const countries = [tie.homeCountry ?? teamCountry(tie.home), tie.awayCountry ?? teamCountry(tie.away)]
@@ -136,7 +122,49 @@ export default function WorldCupMatches({ matches, category, onCategoryChange, l
           <div>{expanded && tie.videoId && <WorldCupStream key={tie.videoId} videoId={tie.videoId} streams={tie.streams} title={`${tie.home} – ${tie.away}`} />}<p className={dailyStyles.pending}>{t('pairsPending')}</p></div>
         </div>
       </section>
-    })}
+  }
+
+  const entries = [
+    ...ties.map(tie => ({ key: tie.key, countries: tie.countries ?? [], render: () => renderTie(tie) })),
+    ...pending.map(tie => ({ key: tie.id, countries: [normalizeCountry(tie.homeCountry) ?? teamCountry(tie.home), normalizeCountry(tie.awayCountry) ?? teamCountry(tie.away)], render: () => renderPending(tie) })),
+  ]
+  const quarters = groupCupMatches(matches, category, '2026-11-05')
+  const isSemis = selected.stage === 'semifinals'
+  const isPlacementDay = isSemis || selected.stage === 'quarterfinals'
+  const bracketKeys = isSemis
+    ? ['places1to4', 'places5to8', 'places9to12', 'places13to16', 'bracketPending']
+    : ['places1to8', 'places9to16', 'bracketPending']
+  const bracketFor = (countries: (string | null)[]) => {
+    if (isSemis) return cupSemiBracket(countries, category, cup, quarters)
+    const bracket = cupQuarterBracket(countries, category, cup)
+    return bracket === 'title' ? 'places1to8' : bracket === 'placement' ? 'places9to16' : 'bracketPending'
+  }
+  const placementSections = bracketKeys.map(bracket => ({
+    bracket,
+    entries: entries.filter(entry => bracketFor(entry.countries) === bracket)
+      .sort((a, b) => cupCountryPriority(a.countries) - cupCountryPriority(b.countries)),
+  }))
+  return <section className={styles.root} aria-label={t('matches')}>
+    <div className={styles.categories}>
+      {(['men', 'women'] as const).map(g => <button key={g} aria-pressed={g === category} onClick={() => onCategoryChange(g)} style={g === category ? { color: g === 'men' ? MEN_BLUE : WOMEN_PURPLE, borderBottomColor: g === 'men' ? MEN_BLUE : WOMEN_PURPLE } : undefined}>{t(g)}</button>)}
+    </div>
+    <div ref={dayStrip} className={styles.days} aria-label={t('eventDays')}>
+      {CUP_DAYS.map(d => <button key={d.date} aria-pressed={day === d.date} onClick={() => setDay(d.date)} style={{ clipPath: CHUNKY.button }}>
+        <b>{t(d.stage)}</b>
+        <span>{new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${d.date}T12:00:00Z`))}</span>
+      </button>)}
+    </div>
+    {!isPlacementDay && <h2 className={styles.stage}>{t(selected.stage)}</h2>}
+    {day >= '2026-11-05' && <p className={styles.note}>{t('placementMatches')}</p>}
+    {loading ? <MatchCardSkeleton /> : isPlacementDay ? placementSections.map(section =>
+      section.entries.length > 0 && <section key={section.bracket} aria-label={t(section.bracket)}>
+        <h3 className={styles.stage}>{t(section.bracket)}</h3>
+        {section.entries.map(entry => entry.render())}
+      </section>
+    ) : entries.length ? entries.map(entry => entry.render()) : <div className={styles.empty}>
+      <EmptyState title={tTournament('placeholder.headline')} subtitle={tTournament('placeholder.body')} />
+    </div>}
+
     {!loading && pending.some(tie => !tie.scheduleSource) && <p className={styles.note}>{t('scheduleHelp')}</p>}
     {selectedTeam && cup && <WorldCupTeam team={selectedTeam} data={cup} matches={matches} userTz={userTz} onClose={() => setSelectedTeam(null)} />}
     {!loading && undated.length > 0 && <div><h2 className={styles.stage}>{t('datePending')}</h2>{undated.map(renderTie)}</div>}
