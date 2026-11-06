@@ -24,6 +24,7 @@ export function dailyCupTies(data: CupData | null, groups: MatchesDayGroup[], is
   const date = (value: string) => new Intl.DateTimeFormat('en-CA', {timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value))
   const rows = new Map<string, DailyCupTie>()
   for (const tie of data?.ties ?? []) {
+    if (iso >= '2026-11-05' && (!tie.scheduledAt || tie.group)) continue
     const datedAt = tie.scheduledAt ?? tie.liveObservedAt
     if (!datedAt || date(datedAt) !== iso) continue
     const countries = [tie.home, tie.away].map((name, index) => normalizeCountry((index === 0 ? tie.homeCountry : tie.awayCountry) ?? data?.teams.find(team => team.category === tie.category && cupTeamKey(team.name) === cupTeamKey(name))?.country)) as DailyCupTie['countries']
