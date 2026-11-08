@@ -8,18 +8,20 @@ export const LEAGUE_GROUPS=[
 export function catalogFilters(params:Record<string,string|string[]|undefined>){
  const text=(key:string)=>typeof params[key]==='string'?(params[key] as string).slice(0,100):''
  const allowed=(key:string,values:string[])=>values.includes(text(key))?text(key):''
+ const validDate=(value:string)=>/^\d{4}-\d{2}-\d{2}$/.test(value)&&Number.isFinite(Date.parse(value))&&new Date(value).toISOString().slice(0,10)===value?value:''
  const watchlist=allowed('watchlist',['1'])
  const rawPlayers=typeof params.watched==='string'?params.watched:''
  const watched=watchlist?[...new Set(rawPlayers.split(',').filter(id=>/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)))].slice(0,50).join(','):''
- return {tournament:/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(text('tournament'))?text('tournament'):'',tournamentLabel:typeof params.tournamentLabel==='string'?params.tournamentLabel.trim().slice(0,300):'',watchlist,watched,mine:allowed('mine',['1']),player:/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(text('player'))?text('player'):'',league:allowed('league',LEAGUE_GROUPS.flatMap(g=>g.options.map(([value])=>value))),q:text('q').trim(),status:allowed('status',['finished','live','scheduled','walkover','retired']),
+ return {tournamentQuery:text('tournamentQuery').trim(),assistant:allowed('assistant',['1']),playerName:text('playerName').trim(),outcome:allowed('outcome',['won','lost']) as ''|'won'|'lost',from:validDate(text('from')),to:validDate(text('to')),round:allowed('round',['final','semifinal','quarterfinal','round_of_16','round_of_32','round_of_64']),tournament:/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(text('tournament'))?text('tournament'):'',tournamentLabel:typeof params.tournamentLabel==='string'?params.tournamentLabel.trim().slice(0,300):'',watchlist,watched,mine:allowed('mine',['1']),player:/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(text('player'))?text('player'):'',league:allowed('league',LEAGUE_GROUPS.flatMap(g=>g.options.map(([value])=>value))),q:text('q').trim(),status:allowed('status',['finished','live','scheduled','walkover','retired']),
   kind:allowed('kind',['match','private']),scouting:allowed('scouting',['scouted','unscouted','pending']),
   scouter:text('scouter').trim(),date:/^\d{4}-\d{2}-\d{2}$/.test(text('date'))?text('date'):'',
   page:Math.max(1,Math.min(100000,Number.parseInt(text('page')||'1')||1))}
 }
 export type CatalogFilters=ReturnType<typeof catalogFilters>
 export function catalogUrl(filters:CatalogFilters,changes:Partial<CatalogFilters>={}){
- const p=new URLSearchParams()
- for(const [key,value] of Object.entries({...filters,...changes}))if((value!==''||key==='league'||key==='date')&&(key!=='page'||value!==1))p.set(key,String(value))
+ const p=new URLSearchParams(),merged={...filters,...changes}
+ if(!merged.player){merged.playerName='';merged.outcome=''}
+ for(const [key,value] of Object.entries(merged))if((value!==''||key==='league'||key==='date')&&(key!=='page'||value!==1))p.set(key,String(value))
  return '/scouting'+(p.size?'?'+p:'?view=all')
 }
 // Page lightweight metadata first. Never fetch or replay every scouting document.
@@ -32,14 +34,14 @@ export const CATALOG_SQL=`with sessions as (
  where not exists(select 1 from public.operator_video_scouting_sessions v where v.match_id=a.match_id)
  ), catalog as (
  select m.id as match_id,'match'::text as kind,m.scheduled_at as sort_date,m.scheduled_at as match_date,
- m.tournament_id,t.level as league_tier,m.status::text as match_status,m.duration,m.round,m.category,coalesce(t.name,'Tournament') as tournament_name,
+ m.tournament_id,t.level as league_tier,m.status::text as match_status,m.duration,m.round,m.category,m.winner_pair,coalesce(t.name,'Tournament') as tournament_name,
  null::jsonb as players,
  array[m.pair1_player1_id,m.pair1_player2_id,m.pair2_player1_id,m.pair2_player2_id] as player_ids,
  array[m.pair1_player1_name,m.pair1_player2_name,m.pair2_player1_name,m.pair2_player2_name] as player_names
  from public.matches m left join public.tournaments t on t.id=m.tournament_id
  union all
  select pm.id,'private',coalesce(pm.match_date::timestamptz,pm.created_at),pm.match_date::timestamptz,
- null::uuid,null,null,null,null,null,coalesce(nullif(pm.tournament_label,''),'Private match'),pm.players,null::uuid[],null::text[]
+ null::uuid,null,null,null,null,null,null::integer,coalesce(nullif(pm.tournament_label,''),'Private match'),pm.players,null::uuid[],null::text[]
  from public.operator_manual_scouting_matches pm
  ), filtered as (
  select c.*,s.source,s.updated_at,s.updated_by,s.assigned_scouter_user_id,u.email as assigned_email,
@@ -57,6 +59,11 @@ export const CATALOG_SQL=`with sessions as (
  and ($14='' or c.player_ids && $15::uuid[])
  and ($9='' or ($9='premier' and c.league_tier in ('major','p1','p2','finals')) or ($9='fip' and left(c.league_tier,4)='fip_') or c.league_tier=$9)
  and ($6='' or (c.match_date at time zone 'Europe/Madrid')::date::text=$6)
+ and ($18='' or (c.kind='match' and c.match_status='finished' and $13::uuid is not null and (($13::uuid=any(c.player_ids[1:2]) and c.winner_pair=case when $18='won' then 1 else 2 end) or ($13::uuid=any(c.player_ids[3:4]) and c.winner_pair=case when $18='won' then 2 else 1 end))))
+ and ($19='' or c.match_date >= (nullif($19,'')::date::timestamp at time zone 'Europe/Madrid'))
+ and ($20='' or c.match_date < ((nullif($20,'')::date+1)::timestamp at time zone 'Europe/Madrid'))
+ and ($21='' or regexp_replace(lower(c.round),'[ _-]','','g')=any(case $21 when 'final' then array['final','finals','f'] when 'semifinal' then array['semifinal','semifinals','sf','1/2'] when 'quarterfinal' then array['quarterfinal','quarterfinals','quarter','qf','1/4'] when 'round_of_16' then array['roundof16','r16','1/8'] when 'round_of_32' then array['roundof32','r32','1/16'] when 'round_of_64' then array['roundof64','r64','1/32'] else array[]::text[] end))
+ and ($22='' or strpos(lower(c.tournament_name),lower($22))>0)
  ), paged as materialized (
  select * from filtered order by case when ($13::uuid is not null or $14='1') then case when match_status='live' then 0 when match_status='scheduled' then 1 else 2 end else 0 end, case when ($13::uuid is not null or $14='1') and match_status='scheduled' then sort_date end asc nulls last, case when $13::uuid is null and $14<>'1' then (sort_date at time zone 'Europe/Madrid')::date end desc nulls last, case when $13::uuid is null and $14<>'1' then sort_date end asc nulls last, sort_date desc nulls last,match_id desc,kind limit $7 offset $8
  ) select f.*,coalesce(f.players,(select jsonb_agg(jsonb_build_object('id',p.id,'name',coalesce(p.name,f.player_names[slot.n],'Player TBC'),'avatar_url',p.avatar_url,'country',p.country,'ranking',p.ranking) order by slot.n) from generate_subscripts(f.player_ids,1) as slot(n) left join public.players p on p.id=f.player_ids[slot.n])) as players,
@@ -66,9 +73,9 @@ export const CATALOG_SQL=`with sessions as (
 
 export async function loadMatchCatalog(db:Pick<Pool,'query'>,filters:CatalogFilters,viewer:{id?:string;email?:string|null}={}){
  const {q,status,kind,scouting,scouter,date,page,league,mine,player,watchlist,watched}=filters
- const limited=!!player||watchlist==='1'
+ const limited=filters.assistant!=='1'&&(!!player||watchlist==='1')
  const size=limited?10:MATCH_PAGE_SIZE
- const result=await db.query(CATALOG_SQL,[q,status,kind,scouting,scouter,date,size+1,limited?0:(page-1)*size,league,mine,viewer.id??null,viewer.email??'',player||null,watchlist,watched?watched.split(','):[],filters.tournament||null,filters.tournamentLabel])
+ const result=await db.query(CATALOG_SQL,[q,status,kind,scouting,scouter,date,size+1,limited?0:(page-1)*size,league,mine,viewer.id??null,viewer.email??'',player||null,watchlist,watched?watched.split(','):[],filters.tournament||null,filters.tournamentLabel,filters.outcome,filters.from,filters.to,filters.round,filters.tournamentQuery])
  const rows=result.rows.slice(0,size),hasNext=!limited&&result.rows.length>size
  const ids=rows.filter(r=>r.has_scouting).map(r=>r.match_id)
  if(ids.length){

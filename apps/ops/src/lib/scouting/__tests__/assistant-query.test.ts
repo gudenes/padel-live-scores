@@ -1,0 +1,16 @@
+import {it,expect,vi} from 'vitest'
+const {connect}=vi.hoisted(()=>({connect:vi.fn()}))
+vi.mock('../../db',()=>({pgPool:()=>({connect})}))
+import {validateAssistantSql,queryAssistantData} from '../assistant-query'
+it('supports joins, aggregates, percentages, dates and ranked evidence',()=>{for(const sql of ["SELECT m.match_id,t.name,m.duration_minutes FROM assistant_matches m JOIN assistant_tournaments t ON t.tournament_id=m.tournament_id WHERE m.status='finished' AND m.duration_minutes>0 ORDER BY m.duration_minutes DESC LIMIT 5","SELECT COUNT(*),COUNT(duration_minutes),AVG(duration_minutes) FROM assistant_matches WHERE match_date>='2026-01-01'","SELECT round(100.0 * SUM(CASE WHEN recorded_sets=3 THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),2) FROM assistant_matches","SELECT name FROM assistant_players WHERE lower(name) LIKE '%coello%'","SELECT count(*) FROM assistant_matches WHERE pair1_player1_id IN (SELECT player_id FROM assistant_players WHERE name='Arturo Coello')"]){expect(validateAssistantSql(sql)).toMatch(/^SELECT/i)}})
+it('rejects writes, catalogs, functions, schemas, casts and nested escapes before execution',()=>{for(const sql of ["SELECT current_user","SELECT session_user","SELECT user","DELETE FROM assistant_matches","SELECT 1; SELECT 2","SELECT * FROM public.users","SELECT * FROM users","SELECT * FROM pg_catalog.pg_authid","SELECT pg_read_file('/etc/passwd')","SELECT current_setting('app.secret')","SELECT pg_sleep(30)","SELECT set_config('search_path','public',false)","SELECT query_to_xml('select * from users',true,false,'')","SELECT * INTO new_table FROM assistant_matches","SELECT * FROM assistant_matches FOR UPDATE","WITH stolen AS (SELECT * FROM users) SELECT * FROM stolen","SELECT (SELECT password FROM users) FROM assistant_matches","SELECT 'x'::regclass","SELECT 'x'::public.secret_type","SELECT * FROM generate_series(1,100000000)","SELECT * FROM assistant_matches UNION SELECT * FROM users","SELECT lo_export(1,'/tmp/file')","SELECT * FROM assistant_matches TABLESAMPLE SYSTEM(10)"]){expect(()=>validateAssistantSql(sql),sql).toThrow()}})
+
+it('executes with a read-only transaction and bounded results, then releases the connection',async()=>{
+ const query=vi.fn().mockResolvedValue({rows:[]});query.mockImplementation(async(sql:string)=>({rows:sql.startsWith('WITH ')?Array.from({length:51},(_,i)=>({value:i})):[]}));const release=vi.fn();connect.mockResolvedValue({query,release})
+ const result=await queryAssistantData('SELECT count(*) FROM assistant_matches')
+ expect(query.mock.calls[0][0]).toBe('BEGIN READ ONLY');expect(query.mock.calls.map(x=>x[0])).toContain("SET LOCAL statement_timeout='6s'");expect(result.rows).toHaveLength(50);expect(result.truncated).toBe(true);expect(query.mock.calls.at(-1)?.[0]).toBe('COMMIT');expect(release).toHaveBeenCalled()
+})
+it('rolls back and releases timed-out queries',async()=>{
+ const query=vi.fn().mockImplementation(async(sql:string)=>{if(sql.startsWith('WITH '))throw Object.assign(Error('timeout'),{code:'57014'});return {rows:[]}});const release=vi.fn();connect.mockResolvedValue({query,release})
+ await expect(queryAssistantData('SELECT count(*) FROM assistant_matches')).rejects.toThrow('six-second limit');expect(query.mock.calls.at(-1)?.[0]).toBe('ROLLBACK');expect(release).toHaveBeenCalled()
+})

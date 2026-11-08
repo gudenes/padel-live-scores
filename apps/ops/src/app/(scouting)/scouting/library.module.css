@@ -141,3 +141,5 @@
 @media(max-width:650px){.browseBar{align-items:flex-start}.browseUtilities{gap:2px}.browseUtilities .ui-btn{font-size:12px}.recentMenu>div{right:auto;left:0}.browseViews{gap:4px}}
 
 .tournamentLink{color:inherit;text-decoration:none}.tournamentLink:hover{text-decoration:underline;text-underline-offset:3px}.tournamentLink span{color:var(--text-2)}.tournamentLink:focus-visible{outline:2px solid var(--lime);outline-offset:4px;border-radius:3px}
+
+/* The assistant shares the existing catalog, with room for the selected right sidebar. */
