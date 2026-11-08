@@ -9,6 +9,7 @@
 // their existing tier-gradient fallback underneath this component.
 
 import Image from 'next/image'
+import { useState } from 'react'
 
 interface Props {
   src: string | null | undefined
@@ -47,7 +48,8 @@ export default function TournamentCoverImage({
   priority = false,
   focal = 'top',
 }: Props) {
-  if (!src) return null
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+  if (!src || src === failedSrc) return null
   // Milan's tall poster has a sponsor strip above the players. Move the
   // hero crop down so all five faces sit above the title overlay.
   const milanHero = variant === 'hero' && /\/2025\/12\/MILANO-P1\.jpeg(?:[?#]|$)/.test(src)
@@ -55,6 +57,7 @@ export default function TournamentCoverImage({
   return (
     <Image
       src={src}
+      onError={() => setFailedSrc(src)}
       alt={alt}
       fill
       sizes={sizes}
