@@ -1,4 +1,4 @@
-// instrumentation.ts
+// src/instrumentation.ts
 //
 // Next.js 16 server-side instrumentation entry point. Called once when
 // a new server instance starts, before any request is handled.
@@ -65,7 +65,7 @@ function commonInit() {
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { installFipImageProxy } = await import('./src/lib/fip-image-proxy')
+    const { installFipImageProxy } = await import('./lib/fip-image-proxy')
     installFipImageProxy()
   }
 
