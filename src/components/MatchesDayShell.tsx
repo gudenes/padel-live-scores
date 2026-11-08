@@ -493,7 +493,7 @@ export default function MatchesDayShell({
             initial without a jarring page-flash. */}
         <div className="matches-day-fade" key={activeIso}>
           <div id="matches-filter-root" style={{ padding: '0 8px' }}>
-          <WorldCupDaily iso={activeIso} ties={cupTies} locale={locale} userTz={userTz} />
+          <WorldCupDaily showPlacements iso={activeIso} ties={cupTies} locale={locale} userTz={userTz} />
           {isLoadingActive ? (
             <MatchesDayShimmer />
           ) : isErrorActive ? (

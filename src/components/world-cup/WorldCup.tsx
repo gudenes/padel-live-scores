@@ -51,6 +51,7 @@ export default function WorldCup({
     if (requestedTeam) {
       const next = new URLSearchParams(params.toString());
       next.delete('team');
+      next.delete('teamView');
       router.replace(`${pathname}?${next}`, { scroll: false });
     }
   };
@@ -236,7 +237,7 @@ export default function WorldCup({
                 })}
             </div>
           )}
-          {activeTeam && <WorldCupTeam team={activeTeam} data={data} matches={matches} userTz={userTz} onClose={closeTeam} />}
+          {activeTeam && <WorldCupTeam team={activeTeam} data={data} matches={matches} userTz={userTz} initialView={requestedTeam && params.get('teamView') === 'matches' ? 'matches' : 'squads'} onClose={closeTeam} />}
           <p className={styles.source}>
             <a
               href={WORLD_CUP.eventUrl}

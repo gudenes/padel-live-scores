@@ -1,14 +1,19 @@
 'use client'
 // Winner banner shown at the top of a finished match page.
+import { WORLD_CUP } from '@/lib/world-cup'
+import { worldCupSeriesDestination } from '@/lib/world-cup-team-link'
 import { Link } from '@/i18n/navigation'
 import { Match } from '@/types/match'
 import { GREEN, GREEN_DIM, CHUNKY } from './lib/constants'
 
 export function WinnerBanner({ match, winnerPair, pair1Label, pair2Label, nextMatchId }: { match: Match; winnerPair: number; pair1Label: string; pair2Label: string; nextMatchId: string | null }) {
+  const seriesHref = worldCupSeriesDestination(match)
   const winnerLabel = winnerPair === 1 ? pair1Label : pair2Label
   const round = (match.round ?? '').toLowerCase()
   const isFinal = round.includes('final') && !round.includes('semifinal') && !round.includes('quarter')
-  const advancement = round.includes('semifinal') ? { badge: 'Finals', text: 'Advances to the Finals' }
+  // An individual rubber win does not establish the national team's advancement.
+  const isWorldCup = (match as Match & { tournament?: { id?: string } }).tournament?.id === WORLD_CUP.tournamentId
+  const advancement = isWorldCup ? null : round.includes('semifinal') ? { badge: 'Finals', text: 'Advances to the Finals' }
     : round.includes('quarter') ? { badge: 'Semifinals', text: 'Advances to the Semifinals' }
     : isFinal ? { badge: 'Champion', text: 'Tournament Champion!' }
     : null
@@ -29,9 +34,9 @@ export function WinnerBanner({ match, winnerPair, pair1Label, pair2Label, nextMa
           </div>
         )}
       </div>
-      {!isFinal && nextMatchId && (
-        <Link href={`/match/${nextMatchId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 42, marginTop: 8, textDecoration: 'none' }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>{advancement ? advancement.text : 'Next match'}</span>
+      {(seriesHref || (!isFinal && nextMatchId)) && (
+        <Link href={nextMatchId ? `/match/${nextMatchId}` : seriesHref!} style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 42, marginTop: 8, textDecoration: 'none' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>{seriesHref ? 'Next match' : advancement ? advancement.text : 'Next match'}</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={GREEN} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M5 12h14" /><polyline points="12 5 19 12 12 19" />
           </svg>

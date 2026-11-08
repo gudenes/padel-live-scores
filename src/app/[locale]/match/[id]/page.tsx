@@ -16,7 +16,8 @@ import { useMatchPrediction } from '@/hooks/useMatchPrediction'
 import { useMatchRating } from '@/hooks/useMatchRating'
 import FollowButton from '@/components/FollowButton'
 import { FlagImage } from '@/components/FlagImage'
-import WorldCupPairLink from '@/components/world-cup/WorldCupPairLink'
+import { worldCupSeriesDestination, worldCupNextInSeries, type CupLinkedMatch } from '@/lib/world-cup-team-link'
+import WorldCupPairLink, { useWorldCupMatchData } from '@/components/world-cup/WorldCupPairLink'
 import { MatchStatsView, type MatchStatsResponse } from '@/components/MatchStatsView'
 import { computeBreaks } from './break-stats'
 import { SwipeTabView } from '@/components/SwipeTabView'
@@ -66,6 +67,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const handleBack = () => { if (window.history.length > 1) router.back(); else router.push('/') }
 
   const [match, setMatch] = useState<Match | null>(null)
+  const cupData = useWorldCupMatchData(match)
   const [loading, setLoading] = useState(true)
   const [subTab, setSubTab] = useState<SubTab>('live')
   const [h2hMatches, setH2hMatches] = useState<any[]>([])
@@ -95,7 +97,21 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
   const webtugaSourced = matchStats?.webtugaSourced ?? false
   const { user } = useAuth()
 
+  const nextMatchRequest = useRef(0)
   const fetchNextMatch = useCallback(async (m: Match) => {
+    const request = ++nextMatchRequest.current
+    setNextMatchId(null)
+    const cupMatch = m as CupLinkedMatch
+    if (worldCupSeriesDestination(cupMatch)) {
+      const { data, error } = await supabase.from('matches')
+        .select('*')
+        .eq('tournament_id', cupMatch.tournament!.id!)
+        .eq('category', cupMatch.category!)
+      if (request === nextMatchRequest.current && !error && data) {
+        setNextMatchId(worldCupNextInSeries(m, data as Match[]))
+      }
+      return
+    }
     const wp = (m as any).winner_pair as number | null
     if (!wp) return
     const winnerP1 = wp === 1 ? m.pair1_player1?.id : m.pair2_player1?.id
@@ -117,7 +133,13 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
     // Pick the match scheduled after the current one (next round)
     const currentDate = m.scheduled_at ?? m.started_at ?? ''
     const next = data.find(d => (d.scheduled_at ?? '') > currentDate) ?? data[data.length - 1]
-    if (next) setNextMatchId(next.id)
+    if (next && request === nextMatchRequest.current) setNextMatchId(next.id)
+  }, [id])
+  useEffect(() => {
+    const request = ++nextMatchRequest.current
+    queueMicrotask(() => {
+      if (request === nextMatchRequest.current) setNextMatchId(null)
+    })
   }, [id])
 
   const fetchMatch = useCallback(async () => {
@@ -684,7 +706,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
 
       {/* ── Tournament link ──────────────────────────────────────────── */}
       {(match as any).tournament?.id && (
-        <Link href={`/tournaments/${(match as any).tournament.id}`} style={{
+        <Link href={worldCupSeriesDestination(match) ?? `/tournaments/${(match as any).tournament.id}`} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 16px', background: BG_CARD, borderBottom: `0.5px solid ${BORDER}`,
           textDecoration: 'none',
@@ -817,7 +839,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
           <p role="status" style={{color:MUTED,fontSize:13,textAlign:'center',margin:'0 0 16px'}}>{tMatch('awaitingConfirmedOpponents')}</p>
         )}
         {/* Pair 1 row */}
-        <WorldCupPairLink match={match} pair={1} />
+        <WorldCupPairLink data={cupData} match={match} pair={1} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 12, ...(!isLive && !isScheduled ? { borderBottom: `0.5px solid ${BORDER}` } : {}) }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
             <PlayerSquare player={match.pair1_player1} winner={p1Won} router={router} />
@@ -900,7 +922,7 @@ export default function MatchPage({ params }: { params: Promise<{ id: string }> 
         {isFinished && <div style={{ height: 12 }} />}
 
         {/* Pair 2 row */}
-        <WorldCupPairLink match={match} pair={2} />
+        <WorldCupPairLink data={cupData} match={match} pair={2} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 14 }}>
           <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
             <PlayerSquare player={match.pair2_player1} winner={p2Won} router={router} />

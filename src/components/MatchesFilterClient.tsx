@@ -187,6 +187,21 @@ export default function MatchesFilterClient({
     if (hydrated) applyFilters()
   }, [contentVersion, hydrated, applyFilters])
 
+  // Placement classification can move existing fixtures between sections after loading.
+  useEffect(() => {
+    if (!hydrated) return
+    const root = document.getElementById(rootId)
+    if (!root) return
+    const observer = new MutationObserver(records => {
+      const fixturesChanged = records.some(record =>
+        [...record.addedNodes, ...record.removedNodes].some(node =>
+          node instanceof Element && (node.matches('[data-match]') || node.querySelector('[data-match]'))))
+      if (fixturesChanged) applyFilters()
+    })
+    observer.observe(root, { childList: true, subtree: true })
+    return () => observer.disconnect()
+  }, [hydrated, rootId, applyFilters])
+
   // One-tap LIVE toggle. The pill IS the existing status filter — when
   // active it sets {live:true, upcoming:false, finished:false}; when
   // toggled off it restores the all-three-true default. Reusing the

@@ -1,0 +1,3 @@
+.section:not(:has([data-match]:not([style*="display: none"]))) {
+  display: none;
+}

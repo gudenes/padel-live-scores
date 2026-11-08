@@ -2610,6 +2610,13 @@
     "unlikelyBefore": "No se prevé antes de"
   },
   "worldCup": {
+    "places1to4": "Puestos 1–4",
+    "places5to8": "Puestos 5–8",
+    "places9to12": "Puestos 9–12",
+    "places13to16": "Puestos 13–16",
+    "places1to8": "Puestos 1–8",
+    "places9to16": "Puestos 9–16",
+    "bracketPending": "Cuadro por confirmar",
     "notBefore": "No antes de",
     "tieTime": "Hora del encuentro",
     "liveTie": "En directo",
