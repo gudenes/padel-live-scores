@@ -36,19 +36,24 @@ def stop(*_):
 signal.signal(signal.SIGTERM, stop)
 signal.signal(signal.SIGINT, stop)
 peak_count = peak_kb = 0
+monitor_failures = 0
 print(f'{target}: Webpack preview, 12-process / 3 GiB resident-memory guard.', flush=True)
 while child.poll() is None:
     try:
-        rows = subprocess.check_output(['ps', '-axo', 'pgid=,rss='], text=True, timeout=3).splitlines()
+        rows = subprocess.check_output(['ps', '-axo', 'pgid=,rss='], text=True, timeout=10).splitlines()
         memory = [int(parts[1]) for row in rows if len(parts := row.split()) == 2 and int(parts[0]) == child.pid]
         count, kb = len(memory), sum(memory)
+        monitor_failures = 0
         peak_count, peak_kb = max(peak_count, count), max(peak_kb, kb)
         if count > 12 or kb > 3 * 1024 * 1024:
             print(f'Stopping {target}: {count} processes, {kb // 1024} MiB resident memory.', flush=True)
             stop()
     except (subprocess.SubprocessError, ValueError):
-        print('Resource monitor unavailable; stopping preview.', flush=True)
-        stop()
+        monitor_failures += 1
+        print(f'Resource monitor unavailable ({monitor_failures}/3).', flush=True)
+        if monitor_failures >= 3:
+            print('Stopping preview after repeated monitoring failures.', flush=True)
+            stop()
     time.sleep(2)
 print(f'Peak: {peak_count} processes, {peak_kb // 1024} MiB.', flush=True)
 sys.exit(child.returncode)

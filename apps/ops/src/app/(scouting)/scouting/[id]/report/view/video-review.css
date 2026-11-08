@@ -233,3 +233,10 @@
 @media(prefers-reduced-motion:reduce){.vr-save-check{animation:none}}
 
 .video-review .vr-redbull{width:100%;aspect-ratio:auto;min-height:320px;box-sizing:border-box}.vr-redbull>div{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}.vr-redbull .vr-error{position:static;width:100%;box-sizing:border-box}
+
+.vr-redbull-review{width:100%;min-width:0;align-self:start}
+.video-review .vr-watch .vr-redbull-review .vr-player{height:auto;min-height:0;aspect-ratio:16/9}
+.vr-redbull-help{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:16px;background:var(--vr-panel,#fff)}
+.vr-redbull-help p{width:100%;font-size:13px;line-height:1.5}
+/* Keep the match header from covering the embedded video and point controls. */
+.matchInsights:has(.video-review) .match-sticky-hero{position:relative;top:auto}

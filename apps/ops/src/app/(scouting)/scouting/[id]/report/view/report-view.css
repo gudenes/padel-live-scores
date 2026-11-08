@@ -2244,3 +2244,8 @@ main.main:has(.match-sticky-hero){overflow-anchor:none}.matchInsights .match-sti
 .matchInsights .profileConnection:focus-visible,.matchInsights .pairConnection:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .matchInsights .match-sticky-hero.is-compact .heroTeam>.connectedReportPlayer{flex-direction:column;align-items:center}
 .matchInsights .match-sticky-hero.is-compact .profileConnection,.matchInsights .match-sticky-hero.is-compact .pairConnection{font-size:10px;padding:2px}
+
+/* The stacked mobile header must not cover the report tabs or video controls. */
+@media (max-width:700px){
+ .matchInsights .match-sticky-hero{position:relative;top:auto}
+}
