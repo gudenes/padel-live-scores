@@ -4,7 +4,7 @@ import {parseTime,timeLabel} from '@/lib/scouting/video-review'
 import {reviewTags,type ReviewTag,type ReviewNote} from '@/lib/scouting/review-notes'
 import './review-notes.css'
 export type ReviewContext={matchId:string;manual:boolean;userId:string}
-export default function ReviewNotes({context,videoUrl,clock,onSeek}:{context:ReviewContext;videoUrl:string;clock:number;onSeek:(url:string,time:number)=>void}){
+export default function ReviewNotes({context,videoUrl,clock,onSeek}:{context:ReviewContext;videoUrl:string;clock:number|null;onSeek:(url:string,time:number)=>void}){
  const endpoint=`/api/internal/scouting-review-notes/${context.matchId}?kind=${context.manual?'manual':'canonical'}`
  const [notes,setNotes]=useState<ReviewNote[]>([]),[loading,setLoading]=useState(true),[loadError,setLoadError]=useState(''),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[retry,setRetry]=useState(0)
  const [note,setNote]=useState(''),[tag,setTag]=useState<ReviewTag>('note'),[stamp,setStamp]=useState('')
@@ -29,7 +29,7 @@ export default function ReviewNotes({context,videoUrl,clock,onSeek}:{context:Rev
  <form onSubmit={save}><fieldset disabled={busy||loading}><div className="review-note-fields">
  <label>Tag<select className="ui-input" value={tag} onChange={e=>setTag(e.target.value as ReviewTag)}>{Object.entries(reviewTags).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>
  <label>Video timestamp (optional)<input className="ui-input" value={stamp} onChange={e=>setStamp(e.target.value)} placeholder="mm:ss or hh:mm:ss"/></label>
- <button className="ui-btn" type="button" disabled={!videoUrl} onClick={()=>setStamp(timeLabel(clock))}>Use current time</button></div>
+ <button className="ui-btn" type="button" disabled={!videoUrl||clock===null} onClick={()=>{if(clock!==null)setStamp(timeLabel(clock))}}>Use current time</button></div>
  <label>Review note<textarea className="ui-input" required maxLength={2000} rows={3} value={note} onChange={e=>setNote(e.target.value)} placeholder="What should the team review?"/></label>
  <button className="ui-btn" data-variant="primary" type="submit" disabled={!note.trim()}>{busy?'Saving…':'Save review note'}</button></fieldset></form>
  {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
