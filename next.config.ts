@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
   // into localhost and the guarded dev server proxies the request to itself.
   skipProxyUrlNormalize: process.env.NODE_ENV === 'development',
   allowedDevOrigins: ["192.168.1.169"],
-  serverExternalPackages: ['pdf-parse'],
+  serverExternalPackages: ['pdf-parse', 'undici'],
   // pdfjs-dist (loaded by pdf-parse) lazily loads `pdf.worker.mjs` at first
   // getDocument() call. Vercel's bundler doesn't auto-trace this worker file
   // because the path is constructed dynamically inside pdfjs. Explicitly
