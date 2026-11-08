@@ -330,3 +330,48 @@ Apply `supabase/migrations/20261003000000_coach_avatar_storage.sql` before
 shipping: it creates the public image bucket, with writes restricted to the
 service role. Player names open full player profiles; coach names open their
 coach profiles, where coached players link back to player profiles.
+
+### Match assistant (local MVP)
+
+The `/scouting` sidebar uses the actual admin session, roles, match catalog,
+match cards, and scouting actions. Set server-only `OPENAI_API_KEY` and optionally
+`OPENAI_MODEL` (default `gpt-4.1-mini`).
+
+The assistant can now investigate questions with a bounded tool loop: up to five
+tool calls per question, including joins, aggregate counts, duration rankings,
+percentages and comparisons. It writes a conversational answer and adds verified
+match links. Explicit list/filter requests can still update the match library;
+analytical answers leave it unchanged. The last six chat messages and current
+filters provide follow-up context.
+
+`query_database` accepts a restricted PostgreSQL SELECT. The server parses the
+SQL into an AST, rejects non-allowlisted statement/expression types, tables,
+functions, operators, schemas and casts, then serializes the validated AST (the
+original SQL is never executed). Four query-local projections expose only
+approved match, player, tournament and set columns. No permanent views or grants
+are created. No accounts, credentials, private matches or scouting documents
+are exposed. Scouting availability is only a boolean indicating session existence.
+Execution uses a read-only transaction, pg_catalog search path, six-second query
+timeout, one-second lock timeout, bounded work memory, 50-row/24KB result cap,
+and the existing authenticated per-user rate limiter. A dedicated read-only
+DB role is still recommended as additional defense before production rollout.
+
+Unlike the first filter-only MVP, approved query results ARE sent to OpenAI so
+it can explain them. Requests use `store:false`; this does not imply zero provider
+retention. No browsing, shell, external connectors or arbitrary SQL functions are
+available. Never prefix API keys with NEXT_PUBLIC_.
+
+Database coverage can be incomplete. Duration parses stored HH:MM and missing or
+invalid values become null; duration answers must report coverage for their scope.
+The assistant is instructed to ground factual claims in current tool results,
+ask about ambiguous players, and disclose truncation or missing data. Match links
+are created only for IDs returned by queries and independently verified in matches.
+Model-written interpretations can still be wrong; supporting records remain
+available for review. Responses distinguish query errors from empty results.
+
+Local validation uses the assistant, route, and catalog Vitest suites. SQL tests
+cover approved calculations plus rejection of writes, unrelated tables, system
+catalogs, file access, unsafe functions, custom casts, and nested escapes.
+`assistant-agent-live.test.ts` is opt-in with `RUN_MATCH_ASSISTANT_LIVE=1` and a
+configured API key; it incurs API usage and checks a real duration answer against
+an independent database aggregate. Do not deploy without the usual release flow.

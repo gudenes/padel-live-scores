@@ -3,7 +3,7 @@ import {catalogFilters,catalogUrl,loadMatchCatalog,MATCH_PAGE_SIZE} from '../mat
 const row=(n:number,scouted=false)=>({match_id:String(n),kind:'match',has_scouting:scouted,players:[{id:'a',name:'Catalog A',avatar_url:'photo-a',country:'AR',ranking:3}]})
 describe('paginated match catalog',()=>{
  it('defaults to all matches and bounds malformed filter/page input',()=>{
-  expect(catalogFilters({})).toEqual({tournament:'',tournamentLabel:'',watchlist:'',watched:'',mine:'',player:'',league:'',q:'',status:'',kind:'',scouting:'',scouter:'',date:'',page:1})
+  expect(catalogFilters({})).toEqual({assistant:'',tournamentQuery:'',playerName:'',outcome:'',from:'',to:'',round:'',tournament:'',tournamentLabel:'',watchlist:'',watched:'',mine:'',player:'',league:'',q:'',status:'',kind:'',scouting:'',scouter:'',date:'',page:1})
   expect(catalogFilters({page:'-7',status:'injected',kind:['private'],scouting:'bogus',date:'anything'})).toMatchObject({page:1,status:'',kind:'',scouting:'',date:''})
   expect(catalogFilters({page:'99999999'}).page).toBe(100000)
  })
@@ -94,7 +94,7 @@ it('filters an exact tournament across pages rather than name or player search',
  const id='11111111-1111-4111-8111-111111111111',query=vi.fn().mockResolvedValue({rows:[]})
  const filters=catalogFilters({tournament:id,page:'2'})
  await loadMatchCatalog({query} as any,filters)
- expect(query.mock.calls[0][1].slice(15)).toEqual([id,''])
+ expect(query.mock.calls[0][1].slice(15,17)).toEqual([id,''])
  expect(query.mock.calls[0][0]).toContain('c.tournament_id=$16::uuid')
  expect(new URL(catalogUrl(filters,{page:3}),'https://local.test').searchParams.get('tournament')).toBe(id)
  expect(catalogFilters({tournament:'invalid'}).tournament).toBe('')
@@ -102,7 +102,7 @@ it('filters an exact tournament across pages rather than name or player search',
 it('uses exact parameterized labels for manual tournaments',async()=>{
  const query=vi.fn().mockResolvedValue({rows:[]}),label="FCP · Club Júnior 1917"
  await loadMatchCatalog({query} as any,catalogFilters({tournamentLabel:label}))
- expect(query.mock.calls[0][1].slice(15)).toEqual([null,label])
+ expect(query.mock.calls[0][1].slice(15,17)).toEqual([null,label])
  expect(query.mock.calls[0][0]).toContain("c.kind='private' and c.tournament_name=$17")
 })
 

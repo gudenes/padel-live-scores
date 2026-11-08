@@ -1,3 +1,4 @@
+import MatchAssistant from './MatchAssistant'
 import {ScoutingBackLink} from '@/components/scouting/ScoutingNavigation'
 import {Icon} from '@/components/IconSprite'
 import MethodologyGuide from "@/components/scouting/MethodologyGuide"
@@ -23,7 +24,7 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  if(Object.keys(params).length===0)redirect("/scouting?view=all")
  const today=catalogDay()
  // Scoped views keep their full date and circuit coverage.
- const defaultView=!params.tournament&&!params.tournamentLabel&&!params.player&&!params.watchlist&&!params.mine&&params.kind!=='private'
+ const defaultView=params.assistant!=='1'&&!params.tournament&&!params.tournamentLabel&&!params.player&&!params.watchlist&&!params.mine&&params.kind!=='private'
  const filters=catalogFilters({...params,...(defaultView&&params.league===undefined?{league:'premier'}:{}),...(defaultView&&params.date===undefined?{date:today}:{})})
  const {tournament,tournamentLabel,q,status,kind,scouter,date,scouting,page,league,mine,player,watchlist,watched}=filters
  let rows:any[]=[];let failed=false;let hasNext=false
@@ -32,16 +33,16 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  let tournamentName=tournamentLabel
  if(tournament){try{const result=await pgPool().query('select name from public.tournaments where id=$1::uuid',[tournament]);tournamentName=result.rows[0]?.name||'Tournament'}catch{tournamentName='Tournament'}}
  const tournamentView=!!(tournament||tournamentLabel)
- const activeFilters=[['q',q?'Search: '+q:''],['league',LEAGUE_GROUPS.flatMap(g=>g.options.map(([v,l])=>[v,g.label+' · '+l])).find(([v])=>v===league)?.[1]??''],['date',date],['status',status],['kind',kind],['scouter',scouter?'Scouter: '+scouter:''],['scouting',({'scouted':'With scouting','unscouted':'Without scouting','pending':'In progress'} as Record<string,string>)[scouting]??'']].filter(([,value])=>value)
+ const activeFilters=[['tournamentQuery',filters.tournamentQuery],['playerName',filters.playerName],['outcome',filters.outcome==='lost'?'Lost':filters.outcome==='won'?'Won':''],['from',filters.from?'From '+filters.from:''],['to',filters.to?'To '+filters.to:''],['round',filters.round.replaceAll('_',' ')],['q',q?'Search: '+q:''],['league',LEAGUE_GROUPS.flatMap(g=>g.options.map(([v,l])=>[v,g.label+' · '+l])).find(([v])=>v===league)?.[1]??''],['date',date],['status',status],['kind',kind],['scouter',scouter?'Scouter: '+scouter:''],['scouting',({'scouted':'With scouting','unscouted':'Without scouting','pending':'In progress'} as Record<string,string>)[scouting]??'']].filter(([,value])=>value)
  const extraCount=[date,status,kind,scouter].filter(Boolean).length
  const pageUrl=(n:number)=>catalogUrl(filters,{page:n})
- return <main className={styles.page}><div className={styles.connectedLayout}>
+ return <main className={styles.page}><MatchAssistant filters={filters}>
 
  <div className={styles.libraryContent}>
  {tournamentView&&<ScoutingBackLink/>}
  <header className={styles.heading}><div><h1>{tournamentView?tournamentName:'Matches'}<span className={styles.titleDot} aria-hidden="true"/></h1><p>{tournamentView?(tournament?'Tournament matches · All players and rounds.':'Matches with this tournament label · May include multiple editions.'):'Every match, with scouting insights when available.'}</p></div><div className={styles.headingActions}><Link href="/scouting/academy" className="ui-btn" data-variant="primary" aria-label="Scout Academy — learn and practise scouting" title="Scout Academy · Learn and practise scouting"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2 9 10-5 10 5-10 5-10-5Z"/><path d="M6 11v6c3 3 9 3 12 0v-6M22 9v7"/></svg></Link><MethodologyGuide/></div></header>
  <MatchBrowseBar userId={user?.id??''} filters={filters}/>
- <MatchDateStrip today={today} filters={filters}/>
+ {!filters.from&&!filters.to&&<MatchDateStrip today={today} filters={filters}/>}
  <section className={styles.filterPanel} aria-label="Match filters">
  <CatalogSearchForm className={styles.refinedFilters} initialSearch={q}>
  <div className={styles.filterMain}>
@@ -59,13 +60,14 @@ export default async function Page({searchParams}:{searchParams:Promise<Record<s
  </div></details></div>
  <input type="hidden" name="tournament" value={tournament}/><input type="hidden" name="tournamentLabel" value={tournamentLabel}/>
  <input type="hidden" name="watchlist" value={watchlist}/><input type="hidden" name="watched" value={watched}/>
+ {(['assistant','playerName','outcome','from','to','round','tournamentQuery'] as const).map(key=><input type="hidden" key={key} name={key} value={filters[key]}/>)}
  <input type="hidden" name="mine" value={mine}/><input type="hidden" name="player" value={player}/>
 
  </CatalogSearchForm>
- {activeFilters.length>0&&<div className={styles.activeFilters} aria-label="Active filters"><span className={styles.filterGroupLabel}>Applied filters</span>{activeFilters.map(([key,label])=><Link key={key} className="ui-btn" data-size="sm" data-variant="ghost" aria-label={`Remove ${label} filter`} href={catalogUrl(filters,{[key]:'',page:1})}>{label}<span aria-hidden="true">×</span></Link>)}<Link className="ui-btn" data-variant="ghost" data-size="sm" href={catalogUrl(filters,{q:'',league:'',date:'',status:'',kind:'',scouter:'',scouting:'',page:1})}>Clear filters</Link></div>}
+ {activeFilters.length>0&&<div className={styles.activeFilters} aria-label="Active filters"><span className={styles.filterGroupLabel}>Applied filters</span>{activeFilters.map(([key,label])=><Link key={key} className="ui-btn" data-size="sm" data-variant="ghost" aria-label={`Remove ${label} filter`} href={catalogUrl(filters,{[key]:'',...(key==='playerName'?{player:'',outcome:''}:{}),page:1})}>{label}<span aria-hidden="true">×</span></Link>)}<Link className="ui-btn" data-variant="ghost" data-size="sm" href={catalogUrl(filters,{q:'',league:'',date:'',status:'',kind:'',scouter:'',scouting:'',player:'',playerName:'',outcome:'',from:'',to:'',round:'',assistant:'',tournamentQuery:'',page:1})}>Clear filters</Link></div>}
  </section>
- <div className={styles.resultsHeading}><div><h2>{watchlist?'My Watchlist':mine?'My scouts':player?'Player matches':date===today?'Today’s matches':date?'Matches · '+new Date(date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'All matches'}</h2><span className={styles.sortNote}>{(player||watchlist)?`${rows.length} matches · Live, upcoming, then recent`:`Newest dates · Earliest scheduled time first (Madrid) · ${MATCH_PAGE_SIZE} per page`}</span></div></div>
+ <div className={styles.resultsHeading}><div><h2>{watchlist?'My Watchlist':mine?'My scouts':player?'Player matches':date===today?'Today’s matches':date?'Matches · '+new Date(date+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'All matches'}</h2><span className={styles.sortNote}>{(player||watchlist)&&filters.assistant!=='1'?`${rows.length} matches · Live, upcoming, then recent`:`Newest dates · Earliest scheduled time first (Madrid) · ${MATCH_PAGE_SIZE} per page`}</span></div></div>
  <div className={styles.grid}>
  {failed?<p role="alert">Could not load matches. Please retry; your scouting data remains saved.</p>:!rows.length?<section className={styles.emptyMatches} aria-labelledby="empty-matches-title"><div className={styles.emptyMatchIcon} aria-hidden="true"><Icon id={watchlist&&!watched?'users':date?'today':'search'}/></div><h3 id="empty-matches-title">{watchlist&&!watched?'Build your match watchlist':date===today?'No matches found for today':date?'No matches found for this date':'No matches found'}</h3><p>{watchlist&&!watched?'Follow players from their profiles to see their matches here.':'Try another date or clear your filters to explore more matches.'}</p><div className={styles.emptyMatchActions}>{watchlist&&!watched&&<Link className="ui-btn" data-variant="primary" href="/scouting/players">Find players to follow</Link>}{date&&<Link className="ui-btn" data-variant="primary" href={catalogUrl(filters,{date:'',page:1})}>Browse all dates</Link>}<Link className="ui-btn" data-variant={date?'default':'primary'} href={catalogUrl(catalogFilters({tournament,tournamentLabel}))}>{watchlist&&!watched?'Explore all matches':'Clear all filters'}</Link></div></section>:rows.map(r=><CompactMatchCard key={r.kind+r.match_id} row={r} user={user}/>)}</div>
- {!failed&&(rows.length>0||page>1)&&!player&&!watchlist&&<nav className={styles.pagination} aria-label="Match pages"><span>{rows.length?`Showing ${(page-1)*MATCH_PAGE_SIZE+1}–${(page-1)*MATCH_PAGE_SIZE+rows.length}`:'0 matches'} · Page {page}</span><div>{page>1&&<Link className="ui-btn" href={pageUrl(page-1)}>Previous</Link>}{hasNext&&<Link className="ui-btn" data-variant="primary" href={pageUrl(page+1)}>Next</Link>}</div></nav>}</div></div></main>
+ {!failed&&(rows.length>0||page>1)&&(filters.assistant==='1'||(!player&&!watchlist))&&<nav className={styles.pagination} aria-label="Match pages"><span>{rows.length?`Showing ${(page-1)*MATCH_PAGE_SIZE+1}–${(page-1)*MATCH_PAGE_SIZE+rows.length}`:'0 matches'} · Page {page}</span><div>{page>1&&<Link className="ui-btn" href={pageUrl(page-1)}>Previous</Link>}{hasNext&&<Link className="ui-btn" data-variant="primary" href={pageUrl(page+1)}>Next</Link>}</div></nav>}</div></MatchAssistant></main>
 }

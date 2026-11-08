@@ -8,6 +8,7 @@ export const canWriteSession = (user: StaffUser, existing: { assigned_scouter_us
 export function scouterRouteAllowed(path: string, method: string, viewer = false) {
   if (!viewer && (method === 'GET' || method === 'HEAD') && /^\/api\/internal\/scouting\/[0-9a-f-]{36}\/(?:live-bootstrap|broadcasts)$/i.test(path)) return true
   if ((method==='GET'||method==='HEAD'||(!viewer&&method==='POST')) && /^\/api\/internal\/scouting\/[0-9a-f-]{36}\/live-session$/i.test(path)) return true
+  if (path === '/api/internal/scouting-assistant' && method === 'POST') return true // Read-only search, including viewers.
   const read = method === 'GET' || method === 'HEAD'
   if (['GET','HEAD','POST','DELETE'].includes(method) && /^\/api\/internal\/scouting-review-notes\/[0-9a-f-]{36}$/i.test(path)) return true
   if(read&&['/scouting/players','/api/internal/scouting-intelligence','/api/internal/scouting-player-search'].includes(path))return true
