@@ -3,6 +3,7 @@
 // V3 Tournament Detail — matches by round with gender toggle, stage selector,
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
+import { resolvePremierPreviousEdition } from '@/lib/premier-editions'
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
 import { isLeagueLevel } from '@/lib/league-levels'
 import { titleCase } from '@/lib/title-case'
@@ -1914,8 +1915,9 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
       )
     }
 
+    const premier = resolvePremierPreviousEdition(tournament.id, tournament.level)
     const currentTokens = tokenize(tournament.name)
-    if (currentTokens.size < 2) return // too generic to match safely
+    if (!premier.handled && currentTokens.size < 2) return // too generic to match safely
 
     async function loadDefendingChampion() {
       try {
@@ -1937,7 +1939,9 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
           ? `name.ilike.%${discriminating}%`
           : `name.ilike.%${discriminating}%,name.ilike.%${accented}%`
 
-        const { data: candidates } = await supabase
+        const { data: candidates } = premier.handled
+          ? { data: premier.previous ? [premier.previous] : [] }
+          : await supabase
           .from('tournaments')
           .select('id, name, starts_at, ends_at')
           .eq('level', tournament!.level)
@@ -1950,7 +1954,7 @@ function V3Overview({ tournament, allMatches, genderFilter, genderColor, availab
         // Subset match: every current token must appear in the candidate's
         // tokens. This handles sponsor prefixes (2025 "Motorola Razr Miami
         // Premier Padel P1" contains all of {miami, p1}).
-        const previous = candidates.find(c => {
+        const previous = premier.handled ? premier.previous : candidates.find(c => {
           const candTokens = tokenize(c.name)
           for (const t of currentTokens) {
             if (!candTokens.has(t)) return false

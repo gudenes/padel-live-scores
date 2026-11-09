@@ -2,6 +2,7 @@
 // src/app/(app)/home/page.tsx
 // V3 Home — thin orchestrator. Sections extracted to src/components/home/.
 
+import { resolvePremierPreviousEdition } from '@/lib/premier-editions'
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
@@ -194,11 +195,14 @@ function V3HomePageInner() {
         )
 
       // ── 1. Defending champion ─────────────────────────────
+      const premier = resolvePremierPreviousEdition(t.id, t.level)
       const currentTokens = tokenize(t.name)
-      if (currentTokens.size >= 2 && t.level && t.starts_at) {
+      if ((premier.handled || currentTokens.size >= 2) && t.level && t.starts_at) {
         const discriminating = [...currentTokens].filter(tk => tk.length >= 3).sort((a, b) => b.length - a.length)[0] ?? [...currentTokens][0]
 
-        const { data: candidates } = await supabase
+        const { data: candidates } = premier.handled
+          ? { data: premier.previous ? [premier.previous] : [] }
+          : await supabase
           .from('tournaments')
           .select('id, name, starts_at, ends_at')
           .eq('level', t.level)
@@ -208,7 +212,7 @@ function V3HomePageInner() {
           .limit(50)
 
         if (candidates && candidates.length > 0) {
-          const previous = candidates.find(c => {
+          const previous = premier.handled ? premier.previous : candidates.find(c => {
             const candTokens = tokenize(c.name)
             for (const tk of currentTokens) {
               if (!candTokens.has(tk)) return false
