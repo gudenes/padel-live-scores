@@ -47,3 +47,13 @@ it('allows pre-game reads to scouts and viewers without allowing writes or suffi
   expect(scouterRouteAllowed(`/api/internal/scouting/${id}/pregame/extra`,'GET',viewer)).toBe(false)
  }
 })
+
+it('permits published analysis reads without granting worker or result writes',()=>{
+ for(const viewer of [false,true]){
+  for(const path of [`/api/internal/lab-vision/results/${id}`,`/api/internal/lab-vision/assets/${id}/manifest.json`,`/api/internal/lab-vision/assets/${id}/001.json`,'/lab-vision/rally35/arena-v2.glb']){
+   expect(scouterRouteAllowed(path,'GET',viewer)).toBe(true)
+   expect(scouterRouteAllowed(path,'POST',viewer)).toBe(false)
+  }
+  for(const path of ['/api/lab-vision/worker','/api/internal/lab-vision/jobs',`/api/internal/lab-vision/assets/${id}/secret.json`])expect(scouterRouteAllowed(path,'GET',viewer)).toBe(false)
+ }
+})

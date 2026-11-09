@@ -1,9 +1,10 @@
+import {viewerFile,viewerAssets,validateViewerManifest} from '@/lib/lab-vision-results'
 import {createHash,randomUUID} from 'node:crypto'
 import {isUserOperator} from '@/lib/operators'
 import {pgPool} from '@/lib/db'
 import {jobBody,jobJson as json} from '@/lib/lab-vision-jobs'
 import {videoStorage,playbackVideo} from '@/lib/match-video-storage'
-import {PutObjectCommand,HeadObjectCommand} from '@aws-sdk/client-s3'
+import {PutObjectCommand,HeadObjectCommand,GetObjectCommand} from '@aws-sdk/client-s3'
 import {getSignedUrl} from '@aws-sdk/s3-request-presigner'
 import {videoUuid} from '@/lib/scouting/match-video'
 export const runtime='nodejs'
@@ -35,6 +36,11 @@ export async function POST(req:Request){
   await db.query("update public.lab_vision_jobs set status='failed',error=$2,updated_at=now() where id=$1 and status='running' and attempt_id=$3",[job.id,String(b.error||'Worker failed').slice(0,1000),b.attemptId]);return json({ok:true})
  }
  const {client,Bucket}=videoStorage(),Key=`analysis/${job.id}/${job.attempt_id}/results.tar.gz`
+ if(b.action==='viewer-upload'){
+  const end=Math.min(job.setup.duration,job.setup.matchStart+job.setup.analysisSeconds);
+  if(!viewerFile.test(b.file??'')||(b.file!=='manifest.json'&&Number(b.file.split('.')[0])>=Math.ceil(end/60))||!Number.isSafeInteger(b.size)||b.size<=0||b.size>24*1024*1024)return json({error:'Invalid viewer asset.'},400)
+  return json({url:await getSignedUrl(client,new PutObjectCommand({Bucket,Key:`analysis/${job.id}/${job.attempt_id}/viewer/${b.file}`,ContentLength:b.size,ContentType:'application/json'}),{expiresIn:3600})})
+ }
  if(b.action==='upload'){
   if(!Number.isSafeInteger(b.size)||b.size<=0||b.size>5*1024**3)return json({error:'Invalid archive size.'},400)
   return json({url:await getSignedUrl(client,new PutObjectCommand({Bucket,Key,ContentLength:b.size,ContentType:'application/gzip'}),{expiresIn:3600})})
@@ -42,7 +48,14 @@ export async function POST(req:Request){
  if(b.action==='complete'){
   const head=await client.send(new HeadObjectCommand({Bucket,Key}));if(!head.ContentLength||head.ContentLength!==b.size)return json({error:'Result upload incomplete.'},409)
   if(!b.metrics||typeof b.metrics!=='object'||Array.isArray(b.metrics)||JSON.stringify(b.metrics).length>50000)return json({error:'Invalid metrics.'},400)
-  await db.query("update public.lab_vision_jobs set status='complete',stage='review',result=$2,updated_at=now() where id=$1 and status='running' and attempt_id=$3",[job.id,{archiveKey:Key,metrics:b.metrics,pipeline:'lab-vision-mac-v1',requiresReview:true},b.attemptId]);return json({ok:true})
+  let viewer=null
+  if(b.viewer){try{
+   const assets=viewerAssets(b.viewer,Math.min(job.setup.duration,job.setup.matchStart+job.setup.analysisSeconds)),prefix=`analysis/${job.id}/${job.attempt_id}/viewer/`;
+   for(let i=0;i<assets.length;i+=8)await Promise.all(assets.slice(i,i+8).map(async a=>{const h=await client.send(new HeadObjectCommand({Bucket,Key:prefix+a.file}));if(h.ContentLength!==a.size)throw Error('Viewer asset upload incomplete.')}))
+   const object=await client.send(new GetObjectCommand({Bucket,Key:prefix+'manifest.json'}));if(!object.ContentLength||object.ContentLength>2*1024*1024)throw Error('Invalid manifest size.');
+   const manifest=validateViewerManifest(JSON.parse(await object.Body!.transformToString()),job.setup);viewer={prefix,manifest}
+  }catch(e){return json({error:(e as Error).message},400)}}
+  await db.query("update public.lab_vision_jobs set status='complete',stage='review',result=$2,updated_at=now() where id=$1 and status='running' and attempt_id=$3",[job.id,{archiveKey:Key,metrics:b.metrics,pipeline:'lab-vision-mac-v1',requiresReview:true,...(viewer?{viewer}:{})},b.attemptId]);return json({ok:true})
  }
  return json({error:'Invalid action.'},400)
 }

@@ -646,7 +646,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           )}
           {tab === "Players" && (
             <>
-              <MovementPerformance players={data.players} scope={scope} focusedPlayer={focusedPlayer} />
+              <MovementPerformance context={shared?undefined:reviewContext} players={data.players} scope={scope} focusedPlayer={focusedPlayer} />
               {focusedPlayer!=null?<PlayerWorkspace data={data} scope={scope} playerIndex={focusedPlayer} onPlayer={setFocusedPlayer} onClose={()=>setFocusedPlayer(null)} readOnly={shared} renderImpact={(index,marked,label,markerTypes,onReview,canReview)=><Chart mode="impact" names={data.players.map(p=>p.name)} points={points} series={impact} labels={d.analysis.series.map(p=>p.number)} highlightedPlayer={index} markedPoints={marked} markerLabel={label} markerTypes={markerTypes} onReview={onReview} canReview={canReview}/>}/>:<ShotDistribution data={data} scope={scope} onPlayerSelect={openPlayer} />}
             </>
           )}
