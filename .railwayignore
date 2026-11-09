@@ -150,3 +150,8 @@
 
 # Local provider keys and private generated test avatars never ship.
 /.local
+
+# Exclude nested app dependencies, build caches and local credentials.
+**/node_modules
+**/.next
+**/.env*
