@@ -1,0 +1,5 @@
+export const markerNames=['Far left corner','Far right corner','Near right corner','Near left corner','Net left at floor','Net right at floor','Player A feet','Player B feet','Player C feet','Player D feet'] as const;
+export type SetupPoint={x:number;y:number}|null;
+export type VideoSetup={version:1;file:{name:string;size:number;lastModified:number};duration:number;matchStart:number;calibrationTime:number;recording:string;offset:number;points:SetupPoint[];identities:string[];playerNames:string[];source:string;confirmed:boolean};
+export function validPoints(value:unknown):value is SetupPoint[]{return Array.isArray(value)&&value.length===10&&value.every(p=>p===null||(typeof p==='object'&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=0&&p.x<=1&&p.y>=0&&p.y<=1))}
+export function validCourt(points:SetupPoint[]){if(!validPoints(points)||points.slice(0,6).some(p=>!p))return false;const p=points.slice(0,4) as {x:number;y:number}[];const cross=p.map((a,i)=>{const b=p[(i+1)%4],c=p[(i+2)%4];return (b.x-a.x)*(c.y-b.y)-(b.y-a.y)*(c.x-b.x)});return cross.every(v=>v>0.0001)||cross.every(v=>v< -0.0001)}
