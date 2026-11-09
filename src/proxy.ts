@@ -7,6 +7,7 @@ import createMiddleware from 'next-intl/middleware'
 import { routing } from './i18n/routing'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { preferredPremierTournamentId } from './lib/premier-editions'
 import { resolveRequestGeo } from './lib/request-geo'
 
 const handleI18nRouting = createMiddleware(routing)
@@ -24,6 +25,18 @@ export default function proxy(request: NextRequest) {
     const callbackUrl = new URL('/auth/callback', request.url)
     callbackUrl.search = request.nextUrl.search
     return NextResponse.redirect(callbackUrl)
+  }
+
+  // Reviewed duplicate tournament URLs must open the record containing results.
+  // Temporary until data reconciliation is complete; preserve locale + query.
+  const tournamentPath = pathname.match(/^\/(?:(en|es|pt|it|fr)\/)?tournaments\/([^/]+)(\/?)$/)
+  if (tournamentPath) {
+    const preferred = preferredPremierTournamentId(tournamentPath[2])
+    if (preferred !== tournamentPath[2]) {
+      const destination = request.nextUrl.clone()
+      destination.pathname = `${tournamentPath[1] ? `/${tournamentPath[1]}` : ''}/tournaments/${preferred}${tournamentPath[3]}`
+      return NextResponse.redirect(destination, 307)
+    }
   }
 
   // 2. Legacy /v3/* redirects

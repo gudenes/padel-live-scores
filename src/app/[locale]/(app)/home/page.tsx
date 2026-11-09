@@ -2,6 +2,8 @@
 // src/app/(app)/home/page.tsx
 // V3 Home — thin orchestrator. Sections extracted to src/components/home/.
 
+import { roundCanonical } from '@/lib/round-canonical'
+import { dedupePremierTournaments, resolvePremierPreviousEdition } from '@/lib/premier-editions'
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, Link } from '@/i18n/navigation'
@@ -194,11 +196,14 @@ function V3HomePageInner() {
         )
 
       // ── 1. Defending champion ─────────────────────────────
+      const premier = resolvePremierPreviousEdition(t.id, t.level)
       const currentTokens = tokenize(t.name)
-      if (currentTokens.size >= 2 && t.level && t.starts_at) {
+      if ((premier.handled || currentTokens.size >= 2) && t.level && t.starts_at) {
         const discriminating = [...currentTokens].filter(tk => tk.length >= 3).sort((a, b) => b.length - a.length)[0] ?? [...currentTokens][0]
 
-        const { data: candidates } = await supabase
+        const { data: candidates } = premier.handled
+          ? { data: premier.previous ? [premier.previous] : [] }
+          : await supabase
           .from('tournaments')
           .select('id, name, starts_at, ends_at')
           .eq('level', t.level)
@@ -208,7 +213,7 @@ function V3HomePageInner() {
           .limit(50)
 
         if (candidates && candidates.length > 0) {
-          const previous = candidates.find(c => {
+          const previous = premier.handled ? premier.previous : candidates.find(c => {
             const candTokens = tokenize(c.name)
             for (const tk of currentTokens) {
               if (!candTokens.has(tk)) return false
@@ -216,7 +221,6 @@ function V3HomePageInner() {
             return true
           })
           if (previous) {
-            const FINALS_ROUNDS = new Set(['Final', 'Finals', 'F'])
             const { data: finalMatches } = await supabase
               .from('matches')
               .select(`
@@ -235,8 +239,7 @@ function V3HomePageInner() {
 
               for (const category of ['men', 'women'] as const) {
                 const genderFinals = finalMatches.filter((m: any) => m.category === category)
-                const finalMatch = genderFinals.find(m => FINALS_ROUNDS.has((m as any).round as string))
-                  ?? genderFinals.find(m => ((m as any).round as string || '').toLowerCase().includes('final'))
+                const finalMatch = genderFinals.find(m => roundCanonical(m.round) === 'F')
                 if (finalMatch) {
                   const winners = (finalMatch as any).winner_pair === 1
                     ? [(finalMatch as any).pair1_player1, (finalMatch as any).pair1_player2]
@@ -408,7 +411,7 @@ function V3HomePageInner() {
       setScheduledMatches(dataOf(11))
       setLiveMatches(dataOf(0).filter((m: any) => !isHiddenLevel(m?.tournament?.level)))
       const tournaments: Tournament[] = dataOf(1)
-      setUpcomingTournaments(tournaments)
+      setUpcomingTournaments(dedupePremierTournaments(tournaments))
       setTopMen(dataOf(2))
       setTopWomen(dataOf(3))
       setRecentMatches(dataOf(4))

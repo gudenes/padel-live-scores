@@ -1,0 +1,650 @@
+[
+  {
+    "id": "1a86f554-5339-42e4-8a1f-8615ca2cbbf7",
+    "series": "valladolid",
+    "year": 2024,
+    "name": "Oysho Valladolid Premier Padel P2",
+    "starts_at": "2024-09-14T00:00:00+00:00",
+    "ends_at": "2024-09-22T00:00:00+00:00"
+  },
+  {
+    "id": "ded2f5d4-627f-4fa5-9dea-7e47c2da9981",
+    "series": "valladolid",
+    "year": 2025,
+    "name": "Oysho Valladolid Premier Padel P2",
+    "starts_at": "2025-06-21T00:00:00+00:00",
+    "ends_at": "2025-06-29T00:00:00+00:00"
+  },
+  {
+    "id": "d6b3d8b9-1395-488c-83f6-8dfe2a9c34a8",
+    "series": "valladolid",
+    "year": 2026,
+    "name": "VALLADOLID P2",
+    "starts_at": "2026-06-22T00:00:00+00:00",
+    "ends_at": "2026-06-28T00:00:00+00:00"
+  },
+  {
+    "id": "ed79d67c-db30-44cd-bc79-7577f5ffc33a",
+    "series": "madrid",
+    "year": 2023,
+    "name": "Madrid Premier Padel P1",
+    "starts_at": "2023-07-15T00:00:00+00:00",
+    "ends_at": "2023-07-23T00:00:00+00:00"
+  },
+  {
+    "id": "43194810-07ab-4688-9321-9f18c185f2c0",
+    "series": "madrid",
+    "year": 2024,
+    "name": "Comunidad De Madrid Premier Padel P1",
+    "starts_at": "2024-08-31T00:00:00+00:00",
+    "ends_at": "2024-09-08T00:00:00+00:00"
+  },
+  {
+    "id": "9bb09815-b140-4647-bcaa-863e1699435a",
+    "series": "madrid",
+    "year": 2025,
+    "name": "Madrid P1",
+    "starts_at": "2025-09-01T00:00:00+00:00",
+    "ends_at": "2025-09-07T00:00:00+00:00"
+  },
+  {
+    "id": "3f3ac22c-20a0-4999-aaf2-d6451cefa65c",
+    "series": "madrid",
+    "year": 2026,
+    "name": "MADRID P1",
+    "starts_at": "2026-08-29T00:00:00+00:00",
+    "ends_at": "2026-09-06T00:00:00+00:00"
+  },
+  {
+    "id": "8083ac24-da11-4a8f-84c5-708c21307e9f",
+    "series": "madrid",
+    "year": 2026,
+    "name": "COMUNIDAD DE MADRID P1",
+    "starts_at": "2026-08-29T00:00:00+00:00",
+    "ends_at": "2026-09-06T00:00:00+00:00"
+  },
+  {
+    "id": "8572ba97-4339-49fb-8264-721aac121c70",
+    "series": "dubai",
+    "year": 2024,
+    "name": "Dubai Premier Padel P1",
+    "starts_at": "2024-11-03T00:00:00+00:00",
+    "ends_at": "2024-11-10T00:00:00+00:00"
+  },
+  {
+    "id": "6004e7eb-502a-4fd0-a50e-e7436d675d3d",
+    "series": "dubai",
+    "year": 2025,
+    "name": "Dubai P1",
+    "starts_at": "2025-11-09T00:00:00+00:00",
+    "ends_at": "2025-11-16T00:00:00+00:00"
+  },
+  {
+    "id": "9f50b503-24e1-4f75-b742-3f21679a24da",
+    "series": "dubai",
+    "year": 2026,
+    "name": "EMAAR DUBAI PREMIER PADEL P1",
+    "starts_at": "2026-11-08T00:00:00+00:00",
+    "ends_at": "2026-11-15T00:00:00+00:00"
+  },
+  {
+    "id": "92abe33b-bcd2-436e-bd9d-8c1df27f2e4d",
+    "series": "milano",
+    "year": 2023,
+    "name": "Milano Premier Padel P1",
+    "starts_at": "2023-12-02T00:00:00+00:00",
+    "ends_at": "2023-12-10T00:00:00+00:00"
+  },
+  {
+    "id": "08e11508-1086-4f25-8b07-ac3bae0de605",
+    "series": "milano",
+    "year": 2024,
+    "name": "Milano Premier Padel P1",
+    "starts_at": "2024-11-30T00:00:00+00:00",
+    "ends_at": "2024-12-08T00:00:00+00:00"
+  },
+  {
+    "id": "fd2d92a7-a247-4401-b489-9b309f47472f",
+    "series": "milano",
+    "year": 2025,
+    "name": "Oysho Milano P1",
+    "starts_at": "2025-10-06T00:00:00+00:00",
+    "ends_at": "2025-10-12T00:00:00+00:00"
+  },
+  {
+    "id": "53a86546-7a07-4b15-9534-56bea2e42dce",
+    "series": "milano",
+    "year": 2026,
+    "name": "MILANO P1",
+    "starts_at": "2026-10-10T00:00:00+00:00",
+    "ends_at": "2026-10-18T00:00:00+00:00"
+  },
+  {
+    "id": "84c8c075-eb6a-4752-bcc6-b928ccaf46b7",
+    "series": "paris",
+    "year": 2023,
+    "name": "Paris Major Premier Padel",
+    "starts_at": "2023-09-03T00:00:00+00:00",
+    "ends_at": "2023-09-10T00:00:00+00:00"
+  },
+  {
+    "id": "64fc1972-5768-4acd-ac86-b04b827fe525",
+    "series": "paris",
+    "year": 2024,
+    "name": "Greenweez Paris Major Premier Padel",
+    "starts_at": "2024-09-28T00:00:00+00:00",
+    "ends_at": "2024-10-06T00:00:00+00:00"
+  },
+  {
+    "id": "a792aedf-7a16-4c17-a305-347633f0ea34",
+    "series": "paris",
+    "year": 2025,
+    "name": "Alpine Paris Major",
+    "starts_at": "2025-09-06T00:00:00+00:00",
+    "ends_at": "2025-09-14T00:00:00+00:00"
+  },
+  {
+    "id": "c98beae5-5583-4a3a-ae92-155816aa3edd",
+    "series": "paris",
+    "year": 2026,
+    "name": "PARIS MAJOR",
+    "starts_at": "2026-09-06T00:00:00+00:00",
+    "ends_at": "2026-09-13T00:00:00+00:00"
+  },
+  {
+    "id": "66a7795a-bee9-4e6d-9906-2f9a3ac46808",
+    "series": "finals",
+    "year": 2024,
+    "name": "Premier Padel Finals",
+    "starts_at": "2024-12-19T00:00:00+00:00",
+    "ends_at": "2024-12-22T00:00:00+00:00"
+  },
+  {
+    "id": "29fbd066-1879-4f15-b9b6-8f9535a6b647",
+    "series": "finals",
+    "year": 2025,
+    "name": "Barcelona Finals",
+    "starts_at": "2025-12-08T00:00:00+00:00",
+    "ends_at": "2025-12-14T00:00:00+00:00"
+  },
+  {
+    "id": "b62cb0c0-f777-405c-ad57-1490bf31755c",
+    "series": "finals",
+    "year": 2025,
+    "name": "QATAR AIRWAYS PREMIER PADEL FINALS",
+    "starts_at": "2025-12-11T00:00:00+00:00",
+    "ends_at": "2025-12-14T00:00:00+00:00"
+  },
+  {
+    "id": "7fa8bba7-988e-4da2-9faa-4fac36cd7918",
+    "series": "finals",
+    "year": 2026,
+    "name": "PREMIER PADEL FINALS",
+    "starts_at": "2026-12-10T00:00:00+00:00",
+    "ends_at": "2026-12-13T00:00:00+00:00"
+  },
+  {
+    "id": "9c2a30aa-b1e8-44ae-a4b9-54ff9f54878d",
+    "series": "rotterdam",
+    "year": 2024,
+    "name": "Rotterdam Premier Padel P1",
+    "starts_at": "2024-09-08T00:00:00+00:00",
+    "ends_at": "2024-09-15T00:00:00+00:00"
+  },
+  {
+    "id": "4293d1b6-2dad-4b34-abc5-04fc0ada10b5",
+    "series": "rotterdam",
+    "year": 2025,
+    "name": "Rotterdam P1",
+    "starts_at": "2025-09-29T00:00:00+00:00",
+    "ends_at": "2025-10-05T00:00:00+00:00"
+  },
+  {
+    "id": "f5975267-7748-4a6a-9e21-3498ec0f04a5",
+    "series": "rotterdam",
+    "year": 2026,
+    "name": "CUPRA ROTTERDAM PREMIER PADEL P2",
+    "starts_at": "2026-09-27T00:00:00+00:00",
+    "ends_at": "2026-10-04T00:00:00+00:00"
+  },
+  {
+    "id": "1d10e6ad-5a18-4635-889f-560d1785db8b",
+    "series": "kuwait",
+    "year": 2024,
+    "name": "Kuwait City Premier Padel P1",
+    "starts_at": "2024-11-09T00:00:00+00:00",
+    "ends_at": "2024-11-17T00:00:00+00:00"
+  },
+  {
+    "id": "38ec2aca-38e2-42a6-8353-ece5f7a8a561",
+    "series": "kuwait",
+    "year": 2026,
+    "name": "KUWAIT MAJOR",
+    "starts_at": "2026-10-23T00:00:00+00:00",
+    "ends_at": "2026-10-31T00:00:00+00:00"
+  },
+  {
+    "id": "a445d4e0-e48e-4ccc-88ea-7a58e87dc3a4",
+    "series": "mexico-major",
+    "year": 2024,
+    "name": "Gnp Mexico Major Premier Padel",
+    "starts_at": "2024-11-23T00:00:00+00:00",
+    "ends_at": "2024-12-01T00:00:00+00:00"
+  },
+  {
+    "id": "92b0a5cb-99a7-43f5-a24e-8d453a2759d6",
+    "series": "mexico-major",
+    "year": 2025,
+    "name": "Mexico Major",
+    "starts_at": "2025-11-22T00:00:00+00:00",
+    "ends_at": "2025-11-30T00:00:00+00:00"
+  },
+  {
+    "id": "c3fc9afd-adff-49ba-88bc-abaabc098732",
+    "series": "mexico-major",
+    "year": 2025,
+    "name": "PREMIER PADEL GNP ACAPULCO MAJOR",
+    "starts_at": "2025-11-22T00:00:00+00:00",
+    "ends_at": "2025-11-30T00:00:00+00:00"
+  },
+  {
+    "id": "c858f931-48a5-4ab5-89a8-931c8be0b4f1",
+    "series": "mexico-major",
+    "year": 2026,
+    "name": "MEXICO MAJOR",
+    "starts_at": "2026-11-23T00:00:00+00:00",
+    "ends_at": "2026-11-29T00:00:00+00:00"
+  },
+  {
+    "id": "c0f48e5f-2bcb-47d9-99c8-bc85fbaa81e5",
+    "series": "acapulco-p1",
+    "year": 2024,
+    "name": "Gnp Acapulco P1 Premier Padel",
+    "starts_at": "2024-03-17T00:00:00+00:00",
+    "ends_at": "2024-03-24T00:00:00+00:00"
+  },
+  {
+    "id": "2e822286-771f-440e-a8d4-ec5ebcee427c",
+    "series": "italy-major",
+    "year": 2023,
+    "name": "Bnl Italy Major Premier Padel",
+    "starts_at": "2023-07-08T00:00:00+00:00",
+    "ends_at": "2023-07-16T00:00:00+00:00"
+  },
+  {
+    "id": "9f124439-66e8-4647-bcd8-c6390ef84aec",
+    "series": "italy-major",
+    "year": 2024,
+    "name": "Bnl Italy Major Premier Padel",
+    "starts_at": "2024-06-15T00:00:00+00:00",
+    "ends_at": "2024-06-23T00:00:00+00:00"
+  },
+  {
+    "id": "df66a1a8-8fc3-41e3-b159-11711054b13e",
+    "series": "italy-major",
+    "year": 2025,
+    "name": "Bnl Italy Major",
+    "starts_at": "2025-06-08T00:00:00+00:00",
+    "ends_at": "2025-06-15T00:00:00+00:00"
+  },
+  {
+    "id": "7d331efb-82e4-40d5-9b51-5109cb9dff04",
+    "series": "italy-major",
+    "year": 2026,
+    "name": "ITALY MAJOR",
+    "starts_at": "2026-05-31T00:00:00+00:00",
+    "ends_at": "2026-06-07T00:00:00+00:00"
+  },
+  {
+    "id": "86f1c3f4-b352-459e-8087-fa14c7ec1b41",
+    "series": "qatar-major",
+    "year": 2023,
+    "name": "Ooredoo Qatar Major Premier Padel",
+    "starts_at": "2023-02-26T00:00:00+00:00",
+    "ends_at": "2023-03-05T00:00:00+00:00"
+  },
+  {
+    "id": "187afc08-6427-45cc-a9de-9909bc1d0aab",
+    "series": "qatar-major",
+    "year": 2024,
+    "name": "Ooredoo Qatar Major Premier Padel",
+    "starts_at": "2024-03-01T00:00:00+00:00",
+    "ends_at": "2024-03-08T00:00:00+00:00"
+  },
+  {
+    "id": "4ba8e1d8-5333-44bf-a797-7368dc6cbaba",
+    "series": "qatar-major",
+    "year": 2025,
+    "name": "Qatar Major Premier Padel",
+    "starts_at": "2025-04-11T00:00:00+00:00",
+    "ends_at": "2025-04-19T00:00:00+00:00"
+  },
+  {
+    "id": "6c036241-32d4-4e4a-895f-7c404a85dc59",
+    "series": "qatar-major",
+    "year": 2026,
+    "name": "QATAR MAJOR",
+    "starts_at": "2026-04-06T00:00:00+00:00",
+    "ends_at": "2026-04-11T00:00:00+00:00"
+  },
+  {
+    "id": "5a4e9aa7-9c52-494a-9ac1-e112c9500adc",
+    "series": "brussels",
+    "year": 2024,
+    "name": "Lotto Brussels Premier Padel P2 Presented By Belfius",
+    "starts_at": "2024-04-20T00:00:00+00:00",
+    "ends_at": "2024-04-28T00:00:00+00:00"
+  },
+  {
+    "id": "01af21ed-fb52-4e6c-a308-36c46c4ff5d4",
+    "series": "brussels",
+    "year": 2025,
+    "name": "Brussels P2",
+    "starts_at": "2025-04-20T00:00:00+00:00",
+    "ends_at": "2025-04-27T00:00:00+00:00"
+  },
+  {
+    "id": "b91c4c7d-dfdf-47bd-af99-e6d97515634e",
+    "series": "brussels",
+    "year": 2026,
+    "name": "Brussels P2 2026",
+    "starts_at": "2026-04-20T00:00:00+00:00",
+    "ends_at": "2026-04-26T00:00:00+00:00"
+  },
+  {
+    "id": "51b291af-92ae-4337-a00b-65ae818520e8",
+    "series": "bordeaux",
+    "year": 2024,
+    "name": "Betclic Bordeaux Premier Padel P2",
+    "starts_at": "2024-06-09T00:00:00+00:00",
+    "ends_at": "2024-06-16T00:00:00+00:00"
+  },
+  {
+    "id": "828d5d1f-eaec-48a3-8d1c-ea4ac48ec56c",
+    "series": "bordeaux",
+    "year": 2025,
+    "name": "Bordeaux P2",
+    "starts_at": "2025-06-28T00:00:00+00:00",
+    "ends_at": "2025-07-06T00:00:00+00:00"
+  },
+  {
+    "id": "1b68795c-c95d-42cb-bc0b-91079e00a197",
+    "series": "bordeaux",
+    "year": 2026,
+    "name": "BORDEAUX P2",
+    "starts_at": "2026-06-29T00:00:00+00:00",
+    "ends_at": "2026-07-05T00:00:00+00:00"
+  },
+  {
+    "id": "9ac52a9a-df19-4b0a-830e-2af3a9d2e811",
+    "series": "miami",
+    "year": 2025,
+    "name": "Motorola Razr Miami Premier Padel P1",
+    "starts_at": "2025-03-17T00:00:00+00:00",
+    "ends_at": "2025-03-23T00:00:00+00:00"
+  },
+  {
+    "id": "ed856a08-ba76-48c7-a354-8604678abcaa",
+    "series": "miami",
+    "year": 2026,
+    "name": "Miami P1 2026",
+    "starts_at": "2026-03-23T00:00:00+00:00",
+    "ends_at": "2026-03-29T00:00:00+00:00"
+  },
+  {
+    "id": "0ae33edf-5d0c-4c6e-be0d-a60eb559880a",
+    "series": "santiago",
+    "year": 2024,
+    "name": "Banco De Chile Santiago Premier Padel P1",
+    "starts_at": "2024-05-26T00:00:00+00:00",
+    "ends_at": "2024-06-03T00:00:00+00:00"
+  },
+  {
+    "id": "c7a0c17f-4307-4e88-8d66-cc5cdd90f577",
+    "series": "santiago",
+    "year": 2025,
+    "name": "Premier Padel Santiago P1",
+    "starts_at": "2025-03-23T00:00:00+00:00",
+    "ends_at": "2025-03-31T00:00:00+00:00"
+  },
+  {
+    "id": "c6d16736-b115-4c95-93e1-3017407de5bc",
+    "series": "germany",
+    "year": 2025,
+    "name": "Cupra Germany Premier Padel P2",
+    "starts_at": "2025-09-22T00:00:00+00:00",
+    "ends_at": "2025-09-28T00:00:00+00:00"
+  },
+  {
+    "id": "9ba1b209-c4b2-4042-a614-e35513fd55a5",
+    "series": "germany",
+    "year": 2026,
+    "name": "GERMANY P2",
+    "starts_at": "2026-10-04T00:00:00+00:00",
+    "ends_at": "2026-10-11T00:00:00+00:00"
+  },
+  {
+    "id": "edecc5c9-9e9e-456d-a60c-b1be89b3afcb",
+    "series": "riyadh",
+    "year": 2024,
+    "name": "Riyadh Season Premier Padel P1",
+    "starts_at": "2024-02-24T00:00:00+00:00",
+    "ends_at": "2024-03-02T00:00:00+00:00"
+  },
+  {
+    "id": "47578134-c90e-4f60-b304-77165ee9dbda",
+    "series": "riyadh",
+    "year": 2025,
+    "name": "Riyadh Season P1",
+    "starts_at": "2025-02-08T00:00:00+00:00",
+    "ends_at": "2025-02-17T00:00:00+00:00"
+  },
+  {
+    "id": "15729e2f-5102-4847-95b7-5aaf1e8fd0ba",
+    "series": "riyadh",
+    "year": 2026,
+    "name": "Riyadh Season P1 2026",
+    "starts_at": "2026-02-07T00:00:00+00:00",
+    "ends_at": "2026-02-14T00:00:00+00:00"
+  },
+  {
+    "id": "015b0b07-8042-49ba-be75-6abda197a4d6",
+    "series": "malaga",
+    "year": 2024,
+    "name": "Malaga Premier Padel P1",
+    "starts_at": "2024-07-06T00:00:00+00:00",
+    "ends_at": "2024-07-14T00:00:00+00:00"
+  },
+  {
+    "id": "14838721-3cf1-4a2d-be87-faba94a2e744",
+    "series": "malaga",
+    "year": 2025,
+    "name": "Malaga P1",
+    "starts_at": "2025-07-13T00:00:00+00:00",
+    "ends_at": "2025-07-20T00:00:00+00:00"
+  },
+  {
+    "id": "fc01b593-5038-44eb-91c2-b23015e3a9df",
+    "series": "malaga",
+    "year": 2026,
+    "name": "MALAGA P1",
+    "starts_at": "2026-07-11T00:00:00+00:00",
+    "ends_at": "2026-07-19T00:00:00+00:00"
+  },
+  {
+    "id": "01c7f33c-9961-48b8-a7ae-f3115da17489",
+    "series": "asuncion",
+    "year": 2024,
+    "name": "Asuncion Premier Padel P2",
+    "starts_at": "2024-05-11T00:00:00+00:00",
+    "ends_at": "2024-05-19T00:00:00+00:00"
+  },
+  {
+    "id": "ecff588b-84d4-4d1e-bc65-53003d8a0a3e",
+    "series": "asuncion",
+    "year": 2025,
+    "name": "Asuncion P2",
+    "starts_at": "2025-05-18T00:00:00+00:00",
+    "ends_at": "2025-05-25T00:00:00+00:00"
+  },
+  {
+    "id": "5027936c-9fd5-4309-83e7-44ee4620a207",
+    "series": "asuncion",
+    "year": 2026,
+    "name": "ASUNCION P2",
+    "starts_at": "2026-05-03T00:00:00+00:00",
+    "ends_at": "2026-05-10T00:00:00+00:00"
+  },
+  {
+    "id": "c88fef15-1e67-45cb-9a89-5da36f10a545",
+    "series": "gijon",
+    "year": 2025,
+    "name": "Premier Padel GijÓn P2",
+    "starts_at": "2025-02-24T00:00:00+00:00",
+    "ends_at": "2025-03-02T00:00:00+00:00"
+  },
+  {
+    "id": "3ca92963-6465-4482-9b93-140481a8c1e5",
+    "series": "gijon",
+    "year": 2026,
+    "name": "Gijón P2 2026",
+    "starts_at": "2026-03-02T00:00:00+00:00",
+    "ends_at": "2026-03-08T00:00:00+00:00"
+  },
+  {
+    "id": "19b96051-c063-4677-98d8-7eef87b7475b",
+    "series": "cancun",
+    "year": 2025,
+    "name": "Premier Padel Cancun P2",
+    "starts_at": "2025-03-09T00:00:00+00:00",
+    "ends_at": "2025-03-16T00:00:00+00:00"
+  },
+  {
+    "id": "b5995b56-67f6-4874-9000-5109cef689ef",
+    "series": "cancun",
+    "year": 2026,
+    "name": "Cancún P2 2026",
+    "starts_at": "2026-03-16T00:00:00+00:00",
+    "ends_at": "2026-03-22T00:00:00+00:00"
+  },
+  {
+    "id": "90b8cbad-ad31-4d88-843b-c62602bda645",
+    "series": "newgiza",
+    "year": 2024,
+    "name": "Newgiza Premier Padel P2",
+    "starts_at": "2024-10-19T00:00:00+00:00",
+    "ends_at": "2024-10-26T00:00:00+00:00"
+  },
+  {
+    "id": "effc53ac-2cc6-4c94-87e2-469e0a2f7863",
+    "series": "newgiza",
+    "year": 2025,
+    "name": "Newgiza P2",
+    "starts_at": "2025-10-27T00:00:00+00:00",
+    "ends_at": "2025-11-01T00:00:00+00:00"
+  },
+  {
+    "id": "7204f4ac-5ced-4b2f-b9c0-5fb81a497a90",
+    "series": "newgiza",
+    "year": 2026,
+    "name": "Newgiza P2 2026",
+    "starts_at": "2026-04-11T00:00:00+00:00",
+    "ends_at": "2026-04-18T00:00:00+00:00"
+  },
+  {
+    "id": "a4fdb14d-1b44-46e9-aadb-a51b915580e9",
+    "series": "buenos-aires",
+    "year": 2025,
+    "name": "Buenos Aires P1",
+    "starts_at": "2025-05-25T00:00:00+00:00",
+    "ends_at": "2025-06-01T00:00:00+00:00"
+  },
+  {
+    "id": "83ba400e-77d4-4d9d-b525-af417a8d9f4a",
+    "series": "buenos-aires",
+    "year": 2026,
+    "name": "BUENOS AIRES P1",
+    "starts_at": "2026-05-10T00:00:00+00:00",
+    "ends_at": "2026-05-17T00:00:00+00:00"
+  },
+  {
+    "id": "0060463d-89cf-4aa7-8730-cc86027156f1",
+    "series": "mendoza",
+    "year": 2023,
+    "name": "Mendoza Premier Padel P1",
+    "starts_at": "2023-07-29T00:00:00+00:00",
+    "ends_at": "2023-08-06T00:00:00+00:00"
+  },
+  {
+    "id": "f1f2f1bd-9524-4cec-8452-5c022706580c",
+    "series": "mar-del-plata",
+    "year": 2024,
+    "name": "Mar Del Plata Premier Padel P1",
+    "starts_at": "2024-05-18T00:00:00+00:00",
+    "ends_at": "2024-05-26T00:00:00+00:00"
+  },
+  {
+    "id": "1b02cd5d-1cfb-4c4b-975c-90866237e183",
+    "series": "puerto-cabello",
+    "year": 2024,
+    "name": "Puerto Cabello Premier Padel P2",
+    "starts_at": "2024-03-23T00:00:00+00:00",
+    "ends_at": "2024-03-31T00:00:00+00:00"
+  },
+  {
+    "id": "2a2102d3-7a14-487f-a25f-2ab8d69148ec",
+    "series": "sevilla",
+    "year": 2024,
+    "name": "Sevilla Premier Padel P2",
+    "starts_at": "2024-04-28T00:00:00+00:00",
+    "ends_at": "2024-05-05T00:00:00+00:00"
+  },
+  {
+    "id": "6127ed44-3ff2-477b-9e32-4a68d96a7787",
+    "series": "genova",
+    "year": 2024,
+    "name": "Genova Premier Padel P2",
+    "starts_at": "2024-06-30T00:00:00+00:00",
+    "ends_at": "2024-07-07T00:00:00+00:00"
+  },
+  {
+    "id": "eee26138-8f3e-4453-84cf-391e32eabcc9",
+    "series": "finland",
+    "year": 2024,
+    "name": "Finland Premier Padel P2",
+    "starts_at": "2024-07-28T00:00:00+00:00",
+    "ends_at": "2024-08-04T00:00:00+00:00"
+  },
+  {
+    "id": "09fffc9c-816a-4f75-b9e2-fb5c1474e343",
+    "series": "tarragona",
+    "year": 2025,
+    "name": "Cupra Costa Daurada Tarragona P1",
+    "starts_at": "2025-07-27T00:00:00+00:00",
+    "ends_at": "2025-08-03T00:00:00+00:00"
+  },
+  {
+    "id": "36551e25-b4ec-4e51-aedd-756396fd8569",
+    "series": "valencia",
+    "year": 2026,
+    "name": "VALENCIA P1",
+    "starts_at": "2026-06-06T00:00:00+00:00",
+    "ends_at": "2026-06-14T00:00:00+00:00"
+  },
+  {
+    "id": "80e21287-a8c1-401d-b72e-0ad0788819f0",
+    "series": "pretoria",
+    "year": 2026,
+    "name": "PRETORIA P1",
+    "starts_at": "2026-07-26T00:00:00+00:00",
+    "ends_at": "2026-08-02T00:00:00+00:00"
+  },
+  {
+    "id": "cbe48d1f-f56f-4516-9df6-f452d70c2e34",
+    "series": "london",
+    "year": 2026,
+    "name": "LONDON P1",
+    "starts_at": "2026-08-02T00:00:00+00:00",
+    "ends_at": "2026-08-09T00:00:00+00:00"
+  }
+]
