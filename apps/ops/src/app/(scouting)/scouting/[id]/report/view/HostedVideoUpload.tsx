@@ -1,7 +1,7 @@
 'use client'
 import {useEffect,useRef,useState} from 'react'
 import type {ReviewContext} from './ReviewNotes'
-export type HostedVideo={id:string;name:string;url:string;offset:number;duration:number;expiresAt:number}
+export type HostedVideo={id:string;name:string;size:number;url:string;offset:number;duration:number;expiresAt:number}
 export default function HostedVideoUpload({context,file,offset,duration,onHosted}:{context:ReviewContext;file:File|null;offset:number;duration:number;onHosted:(v:HostedVideo)=>void}){
  const endpoint=`/api/internal/match-video/${context.matchId}?kind=${context.manual?'manual':'canonical'}`
  const [configured,setConfigured]=useState<boolean|null>(null),[canUpload,setCanUpload]=useState(false),[hosted,setHosted]=useState<HostedVideo|null>(null)
