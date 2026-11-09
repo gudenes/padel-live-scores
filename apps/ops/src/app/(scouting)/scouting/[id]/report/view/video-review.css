@@ -568,3 +568,5 @@
 
 .vr-hosted-upload{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;margin:10px 0;border:1px solid var(--border,#d7ddce);border-radius:12px;background:var(--surface,#fff)}
 .vr-hosted-upload>div:first-child{display:grid;gap:3px;flex:1;min-width:200px}.vr-hosted-upload small{color:#62705a}.vr-hosted-upload p{margin:0;flex-basis:100%;font-size:13px}.vr-hosted-upload progress{width:200px;accent-color:#92b725}.vr-hosted-actions{display:flex;gap:8px;align-items:center}.vr-hosted-upload [role=alert]{color:#b42318}
+/* Setup errors belong beside the frame, not under the sticky action footer. */
+.vr-setup-wizard .vr-error{position:static;inset:auto;margin:12px 0;background:#fff1ee;border:1px solid #f0c4bd;line-height:1.5}
