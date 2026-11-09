@@ -3,7 +3,7 @@
 // V3 Tournament Detail — matches by round with gender toggle, stage selector,
 // realtime updates, overview tab, and recap tab. Styled with PadelNachos brand.
 
-import { resolvePremierPreviousEdition } from '@/lib/premier-editions'
+import { dedupePremierTournaments, resolvePremierPreviousEdition } from '@/lib/premier-editions'
 import { useEffect, useState, useCallback, useMemo, useRef, use, Suspense } from 'react'
 import { isLeagueLevel } from '@/lib/league-levels'
 import { titleCase } from '@/lib/title-case'
@@ -408,7 +408,7 @@ function TournamentDetail({ tournamentId }: { tournamentId: string }) {
       .from('tournaments')
       .select('id, name, starts_at, ends_at, country, timezone, level, status, logo_url, cover_image_url, venue, venue_address, venue_type, prize_money, prize_money_fip, prize_breakdown, round_schedule, signup_fee_eur, registration_status, schedule_notes, draw_size_md, draw_size_qd, entry_list_status, source, fip_id, slug, factsheet_url, factsheet_data')
       .order('starts_at', { ascending: false })
-    if (data) setTournaments(data)
+    if (data) setTournaments(dedupePremierTournaments(data))
   }, [])
 
 

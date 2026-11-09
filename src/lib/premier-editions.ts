@@ -14,6 +14,24 @@ const preferredRecords: Record<string, string> = {
   'madrid:2026': '8083ac24-da11-4a8f-84c5-708c21307e9f',
 }
 
+/** Only reviewed duplicates resolve to another ID; source alone is not identity. */
+export function preferredPremierTournamentId(id: string): string {
+  const row = catalog.find(row => row.id === id)
+  return row ? preferredRecords[`${row.series}:${row.year}`] ?? id : id
+}
+
+/** Filter fetched rows, preserving their metadata and order. Keep an alias if
+ * the preferred row is absent from this query (pagination/filtering/failure).
+ * This is presentation deduplication, never a match or database merge.
+ */
+export function dedupePremierTournaments<T extends { id: string }>(rows: readonly T[]): T[] {
+  const present = new Set(rows.map(row => row.id))
+  return rows.filter(row => {
+    const preferred = preferredPremierTournamentId(row.id)
+    return preferred === row.id || !present.has(preferred)
+  })
+}
+
 /** One displayed record where a preferred edition was explicitly reviewed.
  * Alias IDs stay in the catalog so existing URLs still resolve their history.
  */

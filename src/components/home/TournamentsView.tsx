@@ -1,5 +1,6 @@
 'use client'
 
+import { dedupePremierTournaments } from '@/lib/premier-editions'
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { isLeagueLevel } from '@/lib/league-levels'
 import Avatar from '@/components/Avatar'
@@ -216,7 +217,7 @@ export default function TournamentsView({
               : [fipSubTier]
 
       // Fetch all tournaments for this circuit
-      const { data: tournamentsData } = await supabase
+      const { data: fetchedTournaments } = await supabase
         .from('tournaments')
         .select('id, name, starts_at, ends_at, country, level, location, prize_money, logo_url, cover_image_url, status')
         .in('level', levels)
@@ -224,7 +225,8 @@ export default function TournamentsView({
         .order('starts_at', { ascending: false })
         .limit(500)
 
-      if (!tournamentsData) { setLoading(false); return }
+      if (!fetchedTournaments) { setLoading(false); return }
+      const tournamentsData = dedupePremierTournaments(fetchedTournaments)
 
       const now = new Date()
 
