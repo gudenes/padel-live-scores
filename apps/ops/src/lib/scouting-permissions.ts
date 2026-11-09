@@ -10,6 +10,8 @@ export function scouterRouteAllowed(path: string, method: string, viewer = false
   if ((method==='GET'||method==='HEAD'||(!viewer&&method==='POST')) && /^\/api\/internal\/scouting\/[0-9a-f-]{36}\/live-session$/i.test(path)) return true
   if (path === '/api/internal/scouting-assistant' && method === 'POST') return true // Read-only search, including viewers.
   if ((method === 'GET' || method === 'HEAD') && /^\/api\/internal\/match-video\/[0-9a-f-]{36}$/i.test(path)) return true
+  if ((method==='GET'||method==='HEAD') && /^\/api\/internal\/lab-vision\/(results\/[0-9a-f-]{36}|assets\/[0-9a-f-]{36}\/(manifest|\d{3,4})\.json)$/i.test(path)) return true
+  if ((method==='GET'||method==='HEAD') && /^\/lab-vision\/rally35\/(index\.html|app\.js|arena-v2\.glb|player-(navy|white)\.glb|camera-fit\.json|vendor\/(three\.module|OrbitControls|GLTFLoader|BufferGeometryUtils)\.js)$/.test(path)) return true
   const read = method === 'GET' || method === 'HEAD'
   if (['GET','HEAD','POST','DELETE'].includes(method) && /^\/api\/internal\/scouting-review-notes\/[0-9a-f-]{36}$/i.test(path)) return true
   if(read&&['/scouting/players','/api/internal/scouting-intelligence','/api/internal/scouting-player-search'].includes(path))return true

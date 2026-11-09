@@ -77,7 +77,9 @@ class Worker:
    size=archive.stat().st_size;url=self.api('upload',size=size)['url']
    with archive.open('rb') as f:r=requests.put(url,data=f,headers={'Content-Type':'application/gzip'},timeout=(10,600));r.raise_for_status()
    if self.stopped.is_set():raise RuntimeError('Job stopped')
-   self.api('complete',size=size,metrics=metrics);print('Analysis complete:',job['id'],flush=True)
+   from publish import publish
+   viewer=publish(self,job['setup'])
+   self.api('complete',size=size,metrics=metrics,viewer=viewer);print('Analysis complete:',job['id'],flush=True)
   except Exception as e:
    print('Analysis stopped:',str(e),flush=True)
    if not self.stopped.is_set():
