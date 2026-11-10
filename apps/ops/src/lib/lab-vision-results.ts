@@ -1,3 +1,4 @@
+import {validScoutingAlignment} from './scouting/scouting-alignment';
 /** Publication contract. Worker results become visible only after all files exist. */
 export const viewerFile=/^(manifest|\d{3,4})\.json$/
 export function viewerAssets(input:any,end:number){
@@ -17,7 +18,7 @@ export function validateViewerManifest(m:any,setup:any){
  for(const p of m.players){const v=m.performance?.[p.key];if(!v||!Number.isFinite(v.distance_m)||v.distance_m<0||['max_speed_kmh','average_speed_kmh'].some(k=>v[k]!==null&&(!Number.isFinite(v[k])||v[k]<0||v[k]>50)))throw Error('Invalid performance metrics.')}
  if(m.scoutingAlignment!==undefined){
   const a=m.scoutingAlignment;
-  if(a.version!==1||!Number.isFinite(a.offsetSeconds)||typeof a.method!=='string'||!a.method.trim())throw Error('Invalid scouting alignment.');
+  if(!validScoutingAlignment(a))throw Error('Invalid scouting alignment.');
  }
  if(m.activity!==undefined){
   const a=m.activity;
