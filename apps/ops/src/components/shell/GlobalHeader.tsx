@@ -6,6 +6,7 @@ import {ScoutingNav} from './ScoutingNav'
 import { HorizontalNav } from './HorizontalNav'
 import { Icon } from '../IconSprite'
 import { signOutAction } from '@/lib/actions/sign-out'
+import AnalysisTasks from './AnalysisTasks'
 import { CommandPalette } from './CommandPalette'
 
 export function GlobalHeader({ userEmail = null, scoped = false }: { userEmail?: string | null; scoped?: boolean }) {
@@ -34,6 +35,7 @@ export function GlobalHeader({ userEmail = null, scoped = false }: { userEmail?:
       </label>}
 
       <div className="gright">
+        {!scoped&&<AnalysisTasks/>}
         <a className="iconbtn" href="/downloads/padel-nachos-scout-0.2.17.zip" download="padel-nachos-scout-0.2.17.zip" aria-label="Download scouting extension" title="Download Scout v0.2.17 · installation guide and Mac / Windows helpers">
           <Icon id="download" />
         </a>

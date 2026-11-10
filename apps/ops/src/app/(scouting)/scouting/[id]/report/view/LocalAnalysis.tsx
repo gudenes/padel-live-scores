@@ -1,7 +1,8 @@
 'use client'
 import {useEffect,useState,useRef} from 'react'
-import {analysisProgress,analysisStages} from '@/lib/scouting/analysis-progress'
+import {analysisProgress} from '@/lib/scouting/analysis-progress'
 import {CheckCircle} from './Icons'
+import AnalysisActivity from './AnalysisActivity'
 import type {VideoSetup} from '@/lib/scouting/video-setup'
 import type {HostedVideo} from './HostedVideoUpload'
 export default function LocalAnalysis({video,setup,onPrepare,onStatus,players=[]}:{video:HostedVideo;setup:VideoSetup|null;onPrepare:()=>void;onStatus?:(text:string)=>void;players?:{id:string;name:string;shortName:string;avatar:string}[]}){
@@ -14,9 +15,9 @@ export default function LocalAnalysis({video,setup,onPrepare,onStatus,players=[]
  void poll();const t=setInterval(poll,5000);try{const raw=localStorage.getItem(`lab-vision-setup:${location.pathname}:${video.name}:${video.size}`);setSaved(raw?JSON.parse(raw):null)}catch{}
  return()=>{alive=false;clearInterval(t)}},[video.id,video.name,video.size])
 
- async function action(body:unknown){setBusy(true);setError('');try{const r=await fetch('/api/internal/lab-vision/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed.');await refresh();return d}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
+ async function action(body:unknown){setBusy(true);setError('');try{const r=await fetch('/api/internal/lab-vision/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed.');await refresh();window.dispatchEvent(new Event('lab-vision:jobs-changed'));return d}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
  async function connect(){const d=await action({action:'connect'});if(!d)return;const url=URL.createObjectURL(new Blob([JSON.stringify(d.config,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='lab-vision-worker.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
- const job=state?.job,config=setup?.file.name===video.name&&setup?.file.size===video.size?setup:saved??job?.setup,active=job&&['queued','running'].includes(job.status),online=state?.workers?.some((w:any)=>w.online)
+ const job=state?.job,config=setup?.file.name===video.name&&setup?.file.size===video.size?setup:saved??job?.setup,active=job&&['queued','running'].includes(job.status),online=state?.workers?.some((w:any)=>w.online&&(!job?.worker_id||w.id===job.worker_id))
  const view=analysisProgress(job)
  useEffect(()=>{statusCallback.current?.(pollError?'Status unavailable':state?.denied?'Video & analysis':!state?'Checking analysis…':view.pill)},[view.pill,pollError,state?.denied,!!state])
  if(state?.denied)return <p className="va-muted">Analysis controls require administrator access.</p>
@@ -26,9 +27,9 @@ export default function LocalAnalysis({video,setup,onPrepare,onStatus,players=[]
  {config?.confirmed?<><div className="va-players">{players.map(p=><div key={p.id}><img src={p.avatar} alt=""/><span>{p.shortName}</span></div>)}</div><button className="ui-btn" disabled={!!active} onClick={onPrepare}>Review court & players</button></>:<><p>Choose the match start, then confirm the court and all four players.</p><button className="ui-btn" onClick={onPrepare}>Prepare video</button></>}
  </div>
  <div className="va-section">
- <h3>{!state?'Checking analysis…':view.title}</h3>
- {active&&<><div className="va-progress-number">{view.percent!==null?`${view.percent}%`:'In progress'}</div><progress aria-label={`${view.label} progress`} max={100} value={view.percent??undefined}/><p className="va-progress-caption">{view.percent!==null?'Current stage · updates automatically':'Waiting for the next processing update'}</p></>}
- {job&&<ol className="va-stages">{analysisStages.map((label,i)=>{const done=job.status==='complete'||i<view.index;const current=active&&i===view.index;return <li key={label} data-state={done?'done':current?'active':'pending'}>{done?<CheckCircle/>:<span className="va-stage-marker"/>}<span>{label}</span><small>{done?'Complete':current?'Active':job.status==='failed'&&i===view.index?'Stopped':'Pending'}</small></li>})}</ol>}
+ {!active&&<h3>{!state?'Checking analysis…':view.title}</h3>}
+ <AnalysisActivity job={job} online={!!online} pollError={!!pollError}/>
+
  {job?.status==='complete'&&<p>Results are ready{job.result?.viewer?' in the 3D court and Player performance tab':''}.{job.setup?.analysisSeconds<video.duration-5?' This run covers a sample of the video.':''}</p>}
  {job?.download&&<a className="va-download" href={job.download}>Download analysis results</a>}
  {job?.error&&<p role="alert">{job.error}</p>}

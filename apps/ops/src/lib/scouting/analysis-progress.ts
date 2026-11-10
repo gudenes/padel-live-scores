@@ -7,7 +7,7 @@ export function analysisProgress(job?:AnalysisProgressJob|null){
  const label=({queued:'Waiting to start',preparing:'Preparing video',downloading:'Downloading video',normalizing:'Preparing video',players:'Tracking players',movement:'Calculating movement',ball:'Tracking the ball',refinement:'Refining ball tracking',uploading:'Publishing results'} as Record<string,string>)[stage]??'Processing video';
  const processed=job?.progress?.processed,total=job?.progress?.total;
  // Normalization and publishing currently emit only a start signal, not incremental progress.
- const measured=['players','ball'].includes(stage)&&Number.isFinite(processed)&&Number.isFinite(total)&&total!>0;
+ const measured=['downloading','players','ball'].includes(stage)&&Number.isFinite(processed)&&Number.isFinite(total)&&total!>0;
  const percent=measured?Math.max(0,Math.min(100,Math.floor(processed!/total!*100))):null;
  const active=!!job&&['queued','running'].includes(job.status);
  const title=!job?'Ready to analyze':job.status==='complete'?'Analysis ready':job.status==='failed'?'Analysis needs attention':job.status==='cancelled'?'Analysis stopped':job.status==='queued'?'Waiting to start':label;

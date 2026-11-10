@@ -1,3 +1,4 @@
+import {estimateAnalysis} from '@/lib/scouting/analysis-estimate'
 import {randomBytes,randomUUID,createHash} from 'node:crypto'
 import {auth} from '@/lib/auth'
 import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
@@ -12,10 +13,10 @@ export const runtime='nodejs'
 export async function GET(req:Request){
  const user=(await auth())?.user;if(!user?.id||!user.isOperator)return json({error:'Administrator access required.'},403)
  const id=new URL(req.url).searchParams.get('video');if(!videoUuid.test(id??''))return json({error:'Invalid video.'},400)
- const db=pgPool();const jobs=await db.query('select j.id,j.status,j.stage,j.progress,j.error,j.result,j.setup,j.updated_at from public.lab_vision_jobs j join public.match_video_uploads v on v.id=j.video_id where j.video_id=$1 and j.owner_user_id=$2 order by j.created_at desc limit 1',[id,user.id]);
+ const db=pgPool();const jobs=await db.query('select j.id,j.worker_id,j.status,j.stage,j.progress,j.error,j.result,j.setup,j.updated_at from public.lab_vision_jobs j join public.match_video_uploads v on v.id=j.video_id where j.video_id=$1 and j.owner_user_id=$2 order by j.created_at desc limit 1',[id,user.id]);
  const workers=await db.query("select id,name,last_seen_at,last_seen_at>now()-interval '45 seconds' as online from public.lab_vision_workers where owner_user_id=$1 and revoked_at is null order by created_at desc",[user.id]);
  const job=jobs.rows[0]??null;if(job?.status==='complete'&&job.result?.archiveKey){const {client,Bucket}=videoStorage();job.download=await getSignedUrl(client,new GetObjectCommand({Bucket,Key:job.result.archiveKey}),{expiresIn:3600})}
- return json({job,workers:workers.rows})
+ return json({job:job?{...job,estimate:estimateAnalysis(job)}:null,workers:workers.rows})
 }
 export async function POST(req:Request){
  const user=(await auth())?.user;if(!user?.id||!user.isOperator)return json({error:'Administrator access required.'},403)
