@@ -4,6 +4,7 @@ import {estimateAnalysis} from '@/lib/scouting/analysis-estimate'
 import {playbackVideo} from '@/lib/match-video-storage'
 import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {jobBody} from '@/lib/lab-vision-jobs'
+import {contactCandidates} from '@/lib/lab-vision/contact-candidates'
 import {parseAnnotation} from '@/lib/lab-vision/annotations'
 import {createHash,randomUUID} from 'node:crypto'
 import {mkdir,readFile,writeFile,readdir} from 'node:fs/promises'
@@ -16,6 +17,10 @@ async function owned(id:string,user:string){if(!/^[0-9a-f-]{36}$/i.test(id))retu
 export async function GET(req:Request){const u=await access();if(!u)return json({error:'Local administrator access required.'},403)
  const id=new URL(req.url).searchParams.get('job')
  if(id){const j=await owned(id,u.id!);if(!j)return json({error:'Analysis not found.'},404)
+ if(new URL(req.url).searchParams.get('candidates')==='1'){
+  const dir=path.join(process.env.LAB_VISION_JOBS_DIR||'/Volumes/Crucial/dev/lab-vision-jobs',id,'viewer')
+  try{const manifest=JSON.parse(await readFile(path.join(dir,'manifest.json'),'utf8'));const chunks=[];for(let i=0;i<manifest.chunks;i++)chunks.push(JSON.parse(await readFile(path.join(dir,String(i).padStart(3,'0')+'.json'),'utf8')));return json({candidates:contactCandidates(manifest,chunks),method:'pose-wrist-peaks-v1',limits:'Possible contacts from wrist motion, not a trained contact detector. Serves may be missed; use manual annotation to add them.'})}catch{return json({error:'Saved local tracking is unavailable for this run. Select a completed local match.'},409)}
+ }
  let annotations:unknown[]=[];try{const dir=folder(u.id!,id);annotations=await Promise.all((await readdir(dir)).filter(f=>f.endsWith('.json')).map(async f=>JSON.parse(await readFile(path.join(dir,f),'utf8'))))}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e}
  return json({tracking:j.result?.viewer?{manifest:j.result.viewer.manifest,assetBase:`/api/internal/lab-vision/assets/${j.id}/`}:null,video:await playbackVideo({...j,id:j.upload_id}),matchStart:j.setup?.matchStart??0,players:(j.setup?.playerNames??[]).map((name:string,i:number)=>({name,id:j.setup?.playerIds?.[i]??name})),annotations,source:{jobId:j.id,videoId:j.video_id,matchId:j.match_id,pipeline:j.result?.manifest?.pipeline??'Not recorded'}})}
  const {rows}=await pgPool().query('select j.id,j.video_id,j.worker_id,j.status,j.stage,j.progress,j.error,j.updated_at,j.setup,v.match_id,v.file_name from lab_vision_jobs j join match_video_uploads v on v.id=j.video_id where j.owner_user_id=$1 order by j.created_at desc limit 50',[u.id])

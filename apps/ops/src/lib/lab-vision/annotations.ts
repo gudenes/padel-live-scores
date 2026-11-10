@@ -12,5 +12,10 @@ export function parseAnnotation(b:any,duration:number,players:string[]){
  if(!['Unknown','Front','Back','Side / oblique'].includes(viewpoint)||!['Unknown','First','Second'].includes(serveAttempt))throw Error('Invalid serve details.')
  const boxOrigin=b.boxOrigin??'human'
  if(!['human','pose-proposal','pose-adjusted'].includes(boxOrigin))throw Error('Invalid box origin.')
- return {boxOrigin,box:box?{x:box.x,y:box.y,width:box.width,height:box.height}:null,boxCoordinateSpace:'normalized-video-frame',boxSource:box?boxOrigin:null,viewpoint,serveAttempt,kind:b.kind,time:b.time,start:b.start,end:b.end,player:b.player,shot:b.shot,side:b.side,direction:b.direction,status:b.status,notes:b.notes,confirmed:!!b.confirmed}
+ const candidateId=b.candidateId??null,serveDecision=b.serveDecision??null
+ if(candidateId!==null&&(typeof candidateId!=='string'||!/^pose-wrist-peaks-v1:p[0-3]:\d+\.\d{3}$/.test(candidateId)))throw Error('Invalid candidate.')
+ if(serveDecision!==null&&!['serve','not_serve','uncertain'].includes(serveDecision))throw Error('Invalid serve decision.')
+ if(serveDecision==='serve'&&(b.shot!=='Serve'||b.status!=='verified'||!b.player))throw Error('Confirm timing and player before approving a serve.')
+ if(serveDecision==='not_serve'&&b.status!=='excluded')throw Error('Non-serve proposals must be excluded from serve training.')
+ return {candidateId,serveDecision,boxOrigin,box:box?{x:box.x,y:box.y,width:box.width,height:box.height}:null,boxCoordinateSpace:'normalized-video-frame',boxSource:box?boxOrigin:null,viewpoint,serveAttempt,kind:b.kind,time:b.time,start:b.start,end:b.end,player:b.player,shot:b.shot,side:b.side,direction:b.direction,status:b.status,notes:b.notes,confirmed:!!b.confirmed}
 }

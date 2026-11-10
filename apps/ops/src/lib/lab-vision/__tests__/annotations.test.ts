@@ -14,3 +14,10 @@ describe('player bounding boxes',()=>{
  it.each([{x:-.1,y:0,width:.2,height:.2},{x:.9,y:0,width:.2,height:.2},{x:0,y:0,width:0,height:.2},{x:NaN,y:0,width:.2,height:.2}])('rejects invalid box %j',box=>expect(()=>parseAnnotation({...base,box},60,['Player A'])).toThrow(/Bounding box/))
  it('accepts legacy annotations without a box',()=>expect(parseAnnotation(base,60,['Player A']).box).toBeNull())
 })
+
+describe('serve review decisions',()=>{
+ const candidateId='pose-wrist-peaks-v1:p0:10.000'
+ it('keeps rejection distinct from no contact',()=>{const r=parseAnnotation({...base,candidateId,serveDecision:'not_serve',status:'excluded'},60,['Player A']);expect(r.serveDecision).toBe('not_serve')})
+ it('requires approved serves to have confirmed timing',()=>expect(()=>parseAnnotation({...base,candidateId,serveDecision:'serve',shot:'Serve',status:'verified'},60,['Player A'])).toThrow())
+ it('rejects malformed candidate identifiers',()=>expect(()=>parseAnnotation({...base,candidateId:'../invalid'},60,['Player A'])).toThrow())
+})
