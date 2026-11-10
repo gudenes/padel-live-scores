@@ -1,17 +1,43 @@
 'use client'
-import {useEffect,useState} from 'react'
+import {useEffect,useState,useRef} from 'react'
+import {analysisProgress,analysisStages} from '@/lib/scouting/analysis-progress'
+import {CheckCircle} from './Icons'
 import type {VideoSetup} from '@/lib/scouting/video-setup'
 import type {HostedVideo} from './HostedVideoUpload'
-export default function LocalAnalysis({video,setup,onPrepare}:{video:HostedVideo;setup:VideoSetup|null;onPrepare:()=>void}){
+export default function LocalAnalysis({video,setup,onPrepare,onStatus,players=[]}:{video:HostedVideo;setup:VideoSetup|null;onPrepare:()=>void;onStatus?:(text:string)=>void;players?:{id:string;name:string;shortName:string;avatar:string}[]}){
  const [state,setState]=useState<any>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[scope,setScope]=useState('sample'),[saved,setSaved]=useState<VideoSetup|null>(null)
- async function refresh(){const r=await fetch(`/api/internal/lab-vision/jobs?video=${video.id}`,{cache:'no-store'});if(r.status===403){setState({denied:true});return}const d=await r.json();if(!r.ok)throw Error(d.error||'Could not load worker status.');setState(d)}
- useEffect(()=>{let alive=true;const poll=()=>{if(alive)refresh().catch(e=>setError(e.message))};poll();const t=setInterval(poll,5000);try{const raw=localStorage.getItem(`lab-vision-setup:${location.pathname}:${video.name}:${video.size}`);setSaved(raw?JSON.parse(raw):null)}catch{}return()=>{alive=false;clearInterval(t)}},[video.id])
+ const [pollError,setPollError]=useState('')
+ const statusCallback=useRef(onStatus);statusCallback.current=onStatus
+ async function refresh(){const r=await fetch(`/api/internal/lab-vision/jobs?video=${video.id}`,{cache:'no-store'});if(r.status===403){setState({denied:true});return}const d=await r.json();if(!r.ok)throw Error(d.error||'Could not load worker status.');setState(d);setPollError('')}
+ useEffect(()=>{let alive=true;setState(null);setSaved(null);setError('');setPollError('');
+ const poll=async()=>{try{const r=await fetch(`/api/internal/lab-vision/jobs?video=${video.id}`,{cache:'no-store'});const d=await r.json();if(!alive)return;if(r.status===403){setState({denied:true});return}if(!r.ok)throw Error(d.error||'Could not load analysis status.');setState(d);setPollError('')}catch(e){if(alive)setPollError((e as Error).message)}};
+ void poll();const t=setInterval(poll,5000);try{const raw=localStorage.getItem(`lab-vision-setup:${location.pathname}:${video.name}:${video.size}`);setSaved(raw?JSON.parse(raw):null)}catch{}
+ return()=>{alive=false;clearInterval(t)}},[video.id,video.name,video.size])
+
  async function action(body:unknown){setBusy(true);setError('');try{const r=await fetch('/api/internal/lab-vision/jobs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed.');await refresh();return d}catch(e){setError((e as Error).message)}finally{setBusy(false)}}
  async function connect(){const d=await action({action:'connect'});if(!d)return;const url=URL.createObjectURL(new Blob([JSON.stringify(d.config,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='lab-vision-worker.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
  const job=state?.job,config=setup?.file.name===video.name&&setup?.file.size===video.size?setup:saved??job?.setup,active=job&&['queued','running'].includes(job.status),online=state?.workers?.some((w:any)=>w.online)
- if(state?.denied)return null
- return <section className="vr-local-analysis" style={{padding:'12px 16px',border:'1px solid #dce1d4',borderRadius:12,margin:'8px 0',background:'#fff'}} aria-label="Local match analysis"><div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}><strong>Lab Vision</strong><span>{online?'● Mac connected':'Mac offline · queued jobs wait safely'}</span>{!active&&<><select aria-label="Analysis length" className="ui-input" value={scope} onChange={e=>setScope(e.target.value)}><option value="sample">First 60 seconds · check setup</option><option value="full">Full match from marked start</option></select><button className="ui-btn" onClick={onPrepare}>Review setup</button><button className="ui-btn" data-variant="primary" disabled={busy||!config?.confirmed} onClick={()=>action({action:'run',videoId:video.id,setup:config,scope})}>Run analysis on my Mac</button></>}{active&&<button className="ui-btn" disabled={busy} onClick={()=>action({action:'cancel',id:job.id})}>Stop analysis</button>}</div>
- {!config?.confirmed&&<p>Prepare this video and confirm the court and players before running analysis.</p>}
- {job&&<div role="status" style={{marginTop:10}}><strong>{job.status==='complete'?`Analysis ready for review · ${Math.round(job.setup?.analysisSeconds??0)} seconds processed`:job.status==='failed'?'Analysis stopped':job.status==='cancelled'?'Analysis cancelled':job.stage.replaceAll('_',' ')}</strong>{active&&job.progress?.total>0&&<><progress max={job.progress.total} value={job.progress.processed} style={{margin:'0 12px',width:180}}/>{Math.min(100,Math.round(job.progress.processed/job.progress.total*100))}%</>}{job.error&&<p>{job.error}</p>}{job.download&&<p><a href={job.download}>Download analysis results</a>{job.result?.viewer?' · Results connected to the 3D court and Player performance.':' · Players, poses, movement, zones and WASB ball data.'} Identities and inferred positions still need review.</p>}{job.result?.metrics&&<div style={{display:'flex',gap:20,flexWrap:'wrap'}}>{Object.entries(job.result.metrics).map(([name,m]:[string,any])=><div key={name}><strong>{name}</strong><div>{Number(m.distance_m??0).toFixed(1)} m · max {m.max_speed_kmh==null?'—':Number(m.max_speed_kmh).toFixed(1)} km/h</div></div>)}</div>}</div>}
- <details style={{marginTop:10}}><summary>Connect or manage my Mac</summary><p>Download a private connection file, then open it with the installed Lab Vision worker. Leave your Mac awake while processing. The video stays available online.</p><button className="ui-btn" disabled={busy} onClick={connect}>Download Mac connection</button>{state?.workers?.map((w:any)=><button className="ui-btn" key={w.id} disabled={busy} onClick={()=>action({action:'disconnect',workerId:w.id})}>Disconnect {w.name}</button>)}</details>{error&&<p role="alert">{error}</p>}</section>
+ const view=analysisProgress(job)
+ useEffect(()=>{statusCallback.current?.(pollError?'Status unavailable':state?.denied?'Video & analysis':!state?'Checking analysis…':view.pill)},[view.pill,pollError,state?.denied,!!state])
+ if(state?.denied)return <p className="va-muted">Analysis controls require administrator access.</p>
+ return <section className="va-analysis" aria-label="Local match analysis">
+ <div className="va-section va-setup">
+ <h3>{config?.confirmed&&<CheckCircle/>}{config?.confirmed?'Setup confirmed':'Confirm match setup'}</h3>
+ {config?.confirmed?<><div className="va-players">{players.map(p=><div key={p.id}><img src={p.avatar} alt=""/><span>{p.shortName}</span></div>)}</div><button className="ui-btn" disabled={!!active} onClick={onPrepare}>Review court & players</button></>:<><p>Choose the match start, then confirm the court and all four players.</p><button className="ui-btn" onClick={onPrepare}>Prepare video</button></>}
+ </div>
+ <div className="va-section">
+ <h3>{!state?'Checking analysis…':view.title}</h3>
+ {active&&<><div className="va-progress-number">{view.percent!==null?`${view.percent}%`:'In progress'}</div><progress aria-label={`${view.label} progress`} max={100} value={view.percent??undefined}/><p className="va-progress-caption">{view.percent!==null?'Current stage · updates automatically':'Waiting for the next processing update'}</p></>}
+ {job&&<ol className="va-stages">{analysisStages.map((label,i)=>{const done=job.status==='complete'||i<view.index;const current=active&&i===view.index;return <li key={label} data-state={done?'done':current?'active':'pending'}>{done?<CheckCircle/>:<span className="va-stage-marker"/>}<span>{label}</span><small>{done?'Complete':current?'Active':job.status==='failed'&&i===view.index?'Stopped':'Pending'}</small></li>})}</ol>}
+ {job?.status==='complete'&&<p>Results are ready{job.result?.viewer?' in the 3D court and Player performance tab':''}.{job.setup?.analysisSeconds<video.duration-5?' This run covers a sample of the video.':''}</p>}
+ {job?.download&&<a className="va-download" href={job.download}>Download analysis results</a>}
+ {job?.error&&<p role="alert">{job.error}</p>}
+ {!active&&state&&<div className="va-run"><label>Analysis length<select aria-label="Analysis length" className="ui-input" value={scope} onChange={e=>setScope(e.target.value)}><option value="sample">First 60 seconds · check setup</option><option value="full">Full match from marked start</option></select></label><button className="ui-btn" data-variant="primary" disabled={busy||!config?.confirmed||!!pollError} onClick={()=>action({action:'run',videoId:video.id,setup:config,scope})}>{job?.status==='complete'?'Run another analysis':'Run analysis locally'}</button></div>}
+ </div>
+ <div className="va-section va-device"><h3>Local processing <span className="va-connection" data-online={!!online&&!pollError}>{pollError?'Unavailable':!state?'Checking…':online?'Connected':'Offline'}</span></h3><p>{online?'Keep this computer awake while analysis runs.':'Connect the local worker to process this video. Queued jobs wait safely.'}</p>
+ <details><summary>Processing settings</summary><p>Download a private connection file and open it with the installed Lab Vision worker.</p><button className="ui-btn" disabled={busy} onClick={connect}>Download connection file</button><div className="va-worker-list">{state?.workers?.map((w:any,i:number)=><div key={w.id}><span>Local worker {i+1} · {w.online?'Connected':'Offline'}</span><button className="ui-btn" disabled={busy} onClick={()=>action({action:'disconnect',workerId:w.id})}>Disconnect</button></div>)}</div></details>
+ {active&&<button className="ui-btn va-stop" disabled={busy||!!pollError} onClick={()=>{if(window.confirm('Stop this analysis? The uploaded video will remain available.'))void action({action:'cancel',id:job.id})}}>Stop analysis</button>}
+ </div>
+ {pollError&&<p role="alert">Status updates interrupted. Retrying automatically. {pollError}</p>}{error&&<p role="alert">{error}</p>}
+ </section>
 }

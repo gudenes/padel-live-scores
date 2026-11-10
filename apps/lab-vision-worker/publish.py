@@ -1,5 +1,6 @@
 """Package measured outputs for the authenticated web viewer; never re-run inference."""
 import bisect,json,math
+from activity import detect_activity
 from pathlib import Path
 
 def package(root,setup):
@@ -58,6 +59,7 @@ def package(root,setup):
    distance+=after-before;seconds+=dt
   m.update(average_speed_kmh=round(distance/seconds*3.6,3) if seconds else None,average_coverage_s=round(seconds,3));performance[p['key']]=m
  manifest={'version':1,'start':setup['matchStart'],'end':end,'duration':setup['duration'],'chunkSeconds':60,'chunks':len(chunks),'coverage':coverage,'players':players,'inverseHomography':summary['inverse_homography'],'sourceDimensions':[w,h],'broadcastOffset':setup['offset'],'partial':end<setup['duration']-.1,'performance':performance,'identity':'Identity after camera cuts remains provisional','pose':'2D joints anchored to court positions, not measured 3D joint depth','ball':'Ground-plane projection; ball height is unknown','zoneSchema':data['zone_schema']}
+ manifest['activity']=detect_activity([r for c in chunks.values() for r in c['rows']],[p for c in chunks.values() for p in c['poses']],read(root/'wasb-refined-trajectory.json'),coverage)
  for i,c in chunks.items():write(f'{i:03d}.json',c)
  write('manifest.json',manifest)
  return manifest

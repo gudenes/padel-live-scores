@@ -1,6 +1,6 @@
 'use client'
 import {useEffect,useState} from 'react'
-export type AnalysisManifest={version:1;start:number;end:number;duration:number;partial:boolean;broadcastOffset:number;coverage:number[][];players:{key:string;id:string|null;name:string;team:number}[];performance:Record<string,any>;zoneSchema:any}
+export type AnalysisManifest={scoutingAlignment?:{version:1;offsetSeconds:number;method:string};activity?:{version:1;timebase:'source-video-seconds';windows:{start:number;end:number;segment:number}[];duration:number;method:string};version:1;start:number;end:number;duration:number;partial:boolean;broadcastOffset:number;coverage:number[][];players:{key:string;id:string|null;name:string;team:number}[];performance:Record<string,any>;zoneSchema:any}
 export type AnalysisResult={id:string;videoId:string;updatedAt:string;manifest:AnalysisManifest;assetBase:string}
 export function useAnalysisResult(context?:{matchId:string;manual:boolean},videoId?:string){
  const [state,setState]=useState<{result:AnalysisResult|null;videoId:string|null;loaded:boolean}>({result:null,videoId:null,loaded:false})

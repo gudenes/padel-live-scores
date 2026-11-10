@@ -15,5 +15,13 @@ export function validateViewerManifest(m:any,setup:any){
  if(!Array.isArray(m.coverage)||m.coverage.length>20000||m.coverage.some((v:any)=>!Array.isArray(v)||v.length!==3||!v.every(Number.isFinite)||v[0]<m.start||v[1]>end+.11||v[1]<v[0]))throw Error('Invalid coverage.')
  if(!Array.isArray(m.inverseHomography)||m.inverseHomography.length!==3||m.inverseHomography.some((r:any)=>!Array.isArray(r)||r.length!==3||!r.every(Number.isFinite)))throw Error('Invalid court calibration.')
  for(const p of m.players){const v=m.performance?.[p.key];if(!v||!Number.isFinite(v.distance_m)||v.distance_m<0||['max_speed_kmh','average_speed_kmh'].some(k=>v[k]!==null&&(!Number.isFinite(v[k])||v[k]<0||v[k]>50)))throw Error('Invalid performance metrics.')}
+ if(m.scoutingAlignment!==undefined){
+  const a=m.scoutingAlignment;
+  if(a.version!==1||!Number.isFinite(a.offsetSeconds)||typeof a.method!=='string'||!a.method.trim())throw Error('Invalid scouting alignment.');
+ }
+ if(m.activity!==undefined){
+  const a=m.activity;
+  if(a.version!==1||a.timebase!=='source-video-seconds'||!Array.isArray(a.windows)||a.windows.length>20000||!Number.isFinite(a.duration)||a.duration<0||a.windows.some((w:any,i:number)=>!Number.isFinite(w.start)||!Number.isFinite(w.end)||!Number.isFinite(w.segment)||w.end<=w.start||w.start<m.start||w.end>end+.11||(i>0&&w.start<a.windows[i-1].end)||!m.coverage.some((c:number[])=>c[2]===w.segment&&w.start>=c[0]&&w.end<=c[1]+.01)))throw Error('Invalid activity windows.');
+ }
  return m
 }
