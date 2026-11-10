@@ -104,6 +104,16 @@ if [[ $YES -ne 1 ]]; then
   [[ "$ANSWER" == "$WANT" ]] || fail "not confirmed."
 fi
 
+# The admin serves apps/ops/public, never the web app's root public assets.
+# Exclude those only for this upload; restore the tracked ignore file on every exit.
+IGNORE_BACKUP=""
+if [[ "$KEY" == "admin" && "$UPLOAD_DIR" == "." ]]; then
+  IGNORE_BACKUP="$(mktemp)"
+  cp .railwayignore "$IGNORE_BACKUP"
+  trap 'cp "$IGNORE_BACKUP" .railwayignore; rm -f "$IGNORE_BACKUP"' EXIT
+  printf '\n# Admin-only upload: web assets are not served by apps/ops.\n/public\n' >> .railwayignore
+fi
+
 # 5. stamp, upload, verify (put every stamped variable back if the upload fails)
 STAMP_KEYS=(RELEASE_SHA RELEASE_BRANCH RELEASE_AT)
 [[ "$KEY" != "web" ]] || STAMP_KEYS+=(NEXT_PUBLIC_SENTRY_RELEASE SENTRY_RELEASE)
