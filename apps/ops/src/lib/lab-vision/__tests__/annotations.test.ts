@@ -8,3 +8,9 @@ describe('human annotation validation',()=>{
  it.each([{start:11},{end:8},{time:NaN},{end:61},{time:-1}])('rejects invalid temporal ranges %j',patch=>expect(()=>parseAnnotation({...base,...patch},60,['Player A'])).toThrow())
  it('accepts verified contact only after review',()=>expect(parseAnnotation({...base,status:'verified',confirmed:true},60,['Player A']).confirmed).toBe(true))
 })
+
+describe('player bounding boxes',()=>{
+ it('preserves normalized human box and serve viewpoint',()=>{const box={x:.1,y:.2,width:.2,height:.4};const result=parseAnnotation({...base,box,shot:'Serve',viewpoint:'Back',serveAttempt:'Second'},60,['Player A']);expect(result.box).toEqual(box);expect(result.boxSource).toBe('human');expect(result.viewpoint).toBe('Back');expect(result.serveAttempt).toBe('Second')})
+ it.each([{x:-.1,y:0,width:.2,height:.2},{x:.9,y:0,width:.2,height:.2},{x:0,y:0,width:0,height:.2},{x:NaN,y:0,width:.2,height:.2}])('rejects invalid box %j',box=>expect(()=>parseAnnotation({...base,box},60,['Player A'])).toThrow(/Bounding box/))
+ it('accepts legacy annotations without a box',()=>expect(parseAnnotation(base,60,['Player A']).box).toBeNull())
+})

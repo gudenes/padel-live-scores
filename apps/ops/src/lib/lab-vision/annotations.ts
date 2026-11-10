@@ -6,5 +6,9 @@ export function parseAnnotation(b:any,duration:number,players:string[]){
  if(b.player!==''&&!players.includes(b.player))throw Error('Choose a player from this analysis.')
  if(typeof b.notes!=='string'||b.notes.length>2000)throw Error('Notes must be under 2,000 characters.')
  if(b.status==='verified'&&!b.confirmed)throw Error('Confirm that you reviewed this moment in the video.')
- return {kind:b.kind,time:b.time,start:b.start,end:b.end,player:b.player,shot:b.shot,side:b.side,direction:b.direction,status:b.status,notes:b.notes,confirmed:!!b.confirmed}
+ const box=b.box??null
+ if(box&&(!['x','y','width','height'].every(k=>Number.isFinite(box[k]))||box.x<0||box.y<0||box.width<.005||box.height<.005||box.x+box.width>1.000001||box.y+box.height>1.000001))throw Error('Bounding box must be inside the video frame.')
+ const viewpoint=b.viewpoint??'Unknown',serveAttempt=b.serveAttempt??'Unknown'
+ if(!['Unknown','Front','Back','Side / oblique'].includes(viewpoint)||!['Unknown','First','Second'].includes(serveAttempt))throw Error('Invalid serve details.')
+ return {box:box?{x:box.x,y:box.y,width:box.width,height:box.height}:null,boxCoordinateSpace:'normalized-video-frame',boxSource:box?'human':null,viewpoint,serveAttempt,kind:b.kind,time:b.time,start:b.start,end:b.end,player:b.player,shot:b.shot,side:b.side,direction:b.direction,status:b.status,notes:b.notes,confirmed:!!b.confirmed}
 }
