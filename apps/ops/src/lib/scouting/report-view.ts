@@ -191,6 +191,7 @@ export function reportView(
         )
       : null;
   return {
+    replayAlignment: null as {recorded_seconds:number;replay_seconds:number}|null,
     videoUrl: videoPageUrl((report.original as {setup?:{videoPageUrl?:string}})?.setup?.videoPageUrl) || replaySource((report.original as {setup?:{videoSourceUrl?:string}})?.setup?.videoSourceUrl),
     meta: context.meta,
     players: report.players.map((p) => ({

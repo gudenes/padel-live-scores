@@ -8,6 +8,7 @@ export const canWriteSession = (user: StaffUser, existing: { assigned_scouter_us
 export function scouterRouteAllowed(path: string, method: string, viewer = false) {
   if (!viewer && (method === 'GET' || method === 'HEAD') && /^\/api\/internal\/scouting\/[0-9a-f-]{36}\/(?:live-bootstrap|broadcasts)$/i.test(path)) return true
   if ((method==='GET'||method==='HEAD'||(!viewer&&method==='POST')) && /^\/api\/internal\/scouting\/[0-9a-f-]{36}\/live-session$/i.test(path)) return true
+  if ((method==='GET'||method==='HEAD') && /^\/api\/internal\/match-replay-alignment\/[0-9a-f-]{36}$/i.test(path)) return true
   if (path === '/api/internal/scouting-assistant' && method === 'POST') return true // Read-only search, including viewers.
   if ((method === 'GET' || method === 'HEAD') && /^\/api\/internal\/match-video\/[0-9a-f-]{36}$/i.test(path)) return true
   if ((method==='GET'||method==='HEAD') && /^\/api\/internal\/lab-vision\/(results\/[0-9a-f-]{36}|assets\/[0-9a-f-]{36}\/(manifest|\d{3,4})\.json)$/i.test(path)) return true

@@ -15,8 +15,10 @@ export default async function Page({params}:{params:Promise<{token:string}>}){
  if(!cookie||!validShareToken(cookie))return <EmailGate token={token}/>
  const visitor=await pgPool().query('select email from report_share_visitors where session_hash=$1 and share_hash=$2 and expires_at>now()',[shareTokenHash(cookie),share])
  if(!visitor.rows[0])return <EmailGate token={token}/>
- const report=await pgPool().query('select snapshot from scouting_report_shares where token_hash=$1 and revoked_at is null and expires_at>now()',[share])
+ const report=await pgPool().query('select snapshot,match_id from scouting_report_shares where token_hash=$1 and revoked_at is null and expires_at>now()',[share])
  if(!report.rows[0])notFound()
  await pgPool().query("insert into report_share_activity(share_hash,email,event) values($1,$2,'report_viewed')",[share,visitor.rows[0].email])
- return <SharedReport data={report.rows[0].snapshot}/>
+ const row=report.rows[0],snapshot=row.snapshot;
+ if(snapshot.videoUrl){const alignment=await pgPool().query('select recorded_seconds,replay_seconds from public.match_replay_alignments where match_id=$1 and video_url=$2 order by updated_at desc limit 1',[row.match_id,snapshot.videoUrl]);snapshot.replayAlignment=alignment.rows[0]??null;}
+ return <SharedReport data={snapshot}/>
 }
