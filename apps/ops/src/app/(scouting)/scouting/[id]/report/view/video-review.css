@@ -512,7 +512,7 @@
 
 .vr-skip-source{display:flex;flex-direction:column;gap:3px;max-width:270px;font-size:11px}.vr-skip-source .ui-input{font-size:12px;padding:5px 8px}.vr-skip-source small{color:var(--muted,#66725b);font-size:10px}
 
-.vr-beta-badge{display:inline-flex;margin-left:4px;padding:2px 5px;border:1px solid currentColor;border-radius:4px;font-size:9px;line-height:1;text-transform:uppercase;letter-spacing:.04em;opacity:.8}
+.vr-beta-badge{display:inline-flex;align-self:center;margin-left:3px;padding:1px 3px;border:1px solid currentColor;border-radius:3px;font-size:8px;line-height:1;text-transform:uppercase;letter-spacing:.02em;opacity:.75}
 .vr-time-saved{display:flex;flex-direction:column;gap:3px;padding:6px 10px;border-left:2px solid #a3c719;font-size:12px;white-space:nowrap}.vr-time-saved strong{font-weight:650;color:#324b18}.vr-time-saved strong span{margin-left:5px;font-size:11px}.vr-time-saved small{color:#66725b;font-size:10px}
 
 /* Compact review savings and camera presets. */
@@ -570,3 +570,63 @@
 .vr-hosted-upload>div:first-child{display:grid;gap:3px;flex:1;min-width:200px}.vr-hosted-upload small{color:#62705a}.vr-hosted-upload p{margin:0;flex-basis:100%;font-size:13px}.vr-hosted-upload progress{width:200px;accent-color:#92b725}.vr-hosted-actions{display:flex;gap:8px;align-items:center}.vr-hosted-upload [role=alert]{color:#b42318}
 /* Setup errors belong beside the frame, not under the sticky action footer. */
 .vr-setup-wizard .vr-error{position:static;inset:auto;margin:12px 0;background:#fff1ee;border:1px solid #f0c4bd;line-height:1.5}
+
+/* Video & analysis: one persistent workspace drawer; hiding it never stops a transfer. */
+.video-review .vr-workspace.va-drawer-open{grid-template-columns:minmax(0,1fr) 350px;align-items:start}
+.va-drawer{background:var(--vr-panel);border:1px solid var(--vr-line);border-radius:14px;padding:22px;min-width:0;position:sticky;top:82px;max-height:calc(100dvh - 100px);overflow:auto;scrollbar-width:thin;animation:va-enter .18s ease-out}
+.va-drawer[hidden]{display:none!important}
+.va-drawer header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:0 0 20px;background:transparent;color:inherit;position:static;min-height:0;border:0;box-shadow:none}
+.va-drawer header h2{font-size:21px;letter-spacing:-.5px}
+.va-drawer h3{display:flex;align-items:center;gap:8px;font-size:15px;line-height:1.4}
+.va-drawer h3 svg,.va-stages svg{color:#719600;flex-shrink:0}
+.va-section{border-top:1px solid var(--vr-line);padding:22px 0;display:grid;gap:14px}
+.va-drawer p{font-size:13px;line-height:1.6}
+.va-drawer .ui-btn{min-height:36px}
+.va-drawer .vr-hosted-upload{border:0;border-radius:0;background:transparent;display:grid;gap:10px;margin:0;padding:0 0 22px}
+.va-drawer .vr-hosted-upload>div:first-child{min-width:0;gap:7px}
+.va-drawer .vr-hosted-upload small{overflow-wrap:anywhere;line-height:1.5}
+.va-drawer .vr-hosted-actions{flex-wrap:wrap}
+.va-drawer progress{appearance:none;display:block;width:100%;height:9px;border:0;border-radius:20px;overflow:hidden;background:var(--vr-line);accent-color:var(--accent,#c6f32b)}
+.va-drawer progress::-webkit-progress-bar{background:var(--vr-line);border-radius:20px}
+.va-drawer progress::-webkit-progress-value{background:var(--accent,#c6f32b);border-radius:20px;transition:width .4s ease}
+.va-drawer progress::-moz-progress-bar{background:var(--accent,#c6f32b);border-radius:20px}
+.va-drawer progress:indeterminate{opacity:.55}
+.va-progress-number{font-size:38px;font-weight:700;letter-spacing:-1.5px;line-height:1.1;font-variant-numeric:tabular-nums}
+.va-progress-caption{font-size:12px!important}
+.va-players{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.va-players>div{display:flex;flex-direction:column;align-items:center;gap:7px;min-width:0;text-align:center;font-size:11px;line-height:1.35}
+.va-players img{width:42px;height:42px;border-radius:50%;object-fit:cover;background:var(--bg,#f3f5ed)}
+.va-players span{overflow-wrap:anywhere}
+.va-setup>.ui-btn{justify-self:start}
+.va-stages{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:15px}
+.va-stages li{display:flex;align-items:center;gap:10px;font-size:13px}
+.va-stages small{margin-left:auto;font-size:11px}
+.va-stages li[data-state=active] small{background:#eef6cd;color:#42580b;padding:3px 8px;border-radius:20px}
+.va-stage-marker{width:18px;height:18px;border:1px solid var(--vr-line);border-radius:50%;flex-shrink:0}
+.va-stages li[data-state=active] .va-stage-marker{border:4px solid var(--accent,#c6f32b)}
+.va-connection{font-size:12px;font-weight:400;margin-left:auto;color:var(--muted,#69725f)}
+.va-connection[data-online=true]{color:#527000}
+.va-run,.va-run label{display:grid;gap:12px;font-size:13px}
+.va-run .ui-input{width:100%;min-width:0}
+.va-device details summary,.va-source-settings summary{cursor:pointer;font-size:13px;padding:8px 0}
+.va-device details p{margin:8px 0 12px}
+.va-worker-list{display:grid;gap:10px;margin-top:12px}
+.va-worker-list>div{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
+.va-stop{width:100%;margin-top:8px}
+.va-source-settings{border-top:1px solid var(--vr-line);padding-top:12px}
+.va-source-settings>.ui-btn{margin:8px 8px 8px 0}
+.va-source-settings .vr-local-upload{display:grid;gap:10px;padding:8px 0}
+.va-source-settings .vr-local-upload label{display:grid;gap:6px}
+.va-source-settings input{max-width:100%;min-width:0}
+.va-download{font-size:13px;text-underline-offset:3px}
+.va-drawer [role=alert]{position:static;color:#a23127!important;background:#fff0ed;border-radius:8px;padding:12px;font-size:13px;overflow-wrap:anywhere}
+.va-status-button{font-size:13px;max-width:280px;text-align:left}
+.va-status-button[aria-expanded=true]{background:#eef6cd;border-color:#bcd58b}
+@keyframes va-enter{from{opacity:0;transform:translateX(6px)}to{opacity:1;transform:none}}
+@media(max-width:1100px){.video-review .vr-workspace.va-drawer-open{grid-template-columns:minmax(0,1fr) 310px}.va-drawer{padding:18px}}
+@media(max-width:800px){.video-review .vr-workspace.va-drawer-open{grid-template-columns:minmax(0,1fr)}.va-drawer{position:relative;top:auto;max-height:none;grid-row:1}.va-drawer .va-players{max-width:360px}.va-progress-number{font-size:32px}}
+@media(prefers-reduced-motion:reduce){.va-drawer{animation:none}.va-drawer progress::-webkit-progress-value{transition:none}}
+
+.vr-alignment-notice{font-size:12px;padding:8px 12px;background:#fff8e5;border-radius:8px;margin:8px 0}.vr-timeline-track .vr-timeline-activity{position:absolute;top:4px;bottom:4px;min-height:0;padding:0;border-radius:3px;background:#c6ed81;border:1px solid #7d9b35}.vr-timeline-activity:hover{filter:brightness(.93)}.vr-activity-pending{font-size:11px;color:var(--muted);padding-left:8px}
+
+.vr-timeline-lane-label.vr-activity-label{flex-direction:column;align-items:flex-start;justify-content:center;gap:0;line-height:1.2}

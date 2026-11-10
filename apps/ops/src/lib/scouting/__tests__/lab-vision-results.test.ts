@@ -9,3 +9,18 @@ describe('viewer publication',()=>{
  it('rejects invalid calibration and coverage',()=>{for(const change of [{inverseHomography:[[NaN,0,0],[0,1,0],[0,0,1]]},{coverage:[[0,30,1]]},{coverage:[[70,200,1]]}])expect(()=>validateViewerManifest({...manifest(),...change},setup)).toThrow()})
  it('preserves unknown speed',()=>{const m=manifest();m.performance.p0.max_speed_kmh=null as any;expect(validateViewerManifest(m,setup).performance.p0.max_speed_kmh).toBeNull()})
 })
+
+it('validates activity windows against camera coverage',()=>{
+ const activity={version:1,timebase:'source-video-seconds',duration:5,windows:[{start:21,end:26,segment:1}]};
+ expect(validateViewerManifest({...manifest(),activity},setup).activity.windows).toHaveLength(1);
+ for(const windows of [[{start:21,end:40,segment:1}],[{start:21,end:26,segment:2}],[{start:21,end:26,segment:1},{start:25,end:28,segment:1}]])expect(()=>validateViewerManifest({...manifest(),activity:{...activity,windows}},setup)).toThrow();
+});
+
+it('keeps scout clock mapping separate from tracking and rejects invalid offsets',()=>{
+ const scoutingAlignment={version:1,offsetSeconds:1794076674.329357,method:'Reviewed video anchor'};
+ const m=validateViewerManifest({...manifest(),scoutingAlignment},setup);
+ expect(1794076679.329357-m.scoutingAlignment.offsetSeconds).toBe(5);
+ expect(m.broadcastOffset).toBe(18881);
+ expect(m.coverage).toEqual(manifest().coverage);
+ for(const offsetSeconds of [NaN,Infinity,'0'])expect(()=>validateViewerManifest({...manifest(),scoutingAlignment:{...scoutingAlignment,offsetSeconds}},setup)).toThrow();
+});

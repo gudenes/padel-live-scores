@@ -2,10 +2,12 @@
 import {useEffect,useRef,useState} from 'react'
 import type {ReviewContext} from './ReviewNotes'
 export type HostedVideo={id:string;name:string;size:number;url:string;offset:number;duration:number;expiresAt:number}
-export default function HostedVideoUpload({context,file,offset,duration,onHosted}:{context:ReviewContext;file:File|null;offset:number;duration:number;onHosted:(v:HostedVideo)=>void}){
+export default function HostedVideoUpload({context,file,offset,duration,onHosted,onStatus,onChoose}:{context:ReviewContext;file:File|null;offset:number;duration:number;onHosted:(v:HostedVideo)=>void;onStatus?:(text:string)=>void;onChoose?:()=>void}){
  const endpoint=`/api/internal/match-video/${context.matchId}?kind=${context.manual?'manual':'canonical'}`
  const [configured,setConfigured]=useState<boolean|null>(null),[canUpload,setCanUpload]=useState(false),[hosted,setHosted]=useState<HostedVideo|null>(null)
  const [busy,setBusy]=useState(false),[progress,setProgress]=useState(0),[message,setMessage]=useState(''),[error,setError]=useState('')
+ const statusCallback=useRef(onStatus);statusCallback.current=onStatus
+ useEffect(()=>{statusCallback.current?.(busy?(progress>=100?'Verifying upload…':`Uploading · ${Math.floor(progress)}%`):error?'Upload needs attention':hosted?'Video uploaded':'Video & analysis')},[busy,progress,error,hosted])
  const stop=useRef(false),xhr=useRef<XMLHttpRequest|null>(null),callback=useRef(onHosted);callback.current=onHosted
  useEffect(()=>{let active=true;fetch(endpoint,{cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);if(active){setConfigured(d.configured);setCanUpload(d.canUpload);setHosted(d.video);if(d.video)callback.current(d.video)}}).catch(()=>{if(active)setError('Could not load hosted video. Refresh to retry.')});return()=>{active=false;stop.current=true;xhr.current?.abort()}},[endpoint])
  const storageKey=file?`match-video-upload:${context.userId}:${context.matchId}:${context.manual}:${file.name}:${file.size}:${file.lastModified}:${offset}`:''
@@ -18,7 +20,7 @@ export default function HostedVideoUpload({context,file,offset,duration,onHosted
    if(!id){id=crypto.randomUUID();try{localStorage.setItem(storageKey,id)}catch{}}
    setMessage('Preparing upload…')
    const state=await api({action:'start',id,name:file.name,size:file.size,offset,duration})
-   if(state.ready){setHosted(state.video);callback.current(state.video);setMessage('Video is available online.');return}
+   if(state.ready){setProgress(100);setHosted(state.video);callback.current(state.video);setMessage('Video is available online.');return}
    const count=Math.ceil(file.size/state.partSize),done=new Set<number>(state.parts.filter((p:any)=>p.size===Math.min(state.partSize,file.size-(p.number-1)*state.partSize)).map((p:any)=>p.number))
    let sent=[...done].reduce((n,p)=>n+Math.min(state.partSize,file.size-(p-1)*state.partSize),0)
    setProgress(sent/file.size*100)
@@ -30,13 +32,14 @@ export default function HostedVideoUpload({context,file,offset,duration,onHosted
     await send(part.url,chunk,bytes=>setProgress((sent+bytes)/file.size*100));sent+=chunk.size
    }
    setMessage('Verifying and attaching video…')
-   const result=await api({action:'complete',id});setHosted(result.video);callback.current(result.video);setProgress(100);setMessage('Video is available online. Processing still runs on your Mac.');try{localStorage.removeItem(storageKey)}catch{}
+   const result=await api({action:'complete',id});setHosted(result.video);callback.current(result.video);setProgress(100);setMessage('Video uploaded. Ready for local analysis.');try{localStorage.removeItem(storageKey)}catch{}
   }catch(e){setError(e instanceof Error?e.message:'Upload interrupted.');setMessage('Choose the same file and resume to keep completed parts.')}finally{setBusy(false);xhr.current=null}
  }
  return <section className="vr-hosted-upload" aria-label="Online match video">
- <div><strong>{hosted?'Video hosted online':'Online video'}</strong><small>{hosted?hosted.name:'Upload once to review this match from another device.'}</small></div>
+ <div><strong>{busy?'Uploading match video':hosted?'Match video':'Add your match video'}</strong><small>{hosted?hosted.name:'Upload once to review this match from another device.'}</small></div>
+ {hosted&&<small>{Math.floor(hosted.duration/60)}:{String(Math.floor(hosted.duration%60)).padStart(2,'0')} · {(hosted.size/1e9).toFixed(2)} GB · Uploaded</small>}
  {configured===false&&<p>Cloudflare storage is awaiting connection. Local video review is still available.</p>}
- {configured&&canUpload&&<div className="vr-hosted-actions">{file?<button className="ui-btn" disabled={busy||duration<=0} onClick={upload}>{progress>0&&progress<100?'Resume upload':hosted?'Upload selected video':'Upload to Cloudflare'}</button>:<small>Select a local video using Add video or Video setup.</small>}{busy&&<button className="ui-btn" onClick={()=>{stop.current=true;xhr.current?.abort()}}>Pause upload</button>}</div>}
+ {configured&&canUpload&&<div className="vr-hosted-actions">{file&&(!hosted||file.name!==hosted.name||file.size!==hosted.size)?<button className="ui-btn" disabled={busy||duration<=0} onClick={upload}>{progress>0&&progress<100?'Resume upload':hosted?'Upload selected video':'Upload video'}</button>:!hosted&&<button className="ui-btn" data-variant="primary" onClick={onChoose}>Choose video</button>}{busy&&<button className="ui-btn" onClick={()=>{stop.current=true;xhr.current?.abort()}}>Pause upload</button>}</div>}
  {(busy||progress>0)&&<><progress aria-label="Video upload progress" max="100" value={progress}/><span>{Math.floor(progress)}%</span></>}
  {message&&<p role="status">{message}</p>}{error&&<p role="alert">{error}</p>}{error&&file&&canUpload&&!busy&&<button className="ui-btn" onClick={()=>{try{localStorage.removeItem(storageKey)}catch{}setProgress(0);void upload()}}>Start a fresh upload</button>}
  {busy&&<small>Keep this tab open. Video goes directly to Cloudflare; no analysis job is started.</small>}

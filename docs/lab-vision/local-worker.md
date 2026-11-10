@@ -34,3 +34,29 @@ Camera cuts and rejected views are not bridged. Gaps are bounded; inferred movem
 ## Dependencies
 
 The current machine already has PyTorch MPS, Ultralytics, OpenCV, NumPy, PyYAML, requests, ffmpeg/ffprobe, the existing pose weights, and WASB-SBDT checkout/weights. No model weights are committed. GPU processing is deliberately single-job sequential to avoid competing MPS memory use. Run a setup sample before scaling to another camera or kit combination.
+
+## Active play and dead-time removal (Beta)
+
+Viewer publication now derives `manifest.activity` from packaged poses, observed movement and the refined image-space WASB track. It uses the established detector: 0.5-second bins, torso-normalized wrist motion, movement/ball evidence, a two-second lead-in and three-second finish buffer. Windows never bridge coverage/camera segments. These are estimated activity sections, not scored rallies or shot detections.
+
+Times are source-video seconds, independent of scouting broadcast offsets. The app renders a separate clickable Active play lane and uses these same windows for Skip dead time. A partial analysis does not enable activity-based skipping for the whole video. No detections is an explicit empty result, not a fallback to guessed activity. Scouting timestamps outside the uploaded duration are flagged for alignment and not shown as valid events.
+
+Older completed jobs require repackaging with the updated `publish.package` and the normal authenticated publication flow; no pose or WASB inference needs repeating. This code change alone does not migrate previously published cloud manifests or update an already installed worker. Do not restart a worker during an active job.
+
+Activity backfill on 2026-11-10: completed job 0161c4f3-02ba-4776-a8b2-37eec3d6d34e republished with 90 activity windows (1469.4 seconds retained). Used saved poses and WASB only. Cloud viewer revision copied unchanged chunks to a fresh prefix, validated the manifest, and atomically updated the completed result with a compare-and-swap. Original archive and previous viewer prefix preserved; prior result backed up in the job publication-backups directory. Installed worker updated and launch agent verified running.
+
+### Scouting clock alignment
+Viewer manifests may contain `scoutingAlignment: {version: 1, offsetSeconds, method}`.
+Video review subtracts this offset from original scouting start/end timestamps only;
+tracking, activity and video playback retain their existing source-video clock. The
+original scout, score replay and model outputs are not rewritten. Treat this as an
+approximate reviewed mapping, not verified contact labels for training.
+
+Match 2 World Cup backfill: first scout start 1794076679.329357 maps to clip 5s
+(offset 1794076674.329357). Review evidence and metadata are retained in
+`/Volumes/Crucial/Apps/PadelLabs/alignment-review/` and
+`/Volumes/Crucial/Apps/PadelLabs/match2-scouting-alignment.json`.
+88 timed rallies now fit the clip; point 47 is a manually added score with no
+saved timestamp and remains untimed. UI integration is local pending deployment.
+The operator metadata revision script accepts either activity JSON or
+`{scoutingAlignment: ...}` and preserves the prior publication for recovery.
