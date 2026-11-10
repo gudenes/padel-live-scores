@@ -9,7 +9,7 @@ export async function runLineupMarketRefresh(deps:{supabase:SupabaseClient;logge
  const {data,error}=await deps.supabase.from('matches')
   .select('id,lineup_fingerprint,lineup_prediction_pending,tournament:tournaments!inner(level)')
   .in('tournament.level',['major','p1','p2','fip_platinum','fip_gold'])
-  .in('round_canonical',['R32','R16','QF','SF','F'])
+  .in('round_canonical',['R64','R32','R16','QF','SF','F'])
   .or('lineup_prediction_pending.eq.true,lineup_market_refresh_pending.eq.true').eq('status','scheduled')
   .not('lineup_fingerprint','is',null).gt('scheduled_at',new Date(now).toISOString())
   .lte('scheduled_at',new Date(now+14*86400000).toISOString()).order('scheduled_at').limit(100)

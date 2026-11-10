@@ -28,8 +28,8 @@ export function isInScopeTier(level: string | null | undefined): boolean {
 export function isMainDrawRound(round: string | null | undefined): boolean {
   if (!round) return false;
   const x = round.toLowerCase();
-  if (x === 'r32' || x === 'r16' || x === 'qf' || x === 'sf' || x === 'f') return true;
-  if (x === 'round of 32' || x === 'round of 16') return true;
+  if (x === 'r64' || x === 'r32' || x === 'r16' || x === 'qf' || x === 'sf' || x === 'f') return true;
+  if (x === 'round of 64' || x === 'round of 32' || x === 'round of 16') return true;
   if (x === 'final' || x === 'semifinal' || x === 'quarterfinal') return true;
   return false;
 }
@@ -70,6 +70,7 @@ interface SurvivingPair {
 function canonicalRound(r: string | null | undefined): string {
   if (!r) return '';
   const x = r.toLowerCase();
+  if (x.includes('round of 64') || x === 'r64') return 'R64';
   if (x.includes('round of 32') || x === 'r32') return 'R32';
   if (x.includes('round of 16') || x === 'r16') return 'R16';
   if (x === 'qf' || x.includes('quarter')) return 'QF';
@@ -78,7 +79,7 @@ function canonicalRound(r: string | null | undefined): string {
   return x.toUpperCase();
 }
 
-const ROUND_ORDER = ['R32', 'R16', 'QF', 'SF', 'F'];
+const ROUND_ORDER = ['R64', 'R32', 'R16', 'QF', 'SF', 'F'];
 
 function shuffle<T>(arr: T[]): T[] {
   const a = arr.slice();

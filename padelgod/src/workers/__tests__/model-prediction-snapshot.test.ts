@@ -26,6 +26,11 @@ describe('isInScopeTier', () => {
 });
 
 describe('isMainDrawRound', () => {
+  it('includes Dubai men’s Round of 64 in prediction eligibility', () => {
+    for (const round of ['R64', 'r64', 'Round of 64', 'ROUND OF 64']) {
+      expect(isMainDrawRound(round)).toBe(true);
+    }
+  });
   it('R32 / R16 / QF / SF / F → true', () => {
     expect(isMainDrawRound('R32')).toBe(true);
     expect(isMainDrawRound('R16')).toBe(true);

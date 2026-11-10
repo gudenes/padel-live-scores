@@ -4,12 +4,17 @@ vi.mock('../model-prediction-snapshot.js',()=>({runModelPredictionSnapshot:snaps
 vi.mock('../market-generator.js',()=>({runMarketGenerator:generator}))
 import {runLineupMarketRefresh} from '../lineup-market-refresh.js'
 function client(rows:unknown[],error:unknown=null){
- const q:any={select:()=>q,update:()=>q,in:()=>q,eq:()=>q,not:()=>q,gt:()=>q,lte:()=>q,or:()=>q,order:()=>q,then:(r:any)=>Promise.resolve({error:null}).then(r),limit:async()=>({data:rows,error})}
+ const q:any={select:()=>q,update:()=>q,in:vi.fn(()=>q),eq:()=>q,not:()=>q,gt:()=>q,lte:()=>q,or:()=>q,order:()=>q,then:(r:any)=>Promise.resolve({error:null}).then(r),limit:async()=>({data:rows,error})}
  return {from:()=>q,rpc:vi.fn().mockResolvedValue({data:{processed:1,errors:0},error:null})} as any
 }
 const opts={dryRun:false,generateMarkets:true,generatorDryRun:false}
 beforeEach(()=>{vi.clearAllMocks();snapshot.mockResolvedValue({failed:0,matchPredictionsWritten:1});generator.mockResolvedValue({created:1,errors:0,capDrops:[],gateDrops:[]})})
 describe('lineup recovery',()=>{
+ it('includes Round of 64 in the recovery query',async()=>{
+  const supabase=client([])
+  await runLineupMarketRefresh({supabase,...opts})
+  expect(supabase.from().in).toHaveBeenCalledWith('round_canonical',expect.arrayContaining(['R64']))
+ })
  it('does not train or publish with no pending complete upcoming lineups',async()=>{
   await runLineupMarketRefresh({supabase:client([]),...opts})
   expect(snapshot).not.toHaveBeenCalled();expect(generator).not.toHaveBeenCalled()
