@@ -36,3 +36,16 @@ it('preserves the successful redirect signal instead of catching it as a failure
  mock.signIn.mockResolvedValue('https://admin.padelnachos.com/api/auth/verify-request');mock.redirect.mockImplementation(()=>{throw Error('NEXT_REDIRECT')})
  await expect(loginWithEmailLink(undefined,form())).rejects.toThrow('NEXT_REDIRECT')
 })
+
+it.each([undefined, '', '   '])('uses the default sender when AUTH_EMAIL_FROM is %s',async value=>{
+ vi.stubEnv('RESEND_API_KEY','test-only');vi.stubEnv('AUTH_EMAIL_FROM',value)
+ mock.send.mockResolvedValue({data:{id:'accepted'},error:null})
+ await sendSignInEmail({to:'person@example.com',url:'https://admin.padelnachos.com'})
+ expect(mock.send).toHaveBeenCalledWith(expect.objectContaining({from:'PadelNachos Admin <admin@padelnachos.com>'}))
+})
+it('trims and preserves a configured sender',async()=>{
+ vi.stubEnv('RESEND_API_KEY','test-only');vi.stubEnv('AUTH_EMAIL_FROM','  Team <team@padelnachos.com>  ')
+ mock.send.mockResolvedValue({data:{id:'accepted'},error:null})
+ await sendSignInEmail({to:'person@example.com',url:'https://admin.padelnachos.com'})
+ expect(mock.send).toHaveBeenCalledWith(expect.objectContaining({from:'Team <team@padelnachos.com>'}))
+})

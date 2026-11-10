@@ -32,7 +32,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
     Resend({
       apiKey: process.env.RESEND_API_KEY!,
-      from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos Admin <admin@padelnachos.com>',
+      from: process.env.AUTH_EMAIL_FROM?.trim() || 'PadelNachos Admin <admin@padelnachos.com>',
       async sendVerificationRequest({ identifier: email, url }) {
         await sendSignInEmail({to:email,url})
       },

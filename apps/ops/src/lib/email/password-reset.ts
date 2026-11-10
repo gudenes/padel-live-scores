@@ -6,7 +6,7 @@ export async function sendPasswordResetEmail(opts: {
 }): Promise<void> {
   const resend = new Resend(process.env.RESEND_API_KEY!)
   await resend.emails.send({
-    from: process.env.AUTH_EMAIL_FROM ?? 'PadelNachos Admin <admin@padelnachos.com>',
+    from: process.env.AUTH_EMAIL_FROM?.trim() || 'PadelNachos Admin <admin@padelnachos.com>',
     to: opts.to,
     subject: 'Reset your PadelNachos Admin password',
     html: `
