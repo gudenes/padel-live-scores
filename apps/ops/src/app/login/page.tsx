@@ -2,8 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { Button } from '@/components/ui'
 import { loginWithGoogle } from './actions'
-import { LoginForm } from './LoginForm'
-import { EmailLinkForm } from './EmailLinkForm'
+import { LoginForms } from './LoginForms'
 import styles from './login.module.css'
 
 export const metadata = { title: 'Sign in · PadelNachos Admin' }
@@ -18,8 +17,7 @@ export default async function LoginPage() {
    <h1 id="login-title">Welcome back</h1><p className={styles.intro}>Sign in to your admin workspace.</p>
    <form action={loginWithGoogle}><Button type="submit" variant="default" className={`ui-btn ${styles.google}`}><img src="/brand/google.svg" alt="" width="19" height="19"/>Continue with Google</Button></form>
    <div className={styles.divider}>or</div>
-   <LoginForm/>
-   <details className={styles.emailLink}><summary>Email me a sign-in link</summary><EmailLinkForm/></details>
+   <LoginForms/>
    <p className={styles.footer}>Authorized team access.</p>
   </div></section>
  </main>
