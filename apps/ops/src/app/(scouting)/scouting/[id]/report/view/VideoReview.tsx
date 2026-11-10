@@ -1,4 +1,5 @@
 'use client';
+import {scoutToVideo,videoToScout} from '@/lib/scouting/scouting-alignment';
 import {selectReviewSource,reviewSourceOffset} from '@/lib/scouting/review-source';
 import {sharedReportEvent} from '@/lib/posthog/shared-report';
 import {useEffect,useMemo,useState,useRef} from 'react';
@@ -55,7 +56,8 @@ export default function VideoReview({data,scope,readOnly=false,initialPointId,re
  async function saveAlignment(){const t=parseTime(anchorText);if(t===null||firstRecorded===null||!alignmentApi||!broadcast)return;setAlignmentBusy(true);setAlignmentStatus('Saving alignment…');try{const r=await fetch(alignmentApi,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({videoUrl:broadcast.url,recordedSeconds:firstRecorded,replaySeconds:t})});const d=await r.json();if(!r.ok)throw Error(d.error);setBroadcastOffset(d.alignment.recorded_seconds-d.alignment.replay_seconds);setAlignmentStatus('Saved for everyone viewing this match.');setClock(t);setDuration(0);setCommand(c=>({time:Math.max(0,t-3),serial:c.serial+1,play:false}));}catch(e){setAlignmentStatus(e instanceof Error?e.message:'Could not save alignment.')}finally{setAlignmentBusy(false)}}
  const needsBroadcastAlignment=activeSource==='broadcast'&&liveClock&&broadcastOffset===null;
  const scoutingOffset=activeSource==='broadcast'?(broadcastOffset??0):reviewSourceOffset(activeSource,videoStart,hostedVideo?.offset??0,analysisPlayback?published.result?.manifest.scoutingAlignment?.offsetSeconds:undefined);
- const all=useMemo(()=>rawPoints.map(p=>({...p,start:needsBroadcastAlignment||p.start===null?null:p.start-scoutingOffset,end:needsBroadcastAlignment||p.end===null?null:p.end-scoutingOffset})),[rawPoints,scoutingOffset,needsBroadcastAlignment]);
+ const scoutingAlignment=analysisPlayback?published.result?.manifest.scoutingAlignment:undefined;
+ const all=useMemo(()=>rawPoints.map(p=>({...p,start:needsBroadcastAlignment||p.start===null?null:scoutToVideo(p.start,scoutingOffset,scoutingAlignment),end:needsBroadcastAlignment||p.end===null?null:scoutToVideo(p.end,scoutingOffset,scoutingAlignment)})),[rawPoints,scoutingOffset,scoutingAlignment,needsBroadcastAlignment]);
  const initialPoint=all.find(p=>p.id===initialPointId)??all.find(p=>p.start!==null)??all[0];
  const key=(readOnly?'pn-shared-video-review:':'pn-video-review:')+all[0]?.id;
  const [filtersOpen,setFiltersOpen]=useState(true);
@@ -112,9 +114,11 @@ export default function VideoReview({data,scope,readOnly=false,initialPointId,re
  function connect(e:React.FormEvent){e.preventDefault();if(readOnly)return;const s=videoSource(draft);if(!s){setError('Use a Red Bull TV page, YouTube link or direct HTTPS MP4 / WebM video link.');return}setSourceChoice('broadcast');setUrl(s.url);setDraft(s.url);setConnecting(false);setError('');setDuration(0);setMode('full');setCommand({time:0,serial:0,play:false});try{localStorage.setItem(key,s.url)}catch{}}
 
  function switchSource(next:'broadcast'|'uploaded'|'local'){
-  const originalTime=clock+scoutingOffset;
+  const originalTime=videoToScout(clock,scoutingOffset,scoutingAlignment);
   const nextOffset=next==='broadcast'?(broadcastOffset??0):next==='uploaded'?(published.result?.manifest.scoutingAlignment?.offsetSeconds??hostedVideo?.offset??0):videoStart;
-  const time=Math.max(0,originalTime-nextOffset);
+  const sameLocal=next==='local'&&!!hostedVideo&&localFile?.name===hostedVideo.name&&localFile?.size===hostedVideo.size;
+  const nextAlignment=next==='uploaded'||sameLocal?published.result?.manifest.scoutingAlignment:undefined;
+  const time=Math.max(0,scoutToVideo(originalTime,nextOffset,nextAlignment));
   setSourceChoice(next);setDuration(0);setMode('full');setClipEnd(null);setClock(time);setCommand(c=>({time,serial:c.serial+1,play:false}));
  }
  return <section className="video-review" aria-label="Video review">
