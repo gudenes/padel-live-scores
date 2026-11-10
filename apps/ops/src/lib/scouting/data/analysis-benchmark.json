@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "pipeline": "lab-vision-mac-v1",
+  "workerIds": [
+    "27a941de-0e57-40e2-963a-fd5b54d99c41"
+  ],
+  "matchCount": 2,
+  "blockCount": 19,
+  "recordedAt": "2026-11-10",
+  "description": "Completed World Cup finals matches 1 and 2, 30 fps pose and WASB on this Mac. Short smoke tests excluded.",
+  "players": {
+    "median": 0.6522852814583348,
+    "low": 0.39638297351071483,
+    "high": 0.9266447390283187
+  },
+  "ball": {
+    "median": 1.2084164509033326,
+    "low": 1.1815602108333345,
+    "high": 1.3477448191666646
+  }
+}

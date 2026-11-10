@@ -21,6 +21,7 @@ import './video-review.css';
 const outcomes:Record<string,string>={winner:'Winner',unforced:'Unforced error',forced:'Forced error committed',created:'Forced error created',double_fault:'Double fault',unclassified:'Unclassified'};
 export default function VideoReview({data,scope,readOnly=false,initialPointId,reviewContext}:{data:ReportView;scope:string;readOnly?:boolean;initialPointId?:string|null;reviewContext?:ReviewContext}){
  const [analysisOpen,setAnalysisOpen]=useState(false);
+ useEffect(()=>{if(new URLSearchParams(location.search).get('analysis')==='1')setAnalysisOpen(true)},[]);
  const [uploadStatus,setUploadStatus]=useState('Video & analysis');
  const [analysisStatus,setAnalysisStatus]=useState('');
  const analysisPill=uploadStatus.startsWith('Uploading')||uploadStatus.startsWith('Verifying')||uploadStatus==='Upload needs attention'?uploadStatus:analysisStatus||uploadStatus;

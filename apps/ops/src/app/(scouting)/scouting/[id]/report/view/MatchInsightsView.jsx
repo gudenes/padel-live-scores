@@ -360,6 +360,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
   useEffect(()=>{
     const q=new URLSearchParams(window.location.search);
     if(!shared){try{const saved=JSON.parse(sessionStorage.getItem('pn-report-view:'+location.pathname)||'null');if(saved){if(data.scopes[saved.scope]){setScope(saved.scope);onScopeChange?.(saved.scope)}if(['Pre-game','Overview','Players','Points & shots','Video review','Data coverage','Reports'].includes(saved.tab)&&(saved.tab!=='Pre-game'||pregameMatchId))setTab(saved.tab);if(Number.isInteger(saved.focusedPlayer)&&saved.focusedPlayer>=0&&saved.focusedPlayer<4)setFocusedPlayer(saved.focusedPlayer);if(['all','winner','unforced','forced','double_fault'].includes(saved.kind))setKind(saved.kind);if(['all','0','1','2','3'].includes(saved.player))setPlayer(saved.player)}}catch{}}
+    if(q.get('analysis')==='1')setTab('Video review');
     const slot=q.get('playerSlot');if(slot!==null&&/^[0-3]$/.test(slot)){setFocusedPlayer(Number(slot));setTab('Players')}
     const point=q.get('point');if(point&&data.scopes.all.points.some(p=>p.id===point)){setReplayPoint(point);setTab('Video review')}
     setNavigationReady(true);
