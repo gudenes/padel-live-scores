@@ -45,7 +45,7 @@ export function scoutingDocument(state){
  };
  for(const r of state.rallies){if(r.point&&!r.undone)addRally(r,true);adjust(r.id,videoAt(r.end??r.start));}
  if(state.pending)addRally(state.pending,false);
- return {version:1,rule:setup.rule,firstServer:setup.firstServer,otherServer:setup.otherServer,near:seed?.near??setup.near??'a',events};
+ return {version:1,...(setup.suppressedBreaks?{suppressedBreaks:setup.suppressedBreaks}:{}),rule:setup.rule,firstServer:setup.firstServer,otherServer:setup.otherServer,near:seed?.near??setup.near??'a',events};
 }
 export function match(state){
  const seed=state.setup?.startingScore?validateStartingScore(state.setup.startingScore):null;
