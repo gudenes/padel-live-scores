@@ -22,9 +22,21 @@ export type Event = { id:string; at:string } & (
   | {kind:'court_setup'; settings:CourtSetup}
   | {kind:'undo'}
 )
-export interface ScoutDoc { version:1; preparation?:true; rule:DeuceRule; firstServer:Player; otherServer:Player; near:'a'|'b'; events:Event[] }
+export interface ScoutDoc { version:1; suppressedBreaks?:{set:number;game:number}[]; preparation?:true; rule:DeuceRule; firstServer:Player; otherServer:Player; near:'a'|'b'; events:Event[] }
 export const teamOf = (p:Player) => p < 2 ? 'a' as const : 'b' as const
 const slot = (p:Player):PlayerIndex => ([0,2,1,3] as const)[p]
+// Report-only corrections: retain the observed score, service and point statistics.
+export function validateSuppressedBreaks(value:unknown):{set:number;game:number}[]{
+  if(!Array.isArray(value)||value.length>39)throw Error('Invalid suppressed breaks.')
+  const seen=new Set<string>()
+  return value.map(item=>{
+    if(!item||!Number.isInteger(item.set)||item.set<1||item.set>3||!Number.isInteger(item.game)||item.game<1||item.game>13)throw Error('Invalid suppressed break game.')
+    const key=`${item.set}:${item.game}`
+    if(seen.has(key))throw Error('Duplicate suppressed break game.')
+    seen.add(key)
+    return {set:item.set,game:item.game}
+  })
+}
 export function freshDoc():ScoutDoc { return {version:1,rule:'star-point',firstServer:0,otherServer:2,near:'a',events:[]} }
 export function validateDoc(raw:unknown):ScoutDoc {
   if (!raw || typeof raw!=='object') throw Error('Invalid scouting session.')
@@ -32,6 +44,7 @@ export function validateDoc(raw:unknown):ScoutDoc {
   const player=(p:unknown)=>Number.isInteger(p)&&Number(p)>=0&&Number(p)<=3
   if(d.preparation!==undefined&&d.preparation!==true)throw Error('Invalid preparation mode.')
   if(d.version!==1||!['star-point','golden-point','advantage'].includes(d.rule)||!player(d.firstServer)||!player(d.otherServer)||teamOf(d.firstServer)===teamOf(d.otherServer)||!['a','b'].includes(d.near)||!Array.isArray(d.events)||d.events.length>5000)throw Error('Invalid session settings.')
+  if(d.suppressedBreaks!==undefined)validateSuppressedBreaks(d.suppressedBreaks)
   const ids=new Set<string>()
   for(const e of d.events){
     if(!e||typeof e!=='object'||typeof e.id!=='string'||e.id.length>80||ids.has(e.id)||!Number.isFinite(Date.parse(e.at)))throw Error('Invalid scouting event.')
@@ -138,6 +151,14 @@ export function replay(doc:ScoutDoc){
     score=apply(score,{kind:'point_for',team:winningTeam});points++;tracking.handle(e,before,score,winningTeam)
     if(recoveredSmashBy!==undefined)tracking.data.timeline.at(-1)!.recoveredSmashBy=recoveredSmashBy
     if(changesEnds(before,score))near=near==='a'?'b':'a'
+  }
+  const suppressed=new Set((doc.suppressedBreaks??[]).map(g=>`${g.set}:${g.game}`))
+  for(const point of tracking.data.timeline){
+    const games=point.before.sets.at(-1)!
+    if(point.breakConverted&&suppressed.has(`${point.before.sets.length}:${games.a+games.b+1}`)){
+      point.breakConverted=false
+      tracking.data.pairs[point.winner].breaks--
+    }
   }
   return {ready,arrivals,settings,score,near,swapped,stats,points,unclassified,tracking:tracking.data,server:([0,2,1,3] as const)[score.servingPlayer] as Player}
 }

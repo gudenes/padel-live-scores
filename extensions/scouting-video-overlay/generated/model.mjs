@@ -4,6 +4,21 @@ import { apply, createInitialState } from './scoring.mjs';
 import { createTracking } from './tracking.mjs';
 export const teamOf = (p) => p < 2 ? 'a' : 'b';
 const slot = (p) => [0, 2, 1, 3][p];
+// Report-only corrections: retain the observed score, service and point statistics.
+export function validateSuppressedBreaks(value) {
+    if (!Array.isArray(value) || value.length > 39)
+        throw Error('Invalid suppressed breaks.');
+    const seen = new Set();
+    return value.map(item => {
+        if (!item || !Number.isInteger(item.set) || item.set < 1 || item.set > 3 || !Number.isInteger(item.game) || item.game < 1 || item.game > 13)
+            throw Error('Invalid suppressed break game.');
+        const key = `${item.set}:${item.game}`;
+        if (seen.has(key))
+            throw Error('Duplicate suppressed break game.');
+        seen.add(key);
+        return { set: item.set, game: item.game };
+    });
+}
 export function freshDoc() { return { version: 1, rule: 'star-point', firstServer: 0, otherServer: 2, near: 'a', events: [] }; }
 export function validateDoc(raw) {
     if (!raw || typeof raw !== 'object')
@@ -14,6 +29,8 @@ export function validateDoc(raw) {
         throw Error('Invalid preparation mode.');
     if (d.version !== 1 || !['star-point', 'golden-point', 'advantage'].includes(d.rule) || !player(d.firstServer) || !player(d.otherServer) || teamOf(d.firstServer) === teamOf(d.otherServer) || !['a', 'b'].includes(d.near) || !Array.isArray(d.events) || d.events.length > 5000)
         throw Error('Invalid session settings.');
+    if (d.suppressedBreaks !== undefined)
+        validateSuppressedBreaks(d.suppressedBreaks);
     const ids = new Set();
     for (const e of d.events) {
         if (!e || typeof e !== 'object' || typeof e.id !== 'string' || e.id.length > 80 || ids.has(e.id) || !Number.isFinite(Date.parse(e.at)))
@@ -228,6 +245,14 @@ export function replay(doc) {
             tracking.data.timeline.at(-1).recoveredSmashBy = recoveredSmashBy;
         if (changesEnds(before, score))
             near = near === 'a' ? 'b' : 'a';
+    }
+    const suppressed = new Set((doc.suppressedBreaks ?? []).map(g => `${g.set}:${g.game}`));
+    for (const point of tracking.data.timeline) {
+        const games = point.before.sets.at(-1);
+        if (point.breakConverted && suppressed.has(`${point.before.sets.length}:${games.a + games.b + 1}`)) {
+            point.breakConverted = false;
+            tracking.data.pairs[point.winner].breaks--;
+        }
     }
     return { ready, arrivals, settings, score, near, swapped, stats, points, unclassified, tracking: tracking.data, server: [0, 2, 1, 3][score.servingPlayer] };
 }
