@@ -1,0 +1,11 @@
+create table if not exists public.lab_vision_annotation_projects (match_id uuid primary key, source jsonb not null, updated_at timestamptz not null default now());
+create table if not exists public.lab_vision_annotation_alignments (job_id uuid primary key references public.lab_vision_jobs(id), payload jsonb not null, updated_by text not null, updated_at timestamptz not null default now());
+create table if not exists public.lab_vision_annotations (id uuid primary key, job_id uuid not null references public.lab_vision_jobs(id), reviewer_id text not null, supersedes uuid, payload jsonb not null, created_at timestamptz not null default now());
+create index if not exists lab_vision_annotations_job on public.lab_vision_annotations(job_id,created_at);
+create unique index if not exists lab_vision_annotation_revision on public.lab_vision_annotations(supersedes) where supersedes is not null;
+create table if not exists public.lab_vision_annotation_candidates (job_id uuid primary key references public.lab_vision_jobs(id), payload jsonb not null, created_at timestamptz not null default now());
+alter table public.lab_vision_annotation_projects enable row level security;
+alter table public.lab_vision_annotation_alignments enable row level security;
+alter table public.lab_vision_annotations enable row level security;
+alter table public.lab_vision_annotation_candidates enable row level security;
+revoke all on public.lab_vision_annotation_projects, public.lab_vision_annotation_alignments, public.lab_vision_annotations, public.lab_vision_annotation_candidates from anon,authenticated;

@@ -21,3 +21,24 @@ describe('serve review decisions',()=>{
  it('requires approved serves to have confirmed timing',()=>expect(()=>parseAnnotation({...base,candidateId,serveDecision:'serve',shot:'Serve',status:'verified'},60,['Player A'])).toThrow())
  it('rejects malformed candidate identifiers',()=>expect(()=>parseAnnotation({...base,candidateId:'../invalid'},60,['Player A'])).toThrow())
 })
+
+describe('four player serve review',()=>{
+ const names=['A','B','C','D']
+ const box={x:.1,y:.2,width:.1,height:.3}
+ const participants=names.map((player,i)=>({player,role:['Server','Server’s partner','Receiver','Receiver’s partner'][i],visibility:'visible',box}))
+ const serve={...base,player:'A',shot:'Serve',serveDecision:'serve',status:'verified',confirmed:true,participants}
+ it('saves four roles and boxes',()=>expect(parseAnnotation(serve,60,names).participants).toEqual(participants))
+ it('allows an explicitly occluded player',()=>expect(parseAnnotation({...serve,participants:participants.map((p,i)=>i===1?{...p,visibility:'not_visible',box:null}:p)},60,names).participants[1].box).toBeNull())
+ it('rejects same-team receiver',()=>expect(()=>parseAnnotation({...serve,participants:participants.map((p,i)=>({...p,role:['Server','Receiver','Server’s partner','Receiver’s partner'][i]}))},60,names)).toThrow(/teams/))
+ it('rejects duplicate identities',()=>expect(()=>parseAnnotation({...serve,participants:[participants[0],participants[0],participants[2],participants[3]]},60,names)).toThrow(/four/))
+ it('rejects missing box on approval',()=>expect(()=>parseAnnotation({...serve,participants:participants.map((p,i)=>i===1?{...p,visibility:'unmarked',box:null}:p)},60,names)).toThrow(/four/))
+})
+
+ it('keeps a quick-review hitter box without claiming verified timing or identity',()=>{
+  const box={x:.2,y:.3,width:.1,height:.4}
+  for(const boxOrigin of ['pose-proposal','pose-adjusted','human']){
+   const result=parseAnnotation({...base,candidateId:'scout:872e6f34-5304-42a7-a23c-685a25c72340:872e6f34-5304-42a7-a23c-685a25c72340:touch-0',quickDecision:'shot',classificationReviewed:true,box,boxOrigin},60,['Player A'])
+   expect(result.player).toBe('Player A');expect(result.box).toEqual(box);expect(result.boxOrigin).toBe(boxOrigin)
+   expect(result.timingVerified).toBe(false);expect(result.playerIdentityVerified).toBe(false)
+  }
+ })

@@ -19,7 +19,7 @@ export const GROUPS: Group[] = [
     { href: '/play/simulation', label: 'Simulation', icon: 'play' },
   ]},
   { label: 'Tournament Ops', items: [
-    ...(process.env.NODE_ENV==='development'?[{href:'/lab-vision',label:'Lab Vision',icon:'video'}]:[]),
+    {href:'/lab-vision',label:'Lab Vision',icon:'video'},
     { href: '/tournament-explorer', label: 'Tournament Explorer', icon: 'grid' },
     { href: '/scouting', label: 'Matches', icon: 'list' },
     { href: '/team-access', label: 'Team Access', icon: 'users' },

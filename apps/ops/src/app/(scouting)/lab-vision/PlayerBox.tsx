@@ -2,7 +2,7 @@
 import {useRef,useState,type PointerEvent} from 'react'
 export type PlayerBoxValue={x:number;y:number;width:number;height:number}
 const clamp=(v:number,min=0,max=1)=>Math.max(min,Math.min(max,v))
-export default function PlayerBox({box,onChange,label,enabled,sourceLabel="manual box"}:{box:PlayerBoxValue|null;onChange:(b:PlayerBoxValue|null)=>void;label:string;enabled:boolean;sourceLabel?:string}){
+export default function PlayerBox({box,onChange,label,enabled,sourceLabel="manual box",hideLabel=false}:{box:PlayerBoxValue|null;onChange:(b:PlayerBoxValue|null)=>void;label:string;enabled:boolean;sourceLabel?:string;hideLabel?:boolean}){
  const root=useRef<HTMLDivElement>(null)
  const gesture=useRef<{id:number;x:number;y:number;box:PlayerBoxValue|null;mode:string}|null>(null)
  const [dragging,setDragging]=useState(false)
@@ -20,7 +20,7 @@ export default function PlayerBox({box,onChange,label,enabled,sourceLabel="manua
  onChange({x:l,y:t,width:r-l,height:bt-t})}
  const finish=()=>{gesture.current=null;setDragging(false);if(box&&(box.width<.005||box.height<.005))onChange(null)}
  return <div ref={root} className={`lv-box-layer ${enabled?'editing':''}`} aria-label="Player bounding box canvas" onPointerDown={e=>down(e,'draw')} onPointerMove={move} onPointerUp={finish} onPointerCancel={finish}>
- {box&&<div className="lv-player-box" style={{left:`${box.x*100}%`,top:`${box.y*100}%`,width:`${box.width*100}%`,height:`${box.height*100}%`}} onPointerDown={e=>down(e,'move')}><span className="lv-box-label">{label||'Select player'} · {sourceLabel}</span>{enabled&&['nw','n','ne','e','se','s','sw','w'].map(h=><span key={h} className={`lv-box-handle ${h}`} onPointerDown={e=>down(e,h)}/>)}</div>}
+ {box&&<div className="lv-player-box" style={{left:`${box.x*100}%`,top:`${box.y*100}%`,width:`${box.width*100}%`,height:`${box.height*100}%`}} onPointerDown={e=>down(e,'move')}>{!hideLabel&&<span className="lv-box-label">{label||'Select player'} · {sourceLabel}</span>}{enabled&&['nw','n','ne','e','se','s','sw','w'].map(h=><span key={h} className={`lv-box-handle ${h}`} onPointerDown={e=>down(e,h)}/>)}</div>}
  {enabled&&!box&&!dragging&&<span className="lv-box-hint">Drag a box around the player</span>}
  </div>
 }

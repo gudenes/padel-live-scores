@@ -18,3 +18,16 @@ export function proposeBox(manifest:any,poses:any[],time:number,key:string){
  if((right-x)/w<.005||(b-y)/h<.005)return null
  return {box:{x:x/w,y:y/h,width:(right-x)/w,height:(b-y)/h},sampleTime:frame.t}
 }
+
+/** Annotation aid only: borrow a nearby box, never a measured position at contact. */
+export function proposeReviewBox(manifest:any,poses:any[],time:number,key:string){
+ const exact=proposeBox(manifest,poses,time,key)
+ if(exact)return {...exact,borrowed:false}
+ const segment=manifest.coverage?.find((c:number[])=>time>=c[0]&&time<=c[1])
+ const nearby=poses.filter(p=>Math.abs(p.t-time)<=1&&p.players?.[key]&&(!segment||(p.t>=segment[0]&&p.t<=segment[1]))).sort((a,b)=>Math.abs(a.t-time)-Math.abs(b.t-time))
+ for(const frame of nearby){
+  const proposal=proposeBox(manifest,[frame],frame.t,key)
+  if(proposal)return {...proposal,borrowed:true}
+ }
+ return null
+}
