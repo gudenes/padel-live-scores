@@ -29,7 +29,7 @@ for(const [name,base] of [['extension','../'],['web','../../../apps/ops/public/s
     press($('shot-options').querySelector('[data-shot=volley]'),'w');assert.equal(selected(),'volley');
    }
    state.pending.id='save-once';state.pending.finish.outcome='winner';render(state,{time:110},false,true);
-   press($('shot-dialog'),'w');press($('shot-dialog'),' ');
+   press($('shot-dialog'),'w');press($('shot-dialog'),' ');$('skip-winner-previous').click();
    assert.equal(actions.filter(a=>a.type==='score').length,1);
    $('shot-dialog').close();press(document.body,'e');assert.equal(selected(),'volley');
   }finally{dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;delete globalThis.matchMedia;}

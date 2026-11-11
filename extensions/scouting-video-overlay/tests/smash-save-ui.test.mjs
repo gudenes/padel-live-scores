@@ -19,7 +19,7 @@ test('recovery attribution is reachable and selecting a finishing smash reuses t
   $('shot-options').querySelector('[data-shot=volley]').click();
   $('shot-options').querySelector('[data-shot=smash]').click();
   assert.equal($('counted').checked,true);
-  $('save-point').click();
+  $('save-point').click();$('skip-winner-previous').click();
   const action=actions.at(-1);assert.equal(action.details.smashAlreadyCounted,true);
   const dispatch=engine({read:async()=>structuredClone(state),write:async s=>{state=s}});
   await dispatch(action);assert.equal(match(state).stats[0].smashes,1);
@@ -31,7 +31,7 @@ test('recovery attribution is reachable and selecting a finishing smash reuses t
   $('save-point').click();assert.match($('shot-error').textContent,/remate rival/);
   assert.equal(document.activeElement,$('recovery-smash'));
   $('recovery-smash').value='2:new';$('recovery-smash').dispatchEvent(new dom.window.Event('change'));
-  $('save-point').click();await dispatch(actions.at(-1));assert.equal(match(state).stats[2].smashes,1);
+  $('save-point').click();$('skip-winner-previous').click();await dispatch(actions.at(-1));assert.equal(match(state).stats[2].smashes,1);
  }finally{dom.window.close();delete globalThis.document;delete globalThis.Option;delete globalThis.localStorage;}
 });
 test('classifying the same tapped smash twice updates its type and returns distinct feedback',async()=>{

@@ -46,7 +46,7 @@ export function validateDoc(raw:unknown):ScoutDoc {
       if(e.side!==undefined&&!['forehand','backhand'].includes(e.side))throw Error('Invalid shot side.')
       if(e.assistBy!==undefined&&(!player(e.assistBy)||e.outcome!=='winner'||e.assistBy!==(e.player^1)))throw Error('Assists must credit the winning player’s teammate.')
       if(e.forcedBy!==undefined&&(!player(e.forcedBy)||e.outcome!=='forced'||teamOf(e.forcedBy)===teamOf(e.player)))throw Error('Forced-error credit must name an opponent.')
-      if(e.previousPlayer!==undefined&&(!player(e.previousPlayer)||!['forced','unforced'].includes(e.outcome)||teamOf(e.previousPlayer)===teamOf(e.player)))throw Error('Previous player must name an opponent for an error.')
+      if(e.previousPlayer!==undefined&&(!player(e.previousPlayer)||!['winner','forced','unforced'].includes(e.outcome)||teamOf(e.previousPlayer)===teamOf(e.player)))throw Error('Previous player must name an opponent for this point.')
       if(e.previousShot!==undefined&&(e.previousPlayer===undefined||!Object.hasOwn(shots,e.previousShot)))throw Error('Previous stroke requires an opponent and valid shot.')
       if(e.previousPlayer!==undefined&&e.forcedBy!==undefined&&e.previousPlayer!==e.forcedBy)throw Error('Previous player and forced-error credit must agree.')
       if(e.outsideRecoveryBy!==undefined&&(!Array.isArray(e.outsideRecoveryBy)||e.outsideRecoveryBy.length>4||new Set(e.outsideRecoveryBy).size!==e.outsideRecoveryBy.length||e.outsideRecoveryBy.some(p=>!player(p))))throw Error('Invalid outside recovery attempt players.')
@@ -118,12 +118,12 @@ export function replay(doc:ScoutDoc){
       if(e.outcome==='winner')shotStats.winners++;else shotStats[e.outcome]++
       if(e.smashAttemptId!==undefined&&(!e.smash||rallySmashes.get(e.smashAttemptId)!==e.player))throw Error('Choose a smash attempt by this player in the current rally.')
       if(e.smash){if(!e.smashAttemptId)s.smashes++;if(e.outcome==='winner'){s.smashWinners++;s.smashPointsWon++}else s.smashErrors++}
-      if(e.outcome!=='winner'&&e.previousShot==='smash'&&e.previousPlayer!==undefined){
+      if(e.previousShot==='smash'&&e.previousPlayer!==undefined){
         const prior=stats[e.previousPlayer]
         // The last smash by this opponent in this rally is the attributed attempt.
         // If it was not tapped, the explicit previous-stroke observation supplies it.
         if(![...rallySmashes.values()].includes(e.previousPlayer))prior.smashes++
-        prior.smashErrorsGenerated++;prior.smashPointsWon++
+        if(e.outcome!=='winner'){prior.smashErrorsGenerated++;prior.smashPointsWon++}
       }
       winningTeam=e.outcome==='winner'?teamOf(e.player):teamOf(e.player)==='a'?'b':'a'
     }else if(e.kind==='double_fault'){winningTeam=score.servingTeam==='a'?'b':'a'}else{winningTeam=e.team;unclassified++}

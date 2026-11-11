@@ -70,3 +70,13 @@ The report's **Video review** tab also accepts official Red Bull TV pages and re
 Select a known point and pause the video at its first serve. **Align current frame to point … start** maps the saved scouting clock to the player's current clock, including live epoch timestamps and relative replay clocks. Point jumps, ±10 seconds, saved moments and rally loops then use that alignment. Alignment lasts for the current connection only and never changes the saved scouting timestamps. Expired replay-window targets are rejected; disconnected or changed videos require reconnecting and aligning again. Shared reports offer the original link but do not expose the authenticated admin extension connection.
 
 Validation: focused review/source/report tests cover canonical Red Bull links, restoration, explicit alignment, epoch-to-relative mapping, seekable bounds, point jumps, looping, disconnection, shared-report restrictions and the existing YouTube player. This change deploys admin only and does not require a Chrome Web Store submission or public-app rebuild.
+
+## 0.2.18 — Opponent stroke before a winner
+
+Winner entry now asks who played the preceding opponent shot and which stroke it was, in both Pro and Expert modes. Expert mode suggests the adjacent opposing hitter from recorded taps. The winning stroke remains separate. Select **Not recorded / no previous shot** for aces or unknown exchanges; old winners remain valid without these optional fields. Winning returns can use the confirmed server and Serve automatically.
+
+The extension, admin Scout web and embedded live Scout share the updated validation. Previous player and stroke already appear in point details and JSON/CSV exports. Preceding opponent smashes count as attempts but do not receive point-win or error-created credit when the point ends in a winner against them. No migration or additional permissions. Deploy admin before using the new extension records.
+
+Update the existing unpacked installation after exporting a backup; do not uninstall. Chrome Web Store submission uses the separate store ZIP with manifest at its root.
+
+Validation: 237 of 238 extension tests pass, including winner capture on both UI surfaces, keyboard skip, tap suggestions, existing error flows and smash/recovery tags. The remaining `player-profile.test.mjs` court-end keyboard expectation is the previously documented failure. Nine admin model/export tests and the webpack production build pass. The isolated browser preview verifies a winning volley plus opponent lob. Browser policy blocked extension management and the store dashboard; installers are prepared, but reload and store submission require the user.

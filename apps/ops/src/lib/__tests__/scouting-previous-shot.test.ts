@@ -14,7 +14,30 @@ describe('previous opponent attribution',()=>{
  expect(pointsCsv(players,doc)).toContain('"2","Player 2","bajada"')
  })
  it('requires an opponent for optional stroke and rejects invalid/conflicting attributions',()=>{
- for(const patch of [{previousPlayer:1},{previousPlayer:undefined},{previousShot:'invalid'},{outcome:'winner'},{outcome:'forced',forcedBy:3}])expect(()=>validateDoc({...freshDoc(),events:[{...error,...patch}]})).toThrow()
+ for(const patch of [{previousPlayer:1},{previousPlayer:undefined},{previousShot:'invalid'},{outcome:'forced',forcedBy:3}])expect(()=>validateDoc({...freshDoc(),events:[{...error,...patch}]})).toThrow()
  expect(()=>validateDoc({...freshDoc(),events:[{...error,previousPlayer:undefined,previousShot:undefined}]})).not.toThrow()
+ })
+})
+
+describe('winner preceding opponent stroke',()=>{
+ it('survives validation, timeline and exports without forced-error credit',()=>{
+ const doc=validateDoc({...freshDoc(),events:[{...error,outcome:'winner',previousShot:'lob'}]})
+ const result=replay(doc)
+ expect(result.tracking.timeline[0]).toMatchObject({outcome:'winner',shot:'volley',previousPlayer:2,previousShot:'lob'})
+ expect(result.stats[0].winners).toBe(1)
+ expect(result.stats[2].forcedErrorsCreated).toBe(0)
+ expect(pointsCsv(players,doc)).toContain('"2","Player 2","lob"')
+ expect(sessionExport('match',players,1,doc).summary.tracking.timeline[0].previousShot).toBe('lob')
+ })
+ it('counts a preceding smash attempt, but never a point won or error created for the losing opponent',()=>{
+ const result=replay(validateDoc({...freshDoc(),events:[{...error,outcome:'winner',previousShot:'smash'}]}))
+ expect(result.stats[2].smashes).toBe(1)
+ expect(result.stats[2].smashPointsWon).toBe(0)
+ expect(result.stats[2].smashErrorsGenerated).toBe(0)
+ })
+ it('keeps legacy winners valid and rejects teammate attribution and winner return failure',()=>{
+ expect(()=>validateDoc({...freshDoc(),events:[{...error,outcome:'winner',previousPlayer:undefined,previousShot:undefined}]})).not.toThrow()
+ expect(()=>validateDoc({...freshDoc(),events:[{...error,outcome:'winner',previousPlayer:1}]})).toThrow()
+ expect(()=>validateDoc({...freshDoc(),events:[{...error,outcome:'winner',shot:'return',returnFailure:'net'}]})).toThrow()
  })
 })
