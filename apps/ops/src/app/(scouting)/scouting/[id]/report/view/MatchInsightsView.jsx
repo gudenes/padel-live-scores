@@ -19,6 +19,8 @@ import OverviewMomentum from "./OverviewMomentum";
 import ShotDistribution from "./ShotDistribution";
 import PlayerWorkspace from "./PlayerWorkspace";
 import MovementPerformance from "./MovementPerformance";
+import OverviewMovement from "./OverviewMovement";
+import {replayPoints} from "@/lib/scouting/video-review";
 import { DirectionCourt } from "./DirectionCourt.jsx";
 import { GameFlow, TeamComparison, tieBreaks } from "./MatchFlow.jsx";
 const colors = ["#a3cf0a", "#a3cf0a", "#ed7669", "#ed7669"];
@@ -347,8 +349,11 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
     measure();const observer=new ResizeObserver(measure);observer.observe(el);return()=>observer.disconnect();
   },[compactHeader]);
   const [focusedPlayer,setFocusedPlayer]=useState(null);
+  const [performanceTab,setPerformanceTab]=useState("statistics");
   const [replayPoint,setReplayPoint]=useState(null);
-  const openPlayer=(index)=>{setFocusedPlayer(index);setTab("Players")};
+  const [movementTime,setMovementTime]=useState(null);
+  const [movementPlayer,setMovementPlayer]=useState(null);
+  const openPlayer=(index)=>{setFocusedPlayer(index);setPerformanceTab("statistics");setTab("Players")};
   const [scope, setScope] = useState("all"),
     [tab, setTab] = useState("Overview"),
     [gameSelection, setGameSelection] = useState(null),
@@ -544,6 +549,7 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           {tab === "Pre-game" && !shared && pregameMatchId && <PreGameComparison matchId={pregameMatchId}/>}
           {tab === "Overview" && (
             <>
+              <OverviewMovement context={shared?undefined:reviewContext} players={data.players} points={replayPoints(data.scopes.all.points,data.scopes.all.taps)} scope={scope} onScope={value=>{setScope(value);onScopeChange?.(value)}} onDetails={()=>{setPerformanceTab("movement");setTab("Players")}} />
               <OverviewMomentum data={data} scope={scope} />
               <div className="split overviewAnalytics">
                 <Panel
@@ -647,11 +653,12 @@ export function MatchInsightsView({ data, onScopeChange, reports, shared = false
           )}
           {tab === "Players" && (
             <>
-              <MovementPerformance context={shared?undefined:reviewContext} players={data.players} scope={scope} focusedPlayer={focusedPlayer} />
-              {focusedPlayer!=null?<PlayerWorkspace data={data} scope={scope} playerIndex={focusedPlayer} onPlayer={setFocusedPlayer} onClose={()=>setFocusedPlayer(null)} readOnly={shared} renderImpact={(index,marked,label,markerTypes,onReview,canReview)=><Chart mode="impact" names={data.players.map(p=>p.name)} points={points} series={impact} labels={d.analysis.series.map(p=>p.number)} highlightedPlayer={index} markedPoints={marked} markerLabel={label} markerTypes={markerTypes} onReview={onReview} canReview={canReview}/>}/>:<ShotDistribution data={data} scope={scope} onPlayerSelect={openPlayer} />}
+              <div role="group" className="mv-subtabs" aria-label="Player performance sections"><button className="ui-btn" aria-pressed={performanceTab==="statistics"} data-variant={performanceTab==="statistics"?"primary":"default"} onClick={()=>setPerformanceTab("statistics")}>Performance & shots</button><button className="ui-btn" aria-pressed={performanceTab==="movement"} data-variant={performanceTab==="movement"?"primary":"default"} onClick={()=>setPerformanceTab("movement")}>Movement load</button></div>
+              {performanceTab==="movement"&&<MovementPerformance points={replayPoints(data.scopes.all.points,data.scopes.all.taps)} context={shared?undefined:reviewContext} players={data.players} scope={scope} focusedPlayer={focusedPlayer} />}
+              {performanceTab==="statistics"&&(focusedPlayer!=null?<PlayerWorkspace data={data} scope={scope} playerIndex={focusedPlayer} onPlayer={setFocusedPlayer} onClose={()=>setFocusedPlayer(null)} readOnly={shared} renderImpact={(index,marked,label,markerTypes,onReview,canReview)=><Chart mode="impact" names={data.players.map(p=>p.name)} points={points} series={impact} labels={d.analysis.series.map(p=>p.number)} highlightedPlayer={index} markedPoints={marked} markerLabel={label} markerTypes={markerTypes} onReview={onReview} canReview={canReview}/>}/>:<ShotDistribution data={data} scope={scope} onPlayerSelect={openPlayer} />)}
             </>
           )}
-          {tab === "Video review" && <VideoReview data={data} scope={scope} readOnly={shared} initialPointId={replayPoint} reviewContext={shared?undefined:reviewContext} />}
+          {tab === "Video review" && <VideoReview movementPlayer={movementPlayer} movementTime={movementTime} data={data} scope={scope} readOnly={shared} initialPointId={replayPoint} reviewContext={shared?undefined:reviewContext} />}
           {tab === "Points & shots" && (
             <>
               <DirectionCourt
