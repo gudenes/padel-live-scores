@@ -6,6 +6,7 @@ import MethodologyGuide from "@/components/scouting/MethodologyGuide";
 import {ScoutingBackLink} from "@/components/scouting/ScoutingNavigation";
 import { useRouter } from "next/navigation";
 import { savedReport, type SavedSession } from "@/lib/scouting/saved-report";
+import { completeMatchExport } from "@/lib/scouting/complete-match-export";
 import { pointsCsv, sessionExport } from "@/lib/scouting/export";
 import {
   DEFAULT_METHODOLOGY,
@@ -139,41 +140,55 @@ export default function SavedScoutingReport({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  function exportAll() {
-    const payload = report
-      ? {
-          ...sessionExport(
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
+  async function exportAll() {
+    if (exporting) return;
+    setExporting(true);
+    setExportError("");
+    try {
+      const response = await fetch(`/api/internal/lab-vision/results/${matchId}?kind=${manual ? "manual" : "canonical"}`, {cache: "no-store"});
+      if (!response.ok) throw new Error("Could not load movement results. Please retry the full export.");
+      const analysis = await response.json();
+      const payload = report
+        ? {
+            ...sessionExport(
+              matchId,
+              report.players,
+              report.revision,
+              report.doc,
+              methodology
+            ),
+            source: report.source,
+            ...(manual ? { privateMatch, visibility: "private-scouting" } : {}),
+            timestampBasis:
+              report.source === "video"
+                ? "Video position encoded as UTC from the Unix epoch; not wall-clock match time."
+                : "Recorded wall-clock time.",
+            originalDocument: report.original,
+            videoReport: report.videoReport,
+            officialContext: context,
+          }
+        : {
+            schemaVersion: 1,
             matchId,
-            report.players,
-            report.revision,
-            report.doc,
-            methodology
-          ),
-          source: report.source,
-          ...(manual ? { privateMatch, visibility: "private-scouting" } : {}),
-          timestampBasis:
-            report.source === "video"
-              ? "Video position encoded as UTC from the Unix epoch; not wall-clock match time."
-              : "Recorded wall-clock time.",
-          originalDocument: report.original,
-          videoReport: report.videoReport,
-          officialContext: context,
-        }
-      : {
-          schemaVersion: 1,
-          matchId,
-          source: "official-pbp",
-          officialContext: context,
-          summary: pbpAnalysis(context),
-          scouting: null,
-          availability: {
-            playerScore: false,
-            strokes: false,
-            assists: false,
-            courtDirections: false,
-          },
-        };
-    download(JSON.stringify(payload, null, 2), "json", "match");
+            source: "official-pbp",
+            officialContext: context,
+            summary: pbpAnalysis(context),
+            scouting: null,
+            availability: {
+              playerScore: false,
+              strokes: false,
+              assists: false,
+              courtDirections: false,
+            },
+          };
+      download(JSON.stringify(completeMatchExport(payload, data, analysis), null, 2), "json", "match");
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Could not export all match data.");
+    } finally {
+      setExporting(false);
+    }
   }
   return (
     <main className={layout.page} data-navigation-loading={loading}>
@@ -200,7 +215,7 @@ export default function SavedScoutingReport({
           resumeAction={!loading&&!error&&canResume&&report?.model.score.phase!=='finished'?<ScoutLaunchMenu matchId={matchId} continuing extension={resumeInExtension} label="Scouting options" placement="below"/>:undefined}
           loading={loading}
           scope={scope}
-          canExport={canExport}
+          canExport={canExport && !exporting}
           hasScout={!!report}
           hasPbp={!!pbp.length}
           onRefresh={() => {
@@ -226,6 +241,8 @@ export default function SavedScoutingReport({
           }
         />
       </header>
+      {exporting && <p role="status">Preparing all match data, including movement performance…</p>}
+      {exportError && <p role="alert">{exportError}</p>}
       {report && (
         <div className={layout.methodBar}>
           <label>
