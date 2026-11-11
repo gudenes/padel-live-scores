@@ -637,3 +637,9 @@
 .vr-source-choice{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 12px}.vr-source-choice>span,.vr-source-choice small{font-size:12px;color:var(--muted)}.vr-source-choice small{margin-left:4px}
 
 .vr-broadcast-alignment{display:flex;align-items:center;flex-wrap:wrap;gap:12px;background:var(--card,#fff);border:1px solid var(--border,#dce2d4);border-radius:12px;padding:14px;margin-bottom:12px}.vr-broadcast-alignment>div{flex:1;min-width:240px}.vr-broadcast-alignment p{font-size:12px;color:var(--muted);margin:4px 0}.vr-broadcast-alignment label{display:grid;gap:4px;font-size:12px}
+
+/* Overview, scrubber, ruler and event lanes share the same time-axis bounds. */
+.vr-match-timeline{--timeline-label-width:68px;--timeline-end-space:20px}
+.vr-timeline-grid{grid-template-columns:var(--timeline-label-width) minmax(0,1fr)}
+.vr-timeline-overview{margin-left:var(--timeline-label-width);margin-right:var(--timeline-end-space)}
+.vr-timeline-scrub{margin-left:var(--timeline-label-width);width:calc(100% - var(--timeline-label-width) - var(--timeline-end-space))}
