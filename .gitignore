@@ -102,3 +102,5 @@ import/
 
 # Local training media is hosted separately from source control.
 /apps/ops/public/training-media/
+
+/apps/ops/.local/
