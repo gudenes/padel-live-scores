@@ -57,7 +57,7 @@ export function scoutingQuality({model,doc,checkpoint,officialSets,rallies=[]}){
   check(['winner','forced','unforced','double_fault'].includes(p.outcome));
   if(player(p.player))check(p.winner===(p.outcome==='winner'?(p.player<2?'a':'b'):(p.player<2?'b':'a')));
   if(p.shot!==undefined)check(Object.hasOwn(shots,p.shot));
-  if(previous!==undefined)check(error&&opposite(p.player,previous));
+  if(previous!==undefined)check((error||p.outcome==='winner')&&opposite(p.player,previous));
   if(p.forcedBy!==undefined)check(p.outcome==='forced'&&opposite(p.player,p.forcedBy)&&(p.previousPlayer===undefined||p.previousPlayer===p.forcedBy));
   if(p.assistBy!==undefined)check(p.outcome==='winner'&&p.assistBy===(p.player^1));
   if(p.rallyStartedAt!==null&&p.rallyStartedAt!==undefined)check(Number.isFinite(p.durationMs)&&p.durationMs>=0);

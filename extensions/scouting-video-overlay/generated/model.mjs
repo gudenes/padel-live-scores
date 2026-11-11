@@ -41,8 +41,8 @@ export function validateDoc(raw) {
                 throw Error('Assists must credit the winning player’s teammate.');
             if (e.forcedBy !== undefined && (!player(e.forcedBy) || e.outcome !== 'forced' || teamOf(e.forcedBy) === teamOf(e.player)))
                 throw Error('Forced-error credit must name an opponent.');
-            if (e.previousPlayer !== undefined && (!player(e.previousPlayer) || !['forced', 'unforced'].includes(e.outcome) || teamOf(e.previousPlayer) === teamOf(e.player)))
-                throw Error('Previous player must name an opponent for an error.');
+            if (e.previousPlayer !== undefined && (!player(e.previousPlayer) || !['winner', 'forced', 'unforced'].includes(e.outcome) || teamOf(e.previousPlayer) === teamOf(e.player)))
+                throw Error('Previous player must name an opponent for this point.');
             if (e.previousShot !== undefined && (e.previousPlayer === undefined || !Object.hasOwn(shots, e.previousShot)))
                 throw Error('Previous stroke requires an opponent and valid shot.');
             if (e.previousPlayer !== undefined && e.forcedBy !== undefined && e.previousPlayer !== e.forcedBy)
@@ -192,14 +192,16 @@ export function replay(doc) {
                 else
                     s.smashErrors++;
             }
-            if (e.outcome !== 'winner' && e.previousShot === 'smash' && e.previousPlayer !== undefined) {
+            if (e.previousShot === 'smash' && e.previousPlayer !== undefined) {
                 const prior = stats[e.previousPlayer];
                 // The last smash by this opponent in this rally is the attributed attempt.
                 // If it was not tapped, the explicit previous-stroke observation supplies it.
                 if (![...rallySmashes.values()].includes(e.previousPlayer))
                     prior.smashes++;
-                prior.smashErrorsGenerated++;
-                prior.smashPointsWon++;
+                if (e.outcome !== 'winner') {
+                    prior.smashErrorsGenerated++;
+                    prior.smashPointsWon++;
+                }
             }
             winningTeam = e.outcome === 'winner' ? teamOf(e.player) : teamOf(e.player) === 'a' ? 'b' : 'a';
         }

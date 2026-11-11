@@ -39,7 +39,7 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
   assert.equal($('shot-options').querySelector('[data-shot=wall]').dataset.shortcut,'5');
   assert.equal($('shot-options').querySelector('[data-shot=return]').dataset.shortcut,'6');
   assert.equal(new Set([...$('shot-options').querySelectorAll('[data-shot]')].map(b=>b.dataset.shot)).size,Object.keys(shots).length-2);
-  const press=(target,key,options={})=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
+  const press=(target,key,options={})=>{target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));if(!options.repeat&&['Enter',' '].includes(key)&&!$('skip-winner-previous').hidden){$('skip-winner-previous').click();$('point-back').click();}};
   assert.equal(allShotShortcuts.length,Object.keys(shots).length-2);assert.equal(new Set(allShotShortcuts.map(([key])=>key)).size,allShotShortcuts.length);
   for(const [key,shot] of allShotShortcuts){
    state.pending.id='rally-'+key;render(state,{time:110},false,true);const before=actions.length;press($('shot-form'),key.replace('shift+',''),{shiftKey:key.startsWith('shift+')});assert.equal(actions.length,before);assert.equal($('shot-options').querySelector(`[data-shot="${shot}"]`).getAttribute('aria-pressed'),'true');if(shot==='smash')press($('shot-form'),'F1');press($('shot-options').querySelector('button'),'Enter');
@@ -47,7 +47,7 @@ test('gaming shot keys select then Enter saves the canonical shot; detail mode w
   }
   state.pending.id='soft-flow';render(state,{time:110},false,true);press($('shot-form'),'q');press($('shot-form'),'F3');press($('shot-form'),' ');assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'smash',smashType:'soft'}});
   state.pending.id='space-flow';render(state,{time:110},false,true);press($('shot-form'),'w');const beforeSpace=actions.length;press($('shot-options').querySelector('button'),' ');assert.equal(actions.length,beforeSpace+1);assert.equal(actions.at(-1).details.shot,'volley');press($('shot-form'),' ',{repeat:true});assert.equal(actions.length,beforeSpace+1);
-  $('quick-save').checked=true;$('quick-save').dispatchEvent(new dom.window.Event('change'));$('shot-options').querySelector('[data-shot="volley"]').click();assert.equal(actions.at(-1).details.shot,'volley');
+  $('quick-save').checked=true;$('quick-save').dispatchEvent(new dom.window.Event('change'));$('shot-options').querySelector('[data-shot="volley"]').click();$('skip-winner-previous').click();$('point-back').click();assert.equal(actions.at(-1).details.shot,'volley');
   $('quick-save').checked=false;$('quick-save').dispatchEvent(new dom.window.Event('change'));const before=actions.length;
   press($('shot-form'),'s');assert.equal(actions.length,before);
   $('assist').checked=true;press($('shot-form'),'Enter',{ctrlKey:true});assert.deepEqual(actions.at(-1),{type:'score',details:{shot:'groundstroke',assistBy:1}});
@@ -62,7 +62,7 @@ test('media shortcuts dispatch once, respect disabled controls and ignore typing
  const document=dom.window.document,buttons=['back','pause','forward'].map(id=>document.getElementById(id)),calls=[];
  buttons.forEach((button,i)=>button.onclick=()=>calls.push(i));
  const remove=mediaShortcuts({target:document,back:buttons[0],pause:buttons[1],forward:buttons[2]});
- const press=(target,key,options={})=>target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));
+ const press=(target,key,options={})=>{target.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options}));if(!options.repeat&&['Enter',' '].includes(key)&&!$('skip-winner-previous').hidden){$('skip-winner-previous').click();$('point-back').click();}};
  for(const key of ['j','Home','l'])press(document,key);assert.deepEqual(calls,[0,1]);
  buttons[2].disabled=true;press(document,'l');press(document,'j',{repeat:true});press(document.querySelector('input'),'k');assert.equal(calls.length,2);
  remove();press(document,'j');assert.equal(calls.length,2);dom.window.close();
