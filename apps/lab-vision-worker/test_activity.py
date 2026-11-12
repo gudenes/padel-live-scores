@@ -17,6 +17,14 @@ class ActivityTests(unittest.TestCase):
   self.assertEqual([w['segment'] for w in a['windows']],[1,2])
   self.assertLessEqual(a['windows'][0]['end'],5)
   self.assertGreaterEqual(a['windows'][1]['start'],5)
+ def test_fractional_coverage_bounds_survive_rounding(self):
+  for start,end in [(18.661,26.361),(18.669,26.369)]:
+   with self.subTest(start=start):
+    a=self.sample([(start,end,1)])
+    self.assertTrue(a['windows'])
+    for w in a['windows']:
+     self.assertGreaterEqual(w['start'],start)
+     self.assertLessEqual(w['end'],end)
  def test_ball_alone_not_enough(self):
   self.assertEqual(self.sample([(0,5,1)],False)['windows'],[])
 if __name__=='__main__':unittest.main()

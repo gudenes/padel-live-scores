@@ -14,7 +14,15 @@ class Worker:
  def api(self,action,**kw):
   body={'action':action,**kw}
   if self.job:body.update(id=self.job['id'],attemptId=self.job['attemptId'])
-  r=requests.post(self.base+'/api/lab-vision/worker',json=body,headers={'Authorization':'Bearer '+self.cfg['token']},timeout=(10,25));r.raise_for_status();return r.json()
+  r=requests.post(self.base+'/api/lab-vision/worker',json=body,headers={'Authorization':'Bearer '+self.cfg['token']},timeout=(10,25))
+  try:r.raise_for_status()
+  except requests.HTTPError as error:
+   try:detail=r.json().get('error')
+   except (ValueError,AttributeError):detail=None
+   if isinstance(detail,str) and detail.strip():
+    raise requests.HTTPError(f'{action}: {detail[:800]} (HTTP {r.status_code})',response=r) from error
+   raise
+  return r.json()
  def stage(self,name,done=0,total=1):
   with self.guard:self.progress={'stage':name,'processed':max(0,float(done)),'total':max(1,float(total))}
   print(name,round(done,1),'/',round(total,1),flush=True)
