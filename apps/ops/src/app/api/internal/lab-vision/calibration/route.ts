@@ -1,3 +1,4 @@
+import {savedScout,anchorAlignment} from '@/lib/lab-vision/prepare-review'
 import {auth} from '@/lib/auth'
 import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {pgPool} from '@/lib/db'
@@ -19,6 +20,7 @@ export async function POST(req:Request){
  const db=pgPool(),{rows}=await db.query('select * from public.match_video_uploads where id=$1 and owner_user_id=$2',[b.videoId,user.id]);
  if(!rows[0])return json({error:'Video not found.'},404)
  let setup;try{setup=validateJobSetup(b.setup,rows[0])}catch(e){return json({error:(e as Error).message},400)}
- await db.query('update public.match_video_uploads set calibration_setup=$1 where id=$2 and owner_user_id=$3',[JSON.stringify(setup),b.videoId,user.id]);
+ try{if(setup.scoutingAnchor)anchorAlignment(setup,await savedScout(rows[0].match_id,rows[0].match_kind,db))}catch(e){return json({error:(e as Error).message},400)}
+ await db.query('update public.match_video_uploads set calibration_setup=$1,broadcast_offset=($1::jsonb->>\'offset\')::numeric where id=$2 and owner_user_id=$3',[JSON.stringify(setup),b.videoId,user.id]);
  return json({ok:true,setup})
 }

@@ -1,3 +1,4 @@
+import {prepareReview,anchorAlignment,savedScout} from '@/lib/lab-vision/prepare-review'
 import {viewerFile,viewerAssets,validateViewerManifest} from '@/lib/lab-vision-results'
 import {createHash,randomUUID} from 'node:crypto'
 import {isUserOperator} from '@/lib/operators'
@@ -55,7 +56,11 @@ export async function POST(req:Request){
    const object=await client.send(new GetObjectCommand({Bucket,Key:prefix+'manifest.json'}));if(!object.ContentLength||object.ContentLength>2*1024*1024)throw Error('Invalid manifest size.');
    const manifest=validateViewerManifest(JSON.parse(await object.Body!.transformToString()),job.setup);viewer={prefix,manifest}
   }catch(e){return json({error:(e as Error).message},400)}}
-  await db.query("update public.lab_vision_jobs set status='complete',stage='review',result=$2,updated_at=now() where id=$1 and status='running' and attempt_id=$3",[job.id,{archiveKey:Key,metrics:b.metrics,pipeline:'lab-vision-mac-v1',requiresReview:true,...(viewer?{viewer}:{})},b.attemptId]);return json({ok:true})
+  let review;
+  try{review=await prepareReview(job,viewer?.manifest,db);
+   if(viewer&&job.setup.scoutingAnchor){const v=(await db.query('select match_id,match_kind from match_video_uploads where id=$1',[job.video_id])).rows[0];const alignment=anchorAlignment(job.setup,await savedScout(v.match_id,v.match_kind,db));if(alignment)(viewer.manifest as any).scoutingAlignment=alignment}
+  }catch{review={status:'preparation_failed',message:'Tracking is saved. Retry review preparation without processing again.'}}
+  await db.query("update public.lab_vision_jobs set status='complete',stage='review',result=$2,updated_at=now() where id=$1 and status='running' and attempt_id=$3",[job.id,{archiveKey:Key,metrics:b.metrics,pipeline:'lab-vision-mac-v1',requiresReview:true,review,...(viewer?{viewer}:{})},b.attemptId]);return json({ok:true})
  }
  return json({error:'Invalid action.'},400)
 }

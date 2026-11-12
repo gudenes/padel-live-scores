@@ -1,11 +1,12 @@
+import {savedScout} from './prepare-review'
 import {GetObjectCommand} from '@aws-sdk/client-s3'
 import {pgPool} from '@/lib/db'
 import {videoStorage} from '@/lib/match-video-storage'
 import {contactCandidates} from './contact-candidates'
-export async function annotationProject(matchId:string){
+export async function annotationProject(matchId:string,kind='canonical'){
  const row=(await pgPool().query('select source from lab_vision_annotation_projects where match_id=$1',[matchId])).rows[0]
- if(!row)throw Error('Scouting project not imported')
- return row.source
+ if(row)return row.source
+ const source=await savedScout(matchId,kind);if(!source)throw Error('Scouting unavailable');return source
 }
 const pending=new Map<string,Promise<any>>()
 export async function serveCandidates(job:any){

@@ -15,7 +15,8 @@ export function validateJobSetup(s:VideoSetup,video:{file_name:string;byte_size:
  if(s.file?.name!==video.file_name||s.file?.size!==Number(video.byte_size))throw Error('Setup belongs to a different video. Prepare the uploaded file first.')
  if(s.playerIds&&(!Array.isArray(s.playerIds)||s.playerIds.length!==4||new Set(s.playerIds).size!==4||s.playerIds.some(id=>typeof id!=='string'||id.length>100||!id.trim())))throw Error('Invalid player identities.')
  if(!['broadcast','fixed'].includes(s.recording))throw Error('Choose broadcast or static recording.')
- if(![s.duration,s.matchStart,s.calibrationTime,s.offset].every(Number.isFinite)||s.matchStart<0||s.matchStart>=video.duration_seconds||s.calibrationTime<0||s.calibrationTime>=video.duration_seconds||Math.abs(s.duration-video.duration_seconds)>2||s.offset<0)throw Error('Invalid video timing.')
+ if(![s.duration,s.matchStart,s.calibrationTime,s.offset].every(Number.isFinite)||s.matchStart<0||s.matchStart>=video.duration_seconds||s.calibrationTime<0||s.calibrationTime>=video.duration_seconds||Math.abs(s.duration-video.duration_seconds)>2)throw Error('Invalid video timing.')
+ if(s.scoutingAnchor){const a=s.scoutingAnchor;if(!/^[0-9a-f-]{36}$/i.test(a.rallyId)||![a.sourceTime,a.videoTime].every(Number.isFinite)||a.sourceTime<0||a.videoTime<0||a.videoTime>=video.duration_seconds||Math.abs(a.sourceTime-a.videoTime-s.offset)>.001)throw Error('Invalid scouting alignment anchor.')}
  return {...s,identities}
 }
 export const jobJson=(b:unknown,status=200)=>Response.json(b,{status,headers:{'Cache-Control':'no-store'}})
