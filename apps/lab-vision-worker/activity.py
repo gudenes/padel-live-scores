@@ -43,10 +43,11 @@ def detect_activity(rows,poses,ball,coverage):
    else:groups.append([t])
   for g in groups:
    if len(g)<3 or g[-1]-g[0]<1:continue
-   lo=max(start,g[0]-2);hi=min(end,g[-1]+3)
+   # Clamp after rounding so fractional coverage boundaries remain valid.
+   lo=max(start,round(g[0]-2,2));hi=min(end,round(g[-1]+3,2))
    # Merge overlapping buffers only inside the same camera segment.
-   if windows and windows[-1]['segment']==seg and lo<=windows[-1]['end']:windows[-1]['end']=round(hi,2)
-   else:windows.append({'start':round(lo,2),'end':round(hi,2),'segment':seg})
+   if windows and windows[-1]['segment']==seg and lo<=windows[-1]['end']:windows[-1]['end']=hi
+   else:windows.append({'start':lo,'end':hi,'segment':seg})
   diagnostics.append({'segment':seg,'bins':bins})
  result={'method':'Pose + movement + detected WASB ball activity; experimental, not confirmed rallies','windows':windows,'duration':round(sum(w['end']-w['start'] for w in windows),2),'limits':['No scouting timestamps used','Serve and point-end contacts are not classified','Stationary rallies may be missed; walks and replays may remain','No intervals bridge camera segments','2-second lead-in and 3-second finish buffer, capped at tracking coverage'],'parameters':{'bin_seconds':.5,'activity_gap_seconds':4,'min_active_bins':3,'wrist_torso_lengths_per_second':2.5,'two_player_speed_mps':1.1}}
  result["version"]=1
