@@ -1,3 +1,4 @@
+import {savedScout,anchorAlignment} from '@/lib/lab-vision/prepare-review'
 import {estimateAnalysis} from '@/lib/scouting/analysis-estimate'
 import {randomBytes,randomUUID,createHash} from 'node:crypto'
 import {auth} from '@/lib/auth'
@@ -33,6 +34,7 @@ export async function POST(req:Request){
  if(b.action!=='run'||!videoUuid.test(b.videoId??''))return json({error:'Invalid action.'},400)
  const {rows}=await db.query("select * from public.match_video_uploads where id=$1 and owner_user_id=$2 and status='ready'",[b.videoId,user.id]);const video=rows[0];if(!video)return json({error:'Upload the video before starting analysis.'},404)
  let setup;try{setup=validateJobSetup(b.setup,video)}catch(e){return json({error:(e as Error).message},400)}
+ try{if(setup.scoutingAnchor)anchorAlignment(setup,await savedScout(video.match_id,video.match_kind,db))}catch(e){return json({error:(e as Error).message},400)}
  if(!['sample','full'].includes(b.scope))return json({error:'Select a sample or full analysis.'},400)
  const id=randomUUID();const result=await db.query("insert into public.lab_vision_jobs(id,video_id,owner_user_id,setup) values($1,$2,$3,$4) on conflict(video_id) where status in ('queued','running') do nothing returning id",[id,video.id,user.id,JSON.stringify({...setup,analysisSeconds:b.scope==='sample'?Math.min(60,setup.duration-setup.matchStart):setup.duration-setup.matchStart})]);
  return json({id:result.rows[0]?.id??(await db.query("select id from public.lab_vision_jobs where video_id=$1 and status in ('queued','running')",[video.id])).rows[0]?.id})

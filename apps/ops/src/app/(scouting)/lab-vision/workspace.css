@@ -80,3 +80,5 @@
 .lv-library-card h3{margin:12px 0 6px}.lv-library-card p{margin:6px 0}.lv-library-card small{display:block}
 .lv-library-filters label{display:flex;flex-direction:column;gap:5px;min-width:150px;font-size:12px}
 .lv-library-filters select{padding:8px;border:1px solid #ccd5bf;border-radius:8px;background:white;color:inherit}
+
+.lv-movement-scroll{overflow-x:auto;margin:20px 0}.lv-movement-table{width:100%;border-collapse:collapse;text-align:left;font-variant-numeric:tabular-nums}.lv-movement-table th{font-size:12px;color:var(--muted,#65705c);font-weight:600}.lv-movement-table th,.lv-movement-table td{padding:12px 16px;border-bottom:1px solid #dde2d4;white-space:nowrap}.lv-movement-table th:first-child,.lv-movement-table td:first-child{padding-left:0}.lv-movement-table td:first-child{font-weight:600}
