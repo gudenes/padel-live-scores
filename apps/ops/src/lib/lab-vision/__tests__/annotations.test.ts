@@ -42,3 +42,14 @@ describe('four player serve review',()=>{
    expect(result.timingVerified).toBe(false);expect(result.playerIdentityVerified).toBe(false)
   }
  })
+
+
+describe('explicit quick contact confirmation',()=>{
+ const quick={...base,candidateId:'scout:872e6f34-5304-42a7-a23c-685a25c72340:872e6f34-5304-42a7-a23c-685a25c72340:touch-0',quickDecision:'shot',classificationReviewed:true}
+ it('preserves adjusted timestamp and confirms timing without inventing identity verification',()=>{
+  const r=parseAnnotation({...quick,time:10.133,confirmed:true,status:'verified'},60,['Player A'])
+  expect(r.time).toBe(10.133);expect(r.timingVerified).toBe(true);expect(r.classificationReviewed).toBe(true);expect(r.playerIdentityVerified).toBe(false)
+ })
+ it.each(['not_contact','uncertain'])('does not confirm %s',quickDecision=>expect(()=>parseAnnotation({...quick,quickDecision,confirmed:true,status:'verified'},60,['Player A'])).toThrow())
+ it('keeps older quick clients compatible and unverified',()=>expect(parseAnnotation(quick,60,['Player A']).timingVerified).toBe(false))
+})
