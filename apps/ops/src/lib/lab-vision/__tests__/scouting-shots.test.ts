@@ -13,7 +13,7 @@ describe('scouting shot proposals',()=>{
 describe('quick review labels',()=>{
  const base={kind:'Shot contact',shot:'Unknown',side:'Unknown',direction:'Unknown',status:'needs_review',confirmed:false,time:9,start:8,end:10,player:'A',notes:'',candidateId:`scout:${id}:${rally}:touch-0`,quickDecision:'shot'}
  it('approves an event without claiming exact timing or shot classification',()=>{const a=parseAnnotation(base,100,['A','B']);expect(a.quickDecision).toBe('shot');expect(a.timingVerified).toBe(false);expect(a.status).toBe('needs_review')})
- it('rejects promotion to precise training labels',()=>{expect(()=>parseAnnotation({...base,confirmed:true,status:'verified'},100,['A','B'])).toThrow()})
+ it('confirms contact timing only on explicit approval',()=>{const a=parseAnnotation({...base,confirmed:true,status:'verified'},100,['A','B']);expect(a.timingVerified).toBe(true);expect(a.classificationReviewed).toBe(false);expect(a.playerIdentityVerified).toBe(false)})
  it('permits shot approval and negatives without identity',()=>{expect(parseAnnotation({...base,player:''},100,['A']).quickDecision).toBe('shot');expect(parseAnnotation({...base,player:'',status:'excluded',quickDecision:'not_contact'},100,['A']).quickDecision).toBe('not_contact')})
 })
 
