@@ -14,4 +14,12 @@ Movement review displays observed and inferred time, distance and peak speed. Re
 
 No-scouter matches can process movement but require manual contact annotations or the existing pose candidate flow. One anchor does not prove an edited recording is aligned throughout; check the beginning, middle and end before trusting point-level aggregates.
 
-Local validation: TypeScript, preparation/anchor unit tests, job setup and calibration API tests, workspace access tests, scouting proposal tests. Kuwait match `64fc85ca-6e7b-4773-9608-bf7562e89e07` yielded 895 proposals from 94 saved rallies via the read-only fallback; no production alignment was guessed or written during verification.
+Local validation: TypeScript, preparation/anchor unit tests, job setup and calibration API tests, workspace access tests, scouting proposal tests. Kuwait match `64fc85ca-6e7b-4773-9608-bf7562e89e07` yielded 895 proposals from 94 saved rallies via the read-only fallback; the initial read-only audit left alignment unchanged.
+
+## Completed local walkthrough — 12 November 2026
+
+For Kuwait match `64fc85ca-6e7b-4773-9608-bf7562e89e07`, reviewed the downloaded original video and existing normalized recording. First-point preparation is at 52.99616 s (serve follows), matching scouting 11812.99616 s: broadcast offset 11760 s (03:16:00). Checked middle point 48 around 31:29.506 (second set, games 1–0, points 15–0) and final point 94 around 56:58.082 (second set, games 5–1, advantage Coello/Tapia). These are point-level alignment checks, not frame-verified shot labels.
+
+Completed the actual local report wizard: selected the existing video, restored identities/calibration, marked the first scouted point, retained court frame 51 s, and saved. The shared match setup now persists this anchor. Ran “Prepare review · no reprocessing”; original job remains complete/review. Review is ready with 94 points and 895 pending proposals; no labels approved or overwritten. Report timeline now displays 45 winners, 24 unforced errors and 25 other errors. Movement load resolves all 94 rallies (8 returning break points, 86 other points for Coello) using existing tracking.
+
+Local code remains on `codex/aligned-review-pipeline`; no deployment performed. Match alignment and review metadata were saved through the authorized app flow to the shared database. Pose and WASB were not rerun.
