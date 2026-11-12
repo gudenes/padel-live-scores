@@ -24,8 +24,8 @@ export function parseAnnotation(b:any,duration:number,players:string[]){
  const quickDecision=b.quickDecision??null
  if(quickDecision!==null){
   if(!['shot','not_contact','uncertain'].includes(quickDecision)||!candidateId?.startsWith('scout:'))throw Error('Invalid quick review decision.')
-  if(b.confirmed||b.status==='verified')throw Error('Quick review does not verify an exact contact frame.')
-  if(b.status!==(quickDecision==='not_contact'?'excluded':'needs_review'))throw Error('Invalid quick review status.')
+  if(b.confirmed&&quickDecision!=='shot')throw Error('Only an approved contact can confirm timing.')
+  if(b.status!==(quickDecision==='not_contact'?'excluded':quickDecision==='shot'&&b.confirmed?'verified':'needs_review'))throw Error('Invalid quick review status.')
  }
  const participants=b.participants??null
  if(participants!==null){
