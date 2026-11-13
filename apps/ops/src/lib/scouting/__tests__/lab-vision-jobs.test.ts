@@ -1,8 +1,20 @@
 import {describe,it,expect} from 'vitest'
+import {parseVideoUpload} from '../match-video'
+import {scoutToVideo} from '../scouting-alignment'
 import {validateJobSetup,jobBody} from '../../lab-vision-jobs'
 const video={file_name:'match.mp4',byte_size:100,duration_seconds:100}
 const setup:any={version:1,confirmed:true,file:{name:'match.mp4',size:100},duration:100,matchStart:5,calibrationTime:8,offset:0,recording:'broadcast',points:[{x:.2,y:.2},{x:.8,y:.2},{x:.9,y:.9},{x:.1,y:.9},{x:.15,y:.5},{x:.85,y:.5},...Array(4).fill({x:.4,y:.4})],identities:['a','b','c','d'],playerNames:['a','b','c','d']}
 describe('analysis queue input',()=>{
+ it('passes a live-clock upload into analysis without changing saved court or player setup',()=>{
+  const sourceTime=1794576362.787712,videoTime=118.35471200942993;
+  const saved={...setup,duration:6684,matchStart:videoTime,calibrationTime:130,offset:sourceTime-videoTime,scoutingAnchor:{rallyId:'0d51eb3d-bef5-4127-b907-efba35267138',sourceTime,videoTime}};
+  const before=structuredClone(saved);
+  const upload=parseVideoUpload({id:'386b5bd2-9dca-4bae-ba32-5482ba0dbdbd',name:saved.file.name,size:saved.file.size,duration:saved.duration,offset:saved.offset});
+  const accepted=validateJobSetup(saved,{file_name:upload.name,byte_size:upload.size,duration_seconds:upload.duration});
+  expect(accepted).toEqual(saved);
+  expect(saved).toEqual(before);
+  expect(scoutToVideo(sourceTime,upload.offset)).toBeCloseTo(videoTime,5);
+ })
  it('accepts confirmed frame and fixed-camera recording',()=>{expect(validateJobSetup({...setup,recording:'fixed'},video)).toBeTruthy()})
  it('maps wizard roster indices to names without losing the selected court order',()=>{
   const indexed={...setup,identities:['2','3','1','0']};
