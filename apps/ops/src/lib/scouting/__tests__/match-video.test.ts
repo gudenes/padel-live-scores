@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest'
-import {parseVideoUpload,VIDEO_PART_SIZE,expectedPartSize,validateParts} from '../match-video'
+import {parseVideoUpload,sameVideoUpload,VIDEO_PART_SIZE,expectedPartSize,validateParts} from '../match-video'
 const valid={id:'53969a2c-431f-4ccc-a0e0-fc4cc84bcdfa',name:'match.mp4',size:VIDEO_PART_SIZE+10,offset:18881,duration:7480}
 describe('private match uploads',()=>{
  it('keeps timing and determines a safe content type',()=>expect(parseVideoUpload(valid).type).toBe('video/mp4'))
@@ -9,4 +9,17 @@ describe('private match uploads',()=>{
  })
  it('bounds each signed part to the declared file',()=>{expect(expectedPartSize(valid.size,2)).toBe(10);for(const n of [0,3,1.5])expect(()=>expectedPartSize(valid.size,n)).toThrow()})
  it('requires the exact complete file before attaching it',()=>{const parts=[{PartNumber:1,Size:VIDEO_PART_SIZE,ETag:'a'},{PartNumber:2,Size:10,ETag:'b'}];expect(validateParts(valid.size,parts).length).toBe(2);expect(()=>validateParts(valid.size,parts.slice(0,1))).toThrow();expect(()=>validateParts(valid.size,[parts[0],{...parts[1],Size:20}])).toThrow();expect(()=>validateParts(valid.size,[parts[0],parts[0]])).toThrow()})
+})
+
+describe('upload metadata round trip',()=>{
+ const upload={name:'source.mp4',size:5958712274,offset:1794576242.787712}
+ const row={file_name:upload.name,byte_size:String(upload.size),broadcast_offset:1794576242.78771}
+ it('resumes the same live-clock upload after Postgres rounds float output',()=>expect(sameVideoUpload(row,upload)).toBe(true))
+ it('still rejects different files, sizes, timing and invalid offsets',()=>{
+  for(const patch of [{name:'other.mp4'},{size:upload.size-1},{offset:upload.offset+.01},{offset:upload.offset-.01},{offset:NaN},{offset:Infinity}])expect(sameVideoUpload(row,{...upload,...patch})).toBe(false)
+  expect(sameVideoUpload({...row,broadcast_offset:NaN},upload)).toBe(false)
+ })
+ it('accepts identical replay and pre-roll offsets',()=>{
+  for(const offset of [0,18881,-118.354712])expect(sameVideoUpload({...row,broadcast_offset:offset},{...upload,offset})).toBe(true)
+ })
 })

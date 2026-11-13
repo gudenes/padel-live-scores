@@ -4,7 +4,7 @@ import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {pgPool} from '@/lib/db'
 import {check} from '@/lib/rate-limit'
 import {videoStorage,videoStorageReady,playbackVideo} from '@/lib/match-video-storage'
-import {videoUuid,parseVideoUpload,VIDEO_PART_SIZE,expectedPartSize,validateParts} from '@/lib/scouting/match-video'
+import {videoUuid,parseVideoUpload,sameVideoUpload,VIDEO_PART_SIZE,expectedPartSize,validateParts} from '@/lib/scouting/match-video'
 import {CreateMultipartUploadCommand,UploadPartCommand,ListPartsCommand,CompleteMultipartUploadCommand,AbortMultipartUploadCommand,HeadObjectCommand} from '@aws-sdk/client-s3'
 import {getSignedUrl} from '@aws-sdk/s3-request-presigner'
 export const runtime='nodejs'
@@ -45,7 +45,7 @@ export async function POST(req:Request,ctx:Context){
   }
   const result=await db.query('select * from public.match_video_uploads where id=$1 and match_id=$2 and match_kind=$3 and owner_user_id=$4',[b.id,a.id,a.kind,a.user.id]);let row=result.rows[0]
   if(!row)return json({error:'Upload not found.'},404)
-  if(b.action==='start'&&(row.file_name!==b.name||Number(row.byte_size)!==b.size||row.broadcast_offset!==b.offset))return json({error:'Upload refers to a different file or timing. Start a new upload.'},409)
+  if(b.action==='start'&&!sameVideoUpload(row,b))return json({error:'Upload refers to a different file or timing. Start a new upload.'},409)
   if(row.status==='ready')return json({video:await playbackVideo(row),ready:true})
   if(row.status==='cancelled')return json({error:'Upload was cancelled. Start a new upload.'},409)
   if(b.action==='start'&&!row.multipart_id){
