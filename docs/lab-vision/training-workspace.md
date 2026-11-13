@@ -1,14 +1,14 @@
-# Local training workspace
+# Training workspace
 
-Open `/lab-vision?tab=training` on the local admin server using normal administrator authentication. This prototype is development-only; it does not start GPU jobs or change the active analysis worker.
+Open `/lab-vision?tab=training` in the admin app using normal administrator authentication. This admin-only preparation workspace it does not start GPU jobs or change the active analysis worker.
 
 ## Dataset
 
 Reads existing shot annotations across analysis runs and keeps the latest revision. Quick shot approval now explicitly confirms the displayed contact timestamp. Historical approvals remain unverified unless reconciled following reviewer attestation; reconciliation appends audited revisions and preserves adjusted timestamps, labels and boxes. Eligible examples require a reviewed starter-class label, confirmed contact time, hitter, valid normalized box and clip bounds within the source video. Rejections and uncertain labels are not training examples.
 
-Starter classes are Serve, Groundstroke, Volley, Lob and Overhead. Smash, Bandeja, Vibora, Gancho and Rulo map to Overhead for this experiment; original labels remain in snapshots. Match-level train/validation/test assignment prevents clips from the same match leaking across splits. Three distinct splits are necessary, not sufficient evidence of dataset quality.
+Starter classes are Serve, Groundstroke, Volley, Lob, Smash, Overhead, Bajada and Contrapared. Bandeja, Vibora, Gancho and Rulo map to Overhead for this experiment; original labels remain in snapshots. Match-level train/validation/test assignment prevents clips from the same match leaking across splits. Three distinct splits are necessary, not sufficient evidence of dataset quality.
 
-Snapshots are immutable local JSON files with annotation IDs, source job/video/match references, source-video timestamps, eligibility policy, creator, creation time and content hash. Existing database annotations are read-only.
+Snapshots are immutable database JSON snapshots with annotation IDs, source job/video/match references, source-video timestamps, eligibility policy, creator, creation time and content hash. Existing database annotations are read-only.
 
 ## Training
 
@@ -20,7 +20,9 @@ Import predictions for held-out test annotation IDs using the downloadable JSON 
 
 ## Storage and privacy
 
-Artifacts live in `apps/ops/.local/lab-vision-training` (ignored by Git), shared by authorized administrators of this local workspace. They are not uploaded or published to production. The route uses the existing administrator session and same-origin checks. Private video URLs use the existing authenticated playback route.
+Artifacts live in `lab_vision_training_artifacts` in the shared database, with row-level security and no browser database grants. Only authenticated administrators can read or create them through the server API. They survive application deployments. Annotation records are read-only in this workflow; each snapshot captures the latest saved revisions. Private video URLs use the existing authenticated playback route.
+
+Apply `20261113120000_lab_vision_training_artifacts.sql` before deploying. Existing local prototype artifacts are retained locally and are not silently imported. No GPU training runner is connected yet.
 
 ## Validation
 
