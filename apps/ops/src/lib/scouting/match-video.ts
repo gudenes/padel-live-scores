@@ -5,7 +5,9 @@ export function parseVideoUpload(b: any) {
   if (!videoUuid.test(b.id ?? '')) throw Error('Invalid upload identifier.')
   if (typeof b.name !== 'string' || !/\.(mp4|webm)$/i.test(b.name) || b.name.length > 240) throw Error('Choose an MP4 or WebM video.')
   if (!Number.isSafeInteger(b.size) || b.size < 1 || b.size > MAX_VIDEO_SIZE) throw Error('Video must be between 1 byte and 20 GB.')
-  if (!Number.isFinite(b.offset) || b.offset < -86400 || b.offset > 86400) throw Error('Invalid broadcast offset.')
+  // Red Bull live clocks use Unix seconds; this is a clock origin, not a clip duration.
+  // Keep fractional seconds intact, including negative offsets for pre-roll.
+  if (!Number.isFinite(b.offset) || Math.abs(b.offset) > Number.MAX_SAFE_INTEGER / 1000) throw Error('Invalid broadcast offset.')
   if (!Number.isFinite(b.duration) || b.duration <= 0 || b.duration > 86400) throw Error('Check that the video can play before uploading.')
   return {id:b.id as string,name:b.name as string,size:b.size as number,offset:b.offset as number,duration:b.duration as number,type:/\.webm$/i.test(b.name)?'video/webm':'video/mp4'}
 }
