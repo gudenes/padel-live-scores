@@ -20,3 +20,10 @@ export function validateParts(size:number,parts:{PartNumber?:number;Size?:number
   if(sorted.length!==Math.ceil(size/VIDEO_PART_SIZE)||sorted.some((p,i)=>p.PartNumber!==i+1||!p.ETag||p.Size!==expectedPartSize(size,i+1))) throw Error('Upload is incomplete. Resume the upload and try again.')
   return sorted.map(p=>({PartNumber:p.PartNumber!,ETag:p.ETag!}))
 }
+
+/** Postgres float output may round epoch clocks; ignore only sub-millisecond drift. */
+export function sameVideoUpload(row:{file_name:string;byte_size:number|string;broadcast_offset:number},upload:{name:string;size:number;offset:number}) {
+  return row.file_name===upload.name && Number(row.byte_size)===upload.size
+    && Number.isFinite(row.broadcast_offset) && Number.isFinite(upload.offset)
+    && Math.abs(row.broadcast_offset-upload.offset)<0.001
+}
