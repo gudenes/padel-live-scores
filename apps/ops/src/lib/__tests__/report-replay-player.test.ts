@@ -10,3 +10,15 @@ it('honors a point chosen before YouTube is ready and seeks again without recrea
  const host=document.createElement('div');document.body.append(host);const root=createRoot(host);const source={kind:'youtube' as const,id:'abcdefghijk',url:'https://www.youtube.com/watch?v=abcdefghijk'};const render=(time:number,serial:number)=>React.createElement(ReplayPlayer,{source,command:{time,serial},loop:null,onTime:()=>{}})
  try{await act(async()=>{root.render(render(39,1))});await act(async()=>{root.render(render(97,2))});await act(async()=>ready());expect(seek).toHaveBeenLastCalledWith(97,true);expect(play).toHaveBeenCalledTimes(1);await act(async()=>{root.render(render(39,3))});expect(seek).toHaveBeenLastCalledWith(39,true);expect(created).toHaveBeenCalledTimes(1)}finally{await act(async()=>root.unmount());host.remove();delete window.YT;vi.unstubAllGlobals()}
 })
+
+it('requests uploaded video with CORS from the first load so calibration can reuse cached bytes',async()=>{
+ vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT',true)
+ const host=document.createElement('div');document.body.append(host);const root=createRoot(host)
+ const source={kind:'file' as const,id:'upload',url:'https://storage.example/match.mp4'}
+ try{
+  await act(async()=>{root.render(React.createElement(ReplayPlayer,{source,captureFrames:true,command:{time:0,serial:0},loop:null,onTime:()=>{}}))})
+  expect(host.querySelector('video')?.crossOrigin).toBe('anonymous')
+  await act(async()=>{root.render(React.createElement(ReplayPlayer,{source,captureFrames:false,command:{time:0,serial:0},loop:null,onTime:()=>{}}))})
+  expect(host.querySelector('video')?.hasAttribute('crossorigin')).toBe(false)
+ }finally{await act(async()=>root.unmount());host.remove();vi.unstubAllGlobals()}
+})
