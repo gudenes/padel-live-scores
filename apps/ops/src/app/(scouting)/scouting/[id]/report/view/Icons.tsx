@@ -66,3 +66,6 @@ export const CourtCube = (props: Props) => <Icon {...props}><path d="m12 2 9 5v1
 
 export const NetDistance = (props: Props) => <Icon {...props}><path d="M3 4h18M5 4v4m4-4v4m6-4v4m4-4v4M12 10v10m-3-7 3-3 3 3m-6 4 3 3 3-3"/></Icon>;
 export const PairConnection = (props: Props) => <Icon {...props}><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><path d="M8 12h2m4 0h2M4 5v3m16-3v3M4 16v3m16-3v3"/></Icon>;
+
+export const CourtZones = (props: Props) => <Icon {...props}><rect x="4" y="3" width="16" height="18" rx="1"/><path d="M4 7h16M4 10h16M4 14h16M4 17h16M2 12h20"/></Icon>;
+export const PressureGauge = (props: Props) => <Icon {...props}><path d="M4 19a10 10 0 1 1 16 0M12 3v3M4 8l3 2m13-2-3 2m-5 5 5-5"/><circle cx="12" cy="15" r="2"/><path d="M8 21h8"/></Icon>;
