@@ -12,7 +12,8 @@ function Tag({at,text,color='#fff'}:{at:XY;text:string;color?:string}){
  const width=text.length*6.5+14;
  return <g transform={`translate(${at[0]},${at[1]})`}><rect x={-width/2} y={-11} width={width} height={22} rx={5} fill="#101917" fillOpacity=".9"/><text textAnchor="middle" dominantBaseline="central" fill={color} fontSize="11" fontFamily="system-ui,sans-serif">{text}</text></g>;
 }
-export default function TrackingOverlays({result,video}:{result:AnalysisResult;video:RefObject<HTMLVideoElement|null>}){
+export default function TrackingOverlays({result,video,onCourtToolsHost}:{onCourtToolsHost?:(host:HTMLDivElement|null)=>void;result:AnalysisResult;video:RefObject<HTMLVideoElement|null>}){
+ const [collapsed,setCollapsed]=useState(false);
  const [mode,setMode]=useState<'off'|'positioning'|'movement'>('off');
  const [selection,setSelection]=useState('all'),[customize,setCustomize]=useState(false);
  const [net,setNet]=useState(false),[names,setNames]=useState(true),[trails,setTrails]=useState(true);
@@ -47,8 +48,8 @@ export default function TrackingOverlays({result,video}:{result:AnalysisResult;v
  {mode==='positioning'&&(net||paused)&&netAt&&<>{line(p.xy,netPoint,color,true)}<Tag at={[(at[0]+netAt[0])/2+22,(at[1]+netAt[1])/2]} text={`Net ${Math.abs(p.xy[1]-10).toFixed(1)} m`}/></>}
  <g className="tracking-foot-marker">{ring&&<><path d={ring} fill={color} fillOpacity={.12} stroke="#101917" strokeOpacity={.7} strokeWidth={4.5}/><path d={ring} fill="none" stroke={color} strokeWidth={2}/></>}<circle cx={at[0]} cy={at[1]} r={2.5} fill={color} stroke="#101917" strokeWidth={1}/></g>{names&&<Tag at={[Math.max((p.shortName??p.name).length*3.25+8,Math.min(box.width-(p.shortName??p.name).length*3.25-8,at[0])),Math.min(box.height-15,at[1]+25)]} text={p.shortName??p.name} color={color}/>}</g>;})}
  </svg>}<span className="tracking-badge">{status||`${paused?'Paused review':'Tracking'} · observed positions`}</span></div>,host)}
- <aside className="tracking-panel tracking-rail" aria-label="Video overlay settings">
- <div className="tracking-panel-heading"><h3>Overlays</h3></div>
+ {host&&createPortal(<aside className="tracking-panel tracking-rail" data-collapsed={collapsed} aria-label="Video overlay settings" onKeyDown={e=>{if(e.key==='Escape')setCustomize(false);}}>
+ <div className="tracking-panel-heading"><h3>Overlays</h3><button className="ui-btn" aria-label={collapsed?'Expand overlay toolbar':'Collapse overlay toolbar'} aria-expanded={!collapsed} onClick={()=>{setCollapsed(!collapsed);setCustomize(false);}}>{collapsed?'+':'−'}</button></div><div className="tracking-rail-body" hidden={collapsed}>
  <div className="tracking-controls" aria-label="Tracking overlays"><div role="group" aria-label="Overlay mode">{(['off','positioning','movement'] as const).map(value=><button key={value} className="ui-btn" data-variant={mode===value?'primary':'default'} aria-label={value==='positioning'?'Positioning':value==='movement'?'Movement':'Off'} aria-pressed={mode===value} onClick={()=>setMode(value)}>{value==='positioning'?'Shape':value==='movement'?'Motion':'Off'}</button>)}</div></div>
  <div className="tracking-roster" aria-label="Overlay players">
  <button className="ui-btn" data-variant={selection==='all'?'primary':'default'} aria-pressed={selection==='all'} onClick={()=>{setSelection('all');if(mode==='off')setMode('positioning');}}>Everyone</button>
@@ -57,7 +58,9 @@ export default function TrackingOverlays({result,video}:{result:AnalysisResult;v
  {players.filter(p=>p.team===team).map(p=><button key={p.key} className="ui-btn tracking-avatar-choice" data-variant={selection===p.key?'primary':'ghost'} aria-label={`Show ${p.name}`} aria-pressed={selection===p.key} title={p.name} onClick={()=>{setSelection(p.key);if(mode==='off')setMode('positioning');}}><span className="tracking-avatar" data-active={selected.some(q=>q.key===p.key)&&mode!=='off'}>{p.avatar?<img src={p.avatar} alt="" onError={e=>{e.currentTarget.style.display='none';}}/>:null}<span>{p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</span></span><span className="tracking-avatar-name">{p.shortName??p.name}{mode==='movement'&&selected.some(q=>q.key===p.key)&&<small>{speedAt(tracking.rows,time,p.key)?.toFixed(1)??'—'} km/h</small>}</span></button>)}
  </div>)}
  </div>
+ <div className="tracking-court-controls" ref={onCourtToolsHost}/>
  <button className="ui-btn tracking-details-toggle" aria-expanded={customize} onClick={()=>setCustomize(!customize)}>Details {customize?'−':'+'}</button>
+ </div>
  {customize&&<div className="tracking-detail-popover"><div className="tracking-detail-title"><strong>Overlay details</strong><button className="ui-btn" aria-label="Close overlay details" onClick={()=>setCustomize(false)}>×</button></div>
  {mode!=='off'&&<div className="tracking-options"><label><input type="checkbox" checked={names} onChange={e=>setNames(e.target.checked)}/>Player names</label>{mode==='positioning'?<label><input type="checkbox" checked={net} onChange={e=>setNet(e.target.checked)}/>Net distances while playing</label>:<label><input type="checkbox" checked={trails} onChange={e=>setTrails(e.target.checked)}/>Trails · last 2 seconds</label>}<small>Additional positioning measurements appear when paused.</small></div>}
  {mode==='off'&&<p className="tracking-off-hint">Choose a view to inspect player positioning or movement.</p>}
@@ -66,7 +69,7 @@ export default function TrackingOverlays({result,video}:{result:AnalysisResult;v
  {mode==='positioning'&&paused&&pairs.map(([a,b])=>{const m=pairMetrics(a.xy!,b.xy!);return <span key={a.team}>{a.shortName??a.name} / {b.shortName??b.name} · <strong>{m.spacing.toFixed(1)} m apart</strong> · depth difference <strong>{m.depth.toFixed(1)} m</strong></span>;})}
  <small>{mode==='movement'?'Speed: 1-second displacement. Gaps are unavailable, not zero. ':'Distances measured on the court floor. '}Player identities after cuts may need review.</small></div>}
  </div>}
- </aside></>;
+ </aside>,host)}</>;
 }
 
 export function TrackingCourt2D({result,time}:{result:AnalysisResult;time:number}){
