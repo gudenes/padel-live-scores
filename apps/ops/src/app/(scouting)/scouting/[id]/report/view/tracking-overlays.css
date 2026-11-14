@@ -7,11 +7,26 @@
 .vr-court-preview>.tracking-court-2d{min-height:100px}.vr-court-preview.is-docked>.tracking-court-2d{min-height:250px}
 @media(max-width:600px){.tracking-controls select{max-width:180px}.tracking-readout>span+span{margin-left:0}.tracking-badge{font-size:9px}}
 
-.video-review .vr-media-shell.vr-youtube-controls>.vr-transport{bottom:var(--tracking-panel-height,0px)}
-.tracking-panel{flex:none;min-width:0}
-.vr-media-shell.vr-youtube-controls:fullscreen .vr-player{height:calc(100dvh - var(--tracking-panel-height,0px))!important}
-.vr-media-shell:has(>.vr-court-docked:not([hidden]))>.tracking-panel{grid-column:1/-1;grid-row:3}
-.video-review .vr-media-shell.vr-youtube-controls:has(>.vr-court-docked:not([hidden]))>.vr-transport{bottom:auto}
-@media(max-width:700px){.vr-media-shell:has(>.vr-court-docked:not([hidden]))>.tracking-panel{grid-row:4}}
 .tracking-court-2d svg{position:absolute;inset:0;width:100%;height:calc(100% - 20px)}
 .tracking-court-2d small{position:absolute;bottom:0;left:0;right:0}
+
+/* The overlay inspector belongs beside the footage, inside the same video box. */
+.video-review .vr-media-shell:has(>.tracking-panel){display:grid;grid-template-columns:minmax(0,1fr) 252px;align-items:stretch}
+.video-review .vr-media-shell:has(>.tracking-panel)>.vr-player{grid-column:1;grid-row:1}
+.tracking-panel{grid-column:2;grid-row:1;min-width:0;background:#f8faf5;color:#263123;border-left:1px solid #dce2d4;overflow:auto}
+.tracking-panel-heading{padding:18px 14px 12px}.tracking-panel-heading h3{margin:0 0 5px;font-size:15px;font-weight:650}.tracking-panel-heading>span{font-size:11px;color:#65715b}
+.tracking-panel .tracking-controls{display:flex;flex-direction:column;align-items:stretch;padding:0 14px 14px;border-top:0;gap:12px;background:transparent}
+.tracking-panel .tracking-controls>div{display:grid;grid-template-columns:1fr;gap:5px}
+.tracking-panel .tracking-controls .ui-btn{text-align:left;justify-content:flex-start;font-size:12px;min-height:34px;padding:8px 10px}
+.tracking-panel .tracking-controls select{width:100%;max-width:100%;font-size:12px}
+.tracking-panel .tracking-options{padding:12px 14px;display:grid;gap:12px;background:transparent}
+.tracking-panel .tracking-readout{padding:14px;display:grid;gap:14px;background:transparent;font-size:12px;line-height:1.5}
+.tracking-panel .tracking-readout>span{display:block;margin:0}.tracking-panel .tracking-readout i{display:inline-block;margin-right:5px}.tracking-panel .tracking-readout strong{font-size:14px}.tracking-panel .tracking-readout small{font-size:10px;line-height:1.5}
+.tracking-off-hint{padding:0 14px;color:#65715b;font-size:12px;line-height:1.6}
+.video-review .vr-media-shell.vr-youtube-controls:has(>.tracking-panel)>.vr-transport{bottom:0;right:252px}
+.video-review .vr-media-shell.vr-youtube-controls:fullscreen:has(>.tracking-panel)>.vr-player{height:100dvh!important}
+.video-review .vr-media-shell:has(>.tracking-panel):has(>.vr-court-docked:not([hidden])){grid-template-columns:minmax(0,1fr) minmax(220px,.7fr) 252px}
+.video-review .vr-media-shell:has(>.vr-court-docked:not([hidden]))>.tracking-panel{grid-column:3;grid-row:1/3}
+.video-review .vr-media-shell.vr-youtube-controls:has(>.tracking-panel):has(>.vr-court-docked:not([hidden]))>.vr-transport{grid-column:1/3;right:auto;bottom:auto}
+@media(max-width:1000px){.video-review .vr-media-shell:has(>.tracking-panel):has(>.vr-court-docked:not([hidden])){grid-template-columns:minmax(0,1fr) 252px}.video-review .vr-media-shell:has(>.tracking-panel)>.vr-court-docked{grid-column:1;grid-row:2}.video-review .vr-media-shell:has(>.vr-court-docked:not([hidden]))>.tracking-panel{grid-column:2;grid-row:1/4}.video-review .vr-media-shell.vr-youtube-controls:has(>.tracking-panel):has(>.vr-court-docked:not([hidden]))>.vr-transport{grid-column:1;grid-row:3}}
+@media(max-width:700px){.video-review .vr-media-shell:has(>.tracking-panel),.video-review .vr-media-shell:has(>.tracking-panel):has(>.vr-court-docked:not([hidden])){display:flex;flex-direction:column}.tracking-panel{border-left:0;border-top:1px solid #dce2d4;max-height:none}.tracking-panel .tracking-controls>div{grid-template-columns:repeat(3,1fr)}.video-review .vr-media-shell.vr-youtube-controls:has(>.tracking-panel)>.vr-transport{position:relative;inset:auto;order:1;background:#101917;opacity:1;pointer-events:auto;padding:8px 12px}.tracking-panel{order:3}.vr-court-docked{order:2}.video-review .vr-media-shell.vr-youtube-controls:fullscreen:has(>.tracking-panel)>.vr-player{height:60dvh!important}}

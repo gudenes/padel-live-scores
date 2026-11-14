@@ -1,5 +1,5 @@
 import {describe,it,expect} from 'vitest';
-import {positionAt,trailAt,speedAt,pairMetrics,projectCourt} from '../tracking-overlay';
+import {positionAt,trailAt,speedAt,pairMetrics,projectCourt,groundRing} from '../tracking-overlay';
 import type {TrackRow} from '../movement-series';
 const rows=():TrackRow[]=>Array.from({length:31},(_,i)=>({source_s:i/10,segment_id:1,overlay_visible:true,players:{p0:{court_m:[i/10,5],position_source:'observed'}}}));
 describe('tracking overlays',()=>{
@@ -9,4 +9,14 @@ describe('tracking overlays',()=>{
  it('rejects missing samples, invalid coordinates and impossible speeds',()=>{expect(speedAt(rows().filter(r=>r.source_s!==1.5),2,'p0')).toBeNull();const r=rows();r[20].players.p0.court_m=[NaN,4];expect(positionAt(r,2,'p0')).toBeNull();const fast=rows().map(r=>({...r,players:{p0:{court_m:[r.source_s*20,5],position_source:'observed'}}}));expect(speedAt(fast,2,'p0')).toBeNull();});
  it('measures court distances',()=>{expect(pairMetrics([1,6],[4,2])).toEqual({spacing:5,depth:4});expect(pairMetrics([1,6],[4,14]).depth).toBe(0);});
  it('projects ground coordinates and rejects invalid transforms',()=>{expect(projectCourt([2,3],{start:0,end:5,inverseHomography:[[2,0,10],[0,3,20],[0,0,1]]})).toEqual([14,29]);expect(projectCourt([2,3],{start:0,end:5})).toBeNull();expect(projectCourt([2,3],{start:0,end:5,inverseHomography:[[1,0,0],[0,1,0],[0,0,0]]})).toBeNull();});
+});
+
+describe('perspective foot markers',()=>{
+ it('projects a physical court circle',()=>{
+ const path=groundRing([5,10],([x,y])=>[x*100,y*20],.4)!;
+ expect(path.startsWith('M540.00,200.00')).toBe(true);
+ expect(path).toContain('L500.00,208.00');
+ expect(path.endsWith(' Z')).toBe(true);
+ });
+ it('omits markers when calibration cannot project the ring',()=>expect(groundRing([5,10],()=>null)).toBeNull());
 });

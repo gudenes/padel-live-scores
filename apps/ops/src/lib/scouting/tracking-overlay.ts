@@ -46,3 +46,10 @@ export function projectCourt(xy:XY,manifest:OverlayManifest):XY|null {
  if(Math.abs(q[2])<1e-8)return null;
  const p:XY=[q[0]/q[2],q[1]/q[2]];return p.every(Number.isFinite)?p:null;
 }
+
+/** A ground-plane circle, projected through the same calibration as the player. */
+export function groundRing(center:XY,project:(xy:XY)=>XY|null,radius=.38):string|null {
+ const points=Array.from({length:40},(_,i)=>{const angle=i/40*Math.PI*2;return project([center[0]+Math.cos(angle)*radius,center[1]+Math.sin(angle)*radius]);});
+ if(points.some(p=>!p))return null;
+ return points.map((p,i)=>`${i?'L':'M'}${p![0].toFixed(2)},${p![1].toFixed(2)}`).join(' ')+' Z';
+}
