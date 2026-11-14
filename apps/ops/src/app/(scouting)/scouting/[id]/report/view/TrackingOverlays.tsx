@@ -1,5 +1,5 @@
 'use client';
-import {useEffect,useRef,useState,type RefObject} from 'react';
+import {useEffect,useRef,useState,type RefObject,type CSSProperties} from 'react';
 import {createPortal} from 'react-dom';
 import type {AnalysisResult} from '@/lib/scouting/use-analysis-result';
 import {useTrackingWindow} from '@/lib/scouting/use-tracking-window';
@@ -46,17 +46,26 @@ export default function TrackingOverlays({result,video}:{result:AnalysisResult;v
  return <g key={p.key}>{trail.slice(1).map((q,i)=><g key={q.time} opacity={.15+.7*(i+1)/trail.length}>{line(trail[i].xy,q.xy,color)}</g>)}
  {mode==='positioning'&&(net||paused)&&netAt&&<>{line(p.xy,netPoint,color,true)}<Tag at={[(at[0]+netAt[0])/2+22,(at[1]+netAt[1])/2]} text={`Net ${Math.abs(p.xy[1]-10).toFixed(1)} m`}/></>}
  <g className="tracking-foot-marker">{ring&&<><path d={ring} fill={color} fillOpacity={.12} stroke="#101917" strokeOpacity={.7} strokeWidth={4.5}/><path d={ring} fill="none" stroke={color} strokeWidth={2}/></>}<circle cx={at[0]} cy={at[1]} r={2.5} fill={color} stroke="#101917" strokeWidth={1}/></g>{names&&<Tag at={[Math.max((p.shortName??p.name).length*3.25+8,Math.min(box.width-(p.shortName??p.name).length*3.25-8,at[0])),Math.min(box.height-15,at[1]+25)]} text={p.shortName??p.name} color={color}/>}</g>;})}
- </svg>}<span className="tracking-badge">{paused?'Paused review':'Tracking'} · observed positions</span></div>,host)}
- <aside className="tracking-panel" aria-label="Video overlay settings"><div className="tracking-panel-heading"><h3>Video overlays</h3><span>{paused?'Paused review':'Following video'}</span></div><div className="tracking-controls" aria-label="Tracking overlays">
- <div role="group" aria-label="Overlay mode">{(['off','positioning','movement'] as const).map(value=><button key={value} className="ui-btn" data-variant={mode===value?'primary':'default'} aria-pressed={mode===value} onClick={()=>setMode(value)}>{value[0].toUpperCase()+value.slice(1)}</button>)}</div>
- {mode!=='off'&&<><select className="ui-input" aria-label="Overlay players" value={selection} onChange={e=>setSelection(e.target.value)}><option value="all">All players</option>{teams.map(team=><option key={team} value={`team:${team}`}>{players.filter(p=>p.team===team).map(p=>p.shortName??p.name).join(' / ')}</option>)}{players.map(p=><option key={p.key} value={p.key}>{p.name}</option>)}</select><button className="ui-btn" aria-expanded={customize} onClick={()=>setCustomize(!customize)}>Customize</button></>}
+ </svg>}<span className="tracking-badge">{status||`${paused?'Paused review':'Tracking'} · observed positions`}</span></div>,host)}
+ <aside className="tracking-panel tracking-rail" aria-label="Video overlay settings">
+ <div className="tracking-panel-heading"><h3>Overlays</h3></div>
+ <div className="tracking-controls" aria-label="Tracking overlays"><div role="group" aria-label="Overlay mode">{(['off','positioning','movement'] as const).map(value=><button key={value} className="ui-btn" data-variant={mode===value?'primary':'default'} aria-label={value==='positioning'?'Positioning':value==='movement'?'Movement':'Off'} aria-pressed={mode===value} onClick={()=>setMode(value)}>{value==='positioning'?'Shape':value==='movement'?'Motion':'Off'}</button>)}</div></div>
+ <div className="tracking-roster" aria-label="Overlay players">
+ <button className="ui-btn" data-variant={selection==='all'?'primary':'default'} aria-pressed={selection==='all'} onClick={()=>{setSelection('all');if(mode==='off')setMode('positioning');}}>Everyone</button>
+ {teams.map((team,index)=><div className="tracking-team" key={team} style={{'--team-color':teamColor(team)} as CSSProperties}>
+ <button className="ui-btn tracking-team-choice" data-variant={selection===`team:${team}`?'primary':'ghost'} aria-label={`Show team: ${players.filter(p=>p.team===team).map(p=>p.shortName??p.name).join(' and ')}`} aria-pressed={selection===`team:${team}`} onClick={()=>{setSelection(`team:${team}`);if(mode==='off')setMode('positioning');}}><i/>Team {index+1}</button>
+ {players.filter(p=>p.team===team).map(p=><button key={p.key} className="ui-btn tracking-avatar-choice" data-variant={selection===p.key?'primary':'ghost'} aria-label={`Show ${p.name}`} aria-pressed={selection===p.key} title={p.name} onClick={()=>{setSelection(p.key);if(mode==='off')setMode('positioning');}}><span className="tracking-avatar" data-active={selected.some(q=>q.key===p.key)&&mode!=='off'}>{p.avatar?<img src={p.avatar} alt="" onError={e=>{e.currentTarget.style.display='none';}}/>:null}<span>{p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</span></span><span className="tracking-avatar-name">{p.shortName??p.name}{mode==='movement'&&selected.some(q=>q.key===p.key)&&<small>{speedAt(tracking.rows,time,p.key)?.toFixed(1)??'—'} km/h</small>}</span></button>)}
+ </div>)}
  </div>
- {mode!=='off'&&customize&&<div className="tracking-options"><label><input type="checkbox" checked={names} onChange={e=>setNames(e.target.checked)}/>Player names</label>{mode==='positioning'?<label><input type="checkbox" checked={net} onChange={e=>setNet(e.target.checked)}/>Net distances while playing</label>:<label><input type="checkbox" checked={trails} onChange={e=>setTrails(e.target.checked)}/>Trails · last 2 seconds</label>}<small>Additional positioning measurements appear when paused.</small></div>}
+ <button className="ui-btn tracking-details-toggle" aria-expanded={customize} onClick={()=>setCustomize(!customize)}>Details {customize?'−':'+'}</button>
+ {customize&&<div className="tracking-detail-popover"><div className="tracking-detail-title"><strong>Overlay details</strong><button className="ui-btn" aria-label="Close overlay details" onClick={()=>setCustomize(false)}>×</button></div>
+ {mode!=='off'&&<div className="tracking-options"><label><input type="checkbox" checked={names} onChange={e=>setNames(e.target.checked)}/>Player names</label>{mode==='positioning'?<label><input type="checkbox" checked={net} onChange={e=>setNet(e.target.checked)}/>Net distances while playing</label>:<label><input type="checkbox" checked={trails} onChange={e=>setTrails(e.target.checked)}/>Trails · last 2 seconds</label>}<small>Additional positioning measurements appear when paused.</small></div>}
  {mode==='off'&&<p className="tracking-off-hint">Choose a view to inspect player positioning or movement.</p>}
  {mode!=='off'&&<div className="tracking-readout">{status&&<span role="status">{status} {tracking.error&&<button className="ui-btn" onClick={tracking.retry}>Retry</button>}</span>}
  {mode==='movement'&&current.map(p=>{const speed=speedAt(tracking.rows,time,p.key);return <span key={p.key}><i style={{background:teamColor(p.team)}}/>{p.shortName??p.name} <strong>{speed==null?'—':`${speed.toFixed(1)} km/h`}</strong></span>;})}
  {mode==='positioning'&&paused&&pairs.map(([a,b])=>{const m=pairMetrics(a.xy!,b.xy!);return <span key={a.team}>{a.shortName??a.name} / {b.shortName??b.name} · <strong>{m.spacing.toFixed(1)} m apart</strong> · depth difference <strong>{m.depth.toFixed(1)} m</strong></span>;})}
  <small>{mode==='movement'?'Speed: 1-second displacement. Gaps are unavailable, not zero. ':'Distances measured on the court floor. '}Player identities after cuts may need review.</small></div>}
+ </div>}
  </aside></>;
 }
 

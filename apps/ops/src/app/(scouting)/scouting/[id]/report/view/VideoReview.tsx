@@ -42,7 +42,7 @@ export default function VideoReview({data,scope,readOnly=false,initialPointId,re
  const activeSource=selectReviewSource(sourceChoice,{broadcast:!!broadcast,uploaded:!!hostedVideo,local:!!localFile});
  const source=useMemo(()=>activeSource==='local'&&localFile?{kind:'file' as const,id:localFile.url,url:localFile.url}:activeSource==='uploaded'&&hostedVideo?{kind:'file' as const,id:hostedVideo.id,url:hostedVideo.url}:broadcast,[activeSource,broadcast,localFile,hostedVideo]);
  const analysisPlayback=activeSource==='uploaded'||activeSource==='local'&&!!hostedVideo&&localFile?.name===hostedVideo.name&&localFile?.size===hostedVideo.size;
- const trackingResult=useMemo(()=>published.result?{...published.result,manifest:{...published.result.manifest,players:published.result.manifest.players.map(p=>({...p,shortName:data.players.find(player=>player.id===p.id)?.shortName??p.name}))}}:undefined,[published.result,data.players]);
+ const trackingResult=useMemo(()=>published.result?{...published.result,manifest:{...published.result.manifest,players:published.result.manifest.players.map(p=>({...p,shortName:data.players.find(player=>player.id===p.id)?.shortName??p.name,avatar:data.players.find(player=>player.id===p.id)?.avatar}))}}:undefined,[published.result,data.players]);
  const rawPoints=useMemo(()=>replayPoints(data.scopes.all.points,data.scopes.all.taps),[data]);
  const firstRecorded=rawPoints.find(p=>p.start!==null)?.start??null;
  const liveClock=firstRecorded!==null&&firstRecorded>100000000;
