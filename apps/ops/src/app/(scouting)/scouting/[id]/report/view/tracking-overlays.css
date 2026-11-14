@@ -1,0 +1,17 @@
+.vr-player{position:relative}
+.tracking-video-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:2}
+.tracking-badge{position:absolute;top:10px;left:10px;border-radius:5px;padding:5px 8px;background:#101917dd;color:white;font:11px system-ui,sans-serif}
+.tracking-controls,.tracking-options,.tracking-readout{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 12px;background:#f7f9f3;color:#263123;border-top:1px solid #dce2d4;font-size:12px}
+.tracking-controls>div{display:flex;gap:4px}.tracking-controls select{max-width:260px}.tracking-options label{display:flex;align-items:center;gap:6px}.tracking-options input{accent-color:#759b00}.tracking-options small,.tracking-readout small{flex-basis:100%;color:#65715b;font-size:11px}.tracking-readout>span{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.tracking-readout>span+span{margin-left:12px}.tracking-readout i{width:8px;height:8px;border-radius:50%}.tracking-readout strong{font-variant-numeric:tabular-nums}
+.tracking-court-2d{flex:1;min-height:0;position:relative;display:flex;flex-direction:column;align-items:center;background:#101923;color:white;overflow:hidden}.tracking-court-2d svg{width:100%;flex:1;min-height:0}.tracking-court-2d small{font-size:9px;padding:4px;text-align:center}.tracking-court-2d p{position:absolute;inset:35% 8px auto;text-align:center;padding:8px;background:#101923e8;font-size:12px}
+.vr-court-preview>.tracking-court-2d{min-height:100px}.vr-court-preview.is-docked>.tracking-court-2d{min-height:250px}
+@media(max-width:600px){.tracking-controls select{max-width:180px}.tracking-readout>span+span{margin-left:0}.tracking-badge{font-size:9px}}
+
+.video-review .vr-media-shell.vr-youtube-controls>.vr-transport{bottom:var(--tracking-panel-height,0px)}
+.tracking-panel{flex:none;min-width:0}
+.vr-media-shell.vr-youtube-controls:fullscreen .vr-player{height:calc(100dvh - var(--tracking-panel-height,0px))!important}
+.vr-media-shell:has(>.vr-court-docked:not([hidden]))>.tracking-panel{grid-column:1/-1;grid-row:3}
+.video-review .vr-media-shell.vr-youtube-controls:has(>.vr-court-docked:not([hidden]))>.vr-transport{bottom:auto}
+@media(max-width:700px){.vr-media-shell:has(>.vr-court-docked:not([hidden]))>.tracking-panel{grid-row:4}}
+.tracking-court-2d svg{position:absolute;inset:0;width:100%;height:calc(100% - 20px)}
+.tracking-court-2d small{position:absolute;bottom:0;left:0;right:0}

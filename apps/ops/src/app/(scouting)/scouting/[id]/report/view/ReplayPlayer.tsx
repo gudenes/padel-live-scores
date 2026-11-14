@@ -1,5 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import TrackingOverlays from './TrackingOverlays';
+import type {AnalysisResult} from '@/lib/scouting/use-analysis-result';
 import {videoSource} from '@/lib/scouting/video-review';
 import {nextPointPlayback,type PlayWindow} from '@/lib/scouting/continuous-points';
 type Player={getPlayerState:()=>number;seekTo:(n:number,b:boolean)=>void;playVideo:()=>void;pauseVideo:()=>void;getCurrentTime:()=>number;getDuration:()=>number;destroy:()=>void};
@@ -11,7 +13,7 @@ function youtube(){
  if(!apiPromise)apiPromise=new Promise<API>((resolve,reject)=>{const previous=window.onYouTubeIframeAPIReady;window.onYouTubeIframeAPIReady=()=>{previous?.();resolve(window.YT!)};const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=()=>{apiPromise=null;reject(Error('Could not load YouTube.'))};document.head.appendChild(s)});
  return apiPromise;
 }
-export default function ReplayPlayer({source,command,loop,onTime,stopAt,playWindows,captureFrames=false}:{captureFrames?:boolean;playWindows?:PlayWindow[];stopAt?:number|null;source:NonNullable<ReturnType<typeof videoSource>>;command:{time:number;serial:number;play?:boolean};loop:{start:number;end:number}|null;onTime:(time:number,duration:number)=>void}){
+export default function ReplayPlayer({source,command,loop,onTime,stopAt,playWindows,captureFrames=false,analysisResult}:{analysisResult?:AnalysisResult;captureFrames?:boolean;playWindows?:PlayWindow[];stopAt?:number|null;source:NonNullable<ReturnType<typeof videoSource>>;command:{time:number;serial:number;play?:boolean};loop:{start:number;end:number}|null;onTime:(time:number,duration:number)=>void}){
  const host=useRef<HTMLDivElement>(null),video=useRef<HTMLVideoElement>(null),yt=useRef<Player|null>(null),latest=useRef({command,loop,onTime,stopAt,playWindows});latest.current={command,loop,onTime,stopAt,playWindows};
  const [error,setError]=useState('');
  const shell=useRef<HTMLDivElement>(null);
@@ -46,7 +48,7 @@ export default function ReplayPlayer({source,command,loop,onTime,stopAt,playWind
  </div>
  <div className="vr-player-settings"><button className="ui-btn" title="Settings" aria-label="Player settings" aria-expanded={settings} onClick={()=>setSettings(!settings)}><Icon name="settings"/></button>{settings&&<div className="vr-speed-menu"><label>Playback speed<select aria-label="Playback speed" value={rate} onChange={e=>{if(video.current)video.current.playbackRate=Number(e.target.value);setSettings(false)}}>{[.25,.5,.75,1,1.5,2].map(v=><option key={v} value={v}>{v===1?'Normal':`${v}×`}</option>)}</select></label><small>Space / K · Play or pause<br/>← → · 5 seconds · , . · Frame</small></div>}</div>
  <button className="ui-btn" title="Fullscreen" aria-label="Fullscreen video" onClick={()=>{if(document.fullscreenElement)void document.exitFullscreen();else void shell.current?.requestFullscreen()}}><Icon name="fullscreen"/></button>
- </div></div>}</div>;
+ </div></div>}{analysisResult&&source.kind==='file'&&<TrackingOverlays key={analysisResult.id+source.id} result={analysisResult} video={video}/>}</div>;
 }
 
 function Icon({name}:{name:string}){const paths:Record<string,string>={play:'M8 5v14l11-7z',pause:'M6 5h4v14H6z M14 5h4v14h-4z',volume:'M3 9h4l5-4v14l-5-4H3z M16 8q6 4 0 8 M18 4q10 8 0 16',mute:'M3 9h4l5-4v14l-5-4H3z M16 9l6 6 M22 9l-6 6',fullscreen:'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5',settings:'M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0'};return <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill={name==='play'||name==='pause'?'currentColor':'none'} stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round"><path d={paths[name]}/></svg>}
