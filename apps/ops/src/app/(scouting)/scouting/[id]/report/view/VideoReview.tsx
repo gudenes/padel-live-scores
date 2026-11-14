@@ -20,6 +20,7 @@ import ReplayMomentum from './ReplayMomentum';
 import MatchVideoTimeline from './MatchVideoTimeline';
 import {momentLabelGroups,cleanMomentLabels} from '@/lib/scouting/moment-labels';
 import {ArrowLeft,ArrowRight,CheckCircle} from './Icons';
+import {TrackingRulesProvider} from './TrackingRules';
 import './video-review.css';
 const outcomes:Record<string,string>={winner:'Winner',unforced:'Unforced error',forced:'Forced error committed',created:'Forced error created',double_fault:'Double fault',unclassified:'Unclassified'};
 export default function VideoReview({data,scope,readOnly=false,initialPointId,reviewContext,movementTime,movementPlayer}:{data:ReportView;scope:string;readOnly?:boolean;initialPointId?:string|null;reviewContext?:ReviewContext;movementTime?:number|null;movementPlayer?:string|null}){
@@ -124,7 +125,7 @@ export default function VideoReview({data,scope,readOnly=false,initialPointId,re
   const time=Math.max(0,scoutToVideo(originalTime,nextOffset,nextAlignment));
   setSourceChoice(next);setDuration(0);setMode('full');setClipEnd(null);setClock(time);setCommand(c=>({time,serial:c.serial+1,play:false}));
  }
- return <section className="video-review" aria-label="Video review">
+ return <TrackingRulesProvider><section className="video-review" aria-label="Video review">
  <div className="vr-heading"><div className="vr-heading-main"><div><h2>Video review</h2><p>Find the point. Watch the context. Review it together.</p></div>{localPilot&&!readOnly&&!source&&<button className="ui-btn" data-variant="primary" onClick={()=>setUploadOpen(true)}>Add video</button>}{!readOnly&&<button className="ui-btn va-status-button" title="Video & analysis" aria-label={`Video & analysis: ${analysisPill}`} aria-controls="video-analysis-drawer" aria-expanded={analysisOpen} onClick={()=>setAnalysisOpen(!analysisOpen)}>{analysisPill}</button>}</div><button className="ui-btn vr-filter-toggle" data-variant={filtersOpen?'default':'primary'} aria-expanded={filtersOpen&&!analysisOpen} aria-controls="review-filters" onClick={()=>{setAnalysisOpen(false);setFiltersOpen(analysisOpen?true:!filtersOpen)}}><span aria-hidden="true">☷</span><span>{filtersOpen&&!analysisOpen?'Hide filters':'Show filters'}{player!=='all'||outcome.length||shot.length||length!=='all'||phase!=='all'||keyOnly||outsideOnly?' · Active':''}</span><span aria-hidden="true">{filtersOpen?'›':'‹'}</span></button></div>
  {!readOnly&&connecting&&<form className="vr-connect" onSubmit={connect}><label>Original match video<input className="ui-input" type="url" value={draft} onChange={e=>setDraft(e.target.value)} placeholder="Paste the original Red Bull TV, YouTube or direct video link" required/></label><button className="ui-btn" data-variant="primary">Connect video</button><p>Saved in this browser only. Use the original broadcast so the recorded times match.</p>{error&&<p role="alert">{error}</p>}</form>}
  {uploadOpen&&<VideoUploadWizard firstScouted={rawPoints.find(p=>p.start!==null)?{id:rawPoints.find(p=>p.start!==null)!.id,start:firstRecorded!,label:pointScore(rawPoints.find(p=>p.start!==null)!)}:null} initialSetup={analysisSetup} videoId={hostedVideo?.id} hostedVideo={hostedVideo} players={data.players.map(p=>p.name)} playerIds={data.players.map(p=>p.id)} initialOffset={location.pathname.includes('53969a2c-431f-4ccc-a0e0-fc4cc84bcdfa')?18881:0} onClose={()=>setUploadOpen(false)} onComplete={(file,offset,setup)=>{setSourceChoice(file?(broadcast?'broadcast':'local'):'uploaded');setAnalysisSetup(setup);if(file){setUploadFile(file);setLocalFile({url:URL.createObjectURL(file),name:file.name,size:file.size})}else{setUploadFile(null);setHostedVideo(v=>v?{...v,offset}:v)}setVideoStart(offset);setDuration(0);setMode('full');setCommand({time:file&&broadcast?clock:setup.matchStart,serial:Date.now(),play:false});setClock(file&&broadcast?clock:setup.matchStart);setError('');setConnecting(false);setUploadOpen(false);setAnalysisOpen(true)}}/>}
@@ -204,5 +205,5 @@ export default function VideoReview({data,scope,readOnly=false,initialPointId,re
  <div className="vr-moment-actions"><button type="button" className="ui-btn" onClick={()=>momentDialog.current?.close()}>Cancel</button><button type="submit" className="ui-btn" data-variant="primary">Save moment</button></div>
  </form></dialog>
  {!readOnly&&reviewContext&&<ReviewNotes key={`${reviewContext.manual}:${reviewContext.matchId}:${reviewContext.userId}`} context={reviewContext} videoUrl={source?.url??''} clock={playbackReady?clock:null} onSeek={(nextUrl,time)=>{setUrl(nextUrl);setDraft(nextUrl);seek(time)}}/>}
- </section>
+ </section></TrackingRulesProvider>
 }
