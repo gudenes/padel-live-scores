@@ -1,10 +1,11 @@
 'use client';
-import {useEffect,useRef,useState,type RefObject,type CSSProperties} from 'react';
+import {useEffect,useRef,useState,useId,type RefObject,type CSSProperties} from 'react';
 import {createPortal} from 'react-dom';
 import type {AnalysisResult} from '@/lib/scouting/use-analysis-result';
 import {useTrackingWindow} from '@/lib/scouting/use-tracking-window';
 import {groundRing,pairMetrics,positionAt,projectCourt,speedAt,trailAt,type XY} from '@/lib/scouting/tracking-overlay';
 import {syncVideoFrames} from '@/lib/scouting/video-frame-sync';
+import {OverlayOff,TeamShape,MovementTrail,PlayerGroup,OverlaySettings,ArrowLeft,ArrowRight} from './Icons';
 import './tracking-overlays.css';
 const colors=['#ffc247','#c6f70e'];
 const teamColor=(team:number)=>colors[team%colors.length];
@@ -49,17 +50,17 @@ export default function TrackingOverlays({result,video,onCourtToolsHost}:{onCour
  <g className="tracking-foot-marker">{ring&&<><path d={ring} fill={color} fillOpacity={.12} stroke="#101917" strokeOpacity={.7} strokeWidth={4.5}/><path d={ring} fill="none" stroke={color} strokeWidth={2}/></>}<circle cx={at[0]} cy={at[1]} r={2.5} fill={color} stroke="#101917" strokeWidth={1}/></g>{names&&<Tag at={[Math.max((p.shortName??p.name).length*3.25+8,Math.min(box.width-(p.shortName??p.name).length*3.25-8,at[0])),Math.min(box.height-15,at[1]+25)]} text={p.shortName??p.name} color={color}/>}</g>;})}
  </svg>}<span className="tracking-badge">{status||`${paused?'Paused review':'Tracking'} · observed positions`}</span></div>,host)}
  {host&&createPortal(<aside className="tracking-panel tracking-rail" data-collapsed={collapsed} aria-label="Video overlay settings" onKeyDown={e=>{if(e.key==='Escape')setCustomize(false);}}>
- <div className="tracking-panel-heading"><h3>Overlays</h3><button className="ui-btn" aria-label={collapsed?'Expand overlay toolbar':'Collapse overlay toolbar'} aria-expanded={!collapsed} onClick={()=>{setCollapsed(!collapsed);setCustomize(false);}}>{collapsed?'+':'−'}</button></div><div className="tracking-rail-body" hidden={collapsed}>
- <div className="tracking-controls" aria-label="Tracking overlays"><div role="group" aria-label="Overlay mode">{(['off','positioning','movement'] as const).map(value=><button key={value} className="ui-btn" data-variant={mode===value?'primary':'default'} aria-label={value==='positioning'?'Positioning':value==='movement'?'Movement':'Off'} aria-pressed={mode===value} onClick={()=>setMode(value)}>{value==='positioning'?'Shape':value==='movement'?'Motion':'Off'}</button>)}</div></div>
+ <div className="tracking-panel-heading"><h3>Overlays</h3><button className="ui-btn" aria-label={collapsed?'Expand overlay toolbar':'Collapse overlay toolbar'} title={collapsed?'Expand toolbar':'Collapse toolbar'} aria-expanded={!collapsed} onClick={()=>{setCollapsed(!collapsed);setCustomize(false);}}>{collapsed?<ArrowLeft size={14}/>:<ArrowRight size={14}/>}</button></div><div className="tracking-rail-body" hidden={collapsed}>
+ <div className="tracking-controls" aria-label="Tracking overlays"><div role="group" aria-label="Overlay mode">{(['off','positioning','movement'] as const).map(value=><button key={value} className="ui-btn" data-variant={mode===value?'primary':'default'} aria-label={value==='positioning'?'Positioning':value==='movement'?'Movement':'Off'} title={value==='positioning'?'Team shape and net distances':value==='movement'?'Movement trails and speed':'Hide video overlays'} aria-pressed={mode===value} onClick={()=>setMode(value)}>{value==='positioning'?<TeamShape/>:value==='movement'?<MovementTrail/>:<OverlayOff/>}</button>)}</div></div>
  <div className="tracking-roster" aria-label="Overlay players">
- <button className="ui-btn" data-variant={selection==='all'?'primary':'default'} aria-pressed={selection==='all'} onClick={()=>{setSelection('all');if(mode==='off')setMode('positioning');}}>Everyone</button>
+ <button className="ui-btn" aria-label="Show all players" title="Show all players" data-variant={selection==='all'?'primary':'default'} aria-pressed={selection==='all'} onClick={()=>{setSelection('all');if(mode==='off')setMode('positioning');}}><PlayerGroup/></button>
  {teams.map((team,index)=><div className="tracking-team" key={team} style={{'--team-color':teamColor(team)} as CSSProperties}>
- <button className="ui-btn tracking-team-choice" data-variant={selection===`team:${team}`?'primary':'ghost'} aria-label={`Show team: ${players.filter(p=>p.team===team).map(p=>p.shortName??p.name).join(' and ')}`} aria-pressed={selection===`team:${team}`} onClick={()=>{setSelection(`team:${team}`);if(mode==='off')setMode('positioning');}}><i/>Team {index+1}</button>
+ <button className="ui-btn tracking-team-choice" data-variant={selection===`team:${team}`?'primary':'ghost'} title={`Show team ${index+1}`} aria-label={`Show team: ${players.filter(p=>p.team===team).map(p=>p.shortName??p.name).join(' and ')}`} aria-pressed={selection===`team:${team}`} onClick={()=>{setSelection(`team:${team}`);if(mode==='off')setMode('positioning');}}><i/><PlayerGroup size={15}/><span>{index+1}</span></button>
  {players.filter(p=>p.team===team).map(p=><button key={p.key} className="ui-btn tracking-avatar-choice" data-variant={selection===p.key?'primary':'ghost'} aria-label={`Show ${p.name}`} aria-pressed={selection===p.key} title={p.name} onClick={()=>{setSelection(p.key);if(mode==='off')setMode('positioning');}}><span className="tracking-avatar" data-active={selected.some(q=>q.key===p.key)&&mode!=='off'}>{p.avatar?<img src={p.avatar} alt="" onError={e=>{e.currentTarget.style.display='none';}}/>:null}<span>{p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</span></span><span className="tracking-avatar-name">{p.shortName??p.name}{mode==='movement'&&selected.some(q=>q.key===p.key)&&<small>{speedAt(tracking.rows,time,p.key)?.toFixed(1)??'—'} km/h</small>}</span></button>)}
  </div>)}
  </div>
  <div className="tracking-court-controls" ref={onCourtToolsHost}/>
- <button className="ui-btn tracking-details-toggle" aria-expanded={customize} onClick={()=>setCustomize(!customize)}>Details {customize?'−':'+'}</button>
+ <button className="ui-btn tracking-details-toggle" aria-label="Overlay settings" title="Overlay settings and measurements" aria-expanded={customize} onClick={()=>setCustomize(!customize)}><OverlaySettings/></button>
  </div>
  {customize&&<div className="tracking-detail-popover"><div className="tracking-detail-title"><strong>Overlay details</strong><button className="ui-btn" aria-label="Close overlay details" onClick={()=>setCustomize(false)}>×</button></div>
  {mode!=='off'&&<div className="tracking-options"><label><input type="checkbox" checked={names} onChange={e=>setNames(e.target.checked)}/>Player names</label>{mode==='positioning'?<label><input type="checkbox" checked={net} onChange={e=>setNet(e.target.checked)}/>Net distances while playing</label>:<label><input type="checkbox" checked={trails} onChange={e=>setTrails(e.target.checked)}/>Trails · last 2 seconds</label>}<small>Additional positioning measurements appear when paused.</small></div>}
@@ -74,12 +75,22 @@ export default function TrackingOverlays({result,video,onCourtToolsHost}:{onCour
 
 export function TrackingCourt2D({result,time}:{result:AnalysisResult;time:number}){
  const {rows,loading,error,retry}=useTrackingWindow(result,time);
+ const id=useId().replaceAll(':','');
  const players=result.manifest.players.map(p=>({...p,xy:positionAt(rows,time,p.key)}));
- const point=(xy:XY):XY=>[30+xy[0]*12,20+xy[1]*12];
- return <div className="tracking-court-2d"><svg viewBox="0 0 180 280" role="img" aria-label="2D court showing observed player positions">
- <rect x="30" y="20" width="120" height="240" rx="1" fill="#1467a9" stroke="white"/><path d="M30 56 L150 56 M30 224 L150 224 M90 56 L90 224" stroke="white" strokeWidth="1" fill="none"/><path d="M27 140 L153 140" stroke="white" strokeWidth="2"/>
- {[...new Set(players.map(p=>p.team))].map(team=>{const ps=players.filter(p=>p.team===team);if(ps.length!==2||!ps[0].xy||!ps[1].xy)return null;const a=point(ps[0].xy),b=point(ps[1].xy);return <line key={team} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={teamColor(team)} strokeWidth="1.5"/>;})}
- {players.map(p=>{if(!p.xy)return null;const [x,y]=point(p.xy);return <g key={p.key}><circle cx={x} cy={y} r="4" fill={teamColor(p.team)}/><text x={x} y={y-8} textAnchor="middle" fill="white" fontSize="6">{p.shortName??p.name}</text></g>;})}</svg>
+ // Rotate the top-down court to use the miniature width, preserving metre coordinates.
+ const point=(xy:XY):XY=>[26+xy[1]*12,28+(10-xy[0])*12];
+ const teams=[...new Set(players.map(p=>p.team))];
+ return <div className="tracking-court-2d tracking-court-portraits"><svg viewBox="0 0 292 226" role="img" aria-label="2D court with player portraits at observed positions; far end left, near end right">
+ <defs><linearGradient id={`${id}-surface`} x1="0" y1="0" x2="0" y2="1"><stop stopColor="#226f9b"/><stop offset="1" stopColor="#124766"/></linearGradient>{players.map((p,i)=><clipPath id={`${id}-avatar-${i}`} key={p.key}><circle r="12"/></clipPath>)}</defs>
+ <text x="26" y="16" className="court-end-label">FAR END</text><text x="266" y="16" textAnchor="end" className="court-end-label">NEAR END</text>
+ <rect x="19" y="21" width="254" height="134" rx="5" fill="#0d2532" stroke="#4d7285"/>
+ <rect x="26" y="28" width="240" height="120" fill={`url(#${id}-surface)`} stroke="#c4dce5" strokeWidth="1.2"/>
+ <path d="M62 28v120M230 28v120M62 88h168" stroke="#c4dce5" strokeWidth=".9" fill="none"/>
+ <path d="M146 25v126" stroke="#071b26" strokeWidth="5"/><path d="M146 25v126" stroke="#edf7fa" strokeWidth="2" strokeDasharray="2 2"/>
+ {teams.map(team=>{const ps=players.filter(p=>p.team===team);if(ps.length!==2||!ps[0].xy||!ps[1].xy)return null;const a=point(ps[0].xy),b=point(ps[1].xy);return <line key={team} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={teamColor(team)} strokeWidth="2" opacity=".8"/>;})}
+ {players.map((p,i)=>{if(!p.xy)return null;const [x,y]=point(p.xy),label=p.shortName??p.name;return <g key={p.key} role="img" aria-label={`${p.name}, ${Math.abs(p.xy[1]-10).toFixed(1)} metres from net`}><title>{p.name} · {Math.abs(p.xy[1]-10).toFixed(1)} m from net</title><g transform={`translate(${x},${y})`}><circle r="15" fill="#071b26" fillOpacity=".75"/><circle r="13.5" fill="#e9eee8" stroke={teamColor(p.team)} strokeWidth="2.5"/><text textAnchor="middle" dominantBaseline="central" fill="#263123" fontSize="8" fontWeight="700">{p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</text>{p.avatar&&<image href={p.avatar} x="-12" y="-12" width="24" height="24" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${id}-avatar-${i})`} onError={e=>{e.currentTarget.style.display='none';}}/>}</g><g transform={`translate(${Math.max(42,Math.min(250,x))},${y>125?y-21:y+23})`}><rect x={-label.length*2.1-5} y="-6" width={label.length*4.2+10} height="13" rx="4" fill="#071b26" fillOpacity=".9"/><text textAnchor="middle" dominantBaseline="central" fill="#f4f8fa" fontSize="7.5">{label}</text></g></g>;})}
+ {teams.map((team,i)=>{const ps=players.filter(p=>p.team===team),spacing=ps.length===2&&ps.every(p=>p.xy)?pairMetrics(ps[0].xy!,ps[1].xy!).spacing:null;return <g key={team} transform={`translate(${20+i*138},170)`}><rect width="130" height="39" rx="6" fill="#19313e"/><circle cx="11" cy="12" r="3" fill={teamColor(team)}/><text x="20" y="15" fill="#c6d8df" fontSize="8">Team {i+1} spacing</text><text x="10" y="30" fill="#f4f8fa" fontSize="12" fontWeight="600">{spacing===null?'—':`${spacing.toFixed(1)} m`}</text></g>;})}
+ </svg>
  {(loading||error||!players.some(p=>p.xy))&&<p role="status">{error|| (loading?'Loading tracking…':'No reliable tracking at this moment.')}{error&&<button className="ui-btn" onClick={retry}>Retry</button>}</p>}
  <small>Observed positions · identities may need review</small></div>;
 }

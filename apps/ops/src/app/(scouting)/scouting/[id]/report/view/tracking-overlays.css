@@ -46,3 +46,5 @@
 @media(max-width:700px){.vr-player>.tracking-rail{right:6px;top:6px;width:116px;max-height:calc(100% - 56px)}.tracking-detail-popover{right:calc(100% + 4px)}}
 
 .tracking-rail-body{gap:4px}.tracking-rail .tracking-avatar{width:26px;height:26px}.tracking-rail .tracking-avatar-choice{min-height:31px}.tracking-rail .tracking-team-choice{min-height:21px;padding:2px}.tracking-rail .tracking-team{padding-top:3px}
+
+.tracking-rail .tracking-controls .ui-btn,.tracking-court-controls .ui-btn{min-height:29px;display:flex;align-items:center;justify-content:center}.tracking-rail .tracking-details-toggle{display:flex;justify-content:center;min-height:29px}.tracking-roster>.ui-btn{display:flex;justify-content:center}.tracking-team .tracking-team-choice{gap:5px}.tracking-court-portraits{background:#0e202c}.tracking-court-portraits .court-end-label{fill:#92adbb;font:7px system-ui;letter-spacing:1px}.tracking-court-portraits svg{height:calc(100% - 18px)}.tracking-court-portraits>small{font-size:8px;color:#9bb0bc}
