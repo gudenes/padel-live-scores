@@ -63,3 +63,6 @@ export const PlayerGroup = (props: Props) => <Icon {...props}><circle cx="9" cy=
 export const OverlaySettings = (props: Props) => <Icon {...props}><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2" fill="currentColor"/><circle cx="16" cy="12" r="2" fill="currentColor"/><circle cx="10" cy="18" r="2" fill="currentColor"/></Icon>;
 export const CourtFlat = (props: Props) => <Icon {...props}><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16M6 4v16M18 4v16M6 12h12"/></Icon>;
 export const CourtCube = (props: Props) => <Icon {...props}><path d="m12 2 9 5v10l-9 5-9-5V7Zm0 10 9-5m-9 5L3 7m9 5v10"/></Icon>;
+
+export const NetDistance = (props: Props) => <Icon {...props}><path d="M3 4h18M5 4v4m4-4v4m6-4v4m4-4v4M12 10v10m-3-7 3-3 3 3m-6 4 3 3 3-3"/></Icon>;
+export const PairConnection = (props: Props) => <Icon {...props}><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><path d="M8 12h2m4 0h2M4 5v3m16-3v3M4 16v3m16-3v3"/></Icon>;

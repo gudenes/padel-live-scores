@@ -5,7 +5,7 @@ import type {AnalysisResult} from '@/lib/scouting/use-analysis-result';
 import {useTrackingWindow} from '@/lib/scouting/use-tracking-window';
 import {groundRing,pairMetrics,positionAt,projectCourt,speedAt,trailAt,type XY} from '@/lib/scouting/tracking-overlay';
 import {syncVideoFrames} from '@/lib/scouting/video-frame-sync';
-import {OverlayOff,TeamShape,MovementTrail,PlayerGroup,OverlaySettings,ArrowLeft,ArrowRight} from './Icons';
+import {OverlayOff,TeamShape,MovementTrail,PlayerGroup,OverlaySettings,NetDistance,PairConnection,ArrowLeft,ArrowRight} from './Icons';
 import './tracking-overlays.css';
 const colors=['#ffc247','#c6f70e'];
 const teamColor=(team:number)=>colors[team%colors.length];
@@ -13,11 +13,19 @@ function Tag({at,text,color='#fff'}:{at:XY;text:string;color?:string}){
  const width=text.length*6.5+14;
  return <g transform={`translate(${at[0]},${at[1]})`}><rect x={-width/2} y={-11} width={width} height={22} rx={5} fill="#101917" fillOpacity=".9"/><text textAnchor="middle" dominantBaseline="central" fill={color} fontSize="11" fontFamily="system-ui,sans-serif">{text}</text></g>;
 }
+function PairLink({a,b,color,inset=9}:{a:XY;b:XY;color:string;inset?:number}){
+ const dx=b[0]-a[0],dy=b[1]-a[1],length=Math.hypot(dx,dy);if(length<inset*2+4)return null;
+ const ux=dx/length,uy=dy/length,from:XY=[a[0]+ux*inset,a[1]+uy*inset],to:XY=[b[0]-ux*inset,b[1]-uy*inset];
+ const path=`M${from[0]},${from[1]} L${to[0]},${to[1]}`;
+ const caps=[from,to].map(p=>`M${p[0]-uy*4},${p[1]+ux*4} L${p[0]+uy*4},${p[1]-ux*4}`).join(' ');
+ return <g><path d={path} stroke="#071b26" strokeOpacity=".65" strokeWidth="4" fill="none"/><path d={path} stroke={color} strokeWidth="1.8" strokeDasharray="7 5" strokeLinecap="round" fill="none"/><path d={caps} stroke={color} strokeWidth="2" strokeLinecap="round"/></g>;
+}
 export default function TrackingOverlays({result,video,onCourtToolsHost}:{onCourtToolsHost?:(host:HTMLDivElement|null)=>void;result:AnalysisResult;video:RefObject<HTMLVideoElement|null>}){
  const [collapsed,setCollapsed]=useState(false);
  const [mode,setMode]=useState<'off'|'positioning'|'movement'>('off');
  const [selection,setSelection]=useState('all'),[customize,setCustomize]=useState(false);
- const [net,setNet]=useState(false),[names,setNames]=useState(true),[trails,setTrails]=useState(true);
+ const [connection,setConnection]=useState(true);
+ const [net,setNet]=useState(true),[names,setNames]=useState(true),[trails,setTrails]=useState(true);
  const [time,setTime]=useState(0),[paused,setPaused]=useState(true);
  const [host,setHost]=useState<HTMLElement|null>(null),[box,setBox]=useState({width:0,height:0});
  const last=useRef(-1);
@@ -43,15 +51,16 @@ export default function TrackingOverlays({result,video,onCourtToolsHost}:{onCour
  const status=tracking.error|| (tracking.loading?'Loading saved tracking…':!hasPositions?'No reliable tracking at this moment.':!calibrated?'Video calibration unavailable. Court view remains available.':'');
  return <>
  {mode!=='off'&&host&&createPortal(<div className="tracking-video-layer" aria-hidden="true">{calibrated&&<svg width="100%" height="100%" viewBox={`0 0 ${box.width||1} ${box.height||1}`}>
- {mode==='positioning'&&pairs.map(pair=>{const [a,b]=pair,mid=project([(a.xy![0]+b.xy![0])/2,(a.xy![1]+b.xy![1])/2]);return <g key={a.team}>{line(a.xy!,b.xy!,teamColor(a.team))}{mid&&<Tag at={[mid[0],mid[1]+15]} text={`${pairMetrics(a.xy!,b.xy!).spacing.toFixed(1)} m`}/>}</g>;})}
+ {mode==='positioning'&&connection&&pairs.map(pair=>{const [a,b]=pair,mid=project([(a.xy![0]+b.xy![0])/2,(a.xy![1]+b.xy![1])/2]);return <g key={a.team}>{project(a.xy!)&&project(b.xy!)&&<PairLink a={project(a.xy!)!} b={project(b.xy!)!} color={teamColor(a.team)}/>}{mid&&<Tag at={[mid[0],mid[1]-14]} text={`${pairMetrics(a.xy!,b.xy!).spacing.toFixed(1)} m`}/>}</g>;})}
  {current.map(p=>{if(!p.xy)return null;const at=project(p.xy);if(!at)return null;const ring=groundRing(p.xy,project),color=teamColor(p.team),netPoint:XY=[p.xy[0],10],netAt=project(netPoint),trail=mode==='movement'&&trails?trailAt(tracking.rows,time,p.key):[];
  return <g key={p.key}>{trail.slice(1).map((q,i)=><g key={q.time} opacity={.15+.7*(i+1)/trail.length}>{line(trail[i].xy,q.xy,color)}</g>)}
- {mode==='positioning'&&(net||paused)&&netAt&&<>{line(p.xy,netPoint,color,true)}<Tag at={[(at[0]+netAt[0])/2+22,(at[1]+netAt[1])/2]} text={`Net ${Math.abs(p.xy[1]-10).toFixed(1)} m`}/></>}
+ {mode==='positioning'&&net&&netAt&&<>{line(p.xy,netPoint,color,true)}<Tag at={[(at[0]+netAt[0])/2+22,(at[1]+netAt[1])/2]} text={`Net ${Math.abs(p.xy[1]-10).toFixed(1)} m`}/></>}
  <g className="tracking-foot-marker">{ring&&<><path d={ring} fill={color} fillOpacity={.12} stroke="#101917" strokeOpacity={.7} strokeWidth={4.5}/><path d={ring} fill="none" stroke={color} strokeWidth={2}/></>}<circle cx={at[0]} cy={at[1]} r={2.5} fill={color} stroke="#101917" strokeWidth={1}/></g>{names&&<Tag at={[Math.max((p.shortName??p.name).length*3.25+8,Math.min(box.width-(p.shortName??p.name).length*3.25-8,at[0])),Math.min(box.height-15,at[1]+25)]} text={p.shortName??p.name} color={color}/>}</g>;})}
  </svg>}<span className="tracking-badge">{status||`${paused?'Paused review':'Tracking'} · observed positions`}</span></div>,host)}
  {host&&createPortal(<aside className="tracking-panel tracking-rail" data-collapsed={collapsed} aria-label="Video overlay settings" onKeyDown={e=>{if(e.key==='Escape')setCustomize(false);}}>
  <div className="tracking-panel-heading"><h3>Overlays</h3><button className="ui-btn" aria-label={collapsed?'Expand overlay toolbar':'Collapse overlay toolbar'} title={collapsed?'Expand toolbar':'Collapse toolbar'} aria-expanded={!collapsed} onClick={()=>{setCollapsed(!collapsed);setCustomize(false);}}>{collapsed?<ArrowLeft size={14}/>:<ArrowRight size={14}/>}</button></div><div className="tracking-rail-body" hidden={collapsed}>
  <div className="tracking-controls" aria-label="Tracking overlays"><div role="group" aria-label="Overlay mode">{(['off','positioning','movement'] as const).map(value=><button key={value} className="ui-btn" data-variant={mode===value?'primary':'default'} aria-label={value==='positioning'?'Positioning':value==='movement'?'Movement':'Off'} title={value==='positioning'?'Team shape and net distances':value==='movement'?'Movement trails and speed':'Hide video overlays'} aria-pressed={mode===value} onClick={()=>setMode(value)}>{value==='positioning'?<TeamShape/>:value==='movement'?<MovementTrail/>:<OverlayOff/>}</button>)}</div></div>
+ {mode==='positioning'&&<div className="tracking-measurement-controls" role="group" aria-label="Positioning measurements"><button className="ui-btn" title="Show or hide net distances" aria-label="Net distances" aria-pressed={net} data-variant={net?'primary':'default'} onClick={()=>setNet(!net)}><NetDistance/></button><button className="ui-btn" title="Show or hide teammate connection" aria-label="Teammate connection" aria-pressed={connection} data-variant={connection?'primary':'default'} onClick={()=>setConnection(!connection)}><PairConnection/></button></div>}
  <div className="tracking-roster" aria-label="Overlay players">
  <button className="ui-btn" aria-label="Show all players" title="Show all players" data-variant={selection==='all'?'primary':'default'} aria-pressed={selection==='all'} onClick={()=>{setSelection('all');if(mode==='off')setMode('positioning');}}><PlayerGroup/></button>
  {teams.map((team,index)=><div className="tracking-team" key={team} style={{'--team-color':teamColor(team)} as CSSProperties}>
@@ -63,7 +72,7 @@ export default function TrackingOverlays({result,video,onCourtToolsHost}:{onCour
  <button className="ui-btn tracking-details-toggle" aria-label="Overlay settings" title="Overlay settings and measurements" aria-expanded={customize} onClick={()=>setCustomize(!customize)}><OverlaySettings/></button>
  </div>
  {customize&&<div className="tracking-detail-popover"><div className="tracking-detail-title"><strong>Overlay details</strong><button className="ui-btn" aria-label="Close overlay details" onClick={()=>setCustomize(false)}>×</button></div>
- {mode!=='off'&&<div className="tracking-options"><label><input type="checkbox" checked={names} onChange={e=>setNames(e.target.checked)}/>Player names</label>{mode==='positioning'?<label><input type="checkbox" checked={net} onChange={e=>setNet(e.target.checked)}/>Net distances while playing</label>:<label><input type="checkbox" checked={trails} onChange={e=>setTrails(e.target.checked)}/>Trails · last 2 seconds</label>}<small>Additional positioning measurements appear when paused.</small></div>}
+ {mode!=='off'&&<div className="tracking-options"><label><input type="checkbox" checked={names} onChange={e=>setNames(e.target.checked)}/>Player names</label>{mode==='positioning'?<label><input type="checkbox" checked={net} onChange={e=>setNet(e.target.checked)}/>Net distances</label>:<label><input type="checkbox" checked={trails} onChange={e=>setTrails(e.target.checked)}/>Trails · last 2 seconds</label>}<small>Net distances can be shown or hidden during playback and when paused.</small></div>}
  {mode==='off'&&<p className="tracking-off-hint">Choose a view to inspect player positioning or movement.</p>}
  {mode!=='off'&&<div className="tracking-readout">{status&&<span role="status">{status} {tracking.error&&<button className="ui-btn" onClick={tracking.retry}>Retry</button>}</span>}
  {mode==='movement'&&current.map(p=>{const speed=speedAt(tracking.rows,time,p.key);return <span key={p.key}><i style={{background:teamColor(p.team)}}/>{p.shortName??p.name} <strong>{speed==null?'—':`${speed.toFixed(1)} km/h`}</strong></span>;})}
@@ -87,7 +96,7 @@ export function TrackingCourt2D({result,time}:{result:AnalysisResult;time:number
  <rect x="60" y="28" width="120" height="240" fill={`url(#${id}-surface)`} stroke="#c4dce5" strokeWidth="1.2"/>
  <path d="M60 64h120M60 232h120M120 64v168" stroke="#c4dce5" strokeWidth=".9" fill="none"/>
  <path d="M57 148h126" stroke="#071b26" strokeWidth="5"/><path d="M57 148h126" stroke="#edf7fa" strokeWidth="2" strokeDasharray="2 2"/>
- {teams.map(team=>{const ps=players.filter(p=>p.team===team);if(ps.length!==2||!ps[0].xy||!ps[1].xy)return null;const a=point(ps[0].xy),b=point(ps[1].xy);return <line key={team} x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={teamColor(team)} strokeWidth="2" opacity=".8"/>;})}
+ {teams.map(team=>{const ps=players.filter(p=>p.team===team);if(ps.length!==2||!ps[0].xy||!ps[1].xy)return null;const a=point(ps[0].xy),b=point(ps[1].xy);return <PairLink key={team} a={a} b={b} color={teamColor(team)} inset={16}/>;})}
  {players.map((p,i)=>{if(!p.xy)return null;const [x,y]=point(p.xy),label=p.shortName??p.name;return <g key={p.key} role="img" aria-label={`${p.name}, ${Math.abs(p.xy[1]-10).toFixed(1)} metres from net`}><title>{p.name} · {Math.abs(p.xy[1]-10).toFixed(1)} m from net</title><g transform={`translate(${x},${y})`}><circle r="15" fill="#071b26" fillOpacity=".75"/><circle r="13.5" fill="#e9eee8" stroke={teamColor(p.team)} strokeWidth="2.5"/><text textAnchor="middle" dominantBaseline="central" fill="#263123" fontSize="8" fontWeight="700">{p.name.split(' ').map(n=>n[0]).slice(0,2).join('')}</text>{p.avatar&&<image href={p.avatar} x="-12" y="-12" width="24" height="24" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${id}-avatar-${i})`} onError={e=>{e.currentTarget.style.display='none';}}/>}</g><g transform={`translate(${Math.max(40,Math.min(200,x))},${y>248?y-21:y+23})`}><rect x={-label.length*2.1-5} y="-6" width={label.length*4.2+10} height="13" rx="4" fill="#071b26" fillOpacity=".9"/><text textAnchor="middle" dominantBaseline="central" fill="#f4f8fa" fontSize="7.5">{label}</text></g></g>;})}
  {teams.map((team,i)=>{const ps=players.filter(p=>p.team===team),spacing=ps.length===2&&ps.every(p=>p.xy)?pairMetrics(ps[0].xy!,ps[1].xy!).spacing:null;return <g key={team} transform={`translate(${8+i*116},294)`}><rect width="108" height="39" rx="6" fill="#19313e"/><circle cx="11" cy="12" r="3" fill={teamColor(team)}/><text x="20" y="15" fill="#c6d8df" fontSize="8">Team {i+1} spacing</text><text x="10" y="30" fill="#f4f8fa" fontSize="12" fontWeight="600">{spacing===null?'—':`${spacing.toFixed(1)} m`}</text></g>;})}
  </svg>
