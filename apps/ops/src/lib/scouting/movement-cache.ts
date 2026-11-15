@@ -16,7 +16,7 @@ export function movementCacheKey(result:AnalysisResult){
 }
 export async function deriveMovement(result:AnalysisResult,progress:(n:number)=>void):Promise<MovementData>{
  if(result.manifest.movement?.version===MOVEMENT_CACHE_VERSION){
-  try{return await loadSavedMovement(result,progress);}catch{
+  try{const saved=await loadSavedMovement(result,progress);if(process.env.NODE_ENV==='development')console.debug('Movement cache: loaded published samples without derivation',result.id);return saved;}catch{
    // Older/incomplete packages remain usable through the observed-tracking fallback.
    progress(0);
   }

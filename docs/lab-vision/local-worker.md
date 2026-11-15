@@ -68,3 +68,11 @@ Match 2 World Cup backfill: first scout start 1794076679.329357 maps to clip 5s
 saved timestamp and remains untimed. UI integration is local pending deployment.
 The operator metadata revision script accepts either activity JSON or
 `{scoutingAlignment: ...}` and preserves the prior publication for recovery.
+
+### Backfill a completed match
+
+From the repository root, run `npx tsx apps/ops/scripts/backfill-movement.ts JOB_ID OUTPUT_DIRECTORY --prepare`, then repeat with `--verify`. Preparation reads the current published tracking and runs the same Python movement derivation used by new analyses. Verification compares every sample with the TypeScript derivation and records a hash of the verified files.
+
+For a cache-cold local preview, set `LAB_VISION_MOVEMENT_PREVIEW=OUTPUT_DIRECTORY` in the admin's ignored `.env.local` and restart the development server. Only the matching job/source revision is overridden; production ignores this variable. Each preparation gets a new browser cache key. Confirm movement filters and player performance load the saved samples, then remove the variable after testing.
+
+After the admin supports movement assets, repeat with `--publish` to copy raw tracking and upload the verified movement files into a new revision. The job switches only after all files are checked, and only if its original result is unchanged. Original artifacts remain available. A later activity/alignment republish preserves movement files as well. Do not overwrite a prepared directory with data from another viewer revision.
