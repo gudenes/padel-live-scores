@@ -1,5 +1,5 @@
 import {correctPoint} from './point-corrections.mjs';
-import {creditRecoverySmash} from './tap-selection.mjs';
+import {creditRecoverySmash,recoverySmashAttempt} from './tap-selection.mjs';
 import {replaySource,videoPageUrl} from './replay-source.mjs';
 import {qualityCheckpoint} from './scouting-quality.mjs';
 import {scoutingTime} from './scouting-time.mjs';
@@ -267,14 +267,21 @@ export function engine({read,write:persist,discover,capture:captureVideo,seek,uu
             if(message.details.smashType!==undefined)attempt.smashType=validateSmashType(message.details.smashType);
           }
           const point=validatePoint({...message.details,player:selected.player,outcome:selected.outcome},pending,match(state).server);
+          // Credit the recovered smash first: the same rival's previous-stroke Smash is that one hit.
+          let recovered=-1;
+          if(point.smashRecovery){
+            const given=message.details?.recoverySmashAttemptIndex,count=pending.attempts?.length??0;
+            creditRecoverySmash(pending,selected.player,message.details?.recoverySmashPlayer,given);
+            recovered=given??((pending.attempts?.length??0)>count?count:recoverySmashAttempt(pending,selected.player));
+          }
           if(message.details?.previousSmashNew||message.details?.previousSmashType!==undefined){
             if(point.previousShot!=='smash'||point.previousPlayer===undefined)throw Error('Choose the previous opponent and Smash before adding an attempt.');
             const smashType=message.details.previousSmashType===undefined?undefined:validateSmashType(message.details.previousSmashType);
-            const index=pending.attempts?.findLastIndex(a=>a.player===point.previousPlayer)??-1;
-            if(!message.details.previousSmashNew&&index>=0){if(smashType)pending.attempts[index].smashType=smashType;}
+            const same=recovered>=0&&pending.attempts[recovered]?.player===point.previousPlayer;
+            const index=same?recovered:pending.attempts?.findLastIndex(a=>a.player===point.previousPlayer)??-1;
+            if((same||!message.details.previousSmashNew)&&index>=0){if(smashType)pending.attempts[index].smashType=smashType;}
             else (pending.attempts??=[]).push({player:point.previousPlayer,snapshot:structuredClone(selected.end),...(smashType?{smashType}:{})});
           }
-          if(point.smashRecovery)creditRecoverySmash(pending,selected.player,message.details?.recoverySmashPlayer,message.details?.recoverySmashAttemptIndex);
           const rally=finishRally(pending,selected.end);
           delete rally.finish;
           state.rallies.push({...rally,point});state.pending=null;return save();
