@@ -13,6 +13,14 @@ The admin app queues analysis against a private uploaded video. An authenticated
 
 The wrapper can be installed as a login LaunchAgent on this Mac. Credentials remain outside Git; the server stores only SHA-256 token hashes. Rotate by connecting a new worker and disconnecting the old one.
 
+## Saved movement for the viewer
+
+New worker publications include `movement-NNN.json` next to the existing minute chunks. The manifest advertises `movement: {version: 1, chunks, timebase: "source-video-seconds"}`. These contain the same observed one-second speed/zone/heat samples and smoothed motion/acceleration samples previously derived in the browser. Derivation runs over the complete analysed interval before partitioning, so minute boundaries do not split observation windows. Inference, gaps, camera cuts and speed limits retain the browser rules; cross-language parity tests guard this contract.
+
+The completion endpoint accepts legacy packages or the full new package, checks every upload, and rejects a mismatch between movement metadata and files. The authenticated asset route serves movement with the same permissions as tracking. Player Performance and Video Review prefer these samples and retain their shared IndexedDB cache. Old packages, unsupported versions or unavailable movement artifacts fall back to the existing browser derivation. Rally-specific summaries and sprint selection still use the current scouting intervals; video positions still load tracking windows.
+
+Roll out the admin API/client before updating the Mac worker: an older API does not accept movement filenames. Restart the worker from the updated checkout after any active job finishes. Existing completed analyses are not republished automatically; they need a separate backfill from their saved tracking to gain the first-load benefit. This does not require rerunning inference. No database migration is needed. Bump the movement version in both implementations and the cache when changing derivation semantics.
+
 ## Queue and recovery
 
 Migration `20261109210000_lab_vision_workers.sql` enables RLS and removes direct client roles. Only authenticated operators can create jobs for their own ready uploads. Workers can claim only jobs belonging to the credential owner. A partial unique index prevents simultaneous active jobs for one video. Advisory locks serialize claims per worker, row locks protect claims across workers, and attempt IDs fence stale heartbeats/results. A two-minute lease is renewed every ten seconds. Network loss exceeding 65 seconds stops child processes; a later worker can reclaim the job and reuse completed blocks. A local filesystem lock prevents two copies using one work directory. Cancellation is checked at heartbeat and subprocess/download boundaries.

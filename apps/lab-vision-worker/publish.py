@@ -1,6 +1,7 @@
 """Package measured outputs for the authenticated web viewer; never re-run inference."""
 import bisect,json,math
 from activity import detect_activity
+from movement_series import movement_chunks, VERSION as MOVEMENT_VERSION
 from pathlib import Path
 
 def package(root,setup):
@@ -61,6 +62,8 @@ def package(root,setup):
  manifest={'version':1,'start':setup['matchStart'],'end':end,'duration':setup['duration'],'chunkSeconds':60,'chunks':len(chunks),'coverage':coverage,'players':players,'inverseHomography':summary['inverse_homography'],'sourceDimensions':[w,h],'broadcastOffset':setup['offset'],'partial':end<setup['duration']-.1,'performance':performance,'identity':'Identity after camera cuts remains provisional','pose':'2D joints anchored to court positions, not measured 3D joint depth','ball':'Ground-plane projection; ball height is unknown','zoneSchema':data['zone_schema']}
  manifest['activity']=detect_activity([r for c in chunks.values() for r in c['rows']],[p for c in chunks.values() for p in c['poses']],read(root/'wasb-refined-trajectory.json'),coverage)
  for i,c in chunks.items():write(f'{i:03d}.json',c)
+ for i,c in movement_chunks(chunks,[p['key'] for p in players],setup['matchStart']).items():write(f'movement-{i:03d}.json',c)
+ manifest['movement']={'version':MOVEMENT_VERSION,'chunks':len(chunks),'timebase':'source-video-seconds'}
  write('manifest.json',manifest)
  return manifest
 

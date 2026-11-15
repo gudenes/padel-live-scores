@@ -1,5 +1,6 @@
 import {movementSeries,type SpeedSample,type TrackRow} from './movement-series';
 import {motionSeries,type MotionSample} from './movement-efforts';
+import {loadSavedMovement} from './movement-artifact';
 import type {AnalysisResult} from './use-analysis-result';
 
 // Bump when either derivation changes. Scouting filters/alignment do not change
@@ -11,9 +12,15 @@ export interface MovementStore {
  write(key:string,value:MovementData):Promise<void>;
 }
 export function movementCacheKey(result:AnalysisResult){
- return JSON.stringify([MOVEMENT_CACHE_VERSION,result.id,result.videoId,result.updatedAt,result.assetBase,result.manifest.start,result.manifest.end,result.manifest.players.map(p=>[p.key,p.id])]);
+ return JSON.stringify([MOVEMENT_CACHE_VERSION,result.id,result.videoId,result.updatedAt,result.assetBase,result.manifest.start,result.manifest.end,result.manifest.players.map(p=>[p.key,p.id]),result.manifest.movement??null]);
 }
 export async function deriveMovement(result:AnalysisResult,progress:(n:number)=>void):Promise<MovementData>{
+ if(result.manifest.movement?.version===MOVEMENT_CACHE_VERSION){
+  try{return await loadSavedMovement(result,progress);}catch{
+   // Older/incomplete packages remain usable through the observed-tracking fallback.
+   progress(0);
+  }
+ }
  const rows:TrackRow[]=[],first=Math.floor(result.manifest.start/60),last=Math.ceil(result.manifest.end/60);
  for(let i=first;i<last;i+=3){
   const chunks=await Promise.all(Array.from({length:Math.min(3,last-i)},(_,j)=>fetch(result.assetBase+String(i+j).padStart(3,'0')+'.json').then(async r=>{

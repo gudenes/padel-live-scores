@@ -1,5 +1,5 @@
 import {prepareReview,anchorAlignment,savedScout} from '@/lib/lab-vision/prepare-review'
-import {viewerFile,viewerAssets,validateViewerManifest} from '@/lib/lab-vision-results'
+import {viewerFile,viewerChunk,viewerAssets,validateViewerManifest} from '@/lib/lab-vision-results'
 import {createHash,randomUUID} from 'node:crypto'
 import {isUserOperator} from '@/lib/operators'
 import {pgPool} from '@/lib/db'
@@ -39,7 +39,7 @@ export async function POST(req:Request){
  const {client,Bucket}=videoStorage(),Key=`analysis/${job.id}/${job.attempt_id}/results.tar.gz`
  if(b.action==='viewer-upload'){
   const end=Math.min(job.setup.duration,job.setup.matchStart+job.setup.analysisSeconds);
-  if(!viewerFile.test(b.file??'')||(b.file!=='manifest.json'&&Number(b.file.split('.')[0])>=Math.ceil(end/60))||!Number.isSafeInteger(b.size)||b.size<=0||b.size>24*1024*1024)return json({error:'Invalid viewer asset.'},400)
+  if(!viewerFile.test(b.file??'')||(b.file!=='manifest.json'&&viewerChunk(b.file)>=Math.ceil(end/60))||!Number.isSafeInteger(b.size)||b.size<=0||b.size>24*1024*1024)return json({error:'Invalid viewer asset.'},400)
   return json({url:await getSignedUrl(client,new PutObjectCommand({Bucket,Key:`analysis/${job.id}/${job.attempt_id}/viewer/${b.file}`,ContentLength:b.size,ContentType:'application/json'}),{expiresIn:3600})})
  }
  if(b.action==='upload'){
@@ -54,7 +54,9 @@ export async function POST(req:Request){
    const assets=viewerAssets(b.viewer,Math.min(job.setup.duration,job.setup.matchStart+job.setup.analysisSeconds)),prefix=`analysis/${job.id}/${job.attempt_id}/viewer/`;
    for(let i=0;i<assets.length;i+=8)await Promise.all(assets.slice(i,i+8).map(async a=>{const h=await client.send(new HeadObjectCommand({Bucket,Key:prefix+a.file}));if(h.ContentLength!==a.size)throw Error('Viewer asset upload incomplete.')}))
    const object=await client.send(new GetObjectCommand({Bucket,Key:prefix+'manifest.json'}));if(!object.ContentLength||object.ContentLength>2*1024*1024)throw Error('Invalid manifest size.');
-   const manifest=validateViewerManifest(JSON.parse(await object.Body!.transformToString()),job.setup);viewer={prefix,manifest}
+   const manifest=validateViewerManifest(JSON.parse(await object.Body!.transformToString()),job.setup);
+   if(Boolean(manifest.movement)!==assets.some(a=>a.file.startsWith('movement-')))throw Error('Movement files do not match manifest.');
+   viewer={prefix,manifest}
   }catch(e){return json({error:(e as Error).message},400)}}
   let review;
   try{review=await prepareReview(job,viewer?.manifest,db);

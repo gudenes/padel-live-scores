@@ -24,3 +24,13 @@ it('keeps scout clock mapping separate from tracking and rejects invalid offsets
  expect(m.coverage).toEqual(manifest().coverage);
  for(const offsetSeconds of [NaN,Infinity,'0'])expect(()=>validateViewerManifest({...manifest(),scoutingAlignment:{...scoutingAlignment,offsetSeconds}},setup)).toThrow();
 });
+
+it('accepts complete movement packages and rejects missing chunks or wrong metadata',()=>{
+ const assets=['manifest.json','000.json','001.json','movement-000.json','movement-001.json'].map(file=>({file,size:100}));
+ expect(viewerAssets({version:1,assets},80)).toHaveLength(5);
+ expect(()=>viewerAssets({version:1,assets:assets.slice(0,4)},80)).toThrow();
+ expect(()=>viewerAssets({version:1,assets:[...assets.slice(0,4),{file:'movement-999.json',size:100}]},80)).toThrow();
+ const movement={version:1,chunks:2,timebase:'source-video-seconds'};
+ expect(validateViewerManifest({...manifest(),movement},setup).movement).toEqual(movement);
+ for(const change of [{version:2},{chunks:1},{timebase:'scouting-seconds'}])expect(()=>validateViewerManifest({...manifest(),movement:{...movement,...change}},setup)).toThrow();
+});
