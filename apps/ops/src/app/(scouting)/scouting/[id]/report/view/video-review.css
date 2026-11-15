@@ -713,3 +713,17 @@
 .vr-review-panel .vr-timeline-lane-label[data-lane=saved]{background:transparent;color:#cfdad2}
 .vr-review-panel .vr-timeline-sprint.ui-btn{background:#f3d38b;border-color:#bc9847}
 .vr-review-panel .vr-time-saved{background:#27332d;color:#dce9d7}
+
+/* Larger, more precise targets on the single integrated timeline. */
+.vr-review-panel .vr-timeline-track,.vr-review-panel .vr-timeline-lane-label{height:48px}
+.vr-review-panel .vr-timeline-ruler{height:44px;background:#ffffff05}
+.vr-review-panel .vr-timeline-ruler span{top:14px;font-size:11px}
+.vr-review-panel .vr-timeline-lane-label{font-size:12px}
+.matchInsights .vr-review-panel .vr-timeline-event.ui-btn{top:8px;height:32px;min-width:6px;font-size:11px}
+.matchInsights .vr-review-panel .vr-timeline-event.ui-btn[data-highlighted=true],.matchInsights .vr-review-panel .vr-timeline-event.ui-btn:focus-visible{opacity:1;outline:2px solid #fff;outline-offset:1px;z-index:5;filter:brightness(1.15)}
+.vr-review-panel .vr-timeline-track .vr-timeline-activity{top:8px;bottom:8px;min-width:7px}
+.vr-review-panel .vr-timeline-activity:hover,.vr-review-panel .vr-timeline-activity:focus-visible{outline:2px solid #fff;outline-offset:1px;z-index:5}
+.vr-review-panel .vr-timeline-overview,.vr-review-panel .vr-timeline-overview .ui-btn{height:34px;font-size:12px}
+.vr-review-panel .vr-timeline-heading{row-gap:8px}
+.video-review .vr-review-panel:fullscreen{width:100%;height:100%;overflow:auto;border-radius:0}
+.video-review .vr-review-panel:fullscreen .vr-player{height:calc(100dvh - 330px)!important;min-height:200px}
