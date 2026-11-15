@@ -121,3 +121,44 @@
 @media(max-width:650px){.compactProfile[data-pair=true] .inlineBio{grid-template-columns:1fr}.compactProfile[data-pair=true] .headerForm{margin-left:0}}
 
 .tournamentHeader{display:flex;align-items:center;flex-wrap:wrap;background:var(--bg-surface);padding:10px 14px;gap:8px}.tournamentName{flex:1;min-width:160px;font-size:14px}.tournamentName a{display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none}.tournamentName a:hover{text-decoration:underline;text-underline-offset:3px}.tournamentName a:focus-visible{outline:2px solid var(--lime);outline-offset:4px}.tournamentName svg{width:16px;height:16px;flex-shrink:0}.matchFirst .tournamentHeader .tournamentToggle{width:auto;flex:0 1 auto;padding:7px;background:transparent}.tournamentHeader .tournamentInfo{text-align:right}@media(max-width:760px){.tournamentHeader .tournamentToggle{max-width:100%}.tournamentHeader .tournamentInfo{white-space:normal}}
+
+/* Status badges share the existing line; only the court column gets more width. */
+.matchFirst .scoreCard{position:relative;grid-template-columns:90px minmax(0,1fr) 180px}
+.scoreCardLink{position:absolute;inset:0;z-index:1;border-radius:inherit}
+.scoreCardLink:focus-visible{outline:2px solid var(--text-1);outline-offset:-2px}
+.matchBadges{display:flex;align-items:center;gap:5px;white-space:nowrap}
+.matchCourt .matchBadges>span,.videoBadge{font-size:10px;line-height:14px;padding:3px 6px;border-radius:6px}
+.videoBadge{position:relative;z-index:2;display:inline-flex;align-items:center;gap:4px;background:var(--lime-bg);color:var(--text-1);text-decoration:none;white-space:nowrap}
+.videoBadge:hover{text-decoration:underline}
+.videoBadge:focus-visible{outline:2px solid var(--text-1);outline-offset:2px}
+.matchCourt .videoBadge svg{width:12px;height:12px;flex-shrink:0}
+.videoBadge[data-state=processing]{background:#fff0ce;color:#825000}
+.videoBadge[data-state=processing] svg{animation:videoBadgeSpin 1.6s linear infinite}
+@keyframes videoBadgeSpin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.videoBadge[data-state=processing] svg{animation:none}}
+@media(max-width:1250px) and (min-width:601px){.matchFirst .scoreCard{grid-template-columns:75px minmax(0,1fr) 170px}}
+@media(max-width:600px){.matchFirst .scoreCard{grid-template-columns:62px minmax(0,1fr)}.matchBadges{flex-shrink:0}}
+.historyPlayerName{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.teamNames>span{min-width:0}
+.historyPlayerScore{flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;min-width:25px;height:17px;margin-left:3px;padding:0 4px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text-1);font-size:10px;font-weight:650;line-height:15px;font-variant-numeric:tabular-nums}
+
+button.videoBadge{border:0;font-family:inherit;cursor:pointer}
+.videoBadge[data-state=queued]{background:#f0f1ed;color:#515a4c}
+.videoQueuePanel{margin:auto;width:min(560px,calc(100vw - 32px));max-height:80vh;overflow:auto;border:1px solid var(--border);border-radius:14px;padding:22px;background:var(--surface,#fff);color:var(--text-1)}
+.videoQueuePanel::backdrop{background:rgb(0 0 0 / .35)}
+.videoQueuePanel header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.videoQueuePanel h2{margin:0;font-size:19px}
+.videoQueuePanel p{font-size:13px;line-height:1.5}
+.videoQueuePanel ul{list-style:none;padding:0;margin:12px 0 0}
+.videoQueuePanel li{display:grid;gap:10px;padding:14px 0;border-top:1px solid var(--border)}
+.videoQueuePanel li>a{font-size:14px;font-weight:600;color:inherit}
+.videoQueuePanel li>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.videoQueuePanel progress{width:100%;accent-color:#a3c92a}
+.videoQueuePanel small{color:var(--text-2)}
+
+.scoutingProgress{background:#fff0ce;color:#825000;white-space:nowrap}
+
+
+.tournamentGroup{scroll-margin-top:170px}
+
+.expandTournament{min-height:40px!important;min-width:128px;display:inline-flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px!important}.expandTournament>span:last-child{font-size:18px;line-height:1}

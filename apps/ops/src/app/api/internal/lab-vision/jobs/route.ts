@@ -30,6 +30,7 @@ export async function POST(req:Request){
   return json({config:{server:new URL(req.url).origin,workerId:id,token},message:'Keep this file private. It authorizes only your analysis jobs.'})
  }
  if(b.action==='disconnect'&&videoUuid.test(b.workerId??'')){await db.query('update public.lab_vision_workers set revoked_at=now() where id=$1 and owner_user_id=$2',[b.workerId,user.id]);return json({ok:true})}
+ if(b.action==='cancelQueued'&&videoUuid.test(b.id??'')){const result=await db.query("update public.lab_vision_jobs set status='cancelled',updated_at=now() where id=$1 and owner_user_id=$2 and status='queued' returning id",[b.id,user.id]);return result.rowCount?json({ok:true}):json({error:'This job is no longer waiting. Refresh the queue to see its current status.'},409)}
  if(b.action==='cancel'&&videoUuid.test(b.id??'')){await db.query("update public.lab_vision_jobs set status='cancelled',updated_at=now() where id=$1 and owner_user_id=$2 and status in ('queued','running')",[b.id,user.id]);return json({ok:true})}
  if(b.action!=='run'||!videoUuid.test(b.videoId??''))return json({error:'Invalid action.'},400)
  const {rows}=await db.query("select * from public.match_video_uploads where id=$1 and owner_user_id=$2 and status='ready'",[b.videoId,user.id]);const video=rows[0];if(!video)return json({error:'Upload the video before starting analysis.'},404)

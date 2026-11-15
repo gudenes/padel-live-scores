@@ -38,3 +38,8 @@ it('pools rally samples and counts available durations once for a pair',()=>{
  expect(result.durationSamples).toBe(2)
  expect(missing.durationMs).toBeNull()
 })
+it('exposes the existing Player Score for each roster slot, including neutral players',()=>{
+ const m=convertSession(session([point(0),point(2,'unforced')]),new Map())!
+ expect(m.playerScores).toEqual([9.9,5,1,5])
+ expect(m.players.map(p=>p.id)).toEqual(['p0','p1','p2','p3'])
+})
