@@ -1,6 +1,6 @@
 import {liveStats} from './live-stats.mjs';
 import {preferences} from './practice-mode.mjs';
-import {previousTapOpponent,firstTapReturn,suggestedAssist,finalSmashAttempt,recoverySmashAttempt} from './tap-selection.mjs';
+import {previousTapOpponent,firstTapReturn,suggestedAssist,finalSmashAttempt,latestRivalSmash} from './tap-selection.mjs';
 import {scoreCorrectionUI} from './score-correction-ui.mjs';
 import {scoutingKeys} from './scouting-keys.mjs?v=smash-home-insert';
 import {needsServerConfirmation} from './onboarding-model.mjs';
@@ -78,7 +78,7 @@ export function scoutingUI({$,act,getState}){
  function setQuick(value){quickSave=value;$('quick-save').checked=value;preferences?.setItem('pn-quick-save',String(value));}
  $('quick-save').addEventListener('change',()=>setQuick($('quick-save').checked));
  $('shot-details').addEventListener('toggle',()=>{if($('shot-details').open)setQuick(false)});
- function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;if(step==='previous'){if(previousShot!==key){previousReuse=false;previousSmashType=key==='smash'?getState()?.pending?.attempts?.[previousAttempt()]?.smashType:undefined;}previousShot=key;syncShot();return;}if(key==='smash'&&shot!=='smash'){const p=getState()?.pending,a=p?.attempts?.[matchingAttempt()];smashType=a?.smashType;$('counted').checked=finalSmashAttempt(p,p?.finish?.player)>=0;}shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
+ function chooseShot(key,fromKeyboard=false){if($('save-point').disabled)return;if(step==='previous'){if(previousShot!==key){previousReuse=key==='smash'&&previousAttempt()>=0;previousSmashType=key==='smash'?getState()?.pending?.attempts?.[previousAttempt()]?.smashType:undefined;}previousShot=key;syncShot();return;}if(key==='smash'&&shot!=='smash'){const p=getState()?.pending,a=p?.attempts?.[matchingAttempt()];smashType=a?.smashType;$('counted').checked=finalSmashAttempt(p,p?.finish?.player)>=0;}shot=key;attributionReady=true;if(key!=='smash')$('x4').checked=false;syncShot();$('shot-error').textContent='';if(!fromKeyboard&&$('quick-save').checked&&shot!=='smash')savePoint();}
  const shotGroups={overhead:['smash','vibora','bandeja','rulo','gancho'],defense:['groundstroke','lob','block','bajada','wall','return','contrapared'],net:['volley','chiquita','drop','half_volley']};
  function shotButton(key,shortcut){
   const b=document.createElement('button');b.type='button';b.className='ui-btn';b.dataset.size='sm';const label=document.createElement('span');label.className='shot-label';label.textContent=key==='bajada'?'Bajada de pared':shots[key];const group=Object.keys(shotGroups).find(g=>shotGroups[g].includes(key))??'other';label.dataset.group=group;b.append(label);b.dataset.shot=key;b.dataset.group=group;b.setAttribute('aria-pressed','false');
@@ -98,6 +98,23 @@ export function scoutingUI({$,act,getState}){
   common.append(row);
  }
  $('shot-options').append(common);
+ // Recovery defaults to the rival pair's latest recorded smash so it is never counted twice.
+ // Attempts saved after the dialog opened refresh the default; the scout's own choice is kept.
+ let recoveryKey='',recoveryChosen=false;
+ function fillRecovery(pending,finish,reset){
+  const key=JSON.stringify([pending.id,finish.player,(pending.attempts??[]).map(a=>a.player),pending.touches?.length??0]);
+  if(!reset&&key===recoveryKey)return;
+  const select=$('recovery-smash'),kept=!reset&&recoveryChosen?select.value:'',names=getState().setup.names;
+  recoveryKey=key;if(reset)recoveryChosen=false;
+  select.replaceChildren(new Option('Choose the opponent’s smash',''));
+  for(let opponent=0;opponent<4;opponent++)if(Math.floor(opponent/2)!==Math.floor(finish.player/2)){
+   select.add(new Option(names[opponent]+' · Add missing attempt',opponent+':new'));
+   (pending.attempts??[]).forEach((a,i)=>{if(a.player===opponent)select.add(new Option(names[opponent]+' · Reuse smash '+(i+1),opponent+':'+i));});
+  }
+  const index=latestRivalSmash(pending,finish.player),opponent=index>=0?pending.attempts[index].player:previousTapOpponent(pending,finish.player);
+  if(kept&&[...select.options].some(option=>option.value===kept))select.value=kept;
+  else if(opponent!==undefined)select.value=opponent+':'+(index>=0?index:'new');
+ }
  function previousAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===forcedBy)??-1;}
  function matchingAttempt(){const p=getState()?.pending;return p?.attempts?.findLastIndex(a=>a.player===p.finish?.player)??-1;}
  function returnServer(){
@@ -154,10 +171,10 @@ export function scoutingUI({$,act,getState}){
   $('recovery-smash-label').hidden=step!=='shot'||!$('smash-recovery').checked||getState()?.pending?.finish?.outcome!=='winner';
   for(const input of ['assist','smash-recovery','x4','outside'])$(input).closest('label').classList.toggle('selected',$(input).checked);
  }
- function chooseType(type){if(step==='previous'){previousShot='smash';previousSmashType=type;syncShot();return;}smashType=type;if(type!=='power')$('x4').checked=false;syncShot();}
+ function chooseType(type){if(step==='previous'){if(previousShot!=='smash')previousReuse=previousAttempt()>=0;previousShot='smash';previousSmashType=type;syncShot();return;}smashType=type;if(type!=='power')$('x4').checked=false;syncShot();}
  for(const b of $('smash-options').querySelectorAll('[data-smash-type]'))b.onclick=()=>chooseType(b.dataset.smashType);
  $('x4').onchange=()=>{if($('x4').checked){if(shot!=='smash')$('counted').checked=finalSmashAttempt(getState()?.pending,getState()?.pending?.finish?.player)>=0;shot='smash';smashType='power';}else if($('smash-recovery').checked){shot=undefined;smashType=undefined;}syncShot();$('save-point').focus();};$('counted').onchange=syncShot;for(const id of ['reuse-smash','new-smash'])$(id).onclick=()=>{if(id==='reuse-smash'&&(step==='previous'?previousAttempt():matchingAttempt())<0)return;if(step==='previous')previousReuse=id==='reuse-smash';else $('counted').checked=id==='reuse-smash';syncShot();};
- $('recovery-smash').onchange=()=>{syncShot();$('shot-error').textContent='';};
+ $('recovery-smash').onchange=()=>{recoveryChosen=true;syncShot();$('shot-error').textContent='';};
  $('outside-attempts').addEventListener('change',()=>syncShot());
  $('smash-recovery').onchange=()=>{if($('smash-recovery').checked&&!$('x4').checked){shot=undefined;smashType=undefined;}syncShot();$('shot-error').textContent='';$('save-point').focus();};
  for(const id of ['assist','net-touch','outside'])$(id).onchange=()=>{syncShot();$('save-point').focus();};
@@ -280,17 +297,12 @@ export function scoutingUI({$,act,getState}){
   if(finish){
    if(openId!==pending.id+':'+finish.player+':'+finish.outcome){const samePlayer=openId.startsWith(pending.id+':'+finish.player+':');openId=pending.id+':'+finish.player+':'+finish.outcome;draftHistory=[];lastDraft=null;step='shot';previousShot=undefined;previousSmashType=undefined;previousReuse=false;if(!samePlayer){shot=undefined;smashType=undefined;}if(!direct&&firstTapReturn(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))){shot='return';smashType=undefined;}forcedBy=!direct?previousTapOpponent(pending,finish.player):undefined;attributionReady=forcedBy!==undefined||finish.outcome!=='forced';$('shot-form').reset();$('quick-save').checked=quickSave;$('counted').checked=false;
    if(!direct)$('assist').checked=suggestedAssist(pending,finish.player,finish.outcome,m.server,!needsServerConfirmation(state,m))!==undefined;
-   const recoverySelect=$('recovery-smash');recoverySelect.replaceChildren(new Option('Choose the opponent’s smash',''));
-   for(let opponent=0;opponent<4;opponent++)if(Math.floor(opponent/2)!==Math.floor(finish.player/2)){
-    recoverySelect.add(new Option(getState().setup.names[opponent]+' · Add missing attempt',opponent+':new'));
-    (pending.attempts??[]).forEach((a,i)=>{if(a.player===opponent)recoverySelect.add(new Option(getState().setup.names[opponent]+' · Reuse smash '+(i+1),opponent+':'+i));});
-   }
-   const recoveryOpponent=previousTapOpponent(pending,finish.player),recoveryIndex=recoverySmashAttempt(pending,finish.player);
-   if(recoveryOpponent!==undefined)recoverySelect.value=recoveryOpponent+':'+(recoveryIndex>=0?recoveryIndex:'new');
+   fillRecovery(pending,finish,true);
    const finalAttempt=finalSmashAttempt(pending,finish.player);
    if(finalAttempt>=0){shot='smash';smashType=pending.attempts[finalAttempt].smashType;$('counted').checked=true;}
    $('outside-attempts').replaceChildren(...setup.names.map((name,player)=>{const label=document.createElement('label');label.className='quick-tag';const check=document.createElement('input');check.type='checkbox';check.value=player;check.name='outside-attempt';label.append(check,document.createTextNode(name));return label;}));
    $('shot-details').open=false;syncShot();$('shot-error').textContent='';}
+   fillRecovery(pending,finish,false);
    const order=courtPlayers(state,m),creditKey=JSON.stringify([pending.id,finish.player,order,setup.names]);if(creditKey!==attributionKey){attributionKey=creditKey;$('forced-opponents').replaceChildren(...order.filter(player=>(player<2)!==(finish.player<2)).map(player=>{const b=document.createElement('button'),kbd=document.createElement('kbd');b.type='button';b.className='ui-btn';b.dataset.player=player;b.dataset.shortcut=positionKeys[order.indexOf(player)];b.setAttribute('aria-keyshortcuts',b.dataset.shortcut.toUpperCase());b.append(setup.names[player]+' ');kbd.textContent=b.dataset.shortcut.toUpperCase();kbd.dataset.scoutKey='player-'+order.indexOf(player);b.append(kbd);b.onclick=()=>credit(player);return b;}));}
    $('assist-name').textContent='By '+setup.names[finish.player^1];$('recovery-name').textContent='By '+setup.names[finish.player];$('outside-label').hidden=finish.outcome!=='winner';
    $('shot-var').checked=!!pending.varReviewed;$('shot-var').disabled=busy;

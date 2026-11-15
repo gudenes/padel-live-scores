@@ -228,7 +228,7 @@ F1 records Power, F2 records X3 and F3 records Soft for the selected/last tapped
 
 Expand Outside-court recovery attempt in point confirmation and select anyone who attempted a retrieval, including failed attempts. The player markers persist with the point, appear in Video review filters and CSV exports, and carry no extra impact credit. The existing outside-recovery winner tag is separate.
 
-Smash-recovery winners credit the preceding opponent with one smash attempt. Expert taps identify the preceding hitter and reuse an attempt linked to that exact touch; earlier smashes stay separate. Without an identifiable hitter, choose the opponent and either a recorded attempt or a missing attempt. This adds no smash winner or extra impact credit to the opponent.
+Smash-recovery winners credit the preceding opponent with one smash attempt. The recovery picker defaults to the rival pair's latest recorded smash in the rally, and refreshes that default if an attempt finishes saving after the dialog opens (an explicit choice is kept). When the rival's previous stroke is then tagged Smash, **Use last smash** is preselected whenever that rival already has an attempt; choose **New smash** only for a distinct hit. A recovery and a previous-stroke Smash by the same rival always save as one attempt. Expert taps identify the preceding hitter and reuse an attempt linked to that exact touch; earlier smashes stay separate. Without an identifiable hitter, choose the opponent and either a recorded attempt or a missing attempt. This adds no smash winner or extra impact credit to the opponent.
 
 
 ### Sync recovery and visible save status
