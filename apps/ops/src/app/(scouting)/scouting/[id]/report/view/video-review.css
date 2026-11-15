@@ -646,3 +646,27 @@
 
 /* Points and movement share one filter card and compact internal navigation. */
 .vr-filter-subtabs{display:flex;gap:4px;padding-bottom:10px;border-bottom:1px solid var(--vr-line)}.vr-filter-subtabs .ui-btn{flex:1;min-height:30px;padding:5px 10px;font-size:11px;white-space:nowrap}.vr-filter-active-dot{margin-left:5px}.vr-filter-subpanel{display:grid;gap:12px}.vr-filter-subpanel[hidden]{display:none}.vr-filter-footer{border-top:1px solid var(--vr-line);padding-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.vr-filter-footer .ui-btn{font-size:11px;min-height:30px}.vr-filter-footer small{font-size:10px;color:var(--muted,#65715b)}
+
+/* Match chapters share the player's clock and active filters. */
+.vr-chapter-labels{display:flex;gap:4px;margin-bottom:2px}
+.video-review .vr-youtube-controls .vr-chapter-labels .ui-btn{min-width:0;min-height:22px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;font-size:11px;text-align:left;opacity:.7}
+.video-review .vr-youtube-controls .vr-chapter-labels .ui-btn[aria-current=true]{opacity:1;color:#c6f52d}
+.vr-chapter-seek{position:relative;height:18px}
+.vr-chapter-segments{position:absolute;inset:6px 0;display:flex;gap:4px;pointer-events:none}
+.vr-chapter-segments span{border-radius:2px;min-width:0}
+.vr-chapter-seek input{position:absolute;inset:0;width:100%;height:18px;margin:0;appearance:none;background:transparent;cursor:pointer}
+.vr-chapter-seek input::-webkit-slider-runnable-track{background:transparent;height:6px}
+.vr-chapter-seek input::-webkit-slider-thumb{appearance:none;width:12px;height:12px;margin-top:-3px;border-radius:50%;background:#c6f52d}
+.vr-chapter-seek input::-moz-range-track{background:transparent}
+.vr-chapter-seek input::-moz-range-thumb{background:#c6f52d;border:0}
+.vr-chapter-tooltip{position:absolute;bottom:42px;transform:translateX(-50%);background:#17221c;padding:5px 9px;border-radius:5px;font-size:12px;white-space:nowrap;pointer-events:none}
+.vr-chapter-events{font-size:10px;color:#d9e6d4}
+.vr-chapter-marker-track{height:5px;position:relative;margin-bottom:4px;overflow:hidden}
+.vr-chapter-marker-track i{position:absolute;height:3px;background:#f4ca68;min-width:2px}
+.vr-chapter-events label{display:flex;align-items:center;gap:8px}
+.vr-chapter-events select{max-width:240px}
+.vr-detailed-timeline{margin-top:16px;border:1px solid #dce2d4;border-radius:12px;background:#fff;padding:12px}
+.vr-detailed-timeline>summary{cursor:pointer;font-size:12px;font-weight:600;color:#536342}
+.vr-detailed-timeline .vr-match-timeline{margin-top:12px}
+
+.vr-chapter-marker-track{height:10px;cursor:pointer}.vr-chapter-marker-track i{top:3px;pointer-events:none}
