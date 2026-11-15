@@ -396,7 +396,7 @@
 
 /* Coach transport: controls directly beneath the footage. */
 .vr-media-shell{width:100%;min-width:0;background:#101917;display:flex;flex-direction:column}
-.video-review .vr-watch .vr-media-shell .vr-player{height:clamp(230px,calc(100dvh - 465px),460px);min-height:0;flex:0 0 auto}
+.video-review .vr-watch .vr-media-shell .vr-player{height:clamp(310px,calc(100dvh - 385px),540px);min-height:0;flex:0 0 auto}
 .vr-transport{padding:8px 10px;background:#f7f9f3;color:#263123;border-top:1px solid #dce2d4}
 .vr-transport>input{display:block;width:100%;height:5px;accent-color:#8ca82b;cursor:pointer;margin:0 0 9px}
 .vr-transport-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
@@ -643,3 +643,87 @@
 .vr-timeline-grid{grid-template-columns:var(--timeline-label-width) minmax(0,1fr)}
 .vr-timeline-overview{margin-left:var(--timeline-label-width);margin-right:var(--timeline-end-space)}
 .vr-timeline-scrub{margin-left:var(--timeline-label-width);width:calc(100% - var(--timeline-label-width) - var(--timeline-end-space))}
+
+/* Points and movement share one filter card and compact internal navigation. */
+.vr-filter-subtabs{display:flex;gap:4px;padding-bottom:10px;border-bottom:1px solid var(--vr-line)}.vr-filter-subtabs .ui-btn{flex:1;min-height:30px;padding:5px 10px;font-size:11px;white-space:nowrap}.vr-filter-active-dot{margin-left:5px}.vr-filter-subpanel{display:grid;gap:12px}.vr-filter-subpanel[hidden]{display:none}.vr-filter-footer{border-top:1px solid var(--vr-line);padding-top:10px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.vr-filter-footer .ui-btn{font-size:11px;min-height:30px}.vr-filter-footer small{font-size:10px;color:var(--muted,#65715b)}
+
+/* Match chapters share the player's clock and active filters. */
+.vr-chapter-labels{display:flex;gap:4px;margin-bottom:2px}
+.video-review .vr-youtube-controls .vr-chapter-labels .ui-btn{min-width:0;min-height:22px;padding:1px 4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;font-size:11px;text-align:left;opacity:.7}
+.video-review .vr-youtube-controls .vr-chapter-labels .ui-btn[aria-current=true]{opacity:1;color:#c6f52d}
+.vr-chapter-seek{position:relative;height:18px}
+.vr-chapter-segments{position:absolute;inset:6px 0;display:flex;gap:4px;pointer-events:none}
+.vr-chapter-segments span{border-radius:2px;min-width:0}
+.vr-chapter-seek input{position:absolute;inset:0;width:100%;height:18px;margin:0;appearance:none;background:transparent;cursor:pointer}
+.vr-chapter-seek input::-webkit-slider-runnable-track{background:transparent;height:6px}
+.vr-chapter-seek input::-webkit-slider-thumb{appearance:none;width:12px;height:12px;margin-top:-3px;border-radius:50%;background:#c6f52d}
+.vr-chapter-seek input::-moz-range-track{background:transparent}
+.vr-chapter-seek input::-moz-range-thumb{background:#c6f52d;border:0}
+.vr-chapter-tooltip{position:absolute;bottom:42px;transform:translateX(-50%);background:#17221c;padding:5px 9px;border-radius:5px;font-size:12px;white-space:nowrap;pointer-events:none}
+.vr-chapter-events{font-size:10px;color:#d9e6d4}
+.vr-chapter-marker-track{height:5px;position:relative;margin-bottom:4px;overflow:hidden}
+.vr-chapter-marker-track i{position:absolute;height:3px;background:#f4ca68;min-width:2px}
+.vr-detailed-timeline{margin-top:16px;border:1px solid #dce2d4;border-radius:12px;background:#fff;padding:12px}
+.vr-detailed-timeline>summary{cursor:pointer;font-size:12px;font-weight:600;color:#536342}
+.vr-detailed-timeline .vr-match-timeline{margin-top:12px}
+
+.vr-chapter-marker-track{height:10px;cursor:pointer}.vr-chapter-marker-track i{top:3px;pointer-events:none}
+
+/* A continuous video and timeline review surface. */
+.video-review .vr-review-panel{background:#17201e;border:1px solid #2b3832;box-shadow:0 8px 24px #17201e12}
+.vr-review-panel .vr-chapter-labels,.vr-review-panel .vr-chapter-events{display:none}
+.video-review .vr-review-panel .vr-media-point{background:#17201e;color:#e0e8e3;border-color:#ffffff15}
+.video-review .vr-review-panel .vr-media-point select{background:#26312c;color:#edf4ee;border-color:#435047}
+.video-review .vr-review-panel .vr-media-point .ui-btn,.vr-review-panel .vr-media-more>summary{color:#cfdad2}
+.video-review .vr-review-panel .vr-media-point>.vr-save-moment-primary{background:#26312c;border-color:#435047;color:#edf4ee}
+.video-review .vr-review-panel .vr-media-point>.vr-mode .ui-btn[aria-pressed=true]{background:#c6f52d;color:#1b2b0e}
+.video-review .vr-review-panel .vr-match-timeline{--muted:#b4c1b9;--text:#eef4ef;--border:#ffffff15;--bg:#27332d;--card:#27332d;--vr-line:#ffffff15;border:0;border-top:1px solid #ffffff20;border-radius:0;background:#17201e;color:#eef4ef;padding:12px 16px 14px;margin:0}
+.vr-review-panel .vr-timeline-heading{gap:12px;margin-bottom:12px}
+.vr-review-panel .vr-timeline-heading h3{color:#eef4ef;font-size:13px}
+.vr-review-panel .vr-timeline-heading small{display:none}
+.vr-review-panel .vr-timeline-time{font-size:11px;color:#c6f52d}
+.vr-timeline-filter-tabs{display:flex;gap:3px;align-items:center}
+.vr-timeline-filter-tabs .ui-btn{font-size:11px;min-height:28px;padding:4px 10px}
+.vr-review-panel .vr-timeline-actions{gap:4px}
+.vr-review-panel .vr-timeline-actions .ui-btn:not([data-variant=primary]),.vr-review-panel .vr-timeline-filter-tabs .ui-btn:not([data-variant=primary]){background:#27332d;color:#e3ebe5;border-color:#48554d;box-shadow:none}
+.vr-review-panel .vr-timeline-actions .ui-input{background:#27332d;color:#e3ebe5;border-color:#48554d}
+.vr-review-panel .vr-timeline-actions .ui-btn:disabled{opacity:.35}
+.vr-review-panel .vr-timeline-expand{order:2;display:grid;place-items:center}
+.vr-review-panel [data-expanded=false] .vr-timeline-actions>label{display:none}
+.vr-review-panel .vr-timeline-overview{height:25px;background:#27332d;margin-bottom:8px;border-radius:5px}
+.vr-review-panel .vr-timeline-overview .ui-btn{background:#344139;color:#e3ebe5;border-right:3px solid #17201e;height:25px}
+.vr-review-panel .vr-timeline-mini-points,.vr-review-panel .vr-timeline-scrub{display:none}
+.vr-review-panel .vr-timeline-window{border-color:#c6f52d55;background:#c6f52d0a}
+.vr-review-panel .vr-timeline-overview>i{background:#c6f52d}
+.vr-review-panel .vr-timeline-grid{position:relative}
+.vr-review-panel .vr-timeline-ruler{background:transparent;border-radius:0}
+.vr-review-panel .vr-timeline-track{background:repeating-linear-gradient(90deg,transparent 0,transparent calc(16.666% - 1px),#ffffff08 calc(16.666% - 1px),#ffffff08 16.666%)}
+.vr-review-panel .vr-timeline-track,.vr-review-panel .vr-timeline-lane-label{height:29px}
+.vr-review-panel .vr-timeline-lane-label{color:#cfdad2}
+.vr-review-panel .vr-timeline-track[data-lane=saved]{background:transparent}
+.matchInsights .vr-review-panel .vr-timeline-event.ui-btn{height:14px;top:7px;border-radius:3px;min-width:3px}
+.matchInsights .vr-review-panel .vr-timeline-event[aria-pressed=true]{outline:2px solid #c6f52d;outline-offset:2px;box-shadow:none}
+.vr-review-panel .vr-timeline-playhead{display:none}
+.vr-shared-playhead-track{position:absolute;left:68px;right:20px;top:0;bottom:0;pointer-events:none;z-index:6}
+.vr-shared-playhead-track>i{position:absolute;top:0;bottom:0;width:2px;background:#c6f52d}
+.vr-shared-playhead-track b{position:absolute;top:0;left:0;transform:translateX(-50%);background:#c6f52d;color:#1b2b0e;padding:2px 4px;border-radius:4px;font-size:10px;font-style:normal;white-space:nowrap}
+.vr-review-panel .vr-timeline-caption{font-size:10px;color:#b4c1b9;line-height:1.5}
+@media(max-width:700px){.video-review .vr-review-panel .vr-match-timeline{padding:10px 8px}.vr-review-panel .vr-timeline-actions{width:100%;margin-left:0}.vr-review-panel .vr-timeline-caption span:last-child{display:none}}
+
+.vr-review-panel .vr-timeline-lane-label[data-lane=saved]{background:transparent;color:#cfdad2}
+.vr-review-panel .vr-timeline-sprint.ui-btn{background:#f3d38b;border-color:#bc9847}
+.vr-review-panel .vr-time-saved{background:#27332d;color:#dce9d7}
+
+/* Larger, more precise targets on the single integrated timeline. */
+.vr-review-panel .vr-timeline-track,.vr-review-panel .vr-timeline-lane-label{height:48px}
+.vr-review-panel .vr-timeline-ruler{height:44px;background:#ffffff05}
+.vr-review-panel .vr-timeline-ruler span{top:14px;font-size:11px}
+.vr-review-panel .vr-timeline-lane-label{font-size:12px}
+.matchInsights .vr-review-panel .vr-timeline-event.ui-btn{top:8px;height:32px;min-width:6px;font-size:11px}
+.matchInsights .vr-review-panel .vr-timeline-event.ui-btn[data-highlighted=true],.matchInsights .vr-review-panel .vr-timeline-event.ui-btn:focus-visible{opacity:1;outline:2px solid #fff;outline-offset:1px;z-index:5;filter:brightness(1.15)}
+.vr-review-panel .vr-timeline-track .vr-timeline-activity{top:8px;bottom:8px;min-width:7px}
+.vr-review-panel .vr-timeline-activity:hover,.vr-review-panel .vr-timeline-activity:focus-visible{outline:2px solid #fff;outline-offset:1px;z-index:5}
+.vr-review-panel .vr-timeline-overview,.vr-review-panel .vr-timeline-overview .ui-btn{height:34px;font-size:12px}
+.vr-review-panel .vr-timeline-heading{row-gap:8px}
+.video-review .vr-review-panel:fullscreen{width:100%;height:100%;overflow:auto;border-radius:0}
+.video-review .vr-review-panel:fullscreen .vr-player{height:calc(100dvh - 330px)!important;min-height:200px}

@@ -1,18 +1,22 @@
 'use client';
 import {useEffect,useState} from 'react';
-import {movementSeries,type SpeedSample,type TrackRow} from './movement-series';
-import {motionSeries,type MotionSample} from './movement-efforts';
+import {createMovementLoader,movementCacheKey,type MovementData} from './movement-cache';
+import {movementStore} from './movement-cache-storage';
 import type {AnalysisResult} from './use-analysis-result';
-const cache=new Map<string,{data:Record<string,SpeedSample[]>;motion:Record<string,MotionSample[]>}>();
+const loadMovement=createMovementLoader(movementStore);
+type State={key:string;data:MovementData['data']|null;motion?:MovementData['motion'];progress:number;error:string};
+const empty:Omit<State,'key'>={data:null,progress:0,error:''};
 export function useMovementSeries(result:AnalysisResult|null,enabled=true){
- const [state,setState]=useState<{data:Record<string,SpeedSample[]>|null;motion?:Record<string,MotionSample[]>;progress:number;error:string}>({data:null,progress:0,error:''});
- useEffect(()=>{setState({data:null,progress:0,error:''});if(!result||!enabled)return;
- const key=result.id+result.updatedAt;if(cache.has(key)){setState({...cache.get(key)!,progress:100,error:''});return;}
- const controller=new AbortController();let alive=true;
- (async()=>{try{const rows:TrackRow[]=[];const first=Math.floor(result.manifest.start/60),last=Math.ceil(result.manifest.end/60);
- for(let i=first;i<last;i+=3){const chunks=await Promise.all(Array.from({length:Math.min(3,last-i)},(_,j)=>fetch(result.assetBase+String(i+j).padStart(3,'0')+'.json',{signal:controller.signal}).then(async r=>{if(!r.ok)throw Error('Tracking data could not load. Reopen Movement to retry.');return r.json();})));for(const c of chunks){if(!Array.isArray(c.rows))throw Error('Invalid tracking package');rows.push(...c.rows);}if(alive)setState({data:null,progress:Math.round((Math.min(i+3,last)-first)/(last-first)*100),error:''});}
- const data=movementSeries(rows,result.manifest.players.map(p=>p.key));if(!alive)return;const motion=motionSeries(rows,result.manifest.players.map(p=>p.key));cache.set(key,{data,motion});if(cache.size>3)cache.delete(cache.keys().next().value!);setState({data,motion,progress:100,error:''});
- }catch(e){if(alive)setState({data:null,progress:0,error:e instanceof Error?e.message:'Tracking unavailable'});}})();
- return()=>{alive=false;controller.abort();};
- },[result?.id,result?.updatedAt,enabled]);return state;
+ const key=result?movementCacheKey(result):'';
+ const [state,setState]=useState<State>({key:'',...empty});
+ useEffect(()=>{
+  if(!result||!enabled)return;
+  let alive=true;setState({key,...empty});
+  const request=loadMovement(result,progress=>{if(alive)setState({key,...empty,progress});});
+  request.promise.then(value=>{if(alive)setState({key,...value,progress:100,error:''});},e=>{if(alive)setState({key,...empty,error:e instanceof Error?e.message:'Tracking unavailable'});});
+  return()=>{alive=false;request.unsubscribe();};
+ // The versioned key includes every source input; polling object identity is irrelevant.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[key,enabled]);
+ return enabled&&key&&state.key===key?state:empty;
 }

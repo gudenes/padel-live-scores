@@ -1,10 +1,12 @@
 import {validScoutingAlignment} from './scouting/scouting-alignment';
 /** Publication contract. Worker results become visible only after all files exist. */
-export const viewerFile=/^(manifest|\d{3,4})\.json$/
+export const viewerFile=/^(manifest|(?:movement-)?\d{3,4})\.json$/
+export function viewerChunk(file:string){return Number(file.replace(/^movement-/, '').split('.')[0])}
 export function viewerAssets(input:any,end:number){
  const count=Math.ceil(end/60)
- if(input?.version!==1||!Number.isFinite(end)||end<=0||count>1440||!Array.isArray(input.assets)||input.assets.length!==count+1)throw Error('Incomplete viewer package.')
+ if(input?.version!==1||!Number.isFinite(end)||end<=0||count>1440||!Array.isArray(input.assets)||![count+1,count*2+1].includes(input.assets.length))throw Error('Incomplete viewer package.')
  const expected=new Set(['manifest.json',...Array.from({length:count},(_,i)=>`${String(i).padStart(3,'0')}.json`)])
+ if(input.assets.length===count*2+1)for(let i=0;i<count;i++)expected.add(`movement-${String(i).padStart(3,'0')}.json`);
  for(const a of input.assets){if(!expected.delete(a.file)||!Number.isSafeInteger(a.size)||a.size<=0||a.size>24*1024*1024)throw Error('Invalid viewer file.');}
  return input.assets as {file:string;size:number}[]
 }
@@ -20,6 +22,7 @@ export function validateViewerManifest(m:any,setup:any){
   const a=m.scoutingAlignment;
   if(!validScoutingAlignment(a))throw Error('Invalid scouting alignment.');
  }
+ if(m.movement!==undefined&&(m.movement?.version!==1||m.movement.chunks!==m.chunks||m.movement.timebase!=='source-video-seconds'))throw Error('Invalid movement metadata.');
  if(m.activity!==undefined){
   const a=m.activity;
   if(a.version!==1||a.timebase!=='source-video-seconds'||!Array.isArray(a.windows)||a.windows.length>20000||!Number.isFinite(a.duration)||a.duration<0||a.windows.some((w:any,i:number)=>!Number.isFinite(w.start)||!Number.isFinite(w.end)||!Number.isFinite(w.segment)||w.end<=w.start||w.start<m.start||w.end>end+.11||(i>0&&w.start<a.windows[i-1].end)||!m.coverage.some((c:number[])=>c[2]===w.segment&&w.start>=c[0]&&w.end<=c[1]+.01)))throw Error('Invalid activity windows.');

@@ -1,3 +1,4 @@
+import {localViewerPreview} from '@/lib/lab-vision/local-viewer-preview';
 import {anchorAlignment,savedScout} from '@/lib/lab-vision/prepare-review'
 import {auth} from '@/lib/auth'
 import {canViewReports} from '@/lib/scouting-permissions'
@@ -14,9 +15,10 @@ export async function GET(req:Request,{params}:{params:Promise<{id:string}>}){
  // A later short sample must not replace a completed full analysis of this video.
  const j=(await db.query("select id,setup,result,updated_at from lab_vision_jobs where video_id=$1 and status='complete' and result->'viewer' is not null order by (setup->>'analysisSeconds')::numeric desc,updated_at desc limit 1",[v.id])).rows[0];
  if(!j)return json({result:null,videoId:v.id})
- const manifest={...j.result.viewer.manifest};const setup=v.calibration_setup??j.setup;
+ const preview=await localViewerPreview(j.id,j.result.viewer.prefix);
+ const manifest={...(preview?.manifest??j.result.viewer.manifest)};const setup=v.calibration_setup??j.setup;
  if(setup?.scoutingAnchor){try{const alignment=anchorAlignment(setup,await savedScout(id,kind,db));if(alignment)manifest.scoutingAlignment=alignment}catch{/* Changed scouting requires a new anchor; do not guess. */}}
  const reviewed=(await db.query('select payload from lab_vision_annotation_alignments where job_id=$1',[j.id])).rows[0]?.payload;
  if(!manifest.scoutingAlignment?.segments?.length&&reviewed&&reviewed.method!=='user-first-scouted-point'&&Number.isFinite(reviewed.offset))manifest.scoutingAlignment={version:1,offsetSeconds:reviewed.offset,method:'reviewed-shot-alignment'};
- return json({videoId:v.id,result:{id:j.id,videoId:v.id,updatedAt:j.updated_at,manifest,assetBase:`/api/internal/lab-vision/assets/${j.id}/`}})
+ return json({videoId:v.id,result:{id:j.id,videoId:v.id,updatedAt:preview?String(j.updated_at)+':preview:'+preview.revision:j.updated_at,manifest,assetBase:`/api/internal/lab-vision/assets/${j.id}/`}})
 }

@@ -25,11 +25,13 @@ async function main(){
  writeFileSync(resolve(dir,`${Date.now()}-result.json`),JSON.stringify(job.result),{mode:0o600});
  const {client,Bucket}=videoStorage();const prefix=`analysis/${id}/revisions/${randomUUID()}/viewer/`;
  for(let i=0;i<manifest.chunks;i++){
-  const name=`${String(i).padStart(3,'0')}.json`;
+  const chunk=`${String(i).padStart(3,'0')}.json`;
+  for(const name of manifest.movement?[chunk,`movement-${chunk}`]:[chunk]){
   const original=await client.send(new HeadObjectCommand({Bucket,Key:job.result.viewer.prefix+name}));
   await client.send(new CopyObjectCommand({Bucket,Key:prefix+name,CopySource:`${Bucket}/${job.result.viewer.prefix+name}`}));
   const copied=await client.send(new HeadObjectCommand({Bucket,Key:prefix+name}));
   if(copied.ContentLength!==original.ContentLength)throw Error('Viewer copy incomplete');
+  }
  }
  await client.send(new PutObjectCommand({Bucket,Key:prefix+'manifest.json',Body:JSON.stringify(manifest),ContentType:'application/json'}));
  const stored=await client.send(new GetObjectCommand({Bucket,Key:prefix+'manifest.json'}));validateViewerManifest(JSON.parse(await stored.Body!.transformToString()),job.setup);
