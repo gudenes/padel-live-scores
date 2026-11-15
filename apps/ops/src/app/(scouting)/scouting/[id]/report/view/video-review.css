@@ -668,3 +668,48 @@
 .vr-detailed-timeline .vr-match-timeline{margin-top:12px}
 
 .vr-chapter-marker-track{height:10px;cursor:pointer}.vr-chapter-marker-track i{top:3px;pointer-events:none}
+
+/* A continuous video and timeline review surface. */
+.video-review .vr-review-panel{background:#17201e;border:1px solid #2b3832;box-shadow:0 8px 24px #17201e12}
+.vr-review-panel .vr-chapter-labels,.vr-review-panel .vr-chapter-events{display:none}
+.video-review .vr-review-panel .vr-media-point{background:#17201e;color:#e0e8e3;border-color:#ffffff15}
+.video-review .vr-review-panel .vr-media-point select{background:#26312c;color:#edf4ee;border-color:#435047}
+.video-review .vr-review-panel .vr-media-point .ui-btn,.vr-review-panel .vr-media-more>summary{color:#cfdad2}
+.video-review .vr-review-panel .vr-media-point>.vr-save-moment-primary{background:#26312c;border-color:#435047;color:#edf4ee}
+.video-review .vr-review-panel .vr-media-point>.vr-mode .ui-btn[aria-pressed=true]{background:#c6f52d;color:#1b2b0e}
+.video-review .vr-review-panel .vr-match-timeline{--muted:#b4c1b9;--text:#eef4ef;--border:#ffffff15;--bg:#27332d;--card:#27332d;--vr-line:#ffffff15;border:0;border-top:1px solid #ffffff20;border-radius:0;background:#17201e;color:#eef4ef;padding:12px 16px 14px;margin:0}
+.vr-review-panel .vr-timeline-heading{gap:12px;margin-bottom:12px}
+.vr-review-panel .vr-timeline-heading h3{color:#eef4ef;font-size:13px}
+.vr-review-panel .vr-timeline-heading small{display:none}
+.vr-review-panel .vr-timeline-time{font-size:11px;color:#c6f52d}
+.vr-timeline-filter-tabs{display:flex;gap:3px;align-items:center}
+.vr-timeline-filter-tabs .ui-btn{font-size:11px;min-height:28px;padding:4px 10px}
+.vr-review-panel .vr-timeline-actions{gap:4px}
+.vr-review-panel .vr-timeline-actions .ui-btn:not([data-variant=primary]),.vr-review-panel .vr-timeline-filter-tabs .ui-btn:not([data-variant=primary]){background:#27332d;color:#e3ebe5;border-color:#48554d;box-shadow:none}
+.vr-review-panel .vr-timeline-actions .ui-input{background:#27332d;color:#e3ebe5;border-color:#48554d}
+.vr-review-panel .vr-timeline-actions .ui-btn:disabled{opacity:.35}
+.vr-review-panel .vr-timeline-expand{order:2;display:grid;place-items:center}
+.vr-review-panel [data-expanded=false] .vr-timeline-actions>label{display:none}
+.vr-review-panel .vr-timeline-overview{height:25px;background:#27332d;margin-bottom:8px;border-radius:5px}
+.vr-review-panel .vr-timeline-overview .ui-btn{background:#344139;color:#e3ebe5;border-right:3px solid #17201e;height:25px}
+.vr-review-panel .vr-timeline-mini-points,.vr-review-panel .vr-timeline-scrub{display:none}
+.vr-review-panel .vr-timeline-window{border-color:#c6f52d55;background:#c6f52d0a}
+.vr-review-panel .vr-timeline-overview>i{background:#c6f52d}
+.vr-review-panel .vr-timeline-grid{position:relative}
+.vr-review-panel .vr-timeline-ruler{background:transparent;border-radius:0}
+.vr-review-panel .vr-timeline-track{background:repeating-linear-gradient(90deg,transparent 0,transparent calc(16.666% - 1px),#ffffff08 calc(16.666% - 1px),#ffffff08 16.666%)}
+.vr-review-panel .vr-timeline-track,.vr-review-panel .vr-timeline-lane-label{height:29px}
+.vr-review-panel .vr-timeline-lane-label{color:#cfdad2}
+.vr-review-panel .vr-timeline-track[data-lane=saved]{background:transparent}
+.matchInsights .vr-review-panel .vr-timeline-event.ui-btn{height:14px;top:7px;border-radius:3px;min-width:3px}
+.matchInsights .vr-review-panel .vr-timeline-event[aria-pressed=true]{outline:2px solid #c6f52d;outline-offset:2px;box-shadow:none}
+.vr-review-panel .vr-timeline-playhead{display:none}
+.vr-shared-playhead-track{position:absolute;left:68px;right:20px;top:0;bottom:0;pointer-events:none;z-index:6}
+.vr-shared-playhead-track>i{position:absolute;top:0;bottom:0;width:2px;background:#c6f52d}
+.vr-shared-playhead-track b{position:absolute;top:0;left:0;transform:translateX(-50%);background:#c6f52d;color:#1b2b0e;padding:2px 4px;border-radius:4px;font-size:10px;font-style:normal;white-space:nowrap}
+.vr-review-panel .vr-timeline-caption{font-size:10px;color:#b4c1b9;line-height:1.5}
+@media(max-width:700px){.video-review .vr-review-panel .vr-match-timeline{padding:10px 8px}.vr-review-panel .vr-timeline-actions{width:100%;margin-left:0}.vr-review-panel .vr-timeline-caption span:last-child{display:none}}
+
+.vr-review-panel .vr-timeline-lane-label[data-lane=saved]{background:transparent;color:#cfdad2}
+.vr-review-panel .vr-timeline-sprint.ui-btn{background:#f3d38b;border-color:#bc9847}
+.vr-review-panel .vr-time-saved{background:#27332d;color:#dce9d7}
