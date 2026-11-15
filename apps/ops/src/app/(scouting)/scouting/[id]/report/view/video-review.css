@@ -396,7 +396,7 @@
 
 /* Coach transport: controls directly beneath the footage. */
 .vr-media-shell{width:100%;min-width:0;background:#101917;display:flex;flex-direction:column}
-.video-review .vr-watch .vr-media-shell .vr-player{height:clamp(230px,calc(100dvh - 465px),460px);min-height:0;flex:0 0 auto}
+.video-review .vr-watch .vr-media-shell .vr-player{height:clamp(310px,calc(100dvh - 385px),540px);min-height:0;flex:0 0 auto}
 .vr-transport{padding:8px 10px;background:#f7f9f3;color:#263123;border-top:1px solid #dce2d4}
 .vr-transport>input{display:block;width:100%;height:5px;accent-color:#8ca82b;cursor:pointer;margin:0 0 9px}
 .vr-transport-row{display:flex;align-items:center;gap:5px;flex-wrap:wrap}

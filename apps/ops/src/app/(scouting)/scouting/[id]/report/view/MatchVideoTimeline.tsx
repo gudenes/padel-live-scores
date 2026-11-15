@@ -5,8 +5,8 @@ import {useEffect,useRef,useState} from 'react';
 import {replayPoints,timeLabel,pointScore} from '@/lib/scouting/video-review';
 type Point=ReturnType<typeof replayPoints>[number];
 export default function MatchVideoTimeline({integrated=false,filterTab='points',onFilterTab,sprintEvents=[],showSprints=false,activityWindows=[],activityReady=false,players,points,filtered,clock,duration,selected,onChoose,onSeek,onScrub,moments,enabled}:{integrated?:boolean;filterTab?:'points'|'movement';onFilterTab?:(tab:'points'|'movement')=>void;sprintEvents?:SprintEvent[];showSprints?:boolean;activityWindows?:{start:number;end:number}[];activityReady?:boolean;players:{shortName:string;avatar?:string}[];points:Point[];filtered:Point[];clock:number;duration:number;selected?:string;onChoose:(id:string)=>void;onSeek:(t:number)=>void;onScrub:(t:number)=>void;moments:{time:number;label:string;labels?:string[]}[];enabled:boolean}){
- const [expanded,setExpanded]=useState(false);
- const [zoom,setZoom]=useState(integrated?900:0),[follow,setFollow]=useState(true),[anchor,setAnchor]=useState(0);
+ const [expanded,setExpanded]=useState(integrated);
+ const [zoom,setZoom]=useState(0),[follow,setFollow]=useState(true),[anchor,setAnchor]=useState(0);
  const [hover,setHover]=useState<{p:Point;x:number;y:number}|null>(null);
  const outcomeNames:Record<string,string>={winner:'Winner',unforced:'Unforced error',forced:'Forced error committed',double_fault:'Double fault'};
  const drag=useRef<{left:number;width:number;start:number;span:number;last:number}|null>(null);
