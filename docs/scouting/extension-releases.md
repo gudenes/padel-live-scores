@@ -80,3 +80,16 @@ The extension, admin Scout web and embedded live Scout share the updated validat
 Update the existing unpacked installation after exporting a backup; do not uninstall. Chrome Web Store submission uses the separate store ZIP with manifest at its root.
 
 Validation: 237 of 238 extension tests pass, including winner capture on both UI surfaces, keyboard skip, tap suggestions, existing error flows and smash/recovery tags. The remaining `player-profile.test.mjs` court-end keyboard expectation is the previously documented failure. Nine admin model/export tests and the webpack production build pass. The isolated browser preview verifies a winning volley plus opponent lob. Browser policy blocked extension management and the store dashboard; installers are prepared, but reload and store submission require the user.
+
+## 0.2.19 — One smash attempt per recovered smash
+
+Fixes rival smash attempts being counted twice after 0.2.18 added the opponent's previous stroke to winners.
+
+- Tagging the rival's previous stroke as Smash now preselects **Use last smash** whenever that rival already has an attempt in the rally. **New smash** remains an explicit choice for a distinct hit.
+- The smash-recovery picker refreshes its default when an attempt finishes saving after the dialog opened; a choice the scout made by hand is kept.
+- Admin Scout web now defaults recovery to the rival pair's latest recorded smash, matching the extension.
+- A recovery and a previous-stroke Smash by the same rival always save as one attempt, including when nothing was recorded beforehand.
+
+No new record fields, migration or permissions. Sessions saved with 0.2.18 are not rewritten: rival smash counts recorded since then may be inflated. Deploy admin from merged main; the Chrome Web Store submission uses the separate store ZIP with the manifest at its root.
+
+Validation: 13 new tests in `recovery-reuse-defaults.test.mjs` cover both UI surfaces in Pro and Expert modes plus the engine. The full extension suite reports 253 of 254 passing; the remaining `player-profile.test.mjs` court-end expectation is the previously documented failure. Not exercised against a live video in Chrome before release.
