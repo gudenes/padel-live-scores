@@ -15,6 +15,7 @@ it.skipIf(process.env.INTELLIGENCE_INTEGRATION!=='1')('matches existing report c
    expect(actual!.stats).toEqual(baseline.model.stats)
    expect(actual!.points.map(p=>p.id)).toEqual(baseline.model.tracking.timeline.map(p=>p.id))
    expect(actual!.impact).toEqual(methodologyAnalysis(baseline.model.tracking.timeline).players.map(p=>p.impact))
+   expect(actual!.playerScores).toEqual(methodologyAnalysis(baseline.model.tracking.timeline).players.map(p=>p.score))
    compared++
   }
   console.info('Stored report parity verified:',compared)
