@@ -7,13 +7,14 @@
 // cron stops).
 //
 // Endpoint:
-//   GET https://www.padelfip.com/wp-json/fip/v1/player/search?q=<name>
+//   GET https://www.padelfip.com/?rest_route=/fip/v1/player/search&q=<name>
 //   No auth, no nonce. Returns a JSON array of matching players.
 
 import type { AxiosInstance } from 'axios';
 import { normalizeCountry } from './country.js';
 
-const SEARCH_URL = 'https://www.padelfip.com/wp-json/fip/v1/player/search';
+// Match the query-form REST route verified through the production FIP proxy.
+const SEARCH_URL = 'https://www.padelfip.com/?rest_route=/fip/v1/player/search';
 
 export interface FipPlayerSearchInput {
   name: string;
@@ -59,7 +60,7 @@ const GENDER_FOR_CATEGORY: Record<'men' | 'women', 'male' | 'female'> = {
 
 function buildSearchUrl(q: string): string {
   const params = new URLSearchParams({ q: q.trim() });
-  return `${SEARCH_URL}?${params.toString().replace(/\+/g, '%20')}`;
+  return `${SEARCH_URL}&${params.toString().replace(/\+/g, '%20')}`;
 }
 
 export function candidateQueries(name: string): string[] {
