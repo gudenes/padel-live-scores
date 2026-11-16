@@ -1,3 +1,4 @@
+import {labelProgress} from '@/lib/lab-vision/video-status'
 import {anchorAlignment,movementReview,prepareReview} from '@/lib/lab-vision/prepare-review'
 import {auth} from '@/lib/auth'
 import {pgPool} from '@/lib/db'
@@ -30,7 +31,11 @@ export async function GET(req:Request){const u=await access();if(!u)return json(
  return json({movementReview:movementReview(j.result?.viewer?.manifest),tracking:j.result?.viewer?{manifest:j.result.viewer.manifest,assetBase:`/api/internal/lab-vision/assets/${j.id}/`}:null,video:await playbackVideo({...j,id:j.upload_id}),matchStart:j.setup?.matchStart??0,players:(j.setup?.playerNames??[]).map((name:string,i:number)=>({name,id:j.setup?.playerIds?.[i]??name})),annotations,source:{jobId:j.id,videoId:j.video_id,matchId:j.match_id,pipeline:j.result?.manifest?.pipeline??'Not recorded'}})}
  const {rows}=await pgPool().query('select j.id,j.video_id,j.worker_id,j.status,j.stage,j.progress,j.error,j.updated_at,j.setup,v.match_id,v.file_name from lab_vision_jobs j join match_video_uploads v on v.id=j.video_id order by j.created_at desc limit 50',[])
  const workers=(await pgPool().query("select id,last_seen_at,last_seen_at>now()-interval '45 seconds' as online from lab_vision_workers where revoked_at is null",[])).rows
- return json({jobs:rows.map(j=>({...j,estimate:estimateAnalysis(j)})),workers,checkedAt:new Date().toISOString()})
+ // One bounded query for all listed runs; revision and eligibility rules match Training.
+ const labels=rows.length?(await pgPool().query(`select a.job_id,a.payload,v.duration_seconds from lab_vision_annotations a join lab_vision_jobs j on j.id=a.job_id join match_video_uploads v on v.id=j.video_id where a.job_id=any($1::uuid[]) order by a.created_at,a.id`,[rows.map(j=>j.id)])).rows:[]
+ const byJob=new Map<string,Record<string,any>[]>()
+ for(const a of labels){const list=byJob.get(a.job_id)??[];list.push({...a.payload,duration:Number(a.duration_seconds)});byJob.set(a.job_id,list)}
+ return json({jobs:rows.map(j=>({...j,labels:labelProgress(byJob.get(j.id)??[]),estimate:estimateAnalysis(j)})),workers,checkedAt:new Date().toISOString()})
 }
 export async function POST(req:Request){const u=await access();if(!u)return json({error:'Administrator access required.'},403);if(!hasAdminRequestOrigin(req))return json({error:'Invalid origin.'},403)
  try{const b=await jobBody(req,12000);const j=await analysis(b.jobId);if(!j)return json({error:'Analysis not found.'},404)
