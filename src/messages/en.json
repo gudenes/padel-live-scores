@@ -1760,8 +1760,6 @@
     "shareCopied": "Link copied",
     "fieldTitle": "Who's in the hunt",
     "fieldSubtitle": "{count, plural, one {# pair entered} other {# pairs entered}}",
-    "fieldPendingTitle": "Pairs awaiting projections",
-    "fieldPendingNote": "These pairs are entered. Predictions are not available yet.",
     "fieldOddsNote": "Odds open when the draw is released.",
     "fieldOddsNoteBody": "Until then, this is the field by ranking.",
     "fieldSeeded": "The field · Seeded",
