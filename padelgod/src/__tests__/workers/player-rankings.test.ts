@@ -445,6 +445,26 @@ describe('runPlayerRankings (WP JSON API rewrite)', () => {
     expect(urls.some(u => u.includes('search_type=race') && u.includes('gender=male'))).toBe(true);
     expect(urls.some(u => u.includes('search_type=race') && u.includes('gender=female'))).toBe(true);
 
+    // The query-form route must retain API parameters as separate fields.
+    const apiCalls = httpClient.get.mock.calls.map(([url]) => new URL(url))
+      .filter(url => url.searchParams.has('rest_route'));
+    expect(apiCalls).toHaveLength(4);
+    for (const url of apiCalls) {
+      expect(url.pathname).toBe('/es/');
+      expect(['/fip/v1/ranking/load-more/', '/fip/v1/player/search'])
+        .toContain(url.searchParams.get('rest_route'));
+      expect(['male', 'female']).toContain(url.searchParams.get('gender'));
+      expect(url.searchParams.get('limit')).toBe('500');
+      expect(url.searchParams.get('offset')).toBe('0');
+      expect(url.searchParams.get('circuit')).toBe('premierpadel');
+      if (url.searchParams.get('rest_route') === '/fip/v1/player/search') {
+        expect(url.searchParams.get('search_type')).toBe('race');
+      } else {
+        expect(url.searchParams.get('year')).toMatch(/^\d{4}$/);
+        expect(Number(url.searchParams.get('week'))).toBeGreaterThan(0);
+      }
+    }
+
     // Existing player updated, not duplicated
     const p1 = state.players.find(p => p.fip_id === 'P000001')!;
     expect(state.players.filter(p => p.fip_id === 'P000001')).toHaveLength(1);
