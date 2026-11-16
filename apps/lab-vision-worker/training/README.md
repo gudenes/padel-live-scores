@@ -2,7 +2,7 @@
 
 Uses existing verified-contact annotations and cached viewer poses; no videos, pretrained models or cloud GPU are downloaded. The model is an 816 → 128 → 8 MLP. This is an experimental shot classifier, not a ball tracker or a video model.
 
-Run `runner.py --config <existing-worker-config> --snapshot <snapshot-id> --cache <job-cache> --output <external-training-directory>` with a Python environment containing numpy and PyTorch. Existing worker credentials are validated on every request; plans are scoped to their owner and worker. Do not log or copy credentials into the repository.
+Run `runner.py --config <existing-worker-config> --snapshot <snapshot-id> --cache <job-cache> --output <external-training-directory>` with a Python environment containing numpy, requests and PyTorch. The runner uses the same HTTP client as the analysis worker for firewall compatibility. Existing worker credentials are validated on every request; plans are scoped to their owner and worker. Do not log or copy credentials into the repository.
 
 Connecting prepares features and saves a plan awaiting approval. **It does not train.** Lab Vision → Training → Runs displays the cost and an explicit Start button. The runner polls outbound HTTPS every 15 seconds and claims only approved plans. A claim is atomic, with no automatic retries. Keep the computer awake and the external drive attached. Cancellation is checked after each epoch; a parent process kills training at 30 minutes. After a process crash, reconnecting marks the old run failed rather than repeating it. There is no cloud fallback or paid-compute API.
 
