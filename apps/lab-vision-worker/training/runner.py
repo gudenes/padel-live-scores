@@ -7,7 +7,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from urllib.request import Request, urlopen
+import requests
 from urllib.parse import urlparse
 
 
@@ -15,9 +15,9 @@ def api(config, **body):
     server = config['server'].rstrip('/')
     if urlparse(server).scheme != 'https':
         raise ValueError('HTTPS server required')
-    req = Request(server + '/api/lab-vision/training-worker', data=json.dumps(body).encode(), headers={'Authorization': 'Bearer ' + config['token'], 'Content-Type': 'application/json'})
-    with urlopen(req, timeout=30) as response:
-        return json.load(response)
+    response = requests.post(server + '/api/lab-vision/training-worker', json=body, headers={'Authorization': 'Bearer ' + config['token']}, timeout=(10, 30))
+    response.raise_for_status()
+    return response.json()
 
 
 def train(config, plan, directory):
