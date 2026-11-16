@@ -69,7 +69,7 @@ export interface FipCmsOrphanPruneResult {
   dryRun: boolean;
 }
 
-const WP_API_BASE = 'https://www.padelfip.com/wp-json/wp/v2/events';
+const WP_API_BASE = 'https://www.padelfip.com/?rest_route=/wp/v2/events';
 const DEFAULT_MISSING_THRESHOLD_MS = 7 * 24 * 3600 * 1000;
 
 interface CandidateRow {
@@ -246,7 +246,7 @@ export async function fetchAllFipEventSlugs(
   for (let page = 1; page <= 10; page++) {
     let data: unknown;
     try {
-      const res = await httpClient.get(`${WP_API_BASE}?per_page=100&page=${page}&_fields=slug`);
+      const res = await httpClient.get(`${WP_API_BASE}&per_page=100&page=${page}&_fields=slug`);
       data = res.data;
     } catch {
       // Best-effort — return whatever we have. The caller short-circuits

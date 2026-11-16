@@ -4,12 +4,12 @@
 // in our DB (typically ranked > 1000 where our daily ranking cron doesn't reach).
 //
 // Endpoint (verified 2026-04-21):
-//   GET https://www.padelfip.com/wp-json/fip/v1/player/search?q=<name>
+//   GET https://www.padelfip.com/?rest_route=/fip/v1/player/search&q=<name>
 //   No auth, no nonce. Returns a JSON array of matching players.
 
 import { normalizeCountry } from './player-resolver'
 
-const SEARCH_URL = 'https://www.padelfip.com/wp-json/fip/v1/player/search'
+const SEARCH_URL = 'https://www.padelfip.com/?rest_route=/fip/v1/player/search'
 
 export interface FipPlayerSearchInput {
   /** Full or partial player name. Used as the `q` query param. */
@@ -75,7 +75,7 @@ function buildSearchUrlForQuery(q: string): string {
   const params = new URLSearchParams({ q: q.trim() })
   // URLSearchParams encodes space as '+'; FIP accepts both but %20 is what the
   // site's own UI emits — mirror that to keep request fingerprints identical.
-  return `${SEARCH_URL}?${params.toString().replace(/\+/g, '%20')}`
+  return `${SEARCH_URL}&${params.toString().replace(/\+/g, '%20')}`
 }
 
 /**

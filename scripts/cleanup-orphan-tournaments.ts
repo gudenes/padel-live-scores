@@ -1,3 +1,4 @@
+import { fetch } from 'undici'
 #!/usr/bin/env -S npx tsx
 /**
  * One-shot cleanup for orphan FIP-source tournament rows.
@@ -28,8 +29,10 @@
  */
 
 import 'dotenv/config';
+import { installFipProxy } from '../shared/fip-http.mjs'
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
+installFipProxy();
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -40,7 +43,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
 const APPLY = process.argv.includes('--apply');
 const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
 
-const WP_EVENTS_BASE = 'https://www.padelfip.com/wp-json/wp/v2/events';
+const WP_EVENTS_BASE = 'https://www.padelfip.com/?rest_route=/wp/v2/events';
 
 interface TournamentRow {
   id: string;
@@ -54,7 +57,7 @@ interface TournamentRow {
 async function fipSlugExists(slug: string): Promise<boolean> {
   // Returns true iff the FIP WP API returns at least one event for this
   // slug. A 200 with an empty array = orphan.
-  const url = `${WP_EVENTS_BASE}?slug=${encodeURIComponent(slug)}`;
+  const url = `${WP_EVENTS_BASE}&slug=${encodeURIComponent(slug)}`;
   const res = await fetch(url);
   if (!res.ok) {
     // Defensive: if the API is down or returning non-200, treat as

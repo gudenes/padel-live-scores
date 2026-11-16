@@ -14,7 +14,7 @@
 // ---------------------------------------------------------------------------
 
 export const FIP_WP_BASE = 'https://www.padelfip.com'
-export const FIP_WP_API = FIP_WP_BASE + '/wp-json/wp/v2'
+export const FIP_WP_API = FIP_WP_BASE + '/?rest_route=/wp/v2'
 export const MATCHSCORER_WIDGET = 'https://widget.matchscorerlive.com'
 
 /**
@@ -1140,7 +1140,7 @@ export async function fetchFipEvents(level?: string): Promise<FipTournament[]> {
     let totalPages = 1
 
     while (page <= totalPages) {
-      const url = `${FIP_WP_API}/events?category-event=${catId}&page=${page}&per_page=20&_fields=id,title,slug,link,featured_media,category-event,country,gender,event-year`
+      const url = `${FIP_WP_API}/events&category-event=${catId}&page=${page}&per_page=20&_fields=id,title,slug,link,featured_media,category-event,country,gender,event-year`
       const resp = await fetch(url, { headers: DEFAULT_HEADERS })
 
       if (!resp.ok) {
@@ -1225,7 +1225,7 @@ export async function resolveCountryTerms(
     let totalPages = 1
 
     while (page <= totalPages) {
-      const url = `${FIP_WP_API}/country?per_page=100&page=${page}&_fields=id,name,slug`
+      const url = `${FIP_WP_API}/country&per_page=100&page=${page}&_fields=id,name,slug`
       try {
         const resp = await fetch(url, { headers: DEFAULT_HEADERS })
         if (!resp.ok) break

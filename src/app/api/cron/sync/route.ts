@@ -193,7 +193,7 @@ async function fetchFipEventInfo(tournamentName: string): Promise<FipEventInfo> 
   try {
     // Strip year suffix for better matching ("Miami P1 2026" → "Miami P1")
     const searchTerm = tournamentName.replace(/\s+\d{4}$/, '').trim()
-    const url = `https://www.padelfip.com/wp-json/wp/v2/events?search=${encodeURIComponent(searchTerm)}&per_page=3&_fields=id,title,featured_media,link`
+    const url = `https://www.padelfip.com/?rest_route=/wp/v2/events&search=${encodeURIComponent(searchTerm)}&per_page=3&_fields=id,title,featured_media,link`
     const res = await fetch(url)
     if (!res.ok) return { logoUrl: null, slug: null }
     const events = await res.json()
@@ -215,7 +215,7 @@ async function fetchFipEventInfo(tournamentName: string): Promise<FipEventInfo> 
     let logoUrl: string | null = null
     if (best?.featured_media) {
       const mediaRes = await fetch(
-        `https://www.padelfip.com/wp-json/wp/v2/media/${best.featured_media}?_fields=source_url,media_details`
+        `https://www.padelfip.com/?rest_route=/wp/v2/media/${best.featured_media}&_fields=source_url,media_details`
       )
       if (mediaRes.ok) {
         const media = await mediaRes.json()

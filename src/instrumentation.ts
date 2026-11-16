@@ -65,8 +65,8 @@ function commonInit() {
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { installFipImageProxy } = await import('./lib/fip-image-proxy')
-    installFipImageProxy()
+    const { installFipProxy } = await import('../shared/fip-http.mjs')
+    installFipProxy()
   }
 
   if (!process.env.SENTRY_DSN) return

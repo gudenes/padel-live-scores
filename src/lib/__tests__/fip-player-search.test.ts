@@ -141,17 +141,17 @@ describe('candidateQueries', () => {
 describe('buildSearchUrl', () => {
   it('URL-encodes the name', () => {
     expect(buildSearchUrl({ name: 'Cleo Carvalho' }))
-      .toBe('https://www.padelfip.com/wp-json/fip/v1/player/search?q=Cleo%20Carvalho')
+      .toBe('https://www.padelfip.com/?rest_route=/fip/v1/player/search&q=Cleo%20Carvalho')
   })
 
   it('handles names with accents', () => {
     expect(buildSearchUrl({ name: 'Adrián Baamonde' }))
-      .toBe('https://www.padelfip.com/wp-json/fip/v1/player/search?q=Adri%C3%A1n%20Baamonde')
+      .toBe('https://www.padelfip.com/?rest_route=/fip/v1/player/search&q=Adri%C3%A1n%20Baamonde')
   })
 
   it('trims whitespace', () => {
     expect(buildSearchUrl({ name: '  Cleo Carvalho  ' }))
-      .toBe('https://www.padelfip.com/wp-json/fip/v1/player/search?q=Cleo%20Carvalho')
+      .toBe('https://www.padelfip.com/?rest_route=/fip/v1/player/search&q=Cleo%20Carvalho')
   })
 })
 
