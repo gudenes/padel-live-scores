@@ -73,7 +73,9 @@ interface FipRacePlayer {
 
 // ── Constants ────────────────────────────────────────────────────────────
 
-const FIP_BASE = 'https://www.padelfip.com/es/wp-json/fip/v1';
+// FIP blocks /wp-json/ even through the working proxy. WordPress exposes
+// the same API through rest_route; retain the Spanish locale and all filters.
+const FIP_BASE = 'https://www.padelfip.com/es/?rest_route=/fip/v1';
 const FIP_RANKINGS_PAGE = 'https://www.padelfip.com/es/fip-rankings/';
 const TOP_DEFAULT = 1000;
 const PAGE_SIZE = 500;
@@ -177,7 +179,7 @@ async function fetchOfficial(
     while (all.length < top) {
       const remaining = top - all.length;
       const fetchLimit = Math.min(PAGE_SIZE, remaining);
-      const url = `${FIP_BASE}/ranking/load-more/?gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&year=${year}&week=${w}&lang=es`;
+      const url = `${FIP_BASE}/ranking/load-more/&gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&year=${year}&week=${w}&lang=es`;
       const res = await httpClient.get(url);
       const data: FipOfficialPlayer[] = res.data ?? [];
       if (data.length === 0) break;
@@ -224,7 +226,7 @@ async function fetchRace(
   while (all.length < top) {
     const remaining = top - all.length;
     const fetchLimit = Math.min(PAGE_SIZE, remaining);
-    const url = `${FIP_BASE}/player/search?search_type=race&gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&lang=es`;
+    const url = `${FIP_BASE}/player/search&search_type=race&gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&lang=es`;
     const res = await httpClient.get(url);
     const data: FipRacePlayer[] = res.data ?? [];
     if (data.length === 0) break;
@@ -636,7 +638,7 @@ async function runOfficialPhase(
       {
         jobType: 'rankings',
         tournamentId: null,
-        targetUrl: `${FIP_BASE}/ranking/load-more/?gender=${gender}`,
+        targetUrl: `${FIP_BASE}/ranking/load-more/&gender=${gender}`,
         parserVersion: FIP_RANKINGS_VERSION,
         captureBody: false,
       },
@@ -703,7 +705,7 @@ async function runRacePhase(
       {
         jobType: 'rankings',
         tournamentId: null,
-        targetUrl: `${FIP_BASE}/player/search?search_type=race&gender=${gender}`,
+        targetUrl: `${FIP_BASE}/player/search&search_type=race&gender=${gender}`,
         parserVersion: FIP_RANKINGS_VERSION,
         captureBody: false,
       },
