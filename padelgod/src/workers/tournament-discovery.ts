@@ -31,8 +31,9 @@ export interface TournamentDiscoveryResult {
   fipTwinSkipped: number;
 }
 
-const WP_API_BASE = 'https://www.padelfip.com/wp-json/wp/v2/events';
-const WP_COUNTRY_BASE = 'https://www.padelfip.com/wp-json/wp/v2/country';
+// FIP rejects /wp-json/ on our proxy; WordPress's query route serves the same API.
+const WP_API_BASE = 'https://www.padelfip.com/?rest_route=/wp/v2/events';
+const WP_COUNTRY_BASE = 'https://www.padelfip.com/?rest_route=/wp/v2/country';
 
 // ── Cross-source twin detection ────────────────────────────────────────
 //
@@ -154,7 +155,7 @@ export async function runTournamentDiscovery(
   if (latest?.updated_at) {
     params.set('modified_after', latest.updated_at);
   }
-  const targetUrl = `${WP_API_BASE}?${params.toString()}`;
+  const targetUrl = `${WP_API_BASE}&${params.toString()}`;
 
   // 2. Scrape (with job tracking)
   let parsed: ReturnType<typeof parseFipWpEvents> = [];
@@ -562,7 +563,7 @@ async function fetchFipCountryTaxonomy(
   const all: RawCountryTerm[] = [];
   try {
     for (let page = 1; page <= 5; page++) {
-      const url = `${WP_COUNTRY_BASE}?per_page=100&page=${page}`;
+      const url = `${WP_COUNTRY_BASE}&per_page=100&page=${page}`;
       const response = await httpClient.get(url);
       const data = response.data;
       if (!Array.isArray(data) || data.length === 0) break;

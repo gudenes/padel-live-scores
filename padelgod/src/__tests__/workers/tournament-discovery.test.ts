@@ -88,6 +88,15 @@ describe('runTournamentDiscovery', () => {
 
     const result = await runTournamentDiscovery({ supabase: supabase as any, httpClient: httpClient as any });
 
+    const urls = httpClient.get.mock.calls.map(([url]) => new URL(url));
+    const eventsUrl = urls.find(url => url.searchParams.get('rest_route') === '/wp/v2/events')!;
+    expect(eventsUrl.pathname).toBe('/');
+    expect(eventsUrl.searchParams.get('per_page')).toBe('100');
+    expect(eventsUrl.searchParams.get('_embed')).toBe('true');
+    const countryUrl = urls.find(url => url.searchParams.get('rest_route') === '/wp/v2/country')!;
+    expect(countryUrl.pathname).toBe('/');
+    expect(countryUrl.searchParams.get('per_page')).toBe('100');
+    expect(countryUrl.searchParams.get('page')).toBe('1');
     expect(result.discovered).toBe(1);
     expect(supabase.upserted).toHaveLength(1);
     expect(supabase.upserted[0].rows[0]).toMatchObject({
@@ -203,6 +212,17 @@ describe('runTournamentDiscovery', () => {
     // preserves it. This is the regression-prevention assertion for
     // the Asuncion P2 disappearance bug (2026-04-28 / 2026-04-29).
     expect(supabase.upserted[0].rows[0].level).toBe('p2');
+  });
+
+  it('keeps the incremental timestamp separate from the REST route', async () => {
+    const modified = '2026-11-16T00:20:01.425295+00:00';
+    const httpClient = fakeHttp([]);
+    await runTournamentDiscovery({ supabase: fakeSupabase(modified) as any, httpClient: httpClient as any });
+    const url = new URL(httpClient.get.mock.calls[0][0]);
+    expect(url.searchParams.get('rest_route')).toBe('/wp/v2/events');
+    expect(url.searchParams.get('modified_after')).toBe(modified);
+    expect(url.searchParams.get('orderby')).toBe('modified');
+    expect(url.searchParams.get('order')).toBe('asc');
   });
 
   it('returns 0 discovered when WP returns empty', async () => {
