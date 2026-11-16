@@ -227,16 +227,16 @@ export default function ProjectionTab({
   if (view === 'list' || !vm) {
     return (
       <div key="proj-list" className="page-mount-anim" style={{ padding: '14px 13px 24px' }}>
-        {unprojectedEntries.length > 0 && <FieldView
-          entries={unprojectedEntries} playerMap={entryState.playerMap}
-          loading={false} error={false} projectionUnavailable
-        />}
         <ProjectionPickerList
           rows={rows}
           seedByPair={seedByPair}
           resolvePlayer={resolvePlayer}
           onPick={(key) => { setHistory([]); setSelectedPair(key); setExpanded(new Set()); setView('road') }}
         />
+        {unprojectedEntries.length > 0 && <FieldView
+          entries={unprojectedEntries} playerMap={entryState.playerMap}
+          loading={false} error={false} projectionUnavailable
+        />}
       </div>
     )
   }
