@@ -81,7 +81,7 @@ function isoYearWeek(d: Date): { year: number; week: number; mondayIso: string }
   return { year: date.getUTCFullYear(), week, mondayIso: monday.toISOString().slice(0, 10) }
 }
 
-const FIP_BASE = 'https://www.padelfip.com/es/wp-json/fip/v1'
+const FIP_BASE = 'https://www.padelfip.com/es/?rest_route=/fip/v1'
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -177,7 +177,7 @@ async function fetchOfficialRankings(gender: 'male' | 'female', top: number): Pr
     while (all.length < top) {
       const remaining = top - all.length
       const fetchLimit = Math.min(limit, remaining)
-      const url = `${FIP_BASE}/ranking/load-more/?gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&year=${year}&week=${w}&lang=es`
+      const url = `${FIP_BASE}/ranking/load-more/&gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&year=${year}&week=${w}&lang=es`
       const res = await fetch(url)
       if (!res.ok) { console.error(`[sync-fip] official ${gender} week ${w} ${res.status}`); break }
       const data: FipRankingPlayer[] = await res.json()
@@ -205,7 +205,7 @@ async function fetchRaceRankings(gender: 'male' | 'female', top: number): Promis
   while (all.length < top) {
     const remaining = top - all.length
     const fetchLimit = Math.min(limit, remaining)
-    const url = `${FIP_BASE}/player/search?search_type=race&q=&gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&lang=es`
+    const url = `${FIP_BASE}/player/search&search_type=race&q=&gender=${gender}&limit=${fetchLimit}&offset=${offset}&category=master&circuit=premierpadel&lang=es`
     const res = await fetch(url)
     if (!res.ok) { console.error(`[sync-fip] race ${gender} ${res.status}`); break }
     const data: FipRacePlayer[] = await res.json()

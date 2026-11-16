@@ -1,3 +1,4 @@
+import { fetch } from 'undici'
 // scripts/backfill-tournament-country.ts
 //
 // One-shot backfill for `tournaments.country = NULL` rows that the
@@ -23,6 +24,7 @@
 //   npx tsx scripts/backfill-tournament-country.ts
 //   npx tsx scripts/backfill-tournament-country.ts --slug <slug>
 
+import { installFipProxy } from '../shared/fip-http.mjs'
 import { createClient } from '@supabase/supabase-js'
 import * as fs from 'fs'
 import * as path from 'path'
@@ -42,6 +44,7 @@ function loadEnv() {
   }
 }
 loadEnv()
+installFipProxy()
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY!
@@ -94,7 +97,7 @@ interface WpEvent {
 async function fetchCountryTaxonomy(): Promise<Map<number, string | null>> {
   const out = new Map<number, string | null>()
   for (let page = 1; page <= 5; page++) {
-    const url = `https://www.padelfip.com/wp-json/wp/v2/country?per_page=100&page=${page}`
+    const url = `https://www.padelfip.com/?rest_route=/wp/v2/country&per_page=100&page=${page}`
     const r = await fetch(url)
     if (!r.ok) break
     const data = (await r.json()) as CountryTerm[]
@@ -112,7 +115,7 @@ async function fetchCountryTaxonomy(): Promise<Map<number, string | null>> {
 }
 
 async function fetchEventBySlug(slug: string): Promise<WpEvent | null> {
-  const url = `https://www.padelfip.com/wp-json/wp/v2/events?slug=${encodeURIComponent(slug)}`
+  const url = `https://www.padelfip.com/?rest_route=/wp/v2/events&slug=${encodeURIComponent(slug)}`
   const r = await fetch(url)
   if (!r.ok) return null
   const data = (await r.json()) as WpEvent[]

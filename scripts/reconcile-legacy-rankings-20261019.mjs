@@ -1,7 +1,10 @@
+import { fetch } from 'undici'
 // Run with node --env-file=.env.local scripts/reconcile-legacy-rankings-20261019.mjs
 // Default is a read-only plan. --apply=<saved-plan.json> applies guarded patches.
+import { installFipProxy } from '../shared/fip-http.mjs'
 import { createClient } from '@supabase/supabase-js'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+installFipProxy()
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '')
 const country = code => ({ POR: 'PT', ESP: 'ES', ARG: 'AR', BRA: 'BR', MEX: 'MX', GBR: 'GB' }[code] ?? code)
@@ -32,7 +35,7 @@ if (apply) {
   const path = `tmp/ranking-reconciliation/plan-${Date.now()}.json`
   for (const before of result.data) {
     await new Promise(resolve => setTimeout(resolve, 1100))
-    const response = await fetch('https://www.padelfip.com/wp-json/fip/v1/player/search?q=' + encodeURIComponent(before.name))
+    const response = await fetch('https://www.padelfip.com/?rest_route=/fip/v1/player/search&q=' + encodeURIComponent(before.name))
     const search = response.ok ? await response.json() : { error: 'No result Found' }
     const lookupStatus = response.status
     if (!Array.isArray(search) && search.error !== 'No result Found') throw new Error('Unexpected FIP response')

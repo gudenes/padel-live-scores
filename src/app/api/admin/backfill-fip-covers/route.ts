@@ -17,7 +17,7 @@ import { createServerClient } from '@/lib/supabase'
 
 export const maxDuration = 60
 
-const FIP_WP_EVENTS = 'https://www.padelfip.com/wp-json/wp/v2/events'
+const FIP_WP_EVENTS = 'https://www.padelfip.com/?rest_route=/wp/v2/events'
 
 interface RawEmbeddedMedia {
   source_url?: string
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     }
     try {
       const res = await fetch(
-        `${FIP_WP_EVENTS}?slug=${encodeURIComponent(slug)}&_embed=true`,
+        `${FIP_WP_EVENTS}&slug=${encodeURIComponent(slug)}&_embed=true`,
         { headers: { 'User-Agent': 'PadelNachos/1.0 (backfill)' } },
       )
       if (!res.ok) {
