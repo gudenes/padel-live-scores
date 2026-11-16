@@ -1728,6 +1728,8 @@
     "shareCopied": "Lien copié",
     "fieldTitle": "Qui vise le titre",
     "fieldSubtitle": "{count, plural, one {# paire inscrite} other {# paires inscrites}}",
+    "fieldPendingTitle": "Paires sans pronostic pour le moment",
+    "fieldPendingNote": "Ces paires sont inscrites. Les pronostics ne sont pas encore disponibles.",
     "fieldOddsNote": "Les probabilités s'ouvrent à la sortie du tableau.",
     "fieldOddsNoteBody": "D'ici là, voici les inscrits classés par classement.",
     "fieldSeeded": "Inscrits · Têtes de série",
