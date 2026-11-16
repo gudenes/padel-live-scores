@@ -3,6 +3,7 @@ import {pgPool} from '@/lib/db'
 import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {jobBody} from '@/lib/lab-vision-jobs'
 import {datasetSummary,validateSplit,evaluatePredictions} from '@/lib/lab-vision/training'
+import {approveLocal,online} from '@/lib/lab-vision/local-training'
 import {randomUUID,createHash} from 'node:crypto'
 export const runtime='nodejs'
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}})
@@ -11,7 +12,7 @@ async function annotations(){const {rows}=await pgPool().query(`select a.payload
 async function files(){const {rows}=await pgPool().query('select payload from lab_vision_training_artifacts order by created_at,id');return rows.map(r=>r.payload)}
 async function save(data:any){await pgPool().query('insert into lab_vision_training_artifacts(id,kind,created_by,payload,created_at) values($1,$2,$3,$4,$5)',[data.id,data.kind,data.createdBy,data,data.createdAt]);return data}
 export async function GET(){if(!await access())return json({error:'Administrator access required.'},403);
- try{return json({annotations:datasetSummary(await annotations()).latest,artifacts:(await files()).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id)),checkedAt:new Date().toISOString(),runnerConnected:false})}catch{return json({error:'Could not load annotations or saved training artifacts. Retry.'},500)}}
+ try{const latest=datasetSummary(await annotations()).latest,artifacts=await files();return json({annotations:latest,artifacts:artifacts.sort((a,b)=>a.createdAt.localeCompare(b.createdAt)||a.id.localeCompare(b.id)),checkedAt:new Date().toISOString(),runnerConnected:artifacts.some(a=>a.execution==='local'&&online(a))})}catch{return json({error:'Could not load annotations or saved training artifacts. Retry.'},500)}}
 export async function POST(req:Request){if(!await access()||!hasAdminRequestOrigin(req))return json({error:'Administrator access and same origin required.'},403);
  try{const b=await jobBody(req,2000000),base={id:randomUUID(),createdAt:new Date().toISOString(),createdBy:await access(),schemaVersion:1,eligibilityPolicy:'verified-contact-box-starter-eight-v3',timebase:'source-video-seconds'}
  if(b.action==='snapshot'){
@@ -20,6 +21,15 @@ export async function POST(req:Request){if(!await access()||!hasAdminRequestOrig
   const samples=all.filter(a=>Object.hasOwn(b.split??{},a.matchId));if(!samples.length)throw Error('No eligible clips in the selected matches.')
   const check=validateSplit(samples,b.split);const split=Object.fromEntries(check.matches.map(m=>[m,b.split[m]]))
   return json(await save({...base,kind:'snapshot',name:b.name.trim(),samples,split,canTrain:check.canTrain,sha256:createHash('sha256').update(JSON.stringify({samples,split})).digest('hex'),purpose:'shot-classification-at-verified-contacts',classMapping:'starter-eight-v3'}))
+ }
+ if(b.action==='approve-local'||b.action==='cancel-local'){
+  const c=await pgPool().connect()
+  try{await c.query('begin');const plan=(await c.query("select payload from lab_vision_training_artifacts where id=$1 and kind='plan' and created_by=$2 for update",[b.planId,base.createdBy])).rows[0]?.payload
+   if(!plan||plan.execution!=='local')throw Error('Local plan unavailable.')
+   const next=b.action==='approve-local'?approveLocal(plan,base.createdBy!):({...plan,status:'cancelled',finishedAt:base.createdAt})
+   if(b.action==='cancel-local'&&!['awaiting_approval','queued','running'].includes(plan.status))throw Error('Run already finished.')
+   await c.query('update lab_vision_training_artifacts set payload=$2 where id=$1',[plan.id,next]);await c.query('commit');return json(next)
+  }catch(e){await c.query('rollback');throw e}finally{c.release()}
  }
  const all=await files(),snapshot=all.find(a=>a.id===b.snapshotId&&a.kind==='snapshot');if(!snapshot)throw Error('Choose a saved dataset snapshot.')
  if(b.action==='plan'){
