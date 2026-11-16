@@ -1,4 +1,5 @@
 'use client'
+import { entriesFromDraw, entriesWithoutProjection } from '@/lib/entry-fallback'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations, useFormatter, useLocale } from 'next-intl'
 import type { Match } from '@/types/match'
@@ -105,6 +106,9 @@ export default function ProjectionTab({
     () => entryState.entries.filter((e) => e.category === category),
     [entryState.entries, category],
   )
+  const drawEntries = useMemo(() => entriesFromDraw(matches, category), [matches, category])
+  const fieldEntries = drawEntries.length > 0 ? drawEntries : categoryEntries
+  const unprojectedEntries = entriesWithoutProjection(fieldEntries, new Set(rows.map(r => r.pair_key)))
   const seedByPair = useMemo(
     () => (matches.length > 0 ? buildSeedMap(matches) : seedMapFromEntries(categoryEntries)),
     [matches, categoryEntries],
@@ -211,7 +215,7 @@ export default function ProjectionTab({
   if (rows.length === 0) {
     return (
       <FieldView
-        entries={categoryEntries}
+        entries={fieldEntries}
         playerMap={entryState.playerMap}
         loading={entryState.loading}
         error={entryState.error}
@@ -223,6 +227,10 @@ export default function ProjectionTab({
   if (view === 'list' || !vm) {
     return (
       <div key="proj-list" className="page-mount-anim" style={{ padding: '14px 13px 24px' }}>
+        {unprojectedEntries.length > 0 && <FieldView
+          entries={unprojectedEntries} playerMap={entryState.playerMap}
+          loading={false} error={false} projectionUnavailable
+        />}
         <ProjectionPickerList
           rows={rows}
           seedByPair={seedByPair}

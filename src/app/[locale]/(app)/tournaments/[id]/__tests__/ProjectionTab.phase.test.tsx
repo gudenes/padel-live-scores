@@ -106,7 +106,7 @@ describe('ProjectionTab phase switch', () => {
     expect(passedEntries.every((e) => e.category === 'men')).toBe(true)
   })
 
-  it('phase projected: non-empty rows render the projection UI, not FieldView', () => {
+  it('phase projected: entries without projections remain visible alongside the projection UI', () => {
     projectionState = { rows: ROWS, loading: false }
     entryState = { entries: ENTRIES, loading: false, error: false }
 
@@ -117,11 +117,25 @@ describe('ProjectionTab phase switch', () => {
       />,
     )
 
-    expect(screen.queryByTestId('field-view-marker')).toBeNull()
-    expect(fieldViewSpy).not.toHaveBeenCalled()
+    expect(screen.getByTestId('field-view-marker')).toBeTruthy()
+    expect(fieldViewSpy.mock.calls[0][0].projectionUnavailable).toBe(true)
+    expect(fieldViewSpy.mock.calls[0][0].entries).toHaveLength(2)
     // ProjectionPickerList's header copy (getMessageFallback returns the key
     // itself since `messages` is empty) — unique to the projection list view.
     expect(screen.getByText('pickAPair')).toBeTruthy()
+  })
+
+  it('keeps a named seed with a missing player ID visible after projections exist', () => {
+    projectionState = { rows: ROWS, loading: false }
+    entryState = { entries: [], loading: false, error: false }
+    const matches = [{ id: 'wd008', round: 'R16', pair1_seed: 1,
+      pair1_player1: { id: 'osoro', name: 'Aranzazu Osoro', country: 'AR' },
+      pair1_player2: { id: '', name: 'Claudia Jensen', country: 'AR' },
+      pair2_player1: null, pair2_player2: null,
+    }] as unknown as import('@/types/match').Match[]
+    wrap(<ProjectionTab tournamentId="t1" matches={matches} category="women" tournamentLevel="fip_platinum" roundSchedule={null} />)
+    expect(screen.getByText('pickAPair')).toBeTruthy()
+    expect(fieldViewSpy.mock.calls[0][0].entries[0]).toMatchObject({ seed: 1, player2_name: 'Claudia Jensen', player2_id: null })
   })
 
   it('loading: neither FieldView nor the projection UI renders while projections are in flight', () => {

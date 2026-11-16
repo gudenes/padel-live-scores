@@ -1728,6 +1728,8 @@
     "shareCopied": "Link copiado",
     "fieldTitle": "Quem está na caça ao título",
     "fieldSubtitle": "{count, plural, one {# dupla inscrita} other {# duplas inscritas}}",
+    "fieldPendingTitle": "Duplas ainda sem projeção",
+    "fieldPendingNote": "Estas duplas estão inscritas. Os prognósticos ainda não estão disponíveis.",
     "fieldOddsNote": "As probabilidades abrem quando o quadro sair.",
     "fieldOddsNoteBody": "Até lá, esta é a lista de inscritos por ranking.",
     "fieldSeeded": "Inscritos · Cabeças de chave",

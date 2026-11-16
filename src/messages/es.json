@@ -1728,6 +1728,8 @@
     "shareCopied": "Enlace copiado",
     "fieldTitle": "Quién va a por el título",
     "fieldSubtitle": "{count, plural, one {# pareja inscrita} other {# parejas inscritas}}",
+    "fieldPendingTitle": "Parejas sin pronóstico todavía",
+    "fieldPendingNote": "Estas parejas están inscritas. Los pronósticos aún no están disponibles.",
     "fieldOddsNote": "Las probabilidades se abren cuando salga el cuadro.",
     "fieldOddsNoteBody": "Hasta entonces, esta es la lista de inscritos por ranking.",
     "fieldSeeded": "Inscritos · Cabezas de serie",

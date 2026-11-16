@@ -77,11 +77,12 @@ const SECTION_LABEL: CSSProperties = {
   letterSpacing: 0.8, margin: '2px 0 8px 2px',
 }
 
-export default function FieldView({ entries, playerMap, loading, error }: {
+export default function FieldView({ entries, playerMap, loading, error, projectionUnavailable = false }: {
   entries: FieldEntry[]
   playerMap: Record<string, PlayerHydration>
   loading: boolean
   error: boolean
+  projectionUnavailable?: boolean
 }) {
   const t = useTranslations('projectionTab')
   const format = useFormatter()
@@ -192,12 +193,12 @@ export default function FieldView({ entries, playerMap, loading, error }: {
 
   return (
     <div key="field-list" className="page-mount-anim" style={{ padding: '14px 13px 24px' }}>
-      <div style={{ color: TEXT, fontSize: 17, fontWeight: 800, letterSpacing: 0.2 }}>{t('fieldTitle')}</div>
+      <div style={{ color: TEXT, fontSize: 17, fontWeight: 800, letterSpacing: 0.2 }}>{t(projectionUnavailable ? 'fieldPendingTitle' : 'fieldTitle')}</div>
       <div style={{ color: SECONDARY, fontSize: 12, fontWeight: 600, marginTop: 2 }}>{t('fieldSubtitle', { count: entries.length })}</div>
 
       <div style={{ margin: '12px 0 16px', background: 'rgba(126,211,33,0.07)', border: '1px solid rgba(126,211,33,0.22)', padding: '9px 11px', clipPath: CHUNK_CARD }}>
-        <span style={{ color: LIME, fontSize: 11, fontWeight: 800 }}>{t('fieldOddsNote')}</span>{' '}
-        <span style={{ color: SECONDARY, fontSize: 11, fontWeight: 600, lineHeight: 1.5 }}>{t('fieldOddsNoteBody')}</span>
+        <span style={{ color: LIME, fontSize: 11, fontWeight: 800 }}>{t(projectionUnavailable ? 'fieldPendingNote' : 'fieldOddsNote')}</span>{' '}
+        <span style={{ color: SECONDARY, fontSize: 11, fontWeight: 600, lineHeight: 1.5 }}>{!projectionUnavailable && t('fieldOddsNoteBody')}</span>
       </div>
 
       {seeded.length > 0 && (

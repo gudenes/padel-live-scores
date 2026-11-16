@@ -1728,6 +1728,8 @@
     "shareCopied": "Link copiato",
     "fieldTitle": "Chi punta al titolo",
     "fieldSubtitle": "{count, plural, one {# coppia iscritta} other {# coppie iscritte}}",
+    "fieldPendingTitle": "Coppie ancora senza pronostico",
+    "fieldPendingNote": "Queste coppie sono iscritte. I pronostici non sono ancora disponibili.",
     "fieldOddsNote": "Le probabilità si aprono quando esce il tabellone.",
     "fieldOddsNoteBody": "Fino ad allora, questo è l'elenco degli iscritti per ranking.",
     "fieldSeeded": "Iscritti · Teste di serie",

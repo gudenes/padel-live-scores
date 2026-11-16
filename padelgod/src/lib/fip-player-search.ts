@@ -183,7 +183,9 @@ export async function searchFipPlayer(
     try {
       const res = await http.get(buildSearchUrl(q));
       body = res.data;
-    } catch {
+    } catch (error) {
+      // A different spelling cannot bypass a rate limit; stop this lookup.
+      if ((error as { response?: { status?: number } }).response?.status === 429) return null;
       continue;
     }
     if (!Array.isArray(body)) continue;
