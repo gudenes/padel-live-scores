@@ -5,6 +5,7 @@
 
 import { SupabaseClient } from '@supabase/supabase-js'
 import { TIER_COLUMN, AMATEUR_TIER } from './player-tier'
+import { strictPlayerLookup, type IdentityResult } from '../../padelgod/src/lib/strict-player-resolver'
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -75,9 +76,13 @@ export interface LookupResult {
   playerId?: string
   playerName?: string
   matchType: 'exact' | 'fuzzy' | 'none'
+  reason?: 'ambiguous' | 'not_found' | 'identity_conflict'
+  candidates?: string[]
 }
 
 export interface LookupOptions {
+  /** No writes, no arbitrary tie-breaking, country/category checks at every tier. */
+  strict?: boolean
   /**
    * Loosen fuzzy matching to handle FIP PDF ↔ DB name/country variations.
    * When true:
@@ -226,7 +231,9 @@ export class PlayerResolver {
   private byFipId = new Map<string, CachedPlayer>()
   private byNormalizedName = new Map<string, CachedPlayer[]>()
   private byAlias = new Map<string, CachedPlayer>()  // normalized alias → player
+  private strictAliases = new Map<string, string[]>()
   private loaded = false
+  private loadFailed = false
 
   constructor(supabase: SupabaseClient) {
     this.supabase = supabase
@@ -251,6 +258,7 @@ export class PlayerResolver {
         .range(offset, offset + PAGE_SIZE - 1)
 
       if (error || !data) {
+        this.loadFailed = true
         console.error('[PlayerResolver] Failed to load players:', error?.message)
         break
       }
@@ -280,11 +288,18 @@ export class PlayerResolver {
     }
 
     // Load aliases from entity_external_ids (source = 'alias')
-    const { data: aliases } = await this.supabase
-      .from('entity_external_ids')
-      .select('entity_id, external_id')
-      .eq('entity_type', 'player')
-      .eq('source', 'alias')
+    const aliases: Array<{ entity_id: string; external_id: string }> = []
+    for (let start = 0; ; start += PAGE_SIZE) {
+      const { data, error } = await this.supabase
+        .from('entity_external_ids')
+        .select('entity_id, external_id')
+        .eq('entity_type', 'player')
+        .eq('source', 'alias')
+        .range(start, start + PAGE_SIZE - 1)
+      if (error || !data) { this.loadFailed = true; break }
+      aliases.push(...data)
+      if (data.length < PAGE_SIZE) break
+    }
 
     let aliasCount = 0
     if (aliases) {
@@ -294,6 +309,7 @@ export class PlayerResolver {
         const cached = this.findCachedById(a.entity_id)
         if (cached) {
           this.byAlias.set(norm, cached)
+          this.strictAliases.set(norm, [...(this.strictAliases.get(norm) ?? []), cached.id])
           aliasCount++
         }
       }
@@ -579,6 +595,13 @@ export class PlayerResolver {
   async lookup(input: PlayerInput, opts: LookupOptions = {}): Promise<LookupResult> {
     await this.ensureLoaded()
 
+    if (opts.strict) {
+      if (this.loadFailed) throw new Error('Strict Player Resolver requires a complete player roster')
+      const players = [...this.byNormalizedName.values()].flat()
+      const result: IdentityResult = strictPlayerLookup(input, players, this.strictAliases)
+      return result
+    }
+
     let existing: CachedPlayer | null = null
     let matchType: 'exact' | 'fuzzy' | 'none' = 'none'
     const lenient = opts.lenient === true
@@ -722,6 +745,7 @@ export class PlayerResolver {
       // Update in-memory cache
       if (cached) {
         this.byAlias.set(norm, cached)
+        this.strictAliases.set(norm, [...(this.strictAliases.get(norm) ?? []), cached.id])
       }
       console.log(`[PlayerResolver] Stored alias "${rawName}" → ${cached?.name ?? playerId}`)
     } catch {

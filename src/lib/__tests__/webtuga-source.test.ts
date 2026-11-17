@@ -8,10 +8,10 @@ function fakeSupabase(row: unknown, error: unknown = null) {
   return { from: vi.fn(() => chain), chain } as any
 }
 describe('scoreboard-provider recap policy', () => {
-  it('recognizes Webtuga and Puntuate and limits multiple mappings safely', async () => {
+  it('recognizes Webtuga, Puntuate and CourtBit and limits multiple mappings safely', async () => {
     const db = fakeSupabase({ entity_id: 'm1' })
     expect(await isMatchWebtugaSourced(db, 'm1')).toBe(true)
-    expect(db.chain.in).toHaveBeenCalledWith('source', ['webtuga', 'puntuate'])
+    expect(db.chain.in).toHaveBeenCalledWith('source', ['webtuga', 'puntuate', 'courtbit'])
     expect(db.chain.limit).toHaveBeenCalledWith(1)
   })
   it('returns false when no provider mapping exists', async () => {

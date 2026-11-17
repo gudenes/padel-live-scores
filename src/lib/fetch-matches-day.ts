@@ -136,7 +136,7 @@ const MATCH_SELECT = `
   ),
   ${PLAYER_JOIN_FIELDS},
   sets(id, set_number, set_score, pair1_games, pair2_games, is_current,
-       games(id, game_number, game_score, points, is_current, server_player_id))
+       games(*))
 `
 
 // Tier priority for tournament groups within a section uses the

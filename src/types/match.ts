@@ -38,6 +38,8 @@ export interface Game {
    * matches without a Crionet mapping.
    */
   server_player_id: string | null
+  /** Pair-only providers report a serving side without an individual server. */
+  serving_pair?: 1 | 2 | null
 }
 
 export interface Set {
@@ -487,14 +489,15 @@ export function getMatchDisplay(match: Match): MatchDisplay {
     isLive
       ? ((currentGame as { server_player_id?: string | null } | null)?.server_player_id ?? null)
       : null
-  const pair1Serving =
+  const servingPair = isLive && !serverPlayerId ? currentGame?.serving_pair : null
+  const pair1Serving = servingPair === 1 || (
     !!serverPlayerId &&
     (serverPlayerId === match.pair1_player1?.id ||
-      serverPlayerId === match.pair1_player2?.id)
-  const pair2Serving =
+      serverPlayerId === match.pair1_player2?.id))
+  const pair2Serving = servingPair === 2 || (
     !!serverPlayerId &&
     (serverPlayerId === match.pair2_player1?.id ||
-      serverPlayerId === match.pair2_player2?.id)
+      serverPlayerId === match.pair2_player2?.id))
 
   let pair1TotalGames = 0
   let pair2TotalGames = 0

@@ -39,6 +39,7 @@ import { runTournamentProjectionSnapshot } from './workers/tournament-projection
 import { runPredictionScorer } from './workers/prediction-scorer.js';
 import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 import { runPuntuateLiveFetcher } from './workers/puntuate-live-fetcher.js';
+import { runCourtbitLiveFetcher } from './workers/courtbit-live-fetcher.js';
 import { runWebtugaLiveFetcher } from './workers/webtuga-live-fetcher.js';
 import { runPadeldevLiveFetcher } from './workers/padeldev-live-fetcher.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
@@ -145,6 +146,8 @@ export interface SchedulerFlags {
    *  webtuga tracker. Off by default; dry-run gated. */
   enablePuntuateLive?: boolean;
   puntuateLiveDryRun?: boolean;
+  enableCourtbitLive?: boolean;
+  courtbitLiveDryRun?: boolean;
   enableWebtugaLive: boolean;
   /** Set WEBTUGA_LIVE_DRY_RUN=false in Railway to enable live DB writes.
    *  Defaults to true so the first deploy is always read-only. */
@@ -242,6 +245,7 @@ export type WorkerName =
   | 'prediction-scorer'
   | 'live-odds-updater'
   | 'puntuate-live-fetcher'
+  | 'courtbit-live-fetcher'
   | 'webtuga-live-fetcher'
   | 'padeldev-live-fetcher'
   | 'tournament-start-notifier'
@@ -289,6 +293,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'prediction-scorer',
   'live-odds-updater',
   'puntuate-live-fetcher',
+  'courtbit-live-fetcher',
   'webtuga-live-fetcher',
   'padeldev-live-fetcher',
   'tournament-start-notifier',
@@ -467,6 +472,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       return (deps) => runLiveOddsUpdater(deps);
     case 'puntuate-live-fetcher':
       return (deps) => runPuntuateLiveFetcher(deps, { dryRun: true });
+    case 'courtbit-live-fetcher':
+      return (deps) => runCourtbitLiveFetcher(deps, { dryRun: true });
     case 'webtuga-live-fetcher':
       return (deps) => runWebtugaLiveFetcher(deps, { dryRun: true });
     case 'padeldev-live-fetcher':
@@ -1013,6 +1020,12 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'puntuate-live-fetcher',
       cron: '*/30 * * * * *',
       run: async (deps) => runPuntuateLiveFetcher(deps, { dryRun: flags.puntuateLiveDryRun ?? true }),
+    });
+  }
+  if (flags.enableCourtbitLive) {
+    entries.push({
+      name: 'courtbit-live-fetcher', cron: '*/5 * * * * *',
+      run: (deps) => runCourtbitLiveFetcher(deps, { dryRun: flags.courtbitLiveDryRun ?? true }),
     });
   }
   if (flags.enableWebtugaLive) {
