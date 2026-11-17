@@ -3,7 +3,7 @@ import {pgPool} from '@/lib/db'
 import {hasAdminRequestOrigin} from '@/lib/admin-request-origin'
 import {jobBody} from '@/lib/lab-vision-jobs'
 import {datasetSummary,validateSplit,evaluatePredictions} from '@/lib/lab-vision/training'
-import {approveLocal,online} from '@/lib/lab-vision/local-training'
+import {approveLocal,online,localModel,missingSplits} from '@/lib/lab-vision/local-training'
 import {randomUUID,createHash} from 'node:crypto'
 export const runtime='nodejs'
 const json=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}})
@@ -27,11 +27,22 @@ export async function POST(req:Request){if(!await access()||!hasAdminRequestOrig
   try{await c.query('begin');const plan=(await c.query("select payload from lab_vision_training_artifacts where id=$1 and kind='plan' and created_by=$2 for update",[b.planId,base.createdBy])).rows[0]?.payload
    if(!plan||plan.execution!=='local')throw Error('Local plan unavailable.')
    const next=b.action==='approve-local'?approveLocal(plan,base.createdBy!):({...plan,status:'cancelled',finishedAt:base.createdAt})
-   if(b.action==='cancel-local'&&!['awaiting_approval','queued','running'].includes(plan.status))throw Error('Run already finished.')
+   if(b.action==='cancel-local'&&!['preparing','awaiting_approval','queued','running'].includes(plan.status))throw Error('Run already finished.')
    await c.query('update lab_vision_training_artifacts set payload=$2 where id=$1',[plan.id,next]);await c.query('commit');return json(next)
   }catch(e){await c.query('rollback');throw e}finally{c.release()}
  }
  const all=await files(),snapshot=all.find(a=>a.id===b.snapshotId&&a.kind==='snapshot');if(!snapshot)throw Error('Choose a saved dataset snapshot.')
+ if(b.action==='prepare-local'){
+  if(snapshot.createdBy!==base.createdBy)throw Error('Only the snapshot owner can prepare its local run.')
+  if(!snapshot.canTrain||missingSplits(snapshot).length)throw Error('Assign separate training, validation and test matches first.')
+  const c=await pgPool().connect()
+  try{await c.query('begin');await c.query('select pg_advisory_xact_lock(hashtextextended($1,0))',['prepare-training:'+snapshot.id])
+   const existing=(await c.query("select payload from lab_vision_training_artifacts where kind='plan' and created_by=$1 and payload->>'snapshotId'=$2 and payload->>'execution'='local' order by created_at desc limit 1",[base.createdBy,snapshot.id])).rows[0]?.payload
+   if(existing){await c.query('commit');return json(existing)}
+   const plan={...base,kind:'plan',name:'Local pose baseline',execution:'local',model:localModel,snapshotId:snapshot.id,snapshotSha256:snapshot.sha256,status:'preparing',epochs:20,maxMinutes:30,budgetEUR:0,inputs:'cached-player-pose',ballModel:'WASB unchanged'}
+   await c.query('insert into lab_vision_training_artifacts(id,kind,created_by,payload,created_at) values($1,$2,$3,$4,$5)',[plan.id,plan.kind,plan.createdBy,plan,plan.createdAt]);await c.query('commit');return json(plan)
+  }catch(e){await c.query('rollback');throw e}finally{c.release()}
+ }
  if(b.action==='plan'){
   if(!snapshot.canTrain)throw Error('Assign separate training, validation and test matches first.')
   if(!Number.isInteger(b.epochs)||b.epochs<1||b.epochs>200||!Number.isFinite(b.budget)||b.budget<=0||b.budget>100)throw Error('Choose 1–200 epochs and a budget between €0 and €100.')

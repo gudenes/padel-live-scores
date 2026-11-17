@@ -17,3 +17,5 @@ export function approveLocal(plan:Sample,userId:string){
  if(!online(plan))throw Error('Local runner is offline. Reconnect it before starting.')
  return {...plan,status:'queued',approvedAt:new Date().toISOString(),approvedBy:userId}
 }
+export function snapshotArtifacts(artifacts:Sample[],snapshotId:string|undefined){return artifacts.filter(a=>a.snapshotId===snapshotId)}
+export function missingSplits(snapshot:Sample){return ['train','validation','test'].filter(role=>!snapshot.samples.some((s:Sample)=>snapshot.split[s.matchId]===role))}

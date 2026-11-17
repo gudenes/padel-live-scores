@@ -75,32 +75,18 @@ def train(config, plan, directory):
     api(config, action='complete', id=plan['id'], attemptId=plan['attemptId'], predictions=predictions)
 
 
-def main():
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--config', required=True)
-    p.add_argument('--snapshot', required=True)
-    p.add_argument('--cache', required=True)
-    p.add_argument('--output', required=True)
-    p.add_argument('--execute-claim', help=argparse.SUPPRESS)
-    args = p.parse_args()
-    config = json.loads(Path(args.config).read_text())
-    directory = Path(args.output) / args.snapshot
+def serve_snapshot(args, config, snapshot_id):
+    directory = Path(args.output) / snapshot_id
     directory.mkdir(parents=True, exist_ok=True)
-    if args.execute_claim:
-        plan = json.loads(Path(args.execute_claim).read_text())
-        train(config, plan, directory)
-        return
-    lock = (Path(args.output) / 'runner.lock').open('w')
-    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     from features import prepare
-    snapshot = api(config, action='snapshot', snapshotId=args.snapshot)
+    snapshot = api(config, action='snapshot', snapshotId=snapshot_id)
     saved = directory / 'snapshot.json'
     if saved.exists() and json.loads(saved.read_text()) != snapshot:
         raise ValueError('Cached snapshot differs from server; inspect before preparing')
     report = prepare(snapshot, args.cache, directory)
     import torch
     hardware = 'Apple Silicon · Metal GPU' if torch.backends.mps.is_available() else 'CPU'
-    plan = api(config, action='prepare', snapshotId=args.snapshot, report=report, hardware=hardware)
+    plan = api(config, action='prepare', snapshotId=snapshot_id, report=report, hardware=hardware)
     (directory / 'plan.json').write_text(json.dumps(plan, indent=2))
     print('Connected local pose baseline. Cloud cost EUR 0. Waiting for explicit approval in Lab Vision.', flush=True)
     while True:
@@ -111,7 +97,7 @@ def main():
                 claim.write_text(json.dumps(state))
                 # Parent enforces wall time even if a GPU operation or child hangs.
                 try:
-                    command = [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:], '--execute-claim', str(claim)]
+                    command = [sys.executable, str(Path(__file__).resolve()), '--config', args.config, '--snapshot', snapshot_id, '--cache', args.cache, '--output', args.output, '--execute-claim', str(claim)]
                     subprocess.run(command, check=True, timeout=state['maxMinutes'] * 60)
                 except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                     try:
@@ -127,6 +113,44 @@ def main():
         except Exception as error:
             print('Connection unavailable (' + type(error).__name__ + '); no new training started.', flush=True)
         time.sleep(15)
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--config', required=True)
+    p.add_argument('--snapshot', help='Optional legacy single-snapshot mode; omit to serve preparation requests from Lab Vision')
+    p.add_argument('--cache', required=True)
+    p.add_argument('--output', required=True)
+    p.add_argument('--execute-claim', help=argparse.SUPPRESS)
+    args = p.parse_args()
+    config = json.loads(Path(args.config).read_text())
+    Path(args.output).mkdir(parents=True, exist_ok=True)
+    if args.execute_claim:
+        plan = json.loads(Path(args.execute_claim).read_text())
+        if plan['snapshotId'] != args.snapshot:
+            raise ValueError('Claim snapshot mismatch')
+        train(config, plan, Path(args.output) / args.snapshot)
+        return
+    with (Path(args.output) / 'runner.lock').open('w') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if args.snapshot:
+            serve_snapshot(args, config, args.snapshot)
+            return
+        print('Connected. Waiting for Prepare local run requests from Lab Vision. No training without approval.', flush=True)
+        while True:
+            pending = None
+            try:
+                pending = api(config, action='discover')
+                if pending.get('snapshotId'):
+                    serve_snapshot(args, config, pending['snapshotId'])
+            except Exception as error:
+                print('Preparation/connection unavailable (' + type(error).__name__ + '). No new training started.', flush=True)
+                if pending and pending.get('planId'):
+                    try:
+                        api(config, action='preparation-failed', id=pending['planId'], error='Local preparation failed: ' + type(error).__name__ + '. Check cached tracking and the local runner log.')
+                    except Exception:
+                        pass
+            time.sleep(15)
 
 if __name__ == '__main__':
     main()
