@@ -19,14 +19,30 @@ export async function POST(req:Request){
   await c.query('select pg_advisory_xact_lock(hashtextextended($1,0))',['training:'+worker.id])
   const now=new Date().toISOString()
   let result:any
-  if(b.action==='snapshot'||b.action==='prepare'){
+  if(b.action==='discover'){
+   const pending=(await c.query("select id,payload from lab_vision_training_artifacts where kind='plan' and created_by=$1 and payload->>'execution'='local' and payload->>'status' in ('preparing','awaiting_approval','queued','running') and (payload->>'workerId' is null or payload->>'workerId'=$2) order by case when payload->>'status'='preparing' then 1 else 0 end,created_at for update skip locked limit 1",[worker.owner_user_id,worker.id])).rows[0]
+   if(pending){await c.query('update lab_vision_training_artifacts set payload=$2 where id=$1',[pending.id,{...pending.payload,workerId:worker.id,lastSeenAt:now}]);result={snapshotId:pending.payload.snapshotId,planId:pending.id}}else result={snapshotId:null}
+  }else if(b.action==='preparation-failed'){
+   const pending=(await c.query("select payload from lab_vision_training_artifacts where id=$1 and created_by=$2 and kind='plan' for update",[b.id,worker.owner_user_id])).rows[0]?.payload
+   if(!pending||pending.workerId!==worker.id||pending.status!=='preparing')throw Error('Preparation request unavailable.')
+   result={...pending,status:'failed',error:String(b.error??'Local preparation failed').slice(0,300),finishedAt:now,lastSeenAt:now}
+   await c.query('update lab_vision_training_artifacts set payload=$2 where id=$1',[pending.id,result])
+  }else if(b.action==='snapshot'||b.action==='prepare'){
    const snapshot=(await c.query("select payload from lab_vision_training_artifacts where id=$1 and kind='snapshot' and created_by=$2",[b.snapshotId,worker.owner_user_id])).rows[0]?.payload
    if(!snapshot)throw Error('Snapshot unavailable for this worker owner.')
    if(b.action==='snapshot')result=snapshot
    else{
     const counts=preflight(snapshot,b.report)
     const existing=(await c.query("select payload from lab_vision_training_artifacts where kind='plan' and created_by=$1 and payload->>'workerId'=$2 and payload->>'snapshotId'=$3 and payload->>'execution'='local' order by created_at desc limit 1",[worker.owner_user_id,worker.id,snapshot.id])).rows[0]?.payload
-    if(existing)result=existing
+    if(existing){
+     if(existing.status==='preparing'){
+      // Cancellation and preparation race safely under the row lock.
+      const locked=(await c.query("select payload from lab_vision_training_artifacts where id=$1 for update",[existing.id])).rows[0]?.payload
+      if(locked.status!=='preparing')throw Error('Preparation was cancelled.')
+      result={...locked,status:'awaiting_approval',counts,lastSeenAt:now,hardware:String(b.hardware??'Local computer').slice(0,160)}
+      await c.query('update lab_vision_training_artifacts set payload=$2 where id=$1',[existing.id,result])
+     }else result=existing
+    }
     else{
      result={id:randomUUID(),kind:'plan',createdBy:worker.owner_user_id,createdAt:now,schemaVersion:1,name:'Local pose baseline',execution:'local',model:localModel,snapshotId:snapshot.id,snapshotSha256:snapshot.sha256,status:'awaiting_approval',workerId:worker.id,epochs:20,maxMinutes:30,budgetEUR:0,inputs:'cached-player-pose',ballModel:'WASB unchanged',counts,lastSeenAt:now,hardware:String(b.hardware??'Local computer').slice(0,160)}
      await c.query('insert into lab_vision_training_artifacts(id,kind,created_by,payload,created_at) values($1,$2,$3,$4,$5)',[result.id,result.kind,result.createdBy,result,result.createdAt])

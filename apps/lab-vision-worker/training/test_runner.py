@@ -24,3 +24,15 @@ class RunnerTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class DiscoveryTests(unittest.TestCase):
+    def test_worker_returns_to_discovery_after_a_run_finishes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / 'config.json'
+            config.write_text('{}')
+            argv = ['runner.py', '--config', str(config), '--cache', tmp, '--output', tmp]
+            with patch('sys.argv', argv), patch.object(runner, 'api', side_effect=[{'snapshotId': 'first', 'planId': 'p1'}, {'snapshotId': 'second', 'planId': 'p2'}]) as api, patch.object(runner, 'serve_snapshot') as serve, patch.object(runner.time, 'sleep', side_effect=[None, StopIteration]):
+                with self.assertRaises(StopIteration):
+                    runner.main()
+            self.assertEqual([call.args[2] for call in serve.call_args_list], ['first', 'second'])
+            self.assertTrue(all(call.kwargs['action'] == 'discover' for call in api.call_args_list))
