@@ -230,6 +230,8 @@ const EnvSchema = z.object({
   // read-only dry run first, then set it to false to write sets/games/match_points.
   ENABLE_PUNTUATE_LIVE: boolEnv(false),
   PUNTUATE_LIVE_DRY_RUN: boolEnv(true),
+  ENABLE_COURTBIT_LIVE: boolEnv(false),
+  COURTBIT_LIVE_DRY_RUN: boolEnv(true),
   ENABLE_WEBTUGA_LIVE: boolEnv(false),
   WEBTUGA_LIVE_DRY_RUN: boolEnv(true),
   // Play prediction market. Both default OFF with dry-run ON, so enabling in

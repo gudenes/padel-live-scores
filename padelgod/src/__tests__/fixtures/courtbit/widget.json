@@ -1,0 +1,3206 @@
+{
+  "ok": true,
+  "name": "FIP Platinum Aguascalientes 2026",
+  "venue": "Pádel 3015 The Complex",
+  "now": 1794935183701,
+  "today": "2026-11-17",
+  "courts": [
+    {
+      "id": "central",
+      "name": "Pista central"
+    },
+    {
+      "id": "pista-1",
+      "name": "Pista 2"
+    },
+    {
+      "id": "pista-2",
+      "name": "Pista 3"
+    },
+    {
+      "id": "pista-3",
+      "name": "Pista 4"
+    }
+  ],
+  "days": [
+    "2026-11-15",
+    "2026-11-16",
+    "2026-11-17"
+  ],
+  "released": {
+    "2026-11-15": "14 Nov 2026 1:30 PM",
+    "2026-11-16": "15 Nov 2026 7:36 PM",
+    "2026-11-17": "16 Nov 2026 4:51 PM"
+  },
+  "matches": [
+    {
+      "id": "oj_c18f0d8ec5",
+      "day": "2026-11-15",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "16:00"
+      },
+      "phase": "Previa ronda 1",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_408179e564",
+        "players": [
+          {
+            "name": "Hugo Martinez Toral",
+            "first": "Hugo",
+            "last": "Martinez Toral",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "hugo-martinez-toral"
+          },
+          {
+            "name": "Benicio Lara Zezza",
+            "first": "Benicio",
+            "last": "Lara Zezza",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "benicio-lara-zezza"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_39d1dcf47c",
+        "players": [
+          {
+            "name": "Oscar Diaz Jauregui",
+            "first": "Oscar",
+            "last": "Diaz Jauregui",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "oscar-diaz-jauregui"
+          },
+          {
+            "name": "Juan Francisco Gonzalez",
+            "first": "Juan Francisco",
+            "last": "Gonzalez",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "juan-francisco-gonzalez-garza"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          2
+        ],
+        [
+          6,
+          2
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_6e598b2745",
+      "day": "2026-11-15",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 1",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_b3e851206d",
+        "players": [
+          {
+            "name": "Jorge Rangel",
+            "first": "Jorge",
+            "last": "Rangel",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "jorge-rangel"
+          },
+          {
+            "name": "Marcos Alejo Mardones",
+            "first": "Marcos Alejo",
+            "last": "Mardones",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "marcos-alejo-mardones"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_d6ed2cdd63",
+        "players": [
+          {
+            "name": "Gaston Diaz",
+            "first": "Gaston",
+            "last": "Diaz",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "gaston-diaz"
+          },
+          {
+            "name": "Elias Nasif",
+            "first": "Elias",
+            "last": "Nasif",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "elias-nasif"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          7,
+          5
+        ],
+        [
+          1,
+          6
+        ],
+        [
+          2,
+          6
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_4388cae24a",
+      "day": "2026-11-15",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "16:00"
+      },
+      "phase": "Previa ronda 1",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_6fb86c5e35",
+        "players": [
+          {
+            "name": "Diego Garcia Villalobos Blanco",
+            "first": "Diego",
+            "last": "Garcia Villalobos Blanco",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "diego-garcia-villalobos-blanco"
+          },
+          {
+            "name": "Mauricio Garcia Villalobos Blanco",
+            "first": "Mauricio",
+            "last": "Garcia Villalobos Blanco",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "mauricio-garcia-villalobos"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_839cd29666",
+        "players": [
+          {
+            "name": "Samuel Bravo Ibarra",
+            "first": "Samuel",
+            "last": "Bravo Ibarra",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "samuel-bravo-ibarra"
+          },
+          {
+            "name": "Joaquin Garcia",
+            "first": "Joaquin",
+            "last": "Garcia",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "joaquin-garcia"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          4,
+          6
+        ],
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          2
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_cc7ab99780",
+      "day": "2026-11-15",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 1",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_547cdb37a4",
+        "players": [
+          {
+            "name": "Jesus Guajardo",
+            "first": "Jesus",
+            "last": "Guajardo",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "jesus-guajardo"
+          },
+          {
+            "name": "Juan Facundo Oliva",
+            "first": "Juan Facundo",
+            "last": "Oliva",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "juan-facundo-oliva"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_075af9b571",
+        "players": [
+          {
+            "name": "Tobias Pintos Castro",
+            "first": "Tobias",
+            "last": "Pintos Castro",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "tobias-pintos-castro"
+          },
+          {
+            "name": "Valentino Pesci",
+            "first": "Valentino",
+            "last": "Pesci",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "valentino-pesci"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          7
+        ],
+        [
+          3,
+          6
+        ]
+      ],
+      "tb": [
+        0,
+        null
+      ],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": 1794787373255,
+      "finishedAt": 1794789751767,
+      "manual": false
+    },
+    {
+      "id": "oj_602ff82eda",
+      "day": "2026-11-15",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "16:00"
+      },
+      "phase": "Previa ronda 1",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_628d545d6f",
+        "players": [
+          {
+            "name": "Jose Alban Paz de la Llave",
+            "first": "Jose",
+            "last": "Alban Paz de la Llave",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "jose-alban-paz-de-la-llave"
+          },
+          {
+            "name": "Ulises Martinez Avila",
+            "first": "Ulises",
+            "last": "Martinez Avila",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "ulises-martinez-avila"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_c6a0626ab3",
+        "players": [
+          {
+            "name": "Mauricio Suarez Gonzalez",
+            "first": "Mauricio",
+            "last": "Suarez Gonzalez",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "mauricio-suarez-gonzalez"
+          },
+          {
+            "name": "Alejandro Alcaraz Gonzalez",
+            "first": "Alejandro",
+            "last": "Alcaraz Gonzalez",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "alejandro-alcaraz-gonzalez"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          4,
+          6
+        ],
+        [
+          3,
+          6
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_a13d749054",
+      "day": "2026-11-15",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 1",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_50147814d0",
+        "players": [
+          {
+            "name": "Argel Alexandro Albanes",
+            "first": "Argel Alexandro",
+            "last": "Albanes",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "argel-alexandro-albanes"
+          },
+          {
+            "name": "Hector Dubuc",
+            "first": "Hector",
+            "last": "Dubuc",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "hector-dubuc"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_1186b7fde5",
+        "players": [
+          {
+            "name": "Fernando Agustin Vega",
+            "first": "Fernando Agustin",
+            "last": "Vega",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "fernando-agustin-vega"
+          },
+          {
+            "name": "Francisco Coirini",
+            "first": "Francisco",
+            "last": "Coirini",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "francisco-coirini"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          4
+        ],
+        [
+          7,
+          6
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_8ec7be7650",
+      "day": "2026-11-15",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "16:00"
+      },
+      "phase": "Previa ronda 1",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_6606ee81f8",
+        "players": [
+          {
+            "name": "Lucas Franco Rodriguez",
+            "first": "Lucas Franco",
+            "last": "Rodriguez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "lucas-franco-rodriguez"
+          },
+          {
+            "name": "Luis Facundo Sayes",
+            "first": "Luis Facundo",
+            "last": "Sayes",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "luis-facundo-sayes"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_5b40291738",
+        "players": [
+          {
+            "name": "Andres Valenzuela",
+            "first": "Andres",
+            "last": "Valenzuela",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "andres-valenzuela"
+          },
+          {
+            "name": "Marcelo Vidaurreta Villanueva",
+            "first": "Marcelo",
+            "last": "Vidaurreta Villanueva",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "marcelo-vidaurreta-villanueva"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          3
+        ],
+        [
+          6,
+          1
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_751bee3a2c",
+      "day": "2026-11-16",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "09:00"
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_50147814d0",
+        "players": [
+          {
+            "name": "Argel Alexandro Albanes",
+            "first": "Argel Alexandro",
+            "last": "Albanes",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "argel-alexandro-albanes"
+          },
+          {
+            "name": "Hector Dubuc",
+            "first": "Hector",
+            "last": "Dubuc",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "hector-dubuc"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_6b45c424c1",
+        "players": [
+          {
+            "name": "Maximo Jesus Maldonado",
+            "first": "Maximo Jesus",
+            "last": "Maldonado",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "maximo-jesus-maldonado"
+          },
+          {
+            "name": "Luciano Puppo",
+            "first": "Luciano",
+            "last": "Puppo",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "luciano-puppo"
+          }
+        ],
+        "seed": 2,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          5,
+          7
+        ],
+        [
+          0,
+          6
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_1f61dd45ca",
+      "day": "2026-11-16",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_a94b077991",
+        "players": [
+          {
+            "name": "Andres Graupera",
+            "first": "Andres",
+            "last": "Graupera",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "andres-graupera"
+          },
+          {
+            "name": "Santino Contreras",
+            "first": "Santino",
+            "last": "Contreras",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "santino-contreras"
+          }
+        ],
+        "seed": 1,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_0fee84f41d",
+        "players": [
+          {
+            "name": "Gerardo Tafich Romo",
+            "first": "Gerardo",
+            "last": "Tafich Romo",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "gerardo-tafich-romo"
+          },
+          {
+            "name": "Gianluca Reynafe",
+            "first": "Gianluca",
+            "last": "Reynafe",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "gianluca-reynafe"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          1
+        ],
+        [
+          6,
+          2
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_9aa6951897",
+      "day": "2026-11-16",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 3,
+      "start": {
+        "kind": "notBefore",
+        "time": "15:00"
+      },
+      "phase": "Previa ronda 3",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_48ff728df9",
+        "players": [
+          {
+            "name": "Manuel Gayone",
+            "first": "Manuel",
+            "last": "Gayone",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "manuel-gayone"
+          },
+          {
+            "name": "Axel Guevara",
+            "first": "Axel",
+            "last": "Guevara",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "axel-william-guevara"
+          }
+        ],
+        "seed": 3,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_39a66c216d",
+        "players": [
+          {
+            "name": "Juan Pablo Castillo",
+            "first": "Juan Pablo",
+            "last": "Castillo",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "juan-pablo-castillo"
+          },
+          {
+            "name": "Gonzalo Federico Luis Lopez",
+            "first": "Gonzalo Federico",
+            "last": "Luis Lopez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "gonzalo-federico-lopez"
+          }
+        ],
+        "seed": 8,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          4
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": 1794863201568,
+      "finishedAt": 1794870930821,
+      "manual": true
+    },
+    {
+      "id": "oj_36ace61ff6",
+      "day": "2026-11-16",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 4,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 3",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_73e85923fe",
+        "players": [
+          {
+            "name": "Juan Manuel Argañaras",
+            "first": "Juan Manuel",
+            "last": "Argañaras",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "juan-manuel-arganaras"
+          },
+          {
+            "name": "Matias Emiliano Gutierrez",
+            "first": "Matias Emiliano",
+            "last": "Gutierrez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "matias-emiliano-gutierrez-c"
+          }
+        ],
+        "seed": 6,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_edefea5b0b",
+        "players": [
+          {
+            "name": "Oscar Matias Almada",
+            "first": "Oscar Matias",
+            "last": "Almada",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "oscar-matias-almada"
+          },
+          {
+            "name": "Lautaro Mambrini",
+            "first": "Lautaro",
+            "last": "Mambrini",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "lautaro-mambrini"
+          }
+        ],
+        "seed": 4,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          3,
+          6
+        ],
+        [
+          4,
+          6
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": 1794871626804,
+      "finishedAt": 1794875034478,
+      "manual": true
+    },
+    {
+      "id": "oj_9b157661e7",
+      "day": "2026-11-16",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "09:00"
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_ce74314ddc",
+        "players": [
+          {
+            "name": "Mirko Kloster",
+            "first": "Mirko",
+            "last": "Kloster",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "mirko-kloster"
+          },
+          {
+            "name": "Ivo Andenmatten Gudiño",
+            "first": "Ivo",
+            "last": "Andenmatten Gudiño",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "ivo-andenmatten-gudino"
+          }
+        ],
+        "seed": 5,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_6606ee81f8",
+        "players": [
+          {
+            "name": "Lucas Franco Rodriguez",
+            "first": "Lucas Franco",
+            "last": "Rodriguez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "lucas-franco-rodriguez"
+          },
+          {
+            "name": "Luis Facundo Sayes",
+            "first": "Luis Facundo",
+            "last": "Sayes",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "luis-facundo-sayes"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          7,
+          6
+        ],
+        [
+          3,
+          6
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "tb": [
+        1,
+        null,
+        3
+      ],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": 1794844252750,
+      "finishedAt": 1794848421237,
+      "manual": false
+    },
+    {
+      "id": "oj_206c232d6b",
+      "day": "2026-11-16",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_408179e564",
+        "players": [
+          {
+            "name": "Hugo Martinez Toral",
+            "first": "Hugo",
+            "last": "Martinez Toral",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "hugo-martinez-toral"
+          },
+          {
+            "name": "Benicio Lara Zezza",
+            "first": "Benicio",
+            "last": "Lara Zezza",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "benicio-lara-zezza"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_edefea5b0b",
+        "players": [
+          {
+            "name": "Oscar Matias Almada",
+            "first": "Oscar Matias",
+            "last": "Almada",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "oscar-matias-almada"
+          },
+          {
+            "name": "Lautaro Mambrini",
+            "first": "Lautaro",
+            "last": "Mambrini",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "lautaro-mambrini"
+          }
+        ],
+        "seed": 4,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          0,
+          6
+        ],
+        [
+          4,
+          6
+        ]
+      ],
+      "tb": [
+        null,
+        null
+      ],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": 1794849287288,
+      "finishedAt": 1794851458612,
+      "manual": false
+    },
+    {
+      "id": "oj_1685f689fd",
+      "day": "2026-11-16",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 3,
+      "start": {
+        "kind": "notBefore",
+        "time": "15:00"
+      },
+      "phase": "Previa ronda 3",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_6606ee81f8",
+        "players": [
+          {
+            "name": "Lucas Franco Rodriguez",
+            "first": "Lucas Franco",
+            "last": "Rodriguez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "lucas-franco-rodriguez"
+          },
+          {
+            "name": "Luis Facundo Sayes",
+            "first": "Luis Facundo",
+            "last": "Sayes",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "luis-facundo-sayes"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_6b45c424c1",
+        "players": [
+          {
+            "name": "Maximo Jesus Maldonado",
+            "first": "Maximo Jesus",
+            "last": "Maldonado",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "maximo-jesus-maldonado"
+          },
+          {
+            "name": "Luciano Puppo",
+            "first": "Luciano",
+            "last": "Puppo",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "luciano-puppo"
+          }
+        ],
+        "seed": 2,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          5,
+          7
+        ],
+        [
+          4,
+          6
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": 1794863354418,
+      "finishedAt": 1794868228698,
+      "manual": true
+    },
+    {
+      "id": "oj_4e4b123bf8",
+      "day": "2026-11-16",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 4,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 3",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_a94b077991",
+        "players": [
+          {
+            "name": "Andres Graupera",
+            "first": "Andres",
+            "last": "Graupera",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "andres-graupera"
+          },
+          {
+            "name": "Santino Contreras",
+            "first": "Santino",
+            "last": "Contreras",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "santino-contreras"
+          }
+        ],
+        "seed": 1,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_702624f9d7",
+        "players": [
+          {
+            "name": "Nicolas Crosio",
+            "first": "Nicolas",
+            "last": "Crosio",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "nicolas-crosio"
+          },
+          {
+            "name": "Jose Alberto Funes Ontivero",
+            "first": "Jose Alberto",
+            "last": "Funes Ontivero",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "jose-alberto-funes-ontivero"
+          }
+        ],
+        "seed": 7,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          7
+        ],
+        [
+          7,
+          6
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": 1794868956219,
+      "finishedAt": 1794877449015,
+      "manual": true
+    },
+    {
+      "id": "oj_5fe79eb222",
+      "day": "2026-11-16",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "09:00"
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_075af9b571",
+        "players": [
+          {
+            "name": "Tobias Pintos Castro",
+            "first": "Tobias",
+            "last": "Pintos Castro",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "tobias-pintos-castro"
+          },
+          {
+            "name": "Valentino Pesci",
+            "first": "Valentino",
+            "last": "Pesci",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "valentino-pesci"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_39a66c216d",
+        "players": [
+          {
+            "name": "Juan Pablo Castillo",
+            "first": "Juan Pablo",
+            "last": "Castillo",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "juan-pablo-castillo"
+          },
+          {
+            "name": "Gonzalo Federico Luis Lopez",
+            "first": "Gonzalo Federico",
+            "last": "Luis Lopez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "gonzalo-federico-lopez"
+          }
+        ],
+        "seed": 8,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          3,
+          6
+        ],
+        [
+          4,
+          6
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_5c86c9515a",
+      "day": "2026-11-16",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_73e85923fe",
+        "players": [
+          {
+            "name": "Juan Manuel Argañaras",
+            "first": "Juan Manuel",
+            "last": "Argañaras",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "juan-manuel-arganaras"
+          },
+          {
+            "name": "Matias Emiliano Gutierrez",
+            "first": "Matias Emiliano",
+            "last": "Gutierrez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "matias-emiliano-gutierrez-c"
+          }
+        ],
+        "seed": 6,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_6fb86c5e35",
+        "players": [
+          {
+            "name": "Diego Garcia Villalobos Blanco",
+            "first": "Diego",
+            "last": "Garcia Villalobos Blanco",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "diego-garcia-villalobos-blanco"
+          },
+          {
+            "name": "Mauricio Garcia Villalobos Blanco",
+            "first": "Mauricio",
+            "last": "Garcia Villalobos Blanco",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "mauricio-garcia-villalobos"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          2
+        ],
+        [
+          6,
+          4
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_cce52baef0",
+      "day": "2026-11-16",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "09:00"
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_48ff728df9",
+        "players": [
+          {
+            "name": "Manuel Gayone",
+            "first": "Manuel",
+            "last": "Gayone",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "manuel-gayone"
+          },
+          {
+            "name": "Axel Guevara",
+            "first": "Axel",
+            "last": "Guevara",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "axel-william-guevara"
+          }
+        ],
+        "seed": 3,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_d6ed2cdd63",
+        "players": [
+          {
+            "name": "Gaston Diaz",
+            "first": "Gaston",
+            "last": "Diaz",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "gaston-diaz"
+          },
+          {
+            "name": "Elias Nasif",
+            "first": "Elias",
+            "last": "Nasif",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "elias-nasif"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          6,
+          1
+        ],
+        [
+          6,
+          1
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "A",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_74f25d681a",
+      "day": "2026-11-16",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Previa ronda 2",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_c6a0626ab3",
+        "players": [
+          {
+            "name": "Mauricio Suarez Gonzalez",
+            "first": "Mauricio",
+            "last": "Suarez Gonzalez",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "mauricio-suarez-gonzalez"
+          },
+          {
+            "name": "Alejandro Alcaraz Gonzalez",
+            "first": "Alejandro",
+            "last": "Alcaraz Gonzalez",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "alejandro-alcaraz-gonzalez"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_702624f9d7",
+        "players": [
+          {
+            "name": "Nicolas Crosio",
+            "first": "Nicolas",
+            "last": "Crosio",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "nicolas-crosio"
+          },
+          {
+            "name": "Jose Alberto Funes Ontivero",
+            "first": "Jose Alberto",
+            "last": "Funes Ontivero",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "jose-alberto-funes-ontivero"
+          }
+        ],
+        "seed": 7,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          2,
+          6
+        ],
+        [
+          6,
+          7
+        ]
+      ],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": true
+    },
+    {
+      "id": "oj_4c00d80df8",
+      "day": "2026-11-17",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "10:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_da2eb2a601",
+        "players": [
+          {
+            "name": "Jimena Ortiz Lozano",
+            "first": "Jimena",
+            "last": "Ortiz Lozano",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "jimena-ortiz-lozano"
+          },
+          {
+            "name": "Mya Campa Labossière",
+            "first": "Mya",
+            "last": "Campa Labossière",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "mya-campa-labossiere"
+          }
+        ],
+        "seed": null,
+        "tag": "WC"
+      },
+      "b": {
+        "pair": "par_ddf4a8602f",
+        "players": [
+          {
+            "name": "Renata Martinez Becerra",
+            "first": "Renata",
+            "last": "Martinez Becerra",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "renata-martinez-becerra"
+          },
+          {
+            "name": "Julia Giusti Gomes",
+            "first": "Julia",
+            "last": "Giusti Gomes",
+            "country": "BRA",
+            "flag": "/fotos/bandera-bra.jpg",
+            "slug": "julia-giusti-gomes"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "live",
+      "sets": [
+        [
+          4,
+          6
+        ]
+      ],
+      "tb": [
+        null
+      ],
+      "games": [
+        1,
+        5
+      ],
+      "points": [
+        "15",
+        "40"
+      ],
+      "server": "A",
+      "winner": null,
+      "reason": null,
+      "startedAt": 1794931387790,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_5c5337a279",
+      "day": "2026-11-17",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_e858e92bb4",
+        "players": [
+          {
+            "name": "Marina Lobo",
+            "first": "Marina",
+            "last": "Lobo",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "marina-lobo"
+          },
+          {
+            "name": "Teresa Navarro Lopez-Barajas",
+            "first": "Teresa",
+            "last": "Navarro Lopez-Barajas",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "teresa-navarro-lopez-barajas"
+          }
+        ],
+        "seed": 8,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_38b5a8d8bc",
+        "players": [
+          {
+            "name": "Olivia Çiftçi",
+            "first": "Olivia",
+            "last": "Çiftçi",
+            "country": "GBR",
+            "flag": "/fotos/bandera-gbr.jpg",
+            "slug": "olivia-ciftci"
+          },
+          {
+            "name": "Ena Indjin",
+            "first": "Ena",
+            "last": "Indjin",
+            "country": "CAN",
+            "flag": "/fotos/bandera-can.jpg",
+            "slug": "ena-indjin"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_8b65b196b4",
+      "day": "2026-11-17",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 3,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_81e7532f5a",
+        "players": [
+          {
+            "name": "Catherine Rose",
+            "first": "Catherine",
+            "last": "Rose",
+            "country": "GBR",
+            "flag": "/fotos/bandera-gbr.jpg",
+            "slug": "catherine-rose"
+          },
+          {
+            "name": "Bo Luttikhuis",
+            "first": "Bo",
+            "last": "Luttikhuis",
+            "country": "NED",
+            "flag": "/fotos/bandera-ned.jpg",
+            "slug": "bo-luttikhuis"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_69c47b3770",
+        "players": [
+          {
+            "name": "Ivet Val Lopez",
+            "first": "Ivet",
+            "last": "Val Lopez",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "ivet-val-lopez"
+          },
+          {
+            "name": "Louise Bahurel",
+            "first": "Louise",
+            "last": "Bahurel",
+            "country": "FRA",
+            "flag": "/fotos/bandera-fra.jpg",
+            "slug": "louise-bahurel"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_ad8e5f4000",
+      "day": "2026-11-17",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 4,
+      "start": {
+        "kind": "notBefore",
+        "time": "16:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_9b78db1dc1",
+        "players": [
+          {
+            "name": "Diego Arredondo García",
+            "first": "Diego",
+            "last": "Arredondo García",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "diego-arredondo-garcia"
+          },
+          {
+            "name": "Mateo Alvarez",
+            "first": "Mateo",
+            "last": "Alvarez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "mateo-alvarez"
+          }
+        ],
+        "seed": null,
+        "tag": "WC"
+      },
+      "b": {
+        "pair": "par_66f8a3b2fa",
+        "players": [
+          {
+            "name": "Martin Abud",
+            "first": "Martin",
+            "last": "Abud",
+            "country": "PAR",
+            "flag": "/fotos/bandera-par.jpg",
+            "slug": "martin-abud"
+          },
+          {
+            "name": "Juan Cruz Belluati",
+            "first": "Juan Cruz",
+            "last": "Belluati",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "juan-cruz-belluati"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_501d3d01b7",
+      "day": "2026-11-17",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 5,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_92799ffc4b",
+        "players": [
+          {
+            "name": "Eduardo Alonso",
+            "first": "Eduardo",
+            "last": "Alonso",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "eduardo-alonso"
+          },
+          {
+            "name": "Aimar Goñi Lacabe",
+            "first": "Aimar",
+            "last": "Goñi Lacabe",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "aimar-goni-lacabe"
+          }
+        ],
+        "seed": 5,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_12b2ca04a1",
+        "players": [
+          {
+            "name": "Octavio Alvarez",
+            "first": "Octavio",
+            "last": "Alvarez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "octavio-alvarez"
+          },
+          {
+            "name": "Miguel Lamperti",
+            "first": "Miguel",
+            "last": "Lamperti",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "miguel-lamperti"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_61ea5cfb5e",
+      "day": "2026-11-17",
+      "court": "central",
+      "courtName": "Pista central",
+      "playedOn": null,
+      "order": 6,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_b0678485dd",
+        "players": [
+          {
+            "name": "Jose Pablo Padilla",
+            "first": "Jose Pablo",
+            "last": "Padilla",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "jose-pablo-padilla"
+          },
+          {
+            "name": "Pablo Francisco Amora Hernandez",
+            "first": "Pablo Francisco",
+            "last": "Amora Hernandez",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "pablo-francisco-amora-hernandez"
+          }
+        ],
+        "seed": null,
+        "tag": "WC"
+      },
+      "b": {
+        "pair": "par_ba8abb52d3",
+        "players": [
+          {
+            "name": "Maximiliano Sanchez Blasco",
+            "first": "Maximiliano",
+            "last": "Sanchez Blasco",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "maximiliano-sanchez-blasco"
+          },
+          {
+            "name": "Carlos Daniel Gutierrez",
+            "first": "Carlos Daniel",
+            "last": "Gutierrez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "carlos-daniel-gutierrez"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_b8c0616cb8",
+      "day": "2026-11-17",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "10:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_f129f495fe",
+        "players": [
+          {
+            "name": "Lorena Marruffo",
+            "first": "Lorena",
+            "last": "Marruffo",
+            "country": "VEN",
+            "flag": "/fotos/bandera-ven.jpg",
+            "slug": "lorena-marruffo"
+          },
+          {
+            "name": "Nerea Derbis",
+            "first": "Nerea",
+            "last": "Derbis",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "nerea-derbis"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_e4f2f082d0",
+        "players": [
+          {
+            "name": "Maria Paula Torres Draxl",
+            "first": "Maria Paula",
+            "last": "Torres Draxl",
+            "country": "PER",
+            "flag": "/fotos/bandera-per.png",
+            "slug": "maria-paula-torres-draxl"
+          },
+          {
+            "name": "Marinés Holguín Reyes",
+            "first": "Marinés",
+            "last": "Holguín Reyes",
+            "country": "ECU",
+            "flag": "/fotos/bandera-ecu.jpg",
+            "slug": "marines-holguin-reyes"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "live",
+      "sets": [
+        [
+          3,
+          6
+        ]
+      ],
+      "tb": [
+        null
+      ],
+      "games": [
+        5,
+        3
+      ],
+      "points": [
+        "40",
+        "40"
+      ],
+      "server": "A",
+      "winner": null,
+      "reason": null,
+      "startedAt": 1794931642736,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_20b48196ad",
+      "day": "2026-11-17",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_b6c1ba461d",
+        "players": [
+          {
+            "name": "Ivana Perches Arredondo",
+            "first": "Ivana",
+            "last": "Perches Arredondo",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "ivana-perches-arredondo"
+          },
+          {
+            "name": "Ana Julia Acunha de Oliveira",
+            "first": "Ana Julia",
+            "last": "Acunha de Oliveira",
+            "country": "BRA",
+            "flag": "/fotos/bandera-bra.jpg",
+            "slug": "ana-julia-acunha-de-oliveira"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_174ee65176",
+        "players": [
+          {
+            "name": "Noemi Aguilar Carrillo",
+            "first": "Noemi",
+            "last": "Aguilar Carrillo",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "noemi-aguilar-carrillo"
+          },
+          {
+            "name": "Claudia Escacena Montero",
+            "first": "Claudia",
+            "last": "Escacena Montero",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "claudia-escacena-montero"
+          }
+        ],
+        "seed": 7,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_090c5bf0c5",
+      "day": "2026-11-17",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 3,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_8666e7dcdc",
+        "players": [
+          {
+            "name": "Cristina Carrascosa Cazorla",
+            "first": "Cristina",
+            "last": "Carrascosa Cazorla",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "cristina-carrascosa-cazorla"
+          },
+          {
+            "name": "Marisol Fernandez Garcia",
+            "first": "Marisol",
+            "last": "Fernandez Garcia",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "marisol-fernandez-garcia"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_8a3a14738b",
+        "players": [
+          {
+            "name": "Melissa Garcia Luna Diaz",
+            "first": "Melissa",
+            "last": "Garcia Luna Diaz",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": null
+          },
+          {
+            "name": "Julia Fernanda",
+            "first": "Julia",
+            "last": "Fernanda",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": null
+          }
+        ],
+        "seed": null,
+        "tag": "WC"
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_9abebdd964",
+      "day": "2026-11-17",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 4,
+      "start": {
+        "kind": "notBefore",
+        "time": "16:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_3c97b9623a",
+        "players": [
+          {
+            "name": "Javier Valdes",
+            "first": "Javier",
+            "last": "Valdes",
+            "country": "CHI",
+            "flag": "/fotos/bandera-chi.jpg",
+            "slug": "javier-valdes"
+          },
+          {
+            "name": "Renzo Gabriel Nuñez",
+            "first": "Renzo Gabriel",
+            "last": "Nuñez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "renzo-gabriel-nunez"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_bfef5c6ed5",
+        "players": [
+          {
+            "name": "Juanlu Esbri",
+            "first": "Juanlu",
+            "last": "Esbri",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "juanlu-esbri"
+          },
+          {
+            "name": "Pol Hernandez Alvarez",
+            "first": "Pol",
+            "last": "Hernandez Alvarez",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "pol-hernandez-alvarez"
+          }
+        ],
+        "seed": 9,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_61f0d9fd92",
+      "day": "2026-11-17",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 5,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_e37537913e",
+        "players": [
+          {
+            "name": "Valentino Libaak",
+            "first": "Valentino",
+            "last": "Libaak",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "valentino-gabriel-libaak"
+          },
+          {
+            "name": "Gonzalo Alfonso",
+            "first": "Gonzalo",
+            "last": "Alfonso",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "gonzalo-alfonso"
+          }
+        ],
+        "seed": 6,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_6b45c424c1",
+        "players": [
+          {
+            "name": "Maximo Jesus Maldonado",
+            "first": "Maximo Jesus",
+            "last": "Maldonado",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "maximo-jesus-maldonado"
+          },
+          {
+            "name": "Luciano Puppo",
+            "first": "Luciano",
+            "last": "Puppo",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "luciano-puppo"
+          }
+        ],
+        "seed": null,
+        "tag": "Q"
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_068ce861df",
+      "day": "2026-11-17",
+      "court": "pista-1",
+      "courtName": "Pista 2",
+      "playedOn": null,
+      "order": 6,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_6f41c5b7bd",
+        "players": [
+          {
+            "name": "Juan Ignacio Rubini",
+            "first": "Juan Ignacio",
+            "last": "Rubini",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "juan-ignacio-rubini"
+          },
+          {
+            "name": "Leonel Daniel Aguirre",
+            "first": "Leonel Daniel",
+            "last": "Aguirre",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "leonel-daniel-aguirre"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_b9ba75f7d1",
+        "players": [
+          {
+            "name": "Clement Geens",
+            "first": "Clement",
+            "last": "Geens",
+            "country": "BEL",
+            "flag": "/fotos/bandera-bel.jpg",
+            "slug": "clement-geens"
+          },
+          {
+            "name": "Dylan Guichard",
+            "first": "Dylan",
+            "last": "Guichard",
+            "country": "FRA",
+            "flag": "/fotos/bandera-fra.jpg",
+            "slug": "dylan-guichard"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_0d43d1bae2",
+      "day": "2026-11-17",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "10:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_7d0efd94be",
+        "players": [
+          {
+            "name": "Melissa Rodriguez Mayen",
+            "first": "Melissa",
+            "last": "Rodriguez Mayen",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "melissa-rodriguez-mayen"
+          },
+          {
+            "name": "Itzel Manzanera Aldana",
+            "first": "Itzel",
+            "last": "Manzanera Aldana",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "itzel-manzanera-aldana"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_ab29925a33",
+        "players": [
+          {
+            "name": "Quetzali Dafne Vazquez Montesinos",
+            "first": "Quetzali Dafne",
+            "last": "Vazquez Montesinos",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "quetzali-dafne-vazquez-montesinos"
+          },
+          {
+            "name": "Aranzazu Gallardo",
+            "first": "Aranzazu",
+            "last": "Gallardo",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "aranzazu-gallardo-munoz"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "live",
+      "sets": [
+        [
+          3,
+          6
+        ]
+      ],
+      "tb": [
+        null
+      ],
+      "games": [
+        2,
+        4
+      ],
+      "points": [
+        "0",
+        "15"
+      ],
+      "server": "B",
+      "winner": null,
+      "reason": null,
+      "startedAt": 1794931592819,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_bee648029f",
+      "day": "2026-11-17",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_8b097af105",
+        "players": [
+          {
+            "name": "Annie Frida Arenas Mondragón",
+            "first": "Annie Frida",
+            "last": "Arenas Mondragón",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "annie-frida-arenas-mondragon"
+          },
+          {
+            "name": "Laura Afonso Maas",
+            "first": "Laura",
+            "last": "Afonso Maas",
+            "country": "BRA",
+            "flag": "/fotos/bandera-bra.jpg",
+            "slug": "laura-afonso-maas"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_116ac37f56",
+        "players": [
+          {
+            "name": "Maria Jose Montoya",
+            "first": "Maria Jose",
+            "last": "Montoya",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "maria-jose-montoya"
+          },
+          {
+            "name": "Dafne Paola Peralta Sanchez",
+            "first": "Dafne Paola",
+            "last": "Peralta Sanchez",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "dafne-paola-peralta-sanchez"
+          }
+        ],
+        "seed": null,
+        "tag": "WC"
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_b150c4318b",
+      "day": "2026-11-17",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 4,
+      "start": {
+        "kind": "notBefore",
+        "time": "16:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_17df1393cc",
+        "players": [
+          {
+            "name": "Jaume Romera Barceló",
+            "first": "Jaume",
+            "last": "Romera Barceló",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "jaume-romera-barcelo"
+          },
+          {
+            "name": "Felipe Calleja",
+            "first": "Felipe",
+            "last": "Calleja",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "felipe-calleja"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_376c7638dd",
+        "players": [
+          {
+            "name": "Nacho Moragues Moltò",
+            "first": "Nacho",
+            "last": "Moragues Moltò",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "nacho-moragues-molto"
+          },
+          {
+            "name": "Timeo Fonteny",
+            "first": "Timeo",
+            "last": "Fonteny",
+            "country": "FRA",
+            "flag": "/fotos/bandera-fra.jpg",
+            "slug": "timeo-fonteny"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_5f814b35e7",
+      "day": "2026-11-17",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 5,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_55d259a4c5",
+        "players": [
+          {
+            "name": "Teodoro Zapata",
+            "first": "Teodoro",
+            "last": "Zapata",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "teodoro-zapata"
+          },
+          {
+            "name": "Adrian Naranjo Martinez",
+            "first": "Adrian",
+            "last": "Naranjo Martinez",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "adrian-naranjo-martinez"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_2a6e772480",
+        "players": [
+          {
+            "name": "Juan Pablo Dametto",
+            "first": "Juan Pablo",
+            "last": "Dametto",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "juan-pablo-dametto"
+          },
+          {
+            "name": "Ignacio Archieri",
+            "first": "Ignacio",
+            "last": "Archieri",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "ignacio-archieri"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_7401238713",
+      "day": "2026-11-17",
+      "court": "pista-2",
+      "courtName": "Pista 3",
+      "playedOn": null,
+      "order": 6,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_63670c1829",
+        "players": [
+          {
+            "name": "Alonso Rodriguez Martinez",
+            "first": "Alonso",
+            "last": "Rodriguez Martinez",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "alonso-rodriguez-martinez"
+          },
+          {
+            "name": "Pablo Garcia Rodrigo",
+            "first": "Pablo",
+            "last": "Garcia Rodrigo",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "pablo-garcia"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_4a486d660c",
+        "players": [
+          {
+            "name": "Thijs Roper",
+            "first": "Thijs",
+            "last": "Roper",
+            "country": "NED",
+            "flag": "/fotos/bandera-ned.jpg",
+            "slug": "thijs-roper"
+          },
+          {
+            "name": "Aris Patiniotis",
+            "first": "Aris",
+            "last": "Patiniotis",
+            "country": "ITA",
+            "flag": "/fotos/bandera-ita.jpg",
+            "slug": "aris-patiniotis"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_2f4906b79f",
+      "day": "2026-11-17",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 1,
+      "start": {
+        "kind": "at",
+        "time": "10:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_ef8add2746",
+        "players": [
+          {
+            "name": "Aurelia Sara Argentieri",
+            "first": "Aurelia Sara",
+            "last": "Argentieri",
+            "country": "ITA",
+            "flag": "/fotos/bandera-ita.jpg",
+            "slug": "aurelia-sara-argentieri"
+          },
+          {
+            "name": "Alexa Silva Saavedra",
+            "first": "Alexa",
+            "last": "Silva Saavedra",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "alexa-silva-saavedra"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_51862a7e57",
+        "players": [
+          {
+            "name": "Natividad Lopez Diaz",
+            "first": "Natividad",
+            "last": "Lopez Diaz",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "natividad-lopez-diaz"
+          },
+          {
+            "name": "Aida Martinez",
+            "first": "Aida",
+            "last": "Martinez",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "aida-martinez-sanjuan"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "done",
+      "sets": [
+        [
+          2,
+          6
+        ],
+        [
+          1,
+          6
+        ]
+      ],
+      "tb": [
+        null,
+        null
+      ],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": "B",
+      "reason": "score",
+      "startedAt": 1794931619282,
+      "finishedAt": 1794933706217,
+      "manual": false
+    },
+    {
+      "id": "oj_5c0fbe6d30",
+      "day": "2026-11-17",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 2,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Femenino",
+      "a": {
+        "pair": "par_9a11257be5",
+        "players": [
+          {
+            "name": "Sarah Rosas",
+            "first": "Sarah",
+            "last": "Rosas",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "sarah-rosas"
+          },
+          {
+            "name": "Fantine Botella",
+            "first": "Fantine",
+            "last": "Botella",
+            "country": "FRA",
+            "flag": "/fotos/bandera-fra.jpg",
+            "slug": "fantine-botella"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "b": {
+        "pair": "par_4edce49472",
+        "players": [
+          {
+            "name": "Daniela Albujar",
+            "first": "Daniela",
+            "last": "Albujar",
+            "country": "PER",
+            "flag": "/fotos/bandera-per.png",
+            "slug": "daniela-albujar"
+          },
+          {
+            "name": "Emilia Ciccardini",
+            "first": "Emilia",
+            "last": "Ciccardini",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "emilia-ciccardini"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "live",
+      "sets": [],
+      "tb": [],
+      "games": [
+        0,
+        1
+      ],
+      "points": [
+        "0",
+        "0"
+      ],
+      "server": "A",
+      "winner": null,
+      "reason": null,
+      "startedAt": 1794934915264,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_32036a7bc8",
+      "day": "2026-11-17",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 4,
+      "start": {
+        "kind": "notBefore",
+        "time": "16:00"
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_a94b077991",
+        "players": [
+          {
+            "name": "Andres Graupera",
+            "first": "Andres",
+            "last": "Graupera",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "andres-graupera"
+          },
+          {
+            "name": "Santino Contreras",
+            "first": "Santino",
+            "last": "Contreras",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "santino-contreras"
+          }
+        ],
+        "seed": null,
+        "tag": "Q"
+      },
+      "b": {
+        "pair": "par_1f066911a5",
+        "players": [
+          {
+            "name": "Enrique Goenaga",
+            "first": "Enrique",
+            "last": "Goenaga",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "enrique-goenaga"
+          },
+          {
+            "name": "Guillermo Collado Losada",
+            "first": "Guillermo",
+            "last": "Collado Losada",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "guillermo-collado"
+          }
+        ],
+        "seed": null,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_9462a245ed",
+      "day": "2026-11-17",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 5,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_702624f9d7",
+        "players": [
+          {
+            "name": "Nicolas Crosio",
+            "first": "Nicolas",
+            "last": "Crosio",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "nicolas-crosio"
+          },
+          {
+            "name": "Jose Alberto Funes Ontivero",
+            "first": "Jose Alberto",
+            "last": "Funes Ontivero",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "jose-alberto-funes-ontivero"
+          }
+        ],
+        "seed": null,
+        "tag": "LL"
+      },
+      "b": {
+        "pair": "par_4f3345820a",
+        "players": [
+          {
+            "name": "David Gala",
+            "first": "David",
+            "last": "Gala",
+            "country": "ESP",
+            "flag": "/fotos/bandera-esp.jpg",
+            "slug": "david-gala"
+          },
+          {
+            "name": "Lucas Bergamini",
+            "first": "Lucas",
+            "last": "Bergamini",
+            "country": "BRA",
+            "flag": "/fotos/bandera-bra.jpg",
+            "slug": "lucas-bergamini"
+          }
+        ],
+        "seed": 7,
+        "tag": null
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    },
+    {
+      "id": "oj_bab405cf91",
+      "day": "2026-11-17",
+      "court": "pista-3",
+      "courtName": "Pista 4",
+      "playedOn": null,
+      "order": 6,
+      "start": {
+        "kind": "after",
+        "time": null
+      },
+      "phase": "Dieciseisavos de final",
+      "category": "Masculino",
+      "a": {
+        "pair": "par_39a66c216d",
+        "players": [
+          {
+            "name": "Juan Pablo Castillo",
+            "first": "Juan Pablo",
+            "last": "Castillo",
+            "country": "MEX",
+            "flag": "/fotos/bandera-mex.jpg",
+            "slug": "juan-pablo-castillo"
+          },
+          {
+            "name": "Gonzalo Federico Luis Lopez",
+            "first": "Gonzalo Federico",
+            "last": "Luis Lopez",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "gonzalo-federico-lopez"
+          }
+        ],
+        "seed": null,
+        "tag": "Q"
+      },
+      "b": {
+        "pair": "par_edefea5b0b",
+        "players": [
+          {
+            "name": "Oscar Matias Almada",
+            "first": "Oscar Matias",
+            "last": "Almada",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "oscar-matias-almada"
+          },
+          {
+            "name": "Lautaro Mambrini",
+            "first": "Lautaro",
+            "last": "Mambrini",
+            "country": "ARG",
+            "flag": "/fotos/bandera-arg.jpg",
+            "slug": "lautaro-mambrini"
+          }
+        ],
+        "seed": null,
+        "tag": "Q"
+      },
+      "status": "pending",
+      "sets": [],
+      "tb": [],
+      "games": null,
+      "points": null,
+      "server": null,
+      "winner": null,
+      "reason": null,
+      "startedAt": null,
+      "finishedAt": null,
+      "manual": false
+    }
+  ]
+}
