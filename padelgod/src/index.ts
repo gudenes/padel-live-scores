@@ -190,6 +190,8 @@ async function main() {
       puntuateLiveDryRun: env.PUNTUATE_LIVE_DRY_RUN,
       enableCourtbitLive: env.ENABLE_COURTBIT_LIVE,
       courtbitLiveDryRun: env.COURTBIT_LIVE_DRY_RUN,
+      enablePplLive: env.ENABLE_PPL_LIVE,
+      pplLiveDryRun: env.PPL_LIVE_DRY_RUN,
       enableWebtugaLive: env.ENABLE_WEBTUGA_LIVE,
       webtugaLiveDryRun: env.WEBTUGA_LIVE_DRY_RUN,
       enablePadeldevLive: env.ENABLE_PADELDEV_LIVE,

@@ -232,6 +232,8 @@ const EnvSchema = z.object({
   PUNTUATE_LIVE_DRY_RUN: boolEnv(true),
   ENABLE_COURTBIT_LIVE: boolEnv(false),
   COURTBIT_LIVE_DRY_RUN: boolEnv(true),
+  ENABLE_PPL_LIVE: boolEnv(false),
+  PPL_LIVE_DRY_RUN: boolEnv(true),
   ENABLE_WEBTUGA_LIVE: boolEnv(false),
   WEBTUGA_LIVE_DRY_RUN: boolEnv(true),
   // Play prediction market. Both default OFF with dry-run ON, so enabling in

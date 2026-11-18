@@ -1,0 +1,1826 @@
+{
+  "pageProps": {
+    "hero": {
+      "title": "Playa del Carmen",
+      "startDate": "2026-09-24",
+      "endDate": "2026-09-27",
+      "location": "Poliforum Playa del Carmen · Playa del Carmen · Mexico"
+    },
+    "broadcastContext": {
+      "tournamentSlug": "playa-del-carmen",
+      "playerRowsById": {
+        "adrian-ronco-lopez": {
+          "values": {
+            "displayName": "Adrian Ronco Lopez",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "agueda-perez-ortiz": {
+          "values": {
+            "displayName": "Agueda Perez Ortiz",
+            "sex": "female",
+            "teamId": "las-vegas-smash",
+            "nationality": "es"
+          }
+        },
+        "agustin-tapia": {
+          "values": {
+            "displayName": "Agustin Tapia",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "agustin-torre": {
+          "values": {
+            "displayName": "Agustin Torre",
+            "sex": "male",
+            "teamId": "las-vegas-smash",
+            "nationality": "ar"
+          }
+        },
+        "alberto-garcia-trabanco": {
+          "values": {
+            "displayName": "Alberto Garcia Trabanco",
+            "sex": "male",
+            "teamId": "houston-volts",
+            "nationality": "es"
+          }
+        },
+        "alejandra-alonso": {
+          "values": {
+            "displayName": "Alejandra Alonso",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "alejandro-alex-arroyo": {
+          "values": {
+            "displayName": "Alejandro \"Alex\" Arroyo",
+            "sex": "male",
+            "teamId": "dc-matrix",
+            "nationality": "es"
+          }
+        },
+        "alejandro-alex-ruiz": {
+          "values": {
+            "displayName": "Alejandro \"Alex\" Ruiz",
+            "sex": "male",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "alex-chozas": {
+          "values": {
+            "displayName": "Alex Chozas",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "alvaro-cepero-rodriguez": {
+          "values": {
+            "displayName": "Alvaro Cepero Rodriguez",
+            "sex": "male",
+            "teamId": "florida-goats",
+            "nationality": "es"
+          }
+        },
+        "alvaro-melendez-amaya": {
+          "values": {
+            "displayName": "Alvaro Melendez Amaya",
+            "sex": "male",
+            "teamId": "miami-padel-club",
+            "nationality": "es"
+          }
+        },
+        "ana-maria-cabrejas-ruiz": {
+          "values": {
+            "displayName": "Ana Maria Cabrejas Ruiz",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "andrea-ustero": {
+          "values": {
+            "displayName": "Andrea Ustero",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "andres-britos": {
+          "values": {
+            "displayName": "Andres Britos",
+            "sex": "male",
+            "teamId": "mexico-waves",
+            "nationality": "it"
+          }
+        },
+        "andres-fernandez-lancha": {
+          "values": {
+            "displayName": "Andres Fernandez Lancha",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "anna-cortiles-tapias": {
+          "values": {
+            "displayName": "Anna Tapias Cortiles",
+            "sex": "female",
+            "teamId": "las-vegas-smash",
+            "nationality": "es"
+          }
+        },
+        "anna-ortiz-gasco": {
+          "values": {
+            "displayName": "Anna Ortiz Gasco",
+            "sex": "female",
+            "teamId": "miami-padel-club",
+            "nationality": "es"
+          }
+        },
+        "antonio-fernandez-cano": {
+          "values": {
+            "displayName": "Antonio Fernandez Cano",
+            "sex": "male",
+            "teamId": "los-angeles-beat",
+            "nationality": "es"
+          }
+        },
+        "araceli-martinez-ibanez": {
+          "values": {
+            "displayName": "Araceli Martinez Ibanez",
+            "sex": "female",
+            "teamId": "dc-matrix",
+            "nationality": "es"
+          }
+        },
+        "aranzazu-osoro-ulrich": {
+          "values": {
+            "displayName": "Aranzazu Osoro Ulrich",
+            "sex": "female",
+            "teamId": "los-angeles-beat",
+            "nationality": "ar"
+          }
+        },
+        "argel-albanes": {
+          "values": {
+            "displayName": "Argel Albanes",
+            "sex": "male",
+            "teamId": "mexico-waves",
+            "nationality": "mx"
+          }
+        },
+        "ariadna-canellas-rodero": {
+          "values": {
+            "displayName": "Ariadna Canellas Rodero",
+            "sex": "female",
+            "teamId": "houston-volts",
+            "nationality": "es"
+          }
+        },
+        "ariana-sanchez": {
+          "values": {
+            "displayName": "Ariana Sanchez",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "barbara-las-heras-monterde": {
+          "values": {
+            "displayName": "Barbara Las Heras Monterde",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "beatriz-caldera-sanchez": {
+          "values": {
+            "displayName": "Beatriz Caldera Sanchez",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "brittany-dubins": {
+          "values": {
+            "displayName": "Brittany Dubins",
+            "sex": "female",
+            "teamId": "miami-padel-club",
+            "nationality": "us"
+          }
+        },
+        "carla-fernandez-gonzalez": {
+          "values": {
+            "displayName": "Carla Fernandez Gonzalez",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "carla-mesa-salazar": {
+          "values": {
+            "displayName": "Carla Mesa Salazar",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "carla-rodriguez-sanchez": {
+          "values": {
+            "displayName": "Carla Rodriguez Sanchez",
+            "sex": "female",
+            "teamId": "toronto-polar-bears",
+            "nationality": "us"
+          }
+        },
+        "carolina-orsi": {
+          "values": {
+            "displayName": "Carolina Orsi",
+            "sex": "female",
+            "teamId": "florida-goats",
+            "nationality": "it"
+          }
+        },
+        "claudia-jensen": {
+          "values": {
+            "displayName": "Claudia Jensen",
+            "sex": "female",
+            "teamId": "san-diego-stingrays",
+            "nationality": "ar"
+          }
+        },
+        "daniel-diaz": {
+          "values": {
+            "displayName": "Daniel Diaz",
+            "sex": "male",
+            "teamId": "san-diego-stingrays",
+            "nationality": "cl"
+          }
+        },
+        "daniel-fernandez": {
+          "values": {
+            "displayName": "Daniel Fernandez",
+            "sex": "male",
+            "teamId": "dc-matrix",
+            "nationality": "us"
+          }
+        },
+        "david-gala": {
+          "values": {
+            "displayName": "David Gala",
+            "sex": "male",
+            "teamId": "mexico-waves",
+            "nationality": "es"
+          }
+        },
+        "delfi-brea": {
+          "values": {
+            "displayName": "Delfi Brea",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "denis-tomas-perino": {
+          "values": {
+            "displayName": "Denis Tomas Perino",
+            "sex": "male",
+            "teamId": "los-angeles-beat",
+            "nationality": "it"
+          }
+        },
+        "diego-arredondo-garcia": {
+          "values": {
+            "displayName": "Diego Arredondo Garcia",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "eduardo-alonso": {
+          "values": {
+            "displayName": "Eduardo Alonso",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "egle-petrauskaite": {
+          "values": {
+            "displayName": "Egle Petrauskaite",
+            "sex": "female",
+            "teamId": "dc-matrix",
+            "nationality": "us"
+          }
+        },
+        "facundo-lopez": {
+          "values": {
+            "displayName": "Facundo Lopez",
+            "sex": "male",
+            "teamId": "houston-volts",
+            "nationality": "ar"
+          }
+        },
+        "fede-chingotto": {
+          "values": {
+            "displayName": "Fede Chingotto",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "federico-mourino": {
+          "values": {
+            "displayName": "Federico Mourino",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "francisco-xisco-manuel-gil": {
+          "values": {
+            "displayName": "Francisco \"Xisco\" Manuel Gil",
+            "sex": "male",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "franco-dal-bianco": {
+          "values": {
+            "displayName": "Franco Dal Bianco",
+            "sex": "male",
+            "teamId": "mexico-waves",
+            "nationality": "ar"
+          }
+        },
+        "gemma-triay": {
+          "values": {
+            "displayName": "Gemma Triay",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "gonzalo-alfonso": {
+          "values": {
+            "displayName": "Gonzalo Alfonso",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "gonzalo-rubio-perez": {
+          "values": {
+            "displayName": "Gonzalo Rubio Perez",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "guillermo-collado-losada": {
+          "values": {
+            "displayName": "Guillermo Collado Losada",
+            "sex": "male",
+            "teamId": "houston-volts",
+            "nationality": "es"
+          }
+        },
+        "guillermo-jimenez-cagigas": {
+          "values": {
+            "displayName": "Guillermo Jimenez Cagigas",
+            "sex": "male",
+            "teamId": "las-vegas-smash",
+            "nationality": "es"
+          }
+        },
+        "ignacio-vilarino": {
+          "values": {
+            "displayName": "Ignacio Vilarino",
+            "sex": "male",
+            "teamId": "new-york-atlantics",
+            "nationality": "ae"
+          }
+        },
+        "inigo-jofre-manzanares": {
+          "values": {
+            "displayName": "Inigo Jofre Manzanares",
+            "sex": "male",
+            "teamId": "dc-matrix",
+            "nationality": "ae"
+          }
+        },
+        "ivan-ramirez-del-campo": {
+          "values": {
+            "displayName": "Ivan Ramirez Del Campo",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "ivo-alem-andenmatten": {
+          "values": {
+            "displayName": "Ivo Alem Andenmatten",
+            "sex": "male",
+            "teamId": "san-diego-stingrays",
+            "nationality": "ar"
+          }
+        },
+        "jacobo-blanco": {
+          "values": {
+            "displayName": "Jacobo Blanco",
+            "sex": "male",
+            "teamId": "los-angeles-beat",
+            "nationality": "es"
+          }
+        },
+        "jaime-fermosell": {
+          "values": {
+            "displayName": "Jaime Fermosell",
+            "sex": "male",
+            "teamId": "new-york-atlantics",
+            "nationality": "es"
+          }
+        },
+        "jairo-bautista": {
+          "values": {
+            "displayName": "Jairo Bautista",
+            "sex": "male",
+            "teamId": "san-diego-stingrays",
+            "nationality": "es"
+          }
+        },
+        "jana-montes-cabruja": {
+          "values": {
+            "displayName": "Jana Montes Cabruja",
+            "sex": "female",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "javier-barahona": {
+          "values": {
+            "displayName": "Javier Barahona",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "javier-gomez-garrido": {
+          "values": {
+            "displayName": "Javier Gomez Garrido",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "javier-martinez": {
+          "values": {
+            "displayName": "Javier Martinez",
+            "sex": "male",
+            "teamId": "new-york-atlantics",
+            "nationality": "es"
+          }
+        },
+        "jessica-castello-lopez": {
+          "values": {
+            "displayName": "Jessica Castello Lopez",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "jimena-velasco": {
+          "values": {
+            "displayName": "Jimena Velasco",
+            "sex": "female",
+            "teamId": "las-vegas-smash",
+            "nationality": "es"
+          }
+        },
+        "jon-sanz": {
+          "values": {
+            "displayName": "Jon Sanz",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "jordana-lujan": {
+          "values": {
+            "displayName": "Jordana Lujan",
+            "sex": "female",
+            "teamId": "toronto-polar-bears",
+            "nationality": "ar"
+          }
+        },
+        "jose-antonio-garcia-diestro": {
+          "values": {
+            "displayName": "Jose Antonio Garcia Diestro",
+            "sex": "male",
+            "teamId": "miami-padel-club",
+            "nationality": "es"
+          }
+        },
+        "jose-carlos-gaspar-campos": {
+          "values": {
+            "displayName": "Jose Carlos Gaspar Campos",
+            "sex": "male",
+            "teamId": "new-york-atlantics",
+            "nationality": "es"
+          }
+        },
+        "jose-david-sanchez-serrano": {
+          "values": {
+            "displayName": "Jose David Sanchez Serrano",
+            "sex": "male",
+            "teamId": "san-diego-stingrays",
+            "nationality": "es"
+          }
+        },
+        "jose-jimenez-casas": {
+          "values": {
+            "displayName": "Jose Jimenez Casas",
+            "sex": "male",
+            "teamId": "san-diego-stingrays",
+            "nationality": "es"
+          }
+        },
+        "jose-maria-aliaga-cruz": {
+          "values": {
+            "displayName": "Jose Maria Aliaga Cruz",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "juan-ignacio-de-pascual": {
+          "values": {
+            "displayName": "Juan Ignacio de Pascual",
+            "sex": "male",
+            "teamId": "florida-goats",
+            "nationality": "ar"
+          }
+        },
+        "juan-ignacio-rubini": {
+          "values": {
+            "displayName": "Juan Ignacio Rubini",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "juan-manuel-arganaras": {
+          "values": {
+            "displayName": "Juan Manuel Arganaras",
+            "sex": "male",
+            "teamId": "new-york-atlantics",
+            "nationality": "ar"
+          }
+        },
+        "juan-tello": {
+          "values": {
+            "displayName": "Juan Tello",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "julia-polo-bautista": {
+          "values": {
+            "displayName": "Julia Polo Bautista",
+            "sex": "female",
+            "teamId": "los-angeles-beat",
+            "nationality": "es"
+          }
+        },
+        "ksenia-sharifova": {
+          "values": {
+            "displayName": "Ksenia Sharifova",
+            "sex": "female",
+            "teamId": "mexico-waves",
+            "nationality": "ru"
+          }
+        },
+        "laia-rodriguez": {
+          "values": {
+            "displayName": "Laia Rodriguez",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "leandro-augsburger": {
+          "values": {
+            "displayName": "Leandro Augsburger",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "leonel-tolito-aguirre": {
+          "values": {
+            "displayName": "Leonel \"Tolito\" Aguirre",
+            "sex": "male",
+            "teamId": "los-angeles-beat",
+            "nationality": "ar"
+          }
+        },
+        "letizia-manquillo": {
+          "values": {
+            "displayName": "Letizia Manquillo",
+            "sex": "female",
+            "teamId": "san-diego-stingrays",
+            "nationality": "es"
+          }
+        },
+        "lorena-rufo-ortiz": {
+          "values": {
+            "displayName": "Lorena Rufo Ortiz",
+            "sex": "female",
+            "teamId": "mexico-waves",
+            "nationality": "es"
+          }
+        },
+        "lucas-bergamini": {
+          "values": {
+            "displayName": "Lucas Bergamini",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "lucas-campagnolo": {
+          "values": {
+            "displayName": "Lucas Campagnolo",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "lucia-martinez-gomez": {
+          "values": {
+            "displayName": "Lucia Martinez Gomez",
+            "sex": "female",
+            "teamId": "miami-padel-club",
+            "nationality": "es"
+          }
+        },
+        "lucia-peralta": {
+          "values": {
+            "displayName": "Lucia Peralta",
+            "sex": "female",
+            "teamId": "mexico-waves",
+            "nationality": "es"
+          }
+        },
+        "lucia-sainz": {
+          "values": {
+            "displayName": "Lucia Sainz",
+            "sex": "female",
+            "teamId": "san-diego-stingrays",
+            "nationality": "es"
+          }
+        },
+        "luicelena-perez": {
+          "values": {
+            "displayName": "Luicelena Perez",
+            "sex": "female",
+            "teamId": "las-vegas-smash",
+            "nationality": "ve"
+          }
+        },
+        "luis-estrada": {
+          "values": {
+            "displayName": "Luis Estrada",
+            "sex": "male",
+            "teamId": "los-angeles-beat",
+            "nationality": "ve"
+          }
+        },
+        "luis-hernandez-quesada": {
+          "values": {
+            "displayName": "Luis Hernandez Quesada",
+            "sex": "male",
+            "teamId": "florida-goats",
+            "nationality": "es"
+          }
+        },
+        "maria-eulalia-rodriguez": {
+          "values": {
+            "displayName": "Maria Eulalia Rodriguez",
+            "sex": "female",
+            "teamId": "houston-volts",
+            "nationality": "es"
+          }
+        },
+        "maria-portillo": {
+          "values": {
+            "displayName": "Maria Portillo",
+            "sex": "female",
+            "teamId": "new-york-atlantics",
+            "nationality": null
+          }
+        },
+        "marina-guinart-espana": {
+          "values": {
+            "displayName": "Marina Guinart Espana",
+            "sex": "female",
+            "teamId": "dc-matrix",
+            "nationality": "es"
+          }
+        },
+        "marina-martinez-lobo": {
+          "values": {
+            "displayName": "Marina Martinez Lobo",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "mario-del-castillo": {
+          "values": {
+            "displayName": "Mario del Castillo",
+            "sex": "male",
+            "teamId": "dc-matrix",
+            "nationality": "es"
+          }
+        },
+        "mario-huete-hernandez": {
+          "values": {
+            "displayName": "Mario Huete Hernandez",
+            "sex": "male",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "marta-barrera-de-la-fuente": {
+          "values": {
+            "displayName": "Marta Barrera De La Fuente",
+            "sex": "female",
+            "teamId": "houston-volts",
+            "nationality": "es"
+          }
+        },
+        "marta-borrero": {
+          "values": {
+            "displayName": "Marta Borrero",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "marta-caparros-maldonado": {
+          "values": {
+            "displayName": "Marta Caparros Maldonado",
+            "sex": "female",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "marta-morga": {
+          "values": {
+            "displayName": "Marta Morga",
+            "sex": "female",
+            "teamId": "miami-padel-club",
+            "nationality": "us"
+          }
+        },
+        "marta-ortega": {
+          "values": {
+            "displayName": "Marta Ortega",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "marta-talavan": {
+          "values": {
+            "displayName": "Marta Talavan",
+            "sex": "female",
+            "teamId": "new-york-atlantics",
+            "nationality": "es"
+          }
+        },
+        "martina-fassio-goyeneche": {
+          "values": {
+            "displayName": "Martina Fassio Goyeneche",
+            "sex": "female",
+            "teamId": "dc-matrix",
+            "nationality": "ar"
+          }
+        },
+        "matias-segura-2": {
+          "values": {
+            "displayName": "Matias Segura",
+            "sex": "male",
+            "teamId": "san-diego-stingrays",
+            "nationality": "us"
+          }
+        },
+        "maximiliano-arce": {
+          "values": {
+            "displayName": "Maximiliano Arce",
+            "sex": "male",
+            "teamId": "mexico-waves",
+            "nationality": "ar"
+          }
+        },
+        "maximiliano-montano": {
+          "values": {
+            "displayName": "Maximiliano Montano",
+            "sex": "male",
+            "teamId": "mexico-waves",
+            "nationality": "mx"
+          }
+        },
+        "maximiliano-sanchez": {
+          "values": {
+            "displayName": "Maximiliano Sanchez",
+            "sex": "male",
+            "teamId": "san-diego-stingrays",
+            "nationality": "ar"
+          }
+        },
+        "miguel-briega-ramos": {
+          "values": {
+            "displayName": "Miguel Briega Ramos",
+            "sex": "male",
+            "teamId": "florida-goats",
+            "nationality": "es"
+          }
+        },
+        "noa-canovas": {
+          "values": {
+            "displayName": "Noa Canovas",
+            "sex": "female",
+            "teamId": "florida-goats",
+            "nationality": "es"
+          }
+        },
+        "noemi-aguilar": {
+          "values": {
+            "displayName": "Noemi Aguilar",
+            "sex": "female",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "nuria-rodriguez": {
+          "values": {
+            "displayName": "Nuria Rodriguez",
+            "sex": "female",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "oscar-matias-almada": {
+          "values": {
+            "displayName": "Oscar Matias Almada",
+            "sex": "male",
+            "teamId": "mexico-waves",
+            "nationality": "ar"
+          }
+        },
+        "pablo-cardona": {
+          "values": {
+            "displayName": "Pablo Cardona",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "pablo-francisco-amora-hernandez": {
+          "values": {
+            "displayName": "Pablo Francisco Amora Hernandez",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "pablo-garcia-rodrigo": {
+          "values": {
+            "displayName": "Pablo Garcia Rodrigo",
+            "sex": "male",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "pablo-lijo": {
+          "values": {
+            "displayName": "Pablo Lijo",
+            "sex": "male",
+            "teamId": "toronto-polar-bears",
+            "nationality": "es"
+          }
+        },
+        "patricia-llaguno-zielinski": {
+          "values": {
+            "displayName": "Patricia Llaguno Zielinski",
+            "sex": "female",
+            "teamId": "dc-matrix",
+            "nationality": "es"
+          }
+        },
+        "patricia-martinez-fortun": {
+          "values": {
+            "displayName": "Patricia Martinez Fortun",
+            "sex": "female",
+            "teamId": "mexico-waves",
+            "nationality": "es"
+          }
+        },
+        "pol-hernandez": {
+          "values": {
+            "displayName": "Pol Hernandez",
+            "sex": "male",
+            "teamId": "houston-volts",
+            "nationality": "es"
+          }
+        },
+        "ramiro-valenzuela": {
+          "values": {
+            "displayName": "Ramiro Valenzuela",
+            "sex": "male",
+            "teamId": "houston-volts",
+            "nationality": "ar"
+          }
+        },
+        "raquel-eugenio-barrera": {
+          "values": {
+            "displayName": "Raquel Eugenio Barrera",
+            "sex": "female",
+            "teamId": "las-vegas-smash",
+            "nationality": "es"
+          }
+        },
+        "renata-martinez": {
+          "values": {
+            "displayName": "Renata Martinez",
+            "sex": "female",
+            "teamId": "houston-volts",
+            "nationality": "mx"
+          }
+        },
+        "sandra-bellver": {
+          "values": {
+            "displayName": "Sandra Bellver",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "sara-ruiz": {
+          "values": {
+            "displayName": "Sara Ruiz",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "shannon-hudson": {
+          "values": {
+            "displayName": "Shannon Hudson",
+            "sex": "female",
+            "teamId": "dc-matrix",
+            "nationality": "us"
+          }
+        },
+        "sofia-adamowich": {
+          "values": {
+            "displayName": "Sofia Adamowich",
+            "sex": "female",
+            "teamId": "houston-volts",
+            "nationality": "us"
+          }
+        },
+        "sofia-araujo": {
+          "values": {
+            "displayName": "Sofia Araujo",
+            "sex": "female",
+            "teamId": "dc-matrix",
+            "nationality": "pt"
+          }
+        },
+        "sofia-saiz-vallejo": {
+          "values": {
+            "displayName": "Sofia Saiz Vallejo",
+            "sex": "female",
+            "teamId": "new-york-atlantics",
+            "nationality": "es"
+          }
+        },
+        "tamara-icardo": {
+          "values": {
+            "displayName": "Tamara Icardo",
+            "sex": "female",
+            "teamId": null,
+            "nationality": null
+          }
+        },
+        "valentino-libaak": {
+          "values": {
+            "displayName": "Valentino Libaak",
+            "sex": "male",
+            "teamId": "dc-matrix",
+            "nationality": "ar"
+          }
+        },
+        "valeria-montano": {
+          "values": {
+            "displayName": "Valeria Montaño",
+            "sex": "female",
+            "teamId": "houston-volts"
+          }
+        },
+        "veronica-virseda": {
+          "values": {
+            "displayName": "Veronica Virseda",
+            "sex": "female",
+            "teamId": "san-diego-stingrays",
+            "nationality": "es"
+          }
+        },
+        "victoria-iglesias-segador": {
+          "values": {
+            "displayName": "Victoria Iglesias Segador",
+            "sex": "female",
+            "teamId": "los-angeles-beat",
+            "nationality": "es"
+          }
+        },
+        "vinny-di-francesco": {
+          "values": {
+            "displayName": "Vinny Di Francesco",
+            "sex": "male",
+            "teamId": "florida-goats",
+            "nationality": "us"
+          }
+        },
+        "virginia-riera": {
+          "values": {
+            "displayName": "Virginia Riera",
+            "sex": "female",
+            "teamId": "florida-goats",
+            "nationality": "ar"
+          }
+        }
+      },
+      "matchRows": [
+        {
+          "id": "playa-del-carmen-d1-m1-mens",
+          "values": {
+            "title": "Mexico Waves vs New York Atlantics",
+            "date": "2026-09-24T17:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "mexico-waves"
+            },
+            "awayteam": {
+              "docId": "new-york-atlantics"
+            },
+            "homeTeamLabel": "Mexico Waves",
+            "awayTeamLabel": "New York Atlantics",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 1,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d1-m1-womens",
+          "values": {
+            "title": "Mexico Waves vs New York Atlantics",
+            "date": "2026-09-24T17:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "mexico-waves"
+            },
+            "awayteam": {
+              "docId": "new-york-atlantics"
+            },
+            "homeTeamLabel": "Mexico Waves",
+            "awayTeamLabel": "New York Atlantics",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 1,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d1-m2-mens",
+          "values": {
+            "title": "San Diego Stingrays vs Los Angeles Beat",
+            "date": "2026-09-24T20:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "san-diego-stingrays"
+            },
+            "awayteam": {
+              "docId": "los-angeles-beat"
+            },
+            "homeTeamLabel": "San Diego Stingrays",
+            "awayTeamLabel": "Los Angeles Beat",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 1,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d1-m2-womens",
+          "values": {
+            "title": "San Diego Stingrays vs Los Angeles Beat",
+            "date": "2026-09-24T20:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "san-diego-stingrays"
+            },
+            "awayteam": {
+              "docId": "los-angeles-beat"
+            },
+            "homeTeamLabel": "San Diego Stingrays",
+            "awayTeamLabel": "Los Angeles Beat",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 1,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d2-m1-mens",
+          "values": {
+            "title": "Florida Goats vs Toronto Polar Bears",
+            "date": "2026-09-25T10:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "florida-goats"
+            },
+            "awayteam": {
+              "docId": "toronto-polar-bears"
+            },
+            "homeTeamLabel": "Florida Goats",
+            "awayTeamLabel": "Toronto Polar Bears",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 2,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d2-m1-womens",
+          "values": {
+            "title": "Florida Goats vs Toronto Polar Bears",
+            "date": "2026-09-25T10:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "florida-goats"
+            },
+            "awayteam": {
+              "docId": "toronto-polar-bears"
+            },
+            "homeTeamLabel": "Florida Goats",
+            "awayTeamLabel": "Toronto Polar Bears",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 2,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d2-m2-mens",
+          "values": {
+            "title": "Miami Padel Club vs San Diego Stingrays",
+            "date": "2026-09-25T13:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "miami-padel-club"
+            },
+            "awayteam": {
+              "docId": "san-diego-stingrays"
+            },
+            "homeTeamLabel": "Miami Padel Club",
+            "awayTeamLabel": "San Diego Stingrays",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 2,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d2-m2-womens",
+          "values": {
+            "title": "Miami Padel Club vs San Diego Stingrays",
+            "date": "2026-09-25T13:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "miami-padel-club"
+            },
+            "awayteam": {
+              "docId": "san-diego-stingrays"
+            },
+            "homeTeamLabel": "Miami Padel Club",
+            "awayTeamLabel": "San Diego Stingrays",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 2,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d3-m1-mens",
+          "values": {
+            "title": "Los Angeles Beat vs Las Vegas Smash",
+            "date": "2026-09-25T17:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "los-angeles-beat"
+            },
+            "awayteam": {
+              "docId": "las-vegas-smash"
+            },
+            "homeTeamLabel": "Los Angeles Beat",
+            "awayTeamLabel": "Las Vegas Smash",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 3,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d3-m1-womens",
+          "values": {
+            "title": "Los Angeles Beat vs Las Vegas Smash",
+            "date": "2026-09-25T17:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "los-angeles-beat"
+            },
+            "awayteam": {
+              "docId": "las-vegas-smash"
+            },
+            "homeTeamLabel": "Los Angeles Beat",
+            "awayTeamLabel": "Las Vegas Smash",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 3,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d3-m2-mens",
+          "values": {
+            "title": "DC Matrix vs Houston Volts",
+            "date": "2026-09-25T20:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "dc-matrix"
+            },
+            "awayteam": {
+              "docId": "houston-volts"
+            },
+            "homeTeamLabel": "DC Matrix",
+            "awayTeamLabel": "Houston Volts",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 3,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d3-m2-womens",
+          "values": {
+            "title": "DC Matrix vs Houston Volts",
+            "date": "2026-09-25T20:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "dc-matrix"
+            },
+            "awayteam": {
+              "docId": "houston-volts"
+            },
+            "homeTeamLabel": "DC Matrix",
+            "awayTeamLabel": "Houston Volts",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 3,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d4-m1-mens",
+          "values": {
+            "title": "New York Atlantics vs Florida Goats",
+            "date": "2026-09-26T10:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "new-york-atlantics"
+            },
+            "awayteam": {
+              "docId": "florida-goats"
+            },
+            "homeTeamLabel": "New York Atlantics",
+            "awayTeamLabel": "Florida Goats",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 4,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d4-m1-womens",
+          "values": {
+            "title": "New York Atlantics vs Florida Goats",
+            "date": "2026-09-26T10:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "new-york-atlantics"
+            },
+            "awayteam": {
+              "docId": "florida-goats"
+            },
+            "homeTeamLabel": "New York Atlantics",
+            "awayTeamLabel": "Florida Goats",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 4,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d4-m2-mens",
+          "values": {
+            "title": "Houston Volts vs Toronto Polar Bears",
+            "date": "2026-09-26T13:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "houston-volts"
+            },
+            "awayteam": {
+              "docId": "toronto-polar-bears"
+            },
+            "homeTeamLabel": "Houston Volts",
+            "awayTeamLabel": "Toronto Polar Bears",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 4,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d4-m2-womens",
+          "values": {
+            "title": "Houston Volts vs Toronto Polar Bears",
+            "date": "2026-09-26T13:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "houston-volts"
+            },
+            "awayteam": {
+              "docId": "toronto-polar-bears"
+            },
+            "homeTeamLabel": "Houston Volts",
+            "awayTeamLabel": "Toronto Polar Bears",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 4,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d5-m1-mens",
+          "values": {
+            "title": "Mexico Waves vs DC Matrix",
+            "date": "2026-09-26T17:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "mexico-waves"
+            },
+            "awayteam": {
+              "docId": "dc-matrix"
+            },
+            "homeTeamLabel": "Mexico Waves",
+            "awayTeamLabel": "DC Matrix",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 5,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d5-m1-womens",
+          "values": {
+            "title": "Mexico Waves vs DC Matrix",
+            "date": "2026-09-26T17:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "mexico-waves"
+            },
+            "awayteam": {
+              "docId": "dc-matrix"
+            },
+            "homeTeamLabel": "Mexico Waves",
+            "awayTeamLabel": "DC Matrix",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 5,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d5-m2-mens",
+          "values": {
+            "title": "Las Vegas Smash vs Miami Padel Club",
+            "date": "2026-09-26T20:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "las-vegas-smash"
+            },
+            "awayteam": {
+              "docId": "miami-padel-club"
+            },
+            "homeTeamLabel": "Las Vegas Smash",
+            "awayTeamLabel": "Miami Padel Club",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "male",
+            "sessionNumber": 5,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-d5-m2-womens",
+          "values": {
+            "title": "Las Vegas Smash vs Miami Padel Club",
+            "date": "2026-09-26T20:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "las-vegas-smash"
+            },
+            "awayteam": {
+              "docId": "miami-padel-club"
+            },
+            "homeTeamLabel": "Las Vegas Smash",
+            "awayTeamLabel": "Miami Padel Club",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Group Stage",
+            "game_type": "female",
+            "sessionNumber": 5,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-podium-mens-first",
+          "values": {
+            "title": "Men's Championship · 1st Place",
+            "date": "2026-09-27T13:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "miami-padel-club"
+            },
+            "awayteam": {
+              "docId": "mexico-waves"
+            },
+            "homeTeamLabel": "Miami Padel Club",
+            "awayTeamLabel": "Mexico Waves",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Championship",
+            "game_type": "male",
+            "sessionNumber": null,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-podium-mens-third",
+          "values": {
+            "title": "Men's 3rd-Place Match",
+            "date": "2026-09-27T08:30:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "florida-goats"
+            },
+            "awayteam": {
+              "docId": "dc-matrix"
+            },
+            "homeTeamLabel": "Florida Goats",
+            "awayTeamLabel": "DC Matrix",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "3rd Place",
+            "game_type": "male",
+            "sessionNumber": null,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-podium-womens-first",
+          "values": {
+            "title": "Women's Championship · 1st Place",
+            "date": "2026-09-27T13:00:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "las-vegas-smash"
+            },
+            "awayteam": {
+              "docId": "san-diego-stingrays"
+            },
+            "homeTeamLabel": "Las Vegas Smash",
+            "awayTeamLabel": "San Diego Stingrays",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "Championship",
+            "game_type": "female",
+            "sessionNumber": null,
+            "playOrder": null
+          }
+        },
+        {
+          "id": "playa-del-carmen-podium-womens-third",
+          "values": {
+            "title": "Women's 3rd-Place Match",
+            "date": "2026-09-27T08:30:00",
+            "location": "Playa del Carmen",
+            "hometeam": {
+              "docId": "dc-matrix"
+            },
+            "awayteam": {
+              "docId": "new-york-atlantics"
+            },
+            "homeTeamLabel": "DC Matrix",
+            "awayTeamLabel": "New York Atlantics",
+            "tournament": {
+              "docId": "playa-del-carmen"
+            },
+            "competition": {
+              "docId": "playa-del-carmen"
+            },
+            "league": {
+              "docId": "ppl"
+            },
+            "ticketUrl": "",
+            "videoUrl": "",
+            "stage": "3rd Place",
+            "game_type": "female",
+            "sessionNumber": null,
+            "playOrder": null
+          }
+        }
+      ],
+      "tournamentLeagueDocId": "ppl",
+      "tournamentTimeZone": ""
+    }
+  }
+}

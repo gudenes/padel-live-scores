@@ -1,0 +1,340 @@
+{
+  "name": "projects/pro-padel-league/databases/prod-ppl/documents/matches/mgm-pro-padel-league-las-vegas-2026-d1-m1-mens",
+  "fields": {
+    "leagueId": {
+      "stringValue": "ppl"
+    },
+    "state": {
+      "mapValue": {
+        "fields": {
+          "competitors": {
+            "mapValue": {
+              "fields": {
+                "team_b": {
+                  "mapValue": {
+                    "fields": {
+                      "country": {
+                        "stringValue": "—"
+                      },
+                      "player_1_name": {
+                        "stringValue": "—"
+                      },
+                      "player_2_name": {
+                        "stringValue": "—"
+                      },
+                      "seed": {
+                        "nullValue": null
+                      }
+                    }
+                  }
+                },
+                "team_a": {
+                  "mapValue": {
+                    "fields": {
+                      "player_1_name": {
+                        "stringValue": "—"
+                      },
+                      "country": {
+                        "stringValue": "—"
+                      },
+                      "seed": {
+                        "nullValue": null
+                      },
+                      "player_2_name": {
+                        "stringValue": "—"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "match_score_summary": {
+            "mapValue": {
+              "fields": {
+                "set_scores": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "set_number": {
+                              "integerValue": "1"
+                            },
+                            "team_a_games": {
+                              "integerValue": "0"
+                            },
+                            "team_b_games": {
+                              "integerValue": "0"
+                            },
+                            "status": {
+                              "stringValue": "in_progress"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "set_number": {
+                              "integerValue": "2"
+                            },
+                            "team_a_games": {
+                              "integerValue": "0"
+                            },
+                            "team_b_games": {
+                              "integerValue": "0"
+                            },
+                            "status": {
+                              "stringValue": "upcoming"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "set_number": {
+                              "integerValue": "3"
+                            },
+                            "team_a_games": {
+                              "integerValue": "0"
+                            },
+                            "team_b_games": {
+                              "integerValue": "0"
+                            },
+                            "status": {
+                              "stringValue": "upcoming"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "best_of_sets": {
+                  "integerValue": "3"
+                },
+                "team_a_sets_won": {
+                  "integerValue": "0"
+                },
+                "current_point": {
+                  "mapValue": {
+                    "fields": {
+                      "team_b_display": {
+                        "stringValue": "0"
+                      },
+                      "in_tiebreak": {
+                        "booleanValue": false
+                      },
+                      "golden_point": {
+                        "booleanValue": false
+                      },
+                      "label": {
+                        "stringValue": "Rally point · Team A serving"
+                      },
+                      "team_a_display": {
+                        "stringValue": "0"
+                      }
+                    }
+                  }
+                },
+                "team_b_sets_won": {
+                  "integerValue": "0"
+                }
+              }
+            }
+          },
+          "match_details": {
+            "mapValue": {
+              "fields": {
+                "scheduled_start_time": {
+                  "stringValue": "2026-11-18T17:30:00.000Z"
+                },
+                "matchSex": {
+                  "stringValue": "male"
+                },
+                "country": {
+                  "stringValue": "—"
+                },
+                "city": {
+                  "stringValue": "—"
+                },
+                "tournament_name": {
+                  "stringValue": "Pro Padel League"
+                },
+                "match_id": {
+                  "stringValue": "mgm-pro-padel-league-las-vegas-2026-d1-m1-mens"
+                },
+                "venue": {
+                  "stringValue": "—"
+                },
+                "court_name": {
+                  "stringValue": "—"
+                },
+                "match_sex": {
+                  "stringValue": "male"
+                },
+                "status": {
+                  "stringValue": "scheduled"
+                },
+                "actual_start_time": {
+                  "nullValue": null
+                },
+                "tournament_category": {
+                  "stringValue": "Men's"
+                },
+                "round": {
+                  "stringValue": "—"
+                }
+              }
+            }
+          },
+          "match_state": {
+            "mapValue": {
+              "fields": {
+                "team_a_on_left": {
+                  "booleanValue": true
+                },
+                "match_clock": {
+                  "stringValue": "00:00:00"
+                },
+                "current_set": {
+                  "integerValue": "1"
+                },
+                "serving_player": {
+                  "nullValue": null
+                },
+                "point_log_count": {
+                  "integerValue": "0"
+                },
+                "point_timer": {
+                  "mapValue": {
+                    "fields": {
+                      "captured_elapsed_ms": {
+                        "integerValue": "0"
+                      },
+                      "started_at_ms": {
+                        "nullValue": null
+                      },
+                      "accumulated_ms": {
+                        "integerValue": "0"
+                      },
+                      "running": {
+                        "booleanValue": false
+                      }
+                    }
+                  }
+                },
+                "serving_team": {
+                  "stringValue": "team_a"
+                },
+                "match_phase": {
+                  "stringValue": "set 1"
+                },
+                "last_updated": {
+                  "stringValue": "2026-11-18T04:23:41.422Z"
+                },
+                "change_over": {
+                  "mapValue": {
+                    "fields": {
+                      "limit_ms": {
+                        "integerValue": "0"
+                      },
+                      "active": {
+                        "booleanValue": false
+                      },
+                      "started_at_ms": {
+                        "nullValue": null
+                      }
+                    }
+                  }
+                },
+                "game_started": {
+                  "booleanValue": false
+                }
+              }
+            }
+          },
+          "display_helpers": {
+            "mapValue": {
+              "fields": {
+                "scoreline_summary": {
+                  "stringValue": "0-0"
+                },
+                "is_match_tiebreak": {
+                  "booleanValue": false
+                },
+                "leading_team": {
+                  "stringValue": "tied"
+                },
+                "is_final_set": {
+                  "booleanValue": false
+                },
+                "is_tiebreak_possible": {
+                  "booleanValue": false
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "homeTeamId": {
+      "stringValue": "las-vegas-smash"
+    },
+    "awayTeamId": {
+      "stringValue": "new-york-atlantics"
+    },
+    "title": {
+      "stringValue": "Las Vegas Smash vs New York Atlantics"
+    },
+    "tournamentCategory": {
+      "stringValue": "Men's"
+    },
+    "date": {
+      "stringValue": "2026-11-18T17:00:00"
+    },
+    "gameType": {
+      "stringValue": "male"
+    },
+    "updatedAt": {
+      "timestampValue": "2026-11-18T04:23:43.118Z"
+    },
+    "lineup": {
+      "mapValue": {
+        "fields": {
+          "homeLeft": {
+            "nullValue": null
+          },
+          "awayLeft": {
+            "nullValue": null
+          },
+          "homeRight": {
+            "nullValue": null
+          },
+          "awayRight": {
+            "nullValue": null
+          }
+        }
+      }
+    },
+    "location": {
+      "stringValue": "Las Vegas"
+    },
+    "tournamentId": {
+      "stringValue": "mgm-pro-padel-league-las-vegas-2026"
+    },
+    "stage": {
+      "stringValue": "Group Stage"
+    },
+    "playOrder": {
+      "integerValue": "1"
+    },
+    "seasonId": {
+      "stringValue": "2026"
+    }
+  },
+  "createTime": "2026-10-20T18:14:35.650927Z",
+  "updateTime": "2026-11-18T04:23:43.183215Z"
+}
