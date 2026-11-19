@@ -20,3 +20,5 @@
 .rule label:last-of-type { flex: 1; min-width: 180px; }
 .previewLink { display: inline-block; margin-top: 12px; font-size: 11px; color: var(--text-3); }
 @media (max-width: 600px) { .toolbar label, .rule label { width: 100%; } .tabbar { flex-wrap: wrap; } .editor { padding: 16px; } .savedTab { max-width: 220px; } }
+
+.editorFields{display:contents;border:0;padding:0;margin:0;min-width:0}
