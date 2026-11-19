@@ -13,6 +13,7 @@ export function scouterRouteAllowed(path: string, method: string, viewer = false
   if ((method === 'GET' || method === 'HEAD') && /^\/api\/internal\/match-video\/[0-9a-f-]{36}$/i.test(path)) return true
   if ((method==='GET'||method==='HEAD') && /^\/api\/internal\/lab-vision\/(results\/[0-9a-f-]{36}|assets\/[0-9a-f-]{36}\/(manifest|\d{3,4})\.json)$/i.test(path)) return true
   if ((method==='GET'||method==='HEAD') && /^\/lab-vision\/rally35\/(index\.html|app\.js|arena-v2\.glb|player-(navy|white)\.glb|camera-fit\.json|vendor\/(three\.module|OrbitControls|GLTFLoader|BufferGeometryUtils)\.js)$/.test(path)) return true
+  if (['GET','HEAD','POST'].includes(method) && path === '/api/internal/player-views') return true // Account-owned preferences only.
   const read = method === 'GET' || method === 'HEAD'
   if (['GET','HEAD','POST','DELETE'].includes(method) && /^\/api\/internal\/scouting-review-notes\/[0-9a-f-]{36}$/i.test(path)) return true
   if(read&&['/scouting/players','/api/internal/scouting-intelligence','/api/internal/scouting-player-search'].includes(path))return true
