@@ -11,6 +11,7 @@ Updated 19 November: added all four completed Las Vegas matches from the 18 Nove
 - Source: `https://propadelleague.com/tournaments/`, official event pages and the public match documents used by that site. Playa finals were captured on 18 November; Las Vegas finals and calendar were refreshed on 19 November. Source revisions are preserved in the JSON. Player IDs audited against the existing database; Javier Martinez uses the previously reviewed `scripts/ppl-player-map.json` decision.
 - Las Vegas display label and calendar-date formatting in PPL only. Event dates are calendar days, not instants; match dates still use the user's timezone.
 - Previously saved home height fix: expandable result groups size to their contents.
+- Las Vegas uses the official event hero from `https://propadelleague.com/tournament/mgm-pro-padel-league-las-vegas-2026/` (the page's `hero.image`, retrieved 19 November). Its unchanged JPEG is bundled at `public/images/tournaments/ppl-las-vegas-2026.jpg`; the repair sets only that event's cover to the corresponding app-relative URL. Miami's image is untouched. Deploy the web asset before applying the cover assignment to production.
 
 ## Explicitly excluded
 

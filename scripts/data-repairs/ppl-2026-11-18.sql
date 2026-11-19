@@ -28,6 +28,11 @@ begin
           (e->'event'->>'startsAt')::timestamptz,(e->'event'->>'endsAt')::timestamptz,
           'Las Vegas','US','manual') returning id into tournament_id_;
     end if;
+    -- Official Las Vegas event hero, bundled with this web release.
+    if e->'event'->>'slug'='mgm-pro-padel-league-las-vegas-2026' then
+      update public.tournaments set cover_image_url='/images/tournaments/ppl-las-vegas-2026.jpg'
+        where id=tournament_id_;
+    end if;
     for f in select value from jsonb_array_elements(e->'fixtures') loop
       select ts.id into strict home_id from public.team_seasons ts join public.teams t on t.id=ts.team_id
         where t.source='ppl' and t.external_id=f->>'home' and ts.league='ppl' and ts.season_year=2026;

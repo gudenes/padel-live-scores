@@ -28,6 +28,7 @@ try{
  const sql=renderPplRepair();await db.exec(sql);const after=await all();
  const playa=after.tournaments.find(t=>t.external_id==='playa-del-carmen');
  const vegas=after.tournaments.find(t=>t.external_id==='mgm-pro-padel-league-las-vegas-2026');
+ assert.equal(vegas.cover_image_url,'/images/tournaments/ppl-las-vegas-2026.jpg');
  const pm=after.matches.filter(m=>m.tournament_id===playa.id),vm=after.matches.filter(m=>m.tournament_id===vegas.id);
  assert.equal(pm.length,24);assert.ok(pm.every(m=>m.status==='finished'&&m.finished_at&&[1,2].includes(m.winner_pair)));
  assert.ok(pm.every(m=>[m.pair1_player1_id,m.pair1_player2_id,m.pair2_player1_id,m.pair2_player2_id].every(Boolean)));
