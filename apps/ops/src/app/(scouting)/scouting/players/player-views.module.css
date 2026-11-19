@@ -1,0 +1,22 @@
+.panel { margin: 16px 0 14px; }
+.tabbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.tabbar>button { flex-shrink: 0; }
+.divider { width: 1px; height: 20px; margin: 0 8px; background: var(--border); }
+.savedTab { gap: 7px; max-width: 260px; }
+.tabName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.context { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0 2px; }
+.context strong { font-size: 13px; }
+.context small { display: block; margin-top: 5px; color: var(--text-3); font-size: 11px; }
+.modified { font-size: 11px; margin-left: 10px; color: var(--text-2); }
+.toolbar, .rule { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.panel label { display: flex; flex-direction: column; gap: 6px; font-size: 12px; }
+.panel input, .panel select { min-height: 40px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-surface); color: var(--text-1); font: inherit; max-width: 100%; }
+.panel p { font-size: 12px; line-height: 1.6; margin: 10px 0 0; }
+.editor { display: grid; gap: 18px; margin-top: 16px; padding: 22px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-surface); }
+.editorHeading { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.editorHeading h2 { margin: 0!important; font-size: 18px; }
+.searchSummary { color: var(--text-2); font-size: 12px; line-height: 1.7; padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+.rule label:last-of-type { flex: 1; min-width: 180px; }
+.previewLink { display: inline-block; margin-top: 12px; font-size: 11px; color: var(--text-3); }
+@media (max-width: 600px) { .toolbar label, .rule label { width: 100%; } .tabbar { flex-wrap: wrap; } .editor { padding: 16px; } .savedTab { max-width: 220px; } }
