@@ -44,7 +44,12 @@ export function isLiveStatus(status: string): boolean {
 // point-by-point evidence. Compatible with both the full `Match['sets']`
 // type and the daily-page `MatchesDaySet[]` shape.
 type SetWithGames = {
+  is_current?: boolean
   games?: ReadonlyArray<{
+    is_current?: boolean
+    is_tiebreak?: boolean
+    game_score?: string | null
+    serving_pair?: number | null
     server_player_id?: string | null
     points?: readonly unknown[] | null
   }> | null
@@ -77,5 +82,17 @@ export function isPresenceOnlyLive(
 ): boolean {
   if (!isLiveStatus(match.status)) return false
   if (isPremierLevel(tournament.level)) return false
+  // PPL snapshots carry current points and a serving pair, without inventing
+  // point history or an individual server. This exception is PPL-only.
+  const level = tournament.level?.toLowerCase()
+  if (match.status === 'live' && (level === 'ppl' || level === 'ppl_ii')) {
+    const hasCurrentScore = match.sets?.some(s => s.is_current && s.games?.some(g =>
+      g.is_current && (g.serving_pair === 1 || g.serving_pair === 2) &&
+      typeof g.game_score === 'string' && (g.is_tiebreak
+        ? /^\d+-\d+$/.test(g.game_score)
+        : /^(0|15|30|40|A|AD)-(0|15|30|40|A|AD)$/.test(g.game_score)),
+    ))
+    if (hasCurrentScore) return false
+  }
   return !hasLivePointByPoint(match.sets)
 }
