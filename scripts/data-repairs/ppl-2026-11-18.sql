@@ -88,6 +88,21 @@ begin
         or exists(select 1 from unnest(old_ids[3:4]) x where x is not null and not(x=any(ids[3:4]))) then
         raise exception 'Existing lineup conflict';
       end if;
+      -- Fill missing/0-0 placeholders, but never replace an already recorded
+      -- score with a stale capture. Identical scores remain safe on reruns.
+      perform 1 from public.sets where match_id=match_id_ for update;
+      if exists (
+        select 1 from public.sets stored
+        join jsonb_array_elements(result->'sets') captured
+          on stored.set_number=(captured->>'number')::int
+        where stored.match_id=match_id_
+          and (coalesce(stored.pair1_games,0)<>0 or coalesce(stored.pair2_games,0)<>0
+            or coalesce(stored.set_score,'') not in ('','0-0'))
+          and ((stored.pair1_games is not null and stored.pair1_games<>(captured->>'a')::int)
+            or (stored.pair2_games is not null and stored.pair2_games<>(captured->>'b')::int)
+            or (nullif(stored.set_score,'') is not null
+              and stored.set_score<>(captured->>'a')||'-'||(captured->>'b')))
+      ) then raise exception 'Existing set score conflict for match %',match_id_; end if;
       update public.matches set status='finished',winner_pair=(result->>'winner')::int,
         scheduled_at=(f->>'scheduledAt')::timestamptz,started_at=(result->>'startedAt')::timestamptz,
         finished_at=(result->>'finishedAt')::timestamptz,

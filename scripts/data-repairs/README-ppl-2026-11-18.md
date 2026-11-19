@@ -24,10 +24,11 @@ Official league ranking points and `league_standings` are unchanged; their indep
 ```sh
 node scripts/data-repairs/render-ppl-repair.mjs /path/to/review-ppl.sql
 node scripts/data-repairs/test-ppl-repair.mjs /path/to/public-ppl-seed.json /path/to/local-after.json
+node scripts/data-repairs/test-ppl-repair.mjs /path/to/local-after.json
 npx vitest run src/lib/__tests__/ppl-hub.test.ts src/lib/__tests__/ppl-team.test.ts src/lib/__tests__/league-levels.test.ts
 ```
 
-The renderer only writes a SQL file. It has no database client. SQL runs in one transaction with identity/conflict guards; rerunning does not create duplicates. The test uses isolated PostgreSQL/WASM populated from a read-only export, not production, and verifies preserved identities, 28 finals, 16 scheduled, player links, unaffected events/ranking/player profiles, idempotence and rollback. It is not a test of every production trigger/RLS policy.
+The renderer only writes a SQL file. It has no database client. SQL runs in one transaction with identity/conflict guards; rerunning does not create duplicates. Existing nonempty set scores must agree with the capture; a conflict aborts the transaction instead of overwriting a newer correction. Missing scores and 0–0 placeholders can still be filled. The test uses isolated PostgreSQL/WASM populated from a read-only export, not production, and verifies preserved identities, 28 finals, 16 scheduled, player links, unaffected events/ranking/player profiles, idempotence, score-conflict rollback and placeholder filling. To validate an export that already contains Vegas matches, run the test again using its output JSON as the seed. It is not a test of every production trigger/RLS policy.
 
 The local app at `http://127.0.0.1:3020/es/ppl` uses a GET-only loopback data proxy at port 4020. The proxy overlays the actual SQL test output onto public reads, for both server and browser queries. It rejects all writes. This is a visual preview of the repaired dataset, not a production change. Local proxy, credentials and read-only seed export are outside the committed change.
 
