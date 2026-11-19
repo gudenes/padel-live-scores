@@ -1,0 +1,2430 @@
+{
+  "capturedAt": "2026-11-19T13:58:36.287Z",
+  "source": "https://propadelleague.com/tournaments/",
+  "events": [
+    {
+      "event": {
+        "slug": "playa-del-carmen",
+        "name": "Playa del Carmen",
+        "startsAt": "2026-09-24",
+        "endsAt": "2026-09-27",
+        "league": "ppl"
+      },
+      "timezone": "America/Cancun",
+      "fixtures": [
+        {
+          "id": "playa-del-carmen-d1-m1-mens",
+          "home": "mexico-waves",
+          "away": "new-york-atlantics",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 1,
+          "scheduledAt": "2026-09-24T22:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d1-m1-womens",
+          "home": "mexico-waves",
+          "away": "new-york-atlantics",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 1,
+          "scheduledAt": "2026-09-24T22:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d1-m2-mens",
+          "home": "san-diego-stingrays",
+          "away": "los-angeles-beat",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 1,
+          "scheduledAt": "2026-09-25T01:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d1-m2-womens",
+          "home": "san-diego-stingrays",
+          "away": "los-angeles-beat",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 1,
+          "scheduledAt": "2026-09-25T01:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d2-m1-mens",
+          "home": "florida-goats",
+          "away": "toronto-polar-bears",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 2,
+          "scheduledAt": "2026-09-25T15:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d2-m1-womens",
+          "home": "florida-goats",
+          "away": "toronto-polar-bears",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 2,
+          "scheduledAt": "2026-09-25T15:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d2-m2-mens",
+          "home": "miami-padel-club",
+          "away": "san-diego-stingrays",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 2,
+          "scheduledAt": "2026-09-25T18:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d2-m2-womens",
+          "home": "miami-padel-club",
+          "away": "san-diego-stingrays",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 2,
+          "scheduledAt": "2026-09-25T18:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d3-m1-mens",
+          "home": "los-angeles-beat",
+          "away": "las-vegas-smash",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 3,
+          "scheduledAt": "2026-09-25T22:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d3-m1-womens",
+          "home": "los-angeles-beat",
+          "away": "las-vegas-smash",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 3,
+          "scheduledAt": "2026-09-25T22:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d3-m2-mens",
+          "home": "dc-matrix",
+          "away": "houston-volts",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 3,
+          "scheduledAt": "2026-09-26T01:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d3-m2-womens",
+          "home": "dc-matrix",
+          "away": "houston-volts",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 3,
+          "scheduledAt": "2026-09-26T01:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d4-m1-mens",
+          "home": "new-york-atlantics",
+          "away": "florida-goats",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 4,
+          "scheduledAt": "2026-09-26T15:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d4-m1-womens",
+          "home": "new-york-atlantics",
+          "away": "florida-goats",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 4,
+          "scheduledAt": "2026-09-26T15:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d4-m2-mens",
+          "home": "houston-volts",
+          "away": "toronto-polar-bears",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 4,
+          "scheduledAt": "2026-09-26T18:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d4-m2-womens",
+          "home": "houston-volts",
+          "away": "toronto-polar-bears",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 4,
+          "scheduledAt": "2026-09-26T18:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d5-m1-mens",
+          "home": "mexico-waves",
+          "away": "dc-matrix",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 5,
+          "scheduledAt": "2026-09-26T22:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d5-m1-womens",
+          "home": "mexico-waves",
+          "away": "dc-matrix",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 5,
+          "scheduledAt": "2026-09-26T22:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d5-m2-mens",
+          "home": "las-vegas-smash",
+          "away": "miami-padel-club",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": 5,
+          "scheduledAt": "2026-09-27T01:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-d5-m2-womens",
+          "home": "las-vegas-smash",
+          "away": "miami-padel-club",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": 5,
+          "scheduledAt": "2026-09-27T01:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-podium-mens-first",
+          "home": "miami-padel-club",
+          "away": "mexico-waves",
+          "category": "men",
+          "stage": "Championship",
+          "session": null,
+          "scheduledAt": "2026-09-27T18:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-podium-mens-third",
+          "home": "florida-goats",
+          "away": "dc-matrix",
+          "category": "men",
+          "stage": "3rd Place",
+          "session": null,
+          "scheduledAt": "2026-09-27T13:30:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-podium-womens-first",
+          "home": "las-vegas-smash",
+          "away": "san-diego-stingrays",
+          "category": "women",
+          "stage": "Championship",
+          "session": null,
+          "scheduledAt": "2026-09-27T18:00:00.000Z"
+        },
+        {
+          "id": "playa-del-carmen-podium-womens-third",
+          "home": "dc-matrix",
+          "away": "new-york-atlantics",
+          "category": "women",
+          "stage": "3rd Place",
+          "session": null,
+          "scheduledAt": "2026-09-27T13:30:00.000Z"
+        }
+      ]
+    },
+    {
+      "event": {
+        "slug": "mgm-pro-padel-league-las-vegas-2026",
+        "name": "PPL MGM Las Vegas",
+        "startsAt": "2026-11-18",
+        "endsAt": "2026-11-21",
+        "league": "ppl"
+      },
+      "timezone": "America/Los_Angeles",
+      "fixtures": [
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d1-m1-mens",
+          "home": "las-vegas-smash",
+          "away": "new-york-atlantics",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T01:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d1-m1-womens",
+          "home": "las-vegas-smash",
+          "away": "new-york-atlantics",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T01:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d1-m2-mens",
+          "home": "florida-goats",
+          "away": "mexico-waves",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T04:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d1-m2-womens",
+          "home": "florida-goats",
+          "away": "mexico-waves",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T04:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d2-m1-mens",
+          "home": "los-angeles-beat",
+          "away": "miami-padel-club",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T18:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d2-m1-womens",
+          "home": "los-angeles-beat",
+          "away": "miami-padel-club",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T18:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d2-m2-mens",
+          "home": "dc-matrix",
+          "away": "toronto-polar-bears",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T21:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d2-m2-womens",
+          "home": "dc-matrix",
+          "away": "toronto-polar-bears",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-19T21:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d3-m1-mens",
+          "home": "las-vegas-smash",
+          "away": "san-diego-stingrays",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T01:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d3-m1-womens",
+          "home": "las-vegas-smash",
+          "away": "san-diego-stingrays",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T01:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d3-m2-mens",
+          "home": "houston-volts",
+          "away": "florida-goats",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T04:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d3-m2-womens",
+          "home": "houston-volts",
+          "away": "florida-goats",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T04:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d4-m1-mens",
+          "home": "san-diego-stingrays",
+          "away": "mexico-waves",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T18:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d4-m1-womens",
+          "home": "san-diego-stingrays",
+          "away": "mexico-waves",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T18:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d5-m1-mens",
+          "home": "los-angeles-beat",
+          "away": "dc-matrix",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T22:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d5-m1-womens",
+          "home": "los-angeles-beat",
+          "away": "dc-matrix",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-20T22:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d5-m2-mens",
+          "home": "toronto-polar-bears",
+          "away": "miami-padel-club",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-21T01:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d5-m2-womens",
+          "home": "toronto-polar-bears",
+          "away": "miami-padel-club",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-21T01:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d6-m1-mens",
+          "home": "new-york-atlantics",
+          "away": "houston-volts",
+          "category": "men",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-21T04:00:00.000Z"
+        },
+        {
+          "id": "mgm-pro-padel-league-las-vegas-2026-d6-m1-womens",
+          "home": "new-york-atlantics",
+          "away": "houston-volts",
+          "category": "women",
+          "stage": "Group Stage",
+          "session": null,
+          "scheduledAt": "2026-11-21T04:00:00.000Z"
+        }
+      ]
+    }
+  ],
+  "finals": [
+    {
+      "providerId": "playa-del-carmen-d1-m2-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "san-diego-stingrays",
+      "awayTeam": "los-angeles-beat",
+      "stage": "Group Stage",
+      "session": 1,
+      "status": "finished",
+      "revision": "2026-09-25T15:12:15.469903Z",
+      "players": [
+        {
+          "slug": "jose-david-sanchez-serrano",
+          "name": "Jose David Sanchez Serrano",
+          "country": "es",
+          "category": "men",
+          "team": "san-diego-stingrays"
+        },
+        {
+          "slug": "jose-jimenez-casas",
+          "name": "Jose Jimenez Casas",
+          "country": "es",
+          "category": "men",
+          "team": "san-diego-stingrays"
+        },
+        {
+          "slug": "leonel-tolito-aguirre",
+          "name": "Leonel Aguirre",
+          "country": "ar",
+          "category": "men",
+          "team": "los-angeles-beat"
+        },
+        {
+          "slug": "denis-tomas-perino",
+          "name": "Denis Tomas Perino",
+          "country": "it",
+          "category": "men",
+          "team": "los-angeles-beat"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T02:59:58.050Z",
+      "finishedAt": "2026-09-25T04:03:47.112Z",
+      "winner": 2,
+      "playerIds": [
+        "a11349a8-d021-4e24-83b4-4bf3eb2b5b56",
+        "9ce039bf-db3e-4ac3-aeee-65bbaa4fde3d",
+        "f3903a9f-afae-4354-bf50-8a98e480202b",
+        "7f2c07cf-82a4-4f78-8a66-357dc7f21f80"
+      ],
+      "existingMatchId": "bf750666-8ebc-477b-b204-06f90029e459"
+    },
+    {
+      "providerId": "playa-del-carmen-d1-m1-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "mexico-waves",
+      "awayTeam": "new-york-atlantics",
+      "stage": "Group Stage",
+      "session": 1,
+      "status": "finished",
+      "revision": "2026-09-24T23:27:40.343727Z",
+      "players": [
+        {
+          "slug": "lucia-peralta",
+          "name": "Lucia Peralta",
+          "country": "es",
+          "category": "women",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "patricia-martinez-fortun",
+          "name": "Patricia Martinez Fortun",
+          "country": "es",
+          "category": "women",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "sofia-saiz-vallejo",
+          "name": "Sofia Saiz Vallejo",
+          "country": "es",
+          "category": "women",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "marta-talavan",
+          "name": "Marta Talavan",
+          "country": "es",
+          "category": "women",
+          "team": "new-york-atlantics"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 1,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 3,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 10,
+          "b": 3,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-24T22:15:20.193Z",
+      "finishedAt": "2026-09-24T23:27:39.252Z",
+      "winner": 1,
+      "playerIds": [
+        "e9c21981-be04-461b-ae59-e2ced6895025",
+        "fdb6f3c8-2655-44c2-adf2-861ce1390404",
+        "ad70e79e-8a9f-486a-bb25-84a473a06e65",
+        "8952e234-7d32-4f7c-8eed-aaefcfb861a4"
+      ],
+      "existingMatchId": "188b6fd8-a693-413a-a56d-dcae3d5f15be"
+    },
+    {
+      "providerId": "playa-del-carmen-d1-m1-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "mexico-waves",
+      "awayTeam": "new-york-atlantics",
+      "stage": "Group Stage",
+      "session": 1,
+      "status": "finished",
+      "revision": "2026-09-25T00:44:54.948751Z",
+      "players": [
+        {
+          "slug": "david-gala",
+          "name": "David Gala",
+          "country": "es",
+          "category": "men",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "maximiliano-arce",
+          "name": "Maximiliano Arce",
+          "country": "ar",
+          "category": "men",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "ignacio-vilarino",
+          "name": "Ignacio Vilarino",
+          "country": "ae",
+          "category": "men",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "javier-martinez",
+          "name": "Javier Martinez",
+          "country": "es",
+          "category": "men",
+          "team": "new-york-atlantics"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 2,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 3,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-24T23:45:00.305Z",
+      "finishedAt": "2026-09-25T00:44:53.395Z",
+      "winner": 1,
+      "playerIds": [
+        "ae5af669-6cdb-431f-a826-4f64ed87168a",
+        "36772a8a-c290-4350-b3b8-8e9bfe64532a",
+        "388abb99-4cca-45f3-be3f-a34a102c0574",
+        "f946d93f-1301-4d80-916c-54c29b6ba4dc"
+      ],
+      "existingMatchId": "41ad51f8-6d5e-49f4-8b36-039175e69bd6"
+    },
+    {
+      "providerId": "playa-del-carmen-d2-m1-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "florida-goats",
+      "awayTeam": "toronto-polar-bears",
+      "stage": "Group Stage",
+      "session": 2,
+      "status": "finished",
+      "revision": "2026-09-25T16:21:18.066463Z",
+      "players": [
+        {
+          "slug": "noa-canovas",
+          "name": "Noa Canovas",
+          "country": "es",
+          "category": "women",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "carolina-orsi",
+          "name": "Carolina Orsi",
+          "country": "it",
+          "category": "women",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "nuria-rodriguez",
+          "name": "Nuria Rodriguez",
+          "country": "es",
+          "category": "women",
+          "team": "toronto-polar-bears"
+        },
+        {
+          "slug": "marta-caparros-maldonado",
+          "name": "Marta Caparros Maldonado",
+          "country": "es",
+          "category": "women",
+          "team": "toronto-polar-bears"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 1,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 4,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T15:14:43.981Z",
+      "finishedAt": "2026-09-25T16:18:51.421Z",
+      "winner": 1,
+      "playerIds": [
+        "2e7eae61-97e0-4d15-9c03-55e7cf60abd8",
+        "e3bc2a26-6271-494e-9855-a4017d7819ab",
+        "e3160b8c-9e45-4fc6-9545-f74fd73ab386",
+        "d6b6441e-a9ef-4a03-94e0-2fea003106d1"
+      ],
+      "existingMatchId": "94d0e16c-7795-46ba-bc7f-7c15080c3502"
+    },
+    {
+      "providerId": "playa-del-carmen-d1-m2-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "san-diego-stingrays",
+      "awayTeam": "los-angeles-beat",
+      "stage": "Group Stage",
+      "session": 1,
+      "status": "finished",
+      "revision": "2026-09-25T02:43:41.778447Z",
+      "players": [
+        {
+          "slug": "veronica-virseda",
+          "name": "Veronica Virseda",
+          "country": "es",
+          "category": "women",
+          "team": "san-diego-stingrays"
+        },
+        {
+          "slug": "claudia-jensen",
+          "name": "Claudia Jensen",
+          "country": "ar",
+          "category": "women",
+          "team": "san-diego-stingrays"
+        },
+        {
+          "slug": "victoria-iglesias-segador",
+          "name": "Victoria Iglesias Segador",
+          "country": "es",
+          "category": "women",
+          "team": "los-angeles-beat"
+        },
+        {
+          "slug": "julia-polo-bautista",
+          "name": "Julia Polo Bautista",
+          "country": "es",
+          "category": "women",
+          "team": "los-angeles-beat"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 3,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 10,
+          "b": 8,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T01:16:54.593Z",
+      "finishedAt": "2026-09-25T02:43:28.683Z",
+      "winner": 1,
+      "playerIds": [
+        "0020195c-7904-4146-add5-04bc1ad117de",
+        "e5be3c7f-2a14-479c-98c8-d8827dfbf792",
+        "6a6eba7f-6a61-4923-9c06-8d6255bbfb26",
+        "e9340ffb-584f-43a6-b31b-e0be8697ef0e"
+      ],
+      "existingMatchId": "02f81c7c-2bd1-4983-8222-6776f41b8af0"
+    },
+    {
+      "providerId": "playa-del-carmen-d2-m1-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "florida-goats",
+      "awayTeam": "toronto-polar-bears",
+      "stage": "Group Stage",
+      "session": 2,
+      "status": "finished",
+      "revision": "2026-09-25T17:55:26.691711Z",
+      "players": [
+        {
+          "slug": "luis-hernandez-quesada",
+          "name": "Luis Hernandez Quesada",
+          "country": "es",
+          "category": "men",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "juan-ignacio-de-pascual",
+          "name": "Juan Ignacio de Pascual",
+          "country": "ar",
+          "category": "men",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "pablo-lijo",
+          "name": "Pablo Lijo",
+          "country": "es",
+          "category": "men",
+          "team": "toronto-polar-bears"
+        },
+        {
+          "slug": "francisco-xisco-manuel-gil",
+          "name": "Francisco Manuel Gil",
+          "country": "es",
+          "category": "men",
+          "team": "toronto-polar-bears"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 1,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 7,
+          "b": 10,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T16:32:49.858Z",
+      "finishedAt": "2026-09-25T17:55:24.294Z",
+      "winner": 2,
+      "playerIds": [
+        "1809c88d-8af6-4454-b593-00104991d43e",
+        "682bcbea-3a04-42d2-9d1a-cee5b8b35109",
+        "ba2a67c0-e663-4795-a1f2-6f664041d4c4",
+        "061465fc-d109-4a7d-af76-3306a16762e7"
+      ],
+      "existingMatchId": "22ad3a47-b892-49db-8d39-11abc49c9c12"
+    },
+    {
+      "providerId": "playa-del-carmen-d2-m2-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "miami-padel-club",
+      "awayTeam": "san-diego-stingrays",
+      "stage": "Group Stage",
+      "session": 2,
+      "status": "finished",
+      "revision": "2026-09-25T20:01:58.623887Z",
+      "players": [
+        {
+          "slug": "anna-ortiz-gasco",
+          "name": "Anna Ortiz Gasco",
+          "country": "es",
+          "category": "women",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "lucia-martinez-gomez",
+          "name": "Lucia Martinez Gomez",
+          "country": "es",
+          "category": "women",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "veronica-virseda",
+          "name": "Veronica Virseda",
+          "country": "es",
+          "category": "women",
+          "team": "san-diego-stingrays"
+        },
+        {
+          "slug": "claudia-jensen",
+          "name": "Claudia Jensen",
+          "country": "ar",
+          "category": "women",
+          "team": "san-diego-stingrays"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 2,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T18:23:42.040Z",
+      "finishedAt": "2026-09-25T20:01:56.800Z",
+      "winner": 2,
+      "playerIds": [
+        "34b1704e-8e33-4dc7-b04a-0c66658571a9",
+        "c573b880-d31b-4bf0-a66f-9e1cda4280a9",
+        "0020195c-7904-4146-add5-04bc1ad117de",
+        "e5be3c7f-2a14-479c-98c8-d8827dfbf792"
+      ],
+      "existingMatchId": "d0f652c9-aa54-4b06-be87-a121d1668940"
+    },
+    {
+      "providerId": "playa-del-carmen-d3-m1-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "los-angeles-beat",
+      "awayTeam": "las-vegas-smash",
+      "stage": "Group Stage",
+      "session": 3,
+      "status": "finished",
+      "revision": "2026-09-26T00:46:07.662335Z",
+      "players": [
+        {
+          "slug": "leonel-tolito-aguirre",
+          "name": "Leonel Aguirre",
+          "country": "ar",
+          "category": "men",
+          "team": "los-angeles-beat"
+        },
+        {
+          "slug": "denis-tomas-perino",
+          "name": "Denis Tomas Perino",
+          "country": "it",
+          "category": "men",
+          "team": "los-angeles-beat"
+        },
+        {
+          "slug": "agustin-torre",
+          "name": "Agustin Torre",
+          "country": "ar",
+          "category": "men",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "guillermo-jimenez-cagigas",
+          "name": "Guillermo Jimenez Cagigas",
+          "country": "es",
+          "category": "men",
+          "team": "las-vegas-smash"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T23:39:33.671Z",
+      "finishedAt": "2026-09-26T00:46:06.410Z",
+      "winner": 2,
+      "playerIds": [
+        "f3903a9f-afae-4354-bf50-8a98e480202b",
+        "7f2c07cf-82a4-4f78-8a66-357dc7f21f80",
+        "a662102e-a6a4-49c2-af97-76de5089ed30",
+        "46a8bcbe-201f-440f-b7cf-ad8e7e999981"
+      ],
+      "existingMatchId": "340a9dd6-32bc-4a7a-899b-d61e5c6a176e"
+    },
+    {
+      "providerId": "playa-del-carmen-d2-m2-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "miami-padel-club",
+      "awayTeam": "san-diego-stingrays",
+      "stage": "Group Stage",
+      "session": 2,
+      "status": "finished",
+      "revision": "2026-09-25T22:10:28.050079Z",
+      "players": [
+        {
+          "slug": "alvaro-melendez-amaya",
+          "name": "Alvaro Melendez Amaya",
+          "country": "es",
+          "category": "men",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "jose-antonio-garcia-diestro",
+          "name": "Jose Antonio Garcia Diestro",
+          "country": "es",
+          "category": "men",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "jose-david-sanchez-serrano",
+          "name": "Jose David Sanchez Serrano",
+          "country": "es",
+          "category": "men",
+          "team": "san-diego-stingrays"
+        },
+        {
+          "slug": "jose-jimenez-casas",
+          "name": "Jose Jimenez Casas",
+          "country": "es",
+          "category": "men",
+          "team": "san-diego-stingrays"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 7,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 12,
+          "b": 10,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T20:19:04.763Z",
+      "finishedAt": "2026-09-25T22:10:26.166Z",
+      "winner": 1,
+      "playerIds": [
+        "ee95dd02-a9d4-461f-ab25-b731684fb203",
+        "04f06341-ce02-449c-a319-56a90b4acdd1",
+        "a11349a8-d021-4e24-83b4-4bf3eb2b5b56",
+        "9ce039bf-db3e-4ac3-aeee-65bbaa4fde3d"
+      ],
+      "existingMatchId": "ed7b9e4d-b154-4df7-8cf8-7c7fc7a1ab18"
+    },
+    {
+      "providerId": "playa-del-carmen-d3-m2-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "dc-matrix",
+      "awayTeam": "houston-volts",
+      "stage": "Group Stage",
+      "session": 3,
+      "status": "finished",
+      "revision": "2026-09-26T02:44:06.334943Z",
+      "players": [
+        {
+          "slug": "araceli-martinez-ibanez",
+          "name": "Araceli Martinez Ibanez",
+          "country": "es",
+          "category": "women",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "marina-guinart-espana",
+          "name": "Marina Guinart Espana",
+          "country": "es",
+          "category": "women",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "marta-barrera-de-la-fuente",
+          "name": "Marta Barrera De La Fuente",
+          "country": "es",
+          "category": "women",
+          "team": "houston-volts"
+        },
+        {
+          "slug": "maria-eulalia-rodriguez",
+          "name": "Maria Eulalia Rodriguez",
+          "country": "es",
+          "category": "women",
+          "team": "houston-volts"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 5,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 4,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 10,
+          "b": 3,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-26T01:13:18.869Z",
+      "finishedAt": "2026-09-26T02:44:03.654Z",
+      "winner": 1,
+      "playerIds": [
+        "2b8d8957-14f3-4272-8544-b1c311900df5",
+        "10449191-f062-4f9b-9a94-9b43c22c4e3d",
+        "69020207-c3dc-4354-9e15-6a9f9a210552",
+        "9f82531d-00f7-46db-a1c7-e794b0770be9"
+      ],
+      "existingMatchId": "e8cff549-ea2c-4366-9e3d-f0dfbd9d1e78"
+    },
+    {
+      "providerId": "playa-del-carmen-d3-m1-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "los-angeles-beat",
+      "awayTeam": "las-vegas-smash",
+      "stage": "Group Stage",
+      "session": 3,
+      "status": "finished",
+      "revision": "2026-09-26T01:12:57.422271Z",
+      "players": [
+        {
+          "slug": "victoria-iglesias-segador",
+          "name": "Victoria Iglesias Segador",
+          "country": "es",
+          "category": "women",
+          "team": "los-angeles-beat"
+        },
+        {
+          "slug": "julia-polo-bautista",
+          "name": "Julia Polo Bautista",
+          "country": "es",
+          "category": "women",
+          "team": "los-angeles-beat"
+        },
+        {
+          "slug": "raquel-eugenio-barrera",
+          "name": "Raquel Eugenio Barrera",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "jimena-velasco",
+          "name": "Jimena Velasco",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 1,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 2,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-25T22:33:19.886Z",
+      "finishedAt": "2026-09-25T23:22:21.552Z",
+      "winner": 2,
+      "playerIds": [
+        "6a6eba7f-6a61-4923-9c06-8d6255bbfb26",
+        "e9340ffb-584f-43a6-b31b-e0be8697ef0e",
+        "388a868c-1912-46b4-acc4-182f79e887c6",
+        "3c3cc1e9-3676-4bea-bf22-5ff8a091551d"
+      ],
+      "existingMatchId": "9a291022-a508-4116-9a71-901d7e38d0ce"
+    },
+    {
+      "providerId": "playa-del-carmen-d3-m2-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "dc-matrix",
+      "awayTeam": "houston-volts",
+      "stage": "Group Stage",
+      "session": 3,
+      "status": "finished",
+      "revision": "2026-09-26T04:28:43.086815Z",
+      "players": [
+        {
+          "slug": "alejandro-alex-arroyo",
+          "name": "Alejandro Arroyo",
+          "country": "es",
+          "category": "men",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "valentino-libaak",
+          "name": "Valentino Libaak",
+          "country": "ar",
+          "category": "men",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "ramiro-valenzuela",
+          "name": "Ramiro Valenzuela",
+          "country": "ar",
+          "category": "men",
+          "team": "houston-volts"
+        },
+        {
+          "slug": "alberto-garcia-trabanco",
+          "name": "Alberto Garcia Trabanco",
+          "country": "es",
+          "category": "men",
+          "team": "houston-volts"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 3,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 10,
+          "b": 8,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-26T02:59:21.750Z",
+      "finishedAt": "2026-09-26T04:28:41.328Z",
+      "winner": 1,
+      "playerIds": [
+        "99338491-91b8-4b4e-b9e0-854f0e9aaa50",
+        "c9bf45c6-e63f-439a-a27a-a5aa53353a52",
+        "279ef0ac-341c-4b98-a4db-9c967d3e4ac2",
+        "3e49c069-cf84-4e86-ad43-4e0846a43037"
+      ],
+      "existingMatchId": "62ddfe13-1079-4f0b-9e77-b338688c2dc4"
+    },
+    {
+      "providerId": "playa-del-carmen-d4-m1-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "new-york-atlantics",
+      "awayTeam": "florida-goats",
+      "stage": "Group Stage",
+      "session": 4,
+      "status": "finished",
+      "revision": "2026-09-26T19:01:32.934687Z",
+      "players": [
+        {
+          "slug": "sofia-saiz-vallejo",
+          "name": "Sofia Saiz Vallejo",
+          "country": "es",
+          "category": "women",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "marta-talavan",
+          "name": "Marta Talavan",
+          "country": "es",
+          "category": "women",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "noa-canovas",
+          "name": "Noa Canovas",
+          "country": "es",
+          "category": "women",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "carolina-orsi",
+          "name": "Carolina Orsi",
+          "country": "it",
+          "category": "women",
+          "team": "florida-goats"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 4,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 4,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-26T15:14:36.760Z",
+      "finishedAt": "2026-09-26T16:38:25.469Z",
+      "winner": 1,
+      "playerIds": [
+        "ad70e79e-8a9f-486a-bb25-84a473a06e65",
+        "8952e234-7d32-4f7c-8eed-aaefcfb861a4",
+        "2e7eae61-97e0-4d15-9c03-55e7cf60abd8",
+        "e3bc2a26-6271-494e-9855-a4017d7819ab"
+      ],
+      "existingMatchId": "a8710e07-21f5-4a70-8202-f75f215a0a52"
+    },
+    {
+      "providerId": "playa-del-carmen-d4-m2-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "houston-volts",
+      "awayTeam": "toronto-polar-bears",
+      "stage": "Group Stage",
+      "session": 4,
+      "status": "finished",
+      "revision": "2026-09-26T22:16:34.391391Z",
+      "players": [
+        {
+          "slug": "ramiro-valenzuela",
+          "name": "Ramiro Valenzuela",
+          "country": "ar",
+          "category": "men",
+          "team": "houston-volts"
+        },
+        {
+          "slug": "facundo-lopez",
+          "name": "Facundo Lopez",
+          "country": "ar",
+          "category": "men",
+          "team": "houston-volts"
+        },
+        {
+          "slug": "pablo-lijo",
+          "name": "Pablo Lijo",
+          "country": "es",
+          "category": "men",
+          "team": "toronto-polar-bears"
+        },
+        {
+          "slug": "francisco-xisco-manuel-gil",
+          "name": "Francisco Manuel Gil",
+          "country": "es",
+          "category": "men",
+          "team": "toronto-polar-bears"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 4,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 10,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-26T20:34:27.698Z",
+      "finishedAt": "2026-09-26T22:16:32.807Z",
+      "winner": 1,
+      "playerIds": [
+        "279ef0ac-341c-4b98-a4db-9c967d3e4ac2",
+        "ff8c1287-a3ac-42a2-9c37-1ff800f4e158",
+        "ba2a67c0-e663-4795-a1f2-6f664041d4c4",
+        "061465fc-d109-4a7d-af76-3306a16762e7"
+      ],
+      "existingMatchId": "4b2e792a-2d46-4f9d-bc58-08ba3ce203f0"
+    },
+    {
+      "providerId": "playa-del-carmen-d4-m1-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "new-york-atlantics",
+      "awayTeam": "florida-goats",
+      "stage": "Group Stage",
+      "session": 4,
+      "status": "finished",
+      "revision": "2026-09-26T18:31:02.083167Z",
+      "players": [
+        {
+          "slug": "ignacio-vilarino",
+          "name": "Ignacio Vilarino",
+          "country": "ae",
+          "category": "men",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "javier-martinez",
+          "name": "Javier Martinez",
+          "country": "es",
+          "category": "men",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "luis-hernandez-quesada",
+          "name": "Luis Hernandez Quesada",
+          "country": "es",
+          "category": "men",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "juan-ignacio-de-pascual",
+          "name": "Juan Ignacio de Pascual",
+          "country": "ar",
+          "category": "men",
+          "team": "florida-goats"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-26T16:53:52.142Z",
+      "finishedAt": "2026-09-26T18:30:51.671Z",
+      "winner": 2,
+      "playerIds": [
+        "388abb99-4cca-45f3-be3f-a34a102c0574",
+        "f946d93f-1301-4d80-916c-54c29b6ba4dc",
+        "1809c88d-8af6-4454-b593-00104991d43e",
+        "682bcbea-3a04-42d2-9d1a-cee5b8b35109"
+      ],
+      "existingMatchId": "5ff5c90a-59e7-4501-9185-4822f379c9ef"
+    },
+    {
+      "providerId": "playa-del-carmen-d5-m1-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "mexico-waves",
+      "awayTeam": "dc-matrix",
+      "stage": "Group Stage",
+      "session": 5,
+      "status": "finished",
+      "revision": "2026-09-27T02:27:34.627455Z",
+      "players": [
+        {
+          "slug": "david-gala",
+          "name": "David Gala",
+          "country": "es",
+          "category": "men",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "maximiliano-arce",
+          "name": "Maximiliano Arce",
+          "country": "ar",
+          "category": "men",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "alejandro-alex-arroyo",
+          "name": "Alejandro Arroyo",
+          "country": "es",
+          "category": "men",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "valentino-libaak",
+          "name": "Valentino Libaak",
+          "country": "ar",
+          "category": "men",
+          "team": "dc-matrix"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 7,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 13,
+          "b": 11,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-27T00:10:04.219Z",
+      "finishedAt": "2026-09-27T02:27:32.174Z",
+      "winner": 1,
+      "playerIds": [
+        "ae5af669-6cdb-431f-a826-4f64ed87168a",
+        "36772a8a-c290-4350-b3b8-8e9bfe64532a",
+        "99338491-91b8-4b4e-b9e0-854f0e9aaa50",
+        "c9bf45c6-e63f-439a-a27a-a5aa53353a52"
+      ],
+      "existingMatchId": "a2d4069e-0b70-4d7e-a2ef-9b3f690b23bf"
+    },
+    {
+      "providerId": "playa-del-carmen-d5-m1-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "mexico-waves",
+      "awayTeam": "dc-matrix",
+      "stage": "Group Stage",
+      "session": 5,
+      "status": "finished",
+      "revision": "2026-09-26T23:54:17.568543Z",
+      "players": [
+        {
+          "slug": "lucia-peralta",
+          "name": "Lucia Peralta",
+          "country": "es",
+          "category": "women",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "patricia-martinez-fortun",
+          "name": "Patricia Martinez Fortun",
+          "country": "es",
+          "category": "women",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "araceli-martinez-ibanez",
+          "name": "Araceli Martinez Ibanez",
+          "country": "es",
+          "category": "women",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "marina-guinart-espana",
+          "name": "Marina Guinart Espana",
+          "country": "es",
+          "category": "women",
+          "team": "dc-matrix"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-26T22:41:33.286Z",
+      "finishedAt": "2026-09-26T23:54:11.783Z",
+      "winner": 2,
+      "playerIds": [
+        "e9c21981-be04-461b-ae59-e2ced6895025",
+        "fdb6f3c8-2655-44c2-adf2-861ce1390404",
+        "2b8d8957-14f3-4272-8544-b1c311900df5",
+        "10449191-f062-4f9b-9a94-9b43c22c4e3d"
+      ],
+      "existingMatchId": "fd0fecd8-e534-4b50-9320-b8ccebc560d9"
+    },
+    {
+      "providerId": "playa-del-carmen-d4-m2-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "houston-volts",
+      "awayTeam": "toronto-polar-bears",
+      "stage": "Group Stage",
+      "session": 4,
+      "status": "finished",
+      "revision": "2026-09-26T20:17:50.789663Z",
+      "players": [
+        {
+          "slug": "marta-barrera-de-la-fuente",
+          "name": "Marta Barrera De La Fuente",
+          "country": "es",
+          "category": "women",
+          "team": "houston-volts"
+        },
+        {
+          "slug": "maria-eulalia-rodriguez",
+          "name": "Maria Eulalia Rodriguez",
+          "country": "es",
+          "category": "women",
+          "team": "houston-volts"
+        },
+        {
+          "slug": "nuria-rodriguez",
+          "name": "Nuria Rodriguez",
+          "country": "es",
+          "category": "women",
+          "team": "toronto-polar-bears"
+        },
+        {
+          "slug": "marta-caparros-maldonado",
+          "name": "Marta Caparros Maldonado",
+          "country": "es",
+          "category": "women",
+          "team": "toronto-polar-bears"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-26T18:57:04.714Z",
+      "finishedAt": "2026-09-26T20:17:49.481Z",
+      "winner": 2,
+      "playerIds": [
+        "69020207-c3dc-4354-9e15-6a9f9a210552",
+        "9f82531d-00f7-46db-a1c7-e794b0770be9",
+        "e3160b8c-9e45-4fc6-9545-f74fd73ab386",
+        "d6b6441e-a9ef-4a03-94e0-2fea003106d1"
+      ],
+      "existingMatchId": "c7743c11-b6da-4d0f-aa6f-e0433d177318"
+    },
+    {
+      "providerId": "playa-del-carmen-podium-mens-first",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "miami-padel-club",
+      "awayTeam": "mexico-waves",
+      "stage": "Championship",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-09-27T21:41:44.314527Z",
+      "players": [
+        {
+          "slug": "alvaro-melendez-amaya",
+          "name": "Alvaro Melendez Amaya",
+          "country": "es",
+          "category": "men",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "jose-antonio-garcia-diestro",
+          "name": "Jose Antonio Garcia Diestro",
+          "country": "es",
+          "category": "men",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "david-gala",
+          "name": "David Gala",
+          "country": "es",
+          "category": "men",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "maximiliano-arce",
+          "name": "Maximiliano Arce",
+          "country": "ar",
+          "category": "men",
+          "team": "mexico-waves"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-27T20:11:17.824Z",
+      "finishedAt": "2026-09-27T21:41:42.917Z",
+      "winner": 2,
+      "playerIds": [
+        "ee95dd02-a9d4-461f-ab25-b731684fb203",
+        "04f06341-ce02-449c-a319-56a90b4acdd1",
+        "ae5af669-6cdb-431f-a826-4f64ed87168a",
+        "36772a8a-c290-4350-b3b8-8e9bfe64532a"
+      ],
+      "existingMatchId": null
+    },
+    {
+      "providerId": "playa-del-carmen-d5-m2-mens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "las-vegas-smash",
+      "awayTeam": "miami-padel-club",
+      "stage": "Group Stage",
+      "session": 5,
+      "status": "finished",
+      "revision": "2026-09-27T14:19:24.666943Z",
+      "players": [
+        {
+          "slug": "agustin-torre",
+          "name": "Agustin Torre",
+          "country": "ar",
+          "category": "men",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "guillermo-jimenez-cagigas",
+          "name": "Guillermo Jimenez Cagigas",
+          "country": "es",
+          "category": "men",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "alvaro-melendez-amaya",
+          "name": "Alvaro Melendez Amaya",
+          "country": "es",
+          "category": "men",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "jose-antonio-garcia-diestro",
+          "name": "Jose Antonio Garcia Diestro",
+          "country": "es",
+          "category": "men",
+          "team": "miami-padel-club"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 2,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-27T04:13:58.158Z",
+      "finishedAt": "2026-09-27T05:05:37.695Z",
+      "winner": 2,
+      "playerIds": [
+        "a662102e-a6a4-49c2-af97-76de5089ed30",
+        "46a8bcbe-201f-440f-b7cf-ad8e7e999981",
+        "ee95dd02-a9d4-461f-ab25-b731684fb203",
+        "04f06341-ce02-449c-a319-56a90b4acdd1"
+      ],
+      "existingMatchId": "97962f54-51a9-482e-b639-528119619eab"
+    },
+    {
+      "providerId": "playa-del-carmen-d5-m2-womens",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "las-vegas-smash",
+      "awayTeam": "miami-padel-club",
+      "stage": "Group Stage",
+      "session": 5,
+      "status": "finished",
+      "revision": "2026-09-27T03:57:45.018767Z",
+      "players": [
+        {
+          "slug": "raquel-eugenio-barrera",
+          "name": "Raquel Eugenio Barrera",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "jimena-velasco",
+          "name": "Jimena Velasco",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "anna-ortiz-gasco",
+          "name": "Anna Ortiz Gasco",
+          "country": "es",
+          "category": "women",
+          "team": "miami-padel-club"
+        },
+        {
+          "slug": "lucia-martinez-gomez",
+          "name": "Lucia Martinez Gomez",
+          "country": "es",
+          "category": "women",
+          "team": "miami-padel-club"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 4,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 1,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-27T02:50:00.950Z",
+      "finishedAt": "2026-09-27T03:57:32.073Z",
+      "winner": 1,
+      "playerIds": [
+        "388a868c-1912-46b4-acc4-182f79e887c6",
+        "3c3cc1e9-3676-4bea-bf22-5ff8a091551d",
+        "34b1704e-8e33-4dc7-b04a-0c66658571a9",
+        "c573b880-d31b-4bf0-a66f-9e1cda4280a9"
+      ],
+      "existingMatchId": "22a26061-4b65-4740-89e7-8d4c548093ef"
+    },
+    {
+      "providerId": "playa-del-carmen-podium-womens-first",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "las-vegas-smash",
+      "awayTeam": "san-diego-stingrays",
+      "stage": "Championship",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-09-27T19:27:46.665695Z",
+      "players": [
+        {
+          "slug": "raquel-eugenio-barrera",
+          "name": "Raquel Eugenio Barrera",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "jimena-velasco",
+          "name": "Jimena Velasco",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "veronica-virseda",
+          "name": "Veronica Virseda",
+          "country": "es",
+          "category": "women",
+          "team": "san-diego-stingrays"
+        },
+        {
+          "slug": "claudia-jensen",
+          "name": "Claudia Jensen",
+          "country": "ar",
+          "category": "women",
+          "team": "san-diego-stingrays"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 2,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-27T18:01:57.815Z",
+      "finishedAt": "2026-09-27T19:27:44.363Z",
+      "winner": 2,
+      "playerIds": [
+        "388a868c-1912-46b4-acc4-182f79e887c6",
+        "3c3cc1e9-3676-4bea-bf22-5ff8a091551d",
+        "0020195c-7904-4146-add5-04bc1ad117de",
+        "e5be3c7f-2a14-479c-98c8-d8827dfbf792"
+      ],
+      "existingMatchId": null
+    },
+    {
+      "providerId": "playa-del-carmen-podium-womens-third",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "dc-matrix",
+      "awayTeam": "new-york-atlantics",
+      "stage": "3rd Place",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-09-27T14:43:50.361919Z",
+      "players": [
+        {
+          "slug": "araceli-martinez-ibanez",
+          "name": "Araceli Martinez Ibanez",
+          "country": "es",
+          "category": "women",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "marina-guinart-espana",
+          "name": "Marina Guinart Espana",
+          "country": "es",
+          "category": "women",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "sofia-saiz-vallejo",
+          "name": "Sofia Saiz Vallejo",
+          "country": "es",
+          "category": "women",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "maria-portillo",
+          "name": "Maria Portillo",
+          "country": null,
+          "category": "women",
+          "team": "new-york-atlantics"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 2,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 4,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-27T13:41:58.206Z",
+      "finishedAt": "2026-09-27T14:43:49.121Z",
+      "winner": 1,
+      "playerIds": [
+        "2b8d8957-14f3-4272-8544-b1c311900df5",
+        "10449191-f062-4f9b-9a94-9b43c22c4e3d",
+        "ad70e79e-8a9f-486a-bb25-84a473a06e65",
+        "73384db4-c56c-4f73-9191-03ce07d0bd4c"
+      ],
+      "existingMatchId": null
+    },
+    {
+      "providerId": "playa-del-carmen-podium-mens-third",
+      "tournamentSlug": "playa-del-carmen",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "florida-goats",
+      "awayTeam": "dc-matrix",
+      "stage": "3rd Place",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-09-27T16:03:11.700815Z",
+      "players": [
+        {
+          "slug": "luis-hernandez-quesada",
+          "name": "Luis Hernandez Quesada",
+          "country": "es",
+          "category": "men",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "juan-ignacio-de-pascual",
+          "name": "Juan Ignacio de Pascual",
+          "country": "ar",
+          "category": "men",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "alejandro-alex-arroyo",
+          "name": "Alejandro Arroyo",
+          "country": "es",
+          "category": "men",
+          "team": "dc-matrix"
+        },
+        {
+          "slug": "valentino-libaak",
+          "name": "Valentino Libaak",
+          "country": "ar",
+          "category": "men",
+          "team": "dc-matrix"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 0,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 2,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 10,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-09-27T15:04:09.053Z",
+      "finishedAt": "2026-09-27T16:03:10.613Z",
+      "winner": 1,
+      "playerIds": [
+        "1809c88d-8af6-4454-b593-00104991d43e",
+        "682bcbea-3a04-42d2-9d1a-cee5b8b35109",
+        "99338491-91b8-4b4e-b9e0-854f0e9aaa50",
+        "c9bf45c6-e63f-439a-a27a-a5aa53353a52"
+      ],
+      "existingMatchId": null
+    },
+    {
+      "providerId": "mgm-pro-padel-league-las-vegas-2026-d1-m1-womens",
+      "tournamentSlug": "mgm-pro-padel-league-las-vegas-2026",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "las-vegas-smash",
+      "awayTeam": "new-york-atlantics",
+      "stage": "Group Stage",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-11-19T04:01:58.271983Z",
+      "players": [
+        {
+          "slug": "raquel-eugenio-barrera",
+          "name": "Raquel Eugenio Barrera",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "jimena-velasco",
+          "name": "Jimena Velasco",
+          "country": "es",
+          "category": "women",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "sofia-saiz-vallejo",
+          "name": "Sofia Saiz Vallejo",
+          "country": "es",
+          "category": "women",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "marta-talavan",
+          "name": "Marta Talavan",
+          "country": "es",
+          "category": "women",
+          "team": "new-york-atlantics"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 7,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 7,
+          "b": 5,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 3,
+          "a": 10,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": true
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-11-19T02:23:37.540Z",
+      "finishedAt": "2026-11-19T04:01:55.939Z",
+      "winner": 1,
+      "playerIds": [
+        "388a868c-1912-46b4-acc4-182f79e887c6",
+        "3c3cc1e9-3676-4bea-bf22-5ff8a091551d",
+        "ad70e79e-8a9f-486a-bb25-84a473a06e65",
+        "8952e234-7d32-4f7c-8eed-aaefcfb861a4"
+      ],
+      "existingMatchId": null
+    },
+    {
+      "providerId": "mgm-pro-padel-league-las-vegas-2026-d1-m2-mens",
+      "tournamentSlug": "mgm-pro-padel-league-las-vegas-2026",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "florida-goats",
+      "awayTeam": "mexico-waves",
+      "stage": "Group Stage",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-11-19T05:47:26.626991Z",
+      "players": [
+        {
+          "slug": "luis-hernandez-quesada",
+          "name": "Luis Hernandez Quesada",
+          "country": "es",
+          "category": "men",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "alvaro-cepero-rodriguez",
+          "name": "Alvaro Cepero Rodriguez",
+          "country": "es",
+          "category": "men",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "franco-dal-bianco",
+          "name": "Franco Dal Bianco",
+          "country": "ar",
+          "category": "men",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "andres-britos",
+          "name": "Andres Britos",
+          "country": "it",
+          "category": "men",
+          "team": "mexico-waves"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 4,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-11-19T04:35:17.644Z",
+      "finishedAt": "2026-11-19T05:47:06.184Z",
+      "winner": 2,
+      "playerIds": [
+        "1809c88d-8af6-4454-b593-00104991d43e",
+        "57622c0e-bceb-488b-9e9d-c2d025b4fd12",
+        "291e5827-edff-4b9d-8025-7da65d5e4992",
+        "d631a021-e4bd-4eeb-92ea-a108494077f3"
+      ],
+      "existingMatchId": null
+    },
+    {
+      "providerId": "mgm-pro-padel-league-las-vegas-2026-d1-m1-mens",
+      "tournamentSlug": "mgm-pro-padel-league-las-vegas-2026",
+      "league": "ppl",
+      "category": "men",
+      "homeTeam": "las-vegas-smash",
+      "awayTeam": "new-york-atlantics",
+      "stage": "Group Stage",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-11-19T03:00:26.657135Z",
+      "players": [
+        {
+          "slug": "agustin-torre",
+          "name": "Agustin Torre",
+          "country": "ar",
+          "category": "men",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "guillermo-jimenez-cagigas",
+          "name": "Guillermo Jimenez Cagigas",
+          "country": "es",
+          "category": "men",
+          "team": "las-vegas-smash"
+        },
+        {
+          "slug": "ignacio-vilarino",
+          "name": "Ignacio Vilarino",
+          "country": "ae",
+          "category": "men",
+          "team": "new-york-atlantics"
+        },
+        {
+          "slug": "javier-martinez",
+          "name": "Javier Martinez",
+          "country": "es",
+          "category": "men",
+          "team": "new-york-atlantics"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 3,
+          "b": 6,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-11-19T01:15:34.348Z",
+      "finishedAt": "2026-11-19T02:06:28.586Z",
+      "winner": 2,
+      "playerIds": [
+        "a662102e-a6a4-49c2-af97-76de5089ed30",
+        "46a8bcbe-201f-440f-b7cf-ad8e7e999981",
+        "388abb99-4cca-45f3-be3f-a34a102c0574",
+        "f946d93f-1301-4d80-916c-54c29b6ba4dc"
+      ],
+      "existingMatchId": null
+    },
+    {
+      "providerId": "mgm-pro-padel-league-las-vegas-2026-d1-m2-womens",
+      "tournamentSlug": "mgm-pro-padel-league-las-vegas-2026",
+      "league": "ppl",
+      "category": "women",
+      "homeTeam": "florida-goats",
+      "awayTeam": "mexico-waves",
+      "stage": "Group Stage",
+      "session": null,
+      "status": "finished",
+      "revision": "2026-11-19T06:56:13.775151Z",
+      "players": [
+        {
+          "slug": "noa-canovas",
+          "name": "Noa Canovas",
+          "country": "es",
+          "category": "women",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "carolina-orsi",
+          "name": "Carolina Orsi",
+          "country": "it",
+          "category": "women",
+          "team": "florida-goats"
+        },
+        {
+          "slug": "ksenia-sharifova",
+          "name": "Ksenia Sharifova",
+          "country": "ru",
+          "category": "women",
+          "team": "mexico-waves"
+        },
+        {
+          "slug": "patricia-martinez-fortun",
+          "name": "Patricia Martinez Fortun",
+          "country": "es",
+          "category": "women",
+          "team": "mexico-waves"
+        }
+      ],
+      "sets": [
+        {
+          "number": 1,
+          "a": 6,
+          "b": 2,
+          "current": false,
+          "matchTiebreak": false
+        },
+        {
+          "number": 2,
+          "a": 6,
+          "b": 3,
+          "current": false,
+          "matchTiebreak": false
+        }
+      ],
+      "game": null,
+      "startedAt": "2026-11-19T06:02:24.337Z",
+      "finishedAt": "2026-11-19T06:56:11.922Z",
+      "winner": 1,
+      "playerIds": [
+        "2e7eae61-97e0-4d15-9c03-55e7cf60abd8",
+        "e3bc2a26-6271-494e-9855-a4017d7819ab",
+        "98b430b7-5745-4305-a28f-fd0fd3b3b18f",
+        "fdb6f3c8-2655-44c2-adf2-861ce1390404"
+      ],
+      "existingMatchId": null
+    }
+  ]
+}

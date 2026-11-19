@@ -49,6 +49,7 @@ export function divisionLabel(level: PplLevel): string {
  */
 export function eventCityFromSlug(slug: string | null | undefined): string | null {
   if (!slug) return null
+  if (slug === 'mgm-pro-padel-league-las-vegas-2026') return 'Las Vegas'
   const stripped = slug
     .replace(/-\d{4}$/, '')      // trailing season year
     .replace(/-ppl(-ii)?$/, '')  // division suffix
