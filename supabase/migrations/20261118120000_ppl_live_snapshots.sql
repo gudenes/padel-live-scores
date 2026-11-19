@@ -5,7 +5,7 @@ returns uuid language plpgsql security definer set search_path = public as $$
 declare
   tournament uuid; season_year_value int := extract(year from (p_event->>'startsAt')::date);
   fixture jsonb; home_season uuid; away_season uuid; tie uuid; matched uuid; mapped uuid;
-  key text; candidates int; division text := p_event->>'league';
+  key text; legacy_key text; candidates int; division text := p_event->>'league';
 begin
   if division not in ('ppl','ppl-ii') or coalesce(p_event->>'slug','') !~ '^[a-z0-9]+(-[a-z0-9]+)*$'
      or (p_event->>'endsAt')::date < (p_event->>'startsAt')::date then raise exception 'Invalid PPL event'; end if;
@@ -29,10 +29,20 @@ begin
       where tm.source='ppl' and tm.external_id=fixture->>'home' and ts.league=division and ts.season_year=season_year_value;
     select ts.id into strict away_season from public.team_seasons ts join public.teams tm on tm.id=ts.team_id
       where tm.source='ppl' and tm.external_id=fixture->>'away' and ts.league=division and ts.season_year=season_year_value;
-    key := (fixture->>'stage')||'|'||coalesce(fixture->>'session','null')||'|'||(fixture->>'home')||'|'||(fixture->>'away');
+    key := (fixture->>'stage')||'|'||coalesce(fixture->>'session','')||'|'||(fixture->>'home')||'|'||(fixture->>'away');
+    legacy_key := (fixture->>'stage')||'|'||coalesce(fixture->>'session','null')||'|'||(fixture->>'home')||'|'||(fixture->>'away');
+    -- Reuse either historical encoding; two ties are ambiguous even if only
+    -- one currently has a match. Never manufacture a parallel confrontation.
+    select count(*), min(id::text)::uuid into candidates,tie from public.league_ties
+      where tournament_id=tournament and tie_key in (key,legacy_key);
+    if candidates>1 then raise exception 'PPL ambiguous existing tie'; end if;
+    if tie is null then
     insert into public.league_ties(tournament_id,tie_key,stage,session_number,home_team_season_id,away_team_season_id,scheduled_at)
     values(tournament,key,fixture->>'stage',(fixture->>'session')::int,home_season,away_season,(fixture->>'scheduledAt')::timestamptz)
     on conflict(tournament_id,tie_key) do update set scheduled_at=excluded.scheduled_at returning id into tie;
+    else
+      update public.league_ties set scheduled_at=(fixture->>'scheduledAt')::timestamptz where id=tie;
+    end if;
     if not exists(select 1 from public.league_ties where id=tie and home_team_season_id=home_season and away_team_season_id=away_season)
       then raise exception 'PPL tie identity conflict'; end if;
     select count(*),min(id::text)::uuid into candidates,matched from public.matches where tie_id=tie and category=fixture->>'category';

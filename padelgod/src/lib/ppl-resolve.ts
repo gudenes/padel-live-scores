@@ -38,8 +38,14 @@ export type PplResolution = { ok: true; matchId: string; oldPlayers: Array<strin
 /** Reconcile missing source IDs using the event-scoped team tie + division.
  * Never insert a second match just because its external mapping is missing. */
 export function resolvePplSnapshot(s: PplSnapshot, ctx: PplContext): PplResolution {
-  const tieKey = `${s.stage}|${s.session ?? 'null'}|${s.homeTeam}|${s.awayTeam}`;
-  const tieIds = ctx.ties.filter(t => t.tie_key === tieKey).map(t => t.id);
+  // Static imports use an empty session; early adapter versions used "null".
+  // Preserve the stored key for the writer and never choose between duplicates.
+  const keys = new Set([`${s.stage}|${s.session ?? ''}|${s.homeTeam}|${s.awayTeam}`,
+    `${s.stage}|${s.session ?? 'null'}|${s.homeTeam}|${s.awayTeam}`]);
+  const ties = ctx.ties.filter(t => keys.has(t.tie_key));
+  if (ties.length > 1) return { ok: false, reason: 'ambiguous_fixture', candidates: ties.map(t => t.id) };
+  const tieKey = ties[0]?.tie_key ?? '';
+  const tieIds = ties.map(t => t.id);
   const hits = ctx.matches.filter(m => tieIds.includes(m.tie_id) && m.category === s.category);
   if (hits.length !== 1) return { ok: false, reason: hits.length ? 'ambiguous_fixture' : 'fixture_requires_onboarding', candidates: hits.map(m => m.id) };
   const m = hits[0]!, link = ctx.matchMappings.get(s.providerId);

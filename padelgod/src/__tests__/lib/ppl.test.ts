@@ -93,6 +93,16 @@ describe('PPL discovery and identity', () => {
   it('recovers an absent match mapping using exactly one event tie and category', () => {
     expect(resolvePplSnapshot(snapshot(), context())).toMatchObject({ ok: true, matchId: 'match', playerIds: ['0', '1', '2', '3'] });
   });
+  it.each(['', 'null'])('reuses a missing-session tie encoded as %j and passes its stored key to the writer', (session) => {
+    const s = { ...snapshot(), session: null }, c = context();
+    c.ties[0]!.tie_key = `${s.stage}|${session}|${s.homeTeam}|${s.awayTeam}`;
+    expect(resolvePplSnapshot(s, c)).toMatchObject({ ok: true, matchId: 'match', tieKey: c.ties[0]!.tie_key });
+  });
+  it('rejects two encodings of the same tie even if only one has a match', () => {
+    const s = { ...snapshot(), session: null }, c = context();
+    c.ties = ['', 'null'].map((session, i) => ({ id: i ? 'duplicate' : 'tie', tie_key: `${s.stage}|${session}|${s.homeTeam}|${s.awayTeam}` }));
+    expect(resolvePplSnapshot(s, c)).toMatchObject({ ok: false, reason: 'ambiguous_fixture' });
+  });
   it('blocks duplicate people, conflicting mappings and duplicate fixtures', () => {
     const c = context(); c.players.push({ ...c.players[0]!, id: 'duplicate' });
     expect(resolvePplSnapshot(snapshot(), c)).toMatchObject({ ok: false, reason: expect.stringContaining('ambiguous') });

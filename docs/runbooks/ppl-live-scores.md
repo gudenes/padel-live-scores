@@ -37,7 +37,9 @@ The separate official standings importer remains necessary for `league_standings
 - Las Vegas: 20 scheduled matches, four podium slots awaiting teams, zero live matches at capture time. First published session is 18 November at 17:00 America/Los_Angeles (19 November 01:00 UTC; 18 November 22:00 Argentina).
 - Unit tests cover real captured final/scheduled documents, synthetic live progression, ambiguity, wrong orientation, schema changes, retries, scheduler flags and dry-run isolation.
 - Isolated PostgreSQL/WASM tests cover event onboarding/relinking, duplicate prevention, stale snapshots, injected failure rollback, terminal guards and team/player participation records. They never connect to Supabase.
-- A genuine live point transition has **not** been verified yet. Synthetic progression is not evidence of actual live behavior.
+- 19 November real live capture: Los Angeles Beat vs Miami Padel Club (Las Vegas, day 2 men's match 1), approximately 19:10–19:13 UTC. Observed 0–30 → 15–30 → 15–40, then second-set games 2–1 → 2–2, points reset and serving pair changed. The official match center also showed the second set at 2–2. A real transition to finished has **not** been verified.
+- That test exposed incompatible absent-session tie keys: static imports use an empty field, the early adapter used literal `null`. Both resolver and SQL reconciliation now accept either, retain the existing ID/key, create new ties using the static convention, and reject two equivalent ties rather than selecting one. Regression tests cover both encodings, duplicate ties and repeated discovery.
+- Fixed-path replay against an isolated copy of the prepared static dataset: all 20 Las Vegas matches retained (20 → 20), the real live fixture resolved with its original ID and four canonical players, 15 captured revisions applied, and retrying the last revision returned `unchanged`. Production was read only for canonical identity lookup; all reconciliation/score writes ran in local PostgreSQL/WASM. The previous 20 → 40 duplication is no longer reproduced. The static data PR remains separate.
 
 ## Commands
 

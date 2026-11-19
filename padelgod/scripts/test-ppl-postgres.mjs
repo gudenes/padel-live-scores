@@ -45,6 +45,21 @@ try {
   assert.equal(await reconcile(),tour); assert.equal(await reconcile(),tour);
   assert.equal((await db.query('select count(*) n from matches')).rows[0].n,1);
   await assert.rejects(reconcile(event,[{...fixtures[0],home:'unknown'}]),/no rows/);
+  // Reproduce legacy static imports and the early adapter encoding. Repeated
+  // discovery must retain both tie/match IDs and the exact persisted key.
+  for (const sessionKey of ['', 'null']) {
+    await db.exec('begin');
+    const storedKey = `Group Stage|${sessionKey}|home|away`;
+    await db.query('update league_ties set tie_key=$1,session_number=null where id=$2',[storedKey,tie]);
+    const unsessioned = [{...fixtures[0],session:null}];
+    await reconcile(event,unsessioned); await reconcile(event,unsessioned);
+    assert.deepEqual((await db.query('select id,tie_key from league_ties')).rows,[{id:tie,tie_key:storedKey}]);
+    assert.deepEqual((await db.query('select id,tie_id from matches')).rows,[{id:match,tie_id:tie}]);
+    await db.query('insert into league_ties(tournament_id,tie_key,home_team_season_id,away_team_season_id) values($1,$2,$3,$4)',
+      [tour,`Group Stage|${sessionKey === '' ? 'null' : ''}|home|away`,home,away]);
+    await assert.rejects(reconcile(event,unsessioned),/ambiguous existing tie/);
+    await db.exec('rollback');
+  }
   const initial = { providerId: 'match-1', tournamentSlug: 'playa-del-carmen', league: 'ppl', category: 'women',status:'live',
     revision:'2026-09-26T15:00:00Z',startedAt:'2026-09-26T14:00:00Z',finishedAt:null,winner:null,
     players: ids.map((_,i)=>({slug:`player-${i}`,name:`Player ${i}`,category:'women'})),
@@ -75,8 +90,9 @@ try {
   assert.equal((await apply({...initial,revision:'2026-09-26T17:00:00Z'})).reason,'terminal');
   assert.equal((await db.query("select count(*) n from entity_external_ids where entity_type='match'")).rows[0].n,2);
   const next={...event,slug:'las-vegas-2026',name:'Las Vegas',startsAt:'2026-11-18',endsAt:'2026-11-21'};
-  const nextFixtures=[{...fixtures[0],id:'vegas-match',scheduledAt:'2026-11-19T01:00:00Z'}];
+  const nextFixtures=[{...fixtures[0],id:'vegas-match',session:null,scheduledAt:'2026-11-19T01:00:00Z'}];
   const newId=await reconcile(next,nextFixtures); assert.notEqual(newId,tour); assert.equal(await reconcile(next,nextFixtures),newId);
   assert.equal((await db.query('select count(*) n from matches')).rows[0].n,2);
+  assert.equal((await db.query('select tie_key from league_ties where tournament_id=$1',[newId])).rows[0].tie_key,'Group Stage||home|away');
   console.log('PASS PPL local PostgreSQL: onboarding/relink without duplicates, live/final, identity guards, stale/retry, atomic rollback, player/team history');
 } finally { await db.close(); }
