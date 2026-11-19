@@ -1,0 +1,25 @@
+.page { max-width: 1480px; padding: 24px 32px 48px; margin: auto; color: var(--text-1); font-size: 14px; }
+.page header { margin: 24px 0; }
+.page h1 { font-size: 30px; margin: 8px 0; }
+.page p { line-height: 1.6; color: var(--text-2); }
+.page a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.eyebrow { font-size: 11px; letter-spacing: 1.4px; color: var(--text-3); }
+.notice { padding: 16px; border: 1px solid var(--border); border-radius: 10px; line-height: 1.6; background: var(--bg-surface); }
+.notice strong { display: block; }
+.cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 20px 0; }
+.cards button { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; white-space: normal; text-align: left; }
+.cards strong { font-size: 28px; }
+.filters { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; margin: 24px 0 12px; }
+.filters label { display: grid; gap: 8px; font-size: 12px; }
+.filters input, .filters select { min-height: 42px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; color: var(--text-1); background: var(--bg-surface); font: inherit; }
+.filters input { min-width: 280px; }
+.table { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-surface); }
+.table table { width: 100%; border-collapse: collapse; min-width: 1000px; }
+.table th, .table td { padding: 14px; border-bottom: 1px solid var(--border); vertical-align: top; text-align: left; }
+.table th { font-size: 11px; color: var(--text-2); }
+.table td { font-size: 13px; }
+.table small { display: block; margin-top: 6px; color: var(--text-3); }
+.table td:nth-child(5) { max-width: 340px; }
+.table p { margin: 6px 0 0; font-size: 12px; }
+.page footer { margin-top: 32px; font-size: 12px; }
+@media(max-width: 700px) { .page { padding: 20px 16px; } .cards { grid-template-columns: repeat(2, minmax(0,1fr)); } }
