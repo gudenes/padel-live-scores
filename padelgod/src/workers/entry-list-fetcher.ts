@@ -63,7 +63,7 @@ import { searchFipPlayer } from '../lib/fip-player-search.js';
 import { normalizeCountry } from '../lib/country.js';
 import { activeTournamentArgs } from '../lib/active-tournament-args.js';
 import { runScrapeJob } from '../lib/scrape-job.js';
-import { pdfToText } from '../lib/pdf-text.js';
+import { downloadConditionalPdfText } from '../lib/conditional-pdf.js';
 import {
   normalizeName,
   loadDbPlayerIndex,
@@ -133,6 +133,9 @@ async function fetchPdfUrls(
     headers: {
       'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
       'x-requested-with': 'XMLHttpRequest',
+      // FIP rejects otherwise valid entry-list AJAX requests without page context.
+      Referer: eventPageUrl,
+      Origin: new URL(eventPageUrl).origin,
     },
   });
   return extractPdfUrlsFromAjaxResponse(
@@ -141,9 +144,7 @@ async function fetchPdfUrls(
 }
 
 async function downloadPdfText(http: AxiosInstance, url: string): Promise<string> {
-  const res = await http.get(url, { responseType: 'arraybuffer' });
-  const buf = Buffer.from(res.data as ArrayBuffer);
-  return pdfToText(buf);
+  return downloadConditionalPdfText(http, url);
 }
 
 interface SnapshotRow {

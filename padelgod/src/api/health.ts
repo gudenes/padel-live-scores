@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { getProxyRouteStats, getResidentialUsage } from '../lib/fip-proxy-routing.js';
 import { getProxyBandwidthStats } from '../lib/http-client.js';
 
 export interface HealthRouteOptions {
@@ -22,6 +23,8 @@ export function registerHealthRoute(app: FastifyInstance, opts: HealthRouteOptio
         uptime_seconds: Math.floor(uptimeMs / 1000),
         version: opts.version,
         proxy_bandwidth: proxyBandwidth,
+        proxy_routes: getProxyRouteStats(),
+        residential_usage: getResidentialUsage(),
         proxy_bandwidth_total_bytes: proxyBandwidthTotalBytes,
       },
     };

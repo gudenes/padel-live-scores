@@ -286,6 +286,17 @@ describe('runEntryListFetcher (FIP PDF mode)', () => {
     expect(result.tournamentsProcessed).toBe(1);
     expect(result.tournamentsSkippedNoPdfs).toBe(0);
 
+    expect(httpClient.post).toHaveBeenCalledWith(
+      'https://www.padelfip.com/wp-admin/admin-ajax.php',
+      expect.any(String),
+      {
+        headers: expect.objectContaining({
+          Referer: 'https://www.padelfip.com/es/events/fip-bronze-testonia-2026/',
+          Origin: 'https://www.padelfip.com',
+        }),
+      },
+    );
+
     // 3 teams parsed × 2 players each = 6 snapshot rows. All in men.
     expect(supabase.inserted).toHaveLength(6);
     expect(supabase.inserted.every((r) => r.category === 'men')).toBe(true);
