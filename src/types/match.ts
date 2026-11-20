@@ -1,4 +1,5 @@
 import type { SmartScheduleForecast } from '@/lib/smart-schedule';
+import { hasPplLiveScore } from '@/lib/tournament-tier';
 // src/types/match.ts
 
 export type MatchStatus = 'scheduled' | 'live' | 'finished' | 'cancelled' | 'retired' | 'walkover' | 'suspended'
@@ -115,6 +116,8 @@ export interface Match {
 export function isWarmingUp(match: Match): boolean {
   if ((match.status as string) === 'on_court') return true
   if (match.status !== 'live') return false
+  const level = (match as Match & { tournament?: { level?: string | null } }).tournament?.level
+  if (hasPplLiveScore(match, level)) return false
   const sets = match.sets ?? []
   if (sets.length === 0) return true
   const allGames = sets.flatMap((s) => s.games ?? [])

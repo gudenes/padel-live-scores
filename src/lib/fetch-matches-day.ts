@@ -273,22 +273,13 @@ export async function fetchMatchesDay(
 
   const groups = Array.from(groupMap.values())
 
-  // Combined sort: Premier-first + progression.
-  //
-  //   1. Hard tier bucket — Premier (Major/P1/P2/Finals) always above
-  //      FIP-tier tournaments. No progression on a Bronze final can
-  //      leapfrog a Premier event still in qualifying.
-  //   2. Inside each bucket — sort by today's most-advanced round
-  //      (Final → SF → QF → R16 → R32 → R64 → R128 → Q3 → Q2 → Q1).
-  //      Climactic content surfaces above earlier-stage content within
-  //      the same tier bucket.
-  //   3. Sub-tiebreaker — existing tier weight (P1 above P2 above
-  //      Major-by-numeric-tier; Bronze above Promises etc. inside FIP).
-  //      Keeps stable ordering when stage + bucket are equal.
+  // Put Gold above PPL and PPL above the lower tiers. Preserve the existing
+  // round-first ordering inside Premier and inside the remaining FIP bucket.
+  const priorityBand = (level: string | null) => isPremierLevel(level) ? 0
+    : levelTierWeight(level) < levelTierWeight('ppl') ? 1 : level === 'ppl' ? 2 : 3
   groups.sort((a, b) => {
-    const aPrem = isPremierLevel(a.tournamentLevel) ? 0 : 1
-    const bPrem = isPremierLevel(b.tournamentLevel) ? 0 : 1
-    if (aPrem !== bPrem) return aPrem - bPrem
+    const priority = priorityBand(a.tournamentLevel) - priorityBand(b.tournamentLevel)
+    if (priority !== 0) return priority
     const aRank = mostAdvancedRoundEntry(a.matches).rank
     const bRank = mostAdvancedRoundEntry(b.matches).rank
     if (aRank !== bRank) return aRank - bRank

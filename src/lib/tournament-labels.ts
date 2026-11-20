@@ -79,10 +79,8 @@ export function levelTierWeight(level: string | null): number {
     fip_promises: 20,
     fip_beyond: 22,
     fip_other: 25,
-    // Team leagues sort below every circuit tier — they are a separate
-    // competition, not a rung on the FIP/Premier ladder. Explicit rather
-    // than falling through to `?? 50`, so the ordering is intentional.
-    ppl: 30,
+    // Display priority only; sporting weights and league rankings are unchanged.
+    ppl: 5.5,
     ppl_ii: 31,
   }
   return map[level] ?? 50

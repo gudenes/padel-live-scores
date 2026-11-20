@@ -83,10 +83,15 @@ function ResultsSectionInner({ matches }: { matches: Match[] }) {
   }
 
   // Format date range
-  const formatDates = (start: string | null, end: string | null) => {
+  const formatDates = (start: string | null, end: string | null, level?: string | null) => {
     if (!start) return ''
     const s = new Date(start)
     const e = end ? new Date(end) : null
+    // PPL event boundaries are calendar dates, not local match start times.
+    if (level === 'ppl' || level === 'ppl_ii') {
+      const opts = { ...DATE_SHORT, timeZone: 'UTC' }
+      return e ? `${format.dateTime(s, opts)} – ${format.dateTime(e, opts)}` : format.dateTime(s, opts)
+    }
     if (e && s.getMonth() !== e.getMonth()) {
       return `${format.dateTime(s, DATE_SHORT)} \u2013 ${format.dateTime(e, DATE_SHORT)}`
     }
@@ -158,7 +163,7 @@ function ResultsSectionInner({ matches }: { matches: Match[] }) {
                     <div style={{ fontSize: 10, color: MUTED, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span>{countryName(group.tournament.country)}</span>
                       <span style={{ opacity: 0.4 }}>&middot;</span>
-                      <span>{formatDates(group.tournament.starts_at, group.tournament.ends_at)}</span>
+                      <span>{formatDates(group.tournament.starts_at, group.tournament.ends_at, group.tournament.level)}</span>
                     </div>
                   )}
                 </Link>

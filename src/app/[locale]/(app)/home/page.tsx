@@ -1,4 +1,6 @@
 'use client'
+
+import { levelTierWeight } from '@/lib/tournament-labels'
 // src/app/(app)/home/page.tsx
 // V3 Home — thin orchestrator. Sections extracted to src/components/home/.
 
@@ -129,6 +131,10 @@ function V3HomePageInner() {
 
   const gender = 'all' as const
   const [liveMatches, setLiveMatches] = useState<Match[]>([])
+  const livePplIds = useRef(new Set<string>())
+  useEffect(() => {
+    livePplIds.current = new Set(liveMatches.filter(m => (m as any).tournament?.level === 'ppl').map(m => m.id))
+  }, [liveMatches])
   const [scheduledMatches, setScheduledMatches] = useState<Match[]>([])
   const [upcomingTournaments, setUpcomingTournaments] = useState<Tournament[]>([])
   const [topMen, setTopMen] = useState<RankedPlayer[]>([])
@@ -563,6 +569,11 @@ function V3HomePageInner() {
       .channel('v3-home-live')
       .on(
         'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'matches', filter: 'status=eq.finished' },
+        payload => { if (livePplIds.current.has(payload.new.id)) triggerRefetch() },
+      )
+      .on(
+        'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'matches', filter: 'status=eq.scheduled' },
         triggerRefetch,
       )
@@ -592,7 +603,7 @@ function V3HomePageInner() {
   const liveScorable = trulyLive.filter(m => {
     const level = (m as any).tournament?.level
     return level && LIVE_SCORE_LEVELS.includes(level)
-  }).filter(genderFilter)
+  }).filter(genderFilter).sort((a, b) => levelTierWeight((a as any).tournament?.level) - levelTierWeight((b as any).tournament?.level))
   const upcoming = scheduledMatches
     .filter(m => !!(m.pair1_player1 && m.pair1_player2 && m.pair2_player1 && m.pair2_player2))
     .filter(genderFilter)

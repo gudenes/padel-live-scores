@@ -82,9 +82,18 @@ export function isPresenceOnlyLive(
 ): boolean {
   if (!isLiveStatus(match.status)) return false
   if (isPremierLevel(tournament.level)) return false
+  if (hasPplLiveScore(match, tournament.level)) return false
+  return !hasLivePointByPoint(match.sets)
+}
+
+/** Confirmed PPL score, shared by card visibility and home live eligibility. */
+export function hasPplLiveScore(
+  match: { status: string; sets?: ReadonlyArray<SetWithGames> | null },
+  tournamentLevel: string | null | undefined,
+): boolean {
   // PPL snapshots carry current points and a serving pair, without inventing
   // point history or an individual server. This exception is PPL-only.
-  const level = tournament.level?.toLowerCase()
+  const level = tournamentLevel?.toLowerCase()
   if (match.status === 'live' && (level === 'ppl' || level === 'ppl_ii')) {
     const hasCurrentScore = match.sets?.some(s => s.is_current && s.games?.some(g =>
       g.is_current && (g.serving_pair === 1 || g.serving_pair === 2) &&
@@ -92,7 +101,7 @@ export function isPresenceOnlyLive(
         ? /^\d+-\d+$/.test(g.game_score)
         : /^(0|15|30|40|A|AD)-(0|15|30|40|A|AD)$/.test(g.game_score)),
     ))
-    if (hasCurrentScore) return false
+    if (hasCurrentScore) return true
   }
-  return !hasLivePointByPoint(match.sets)
+  return false
 }

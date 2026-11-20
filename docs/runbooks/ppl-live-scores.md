@@ -43,6 +43,16 @@ The separate official standings importer remains necessary for `league_standings
 
 ## Commands
 
+### App integration acceptance (19–20 November local run)
+
+- PPL display priority is between FIP Gold and Silver; PPL II keeps its existing priority. The Matches list preserves round-first ordering inside the Premier and lower-tier buckets. Sporting ranking/quality weights are unchanged.
+- Home accepts confirmed PPL current scores without requiring an invented point history. Shared warmup detection, tournament coverage messaging and the Matches tournament badge recognize the same evidence. PPL calendar dates display without shifting to the previous day in Argentina.
+- Visible PPL cards have a three-second fallback refresh, with no overlapping PPL reads, no background-tab polling, cleanup on unmount and a stop after the final. Existing realtime subscriptions remain. Home listens for the completion of its displayed PPL match to remove it from the live section.
+- Local PostgreSQL replay applied genuine captured point changes and a subsequently captured official final. Browser acceptance confirmed an automatic 0–30 → 15–30 change on Home, the existing “View matches” link opening the Las Vegas matches tab, the Vegas group on Matches, no horizontal overflow at 320/390/1280px, and zero live badges on Home after completion. The final wrote canonical match/player participation records. This is an accelerated replay, not evidence that the entire deployed pipeline has run live.
+- 128 targeted app tests passed; all eight affected ordering/polling tests passed again after the final scope-preserving cleanup. The separate static-data PR supplies Vegas calendar/cover/history; preview assets and the read-only local bridge are not production integration code. No PR, migration, flag change or deploy was performed during this app test.
+- Global type-check gate remains open: the first run reported two errors in the unchanged `src/app/api/admin/migrate-equipment-images/route.ts` and a group-shape error fixed in this branch. The global recheck was interrupted after disk/resource problems; do not report it as passing or publish before closing this gate.
+- The public-source refresh at 01:17 UTC on 20 November reported no active live match and successfully imported the published finals locally. A new real-time end-to-end acceptance run is still needed when play resumes, followed by explicit production activation approval.
+
 Run from `padelgod/`, preferably with Node 22+ (the installed Supabase client needs native WebSocket support).
 
 ```sh
