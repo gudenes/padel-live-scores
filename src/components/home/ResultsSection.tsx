@@ -18,7 +18,7 @@ const MAX_TOURNAMENTS = 10
 
 function ResultsSectionInner({ matches }: { matches: Match[] }) {
   const format = useFormatter()
-  // 3-state: undefined = default (show 3), 'collapsed' = hide all, 'expanded' = show all
+  // Expanded by default; each tournament can hide or show all its results.
   const [tournamentState, setTournamentState] = useState<Record<string, 'collapsed' | 'expanded'>>({})
 
   // Group by tournament FIRST, then cap by tournament count — so we never
@@ -103,7 +103,6 @@ function ResultsSectionInner({ matches }: { matches: Match[] }) {
           const tid = group.tournament?.id ?? 'unknown'
           const state = tournamentState[tid] // undefined = default
           const matchCount = group.matches.length
-          const visibleMatches = state === 'collapsed' ? [] : group.matches
           const stage = stageLabel(group)
 
           const isExpanded = state !== 'collapsed'
@@ -182,12 +181,14 @@ function ResultsSectionInner({ matches }: { matches: Match[] }) {
               {/* ── Collapsible content ─────────────────── */}
               <div style={{
                 background: BG_CARD,
-                overflow: 'hidden',
-                maxHeight: isExpanded ? matchCount * 80 + 20 : 0,
-                transition: 'max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'grid',
+                gridTemplateRows: isExpanded ? '1fr' : '0fr',
+                transition: 'grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
               }}>
-                <div style={{ padding: '8px 14px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {group.matches.map(m => <ResultCard key={m.id} match={m} />)}
+                <div style={{ minHeight: 0, overflow: 'hidden' }} inert={!isExpanded}>
+                  <div style={{ padding: '8px 14px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {group.matches.map(m => <ResultCard key={m.id} match={m} />)}
+                  </div>
                 </div>
               </div>
             </div>
