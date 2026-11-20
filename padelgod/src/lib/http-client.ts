@@ -1,33 +1,29 @@
 import axios, { type AxiosInstance } from 'axios';
 import axiosRetry from 'axios-retry';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { installFipProxyRouting, installFipRequestHeaders } from './fip-proxy-routing.js';
 
 export interface HttpClientOptions {
   userAgent: string;
   timeoutMs?: number;
   maxRetries?: number;
-  /**
-   * If set, requests whose URL matches `proxyHostPattern` (default: any
-   * `padelfip.com` host) are sent through this HTTP(S) proxy. FIP's Cloudflare
-   * IP-blocks Railway's datacenter egress across the WHOLE padelfip.com domain
-   * (verified 2026-06-30: /wp-json rankings+discover AND the /es/events/ +
-   * /wp-admin/admin-ajax.php draw endpoints AND /player profile pages all 403),
-   * so we must route every padelfip.com request through a residential proxy.
-   * Non-FIP hosts (e.g. matchscorerlive.com / Crionet) stay direct — they are
-   * not blocked and shouldn't burn proxy bandwidth. All FIP callers use
-   * absolute URLs, so a host match on config.url is sufficient.
-   * Defaults to `process.env.FIP_PROXY_URL` so ops can set it on Railway with
-   * no redeploy of this signature. Unset = direct connection for everything
-   * (today's behavior). See docs/superpowers/plans/2026-06-30-fip-rest-egress-proxy.md.
+  /** Legacy single fixed proxy override. Empty string explicitly selects direct.
+   * Otherwise use FIP_FIXED_PROXY_URLS, falling back to FIP_PROXY_URL.
+   * Non-FIP hosts remain direct unless proxyHostPattern is explicitly supplied.
    */
   proxyUrl?: string;
   proxyHostPattern?: RegExp;
+  /** Ordered fixed pool. JSON array in FIP_FIXED_PROXY_URLS; legacy URL remains supported. */
+  fixedProxyUrls?: string[];
+  /** Used only after healthy fixed routes fail. */
+  residentialProxyUrl?: string;
+  residentialDailyByteLimit?: number;
 }
 
 /**
  * Per-category byte counter for proxied FIP traffic. FIP IP-blocks Railway, so
  * all padelfip.com traffic flows through a METERED residential proxy — this
- * accumulates the on-wire bytes per coarse category so ops can read /health and
+ * estimates response bytes per category (Content-Length when present, otherwise
+ * decoded body size) so ops can read /health and
  * right-size a proxy plan. Counts are cumulative since process start (a Railway
  * redeploy resets them). Module-level so every client created in this process
  * shares one accumulator.
@@ -76,31 +72,17 @@ export function createHttpClient(opts: HttpClientOptions): AxiosInstance {
     // Treat 4xx/5xx as exceptions so retries trigger
     validateStatus: (status) => status >= 200 && status < 400,
   });
-  axiosRetry(client, {
-    retries: opts.maxRetries ?? 3,
-    retryDelay: axiosRetry.exponentialDelay,
-    retryCondition: (err) =>
-      axiosRetry.isNetworkOrIdempotentRequestError(err) ||
-      (err.response?.status !== undefined && err.response.status >= 500),
-  });
-
-  const proxyUrl = opts.proxyUrl ?? process.env.FIP_PROXY_URL;
-  if (proxyUrl) {
-    const agent = new HttpsProxyAgent(proxyUrl);
-    // Match any padelfip.com host (www. or bare), in the URL's host position.
-    const pattern = opts.proxyHostPattern ?? /\/\/(?:[a-z0-9-]+\.)*padelfip\.com\//i;
-    client.interceptors.request.use((config) => {
-      if (pattern.test(config.url ?? '')) {
-        // FIP is https-only today, but set both agents so a plain-http target
-        // can't silently bypass the proxy. HttpsProxyAgent tunnels both.
-        config.httpsAgent = agent;
-        config.httpAgent = agent;
-        // Disable axios' built-in env-proxy handling so our agent is used.
-        config.proxy = false;
-      }
-      return config;
-    });
-
+  installFipRequestHeaders(client);
+  const fixedProxyUrls: string[] = opts.fixedProxyUrls ?? (opts.proxyUrl !== undefined
+    ? (opts.proxyUrl ? [opts.proxyUrl] : [])
+    : process.env.FIP_FIXED_PROXY_URLS ? JSON.parse(process.env.FIP_FIXED_PROXY_URLS)
+      : process.env.FIP_PROXY_URL ? [process.env.FIP_PROXY_URL] : []);
+  if (!Array.isArray(fixedProxyUrls) || fixedProxyUrls.some(url => typeof url !== 'string')) {
+    throw new Error('FIP_FIXED_PROXY_URLS must be a JSON array of proxy URLs');
+  }
+  const residentialProxyUrl = opts.residentialProxyUrl ?? (opts.proxyUrl === undefined ? process.env.FIP_RESIDENTIAL_PROXY_URL : undefined);
+  const pattern = opts.proxyHostPattern ?? /^https?:\/\/(?:[a-z0-9-]+\.)*padelfip\.com\//i;
+  if (fixedProxyUrls.length || residentialProxyUrl) {
     // Side-effect-only bandwidth counter for proxied (padelfip.com) responses.
     // MUST never throw and MUST never alter the response/data — wrapped in
     // try/catch so a counting bug can't break a real request.
@@ -110,9 +92,11 @@ export function createHttpClient(opts: HttpClientOptions): AxiosInstance {
         if (!pattern.test(url)) return; // only count proxied/FIP traffic
         const category = fipBandwidthCategory(url);
         const cl = Number(response?.headers?.['content-length']);
-        const bytes =
+        const bytes = response?.status === 304 ? 0 :
           Number.isFinite(cl) && cl >= 0
             ? cl
+            : Buffer.isBuffer(response?.data) ? response.data.length
+            : response?.data instanceof ArrayBuffer ? response.data.byteLength
             : Buffer.byteLength(
                 typeof response?.data === 'string'
                   ? response.data
@@ -141,6 +125,19 @@ export function createHttpClient(opts: HttpClientOptions): AxiosInstance {
     );
   }
 
+  installFipProxyRouting(client, {
+    fixedProxyUrls, residentialProxyUrl, pattern,
+    residentialDailyByteLimit: opts.residentialDailyByteLimit ?? Number(process.env.FIP_RESIDENTIAL_DAILY_BYTE_LIMIT ?? 75_000_000),
+  });
+  // Route failover owns FIP retries. Keep normal axios retries for other providers.
+  axiosRetry(client, {
+    retries: opts.maxRetries ?? 3,
+    retryDelay: axiosRetry.exponentialDelay,
+    retryCondition: err => !(err.config as { fipRoute?: string } | undefined)?.fipRoute && (
+      axiosRetry.isNetworkOrIdempotentRequestError(err) ||
+      (err.response?.status !== undefined && err.response.status >= 500)
+    ),
+  });
   return client;
 }
 
