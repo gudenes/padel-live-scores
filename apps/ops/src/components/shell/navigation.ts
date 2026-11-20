@@ -5,7 +5,10 @@ type Group = { label?: string; items: Item[] }
 export const GROUPS: Group[] = [
   { items: [
     { href: '/today', label: 'Today', icon: 'today' },
-    { href: '/growth', label: 'Growth', icon: 'users' },
+    { href: '/growth', label: 'Growth', icon: 'users', children: [
+      { href: '/growth', label: 'Overview' },
+      { href: '/growth/integrations', label: 'Integrations' },
+    ] },
     { href: '/odds', label: 'Live Odds', icon: 'odds', pill: 'live', children: [
       { href: '/today', label: 'Overview' },
       { href: '/odds/calibration', label: 'Calibration' },

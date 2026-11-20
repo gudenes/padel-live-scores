@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError, type AxiosAdapter } from 'axios';
 import { createHttpClient } from '../lib/http-client.js';
-import { getProxyRouteStats, resetProxyRouteStats } from '../lib/fip-proxy-routing.js';
+import { getProxyRouteStats, resetProxyRouteStats, getProxyRoutingHealth } from '../lib/fip-proxy-routing.js';
 const fixedProxyUrls = ['http://user:password@fixed1.test:80', 'http://user:password@fixed2.test:80'];
 const residentialProxyUrl = 'http://user:password@residential.test:80';
 function setup(statuses: number[], residentialDailyByteLimit?: number) {
@@ -32,6 +32,13 @@ describe('fixed primary and residential fallback', () => {
     expect(seen.map(c => c.fipRoute)).toEqual(['fixed_1', 'fixed_2', 'residential']);
     expect(getProxyRouteStats()).toEqual({ fixed_1: { requests: 1, failures: 1, bytes: 10 }, fixed_2: { requests: 1, failures: 1, bytes: 10 }, residential: { requests: 1, failures: 0, bytes: 10 } });
     expect(JSON.stringify(getProxyRouteStats())).not.toContain('password');
+    const health = getProxyRoutingHealth();
+    expect(health.policy).toMatchObject({ fixed_routes: 2, residential_configured: true });
+    expect(health.routes.fixed_1).toMatchObject({ lastFailed: true, lastStatus: 403 });
+    expect(health.routes.fixed_1.cooldownUntil).not.toBeNull();
+    expect(health.routes.residential).toMatchObject({ lastFailed: false, lastStatus: 200 });
+    expect(health.routes.residential.lastSuccessAt).not.toBeNull();
+    expect(JSON.stringify(health)).not.toContain('password');
   });
   it('does not mistake a FIP hostname in another URL path for a FIP host', async () => {
     const { client, seen } = setup([200]);

@@ -95,7 +95,7 @@ export default async function Page() {
       <PageHeader
         title="Growth & Adoption"
         subtitle="Are we acquiring users, and are they adopting the product? Last 30 days vs the 30 before."
-        actions={<Link href="/system/seo" style={{ color: 'var(--text-3)', textDecoration: 'none' }}>SEO detail →</Link>}
+        actions={<div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}><Link href="/growth/integrations">Integrations & usage →</Link><Link href="/system/seo" style={{ color: 'var(--text-3)', textDecoration: 'none' }}>SEO detail →</Link></div>}
       />
 
       <KpiStrip cols={4}>

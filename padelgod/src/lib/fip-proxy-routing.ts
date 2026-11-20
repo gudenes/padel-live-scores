@@ -14,6 +14,11 @@ interface RoutedConfig extends InternalAxiosRequestConfig {
 }
 interface RouteStats { requests: number; failures: number; bytes: number }
 const stats = new Map<string, RouteStats>();
+const routeStatus = new Map<string, { lastAttemptAt: string | null; lastSuccessAt: string | null; lastStatus: number | null; lastFailed: boolean; cooldownUntil: string | null }>();
+let policy = { fixed_routes: 0, residential_configured: false, residential_daily_byte_limit: 75_000_000 };
+export function getProxyRoutingHealth() {
+  return { policy: { ...policy }, routes: Object.fromEntries([...routeStatus].map(([key, value]) => [key, { ...value }])) };
+}
 let residentialDay = '';
 let residentialBytes = 0;
 function dailyResidentialBytes(): number {
@@ -27,7 +32,7 @@ export function getResidentialUsage() {
 export function getProxyRouteStats(): Record<string, RouteStats> {
   return Object.fromEntries([...stats].map(([key, value]) => [key, { ...value }]));
 }
-export function resetProxyRouteStats(): void { stats.clear(); residentialDay = ''; residentialBytes = 0; }
+export function resetProxyRouteStats(): void { stats.clear(); routeStatus.clear(); residentialDay = ''; residentialBytes = 0; }
 
 function isRead(config: RoutedConfig): boolean {
   if (['get', 'head'].includes((config.method ?? 'get').toLowerCase())) return true;
@@ -58,6 +63,8 @@ export function installFipProxyRouting(client: AxiosInstance, opts: FipProxyOpti
   if (!routes.length) return;
   const byteLimit = opts.residentialDailyByteLimit ?? 75_000_000;
   if (!Number.isFinite(byteLimit) || byteLimit < 0) throw new Error('Invalid residential daily byte limit');
+  policy = { fixed_routes: opts.fixedProxyUrls.length, residential_configured: Boolean(opts.residentialProxyUrl), residential_daily_byte_limit: byteLimit };
+  for (const route of routes) routeStatus.set(route.name, { lastAttemptAt: null, lastSuccessAt: null, lastStatus: null, lastFailed: false, cooldownUntil: null });
   const allowed = (route: typeof routes[number]) => route.name !== 'residential' || dailyResidentialBytes() < byteLimit;
   const matches = (url = '') => { opts.pattern.lastIndex = 0; return opts.pattern.test(url); };
   client.interceptors.request.use((config: RoutedConfig) => {
@@ -78,6 +85,9 @@ export function installFipProxyRouting(client: AxiosInstance, opts: FipProxyOpti
   });
   const record = (response: any, failed: boolean, config: RoutedConfig) => {
     if (!config?.fipRoute) return;
+    const time = new Date().toISOString();
+    const previousStatus = routeStatus.get(config.fipRoute);
+    routeStatus.set(config.fipRoute, { lastAttemptAt: time, lastSuccessAt: failed ? previousStatus?.lastSuccessAt ?? null : time, lastStatus: response?.status ?? null, lastFailed: failed, cooldownUntil: null });
     const previous = stats.get(config.fipRoute) ?? { requests: 0, failures: 0, bytes: 0 };
     const body = response?.data;
     const length = Number(response?.headers?.['content-length']);
@@ -98,6 +108,8 @@ export function installFipProxyRouting(client: AxiosInstance, opts: FipProxyOpti
     const route = routes.find(r => r.name === config.fipRoute)!;
     const retryAfter = Number(error.response?.headers?.['retry-after']);
     route.retryAt = Date.now() + Math.max(opts.cooldownMs ?? 300_000, Number.isFinite(retryAfter) ? retryAfter * 1000 : 0);
+    const current = routeStatus.get(route.name);
+    if (current) current.cooldownUntil = new Date(route.retryAt).toISOString();
     if (!routes.some(r => !config.fipAttemptedRoutes?.includes(r.name) && r.retryAt <= Date.now() && allowed(r))) throw error;
     return client.request(config);
   });
