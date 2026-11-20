@@ -1,3 +1,2 @@
-import { IntegrationMonitorView } from './IntegrationMonitorView'
-export const metadata = { title: 'Integrations · Growth · PadelNachos Admin' }
-export default function Page() { return <IntegrationMonitorView /> }
+import { redirect } from 'next/navigation'
+export default function Page() { redirect('/growth?view=integrations') }
