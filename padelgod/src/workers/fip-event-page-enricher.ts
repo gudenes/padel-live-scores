@@ -56,7 +56,6 @@ export interface TournamentRow {
 }
 
 const FIP_BASE = 'https://www.padelfip.com';
-const PAGE_FETCH_HEADERS = { 'User-Agent': 'PadelNachos/1.0 (padelgod)' };
 const ENRICH_BATCH_LIMIT = 200;
 // Polite throttle between FIP page fetches. Right after deploy the
 // worker can burst ~200 sequential page fetches before all rows have
@@ -161,7 +160,7 @@ export async function runFipEventPageEnricher(
 
     try {
       const url = buildEventPageUrl(slug);
-      const resp = await deps.httpClient.get(url, { headers: PAGE_FETCH_HEADERS });
+      const resp = await deps.httpClient.get(url);
       const html = String(resp.data);
 
       const dates = parseEventDates(html);

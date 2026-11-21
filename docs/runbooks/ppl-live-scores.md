@@ -71,3 +71,9 @@ node --env-file=/absolute/path/to/.env.local --import tsx scripts/audit-ppl-iden
 For the live acceptance check, compare both sides, sets, current points and serving pair with the official match center over several real transitions. Confirm changes advance with source revision, verify the final transition and reconnect/retry without duplication. Keep production writes off while doing this.
 
 `ENABLE_PPL_LIVE=false` and `PPL_LIVE_DRY_RUN=true` are the defaults. Admin/manual worker invocations always use dry run. Neither flag has been changed in production. Applying the migration or enabling writes requires a separate deployment decision after the real-live test.
+
+## Final review scope (21 November)
+
+PPL appears as a tournament in Home, ordered below Gold and above Silver. Individual PPL live cards below the carousel were removed after visual review; current scores remain inside the tournament and Matches views. PPL tournament match lists require all four canonical player IDs, while unresolved fixtures remain stored for later lineup resolution.
+
+The local preview now reads other tournaments from real Supabase through a GET-only bridge and overlays an isolated PPL database. A current official-source run imported 24 Las Vegas fixtures: 20 finished with canonical lineups and 4 unassigned, hidden fixtures; no live source match was active. Tournament and Matches loads were checked. The preview route, bridge scripts and demo data are excluded from this PR. The separate FIP date investigation, repair and migration are excluded.

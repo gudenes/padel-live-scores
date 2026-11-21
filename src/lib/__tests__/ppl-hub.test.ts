@@ -40,6 +40,7 @@ describe('eventCityFromSlug', () => {
     expect(eventCityFromSlug('los-angeles-ppl-ii-2026')).toBe('Los Angeles')
     expect(eventCityFromSlug('playa-del-carmen-ppl-ii-2026')).toBe('Playa del Carmen')
     expect(eventCityFromSlug('miami-2026')).toBe('Miami')
+    expect(eventCityFromSlug('mgm-pro-padel-league-las-vegas-2026')).toBe('Las Vegas')
   })
 
   it('gives the SAME city for both divisions of one stop', () => {

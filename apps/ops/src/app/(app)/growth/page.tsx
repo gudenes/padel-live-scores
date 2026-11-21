@@ -5,9 +5,11 @@
 // until their integrations land.
 
 import Link from 'next/link'
+import { OperationsDashboard, type OperationsView } from './OperationsDashboard'
+import styles from './operations.module.css'
 import { getReportAccess } from '@/lib/growth/report-access'
 import { ReportAccessPanel } from './_components/ReportAccessPanel'
-import { PageHeader, Panel, KpiStrip, Kpi, EmptyState } from '@/components/ui'
+import { Panel, KpiStrip, Kpi, EmptyState } from '@/components/ui'
 import { getRecentSnapshots, getLatestIngestDay, getTopQueries } from '@/lib/seo/seo-queries'
 import { sumWindow, windowDelta } from '@/lib/seo/seo-compute'
 import type { SnapshotRow, WindowDelta } from '@/lib/seo/seo-compute'
@@ -28,7 +30,7 @@ import { fetchNotificationCatalog, fetchRecentSends } from '@/lib/growth/notific
 import { summarizeCatalog, sortCatalog, recentRealSends } from '@/lib/growth/notifications-compute'
 
 export const dynamic = 'force-dynamic'
-export const metadata = { title: 'Growth & Adoption · PadelNachos Admin' }
+export const metadata = { title: 'Operations Dashboard · PadelNachos Admin' }
 
 const WINDOW_DAYS = 30
 
@@ -53,7 +55,16 @@ function KpiWithDelta({ label, value, delta, tone }: { label: string; value: str
   )
 }
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const requested = (await searchParams).view
+  const view: OperationsView = requested === 'growth' || requested === 'integrations' ? requested : 'overview'
+  try { return await renderDashboard(view) }
+  catch {
+    const unavailable = <div className={styles.unavailable}><strong>Growth data is temporarily unavailable.</strong><br />Service health and consumption can still be checked. Refresh the page to retry growth data.</div>
+    return <OperationsDashboard key={view} initialView={view} summary={unavailable} growth={unavailable} />
+  }
+}
+async function renderDashboard(initialView: OperationsView) {
   const [signupRows, totalUsers, locales, push, snapshots, latestIngest, ph, dauRows, catalogRaw, allSends, beta, reportAccess] = await Promise.all([
     getDailySignups(WINDOW_DAYS * 2),
     getTotalUsers(),
@@ -90,13 +101,9 @@ export default async function Page() {
 
   const localeTotal = locales.reduce((a, l) => a + l.n, 0)
 
-  return (
-    <div className="ui-page">
-      <PageHeader
-        title="Growth & Adoption"
-        subtitle="Are we acquiring users, and are they adopting the product? Last 30 days vs the 30 before."
-        actions={<Link href="/system/seo" style={{ color: 'var(--text-3)', textDecoration: 'none' }}>SEO detail →</Link>}
-      />
+  const growth = (
+    <div>
+      <header className={styles.growthHeader}><div><h2>Growth & adoption</h2><p>Acquisition, engagement and retention. Last 30 days versus the previous 30.</p></div><Link href="/system/seo">SEO detail →</Link></header>
 
       <KpiStrip cols={4}>
         <Kpi label="Total users" tone="lime" value={totalUsers.toLocaleString()} />
@@ -222,4 +229,16 @@ export default async function Page() {
       `}</style>
     </div>
   )
+  return <OperationsDashboard key={initialView} initialView={initialView} growth={growth} summary={
+    <KpiStrip cols={4}>
+      <Kpi label="Total users" tone="lime" value={totalUsers.toLocaleString()} />
+      <KpiWithDelta label="New signups · 30d" tone="lime" value={sw.current.toLocaleString()} delta={signupDelta} />
+      <KpiWithDelta label="New push opt-ins · 30d" tone="warn" value={push.newCurrent.toLocaleString()} delta={pushDelta} />
+      <KpiWithDelta label="Organic clicks · 7d" tone="neutral" value={cur.clicks.toLocaleString()} delta={clicksDelta} />
+    </KpiStrip>
+  } trends={<div className={styles.trends}>
+    <Panel title="Daily signups · last 30 days"><SignupsChart data={signups.slice(-WINDOW_DAYS)} /></Panel>
+    <Panel title="Organic search clicks · 90 days"><ClicksChart data={clickSeries} /></Panel>
+  </div>} />
+
 }

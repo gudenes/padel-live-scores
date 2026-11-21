@@ -291,8 +291,9 @@ export default function PplHubPage() {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: '#E2E8F0' }}>{city}</div>
                 <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
-                  {e.starts_at ? format.dateTime(new Date(e.starts_at), DATE_SHORT) : ''}
-                  {e.ends_at ? ` – ${format.dateTime(new Date(e.ends_at), DATE_SHORT)}` : ''}
+                  {/* Event dates are calendar days stored at UTC midnight, not match instants. */}
+                  {e.starts_at ? format.dateTime(new Date(e.starts_at), { ...DATE_SHORT, timeZone: 'UTC' }) : ''}
+                  {e.ends_at ? ` – ${format.dateTime(new Date(e.ends_at), { ...DATE_SHORT, timeZone: 'UTC' })}` : ''}
                 </div>
               </div>
               {!played && (

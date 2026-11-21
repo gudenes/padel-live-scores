@@ -10,7 +10,9 @@ export interface PageCommand { href: string; label: string; group: string }
 
 export const PAGE_COMMANDS: PageCommand[] = [
   { href: '/today', label: 'Today', group: 'Dashboard' },
-  { href: '/growth', label: 'Growth & Adoption', group: 'Dashboard' },
+  { href: '/growth', label: 'Operations Dashboard', group: 'Dashboard' },
+  { href: '/growth?view=growth', label: 'Growth & Adoption', group: 'Operations' },
+  { href: '/growth/integrations', label: 'Integrations · Usage & Health', group: 'Operations' },
   { href: '/today', label: 'Live Odds', group: 'Dashboard' },
   { href: '/odds/calibration', label: 'Odds · Calibration', group: 'Dashboard' },
   { href: '/odds/methodology', label: 'Odds · Methodology', group: 'Dashboard' },
