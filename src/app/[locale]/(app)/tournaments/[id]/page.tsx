@@ -179,6 +179,9 @@ function hasResolvedPair(m: unknown, pairN: 1 | 2): boolean {
   const p1Name = r[`pair${pairN}_player1_name`]
   const p2Id = r[`pair${pairN}_player2_id`]
   const p2Name = r[`pair${pairN}_player2_name`]
+  const level = (r.tournament as { level?: string } | undefined)?.level
+  // PPL fixtures are created before lineups: show them only once all players are assigned.
+  if (level === 'ppl' || level === 'ppl_ii') return !!(p1Id && p2Id)
   return !!(p1Id || p1Name || p2Id || p2Name)
 }
 
