@@ -72,6 +72,15 @@ const PLAYER_LOOKUP_CHUNK = 200;
 export const ENTRIES_SHRINK_GUARD_MIN_EXISTING = 8;
 export const ENTRIES_SHRINK_GUARD_RATIO = 0.5;
 
+/** A tournament has started once `starts_at` is at or before `now`. Unknown
+ *  (null / unparseable) start dates count as not started, keeping the
+ *  pre-existing behaviour for events without a date. */
+export function isTournamentStarted(startsAt: string | null | undefined, now: Date): boolean {
+  if (!startsAt) return false;
+  const t = Date.parse(startsAt);
+  return Number.isFinite(t) && t <= now.getTime();
+}
+
 export function shouldSkipEntriesShrink(existing: number, next: number): boolean {
   return (
     existing >= ENTRIES_SHRINK_GUARD_MIN_EXISTING &&
@@ -120,6 +129,9 @@ export interface FipEntryListPopulatorResult {
   /** Buckets the shrink guard refused to overwrite (see
    *  shouldSkipEntriesShrink). Non-zero = investigate the snapshot read. */
   entryBucketsSkippedShrink: number;
+  /** player_entered events not claimed because the tournament had already
+   *  started (see isTournamentStarted). */
+  playerEnteredSkippedStarted: number;
   dryRun: boolean;
 }
 
@@ -196,6 +208,7 @@ export async function runFipEntryListPopulator(
     playersUpdated: 0,
     entryBucketsWritten: 0,
     entryBucketsSkippedShrink: 0,
+    playerEnteredSkippedStarted: 0,
     dryRun,
   };
 
@@ -325,11 +338,45 @@ export async function runFipEntryListPopulator(
   // !dryRun, so the map simply stays empty).
   const enteredByTournament = new Map<string, string[]>();
 
+  // "New tournament entry" is only news before play begins. Once a
+  // tournament has started, an entry we're seeing for the first time is a
+  // late discovery (e.g. after the 2026-11-21 truncated-read fix surfaced
+  // 779 never-seen entries, Mexico Major among them) — skip it, and don't
+  // claim the key. Loaded only when sends are possible; on a read error we
+  // fail closed (no player_entered sends this run).
+  const startedTournaments = new Set<string>();
+  let startedLookupFailed = false;
+  if (deps.eventsEnabled && deps.notify && !dryRun) {
+    const tournamentIds = Array.from(new Set(latestRows.map((r) => r.tournament_id)));
+    if (tournamentIds.length > 0) {
+      const { data: tRows, error: tErr } = await supabase
+        .from('tournaments')
+        .select('id, starts_at')
+        .in('id', tournamentIds);
+      if (tErr) {
+        startedLookupFailed = true;
+        logger?.warn(
+          { err: tErr.message },
+          'tournaments starts_at read failed — suppressing player_entered this run',
+        );
+      } else {
+        const nowDate = new Date();
+        for (const t of (tRows ?? []) as Array<{ id: string; starts_at: string | null }>) {
+          if (isTournamentStarted(t.starts_at, nowDate)) startedTournaments.add(t.id);
+        }
+      }
+    }
+  }
+
   const recordPlayerEntered = async (
     tournamentId: string,
     playerId: string,
   ): Promise<void> => {
     if (!deps.eventsEnabled || !deps.notify || !playerId) return;
+    if (startedLookupFailed || startedTournaments.has(tournamentId)) {
+      result.playerEnteredSkippedStarted += 1;
+      return;
+    }
     const key = `player_entered:${tournamentId}:${playerId}`;
     const claimed = await claimNotificationEvent(
       supabase,

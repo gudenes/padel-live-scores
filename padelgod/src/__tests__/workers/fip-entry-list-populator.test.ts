@@ -4,6 +4,7 @@ vi.mock('../../lib/fip-draw-player.js', () => ({ attachFipIdToDrawProfile: async
 import {
   runFipEntryListPopulator,
   shouldSkipEntriesShrink,
+  isTournamentStarted,
 } from '../../workers/fip-entry-list-populator.js';
 
 // ── Test fixtures ────────────────────────────────────────────────────────
@@ -47,6 +48,10 @@ interface Options {
   existingEntryCounts?: Record<string, number>;
   /** Simulated PostgREST db_max_rows: a `.range()` page never returns more. */
   maxRowsPerRequest?: number;
+  /** tournaments.starts_at by id. Missing id → row absent (unknown start). */
+  tournamentStarts?: Record<string, string | null>;
+  /** Make the tournaments starts_at read return an error. */
+  tournamentsReadFails?: boolean;
 }
 
 function fakeSupabase(opts: Options) {
@@ -212,6 +217,21 @@ function fakeSupabase(opts: Options) {
       if (t === 'players') return playersTable();
       if (t === 'notification_events_sent') return notificationEventsSentTable();
       if (t === 'tournament_entries') return tournamentEntriesTable();
+      if (t === 'tournaments') {
+        return {
+          select: (_cols: string) => ({
+            in: (_col: string, ids: string[]) =>
+              opts.tournamentsReadFails
+                ? Promise.resolve({ data: null, error: { message: 'boom' } })
+                : Promise.resolve({
+                    data: ids
+                      .filter((id) => id in (opts.tournamentStarts ?? {}))
+                      .map((id) => ({ id, starts_at: opts.tournamentStarts![id] })),
+                    error: null,
+                  }),
+          }),
+        };
+      }
       throw new Error(`unexpected public table: ${t}`);
     },
   };
@@ -848,5 +868,79 @@ describe('runFipEntryListPopulator', () => {
     expect(shouldSkipEntriesShrink(73, 36)).toBe(true);
     expect(shouldSkipEntriesShrink(7, 1)).toBe(false); // small lists always replace
     expect(shouldSkipEntriesShrink(2, 73)).toBe(false);
+  });
+
+  // ── player_entered only before the tournament starts ────────────────────
+  const FUTURE = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+  async function runWithNotify(opts: Options) {
+    const supabase = fakeSupabase(opts);
+    const { deps, entryPosts } = captureNotify();
+    const res = await runFipEntryListPopulator({
+      supabase: supabase as any, dryRun: false, notify: deps as any, eventsEnabled: true,
+    });
+    return { res, posts: entryPosts() };
+  }
+
+  it('skips player_entered for a tournament that has already started', async () => {
+    const { res, posts } = await runWithNotify({
+      snapshots: [snap('P1', 'A'), snap('P2', 'B')],
+      tournamentStarts: { [TOURNAMENT_ID]: DAY_AGO },
+    });
+    expect(posts).toHaveLength(0);
+    expect(res.playerEnteredSkippedStarted).toBe(2);
+  });
+
+  it('does not claim the key for a started tournament (no permanent burn)', async () => {
+    const supabase = fakeSupabase({
+      snapshots: [snap('P1', 'A')],
+      tournamentStarts: { [TOURNAMENT_ID]: DAY_AGO },
+    });
+    const { deps } = captureNotify();
+    await runFipEntryListPopulator({ supabase: supabase as any, dryRun: false, notify: deps as any, eventsEnabled: true });
+    // A claim would have gone through notification_events_sent; a fresh
+    // claim attempt for the same key must still succeed.
+    const r = await (supabase as any).from('notification_events_sent')
+      .upsert({ event_key: `player_entered:${TOURNAMENT_ID}:new-player-1`, category: 'player_entered' }, {})
+      .select('event_key');
+    expect(r.data).toHaveLength(1);
+  });
+
+  it('still sends player_entered for an upcoming tournament', async () => {
+    const { res, posts } = await runWithNotify({
+      snapshots: [snap('P1', 'A')],
+      tournamentStarts: { [TOURNAMENT_ID]: FUTURE },
+    });
+    expect(posts).toHaveLength(1);
+    expect(res.playerEnteredSkippedStarted).toBe(0);
+  });
+
+  it('gates per tournament: started one silent, upcoming one sends', async () => {
+    const { posts } = await runWithNotify({
+      snapshots: [
+        { ...snap('P1', 'A'), tournament_id: 't-started' },
+        { ...snap('P2', 'B'), tournament_id: 't-upcoming' },
+      ],
+      tournamentStarts: { 't-started': DAY_AGO, 't-upcoming': FUTURE },
+    });
+    expect(posts).toHaveLength(1);
+    expect(posts[0].body).toMatchObject({ metadata: { tournamentId: 't-upcoming' } });
+  });
+
+  it('fails closed: tournaments read error → no player_entered sends', async () => {
+    const { res, posts } = await runWithNotify({
+      snapshots: [snap('P1', 'A')],
+      tournamentsReadFails: true,
+    });
+    expect(posts).toHaveLength(0);
+    expect(res.playerEnteredSkippedStarted).toBe(1);
+  });
+
+  it('isTournamentStarted', () => {
+    const now = new Date('2026-11-21T15:00:00Z');
+    expect(isTournamentStarted('2026-11-21T00:00:00Z', now)).toBe(true);
+    expect(isTournamentStarted('2026-11-22T00:00:00Z', now)).toBe(false);
+    expect(isTournamentStarted(null, now)).toBe(false);
+    expect(isTournamentStarted('garbage', now)).toBe(false);
   });
 });
