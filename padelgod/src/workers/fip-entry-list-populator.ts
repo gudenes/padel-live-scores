@@ -52,8 +52,32 @@ import type { Logger } from 'pino';
 import { claimNotificationEvent } from '../lib/notification-events.js';
 import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
 import { buildEntryTeams, type EntrySnapshotInput } from '../lib/entry-list-teams.js';
+import { paginatedSelect } from '../lib/db-paginate.js';
 
 const SNAPSHOT_LOOKBACK_DAYS = 14;
+
+/** Page size for the snapshot scan. Kept at 1000 (≤ any plausible
+ *  `db_max_rows`) because paginatedSelect treats a short page as the last
+ *  one — a page size above the server cap would stop after page 1. */
+const SNAPSHOT_PAGE_SIZE = 1000;
+
+/** fip_ids per `players.in('fip_id', …)` request. 1.4k ids in one GET is a
+ *  ~13KB URL; chunking keeps every request well under proxy limits. */
+const PLAYER_LOOKUP_CHUNK = 200;
+
+/** Shrink guard for the tournament_entries replace-write. When a bucket
+ *  already holds at least MIN_EXISTING pairs and the fresh build would leave
+ *  fewer than RATIO of them, skip the write and keep the stored list: a
+ *  real entry list doesn't halve between hourly captures, a bad read does. */
+export const ENTRIES_SHRINK_GUARD_MIN_EXISTING = 8;
+export const ENTRIES_SHRINK_GUARD_RATIO = 0.5;
+
+export function shouldSkipEntriesShrink(existing: number, next: number): boolean {
+  return (
+    existing >= ENTRIES_SHRINK_GUARD_MIN_EXISTING &&
+    next < existing * ENTRIES_SHRINK_GUARD_RATIO
+  );
+}
 
 export interface FipEntryListPopulatorDeps {
   supabase: SupabaseClient;
@@ -91,6 +115,11 @@ export interface FipEntryListPopulatorResult {
   playersInserted: number;
   /** Updates of existing players where at least one field changed. */
   playersUpdated: number;
+  /** tournament_entries buckets replace-written this run. */
+  entryBucketsWritten: number;
+  /** Buckets the shrink guard refused to overwrite (see
+   *  shouldSkipEntriesShrink). Non-zero = investigate the snapshot read. */
+  entryBucketsSkippedShrink: number;
   dryRun: boolean;
 }
 
@@ -165,31 +194,43 @@ export async function runFipEntryListPopulator(
     playersSkippedNoChange: 0,
     playersInserted: 0,
     playersUpdated: 0,
+    entryBucketsWritten: 0,
+    entryBucketsSkippedShrink: 0,
     dryRun,
   };
 
   // 1. Read recent entry-list snapshots. Lookback is 14 days — same as
   //    the legacy reconciler. Tournaments with no fresh snapshots in
   //    that window are silently dropped.
+  //
+  //    MUST paginate: the window holds ~50k rows (every tournament × an
+  //    hourly capture). An unranged select was silently truncated at the
+  //    10k db_max_rows cap, so "latest captured_at per bucket" was computed
+  //    over a partial, mostly-old slice and tournament_entries was
+  //    replace-written with 1–5 pairs per event (Mexico Major 2026-11-21
+  //    showed 2 of 73 men's pairs). Ordered by (captured_at, id) so offset
+  //    pages are stable while the fetcher appends new rows.
   const cutoff = new Date(
     Date.now() - SNAPSHOT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const { data: snapshotRows, error: snapErr } = await supabase
-    .schema('padelgod')
-    .from('entry_list_snapshots')
-    .select(
-      'tournament_id, category, fip_id, name, country, captured_at, seed, partner_fip_id, partner_name, draw_type',
-    )
-    .gte('captured_at', cutoff);
+  //    A failed page throws and aborts the run — never continue on a
+  //    partial read.
+  const allRows = await paginatedSelect<EntryListSnapshotRow>(
+    (start, end) =>
+      supabase
+        .schema('padelgod')
+        .from('entry_list_snapshots')
+        .select(
+          'tournament_id, category, fip_id, name, country, captured_at, seed, partner_fip_id, partner_name, draw_type',
+        )
+        .gte('captured_at', cutoff)
+        .order('captured_at', { ascending: true })
+        .order('id', { ascending: true })
+        .range(start, end),
+    { what: 'entry_list_snapshots', pageSize: SNAPSHOT_PAGE_SIZE, maxRows: 500_000 },
+  );
 
-  if (snapErr) {
-    throw new Error(
-      `entry_list_snapshots read failed: ${snapErr.message}`,
-    );
-  }
-
-  const allRows = (snapshotRows ?? []) as EntryListSnapshotRow[];
   const rows = deps.onlyTournamentIds && deps.onlyTournamentIds.size > 0
     ? allRows.filter((r) => deps.onlyTournamentIds!.has(r.tournament_id))
     : allRows;
@@ -253,19 +294,21 @@ export async function runFipEntryListPopulator(
 
   // 4. Fetch existing player rows in one round-trip. Drives the
   //    insert-vs-update branch.
+  //    Chunked: with the full snapshot read this is ~1.4k ids.
   const fipIds = Array.from(byFipId.keys());
-  const { data: existing, error: existErr } = await supabase
-    .from('players')
-    .select('id, fip_id, name, country, category, points')
-    .in('fip_id', fipIds);
-
-  if (existErr) {
-    throw new Error(`players read failed: ${existErr.message}`);
-  }
-
   const existingByFipId = new Map<string, ExistingPlayerRow>();
-  for (const row of (existing ?? []) as ExistingPlayerRow[]) {
-    if (row.fip_id) existingByFipId.set(row.fip_id, row);
+  for (let i = 0; i < fipIds.length; i += PLAYER_LOOKUP_CHUNK) {
+    const chunk = fipIds.slice(i, i + PLAYER_LOOKUP_CHUNK);
+    const { data: existing, error: existErr } = await supabase
+      .from('players')
+      .select('id, fip_id, name, country, category, points')
+      .in('fip_id', chunk);
+    if (existErr) {
+      throw new Error(`players read failed: ${existErr.message}`);
+    }
+    for (const row of (existing ?? []) as ExistingPlayerRow[]) {
+      if (row.fip_id) existingByFipId.set(row.fip_id, row);
+    }
   }
 
   const now = new Date().toISOString();
@@ -514,6 +557,28 @@ export async function runFipEntryListPopulator(
         };
       });
 
+      // Shrink guard: never let a degraded build wipe a good stored list.
+      const { count: existingCount, error: countErr } = await supabase
+        .from('tournament_entries')
+        .select('id', { count: 'exact', head: true })
+        .eq('tournament_id', tournament_id)
+        .eq('category', category);
+      if (countErr) {
+        logger?.warn(
+          { tournament_id, category, err: countErr.message },
+          'tournament_entries count failed — skipping bucket',
+        );
+        continue;
+      }
+      if (shouldSkipEntriesShrink(existingCount ?? 0, insertRows.length)) {
+        result.entryBucketsSkippedShrink += 1;
+        logger?.warn(
+          { tournament_id, category, existing: existingCount, next: insertRows.length },
+          'tournament_entries shrink guard — refusing to replace list with far fewer pairs',
+        );
+        continue;
+      }
+
       // Delete-then-insert is NOT atomic: a crash between the two calls, or an
       // insert failure, leaves this bucket empty until the next run (:46 hourly)
       // repopulates it from the snapshot — bounded, self-healing, never permanent
@@ -539,6 +604,8 @@ export async function runFipEntryListPopulator(
           { tournament_id, category, err: insErr.message },
           'tournament_entries insert failed',
         );
+      } else {
+        result.entryBucketsWritten += 1;
       }
     }
   }

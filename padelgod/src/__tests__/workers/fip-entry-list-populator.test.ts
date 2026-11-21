@@ -1,14 +1,18 @@
 import { describe, it, expect, vi } from 'vitest';
 // Profile adoption behavior is covered by the full-name resolver tests.
 vi.mock('../../lib/fip-draw-player.js', () => ({ attachFipIdToDrawProfile: async () => null }));
-import { runFipEntryListPopulator } from '../../workers/fip-entry-list-populator.js';
+import {
+  runFipEntryListPopulator,
+  shouldSkipEntriesShrink,
+} from '../../workers/fip-entry-list-populator.js';
 
 // ── Test fixtures ────────────────────────────────────────────────────────
 //
 // The fake supabase below is deliberately small — it speaks only the two
 // queries the worker actually issues:
-//   1. supabase.schema('padelgod').from('entry_list_snapshots').select(...).gte(...)
-//   2. supabase.from('players').select(...).in('fip_id', [...])
+//   1. supabase.schema('padelgod').from('entry_list_snapshots').select(...)
+//        .gte(...).order(...).order(...).range(start, end)   (paginated)
+//   2. supabase.from('players').select(...).in('fip_id', [...])   (chunked)
 //   3. supabase.from('players').insert(...) | .update(...).eq('id', ...)
 //
 // Anything else throws so an accidental query shape change shows up
@@ -39,6 +43,10 @@ interface ExistingPlayerSeed {
 interface Options {
   snapshots?: SnapshotSeed[];
   existingPlayers?: ExistingPlayerSeed[];
+  /** Pre-existing tournament_entries row counts, keyed `${tid}::${cat}`. */
+  existingEntryCounts?: Record<string, number>;
+  /** Simulated PostgREST db_max_rows: a `.range()` page never returns more. */
+  maxRowsPerRequest?: number;
 }
 
 function fakeSupabase(opts: Options) {
@@ -53,6 +61,11 @@ function fakeSupabase(opts: Options) {
   // Claim ledger for notification_events_sent — persists across runs that
   // reuse this same fake, mirroring the real once-ever-per-key behaviour.
   const claimedKeys = new Set<string>();
+  // Query-shape telemetry for the pagination / chunking tests.
+  const snapshotRanges: Array<[number, number]> = [];
+  const playerInSizes: number[] = [];
+  const maxRowsPerRequest = opts.maxRowsPerRequest ?? Infinity;
+  const entryCounts = { ...(opts.existingEntryCounts ?? {}) };
 
   // claimNotificationEvent does: .upsert({event_key,category},{ignoreDuplicates})
   //   .select('event_key') → returns [row] on first claim, [] on duplicate.
@@ -75,8 +88,9 @@ function fakeSupabase(opts: Options) {
         if (col !== 'captured_at') {
           throw new Error(`unexpected entry_list_snapshots filter: ${col}`);
         }
-        const data = snapshots
+        const all = snapshots
           .filter((s) => s.captured_at >= val)
+          .sort((a, b) => (a.captured_at < b.captured_at ? -1 : a.captured_at > b.captured_at ? 1 : 0))
           .map((s) => ({
             tournament_id: s.tournament_id,
             category: s.category,
@@ -89,7 +103,19 @@ function fakeSupabase(opts: Options) {
             partner_name: s.partner_name ?? null,
             draw_type: s.draw_type ?? null,
           }));
-        return Promise.resolve({ data, error: null });
+        const builder = {
+          // Unranged read (the pre-fix shape): PostgREST silently returns
+          // only the first db_max_rows rows — oldest first, like prod.
+          then: (resolve: (v: unknown) => unknown) =>
+            resolve({ data: all.slice(0, maxRowsPerRequest), error: null }),
+          order: (_c: string, _o?: unknown) => builder,
+          range: (start: number, end: number) => {
+            snapshotRanges.push([start, end]);
+            const cappedEnd = Math.min(end, start + maxRowsPerRequest - 1);
+            return Promise.resolve({ data: all.slice(start, cappedEnd + 1), error: null });
+          },
+        };
+        return builder;
       },
     }),
   });
@@ -100,6 +126,7 @@ function fakeSupabase(opts: Options) {
         if (col !== 'fip_id') {
           throw new Error(`unexpected players filter: ${col}`);
         }
+        playerInSizes.push(values.length);
         const data = existing
           .filter((p) => p.fip_id != null && values.includes(p.fip_id))
           .map((p) => ({ ...p, points: p.points ?? null }));
@@ -140,6 +167,12 @@ function fakeSupabase(opts: Options) {
   });
 
   const tournamentEntriesTable = () => ({
+    select: (_cols: string, _opts: unknown) => ({
+      eq: (_c1: string, tid: string) => ({
+        eq: (_c2: string, cat: string) =>
+          Promise.resolve({ count: entryCounts[`${tid}::${cat}`] ?? 0, error: null }),
+      }),
+    }),
     delete: () => ({
       eq: (col1: string, val1: string) => ({
         eq: (col2: string, val2: string) => {
@@ -164,6 +197,8 @@ function fakeSupabase(opts: Options) {
     updated,
     entryDeletes,
     entryInserts,
+    snapshotRanges,
+    playerInSizes,
     schema: (name: string) => ({
       from: (t: string) => {
         if (name !== 'padelgod') {
@@ -743,5 +778,75 @@ describe('runFipEntryListPopulator', () => {
     await runFipEntryListPopulator({ supabase: supabase as any, dryRun: true });
     expect(entryDeletes).toHaveLength(0);
     expect(entryInserts).toHaveLength(0);
+  });
+
+  // ── Regression: Mexico Major 2026-11-21 ─────────────────────────────────
+  // The snapshot window (~50k rows) exceeded PostgREST's 10k cap; the
+  // unranged read was truncated to an old partial slice and the Entries tab
+  // was replace-written with 2 of 73 pairs. These pin the paginated read.
+
+  function pairRows(tid: string, n: number, capturedAt: string, prefix: string) {
+    const rows: SnapshotSeed[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = `${prefix}${i}a`;
+      const b = `${prefix}${i}b`;
+      rows.push(
+        { tournament_id: tid, category: 'men', fip_id: a, name: `A${i}`, country: 'ES', captured_at: capturedAt, seed: i + 1, partner_fip_id: b, partner_name: `B${i}`, draw_type: 'main_draw' },
+        { tournament_id: tid, category: 'men', fip_id: b, name: `B${i}`, country: 'ES', captured_at: capturedAt, seed: i + 1, partner_fip_id: a, partner_name: `A${i}`, draw_type: 'main_draw' },
+      );
+    }
+    return rows;
+  }
+
+  it('reads every page past the row cap — the latest capture is not truncated', async () => {
+    const old = pairRows('t-old', 800, DAY_AGO, 'O'); // 1600 older rows fill page 1+
+    const latest = pairRows('t-mx', 73, NOW, 'M'); // the capture that used to be cut off
+    const { supabase, entryInserts, snapshotRanges } = fakeSupabase({
+      snapshots: [...old, ...latest],
+      maxRowsPerRequest: 1000,
+    });
+    await runFipEntryListPopulator({ supabase: supabase as any, dryRun: false });
+    expect(snapshotRanges.length).toBeGreaterThan(1);
+    const mx = entryInserts.filter((r) => r.tournament_id === 't-mx');
+    expect(mx).toHaveLength(73);
+  });
+
+  it('chunks the players lookup so no single .in() carries >200 fip_ids', async () => {
+    const { supabase, playerInSizes } = fakeSupabase({
+      snapshots: pairRows('t1', 300, NOW, 'C'), // 600 distinct fip_ids
+    });
+    await runFipEntryListPopulator({ supabase: supabase as any, dryRun: true });
+    expect(playerInSizes.reduce((a, b) => a + b, 0)).toBe(600);
+    expect(Math.max(...playerInSizes)).toBeLessThanOrEqual(200);
+  });
+
+  it('shrink guard: refuses to replace a stored list with far fewer pairs', async () => {
+    const { supabase, entryDeletes, entryInserts } = fakeSupabase({
+      snapshots: pairRows('t1', 2, NOW, 'S'),
+      existingEntryCounts: { 't1::men': 73 },
+    });
+    const res = await runFipEntryListPopulator({ supabase: supabase as any, dryRun: false });
+    expect(entryDeletes).toHaveLength(0);
+    expect(entryInserts).toHaveLength(0);
+    expect(res.entryBucketsSkippedShrink).toBe(1);
+    expect(res.entryBucketsWritten).toBe(0);
+  });
+
+  it('shrink guard: lets a truncated list recover (2 stored → 73 fresh)', async () => {
+    const { supabase, entryInserts } = fakeSupabase({
+      snapshots: pairRows('t1', 73, NOW, 'R'),
+      existingEntryCounts: { 't1::men': 2 },
+    });
+    const res = await runFipEntryListPopulator({ supabase: supabase as any, dryRun: false });
+    expect(entryInserts).toHaveLength(73);
+    expect(res.entryBucketsWritten).toBe(1);
+  });
+
+  it('shouldSkipEntriesShrink thresholds', () => {
+    expect(shouldSkipEntriesShrink(73, 2)).toBe(true);
+    expect(shouldSkipEntriesShrink(73, 37)).toBe(false); // ≥ 50% kept
+    expect(shouldSkipEntriesShrink(73, 36)).toBe(true);
+    expect(shouldSkipEntriesShrink(7, 1)).toBe(false); // small lists always replace
+    expect(shouldSkipEntriesShrink(2, 73)).toBe(false);
   });
 });
