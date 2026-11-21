@@ -40,6 +40,7 @@ import { runPredictionScorer } from './workers/prediction-scorer.js';
 import { runLiveOddsUpdater } from './workers/live-odds-updater.js';
 import { runPuntuateLiveFetcher } from './workers/puntuate-live-fetcher.js';
 import { runCourtbitLiveFetcher } from './workers/courtbit-live-fetcher.js';
+import { runPplLiveFetcher } from './workers/ppl-live-fetcher.js';
 import { runWebtugaLiveFetcher } from './workers/webtuga-live-fetcher.js';
 import { runPadeldevLiveFetcher } from './workers/padeldev-live-fetcher.js';
 import { runTournamentStartNotifier } from './workers/tournament-start-notifier.js';
@@ -148,6 +149,8 @@ export interface SchedulerFlags {
   puntuateLiveDryRun?: boolean;
   enableCourtbitLive?: boolean;
   courtbitLiveDryRun?: boolean;
+  enablePplLive?: boolean;
+  pplLiveDryRun?: boolean;
   enableWebtugaLive: boolean;
   /** Set WEBTUGA_LIVE_DRY_RUN=false in Railway to enable live DB writes.
    *  Defaults to true so the first deploy is always read-only. */
@@ -246,6 +249,7 @@ export type WorkerName =
   | 'live-odds-updater'
   | 'puntuate-live-fetcher'
   | 'courtbit-live-fetcher'
+  | 'ppl-live-fetcher'
   | 'webtuga-live-fetcher'
   | 'padeldev-live-fetcher'
   | 'tournament-start-notifier'
@@ -294,6 +298,7 @@ export const ALL_WORKERS: WorkerName[] = [
   'live-odds-updater',
   'puntuate-live-fetcher',
   'courtbit-live-fetcher',
+  'ppl-live-fetcher',
   'webtuga-live-fetcher',
   'padeldev-live-fetcher',
   'tournament-start-notifier',
@@ -474,6 +479,8 @@ export function getWorkerRunner(name: string): WorkerRunner | null {
       return (deps) => runPuntuateLiveFetcher(deps, { dryRun: true });
     case 'courtbit-live-fetcher':
       return (deps) => runCourtbitLiveFetcher(deps, { dryRun: true });
+    case 'ppl-live-fetcher':
+      return (deps) => runPplLiveFetcher(deps, { dryRun: true });
     case 'webtuga-live-fetcher':
       return (deps) => runWebtugaLiveFetcher(deps, { dryRun: true });
     case 'padeldev-live-fetcher':
@@ -1027,6 +1034,10 @@ export function buildSchedule(flags: SchedulerFlags): ScheduleEntry[] {
       name: 'courtbit-live-fetcher', cron: '*/5 * * * * *',
       run: (deps) => runCourtbitLiveFetcher(deps, { dryRun: flags.courtbitLiveDryRun ?? true }),
     });
+  }
+  if (flags.enablePplLive) {
+    entries.push({ name: 'ppl-live-fetcher', cron: '*/3 * * * * *',
+      run: (deps) => runPplLiveFetcher(deps, { dryRun: flags.pplLiveDryRun ?? true }) });
   }
   if (flags.enableWebtugaLive) {
     entries.push({

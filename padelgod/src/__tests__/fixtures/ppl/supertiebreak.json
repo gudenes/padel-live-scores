@@ -1,0 +1,373 @@
+{
+  "name": "projects/pro-padel-league/databases/prod-ppl/documents/matches/playa-del-carmen-podium-mens-third",
+  "fields": {
+    "tournamentCategory": {
+      "stringValue": "Men's"
+    },
+    "state": {
+      "mapValue": {
+        "fields": {
+          "match_details": {
+            "mapValue": {
+              "fields": {
+                "match_sex": {
+                  "stringValue": "male"
+                },
+                "scheduled_start_time": {
+                  "stringValue": "2026-09-27T17:30:00.000Z"
+                },
+                "matchSex": {
+                  "stringValue": "male"
+                },
+                "status": {
+                  "stringValue": "completed"
+                },
+                "actual_start_time": {
+                  "stringValue": "2026-09-27T15:04:09.053Z"
+                },
+                "tournament_name": {
+                  "stringValue": "Pro Padel League"
+                },
+                "court_name": {
+                  "stringValue": "—"
+                },
+                "tournament_category": {
+                  "stringValue": "Men's"
+                },
+                "country": {
+                  "stringValue": "—"
+                },
+                "match_id": {
+                  "stringValue": "playa-del-carmen-podium-mens-third"
+                },
+                "venue": {
+                  "stringValue": "—"
+                },
+                "round": {
+                  "stringValue": "—"
+                },
+                "city": {
+                  "stringValue": "—"
+                }
+              }
+            }
+          },
+          "display_helpers": {
+            "mapValue": {
+              "fields": {
+                "is_final_set": {
+                  "booleanValue": true
+                },
+                "leading_team": {
+                  "stringValue": "team_a"
+                },
+                "scoreline_summary": {
+                  "stringValue": "0-6, 6-2, 1-0"
+                },
+                "is_tiebreak_possible": {
+                  "booleanValue": false
+                },
+                "is_match_tiebreak": {
+                  "booleanValue": false
+                }
+              }
+            }
+          },
+          "competitors": {
+            "mapValue": {
+              "fields": {
+                "team_a": {
+                  "mapValue": {
+                    "fields": {
+                      "player_2_name": {
+                        "stringValue": "Juan Ignacio de Pascual"
+                      },
+                      "player_1_name": {
+                        "stringValue": "Luis Hernandez Quesada"
+                      },
+                      "country": {
+                        "stringValue": "—"
+                      },
+                      "seed": {
+                        "nullValue": null
+                      }
+                    }
+                  }
+                },
+                "team_b": {
+                  "mapValue": {
+                    "fields": {
+                      "country": {
+                        "stringValue": "—"
+                      },
+                      "player_1_name": {
+                        "stringValue": "Alejandro \"Alex\" Arroyo"
+                      },
+                      "player_2_name": {
+                        "stringValue": "Valentino Libaak"
+                      },
+                      "seed": {
+                        "nullValue": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "match_state": {
+            "mapValue": {
+              "fields": {
+                "match_clock": {
+                  "stringValue": "00:59:01"
+                },
+                "team_a_on_left": {
+                  "booleanValue": false
+                },
+                "serving_player": {
+                  "mapValue": {
+                    "fields": {
+                      "slot": {
+                        "stringValue": "player_2"
+                      },
+                      "name": {
+                        "stringValue": "Juan Ignacio de Pascual"
+                      },
+                      "team": {
+                        "stringValue": "team_a"
+                      }
+                    }
+                  }
+                },
+                "court_sides_manual_swap": {
+                  "booleanValue": true
+                },
+                "point_log_count": {
+                  "integerValue": "98"
+                },
+                "point_timer": {
+                  "mapValue": {
+                    "fields": {
+                      "started_at_ms": {
+                        "nullValue": null
+                      },
+                      "running": {
+                        "booleanValue": false
+                      },
+                      "captured_elapsed_ms": {
+                        "integerValue": "0"
+                      },
+                      "accumulated_ms": {
+                        "integerValue": "0"
+                      }
+                    }
+                  }
+                },
+                "serving_team": {
+                  "stringValue": "team_a"
+                },
+                "change_over": {
+                  "mapValue": {
+                    "fields": {
+                      "active": {
+                        "booleanValue": false
+                      },
+                      "limit_ms": {
+                        "integerValue": "0"
+                      },
+                      "started_at_ms": {
+                        "nullValue": null
+                      }
+                    }
+                  }
+                },
+                "match_completion_pending": {
+                  "booleanValue": true
+                },
+                "current_set": {
+                  "integerValue": "3"
+                },
+                "last_updated": {
+                  "stringValue": "2026-09-27T16:03:10.613Z"
+                },
+                "game_started": {
+                  "booleanValue": true
+                },
+                "match_phase": {
+                  "stringValue": "complete"
+                }
+              }
+            }
+          },
+          "match_score_summary": {
+            "mapValue": {
+              "fields": {
+                "best_of_sets": {
+                  "integerValue": "3"
+                },
+                "current_point": {
+                  "mapValue": {
+                    "fields": {
+                      "label": {
+                        "stringValue": "Rally point · Team A serving"
+                      },
+                      "team_b_display": {
+                        "stringValue": "0"
+                      },
+                      "golden_point": {
+                        "booleanValue": false
+                      },
+                      "team_a_display": {
+                        "stringValue": "0"
+                      },
+                      "tiebreak_kind": {
+                        "stringValue": "match"
+                      },
+                      "in_tiebreak": {
+                        "booleanValue": false
+                      }
+                    }
+                  }
+                },
+                "set_scores": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "set_number": {
+                              "integerValue": "1"
+                            },
+                            "team_a_games": {
+                              "integerValue": "0"
+                            },
+                            "team_b_games": {
+                              "integerValue": "6"
+                            },
+                            "status": {
+                              "stringValue": "completed"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "set_number": {
+                              "integerValue": "2"
+                            },
+                            "team_a_games": {
+                              "integerValue": "6"
+                            },
+                            "team_b_games": {
+                              "integerValue": "2"
+                            },
+                            "status": {
+                              "stringValue": "completed"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "set_number": {
+                              "integerValue": "3"
+                            },
+                            "team_a_games": {
+                              "integerValue": "1"
+                            },
+                            "team_b_games": {
+                              "integerValue": "0"
+                            },
+                            "status": {
+                              "stringValue": "completed"
+                            },
+                            "is_match_tiebreak": {
+                              "booleanValue": true
+                            },
+                            "match_tiebreak_points": {
+                              "mapValue": {
+                                "fields": {
+                                  "a": {
+                                    "integerValue": "10"
+                                  },
+                                  "b": {
+                                    "integerValue": "6"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "team_a_sets_won": {
+                  "integerValue": "2"
+                },
+                "team_b_sets_won": {
+                  "integerValue": "1"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "seasonId": {
+      "stringValue": "2026"
+    },
+    "gameType": {
+      "stringValue": "male"
+    },
+    "stage": {
+      "stringValue": "3rd Place"
+    },
+    "title": {
+      "stringValue": "Men's 3rd-Place Match"
+    },
+    "leagueId": {
+      "stringValue": "ppl"
+    },
+    "location": {
+      "stringValue": "Playa del Carmen"
+    },
+    "awayTeamId": {
+      "stringValue": "dc-matrix"
+    },
+    "updatedAt": {
+      "timestampValue": "2026-09-27T16:03:11.535Z"
+    },
+    "homeTeamId": {
+      "stringValue": "florida-goats"
+    },
+    "date": {
+      "stringValue": "2026-09-27T08:30:00"
+    },
+    "lineup": {
+      "mapValue": {
+        "fields": {
+          "awayLeft": {
+            "stringValue": "alejandro-alex-arroyo"
+          },
+          "homeRight": {
+            "stringValue": "juan-ignacio-de-pascual"
+          },
+          "homeLeft": {
+            "stringValue": "luis-hernandez-quesada"
+          },
+          "awayRight": {
+            "stringValue": "valentino-libaak"
+          }
+        }
+      }
+    },
+    "tournamentId": {
+      "stringValue": "playa-del-carmen"
+    }
+  },
+  "createTime": "2026-08-24T22:42:08.846911Z",
+  "updateTime": "2026-09-27T16:03:11.700815Z"
+}

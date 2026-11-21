@@ -1,0 +1,358 @@
+{
+  "name": "projects/pro-padel-league/databases/prod-ppl/documents/matches/playa-del-carmen-d4-m1-womens",
+  "fields": {
+    "updatedAt": {
+      "timestampValue": "2026-09-26T19:01:32.735Z"
+    },
+    "awayTeamId": {
+      "stringValue": "florida-goats"
+    },
+    "leagueId": {
+      "stringValue": "ppl"
+    },
+    "sessionNumber": {
+      "integerValue": "4"
+    },
+    "seasonId": {
+      "stringValue": "2026"
+    },
+    "tournamentCategory": {
+      "stringValue": "Women's"
+    },
+    "homeTeamId": {
+      "stringValue": "new-york-atlantics"
+    },
+    "location": {
+      "stringValue": "Playa del Carmen"
+    },
+    "stage": {
+      "stringValue": "Group Stage"
+    },
+    "state": {
+      "mapValue": {
+        "fields": {
+          "match_state": {
+            "mapValue": {
+              "fields": {
+                "court_sides_manual_swap": {
+                  "booleanValue": true
+                },
+                "game_started": {
+                  "booleanValue": true
+                },
+                "match_completion_pending": {
+                  "booleanValue": true
+                },
+                "point_timer": {
+                  "mapValue": {
+                    "fields": {
+                      "started_at_ms": {
+                        "nullValue": null
+                      },
+                      "accumulated_ms": {
+                        "integerValue": "0"
+                      },
+                      "captured_elapsed_ms": {
+                        "integerValue": "0"
+                      },
+                      "running": {
+                        "booleanValue": false
+                      }
+                    }
+                  }
+                },
+                "match_phase": {
+                  "stringValue": "complete"
+                },
+                "match_clock": {
+                  "stringValue": "03:46:54"
+                },
+                "serving_player": {
+                  "mapValue": {
+                    "fields": {
+                      "team": {
+                        "stringValue": "team_a"
+                      },
+                      "name": {
+                        "stringValue": "Marta Talavan"
+                      },
+                      "slot": {
+                        "stringValue": "player_2"
+                      }
+                    }
+                  }
+                },
+                "point_log_count": {
+                  "integerValue": "116"
+                },
+                "current_set": {
+                  "integerValue": "2"
+                },
+                "last_updated": {
+                  "stringValue": "2026-09-26T16:38:25.469Z"
+                },
+                "change_over": {
+                  "mapValue": {
+                    "fields": {
+                      "active": {
+                        "booleanValue": false
+                      },
+                      "limit_ms": {
+                        "integerValue": "0"
+                      },
+                      "started_at_ms": {
+                        "nullValue": null
+                      }
+                    }
+                  }
+                },
+                "team_a_on_left": {
+                  "booleanValue": false
+                },
+                "serving_team": {
+                  "stringValue": "team_a"
+                }
+              }
+            }
+          },
+          "match_details": {
+            "mapValue": {
+              "fields": {
+                "country": {
+                  "stringValue": "—"
+                },
+                "tournament_name": {
+                  "stringValue": "Pro Padel League"
+                },
+                "matchSex": {
+                  "stringValue": "female"
+                },
+                "city": {
+                  "stringValue": "—"
+                },
+                "status": {
+                  "stringValue": "completed"
+                },
+                "court_name": {
+                  "stringValue": "—"
+                },
+                "actual_start_time": {
+                  "stringValue": "2026-09-26T15:14:36.760Z"
+                },
+                "tournament_category": {
+                  "stringValue": "Women's"
+                },
+                "match_id": {
+                  "stringValue": "playa-del-carmen-d4-m1-womens"
+                },
+                "match_sex": {
+                  "stringValue": "female"
+                },
+                "scheduled_start_time": {
+                  "stringValue": "2026-09-26T17:30:00.000Z"
+                },
+                "round": {
+                  "stringValue": "—"
+                },
+                "venue": {
+                  "stringValue": "—"
+                }
+              }
+            }
+          },
+          "display_helpers": {
+            "mapValue": {
+              "fields": {
+                "leading_team": {
+                  "stringValue": "team_a"
+                },
+                "is_final_set": {
+                  "booleanValue": false
+                },
+                "scoreline_summary": {
+                  "stringValue": "6-4, 6-4"
+                },
+                "is_match_tiebreak": {
+                  "booleanValue": false
+                },
+                "is_tiebreak_possible": {
+                  "booleanValue": false
+                }
+              }
+            }
+          },
+          "competitors": {
+            "mapValue": {
+              "fields": {
+                "team_a": {
+                  "mapValue": {
+                    "fields": {
+                      "player_2_name": {
+                        "stringValue": "Marta Talavan"
+                      },
+                      "country": {
+                        "stringValue": "—"
+                      },
+                      "seed": {
+                        "nullValue": null
+                      },
+                      "player_1_name": {
+                        "stringValue": "Sofia Saiz Vallejo"
+                      }
+                    }
+                  }
+                },
+                "team_b": {
+                  "mapValue": {
+                    "fields": {
+                      "player_1_name": {
+                        "stringValue": "Noa Canovas"
+                      },
+                      "seed": {
+                        "nullValue": null
+                      },
+                      "country": {
+                        "stringValue": "—"
+                      },
+                      "player_2_name": {
+                        "stringValue": "Carolina Orsi"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "match_score_summary": {
+            "mapValue": {
+              "fields": {
+                "current_point": {
+                  "mapValue": {
+                    "fields": {
+                      "golden_point": {
+                        "booleanValue": false
+                      },
+                      "in_tiebreak": {
+                        "booleanValue": false
+                      },
+                      "team_a_display": {
+                        "stringValue": "0"
+                      },
+                      "team_b_display": {
+                        "stringValue": "0"
+                      },
+                      "label": {
+                        "stringValue": "Rally point · Team A serving"
+                      }
+                    }
+                  }
+                },
+                "team_a_sets_won": {
+                  "integerValue": "2"
+                },
+                "set_scores": {
+                  "arrayValue": {
+                    "values": [
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "team_b_games": {
+                              "integerValue": "4"
+                            },
+                            "team_a_games": {
+                              "integerValue": "6"
+                            },
+                            "set_number": {
+                              "integerValue": "1"
+                            },
+                            "status": {
+                              "stringValue": "completed"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "team_b_games": {
+                              "integerValue": "4"
+                            },
+                            "team_a_games": {
+                              "integerValue": "6"
+                            },
+                            "set_number": {
+                              "integerValue": "2"
+                            },
+                            "status": {
+                              "stringValue": "completed"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "mapValue": {
+                          "fields": {
+                            "set_number": {
+                              "integerValue": "3"
+                            },
+                            "status": {
+                              "stringValue": "upcoming"
+                            },
+                            "team_a_games": {
+                              "integerValue": "0"
+                            },
+                            "team_b_games": {
+                              "integerValue": "0"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "team_b_sets_won": {
+                  "integerValue": "0"
+                },
+                "best_of_sets": {
+                  "integerValue": "3"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "title": {
+      "stringValue": "New York Atlantics vs Florida Goats"
+    },
+    "date": {
+      "stringValue": "2026-09-26T10:00:00"
+    },
+    "tournamentId": {
+      "stringValue": "playa-del-carmen"
+    },
+    "lineup": {
+      "mapValue": {
+        "fields": {
+          "awayRight": {
+            "stringValue": "carolina-orsi"
+          },
+          "homeRight": {
+            "stringValue": "marta-talavan"
+          },
+          "awayLeft": {
+            "stringValue": "noa-canovas"
+          },
+          "homeLeft": {
+            "stringValue": "sofia-saiz-vallejo"
+          }
+        }
+      }
+    },
+    "gameType": {
+      "stringValue": "female"
+    }
+  },
+  "createTime": "2026-08-24T22:42:06.401727Z",
+  "updateTime": "2026-09-26T19:01:32.934687Z"
+}

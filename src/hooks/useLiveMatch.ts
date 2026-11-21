@@ -50,6 +50,8 @@ export function useLiveMatch(
   fallback: Match,
 ): Match {
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null)
+  const level = (fallback as Match & { tournament?: { level?: string | null } }).tournament?.level
+  const pollPpl = level === 'ppl' || level === 'ppl_ii'
 
   useEffect(() => {
     // When disabled, render falls back to the parent prop via the
@@ -59,14 +61,29 @@ export function useLiveMatch(
     if (!enabled) return
 
     let cancelled = false
+    let inFlight = false
+    let terminal = false
 
     const refetch = async () => {
-      const next = await fetchMatchById(supabase, matchId)
-      if (cancelled || !next) return
-      setSnapshot({ id: matchId, match: next })
+      if (cancelled || (pollPpl && inFlight)) return
+      inFlight = true
+      try {
+        const next = await fetchMatchById(supabase, matchId)
+        if (cancelled || !next) return
+        terminal = ['finished', 'retired', 'walkover', 'cancelled'].includes(next.status)
+        setSnapshot({ id: matchId, match: next })
+      } finally { inFlight = false }
     }
 
     refetch()
+    // PPL's current-score snapshots do not require a full point history.
+    // Keep visible cards fresh even if a realtime connection drops; never
+    // overlap requests or keep polling a completed match/background tab.
+    const poll = () => {
+      if (!terminal && document.visibilityState === 'visible') void refetch()
+    }
+    const timer = pollPpl ? setInterval(poll, 3000) : null
+    if (pollPpl) document.addEventListener('visibilitychange', poll)
 
     const channel = supabase
       .channel(`match-${matchId}`)
@@ -89,9 +106,11 @@ export function useLiveMatch(
 
     return () => {
       cancelled = true
+      if (timer) clearInterval(timer)
+      if (pollPpl) document.removeEventListener('visibilitychange', poll)
       supabase.removeChannel(channel)
     }
-  }, [matchId, enabled])
+  }, [matchId, enabled, pollPpl])
 
   // Only return the live snapshot if (a) we're enabled and (b) it
   // belongs to the current matchId. The `enabled` gate ensures a stale
