@@ -1,10 +1,11 @@
-export const RELEASE_KEY = 'pn_release_world_cup_smart_schedule_2026_11'
-// Fifteen days after the November 4 production release (09:52:32 UTC).
-export const RELEASE_END = Date.parse('2026-11-19T09:52:32Z')
+export const RELEASE_KEY = 'pn_release_live_race_match_points_2026_11'
+// New campaign: one impression per browser, across browsing screens.
+export const RELEASE_START = Date.parse('2026-11-22T00:00:00Z')
+export const RELEASE_END = Date.parse('2026-12-07T00:00:00Z')
 let seenInMemory = false
 
 export function releaseEligible(pathname: string, now = Date.now()) {
-  return now < RELEASE_END && /^\/(home|matches|tournaments|rankings|following)\/?$/.test(pathname)
+  return now >= RELEASE_START && now < RELEASE_END && /^\/(home|matches|tournaments|rankings|following)\/?$/.test(pathname)
 }
 
 export function hasSeenRelease() {
