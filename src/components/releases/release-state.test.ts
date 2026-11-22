@@ -11,8 +11,8 @@ describe('release campaign', () => {
     expect(releaseEligible('/home', Date.parse('2026-11-23T12:00:00Z'))).toBe(true)
     expect(releaseEligible('/home', Date.parse('2026-12-08T12:00:00Z'))).toBe(false)
   })
-  it('persists an impression and recognizes it after remount/reload', async () => {
-    const data = new Map<string, string>([['pn_release_world_cup_smart_schedule_2026_11', 'seen']])
+  it('shows the revised campaign after the previous one, then persists it across reloads', async () => {
+    const data = new Map<string, string>([['pn_release_live_race_match_points_2026_11', 'seen']])
     vi.stubGlobal('localStorage', { getItem: (key: string) => data.get(key), setItem: (key: string, value: string) => data.set(key, value) })
     const state = await import('./release-state')
     expect(state.hasSeenRelease()).toBe(false)
