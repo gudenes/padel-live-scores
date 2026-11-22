@@ -15,7 +15,7 @@ vi.mock('./ReleasePopup', () => ({ default: function MockReleasePopup({ onShown,
 } }))
 import ProductRelease from './ProductRelease'
 beforeEach(() => {
-  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-04T12:00:00Z'))
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-23T12:00:00Z'))
   Object.assign(state, { pathname: '/home', decided: true, login: false, seen: false })
   Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
 })

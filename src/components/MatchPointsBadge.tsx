@@ -72,7 +72,7 @@ export default function MatchPointsBadge({ points, loserPoints, qualifying = fal
 }
 
 /** Editorial-style pair illustrations: celebration versus regrouping. */
-function PairIllustration({ winner }: { winner: boolean }) {
+export function PairIllustration({ winner }: { winner: boolean }) {
   const shirt = winner ? '#a2eb4d' : '#93b6e0'
   const trim = winner ? '#568d26' : '#506e98'
   return <svg viewBox="0 0 140 90" width="120" height="76" aria-hidden="true" style={{ display: 'block', margin: '0 auto 4px', maxWidth: '100%' }}>
