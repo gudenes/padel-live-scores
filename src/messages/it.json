@@ -1865,10 +1865,10 @@
     "invite": {
       "dismiss": "Non ora",
       "title": "Chi conosce meglio il padel?",
-      "body": "Invita i tuoi amici. Giocate e confrontate i pronostici.",
+      "body": "Invita i tuoi amici. Ricevete entrambi 500 Guacas extra quando un nuovo amico accetta il tuo invito.",
       "receiveTitle": "I tuoi amici sono già qui.",
-      "receiveBody": "Unisciti a Padel Predict. Fai pronostici, ottieni Guacas e scala la classifica.",
-      "label": "PADEL PREDICT · SU INVITO",
+      "receiveBody": "Entra in Padel Predict con questo invito: tu e il tuo amico ricevete 500 Guacas extra ciascuno.",
+      "label": "PADEL PREDICT",
       "share": "CONDIVIDI INVITO",
       "copy": "COPIA LINK",
       "copied": "Link copiato!",
@@ -2705,5 +2705,17 @@
     "how": "Come funzionano i punti Race",
     "explanation": "Nel 2026, la Race conta i 22 migliori risultati di ogni giocatore nel Premier Padel e nel CUPRA FIP Tour. Un nuovo risultato può sostituirne uno precedente, quindi il guadagno netto può essere inferiore ai punti del torneo.",
     "reconcile": "La classifica live è provvisoria. Quando la FIP pubblica una nuova classifica, questa diventa la base ufficiale. Essere oggi tra i primi 16 non garantisce la qualificazione."
+  },
+  "predictLaunch": {
+    "eyebrow": "Tocca a te giocare",
+    "title": "Il prossimo punto è tuo.",
+    "body": "Gioca con gli amici. Dimostra quanto conosci il padel.",
+    "prize": "Buono regalo Amazon da 50 € per il vincitore della classifica settimanale.",
+    "free": "Gioca gratis. Guacas virtuali.",
+    "virtual": "Nessuna scommessa con denaro reale.",
+    "cta": "Inizia a giocare",
+    "label": "Lancio di Padel Predict",
+    "dismiss": "Chiudi banner",
+    "imageAlt": "Amici giocano a padel con il buono regalo Amazon da 50 € del premio settimanale"
   }
 }

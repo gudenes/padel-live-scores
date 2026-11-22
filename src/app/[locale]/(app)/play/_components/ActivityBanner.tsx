@@ -51,7 +51,7 @@ export default function ActivityBanner({ active, onOpen }: { active: boolean; on
       {trade ? <div className={styles.content} key={trade.id}>
         <TradeAvatar trade={trade} size={32} interactive={false} />
         <div className={styles.copy}>
-          <div className={styles.line}><strong>{trade.isMe ? t('courtside.you') : trade.displayName || t('activity.someone')}</strong><span className={styles.side} data-side={trade.side}>{t(`deck.${trade.side}`)}</span><b>{formatGuacas(trade.guacas, locale)} <GuacaCoin size={16} /></b>{trade.isSimulation && <span className={styles.simulated}>{t('courtside.simulated')}</span>}</div>
+          <div className={styles.line}><strong>{trade.isMe ? t('courtside.you') : trade.displayName || t('activity.someone')}</strong><span className={styles.side} data-side={trade.side}>{t(`deck.${trade.side}`)}</span><b>{formatGuacas(trade.guacas, locale)} <GuacaCoin size={16} /></b></div>
           <div className={styles.meta}><span className={styles.question}>{trade.question}</span><small>{trade.marketStatus && trade.marketStatus !== 'open' && <>{t('results.closed')} · </>}{trade.direction === 'sell' && <>{t('activity.sold')} · </>}{failed ? t('courtside.error') : relativeShort(trade.createdAt, now, timeLabels)}</small></div>
         </div><span className={styles.arrow} aria-hidden>↗</span>
       </div> : <span className={styles.empty}>{t(failed ? 'courtside.error' : loaded ? 'ticker.empty' : 'courtside.loading')}</span>}

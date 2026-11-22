@@ -2,7 +2,7 @@ import {beforeEach,expect,it,vi} from 'vitest'
 const m=vi.hoisted(()=>({auth:vi.fn(),enabled:vi.fn(),allowed:vi.fn(),read:vi.fn(),rpc:vi.fn(),origin:vi.fn()}))
 vi.mock('@/auth',()=>({auth:m.auth}))
 vi.mock('@/lib/supabase',()=>({createServiceClient:()=>({rpc:m.rpc})}))
-vi.mock('@/lib/play-access',()=>({isPlayEnabled:m.enabled,isWhitelisted:m.allowed}))
+vi.mock('@/lib/play-access',()=>({isPlayEnabled:m.enabled,isPlayAccount:m.allowed}))
 vi.mock('@/lib/play-write-origin',()=>({isTrustedPlayWrite:m.origin}))
 vi.mock('@/lib/play-invites',()=>({readInvitation:m.read}))
 import {POST} from './route'

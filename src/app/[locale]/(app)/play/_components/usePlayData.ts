@@ -26,12 +26,15 @@ export interface Resource<T> {
  * `enabled` defers the request until the screen is actually opened — the
  * deck is the landing screen, and there is no reason to hit the activity
  * feed and the leaderboard for a user who never taps those tabs.
+ * `retainOnReload` preserves mounted content during a same-URL refresh;
+ * changing the URL still clears the previous result immediately.
  */
 export function useApiResource<T>(
   url: string | null,
   parse: (payload: unknown) => T,
   enabled = true,
   pollMs = 0,
+  retainOnReload = false,
 ): Resource<T> {
   const [nonce, setNonce] = useState(0)
   // One piece of state holding the result AND the request it belongs to.
@@ -39,8 +42,9 @@ export function useApiResource<T>(
   // (`result.key !== key`) instead of being set from inside the effect —
   // which would be a cascading render, and which also used to leave the
   // previous URL's rows on screen for a frame after the URL changed.
-  const [result, setResult] = useState<{ key: string; data: T | null; status: LoadStatus }>({
+  const [result, setResult] = useState<{ key: string; url: string | null; data: T | null; status: LoadStatus }>({
     key: '',
+    url: null,
     data: null,
     status: 'loading',
   })
@@ -74,11 +78,11 @@ export function useApiResource<T>(
         })
         .then((payload: unknown) => {
           if (cancelled || seq !== requestRef.current) return
-          setResult({ key, data: parseRef.current(payload), status: 'ready' })
+          setResult({ key, url, data: parseRef.current(payload), status: 'ready' })
         })
         .catch(() => {
           if (cancelled || seq !== requestRef.current) return
-          setResult(previous => previous.key === key && previous.data ? previous : { key, data: null, status: 'error' })
+          setResult(previous => previous.data && (previous.key === key || retainOnReload && previous.url === url) ? { ...previous, key } : { key, url, data: null, status: 'error' })
         }).finally(() => { pending = false })
     }
     refresh()
@@ -91,11 +95,11 @@ export function useApiResource<T>(
       if (timer) clearInterval(timer)
       document.removeEventListener('visibilitychange', visibleRefresh)
     }
-  }, [url, enabled, key, pollMs])
+  }, [url, enabled, key, pollMs, retainOnReload])
 
   const reload = useCallback(() => setNonce((n) => n + 1), [])
 
-  const fresh = result.key === key
+  const fresh = result.key === key || retainOnReload && result.url === url && result.data !== null
   return {
     data: fresh ? result.data : null,
     status: fresh ? result.status : 'loading',

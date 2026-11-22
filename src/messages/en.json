@@ -1897,10 +1897,10 @@
     "invite": {
       "dismiss": "Not now",
       "title": "Who knows padel best?",
-      "body": "Invite your friends. Play together and compare your predictions.",
+      "body": "Invite your friends. You both get 500 extra Guacas when a new friend accepts your invitation.",
       "receiveTitle": "Your friends are already in.",
-      "receiveBody": "Join Padel Predict. Make predictions, collect Guacas and find your place in the ranking.",
-      "label": "PADEL PREDICT · INVITATION ONLY",
+      "receiveBody": "Join Padel Predict through this invitation and you and your friend each get 500 extra Guacas.",
+      "label": "PADEL PREDICT",
       "share": "SHARE INVITATION",
       "copy": "COPY LINK",
       "copied": "Link copied. Ready to share!",
@@ -2737,5 +2737,17 @@
     "how": "How Race points work",
     "explanation": "In 2026, the Race counts each player’s best 22 results from Premier Padel and the CUPRA FIP Tour. A new result may replace an older one, so the net gain can be smaller than the tournament points.",
     "reconcile": "Live standings are provisional. When FIP publishes a new ranking, it becomes the official baseline. Being in the top 16 today does not mean qualification is guaranteed."
+  },
+  "predictLaunch": {
+    "eyebrow": "Your turn to play",
+    "title": "The next point is yours.",
+    "body": "Play with friends. Show how well you know padel.",
+    "prize": "€50 Amazon gift card for the weekly leaderboard winner.",
+    "free": "Free to play. Virtual Guacas.",
+    "virtual": "No real-money betting.",
+    "cta": "Start playing",
+    "label": "Padel Predict launch",
+    "dismiss": "Dismiss banner",
+    "imageAlt": "Friends playing padel with the weekly €50 Amazon gift card prize"
   }
 }

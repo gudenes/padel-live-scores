@@ -28,7 +28,7 @@ it('includes weekly bot trades before settlement without resetting losses',async
   play_sim_bots:[{id:'new',name:'Bot 1'},{id:'lost',name:'Bot 2'},{id:'inactive',name:'Bot 3'}],
   play_sim_positions:[{bot_id:'lost',market_id:'sim-m',side:'no',shares:50,cost:100}],
   play_sim_markets:[{id:'sim-m',source_market_id:'m'}],
-  play_sim_trades:[{bot_id:'new'},{bot_id:'new'},{bot_id:'lost'}],
+  play_sim_trades:[{bot_id:'new',created_at:Date.parse(now)},{bot_id:'new',created_at:Date.parse(now)},{bot_id:'lost',created_at:Date.parse(now)}],
   markets:[{id:'m',status:'settled',outcome:true,settled_at:now,season_id:'s'}],
  }
  const from=(table:string)=>{

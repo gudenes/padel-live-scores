@@ -78,7 +78,10 @@ export default function LeadersScreen({
   const searchInput=useRef<HTMLInputElement>(null)
   useEffect(()=>{if(new URLSearchParams(window.location.search).get('search')==='1')setSearchOpen(true)},[])
   useEffect(()=>{if(searchOpen)searchInput.current?.focus()},[searchOpen])
-  const week=leaderboardWeek(weekOffset)
+  const selectedWeek = board?.weekOffset ?? weekOffset
+  const previousWeek = board?.previousWeek ?? null
+  const nextWeek = board?.nextWeek ?? null
+  const week=leaderboardWeek(selectedWeek)
   const dateLabel=(date:string)=>new Intl.DateTimeFormat(locale,{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(new Date(date))
   const router = useRouter()
 
@@ -131,9 +134,9 @@ export default function LeadersScreen({
       </div>
       {period==='week'&&<div className={styles.weekHistory}>
         <span>{dateLabel(week.labelStart)} – {dateLabel(week.labelEnd)}</span>
-        {history&&<div><Press size="size-sm" intent="intent-ghost" disabled={weekOffset>=520} onClick={()=>{setExpanded(false);onWeek?.(weekOffset+1)}} ariaLabel={t('leaders.previousWeek')}>‹</Press>
-          <Press size="size-sm" intent="intent-ghost" disabled={weekOffset===0} onClick={()=>{setExpanded(false);onWeek?.(weekOffset-1)}} ariaLabel={t('leaders.nextWeek')}>›</Press>
-          {weekOffset>0&&<Press size="size-sm" intent="intent-ghost" onClick={()=>{setExpanded(false);onWeek?.(0)}}>{t('leaders.thisWeek')}</Press>}
+        {history&&<div><Press size="size-sm" intent="intent-ghost" disabled={status !== 'ready' || previousWeek === null} onClick={()=>{setExpanded(false);if (previousWeek !== null) onWeek?.(previousWeek)}} ariaLabel={t('leaders.previousWeek')}>‹</Press>
+          <Press size="size-sm" intent="intent-ghost" disabled={status !== 'ready' || nextWeek === null} onClick={()=>{setExpanded(false);if (nextWeek !== null) onWeek?.(nextWeek)}} ariaLabel={t('leaders.nextWeek')}>›</Press>
+          {nextWeek !== null&&<Press size="size-sm" intent="intent-ghost" onClick={()=>{setExpanded(false);onWeek?.(0)}}>{t('leaders.thisWeek')}</Press>}
         </div>}
       </div>}
 
@@ -163,7 +166,7 @@ export default function LeadersScreen({
           {searchOpen && <p>{t('leaders.searchScope')}</p>}
           <div>
             <Press size="size-sm" onClick={() => onOpenMarkets ? onOpenMarkets() : router.push('/play')}>{t('leaders.exploreMarkets')}</Press>
-            {period === 'week' && onWeek && <Press size="size-sm" intent="intent-ghost" disabled={weekOffset >= 520} onClick={() => {setSearchOpen(false);setQuery('');setExpanded(false);onWeek(weekOffset + 1)}}>{t('leaders.previousWeek')}</Press>}
+            {period === 'week' && onWeek && previousWeek !== null && <Press size="size-sm" intent="intent-ghost" onClick={() => {setSearchOpen(false);setQuery('');setExpanded(false);onWeek(previousWeek)}}>{t('leaders.previousWeek')}</Press>}
           </div>
         </section>
       )}

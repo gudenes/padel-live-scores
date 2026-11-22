@@ -43,7 +43,7 @@ export default function TradeSheet({ onboarding=false, previewOnly=false, market
     const previous = document.activeElement as HTMLElement | null
     element?.showModal()
     const timer = setInterval(() => setNow(Date.now()), 1000)
-    return () => { clearInterval(timer); element?.close(); previous?.focus() }
+    return () => { clearInterval(timer); element?.close(); previous?.focus({ preventScroll: true }) }
   }, [])
   const money = (value: number) => `${formatGuacas(value, locale)} G`
   const message = error || (locked ? t('trade.locked') : !affordable ? t('trade.insufficient') : !quote ? t('explore.validAmount') : null)

@@ -21,7 +21,7 @@ try:
     fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
 except BlockingIOError:
     raise SystemExit('A guarded preview is already running. Stop it before starting another.')
-env = dict(os.environ, NODE_OPTIONS='--max-old-space-size=1536', RAYON_NUM_THREADS='2', UV_THREADPOOL_SIZE='2')
+env = dict(os.environ, NODE_OPTIONS='--max-old-space-size=2304', RAYON_NUM_THREADS='2', UV_THREADPOOL_SIZE='2')
 child = subprocess.Popen(['node', str(workdir / 'node_modules/next/dist/bin/next'), 'dev', '--webpack', '--hostname', '127.0.0.1', '--port', port], cwd=workdir, env=env, start_new_session=True)
 
 def stop(*_):

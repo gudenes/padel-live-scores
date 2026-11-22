@@ -224,6 +224,9 @@ export interface PlayLeader {
 }
 
 export interface PlayLeaderboard {
+  weekOffset?: number
+  previousWeek?: number | null
+  nextWeek?: number | null
   hasSimulation?: boolean
   rows: PlayLeader[]
   me: PlayLeader | null
@@ -559,5 +562,5 @@ export function parseLeaderboard(payload: unknown): PlayLeaderboard {
       if (parsed) rows.push(parsed)
     })
   }
-  return { hasSimulation: r.hasSimulation === true, rows, me: one(pick(r, 'me'), rows.length + 1, true) }
+  return { weekOffset: asNumber(r.weekOffset) ?? undefined, previousWeek: asNumber(r.previousWeek), nextWeek: asNumber(r.nextWeek), hasSimulation: r.hasSimulation === true, rows, me: one(pick(r, 'me'), rows.length + 1, true) }
 }

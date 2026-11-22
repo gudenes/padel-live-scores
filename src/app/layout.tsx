@@ -160,7 +160,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         id="sw-registration"
         strategy="afterInteractive"
         dangerouslySetInnerHTML={{
-          __html: `
+          __html: process.env.NODE_ENV === 'development' ? `
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                registrations.forEach(function(registration) { registration.unregister(); });
+              });
+            }
+          ` : `
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 navigator.serviceWorker.register('/sw.js')
