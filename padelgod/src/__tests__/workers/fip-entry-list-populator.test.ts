@@ -1,3 +1,5 @@
+import mexico from '../fixtures/entry-draw/mexico-major-2026-men.json';
+import type { EntryDrawSnapshot } from '../../lib/entry-draw-reconciliation.js';
 import { describe, it, expect, vi } from 'vitest';
 // Profile adoption behavior is covered by the full-name resolver tests.
 vi.mock('../../lib/fip-draw-player.js', () => ({ attachFipIdToDrawProfile: async () => null }));
@@ -42,6 +44,7 @@ interface ExistingPlayerSeed {
 }
 
 interface Options {
+  drawSnapshots?: EntryDrawSnapshot[];
   snapshots?: SnapshotSeed[];
   existingPlayers?: ExistingPlayerSeed[];
   /** Pre-existing tournament_entries row counts, keyed `${tid}::${cat}`. */
@@ -210,6 +213,11 @@ function fakeSupabase(opts: Options) {
           throw new Error(`unexpected schema: ${name}`);
         }
         if (t === 'entry_list_snapshots') return entryListSnapshotsTable();
+        if (t === 'draw_snapshots') {
+          const query = { select: () => query, eq: () => query, order: () => query,
+            range: () => Promise.resolve({ data: opts.drawSnapshots ?? [], error: null }) };
+          return query;
+        }
         throw new Error(`unexpected padelgod table: ${t}`);
       },
     }),
@@ -942,5 +950,24 @@ describe('runFipEntryListPopulator', () => {
     expect(isTournamentStarted('2026-11-22T00:00:00Z', now)).toBe(false);
     expect(isTournamentStarted(null, now)).toBe(false);
     expect(isTournamentStarted('garbage', now)).toBe(false);
+  });
+});
+describe('published draw overrides a stale entry PDF', () => {
+  it('does not reinsert Galan/Chingotto and persists actual competitive seeds', async () => {
+    const snapshots: SnapshotSeed[] = mexico.entries.flatMap(e => [1, 2].map(slot => ({
+      tournament_id: TOURNAMENT_ID, category: 'men' as const,
+      fip_id: slot === 1 ? e.player1_id : e.player2_id,
+      name: slot === 1 ? e.player1_name : e.player2_name,
+      country: null, captured_at: NOW, seed: e.seed, draw_type: e.draw_type,
+      partner_fip_id: slot === 1 ? e.player2_id : e.player1_id,
+      partner_name: slot === 1 ? e.player2_name : e.player1_name,
+    })));
+    const existingPlayers = snapshots.map(r => ({ id: r.fip_id!, fip_id: r.fip_id!,
+      name: r.name, country: null, category: r.category }));
+    const db = fakeSupabase({ snapshots, existingPlayers, drawSnapshots: mexico.draw });
+    await runFipEntryListPopulator({ supabase: db as never, dryRun: false });
+    expect(db.entryInserts).toHaveLength(mexico.entries.length - 1);
+    expect(db.entryInserts.some(e => e.player1_name === 'Alejandro Galan' || e.player2_name === 'Alejandro Galan')).toBe(false);
+    expect(db.entryInserts.find(e => e.player1_name === 'Juan Lebron' || e.player2_name === 'Juan Lebron')?.seed).toBe(2);
   });
 });

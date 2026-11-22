@@ -52,6 +52,7 @@ import type { Logger } from 'pino';
 import { claimNotificationEvent } from '../lib/notification-events.js';
 import { notifyEvent, type NotifyDeps } from '../lib/notify.js';
 import { buildEntryTeams, type EntrySnapshotInput } from '../lib/entry-list-teams.js';
+import { reconcileMainDrawEntries, type EntryDrawSnapshot } from '../lib/entry-draw-reconciliation.js';
 import { paginatedSelect } from '../lib/db-paginate.js';
 
 const SNAPSHOT_LOOKBACK_DAYS = 14;
@@ -581,7 +582,7 @@ export async function runFipEntryListPopulator(
           (r) => r.tournament_id === tournament_id && r.category === category,
         )?.captured_at ?? new Date().toISOString();
 
-      const insertRows = teams.map((t) => {
+      let insertRows = teams.map((t) => {
         const p1 = existingByFipId.get(t.fip1);
         const p2 = t.fip2 ? existingByFipId.get(t.fip2) : undefined;
         const pts1 = p1?.points ?? null;
@@ -603,6 +604,23 @@ export async function runFipEntryListPopulator(
           captured_at: capturedAt,
         };
       });
+
+      // Entry PDFs can remain unchanged after a withdrawal. A complete main
+      // draw supersedes their roster and seeds on every refresh, so the next
+      // entry-list scrape cannot resurrect a withdrawn pair.
+      const drawRows = await paginatedSelect<EntryDrawSnapshot>(
+        (start, end) => supabase.schema('padelgod').from('draw_snapshots')
+          .select('scrape_job_id, captured_at, match_widget_id, round_label, team1_player1_name, team1_player2_name, team2_player1_name, team2_player2_name, team1_seed, team2_seed')
+          .eq('tournament_id', tournament_id).eq('category', category)
+          .eq('draw_type', 'main_draw').eq('source', 'fip_event_page')
+          .order('captured_at', { ascending: false }).order('id')
+          .range(start, end),
+        { what: 'main draw for entry reconciliation' },
+      );
+      const reconciled = reconcileMainDrawEntries(insertRows, drawRows);
+      logger?.info({ tournament_id, category, reason: reconciled.reason,
+        before: insertRows.length, after: reconciled.entries.length }, 'Entry list draw reconciliation');
+      insertRows = reconciled.entries;
 
       // Shrink guard: never let a degraded build wipe a good stored list.
       const { count: existingCount, error: countErr } = await supabase
